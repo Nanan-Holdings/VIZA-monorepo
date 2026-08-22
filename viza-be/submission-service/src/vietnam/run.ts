@@ -16,13 +16,25 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
-import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import {
+  DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
+  DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+  isVietnamCaptchaFailureRetryable,
+  refreshVietnamCaptchaChallenge,
+  reportAcceptedVietnamCaptcha,
+  reportRejectedVietnamCaptcha,
+  solveVietnamImageCaptcha,
+  solveVietnamReviewCaptchaWithRetry,
+  submitVietnamCaptchaAnswer,
+  type VietnamCaptchaSolveOutcome,
+} from "./captcha";
 import {
   fillVietnamConditionalRepeatGroups,
   validateVietnamConditionalAnswers,
 } from "./conditional-fields";
-import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
+  dedupeVietnamUploadAnswers,
   getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
@@ -30,36 +42,207 @@ import {
   type VnFieldFallbackRecord,
   type VnFieldType,
 } from "./field-mappings";
-import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
+import {
+  commitVietnamOfficialExpenseSelectModel,
+  fillDate,
+  fillText,
+  pickRadio,
+  pickSelect,
+  tickCheckbox,
+  toDdMmYyyy,
+} from "./fillers";
 import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
   redactVietnamFixedCard,
+  verifyVietnamOfficialFeeText,
   type RedactedVietnamFixedCard,
   type VietnamFixedCard,
 } from "./fixed-card-payment";
 import {
+  chooseVietnamReviewAction,
   classifyVietnamPortalSnapshot,
   isAutoAcknowledgeableVietnamPortalState,
   readVietnamPortalSnapshot,
+  shouldTryVietnamFallbackLanding,
   waitForVietnamPortalCheckpoint,
+  type VietnamReviewActionCandidate,
   type VietnamPortalSnapshot,
   type VietnamPortalStateId,
 } from "./portal-state";
 import type { VietnamProgressStage } from "./progress";
-import { installVietnamPublicApiProxy } from "./public-api-proxy";
+import {
+  installVietnamPublicApiProxy,
+  isVietnamPublicUploadRequest,
+} from "./public-api-proxy";
 import {
   buildVietnamBrowserAttempts,
+  computeVietnamPortalRetryDelayMs,
+  DEFAULT_VIETNAM_PORTAL_ATTEMPTS,
+  DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS,
+  DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS,
   finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
   MAX_VIETNAM_PORTAL_ATTEMPTS,
   type VietnamBrowserChannel,
 } from "./retry-policy";
 import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context.js";
+import { clickOwned, runOwnedAction } from "../queue/portal-safety.js";
+
+function isRunnerOwnershipLoss(error: unknown): boolean {
+  return error instanceof RunnerJobOwnershipLostError ||
+    (typeof error === "object" && error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "runner_job_ownership_lost");
+}
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
   answers: Record<string, string>;
+}
+
+export interface VietnamApplicationPageFillResult {
+  filled: number;
+  skipped: number;
+  validationErrors: VietnamPortalValidationError[];
+}
+
+export interface VietnamApplicationPageFillOptions {
+  /** Repair an existing draft without rewriting immutable, already-populated fields. */
+  repairExisting?: boolean;
+}
+
+/**
+ * Refill an already-open official Vietnam application page from the same
+ * canonical answer map used for a new application. This is used by the
+ * payment-resume flow when an old official draft has expired dates or missing
+ * upload previews. It does not click Next, submit the application, or enter
+ * payment data.
+ */
+export async function fillVietnamOfficialApplicationPage(
+  page: Page,
+  rawAnswers: Record<string, string>,
+  options: VietnamApplicationPageFillOptions = {},
+): Promise<VietnamApplicationPageFillResult> {
+  const answers = dedupeVietnamUploadAnswers(rawAnswers);
+  const validationErrors: VietnamPortalValidationError[] = validateVietnamConditionalAnswers(answers)
+    .map((error) => ({
+      label: error.fieldName,
+      domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+      message: error.message,
+    }));
+  if (validationErrors.length > 0) {
+    return { filled: 0, skipped: 0, validationErrors };
+  }
+
+  let filled = 0;
+  let skipped = 0;
+  for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+    const value = answers[fieldName];
+    if (!value) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      if (
+        options.repairExisting &&
+        fieldName === "re_enter_email_address" &&
+        (await page.locator(`#${cssEscape(mapping.domId)}`).count().catch(() => 0)) === 0
+      ) {
+        skipped += 1;
+        console.log("[vn] official draft has no separate confirmation-email control; preserved primary email");
+        continue;
+      }
+      if (
+        options.repairExisting &&
+        mapping.type !== "upload" &&
+        await isSatisfiedDisabledVietnamControl(page, mapping.domId)
+      ) {
+        skipped += 1;
+        console.log(`[vn] preserved populated immutable field ${fieldName}`);
+        continue;
+      }
+      console.log(`[vn] filling field ${fieldName} (${mapping.type})`);
+      await fillByType(page, fieldName, mapping.type, mapping.domId, value);
+      if (fieldName === "intended_province_city") {
+        await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
+      }
+      filled += await fillVietnamConditionalRepeatGroups(page, answers, fieldName);
+      filled += 1;
+      console.log(`[vn] filled field ${fieldName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      validationErrors.push({
+        label: fieldName,
+        domId: mapping.domId,
+        message: `Official Vietnam e-Visa portal rejected this value: ${message}`,
+      });
+      console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${message}`);
+      skipped += 1;
+    }
+  }
+
+  if (options.repairExisting) {
+    // Date inputs on the live detail page can keep a stale child-component
+    // value and replay it after unrelated controls blur. Recommit all dates to
+    // the active official Pinia form immediately before the final validation.
+    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+      const value = answers[fieldName];
+      if (!value || mapping.type !== "date") continue;
+      const visibleInput = page.locator(`#${cssEscape(mapping.domId)}:visible`).first();
+      const input = (await visibleInput.count().catch(() => 0)) > 0
+        ? visibleInput
+        : page.locator(`#${cssEscape(mapping.domId)}`).first();
+      if ((await input.count().catch(() => 0)) === 0) continue;
+      await fillDate(page, mapping.domId, toPortalDateForField(fieldName, value));
+    }
+    await page.waitForTimeout(1_500);
+    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+      const value = answers[fieldName];
+      if (!value || mapping.type !== "date") continue;
+      const visibleInput = page.locator(`#${cssEscape(mapping.domId)}:visible`).first();
+      const input = (await visibleInput.count().catch(() => 0)) > 0
+        ? visibleInput
+        : page.locator(`#${cssEscape(mapping.domId)}`).first();
+      if ((await input.count().catch(() => 0)) === 0) continue;
+      const current = await input.inputValue().catch(() => "");
+      if (current.trim() === toPortalDateForField(fieldName, value)) continue;
+      validationErrors.push({
+        label: fieldName,
+        domId: mapping.domId,
+        message: "Official Vietnam e-Visa portal did not persist the repaired date value.",
+      });
+    }
+  }
+
+  await repairMissingVietnamUploadPreviews(page, answers, validationErrors);
+
+  return { filled, skipped, validationErrors };
+}
+
+export async function isSatisfiedDisabledVietnamControl(
+  page: Page,
+  domId: string,
+): Promise<boolean> {
+  return page
+    .locator(`#${cssEscape(domId)}`)
+    .first()
+    .evaluate((element) => {
+      const control = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      const disabled =
+        control.disabled ||
+        element.getAttribute("aria-disabled") === "true" ||
+        element.closest(".ant-input-disabled, .ant-select-disabled") !== null;
+      if (!disabled) return false;
+      const value = "value" in control ? String(control.value ?? "").trim() : "";
+      const rendered = (element.getAttribute("title") ?? element.textContent ?? "").trim();
+      return Boolean(value || rendered);
+    })
+    .catch(() => false);
 }
 
 export interface FillVietnamOptions {
@@ -80,6 +263,7 @@ export interface FillVietnamOptions {
   /** Full browser-session retries for intermittent official-portal failures. */
   maxPortalAttempts?: number;
   retryBackoffMs?: number;
+  retryMaxBackoffMs?: number;
   browserChannels?: string;
   /** Internal/current Playwright browser channel. Undefined uses bundled Chromium. */
   browserChannel?: VietnamBrowserChannel;
@@ -88,6 +272,13 @@ export interface FillVietnamOptions {
   allowFixedCardPayment?: boolean;
   /** One-time card captured from the local submission-service card-session endpoint. */
   fixedCard?: VietnamFixedCard | null;
+  /** Queue ownership cancellation and irreversible-action checkpoint. */
+  executionContext?: RunnerExecutionContext;
+  /** Lazily resolves a managed card only after the official payment page is visible. */
+  takeFixedCard?: () => Promise<VietnamFixedCard | null>;
+  /** Durable managed-intent amount expected on the visible official page. */
+  expectedPaymentAmountCents?: number | null;
+  expectedPaymentCurrency?: string | null;
 }
 
 export type FillVietnamResult =
@@ -95,6 +286,13 @@ export type FillVietnamResult =
       status: "scaffolded_pending_walk";
       runId?: string;
       reason: string;
+      errorCode?:
+        | "form_validation_failed"
+        | "document_upload_failed"
+        | "review_action_not_found"
+        | "review_action_disabled"
+        | "review_transition_failed"
+        | "registration_code_not_found";
       checkpoint?: VietnamPortalStateId;
       url?: string;
       diagnostics?: VietnamDiagnostics;
@@ -107,6 +305,7 @@ export type FillVietnamResult =
         | "captcha_required"
         | "upload_required"
         | "payment_required"
+        | "official_fee_payment_review_required"
         | "final_submit_required"
         | "layout_changed"
         | "official_portal_error"
@@ -114,6 +313,7 @@ export type FillVietnamResult =
       checkpoint: VietnamPortalStateId;
       instruction: string;
       url: string;
+      registrationCode?: string | null;
       diagnostics?: VietnamDiagnostics;
     }
   | {
@@ -159,6 +359,7 @@ export interface VietnamDiagnostics {
   portalAttempt?: number;
   proxiedPublicRequestCount?: number;
   publicProxyFailures?: string[];
+  reviewBlockers?: VietnamReviewBlockerDiagnostics;
 }
 
 const VN_LANDING_URL = process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/";
@@ -170,20 +371,29 @@ export async function fillVietnamApplication(
   input: FillVietnamInput,
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
+  options.executionContext?.assertOwned();
   if (!options.stopAtFirstCheckpoint) {
-    const validityErrors = validateVietnamPortalValidityRange(input.answers);
-    if (validityErrors.length > 0) {
+    const preflightErrors: VietnamPortalValidationError[] = [
+      ...validateVietnamPortalValidityRange(input.answers),
+      ...validateVietnamConditionalAnswers(input.answers).map((error) => ({
+        label: error.fieldName,
+        domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+        message: error.message,
+      })),
+    ];
+    if (preflightErrors.length > 0) {
       return {
         status: "scaffolded_pending_walk",
         runId: options.runId,
-        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validityErrors
+        errorCode: "form_validation_failed",
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${preflightErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
         url: options.officialBaseUrl ?? VN_LANDING_URL,
         diagnostics: {
           consoleErrors: [],
           failedRequests: [],
-          validationErrors: validityErrors,
+          validationErrors: preflightErrors,
         },
       };
     }
@@ -195,10 +405,17 @@ export async function fillVietnamApplication(
 
   const maxAttempts = Math.min(
     options.maxPortalAttempts ??
-      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, MAX_VIETNAM_PORTAL_ATTEMPTS),
+      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, DEFAULT_VIETNAM_PORTAL_ATTEMPTS),
     MAX_VIETNAM_PORTAL_ATTEMPTS,
   );
-  const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(process.env.VN_PORTAL_RETRY_BACKOFF_MS, 5_000);
+  const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(
+    process.env.VN_PORTAL_RETRY_BACKOFF_MS,
+    DEFAULT_VIETNAM_PORTAL_RETRY_BACKOFF_MS,
+  );
+  const retryMaxBackoffMs = options.retryMaxBackoffMs ?? readPositiveInt(
+    process.env.VN_PORTAL_RETRY_MAX_BACKOFF_MS,
+    DEFAULT_VIETNAM_PORTAL_RETRY_MAX_BACKOFF_MS,
+  );
   const channels = options.browserChannel
     ? [options.browserChannel]
     : buildVietnamBrowserAttempts(
@@ -218,13 +435,23 @@ export async function fillVietnamApplication(
       finalScreenshotPath: suffixArtifactPath(options.finalScreenshotPath, attempt),
     });
     lastResult = result;
+    options.executionContext?.assertOwned();
     if (!isRetryableVietnamResult(result)) return result;
     if (attempt >= channels.length) {
       return finalizeVietnamResultAfterRetries(result, attempt);
     }
 
+    options.executionContext?.assertOwned();
     await options.onProgress?.(`portal_retry:${attempt + 1}`);
-    await sleep(Math.min(retryBackoffMs * 2 ** index, 30_000));
+    await sleep(
+      computeVietnamPortalRetryDelayMs({
+        completedAttempts: attempt,
+        baseDelayMs: retryBackoffMs,
+        maxDelayMs: retryMaxBackoffMs,
+      }),
+      options.executionContext?.signal,
+    );
+    options.executionContext?.assertOwned();
   }
 
   return lastResult ?? {
@@ -259,6 +486,13 @@ async function fillVietnamApplicationOnce(
   const publicProxyFailures: string[] = [];
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
+  let reviewBlockers: VietnamReviewBlockerDiagnostics | undefined;
+  let fixedCardPromise: Promise<VietnamFixedCard | null> | null = null;
+  const abortListener = (): void => {
+    void context?.close().catch(() => undefined);
+    void browser?.close().catch(() => undefined);
+  };
+  options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
 
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
@@ -273,9 +507,28 @@ async function fillVietnamApplicationOnce(
     portalAttempt: options.portalAttempt ?? 1,
     proxiedPublicRequestCount,
     publicProxyFailures: publicProxyFailures.slice(-10),
+    reviewBlockers,
   });
   const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
     await options.onProgress?.(stage);
+  };
+  const resolveFixedCard = async (): Promise<VietnamFixedCard | null> => {
+    if (!options.allowFixedCardPayment) return null;
+    fixedCardPromise ??= options.fixedCard
+      ? Promise.resolve(options.fixedCard)
+      : options.takeFixedCard
+        ? options.takeFixedCard()
+        : Promise.resolve(loadVietnamFixedCardFromEnv());
+    return fixedCardPromise;
+  };
+  const verifyVisibleOfficialFee = async (): Promise<string | null> => {
+    const bodyText = await page?.locator("body").innerText({ timeout: 5_000 }).catch(() => "") ?? "";
+    const verification = verifyVietnamOfficialFeeText({
+      bodyText,
+      expectedAmountCents: options.expectedPaymentAmountCents,
+      expectedCurrency: options.expectedPaymentCurrency,
+    });
+    return verification.verified ? null : verification.reason;
   };
 
   try {
@@ -300,6 +553,7 @@ async function fillVietnamApplicationOnce(
       });
       page = await context.newPage();
     }
+    options.executionContext?.assertOwned();
     if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
       await installVietnamPublicApiProxy(context, {
         onSuccess: () => {
@@ -347,6 +601,7 @@ async function fillVietnamApplicationOnce(
       onCaptchaSolved: (outcome) => {
         captchaSolves.push(outcome);
       },
+      executionContext: options.executionContext,
     });
 
     if (bootstrap.kind === "action_required") {
@@ -391,59 +646,19 @@ async function fillVietnamApplicationOnce(
 
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
-    const conditionalAnswerErrors = validateVietnamConditionalAnswers(input.answers);
-    if (conditionalAnswerErrors.length > 0) {
-      validationErrors.push(
-        ...conditionalAnswerErrors.map((error) => ({
-          label: error.fieldName,
-          domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
-          message: error.message,
-        })),
+    await emitProgress("filling_fields");
+    const pageFill = await fillVietnamOfficialApplicationPage(page, input.answers);
+    const { filled, skipped } = pageFill;
+    validationErrors.push(...pageFill.validationErrors);
+
+    if (validationErrors.length > 0) {
+      const documentUploadFailed = validationErrors.some(
+        (error) => VN_FIELD_MAPPINGS[error.label]?.type === "upload",
       );
       return {
         status: "scaffolded_pending_walk",
         runId,
-        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
-          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
-          .join("; ")}`,
-        checkpoint: "application_form_visible",
-        url: page.url(),
-        diagnostics: diagnostics(),
-      };
-    }
-
-    await emitProgress("filling_fields");
-    let filled = 0;
-    let skipped = 0;
-    for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
-      const value = input.answers[fieldName];
-      if (!value) {
-        skipped++;
-        continue;
-      }
-      try {
-        await fillByType(page, fieldName, mapping.type, mapping.domId, value);
-        if (fieldName === "intended_province_city") {
-          await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
-        }
-        filled += await fillVietnamConditionalRepeatGroups(page, input.answers, fieldName);
-        filled++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        validationErrors.push({
-          label: fieldName,
-          domId: mapping.domId,
-          message: `Official Vietnam e-Visa portal rejected this value: ${msg}`,
-        });
-        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${msg}`);
-        skipped++;
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      return {
-        status: "scaffolded_pending_walk",
-        runId,
+        errorCode: documentUploadFailed ? "document_upload_failed" : "form_validation_failed",
         reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
           .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
           .join("; ")}`,
@@ -457,26 +672,82 @@ async function fillVietnamApplicationOnce(
     // Click the form's primary "Save" / "Next" button to advance to the
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
     await emitProgress("advancing_to_review");
-    await advanceToReview(page, stepTimeoutMs);
+    const reviewAdvance = await advanceVietnamToReview(page, stepTimeoutMs, options.executionContext);
+    reviewBlockers = reviewAdvance.blockers;
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
     let stateAfterCaptcha = reviewState;
+    let lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
     if (stateAfterCaptcha === "captcha_visible") {
-      const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
-      for (let attempt = 1; attempt <= maxReviewCaptchaAttempts && stateAfterCaptcha === "captcha_visible"; attempt++) {
+      const maxReviewCaptchaAttempts = readPositiveInt(
+        process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS,
+        DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+      );
+      const reviewCaptchaDeadline =
+        Date.now() + readPositiveInt(
+          process.env.VN_CAPTCHA_TOTAL_BUDGET_MS,
+          DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+        );
+      for (
+        let attempt = 1;
+        attempt <= maxReviewCaptchaAttempts &&
+          stateAfterCaptcha === "captcha_visible" &&
+          Date.now() < reviewCaptchaDeadline;
+        attempt++
+      ) {
+        const postSolveReserveMs = 30_000;
+        if (reviewCaptchaDeadline - Date.now() <= postSolveReserveMs) {
+          lastReviewCaptchaReason =
+            "The Vietnam CAPTCHA solve budget ended with its verification reserve intact.";
+          break;
+        }
+        console.log(`[vn] Review CAPTCHA attempt ${attempt}/${maxReviewCaptchaAttempts}.`);
         if (attempt > 1) {
-          await refreshVietnamReviewCaptcha(page);
+          const refreshBudgetMs = remainingVietnamCaptchaBudgetMs(
+            reviewCaptchaDeadline,
+            Math.min(stepTimeoutMs, 18_000),
+          );
+          const refreshed = await withTimeout(
+            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 15_000)),
+            refreshBudgetMs,
+            false,
+          );
+          console.log(
+            `[vn] Review CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
+          );
+          if (!refreshed) {
+            lastReviewCaptchaReason =
+              "The official CAPTCHA refresh could not be confirmed; VIZA did not resubmit the stale challenge.";
+            break;
+          }
+          if (Date.now() >= reviewCaptchaDeadline) break;
           await page.waitForTimeout(1_000);
         }
         await emitProgress("captcha_solving");
-        const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
+        const captchaOutcome = await solveVietnamReviewCaptchaWithRetry(
+          page,
+          Math.max(
+            1_000,
+            Math.min(
+              Math.max(stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+              reviewCaptchaDeadline - Date.now() - postSolveReserveMs,
+            ),
+          ),
+        );
         captchaSolves.push(captchaOutcome);
+        logVietnamCaptchaOutcome("Review", attempt, captchaOutcome);
         if (!captchaOutcome.solved) {
-          const recoverySnapshot = await readVietnamPortalSnapshot(
-            page,
-            failedRequests.length,
-            mainRequestFailed,
-          ).catch(() => null);
+          lastReviewCaptchaReason = captchaOutcome.reason ?? "unknown CAPTCHA error";
+          if (Date.now() >= reviewCaptchaDeadline) break;
+          const recoverySnapshot = await withTimeout(
+            readVietnamPortalSnapshot(
+              page,
+              failedRequests.length,
+              mainRequestFailed,
+            ).catch(() => null),
+            remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, 8_000),
+            null,
+          );
           if (recoverySnapshot) {
             lastSnapshot = recoverySnapshot;
             stateAfterCaptcha = classifyVietnamPortalSnapshot(recoverySnapshot);
@@ -484,28 +755,42 @@ async function fillVietnamApplicationOnce(
               break;
             }
           }
-          return {
-            status: "action_required",
-            runId,
-            actionType: "captcha_required",
-            checkpoint: "captcha_visible",
-            instruction:
-              `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${captchaOutcome.reason ?? "unknown CAPTCHA error"}`,
-            url: page.url(),
-            diagnostics: diagnostics(),
-          };
+          if (!isVietnamCaptchaFailureRetryable(captchaOutcome.reason)) break;
+          continue;
         }
         await emitProgress("captcha_submitted");
-        await withTimeout(
-          submitReviewCaptchaAndWait(page, stepTimeoutMs),
-          Math.min(stepTimeoutMs, 55_000),
-          undefined,
+        options.executionContext?.assertOwned();
+        const captchaSubmitted = await withTimeout(
+          submitVietnamCaptchaAnswer(
+            page,
+            remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 10_000)),
+          ),
+          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.min(stepTimeoutMs, 55_000)),
+          false,
         );
-        const codeAfterCaptcha = await withTimeout(captureRegistrationCode(page), 8_000, null);
+        const postCaptchaInstruction = captchaSubmitted
+          ? await withTimeout(
+              acknowledgeVietnamPostCaptchaInstructionModal(page),
+              remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, Math.max(stepTimeoutMs, 45_000)),
+              "not_visible" as const,
+            )
+          : "not_visible";
+        if (postCaptchaInstruction === "acknowledged") {
+          console.log("[vn] Acknowledged the official post-CAPTCHA declaration instructions.");
+          await page.waitForTimeout(1_000);
+        } else if (postCaptchaInstruction === "failed") {
+          lastReviewCaptchaReason =
+            "The official CAPTCHA was accepted, but its declaration instructions could not be acknowledged safely.";
+        }
+        const codeAfterCaptcha = await withTimeout(
+          captureRegistrationCode(page),
+          remainingVietnamCaptchaBudgetMs(reviewCaptchaDeadline, 8_000),
+          null,
+        );
         if (codeAfterCaptcha) {
           console.log(`[vn] Run ${runId} captured registration code after review CAPTCHA.`);
           const confirmed = await withTimeout(
-            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
             Math.min(stepTimeoutMs, 30_000),
             false,
           );
@@ -514,7 +799,7 @@ async function fillVietnamApplicationOnce(
           }
         } else {
           const confirmed = await withTimeout(
-            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
             Math.min(stepTimeoutMs, 10_000),
             false,
           );
@@ -524,12 +809,32 @@ async function fillVietnamApplicationOnce(
         }
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+        if (
+          captchaSubmitted &&
+          postCaptchaInstruction !== "failed" &&
+          stateAfterCaptcha === "captcha_visible"
+        ) {
+          lastReviewCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
+          await reportRejectedVietnamCaptcha(captchaOutcome);
+        } else if (postCaptchaInstruction === "failed") {
+          break;
+        } else if (!captchaSubmitted && stateAfterCaptcha === "captcha_visible") {
+          lastReviewCaptchaReason = "VIZA could not activate the official CAPTCHA verification control.";
+        } else if (
+          captchaSubmitted &&
+          !["portal_error", "network_blocked", "layout_changed", "white_screen"].includes(stateAfterCaptcha)
+        ) {
+          await reportAcceptedVietnamCaptcha(captchaOutcome);
+        }
+      }
+      if (stateAfterCaptcha === "captcha_visible" && Date.now() >= reviewCaptchaDeadline) {
+        lastReviewCaptchaReason = `${lastReviewCaptchaReason} Total CAPTCHA time budget was exhausted.`;
       }
     }
     let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
     if (registrationCode) {
       const confirmed = await withTimeout(
-        confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+        confirmDeclarationCompletedNotice(page, stepTimeoutMs, options.executionContext),
         Math.min(stepTimeoutMs, 30_000),
         false,
       );
@@ -543,16 +848,22 @@ async function fillVietnamApplicationOnce(
       options.allowFixedCardPayment &&
       stateAfterCaptcha !== "payment_page_visible"
     ) {
-      stateAfterCaptcha = await continueVietnamSameSessionToPayment(page, stepTimeoutMs);
+      stateAfterCaptcha = await continueVietnamSameSessionToPayment(
+        page,
+        stepTimeoutMs,
+        options.executionContext?.assertOwned,
+      );
     }
     if (stateAfterCaptcha === "captcha_visible" && !registrationCode) {
       return {
-        status: "action_required",
+        status: "failed",
         runId,
-        actionType: "captcha_required",
+        failedStep: "captcha_visible",
+        error: {
+          code: "captcha_automatic_failed",
+          message: `Automatic Vietnam CAPTCHA processing exhausted its retry budget: ${lastReviewCaptchaReason}`,
+        },
         checkpoint: "captcha_visible",
-        instruction:
-          "The official Vietnam e-Visa portal stayed on the security-code step after the CAPTCHA answer was submitted. Retry with a refreshed CAPTCHA or complete the security code manually.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -563,9 +874,32 @@ async function fillVietnamApplicationOnce(
         return {
           status: "scaffolded_pending_walk",
           runId,
+          errorCode: "form_validation_failed",
           reason: `Official Vietnam e-Visa portal validation blocked submission: ${validationErrors
             .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
             .join("; ")}`,
+          checkpoint: stateAfterCaptcha,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
+      if (!reviewAdvance.advanced) {
+        const reviewErrorCode = reviewAdvance.failureReason === "disabled"
+          ? "review_action_disabled"
+          : reviewAdvance.failureReason === "not_found"
+            ? "review_action_not_found"
+            : "review_transition_failed";
+        return {
+          status: "scaffolded_pending_walk",
+          runId,
+          errorCode: reviewErrorCode,
+          reason:
+            reviewAdvance.failureReason === "disabled"
+              ? "Official Vietnam e-Visa review action remained disabled after all required fields and document uploads were checked."
+              : reviewAdvance.failureReason === "not_found"
+                ? "Official Vietnam e-Visa review action was not present after form filling."
+                : `Official Vietnam e-Visa portal did not advance after VIZA clicked the ${reviewAdvance.clickedLabel ?? "review"} action. ` +
+                  "The application remains saved, and VIZA stopped without repeating the action to avoid a duplicate official submission.",
           checkpoint: stateAfterCaptcha,
           url: page.url(),
           diagnostics: diagnostics(),
@@ -586,14 +920,29 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = options.allowFixedCardPayment
-        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
-        : null;
+      const feeVerificationFailure = await verifyVisibleOfficialFee();
+      if (feeVerificationFailure) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "official_fee_payment_review_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `VIZA paused before acquiring a payment card because the visible official fee could not be verified (${feeVerificationFailure}). Staff review is required; do not pay the portal directly.`,
+          url: page.url(),
+          registrationCode: registrationCode ?? null,
+          diagnostics: diagnostics(),
+        };
+      }
+      const fixedCard = await resolveFixedCard();
       if (fixedCard) {
+        options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          executionContext: options.executionContext,
+          contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
         if (payment.status === "paid" && payment.receiptReference) {
@@ -616,8 +965,9 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+            `VIZA could not confirm the managed Vietnam official-fee payment: ${payment.reason ?? payment.status}. Staff review is required; do not pay the portal directly.`,
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }
@@ -628,8 +978,9 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            "The official Vietnam e-Visa portal reached payment, but VIZA has not recorded an authorized official-fee payment intent for this application. Authorize payment in VIZA before continuing.",
+            "VIZA paused because this application has no executable managed official-fee intent and allocation. Staff review is required; do not pay the portal directly.",
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }
@@ -639,8 +990,9 @@ async function fillVietnamApplicationOnce(
         actionType: "payment_required",
         checkpoint: "payment_page_visible",
         instruction:
-          "The official Vietnam e-Visa portal reached payment. VIZA stopped before Pay/Submit; complete payment manually only if you intend to proceed.",
+          "VIZA could not acquire a managed payment card for the verified official fee. Staff review is required; do not pay the portal directly.",
         url: page.url(),
+        registrationCode: registrationCode ?? null,
         diagnostics: diagnostics(),
       };
     }
@@ -651,7 +1003,7 @@ async function fillVietnamApplicationOnce(
         actionType: "final_submit_required",
         checkpoint: "final_submit_visible",
         instruction:
-          "The official Vietnam e-Visa portal is at a final submission confirmation. VIZA stopped before the irreversible submit action; review and submit manually only if you intend to proceed.",
+          "The official Vietnam e-Visa portal is at final confirmation. VIZA paused the automated run for staff review and will not ask the applicant to submit or pay directly.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -662,6 +1014,7 @@ async function fillVietnamApplicationOnce(
       return {
         status: "scaffolded_pending_walk",
         runId,
+        errorCode: "registration_code_not_found",
         reason:
           "Form filled but registration code element not found on review screen — " +
           "selector tweak required (see VN_REGISTRATION_CODE_SELECTOR).",
@@ -675,14 +1028,29 @@ async function fillVietnamApplicationOnce(
     const finalState = finalSnapshot ? classifyVietnamPortalSnapshot(finalSnapshot) : stateAfterCaptcha;
     if (finalState === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = options.allowFixedCardPayment
-        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
-        : null;
+      const feeVerificationFailure = await verifyVisibleOfficialFee();
+      if (feeVerificationFailure) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "official_fee_payment_review_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `VIZA paused before acquiring a payment card because the visible official fee could not be verified (${feeVerificationFailure}). Staff review is required; do not pay the portal directly.`,
+          url: page.url(),
+          registrationCode,
+          diagnostics: diagnostics(),
+        };
+      }
+      const fixedCard = await resolveFixedCard();
       if (fixedCard) {
+        options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({
           page,
           card: fixedCard,
+          executionContext: options.executionContext,
+          contactEmail: input.answers.email_address ?? input.answers.email ?? null,
           onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
         });
         if (payment.status === "paid" && payment.receiptReference) {
@@ -705,8 +1073,9 @@ async function fillVietnamApplicationOnce(
           actionType: "payment_required",
           checkpoint: "payment_page_visible",
           instruction:
-            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+            `VIZA could not confirm the managed Vietnam official-fee payment: ${payment.reason ?? payment.status}. Staff review is required; do not pay the portal directly.`,
           url: page.url(),
+          registrationCode: registrationCode ?? null,
           diagnostics: diagnostics(),
         };
       }
@@ -722,6 +1091,11 @@ async function fillVietnamApplicationOnce(
       fieldFallbacks,
     };
   } catch (err) {
+    const isAbortError = err instanceof Error && err.name === "AbortError";
+    if (isRunnerOwnershipLoss(err) || isAbortError || options.executionContext?.signal.aborted) {
+      const abortReason = options.executionContext?.signal.reason;
+      throw abortReason instanceof Error ? abortReason : err;
+    }
     return {
       status: "failed",
       runId,
@@ -731,6 +1105,7 @@ async function fillVietnamApplicationOnce(
       diagnostics: diagnostics(),
     };
   } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
     if (options.finalScreenshotPath && page) {
       try {
         fs.mkdirSync(path.dirname(options.finalScreenshotPath), { recursive: true });
@@ -798,6 +1173,7 @@ interface VietnamBootstrapOptions {
   onSnapshot: (snapshot: VietnamPortalSnapshot) => void;
   onStage: (stage: VietnamProgressStage) => void | Promise<void>;
   onCaptchaSolved: (outcome: VietnamCaptchaSolveOutcome) => void;
+  executionContext?: RunnerExecutionContext;
 }
 
 async function reachVietnamFormCheckpoint(
@@ -843,7 +1219,7 @@ async function reachVietnamFormCheckpoint(
     await page.reload({ waitUntil: "domcontentloaded", timeout: Math.min(options.stepTimeoutMs, 45_000) }).catch(() => undefined);
     state = await readState();
   }
-  if ((state === "white_screen" || state === "network_blocked") && bases.length > 1) {
+  if (shouldTryVietnamFallbackLanding(state) && bases.length > 1) {
     attemptedFallback = true;
     state = await openBase(bases[1]);
   }
@@ -932,39 +1308,114 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (state === "captcha_visible") {
-      await options.onStage("captcha_solving");
-      const outcome = await solveVietnamImageCaptcha(page, Math.min(options.stepTimeoutMs, 120_000));
-      options.onCaptchaSolved(outcome);
-      if (!outcome.solved) {
+      const maxCaptchaAttempts = readPositiveInt(
+        process.env.VN_CAPTCHA_MAX_ATTEMPTS,
+        DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+      );
+      const captchaDeadline =
+        Date.now() + readPositiveInt(
+          process.env.VN_CAPTCHA_TOTAL_BUDGET_MS,
+          DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+        );
+      let lastCaptchaReason = "The official portal rejected the automatic CAPTCHA answer.";
+      for (
+        let attempt = 1;
+        attempt <= maxCaptchaAttempts && state === "captcha_visible" && Date.now() < captchaDeadline;
+        attempt++
+      ) {
+        console.log(`[vn] Portal CAPTCHA attempt ${attempt}/${maxCaptchaAttempts}.`);
+        if (attempt > 1) {
+          const refreshBudgetMs = remainingVietnamCaptchaBudgetMs(
+            captchaDeadline,
+            Math.min(options.stepTimeoutMs, 12_000),
+          );
+          const refreshed = await withTimeout(
+            refreshVietnamCaptchaChallenge(page, Math.min(refreshBudgetMs, 8_000)).catch(() => false),
+            refreshBudgetMs,
+            false,
+          );
+          console.log(
+            `[vn] Portal CAPTCHA refresh before attempt ${attempt}: ${refreshed ? "confirmed" : "not_observed"}.`,
+          );
+          if (!refreshed) {
+            lastCaptchaReason =
+              "The official CAPTCHA refresh could not be confirmed; VIZA did not resubmit the stale challenge.";
+            break;
+          }
+          if (Date.now() >= captchaDeadline) break;
+          await page.waitForTimeout(750);
+        }
+        await options.onStage("captcha_solving");
+        const outcome = await solveVietnamImageCaptcha(
+          page,
+          remainingVietnamCaptchaBudgetMs(
+            captchaDeadline,
+            Math.max(options.stepTimeoutMs, DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS),
+          ),
+        );
+        options.onCaptchaSolved(outcome);
+        logVietnamCaptchaOutcome("Portal", attempt, outcome);
+        if (!outcome.solved) {
+          lastCaptchaReason = outcome.reason ?? "unknown CAPTCHA error";
+          if (!isVietnamCaptchaFailureRetryable(outcome.reason)) break;
+          continue;
+        }
+
+        await options.onStage("captcha_submitted");
+        options.executionContext?.assertOwned();
+        const submitted = await submitVietnamCaptchaAnswer(
+          page,
+          remainingVietnamCaptchaBudgetMs(captchaDeadline, Math.min(options.stepTimeoutMs, 10_000)),
+        );
+        const checkpoint = await waitForVietnamPortalCheckpoint(
+          page,
+          [
+            "form_ready",
+            "note_modal_required",
+            "captcha_required",
+            "upload_required",
+            "payment_required",
+            "final_submit_required",
+            "official_portal_error",
+            "layout_changed",
+          ],
+          {
+            timeoutMs: remainingVietnamCaptchaBudgetMs(
+              captchaDeadline,
+              Math.min(options.stepTimeoutMs, 30_000),
+            ),
+            failedRequestCount: options.failedRequestCount,
+            mainRequestFailed: options.mainRequestFailed,
+            onSnapshot: options.onSnapshot,
+          },
+        );
+        state = checkpoint.state;
+        await options.onStage(`official_checkpoint:${state}`);
+        if (state === "captcha_visible") {
+          lastCaptchaReason = submitted
+            ? "The official portal rejected the automatic CAPTCHA answer."
+            : "VIZA could not activate the official CAPTCHA verification control.";
+          await reportRejectedVietnamCaptcha(outcome);
+        } else if (
+          submitted &&
+          !["portal_error", "network_blocked", "layout_changed", "white_screen"].includes(state)
+        ) {
+          await reportAcceptedVietnamCaptcha(outcome);
+        }
+      }
+
+      if (state === "captcha_visible" && Date.now() >= captchaDeadline) {
+        lastCaptchaReason = `${lastCaptchaReason} Total CAPTCHA time budget was exhausted.`;
+      }
+
+      if (state === "captcha_visible") {
         return {
-          kind: "action_required",
-          actionType: "captcha_required",
+          kind: "failed",
           checkpoint: state,
-          instruction:
-            `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${outcome.reason ?? "unknown CAPTCHA error"}`,
+          errorCode: "captcha_automatic_failed",
+          reason: `Automatic Vietnam CAPTCHA processing exhausted its retry budget: ${lastCaptchaReason}`,
         };
       }
-      await options.onStage("captcha_submitted");
-      const checkpoint = await waitForVietnamPortalCheckpoint(
-        page,
-        [
-          "form_ready",
-          "note_modal_required",
-          "upload_required",
-          "payment_required",
-          "final_submit_required",
-          "official_portal_error",
-          "layout_changed",
-        ],
-        {
-          timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
-          failedRequestCount: options.failedRequestCount,
-          mainRequestFailed: options.mainRequestFailed,
-          onSnapshot: options.onSnapshot,
-        },
-      );
-      state = checkpoint.state;
-      await options.onStage(`official_checkpoint:${state}`);
       continue;
     }
 
@@ -1190,12 +1641,23 @@ function isForbiddenVietnamAutoCheckboxText(text: string): boolean {
 async function readCheckboxContextText(input: Locator): Promise<string> {
   return input
     .evaluate((element) => {
-      const label = element.closest("label") ?? element.closest(".ant-checkbox-wrapper") ?? element.parentElement;
+      const scopes = [
+        element.closest("label"),
+        element.closest(".ant-checkbox-wrapper"),
+        element.closest(".ant-form-item"),
+        element.parentElement,
+        element.parentElement?.parentElement,
+        element.parentElement?.parentElement?.parentElement,
+      ].filter((scope): scope is Element => Boolean(scope));
+      const scopeText = scopes
+        .map((scope) => (scope.textContent ?? "").replace(/\s+/g, " ").trim())
+        .filter((text) => text.length > 0 && text.length <= 1_000)
+        .sort((left, right) => left.length - right.length)[0] ?? "";
       return [
         element.getAttribute("aria-label"),
         element.getAttribute("name"),
         element.getAttribute("id"),
-        label?.textContent,
+        scopeText,
       ]
         .filter(Boolean)
         .join(" ")
@@ -1205,7 +1667,7 @@ async function readCheckboxContextText(input: Locator): Promise<string> {
     .catch(() => "");
 }
 
-async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
+export async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
   await page
     .evaluate(() => {
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" as ScrollBehavior });
@@ -1218,38 +1680,79 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
     .catch(() => undefined);
   await page.waitForTimeout(300);
 
-  const checkboxInputs = page.locator("input[type='checkbox']:visible");
-  const checkedStates = await checkboxInputs
-    .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
-    .catch(() => [] as boolean[]);
-  for (const index of uncheckedVietnamDeclarationIndexes(checkedStates)) {
-    const checkbox = checkboxInputs.nth(index);
-    const contextText = await readCheckboxContextText(checkbox);
-    if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
-    await checkbox.check({ force: true }).catch(() => undefined);
+  // The declaration controls hydrate after the surrounding NOTE copy. Wait
+  // for the visible wrappers instead of treating that brief gap as a manual
+  // checkpoint. Ant Design also keeps the native inputs hidden, so the wrapper
+  // is the reliable visible/actionable surface.
+  const firstVisibleWrapper = page.locator(".ant-checkbox-wrapper").first();
+  const wrapperHydrated = await firstVisibleWrapper
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!wrapperHydrated) {
+    await page
+      .locator("input[type='checkbox']")
+      .first()
+      .waitFor({ state: "visible", timeout: 2_000 })
+      .catch(() => undefined);
   }
-  const allChecked =
-    (await checkboxInputs.count()) >= 2 &&
-    (await checkboxInputs
-      .evaluateAll((inputs) =>
-        inputs.every((input) => {
-          const htmlInput = input as HTMLInputElement;
-          const label = input.closest("label") ?? input.closest(".ant-checkbox-wrapper") ?? input.parentElement;
-          const contextText = [
-            input.getAttribute("aria-label"),
-            input.getAttribute("name"),
-            input.getAttribute("id"),
-            label?.textContent,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          if (/agree\s+to\s+create\s+account\s+by\s+email|create\s+account\s+by\s+email/i.test(contextText)) {
-            return true;
-          }
-          return htmlInput.checked;
-        }),
-      )
-      .catch(() => false));
+
+  const wrappers = page.locator(".ant-checkbox-wrapper:visible");
+  const wrapperCount = await wrappers.count();
+  let declarationCount = 0;
+  let allChecked = true;
+
+  if (wrapperCount >= 2) {
+    for (let index = 0; index < wrapperCount; index++) {
+      const wrapper = wrappers.nth(index);
+      const checkbox = wrapper.locator("input[type='checkbox']").first();
+      const contextText = [
+        await wrapper.innerText().catch(() => ""),
+        (await checkbox.count()) > 0 ? await readCheckboxContextText(checkbox) : "",
+      ].join(" ");
+      if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
+      declarationCount++;
+
+      const isChecked = async (): Promise<boolean> =>
+        (await checkbox.count()) > 0
+          ? checkbox.isChecked().catch(() => false)
+          : wrapper.locator(".ant-checkbox-checked").count().then((count) => count > 0);
+      if (!(await isChecked())) {
+        const checkedNative =
+          (await checkbox.count()) > 0 &&
+          (await checkbox.check({ force: true }).then(() => true).catch(() => false));
+        if (!checkedNative || !(await isChecked())) {
+          // A few Ant builds reject Playwright's actionability check for the
+          // zero-sized native input. Native click still emits the click/input/
+          // change sequence consumed by Vue, and stays scoped to this exact
+          // declaration control.
+          await checkbox
+            .evaluate((element) => (element as HTMLInputElement).click())
+            .catch(() => undefined);
+        }
+        if (!(await isChecked())) {
+          await wrapper.click({ force: true }).catch(() => undefined);
+        }
+      }
+      if (!(await isChecked())) allChecked = false;
+    }
+  } else {
+    const checkboxInputs = page.locator("input[type='checkbox']:visible");
+    const checkedStates = await checkboxInputs
+      .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
+      .catch(() => [] as boolean[]);
+    for (let index = 0; index < checkedStates.length; index++) {
+      const checkbox = checkboxInputs.nth(index);
+      const contextText = await readCheckboxContextText(checkbox);
+      if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
+      declarationCount++;
+      if (!checkedStates[index]) {
+        await checkbox.check({ force: true }).catch(() => undefined);
+      }
+      if (!(await checkbox.isChecked().catch(() => false))) allChecked = false;
+    }
+  }
+  allChecked = declarationCount >= 2 && allChecked;
   if (!allChecked) return false;
 
   const clicked = await page
@@ -1268,6 +1771,51 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
   return true;
 }
 
+export async function acknowledgeVietnamPostCaptchaInstructionModal(
+  page: Page,
+  timeoutMs = 45_000,
+): Promise<"not_visible" | "acknowledged" | "failed"> {
+  // On the live review page, a correct CAPTCHA does not transition directly
+  // to the registration-code result. It first opens a Vue declaration modal
+  // over the still-mounted review form. The underlying CAPTCHA therefore
+  // remains visible and must not be interpreted as a rejected answer.
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let hasDeclarationModal = false;
+  do {
+    const modals = page
+      .locator(
+        ".is-big.modal.v-modal, .modal.v-modal, .ant-modal-wrap, .ant-modal, [role='dialog']",
+      )
+      .filter({ visible: true });
+    const modalCount = Math.min(await modals.count().catch(() => 0), 20);
+    for (let modalIndex = modalCount - 1; modalIndex >= 0; modalIndex -= 1) {
+      const modal = modals.nth(modalIndex);
+      const declarations = modal.locator("input[type='checkbox']:not([disabled])");
+      if ((await declarations.count().catch(() => 0)) < 2) continue;
+      const actions = modal.locator("button, [role='button']").filter({ visible: true });
+      const actionCount = Math.min(await actions.count().catch(() => 0), 20);
+      for (let actionIndex = 0; actionIndex < actionCount; actionIndex += 1) {
+        // The official modal intentionally renders its Next button disabled
+        // until both declaration checkboxes are selected. Its disabled state
+        // is evidence of the modal, not a reason to miss the checkpoint.
+        const label = (await actions.nth(actionIndex).innerText().catch(() => ""))
+          .replace(/\s+/g, " ")
+          .trim();
+        if (/^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i.test(label)) {
+          hasDeclarationModal = true;
+          break;
+        }
+      }
+      if (hasDeclarationModal) break;
+    }
+    if (hasDeclarationModal || Date.now() >= deadline) break;
+    await page.waitForTimeout(Math.min(500, Math.max(0, deadline - Date.now())));
+  } while (Date.now() < deadline);
+
+  if (!hasDeclarationModal) return "not_visible";
+  return (await acknowledgeVietnamNoteModal(page)) ? "acknowledged" : "failed";
+}
+
 async function fillByType(
   page: Page,
   fieldName: string,
@@ -1284,6 +1832,12 @@ async function fillByType(
     case "select":
     case "country":
       await pickSelect(page, domId, portalOptionText);
+      if (["bought_travel_insurance", "expense_coverage", "expense_payment_method"].includes(fieldName)) {
+        const committed = await commitVietnamOfficialExpenseSelectModel(page, domId, rawValue);
+        if (!committed) {
+          throw new Error(`Official expense select model not confirmed for ${domId}`);
+        }
+      }
       return;
     case "radio":
       await pickRadio(page, domId, portalOptionText);
@@ -1398,7 +1952,12 @@ function parseDdMmYyyy(value: string): Date | null {
   return parsed;
 }
 
-async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fieldName: string): Promise<void> {
+export async function uploadVietnamFile(
+  page: Page,
+  domId: string,
+  rawPath: string,
+  fieldName: string,
+): Promise<void> {
   const localPath = path.resolve(rawPath);
   if (!fs.existsSync(localPath)) {
     throw new Error(`Vietnam upload file not found for ${domId}: ${localPath}`);
@@ -1421,19 +1980,202 @@ async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fie
       : (await byId.count().catch(() => 0)) > 0
         ? byId
         : page.locator('input[type="file"]').nth(uploadIndex);
-  await fileInput.setInputFiles(uploadPath, { timeout: 20_000 });
-  await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+  const expectedUploadFilename = path.basename(uploadPath);
+  const uploadBuffer = fs.readFileSync(uploadPath);
+  const officialUploadResponse = page.waitForResponse(
+    (response) => {
+      if (!isVietnamPublicUploadRequest(response.request().method(), response.url())) return false;
+      const multipartBody = response.request().postDataBuffer();
+      // Remote CDP transports can omit request bodies. The listener starts
+      // immediately before this exact file input is changed, so a body-less
+      // official upload response is still eligible for server-side validation.
+      return multipartBody === null || vietnamMultipartContainsFilename(multipartBody, expectedUploadFilename);
+    },
+    { timeout: 30_000 },
+  );
+  // Pass an explicit FilePayload instead of a filesystem path. The official
+  // API validates both the multipart filename and the part Content-Type, so do
+  // not rely on remote Chromium inferring MIME from a temporary path.
+  await fileInput.setInputFiles(
+    {
+      name: expectedUploadFilename,
+      mimeType: "image/jpeg",
+      buffer: uploadBuffer,
+    },
+    { timeout: 20_000 },
+  );
+  const keptDeclaredInformation = fieldName === "passport_copy"
+    ? await keepDeclaredVietnamPassportInformation(page, 6_000)
+    : false;
+  const response = await officialUploadResponse.catch(() => null);
+  if (!response) {
+    const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+    if (previewAccepted || keptDeclaredInformation) return;
+    throw new Error("official_document_upload_response_missing");
+  }
+  if (!response.ok()) {
+    throw new Error(`official_document_upload_rejected_http_${response.status()}`);
+  }
+  const responseBody = await response.text().catch(() => "");
+  const responseContentType = response.headers()["content-type"] ?? "";
+  const responseAccepted = isVietnamUploadResponseAccepted(
+    response.status(),
+    responseContentType,
+    responseBody,
+  );
+  if (responseAccepted === false) {
+    const diagnostic = summarizeVietnamUploadResponse(responseBody);
+    console.warn(
+      `[vn] official upload rejected field=${fieldName} code=${diagnostic.code} message=${diagnostic.message}`,
+    );
+    throw new Error("official_document_upload_rejected_payload");
+  }
+  if (responseAccepted === true) {
+    if (fieldName === "passport_copy" && !keptDeclaredInformation) {
+      await keepDeclaredVietnamPassportInformation(page, 4_000);
+    }
+    return;
+  }
+  const previewAccepted = await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+  // The live portal currently removes/replaces Ant Upload's preview node after
+  // the API request succeeds. Treat the official JSON response as the primary
+  // acknowledgement and the rendered preview as an additional confirmation.
+  // We still fail closed for an empty/ambiguous 2xx response and never accept
+  // merely because the local file input contains a File object.
+  if (!previewAccepted) {
+    throw new Error("official_document_upload_preview_missing");
+  }
+}
+
+/**
+ * The official portal may ask whether a replacement passport image should
+ * overwrite already-declared personal data. Draft repair must preserve the
+ * applicant's reviewed answers, so only the explicit "keep" action is safe.
+ */
+export async function keepDeclaredVietnamPassportInformation(
+  page: Page,
+  timeoutMs = 4_000,
+): Promise<boolean> {
+  const modalText = /passport data page image is changed|passport image (?:has )?changed|ảnh trang nhân thân hộ chiếu.*thay đổi|护照资料页图像.*(?:已更改|发生变化)|パスポート.*画像.*変更/i;
+  const keepLabel = /^(?:keep(?: declared)? information|keep existing information|giữ(?: nguyên)? thông tin|保留(?:原有|已申报)?信息|申告済みの情報を保持|情報を保持)$/i;
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  do {
+    const modal = page
+      .locator(".ant-modal-wrap:visible, [role='dialog']:visible")
+      .filter({ hasText: modalText })
+      .first();
+    if (await modal.isVisible({ timeout: 250 }).catch(() => false)) {
+      const keepButton = modal.getByRole("button", { name: keepLabel }).first();
+      if (!(await keepButton.isVisible({ timeout: 1_000 }).catch(() => false))) {
+        throw new Error("official_passport_change_keep_action_not_found");
+      }
+      await keepButton.click({ timeout: 5_000 });
+      await modal.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+      if (await modal.isVisible().catch(() => false)) {
+        throw new Error("official_passport_change_modal_did_not_close");
+      }
+      console.log("[vn] preserved declared information after passport image replacement");
+      return true;
+    }
+    if (Date.now() >= deadline) break;
+    await page.waitForTimeout(200);
+  } while (Date.now() < deadline);
+  return false;
+}
+
+export function vietnamMultipartContainsFilename(
+  body: Buffer | null,
+  expectedFilename: string,
+): boolean {
+  if (!body || !expectedFilename) return false;
+  const multipartHeaders = body.subarray(0, Math.min(body.length, 16_384)).toString("latin1");
+  const quotedFilenames = Array.from(
+    multipartHeaders.matchAll(/filename="([^"]+)"/gi),
+    (match) => match[1],
+  );
+  return quotedFilenames.some((filename) => path.basename(filename) === expectedFilename);
+}
+
+function summarizeVietnamUploadResponse(rawBody: string): { code: string; message: string } {
+  try {
+    const payload = JSON.parse(rawBody) as Record<string, unknown>;
+    const code = String(payload.code ?? payload.status ?? "unknown")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 24) || "unknown";
+    const message = String(payload.message ?? payload.error ?? "rejected")
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/https?:\/\/\S+/gi, "[url]")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 160) || "rejected";
+    return { code, message };
+  } catch {
+    return { code: "unknown", message: "unparseable_response" };
+  }
+}
+
+export function isVietnamUploadResponseAccepted(
+  status: number,
+  contentType: string,
+  rawBody: string,
+): boolean | null {
+  if (status < 200 || status >= 300) return false;
+  if (status === 204) return true;
+  const body = rawBody.trim();
+  if (!body || !/application\/json/i.test(contentType)) return null;
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (payload === null || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const normalizedStatus = String(record.status ?? "").trim().toLowerCase();
+  const normalizedMessage = String(record.message ?? "").trim().toLowerCase();
+  const normalizedCode = String(record.code ?? "").trim().toLowerCase();
+  const explicitFailure =
+    record.success === false ||
+    Boolean(record.error) ||
+    /(?:fail|error|invalid|reject)/.test(normalizedStatus) ||
+    /(?:fail|error|invalid|reject)/.test(normalizedMessage) ||
+    (/^\d+$/.test(normalizedCode) && Number(normalizedCode) >= 400);
+  if (explicitFailure) return false;
+
+  const explicitSuccess =
+    record.success === true ||
+    record.status === true ||
+    /^(?:success|ok|done|completed)$/.test(normalizedStatus) ||
+    /^(?:success|ok|uploaded|upload successful)$/.test(normalizedMessage) ||
+    /^(?:0|200|success|ok)$/.test(normalizedCode);
+  if (explicitSuccess) return true;
+
+  const data = record.data;
+  if (typeof data === "string" && data.trim()) return true;
+  if (data && typeof data === "object" && Object.keys(data as Record<string, unknown>).length > 0) {
+    return true;
+  }
+  return null;
 }
 
 async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName: string): Promise<string> {
   const maxBytes = 1_900_000;
   const stat = fs.statSync(localPath);
-  if (stat.size <= maxBytes) return localPath;
-  const ext = path.extname(localPath).toLowerCase();
-  if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return localPath;
+  const source = fs.readFileSync(localPath);
+  const detectedType = detectVietnamUploadImageType(source);
+  if (!detectedType) {
+    throw new Error("official_document_upload_unsupported_file_type");
+  }
 
-  const sourceBase64 = fs.readFileSync(localPath).toString("base64");
-  const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  const sourceBase64 = source.toString("base64");
+  const mimeType =
+    detectedType === "png"
+      ? "image/png"
+      : detectedType === "webp"
+        ? "image/webp"
+        : "image/jpeg";
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const compressed = await page.evaluate(
     async ({ sourceBase64, mimeType, maxBytes, fieldName }) => {
       const loadImage = (src: string) =>
@@ -1451,6 +2193,8 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext("2d");
       if (!context) throw new Error("canvas_context_unavailable");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
       for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54, 0.46]) {
         const dataUrl = canvas.toDataURL("image/jpeg", quality);
@@ -1466,7 +2210,7 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
   );
   const outputPath = path.join(
     path.dirname(localPath),
-    `${path.basename(localPath, path.extname(localPath))}-vietnam-upload.jpg`,
+    `${fieldName}-vietnam-upload.jpg`,
   );
   fs.writeFileSync(outputPath, Buffer.from(compressed.base64, "base64"));
   console.log(
@@ -1475,12 +2219,38 @@ async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName
   return outputPath;
 }
 
+function detectVietnamUploadImageType(buffer: Buffer): "jpeg" | "png" | "webp" | null {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return "jpeg";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "png";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "webp";
+  }
+  return null;
+}
+
 async function waitForVietnamUploadPreview(
   page: Page,
   domId: string,
   uploadIndex: number,
   labelPattern: RegExp,
-): Promise<void> {
+  timeoutMs = 8_000,
+): Promise<boolean> {
   const accepted = await page
     .waitForFunction(
       ({ domId, uploadIndex, labelSource, labelFlags }) => {
@@ -1497,9 +2267,13 @@ async function waitForVietnamUploadPreview(
         const formItem = input?.closest(".ant-form-item") ?? input?.closest(".ant-upload-wrapper") ?? input?.parentElement;
         const text = (formItem?.textContent ?? "").replace(/\s+/g, " ");
         const hasError = /please enter|not be empty|required/i.test(text);
-        const hasPreview =
-          Boolean(formItem?.querySelector("img[src^='blob:'], img[src^='data:'], .ant-upload-list-item, .ant-upload-list-item-done")) ||
-          Boolean(input?.files && input.files.length > 0);
+        const images = Array.from(
+          formItem?.querySelectorAll<HTMLImageElement>(
+            "img[src^='blob:'], img[src^='data:'], img[src^='http']",
+          ) ?? [],
+        );
+        const hasDecodedImage = images.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+        const hasPreview = hasDecodedImage || Boolean(formItem?.querySelector(".ant-upload-list-item-done"));
         return hasPreview && !hasError;
       },
       {
@@ -1508,12 +2282,74 @@ async function waitForVietnamUploadPreview(
         labelSource: labelPattern.source,
         labelFlags: labelPattern.flags,
       },
-      { timeout: 8_000 },
+      { timeout: timeoutMs },
     )
     .then(() => true)
     .catch(() => false);
   if (!accepted) {
     await page.waitForTimeout(1_000);
+  }
+  return accepted;
+}
+
+export async function repairMissingVietnamUploadPreviews(
+  page: Page,
+  answers: Record<string, string>,
+  validationErrors: VietnamPortalValidationError[],
+): Promise<void> {
+  const uploads = [
+    {
+      fieldName: "portrait_photo",
+      domId: VN_FIELD_MAPPINGS.portrait_photo.domId,
+      uploadIndex: 0,
+      labelPattern: /portrait photography/i,
+    },
+    {
+      fieldName: "passport_copy",
+      domId: VN_FIELD_MAPPINGS.passport_copy.domId,
+      uploadIndex: 1,
+      labelPattern: /passport data page image/i,
+    },
+  ] as const;
+
+  for (let pass = 1; pass <= 2; pass += 1) {
+    const missing: Array<(typeof uploads)[number]> = [];
+    for (const upload of uploads) {
+      if (!answers[upload.fieldName]) continue;
+      const ready = await waitForVietnamUploadPreview(
+        page,
+        upload.domId,
+        upload.uploadIndex,
+        upload.labelPattern,
+        2_000,
+      );
+      if (!ready) missing.push(upload);
+    }
+    if (missing.length === 0) return;
+    if (pass === 2) {
+      for (const upload of missing) {
+        validationErrors.push({
+          label: upload.fieldName,
+          domId: upload.domId,
+          message: "Official Vietnam e-Visa portal did not retain a decoded upload preview.",
+        });
+      }
+      return;
+    }
+    for (const upload of missing) {
+      console.warn(`[vn] official ${upload.fieldName} preview was missing or broken; retrying that upload once`);
+      try {
+        await uploadVietnamFile(page, upload.domId, answers[upload.fieldName], upload.fieldName);
+      } catch (error) {
+        validationErrors.push({
+          label: upload.fieldName,
+          domId: upload.domId,
+          message: `Official Vietnam e-Visa portal rejected the upload retry: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      }
+    }
   }
 }
 
@@ -1521,145 +2357,392 @@ function cssEscape(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`);
 }
 
-async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
+interface VietnamReviewAdvanceResult {
+  advanced: boolean;
+  clickedLabel: string | null;
+  failureReason: "disabled" | "not_found" | "no_transition" | null;
+  blockers?: VietnamReviewBlockerDiagnostics;
+}
+
+const VN_REVIEW_ACTION_SELECTOR =
+  "button, a, [role='button'], input[type='button'], input[type='submit']";
+
+const VN_APPLICATION_DECLARATION_ID = "basic_ttcdCqTcCamDoan";
+const VN_APPLICATION_DECLARATION_TEXT =
+  /i hereby declare|i declare|temporary residence|tôi\s+(?:xin\s+)?(?:cam\s+đoan|xác\s+nhận|đồng\s+ý)|cam\s*(?:đoan|kết)/i;
+const VN_FINAL_COMMITMENT_TEXT =
+  /i hereby declare that the above statements are true|fully responsible before the vietnamese laws|tôi\s+(?:xin\s+)?cam\s+đoan[^.]{0,240}(?:thông tin|nội dung)[^.]{0,240}(?:đúng|chính xác)/i;
+
+export interface VietnamReviewBlockerDiagnostics {
+  requiredUnfilled: string[];
+  invalidControls: string[];
+  validationMessages: Array<{ label: string; message: string; domId?: string }>;
+  declaration: {
+    found: boolean;
+    checked: boolean;
+    identifier: string | null;
+  };
+  finalCommitment: {
+    found: boolean;
+    checked: boolean;
+    identifier: string | null;
+  };
+}
+
+async function readVietnamReviewBlockerDiagnostics(
+  page: Page,
+): Promise<VietnamReviewBlockerDiagnostics> {
+  const domDiagnostics = await page
+    .evaluate(({ declarationId, declarationPattern, finalCommitmentPattern }) => {
+      const pattern = new RegExp(declarationPattern, "i");
+      const commitmentPattern = new RegExp(finalCommitmentPattern, "i");
+      const helpers = {
+        identifier(element: Element) {
+          return (
+            element.getAttribute("id") ||
+            element.getAttribute("name") ||
+            element.getAttribute("aria-label") ||
+            element.getAttribute("placeholder") ||
+            element.tagName.toLowerCase()
+          ).replace(/\s+/g, " ").trim().slice(0, 120);
+        },
+        visible(element: Element) {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        },
+        checkboxScope(element: Element) {
+          const scopes = [
+            element.closest("label"),
+            element.closest(".ant-checkbox-wrapper"),
+            element.closest(".ant-form-item"),
+            element.parentElement,
+            element.parentElement?.parentElement,
+            element.parentElement?.parentElement?.parentElement,
+          ].filter((scope): scope is Element => Boolean(scope));
+          return scopes
+            .filter((scope) => this.visible(scope))
+            .map((scope) => ({
+              scope,
+              text: (scope.textContent ?? "").replace(/\s+/g, " ").trim(),
+            }))
+            .filter((entry) => entry.text.length > 0 && entry.text.length <= 1_000)
+            .sort((left, right) => left.text.length - right.text.length)[0] ?? null;
+        },
+      };
+      const requiredUnfilled = Array.from(
+        document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+          "input[required], textarea[required], select[required], [aria-required='true']",
+        ),
+      )
+        .filter((control) => {
+          if (!helpers.visible(control) || control.disabled) return false;
+          if (control instanceof HTMLInputElement && control.type === "checkbox") return !control.checked;
+          if (control instanceof HTMLInputElement && control.type === "radio") {
+            const name = control.name;
+            return name
+              ? !document.querySelector<HTMLInputElement>(`input[type='radio'][name='${CSS.escape(name)}']:checked`)
+              : !control.checked;
+          }
+          return !(control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value?.trim();
+        })
+        .map((element) => helpers.identifier(element))
+        .filter(Boolean)
+        .slice(0, 20);
+      const invalidControls = Array.from(
+        document.querySelectorAll<HTMLElement>("[aria-invalid='true'], .ant-form-item-has-error input, .ant-form-item-has-error textarea, .ant-form-item-has-error select"),
+      )
+        .map((element) => helpers.identifier(element))
+        .filter(Boolean)
+        .slice(0, 20);
+      const declarationCandidates = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `#${CSS.escape(declarationId)}, input[type='checkbox'], [role='checkbox']`,
+        ),
+      );
+      const declaration = declarationCandidates.find((element) => {
+        if (element.id === declarationId) return true;
+        const scoped = helpers.checkboxScope(element);
+        const scope = scoped?.scope ?? element;
+        const text = [
+          element.getAttribute("aria-label"),
+          element.getAttribute("name"),
+          element.getAttribute("id"),
+          scoped?.text ?? scope.textContent,
+        ].filter(Boolean).join(" ");
+        return helpers.visible(scope) && pattern.test(text);
+      });
+      const declarationInput = declaration instanceof HTMLInputElement
+        ? declaration
+        : declaration?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      const declarationScope = declaration?.closest("label, .ant-checkbox-wrapper") ?? declaration;
+      const declarationChecked = Boolean(
+        declarationInput?.checked ||
+        declaration?.getAttribute("aria-checked") === "true" ||
+        declarationScope?.getAttribute("aria-checked") === "true" ||
+        declarationScope?.querySelector(".ant-checkbox-checked"),
+      );
+      const finalCommitment = declarationCandidates.find((element) => {
+        const scoped = helpers.checkboxScope(element);
+        const scope = scoped?.scope ?? element;
+        const text = [
+          element.getAttribute("aria-label"),
+          element.getAttribute("name"),
+          element.getAttribute("id"),
+          scoped?.text ?? scope.textContent,
+        ].filter(Boolean).join(" ");
+        return helpers.visible(scope) && commitmentPattern.test(text);
+      });
+      const finalCommitmentInput = finalCommitment instanceof HTMLInputElement
+        ? finalCommitment
+        : finalCommitment?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      const finalCommitmentScope = finalCommitment?.closest("label, .ant-checkbox-wrapper") ?? finalCommitment;
+      const finalCommitmentChecked = Boolean(
+        finalCommitmentInput?.checked ||
+        finalCommitment?.getAttribute("aria-checked") === "true" ||
+        finalCommitmentScope?.getAttribute("aria-checked") === "true" ||
+        finalCommitmentScope?.querySelector(".ant-checkbox-checked"),
+      );
+      return {
+        requiredUnfilled: Array.from(new Set(requiredUnfilled)),
+        invalidControls: Array.from(new Set(invalidControls)),
+        declaration: {
+          found: Boolean(declaration),
+          checked: declarationChecked,
+          identifier: declaration ? helpers.identifier(declaration) : null,
+        },
+        finalCommitment: {
+          found: Boolean(finalCommitment),
+          checked: finalCommitmentChecked,
+          identifier: finalCommitment ? helpers.identifier(finalCommitment) : null,
+        },
+      };
+    }, {
+      declarationId: VN_APPLICATION_DECLARATION_ID,
+      declarationPattern: VN_APPLICATION_DECLARATION_TEXT.source,
+      finalCommitmentPattern: VN_FINAL_COMMITMENT_TEXT.source,
+    })
+    .catch((error) => {
+      console.warn(
+        `[vn] Unable to inspect review blockers: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return {
+        requiredUnfilled: [] as string[],
+        invalidControls: [] as string[],
+        declaration: { found: false, checked: false, identifier: null as string | null },
+        finalCommitment: { found: false, checked: false, identifier: null as string | null },
+      };
+    });
+  const validationMessages = await readVietnamValidationErrors(page).catch(() => []);
+  return {
+    ...domDiagnostics,
+    validationMessages: validationMessages.slice(0, 20),
+  };
+}
+
+export async function ensureVietnamApplicationDeclarationChecked(page: Page): Promise<boolean> {
+  const exactInput = page.locator(`#${cssEscape(VN_APPLICATION_DECLARATION_ID)}`).first();
+  const exactCount = await exactInput.count().catch(() => 0);
+  if (exactCount > 0) {
+    const contextText = await readCheckboxContextText(exactInput);
+    if (!isForbiddenVietnamAutoCheckboxText(contextText)) {
+      await exactInput.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+      await exactInput.check({ force: true, timeout: 5_000 }).catch(async () => {
+        const wrapper = exactInput.locator("xpath=ancestor-or-self::label[1] | ancestor-or-self::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-checkbox-wrapper ')][1]");
+        await wrapper.first().click({ force: true, timeout: 5_000 }).catch(() => undefined);
+      });
+      const checked = await exactInput.isChecked().catch(() => false);
+      if (checked) return true;
+    }
+  }
+
+  const candidates = page.locator("input[type='checkbox'], [role='checkbox']");
+  const count = await candidates.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const contextText = await readCheckboxContextText(candidate);
+    if (
+      isForbiddenVietnamAutoCheckboxText(contextText) ||
+      !VN_APPLICATION_DECLARATION_TEXT.test(contextText)
+    ) {
+      continue;
+    }
+    const isNativeCheckbox = await candidate
+      .evaluate((element) => element instanceof HTMLInputElement && element.type === "checkbox")
+      .catch(() => false);
+    if (isNativeCheckbox) {
+      await candidate.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+      if (await candidate.isChecked().catch(() => false)) return true;
+      continue;
+    }
+    if (await candidate.getAttribute("aria-checked") === "true") return true;
+    await candidate.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await candidate.getAttribute("aria-checked") === "true") return true;
+  }
+  return false;
+}
+
+export async function ensureVietnamFinalCommitmentChecked(page: Page): Promise<boolean> {
+  const candidates = page.locator("input[type='checkbox'], [role='checkbox']");
+  const count = await candidates.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const isNativeCheckbox = await candidate
+      .evaluate((element) => element instanceof HTMLInputElement && element.type === "checkbox")
+      .catch(() => false);
+    const checkbox = isNativeCheckbox
+      ? candidate
+      : candidate.locator("input[type='checkbox']").first();
+    if ((await checkbox.count().catch(() => 0)) === 0) continue;
+    if (await checkbox.getAttribute("id") === VN_APPLICATION_DECLARATION_ID) continue;
+    const contextText = await readCheckboxContextText(checkbox);
+    if (
+      isForbiddenVietnamAutoCheckboxText(contextText) ||
+      !VN_FINAL_COMMITMENT_TEXT.test(contextText)
+    ) {
+      continue;
+    }
+
+    await candidate.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
+    await checkbox.check({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
+    await candidate.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+    if (await checkbox.isChecked().catch(() => false)) return true;
+  }
+  return false;
+}
+
+export async function collectVietnamReviewActionCandidates(
+  page: Page,
+): Promise<VietnamReviewActionCandidate[]> {
+  const rawCandidates = await page.locator(VN_REVIEW_ACTION_SELECTOR).evaluateAll((elements) => {
+    const rows: Array<VietnamReviewActionCandidate & { visible: boolean }> = [];
+    for (let domIndex = 0; domIndex < elements.length; domIndex++) {
+      const element = elements[domIndex] as HTMLElement;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const value = element instanceof HTMLInputElement ? element.value : "";
+      const label = (
+        element.innerText ||
+        element.textContent ||
+        value ||
+        element.getAttribute("aria-label") ||
+        element.getAttribute("title") ||
+        ""
+      ).replace(/\s+/g, " ").trim();
+      const disabled =
+        ("disabled" in element && Boolean((element as HTMLButtonElement | HTMLInputElement).disabled)) ||
+        element.getAttribute("aria-disabled") === "true" ||
+        element.classList.contains("ant-btn-disabled");
+      rows.push({
+        domIndex,
+        label,
+        isPrimary: /(?:^|\s)ant-btn-primary(?:\s|$)/.test(element.className),
+        type: element.getAttribute("type") || "button",
+        top: rect.top,
+        tagName: element.tagName.toLowerCase(),
+        disabled,
+        visible:
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0,
+      });
+    }
+    return rows;
+  });
+  return rawCandidates
+    .filter((candidate) => candidate.visible && candidate.label)
+    .filter(
+      (candidate) =>
+        !VN_STOP_BUTTON_PATTERNS.some((pattern) => pattern.test(candidate.label)),
+    )
+    .map(({ visible: _visible, ...candidate }) => candidate);
+}
+
+export async function advanceVietnamToReview(
+  page: Page,
+  timeoutMs: number,
+  executionContext?: RunnerExecutionContext,
+): Promise<VietnamReviewAdvanceResult> {
   // Click the primary form action (typically "Save" / "Tiếp tục") but only if
   // its label does NOT match one of the stop patterns. If the dominant
   // action is already a Pay/Submit button, leave the page where it is —
   // the registration-code capture either succeeds or returns null.
-  await page.evaluate(() => {
-    const visible = (element: Element | null): element is HTMLElement => {
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-    };
-    const declarationWrapper = Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper"))
-      .filter(visible)
-      .find((wrapper) => /i hereby declare|cam đoan|cam kết/i.test(wrapper.innerText || wrapper.textContent || ""));
-    const declarationInput = declarationWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]');
-    const isChecked =
-      declarationInput?.checked ||
-      declarationWrapper?.querySelector(".ant-checkbox-checked") !== null ||
-      declarationWrapper?.getAttribute("aria-checked") === "true";
-    if (declarationWrapper && !isChecked) {
-      declarationWrapper.scrollIntoView({ block: "center" });
-      declarationWrapper.click();
-    }
-  });
-  await page.waitForTimeout(300);
-
-  const clicked = await page.evaluate((stopPatterns) => {
-    const visible = (element: Element | null): element is HTMLElement => {
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-    };
-    const stopRegexes = stopPatterns.map((pattern) => new RegExp(pattern, "i"));
-    const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .filter(visible)
-      .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-      .filter((button) => {
-        const text = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
-        return /^(next|save|continue|tiếp tục|lưu)$/i.test(text) && !stopRegexes.some((rx) => rx.test(text));
-      });
-    const button = candidates[candidates.length - 1];
-    if (!button) return false;
-    button.scrollIntoView({ block: "center" });
-    button.click();
-    return true;
-  }, VN_STOP_BUTTON_PATTERNS.map((rx) => rx.source));
-  if (!clicked) return;
-  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 30_000) }).catch(() => undefined);
-  await page.waitForTimeout(2_000);
-}
-
-async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promise<void> {
-  const target = await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-        .filter(visible)
-        .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
-        .filter((button) => /^(next|continue|tiếp tục)$/i.test((button.innerText || button.textContent || "").replace(/\s+/g, " ").trim()))
-        .map((button) => {
-          const rect = button.getBoundingClientRect();
-          const distance = inputRect
-            ? Math.abs(rect.top - inputRect.bottom) + Math.abs(rect.left - inputRect.left)
-            : rect.top;
-          return { button, distance };
-        })
-        .sort((left, right) => left.distance - right.distance);
-      const button = candidates[0]?.button;
-      if (!button) return null;
-      button.scrollIntoView({ block: "center" });
-      const rect = button.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    })
-    .catch(() => null);
-  if (target) {
-    await page.mouse.click(target.x, target.y).catch(async () => {
-      await page.evaluate(({ x, y }) => {
-        const element = document.elementFromPoint(x, y) as HTMLElement | null;
-        element?.click();
-      }, target);
-    });
+  const declarationChecked = await ensureVietnamApplicationDeclarationChecked(page);
+  if (!declarationChecked) {
+    console.warn("[vn] The required application declaration could not be verified as checked.");
   }
-  // The Vietnam portal often keeps analytics/API requests open after the
-  // security-code submit. Waiting for networkidle can pin the worker at
-  // captcha_submitted even when the page has already advanced to payment.
-  await page.waitForTimeout(Math.min(timeoutMs, 5_000));
-}
+  const finalCommitmentChecked = await ensureVietnamFinalCommitmentChecked(page);
+  if (!finalCommitmentChecked) {
+    console.warn("[vn] The final Vietnam e-Visa commitment could not be verified as checked.");
+  }
 
-async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
-  await page
-    .evaluate(() => {
-      const visible = (element: Element | null): element is HTMLElement | SVGElement => {
-        if (!element) return false;
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      };
-      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-        .filter(visible)
-        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
-      captchaInput?.focus();
-      if (captchaInput) {
-        captchaInput.value = "";
-        captchaInput.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
-        captchaInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const inputRect = captchaInput?.getBoundingClientRect();
-      const candidates = Array.from(document.querySelectorAll<HTMLElement | SVGElement>("button, .anticon, svg, img, a"))
-        .filter(visible)
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          const text = `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""}`;
-          const isRefresh = /reload|refresh|sync|redo|captcha|anticon-sync/i.test(text);
-          const distance = inputRect
-            ? Math.abs(rect.left - inputRect.right) + Math.abs(rect.top + rect.height / 2 - (inputRect.top + inputRect.height / 2)) * 2
-            : rect.top;
-          return { element, score: distance + (isRefresh ? -200 : 0) };
-        })
-        .sort((left, right) => left.score - right.score);
-      const target = candidates[0]?.element as HTMLElement | SVGElement | undefined;
-      target?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
-      target?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
-    })
-    .catch(() => undefined);
+  const enableDeadline = Date.now() + Math.min(timeoutMs, 5_000);
+  let candidates = await collectVietnamReviewActionCandidates(page);
+  let selected = chooseVietnamReviewAction(candidates);
+  while (!selected && Date.now() < enableDeadline) {
+    await page.waitForTimeout(250);
+    candidates = await collectVietnamReviewActionCandidates(page);
+    selected = chooseVietnamReviewAction(candidates);
+  }
+  if (!selected) {
+    const disabledCandidate = chooseVietnamReviewAction(
+      candidates
+        .filter((candidate) => candidate.disabled)
+        .map((candidate) => ({ ...candidate, disabled: false })),
+    );
+    const actions = candidates.slice(-12).map((candidate) => ({
+      label: candidate.label,
+      tagName: candidate.tagName,
+      disabled: Boolean(candidate.disabled),
+    }));
+    const blockers = await readVietnamReviewBlockerDiagnostics(page);
+    console.warn(
+      `[vn] No enabled safe review action was available after filling the application form: ${JSON.stringify({ actions, blockers })}`,
+    );
+    return {
+      advanced: false,
+      clickedLabel: null,
+      failureReason: disabledCandidate ? "disabled" : "not_found",
+      blockers,
+    };
+  }
+
+  console.log(`[vn] Clicking review action: ${selected.label}.`);
+  const initialUrl = page.url();
+  const button = page.locator(VN_REVIEW_ACTION_SELECTOR).nth(selected.domIndex);
+  await button.scrollIntoViewIfNeeded({ timeout: Math.min(timeoutMs, 10_000) });
+  await clickOwned(button, executionContext, { timeout: Math.min(timeoutMs, 15_000) });
+
+  const deadline = Date.now() + Math.min(timeoutMs, 30_000);
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    const snapshot = await readVietnamPortalSnapshot(page).catch(() => null);
+    if (!snapshot) continue;
+    const transitionState = classifyVietnamPortalSnapshot(snapshot);
+    if (
+      snapshot.url !== initialUrl ||
+      [
+        "captcha_visible",
+        "registration_code_visible",
+        "payment_page_visible",
+        "final_submit_visible",
+      ].includes(transitionState)
+    ) {
+      return { advanced: true, clickedLabel: selected.label, failureReason: null };
+    }
+    // The Vue SPA briefly removes the form while the review route mounts. The
+    // remaining navigation still contains an /e-visa/foreigners link, which
+    // looks like apply_now_visible. Do not treat that transient shell as a
+    // successful review transition; wait for an explicit review checkpoint.
+    const errors = await readVietnamValidationErrors(page).catch(() => []);
+    if (errors.length > 0) break;
+  }
+
+  console.warn(`[vn] Review action ${selected.label} did not produce an observable portal transition.`);
+  return { advanced: false, clickedLabel: selected.label, failureReason: "no_transition" };
 }
 
 async function captureRegistrationCode(page: Page): Promise<string | null> {
@@ -1702,21 +2785,26 @@ async function captureRegistrationCode(page: Page): Promise<string | null> {
   return null;
 }
 
-async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number): Promise<boolean> {
+async function confirmDeclarationCompletedNotice(
+  page: Page,
+  timeoutMs: number,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const hasNotice = await page
     .locator("text=/DECLARATION COMPLETED|ADDITIONAL COMPLETED|Electronic document code/i")
     .first()
     .isVisible({ timeout: 3_000 })
     .catch(() => false);
   if (!hasNotice) return false;
-  const clicked = await page
-    .getByRole("button", { name: /^confirm$/i })
-    .filter({ visible: true })
-    .last()
-    .click({ timeout: 10_000 })
+  const clicked = await clickOwned(
+    page.getByRole("button", { name: /^confirm$/i }).filter({ visible: true }).last(),
+    executionContext,
+    { timeout: 10_000 },
+  )
     .then(() => true)
-    .catch(async () => {
-      return page
+    .catch(async (error) => {
+      if (isRunnerOwnershipLoss(error)) throw error;
+      return runOwnedAction(executionContext, () => page
         .evaluate(() => {
           const visible = (element: Element | null): element is HTMLElement => {
             if (!element) return false;
@@ -1732,8 +2820,11 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
           button.scrollIntoView({ block: "center" });
           button.click();
           return true;
-        })
-        .catch(() => false);
+        }))
+        .catch((fallbackError) => {
+          if (isRunnerOwnershipLoss(fallbackError)) throw fallbackError;
+          return false;
+        });
     });
   if (!clicked) return false;
   await page
@@ -1752,6 +2843,7 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
 async function continueVietnamSameSessionToPayment(
   page: Page,
   timeoutMs: number,
+  assertOwned?: () => void,
 ): Promise<VietnamPortalStateId> {
   const deadline = Date.now() + Math.min(timeoutMs, 90_000);
   let lastState: VietnamPortalStateId = "registration_code_visible";
@@ -1760,6 +2852,7 @@ async function continueVietnamSameSessionToPayment(
     lastState = classifyVietnamPortalSnapshot(snapshot);
     if (lastState === "payment_page_visible") return lastState;
     if (lastState === "final_submit_visible") {
+      assertOwned?.();
       const clicked = await clickVietnamVisibleButton(page, [
         "Payment",
         "Pay",
@@ -1773,6 +2866,7 @@ async function continueVietnamSameSessionToPayment(
       await page.waitForTimeout(1_500);
       continue;
     }
+    assertOwned?.();
     const clicked = await clickVietnamVisibleButton(page, [
       "Payment",
       "Pay",
@@ -1834,6 +2928,34 @@ function readPositiveInt(rawValue: string | undefined, fallback: number): number
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function remainingVietnamCaptchaBudgetMs(deadlineMs: number, capMs: number): number {
+  return Math.max(1, Math.min(capMs, deadlineMs - Date.now()));
+}
+
+function logVietnamCaptchaOutcome(
+  scope: "Review" | "Portal",
+  attempt: number,
+  outcome: VietnamCaptchaSolveOutcome,
+): void {
+  if (outcome.solved) {
+    console.log(
+      `[vn] ${scope} CAPTCHA attempt ${attempt} produced an accepted-shape answer ` +
+      `(length=${outcome.telemetry?.answerLength ?? "unknown"}, ` +
+      `durationMs=${outcome.telemetry?.durationMs ?? "unknown"}, ` +
+      `source=${outcome.telemetry?.sourceWidth ?? "unknown"}x${outcome.telemetry?.sourceHeight ?? "unknown"}, ` +
+      `capture=${outcome.telemetry?.captureWidth ?? "unknown"}x${outcome.telemetry?.captureHeight ?? "unknown"}).`,
+    );
+    return;
+  }
+  const reason = String(outcome.reason ?? "unknown CAPTCHA error")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/https?:\/\/\S+/gi, "[url]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+  console.warn(`[vn] ${scope} CAPTCHA attempt ${attempt} had no usable answer: ${reason}`);
+}
+
 function suffixArtifactPath(filePath: string | undefined, attempt: number): string | undefined {
   if (!filePath) return undefined;
   const extension = path.extname(filePath);
@@ -1841,8 +2963,20 @@ function suffixArtifactPath(filePath: string | undefined, attempt: number): stri
   return `${base}-attempt-${attempt}${extension}`;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    let timer: NodeJS.Timeout | undefined;
+    const onAbort = (): void => {
+      if (timer) clearTimeout(timer);
+      resolve();
+    };
+    timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {

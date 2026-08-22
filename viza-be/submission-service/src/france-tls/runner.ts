@@ -1,4 +1,9 @@
-import type { Browser } from "@playwright/test";
+import { randomBytes } from "node:crypto";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type { Browser, Page } from "@playwright/test";
+import { redactOfficialUrl } from "../appointment-free-smoke";
 import {
   isAuthenticatedFranceTlsRedirectUrl,
   loadFranceTlsStoredAccount,
@@ -7,6 +12,7 @@ import {
 } from "./account-registration";
 import {
   classifyFranceTlsBrowserState,
+  closeFranceTlsBrowserSession,
   createFranceTlsBrowserSession,
   isFranceTlsCaptchaBlocking,
   readFranceTlsBrowserState,
@@ -15,6 +21,11 @@ import {
 } from "./browser-api";
 import { FRANCE_TLS_CHINA_CENTERS, resolveFranceTlsCenter } from "./center-registry";
 import type { FranceTlsPaymentRedacted } from "./payment-session";
+import {
+  extractFranceTlsSlotsFromDom,
+  readFranceTlsSlotDomRecords,
+  type FranceTlsObservedSlot,
+} from "./slot-observation";
 
 export type FranceTlsRunnerStatus =
   | "slots_observed"
@@ -23,18 +34,12 @@ export type FranceTlsRunnerStatus =
   | "manual_required"
   | "confirmation_captured";
 
-export interface FranceTlsRunnerSlot {
-  appointmentDate: string;
-  appointmentTime: string;
-  appointmentLocation: string;
-  appointmentType: string;
-  source: string;
-  metadataRedactedJson: Record<string, unknown>;
-}
+export type FranceTlsRunnerSlot = FranceTlsObservedSlot;
 
 export interface FranceTlsRunnerResult {
   status: FranceTlsRunnerStatus;
   slots?: FranceTlsRunnerSlot[];
+  evidence?: FranceTlsObservationEvidence;
   confirmation?: {
     confirmationNumber: string;
     receiptUrl?: string | null;
@@ -46,6 +51,12 @@ export interface FranceTlsRunnerResult {
     message: string;
     metadataRedactedJson: Record<string, unknown>;
   };
+}
+
+export interface FranceTlsObservationEvidence {
+  redactedUrl: string;
+  pageType: string;
+  screenshotPath: string | null;
 }
 
 export interface FranceTlsOfficialProbeInput {
@@ -62,6 +73,37 @@ export interface FranceTlsOfficialBookingInput extends FranceTlsOfficialProbeInp
     appointmentType: string;
   };
   paymentSessionId?: string | null;
+}
+
+async function captureObservationEvidence(
+  page: Page,
+  pageType: string,
+): Promise<FranceTlsObservationEvidence> {
+  const configuredRoot = process.env.SUBMISSION_ARTIFACTS_DIR?.trim();
+  const root = configuredRoot
+    ? path.resolve(configuredRoot)
+    : path.join(os.tmpdir(), "viza-submission-artifacts");
+  const directory = path.join(root, "france-tls-observation");
+  await fs.mkdir(directory, { recursive: true });
+  const safeType = pageType.replace(/[^a-z0-9_-]+/giu, "-").slice(0, 60) || "checkpoint";
+  const screenshotPath = path.join(
+    directory,
+    `${Date.now()}-${safeType}-${randomBytes(3).toString("hex")}.png`,
+  );
+  let savedPath: string | null = screenshotPath;
+  try {
+    const mask = [page.locator(
+      "input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']), textarea, [contenteditable='true']",
+    )];
+    await page.screenshot({ path: screenshotPath, fullPage: true, mask, timeout: 15_000 });
+  } catch {
+    savedPath = null;
+  }
+  return {
+    redactedUrl: redactOfficialUrl(page.url()),
+    pageType: safeType,
+    screenshotPath: savedPath,
+  };
 }
 
 export function buildFranceTlsDryRunSlots(centerCode: string): FranceTlsRunnerSlot[] {
@@ -130,7 +172,7 @@ export class FranceTlsAppointmentProvider {
 
 function classifyCheckpoint(text: string): FranceTlsRunnerResult["checkpoint"] | null {
   const start = text.slice(0, 1200);
-  if (/checking your browser|attention required|access denied|cf-error|turnstile/i.test(start)) {
+  if (/checking your browser|attention required|access denied|cf-error|turnstile|un\s+instant|vérification de sécurité|verification de securite|ray\s*id|cloudflare/i.test(start)) {
     return {
       type: "waf",
       message: "TLScontact is protected by WAF/Cloudflare or blocked the current browser session.",
@@ -159,37 +201,6 @@ function classifyCheckpoint(text: string): FranceTlsRunnerResult["checkpoint"] |
     };
   }
   return null;
-}
-
-function extractVisibleSlots(text: string, centerCode: string): FranceTlsRunnerSlot[] {
-  const center = resolveFranceTlsCenter(centerCode) ?? FRANCE_TLS_CHINA_CENTERS[0];
-  const slots = new Map<string, FranceTlsRunnerSlot>();
-  const datePattern = /\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/g;
-  const timePattern = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
-  const dates = [...text.matchAll(datePattern)].slice(0, 10).map((match) =>
-    `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`,
-  );
-  const times = [...text.matchAll(timePattern)].slice(0, 10).map((match) =>
-    `${match[1].padStart(2, "0")}:${match[2]}`,
-  );
-  for (const date of dates) {
-    for (const time of times.length ? times : ["00:00"]) {
-      const key = `${date}-${time}`;
-      slots.set(key, {
-        appointmentDate: date,
-        appointmentTime: time,
-        appointmentLocation: `TLScontact ${center.cityEn}`,
-        appointmentType: "France Schengen visa application submission",
-        source: "france_tls_live",
-        metadataRedactedJson: {
-          centerCode: center.code,
-          provider: center.provider,
-          observedFromOfficialPage: true,
-        },
-      });
-    }
-  }
-  return [...slots.values()].slice(0, 20);
 }
 
 async function openAuthenticatedFranceTlsPage(input: {
@@ -231,7 +242,7 @@ async function openAuthenticatedFranceTlsPage(input: {
     }
     return session;
   } catch (error) {
-    await session.browser.close().catch(() => undefined);
+    await closeFranceTlsBrowserSession(session);
     throw error;
   }
 }
@@ -252,9 +263,11 @@ export async function probeFranceTlsOfficialPortal(
   }
 
   let browser: Browser | null = null;
+  let page: Page | null = null;
   try {
     const session = await openAuthenticatedFranceTlsPage(input);
     browser = session.browser;
+    page = session.page;
     const settleMs = Number.parseInt(process.env.FRANCE_TLS_PAGE_SETTLE_MS ?? "30000", 10);
     await session.page.waitForTimeout(Number.isFinite(settleMs) ? Math.max(4_000, settleMs) : 30_000);
     const browserInput = await readFranceTlsBrowserState(session.page);
@@ -262,6 +275,7 @@ export async function probeFranceTlsOfficialPortal(
     if (browserState.checkpoint === "waf" || isFranceTlsCaptchaBlocking(browserInput, browserState)) {
       return {
         status: "manual_required",
+        evidence: await captureObservationEvidence(session.page, browserState.checkpoint),
         checkpoint: {
           type: browserState.checkpoint === "waf" ? "waf" : "captcha",
           message: browserState.message,
@@ -278,6 +292,7 @@ export async function probeFranceTlsOfficialPortal(
     if (pageState.checkpoint === "payment") {
       return {
         status: "payment_required",
+        evidence: await captureObservationEvidence(session.page, "payment"),
         checkpoint: {
           type: "payment",
           message: pageState.message,
@@ -293,6 +308,7 @@ export async function probeFranceTlsOfficialPortal(
     if (checkpoint) {
       return {
         status: "manual_required",
+        evidence: await captureObservationEvidence(session.page, checkpoint.type),
         checkpoint: {
           ...checkpoint,
           metadataRedactedJson: {
@@ -305,26 +321,43 @@ export async function probeFranceTlsOfficialPortal(
       };
     }
 
-    const slots = extractVisibleSlots(text, center.code);
-    if (slots.length > 0) return { status: "slots_observed", slots };
-    if (/no (?:appointments?|slots?|times?) (?:are )?available|no availability|aucun cr[ée]neau|indisponible/i.test(text)) {
-      return { status: "no_slots_available", slots: [] };
+    const extraction = extractFranceTlsSlotsFromDom(
+      await readFranceTlsSlotDomRecords(session.page),
+      center.code,
+      { noSlotsText: text },
+    );
+    if (extraction.status === "slots_observed") {
+      return {
+        status: "slots_observed",
+        slots: extraction.slots,
+        evidence: await captureObservationEvidence(session.page, "slots_observed"),
+      };
+    }
+    if (extraction.status === "no_slots_available") {
+      return {
+        status: "no_slots_available",
+        slots: [],
+        evidence: await captureObservationEvidence(session.page, "no_slots_available"),
+      };
     }
     return {
       status: "manual_required",
+      evidence: await captureObservationEvidence(session.page, "selector_drift"),
       checkpoint: {
         type: "selector_drift",
-        message: "TLScontact was reached after login, but neither supported slot controls nor an official no-slots message was visible.",
+        message: "TLScontact was reached after login, but supported one-slot containers did not expose a parseable provider slot id, date, and time.",
         metadataRedactedJson: {
           centerCode: center.code,
           browserProvider: session.provider,
           officialUrlReached: true,
+          invalidSlotRecordCount: extraction.invalidRecordCount,
         },
       },
     };
   } catch (error) {
     return {
       status: "manual_required",
+      ...(page ? { evidence: await captureObservationEvidence(page, "site_policy_review") } : {}),
       checkpoint: {
         type: "site_policy_review",
         message: error instanceof Error ? error.message : String(error),

@@ -1,0 +1,50 @@
+# Sticky Indonesia B1/C1 submission_queue worker. One retained Machine keeps
+# account, OTP, browser, and one-time payment-card state in a single process.
+app = "viza-runner-indonesia"
+primary_region = "sin"
+kill_signal = "SIGINT"
+kill_timeout = "5m"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  RUNNER_MACHINE_KIND = "indonesia"
+  SUBMISSION_SERVICE_WORKER_ID = "viza-runner-indonesia"
+  SUBMISSION_SERVICE_MAX_CONCURRENCY = "1"
+  SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "false"
+  SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED = "true"
+  SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  ID_CLOUD_CARD_SESSION_ENABLED = "true"
+  INDONESIA_PLAYWRIGHT_HEADLESS = "true"
+  INDONESIA_PAYMENT_MAX_MEMORY_MB = "1700"
+  INDONESIA_STEP_1_USE_LEGACY_FALLBACKS = "false"
+  INBOX_ALIAS_DOMAIN = "viza.it.com"
+  INDONESIA_BROWSERBASE_ENABLED = "true"
+  INDONESIA_BROWSERBASE_PROXIES = "true"
+  INDONESIA_BROWSERBASE_COUNTRY = "ID"
+  INDONESIA_BROWSERBASE_REGION = "ap-southeast-1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 0
+  max_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "45s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 2048

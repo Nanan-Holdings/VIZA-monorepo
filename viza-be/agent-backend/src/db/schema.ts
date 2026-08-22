@@ -8,12 +8,14 @@
 	integer,
 	smallint,
 	bigint,
+	bigserial,
 	jsonb,
 	numeric,
 	customType,
 	index,
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // =============================================================================
 // CUSTOM TYPES
@@ -98,7 +100,7 @@ export const applications = pgTable("applications", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicantId: uuid("applicant_id").notNull(),
 	country: text("country").default("indonesia").notNull(),
-	visaType: text("visa_type").default("tourist_b211a").notNull(),
+	visaType: text("visa_type").default("ID_C1_TOURIST").notNull(),
 	status: text("status").default("draft").notNull(),
 	arrivalDate: date("arrival_date"),
 	departureDate: date("departure_date"),
@@ -228,6 +230,91 @@ export const universalProfileDocuments = pgTable("universal_profile_documents", 
 	sourceApplicationIdx: index("universal_profile_documents_source_app_idx").on(table.sourceApplicationId),
 }));
 
+export const universalProfileAnswers = pgTable("universal_profile_answers", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id").notNull(),
+	canonicalKey: text("canonical_key").notNull(),
+	valueText: text("value_text").notNull(),
+	valueZh: text("value_zh"),
+	valueEn: text("value_en"),
+	labelZh: text("label_zh"),
+	labelEn: text("label_en"),
+	fieldType: text("field_type").default("text").notNull(),
+	category: text("category").default("identity").notNull(),
+	sourceApplicationId: uuid("source_application_id"),
+	sourceVisaType: text("source_visa_type"),
+	sourceFieldName: text("source_field_name"),
+	fieldSchema: jsonb("field_schema").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	userKeyIdx: uniqueIndex("universal_profile_answers_user_key_idx").on(table.authUserId, table.canonicalKey),
+	applicantIdx: index("universal_profile_answers_applicant_idx").on(table.applicantId),
+	sourceApplicationIdx: index("universal_profile_answers_source_app_idx").on(table.sourceApplicationId),
+}));
+
+// =============================================================================
+// PUBLIC SERVICE STATUS
+// Current projection, append-only checks, and derived incident lifecycles.
+// Public consumers must use the redacted backend API rather than these tables.
+// =============================================================================
+
+export const portalHealth = pgTable("portal_health", {
+	country: text("country").primaryKey(),
+	status: text("status").default("unknown").notNull(),
+	httpStatus: integer("http_status"),
+	latencyMs: integer("latency_ms"),
+	note: text("note"),
+	error: text("error"),
+	lastRunAt: timestamp("last_run_at", { withTimezone: true }).defaultNow().notNull(),
+	probeUrl: text("probe_url"),
+	monitorType: text("monitor_type").default("government_portal").notNull(),
+	isoCode: text("iso_code"),
+	displayNameEn: text("display_name_en"),
+	displayNameZh: text("display_name_zh"),
+	descriptionEn: text("description_en"),
+	descriptionZh: text("description_zh"),
+	publicVisible: boolean("public_visible").default(true).notNull(),
+	sortOrder: integer("sort_order").default(100).notNull(),
+	lastOkAt: timestamp("last_ok_at", { withTimezone: true }),
+	lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+	lastStatusChangedAt: timestamp("last_status_changed_at", { withTimezone: true }).defaultNow().notNull(),
+	consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
+	consecutiveSuccesses: integer("consecutive_successes").default(0).notNull(),
+});
+
+export const portalHealthChecks = pgTable("portal_health_checks", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	monitorKey: text("monitor_key").notNull(),
+	status: text("status").notNull(),
+	httpStatus: integer("http_status"),
+	latencyMs: integer("latency_ms"),
+	note: text("note"),
+	errorCode: text("error_code"),
+	checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow().notNull(),
+	source: text("source").default("scheduled_probe").notNull(),
+}, (table) => ({
+	monitorCheckedIdx: index("portal_health_checks_monitor_checked_idx").on(table.monitorKey, table.checkedAt),
+	checkedIdx: index("portal_health_checks_checked_idx").on(table.checkedAt),
+}));
+
+export const statusIncidents = pgTable("status_incidents", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	monitorKey: text("monitor_key").notNull(),
+	status: text("status").default("investigating").notNull(),
+	severity: text("severity").notNull(),
+	startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+	resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+	lastObservedAt: timestamp("last_observed_at", { withTimezone: true }).defaultNow().notNull(),
+	summaryEn: text("summary_en").notNull(),
+	summaryZh: text("summary_zh").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	startedIdx: index("status_incidents_started_idx").on(table.startedAt),
+}));
+
 export const officialApplicationTracking = pgTable("official_application_tracking", {
 	applicationId: uuid("application_id").primaryKey(),
 	applicantId: uuid("applicant_id").notNull(),
@@ -273,6 +360,10 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 	checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow(),
 	completedAt: timestamp("completed_at", { withTimezone: true }),
 	attemptCount: integer("attempt_count").default(0).notNull(),
+	workerId: text("worker_id"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true }),
+	leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+	leaseGeneration: bigint("lease_generation", { mode: "number" }).default(0).notNull(),
 	artifactStoragePath: text("artifact_storage_path"),
 	artifactSha256: text("artifact_sha256"),
 	rawStatusJson: jsonb("raw_status_json").default({}).notNull(),
@@ -284,7 +375,12 @@ export const officialStatusChecks = pgTable("official_status_checks", {
 	applicationIdx: index("official_status_checks_application_idx").on(table.applicationId),
 	statusIdx: index("official_status_checks_status_idx").on(table.status),
 	idempotencyIdx: uniqueIndex("official_status_checks_idempotency_idx").on(table.idempotencyKey),
-	claimIdx: index("official_status_checks_claim_idx").on(table.status, table.scheduledFor, table.createdAt),
+	claimIdx: index("official_status_checks_claim_idx").on(
+		table.status,
+		table.scheduledFor,
+		table.leaseExpiresAt,
+		table.createdAt,
+	),
 }));
 
 // =============================================================================
@@ -386,6 +482,158 @@ export const submissionQueue = pgTable("submission_queue", {
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+export const runnerJobs = pgTable("runner_job", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	country: text("country").notNull(),
+	flowKey: text("flow_key"),
+	status: text("status").default("queued").notNull(),
+	attempts: integer("attempts").default(0).notNull(),
+	maxAttempts: integer("max_attempts").default(3).notNull(),
+	correlationId: text("correlation_id"),
+	lastError: text("last_error"),
+	enqueuedAt: timestamp("enqueued_at", { withTimezone: true }).defaultNow().notNull(),
+	availableAt: timestamp("available_at", { withTimezone: true }).defaultNow().notNull(),
+	startedAt: timestamp("started_at", { withTimezone: true }),
+	finishedAt: timestamp("finished_at", { withTimezone: true }),
+	leasedBy: text("leased_by"),
+	leasedUntil: timestamp("leased_until", { withTimezone: true }),
+	metadata: jsonb("metadata"),
+}, (table) => ({
+	statusCountryIdx: index("idx_runner_job_status_country").on(
+		table.status,
+		table.country,
+		table.enqueuedAt,
+	),
+	applicationIdx: index("idx_runner_job_application").on(table.applicationId),
+	leaseIdx: index("idx_runner_job_lease_active").on(table.leasedUntil),
+	poolClaimIdx: index("runner_job_pool_claim_idx").on(
+		table.status,
+		table.availableAt,
+		table.enqueuedAt,
+	),
+}));
+
+export const runnerConcurrencyCaps = pgTable("runner_concurrency_cap", {
+	country: text("country").primaryKey(),
+	maxConcurrent: integer("max_concurrent").default(1).notNull(),
+	paused: boolean("paused").default(false).notNull(),
+	notes: text("notes"),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const runnerMachineSlots = pgTable("runner_machine_slot", {
+	slotNumber: smallint("slot_number").primaryKey(),
+	ownerMachineId: text("owner_machine_id").unique(),
+	ownerKind: text("owner_kind"),
+	leaseUntil: timestamp("lease_until", { withTimezone: true }),
+	acquiredAt: timestamp("acquired_at", { withTimezone: true }),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// TYPE-ONLY SCHEMA COMPATIBILITY: runner_concurrency_metric is queried through
+// service-role SQL/REST, not Drizzle mutations. Migration 0156 is authoritative
+// for `id BIGINT GENERATED BY DEFAULT AS IDENTITY` and the physical indexes
+// `(recorded_at DESC)` and `(event_type, recorded_at DESC)`. Drizzle 0.30 cannot
+// represent identity columns or mixed per-column index order exactly, so those
+// details are intentionally not declared here; do not generate/push them from
+// this compatibility mapping.
+export const runnerConcurrencyMetrics = pgTable("runner_concurrency_metric", {
+	id: bigint("id", { mode: "number" }).primaryKey(),
+	eventType: text("event_type").notNull(),
+	outcome: text("outcome").notNull(),
+	durationMs: integer("duration_ms"),
+	country: text("country"),
+	machineKind: text("machine_kind"),
+	count: integer("count").default(1).notNull(),
+	recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type RunnerConcurrencyMetric = typeof runnerConcurrencyMetrics.$inferSelect;
+export type NewRunnerConcurrencyMetric = typeof runnerConcurrencyMetrics.$inferInsert;
+
+// TYPE-ONLY SCHEMA COMPATIBILITY: migration 0155 owns the physical
+// application_inbox_aliases `(applicant_id, created_at DESC)` index. Its mixed
+// per-column order is intentionally omitted because Drizzle 0.30 cannot encode
+// it faithfully; service-role REST remains the mutation path.
+export const applicationInboxAliases = pgTable("application_inbox_aliases", {
+	applicationId: uuid("application_id").primaryKey(),
+	applicantId: uuid("applicant_id").notNull(),
+	alias: text("alias").notNull().unique(),
+	retiredAt: timestamp("retired_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type ApplicationInboxAlias = typeof applicationInboxAliases.$inferSelect;
+export type NewApplicationInboxAlias = typeof applicationInboxAliases.$inferInsert;
+
+export const takeoverSessions = pgTable("takeover_session", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id").notNull(),
+	applicationId: uuid("application_id").notNull(),
+	applicantId: uuid("applicant_id").notNull(),
+	status: text("status").default("queued").notNull(),
+	reason: text("reason").notNull(),
+	remoteDebugUrl: text("remote_debug_url").notNull(),
+	vncUrl: text("vnc_url"),
+	claimedBy: uuid("claimed_by"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true }),
+	closedAt: timestamp("closed_at", { withTimezone: true }),
+	operatorNotes: text("operator_notes"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	handoffKind: text("handoff_kind"),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+}, (table) => ({
+	statusCreatedIdx: index("idx_takeover_session_status_created").on(
+		table.status,
+		table.createdAt,
+	),
+	jobIdx: index("idx_takeover_session_job").on(table.jobId),
+}));
+
+export type TakeoverSession = typeof takeoverSessions.$inferSelect;
+export type NewTakeoverSession = typeof takeoverSessions.$inferInsert;
+
+export const takeoverActionLogs = pgTable("takeover_action_log", {
+	id: bigserial("id", { mode: "number" }).primaryKey(),
+	takeoverId: uuid("takeover_id").notNull(),
+	action: text("action").notNull(),
+	actorUserId: uuid("actor_user_id"),
+	detail: jsonb("detail"),
+	ts: timestamp("ts", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	takeoverTsIdx: index("idx_takeover_action_log_takeover_ts").on(
+		table.takeoverId,
+		table.ts,
+	),
+}));
+
+export type TakeoverActionLog = typeof takeoverActionLogs.$inferSelect;
+export type NewTakeoverActionLog = typeof takeoverActionLogs.$inferInsert;
+
+export const ds160LiveSessions = pgTable("ds160_live_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	submissionQueueId: uuid("submission_queue_id"),
+	applicationId: uuid("application_id"),
+	userId: uuid("user_id"),
+	officialApplicationIdEncrypted: text("official_application_id_encrypted"),
+	officialSecurityQuestionEncrypted: text("official_security_question_encrypted"),
+	officialSecurityAnswerEncrypted: text("official_security_answer_encrypted"),
+	officialConfirmationNumberEncrypted: text("official_confirmation_number_encrypted"),
+	officialConfirmationPageUrl: text("official_confirmation_page_url"),
+	status: text("status").default("created"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	queueIdx: index("ds160_live_sessions_queue_idx").on(table.submissionQueueId),
+	applicationIdx: index("ds160_live_sessions_application_idx").on(table.applicationId),
+	statusIdx: index("ds160_live_sessions_status_idx").on(table.status),
+}));
+
+export type Ds160LiveSession = typeof ds160LiveSessions.$inferSelect;
+export type NewDs160LiveSession = typeof ds160LiveSessions.$inferInsert;
 
 export const ds160SubmissionJobs = pgTable("ds160_submission_jobs", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -522,6 +770,9 @@ export const visaChatSessions = pgTable("visa_chat_sessions", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicantId: uuid("applicant_id").notNull(),
 	applicationId: uuid("application_id"),
+	memoryJson: jsonb("memory_json").default({}).notNull(),
+	memoryRevision: bigint("memory_revision", { mode: "number" }).default(0).notNull(),
+	memoryUpdatedAt: timestamp("memory_updated_at", { withTimezone: true }),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -540,6 +791,61 @@ export const visaChatMessages = pgTable("visa_chat_messages", {
 	blockData: jsonb("block_data"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+// =============================================================================
+// FORM FILLING ASSISTANT SESSIONS
+// Durable, application-scoped state for the interactive form assistant.
+// =============================================================================
+
+export const formAssistantSessions = pgTable("form_assistant_sessions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id").notNull(),
+	schemaFingerprint: text("schema_fingerprint").notNull(),
+	knowledgeReleaseId: uuid("knowledge_release_id"),
+	knowledgeReleaseKey: text("knowledge_release_key"),
+	stateJson: jsonb("state_json").default({}).notNull(),
+	stateVersion: bigint("state_version", { mode: "number" }).default(0).notNull(),
+	lastCheckJson: jsonb("last_check_json"),
+	status: text("status").default("active").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => ({
+	applicationUniqueIdx: uniqueIndex("form_assistant_sessions_application_unique_idx").on(table.applicationId),
+	authUserUpdatedIdx: index("form_assistant_sessions_auth_user_updated_idx").on(table.authUserId, table.updatedAt),
+	applicantUpdatedIdx: index("form_assistant_sessions_applicant_updated_idx").on(table.applicantId, table.updatedAt),
+}));
+
+// =============================================================================
+// FORM FILLING ASSISTANT MESSAGES
+// Persisted text turns only; raw voice recordings are intentionally ephemeral.
+// =============================================================================
+
+export const formAssistantMessages = pgTable("form_assistant_messages", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: uuid("session_id").notNull(),
+	applicationId: uuid("application_id"),
+	applicantId: uuid("applicant_id"),
+	authUserId: uuid("auth_user_id"),
+	idempotencyKey: text("idempotency_key").notNull(),
+	role: text("role").notNull(),
+	content: text("content").notNull(),
+	inputMode: text("input_mode").default("text").notNull(),
+	responseJson: jsonb("response_json"),
+	metadataJson: jsonb("metadata_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("form_assistant_messages_session_created_idx").on(table.sessionId, table.createdAt),
+	applicationCreatedIdx: index("form_assistant_messages_application_created_idx").on(table.applicationId, table.createdAt),
+	authUserCreatedIdx: index("form_assistant_messages_auth_user_created_idx").on(table.authUserId, table.createdAt),
+	sessionIdempotencyRoleIdx: uniqueIndex("form_assistant_messages_session_idempotency_role_unique_idx").on(
+		table.sessionId,
+		table.idempotencyKey,
+		table.role,
+	),
+}));
 
 // =============================================================================
 // TRAVEL DESTINATION INDEX
@@ -742,6 +1048,50 @@ export const travelItinerarySessions = pgTable("travel_itinerary_sessions", {
 	updatedAtIdx: index("travel_itinerary_sessions_updated_at_idx").on(table.updatedAt),
 }));
 
+export const travelAgentSessions = pgTable("travel_agent_sessions", {
+	id: text("id").primaryKey(),
+	userId: uuid("user_id").notNull(),
+	applicationId: uuid("application_id"),
+	stateJson: jsonb("state_json").default({}).notNull(),
+	stateVersion: bigint("state_version", { mode: "number" }).default(0).notNull(),
+	memorySummary: text("memory_summary").default("").notNull(),
+	openaiPreviousResponseId: text("openai_previous_response_id"),
+	pendingActionsJson: jsonb("pending_actions_json").default([]).notNull(),
+	legacyDestinationReviewJson: jsonb("legacy_destination_review_json").default([]).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	userUpdatedIdx: index("travel_agent_sessions_user_updated_idx").on(table.userId, table.updatedAt),
+	applicationIdx: index("travel_agent_sessions_application_idx").on(table.applicationId),
+}));
+
+export const travelAgentMessages = pgTable("travel_agent_messages", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: text("session_id").notNull(),
+	userId: uuid("user_id").notNull(),
+	externalMessageId: text("external_message_id").notNull(),
+	role: text("role").notNull(),
+	content: text("content").notNull(),
+	openaiResponseId: text("openai_response_id"),
+	responseJson: jsonb("response_json"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("travel_agent_messages_session_created_idx").on(table.sessionId, table.createdAt),
+	userCreatedIdx: index("travel_agent_messages_user_created_idx").on(table.userId, table.createdAt),
+	sessionExternalRoleIdx: uniqueIndex("travel_agent_messages_session_external_role_unique_idx").on(
+		table.sessionId,
+		table.externalMessageId,
+		table.role
+	),
+}));
+
+export const travelUserPreferences = pgTable("travel_user_preferences", {
+	userId: uuid("user_id").primaryKey(),
+	preferencesJson: jsonb("preferences_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const travelUnresolvedDestinations = pgTable("travel_unresolved_destinations", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	userInput: text("user_input").notNull(),
@@ -762,6 +1112,20 @@ export const travelUnresolvedDestinations = pgTable("travel_unresolved_destinati
 // document_type: requirements | process | faq | form_fields | common_mistakes
 // =============================================================================
 
+export const visaKnowledgeReleases = pgTable("visa_knowledge_releases", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	releaseKey: text("release_key").notNull(),
+	status: text("status").default("staged").notNull(),
+	description: text("description"),
+	expectedEntryRuleCount: integer("expected_entry_rule_count").default(385).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	activatedAt: timestamp("activated_at", { withTimezone: true }),
+	quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
+}, (table) => ({
+	releaseKeyIdx: uniqueIndex("visa_knowledge_releases_release_key_unique_idx").on(table.releaseKey),
+	statusIdx: index("visa_knowledge_releases_status_idx").on(table.status),
+}));
+
 export const visaDocuments = pgTable("visa_documents", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	country: text("country").notNull(),
@@ -769,8 +1133,24 @@ export const visaDocuments = pgTable("visa_documents", {
 	documentType: text("document_type").notNull(),
 	title: text("title"),
 	sourceUrl: text("source_url"),
+	sourceKey: text("source_key").notNull(),
+	ingestionScope: text("ingestion_scope").default("legacy").notNull(),
+	releaseId: uuid("release_id"),
+	status: text("status").default("active").notNull(),
+	contentHash: text("content_hash"),
+	verifiedAt: timestamp("verified_at", { withTimezone: true }),
+	lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).defaultNow().notNull(),
+	quarantinedAt: timestamp("quarantined_at", { withTimezone: true }),
+	quarantineReason: text("quarantine_reason"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => ({
+	sourceKeyIdx: uniqueIndex("visa_documents_release_source_key_unique_idx").on(
+		table.releaseId,
+		table.sourceKey,
+	),
+	releaseStatusIdx: index("visa_documents_release_status_idx").on(table.releaseId, table.status),
+	scopeCountryIdx: index("visa_documents_scope_country_idx").on(table.ingestionScope, table.country),
+}));
 
 // =============================================================================
 // VISA CHUNKS
@@ -790,6 +1170,68 @@ export const visaChunks = pgTable("visa_chunks", {
 	embedding: vector(1536)("embedding"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+export const visaEntryRules = pgTable("visa_entry_rules", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	ruleKey: text("rule_key").notNull(),
+	releaseId: uuid("release_id").notNull(),
+	status: text("status").default("staged").notNull(),
+	destinationCountry: text("destination_country").notNull(),
+	passportCountryIso3: text("passport_country_iso3").notNull(),
+	passportType: text("passport_type").default("ordinary").notNull(),
+	tripPurpose: text("trip_purpose").default("tourism").notNull(),
+	maxStayDays: integer("max_stay_days"),
+	outcome: text("outcome").notNull(),
+	reviewStatus: text("review_status").default("placeholder").notNull(),
+	visaType: text("visa_type"),
+	arrivalCardTypes: text("arrival_card_types").array().default([]).notNull(),
+	requiredInputs: text("required_inputs").array().default([]).notNull(),
+	productRecommendations: jsonb("product_recommendations").default([]).notNull(),
+	conditionsJson: jsonb("conditions_json").default({}).notNull(),
+	sourceUrl: text("source_url").notNull(),
+	effectiveFrom: date("effective_from"),
+	effectiveTo: date("effective_to"),
+	verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+	reviewDueAt: date("review_due_at"),
+	contentHash: text("content_hash").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	ruleKeyIdx: uniqueIndex("visa_entry_rules_release_rule_key_unique_idx").on(
+		table.releaseId,
+		table.ruleKey,
+	),
+	lookupIdx: index("visa_entry_rules_lookup_idx").on(
+		table.destinationCountry,
+		table.passportCountryIso3,
+		table.passportType,
+		table.tripPurpose,
+		table.status,
+	),
+	releaseStatusIdx: index("visa_entry_rules_release_status_idx").on(table.releaseId, table.status),
+}));
+
+export const visaAgentRunDiagnostics = pgTable("visa_agent_run_diagnostics", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: uuid("session_id").notNull(),
+	memoryRevision: bigint("memory_revision", { mode: "number" }).default(0).notNull(),
+	destinationCountry: text("destination_country"),
+	passportCountryIso3: text("passport_country_iso3"),
+	entryRuleOutcome: text("entry_rule_outcome"),
+	visaType: text("visa_type"),
+	recommendedProducts: jsonb("recommended_products").default([]).notNull(),
+	intent: text("intent"),
+	sourceKeys: jsonb("source_keys").default([]).notNull(),
+	fallbackReason: text("fallback_reason"),
+	model: text("model"),
+	durationMs: integer("duration_ms"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("visa_agent_run_diagnostics_session_created_idx").on(
+		table.sessionId,
+		table.createdAt,
+	),
+}));
 
 export type ApplicantProfile = typeof applicantProfiles.$inferSelect;
 export type NewApplicantProfile = typeof applicantProfiles.$inferInsert;
@@ -812,6 +1254,12 @@ export type NewVisaChatSession = typeof visaChatSessions.$inferInsert;
 export type VisaChatMessage = typeof visaChatMessages.$inferSelect;
 export type NewVisaChatMessage = typeof visaChatMessages.$inferInsert;
 
+export type FormAssistantSession = typeof formAssistantSessions.$inferSelect;
+export type NewFormAssistantSession = typeof formAssistantSessions.$inferInsert;
+
+export type FormAssistantMessage = typeof formAssistantMessages.$inferSelect;
+export type NewFormAssistantMessage = typeof formAssistantMessages.$inferInsert;
+
 export type TravelDestination = typeof travelDestinations.$inferSelect;
 export type NewTravelDestination = typeof travelDestinations.$inferInsert;
 
@@ -823,6 +1271,12 @@ export type NewTravelDestinationCard = typeof travelDestinationCards.$inferInser
 
 export type TravelItinerarySession = typeof travelItinerarySessions.$inferSelect;
 export type NewTravelItinerarySession = typeof travelItinerarySessions.$inferInsert;
+export type TravelAgentSession = typeof travelAgentSessions.$inferSelect;
+export type NewTravelAgentSession = typeof travelAgentSessions.$inferInsert;
+export type TravelAgentMessage = typeof travelAgentMessages.$inferSelect;
+export type NewTravelAgentMessage = typeof travelAgentMessages.$inferInsert;
+export type TravelUserPreference = typeof travelUserPreferences.$inferSelect;
+export type NewTravelUserPreference = typeof travelUserPreferences.$inferInsert;
 
 export type TravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferSelect;
 export type NewTravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferInsert;
@@ -841,7 +1295,7 @@ export type NewVisaChunk = typeof visaChunks.$inferInsert;
 
 export const visaFormFields = pgTable("visa_form_fields", {
 	id: uuid("id").primaryKey().defaultRandom(),
-	visaType: text("visa_type").notNull().default("B211A"),
+	visaType: text("visa_type").notNull().default("ID_C1_TOURIST"),
 	fieldName: text("field_name").notNull(),
 	label: text("label").notNull(),
 	fieldType: text("field_type").notNull(),
@@ -1048,6 +1502,23 @@ export const userPackages = pgTable("user_packages", {
 
 export type UserPackage = typeof userPackages.$inferSelect;
 export type NewUserPackage = typeof userPackages.$inferInsert;
+
+export const userFormRequests = pgTable("user_form_requests", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	userId: uuid("user_id").notNull(),
+	formType: text("form_type").notNull().default("about_me"),
+	triggeredBy: text("triggered_by").notNull().default("system"),
+	triggeredByUserId: uuid("triggered_by_user_id"),
+	status: text("status").notNull().default("pending"),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	skippedAt: timestamp("skipped_at", { withTimezone: true }),
+	dueDate: timestamp("due_date", { withTimezone: true }),
+	notes: text("notes"),
+});
+
+export type UserFormRequest = typeof userFormRequests.$inferSelect;
+export type NewUserFormRequest = typeof userFormRequests.$inferInsert;
 
 // =============================================================================
 // VISA APPLICATION ANSWERS
@@ -1418,12 +1889,16 @@ export const appointmentSlots = pgTable("appointment_slots", {
   source: text("source"),
   status: text("status").notNull().default("observed"),
   observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP + INTERVAL '10 minutes'`),
   metadataRedactedJson: jsonb("metadata_redacted_json"),
 }, (table) => ({
   jobIdx: index("appointment_slots_job_idx").on(table.jobId),
   observedAtIdx: index("appointment_slots_observed_at_idx").on(table.observedAt),
   applicationIdx: index("appointment_slots_application_idx").on(table.applicationId),
   statusIdx: index("appointment_slots_status_idx").on(table.status),
+  activeLookupIdx: index("appointment_slots_job_status_expires_idx").on(table.jobId, table.status, table.expiresAt),
 }));
 
 export const appointmentConfirmations = pgTable("appointment_confirmations", {

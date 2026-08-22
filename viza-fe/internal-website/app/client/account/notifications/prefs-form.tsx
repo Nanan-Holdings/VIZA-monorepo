@@ -1,31 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useLocale } from "next-intl";
 import type { NotificationPrefs } from "@/app/actions/notification-prefs";
+import { getNotificationsCopy } from "./copy";
 
 interface Props {
   initial: NotificationPrefs;
   action: (patch: Record<string, boolean>) => Promise<void>;
 }
 
-const FIELDS: Array<{
-  key: keyof NotificationPrefs;
-  label: string;
-  hint?: string;
-}> = [
-  {
-    key: "channel_email",
-    label: "Email notifications",
-    hint: "Always on for essential events; toggling off only mutes optional ones.",
-  },
-  { key: "channel_push", label: "Mobile push notifications", hint: "Requires the VIZA mobile app." },
-  { key: "notify_runner_started", label: "Submission started" },
-  { key: "notify_submitted", label: "Submission complete" },
-  { key: "notify_document_ready", label: "Visa document ready" },
-  { key: "notify_marketing", label: "Product news + offers (opt-in)" },
-];
-
 export function NotificationPrefsForm({ initial, action }: Props) {
+  const locale = useLocale();
+  const copy = getNotificationsCopy(locale);
   const [state, setState] = useState<NotificationPrefs>(initial);
   const [pending, start] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -37,14 +24,21 @@ export function NotificationPrefsForm({ initial, action }: Props) {
     setState((s) => ({ ...s, [key]: next }));
     start(async () => {
       await action(patch);
-      setSavedAt(new Date().toLocaleTimeString());
+      setSavedAt(new Date().toLocaleTimeString(locale.startsWith("zh") ? "zh-CN" : "en-US"));
     });
   }
 
   return (
     <div className="space-y-3">
       <ul className="space-y-2">
-        {FIELDS.map((f) => {
+        {[
+          { key: "channel_email" as const, ...copy.fields.channelEmail },
+          { key: "channel_push" as const, ...copy.fields.channelPush },
+          { key: "notify_runner_started" as const, label: copy.fields.submissionStarted, hint: undefined },
+          { key: "notify_submitted" as const, label: copy.fields.submissionComplete, hint: undefined },
+          { key: "notify_document_ready" as const, label: copy.fields.visaDocumentReady, hint: undefined },
+          { key: "notify_marketing" as const, label: copy.fields.marketing, hint: undefined },
+        ].map((f) => {
           const value = Boolean(state[f.key]);
           return (
             <li
@@ -61,6 +55,7 @@ export function NotificationPrefsForm({ initial, action }: Props) {
                 type="button"
                 role="switch"
                 aria-checked={value}
+                aria-label={f.label}
                 onClick={() => toggle(f.key)}
                 disabled={pending}
                 className={`relative w-10 h-6 rounded-full transition-colors ${
@@ -78,7 +73,7 @@ export function NotificationPrefsForm({ initial, action }: Props) {
         })}
       </ul>
       {savedAt ? (
-        <p className="text-xs text-[#6b6b6b]">Saved at {savedAt}.</p>
+        <p className="text-xs text-[#6b6b6b]">{copy.savedAt(savedAt)}</p>
       ) : null}
     </div>
   );

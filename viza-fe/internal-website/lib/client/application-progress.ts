@@ -3,6 +3,7 @@ import {
   getFormVisaType,
   getVisaDestinationKey,
 } from "@/lib/visa-destinations";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
 
@@ -15,6 +16,7 @@ export interface ApplicationRow {
   status: string;
   country: string;
   visa_type: string;
+  purpose?: string | null;
   visa_package_id: string | null;
   submission_result_status: string | null;
   submitted_at: string | null;
@@ -111,12 +113,11 @@ export function getProgressLabel(
 // ---------------------------------------------------------------------------
 
 export function buildApplicationHref(application: ApplicationRow): string {
-  const params = new URLSearchParams({
+  return buildApplicationLongFormHref({
+    applicationId: application.id,
     country: application.country,
     visaType: application.visa_type,
-    applicationId: application.id,
   });
-  return `/client/application/long-form?${params.toString()}`;
 }
 
 export function buildCheckoutHref(application: ApplicationRow): string {

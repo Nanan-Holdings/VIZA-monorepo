@@ -56,6 +56,45 @@ function readText(record: UnknownRecord, key: string): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function addressMatchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/\b(?:kabupaten|kab\.?|kecamatan|kec\.?|kota|adm\.?)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scorePostalLocationForAddress(address: string, location: IndonesiaPostalLocation): number {
+  const normalized = addressMatchText(address);
+  if (!normalized) return 0;
+  const includes = (value: string) => {
+    const candidate = addressMatchText(value);
+    return candidate.length >= 3 && ` ${normalized} `.includes(` ${candidate} `);
+  };
+  const normalizedVillage = addressMatchText(location.village);
+  const villageDuplicatesParent = [location.district, location.city, location.province]
+    .some((value) => addressMatchText(value) === normalizedVillage);
+  return (
+    (!villageDuplicatesParent && includes(location.village) ? 16 : 0)
+    + (includes(location.district) ? 8 : 0)
+    + (includes(location.city) ? 4 : 0)
+    + (includes(location.province) ? 2 : 0)
+  );
+}
+
+export function selectBestIndonesiaPostalLocation(
+  locations: IndonesiaPostalLocation[],
+  address = "",
+): IndonesiaPostalLocation | null {
+  if (locations.length <= 1 || !address.trim()) return locations[0] ?? null;
+  return locations
+    .map((location, index) => ({ location, index, score: scorePostalLocationForAddress(address, location) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)[0]?.location ?? null;
+}
+
 export function normalizeIndonesiaPostalCode(value: string | null | undefined): string | null {
   const digits = value?.replace(/\D/g, "") ?? "";
   return /^\d{5}$/.test(digits) ? digits : null;
@@ -64,11 +103,13 @@ export function normalizeIndonesiaPostalCode(value: string | null | undefined): 
 export function parseIndonesiaPostalDirectoryResponse(
   payload: unknown,
   postalCode: string,
+  address = "",
 ): IndonesiaPostalLocation | null {
   if (!isRecord(payload) || !isRecord(payload.data) || !Array.isArray(payload.data.postalCodes)) {
     return null;
   }
 
+  const matches: IndonesiaPostalLocation[] = [];
   for (const candidate of payload.data.postalCodes) {
     if (!isRecord(candidate) || readText(candidate, "code") !== postalCode) continue;
 
@@ -77,9 +118,9 @@ export function parseIndonesiaPostalDirectoryResponse(
     const city = isRecord(candidate.city) ? readText(candidate.city, "name") : null;
     const province = isRecord(candidate.province) ? readText(candidate.province, "name") : null;
     if (village && district && city && province) {
-      return { postalCode, province, city, district, village };
+      matches.push({ postalCode, province, city, district, village });
     }
   }
 
-  return null;
+  return selectBestIndonesiaPostalLocation(matches, address);
 }

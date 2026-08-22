@@ -4,13 +4,26 @@ import { createServerClient } from "@supabase/ssr";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
+import { createFetchWithTimeout } from "@/lib/supabase/fetch-with-timeout";
 import {
-  buildClientLoginUrlWithNext,
-  getSafeClientLoginNext,
-} from "@/lib/client-login-redirect";
+  getAboutMeRedirectTarget,
+  isRetiredAboutMeRoute,
+} from "@/app/client/about-me-form/redirect-target";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // Retire the legacy health questionnaire at the earliest server boundary.
+  // Keeping this redirect in the proxy as well as the page prevents an old
+  // client bundle or layout transition from ever rendering the questionnaire.
+  if (isRetiredAboutMeRoute(pathname)) {
+    const target = getAboutMeRedirectTarget(
+      request.nextUrl.searchParams.getAll("returnTo"),
+    );
+    const response = NextResponse.redirect(new URL(target, request.url));
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return response;
+  }
 
   // Handle /client/login, /client/signup, and /client/register pages (user auth portal)
   if (
@@ -23,20 +36,20 @@ export async function proxy(request: NextRequest) {
   ) {
     // A valid VIZA session does not need a Supabase network request. This keeps
     // existing local sessions usable while Supabase Auth has a transient outage.
-    const authenticatedDestination =
-      getSafeClientLoginNext(request.nextUrl.searchParams.get("next")) ??
-      "/client/home";
     const jwtSession = await getClientSessionFromRequest(request);
     if (jwtSession) {
-      return NextResponse.redirect(new URL(authenticatedDestination, request.url));
+      return NextResponse.redirect(new URL("/client/home", request.url));
     }
 
-    const supabaseSession = await getSupabaseUserSession(request);
-    if (supabaseSession) {
-      return NextResponse.redirect(new URL(authenticatedDestination, request.url));
+    const supabaseAuth = await getSupabaseUserSession(request);
+    if (supabaseAuth.session) {
+      return copyResponseCookies(
+        supabaseAuth.response,
+        NextResponse.redirect(new URL("/client/home", request.url)),
+      );
     }
 
-    return NextResponse.next();
+    return supabaseAuth.response;
   }
 
   // Handle auth callback routes - let them through
@@ -57,8 +70,13 @@ export async function proxy(request: NextRequest) {
     return handleClientRoutes(request, pathname);
   }
 
-  // For all other routes, use Supabase auth middleware
-  return await updateSession(request);
+  // Public pages do not need an auth network round-trip. Admin is the only
+  // remaining route family protected by the Supabase admin middleware.
+  if (pathname.startsWith("/admin")) {
+    return await updateSession(request);
+  }
+
+  return NextResponse.next();
 }
 
 /**
@@ -83,20 +101,28 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
   }
 
   // 3. Try Supabase session only when no VIZA session is available.
-  const supabaseSession = await getSupabaseUserSession(request);
-  if (supabaseSession) {
-    return NextResponse.next();
+  const supabaseAuth = await getSupabaseUserSession(request);
+  if (supabaseAuth.session) {
+    return supabaseAuth.response;
   }
 
   // 4. Special case: Allow /client/report without auth
   // This page handles magic link hash tokens (#access_token=...) client-side
   // The page itself will redirect to login if no valid session after processing tokens
   if (pathname === "/client/report") {
-    return NextResponse.next();
+    return supabaseAuth.response;
   }
 
   // No valid session - redirect to new client login portal
-  return NextResponse.redirect(buildClientLoginUrlWithNext(request.url));
+  return copyResponseCookies(
+    supabaseAuth.response,
+    NextResponse.redirect(new URL("/client/login", request.url)),
+  );
+}
+
+function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {
+  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
+  return target;
 }
 
 /**
@@ -107,16 +133,16 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
  * this request, allow the client portal to handle the rest.
  */
 async function getSupabaseUserSession(request: NextRequest): Promise<{
-  userId: string;
-  email: string;
-} | null> {
-  try {
-    const response = NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    });
+  session: { userId: string; email: string } | null;
+  response: NextResponse;
+}> {
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
+  try {
     const supabase = createServerClient(
       normalizeSupabaseEnvValue(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -127,6 +153,9 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
         "NEXT_PUBLIC_SUPABASE_ANON_KEY"
       ),
       {
+        global: {
+          fetch: createFetchWithTimeout(2_500),
+        },
         cookies: {
           getAll() {
             return request.cookies.getAll();
@@ -143,35 +172,29 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
       }
     );
 
-    const { data: { user } } = await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("supabase_session_timeout")), 2_500);
-      }),
-    ]);
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const claims = claimsData?.claims;
 
-    if (!user || !user.email) {
-      return null;
+    const userId = typeof claims?.sub === "string" ? claims.sub : null;
+    const email = typeof claims?.email === "string" ? claims.email : null;
+    if (!userId || !email) {
+      return { session: null, response };
     }
 
     return {
-      userId: user.id,
-      email: user.email,
+      session: { userId, email },
+      response,
     };
   } catch {
-    return null;
+    return { session: null, response };
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public assets
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/client/:path*",
+    "/api/client/:path*",
+    "/admin/:path*",
+    "/auth/:path*",
   ],
 };

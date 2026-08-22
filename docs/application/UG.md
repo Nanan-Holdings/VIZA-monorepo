@@ -94,14 +94,18 @@ The home page application cards show progress so users can see which application
 
 ## Filling A Form
 
-Most current forms use a bilingual layout:
+Forms show one entry column in the selected interface language. In Chinese
+mode, questions, placeholders, options, and editable values are Chinese only.
+The corresponding English or official value is generated and stored in the
+background, then shown beside the Chinese value on the final **核对信息** step.
 
-- left column: Chinese question and Chinese input
-- right column: English or official question and English/official input
+For text fields, Chinese edits update the English or official value where the
+product has a deterministic mapping or translation helper. In English mode,
+edits preserve any stored Chinese value. Official names, passport names, dates,
+and country names should still be checked on final review before submitting.
 
-For text fields, the user can type in either side. Chinese-side edits can update the English or official side where the product has a deterministic mapping or translation helper. English-side edits do not overwrite the Chinese side. Official names, passport names, dates, and country names should still be checked by the user before submitting.
-
-For select, radio, date, country, and upload controls, both sides represent the same answer. Choosing a value on either side updates the shared answer.
+Select, radio, date, country, and upload controls keep one canonical answer
+shared across both display languages.
 
 ## Keyboard Shortcuts
 
@@ -129,17 +133,46 @@ Each field can show an explicit `问 AI` button. Clicking it opens field-specifi
 
 The AI help should not open just because a user focuses or clicks a field.
 
+## Form-filling assistant and voice input
+
+The Singapore SG Arrival Card form includes a Form-filling assistant at the
+top of the page. You can answer its questions, use the microphone, or continue
+typing directly into the bilingual form in any order. Before each question the
+assistant checks the answers already saved on this application, so it does not
+ask again for information that is already available.
+
+Stopping a recording creates editable text in the message box. Review names,
+dates, passport numbers and flight numbers, then send the text yourself. The
+recording is not saved to your account or chat history. If microphone access or
+transcription is unavailable, ordinary text input and the form continue to
+work.
+
+Fields filled by the assistant are highlighted and remain editable. A manual
+edit becomes the authoritative answer. When the required answers are complete,
+run the final check. Errors must be fixed; warnings can be reviewed and kept.
+Confirmation opens the existing read-only Review step and does not submit the
+SG Arrival Card to ICA.
+
 ## Photo Upload
 
 The photo upload step should show country-specific photo guidance when available. It should not use one country's rules for every application. Users upload the required photo, then continue to review.
 
 ## Review
 
-The review step is read-only. It summarizes the answers the user already entered and shows the paired Chinese/English or official values for final checking. If something is wrong, the user should go back to the relevant form step and edit it there.
+The final Review Application step is read-only. It summarizes completed answers,
+shows paired Chinese/English or official values for final checking, and lists
+empty or missing fields at the bottom. Confirmation and submission controls are
+part of this same step. If something is wrong or missing, use the edit action to
+return to the relevant form step.
 
 ## Submission Status
 
-After review and submission, the status step shows the application state. The current module prepares and records application progress; final external government submission may still depend on backend automation coverage for that country.
+After submission, Review Application switches to the application status and
+confirmation result. Failed or stalled submissions keep the read-only review
+summary visible above the retry status so applicants can verify saved answers
+before submitting again. The current module prepares and records application
+progress; final external government submission may still depend on backend
+automation coverage for that country.
 
 ## Website Automation Status
 

@@ -1,35 +1,57 @@
 import { NextResponse } from "next/server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { getClientSession, getUserFromSupabaseSession } from "@/lib/client-session";
+import { cacheContinuityIdentity } from "@/lib/resilience/continuity-auth";
+
+async function validSessionResponse({
+  userId,
+  sessionKind,
+  sessionId,
+}: {
+  userId: string;
+  sessionKind: "impersonation" | "supabase";
+  sessionId: string;
+}) {
+  return NextResponse.json(
+    {
+      valid: true,
+      userId,
+      sessionKind,
+      sessionId,
+    },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
+}
 
 export async function GET() {
   const impersonation = await getImpersonationSession();
   if (impersonation) {
-    return NextResponse.json({
-      valid: true,
+    return validSessionResponse({
       userId: impersonation.userId,
       sessionKind: "impersonation",
       sessionId: impersonation.auditLogId,
     });
   }
 
-  const session = await getUserFromSupabaseSession();
-  if (session) {
-    return NextResponse.json({
-      valid: true,
-      userId: session.userId,
-      sessionKind: "supabase",
-      sessionId: `supabase:${session.userId}`,
-    });
-  }
-
+  // Match proxy ordering: signed local sessions avoid an unnecessary
+  // Supabase Auth round-trip and remain usable during a transient outage.
   const cookieSession = await getClientSession();
   if (cookieSession) {
-    return NextResponse.json({
-      valid: true,
+    await cacheContinuityIdentity(cookieSession).catch(() => undefined);
+    return validSessionResponse({
       userId: cookieSession.userId,
       sessionKind: "supabase",
       sessionId: `client_session:${cookieSession.userId}`,
+    });
+  }
+
+  const session = await getUserFromSupabaseSession({ requestTimeoutMs: 1_500 });
+  if (session) {
+    await cacheContinuityIdentity(session).catch(() => undefined);
+    return validSessionResponse({
+      userId: session.userId,
+      sessionKind: "supabase",
+      sessionId: `supabase:${session.userId}`,
     });
   }
 
@@ -38,5 +60,5 @@ export async function GET() {
     userId: null,
     sessionKind: null,
     sessionId: null,
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }

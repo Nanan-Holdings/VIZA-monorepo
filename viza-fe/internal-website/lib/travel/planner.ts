@@ -1,3 +1,5 @@
+import { getCuratedCityLabel } from "@/lib/travel/locations";
+
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
 export const DEFAULT_CITY_DAYS = 2;
 
@@ -19,6 +21,10 @@ export type TravelDateFlexibility = "flexible" | "fixed";
 
 export type FlightOptionResult = {
   provider?: string;
+  estimated?: boolean;
+  provider_status?: string;
+  provider_reason?: string;
+  provider_message?: string;
   airline?: string;
   price?: string;
   currency?: string;
@@ -70,6 +76,9 @@ export type FlightLegResult = {
   to: string;
   departure_date: string;
   options: FlightOptionResult[];
+  provider_unavailable?: boolean;
+  estimated?: boolean;
+  provider_message?: string;
 };
 
 export type HotelStayResult = {
@@ -93,6 +102,8 @@ export type SelectedFlightOption = {
 
 export type SelectedHotelOption = {
   stay_index: number;
+  /** One-based itinerary day for a per-night hotel override. */
+  day_index?: number;
   city: string;
   check_in: string;
   check_out: string;
@@ -246,16 +257,6 @@ function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized ? normalized : null;
-}
-
-function formatEndpointDisplay(country: string, city: string): string {
-  const normalizedCountry = country.trim();
-  const normalizedCity = city.trim();
-  if (!normalizedCountry) return normalizedCity || "-";
-  if (!normalizedCity) return normalizedCountry || "-";
-  return normalizedCountry === normalizedCity
-    ? normalizedCity
-    : `${normalizedCountry} ${normalizedCity}`;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -490,12 +491,13 @@ function normalizeHotelOption(value: unknown): HotelOptionResult | null {
 
 function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
   if (!Array.isArray(value)) return [];
-  const byIndex = new Map<number, SelectedHotelOption>();
+  const byIndex = new Map<string, SelectedHotelOption>();
 
   for (const rawEntry of value) {
     if (!rawEntry || typeof rawEntry !== "object") continue;
     const entry = rawEntry as Record<string, unknown>;
     const stayIndex = normalizePositiveInt(entry.stay_index);
+    const dayIndex = normalizePositiveInt(entry.day_index);
     const optionIndex = normalizePositiveInt(entry.option_index);
     if (stayIndex === null || optionIndex === null) continue;
 
@@ -506,8 +508,9 @@ function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
     const option = normalizeHotelOption(entry.option);
     if (!city || !checkIn || !checkOut || nights === null || !option) continue;
 
-    byIndex.set(stayIndex, {
+    byIndex.set(`${stayIndex}:${dayIndex ?? "stay"}`, {
       stay_index: stayIndex,
+      ...(dayIndex === null ? {} : { day_index: dayIndex }),
       city,
       check_in: checkIn,
       check_out: checkOut,
@@ -517,7 +520,12 @@ function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
     });
   }
 
-  return Array.from(byIndex.values()).sort((a, b) => a.stay_index - b.stay_index);
+  return Array.from(byIndex.values()).sort(
+    (a, b) =>
+      (a.day_index ?? Number.MAX_SAFE_INTEGER) -
+        (b.day_index ?? Number.MAX_SAFE_INTEGER) ||
+      a.stay_index - b.stay_index
+  );
 }
 
 export function createInitialTravelState(): TravelState {
@@ -677,14 +685,9 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     const originCity = display?.origin_city ?? payload.origin_city ?? "-";
     const returnCountry = display?.return_country ?? payload.return_country ?? "-";
     const returnCity = display?.return_city ?? payload.return_city ?? "-";
-    const originLabel = formatEndpointDisplay(originCountry, originCity);
-    const returnLabel = formatEndpointDisplay(returnCountry, returnCity);
-
-    if (originLabel === returnLabel) {
-      return `出发和返程城市都设为 ${originLabel}。`.trim();
-    }
-
-    return `出发地：${originLabel}；返程地：${returnLabel}。`.trim();
+    const localizedOriginCity = getCuratedCityLabel(originCity, "zh") ?? originCity;
+    const localizedReturnCity = getCuratedCityLabel(returnCity, "zh") ?? returnCity;
+    return `出发地设为 ${originCountry}｜${localizedOriginCity}；返程地设为 ${returnCountry}｜${localizedReturnCity}。`.trim();
   }
   if (payload.travel_order?.length) {
     const travelOrder = display?.travel_order?.length
@@ -713,9 +716,7 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
 }
 
 export function createTravelFormMessage(payload: TravelFormPayload): string {
-  const visibleText = describeTravelFormPayload(payload);
-  const hiddenPayload = `<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`;
-  return `${visibleText}\n\n${hiddenPayload}`;
+  return describeTravelFormPayload(payload);
 }
 
 function isTravelOrderComplete(cities: string[], order: string[]): boolean {

@@ -3,7 +3,9 @@ import "server-only";
 // eslint-disable-next-line no-restricted-imports -- This server-only data loader uses service-role access after authenticating the applicant and scoping rows to their profile.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSession } from "@/lib/client-session";
 import {
+  getCanonicalApplicationProductCountry,
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
   getDestinationFlag,
@@ -16,6 +18,12 @@ import {
   loadLiveSubmissionSummaries,
   type LiveSubmissionSummary,
 } from "@/lib/submission-live-status";
+import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+import {
+  getAutomatedOnlineSubmissionEvidence,
+  isAutomatedOnlineVisaType,
+} from "@/lib/submission-result-evidence";
 
 export type StatusStepKey =
   | "payment"
@@ -90,6 +98,7 @@ export interface StatusEvent {
 
 export interface CountryApplicationRecord {
   id: string;
+  applicationId: string | null;
   packageId: string | null;
   country: string;
   visaType: string;
@@ -103,6 +112,7 @@ export interface CountryApplicationRecord {
   confirmationNumber: string | null;
   file: StatusFile | null;
   detailHref: string;
+  continueHref: string;
 }
 
 export interface StatusApplication {
@@ -182,6 +192,7 @@ export interface StatusApplication {
 }
 
 export interface ClientStatusData {
+  authenticated: boolean;
   applications: StatusApplication[];
   detailApplications: StatusApplication[];
   partialData: boolean;
@@ -190,6 +201,7 @@ export interface ClientStatusData {
 interface ApplicantProfileRow {
   id: string;
   email: string | null;
+  auth_user_id: string | null;
 }
 
 interface VisaPackageRow {
@@ -216,6 +228,7 @@ interface ApplicationRow {
   applicant_id: string;
   country: string;
   visa_type: string;
+  purpose: string | null;
   status: string;
   created_at: string | null;
   updated_at: string | null;
@@ -241,13 +254,6 @@ interface ApplicationRow {
   official_fee_quote_id: string | null;
   official_fee_payment_intent_id: string | null;
   official_fee_receipt_id: string | null;
-}
-
-interface SubmissionResultColumnRow {
-  id: string;
-  submission_result: unknown | null;
-  submission_result_status: string | null;
-  submission_result_updated_at: string | null;
 }
 
 interface PaymentRow {
@@ -356,11 +362,16 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
   "PH_ETRAVEL_DEPARTURE_CARD",
   "VN_PREARRIVAL_DECLARATION",
+  "KR_E_ARRIVAL_CARD",
+  "JP_VISIT_JAPAN_WEB",
 ]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
-  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode";
+  "id, applicant_id, country, visa_type, purpose, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, submission_result, submission_result_status, submission_result_updated_at, government_fee_cents, government_fee_currency, government_fee_mode";
+
+const MAX_LIVE_STATUS_APPLICATIONS = 20;
+const MAX_RECENT_LIVE_STATUS_APPLICATIONS = 12;
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -401,6 +412,9 @@ function getSubmissionResult(application: ApplicationRow): Record<string, unknow
 
 function submissionResultIsSubmitted(application: ApplicationRow): boolean {
   const result = getSubmissionResult(application);
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    return getAutomatedOnlineSubmissionEvidence(result, application.visa_type).submitted;
+  }
   const resultStatus = normalizeStatus(getStringValue(result, ["status"]));
   const storedStatus = normalizeStatus(application.submission_result_status);
   return (
@@ -442,7 +456,18 @@ function arrivalCardResultIsReady(application: ApplicationRow): boolean {
 
 function getSubmissionResultReference(application: ApplicationRow): string | null {
   const result = getSubmissionResult(application);
-  return getStringValue(result, ["confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    const evidence = getAutomatedOnlineSubmissionEvidence(result, application.visa_type);
+    return evidence.submitted ? evidence.reference : null;
+  }
+  return getStringValue(result, [
+    "issueNumber",
+    "officialReference",
+    "confirmationNumber",
+    "referenceNumber",
+    "applicationReference",
+    "reference",
+  ]);
 }
 
 function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
@@ -458,6 +483,12 @@ function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
 }
 
 function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    return getAutomatedOnlineSubmissionEvidence(
+      application.submission_result,
+      application.visa_type,
+    ).pdfPaths;
+  }
   if (!hasOfficialArrivalCardPdf(application)) return [];
   const result = getSubmissionResult(application);
   const paths = new Set<string>();
@@ -468,6 +499,17 @@ function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
   for (const path of getStringArrayValue(artifacts, "pdfs")) paths.add(path);
 
   return [...paths];
+}
+
+function getSubmissionResultArtifactPaths(application: ApplicationRow): string[] {
+  if (isAutomatedOnlineVisaType(application.visa_type)) {
+    const evidence = getAutomatedOnlineSubmissionEvidence(
+      application.submission_result,
+      application.visa_type,
+    );
+    return [...new Set([...evidence.pdfPaths, ...evidence.qrPaths])];
+  }
+  return getSubmissionResultPdfPaths(application);
 }
 
 function sortByNewest<T>(rows: T[], getDate: (row: T) => string | null | undefined): T[] {
@@ -535,13 +577,25 @@ function getPrimaryResultFile(application: StatusApplication): StatusFile | null
 
 function toCountryApplicationRecord(application: StatusApplication): CountryApplicationRecord {
   const detailHref = application.id
-    ? `/client/status?applicationId=${encodeURIComponent(application.id)}&view=detail`
+    ? buildApplicationLongFormHref({
+        applicationId: application.id,
+        country: application.country,
+        visaType: application.visaType,
+        step: "status",
+      })
     : application.packageId
-      ? `/client/status?packageId=${encodeURIComponent(application.packageId)}&view=detail`
-      : `/client/status?country=${encodeURIComponent(application.countryKey)}&view=detail`;
+      ? `/client/status?packageId=${encodeURIComponent(application.packageId)}`
+      : `/client/status?country=${encodeURIComponent(application.countryKey)}`;
+  const primaryAction = application.actions.find((action) => action.primary);
+  const continueHref = primaryAction?.href ?? buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: application.country,
+    visaType: application.visaType,
+  });
 
   return {
     id: application.id ?? application.key,
+    applicationId: application.id,
     packageId: application.packageId,
     country: application.country,
     visaType: application.visaType,
@@ -555,6 +609,7 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
     confirmationNumber: application.officialReference,
     file: getPrimaryResultFile(application),
     detailHref,
+    continueHref,
   };
 }
 
@@ -650,33 +705,27 @@ async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsRes
   }
 }
 
-async function hydrateSubmissionResults(
-  adminClient: ReturnType<typeof createAdminClient>,
-  applications: ApplicationRow[],
-): Promise<{ applications: ApplicationRow[]; failed: boolean }> {
-  const applicationIds = applications.map((application) => application.id);
-  if (applicationIds.length === 0) return { applications, failed: false };
-
-  const { rows, failed } = await readRows<SubmissionResultColumnRow>(
-    adminClient
-      .from("applications")
-      .select("id, submission_result, submission_result_status, submission_result_updated_at")
-      .in("id", applicationIds),
+function isTerminalApplication(application: ApplicationRow): boolean {
+  const applicationStatus = normalizeStatus(application.status);
+  const resultStatus = normalizeStatus(application.submission_result_status);
+  return (
+    SUCCESS_SUBMISSION_RESULT_STATUSES.has(resultStatus) ||
+    APPROVED_RESULT_STATUSES.has(normalizeStatus(application.result_status)) ||
+    REJECTED_RESULT_STATUSES.has(normalizeStatus(application.result_status)) ||
+    ["completed", "submitted", "submitted_mock", "form_ready_for_agency", "failed", "stalled", "rejected"].includes(applicationStatus)
   );
-  const submissionResultsById = new Map(rows.map((row) => [row.id, row]));
-  return {
-    failed,
-    applications: applications.map((application) => {
-      const submissionResult = submissionResultsById.get(application.id);
-      if (!submissionResult) return application;
-      return {
-        ...application,
-        submission_result: submissionResult.submission_result,
-        submission_result_status: submissionResult.submission_result_status,
-        submission_result_updated_at: submissionResult.submission_result_updated_at,
-      };
-    }),
-  };
+}
+
+function getLiveStatusApplicationIds(applications: ApplicationRow[]): string[] {
+  const sorted = [...applications].sort(
+    (a, b) => new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime(),
+  );
+  const active = sorted.filter((application) => !isTerminalApplication(application));
+  const recent = sorted.filter((application) => isTerminalApplication(application));
+  return [...new Set([
+    ...active.slice(0, MAX_LIVE_STATUS_APPLICATIONS - MAX_RECENT_LIVE_STATUS_APPLICATIONS),
+    ...recent.slice(0, MAX_RECENT_LIVE_STATUS_APPLICATIONS),
+  ].map((application) => application.id))].slice(0, MAX_LIVE_STATUS_APPLICATIONS);
 }
 
 function getLatestPayment(rows: PaymentRow[]): PaymentRow | null {
@@ -724,13 +773,19 @@ function getLatestDate(values: Array<string | null | undefined>): string | null 
 
 function buildPackageBase(country: string, visaType: string) {
   const normalizedVisaType = getFormVisaType(visaType);
-  const countryName = getDestinationDisplayName(country);
-  const countryNameZh = getDestinationDisplayNameZh(country);
-  const countryKey = normalizeCountryGroupKey(countryNameZh || countryName || country);
-  return {
-    key: getVisaDestinationKey(country, normalizedVisaType),
-    countryKey,
+  const normalizedCountry = getCanonicalApplicationProductCountry(
     country,
+    normalizedVisaType,
+  );
+  const countryName = getDestinationDisplayName(normalizedCountry);
+  const countryNameZh = getDestinationDisplayNameZh(normalizedCountry);
+  const countryKey = normalizeCountryGroupKey(
+    countryNameZh || countryName || normalizedCountry,
+  );
+  return {
+    key: getVisaDestinationKey(normalizedCountry, normalizedVisaType),
+    countryKey,
+    country: normalizedCountry,
     visaType: normalizedVisaType,
     countryName,
     countryNameZh,
@@ -836,7 +891,9 @@ function getResultState(
     submissionResultIsSubmitted(application) ||
     APPROVED_RESULT_STATUSES.has(resultStatus) ||
     SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) ||
+    APPROVED_RESULT_STATUSES.has(submissionResultStatus) ||
     REJECTED_RESULT_STATUSES.has(resultStatus) ||
+    REJECTED_RESULT_STATUSES.has(submissionResultStatus) ||
     APPROVED_RESULT_STATUSES.has(rawStatus) ||
     REJECTED_RESULT_STATUSES.has(rawStatus)
   ) {
@@ -851,8 +908,16 @@ function getOverallState(steps: StatusStep[], application: ApplicationRow | null
   const rawStatus = normalizeStatus(application?.status);
   const resultStatus = normalizeStatus(application?.result_status);
   const submissionResultStatus = normalizeStatus(application?.submission_result_status);
-  if (APPROVED_RESULT_STATUSES.has(rawStatus) || APPROVED_RESULT_STATUSES.has(resultStatus)) return "approved";
-  if (REJECTED_RESULT_STATUSES.has(rawStatus) || REJECTED_RESULT_STATUSES.has(resultStatus)) return "rejected";
+  if (
+    APPROVED_RESULT_STATUSES.has(rawStatus) ||
+    APPROVED_RESULT_STATUSES.has(resultStatus) ||
+    APPROVED_RESULT_STATUSES.has(submissionResultStatus)
+  ) return "approved";
+  if (
+    REJECTED_RESULT_STATUSES.has(rawStatus) ||
+    REJECTED_RESULT_STATUSES.has(resultStatus) ||
+    REJECTED_RESULT_STATUSES.has(submissionResultStatus)
+  ) return "rejected";
   if (application && (submissionResultIsSubmitted(application) || SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus))) return "submitted";
   if (!application) return "not_started";
   if (steps.some((step) => step.state === "attention")) return "needs_attention";
@@ -903,7 +968,11 @@ function buildActions(
   steps: StatusStep[],
   resultFile: StatusFile | null,
 ): StatusAction[] {
-  const applicationHref = `/client/application?country=${encodeURIComponent(packageBase.country)}&visaType=${encodeURIComponent(packageBase.visaType)}`;
+  const applicationHref = buildApplicationLongFormHref({
+    applicationId: application?.id,
+    country: packageBase.country,
+    visaType: packageBase.visaType,
+  });
   const actions: StatusAction[] = [];
 
   if (!application) {
@@ -943,11 +1012,11 @@ function buildActions(
   } else if (firstOpenStep.key === "form") {
     actions.push({ key: "continueForm", href: applicationHref, primary: true });
   } else if (firstOpenStep.key === "documents") {
-    actions.push({ key: "uploadDocuments", href: "/client/documents", primary: true });
+    actions.push({ key: "uploadDocuments", href: `/client/documents?applicationId=${encodeURIComponent(application.id)}`, primary: true });
   } else if (firstOpenStep.key === "packet") {
-    actions.push({ key: "waitPacket", href: `/client/status?applicationId=${encodeURIComponent(application.id)}`, primary: true });
+    actions.push({ key: "waitPacket", href: `${applicationHref}&step=status`, primary: true });
   } else if (firstOpenStep.key === "handoff") {
-    actions.push({ key: "waitExternal", href: `/client/status?applicationId=${encodeURIComponent(application.id)}`, primary: true });
+    actions.push({ key: "waitExternal", href: `${applicationHref}&step=status`, primary: true });
   } else if (resultFile?.href) {
     actions.push({ key: "downloadResult", href: resultFile.href, primary: true });
   } else {
@@ -1085,9 +1154,13 @@ async function buildFiles({
     });
   }
 
-  for (const path of getSubmissionResultPdfPaths(application)) {
+  for (const path of getSubmissionResultArtifactPaths(application)) {
     files.push({
-      key: isArrivalCardVisaType(application.visa_type) ? "arrivalCardConfirmation" : "resultFile",
+      key: isArrivalCardVisaType(application.visa_type)
+        ? "arrivalCardConfirmation"
+        : getAutomatedOnlineSubmissionEvidence(application.submission_result, application.visa_type).approved
+          ? "approvedResult"
+          : "resultFile",
       href: await resolveSubmissionArtifactHref(adminClient, path),
       reference: path,
       createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
@@ -1420,45 +1493,61 @@ async function buildApplicationStatus({
   };
 }
 
-export async function hasClientSession(): Promise<boolean> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return Boolean(user);
-}
-
 export async function getClientStatusData(): Promise<ClientStatusData> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { applications: [], detailApplications: [], partialData: false };
+  const clientSession = await getClientSession();
+  let authUserId = clientSession?.userId ?? null;
+  let authEmail = clientSession?.email ?? null;
 
-  const adminClient = createAdminClient();
+  // The proxy already verifies this signed cookie. Avoid a second remote Auth
+  // request on every Home/status render when that local session is available.
+  if (!clientSession) {
+    const supabase = await createClient({
+      requestTimeoutMs: 3_000,
+      retryDelaysMs: [250],
+    });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+    authEmail = user?.email ?? null;
+  }
+
+  if (!authUserId) {
+    return {
+      authenticated: false,
+      applications: [],
+      detailApplications: [],
+      partialData: false,
+    };
+  }
+
+  const adminClient = createAdminClient({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [250],
+  });
   let partialData = false;
 
   const profileReads: Array<Promise<ReadRowsResult<ApplicantProfileRow>>> = [
     readRows<ApplicantProfileRow>(
       adminClient
         .from("applicant_profiles")
-        .select("id, email")
-        .eq("auth_user_id", user.id),
+        .select("id, email, auth_user_id")
+        .eq("auth_user_id", authUserId),
     ),
     readRows<ApplicantProfileRow>(
       adminClient
         .from("applicant_profiles")
-        .select("id, email")
-        .eq("id", user.id),
+        .select("id, email, auth_user_id")
+        .eq("id", authUserId),
     ),
   ];
-  if (user.email) {
+  if (authEmail) {
     profileReads.push(
       readRows<ApplicantProfileRow>(
         adminClient
           .from("applicant_profiles")
-          .select("id, email")
-          .eq("email", user.email),
+          .select("id, email, auth_user_id")
+          .eq("email", authEmail),
       ),
     );
   }
@@ -1466,9 +1555,12 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   partialData = partialData || profileResults.some((result) => result.failed);
   const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
   const profileIds = profiles.map((profile) => profile.id);
+  authUserId =
+    profiles.find((profile) => profile.id === clientSession?.userId)
+      ?.auth_user_id ?? authUserId;
   const ownerEmails = [
     ...new Set(
-      [user.email, ...profiles.map((profile) => profile.email)]
+      [authEmail, ...profiles.map((profile) => profile.email)]
         .filter((email): email is string => Boolean(email))
         .map((email) => email.trim().toLowerCase()),
     ),
@@ -1478,7 +1570,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     adminClient
       .from("user_packages")
       .select("visa_package_id, application_id, assigned_at, status, visa_packages(id, country, visa_type, name, description, price_cents, currency, metadata)")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .order("assigned_at", { ascending: false }),
   );
   partialData = partialData || packagesFailed;
@@ -1559,16 +1651,21 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     }
   }
 
-  const hydratedApplications = await hydrateSubmissionResults(adminClient, applications);
-  partialData = partialData || hydratedApplications.failed;
-  applications = hydratedApplications.applications.filter(
-    (application) => !sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application),
+  // The application projection already includes the submission result fields;
+  // avoid a second fan-out read over every historical application. Keep the
+  // full application list for the history selector, but enrich only the
+  // current/recent subset with live queue data.
+  applications = applications.filter(
+    (application) =>
+      !isQaDryRunPurpose(application.purpose) &&
+      (!sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application)),
   );
 
   const applicationIds = applications.map((application) => application.id);
+  const liveStatusApplicationIds = getLiveStatusApplicationIds(applications);
   let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
   try {
-    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, applicationIds);
+    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, liveStatusApplicationIds);
   } catch {
     partialData = true;
   }
@@ -1772,6 +1869,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   });
 
   return {
+    authenticated: true,
     applications: groupCountryApplications(statusApplications),
     detailApplications: statusApplications,
     partialData,

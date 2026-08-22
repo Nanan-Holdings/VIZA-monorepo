@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck, Download, FileCheck2, Loader2, MapPin } from "lucide-react";
+import { CalendarCheck, Download, FileText as FileCheck2, CircleNotch as Loader2, MapPin } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { resolveKvacCenter } from "@/lib/korea-c39/kvac-routing";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { KrSubmissionResult } from "@/lib/submission-result";
@@ -171,7 +172,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
                 : isZh ? "需要生成官方 e-Form PDF" : "Official e-Form PDF required"}
           </div>
           {officialMessage ? <p className="mt-1 leading-6 text-muted-foreground">{officialMessage}</p> : null}
-          {officialError ? <p className="mt-1 text-red-600">{officialError}</p> : null}
+          {officialError ? <ClientErrorAlert className="mt-1" message={officialError} /> : null}
           {officialApplicationNumber ? (
             <p className="mt-1 text-xs text-muted-foreground">
               {isZh ? "官方申请号：" : "Official application no.:"} {officialApplicationNumber}

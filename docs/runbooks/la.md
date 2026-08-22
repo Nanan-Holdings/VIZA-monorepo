@@ -22,7 +22,7 @@ Identical to KH (see [`kh.md`](./kh.md) for the long form):
 
 - INFRA-002 producer in the Stripe webhook auto-enqueues runner_job
   rows with `country='laos'` once the agency fee clears.
-- OPS-004 canary monitors `https://laoevisa.gov.la/` hourly; status
+- OPS-004 canary monitors `https://laoevisa.gov.la/` every five minutes; status
   surfaces at `/admin/portal-health`.
 - OPS-005 SLA seeded at median 72 h / p95 168 h; back-fill cron
   flips to `source='measured'` after ≥5 samples.

@@ -11,8 +11,15 @@ applicant info, and help pages.
 
 ## Key Flows
 
-- `layout.tsx`: client shell, nav, session validation, impersonation mismatch
-  handling, first-login form request redirect.
+- `layout.tsx`: client shell, nav, session validation, and impersonation
+  mismatch handling. Client session checks must not create onboarding records
+  or redirect applicants away from their requested route. The shell mounts
+  `_components/alias-forwarding-consent-gate.tsx` after a valid session so
+  applicants can explicitly authorize alias-email forwarding before protected
+  submission flows use it.
+- `about-me-form/`: compatibility redirect for retired health-questionnaire
+  links. It may return only to a safe internal `/client/*` route and must never
+  render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
   summary, recent activity). Destination selection moved to
   `destinations/page.tsx`.
@@ -47,6 +54,10 @@ applicant info, and help pages.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `support/**`: customer service help center, self-service support bot, and
   human/email handoff. This must remain separate from the visa/travel AI chat.
+- `components/client/client-error-alert.tsx`: canonical applicant-facing error
+  notice adapter around the destructive `Alert` demonstrated at
+  `/ui-components`; use it for notice-level client errors instead of local red
+  boxes or standalone red paragraphs.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
 - `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2
@@ -70,17 +81,35 @@ applicant info, and help pages.
   portal through Browserbase, and displays redacted evidence. VFS login,
   verification, slot choice, payment, and final confirmation remain stopped in
   the Free Plan phase.
-- `universal-info/page.tsx`: reusable applicant profile editor.
+- `universal-info/page.tsx`: reusable applicant profile editor. Keep its major
+  categories as separate application-style cards; reusable passport, signature,
+  and portrait uploads live in
+  `components/client/universal-profile-documents-carousel.tsx`, while expanded
+  schema-backed categories live in
+  `components/client/universal-profile-extended-editor.tsx`.
+- `onboarding/copy.ts`, `account/notifications/copy.ts`, and
+  `signing/signing-copy.ts`: route-scoped English/Chinese display copy for
+  standalone applicant forms; keep stored values and submission payloads
+  language-neutral.
 - `(auth)/*`: client login/register/signup pages.
 
 ## Ownership Boundaries
 
+- Phosphor is the only icon system for the client portal. Import every UI icon
+  from `@phosphor-icons/react`; do not add Lucide, Radix Icons, React Icons,
+  Heroicons, hand-drawn SVG glyphs, or emoji as structural UI. Purpose-built
+  data visualizations, brand marks, and map geometry are exempt. Follow the
+  sizing and weight rules in `frontend.md`. The client shell deliberately
+  enlarges Phosphor glyphs proportionally through `.client-icon-system` while
+  retaining their layout slot; preserve that rule and never stretch one axis
+  independently or add compensating padding or smaller sizes.
 - Shared client UI belongs in `components/client/**`, not directly in route
   files, once it is reused or grows beyond route orchestration.
 - Filling/editing pages in the client portal must visually and behaviorally
-  align with the application form. Reuse the bilingual form shared controls for
-  Chinese-language two-column fields and the same date, country, and option
-  controls before introducing any local input/select/date UI.
+  align with the application form. Reuse the localized form shared controls:
+  entry shows only the selected interface language, while synchronized
+  Chinese and English/official values remain available for final review. Reuse
+  the same date, country, and option controls before introducing local UI.
 - Application form internals are governed by
   `app/client/application/AGENTS.md`.
 - Chat internals are governed by `app/client/chat/AGENTS.md`.
@@ -100,6 +129,9 @@ applicant info, and help pages.
   PDF helpers live in `lib/korea-c39/**`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
   authenticated routes.
+- Exact current-application selection is stored client-side through
+  `lib/client/active-application-selection.ts`; preserve `applicationId` so
+  same-country/same-visa applications remain distinguishable.
 - Use `getAuthenticatedUserId()` for user identity when impersonation support
   matters.
 
@@ -134,6 +166,9 @@ accessible component state.
 - `viza-fe/internal-website/app/client/support/AGENTS.md`
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
+- `viza-fe/internal-website/app/client/onboarding/copy.ts`
+- `viza-fe/internal-website/app/client/account/notifications/copy.ts`
+- `viza-fe/internal-website/app/client/signing/signing-copy.ts`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/rules/page.tsx`
@@ -147,7 +182,6 @@ accessible component state.
 - `viza-fe/internal-website/lib/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/lib/korea-c39/*`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
-- `viza-fe/internal-website/app/actions/form-requests.ts`
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`
 - `viza-fe/internal-website/messages/en.json`
 - `viza-fe/internal-website/messages/zh.json`

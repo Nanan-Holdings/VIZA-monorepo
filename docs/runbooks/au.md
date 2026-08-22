@@ -24,7 +24,7 @@ Production handoff for AU_SUBCLASS_600 (Visitor Visa) flow.
 
 - INFRA-002 producer in the Stripe webhook auto-enqueues runner_job
   rows with `country='australia'` once the agency fee clears.
-- OPS-004 canary monitors `https://online.immi.gov.au/` hourly;
+- OPS-004 canary monitors the configured official public entry point every five minutes;
   status surfaces at `/admin/portal-health`.
 - OPS-005 SLA seeded at median 14 d / p95 45 d; back-fill cron
   flips to `source='measured'` after ≥5 samples.

@@ -9,13 +9,22 @@ region from the client home dashboard.
 
 ## Key Flows
 
-- `schengen/page.tsx`: dedicated Schengen main-destination picker.
+- `page.tsx`: redirect only. The change-country index merged into
+  `/client/status`, which now lists every application and the destination
+  browser on one page. Do not rebuild an index here.
+- `schengen/page.tsx`: dedicated Schengen main-destination picker. Keep its
+  search field and country cards visually aligned with the `/client/status`
+  Add Destination section.
 - `[region]/page.tsx`: generic regional picker for North America, South
   America, Middle East, Africa, non-Schengen Europe, Southeast Asia, East Asia,
   South Asia, and Oceania.
 - Philippines mirrors Indonesia's country-category entry: the home group opens
   `/client/destinations/philippines`, where arrival and departure eTravel
   packages remain separate selectable cards.
+- South Korea mirrors the country-category pattern at
+  `/client/destinations/south-korea`, where the Korea visa/K-ETA and e-Arrival
+  Card packages remain separate selectable cards; the East Asia page shows one
+  Korea country card linking to this page.
 
 ## Ownership Boundaries
 

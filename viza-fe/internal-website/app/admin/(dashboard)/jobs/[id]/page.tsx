@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { retryAdminRunnerJob } from "@/app/actions/admin-submission";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,11 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
     return { ...s, diff: "same" as const };
   });
 
+  async function retryJob(formData: FormData) {
+    "use server";
+    await retryAdminRunnerJob({ jobId: id, reason: String(formData.get("reason")) });
+  }
+
   return (
     <div className="w-full p-6 md:p-8 max-w-4xl mx-auto space-y-6">
       <div>
@@ -189,7 +195,7 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
           <p className="text-[#6b6b6b]">Application</p>
           <p className="font-mono">
             <Link
-              href={`/admin/users/${job.application_id}`}
+              href={`/admin/applications/${job.application_id}`}
               className="text-brand-500 hover:underline"
             >
               {job.application_id}
@@ -205,6 +211,13 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
           </div>
         ) : null}
       </div>
+
+      {["failed", "dead_letter", "paused", "needs_human"].includes(job.status) ? (
+        <form action={retryJob} className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center">
+          <input name="reason" required minLength={5} placeholder="Required audited retry reason" className="h-10 flex-1 rounded-md border border-amber-300 bg-white px-3 text-sm" />
+          <button type="submit" className="h-10 rounded-md bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800">Queue safe retry</button>
+        </form>
+      ) : null}
 
       <div className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b bg-[#fafafa]">

@@ -5,8 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import {
+  getChineseLabel,
+  getEnglishLabel,
   toChineseSourceValue,
-  translateLabel,
 } from "@/lib/ds160-translations";
 import {
   resolveLocalizedFieldLabel,
@@ -14,12 +15,14 @@ import {
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatDateOfficial(value: string): string | null {
   const trimmed = value.trim();
@@ -140,16 +143,36 @@ function getDynamicStepTranslationCandidates(stepName: string): string[] {
   ]));
 }
 
+export function getLocalizedReviewSectionTitle(
+  title: string,
+  side: "zh" | "en",
+): string {
+  const normalized = title.trim().replace(/\s+/g, " ");
+  const parts = normalized.split(/\s*\/\s*/).filter(Boolean);
+  const containsChinese = (value: string) => /[\u3400-\u9fff]/.test(value);
+
+  if (parts.some(containsChinese)) {
+    const localizedPart = side === "zh"
+      ? parts.find(containsChinese)
+      : parts.find((part) => !containsChinese(part));
+    if (localizedPart) return localizedPart;
+  }
+
+  return side === "zh" ? getChineseLabel(normalized) : getEnglishLabel(normalized);
+}
+
 export interface DynamicReviewStepProps {
   applicationId: string;
   dynamicAnswers: Record<string, string>;
   dbSteps: WizardStep[];
   photoPath: string | null;
-  onEdit: (stepIndex: number) => void;
+  onEdit: (stepIndex: number, fieldName: string) => void;
   onPhotoEdit: () => void;
   onComplete: () => void;
   mode?: "submit" | "continue";
   continueLabel?: string;
+  showAction?: boolean;
+  reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
 }
 
 export function DynamicReviewStep({
@@ -162,6 +185,8 @@ export function DynamicReviewStep({
   onComplete,
   mode = "submit",
   continueLabel,
+  showAction = true,
+  reviewIssues,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const tDyn = useTranslations("application.dynamicSteps");
@@ -213,14 +238,15 @@ export function DynamicReviewStep({
   }, [dynamicAnswers]);
 
   const bilingualRows = useMemo<ReviewRow[]>(() => {
-    const rows: ReviewRow[] = [];
+    const completedRows: ReviewRow[] = [];
+    const missingRows: ReviewRow[] = [];
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
         const translationKey = getDynamicStepTranslationCandidates(step.stepName)
           .find((key) => tDyn.has(key as never));
         const localized = translationKey ? tDyn(translationKey as never) : step.stepName;
-        return translateLabel(localized, isZh ? "zh" : "en");
+        return getLocalizedReviewSectionTitle(localized, isZh ? "zh" : "en");
       })();
 
       for (const field of step.fields) {
@@ -238,8 +264,8 @@ export function DynamicReviewStep({
         }
 
         for (const answerKey of answerKeys) {
-          const value = dynamicAnswers[answerKey];
-          if (!value?.trim()) continue;
+          const value = dynamicAnswers[answerKey] ?? "";
+          const isMissing = !value.trim();
 
           const sourceLabel = getReviewSourceLabel(field);
           const officialLabel = getReviewOfficialLabel(field);
@@ -247,15 +273,19 @@ export function DynamicReviewStep({
           const displayLabel = answerKey === field.fieldName
             ? label
             : `${label} #${answerKey.split("__")[1]}`;
-          const sourceValue = formatValue(
-            getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "zh"),
-            field,
-            "zh",
-          );
-          const officialValue = getOfficialValue(
-            getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
-            field,
-          );
+          const sourceValue = isMissing
+            ? t("review.notProvided")
+            : formatValue(
+                getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "zh"),
+                field,
+                "zh",
+              );
+          const officialValue = isMissing
+            ? "Not provided"
+            : getOfficialValue(
+                getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
+                field,
+              );
           const badges: string[] = [];
           const warnings: string[] = [];
 
@@ -273,8 +303,10 @@ export function DynamicReviewStep({
             warnings.push(t("translation.passportSpellingWarning"));
           }
 
-          rows.push({
-            section: sectionTitle,
+          const row: ReviewRow = {
+            section: isMissing
+              ? `${sectionTitle} · ${t("review.missingInformation")}`
+              : sectionTitle,
             fieldName: answerKey,
             label: displayLabel,
             sourceLabel: answerKey === field.fieldName
@@ -289,46 +321,60 @@ export function DynamicReviewStep({
             warnings,
             editable: true,
             editStepIndex: sourceIndex,
-          });
+            missing: isMissing,
+            issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
+            issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
+          };
+
+          if (isMissing) missingRows.push(row);
+          else completedRows.push(row);
         }
       }
     });
 
-    return rows;
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, t, tDyn]);
+    return [...completedRows, ...missingRows];
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
 
   return (
     <div className="flex flex-col gap-4">
-      <BilingualReviewPanel
-        applicationId={applicationId}
-        rows={bilingualRows}
-        onEditSection={onEdit}
-      />
+      <div className="flex flex-col gap-0">
+        <BilingualReviewPanel
+          applicationId={applicationId}
+          rows={bilingualRows}
+          onEditSection={onEdit}
+        />
 
-      {photoPath ? (
-        <section className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="font-heading text-sm font-semibold text-brand-500">
-              上传照片 / Photo
-            </h3>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0 border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
-              onClick={onPhotoEdit}
-            >
-              <Pencil className="mr-1 h-4 w-4" />
-              修改
-            </Button>
-          </div>
-          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
-            {photoPath}
-          </div>
-        </section>
-      ) : null}
+        {photoPath ? (
+          <section>
+            <div className="flex min-h-8 items-center justify-between gap-3">
+              <h3 className="font-heading text-sm font-semibold text-brand-500">
+                {isZh ? "上传照片" : "Photo"}
+              </h3>
+              <ReviewEditButton
+                onClick={onPhotoEdit}
+                label={isZh ? "修改上传照片" : "Edit uploaded photo"}
+              />
+            </div>
+            <Table className="table-fixed">
+              <TableBody>
+                <TableRow className="hover:bg-transparent">
+                  <th
+                    scope="row"
+                    className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
+                  >
+                    {isZh ? "已上传照片 / Uploaded photo" : "Uploaded photo"}
+                  </th>
+                  <TableCell className="px-0 py-2 text-right align-top text-sm font-medium text-foreground">
+                    <span className="whitespace-pre-wrap break-words">{photoPath}</span>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </section>
+        ) : null}
+      </div>
 
-      {mode === "submit" ? (
+      {showAction && mode === "submit" ? (
         <>
           <ValidationPanel
             applicationId={applicationId}
@@ -341,11 +387,11 @@ export function DynamicReviewStep({
             onConfirm={onComplete}
           />
         </>
-      ) : (
+      ) : showAction ? (
         <Button onClick={onComplete} size="lg" className="self-stretch">
           {actionLabel}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

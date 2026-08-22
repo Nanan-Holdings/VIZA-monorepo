@@ -94,9 +94,6 @@ const PH_ETRAVEL_AMBIGUOUS_FINAL_POST_CODES = new Set([
 ]);
 const PH_ETRAVEL_ACTION_REQUIRED_NON_SUBMITTED_CODES = new Set([
   "ph_etravel_stopped_before_submit",
-  "ph_etravel_final_submit_disabled",
-  "ph_etravel_final_submit_authorization_required",
-  "ph_etravel_final_submit_authorization_consumed",
   "ph_etravel_signature_required",
   "ph_etravel_family_member_action_required",
   "ph_etravel_family_companion_confirmation",
@@ -116,9 +113,7 @@ const PH_ETRAVEL_ACTION_REQUIRED_NON_SUBMITTED_CODES = new Set([
   "ph_etravel_launch_sea_customs_flow_review_required",
   "ph_etravel_launch_sea_electronic_positive_review_required",
   "ph_etravel_launch_currency_positive_review_required",
-  "ph_etravel_launch_goods_amount_checklist_required",
   "ph_etravel_launch_attachment_review_required",
-  "ph_etravel_launch_customs_signature_review_required",
   "ph_etravel_launch_final_result_recovery_required",
 ]);
 

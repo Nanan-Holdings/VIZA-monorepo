@@ -282,7 +282,7 @@
     box-shadow: 0 0 0 3px rgba(22,163,74,0.16);
   }
 
-  /* Featured Atlys row */
+  /* Featured VIZA platform row */
   .feat {
     padding: 24px 28px 28px;
     display: grid;
@@ -449,6 +449,21 @@
   .legend-sw.de { background: #d97706; }
   .legend-sw.pa { background: #ea580c; }
   .legend-sw.mj { background: #dc2626; }
+  .legend-sw.none { background: #e5e7eb; }
+
+  .empty-state {
+    padding: 32px 28px;
+    color: var(--fg-2);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .empty-state h2 {
+    margin: 0 0 8px;
+    color: var(--fg-1);
+    font: 500 22px/1.2 var(--font-heading);
+  }
+  .empty-state p { margin: 0; }
+  .row-stat .pct.none { color: var(--fg-2); }
 
   /* Incidents */
   .day-group {

@@ -5,7 +5,7 @@ set -euo pipefail
 # into one Fly app. Values are never printed or written to disk.
 app="${1:?Fly app name is required}"
 country="${2:?country scope is required}"
-required=(SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUBMISSION_RESULT_SECRET_KEY)
+required=(SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUBMISSION_RESULT_SECRET_KEY SUBMISSION_QUEUE_INTERNAL_TOKEN)
 for key in "${required[@]}"; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required runtime secret: $key" >&2
@@ -17,6 +17,7 @@ secret_args=(
   "SUPABASE_URL=$SUPABASE_URL"
   "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY"
   "SUBMISSION_RESULT_SECRET_KEY=$SUBMISSION_RESULT_SECRET_KEY"
+  "SUBMISSION_QUEUE_INTERNAL_TOKEN=$SUBMISSION_QUEUE_INTERNAL_TOKEN"
 )
 
 # Capability secrets are optional: only inject a value when the protected CI
@@ -48,7 +49,20 @@ case "$country" in
     capability=(SGAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
     ;;
   indonesia)
-    capability=(BROWSERBASE_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD)
+    capability=(
+      INDONESIA_BROWSER_API_ENDPOINT
+      INDONESIA_BRIGHTDATA_BROWSER_API_ENDPOINT
+      BROWSERBASE_API_KEY
+      TWOCAPTCHA_API_KEY
+      INDONESIA_CARD_SESSION_INTERNAL_TOKEN
+      IMAP_HOST
+      IMAP_PORT
+      IMAP_EMAIL
+      IMAP_PASSWORD
+    )
+    ;;
+  south_korea)
+    capability=(KR_SUBMISSION_INTERNAL_TOKEN BROWSERBASE_API_KEY)
     ;;
   vietnam)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
@@ -56,12 +70,7 @@ case "$country" in
   taiwan)
     # Taiwan email verification reads the application-scoped alias from
     # inbound_email through Supabase. It does not use the legacy IMAP poller.
-    capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
-    ;;
-  philippines)
-    # Philippines email OTP reads the application-scoped alias from
-    # inbound_email through Supabase. It does not use the legacy IMAP poller.
-    capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
+    capability=(TWOCAPTCHA_API_KEY)
     ;;
   united_states)
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY)
@@ -70,12 +79,46 @@ case "$country" in
     capability=(BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY FV_EMAIL FV_PASSWORD)
     ;;
   legacy)
-    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD)
+    capability=(MDAC_BROWSER_API_ENDPOINT MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT TDAC_BROWSER_API_ENDPOINT BROWSERBASE_API_KEY TWOCAPTCHA_API_KEY IMAP_HOST IMAP_PORT IMAP_EMAIL IMAP_PASSWORD FV_EMAIL FV_PASSWORD VIETNAM_CARD_SESSION_INTERNAL_TOKEN)
+    ;;
+  pool)
+    capability=(
+      SGAC_BROWSER_API_ENDPOINT
+      MDAC_BROWSER_API_ENDPOINT
+      MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT
+      TDAC_BROWSER_API_ENDPOINT
+      TDAC_BRIGHTDATA_BROWSER_API_ENDPOINT
+      VN_PREARRIVAL_BROWSER_API_ENDPOINT
+      BRIGHTDATA_BROWSER_API_ENDPOINT
+      BRIGHTDATA_BROWSER_WS
+      SBR_WS_ENDPOINT
+      BROWSERBASE_API_KEY
+      TWOCAPTCHA_API_KEY
+      IMAP_HOST
+      IMAP_PORT
+      IMAP_EMAIL
+      IMAP_PASSWORD
+    )
     ;;
   *)
     capability=()
     ;;
 esac
+
+if [[ "$country" == "indonesia" && -z "${INDONESIA_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required Indonesia card-session internal token." >&2
+  exit 2
+fi
+
+if [[ "$country" == "south_korea" && -z "${KR_SUBMISSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required South Korea submission internal token." >&2
+  exit 2
+fi
+
+if [[ "$country" == "legacy" && -z "${VIETNAM_CARD_SESSION_INTERNAL_TOKEN:-}" ]]; then
+  echo "Missing required Vietnam card-session internal token." >&2
+  exit 2
+fi
 
 for key in "${capability[@]}"; do
   if [[ -n "${!key:-}" ]]; then

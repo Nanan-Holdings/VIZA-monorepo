@@ -1,12 +1,19 @@
+import asyncio
 import os
+import time
 from datetime import date
 
-import httpx
+from typing import Any
+
+from tools.http_client import REQUEST_TIMEOUT, request_json
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
-REQUEST_TIMEOUT = httpx.Timeout(20.0)
+# Kept as a module-level alias for callers that imported the old timeout name.
+RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+_destination_id_cache: dict[str, tuple[float, str]] = {}
 
 
 def _headers():
@@ -19,30 +26,28 @@ def _headers():
     }
 
 
-def _request_json(path: str, params: dict):
+async def _request_json(path: str, params: dict[str, Any]):
     headers = _headers()
     if not headers:
         return None
 
-    try:
-        response = httpx.get(
-            f"{RAPIDAPI_BASE_URL}{path}",
-            params=params,
-            headers=headers,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        print(f"RapidAPI flight request failed ({path}):", exc)
-        return None
+    return await request_json(
+        f"{RAPIDAPI_BASE_URL}{path}",
+        params=params,
+        headers=headers,
+    )
 
 
-def _resolve_destination_id(query: str):
+async def _resolve_destination_id(query: str):
     if not query:
         return None
 
-    payload = _request_json("/api/v1/flights/searchDestination", {"query": query})
+    query_key = query.strip().lower()
+    cached = _destination_id_cache.get(query_key)
+    if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    payload = await _request_json("/api/v1/flights/searchDestination", {"query": query})
     if not payload or payload.get("status") is not True:
         return None
 
@@ -50,7 +55,6 @@ def _resolve_destination_id(query: str):
     if not isinstance(data, list):
         return None
 
-    query_key = query.strip().lower()
     best_id = None
     best_score = -1
 
@@ -89,6 +93,7 @@ def _resolve_destination_id(query: str):
             best_id = destination_id
 
     if best_id:
+        _destination_id_cache[query_key] = (time.monotonic(), best_id)
         return best_id
 
     for item in data:
@@ -96,6 +101,7 @@ def _resolve_destination_id(query: str):
             continue
         destination_id = item.get("id")
         if isinstance(destination_id, str) and destination_id:
+            _destination_id_cache[query_key] = (time.monotonic(), destination_id)
             return destination_id
 
     return None
@@ -129,20 +135,36 @@ def _stable_route_number(origin_city, destination_city, prefix):
     return f"{prefix}{(seed % 900) + 100}"
 
 
-def _fallback_airlines(origin_city, destination_city):
-    route_text = f"{origin_city} {destination_city}".lower()
-    if any(value in route_text for value in ("singapore", "新加坡")):
-        return [("Singapore Airlines", "SQ"), ("Scoot", "TR")]
-    if any(value in route_text for value in ("paris", "lyon", "marseille", "nice", "法国", "巴黎", "里昂", "马赛", "尼斯")):
-        return [("Air France", "AF"), ("Transavia France", "TO")]
-    return [("VIZA API Flight", "VZ"), ("VIZA Economy Flight", "VA")]
+def _fallback_airlines(_origin_city, _destination_city):
+    # A fallback result is an estimate, not a real carrier quote. Never infer a
+    # carrier from the route: doing so makes an unavailable provider look like
+    # a live booking result (for example, Singapore routes used to show
+    # Singapore Airlines even when RapidAPI had returned 403/429).
+    return [("待确认航司", None), ("待确认航司", None)]
 
 
-def _fallback_flights(origin_city, destination_city, departure_date):
+def _fallback_flights(
+    origin_city,
+    destination_city,
+    departure_date,
+    *,
+    provider_reason="provider_unavailable",
+):
+    """Return clearly labelled time estimates when no provider quote exists.
+
+    These values are deliberately not bookable offers. Keeping the shape of the
+    old response lets the current itinerary UI remain stable while the explicit
+    metadata prevents the client from presenting estimates as live flights.
+    """
+
     airlines = _fallback_airlines(origin_city, destination_city)
     return [
         {
-            "provider": "api-default",
+            "provider": "unavailable-estimate",
+            "estimated": True,
+            "provider_status": "unavailable",
+            "provider_reason": provider_reason,
+            "provider_message": "实时航班供应商暂未返回，以下仅为时间估算，不可预订。",
             "airline": airlines[0][0],
             "price": "500.00",
             "currency": "USD",
@@ -152,13 +174,21 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "6h 30m",
             "stops": 0,
-            "flight_number": _stable_route_number(origin_city, destination_city, airlines[0][1]),
+            "flight_number": (
+                _stable_route_number(origin_city, destination_city, airlines[0][1])
+                if airlines[0][1]
+                else None
+            ),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
         },
         {
-            "provider": "api-default",
+            "provider": "unavailable-estimate",
+            "estimated": True,
+            "provider_status": "unavailable",
+            "provider_reason": provider_reason,
+            "provider_message": "实时航班供应商暂未返回，以下仅为时间估算，不可预订。",
             "airline": airlines[1][0],
             "price": "200.00",
             "currency": "USD",
@@ -168,7 +198,11 @@ def _fallback_flights(origin_city, destination_city, departure_date):
             "to": destination_city,
             "duration": "5h 50m",
             "stops": 0,
-            "flight_number": _stable_route_number(origin_city, destination_city, airlines[1][1]),
+            "flight_number": (
+                _stable_route_number(origin_city, destination_city, airlines[1][1])
+                if airlines[1][1]
+                else None
+            ),
             "departure_airport": origin_city,
             "arrival_airport": destination_city,
             "cabin_class": "ECONOMY",
@@ -207,7 +241,7 @@ def _airport_label(airport_obj):
     return None
 
 
-def search_flights(
+async def search_flights(
     origin_city,
     destination_city,
     departure_date=None,
@@ -221,12 +255,24 @@ def search_flights(
     departure_date = departure_date or date.today().isoformat()
     adults = max(int(adults or 1), 1)
 
-    from_id = _resolve_destination_id(origin_city)
-    to_id = _resolve_destination_id(destination_city)
+    from_id, to_id = await asyncio.gather(
+        _resolve_destination_id(origin_city),
+        _resolve_destination_id(destination_city),
+    )
     if not from_id or not to_id:
-        return _fallback_flights(origin_city, destination_city, departure_date)
+        reason = "destination_unresolved"
+        print(
+            "Flight provider unavailable; destination lookup returned no id:",
+            {"origin": origin_city, "destination": destination_city},
+        )
+        return _fallback_flights(
+            origin_city,
+            destination_city,
+            departure_date,
+            provider_reason=reason,
+        )
 
-    payload = _request_json(
+    payload = await _request_json(
         "/api/v1/flights/searchFlights",
         {
             "fromId": from_id,
@@ -239,15 +285,43 @@ def search_flights(
         },
     )
     if not payload or payload.get("status") is not True:
-        return _fallback_flights(origin_city, destination_city, departure_date)
+        reason = "search_request_failed"
+        print(
+            "Flight provider unavailable; search response was unsuccessful:",
+            {"origin": origin_city, "destination": destination_city},
+        )
+        return _fallback_flights(
+            origin_city,
+            destination_city,
+            departure_date,
+            provider_reason=reason,
+        )
 
     data = payload.get("data")
     if not isinstance(data, dict):
-        return _fallback_flights(origin_city, destination_city, departure_date)
+        print(
+            "Flight provider returned an invalid search payload:",
+            {"origin": origin_city, "destination": destination_city},
+        )
+        return _fallback_flights(
+            origin_city,
+            destination_city,
+            departure_date,
+            provider_reason="invalid_provider_payload",
+        )
 
     offers = data.get("flightOffers")
     if not isinstance(offers, list) or not offers:
-        return _fallback_flights(origin_city, destination_city, departure_date)
+        print(
+            "Flight provider returned no offers:",
+            {"origin": origin_city, "destination": destination_city},
+        )
+        return _fallback_flights(
+            origin_city,
+            destination_city,
+            departure_date,
+            provider_reason="no_offers",
+        )
 
     normalized = []
     for offer in offers[: max(max_results, 1)]:
@@ -261,7 +335,7 @@ def search_flights(
 
         departure_time = first_segment.get("departureTime") or departure_date
         arrival_time = first_segment.get("arrivalTime")
-        carrier_name = "Unknown Airline"
+        carrier_name = "待确认航司"
         departure_airport = _airport_label(first_segment.get("departureAirport"))
         arrival_airport = _airport_label(first_segment.get("arrivalAirport"))
         duration = _format_duration(first_segment.get("totalTime"))
@@ -327,4 +401,16 @@ def search_flights(
             }
         )
 
-    return normalized or _fallback_flights(origin_city, destination_city, departure_date)
+    if normalized:
+        return normalized
+
+    print(
+        "Flight provider returned no normalizable offers:",
+        {"origin": origin_city, "destination": destination_city},
+    )
+    return _fallback_flights(
+        origin_city,
+        destination_city,
+        departure_date,
+        provider_reason="invalid_provider_offers",
+    )

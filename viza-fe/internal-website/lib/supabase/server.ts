@@ -1,8 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { normalizeSupabaseEnvValue } from "./env";
+import { createFetchWithTransientRetry } from "./fetch-with-timeout";
 
-export async function createClient() {
+export type SupabaseClientOptions = {
+  requestTimeoutMs?: number;
+  retryDelaysMs?: readonly number[];
+  circuitBreakerScope?: string;
+};
+
+export async function createClient(options: SupabaseClientOptions = {}) {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -15,6 +22,13 @@ export async function createClient() {
       "NEXT_PUBLIC_SUPABASE_ANON_KEY"
     ),
     {
+      global: {
+        fetch: createFetchWithTransientRetry({
+          requestTimeoutMs: options.requestTimeoutMs,
+          retryDelaysMs: options.retryDelaysMs,
+          circuitBreakerScope: options.circuitBreakerScope,
+        }),
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

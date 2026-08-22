@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  UploadCloud,
-  CheckCircle2,
-  Loader2,
-  ScanLine,
-  XCircle,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { CircleNotch as Loader2, Scan as ScanLine } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import {
+  DocumentUploadField,
+  type DocumentUploadStatus,
+} from "@/components/ui/document-upload-field";
+import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 
@@ -100,7 +98,6 @@ export function FileUploadCard({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [ocrStatus, setOcrStatus] = useState<OcrStatus>("idle");
   const [ocrMessage, setOcrMessage] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const supportsPassportOcr = isPassportUpload(documentType);
 
   const runPassportOcr = async (path: string) => {
@@ -171,102 +168,98 @@ export function FileUploadCard({
     }
   };
 
+  const fieldStatus: DocumentUploadStatus =
+    status === "uploading"
+      ? "uploading"
+      : status === "error"
+        ? "rejected"
+        : status === "done"
+          ? "approved"
+          : required
+            ? "missing"
+            : "optional";
+
+  const statusLabel =
+    status === "uploading"
+      ? isZh
+        ? "正在上传…"
+        : "Uploading…"
+      : status === "error"
+        ? isZh
+          ? "上传失败"
+          : "Upload failed"
+        : status === "done"
+          ? isZh
+            ? "已上传"
+            : "Uploaded"
+          : required
+            ? isZh
+              ? "缺失"
+              : "Missing"
+            : isZh
+              ? "未上传"
+              : "Not uploaded";
+
   return (
-    <Card
-      className={`border-2 transition-colors ${
-        status === "done"
-          ? "border-green-400 bg-green-50"
-          : status === "error"
-            ? "border-red-300 bg-red-50"
-            : "border-dashed border-border hover:border-brand-400"
-      }`}
-    >
-      <CardContent className="p-4 flex items-center gap-4">
-        <div className="shrink-0">
-          {status === "uploading" && (
-            <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
-          )}
-          {status === "done" && (
-            <CheckCircle2 className="h-6 w-6 text-green-500" />
-          )}
-          {status === "error" && <XCircle className="h-6 w-6 text-red-500" />}
-          {status === "idle" && (
-            <UploadCloud className="h-6 w-6 text-muted-foreground" />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">
-            {label}
-          </p>
-          {secondaryLabel && (
-            <p className="text-xs font-medium text-[#03346E] truncate">
-              {secondaryLabel}
-            </p>
-          )}
-          {description && (
-            <p className="text-xs text-muted-foreground truncate">
-              {description}
-            </p>
-          )}
-          {fileName && (
-            <p className="text-xs text-muted-foreground truncate">{fileName}</p>
-          )}
-          {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
-          {supportsPassportOcr && ocrMessage && (
-            <p
-              className={
-                ocrStatus === "failed"
-                  ? "text-xs text-amber-700"
-                  : "text-xs text-brand-600"
-              }
-            >
-              {ocrMessage}
-            </p>
-          )}
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-          {supportsPassportOcr && storagePath && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => runPassportOcr(storagePath)}
-              disabled={ocrStatus === "running" || status === "uploading"}
-              className="shrink-0"
-            >
-              {ocrStatus === "running" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ScanLine className="h-4 w-4" />
-              )}
-              OCR
-            </Button>
-          )}
+    <SupportingDocumentCard
+      title={label}
+      description={description}
+      required={required}
+      headerLayout="stacked"
+      headerAside={
+        supportsPassportOcr && storagePath ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={status === "uploading"}
+            onClick={() => runPassportOcr(storagePath)}
+            disabled={ocrStatus === "running" || status === "uploading"}
             className="shrink-0"
           >
-            {status === "done" ? t("replace") : t("upload")}
+            {ocrStatus === "running" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ScanLine className="h-4 w-4" />
+            )}
+            OCR
           </Button>
-        </div>
-
-        <input
-          ref={inputRef}
-          type="file"
-          className="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
-          }}
-        />
-      </CardContent>
-    </Card>
+        ) : undefined
+      }
+      note={
+        secondaryLabel || (supportsPassportOcr && ocrMessage && ocrStatus !== "failed") ? (
+          <>
+            {secondaryLabel ? (
+              <p className="truncate text-xs font-medium text-brand-500">
+                {secondaryLabel}
+              </p>
+            ) : null}
+            {supportsPassportOcr && ocrMessage && ocrStatus !== "failed" ? (
+              <p className="text-xs text-brand-600">{ocrMessage}</p>
+            ) : null}
+          </>
+        ) : null
+      }
+    >
+      <DocumentUploadField
+        status={fieldStatus}
+        statusLabel={statusLabel}
+        file={fileName ? { name: fileName, kind: "document" } : null}
+        reason={
+          errorMsg ??
+          (supportsPassportOcr && ocrMessage && ocrStatus === "failed"
+            ? ocrMessage
+            : null)
+        }
+        dropLabel={isZh ? "拖放文件到这里，或点击选择" : "Drop file or browse"}
+        acceptHint={
+          isZh ? "PDF、JPG、PNG 或 WebP" : "PDF, JPG, PNG or WebP"
+        }
+        removeLabel={isZh ? "移除文件" : "Remove file"}
+        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+        disabled={status === "uploading"}
+        inputAriaLabel={label}
+        onFileSelected={(file) => void handleFile(file)}
+      />
+    </SupportingDocumentCard>
   );
 }

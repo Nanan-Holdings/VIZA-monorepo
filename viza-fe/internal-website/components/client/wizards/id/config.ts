@@ -9,6 +9,21 @@ const NAMESPACE = "simplifiedForm.id";
 // evisa.imigrasi.go.id C1 Tourist: 60-day max stay, single entry.
 const ID_C1_MAX_STAY_DAYS = 60;
 
+const PASSPORT_TYPE_OPTIONS = [
+  { value: "ordinary", labelKey: "options.passport.ordinary" },
+  { value: "diplomatic", labelKey: "options.passport.diplomatic" },
+  { value: "official", labelKey: "options.passport.official" },
+  { value: "travel_document", labelKey: "options.passport.travelDocument" },
+  { value: "other", labelKey: "options.passport.other" },
+];
+
+const ID_ACCOMMODATION_OPTIONS = [
+  { value: "hotel", labelKey: "options.idAccommodation.hotel" },
+  { value: "villa", labelKey: "options.idAccommodation.villa" },
+  { value: "friend_or_relative", labelKey: "options.idAccommodation.friend" },
+  { value: "other", labelKey: "options.idAccommodation.other" },
+];
+
 // ---------------------------------------------------------------------------
 // Field groups — mirror viza-be/agent-backend/scripts/seed-id-c1-tourist-form-fields.ts
 // (the authoritative Indonesia C1 schema reconstructed from the public eVisa
@@ -47,13 +62,7 @@ const PERSONAL_FIELDS: GenericField[] = [
 
 const PASSPORT_FIELDS: GenericField[] = [
   { kind: "text", key: "passport_number", labelKey: "fields.passportNumber", required: true },
-  { kind: "select", key: "passport_type", labelKey: "fields.passportType", options: [
-    { value: "ordinary", labelKey: "options.passport.ordinary" },
-    { value: "diplomatic", labelKey: "options.passport.diplomatic" },
-    { value: "official", labelKey: "options.passport.official" },
-    { value: "travel_document", labelKey: "options.passport.travelDocument" },
-    { value: "other", labelKey: "options.passport.other" },
-  ] },
+  { kind: "select", key: "passport_type", labelKey: "fields.passportType", options: PASSPORT_TYPE_OPTIONS },
   { kind: "country", key: "passport_country", labelKey: "fields.passportIssuingCountry" },
   { kind: "date", key: "passport_issue_date", labelKey: "fields.passportIssueDate" },
   { kind: "date", key: "passport_expiry_date", labelKey: "fields.passportExpiryDate" },
@@ -102,12 +111,7 @@ const TRIP_FIELDS: GenericField[] = [
   { kind: "text", key: "port_of_entry", labelKey: "fields.portOfEntry" },
   { kind: "text", key: "carrier_name", labelKey: "fields.carrierName" },
   { kind: "text", key: "flight_or_voyage_number", labelKey: "fields.flightOrVoyageNumber" },
-  { kind: "select", key: "accommodation_type", labelKey: "fields.accommodationType", options: [
-    { value: "hotel", labelKey: "options.idAccommodation.hotel" },
-    { value: "villa", labelKey: "options.idAccommodation.villa" },
-    { value: "friend_or_relative", labelKey: "options.idAccommodation.friend" },
-    { value: "other", labelKey: "options.idAccommodation.other" },
-  ] },
+  { kind: "select", key: "accommodation_type", labelKey: "fields.accommodationType", options: ID_ACCOMMODATION_OPTIONS },
   { kind: "text", key: "accommodation_name", labelKey: "fields.accommodationName" },
   { kind: "text", key: "accommodation_address", labelKey: "fields.accommodationAddress" },
   { kind: "text", key: "accommodation_city_or_district", labelKey: "fields.accommodationCity" },
@@ -151,6 +155,65 @@ const TRAVEL_HISTORY_FIELDS: GenericField[] = [
   { kind: "text", key: "refused_visa_other_country_details", labelKey: "fields.refusedVisaOtherDetails" },
 ];
 
+const B1_PERSONAL_FIELDS: GenericField[] = [
+  { kind: "text", key: "surname", labelKey: "fields.surname", required: true },
+  { kind: "text", key: "given_names", labelKey: "fields.givenNames", required: true },
+  { kind: "date", key: "date_of_birth", labelKey: "fields.dob" },
+  { kind: "select", key: "sex", labelKey: "fields.sex", options: [
+    { value: "male", labelKey: "options.sex.male" },
+    { value: "female", labelKey: "options.sex.female" },
+  ] },
+  { kind: "text", key: "place_of_birth_city", labelKey: "fields.placeOfBirthCity" },
+  { kind: "country", key: "place_of_birth_country", labelKey: "fields.placeOfBirthCountry" },
+  { kind: "country", key: "nationality", labelKey: "fields.nationality" },
+  { kind: "yesno", key: "has_other_nationalities", labelKey: "fields.hasOtherNationalities" },
+  { kind: "country", key: "other_nationality", labelKey: "fields.otherNationality" },
+];
+
+const B1_PASSPORT_FIELDS: GenericField[] = [
+  { kind: "text", key: "passport_number", labelKey: "fields.passportNumber", required: true },
+  { kind: "select", key: "passport_type", labelKey: "fields.passportType", options: PASSPORT_TYPE_OPTIONS },
+  { kind: "country", key: "passport_country", labelKey: "fields.passportIssuingCountry" },
+  { kind: "date", key: "passport_issue_date", labelKey: "fields.passportIssueDate" },
+  { kind: "date", key: "passport_expiry_date", labelKey: "fields.passportExpiryDate" },
+  { kind: "text", key: "passport_place_of_issue", labelKey: "fields.passportPlaceOfIssue" },
+  { kind: "yesno", key: "has_other_passports", labelKey: "fields.hasOtherPassports" },
+  { kind: "text", key: "other_passport_number", labelKey: "fields.otherPassportNumber" },
+  { kind: "country", key: "other_passport_country", labelKey: "fields.otherPassportCountry" },
+];
+
+const B1_CONTACT_FIELDS: GenericField[] = [
+  { kind: "email", key: "email_address", labelKey: "fields.email" },
+  { kind: "phone", key: "mobile_number", labelKey: "fields.mobile" },
+  { kind: "text", key: "home_address_line1", labelKey: "fields.homeAddress" },
+  { kind: "text", key: "home_address_city", labelKey: "fields.city" },
+  { kind: "country", key: "home_address_country", labelKey: "fields.countryOfResidence" },
+];
+
+const B1_TRIP_FIELDS: GenericField[] = [
+  { kind: "select", key: "purpose_of_visit", labelKey: "fields.purposeOfVisit", options: [
+    { value: "tourism", labelKey: "options.purpose.tourism" },
+    { value: "business_meeting", labelKey: "options.purpose.businessMeeting" },
+    { value: "transit", labelKey: "options.purpose.transit" },
+  ] },
+  { kind: "date", key: "arrival_date", labelKey: "fields.arrivalDate" },
+  { kind: "date", key: "departure_date", labelKey: "fields.departureDate" },
+  { kind: "text", key: "port_of_entry", labelKey: "fields.portOfEntry" },
+  { kind: "text", key: "carrier_name", labelKey: "fields.carrierName" },
+  { kind: "text", key: "flight_or_voyage_number", labelKey: "fields.flightOrVoyageNumber" },
+  { kind: "select", key: "accommodation_type", labelKey: "fields.accommodationType", options: ID_ACCOMMODATION_OPTIONS },
+  { kind: "text", key: "accommodation_name", labelKey: "fields.accommodationName" },
+  { kind: "text", key: "accommodation_address", labelKey: "fields.accommodationAddress" },
+  { kind: "text", key: "accommodation_city_or_district", labelKey: "fields.accommodationCity" },
+];
+
+const B1_DECLARATION_ITEMS: ChecklistItem[] = [
+  { key: "refused_visa_or_entry_indonesia", labelKey: "fields.refusedVisaIndonesia", explainOnYes: true },
+  { key: "has_criminal_record", labelKey: "declarations.hasCriminalRecord", explainOnYes: true },
+  { key: "has_overstayed_indonesia", labelKey: "declarations.hasOverstayedIndonesia", explainOnYes: true },
+  { key: "final_declaration", labelKey: "declarations.finalDeclaration" },
+];
+
 // 4 yes/no character questions + 1 final declaration acknowledgement.
 const DECLARATION_ITEMS: ChecklistItem[] = [
   { key: "has_criminal_record", labelKey: "declarations.hasCriminalRecord", explainOnYes: true },
@@ -170,6 +233,13 @@ const STEP_FIELD_MAP: Record<string, GenericField[]> = {
   trip: TRIP_FIELDS,
   sponsor: SPONSOR_FIELDS,
   travel_history: TRAVEL_HISTORY_FIELDS,
+};
+
+const B1_STEP_FIELD_MAP: Record<string, GenericField[]> = {
+  personal: B1_PERSONAL_FIELDS,
+  passport: B1_PASSPORT_FIELDS,
+  contact: B1_CONTACT_FIELDS,
+  trip: B1_TRIP_FIELDS,
 };
 
 const DECLARATION_KEYS = DECLARATION_ITEMS.map((i) => i.key).concat([
@@ -201,6 +271,16 @@ function reviewSections(form: IdForm): WizardReviewSection[] {
   ];
 }
 
+function b1ReviewSections(form: IdForm): WizardReviewSection[] {
+  return [
+    { titleKey: "review.personal", editStepKey: "personal", rows: fieldRows(form, B1_PERSONAL_FIELDS.map((f) => f.key)) },
+    { titleKey: "review.passport", editStepKey: "passport", rows: fieldRows(form, B1_PASSPORT_FIELDS.map((f) => f.key)) },
+    { titleKey: "review.contact", editStepKey: "contact", rows: fieldRows(form, B1_CONTACT_FIELDS.map((f) => f.key)) },
+    { titleKey: "review.trip", editStepKey: "trip", rows: fieldRows(form, B1_TRIP_FIELDS.map((f) => f.key)) },
+    { titleKey: "review.declaration", editStepKey: "declaration", rows: fieldRows(form, B1_DECLARATION_ITEMS.map((i) => i.key)) },
+  ];
+}
+
 function buildPayload(form: IdForm): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(form)) if (typeof v === "string" && v.trim() !== "") out[k] = v.trim();
@@ -217,6 +297,23 @@ function genericStep(key: string, fieldsKey: keyof typeof STEP_FIELD_MAP) {
         titleKey: `steps.${key}.title`,
         subtitleKey: `steps.${key}.subtitle`,
         fields: STEP_FIELD_MAP[fieldsKey],
+        values: form,
+        onChange: (next) => setForm(() => next),
+        onContinue,
+      }),
+  };
+}
+
+function b1GenericStep(key: string, fieldsKey: keyof typeof B1_STEP_FIELD_MAP) {
+  return {
+    key,
+    titleKey: `steps.${key}.label`,
+    render: ({ form, setForm, onContinue }: { form: IdForm; setForm: (u: (p: IdForm) => IdForm) => void; onContinue: () => void }) =>
+      createElement(StepGenericFields, {
+        i18nNamespace: NAMESPACE,
+        titleKey: `steps.${key}.title`,
+        subtitleKey: `steps.${key}.subtitle`,
+        fields: B1_STEP_FIELD_MAP[fieldsKey],
         values: form,
         onChange: (next) => setForm(() => next),
         onContinue,
@@ -252,6 +349,37 @@ export const idConfig: WizardConfig<IdForm> = {
           titleKey: "steps.declaration.title",
           subtitleKey: "steps.declaration.subtitle",
           items: DECLARATION_ITEMS,
+          values: form,
+          onChange: (next) => setForm(() => next),
+          onContinue,
+        }),
+    },
+  ],
+};
+
+export const idB1EvoaConfig: WizardConfig<IdForm> = {
+  visaType: "ID_B1_EVOA",
+  defaultCountry: "indonesia",
+  defaultVisaType: "ID_B1_EVOA",
+  emptyForm: () => ({}),
+  buildAnswerPayload: buildPayload,
+  i18nNamespace: NAMESPACE,
+  seedAuthEmail: (form, email) => ({ ...form, email_address: form.email_address || email }),
+  reviewSections: b1ReviewSections,
+  steps: [
+    b1GenericStep("personal", "personal"),
+    b1GenericStep("passport", "passport"),
+    b1GenericStep("contact", "contact"),
+    b1GenericStep("trip", "trip"),
+    {
+      key: "declaration",
+      titleKey: "steps.declaration.label",
+      render: ({ form, setForm, onContinue }) =>
+        createElement(StepYesNoChecklist, {
+          i18nNamespace: NAMESPACE,
+          titleKey: "steps.declaration.title",
+          subtitleKey: "steps.declaration.subtitle",
+          items: B1_DECLARATION_ITEMS,
           values: form,
           onChange: (next) => setForm(() => next),
           onContinue,

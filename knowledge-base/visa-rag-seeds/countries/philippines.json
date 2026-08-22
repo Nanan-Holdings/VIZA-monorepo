@@ -1,15 +1,15 @@
 {
-  "version": "2026-06-28",
+  "version": "2026-08-04",
   "country": "philippines",
   "notes": "Country-level VIZA RAG seed for philippines. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
-      "slug": "philippines-china-visa-free-or-evisa",
+      "slug": "philippines-visitor-visa-and-exemption-eligibility",
       "country": "philippines",
-      "visaType": "visa_free_14_days_or_evisa",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
       "documentType": "requirements",
-      "title": "Philippines Visa-Free Entry or eVisa for Chinese Tourists",
-      "sourceUrl": "https://www.pna.gov.ph/articles/1267062",
+      "title": "Philippines Visitor Visa Eligibility and Chinese Tourist Exemption",
+      "sourceUrl": "https://chongqingpcg.dfa.gov.ph/example-pages/news-press-releases/1167-philippines-to-allow-visa-free-entry-for-14-days-for-chinese-nationals",
       "chunks": [
         {
           "id": "phl_china_visa_free_basic_route_zh",
@@ -23,7 +23,7 @@
             "visitor",
             "short-stay"
           ],
-          "content": "For Chinese ordinary passport holders planning short tourism travel to Philippines, VIZA AI should consider the Philippines visa-free short visitor route when eligible, otherwise eVisa or consular visa route. First confirm nationality, stay length, purpose, hotel booking, return or onward ticket, passport validity, and eTravel status. For Chinese tourists, check the current 14-day visa-free policy and route longer stays to visa/eVisa. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+          "content": "For Chinese ordinary passport holders planning short tourism travel to the Philippines, VIZA AI must first determine whether the current Chinese-national short-visitor exemption applies. If it does not apply, route the traveller to the separate PH_TEMPORARY_VISITOR_VISA process. Confirm nationality, stay length, purpose, accommodation, return or onward ticket, passport validity and the separate eTravel declaration before presenting an application route."
         },
         {
           "id": "phl_14_day_policy_2026",
@@ -37,7 +37,7 @@
             "hotel",
             "onward-ticket"
           ],
-          "content": "Philippine government news reports DFA guidance that, effective 16 January 2026, Chinese nationals may enter the Philippines without obtaining a visa for stays up to 14 days for tourism or business visitor purposes. Documents include passport valid at least six months beyond the contemplated stay, confirmed hotel accommodation/booking, and return or onward ticket. VIZA AI should still tell users to check DFA/BI/eTravel rules before departure."
+          "content": "The Philippine Embassy/Department of Foreign Affairs notice at the official source URL states that, effective 16 January 2026, Chinese nationals may enter the Philippines without obtaining a visa for stays up to 14 days for tourism or business visitor purposes, subject to the stated conditions. The notice lists a passport valid at least six months beyond the contemplated stay, confirmed hotel accommodation/booking, and return or onward ticket. Treat this as a time-bounded policy and re-check the official DFA/Bureau of Immigration instructions before departure."
         },
         {
           "id": "phl_longer_stay_route",
@@ -48,7 +48,29 @@
             "longer-stay",
             "not-work"
           ],
-          "content": "If the user plans to stay more than 14 days, work, study, reside, or conduct activities outside tourism/business visitor scope, do not present visa-free entry as sufficient. Route them to Philippine visa/eVisa or consular guidance and ask for exact stay length and purpose."
+          "content": "If the user plans to stay more than 14 days, work, study, reside, or conduct activities outside tourism/business visitor scope, do not present the exemption as sufficient. Route them to PH_TEMPORARY_VISITOR_VISA or the appropriate consular route and ask for the exact stay length and purpose."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-etravel-arrival-card-requirements",
+      "country": "philippines",
+      "visaType": "PH_ETRAVEL_ARRIVAL_CARD",
+      "documentType": "requirements",
+      "title": "Philippines eTravel Arrival and Departure Declaration",
+      "sourceUrl": "https://etravel.gov.ph/",
+      "chunks": [
+        {
+          "id": "phl_etravel_standalone_declaration",
+          "title": "Philippines eTravel is an independent declaration",
+          "tags": ["philippines", "etravel", "arrival-declaration", "departure-declaration", "official-source"],
+          "content": "The official eTravel portal at https://etravel.gov.ph/ is a standalone arrival/departure declaration. It is not a Temporary Visitor Visa and does not decide whether a traveller is visa-exempt. Travellers must follow the portal's current registration window and preserve the official QR code/reference returned after successful submission."
+        },
+        {
+          "id": "phl_etravel_scope_and_confirmation",
+          "title": "Philippines eTravel scope and confirmation",
+          "tags": ["philippines", "etravel", "qr-code", "border", "guardrail"],
+          "content": "Use the current official portal and customs/health instructions to determine the declaration's applicable sections. Check passport, transport, Philippines address, health and customs answers before final submission. A declaration confirmation is not an entry guarantee; immigration, health and customs authorities make the final decision."
         }
       ]
     },
@@ -70,7 +92,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Philippines eTravel is a standalone arrival/departure declaration package, not a 9(a) Temporary Visitor Visa field group. Official source URLs reviewed for this seed: https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions ; https://www.pna.gov.ph/articles/1267062. eTravel registration is free, normally allowed within 72 hours before arrival or departure in the Philippines, and produces an eTravel QR code/reference for boarding and border-health processing. Keep visa/eVisa eligibility and 9(a) consular visa advice in separate Philippines visa packages."
+          "content": "Philippines eTravel is a standalone arrival/departure declaration package, not a 9(a) Temporary Visitor Visa field group. Official source URLs reviewed for this seed: https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions ; https://chongqingpcg.dfa.gov.ph/example-pages/news-press-releases/1167-philippines-to-allow-visa-free-entry-for-14-days-for-chinese-nationals. eTravel registration is free and its timing and QR/reference requirements must be confirmed on the official portal before travel. Keep visa/eVisa eligibility and 9(a) consular visa advice in separate Philippines visa packages."
         },
         {
           "id": "philippines_form_fields_to_collect",
@@ -108,7 +130,7 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
           "id": "official_field_answer_norms",
@@ -120,7 +142,39 @@
             "form-requirements",
             "philippines"
           ],
-          "content": "Official-source field answer norms for philippines.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.pna.gov.ph/articles/1267062 ; https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions\n\nIssue, expiry, and validity fields:\n- Only the verified QR Code by BOQ upon your arrival at the airport/seaport is valid for your travel.\n\nTravel plan and port fields:\n- You may only register within 72 hours prior to your arrival or departure in the Philippines.\n- Travelers are enjoined to present their eTravel QR code to flight boarding.\n- You may only register within 3 days (or 72 hours) prior to your arrival in the Philippines.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "Official-source field answer norms for philippines.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://chongqingpcg.dfa.gov.ph/example-pages/news-press-releases/1167-philippines-to-allow-visa-free-entry-for-14-days-for-chinese-nationals ; https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions\n\nIssue, expiry, and validity fields:\n- Only the verified QR Code by BOQ upon your arrival at the airport/seaport is valid for your travel.\n\nTravel plan and port fields:\n- You may only register within 72 hours prior to your arrival or departure in the Philippines.\n- Travelers are enjoined to present their eTravel QR code to flight boarding.\n- You may only register within 3 days (or 72 hours) prior to your arrival in the Philippines.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-temporary-visitor-visa-requirements",
+      "country": "philippines",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
+      "documentType": "requirements",
+      "title": "Philippines Temporary Visitor Visa",
+      "sourceUrl": "https://evisa.gov.ph/",
+      "chunks": [
+        {
+          "id": "philippines_visitor_visa_separate_route",
+          "title": "Philippines visitor visa is separate from eTravel",
+          "tags": ["philippines", "temporary-visitor-visa", "etravel", "routing"],
+          "content": "Use PH_TEMPORARY_VISITOR_VISA only when a deterministic passport, purpose and stay rule confirms a visa-required route. The Philippines eTravel declaration is separate and must not be treated as a visa or as proof of visa eligibility."
+        }
+      ]
+    },
+    {
+      "slug": "philippines-temporary-visitor-visa-form-requirements",
+      "country": "philippines",
+      "visaType": "PH_TEMPORARY_VISITOR_VISA",
+      "documentType": "form_requirements",
+      "title": "Philippines Temporary Visitor Visa Form Requirements",
+      "sourceUrl": "https://evisa.gov.ph/",
+      "chunks": [
+        {
+          "id": "philippines_visitor_visa_form_route",
+          "title": "Philippines visitor visa application preparation",
+          "tags": ["philippines", "temporary-visitor-visa", "form-requirements"],
+          "content": "For travellers deterministically routed to a Philippines temporary visitor visa, prepare the official channel's identity, passport, residence, contact, travel, accommodation, finance, photograph and supporting-document fields. Keep eTravel traveller declaration fields in the separate PH_ETRAVEL_ARRIVAL_CARD workflow."
         }
       ]
     }

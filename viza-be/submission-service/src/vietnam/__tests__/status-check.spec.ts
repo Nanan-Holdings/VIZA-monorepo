@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseVietnamOfficialStatus, toVietnamDob } from "../status-check";
+import { closeVietnamBrowserSafely, parseVietnamOfficialStatus, toVietnamDob } from "../status-check";
 
 test("vn.status-check: formats DOB for official search", () => {
   assert.equal(toVietnamDob("1997-04-23"), "23/04/1997");
@@ -58,4 +58,18 @@ test("vn.status-check: parses Vietnamese portal copy and payment status", () => 
     parseVietnamOfficialStatus("Portal maintenance notice").status,
     "unknown",
   );
+});
+
+test("vn.status-check: browser cleanup swallows sync and async close failures", async () => {
+  closeVietnamBrowserSafely({
+    close: async () => {
+      throw new Error("async close failed");
+    },
+  });
+  closeVietnamBrowserSafely({
+    close: () => {
+      throw new Error("sync close failed");
+    },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
 });

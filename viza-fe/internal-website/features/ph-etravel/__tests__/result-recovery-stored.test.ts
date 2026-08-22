@@ -42,46 +42,4 @@ describe("Philippines eTravel stored result recovery", () => {
     expect(recovery.state).toBe("recovery_required");
     expect(candidate.state).toBe("submitted_candidate");
   });
-
-  test("reads the current runner resultEvidence envelope", () => {
-    const candidate = createPhEtravelStoredResultRecoveryPresentation({
-      resultEvidence: {
-        authoritativeRead: {
-          source: "official_registration_result_read",
-          postSubmitRead: true,
-          stableReference: true,
-          referenceNumber: "ETRAVEL-456",
-        },
-        qrRender: {
-          renderer: "official_client_reference_qr",
-          rendered: true,
-          renderedForReference: "ETRAVEL-456",
-          referenceValueValidated: true,
-        },
-      },
-    });
-
-    expect(candidate.state).toBe("submitted_candidate");
-    expect(candidate.qr.referenceConsistent).toBe(true);
-  });
-
-  test("does not accept a runner QR render without reference validation", () => {
-    const recovery = createPhEtravelStoredResultRecoveryPresentation({
-      resultEvidence: {
-        authoritativeRead: {
-          postSubmitRead: true,
-          stableReference: true,
-          referenceNumber: "ETRAVEL-789",
-        },
-        qrRender: {
-          rendered: true,
-          renderedForReference: "ETRAVEL-789",
-          referenceValueValidated: false,
-        },
-      },
-    });
-
-    expect(recovery.state).toBe("recovery_required");
-    expect(recovery.qr.referenceConsistent).toBe(false);
-  });
 });

@@ -131,6 +131,28 @@ describe("local-first destination contracts", () => {
     }
   });
 
+  it("keeps every curated attraction card localized and specific", () => {
+    const genericCopy = /(?:代表性景点|适合加入当地观光动线|当地推荐景点|local attraction|placeholder)/i;
+
+    for (const destination of getDropdownDestinationContracts()) {
+      for (const attraction of destination.attractions) {
+        expect(attraction.nameZh, `${destination.nameEn}:${attraction.nameEn}`).toMatch(
+          /[\u3400-\u9fff]/
+        );
+        expect(attraction.nameZh, `${destination.nameEn}:${attraction.nameEn}`).not.toMatch(
+          /[A-Za-z]/
+        );
+        expect(
+          attraction.descriptionZh,
+          `${destination.nameEn}:${attraction.nameEn}`
+        ).not.toMatch(genericCopy);
+        expect(attraction.image?.verified, `${destination.nameEn}:${attraction.nameEn}`).toBe(
+          true
+        );
+      }
+    }
+  });
+
   it("covers Changsha itinerary landmarks and food matching from the shared attraction layer", () => {
     const destination = findDropdownDestinationContract("Changsha");
     expect(destination?.attractions.length).toBeGreaterThanOrEqual(10);
@@ -143,5 +165,17 @@ describe("local-first destination contracts", () => {
     expect(findTravelAttraction("长沙", "长沙博物馆")?.name).toBe("长沙博物馆");
     expect(findTravelAttraction("长沙", "臭豆腐")?.name).toBe("坡子街 / 火宫殿");
     expect(getTravelAttractionsForCity("长沙").length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("covers Bali's major island, temple, beach, and Ubud landmarks", () => {
+    expect(getTravelAttractionsForCity("巴厘岛").length).toBeGreaterThanOrEqual(13);
+    expect(findTravelAttraction("Bali", "Nusa Penida")?.name).toBe(
+      "佩妮达岛与精灵海滩"
+    );
+    expect(findTravelAttraction("巴厘岛", "Tanah Lot Temple")?.name).toBe("海神庙");
+    expect(findTravelAttraction("Bali", "Seminyak Beach")?.name).toBe("水明漾海滩");
+    expect(findTravelAttraction("Bali", "Ubud Monkey Forest")?.name).toBe(
+      "乌布圣猴森林"
+    );
   });
 });

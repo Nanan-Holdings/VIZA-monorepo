@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { getJapanVfsChecklist, getJapanVfsEligibility } from "../japan-vfs-sg";
+import {
+  buildJapanApplicationFormHref,
+  getJapanVfsChecklist,
+  getJapanVfsEligibility,
+} from "../japan-vfs-sg";
 
 describe("Japan VFS Singapore eligibility", () => {
+  it("routes appointment review edits back to the exact Japan tourist application", () => {
+    expect(buildJapanApplicationFormHref("application/id with spaces")).toBe(
+      "/client/application/long-form?country=japan&visaType=JP_TOURIST&applicationId=application%2Fid+with+spaces",
+    );
+  });
+
   it("accepts a PRC ordinary-passport holder whose pass covers the return date", () => {
     expect(getJapanVfsEligibility({ nationality: "China", passportType: "ordinary", singaporePassType: "employment_pass", singaporePassExpiryDate: "2027-01-01", intendedReturnDate: "2026-12-01" }).eligible).toBe(true);
   });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { assertKnownCountry, normalizeCountry, LAUNCH_COUNTRIES } from "./countries";
+import { resolveRunnerPoolFlow } from "./flows";
 
 /**
  * POR-009: the portal post-payment hook enqueues runner_job with a normalized
@@ -20,8 +21,7 @@ describe("runner_job country contract", () => {
     expect(normalizeCountry("id")).toBe("indonesia");
     expect(normalizeCountry("sa")).toBe("saudi_arabia");
     expect(normalizeCountry("jp")).toBe("japan");
-    expect(normalizeCountry("ph")).toBe("philippines");
-    expect(normalizeCountry("PHL")).toBe("philippines");
+    expect(normalizeCountry("ke")).toBe("kenya");
     expect(normalizeCountry("kr")).toBe("south_korea");
     expect(normalizeCountry("Korea")).toBe("south_korea");
     expect(normalizeCountry("us")).toBe("united_states");
@@ -32,17 +32,17 @@ describe("runner_job country contract", () => {
   it("assertKnownCountry maps aliases through to canonical before insert", () => {
     expect(assertKnownCountry("us")).toBe("united_states");
     expect(assertKnownCountry("jp")).toBe("japan");
-    expect(assertKnownCountry("ph")).toBe("philippines");
+    expect(assertKnownCountry("ke")).toBe("kenya");
     expect(assertKnownCountry("kr")).toBe("south_korea");
-  });
-
-  it("accepts Philippines for PH eTravel runner_job producers", () => {
-    expect(assertKnownCountry("philippines")).toBe("philippines");
-    expect(assertKnownCountry("Philippines")).toBe("philippines");
   });
 
   it("throws on an unknown country (never enqueues an unroutable job)", () => {
     expect(() => assertKnownCountry("narnia")).toThrow();
-    expect(() => assertKnownCountry("philippines_e_travel")).toThrow();
+  });
+
+  it("routes Japan VJW and Kenya eTA to their exact shared-pool flows", () => {
+    expect(resolveRunnerPoolFlow("JP", "JP_VISIT_JAPAN_WEB")).toBe("jp_vjw");
+    expect(resolveRunnerPoolFlow("KE", "KE_ETA")).toBe("ke_eta");
+    expect(resolveRunnerPoolFlow("JP", "JP_TOURIST")).toBeNull();
   });
 });

@@ -15,6 +15,7 @@
 import { Router } from "express";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { findApplicationIdentityFields } from "./chat-save-block-application-identity.js";
 
 const logger = new Logger({ serviceName: "ChatSaveBlockRoutes" });
 
@@ -63,6 +64,16 @@ chatSaveBlockRouter.post("/", async (req, res) => {
         res.status(400).json({
           error: true,
           message: "applicationId is required for saveTarget=application",
+        });
+        return;
+      }
+
+      const identityFields = findApplicationIdentityFields(data);
+      if (identityFields.length > 0) {
+        res.status(400).json({
+          error: true,
+          message:
+            "Application identity fields cannot be updated through chat save blocks",
         });
         return;
       }

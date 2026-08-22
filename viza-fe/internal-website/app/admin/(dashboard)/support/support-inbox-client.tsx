@@ -5,19 +5,26 @@ import { useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  BookOpenText,
   CheckCircle2,
   Inbox,
   Mail,
   PanelRightOpen,
   Send,
   UserRound,
+  UserCheck,
 } from "lucide-react";
 import {
+  assignTicket,
   closeAdminTicket,
+  listInternalNotes,
   listAdminTicketMessages,
+  postInternalNote,
   postAdminTicketReply,
+  type InternalNoteRow,
   type AdminSupportMessageRow,
   type AdminSupportTicketRow,
+  type SupportMacroRow,
   type TicketTab,
 } from "@/app/actions/admin-cs";
 import { Button } from "@/components/ui/button";
@@ -65,6 +72,14 @@ const COPY = {
     sendError: "Reply failed",
     loadError: "Could not load messages",
     closeError: "Could not resolve ticket",
+    claim: "Claim",
+    assigned: "Assigned",
+    macro: "Insert macro",
+    internalNotes: "Internal notes",
+    notePlaceholder: "Add a private staff note...",
+    addNote: "Add note",
+    assignError: "Could not assign ticket",
+    noteError: "Could not save internal note",
   },
   zh: {
     tabs: {
@@ -106,6 +121,14 @@ const COPY = {
     sendError: "回复失败",
     loadError: "无法加载消息",
     closeError: "无法标记解决",
+    claim: "领取",
+    assigned: "已分配",
+    macro: "插入模板",
+    internalNotes: "内部备注",
+    notePlaceholder: "添加仅员工可见的备注...",
+    addNote: "添加备注",
+    assignError: "无法分配工单",
+    noteError: "无法保存内部备注",
   },
 } as const;
 
@@ -115,6 +138,10 @@ interface AdminSupportInboxClientProps {
   initialTab: TicketTab;
   initialRows: AdminSupportTicketRow[];
   initialMessages: AdminSupportMessageRow[];
+  initialSelectedId: string;
+  initialNotes: InternalNoteRow[];
+  initialMacros: SupportMacroRow[];
+  currentUserId: string;
 }
 
 function formatDate(value: string | null, locale: string) {
@@ -147,6 +174,10 @@ export function AdminSupportInboxClient({
   initialTab,
   initialRows,
   initialMessages,
+  initialSelectedId,
+  initialNotes,
+  initialMacros,
+  currentUserId,
 }: AdminSupportInboxClientProps) {
   const locale = useLocale();
   const interfaceLocale = normalizeInterfaceLocale(locale);
@@ -154,16 +185,21 @@ export function AdminSupportInboxClient({
   const router = useRouter();
   const [tab, setTab] = useState<TicketTab>(initialTab);
   const [rows, setRows] = useState(initialRows);
-  const [selectedId, setSelectedId] = useState(initialRows[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
   const [messagesByTicket, setMessagesByTicket] = useState<Record<string, AdminSupportMessageRow[]>>(
-    initialRows[0] ? { [initialRows[0].id]: initialMessages } : {},
+    initialSelectedId ? { [initialSelectedId]: initialMessages } : {},
   );
   const [draft, setDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [notesByTicket, setNotesByTicket] = useState<Record<string, InternalNoteRow[]>>(
+    initialSelectedId ? { [initialSelectedId]: initialNotes } : {},
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const selectedTicket = rows.find((row) => row.id === selectedId) ?? null;
   const selectedMessages = selectedTicket ? messagesByTicket[selectedTicket.id] ?? [] : [];
+  const selectedNotes = selectedTicket ? notesByTicket[selectedTicket.id] ?? [] : [];
   const openCount = useMemo(
     () => rows.filter((row) => row.status !== "resolved" && row.status !== "closed").length,
     [rows],
@@ -172,11 +208,13 @@ export function AdminSupportInboxClient({
   useEffect(() => {
     setTab(initialTab);
     setRows(initialRows);
-    setSelectedId(initialRows[0]?.id ?? "");
-    setMessagesByTicket(initialRows[0] ? { [initialRows[0].id]: initialMessages } : {});
+    setSelectedId(initialSelectedId);
+    setMessagesByTicket(initialSelectedId ? { [initialSelectedId]: initialMessages } : {});
+    setNotesByTicket(initialSelectedId ? { [initialSelectedId]: initialNotes } : {});
     setDraft("");
+    setNoteDraft("");
     setError(null);
-  }, [initialMessages, initialRows, initialTab]);
+  }, [initialMessages, initialNotes, initialRows, initialSelectedId, initialTab]);
 
   function switchTab(nextTab: TicketTab) {
     setTab(nextTab);
@@ -186,16 +224,51 @@ export function AdminSupportInboxClient({
 
   function selectTicket(ticketId: string) {
     setSelectedId(ticketId);
+    router.replace(`/admin/support?tab=${tab}&ticket=${ticketId}`);
     setError(null);
-    if (messagesByTicket[ticketId]) return;
+    if (messagesByTicket[ticketId] && notesByTicket[ticketId]) return;
 
     startTransition(async () => {
-      const result = await listAdminTicketMessages(ticketId);
-      if (result.error) {
-        setError(`${copy.loadError}: ${result.error}`);
+      const [messageResult, noteResult] = await Promise.all([
+        listAdminTicketMessages(ticketId),
+        listInternalNotes(ticketId),
+      ]);
+      if (messageResult.error || noteResult.error) {
+        setError(`${copy.loadError}: ${messageResult.error || noteResult.error}`);
         return;
       }
-      setMessagesByTicket((current) => ({ ...current, [ticketId]: result.rows ?? [] }));
+      setMessagesByTicket((current) => ({ ...current, [ticketId]: messageResult.rows ?? [] }));
+      setNotesByTicket((current) => ({ ...current, [ticketId]: noteResult.rows ?? [] }));
+    });
+  }
+
+  function claimTicket() {
+    if (!selectedTicket || !currentUserId) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await assignTicket({ ticketId: selectedTicket.id, assignToUserId: currentUserId });
+      if (!result.ok) {
+        setError(`${copy.assignError}: ${result.reason ?? "unknown"}`);
+        return;
+      }
+      setRows((current) => current.map((row) => row.id === selectedTicket.id ? { ...row, assigned_to: currentUserId } : row));
+      router.refresh();
+    });
+  }
+
+  function addInternalNote() {
+    if (!selectedTicket || !noteDraft.trim()) return;
+    const body = noteDraft.trim();
+    setError(null);
+    startTransition(async () => {
+      const result = await postInternalNote({ ticketId: selectedTicket.id, body });
+      if (!result.ok) {
+        setError(`${copy.noteError}: ${result.reason ?? "unknown"}`);
+        return;
+      }
+      const refreshed = await listInternalNotes(selectedTicket.id);
+      setNotesByTicket((current) => ({ ...current, [selectedTicket.id]: refreshed.rows ?? current[selectedTicket.id] ?? [] }));
+      setNoteDraft("");
     });
   }
 
@@ -363,6 +436,13 @@ export function AdminSupportInboxClient({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {selectedTicket.assigned_to !== currentUserId ? (
+                    <Button variant="outline" onClick={claimTicket} disabled={isPending || !currentUserId}>
+                      <UserCheck className="h-4 w-4" />{copy.claim}
+                    </Button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700"><UserCheck className="h-4 w-4" />{copy.assigned}</span>
+                  )}
                   <Button asChild variant="outline">
                     <a href={`/admin/applications/${selectedTicket.applicant_id}`}>
                       <UserRound className="h-4 w-4" />
@@ -464,6 +544,28 @@ export function AdminSupportInboxClient({
                   {error}
                 </div>
               )}
+              <div className="mb-3 grid gap-3 lg:grid-cols-2">
+                <label className="text-xs font-semibold text-[#64748b]">
+                  {copy.macro}
+                  <select
+                    defaultValue=""
+                    onChange={(event) => {
+                      const macro = initialMacros.find((item) => item.id === event.target.value);
+                      if (macro) setDraft(macro.body);
+                      event.target.value = "";
+                    }}
+                    className="mt-1 h-9 w-full rounded-md border border-[#d7d7d7] bg-white px-3 text-sm font-normal"
+                  >
+                    <option value="">{copy.macro}</option>
+                    {initialMacros.map((macro) => <option key={macro.id} value={macro.id}>{macro.title}</option>)}
+                  </select>
+                </label>
+                <details className="rounded-md border border-[#e5e7eb] p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-[#64748b]"><BookOpenText className="mr-1 inline h-4 w-4" />{copy.internalNotes} ({selectedNotes.length})</summary>
+                  <div className="mt-2 max-h-28 space-y-2 overflow-y-auto">{selectedNotes.map((note) => <p key={note.id} className="rounded bg-[#fafbfc] p-2 text-xs text-[#475569]">{note.body}</p>)}</div>
+                  <div className="mt-2 flex gap-2"><input value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder={copy.notePlaceholder} className="h-9 min-w-0 flex-1 rounded-md border px-3 text-sm" /><Button type="button" variant="outline" onClick={addInternalNote} disabled={isPending || !noteDraft.trim()}>{copy.addNote}</Button></div>
+                </details>
+              </div>
               <div className="flex items-end gap-3">
                 <textarea
                   value={draft}

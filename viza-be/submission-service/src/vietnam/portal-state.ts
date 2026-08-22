@@ -60,11 +60,60 @@ export interface VietnamPortalSnapshot {
   mainRequestFailed: boolean;
 }
 
+export interface VietnamReviewActionCandidate {
+  domIndex: number;
+  label: string;
+  isPrimary: boolean;
+  type: string;
+  top: number;
+  tagName?: string;
+  disabled?: boolean;
+}
+
 const REGISTRATION_CODE_PATTERN =
   /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number)|electronic\s+document\s+code)[:\s#-]*([A-Z0-9]{8,})/i;
 
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function vietnamReviewActionPriority(candidate: VietnamReviewActionCandidate): number {
+  const label = normalizeText(candidate.label).toLocaleLowerCase("vi");
+  let priority = /\b(next|continue)\b|tiếp\s+tục|xem\s+lại|下一步|继续/.test(label) ? 300 : 100;
+  if (candidate.isPrimary) priority += 20;
+  if (candidate.type.toLowerCase() === "submit") priority += 5;
+  return priority;
+}
+
+function isVietnamReviewActionLabel(label: string): boolean {
+  const normalized = normalizeText(label);
+  // The official stepper exposes its second step as a role=button whose
+  // rendered text is currently `2Xem lại hồ sơ`. It is navigation chrome, not
+  // the form action, and clicking it leaves the application on the same page.
+  // Exclude ordinal-prefixed review labels so the real bottom action (usually
+  // Next / Tiếp tục / Lưu) is selected instead.
+  if (/^\d+\s*(?:xem\s+lại(?:\s+hồ\s+sơ)?|review(?:\s+application)?)/i.test(normalized)) {
+    return false;
+  }
+  return (
+    /\b(next|save|continue)\b/i.test(normalized) ||
+    /tiếp\s+tục|xem\s+lại|^lưu(?:\s|$)|下一步|继续/i.test(normalized)
+  );
+}
+
+export function chooseVietnamReviewAction(
+  candidates: readonly VietnamReviewActionCandidate[],
+): VietnamReviewActionCandidate | null {
+  return [...candidates]
+    .filter((candidate) => !candidate.disabled)
+    .filter((candidate) => isVietnamReviewActionLabel(candidate.label))
+    .sort((left, right) => {
+      const priorityDifference =
+        vietnamReviewActionPriority(right) - vietnamReviewActionPriority(left);
+      if (priorityDifference !== 0) return priorityDifference;
+      if (right.top !== left.top) return right.top - left.top;
+      return right.domIndex - left.domIndex;
+    })[0] ?? null;
 }
 
 export function extractVietnamRegistrationCode(text: string): string | null {
@@ -91,7 +140,8 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
     return "portal_error";
   }
   if (
-    /\b(maintenance|temporarily unavailable|service unavailable|access denied|forbidden|bad gateway|gateway timeout|internal server error)\b/i.test(text)
+    /\b(maintenance|temporarily unavailable|service unavailable|access denied|forbidden|bad gateway|gateway timeout|internal server error)\b/i.test(text) ||
+    /plain http request was sent to https port/i.test(`${lowerTitle} ${lowerText}`)
   ) {
     return "portal_error";
   }
@@ -131,6 +181,10 @@ export async function readVietnamPortalSnapshot(
   failedRequestCount = 0,
   mainRequestFailed = false,
 ): Promise<VietnamPortalSnapshot> {
+  // tsx/esbuild can preserve its helper around nested functions serialized
+  // into Playwright's browser context. Install the identity helper before the
+  // snapshot evaluation so local smoke and the bundled worker behave alike.
+  await page.evaluate("globalThis.__name = globalThis.__name || ((fn) => fn)").catch(() => undefined);
   const evaluateSnapshot = () => page.evaluate(() => {
     const visibleText = (element: Element | null): string => {
       if (!element) return "";
@@ -271,6 +325,15 @@ export function checkpointForVietnamPortalState(
 
 export function isAutoAcknowledgeableVietnamPortalState(state: VietnamPortalStateId): boolean {
   return state === "note_modal_visible";
+}
+
+export function shouldTryVietnamFallbackLanding(state: VietnamPortalStateId): boolean {
+  return (
+    state === "white_screen" ||
+    state === "network_blocked" ||
+    state === "portal_error" ||
+    state === "layout_changed"
+  );
 }
 
 export async function waitForVietnamPortalCheckpoint(

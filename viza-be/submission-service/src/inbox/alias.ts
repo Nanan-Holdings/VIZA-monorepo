@@ -1,6 +1,8 @@
 import { supabase } from "../supabase";
 
-const DEFAULT_ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_ALIAS_DOMAIN =
+  process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+  "viza.it.com";
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 type InboxAliasClient = Pick<typeof supabase, "from">;
@@ -8,6 +10,10 @@ type InboxAliasClient = Pick<typeof supabase, "from">;
 export interface EnsureApplicantInboxAliasResult {
   alias: string;
   created: boolean;
+}
+
+export interface EnsureApplicationInboxAliasResult extends EnsureApplicantInboxAliasResult {
+  applicationId: string;
 }
 
 function randomByte(): number {
@@ -76,6 +82,74 @@ export async function ensureApplicantInboxAlias(
   }
 
   throw new Error(`ensureApplicantInboxAlias exhausted retries for ${applicantId}`);
+}
+
+/**
+ * Creates one managed alias per application. This is the required path for
+ * unattended official portals because applicant-level aliases allow OTP and
+ * approval mail from concurrent applications to share one inbox identity.
+ */
+export async function ensureApplicationInboxAlias(
+  applicationId: string,
+  applicantId: string,
+  client: InboxAliasClient = supabase,
+  domain = DEFAULT_ALIAS_DOMAIN,
+): Promise<EnsureApplicationInboxAliasResult> {
+  const readExisting = async () => {
+    const { data, error } = await client
+      .from("application_inbox_aliases")
+      .select("application_id, applicant_id, alias, retired_at")
+      .eq("application_id", applicationId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`ensureApplicationInboxAlias read failed: ${error.message}`);
+    }
+    if (data && data.applicant_id !== applicantId) {
+      throw new Error(`Application inbox alias owner mismatch for ${applicationId}`);
+    }
+    if (data?.retired_at) {
+      throw new Error(`Application inbox alias is retired for ${applicationId}`);
+    }
+    return data;
+  };
+
+  const existing = await readExisting();
+  if (existing?.alias) {
+    return {
+      applicationId,
+      alias: String(existing.alias).toLowerCase(),
+      created: false,
+    };
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const alias = generateApplicantInboxAlias(Date.now() + attempt, domain);
+    const { data, error } = await client
+      .from("application_inbox_aliases")
+      .insert({
+        application_id: applicationId,
+        applicant_id: applicantId,
+        alias,
+      })
+      .select("application_id, applicant_id, alias, retired_at")
+      .maybeSingle();
+    if (!error && data?.alias) {
+      return { applicationId, alias: String(data.alias).toLowerCase(), created: true };
+    }
+    if (error?.code !== "23505") {
+      throw new Error(`ensureApplicationInboxAlias write failed: ${error?.message ?? "missing row"}`);
+    }
+    const raced = await readExisting();
+    if (raced?.alias) {
+      return {
+        applicationId,
+        alias: String(raced.alias).toLowerCase(),
+        created: false,
+      };
+    }
+  }
+
+  throw new Error(`ensureApplicationInboxAlias exhausted retries for ${applicationId}`);
 }
 
 export async function ensureApplicantInboxAliasForDomain(

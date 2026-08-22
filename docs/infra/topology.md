@@ -1,6 +1,6 @@
 # Production deployment topology (INFRA-007)
 
-> Last reviewed: 2026-05-07.
+> Last reviewed: 2026-07-30.
 
 ## Diagram
 
@@ -51,9 +51,10 @@
                   └──────────────────┘
 
   ─── inbound mail ───────────────────────────────────────
-  *@haggstorm.com → Cloudflare Email Routing → viza-email-worker
-                                              ↓
-                                         R2 + Supabase inbound_email
+  *@viza.it.com → Cloudflare Email Routing → viza-email-worker
+                                            ↓
+                                       R2 + Supabase inbound_email
+  Legacy @haggstorm.com aliases remain accepted for existing applications.
   ─── payments ───────────────────────────────────────────
   /api/stripe/webhook (Vercel) ← Stripe Checkout, refunds, disputes
   Daily cron: scripts/reconcile-stripe-payouts.ts (Stripe ↔ orders)

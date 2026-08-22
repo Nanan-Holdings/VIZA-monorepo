@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { pipeline } from "node:stream/promises";
 import type { Locator, Page } from "@playwright/test";
 import bundledOfficialStaticCatalog from "./data/official-static-options.json";
 import {
@@ -10,6 +11,7 @@ import {
 import {
   matchesOfficialDialingCodeOption,
   officialLocalPhoneNumber,
+  reconcileHotelDependentControlFailures,
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   type VnPrearrivalPortalPayload,
 } from "./normalize";
@@ -24,13 +26,18 @@ import {
   classifyVnPrearrivalEmailVerificationText,
   type VnPrearrivalEmailVerificationState,
 } from "./email-verification";
-import { solveVietnamImageCaptcha } from "../vietnam/captcha";
+import {
+  hasVisibleVietnamCaptchaChallenge,
+  solveVietnamImageCaptchaWithRetry,
+} from "../vietnam/captcha";
 import {
   InboxDomainUnroutableError,
   InboxTimeoutError,
   inbox,
   type InboundMessage,
 } from "../inbox/wait-for-message";
+import type { RunnerExecutionContext } from "../queue/execution-context";
+import { clickOwned, launchAbortableResource } from "../queue/portal-safety.js";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -69,14 +76,18 @@ async function saveScreenshot(page: Page, dir: string, name: string, logs: strin
   }
 }
 
-async function clickFirstVisible(page: Page, selectors: Array<string | RegExp>): Promise<boolean> {
+async function clickFirstVisible(
+  page: Page,
+  selectors: Array<string | RegExp>,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   for (const selector of selectors) {
     const locator = typeof selector === "string" ? page.locator(selector) : page.getByText(selector);
     const count = await locator.count().catch(() => 0);
     for (let index = 0; index < count; index += 1) {
       const candidate = locator.nth(index);
       if (await candidate.isVisible().catch(() => false)) {
-        await candidate.click();
+        await clickOwned(candidate, executionContext);
         return true;
       }
     }
@@ -128,10 +139,80 @@ function officialOptionValue(value: string): string {
 
 type OfficialStaticItem = {
   code?: string;
+  vn_value?: string;
   en_value?: string;
   english_value?: string;
   airport?: string;
 };
+
+const LEGACY_NATIONALITY_CODE_BY_NAME: Record<string, string> = {
+  HEARDISLANDANDMCDONALDISLANDS: "HMD",
+};
+
+function normalizeNationalityLookup(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, "")
+    .toUpperCase();
+}
+
+function officialNationalityItems(value: unknown): OfficialStaticItem[] {
+  if (Array.isArray(value)) return value as OfficialStaticItem[];
+  if (typeof value !== "object" || value === null) return [];
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data as OfficialStaticItem[];
+  if (typeof record.data === "object" && record.data !== null) {
+    const data = record.data as Record<string, unknown>;
+    if (Array.isArray(data.content)) return data.content as OfficialStaticItem[];
+  }
+  if (Array.isArray(record.content)) return record.content as OfficialStaticItem[];
+  return [];
+}
+
+export function officialNationalityLabel(
+  items: OfficialStaticItem[],
+  value: string,
+): string {
+  const normalizedValue = normalizeNationalityLookup(value);
+  const legacyCode = LEGACY_NATIONALITY_CODE_BY_NAME[normalizedValue];
+  const item = items.find((candidate) => {
+    const candidateCode = normalizeNationalityLookup(candidate.code ?? "");
+    if (candidateCode && (candidateCode === normalizedValue || candidateCode === legacyCode)) return true;
+    return [candidate.en_value, candidate.english_value, candidate.vn_value]
+      .some((candidateValue) => normalizeNationalityLookup(candidateValue ?? "") === normalizedValue);
+  });
+  return item?.en_value ?? item?.english_value ?? item?.vn_value ?? value;
+}
+
+async function loadOfficialNationalityItems(page: Page, logs: string[]): Promise<OfficialStaticItem[]> {
+  try {
+    const result = await page.evaluate(async () => {
+      const response = await fetch(
+        "/bio-management-service/category/findAllActive/nationality",
+        {
+          credentials: "include",
+          headers: {
+            "Accept": "application/json, text/plain, */*",
+            "device-id": window.localStorage.getItem("deviceId") ?? "",
+          },
+        },
+      );
+      return {
+        ok: response.ok,
+        status: response.status,
+        payload: await response.json().catch(() => null) as unknown,
+      };
+    });
+    const items = result.ok ? officialNationalityItems(result.payload) : [];
+    logs.push(`vn_prearrival_nationality_catalog status=${result.status} count=${items.length}`);
+    return items;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`vn_prearrival_nationality_catalog_failed ${message}`);
+    return [];
+  }
+}
 
 type OfficialStaticCatalog = {
   sources?: Record<string, OfficialStaticItem[] | undefined>;
@@ -176,12 +257,26 @@ export function officialCatalogLabel(source: string, value: string, parent = "")
   if (source === "province" || source === "ward") {
     return officialAdministrativeLabel(source, value, parent);
   }
-  const item = loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) => candidate.code === value);
+  const item = findOfficialCatalogItem(source, value);
   if (!item) return officialOptionValue(value);
-  const label = item.en_value ?? item.english_value ?? value;
+  const label = source === "flight"
+    ? item.vn_value ?? item.en_value ?? item.english_value ?? value
+    : item.en_value ?? item.english_value ?? value;
   return source === "flight"
     ? formatOfficialFlightDisplayLabel(label, item.airport)
     : label;
+}
+
+function findOfficialCatalogItem(source: string, value: string): OfficialStaticItem | undefined {
+  return loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) =>
+    candidate.code === value || (source === "flight" && candidate.vn_value === value),
+  );
+}
+
+export function officialCatalogValue(source: string, value: string): string {
+  if (!value) return value;
+  const item = findOfficialCatalogItem(source, value);
+  return source === "flight" ? item?.vn_value ?? value.replace(/_([A-Z]{3})$/i, "") : value;
 }
 
 function caseInsensitiveExactText(value: string): RegExp {
@@ -460,11 +555,15 @@ async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise
   return false;
 }
 
-async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
+async function clickOfficialButton(
+  page: Page,
+  name: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const button = page.getByRole("button", { name, exact: true });
   const buttonCount = await button.count().catch(() => 0);
   if (buttonCount !== 1 || !(await button.isVisible().catch(() => false))) return false;
-  await button.click({ timeout: 15_000 });
+  await clickOwned(button, executionContext, { timeout: 15_000 });
   return true;
 }
 
@@ -525,7 +624,11 @@ async function waitForEmailVerificationOutcome(
   return "pending";
 }
 
-async function fillEmailVerificationCode(page: Page, code: string): Promise<boolean> {
+async function fillEmailVerificationCode(
+  page: Page,
+  code: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
   const dialog = page.getByRole("dialog");
   const scope = (await dialog.count().catch(() => 0)) === 1 ? dialog : page.locator("body");
   const inputs = scope.locator("input");
@@ -549,6 +652,7 @@ async function fillEmailVerificationCode(page: Page, code: string): Promise<bool
   const verify = scope.getByRole("button", { name: /^verify$/i });
   const verifyCount = await verify.count().catch(() => 0);
   if (verifyCount !== 1 || !(await verify.isVisible().catch(() => false))) return false;
+  executionContext?.assertOwned();
   await verify.click({ timeout: 15_000 });
   return true;
 }
@@ -560,6 +664,7 @@ async function handleEmailVerification(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   if (!(await isEmailVerificationVisible(page))) return;
 
@@ -626,7 +731,7 @@ async function handleEmailVerification(
     );
   }
   const code = extractSixDigitCode(message);
-  if (!code || !(await fillEmailVerificationCode(page, code))) {
+  if (!code || !(await fillEmailVerificationCode(page, code, executionContext))) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival email verification code was received but could not be entered on the official portal.",
       "vn_prearrival_otp_fill_failed",
@@ -671,9 +776,11 @@ async function openOfficialReviewPage(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
-  const reviewClicked = await clickOfficialButton(page, "Review & Submit")
-    || await clickOfficialButton(page, "Review and Submit");
+  executionContext?.assertOwned();
+  const reviewClicked = await clickOfficialButton(page, "Review & Submit", executionContext)
+    || await clickOfficialButton(page, "Review and Submit", executionContext);
   if (!reviewClicked) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival Review & Submit control was not found.",
@@ -708,11 +815,13 @@ async function completeOfficialSubmissionFromReview(
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<void> {
+  executionContext?.assertOwned();
   const confirmed = await clickFirstVisible(page, [
     /^i confirm that the information is correct\.?$/i,
     /^tôi xác nhận.*chính xác/i,
-  ]);
+  ], executionContext);
   if (!confirmed) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival final declaration checkbox was not found on the review page.",
@@ -724,7 +833,11 @@ async function completeOfficialSubmissionFromReview(
   }
 
   const otpRequestedAfter = new Date(Date.now() - 5_000).toISOString();
-  if (!(await clickOfficialButton(page, "Submit"))) {
+  // This is the irreversible official submission boundary. Re-check the
+  // lease immediately before clicking so a reclaimed job cannot submit in
+  // parallel with the new owner.
+  executionContext?.assertOwned();
+  if (!(await clickOfficialButton(page, "Submit", executionContext))) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival final Submit control was not found on the review page.",
       "vn_prearrival_submit_control_not_found",
@@ -743,8 +856,16 @@ async function completeOfficialSubmissionFromReview(
   let finalizingLogged = false;
   while (Date.now() < deadline) {
     await page.waitForTimeout(750);
-    await handleEmailVerification(page, applicantId, otpRequestedAfter, screenshots, logs, tempDir);
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await handleEmailVerification(
+      page,
+      applicantId,
+      otpRequestedAfter,
+      screenshots,
+      logs,
+      tempDir,
+      executionContext,
+    );
+    await handleCaptchaGate(page, screenshots, logs, tempDir, executionContext);
     const successHeading = page.getByText(
       /^(?:your )?submission is successful!?$/i,
       { exact: true },
@@ -963,7 +1084,11 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
       downloadButton.click(),
     ]);
     const filePath = path.join(dir, "vietnam-prearrival-confirmation.pdf");
-    await download.saveAs(filePath);
+    const stream = await download.createReadStream();
+    if (!stream) {
+      throw new Error("official confirmation PDF download stream was unavailable");
+    }
+    await pipeline(stream, fs.createWriteStream(filePath));
     logs.push("vn_prearrival_pdf_downloaded");
     return filePath;
   } catch (error) {
@@ -973,17 +1098,29 @@ async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]):
   }
 }
 
-async function handleCaptchaGate(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<void> {
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (!/captcha verification|enter captcha|captcha/i.test(bodyText)) return;
+async function handleCaptchaGate(
+  page: Page,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
+  const challengeVisible = await hasVisibleVietnamCaptchaChallenge(page);
+  logs.push(`vn_prearrival_captcha_visible=${challengeVisible}`);
+  if (!challengeVisible) return;
 
   const captchaScreenshot = await saveScreenshot(page, tempDir, "captcha-gate", logs);
   if (captchaScreenshot) screenshots.push(captchaScreenshot);
-  const outcome = await solveVietnamImageCaptcha(
-    page,
-    Number.parseInt(process.env.VN_PREARRIVAL_CAPTCHA_TIMEOUT_MS ?? "180000", 10),
+  const configuredCaptchaBudgetMs = Number.parseInt(
+    process.env.VN_PREARRIVAL_CAPTCHA_TIMEOUT_MS ?? "360000",
+    10,
   );
+  const captchaBudgetMs = Number.isFinite(configuredCaptchaBudgetMs) && configuredCaptchaBudgetMs > 0
+    ? configuredCaptchaBudgetMs
+    : 360_000;
+  const outcome = await solveVietnamImageCaptchaWithRetry(page, captchaBudgetMs);
   if (!outcome.solved) {
+    logs.push(`vn_prearrival_captcha_solve_failed ${outcome.reason ?? "unknown CAPTCHA error"}`);
     throw new VnPrearrivalPortalError(
       `Vietnam Pre-Arrival CAPTCHA could not be solved: ${outcome.reason ?? "unknown CAPTCHA error"}.`,
       "vn_prearrival_captcha_required",
@@ -993,7 +1130,17 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
     );
   }
   logs.push(`captcha_solved solveId=${outcome.telemetry?.solveId ?? "unknown"} durationMs=${outcome.telemetry?.durationMs ?? 0}`);
-  const verified = await clickFirstVisible(page, [/^verify$/i, /^xác nhận$/i]);
+  // The official React form enables Verify only after it observes the CAPTCHA
+  // input's change/blur cycle. Tabbing out also avoids clicking a visible text
+  // child inside a still-disabled button while the form state is settling.
+  await page.keyboard.press("Tab").catch(() => undefined);
+  executionContext?.assertOwned();
+  const verified = await clickFirstVisibleEnabled(page, [
+    "button:has-text('Verify')",
+    "button:has-text('Xác nhận')",
+    /^verify$/i,
+    /^xác nhận$/i,
+  ]);
   if (!verified) {
     throw new VnPrearrivalPortalError(
       "Vietnam Pre-Arrival CAPTCHA was solved but the Verify control was not found.",
@@ -1007,15 +1154,75 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   await page.waitForTimeout(1_000);
 }
 
+async function waitForPostStartPortalReady(page: Page, logs: string[]): Promise<boolean> {
+  const configuredTimeoutMs = Number.parseInt(
+    process.env.VN_PREARRIVAL_POST_START_TIMEOUT_MS ?? "120000",
+    10,
+  );
+  const timeoutMs = Number.isFinite(configuredTimeoutMs)
+    ? Math.max(30_000, configuredTimeoutMs)
+    : 120_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await hasVisibleVietnamCaptchaChallenge(page)) {
+      logs.push("vn_prearrival_post_start_ready=captcha");
+      return true;
+    }
+
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    if (/select your nationality/i.test(bodyText)) {
+      logs.push("vn_prearrival_post_start_ready=nationality");
+      return true;
+    }
+    if (/passenger information/i.test(bodyText)) {
+      logs.push("vn_prearrival_post_start_ready=passenger_form");
+      return true;
+    }
+
+    await page.waitForTimeout(750);
+  }
+
+  logs.push(`vn_prearrival_post_start_timeout url=${page.url().slice(0, 240)}`);
+  return false;
+}
+
+async function clickFirstVisibleEnabled(
+  page: Page,
+  selectors: Array<string | RegExp>,
+  timeoutMs = 15_000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    for (const selector of selectors) {
+      const locator = typeof selector === "string" ? page.locator(selector) : page.getByText(selector);
+      const count = await locator.count().catch(() => 0);
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (
+          await candidate.isVisible().catch(() => false)
+          && await candidate.isEnabled().catch(() => false)
+        ) {
+          await candidate.click({ timeout: 5_000 });
+          return true;
+        }
+      }
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return false;
+}
+
 async function waitForPassengerForm(
   page: Page,
   nationality: string,
   screenshots: string[],
   logs: string[],
   tempDir: string,
+  executionContext?: RunnerExecutionContext,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await handleCaptchaGate(page, screenshots, logs, tempDir, executionContext);
     const passengerHeading = page.getByText(/passenger information/i);
     const headingCount = await passengerHeading.count().catch(() => 0);
     if (headingCount > 0 && (await passengerHeading.first().isVisible().catch(() => false))) return true;
@@ -1069,18 +1276,26 @@ export async function runVietnamPrearrivalPortalSubmission(
     headless?: boolean;
     stopBeforeSubmit?: boolean;
     applicantId?: string;
+    executionContext?: RunnerExecutionContext;
   } = {},
 ): Promise<VnPrearrivalPortalSubmissionResult> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-vn-prearrival-${payload.applicationId}-`));
   let session: ArrivalCardBrowserSession | null = null;
+  let abortSession: (() => void) | null = null;
   const logs: string[] = [];
   const screenshots: string[] = [];
 
   try {
-    session = await createArrivalCardBrowserSession({
-      prefix: "VN_PREARRIVAL",
-      headless: options.headless,
-    });
+    options.executionContext?.assertOwned();
+    session = await launchVnPrearrivalBrowserSession(
+      options.executionContext?.signal,
+      options.headless,
+    );
+    abortSession = () => {
+      void session?.close().catch(() => undefined);
+    };
+    options.executionContext?.signal.addEventListener("abort", abortSession, { once: true });
+    options.executionContext?.assertOwned();
     logs.push(...session.diagnostics);
     const { page } = session;
     await page.goto(VN_PREARRIVAL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -1102,10 +1317,27 @@ export async function runVietnamPrearrivalPortalSubmission(
         logs,
       );
     }
-    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(1_000);
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
-    if (!(await completeNationalityGate(page, payload.nationality))) {
+    if (!(await waitForPostStartPortalReady(page, logs))) {
+      const loadingScreenshot = await saveScreenshot(page, tempDir, "post-start-not-ready", logs);
+      if (loadingScreenshot) screenshots.push(loadingScreenshot);
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival official portal remained on its loading screen after the declaration action was opened.",
+        "vn_prearrival_post_start_timeout",
+        "The official portal did not finish loading the nationality or CAPTCHA step. No submission was attempted.",
+        screenshots,
+        logs,
+      );
+    }
+    await handleCaptchaGate(page, screenshots, logs, tempDir, options.executionContext);
+    const officialNationalityOptions = await loadOfficialNationalityItems(page, logs);
+    const nationalityLabel = officialNationalityLabel(officialNationalityOptions, payload.nationality);
+    const departureCountryLabel = officialNationalityLabel(
+      officialNationalityOptions,
+      payload.departureCountryBeforeArrival,
+    );
+    logs.push(`vn_prearrival_option_resolved field=nationality value=${nationalityLabel}`);
+    logs.push(`vn_prearrival_option_resolved field=departure_country_before_arrival value=${departureCountryLabel}`);
+    if (!(await completeNationalityGate(page, nationalityLabel))) {
       throw new VnPrearrivalPortalError(
         "Vietnam Pre-Arrival nationality selection could not be completed on the official portal.",
         "vn_prearrival_nationality_gate_not_completed",
@@ -1116,7 +1348,14 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
     // The official portal can present the image CAPTCHA again after the
     // nationality screen. Do not treat the modal as an empty declaration form.
-    if (!(await waitForPassengerForm(page, payload.nationality, screenshots, logs, tempDir))) {
+    if (!(await waitForPassengerForm(
+      page,
+      nationalityLabel,
+      screenshots,
+      logs,
+      tempDir,
+      options.executionContext,
+    ))) {
       const waitingScreenshot = await saveScreenshot(page, tempDir, "passenger-form-not-ready", logs);
       if (waitingScreenshot) screenshots.push(waitingScreenshot);
       throw new VnPrearrivalPortalError(
@@ -1128,7 +1367,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    const missingControls: string[] = [];
+    let missingControls: string[] = [];
     if (!(await selectExpectedArrivalDate(page, payload.expectedArrivalDate))) {
       missingControls.push("expected_arrival_date");
     }
@@ -1142,23 +1381,27 @@ export async function runVietnamPrearrivalPortalSubmission(
       // Supplying both here duplicates the country prefix and fails its 3-14
       // digit validation before the Trip Information action can proceed.
       [[/phone/i, /điện thoại/i], officialLocalPhoneNumber(payload.phoneCountryCode, payload.phoneNumber), "phone_number"],
-      [[/^number\b/i], payload.visaNumber, "visa_number"],
+      [[/^number\b/i], payload.visaNumber ?? "", "visa_number"],
       [[/^date of issue/i], payload.visaIssueDate ? officialDate(payload.visaIssueDate) : "", "visa_issue_date"],
     ];
     for (const [labels, value, field] of passengerFillTasks) {
-      if (!value && (field === "surname" || field === "visa_issue_date")) continue;
+      if (!value && (field === "surname" || field === "visa_issue_date" || field === "visa_number")) continue;
       if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
     }
     if (!(await fillLabeledInputAt(page, /^date of expiry/i, 0, officialDate(payload.passportExpiryDate)))) {
       missingControls.push("passport_expiry_date");
     }
-    if (!(await fillLabeledInputAt(page, /^date of expiry/i, 1, officialDate(payload.visaExpiryDate)))) {
+    if (
+      payload.visaExpiryDate
+      && !(await fillLabeledInputAt(page, /^date of expiry/i, 1, officialDate(payload.visaExpiryDate)))
+    ) {
       missingControls.push("visa_expiry_date");
     }
 
+    const visaTypeLabel = officialCatalogLabel("visa_type", payload.visaType);
     const passengerSelectTasks: Array<[RegExp[], string, string, string?]> = [
       [[/passport type/i], payload.passportType, "passport_type"],
-      [[/visa type\s*\/\s*purpose/i], payload.visaType, "visa_type", "Electronic Visa"],
+      [[/visa type\s*\/\s*purpose/i], visaTypeLabel, "visa_type", visaTypeLabel],
       [
         [/issued place/i],
         payload.visaIssuedPlace ? officialCatalogLabel("visa_issue_place", payload.visaIssuedPlace) : "",
@@ -1181,7 +1424,7 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
 
     if (!(await selectOfficialRadio(page, payload.gender))) missingControls.push("gender");
-    if (!(await clickFirstVisible(page, [/^i have read and understood this information\.?$/i]))) {
+    if (!(await clickFirstVisible(page, [/^i have read and understood this information\.?$/i], options.executionContext))) {
       missingControls.push("visa_information_acknowledgement");
     }
 
@@ -1197,7 +1440,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    if (!(await clickOfficialButton(page, "Trip Information"))) {
+    if (!(await clickOfficialButton(page, "Trip Information", options.executionContext))) {
       throw new VnPrearrivalPortalError(
         "Vietnam Pre-Arrival Trip Information action was not found.",
         "vn_prearrival_trip_information_action_not_found",
@@ -1225,7 +1468,12 @@ export async function runVietnamPrearrivalPortalSubmission(
     // border gate is read-only and only becomes populated after a flight option
     // is selected from the official autocomplete list.
     if (!(await selectOfficialRadio(page, payload.modeOfTravel))) missingControls.push("mode_of_travel");
-    if (!(await selectNearLabel(page, [/departure country before arrival/i], payload.departureCountryBeforeArrival))) {
+    if (!(await selectNearLabel(
+      page,
+      [/departure country before arrival/i],
+      departureCountryLabel,
+      departureCountryLabel,
+    ))) {
       missingControls.push("departure_country_before_arrival");
     }
     if (!(await selectNearLabel(page, [/purpose of travel/i, /mục đích/i], payload.purposeOfTravel))) {
@@ -1240,7 +1488,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         : officialCatalogLabel("flight", payload.flightNumber ?? "");
       const flightSearchValue = isCustomFlight
         ? "Other"
-        : (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
+        : officialCatalogValue("flight", payload.flightNumber ?? "");
       logs.push(`vn_prearrival_option_resolved field=flight_number value=${flightLabel}`);
       if (!(await selectDependentOfficialOption(
         page,
@@ -1297,14 +1545,13 @@ export async function runVietnamPrearrivalPortalSubmission(
           missingControls.push(field);
         }
       }
-      if (
-        !(await selectDependentOfficialOption(
+      const accommodationSelected = await selectDependentOfficialOption(
           page,
           [/accommodation address/i, /địa chỉ/i],
           accommodationLabel,
           payload.usesCustomHotelAccommodationAddress ? "Other" : payload.accommodationAddress,
-        ))
-      ) {
+        );
+      if (!accommodationSelected) {
         missingControls.push("accommodation_address");
       } else if (
         payload.usesCustomHotelAccommodationAddress
@@ -1312,6 +1559,14 @@ export async function runVietnamPrearrivalPortalSubmission(
       ) {
         missingControls.push("custom_hotel_accommodation_address");
       }
+      const reconciledMissingControls = reconcileHotelDependentControlFailures(
+        missingControls,
+        accommodationSelected && !payload.usesCustomHotelAccommodationAddress,
+      );
+      if (reconciledMissingControls.length !== missingControls.length) {
+        logs.push("vn_prearrival_hotel_dependencies_verified_by_catalog_accommodation");
+      }
+      missingControls = reconciledMissingControls;
     } else if (!(await fillNearLabel(page, [/accommodation address/i, /địa chỉ/i], payload.accommodationAddress))) {
       missingControls.push("accommodation_address");
     }
@@ -1350,7 +1605,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
-    await openOfficialReviewPage(page, screenshots, logs, tempDir);
+    await openOfficialReviewPage(page, screenshots, logs, tempDir, options.executionContext);
     if (options.stopBeforeSubmit) {
       return {
         submitted: false,
@@ -1365,7 +1620,14 @@ export async function runVietnamPrearrivalPortalSubmission(
       };
     }
 
-    await completeOfficialSubmissionFromReview(page, options.applicantId, screenshots, logs, tempDir);
+    await completeOfficialSubmissionFromReview(
+      page,
+      options.applicantId,
+      screenshots,
+      logs,
+      tempDir,
+      options.executionContext,
+    );
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);
@@ -1409,6 +1671,25 @@ export async function runVietnamPrearrivalPortalSubmission(
       logs,
     };
   } finally {
+    if (abortSession) options.executionContext?.signal.removeEventListener("abort", abortSession);
     if (session) await session.close().catch(() => undefined);
   }
+}
+
+/**
+ * Acquire a Vietnam Pre-Arrival browser session without allowing a delayed
+ * Browser API/Browserbase launch to outlive the queue lease. The factory
+ * override keeps this boundary executable in tests without contacting the
+ * official portal.
+ */
+export async function launchVnPrearrivalBrowserSession(
+  signal: AbortSignal | undefined,
+  headless: boolean | undefined,
+  browserSessionFactory: typeof createArrivalCardBrowserSession = createArrivalCardBrowserSession,
+): Promise<ArrivalCardBrowserSession> {
+  return launchAbortableResource(
+    signal,
+    () => browserSessionFactory({ prefix: "VN_PREARRIVAL", headless }),
+    (resource) => resource.close(),
+  );
 }

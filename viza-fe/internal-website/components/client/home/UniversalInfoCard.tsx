@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Database, Sparkles } from "lucide-react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 
@@ -13,7 +13,8 @@ interface Props {
 
 export function UniversalInfoCard({ completedCount, totalCount }: Props) {
   const t = useTranslations("home.universalInfo");
-  const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const percent =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
     <motion.div
@@ -24,39 +25,22 @@ export function UniversalInfoCard({ completedCount, totalCount }: Props) {
     >
       <Link
         href="/client/universal-info"
-        className="backdrop-blur-md bg-[rgba(255,255,255,0.12)] flex h-[240px] w-full flex-col justify-between rounded-[12px] p-[24px] relative transition-colors hover:bg-[rgba(255,255,255,0.18)]"
+        className="relative flex h-[240px] w-full flex-col justify-between rounded-[12px] border border-white/20 bg-white/12 p-6 backdrop-blur-md transition-colors hover:bg-white/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
       >
-        <div className="absolute border border-[rgba(255,255,255,0.2)] inset-0 pointer-events-none rounded-[12px]" />
-        <div className="relative flex w-full items-start justify-between gap-4">
-          <div>
-            <p className="font-heading font-medium leading-[1.3] text-[20px] text-white tracking-[-0.6px]">
-              {t("title")}
-            </p>
-            <p className="mt-1 text-[12px] leading-5 text-[rgba(255,255,255,0.58)]">
-              {t("subtitle")}
-            </p>
-          </div>
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">
-            <Database className="h-4 w-4" />
-          </span>
+        <div>
+          <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-white/60">
+            {t("title")}
+          </p>
+          <p className="mt-4 font-heading text-[22px] font-medium leading-[1.2] tracking-[-0.66px] text-white">
+            {t("saved", { completed: completedCount, total: totalCount })}
+          </p>
+          <p className="mt-2 max-w-[260px] text-[13px] leading-5 text-white/60">
+            {t("subtitle")}
+          </p>
         </div>
 
-        <div className="relative w-full space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-[18px] font-medium leading-tight text-white">
-                {t("saved", { completed: completedCount, total: totalCount })}
-              </p>
-              <p className="mt-0.5 text-[13px] text-[rgba(255,255,255,0.62)]">
-                {t("fields")}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
+        <div className="w-full space-y-3">
+          <div className="space-y-3">
             <SmoothProgressBar
               displayedProgress={percent}
               showValue={false}
@@ -64,9 +48,9 @@ export function UniversalInfoCard({ completedCount, totalCount }: Props) {
               barClassName="bg-white"
               size="xs"
             />
-            <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-white">
+            <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-white">
               {t("edit")}
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </span>
           </div>
         </div>

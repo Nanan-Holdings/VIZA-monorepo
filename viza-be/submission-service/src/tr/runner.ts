@@ -2,9 +2,8 @@ import { makeStandardEvisaRunner } from "../runners/standard-evisa.js";
 import { TR_FIELD_MAPPINGS } from "./field-mappings.js";
 
 /**
- * Türkiye e-Visa runner (RUN-TR-001) on the shared core. Türkiye routing is
- * runner_escrow_card (VIZA collects); fills then HALTS before payment until
- * escrow integration. Best-effort selectors pending recon.
+ * Türkiye e-Visa runner (RUN-TR-001) on the shared core. Payment remains
+ * staff-review-only until official payment controls are evidenced by recon.
  */
 const runner = makeStandardEvisaRunner({
   cc: "tr",

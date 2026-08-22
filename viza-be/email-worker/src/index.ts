@@ -2,7 +2,7 @@
  * Cloudflare Email Worker — `viza-email-worker` (INBOX-002).
  *
  * Bound at the Cloudflare dashboard via Email Routing's catch-all route.
- * For every inbound message at *@haggstorm.com:
+ * For every inbound message at *@viza.it.com:
  *   1. Read the raw RFC 822 stream once.
  *   2. Extract the standard headers we care about (from / to / subject /
  *      message-id) and the spam score Cloudflare exposes via the headers.
@@ -70,6 +70,20 @@ const HEADERS_OF_INTEREST = [
   "x-spam-score",
   "authentication-results",
 ];
+
+/**
+ * Indonesia's official portal uses a country-scoped alias derived from the
+ * applicant's canonical VIZA inbox alias. The profile row remains keyed by
+ * `appl-<ulid>@viza.it.com`; only the local-part prefix changes to `id-` for
+ * the portal session.
+ */
+const INDONESIA_ALIAS_PATTERN = /^id-([0-9a-z]{26})@(viza\.it\.com)$/i;
+
+function applicantProfileAlias(alias: string): string {
+  const normalized = alias.trim().toLowerCase();
+  const match = normalized.match(INDONESIA_ALIAS_PATTERN);
+  return match ? `appl-${match[1]}@${match[2]}` : normalized;
+}
 
 async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
   const reader = stream.getReader();
@@ -221,27 +235,97 @@ interface ForwardingDestination {
   reason: "authorized" | "missing_profile_email" | "consent_required";
 }
 
+interface AliasOwner {
+  id: string;
+  email: string | null;
+}
+
+function isMissingApplicationAliasSchema(status: number, detail: string): boolean {
+  const normalized = detail.toLowerCase();
+  return (status === 400 || status === 404) && (
+    normalized.includes("application_inbox_aliases") &&
+    (normalized.includes("schema cache") || normalized.includes("does not exist") || normalized.includes("could not find"))
+  );
+}
+
+async function loadAliasOwner(env: Env, alias: string): Promise<AliasOwner | null> {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const profileAlias = applicantProfileAlias(alias);
+  const headers = supabaseHeaders(env);
+  const applicationAliasUrl = `${base}/rest/v1/application_inbox_aliases?alias=eq.${encodeURIComponent(profileAlias)}&select=applicant_id,retired_at&limit=1`;
+  const applicationAliasRes = await fetch(applicationAliasUrl, { method: "GET", headers });
+  if (applicationAliasRes.ok) {
+    const rows = (await applicationAliasRes.json()) as Array<{
+      applicant_id: string;
+      retired_at: string | null;
+    }>;
+    const applicationAlias = rows[0];
+    if (applicationAlias?.applicant_id && applicationAlias.retired_at === null) {
+      const profileUrl = `${base}/rest/v1/applicant_profiles?id=eq.${encodeURIComponent(applicationAlias.applicant_id)}&select=id,email&limit=1`;
+      const profileRes = await fetch(profileUrl, { method: "GET", headers });
+      if (!profileRes.ok) {
+        const detail = await profileRes.text();
+        throw new Error(`application alias owner lookup failed: ${profileRes.status} ${detail}`);
+      }
+      const profiles = (await profileRes.json()) as AliasOwner[];
+      return profiles[0] ?? null;
+    }
+    if (applicationAlias?.retired_at) return null;
+  } else {
+    const detail = await applicationAliasRes.text();
+    if (!isMissingApplicationAliasSchema(applicationAliasRes.status, detail)) {
+      throw new Error(`application alias lookup failed: ${applicationAliasRes.status} ${detail}`);
+    }
+  }
+
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=id,email&limit=1`;
+  const res = await fetch(url, { method: "GET", headers });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
+  }
+  const rows = (await res.json()) as AliasOwner[];
+  return rows[0] ?? null;
+}
+
 async function loadForwardingDestination(
   env: Env,
   alias: string,
 ): Promise<ForwardingDestination> {
   const base = env.SUPABASE_URL.replace(/\/$/, "");
-  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(alias)}&select=id,email&limit=1`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: supabaseHeaders(env),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
-  }
-  const rows = (await res.json()) as Array<{ id: string; email: string | null }>;
-  const owner = rows[0];
+  const owner = await loadAliasOwner(env, alias);
   const email = owner?.email?.trim().toLowerCase() || null;
   if (!owner?.id || !email) {
     return { email: null, reason: "missing_profile_email" };
   }
 
+  const accountConsentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `doc_kind=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `doc_version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const accountConsentRes = await fetch(
+    `${base}/rest/v1/consent_event?${accountConsentQuery}`,
+    {
+      method: "GET",
+      headers: supabaseHeaders(env),
+    },
+  );
+  if (!accountConsentRes.ok) {
+    const detail = await accountConsentRes.text();
+    throw new Error(
+      `account forwarding consent lookup failed: ${accountConsentRes.status} ${detail}`,
+    );
+  }
+  const accountConsents = (await accountConsentRes.json()) as Array<{ id: string }>;
+  if (accountConsents.length > 0) {
+    return { email, reason: "authorized" };
+  }
+
+  // Compatibility for applicants who accepted forwarding on an application
+  // before authorization became account-wide.
   const consentQuery = [
     `applicant_id=eq.${encodeURIComponent(owner.id)}`,
     `consent_type=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
@@ -260,7 +344,33 @@ async function loadForwardingDestination(
     throw new Error(`forwarding consent lookup failed: ${consentRes.status} ${detail}`);
   }
   const consents = (await consentRes.json()) as Array<{ id: string }>;
-  return consents.length > 0
+  if (consents.length > 0) {
+    return { email, reason: "authorized" };
+  }
+
+  // The applicant portal historically stored the same accepted consent in
+  // `consent_event`. Submission runners already accept that record so the
+  // email worker must do the same; otherwise the runner can consume an alias
+  // OTP while forwarding incorrectly fails closed as `consent_required`.
+  const legacyConsentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `doc_kind=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `doc_version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const legacyConsentRes = await fetch(`${base}/rest/v1/consent_event?${legacyConsentQuery}`, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!legacyConsentRes.ok) {
+    const detail = await legacyConsentRes.text();
+    throw new Error(
+      `legacy forwarding consent lookup failed: ${legacyConsentRes.status} ${detail}`,
+    );
+  }
+  const legacyConsents = (await legacyConsentRes.json()) as Array<{ id: string }>;
+  return legacyConsents.length > 0
     ? { email, reason: "authorized" }
     : { email: null, reason: "consent_required" };
 }
@@ -281,7 +391,7 @@ async function skipForwarding(
 async function sendForwardedEmail(
   env: Env,
   row: InsertedEmailRow,
-  rawBytes: Uint8Array,
+  rawBytes?: Uint8Array,
 ): Promise<void> {
   if (!env.RESEND_API_KEY?.trim()) {
     throw new Error("RESEND_API_KEY is not configured");
@@ -296,14 +406,20 @@ async function sendForwardedEmail(
     await skipForwarding(env, row, "identical_destination");
     return;
   }
+  if (!rawBytes && !row.html && !row.text) {
+    throw new Error("forwarding source body is unavailable");
+  }
 
+  const archiveNotice = rawBytes
+    ? "完整原始邮件已作为 <code>official-message.eml</code> 附件保留，内含官方 QR、PDF 或其他附件。"
+    : "此邮件在授权前已由 VIZA 暂存；现已补发已保存的官方正文。";
   const html = `
     <p>此邮件由 VIZA 申请专属邮箱自动接收并转发。</p>
     <p><strong>官方发件人：</strong> ${escapeHtml(row.from_addr)}</p>
     <hr />
     ${row.html || `<pre style="white-space:pre-wrap">${escapeHtml(row.text ?? "")}</pre>`}
     <hr />
-    <p>完整原始邮件已作为 <code>official-message.eml</code> 附件保留，内含官方 QR、PDF 或其他附件。</p>
+    <p>${archiveNotice}</p>
   `;
   const text = [
     "此邮件由 VIZA 申请专属邮箱自动接收并转发。",
@@ -311,8 +427,18 @@ async function sendForwardedEmail(
     "",
     row.text ?? "",
     "",
-    "完整原始邮件已作为 official-message.eml 附件保留。",
+    rawBytes
+      ? "完整原始邮件已作为 official-message.eml 附件保留。"
+      : "此邮件在授权前已由 VIZA 暂存；现已补发已保存的官方正文。",
   ].join("\n");
+  const attachments = rawBytes
+    ? [
+        {
+          filename: "official-message.eml",
+          content: bytesToBase64(rawBytes),
+        },
+      ]
+    : undefined;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -326,12 +452,7 @@ async function sendForwardedEmail(
       subject: row.subject ? `[VIZA 转发] ${row.subject}` : "[VIZA 转发] 官方申请邮件",
       html,
       text,
-      attachments: [
-        {
-          filename: "official-message.eml",
-          content: bytesToBase64(rawBytes),
-        },
-      ],
+      ...(attachments ? { attachments } : {}),
       tags: [
         { name: "source", value: "alias_forward" },
         { name: "inbound_email_id", value: row.id },
@@ -422,17 +543,14 @@ async function retryPendingForwards(env: Env): Promise<void> {
   if (!env.RESEND_API_KEY?.trim()) return;
   const rows = await loadPendingForwards(env);
   for (const row of rows) {
-    if (!env.INBOX_BODIES || !row.r2_key) {
-      await recordForwardFailure(env, row, new Error("raw email is unavailable in R2"));
-      continue;
-    }
-    const object = await env.INBOX_BODIES.get(row.r2_key);
-    if (!object) {
-      await recordForwardFailure(env, row, new Error("raw email R2 object was not found"));
-      continue;
-    }
-    const rawBytes = new Uint8Array(await object.arrayBuffer());
     try {
+      let rawBytes: Uint8Array | undefined;
+      if (env.INBOX_BODIES && row.r2_key) {
+        const object = await env.INBOX_BODIES.get(row.r2_key);
+        if (object) {
+          rawBytes = new Uint8Array(await object.arrayBuffer());
+        }
+      }
       await sendForwardedEmail(env, row, rawBytes);
     } catch (error) {
       await recordForwardFailure(env, row, error);
@@ -441,7 +559,24 @@ async function retryPendingForwards(env: Env): Promise<void> {
 }
 
 async function aliasIsActive(env: Env, toAddr: string): Promise<boolean> {
-  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(toAddr)}&select=inbox_alias_retired_at&limit=1`;
+  const profileAlias = applicantProfileAlias(toAddr);
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const applicationAliasUrl = `${base}/rest/v1/application_inbox_aliases?alias=eq.${encodeURIComponent(profileAlias)}&select=retired_at&limit=1`;
+  const applicationAliasRes = await fetch(applicationAliasUrl, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (applicationAliasRes.ok) {
+    const aliases = (await applicationAliasRes.json()) as Array<{ retired_at: string | null }>;
+    if (aliases.length > 0) return aliases[0].retired_at === null;
+  } else {
+    const detail = await applicationAliasRes.text();
+    if (!isMissingApplicationAliasSchema(applicationAliasRes.status, detail)) {
+      return true;
+    }
+  }
+
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(profileAlias)}&select=inbox_alias_retired_at&limit=1`;
   const res = await fetch(url, {
     method: "GET",
     headers: {

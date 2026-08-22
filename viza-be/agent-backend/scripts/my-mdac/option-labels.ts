@@ -22,16 +22,16 @@ const CITY_VALUE_ZH_OVERRIDES: Record<string, string> = {
   // machine translations collapse into the same Chinese label. Keep ambiguous
   // or non-localized official placeholders in English so users can distinguish
   // the exact official option that will be submitted.
-  "0514": "LINGGI",
+  "0514": "林茂",
   "0522": "林茂",
-  "0700": "P PINANG",
+  "0700": "槟城",
   "0707": "牛汝莪",
-  "0715": "PULAU PINANG",
+  "0715": "槟城",
   "0722": "日落洞",
   "0849": "和丰",
-  "0865": "SG SIPUT (U)",
+  "0865": "和丰",
   "1305": "柏卡奴",
-  "1332": "PEKENU",
+  "1332": "柏卡奴",
 };
 
 const STATE_ZH_OVERRIDES: Record<string, string> = {

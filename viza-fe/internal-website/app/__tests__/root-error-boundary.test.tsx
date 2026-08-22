@@ -7,7 +7,7 @@ describe("RootErrorBoundary", () => {
   it("resets automatically for runtime abort errors", async () => {
     const reset = vi.fn();
 
-    render(<RootErrorBoundary error={new Error("signal is aborted without reason")} reset={reset} />);
+    render(<RootErrorBoundary error={new Error("aborted")} reset={reset} />);
 
     await waitFor(() => expect(reset).toHaveBeenCalledOnce());
   });

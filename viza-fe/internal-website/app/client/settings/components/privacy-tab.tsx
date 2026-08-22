@@ -3,12 +3,11 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import {
-  AlertCircle,
-  CheckCircle2,
+  CheckCircle as CheckCircle2,
   Download,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+  CircleNotch as Loader2,
+  Trash as Trash2,
+} from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import {
   AlertDialog,
@@ -22,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 import { geist } from "../../../fonts";
 import {
@@ -177,13 +177,16 @@ function RequestActionCard({
 }
 
 function NoticeMessage({ notice }: { notice: Notice }) {
-  const Icon = notice.tone === "error" ? AlertCircle : CheckCircle2;
+  if (notice.tone === "error") {
+    return <ClientErrorAlert message={notice.message} />;
+  }
+
+  const Icon = CheckCircle2;
 
   return (
     <div
       className={cn(
         "flex items-start gap-2 rounded-lg border px-4 py-3 text-sm",
-        notice.tone === "error" && "border-red-200 bg-red-50 text-red-700",
         notice.tone === "success" && "border-green-200 bg-green-50 text-green-700",
         notice.tone === "info" && "border-brand-100 bg-brand-50 text-brand-700"
       )}

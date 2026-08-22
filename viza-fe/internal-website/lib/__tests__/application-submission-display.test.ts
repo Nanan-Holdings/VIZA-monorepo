@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasDurableTerminalSubmissionResult,
+  shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
 
@@ -60,5 +61,11 @@ describe("hasDurableTerminalSubmissionResult", () => {
         submissionResult: null,
       }),
     ).toBe(false);
+  });
+});
+
+describe("shouldShowReviewAlongsideSubmissionStatus", () => {
+  it("keeps the read-only application review beside every submission status", () => {
+    expect(shouldShowReviewAlongsideSubmissionStatus()).toBe(true);
   });
 });

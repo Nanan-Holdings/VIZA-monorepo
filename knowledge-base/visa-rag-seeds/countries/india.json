@@ -1,99 +1,166 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-16",
   "country": "india",
-  "notes": "Country-level VIZA RAG seed for india. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Official-source RAG seed for the canonical IN_E_VISA product. This product is intentionally limited to India's e-Tourist Visa application and excludes every non-tourist e-Visa and regular-paper-visa category.",
   "documents": [
     {
-      "slug": "india-regular-tourist-visa-china",
+      "slug": "india-in-e-visa-tourist-requirements",
       "country": "india",
-      "visaType": "regular_tourist_visa",
+      "visaType": "IN_E_VISA",
       "documentType": "requirements",
-      "title": "India Tourist Visa for Chinese Nationals",
-      "sourceUrl": "https://indianvisaonline.gov.in/visa/index.html",
+      "title": "India e-Tourist Visa Official Requirements",
+      "sourceUrl": "https://indianvisaonline.gov.in/evisa/",
       "chunks": [
         {
-          "id": "ind_china_tourist_basic_route_zh",
-          "title": "Chinese passport tourism route for India",
+          "id": "ind_in_evisa_tourist_scope",
+          "title": "IN_E_VISA tourist-only product scope",
           "tags": [
             "india",
-            "ind",
-            "china",
-            "chinese-passport",
+            "IN_E_VISA",
+            "e-tourist-visa",
             "tourism",
-            "visitor",
-            "short-stay"
+            "official-source"
           ],
-          "content": "For Chinese ordinary passport holders planning short tourism travel to India, VIZA AI should consider the Indian Visa Online and Indian mission or visa application centre route, with regular tourist visa as the conservative route for Chinese tourists. First confirm nationality, legal residence, purpose, stay length, destination cities, and whether the applicant is eligible for eVisa under current rules. Do not assume Chinese ordinary passport holders can use e-Tourist Visa unless current official eligibility is confirmed. Keep advice limited to tourism/visitor travel unless the user states work, study, residence, immigration, journalism, volunteering or another regulated purpose."
+          "content": "IN_E_VISA is the VIZA product for India's official e-Tourist Visa (e-T1 V) application. It covers the official 30-day, one-year and five-year e-Tourist variants when available to the applicant. Supported purposes are recreation or sightseeing, meeting friends or relatives, a short yoga programme, a short course of no more than six months that does not issue a formal qualification, and voluntary work of no more than one month that is unpaid. The live official portal at https://indianvisaonline.gov.in/evisa/ controls current nationality eligibility, variant availability, entry rules, stay limits and fees."
         },
         {
-          "id": "ind_regular_visa_process",
-          "title": "India regular visa application process direction",
+          "id": "ind_in_evisa_excluded_categories",
+          "title": "Non-tourist Indian visa categories are excluded",
           "tags": [
             "india",
-            "regular-visa",
-            "online-form",
-            "visa-application-centre",
-            "appointment"
+            "IN_E_VISA",
+            "out-of-scope",
+            "product-boundary"
           ],
-          "content": "Indian visa application guidance uses the Indian Visa Online portal for completing the visa application form. For regular/paper tourist visa cases, applicants typically fill the online form, print/sign it, book or follow the relevant mission/visa application centre process, and submit passport, photo and supporting documents. VIZA AI should ask where the applicant legally resides because the Indian mission or visa application centre jurisdiction affects the checklist."
+          "content": "Do not use IN_E_VISA for e-Business, e-Medical, e-Medical Attendant, e-Conference, transit, student, employment, journalism, research, missionary, film, family-entry, production, miscellaneous or mountaineering purposes. Do not insert the extra e-T2 V questions for business, medical, conference or other non-tourist categories into this product. Applicants whose purpose is outside the five supported e-Tourist purposes require a separately defined product and official route."
         },
         {
-          "id": "ind_evisa_caution_china",
-          "title": "India eVisa caution for Chinese passport holders",
+          "id": "ind_in_evisa_eligibility_and_passport",
+          "title": "Eligibility and passport requirements",
           "tags": [
             "india",
-            "evisa",
-            "china",
-            "policy-change",
-            "caution"
+            "IN_E_VISA",
+            "eligibility",
+            "passport-validity",
+            "ordinary-passport"
           ],
-          "content": "Because India eVisa eligibility for Chinese nationals has changed over time and may differ by visa category, VIZA AI should not promise eVisa availability for Chinese ordinary passport holders unless current official eligibility is confirmed. For Chinese tourists, explain the safer route as regular tourist visa through Indian official channels and ask the user to verify on the official Indian Visa Online / Embassy pages immediately before applying."
+          "content": "Use the current nationality list on the official Indian e-Visa portal for every application; do not rely on a historical nationality rule. The applicant's passport must have at least six months' validity on arrival in India and at least two blank pages. A separate passport is required for every applicant. Pakistani passport holders and persons of Pakistani origin must use the regular visa route. Diplomatic, official and laissez-passer travel documents are not eligible for e-Visa. Applicants who hold or previously held defence, military, paramilitary, police or security employment are directed by the official portal to the regular visa route."
+        },
+        {
+          "id": "ind_in_evisa_documents",
+          "title": "Tourist supporting documents",
+          "tags": [
+            "india",
+            "IN_E_VISA",
+            "documents",
+            "photo",
+            "passport-bio-page"
+          ],
+          "content": "The official e-Tourist workflow requires a recent front-facing photograph and the passport biodata page. A short-course purpose also requires a letter from the relevant Indian institute or organisation; an unpaid-volunteer purpose requires the relevant organisation letter. These are application documents handled outside the answer schema, not file-valued question answers. Document specifications and current requirements must be rechecked on https://indianvisaonline.gov.in/evisa/ before submission."
+        },
+        {
+          "id": "ind_in_evisa_entry_guardrail",
+          "title": "Electronic travel authorisation and arrival guardrails",
+          "tags": [
+            "india",
+            "IN_E_VISA",
+            "eta",
+            "entry",
+            "border-control"
+          ],
+          "content": "Travel only after the official status shows that electronic travel authorisation has been granted. An e-Visa or ETA does not guarantee admission; Indian immigration authorities make the final entry decision. Use only the seaports and airports permitted by the live official programme and preserve the passport and issued authorisation for travel."
         }
       ]
     },
     {
-      "slug": "india-form-requirements",
+      "slug": "india-in-e-visa-tourist-form-requirements",
       "country": "india",
-      "visaType": "regular_tourist_visa",
+      "visaType": "IN_E_VISA",
       "documentType": "form_requirements",
-      "title": "India Application Form and Document Intake Requirements",
-      "sourceUrl": "https://indianvisaonline.gov.in/visa/index.html",
+      "title": "IN_E_VISA Tourist Form Intake Requirements",
+      "sourceUrl": "https://indianvisaonline.gov.in/evisa/Registration",
       "chunks": [
         {
-          "id": "india_form_channel_and_scope",
-          "title": "India application channel and form scope",
+          "id": "ind_in_evisa_form_channel_and_scope",
+          "title": "Official form channel and audited scope",
           "tags": [
             "india",
-            "application-form",
+            "IN_E_VISA",
             "form-requirements",
-            "workflow",
+            "e-tourist",
             "official-source"
           ],
-          "content": "Indian Visa Online / regular visa application route Official source URLs reviewed for this seed: https://indianvisaonline.gov.in/visa/index.html. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "The audited IN_E_VISA answer schema follows the official e-Visa registration flow at https://indianvisaonline.gov.in/evisa/Registration and the official sample form at https://indianvisaonline.gov.in/evisa/images/SampleForm.pdf. It is limited to e-Tourist Visa answers. Regular-paper-visa workflow fields and non-tourist e-Visa branches are not part of this product. Account credentials, temporary application IDs, session values, CAPTCHA, payment-card data and uploaded file contents are workflow state rather than applicant answers."
         },
         {
-          "id": "india_form_fields_to_collect",
-          "title": "India fields to collect before filling the form",
+          "id": "ind_in_evisa_registration_fields",
+          "title": "Registration and e-Tourist selection fields",
           "tags": [
             "india",
-            "application-form",
-            "autofill",
-            "field-mapping",
-            "intake"
+            "IN_E_VISA",
+            "registration",
+            "field-mapping"
           ],
-          "content": "identity, passport, nationality, religion/visible identification marks where requested, address/contact, family details, profession, travel itinerary, Indian references, previous India travel/visa history and security questions"
+          "content": "Collect the nationality, passport type, arrival port, date of birth, email, expected arrival date, e-Tourist service variant and one of the five supported e-Tourist purposes. Keep official port, service and purpose codes synchronised with the live portal. Do not expose non-tourist service values in this product."
         },
         {
-          "id": "india_supporting_documents_and_review",
-          "title": "India supporting documents and review checklist",
+          "id": "ind_in_evisa_applicant_and_passport_fields",
+          "title": "Applicant and passport fields",
           "tags": [
             "india",
+            "IN_E_VISA",
+            "identity",
+            "passport",
+            "field-mapping"
+          ],
+          "content": "Collect surname and given name, whether the applicant has used another name and the conditional former-name details, sex, town or city and country of birth, national identity or citizenship number where applicable, religion, visible identification marks, education, nationality-acquisition method, whether the applicant has lived for at least two years in the country of application, passport number, place and date of issue and expiry date. Ask whether the applicant holds another currently valid passport or identity certificate; when yes, show one conditional panel for its country of issue, document number, issue date, issue place and nationality."
+        },
+        {
+          "id": "ind_in_evisa_address_and_family_fields",
+          "title": "Address and family fields",
+          "tags": [
+            "india",
+            "IN_E_VISA",
+            "address",
+            "family",
+            "conditional-fields"
+          ],
+          "content": "Collect present address, locality, country, postal code, telephone and mobile number; ask whether the permanent address is the same and collect it when different. Collect the requested father and mother names, nationalities, previous nationalities and places and countries of birth. Collect marital status, the conditional spouse details, and the official Pakistan ancestry or family-history question with its conditional details."
+        },
+        {
+          "id": "ind_in_evisa_travel_history_and_reference_fields",
+          "title": "Travel, visa history and reference fields",
+          "tags": [
+            "india",
+            "IN_E_VISA",
+            "travel-history",
+            "references",
+            "repeat-group"
+          ],
+          "content": "Collect the places intended to be visited, tour-operator or booking details when the official yes/no branch is active, expected exit port, previous travel to India and its conditional address, cities, prior visa and visit details, and any previous Indian visa refusal with its conditional control number and date. Collect countries visited during the preceding ten years, the SAARC-country visit repeat entries, one reference in India and one reference in the applicant's home country. Preserve repeat groups as structured entries rather than combining multiple visits into invented free-text fields."
+        },
+        {
+          "id": "ind_in_evisa_security_and_declaration_fields",
+          "title": "Security questions and declaration",
+          "tags": [
+            "india",
+            "IN_E_VISA",
+            "security-questions",
+            "declaration"
+          ],
+          "content": "Preserve the six official security and background questions as six separate required yes/no answers. Each affirmative answer must reveal one shared conditional detail panel tied to that question; do not merge the six questions into a single answer. Preserve the applicant declaration and confirmation as a distinct required acknowledgement. Do not display portal login, security-code or CAPTCHA fields to the applicant."
+        },
+        {
+          "id": "ind_in_evisa_document_and_workflow_boundary",
+          "title": "Application-document and workflow boundary",
+          "tags": [
+            "india",
+            "IN_E_VISA",
             "documents",
-            "checklist",
-            "upload",
-            "review-before-submit"
+            "workflow",
+            "schema-boundary"
           ],
-          "content": "printed/signed online form when required, passport, photo, appointment/receipt, itinerary, hotel/invitation, funds/employment evidence and jurisdiction-specific checklist items Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+          "content": "Store the photograph, passport biodata page and any purpose-specific letter in the application-document workflow. They are not answers and must not render as file questions within the long-form schema. Keep eligibility, answers, document preparation, official-portal session, fee payment and ETA status as separate states. VIZA manages the official-portal session and payment and must not request portal credentials or official-fee card details from the applicant."
         },
         {
           "id": "standard_passport_identity_field_rules",
@@ -107,19 +174,19 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
-          "id": "official_field_answer_norms",
-          "title": "Official-source field answer norms",
+          "id": "ind_in_evisa_official_field_answer_norms",
+          "title": "IN_E_VISA official-source answer norms",
           "tags": [
+            "india",
+            "IN_E_VISA",
             "field-guidance",
             "answer-norms",
-            "official-source",
-            "form-requirements",
-            "india"
+            "official-source"
           ],
-          "content": "Official-source field answer norms for india.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://indianvisaonline.gov.in/visa/index.html\n\nPassport and identity fields:\n- Crawler reached official or authorized source URLs, but did not extract a concise field-specific sentence. Keep this country's field answers constrained to official forms, passport data, and source URLs already listed in the country RAG seed.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "Use exact official option labels and values for closed-list answers, including nationality, passport type, service, purpose, arrival and exit ports, religion, education, nationality-acquisition method and marital status. Copy passport-backed values from the passport and document-backed values from the relevant official document. Do not invent employment, funds, accommodation, invitation, appointment or printed-and-signed-form questions from a generic regular-visa checklist. Official sources reviewed are https://indianvisaonline.gov.in/evisa/, https://indianvisaonline.gov.in/evisa/Registration and https://indianvisaonline.gov.in/evisa/images/SampleForm.pdf. The live portal and the applicant's documents control if they differ from cached guidance."
         }
       ]
     }

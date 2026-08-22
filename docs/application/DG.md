@@ -113,6 +113,7 @@ Shared form components:
 - `viza-fe/internal-website/components/dynamic-step-form.tsx`
 - `viza-fe/internal-website/components/dynamic-form-field.tsx`
 - `viza-fe/internal-website/components/field-guidance-panel.tsx`
+- `viza-fe/internal-website/components/client/form-assistant/form-filling-assistant.tsx`
 - `viza-fe/internal-website/components/application-steps/photo-upload-step.tsx`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 
@@ -200,9 +201,13 @@ API/action boundaries:
 2. `page.tsx` resolves the requested country and visa type, then loads or creates a matching draft application.
 3. The page tries DB-driven form steps from `visa_form_fields`.
 4. If DB-driven steps exist, `DynamicStepForm` renders them; otherwise the page falls back to legacy hardcoded B211A steps.
-5. Each DB-driven field is rendered as a bilingual pair through `DynamicFormField`.
+5. Each DB-driven field is rendered once in the selected interface language
+   through `DynamicFormField`; its paired Chinese and English/official values
+   remain synchronized in state.
 6. Field values are stored in local step state, then persisted to application answer rows when the user continues.
-7. Photo, review, and status steps are appended after the DB-driven form steps.
+7. Team management (when applicable) is followed by one final Review Application
+   step. That step combines the read-only answer review, missing-field summary,
+   confirmation/submission controls, and post-submission status/result state.
 
 ## Bilingual Form Contract
 
@@ -210,12 +215,14 @@ API/action boundaries:
 
 Rules:
 
-- left side is Chinese only
-- right side is English or official wording only
-- text-like fields keep a `{ zh, en }` pair; Chinese-side edits may update `en`, while English/official-side edits preserve `zh`
-- editing either side updates the pair and the canonical field value
-- non-text fields share one canonical answer across both sides
-- date, country, select, radio, and checkbox values should not diverge by language
+- entry renders only the selected interface language
+- text-like fields keep a hidden `{ zh, en }` pair; Chinese edits update the
+  English/official value through deterministic or realtime translation
+- English-interface edits preserve the stored Chinese value
+- non-text fields share one canonical answer across both languages
+- date, country, select, radio, and checkbox values do not diverge by language
+- Chinese-mode final review shows paired Chinese and English/official labels
+  and values; entry steps never show the two columns side by side
 
 Labels, placeholders, and option text are normalized through `lib/ds160-translations.ts` and option helpers in `DynamicStepForm`.
 
@@ -267,6 +274,55 @@ RAG retrieval:
 - If embeddings are unavailable or retrieval fails, it falls back to filtered rows from `visa_chunks`.
 - Intent determines preferred document types, for example `form_requirements` and `photo_requirements` for form intake.
 
+## Form-filling assistant
+
+The application-level form-filling assistant is enabled for every current
+DB-driven application schema. The assistant is rendered after the page title
+and before the step navigation. The ordinary bilingual form remains editable
+at all times. Legacy/fallback forms without a DB schema and status-only views
+do not render an empty assistant.
+
+The authenticated routes live under
+`/api/applications/[id]/form-assistant`: state/session GET, conversational
+turns, audio transcription, deterministic validation, warning acknowledgement,
+and owned-document extraction. Every route verifies application ownership.
+Sessions and sent messages are stored in `form_assistant_sessions` and
+`form_assistant_messages`; raw microphone audio is memory-only and only the
+user-confirmed transcript is saved as a message.
+
+Natural-language answers are normalized into official form values. Prompts,
+knowledge and sources are always bound to the owned application's exact
+`country + visaType`; SGAC's ICA fallback source is never reused for another
+product. For SGAC,
+relative dates use `Asia/Singapore` as the reference time zone, localized date
+phrases are converted to `YYYY-MM-DD`, and Chinese/English option labels map to
+the exact official option value. Hierarchical city/port options also accept a
+unique natural-language leaf such as `长沙` or `Changsha`; ambiguous place
+names are not guessed. Current-field prompts use supportive, conversational
+wording and include reviewed choices or examples where useful. A successful
+write shows a viewport-level localized notice with the field value and a
+conflict-safe Undo action; the notice disappears after 10 seconds, and an old
+notice timer cannot dismiss a newer notice.
+
+The server recalculates visible missing fields on every turn. It reads saved
+application answers first, asks for at most five relevant missing fields, and
+only applies high-confidence values that match the active schema. Assistant
+writes use `source=form_assistant` plus provenance in `source_metadata`.
+Manual form saves use `source=user_form`, clear earlier AI provenance, and win
+concurrent conflicts. The assistant never writes Universal Profile data.
+
+SGAC has an empty document-requirement manifest, so its assistant does not ask
+for uploads. The country-neutral document extraction policy is deny-by-default
+and limits each document type to approved field categories. Documents are read
+only from the application's private Storage record; external URLs are not
+accepted.
+
+Final checking combines schema-required/conditional rules, exact options,
+patterns and date consistency. SGAC also checks arrival/departure ordering,
+passport validity at arrival, and surfaces ICA's three-day submission window
+as an acknowledgeable warning. Passing this check only navigates to the
+existing read-only Review step; it never triggers official submission.
+
 ## RAG Source Content
 
 Country-level RAG content lives in `knowledge-base/visa-rag-seeds/countries/*.json`.
@@ -310,6 +366,34 @@ npm run enrich:field-answer-norms-rag -- --all
 6. Verify `/client/application?country=<country>&visaType=<visaType>` loads the correct draft flow.
 7. Check bilingual labels, placeholders, options, photo guidance, review output, and field AI.
 
+## Cross-form assistant answer review
+
+Every DB-driven application schema participates in the shared form-assistant
+review flow; country pages must not implement their own issue navigation.
+
+- A validation error or warning is mapped to its canonical `fieldName` and
+  displayed with the complete original question and control inside the
+  assistant conversation.
+- Each issue offers a second path to the original form field. Original fields
+  remain highlighted and expose a next-issue action; the last issue returns to
+  the assistant so the applicant can run **Review final answers** again.
+- The read-only final review highlights the same question and answer, while all
+  editing remains in the assistant copy or original form.
+- Manual form users get a return-to-assistant review action when deterministic
+  required-field completion is reached.
+- Any edit after validation marks that result stale. Final-review navigation is
+  disabled and stale issues are removed from both surfaces while the latest
+  draft is saved and revalidated automatically. The refreshed result replaces
+  the assistant and form issue maps together, including new cross-field issues;
+  warnings still require the normal explicit acknowledgement flow.
+- Assistant completion progress is derived from the current merged form draft,
+  so manual, AI, and undo edits update it without waiting for another assistant
+  response. Vietnam Pre-Arrival's controlled date radios display the official
+  `DD/MM/YYYY` label while storing the canonical ISO date, and remote official
+  selects must not be checked against an incomplete static fallback option list.
+- Issue ordering comes from the shared schema display order in
+  `lib/form-assistant/review-issues.ts`, including repeat-instance answer keys.
+
 ## Design Guardrails
 
 - Match the homepage content width. The current rhythm is `max-w-[1090px]`.
@@ -318,6 +402,30 @@ npm run enrich:field-answer-norms-rag -- --all
 - Keep the outer form card clean and use spacing rather than extra internal borders.
 - Use explicit buttons for AI. Field focus should not open AI guidance.
 - Keep the review page read-only.
+
+## Universal Profile reuse
+
+Universal Profile uses two compatible layers:
+
+- `applicant_profiles` keeps the core identity, passport, contact, and OCR
+  fields used by existing flows.
+- `universal_profile_answers` stores reusable facts by canonical field key,
+  including bilingual values, the source application/visa type, and the field
+  schema that produced the answer.
+
+On the final Review Application tab, the applicant can explicitly choose
+**Update Universal Profile**. The server reads the saved application answers,
+keeps stable identity/contact/passport/family/work/education and immigration
+history facts, and excludes trip-specific plans, destination contacts,
+declarations, payment data, CAPTCHA/session data, and secrets. Future forms use
+these records only as non-overwriting prefill: an application-specific saved
+answer always wins.
+
+`/client/universal-info` builds its extended sections from the union of current
+`visa_form_fields` schemas. Saved values use the same read-only row treatment as
+Review Application, while missing values use the canonical application form
+controls. This lets new country schemas expand Universal Profile without adding
+one database column per question.
 
 ## Validation
 
@@ -368,4 +476,4 @@ Manual checks:
 
 # Taiwan overseas-China tourist entry permit
 
-`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep the Chinese/English two-column contract, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.
+`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep synchronized Chinese/English values while showing one interface-language entry column, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.

@@ -16,12 +16,13 @@ const ENV_NAMES = [
   "MDAC_BROWSERBASE_TIMEOUT_SECONDS",
   "PH_ETRAVEL_BROWSERBASE_COUNTRY",
   "CEAC_BROWSERBASE_COUNTRY",
+  "FRANCE_TLS_BROWSERBASE_COUNTRY",
   "FRANCE_VISAS_BROWSERBASE_COUNTRY",
   "INDONESIA_BROWSERBASE_COUNTRY",
+  "KR_EAC_BROWSERBASE_COUNTRY",
   "SGAC_BROWSERBASE_COUNTRY",
   "TDAC_BROWSERBASE_COUNTRY",
   "VN_BROWSERBASE_COUNTRY",
-  "TW_ENTRY_PERMIT_BROWSERBASE_COUNTRY",
 ] as const;
 
 function restoreEnvironment(snapshot: Record<string, string | undefined>): void {
@@ -139,8 +140,10 @@ test("selects a country-specific proxy location for every migrated runner", asyn
   process.env.BROWSERBASE_API_KEY = "test-secret";
   const expected = {
     CEAC: "US",
+    FRANCE_TLS: "CN",
     FRANCE_VISAS: "FR",
     INDONESIA: "ID",
+    KR_EAC: "KR",
     MDAC: "MY",
     PH_ETRAVEL: "PH",
     SGAC: "SG",
@@ -167,31 +170,6 @@ test("selects a country-specific proxy location for every migrated runner", asyn
       };
       assert.equal(requestBody.proxies[0]?.geolocation.country, country);
     }
-  } finally {
-    restoreEnvironment(snapshot);
-  }
-});
-
-test("creates a keep-alive Taiwan handoff session with an explicit timeout", async () => {
-  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
-  process.env.BROWSERBASE_API_KEY = "test-secret";
-  try {
-    let capturedInit: RequestInit | undefined;
-    await createBrowserbaseCloudSession({
-      prefix: "TW_ENTRY_PERMIT",
-      keepAlive: true,
-      timeoutSeconds: 1800,
-      fetchImpl: async (_input, init) => {
-        capturedInit = init;
-        return new Response(JSON.stringify({ id: "tw-session", connectUrl: "wss://example.invalid" }), {
-          status: 201,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
-    });
-    const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
-    assert.equal(requestBody.keepAlive, true);
-    assert.equal(requestBody.timeout, 1800);
   } finally {
     restoreEnvironment(snapshot);
   }

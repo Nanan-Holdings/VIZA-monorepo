@@ -5,14 +5,11 @@ import {
   buildPhEtravelElectronicCustomsAutofillPhases,
   buildPhEtravelFieldPlan,
   buildPhEtravelSeaElectronicPositiveCustomsActionPlan,
-  classifyPhEtravelAirCustomsPage,
   classifyPhEtravelSeaCustomsPage,
   classifyPhEtravelPreReviewGate,
   isPhEtravelConfirmationText,
   isPhEtravelPublicLandingText,
   isPhEtravelReviewSummaryText,
-  PH_ETRAVEL_HEALTH_STATIC_WARNING,
-  PH_ETRAVEL_HEALTH_SYMPTOM_LABELS,
   phEtravelStructuredCustomsActionRequired,
 } from "../form-filler";
 import {
@@ -45,16 +42,6 @@ const payload: PhEtravelPortalPayload = {
   nationality: "CHINA",
   countryOfBirth: "CHINA",
   countryOfResidence: "CHINA",
-  residence: {
-    country: { code: "CN", label: "China" },
-    regionCode: null,
-    province: null,
-    municipality: null,
-    barangay: null,
-    line1: "Test address",
-    line2: null,
-    isPhilippines: false,
-  },
   residenceAddress: "Test address",
   occupation: "STUDENT_MINOR",
   dateOfBirth: "1990-01-01",
@@ -71,12 +58,6 @@ const payload: PhEtravelPortalPayload = {
     travellerType: "AIRCRAFT_PASSENGER",
   },
   registrationFor: "FOR_ME",
-  registrationConsent: {
-    accepted: true,
-    acceptedAt: "2026-07-15T08:00:00.000Z",
-    version: "ph-etravel-data-privacy-affidavit-v1",
-    source: "viza_consent_audit_record",
-  },
   isSpecialFlight: false,
   isDisembarking: null,
   travellerType: "AIRCRAFT_PASSENGER",
@@ -294,7 +275,7 @@ test("SEA port-flow metadata fails closed for unknown, missing, malformed, or di
   });
 });
 
-test("E49 SEA port-flow page gate matches manual/electronic content and fails closed on drift", async () => {
+test("SEA port-flow page gate never converts a false metadata flag into a manual flow", async () => {
   const dynamicPagesEnabled = resolvePhEtravelSeaPortFlowMetadata({
     destinationPortCode: "TP0103",
     response: { data: [{ code: "TP0103", transportation_type: "SEA", with_custom_declaration: 1 }] },
@@ -308,25 +289,17 @@ test("E49 SEA port-flow page gate matches manual/electronic content and fails cl
     status: "matched",
     flow: "electronic",
   });
-  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "manual" }), {
-    status: "matched",
-    flow: "manual",
+  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "shared_confirmation" }), {
+    status: "action_required",
+    code: "sea_dynamic_page_gate_live_content_required",
   });
   assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "electronic" }), {
     status: "action_required",
-    code: "sea_port_flow_metadata_page_mismatch",
-  });
-  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesNotEnabled, pageFlow: "shared_confirmation" }), {
-    status: "action_required",
-    code: "sea_port_flow_metadata_page_mismatch",
+    code: "sea_dynamic_page_gate_live_content_required",
   });
   assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesEnabled, pageFlow: "manual" }), {
     status: "action_required",
     code: "sea_port_flow_metadata_page_mismatch",
-  });
-  assert.deepEqual(verifyPhEtravelSeaPortFlowPage({ metadata: dynamicPagesEnabled, pageFlow: null }), {
-    status: "action_required",
-    code: "sea_dynamic_page_gate_live_content_required",
   });
 
   const unavailable = await loadPhEtravelSeaPortFlowMetadata("TP0103", {
@@ -389,49 +362,6 @@ test("buildPhEtravelFieldPlan maps canonical values to official display labels",
   );
   assert.equal(byKey.get("first_visit")?.value, "Yes");
   assert.equal(byKey.get("has_customs_declaration")?.value, "No");
-});
-
-test("Health field plan is shared by AIR and SEA and keeps positive groups repeatable", () => {
-  const positiveHealth = {
-    ...payload,
-    hasRecentTravelHistory30d: true,
-    visitedCountries30d: ["PH", "SG"],
-    hasBeenSick30d: true,
-    sicknessSymptoms: ["SYMPTOM_A", "SYMPTOM_B"],
-  };
-  const airHealth = buildPhEtravelFieldPlan(positiveHealth)
-    .filter((item) => /^(health_|visited_country|visited_countries|sickness_symptom|sickness_symptoms)/.test(item.key));
-  const seaHealth = buildPhEtravelFieldPlan({
-    ...positiveHealth,
-    transportType: "SEA",
-    arrivalBranch: { transportType: "SEA", passportHolderType: "FOREIGNER", travellerType: "VESSEL_PASSENGER" },
-  }).filter((item) => /^(health_|visited_country|visited_countries|sickness_symptom|sickness_symptoms)/.test(item.key));
-
-  assert.deepEqual(airHealth, seaHealth);
-  const byKey = new Map(airHealth.map((item) => [item.key, item]));
-  assert.equal(byKey.get("health_recent_travel")?.required, true);
-  assert.equal(byKey.get("health_exposure")?.required, true);
-  assert.equal(byKey.get("health_sick")?.required, true);
-  assert.deepEqual(
-    [byKey.get("visited_countries")?.repeatable, byKey.get("visited_countries")?.minimumItems],
-    [true, 1],
-  );
-  assert.deepEqual(
-    [byKey.get("sickness_symptoms")?.repeatable, byKey.get("sickness_symptoms")?.minimumItems],
-    [true, 1],
-  );
-  assert.equal(byKey.get("visited_country_0")?.value, "PH");
-});
-
-test("Health static warning and screenshot-confirmed symptom list remain non-answer metadata", () => {
-  assert.equal(
-    PH_ETRAVEL_HEALTH_STATIC_WARNING,
-    "As of July 22, 2023, No Covid-19 test or Vaccination requirement when traveling to the Philippines.",
-  );
-  assert.deepEqual(PH_ETRAVEL_HEALTH_SYMPTOM_LABELS, [
-    "Altered Mental Status", "Colds", "Cough", "Diarrhea", "Difficulty of Breathing", "Dizziness", "Fever", "Headache", "Loss of appetite", "Loss of smell", "Loss of taste", "Muscle Pain", "Nausea", "Rashes, vesicles or blisters", "Sore throat",
-  ]);
-  assert.equal(buildPhEtravelFieldPlan(payload).some((item) => item.key === "health_details"), false);
 });
 
 test("buildPhEtravelFieldPlan treats SEA and Filipino as first-class arrival branches", () => {
@@ -583,7 +513,7 @@ test("positive structured customs/currency is action-required until official con
       hasCurrencyToDeclare: true,
       hasCurrencyOverThreshold: true,
       goodsItems: [{ description: "Camera", quantity: "1", amountUsd: "500" }],
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       generalDeclarationResponses: [
         { itemNumber: 1, key: "customs_checklist_1", response: true, details: null },
       ],
@@ -594,7 +524,7 @@ test("positive structured customs/currency is action-required until official con
   assert.ok(reasons.includes("customs_checklist_requires_all_12_responses"));
   assert.ok(reasons.includes("customs_currency_source_required"));
   assert.ok(reasons.includes("customs_currency_transfer_method_required"));
-  assert.ok(reasons.includes("owner_recipient_server_requiredness_unverified"));
+  assert.ok(reasons.includes("owner_recipient_requiredness_unverified"));
   assert.ok(reasons.includes("complete_currency_and_monetary_instrument_option_lists_unverified"));
 });
 
@@ -610,7 +540,7 @@ test("electronic customs/currency autofill phases consume selector evidence but 
       amountOfGoodsAmount: "1200",
       goodsItems: [{ description: "Camera", quantity: "1", amountUsd: "500" }],
       currencyOwnerNotApplicable: true,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       currencySources: ["SALARY"],
       currencyTransportPurposes: ["LEISURE"],
       currencyTransportMethod: "is_shipped_thru_courier_service",
@@ -657,7 +587,7 @@ test("physical transfer branch stays blocked while courier branch has selector p
     customs: {
       ...payload.customs,
       hasCurrencyToDeclare: true,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       currencyTransportMethod: "is_physically_transferred_by_person",
     },
   });
@@ -665,7 +595,7 @@ test("physical transfer branch stays blocked while courier branch has selector p
 
   assert.equal(transfer?.automationStatus, "action_required");
   assert.equal(transfer?.selectorEvidence, "selector_plan_ready");
-  assert.equal(transfer?.blockingGaps?.includes("physical_branch_server_acceptance_unverified"), true);
+  assert.equal(transfer?.blockingGaps?.includes("physical_branch_empty_requiredness_unverified"), true);
 });
 
 test("AIR positive customs action plan is deterministic, structured, and never includes final submit", () => {
@@ -704,7 +634,7 @@ test("AIR positive customs action plan is deterministic, structured, and never i
         address: "Recipient address",
         postalCode: "018956",
       },
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       currencySources: ["SALARY", "OTHER"],
       currencySourceOther: "Savings",
       currencyTransportPurposes: ["LEISURE", "OTHER"],
@@ -727,77 +657,15 @@ test("AIR positive customs action plan is deterministic, structured, and never i
   assert.equal(plan.actions.filter((action) => action.phase === "general_declaration_checklist").length, 12);
   assert.equal(plan.actions.filter((action) => action.kind === "add_modal_row").length, 3);
   assert.ok(plan.actions.some((action) => action.selector === "input[name='currency_sources.2'][value='OTHER']"));
-  assert.equal(plan.actions.some((action) => action.selector === "input[name='transport_purpose_other']"), false);
+  assert.ok(plan.actions.some((action) => action.selector === "input[name='transport_purpose_other']"));
   assert.ok(plan.actions.some((action) => action.selector === "input[name='courier_name']"));
-  assert.ok(plan.blockingCodes.includes("owner_recipient_server_requiredness_unverified"));
+  assert.ok(plan.blockingCodes.includes("owner_recipient_requiredness_unverified"));
   assert.ok(plan.blockingCodes.includes("complete_currency_and_monetary_instrument_option_lists_unverified"));
-  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
+  assert.ok(plan.blockingCodes.includes("attachment_requiredness_unverified"));
+  assert.ok(plan.blockingCodes.includes("attachment_metadata_not_provided"));
   assert.ok(plan.blockingCodes.includes("customs_positive_autofill_not_enabled"));
   assert.equal(plan.actions.some((action) => /submit/i.test(action.kind) || /submit/i.test(action.selector)), false);
   assert.equal(isPhEtravelConfirmationText("New Travel Declaration Summary Previous Submit"), false);
-});
-
-test("customs goods Add Item actions are generated only for Q3 through Q12 positive checklist rows", () => {
-  const q1q2Only = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasBaggageOrCurrencyToDeclare: true,
-      hasCurrencyToDeclare: true,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
-      currencySources: ["SALARY"],
-      currencyTransportPurposes: ["LEISURE"],
-      currencyTransportMethod: "is_shipped_thru_courier_service",
-      courierName: "Declared courier",
-      airwayBillNumber: "AWB-TEST",
-      airwayBillDate: "2026-07-12",
-      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
-        itemNumber: index + 1,
-        key: `customs_checklist_${index + 1}`,
-        response: index < 2,
-        details: null,
-      })),
-      goodsItems: [],
-    },
-  });
-
-  assert.equal(q1q2Only.actions.some((action) => action.phase === "goods_item_modal_table"), false);
-
-  const q3ThroughQ12 = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasBaggageOrCurrencyToDeclare: true,
-      hasGoodsToDeclare: true,
-      amountOfGoodsCurrency: "USD",
-      amountOfGoodsAmount: "1200",
-      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
-        itemNumber: index + 1,
-        key: `customs_checklist_${index + 1}`,
-        response: index >= 2,
-        details: null,
-      })),
-      goodsItems: Array.from({ length: 10 }, (_, index) => ({
-        checklistItemNumber: index + 3,
-        description: `Declared item ${index + 3}`,
-        quantity: String(index + 1),
-        amountUsd: String((index + 1) * 100),
-      })),
-    },
-  });
-  const goodsActions = q3ThroughQ12.actions.filter((action) => action.phase === "goods_item_modal_table");
-
-  assert.equal(goodsActions.filter((action) => action.kind === "open_modal").length, 10);
-  assert.equal(goodsActions.filter((action) => action.kind === "add_modal_row").length, 10);
-  for (let itemNumber = 3; itemNumber <= 12; itemNumber += 1) {
-    const perChecklist = goodsActions.filter((action) => action.checklistItemNumber === itemNumber);
-    assert.ok(perChecklist.some((action) => action.selector === "button:has-text('Add Item')"));
-    assert.ok(perChecklist.some((action) => action.selector === "textarea[name='description']" && action.value === `Declared item ${itemNumber}`));
-    assert.ok(perChecklist.some((action) => action.selector === "input[name='quantity']"));
-    assert.ok(perChecklist.some((action) => action.selector === "input[name='amount']"));
-  }
-  assert.equal(q3ThroughQ12.actions.some((action) => /next|signature|family|summary|submit/i.test(`${action.kind} ${action.selector}`)), false);
-  assert.ok(q3ThroughQ12.blockingCodes.includes("ph_etravel_signature_required"));
 });
 
 test("AIR action plan fails closed for incomplete evidence and SEA positive never borrows AIR selectors", () => {
@@ -807,7 +675,7 @@ test("AIR action plan fails closed for incomplete evidence and SEA positive neve
       ...payload.customs,
       hasBaggageOrCurrencyToDeclare: true,
       hasCurrencyToDeclare: true,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       currencySources: ["OTHER"],
       currencySourceOther: null,
       currencyTransportPurposes: ["OTHER"],
@@ -818,10 +686,9 @@ test("AIR action plan fails closed for incomplete evidence and SEA positive neve
   });
   assert.equal(airPlan.actionRequired, true);
   assert.ok(airPlan.blockingCodes.includes("customs_checklist_requires_all_12_responses"));
-  assert.ok(airPlan.blockingCodes.includes("customs_currency_source_other_live_behavior_unverified"));
-  assert.ok(airPlan.blockingCodes.includes("customs_currency_purpose_other_live_behavior_unverified"));
-  assert.ok(airPlan.blockingCodes.includes("customs_no_of_days_in_philippines_required"));
-  assert.ok(airPlan.blockingCodes.includes("customs_last_travel_to_philippines_required"));
+  assert.ok(airPlan.blockingCodes.includes("customs_currency_source_other_required"));
+  assert.ok(airPlan.blockingCodes.includes("customs_currency_purpose_other_required"));
+  assert.ok(airPlan.blockingCodes.includes("physical_branch_empty_requiredness_unverified"));
 
   const seaPlan = buildPhEtravelAirPositiveCustomsActionPlan({
     ...payload,
@@ -883,7 +750,7 @@ test("SEA E10 electronic Yes plan reuses only the observed controls through Curr
         postalCode: "1000",
       },
       currencyRecipient: null,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "15000" }],
+      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "15000" }],
       currencySources: ["SALARY", "OTHER"],
       currencySourceOther: "Savings",
       currencyTransportPurposes: ["LEISURE", "OTHER"],
@@ -912,10 +779,8 @@ test("SEA E10 electronic Yes plan reuses only the observed controls through Curr
   assert.equal(plan.actions.filter((action) => action.phase === "general_declaration_checklist").length, 12);
   assert.ok(plan.actions.some((action) => action.selector === "textarea[name='description']"));
   assert.ok(plan.actions.some((action) => action.selector === "[name='currency_id']"));
-  assert.equal(plan.actions.some((action) => action.selector === "input[name='currency_source_other']"), false);
-  assert.equal(plan.actions.some((action) => action.selector === "input[name='transport_purpose_other']"), false);
-  assert.ok(plan.blockingCodes.includes("customs_currency_source_other_live_behavior_unverified"));
-  assert.ok(plan.blockingCodes.includes("customs_currency_purpose_other_live_behavior_unverified"));
+  assert.ok(plan.actions.some((action) => action.selector === "input[name='currency_source_other']"));
+  assert.ok(plan.actions.some((action) => action.selector === "input[name='transport_purpose_other']"));
   assert.ok(plan.actions.some((action) => action.selector === "input[name='courier_name']"));
   assert.ok(plan.blockingCodes.includes("sea_electronic_positive_post_signature_evidence_pending"));
   assert.ok(plan.blockingCodes.includes("owner_recipient_requiredness_unverified"));
@@ -1064,7 +929,7 @@ test("SEA E11 positive signature page is content-classified and stays action-req
   assert.equal(isPhEtravelConfirmationText(signaturePage), false);
 });
 
-test("all-negative customs checklist reaches the signature-only action-required gate", () => {
+test("all-negative customs checklist remains fillable and does not unlock positive declaration automation", () => {
   const reasons = phEtravelStructuredCustomsActionRequired({
     ...payload,
     customs: {
@@ -1085,136 +950,7 @@ test("all-negative customs checklist reaches the signature-only action-required 
     },
   });
 
-  assert.deepEqual(reasons, ["customs_signature_only_controls"]);
-});
-
-test("E42/E43 keep Q1/Q2 on Currency and associate every Q3-Q12 item action with its checklist answer", () => {
-  const checklist = Array.from({ length: 12 }, (_, index) => ({
-    itemNumber: index + 1,
-    key: `customs_checklist_${index + 1}`,
-    response: index === 0 || index === 2 || index === 6,
-    details: null,
-  }));
-  const plan = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasBaggageOrCurrencyToDeclare: true,
-      hasCurrencyToDeclare: true,
-      hasCurrencyOverThreshold: true,
-      amountOfGoodsCurrency: "USD",
-      amountOfGoodsAmount: "1000",
-      generalDeclarationResponses: checklist,
-      goodsItems: [
-        { checklistItemNumber: 3, description: "Declared item 3", quantity: "1", amountUsd: "100" },
-        { checklistItemNumber: 7, description: "Declared item 7", quantity: "2", amountUsd: "200" },
-      ],
-      currencyItems: [],
-    },
-  });
-
-  assert.equal(plan.actions.filter((action) => action.phase === "goods_item_modal_table" && action.kind === "open_modal").length, 2);
-  assert.deepEqual(
-    plan.actions.filter((action) => action.phase === "goods_item_modal_table" && action.kind === "open_modal")
-      .map((action) => action.checklistItemNumber),
-    [3, 7],
-  );
-  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
-  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
-
-  const currencyOnly = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasBaggageOrCurrencyToDeclare: true,
-      hasCurrencyToDeclare: true,
-      hasCurrencyOverThreshold: true,
-      generalDeclarationResponses: checklist.map((item) => ({ ...item, response: item.itemNumber === 1 })),
-      goodsItems: [{ description: "Unrouted", quantity: "1", amountUsd: "1" }],
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "1" }],
-    },
-  });
-  assert.equal(currencyOnly.actions.some((action) => action.phase === "goods_item_modal_table"), false);
-});
-
-test("E42/E43 customs page recognition and attachment-versus-signature gates ignore wizard index", () => {
-  const general = "For Customs - General Declaration Total Amount of goods purchased and/or acquired abroad? Yes No";
-  assert.equal(classifyPhEtravelAirCustomsPage(`wizard_page=4 ${general}`), "general_declaration");
-  assert.equal(classifyPhEtravelAirCustomsPage(`wizard_page=91 ${general}`), "general_declaration");
-  const attachments = "For Customs - Declaration Attachments and Signature Take a photo or upload a file. Signature Clear Previous Next";
-  assert.equal(classifyPhEtravelAirCustomsPage(`wizard_page=5 ${attachments}`), "attachments_signature");
-  assert.equal(classifyPhEtravelAirCustomsPage(`wizard_page=92 ${attachments}`), "attachments_signature");
-
-  const withGoods = buildPhEtravelElectronicCustomsAutofillPhases({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
-        itemNumber: index + 1,
-        key: `customs_checklist_${index + 1}`,
-        response: index === 2,
-        details: null,
-      })),
-    },
-  });
-  const allNo = buildPhEtravelElectronicCustomsAutofillPhases({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
-        itemNumber: index + 1,
-        key: `customs_checklist_${index + 1}`,
-        response: false,
-        details: null,
-      })),
-    },
-  });
-  assert.equal(withGoods.some((phase) => phase.key === "attachments_signature"), true);
-  assert.equal(withGoods.some((phase) => phase.key === "signature_only"), false);
-  assert.equal(allNo.some((phase) => phase.key === "attachments_signature"), false);
-  assert.equal(allNo.some((phase) => phase.key === "signature_only"), true);
-});
-
-test("E45 AIR permits an empty attachment boundary but keeps signature, server, numeric-id, and physical gates fail-closed", () => {
-  const plan = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasBaggageOrCurrencyToDeclare: true,
-      hasCurrencyToDeclare: true,
-      hasCurrencyOverThreshold: true,
-      currencyOwnerNotApplicable: false,
-      currencyItems: [{ currency: "840", monetaryInstrument: "1", amount: "100" }],
-      currencySources: ["SALARY"],
-      currencyTransportPurposes: ["LEISURE"],
-      currencyTransportMethod: "is_physically_transferred_by_person",
-      generalDeclarationResponses: Array.from({ length: 12 }, (_, index) => ({
-        itemNumber: index + 1,
-        key: `customs_checklist_${index + 1}`,
-        response: index === 2,
-        details: null,
-      })),
-    },
-  });
-  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
-  assert.equal(plan.blockingCodes.includes("attachment_requiredness_unverified"), false);
-  assert.ok(plan.blockingCodes.includes("ph_etravel_signature_required"));
-  assert.ok(plan.blockingCodes.includes("owner_recipient_server_requiredness_unverified"));
-  assert.ok(plan.blockingCodes.includes("customs_no_of_days_in_philippines_required"));
-  assert.ok(plan.blockingCodes.includes("customs_last_travel_to_philippines_required"));
-  assert.equal(plan.actions.some((action) => /upload|next|submit/i.test(`${action.kind} ${action.selector}`)), false);
-
-  const nonNumeric = buildPhEtravelAirPositiveCustomsActionPlan({
-    ...payload,
-    customs: {
-      ...payload.customs,
-      hasCurrencyToDeclare: true,
-      currencyItems: [{ currency: "USD", monetaryInstrument: "CASH", amount: "1" }],
-      generalDeclarationResponses: [{ itemNumber: 1, key: "customs_checklist_1", response: true, details: null }],
-    },
-  });
-  assert.ok(nonNumeric.blockingCodes.includes("customs_currency_item_api_id_required"));
-  assert.equal(nonNumeric.actions.some((action) => action.selector === "[name='currency_id']"), false);
+  assert.deepEqual(reasons, []);
 });
 
 test("pre-Review signature and Family Member(s) gates are not submitted states", () => {

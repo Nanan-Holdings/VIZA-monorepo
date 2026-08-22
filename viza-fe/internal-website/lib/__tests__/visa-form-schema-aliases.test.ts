@@ -19,4 +19,49 @@ describe("visa form schema aliases", () => {
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "vietnam")).toBe(true);
     expect(visaFormSchemaVisaTypesMatch("evisa_tourism", "VN_E_VISA", "egypt")).toBe(false);
   });
+
+  it.each([
+    ["SGAC", "singapore", "SG_ARRIVAL_CARD"],
+    ["sgac", "SG", "SG_ARRIVAL_CARD"],
+    ["MDAC", "malaysia", "MY_MDAC_ARRIVAL_CARD"],
+    ["my-mdac", "MY", "MY_MDAC_ARRIVAL_CARD"],
+    ["TDAC", "thailand", "TH_TDAC_ARRIVAL_CARD"],
+    ["th_tdac", "TH", "TH_TDAC_ARRIVAL_CARD"],
+    ["prearrival_declaration", "vietnam", "VN_PREARRIVAL_DECLARATION"],
+  ])("maps legacy %s route aliases for %s to %s", (visaType, country, canonical) => {
+    expect(resolveVisaFormSchemaVisaType(visaType, country)).toBe(canonical);
+  });
+
+  it("does not remap an arrival-card abbreviation for the wrong country", () => {
+    expect(resolveVisaFormSchemaVisaType("SGAC", "malaysia")).toBe("SGAC");
+    expect(resolveVisaFormSchemaVisaType("MDAC", "singapore")).toBe("MDAC");
+    expect(resolveVisaFormSchemaVisaType("TDAC", "vietnam")).toBe("TDAC");
+  });
+
+  it.each([
+    ["tourist_b211a", "indonesia", "ID_C1_TOURIST"],
+    ["B1 e-VoA", "ID", "ID_B1_EVOA"],
+    ["tourist_evisa", "malaysia", "MY_TOURIST_E_VISA"],
+    ["tourist_evisa", "thailand", "TH_TOURIST_E_VISA"],
+    ["c3_or_keta", "south_korea", "KR_C39_SHORT_TERM_VISIT"],
+    ["b1/b2", "united_states", "DS160"],
+    ["standard visitor", "united kingdom", "UK_STANDARD_VISITOR"],
+    ["schengen_short_stay_tourism", "france", "EU_SCHENGEN_C_SHORT_STAY"],
+    ["visa_free_14_days_or_evisa", "philippines", "PH_TEMPORARY_VISITOR_VISA"],
+    ["TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT", "taiwan", "TW_ENTRY_PERMIT"],
+    ["visitor_visa", "canada", "CA_TRV"],
+    ["regular_tourist_visa", "india", "IN_E_VISA"],
+    ["tourist_evisa", "saudi_arabia", "SA_E_VISA"],
+    ["evisa_tourism_business", "turkey", "TR_E_VISA"],
+    ["visa_free_or_tourist_visa", "united_arab_emirates", "AE_TOURIST_VISA"],
+  ])("maps legacy %s route aliases for %s to %s", (visaType, country, canonical) => {
+    expect(resolveVisaFormSchemaVisaType(visaType, country)).toBe(canonical);
+  });
+
+  it("keeps official-only travel authorizations out of internal form aliases", () => {
+    expect(resolveVisaFormSchemaVisaType("US_ESTA", "us")).toBe("US_ESTA");
+    expect(resolveVisaFormSchemaVisaType("UK_ETA", "uk")).toBe("UK_ETA");
+    expect(resolveVisaFormSchemaVisaType("KR_KETA", "south_korea")).toBe("KR_KETA");
+    expect(resolveVisaFormSchemaVisaType("TW_ARRIVAL_CARD", "taiwan")).toBe("TW_ARRIVAL_CARD");
+  });
 });

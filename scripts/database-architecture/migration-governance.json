@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "historical_duplicate_drizzle_prefixes": {
+    "0012": [
+      "0012_match_visa_chunks.sql",
+      "0012_vn_e_visa_package.sql"
+    ],
+    "0013": [
+      "0013_fv_accounts_and_prefill_columns.sql",
+      "0013_internal_automation_loop.sql"
+    ],
+    "0014": [
+      "0014_fv_pdf_storage_path.sql",
+      "0014_internal_automation_db_refinements.sql",
+      "0014_uk_prefill_columns.sql"
+    ],
+    "0023": [
+      "0023_eg_e_visa_package.sql",
+      "0023_kr_c39_package.sql"
+    ],
+    "0088": [
+      "0088_order_guest_checkout.sql",
+      "0088_travel_destination_index.sql"
+    ],
+    "0095": [
+      "0095_france_live_assisted_controls.sql",
+      "0095_universal_profile_documents.sql"
+    ],
+    "0121": [
+      "0121_ds160_consular_post.sql",
+      "0121_tw_entry_permit_package.sql"
+    ],
+    "0123": [
+      "0123_tw_entry_permit_document_requirements_zh_and_eligibility_split.sql",
+      "0123_viza_knowledge_releases_and_chat_memory.sql"
+    ],
+    "0124": [
+      "0124_travel_agent_conversation_state.sql",
+      "0124_tw_entry_permit_form_fields_metadata_sync.sql"
+    ],
+    "0125": [
+      "0125_backfill_account_alias_forwarding_consent.sql",
+      "0125_tw_household_revoked_conditional_metadata.sql"
+    ],
+    "0126": [
+      "0126_sgac_country_runner_retry.sql",
+      "0126_tw_eligibility_4_document_requirements.sql",
+      "0126_tw_embassy_office_continent_dependent_metadata.sql"
+    ],
+    "0127": [
+      "0127_runner_pool.sql",
+      "0127_tw_eligibility_3_document_requirements.sql"
+    ],
+    "0128": [
+      "0128_dedupe_visa_packages.sql",
+      "0128_tw_occupation_company_title_conditional_metadata.sql"
+    ],
+    "0129": [
+      "0129_indonesia_sticky_runner.sql",
+      "0129_tw_applicant_live_handoff.sql"
+    ],
+    "0130": [
+      "0130_tw_identity_birthplace_parent_student_metadata.sql",
+      "0130_universal_profile_answers.sql"
+    ],
+    "0131": [
+      "0131_client_bootstrap_concurrency.sql",
+      "0131_tw_birth_place_mainland_region_options.sql"
+    ],
+    "0150": [
+      "0150_public_status_tracking.sql",
+      "0150_vn_status_settlement_fence.sql"
+    ]
+  },
+  "historical_duplicate_supabase_versions": {
+    "20260220": [
+      "20260220_orders_search_optimization.sql",
+      "20260220_search_optimization_patients_customers.sql"
+    ],
+    "20260531": [
+      "20260531_create_application_documents_bucket.sql",
+      "20260531_create_consent_event.sql"
+    ],
+    "20260610": [
+      "20260610_applicant_profile_bilingual_fields.sql",
+      "20260610_ds160_live_assisted_controls.sql",
+      "20260610_france_live_assisted_controls.sql",
+      "20260610_fv_accounts.sql",
+      "20260610_submission_manual_action_bridge.sql"
+    ],
+    "20260625": [
+      "20260625_official_fee_payment.sql",
+      "20260625_vietnam_payment_status_tracking.sql",
+      "20260625_vn_evisa_official_form_parity.sql",
+      "20260625_vn_evisa_photo_face_rules.sql"
+    ]
+  },
+  "migration_pairs": [
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0158_database_access_baseline.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260821131006_database_access_baseline.sql",
+      "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0159_database_performance_indexes.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260821175138_database_performance_indexes.sql",
+      "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0160_agent_backend_role_timeouts.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
+      "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+    }
+  ],
+  "no_mirror": []
+}

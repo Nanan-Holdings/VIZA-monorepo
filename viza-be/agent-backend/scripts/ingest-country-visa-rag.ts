@@ -11,6 +11,7 @@
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "crypto";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 
@@ -65,6 +66,8 @@ interface CountryRagSeed {
 interface CliOptions {
   countries: string[];
   listOnly: boolean;
+  releaseKey: string;
+  dryRun: boolean;
 }
 
 function normalizeCountry(value: string): string {
@@ -74,6 +77,10 @@ function normalizeCountry(value: string): string {
 function parseArgs(argv: string[]): CliOptions {
   const countries = new Set<string>();
   let listOnly = false;
+  let dryRun = false;
+  let releaseKey =
+    process.env.VISA_KNOWLEDGE_RELEASE_KEY ??
+    `staged-${new Date().toISOString().slice(0, 10)}`;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -81,6 +88,22 @@ function parseArgs(argv: string[]): CliOptions {
 
     if (arg === "--list") {
       listOnly = true;
+      continue;
+    }
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (arg === "--release") {
+      const value = argv[index + 1]?.trim();
+      if (!value) throw new Error("--release requires a value");
+      releaseKey = value;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--release=")) {
+      releaseKey = arg.slice("--release=".length).trim();
+      if (!releaseKey) throw new Error("--release requires a value");
       continue;
     }
 
@@ -110,6 +133,8 @@ function parseArgs(argv: string[]): CliOptions {
   return {
     countries: Array.from(countries).sort(),
     listOnly,
+    releaseKey,
+    dryRun,
   };
 }
 
@@ -175,43 +200,66 @@ function resolveSeeds(options: CliOptions): CountryRagSeed[] {
   return seeds.filter((seed) => requested.has(seed.country));
 }
 
-async function getEmbedding(text: string): Promise<number[] | null> {
+const EMBEDDING_MAX_ATTEMPTS = 4;
+
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function getEmbedding(text: string): Promise<number[]> {
   if (!OPENAI_KEY || OPENAI_KEY === "your_openai_api_key_here") {
-    return null;
+    throw new Error(
+      "OPENAI_API_KEY is required because active knowledge releases cannot contain missing embeddings."
+    );
   }
 
-  try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: text.slice(0, 8000),
-      }),
-    });
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= EMBEDDING_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_KEY}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: text.slice(0, 8000),
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
 
-    if (!response.ok) {
-      console.warn(
-        `Embedding failed (${response.status}). Check whether this OpenAI project has access to ${EMBEDDING_MODEL}.`
-      );
-      return null;
+      if (!response.ok) {
+        const retryable = response.status === 429 || response.status >= 500;
+        const message = `Embedding request failed with HTTP ${response.status}.`;
+        if (!retryable) throw new Error(message);
+        lastError = new Error(message);
+      } else {
+        const data = (await response.json()) as {
+          data?: Array<{ embedding?: number[] }>;
+        };
+        const embedding = data.data?.[0]?.embedding;
+        if (!embedding || embedding.length !== 1536) {
+          throw new Error(
+            `Embedding response has ${embedding?.length ?? 0} dimensions; expected 1536.`
+          );
+        }
+        return embedding;
+      }
+    } catch (error) {
+      lastError = error;
     }
 
-    const data = (await response.json()) as {
-      data?: Array<{ embedding?: number[] }>;
-    };
-    return data.data?.[0]?.embedding ?? null;
-  } catch (error) {
-    console.warn(
-      `Embedding request errored: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-    return null;
+    if (attempt < EMBEDDING_MAX_ATTEMPTS) {
+      await wait(1_000 * 2 ** (attempt - 1));
+    }
   }
+
+  throw new Error(
+    `Embedding request failed after ${EMBEDDING_MAX_ATTEMPTS} attempts: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }. If this workstation uses a proxy, start Node with NODE_USE_ENV_PROXY=1 and HTTPS_PROXY configured.`
+  );
 }
 
 function buildChunkContent(document: RagDocument, chunk: RagChunk): string {
@@ -229,61 +277,78 @@ function buildChunkContent(document: RagDocument, chunk: RagChunk): string {
   ].join("\n");
 }
 
-async function deleteExistingDocument(document: RagDocument): Promise<void> {
-  const { data: existingDocs, error } = await supabase
-    .from("visa_documents")
-    .select("id")
-    .eq("country", document.country)
-    .eq("visa_type", document.visaType)
-    .eq("document_type", document.documentType)
-    .eq("source_url", document.sourceUrl)
-    .eq("title", document.title);
-
-  if (error) {
-    throw new Error(`Failed to query existing document: ${error.message}`);
-  }
-
-  for (const existing of existingDocs ?? []) {
-    const id = (existing as { id: string }).id;
-    const { error: chunkDeleteError } = await supabase
-      .from("visa_chunks")
-      .delete()
-      .eq("document_id", id);
-
-    if (chunkDeleteError) {
-      throw new Error(
-        `Failed to delete existing chunks for ${id}: ${chunkDeleteError.message}`
-      );
-    }
-
-    const { error: documentDeleteError } = await supabase
-      .from("visa_documents")
-      .delete()
-      .eq("id", id);
-
-    if (documentDeleteError) {
-      throw new Error(
-        `Failed to delete existing document ${id}: ${documentDeleteError.message}`
-      );
-    }
-  }
+function contentHash(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-async function ingestDocument(document: RagDocument): Promise<{
+async function ensureRelease(releaseKey: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("visa_knowledge_releases")
+    .upsert(
+      {
+        release_key: releaseKey,
+        status: "staged",
+        description: "Country seed ingestion; pending data gates and regression tests.",
+      },
+      { onConflict: "release_key", ignoreDuplicates: true }
+    )
+    .select("id")
+    .single();
+  if (!error && data) return (data as { id: string }).id;
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("visa_knowledge_releases")
+    .select("id")
+    .eq("release_key", releaseKey)
+    .single();
+  if (lookupError || !existing) {
+    throw new Error(`Failed to create knowledge release: ${error?.message ?? lookupError?.message}`);
+  }
+  return (existing as { id: string }).id;
+}
+
+async function ingestDocument(
+  document: RagDocument,
+  seedVersion: string,
+  releaseId: string
+): Promise<{
   inserted: number;
   embedded: number;
 }> {
-  await deleteExistingDocument(document);
-
-  const { data: insertedDocument, error: documentError } = await supabase
+  const sourceKey = `country:${document.slug}`;
+  const { data: existingDocument, error: existingError } = await supabase
     .from("visa_documents")
-    .insert({
-      country: document.country,
-      visa_type: document.visaType,
-      document_type: document.documentType,
-      title: document.title,
-      source_url: document.sourceUrl,
-    })
+    .select("id")
+    .eq("release_id", releaseId)
+    .eq("source_key", sourceKey)
+    .maybeSingle();
+  if (existingError) {
+    throw new Error(`Failed to query ${sourceKey}: ${existingError.message}`);
+  }
+
+  const payload = {
+    country: document.country,
+    visa_type: document.visaType,
+    document_type: document.documentType,
+    title: document.title,
+    source_url: document.sourceUrl,
+    source_key: sourceKey,
+    ingestion_scope: "country_seed",
+    release_id: releaseId,
+    status: "staged",
+    content_hash: contentHash(document),
+    verified_at: new Date(`${seedVersion}T00:00:00.000Z`).toISOString(),
+    last_synced_at: new Date().toISOString(),
+  };
+  const documentRequest = existingDocument
+    ? supabase
+        .from("visa_documents")
+        .update(payload)
+        .eq("id", (existingDocument as { id: string }).id)
+    : supabase
+    .from("visa_documents")
+        .insert(payload);
+  const { data: insertedDocument, error: documentError } = await documentRequest
     .select("id")
     .single();
 
@@ -294,6 +359,15 @@ async function ingestDocument(document: RagDocument): Promise<{
   }
 
   const documentId = (insertedDocument as { id: string }).id;
+  if (existingDocument) {
+    const { error: deleteError } = await supabase
+      .from("visa_chunks")
+      .delete()
+      .eq("document_id", documentId);
+    if (deleteError) {
+      throw new Error(`Failed to replace chunks for ${sourceKey}: ${deleteError.message}`);
+    }
+  }
   let inserted = 0;
   let embedded = 0;
 
@@ -308,10 +382,8 @@ async function ingestDocument(document: RagDocument): Promise<{
       content,
     };
 
-    if (embedding) {
-      row.embedding = embedding;
-      embedded += 1;
-    }
+    row.embedding = embedding;
+    embedded += 1;
 
     const { error: chunkError } = await supabase.from("visa_chunks").insert(row);
 
@@ -321,14 +393,14 @@ async function ingestDocument(document: RagDocument): Promise<{
 
     inserted += 1;
     process.stdout.write(
-      `    - ${chunk.id} (${content.length} chars${embedding ? ", embedded" : ""})\n`
+      `    - ${chunk.id} (${content.length} chars, embedded)\n`
     );
   }
 
   return { inserted, embedded };
 }
 
-async function ingestSeed(seed: CountryRagSeed): Promise<{
+async function ingestSeed(seed: CountryRagSeed, releaseId: string): Promise<{
   inserted: number;
   embedded: number;
 }> {
@@ -341,7 +413,7 @@ async function ingestSeed(seed: CountryRagSeed): Promise<{
 
   for (const document of seed.documents) {
     console.log(`  Ingesting: ${document.title}`);
-    const result = await ingestDocument(document);
+    const result = await ingestDocument(document, seed.version, releaseId);
     inserted += result.inserted;
     embedded += result.embedded;
   }
@@ -357,23 +429,37 @@ async function main(): Promise<void> {
     console.log(seeds.map((seed) => seed.country).join("\n"));
     return;
   }
+  if (options.dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          releaseKey: options.releaseKey,
+          countries: seeds.map((seed) => seed.country),
+          documents: seeds.flatMap((seed) =>
+            seed.documents.map((document) => `country:${document.slug}`)
+          ),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+  console.log("Checking embedding provider before writing the staged release...");
+  await getEmbedding("VIZA knowledge release embedding connectivity check");
+  const releaseId = await ensureRelease(options.releaseKey);
 
   console.log("Starting country visa RAG ingestion");
   console.log(`Seed directory: ${SEED_DIR}`);
   console.log(`Countries: ${seeds.length}`);
-  console.log(
-    `Embeddings: ${
-      OPENAI_KEY && OPENAI_KEY !== "your_openai_api_key_here"
-        ? `enabled (${EMBEDDING_MODEL})`
-        : "disabled (chunks will still be inserted for filtered fallback)"
-    }`
-  );
+  console.log(`Staged release: ${options.releaseKey}`);
+  console.log(`Embeddings: required (${EMBEDDING_MODEL})`);
 
   let totalInserted = 0;
   let totalEmbedded = 0;
 
   for (const seed of seeds) {
-    const result = await ingestSeed(seed);
+    const result = await ingestSeed(seed, releaseId);
     totalInserted += result.inserted;
     totalEmbedded += result.embedded;
   }

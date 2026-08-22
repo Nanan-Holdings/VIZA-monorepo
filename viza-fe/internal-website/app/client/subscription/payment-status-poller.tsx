@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle as CheckCircle2, CircleNotch as Loader2 } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
@@ -20,24 +21,62 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
+    let timer: number | undefined;
+    let currentController: AbortController | null = null;
+    let consecutiveFailures = 0;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), delayMs);
+    };
 
     async function poll() {
+      if (cancelled || inFlight) return;
+      if (document.visibilityState !== "visible") {
+        schedule(15_000);
+        return;
+      }
+
+      inFlight = true;
+      const controller = new AbortController();
+      currentController = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 5_000);
       try {
         const response = await fetch(`/api/payments/status/${paymentId}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
+        if (!response.ok) throw new Error(`Payment status failed: ${response.status}`);
         const payload = (await response.json()) as { status?: PollStatus };
-        if (!cancelled && payload.status) setStatus(payload.status);
+        if (cancelled) return;
+        consecutiveFailures = 0;
+        if (payload.status) setStatus(payload.status);
+        if (!payload.status || payload.status === "pending") schedule(3_000);
       } catch {
-        if (!cancelled) setStatus("pending");
+        if (cancelled) return;
+        setStatus("pending");
+        consecutiveFailures += 1;
+        schedule(Math.min(3_000 * 2 ** consecutiveFailures, 30_000));
+      } finally {
+        window.clearTimeout(timeout);
+        if (currentController === controller) currentController = null;
+        inFlight = false;
       }
     }
 
-    poll();
-    const timer = window.setInterval(poll, 3000);
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
+    void poll();
+    document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      currentController?.abort();
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [paymentId]);
 
@@ -56,10 +95,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
   if (status === "failed") {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
-          <XCircle className="h-4 w-4" />
-          支付记录不可用，请返回订阅页重新发起。
-        </div>
+        <ClientErrorAlert message="支付记录不可用，请返回订阅页重新发起。" />
         <SmoothProgressBar
           displayedProgress={displayedProgress}
           label="确认进度"

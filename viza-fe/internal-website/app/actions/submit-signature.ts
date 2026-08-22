@@ -3,6 +3,8 @@
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 /**
  * Persist the applicant's signature PNG and queue the AU runner to push past
@@ -73,6 +75,13 @@ export async function submitSignature(
     return { ok: false, error: "Unauthorized" };
   }
 
+  if (isRunnerCutoverPaused()) {
+    return {
+      ok: false,
+      error: "Signature submission is temporarily paused for a controlled runner cutover.",
+    };
+  }
+
   const storagePath = signaturePathForApplication(applicationId);
 
   const { error: uploadErr } = await adminClient.storage
@@ -130,6 +139,11 @@ export async function submitSignature(
       { onConflict: "application_id" },
     );
   if (queueErr) return { ok: false, error: `Queue update failed: ${queueErr.message}` };
+
+  const wake = await wakeCloudSubmissionWorker(null, { target: "legacy" });
+  if (!wake.ok) {
+    console.warn("[submission-queue] AU signature queue wake failed; durable queue remains recoverable.", wake);
+  }
 
   return { ok: true, storagePath };
 }

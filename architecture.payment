@@ -1,0 +1,410 @@
+# ADR-PAY-008: Link commercial collection, treasury funding, and government-fee card issuance
+
+**Status:** Accepted; expanded by the 2026-08-15 product decision below
+
+**Date:** 2026-08-01
+
+**Deciders:** VIZA product, finance, security, and engineering owners
+
+## Executive decision
+
+### 2026-08-15 product decision
+
+Every electronically payable official fee uses an application-scoped, limited
+virtual card provisioned by VIZA at the official payment step. Applicants do
+not enter card details on government portals and must not be instructed to pay
+an official portal directly. Routes still marked `client_in_portal` or
+`applicant_direct_link` are legacy implementation gaps to migrate; they are not
+approved applicant-facing payment modes. Paper, in-person, and genuinely free
+flows remain non-card exceptions.
+
+Issuer selection is PhotonPay first and Airwallex second. Airwallex may be used
+only when PhotonPay has an explicit pre-issuance capability/configuration
+failure for the exact currency. A timeout, ambiguous response, issued/unknown
+card state, or portal uncertainty must enter review and must never switch
+issuers, because doing so could create two spendable cards for one allocation.
+
+Airwallex's company wallet is not a safe application-level blast radius: an API
+credential with Cards Write could create many individually limited cards. The
+Airwallex fallback therefore remains production-disabled until all of these
+independent controls are true:
+
+1. The issuing API key is held only by the production submission worker, never
+   developer laptops, preview deployments, frontend code, or general-purpose
+   automation services.
+2. Airwallex Remote Authorization v2 is enabled with provider-side
+   `default_action=DECLINED`. The VIZA endpoint verifies the nonce HMAC and
+   authorizes only a known, portal-processing issuer attempt whose exact
+   amount, currency, account, and purchase category match its allocation.
+3. The Airwallex account manager sets conservative account-level maximum card
+   limits. Every VIZA card is virtual, single-use, exact-amount, single-currency,
+   and short-lived.
+4. VIZA uses a dedicated supplementary/connected Airwallex account with its own
+   wallet and a small, finance-approved float. The main operating wallet must
+   not fund the fallback. Automatic conversion is permitted only inside that
+   isolated low-balance wallet.
+5. Production secret changes and deployment of the credential-bearing worker
+   require an owner-approved environment. Code contributors do not receive the
+   Airwallex API key or permission to change the remote-authorization config.
+
+Per-card limits and application checks are defense in depth, not substitutes
+for the isolated wallet and provider-side default-decline authorization.
+
+Treat a successful customer checkout as a **commercial entitlement and ledger
+event**, not as an instruction to move that customer's money directly into a
+PhotonPay card.  Keep a VIZA-owned, pooled PhotonPay funding account, maintain
+an immutable per-application allocation ledger in Supabase, and issue a
+single-use PhotonPay card only when the government-fee job is ready to pay.
+
+Stripe should pay out automatically to the PhotonPay USD bank account *only if*
+PhotonPay supplies a bank account in the Stripe account's supported settlement
+country/currency and Stripe accepts it after verification.  That is a treasury
+configuration, not a real-time payment integration: Stripe funds become
+available on Stripe's settlement timetable before a payout is sent.  The
+design must therefore retain a working-capital reserve in PhotonPay and must
+never assume that a checkout at time T funds the card used at time T.
+
+If Stripe rejects the PhotonPay account, use a VIZA-owned bank account as the
+Stripe payout destination and transfer treasury funds to PhotonPay using the
+funding route confirmed by PhotonPay.  Do not use customer card data, Stripe
+PaymentMethods, or a Stripe Connect transfer as a substitute for this treasury
+flow.
+
+## Scope and terminology
+
+- **Commercial payment**: the VIZA agency fee plus, when the package says
+  `viza_passthrough`, a government-fee amount collected from the applicant.
+- **Allocation**: VIZA's internal record that a paid order has reserved enough
+  of the company-funded card pool for one application's official fee.  It is
+  not a separate custodial account or a claim that the customer's funds have
+  physically reached PhotonPay.
+- **Treasury funding**: cash movement from Stripe payout destination to the
+  VIZA-owned PhotonPay funding account.  It is pooled and reconciled by payout,
+  not one bank transfer per customer.
+- **Card issuance**: a short-lived, exact-amount virtual card issued from the
+  pooled PhotonPay funding account.  PAN, expiry, and CVV remain in worker
+  memory only.
+
+Vietnam e-Visa remains the reference rollout and Indonesia the second rollout.
+The same application-scoped virtual-card boundary is the target for every
+other electronically payable official fee as its runner becomes production-
+ready.
+
+## Current architecture
+
+The public marketing site does **not** process payments itself.  It deep-links
+the applicant to the portal guest checkout.  The portal creates
+`applicant_profiles`, `applications`, `order`, and `order_line` rows, then
+starts Stripe Checkout by default (or PhotonPay Cashier when explicitly
+enabled).
+
+```mermaid
+flowchart LR
+  M["Marketing /apply"] --> P["Portal guest checkout"]
+  P --> S["Stripe Checkout"]
+  S --> W["Stripe webhook"]
+  W --> O["order = paid"]
+  W --> A["Auth user + magic link"]
+  W --> Q["Runner job enqueue"]
+  Q --> R["Submission-service runner"]
+  R --> I["Managed inbox alias - lazy"]
+  R --> C["Current official-fee card session or fixed test card"]
+
+  PP["PhotonPay issuing client + provider"] -. "no runtime caller" .-> C
+  S -. "no payout / funding integration" .-> F["PhotonPay funding account"]
+  F -. "zero balance in current production account" .-> PP
+```
+
+### Implemented components
+
+| Concern | Current source | Current behavior |
+|---|---|---|
+| Marketing entry | `viza-fe/marketing-website/components/PayByCardButton.tsx` | Plain portal deep-link; no Stripe SDK or payment state on marketing. |
+| Commercial checkout | `viza-fe/internal-website/app/actions/card-checkout.ts` | Creates/reuses applicant, application, order, and lines; uses Stripe by default. Government fee is included only for `viza_passthrough` packages. |
+| Stripe event handling | `viza-fe/internal-website/app/api/stripe/webhook/route.ts` and `lib/stripe/handle-event.ts` | Verified webhook writes `order.status='paid'`; guest checkout then starts post-paid effects. |
+| Account and queue effects | `lib/checkout/post-paid.ts`, `app/actions/wechat-provisioning.ts` | Creates/binds Supabase auth user, sends magic link, and asynchronously enqueues a runner job. |
+| Virtual inbox | `viza-be/submission-service/src/inbox/alias.ts` | `ensureApplicantInboxAlias` writes `applicant_profiles.inbox_alias`, but only runners that call it provision an alias. |
+| Official-fee intent/receipt model | `supabase/migrations/20260625_official_fee_payment.sql` | Has quote, intent, attempt, receipt, and reconciliation tables; not linked to the commercial order/payout/funding lifecycle. |
+| PhotonPay card issuer | `viza-be/submission-service/src/issuing/photonpay-card-provider.ts` | Has idempotent `ensurePhotonPayEscrowCard` and cancellation; no production runner invokes it. |
+| Vietnam/Indonesia payment use | `src/index.ts`, `src/vietnam/card-session.ts`, `src/indonesia/card-session.ts` | Consumes an in-memory client-entered one-time card or a fixed test card. PhotonPay issuing is not a fallback. |
+| Payout monitoring | `viza-be/agent-backend/scripts/reconcile-stripe-payouts.ts` | Compares a 24-hour Stripe-charge total with agency-fee order totals; it does not read Stripe payouts, bank deposits, PhotonPay balance, or per-order allocations. |
+
+No repository reference to a "Heyman" gateway was found.  The relevant
+gateways are Stripe Checkout, optional PhotonPay Cashier (acquiring), and
+PhotonPay issuing (virtual cards).
+
+## Weak linkages and risks
+
+1. **Payment success is not durable orchestration.** The guest Stripe webhook
+   fires account provisioning and queue enqueue as fire-and-forget calls.  A
+   failure is logged after the provider acknowledgement and has no durable
+   retry/outbox record.
+2. **The card issuer is isolated.** The PhotonPay issuer is tested and gated,
+   but has zero callers.  Its own integration document says real issuing is
+   blocked by funding, production IP allowlisting, and webhook setup.
+3. **No cash path exists.** No code configures a Stripe payout destination,
+   receives `payout.*` events, records a payout, reconciles a deposit, or
+   observes PhotonPay account funding/balance.
+4. **No financial join exists.** `order`, `payment_records`,
+   `official_fee_payment_intents`, card references in applicant vault, and
+   Stripe/PhotonPay provider IDs are not joined by a ledger with allocation,
+   reversal, and reconciliation states.
+5. **Inbox provisioning is late.** A paid applicant can lack an alias until a
+   selected runner reaches an alias-dependent step.  This does not meet the
+   desired paid-order provisioning contract.
+6. **Card timing is unsafe as stated.** Generating every card immediately on
+   payment can leave valid, funded cards unused, exhaust the current 300-card
+   quota, and spend cash before a submission/official-fee authorization is
+   ready.  It also cannot solve normal Stripe settlement delay.
+7. **Current funding is zero.** The committed PhotonPay production acceptance
+   record says all funding accounts read 0.00 and only one USD MasterCard BIN is
+   available.  Vietnam/Indonesia payment cannot be live-tested until this is
+   remediated and the portals accept that BIN/handle any 3DS checkpoint.
+8. **The current issuer idempotency scope is too broad.** Its persisted card ID
+   is keyed only by applicant, so two applications or later attempts by the
+   same applicant could recover the wrong card. Scope it by application and
+   official-fee attempt before wiring it into a runner.
+9. **Indonesia C1 pricing is inconsistent.** The frontend pricing has a
+   15,000-cent government fee while submission-service payment routing lists
+   18,500 cents. Reconcile and lock the official-fee quote before any live
+   Indonesia funding or card issue.
+
+## Target architecture
+
+```mermaid
+flowchart TB
+  S["Stripe / PhotonPay Cashier payment"] --> V["Verified payment webhook"]
+  V --> L["Transactional payment event + outbox"]
+  L --> P["Provisioning worker"]
+  P --> U["Supabase user / profile"]
+  P --> A["Application and immutable paid order"]
+  P --> I["Managed virtual inbox alias"]
+  P --> R["Government-fee allocation ledger"]
+  P --> Q["Submission queue"]
+
+  S --> SB["Stripe available balance"]
+  SB --> SP["Stripe automatic payout"]
+  SP --> BA["Verified PhotonPay receiving bank account\nor VIZA treasury bank"]
+  BA --> PF["PhotonPay pooled funding account"]
+  PF --> BR["Funding/balance reconciliation"]
+  BR --> R
+
+  Q --> G["Official-fee execution worker"]
+  R --> G
+  G --> C["Just-in-time PhotonPay single-use card"]
+  C --> O["Vietnam/Indonesia official portal"]
+  O --> E["Receipt/evidence and card finalization"]
+  E --> R
+```
+
+### Authoritative state and invariants
+
+1. A verified payment event is recorded exactly once by provider event ID,
+   then creates an outbox row in the same database transaction.  A worker,
+   rather than the webhook request, retries provisioning until terminal.
+2. One `order` owns one or more `order_line` rows.  An official-fee allocation
+   must reference exactly one `order_line`, one application, and one
+   `official_fee_payment_intent`.
+3. `available_to_issue` requires all of: commercial payment settled according
+   to policy, applicant consent/official-fee intent approved, an allocated
+   order line, and sufficient reconciled PhotonPay pool balance.
+4. Cards are issued immediately before the runner fills the official payment
+   page.  Only `issuer_card_id`, masked PAN, issuer request ID, limit, currency,
+   timestamps, and redacted provider evidence are persisted.  PAN, expiry, and
+   CVV are never stored or logged.
+5. A portal payment success consumes the allocation and creates one official
+   receipt/attempt.  Card failure, timeout, cancellation, refund, dispute, or
+   chargeback moves the allocation to a reviewable reversal state and blocks
+   additional spend.
+6. A payout/deposit is never attributed as a one-to-one customer transfer.
+   The allocation ledger is the per-user traceability layer; the PhotonPay
+   account remains a VIZA company account.
+
+### New persistence (migration names illustrative)
+
+| Table | Purpose | Key fields |
+|---|---|---|
+| `payment_lifecycle_events` | Idempotent cross-provider event log/outbox source. | `provider`, `provider_event_id` unique, `order_id`, `event_type`, raw-redacted payload, processed timestamp. |
+| `payment_provisioning_jobs` | Durable paid-order provisioning state machine. | `order_id` unique, `user_status`, `application_status`, `inbox_status`, `allocation_status`, retry/lease/error fields. |
+| `government_fee_allocations` | Per-application ledger between paid order line and card spend. | `order_id`, `order_line_id`, `application_id`, `official_fee_payment_intent_id`, amount/currency, `state`, reservation/release/consumed times. |
+| `issuer_card_attempts` | Auditable reference to a card issue/use/finalize attempt. | allocation ID, `issuer='photonpay'`, issuer card/request IDs, masked PAN, status, limits, redacted response/receipt references. |
+| `treasury_payouts` | Stripe payout and bank-deposit reconciliation. | `stripe_payout_id` unique, destination fingerprint/last4, currency/net/arrival status, bank reference, reconciled timestamp. |
+| `treasury_funding_events` | PhotonPay account credit/balance evidence. | funding account ID, provider transaction ID, amount/currency, source payout/bank reference, confirmed timestamp. |
+
+Use database constraints and RPCs to reserve/release/consume allocations
+atomically.  Do not use JSON metadata as the financial system of record.
+
+## Treasury decision and feasibility gate
+
+### Recommended cash route
+
+1. Obtain PhotonPay's dedicated incoming bank-account details for the VIZA
+   legal entity and USD issuing/funding account; confirm who owns it, supported
+   inbound rails, credit reference requirements, settlement delay, FX, and
+   whether an inbound transfer automatically increases the issuing balance.
+2. Add that account to the Stripe account's payout settings **only after**
+   Stripe accepts and verifies it.  Configure automatic daily/weekly payouts
+   in a compatible settlement currency and subscribe to `payout.created`,
+   `payout.paid`, `payout.failed`, and `payout.updated`.
+3. Reconcile Stripe payout -> receiving bank deposit -> PhotonPay funding
+   event.  Permit issue only against reconciled pool availability plus a
+   finance-approved float; do not wait for the specific applicant's payout.
+4. If the account cannot be used at Stripe, retain a VIZA-controlled operating
+   bank account as Stripe's payout destination and use PhotonPay's approved
+   bank-transfer/top-up path.  Record the same reconciliation chain.
+
+Stripe documents that automatic payout schedules send available balance to a
+configured bank account, and that the cadence does not change the payment's
+availability/settlement delay.  It also requires a compatible bank account and
+matching settlement currency.  Verify VIZA's country-specific eligibility with
+Stripe before making this live: [Stripe payout documentation](https://docs.stripe.com/payouts)
+and [multi-currency settlement documentation](https://docs.stripe.com/payouts/multicurrency-settlement).
+
+### Rejected designs
+
+| Option | Decision | Why |
+|---|---|---|
+| Issue a PhotonPay card immediately after each Stripe success | Reject | Stripe cash is not necessarily available or paid out; creates unneeded funded cards and leaves no clean reversal path. |
+| Put each customer's Stripe funds directly in a per-customer PhotonPay card | Reject | Neither gateway currently exposes that product contract. It would also create custody/ledger/compliance risk and does not address Stripe settlement. |
+| Treat PhotonPay Cashier as the bridge | Reject | Cashier is an alternative customer-acquiring rail, not an issuer funding mechanism. |
+| Use a stored customer card for official portals | Reject | Adds PCI, consent, 3DS, and portal-policy risk. The declared model is VIZA company-controlled, exact-amount virtual cards. |
+| Depend only on daily charge-to-order reconciliation | Reject | It does not reconcile payouts, bank funding, issuing balance, allocations, or official portal receipts. |
+
+## State model
+
+```text
+commercial payment:
+created -> checkout_pending -> paid_verified -> provisioned
+                                    |                 |
+                                    v                 v
+                                disputed/refunded   allocation_reserved
+
+government allocation:
+not_required | pending_consent -> reserved -> issuable -> card_issued
+                                                         -> portal_processing
+                                                         -> consumed | released | review_required
+```
+
+For a `portal_direct` package, provisioning completes without a government-fee
+allocation.  For a `viza_passthrough` package, provisioning may complete while
+the allocation remains `reserved_pending_treasury`; the runner must pause
+cleanly until funds/consent/portal readiness are satisfied.
+
+## Implementation plan
+
+### Phase 0 — finance/vendor decisions (no code)
+
+1. Confirm PhotonPay inbound-funding account details, permitted funding method,
+   inbound reference/beneficiary rules, balance-webhook/query contract,
+   MasterCard acceptance, 3DS behavior, refund path, card quota/reissue policy,
+   FX markup, and production egress-IP allowlist.
+2. Confirm Stripe accepts the PhotonPay bank account for the VIZA Stripe
+   account's country and USD settlement.  If not, select the VIZA treasury-bank
+   fallback.  Set legal/accounting treatment for pass-through government fees,
+   customer refunds, disputes, and required prefunding reserve.
+3. Fund the PhotonPay sandbox first and fund a small production pilot float.
+   Register a public issuing webhook endpoint and retain vendor acceptance
+   evidence.
+
+### Phase 1 — durable payment-to-provisioning bridge
+
+1. Add the lifecycle/outbox and provisioning-job migrations/RPCs.
+2. Change Stripe, PhotonPay Cashier, WeChat, and free-order completion paths to
+   publish one idempotent `commercial_payment.paid` event, rather than doing
+   critical work fire-and-forget in the webhook.
+3. Add a worker that idempotently creates/binds the auth user, ensures one
+   application, assigns the VIZA inbox alias, creates/reserves the official-fee
+   allocation when applicable, and enqueues the runner.
+4. Surface provision/allocation state in staff diagnostics and applicant status
+   without revealing treasury/card details.
+
+### Phase 2 — treasury and reconciliation
+
+1. Add a signature-verified Stripe payout webhook plus a scheduled reconciliation
+   job using Stripe payout/balance-transaction data; retain the existing
+   charge-to-order reconciliation as a separate control.
+2. Add PhotonPay issuing/funding webhook ingestion and low-frequency recovery
+   queries.  Reconcile payout, bank reference, and PhotonPay funding event.
+3. Add treasury threshold alerts: pool balance below reserved allocations,
+   failed payout/funding event, unreconciled payout age, and allocation aged
+   beyond SLA.  Finance owns a daily exception queue.
+
+### Phase 3 — PhotonPay issuing, Vietnam then Indonesia
+
+1. Wire `ensurePhotonPayEscrowCard` into the Vietnam runner only after the
+   allocation is `issuable`; pass the in-memory result directly to the payment
+   helper; call `finalizePhotonPayEscrowCard` on all terminal outcomes.
+2. Write issuer-card attempt/receipt state atomically around official payment;
+   preserve redacted Playwright evidence and never persist card elements.
+3. Validate Vietnam MasterCard and 3DS behavior with a funded sandbox followed
+   by one finance-approved low-value live pilot.  Do not claim live payment
+   success from a browser redirect alone.
+4. Wire the Indonesia lazy `takeOneTimeCard` seam only after Vietnam is stable.
+   Its runner must still stop safely for unresolved 3DS/OTP or portal drift.
+
+### Phase 4 — recovery, refund, and operations
+
+1. Releasing an unused/declined card returns its allocation to review; use the
+   PhotonPay return/cancel contract and reconcile before permitting reissue.
+2. Stripe refunds/disputes must halt outstanding allocations and submission
+   jobs.  A commercial refund after an official fee is paid requires explicit
+   finance review; do not automatically reverse a government fee.
+3. Add dashboards for paid-but-unprovisioned, reserved-without-card,
+   issued-without-receipt, payout/funding variance, and card-quota headroom.
+
+## Multi-agent delivery framework
+
+Use GPT-5.6 Terra for planning/review and GPT-5.4 for bounded implementation
+tasks.  Each implementation agent receives only one migration/service/module
+slice and must not change gateway credentials or live payout settings.
+
+| Stage | Agent model/role | Deliverable / gate |
+|---|---|---|
+| Architecture | GPT-5.6 Terra lead + Terra finance/security reviewers | ADR, data ownership, vendor questionnaire, threat model, acceptance criteria. Requires human finance/legal sign-off. |
+| Slice planning | GPT-5.6 Terra | File-level implementation plan and test matrix for each phase; no code. |
+| Build A | GPT-5.4 implementer | Migration/RPC/outbox/provisioning worker + focused unit/integration tests. |
+| Build B | GPT-5.4 implementer | Stripe payout and PhotonPay funding reconciliation adapter, fixtures, alerting. |
+| Build C | GPT-5.4 implementer | Vietnam PhotonPay card runner wiring and in-memory security boundary. |
+| Build D | GPT-5.4 implementer | Indonesia only after Vietnam acceptance; lazy card handoff and recovery. |
+| QA 1 | GPT-5.6 Terra payment-integrity QA | Replays/duplicates/out-of-order webhooks, retries, DB invariants, refunds/disputes, no double issue. |
+| QA 2 | GPT-5.6 Terra security QA | Secret/PAN/CVV/log/trace scan, auth/RLS checks, webhook signature negative tests. |
+| QA 3 | GPT-5.6 Terra e2e QA | Sandbox customer checkout -> provisioning -> alias -> allocation -> sandbox card -> official-fee simulation/evidence. |
+| Release reviewer | GPT-5.6 Terra + finance operator | Reconciled treasury float, IP allowlist/webhook health, portal acceptance, rollback/recovery runbook. |
+
+No agent should be given a real customer card number or CVV.  Use Stripe test
+cards and PhotonPay sandbox facilities for automated QA.  A production payment
+pilot should be performed by an authorized VIZA operator in the official
+provider-hosted flow; automation stores only redacted evidence and provider
+references.
+
+## Acceptance criteria
+
+1. A paid test checkout creates exactly one user/profile/application, managed
+   inbox alias, commercial event, and (where applicable) allocation despite
+   webhook replay or worker restart.
+2. A paid order never results in a PhotonPay issue request unless allocation,
+   consent, and treasury availability are all true.
+3. A retry does not create a second PhotonPay card or a second official payment;
+   it recovers through issuer request/card IDs and official receipt state.
+4. Logs, traces, database rows, error reports, and screenshots contain no PAN,
+   CVV, expiry, raw webhook signature, or private key.
+5. Stripe payout failure, PhotonPay funding shortfall, official decline, and
+   Stripe dispute each produce an actionable, non-spending state and alert.
+6. Vietnam is proven in sandbox plus one approved live pilot with provider and
+   official-portal evidence before Indonesia is enabled.
+
+## Open decisions/blockers
+
+- Whether PhotonPay can give VIZA a Stripe-eligible receiving bank account and
+  whether Stripe accepts it for the VIZA legal entity/currency.
+- The PhotonPay funding route and evidence API/webhook; current committed docs
+  only prove issuing APIs, not Stripe-to-PhotonPay funding.
+- Funding of the current zero-balance production PhotonPay account.
+- MasterCard acceptance and 3DS handling on Vietnam and Indonesia official
+  portals; the account currently has one USD MasterCard BIN.
+- Finance/legal approval of pooled float, pass-through accounting, refund and
+  chargeback policy, and cardholder/KYC requirements.
+- The target runtime's stable egress IP must be allowlisted in PhotonPay before
+  production issuing is enabled.
+- Resolve the Indonesia C1 government-fee source and update all pricing/routing
+  sources together before enabling Indonesia collection or issuance.

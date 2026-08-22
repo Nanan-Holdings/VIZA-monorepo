@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ApplicationFormSelectContent,
+  ApplicationFormSelectItem,
+  ApplicationFormSelectTrigger,
+} from "@/components/ui/application-form-select";
+import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 
@@ -32,6 +34,7 @@ interface RegionSelectProps {
   whitelist?: string[];
   blacklist?: string[];
   onChange?: (region: Region) => void;
+  forceWhiteBackground?: boolean;
 }
 
 function filterRegions(
@@ -70,6 +73,7 @@ export function RegionSelect({
   whitelist = [],
   blacklist = [],
   onChange,
+  forceWhiteBackground = false,
 }: RegionSelectProps) {
   const [value, setValue] = useState<string>("");
 
@@ -107,16 +111,20 @@ export function RegionSelect({
       }}
       disabled={disabled}
     >
-      <SelectTrigger className={className}>
+      <ApplicationFormSelectTrigger
+        className={className}
+        filled={Boolean(value)}
+        forceWhiteBackground={forceWhiteBackground}
+      >
         <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
+      </ApplicationFormSelectTrigger>
+      <ApplicationFormSelectContent>
         {regions.map(({ name, shortCode }) => (
-          <SelectItem key={shortCode} value={shortCode}>
+          <ApplicationFormSelectItem key={shortCode} value={shortCode}>
             {name}
-          </SelectItem>
+          </ApplicationFormSelectItem>
         ))}
-      </SelectContent>
+      </ApplicationFormSelectContent>
     </Select>
   );
 }

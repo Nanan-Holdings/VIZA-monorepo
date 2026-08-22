@@ -9,17 +9,19 @@
     "home": "首页",
     "application": "申请",
     "status": "状态",
-    "chat": "智能助手",
+    "chat": "AI助手",
     "documents": "材料",
     "settings": "设置",
     "support": "帮助",
     "visaConsultant": "签证顾问",
     "travelAgent": "旅行顾问",
     "mockInterview": "模拟面试",
+    "saving": "保存中",
+    "saved": "已保存",
     "inviteFriends": "邀请朋友"
   },
   "menu": {
-    "changeCountry": "选择申请国家",
+    "changeCountry": "切换申请",
     "inviteFriends": "邀请朋友",
     "status": "状态",
     "documents": "材料",
@@ -31,8 +33,8 @@
   },
   "destinationsPage": {
     "backToHome": "返回首页",
-    "title": "申请中心",
-    "subtitle": "先选择国家和申请类型，再决定开始新申请或继续已有申请。",
+    "title": "切换申请国家",
+    "subtitle": "在您的签证申请之间切换，或在下方开始新的目的地申请。",
     "myApplications": "我的申请",
     "ongoingApplications": "进行中的申请",
     "purchasedApplications": "已购买的申请",
@@ -43,17 +45,6 @@
     "notStarted": "未开始",
     "continue": "继续",
     "start": "开始",
-    "chooseAction": "选择操作",
-    "chooseActionTitle": "您想如何继续？",
-    "chooseActionDescription": "您选择了“{application}”。进入申请资料前，请选择下一步。",
-    "startNewApplication": "开始新申请",
-    "startNewDescription": "建立一份全新的申请，不会覆盖原有记录。",
-    "startingNew": "正在建立新申请...",
-    "continueApplication": "继续未完成申请",
-    "continueDescription": "打开上次保存的位置，继续填写原有申请。",
-    "viewExistingApplication": "查看现有申请",
-    "viewExistingDescription": "查看这份申请当前的付款、提交或结果状态。",
-    "actionError": "暂时无法打开申请，请稍后重试。",
     "progressAriaLabel": "申请进度",
     "showAll": "展开全部 {count} 个申请",
     "showLess": "收起"
@@ -85,25 +76,106 @@
     "ofRequired": "共需 {total} 份",
     "percentComplete": "已完成 {pct}%",
     "quickActions": {
-      "title": "常用入口",
-      "visaAI": "咨询签证问题",
-      "travelAI": "规划旅行行程",
-      "viewStatus": "查看申请进度"
+      "title": "快捷操作",
+      "visaAI": "进入签证 AI",
+      "travelAI": "进入旅行 AI",
+      "viewStatus": "查看申请状态"
+    },
+    "activeVisa": {
+      "label": "当前签证",
+      "empty": "暂无正在办理的签证",
+      "open": "打开申请",
+      "choose": "选择签证"
+    },
+    "timeline": {
+      "groups": { "todo": "待办事项", "completed": "已完成任务" },
+      "states": {
+        "complete": "已完成",
+        "current": "当前步骤",
+        "attention": "需要处理",
+        "blocked": "等待前置步骤",
+        "upcoming": "尚未开始"
+      },
+      "steps": {
+        "payment": {
+          "title": "完成服务费付款",
+          "descriptions": {
+            "pending": "请完成服务费付款，以便 VIZA 开始准备申请。",
+            "completed": "服务费付款已确认，VIZA 已开始准备申请。"
+          }
+        },
+        "consent": {
+          "title": "确认授权与同意",
+          "descriptions": {
+            "pending": "请确认服务授权并完成所需电子签署。",
+            "completed": "服务授权和所需电子签署均已完成。"
+          }
+        },
+        "form": {
+          "title": "完善申请表",
+          "descriptions": {
+            "pending": "请继续填写并核对申请信息；目前已保存 {count} 项回答。",
+            "completed": "申请所需信息已填写、核对并保存。"
+          }
+        },
+        "documents": {
+          "title": "上传所需材料",
+          "descriptions": {
+            "pending": "请上传护照、照片及目的地要求的证明材料；当前已完成 {ready}/{total} 份。",
+            "completed": "所需材料均已上传或通过检查，共 {ready}/{total} 份。",
+            "completedNoRequirements": "此申请无需额外上传材料，材料要求已完成。"
+          }
+        },
+        "packet": {
+          "title": "生成申请包",
+          "descriptions": {
+            "pending": "请先完成申请表和材料要求，以便 VIZA 生成申请包。",
+            "completed": "VIZA 已根据完整的申请信息和材料生成申请包。"
+          }
+        },
+        "handoff": {
+          "title": "递交官网申请",
+          "descriptions": {
+            "pending": "请先完成前置事项；VIZA 随后会将申请递交至官网。",
+            "completed": "VIZA 已将申请递交至官网。",
+            "completedWithReference": "VIZA 已将申请递交至官网，官方参考号：{reference}。"
+          }
+        },
+        "result": {
+          "title": "等待申请结果",
+          "descriptions": {
+            "pending": "申请递交后，请在这里留意官网结果和相关文件。",
+            "completed": "官网申请结果已收到，相关状态或文件已更新。"
+          }
+        }
+      },
+      "relative": {
+        "justNow": "刚刚",
+        "minutesAgo": "{count}分钟前",
+        "hoursAgo": "{count}小时前",
+        "daysAgo": "{count}天前"
+      },
+      "empty": {
+        "noApplication": "选择一个进行中的申请后，这里会显示待办事项和已完成任务。",
+        "choose": "选择申请",
+        "incomplete": "此申请目前没有待办事项。",
+        "completed": "此申请目前还没有已完成任务。"
+      }
     },
     "subscriptionPlan": {
-      "title": "管理订阅",
-      "subtitle": "查看方案、账单与续费状态",
-      "planTitle": "VIZA 体验方案",
+      "title": "VIZA 申请",
+      "subtitle": "申请方案与订阅状态",
+      "planTitle": "VIZA 申请",
       "planStatus": "体验版 · 续费暂未启用",
-      "viewPlan": "方案与价格",
-      "viewDetails": "管理订阅"
+      "viewPlan": "查看方案",
+      "viewDetails": "查看详情"
     },
     "universalInfo": {
-      "title": "完善个人资料",
-      "subtitle": "保存一次，可用于后续签证申请",
-      "saved": "{completed}/{total} 项已保存",
+      "title": "资料完整度",
+      "subtitle": "可用于当前及之后的签证申请",
+      "saved": "{total} 项资料中已完成 {completed} 项",
       "fields": "姓氏、名字、生日、出生地、护照、联系方式",
-      "edit": "继续填写资料"
+      "edit": "查看资料"
     },
     "emptyApplication": {
       "noActiveApplication": "暂无活跃申请",
@@ -113,6 +185,7 @@
     "statusLabels": {
       "draft": "草稿",
       "in_progress": "进行中",
+      "processing": "处理中",
       "submitted": "已提交",
       "approved": "已批准",
       "rejected": "已拒绝"
@@ -431,6 +504,190 @@
       }
     }
   },
+  "koreaAppointment": {
+    "locale": "zh",
+    "page": {
+      "title": "韩国签证预约",
+      "subtitle": "一次只完成一件事，我们会带你完成资料确认、官网验证和预约。",
+      "backToForm": "返回申请表"
+    },
+    "progress": {
+      "ariaLabel": "预约进度",
+      "current": "第 {current}/{total} 步",
+      "label": "第 {current}/{total} 步 · {name}",
+      "back": "返回上一步"
+    },
+    "steps": {
+      "review": "资料与领区",
+      "account": "官网验证",
+      "slots": "选择时间",
+      "confirm": "最终确认",
+      "result": "预约结果"
+    },
+    "common": {
+      "notProvided": "未提供",
+      "maskedPhone": "已登记手机号",
+      "listSeparator": "、"
+    },
+    "loading": {
+      "title": "正在读取预约状态",
+      "body": "正在准备你的预约流程…"
+    },
+    "centerLoading": {
+      "title": "正在切换递签领区",
+      "body": "我们正在根据新领区重新准备资料确认页。",
+      "status": "正在载入所选中心的规则与办理方式…"
+    },
+    "errors": {
+      "loadFailed": "暂时无法读取预约状态，请刷新页面后重试。",
+      "operationFailed": "当前操作没有完成，请稍后重试。系统尚未据此判断官网是否有可预约时间。"
+    },
+    "review": {
+      "title": "确认资料与递签领区",
+      "body": "请先核对将用于官网预约的资料。确认后，VIZA 才会连接官方预约页面。",
+      "name": "申请人英文姓名",
+      "passport": "护照号码",
+      "phone": "接收验证码的手机",
+      "recommended": "系统推荐领区",
+      "basisResidence": "根据可证明的现居住地 {province} 推荐",
+      "basisHukou": "根据户籍地 {province} 推荐",
+      "basisSelected": "这是你当前明确选择的递签中心",
+      "changeCenter": "更改领区",
+      "details": "查看领区依据与中心详情",
+      "ambiguous": "请确认该中心与你可证明的现居住地或户籍地一致。",
+      "missingTitle": "预约资料尚未完整",
+      "missingBody": "请先补齐申请人英文姓名、手机号，并确认可证明的递签领区。",
+      "edit": "修改申请资料",
+      "confirm": "确认资料并继续",
+      "confirming": "正在保存确认…",
+      "shenyang": {
+        "intro": "请补充沈阳预约所需的资料。",
+        "hint": "已解析的资料仅显示脱敏值；请核对来源。",
+        "fields": {
+          "surname": "护照英文姓",
+          "givenNames": "护照英文名",
+          "dateOfBirth": "出生日期",
+          "passportNumber": "护照号码",
+          "passportExpiryDate": "护照有效期至",
+          "mobilePhone": "中国大陆手机号"
+        },
+        "sources": {
+          "korea_form": "韩国申请表",
+          "universal_profile": "通用资料",
+          "appointment_supplement": "本页补充"
+        },
+        "validation": {
+          "required": "请填写此字段",
+          "latin_name_required": "请输入护照上的英文姓名",
+          "invalid_date": "请输入有效日期",
+          "date_in_future": "出生日期不能晚于今天",
+          "invalid_passport": "请输入有效的护照号码",
+          "passport_expired": "护照有效期必须晚于今天",
+          "invalid_mainland_phone": "请输入有效的中国大陆手机号"
+        },
+        "saveConfirm": "保存并确认资料"
+      }
+    },
+    "centerSheet": {
+      "title": "更改递签领区",
+      "description": "请选择与你可证明的现居住地或户籍地相符的中心。"
+    },
+    "account": {
+      "title": "完成官网验证",
+      "focus": "连接所选中心的官方预约页面，完成当前验证任务。",
+      "body": "资料已确认。下一步会查询所选中心的官方预约页面；找到开放时段后，官网可能发送短信验证码。",
+      "restartBody": "旧的官网会话已经结束。请重新建立会话并获取新的验证码。",
+      "start": "查询官网时间",
+      "viewMethod": "查看该中心办理方式",
+      "checking": "正在查询官网时间…",
+      "scanProgress": "正在逐月读取官方预约日历，请保持本页打开。",
+      "smsBody": "验证码已发送至 {phone}。输入后，VIZA 会在同一官方会话中继续读取时段；验证码不会保存。",
+      "expires": "验证码有效至 {time}",
+      "codeLabel": "短信验证码",
+      "codePlaceholder": "输入验证码",
+      "verify": "验证并读取时间",
+      "verifying": "正在验证…",
+      "resend": "重新发送验证码",
+      "backToCenter": "返回资料与领区",
+      "manualBody": "该中心需要按照官方指引办理，或存在必须由申请人亲自完成的账号、实名等步骤。",
+      "openOfficial": "打开官方办理入口",
+      "workerTitle": "预约查询服务暂时不可用",
+      "workerBody": "本次官网查询没有完成，因此目前无法判断是否有时段。请稍后重新查询。",
+      "retry": "重新查询官网时间"
+      ,"vfsTerms": "我授权 VIZA 使用已确认的申请资料，在 VFS Global 韩国签证预约系统创建并安全保存加密账号、勾选官网必需条款、接收账号激活邮件并登录查询沈阳时段。验证码、实名、付款和最终提交仍需我单独确认。"
+      ,"vfsStart": "创建账号并查询官网时间"
+      ,"vfsEmailTitle": "正在等待官网账号激活"
+      ,"vfsEmailBody": "VFS 已进入邮箱验证阶段。VIZA 只读取发往专用别名的官方激活邮件，不会在页面或日志中显示激活链接。"
+      ,"vfsEmailRetry": "继续验证并查询"
+    },
+    "slots": {
+      "title": "选择预约时间",
+      "body": "以下时间来自当前官方会话。选择后还需要单独授权最终提交。",
+      "choose": "选择此时间",
+      "continue": "使用这个时间继续",
+      "continuing": "正在保存所选时间…",
+      "back": "返回官网验证",
+      "refresh": "重新读取时段",
+      "emptyTitle": "暂时没有开放的预约时间",
+      "emptyBody": "官方预约日历已完成检查，但当前中心暂未开放可预约时段。你可以稍后重新查询或更改领区。",
+      "checkedAt": "官网检查时间：{time}",
+      "retry": "重新查询",
+      "checking": "正在重新查询…",
+      "changeCenter": "更改领区",
+      "viewEvidence": "查看官网现场截图"
+    },
+    "confirm": {
+      "title": "确认最终预约",
+      "body": "请只核对本次将要提交的预约信息。保存授权后，仍需再次提交官方预约。",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "递签地点",
+      "applicant": "申请人",
+      "selected": "已选择的官方时段",
+      "authorization": "我已核对日期、时间和地点，并授权 VIZA 使用该时段进行最终预约。",
+      "approve": "保存最终授权",
+      "approving": "正在保存授权…",
+      "approvedTitle": "最终授权已保存",
+      "approvedBody": "请再次点击提交，VIZA 才会在官网完成最终预约。",
+      "submit": "提交官方预约",
+      "submitting": "正在提交官方预约…",
+      "back": "返回选择时间"
+    },
+    "result": {
+      "title": "预约已确认",
+      "body": "官网确认号和预约证据已保存。请下载确认单并按时到场。",
+      "officialConfirmation": "官网预约确认",
+      "number": "官方确认号：{number}",
+      "print": "下载或打印确认单",
+      "preparingPrint": "正在准备确认单…",
+      "manage": "管理预约",
+      "cancelledTitle": "预约已取消",
+      "cancelledBody": "官网已确认取消，旧预约和取消证据已保留。你可以重新开始一条新的预约流程。",
+      "bookAgain": "重新预约",
+      "restarting": "正在创建新流程…"
+    },
+    "management": {
+      "title": "管理预约",
+      "description": "改约和取消都会先查询并核对官网记录。",
+      "reschedule": "改约",
+      "cancel": "取消预约",
+      "history": "查看历史预约记录",
+      "confirmReschedule": "确认取消旧预约后改约",
+      "confirmCancel": "确认取消当前预约",
+      "cancelWarning": "下一步会在官网提交取消并保存证据。此操作不能撤销。",
+      "sessionExpired": "原官网会话已过期，需要重新查询预约记录后再次确认。",
+      "cancelAndReschedule": "取消旧预约并继续改约",
+      "cancelling": "正在提交取消…",
+      "retryQuery": "重新查询官网预约",
+      "querying": "正在查询官网预约…",
+      "back": "返回预约详情",
+      "workerUnavailable": "官网预约记录查询没有完成，请稍后重试。",
+      "rescheduleBody": "继续后会查询旧预约，并在你再次确认后取消旧预约，再开始选择新时间。",
+      "cancelBody": "继续后会查询官网预约记录，最终取消前仍会请你确认。",
+      "continue": "继续查询官网记录",
+      "invalidRecord": "这不是有效预约，重新开始"
+    }
+  },
   "client": {
     "signing": {
       "loading": "正在加载您的声明…",
@@ -457,93 +714,83 @@
       "submitting": "正在提交…"
     }
   },
-  "services": {
-    "title": "服务",
-    "scheduled": "已预约",
-    "yourHistory": "您的历史",
-    "reschedule": "重新预约",
-    "cancel": "取消",
-    "cancelling": "取消中...",
-    "cannotReschedule": "24小时内无法重新预约",
-    "comingSoon": "即将推出",
-    "noScheduledServices": "没有已预约的服务",
-    "noScheduledDescription": "您没有即将到来的服务。浏览下方推荐的检测项目开始使用。",
-    "noServiceHistory": "没有服务历史",
-    "noHistoryDescription": "您尚未完成任何服务。您的历史记录将显示在此处。",
-    "cancelDialog": {
-      "title": "取消已预约的服务？",
-      "keep": "保留"
-    },
-    "recommended": {
-      "heading": "为您推荐",
-      "subheading": "我们的热门检测推荐"
-    },
-    "personalized": {
-      "heading": "个性化推荐",
-      "subheading": "基于您的个人资料和健康数据的检测"
-    },
-    "upcoming": {
-      "heading": "即将推出的检测",
-      "subheading": "我们正在开发的新检测项目"
-    },
-    "marketplace": {
-      "supplement": {
-        "title": "营养品商城",
-        "description": "300+精选长寿产品的内部价格"
-      },
-      "service": {
-        "title": "处方药商城",
-        "description": "获取精选处方药如药物或肽类"
-      }
-    },
-    "cards": {
-      "bloodPanel": {
-        "title": "血液检测",
-        "description": "40+项生物标志物的全面综合血液检测。",
-        "cta": "包含在您的计划中"
-      },
-      "advancedBloodPanel": {
-        "title": "高级血液检测",
-        "description": "130+项生物标志物的全面综合血液检测。",
-        "cta": "开始使用",
-        "badge": "推荐"
-      },
-      "glp1": {
-        "title": "GLP-1 治疗",
-        "description": "您可能适合接受GLP-1治疗。了解它如何帮助您。",
-        "cta": "开始使用"
-      },
-      "allergyTesting": {
-        "title": "食物和环境过敏检测",
-        "description": "确定您的特定食物和环境过敏源。",
-        "cta": "即将推出"
-      },
-      "cancerTest": {
-        "title": "Grail Galleri 多癌检测",
-        "description": "通过这项全面检测提前了解您的癌症风险。可检测超过100种癌症。",
-        "cta": "即将推出"
-      },
-      "dexaScan": {
-        "title": "DEXA 骨密度扫描",
-        "description": "测量您的骨密度和骨质疏松风险。",
-        "cta": "即将推出"
-      },
-      "gutMicrobiome": {
-        "title": "肠道微生物检测",
-        "description": "分析您的肠道微生物组以了解消化健康。",
-        "cta": "即将推出"
-      },
-      "toxicology": {
-        "title": "环境毒理学检测",
-        "description": "分析您的环境毒素和暴露情况。",
-        "cta": "即将推出"
-      }
-    }
-  },
   "application": {
     "title": "印度尼西亚旅游签证 B211A",
     "saving": "保存中...",
     "edit": "编辑",
+    "postSubmission": {
+      "title": "提交后信息",
+      "tabs": { "results": "回执与结果", "updates": "申请更新" },
+      "officialReference": "官方参考号",
+      "download": "下载",
+      "resultsEmpty": "生成或收到回执和结果文件后，会显示在这里。",
+      "updatesEmpty": "暂无可向客户展示的申请更新。"
+    },
+    "formAssistant": {
+      "title": "表单填写助手",
+      "description": "我会检查已有内容，每次只问一个问题。你可以直接在这里用文字或语音回答。",
+      "badge": "AI 助手",
+      "progressLabel": "申请填写进度",
+      "progress": "已完成 {completed} / {total} 个项目",
+      "conversationLabel": "表单填写助手对话",
+      "scrollToLatest": "跳到最新消息",
+      "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
+      "thinking": "正在检查你的申请...",
+      "missing": {
+        "title": "仍需补充的信息",
+        "required": "必填",
+        "optional": "选填"
+      },
+      "filledNotice": {
+        "message": "已填入{label}：{value}",
+        "undo": "撤回",
+        "undoing": "正在撤回...",
+        "undoFailed": "无法撤回，因为该内容可能已经被修改。"
+      },
+      "validation": {
+        "title": "答案检查",
+        "errors": "有 {count, plural, one {# 项问题需要修正} other {# 项问题需要修正}}",
+        "warnings": "有 {count, plural, one {# 项内容需要确认} other {# 项内容需要确认}}",
+        "pass": "没有发现必填错误。继续前请再检查一次表单。"
+      },
+      "reviewRepair": {
+        "jumpToOriginal": "在原表单中修改",
+        "reviewWithAssistant": "返回表单填写助手审核答案"
+      },
+      "composer": {
+        "label": "发送给表单填写助手的消息",
+        "placeholder": "在这里回答当前问题...",
+        "hint": "按 Enter 发送，按 Shift+Enter 换行。语音会先转成文字，确认后才会发送。",
+        "startRecording": "开始语音输入",
+        "stopRecording": "停止语音输入",
+        "cancelRecording": "取消",
+        "recording": "正在录音 {seconds} 秒 / 60 秒",
+        "transcribing": "正在转写录音...",
+        "send": "发送消息"
+      },
+      "errors": {
+        "unsupported": "当前浏览器不支持语音输入，你可以继续使用文字输入。",
+        "permissionDenied": "没有获得麦克风权限，你可以继续使用文字输入。",
+        "noDevice": "没有找到麦克风，你可以继续使用文字输入。",
+        "recordingFailed": "无法开始录音，请重试或输入答案。",
+        "emptyRecording": "没有录到声音，请重试或输入答案。",
+        "fileTooLarge": "录音超过 10 MB 限制，请录制更短的答案。",
+        "emptyTranscript": "没有识别到文字，请重试或输入答案。",
+        "transcriptionFailed": "录音转写失败，请重试或输入答案。",
+        "sendFailed": "消息未发送，输入内容已保留，请重试。",
+        "providersUnavailable": "AI 服务暂时不可用。答案尚未保存，输入内容已保留；你可以稍后重试，或直接在表单中填写。",
+        "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
+      },
+      "actions": {
+        "checkAnswers": "审核答案",
+        "checkAgain": "审核最终答案",
+        "checking": "正在检查答案...",
+        "acknowledgeWarnings": "保留这些答案并继续",
+        "acknowledgingWarnings": "正在保存你的确认...",
+        "goToReview": "继续审核",
+        "goToFinalReview": "进入最终审核页面"
+      }
+    },
     "findingRecentApplication": "正在打开最近的申请表单...",
     "noRecentStartedTitle": "还没有选择申请",
     "noRecentStartedBody": "请先从首页选择目的地；之后点击申请会直接回到最近开启的表单。",
@@ -590,7 +837,7 @@
     "statusHub": {
       "loading": "正在加载申请状态...",
       "loadError": "申请状态加载失败",
-      "eyebrow": "Full cycle applications",
+      "eyebrow": "申请全流程",
       "title": "申请状态中心",
       "subtitle": "这里展示每个签证申请从开始填写、材料、提交队列到官方结果的完整周期；首页仍只展示轻量表单进度。",
       "chooseDestination": "从首页选择目的地",
@@ -692,6 +939,12 @@
       "Personal Information 1": "个人信息 1",
       "Personal Information 2": "个人信息 2",
       "Personal Information II": "个人信息 II",
+      "Traveller and Passport": "旅客与护照",
+      "Arrival and Stay": "入境与停留",
+      "Immigration Declaration": "入境申报",
+      "Applicant and Passport": "申请人与护照",
+      "Travel and Accommodation": "行程与住宿",
+      "Fee and Declaration": "费用与声明",
       "Travel Information": "旅行信息",
       "Travel Companions": "同行人员",
       "Previous US Travel": "以往赴美记录",
@@ -710,8 +963,17 @@
       "Work/Education/Training: Present": "工作/教育/培训：当前",
       "Work/Education/Training: Previous": "工作/教育/培训：过往",
       "Work/Education/Training: Additional": "工作/教育/培训：补充",
+      "Work / Education / Training": "工作 / 教育 / 培训",
       "Work and Education": "工作与教育",
       "Education & Employment": "教育与就业",
+      "Kinship Information": "亲属信息",
+      "Delivery Location": "证件领取地点",
+      "Photo & Basic Status": "照片与基本信息",
+      "Applicant Identity": "申请人身份信息",
+      "Taiwan Contact Address": "台湾联系地址",
+      "Other Nationality": "其他国籍信息",
+      "Accompanying Children": "同行儿童",
+      "Travel Expenses and Insurance": "旅行费用与保险",
       "Security and Background": "安全与背景",
       "Security and Background: Part 1": "安全与背景：第1部分",
       "Security and Background: Part 2": "安全与背景：第2部分",
@@ -838,14 +1100,26 @@
       "saving": "保存中...",
       "selectFallback": "请选择…",
       "addAnother": "添加更多",
-      "remove": "删除"
+      "remove": "删除",
+      "reviewRepair": {
+        "nextIssue": "下一个问题",
+        "returnToAssistant": "返回表单填写助手"
+      }
     },
     "team": {
       "title": "团队",
       "subtitle": "如果本次申请包含同行人，可以在这里添加。每位同行人都有独立申请表，并会预填共享行程信息和常用同行人资料。",
+      "savedProfilesTitle": "已保存的出行人资料",
+      "savedProfilesSubtitle": "选择已保存在设置中的常用出行人，为其创建并审核申请。",
+      "manageProfiles": "前往设置管理",
+      "loadingProfiles": "正在加载已保存的资料...",
+      "selectProfile": "选择并审核",
+      "profileAdded": "已添加",
+      "addFirstProfile": "添加出行人资料",
       "listTitle": "同行人",
       "listSubtitle": "最终提交前，可以审核、修改或移除同行人。",
       "add": "添加同行人",
+      "addNew": "添加新出行人",
       "loading": "正在加载同行人...",
       "loadError": "暂时无法加载同行人。",
       "createError": "暂时无法创建同行人申请。",
@@ -871,8 +1145,8 @@
         "rejected": "被拒"
       },
       "dialog": {
-        "title": "添加同行人",
-        "subtitle": "选择常用同行人或输入新的同行人。自定义同行人会保存，方便下次使用。",
+        "title": "添加新出行人",
+        "subtitle": "只需填写一次，资料会保存到设置中，方便以后旅行时直接复用。",
         "tabs": {
           "frequent": "常用同行人",
           "custom": "自定义同行人"
@@ -880,7 +1154,8 @@
         "noFrequent": "还没有常用同行人。",
         "select": "选择",
         "cancel": "取消",
-        "save": "保存并审核"
+        "save": "保存并审核",
+        "errorTitle": "保存失败"
       },
       "deleteDialog": {
         "title": "移除同行人？",
@@ -892,6 +1167,37 @@
   },
   "clientStatus": {
     "eyebrow": "自动化进度",
+    "index": {
+      "title": "我的申请",
+      "subtitle": "打开任一申请继续办理，或在下方添加新的目的地。",
+      "yourApplications": "您的申请",
+      "destinationCount": "{count}",
+      "current": "当前",
+      "currentHandling": "当前办理",
+      "continue": "继续",
+      "switchTo": "切换到此申请",
+      "selectApplication": "选择申请",
+      "ongoingCount": "{count} 个进行中的申请",
+      "applicationCount": "{count} 个申请记录",
+      "switching": "切换中",
+      "switchError": "无法切换到该申请，请稍后重试。",
+      "progressAriaLabel": "申请进度",
+      "backToApplications": "全部申请",
+      "addDestination": "添加目的地",
+      "addDestinationHint": "申根目的地共用 C 类短期签证表单",
+      "searchLabel": "搜索目的地",
+      "searchPlaceholder": "搜索国家或签证类型",
+      "allRegions": "全部地区",
+      "noResultsTitle": "未找到目的地",
+      "noResultsBody": "可以尝试搜索国家名称、签证类型，或按地区浏览。",
+      "added": "已添加",
+      "start": "开始",
+      "starting": "正在打开",
+      "browse": "浏览",
+      "comingSoon": "即将开放",
+      "selectError": "无法打开该目的地，请稍后重试。",
+      "governmentFeeNote": "官方签证费由目的地政府收取并单独结算，金额因国家而异。"
+    },
     "title": "状态中心",
     "subtitle": "在一个页面查看付款、授权、表单答案、材料、申请包准备、外部交接和官方结果交付。",
     "chooseDestination": "选择其他目的地",
@@ -1021,7 +1327,7 @@
       "applicationReceipt": "申请回执",
       "paymentReceipt": "付款回执",
       "packet": "已准备申请包",
-      "arrivalCardConfirmation": "SG Arrival Card 确认 PDF（可下载打印）",
+      "arrivalCardConfirmation": "新加坡入境卡确认文件（可下载打印）",
       "approvedResult": "批准信 / 已签发签证 PDF",
       "rejectionLetter": "拒签信",
       "resultFile": "结果文件"
@@ -1033,7 +1339,7 @@
       "packet_generated": "申请包已生成",
       "external_status_updated": "外部状态已更新",
       "official_status_changed": "越南 e‑Visa 官网状态已更新",
-      "arrival_card_submitted": "SG Arrival Card 已成功提交",
+      "arrival_card_submitted": "新加坡入境卡已成功提交",
       "result_received": "已收到结果",
       "notification_sent": "通知已发送"
     }
@@ -1078,7 +1384,7 @@
       "cityOfBirthPlaceholder": "如：北京",
       "stateOfBirth": "出生省 / 州",
       "stateOfBirthPlaceholder": "如：北京",
-      "countryOfBirth": "出生国家/地区",
+      "countryOfBirth": "出生国家",
       "countryOfBirthPlaceholder": "如：中国",
       "occupation": "职业",
       "occupationPlaceholder": "如：软件工程师",
@@ -1180,6 +1486,8 @@
       "accommodation": "住宿",
       "accommodationAddress": "住宿地址",
       "reviewMessage": "提交前请仔细检查您的信息。",
+      "missingInformation": "缺失信息",
+      "notProvided": "未填写",
       "confirmAndSubmit": "确认并提交",
       "continueToTeam": "继续到团队",
       "validation": {
@@ -1300,11 +1608,11 @@
       "1": "联系方式",
       "2": "护照",
       "3": "行程",
-      "usStay": "在美住宿",
-      "usContact": "美国联系人",
       "4": "家庭",
       "5": "背景",
-      "6": "工作与教育"
+      "6": "工作与教育",
+      "usStay": "在美住宿",
+      "usContact": "美国联系人"
     },
     "common": {
       "continue": "继续",
@@ -1379,13 +1687,13 @@
       "gender": "性别",
       "male": "男",
       "female": "女",
-      "countryOfBirth": "出生国家/地区",
+      "countryOfBirth": "出生国家",
       "countryOfBirthPlaceholder": "选择国家",
       "cityOfBirth": "出生城市",
       "cityOfBirthPlaceholder": "例如:上海",
       "stateOfBirth": "出生州/省",
       "stateOfBirthPlaceholder": "例如 广东省",
-      "noStateProvince": "我的出生国家/地区没有州/省",
+      "noStateProvince": "我的出生国家没有州/省",
       "nationality": "国籍",
       "nationalityPlaceholder": "选择国籍",
       "maritalStatus": "婚姻状况",
@@ -1422,7 +1730,7 @@
       "spouseDob": "配偶出生日期",
       "spouseNationality": "配偶国籍",
       "spouseCityOfBirth": "配偶出生城市",
-      "spouseCountryOfBirth": "配偶出生国家/地区"
+      "spouseCountryOfBirth": "配偶出生国家"
     },
     "contact": {
       "title": "领事馆如何联系您?",
@@ -1508,7 +1816,7 @@
       "extraItinPlaceholder": "9XX-XX-XXXX",
       "extraItinHint": "IRS 签发的税务号码 — 仅在您之前报过美国税的情况下填写。",
       "nationalIdSectionTitle": "国民身份证明",
-      "nationalIdInputLabel": "Resident ID Number (身份证号)",
+      "nationalIdInputLabel": "居民身份证号码",
       "nationalIdHelp": "您的18位中国居民身份证号码。",
       "nationalIdPlaceholderLong": "e.g. 110101199001011234",
       "nationalIdNone": "我没有",
@@ -1889,7 +2197,7 @@
       "nationality": "国籍",
       "cityOfBirth": "出生城市",
       "cityOfBirthPlaceholder": "例如 北京",
-      "countryOfBirth": "出生国家/地区",
+      "countryOfBirth": "出生国家",
       "countryPlaceholder": "选择",
       "datePlaceholder": "选择日期",
       "spouseAddressType": "配偶地址类型",
@@ -2349,7 +2657,7 @@
         "givenNames": "名 (Given names)",
         "dob": "出生日期",
         "placeOfBirth": "出生地 (城市/地区)",
-        "countryOfBirth": "出生国家/地区",
+        "countryOfBirth": "出生国家",
         "nationality": "现国籍",
         "nationalityAtBirth": "出生时国籍 (如不同)",
         "nationalIdNumber": "身份证号码",
@@ -2516,7 +2824,7 @@
         "tripDates": {
           "label": "日期",
           "title": "赴英时间",
-          "subtitle": "Standard Visitor 单次最多停留 6 个月。"
+          "subtitle": "标准访客签证单次最多停留 6 个月。"
         },
         "uk_address": {
           "label": "英国住址",
@@ -2551,7 +2859,7 @@
       },
       "review": {
         "label": "审核",
-        "title": "审核您的 UK Standard Visitor 答案",
+        "title": "审核您的英国标准访客签证答案",
         "subtitle": "提交前可编辑修正。",
         "purpose": "目的",
         "personal": "个人",
@@ -2580,7 +2888,7 @@
         "sex": "性别",
         "nationality": "国籍",
         "hasOtherNationalities": "是否持有其他国籍?",
-        "countryOfBirth": "出生国家/地区",
+        "countryOfBirth": "出生国家",
         "placeOfBirth": "出生城市",
         "placeOfBirthPlaceholder": "如 Manchester",
         "maritalStatus": "婚姻状况",
@@ -2797,7 +3105,7 @@
         "sex": "性别",
         "nationality": "国籍",
         "nationalityAtBirth": "出生时国籍",
-        "countryOfBirth": "出生国家/地区",
+        "countryOfBirth": "出生国家",
         "placeOfBirth": "出生地",
         "nationalIdNumber": "身份证号",
         "religion": "宗教",
@@ -2928,8 +3236,8 @@
       "steps": {
         "stream": {
           "label": "类别",
-          "title": "600 类下哪个 stream?",
-          "subtitle": "选择最贴合您出行目的的 stream。"
+          "title": "选择 600 类签证类别",
+          "subtitle": "选择最符合您出行目的的签证类别。"
         },
         "personal": {
           "label": "个人",
@@ -2954,7 +3262,7 @@
         "tripDates": {
           "label": "日期",
           "title": "赴澳时间",
-          "subtitle": "600 类各 stream 单次停留可达 3、6 或 12 个月。"
+          "subtitle": "600 类各签证类别单次停留可达 3、6 或 12 个月。"
         },
         "visit": {
           "label": "访问",
@@ -3015,7 +3323,7 @@
         "dob": "出生日期",
         "sex": "性别",
         "nationality": "国籍",
-        "countryOfBirth": "出生国家/地区",
+        "countryOfBirth": "出生国家",
         "placeOfBirth": "出生城市",
         "relationshipStatus": "婚姻状况",
         "hasNationalId": "是否有身份证?",
@@ -3250,6 +3558,8 @@
         "employerAddress": "雇主或学校地址",
         "employerPhone": "雇主或学校电话",
         "purposeOfVisit": "访问目的",
+        "arrivalDate": "到达日期",
+        "departureDate": "离境日期",
         "intendedArrivalDate": "预计到达日期",
         "intendedLengthOfStay": "预计停留时长",
         "portOfEntry": "入境口岸",
@@ -3316,7 +3626,9 @@
           "other": "其他"
         },
         "purpose": {
-          "tourism": "旅游"
+          "tourism": "旅游",
+          "businessMeeting": "商务会议",
+          "transit": "过境"
         },
         "idAccommodation": {
           "hotel": "酒店",
@@ -3667,6 +3979,27 @@
     "searchPlaceholder": "搜索聊天...",
     "noResults": "未找到结果",
     "sessionHistory": "会话历史",
+    "sessionPanelTitle": "签证对话",
+    "sessionRecent": "最近",
+    "sessionNew": "新聊天",
+    "sessionUntitled": "新对话",
+    "sessionCollapse": "收起对话列表",
+    "sessionExpand": "打开对话列表",
+    "sessionClose": "关闭对话列表",
+    "sessionRename": "重命名“{title}”",
+    "sessionDelete": "删除“{title}”",
+    "sessionTitleInput": "对话标题",
+    "sessionSave": "保存",
+    "sessionCancel": "取消",
+    "sessionDeleteConfirm": "删除这个对话？",
+    "sessionConfirmDelete": "确认删除“{title}”",
+    "sessionCancelDelete": "取消删除",
+    "sessionDeleted": "对话已删除",
+    "sessionRenameFailed": "无法重命名对话",
+    "sessionRenamed": "对话已重命名",
+    "sessionTitleCleared": "对话标题已清除",
+    "sessionDeleteFailed": "无法删除对话",
+    "sessionWaitForResponse": "请等待当前回复完成",
     "noConversations": "暂无对话",
     "chatWith": "与",
     "vizaAI": "签证顾问",
@@ -3682,9 +4015,40 @@
     "supportDescription": "复杂问题和客户服务",
     "supportResponseTime": "工作日<24小时",
     "newChatGreeting": "您好！我是 VIZA，您的签证助手。告诉我目的地、国籍、出行目的和计划停留时间，我会帮您判断合适的签证路线。",
+    "emptyPromptTitle": "今天想了解哪项签证？",
+    "starterRoute": "帮我判断合适的签证",
+    "starterDocuments": "查看所需申请材料",
+    "starterTiming": "估算签证处理时间",
     "inputPlaceholder": "询问关于您的签证申请...",
+    "memoryTitle": "本聊天记忆",
+    "memoryPassport": "护照",
+    "memoryResidence": "居住地",
+    "memoryDestination": "目的地",
+    "memoryPurpose": "出行目的",
+    "memoryPurposeTourism": "旅游",
+    "memoryPurposeBusiness": "商务",
+    "memoryPurposeFamilyVisit": "探亲",
+    "memoryPurposeVisit": "探亲访友",
+    "memoryPurposeTransit": "过境",
+    "memoryPurposeStudy": "学习",
+    "memoryPurposeWork": "工作",
+    "memoryPurposeMedical": "医疗",
+    "memoryDays": "天数",
+    "memoryEmpty": "本聊天暂未确认身份或行程信息",
+    "memoryEdit": "编辑聊天记忆",
+    "memoryCancel": "取消编辑",
+    "memorySave": "保存",
+    "memoryClear": "清空本聊天记忆",
+    "memorySavePassport": "保存护照信息到个人资料",
+    "memorySavePassportConfirm": "确认把当前护照国家保存到账号个人资料吗？",
+    "memorySaved": "聊天记忆已保存",
+    "memoryCleared": "本聊天记忆已清空",
+    "memoryPassportSaved": "护照信息已保存到个人资料",
+    "memoryConflict": "编辑期间记忆已更新，现已显示最新版本。",
+    "memorySaveFailed": "无法保存聊天记忆",
     "supportComingSoon": "支持团队聊天即将推出",
-    "connectionReconnecting": "连接问题 - 正在重新连接...",
+    "connectionReconnecting": "正在恢复连接…",
+    "connectionUnavailable": "暂时无法连接签证顾问，请稍后重试",
     "connectedSending": "已连接 - 正在发送排队消息",
     "agentNotified": "您的签证顾问已收到此对话通知",
     "failedToStart": "无法开始对话",
@@ -3693,7 +4057,7 @@
   "inviteFriends": {
     "heroTitle": "邀请您的朋友",
     "heroSubtitle": "赚取 VIZA 积分",
-    "referHeading": "分享 referral code，赚取 99 积分",
+    "referHeading": "分享推荐码，赚取 99 积分",
     "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
     "referralCode": "Referral code",
     "loadingLink": "正在加载您的 code...",
@@ -3719,7 +4083,7 @@
     "howItWorks": "如何运作",
     "steps": {
       "share": {
-        "title": "分享您的 referral code",
+        "title": "分享您的推荐码",
         "description": "邀请朋友使用您的专属 code 加入 VIZA。"
       },
       "give": {
@@ -3772,20 +4136,25 @@
       "fallbackName": "VIZA 申请人",
       "editDetails": "编辑资料",
       "completion": "通用资料完整度",
-      "completionHint": "提前补全一次，后续签证表单会优先自动预填。"
+      "completionHint": "提前补全一次，后续签证表单会优先自动预填。",
+      "universalTitle": "通用资料",
+      "universalDescription": "只需保存一次常用个人信息，后续填写签证申请会更快捷。",
+      "complete": "已完成 {percent}%",
+      "reviewProfile": "查看通用资料"
     },
     "quickSnapshot": {
       "label": "账户概览",
-      "passport": "护照",
+      "email": "邮箱",
+      "passport": "护照号码",
       "phone": "手机号",
-      "payment": "付款",
+      "payment": "付款方式",
       "notSet": "未设置"
     },
     "pointsCenter": {
       "eyebrow": "积分中心",
       "title": "VIZA 积分",
       "totalLabel": "当前积分总额",
-      "referralRule": "新用户注册时使用您的 referral code 后，两边账号各获得 99 积分。",
+      "referralRule": "新用户注册时使用您的推荐码后，两边账号各获得 99 积分。",
       "purchaseRule": "每实际消费 100 元人民币可获得 100 VIZA 积分，付款确认后会自动计入当前积分总额。",
       "lifetimeEarned": "累计获得",
       "lifetimeSpent": "累计使用",
@@ -3798,11 +4167,7 @@
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
           "description": "1000 积分可兑换一次入境卡免费提交服务。",
-          "countries": [
-            "新加坡",
-            "马来西亚",
-            "泰国"
-          ]
+          "countries": ["新加坡", "马来西亚", "泰国"]
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",
@@ -4009,7 +4374,7 @@
         "surname": "姓氏 / Surname",
         "givenNames": "名字 / Given names",
         "dateOfBirth": "出生日期 / Date of birth",
-        "birthCountry": "出生国家/地区 / Country/Region of birth",
+        "birthCountry": "出生国家 / Country of birth",
         "birthProvinceOrState": "出生省/州 / State/Province of birth",
         "birthCity": "出生城市 / City of birth",
         "gender": "性别 / Gender",
@@ -4032,8 +4397,8 @@
         "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "选择出生日期",
         "dateOfBirthEn": "Select date of birth",
-        "birthCountryZh": "选择出生国家/地区...",
-        "birthCountryEn": "Select country/region of birth...",
+        "birthCountryZh": "选择出生国家...",
+        "birthCountryEn": "Select country of birth...",
         "birthProvinceOrStateZh": "如：湖南",
         "birthProvinceOrStateEn": "For example: Hunan",
         "birthCityZh": "如：长沙",
@@ -4167,7 +4532,7 @@
     },
     "actions": {
       "faqs": {
-        "title": "浏览 FAQ",
+        "title": "浏览常见问题",
         "description": "阅读帮助中心文章和指南。"
       },
       "requests": {
@@ -4253,7 +4618,7 @@
         "description": "邀请朋友并追踪您的奖励。"
       },
       "payments": {
-        "title": "付款和积分",
+        "title": "付款和 VIZA 积分",
         "description": "查看交易、积分和收据。"
       }
     },
@@ -4263,13 +4628,7 @@
         "title": "入门",
         "completeProfile": "完善您的个人资料",
         "addPayment": "添加付款方式",
-        "exploreServices": "探索服务"
-      },
-      "usingCredits": {
-        "title": "使用您的积分",
-        "whereApply": "积分适用范围",
-        "expiration": "过期规则",
-        "troubleshooting": "故障排除"
+        "exploreServices": "探索 VIZA"
       },
       "privacy": {
         "title": "隐私和安全",
@@ -4287,21 +4646,9 @@
         "question": "如何重置密码？",
         "answer": "前往设置，打开安全部分重置密码。输入当前密码，然后两次输入新密码确认。更改立即生效。"
       },
-      "seeCredits": {
-        "question": "在哪里查看积分？",
-        "answer": "积分显示在设置页面的账单部分，也会在您确认购买前的结账页面显示。"
-      },
       "referrals": {
         "question": "推荐如何运作？",
-        "answer": "从推荐朋友页面分享您的专属推荐链接。当朋友注册并完成首次购买后，你们各自将获得 ₱9,999 积分用于VIZA服务。"
-      },
-      "bookBloodTest": {
-        "question": "如何预约血液检测？",
-        "answer": "导航到服务标签，选择符合您目标的血液检测。按照预约流程选择日期和时间。您可以在已预约标签中查看和管理即将到来的预约。"
-      },
-      "labResults": {
-        "question": "何时收到实验室结果？",
-        "answer": "结果通常在抽血后3-5个工作日内可用。报告准备好后您会收到通知，可在数据标签中查看。"
+        "answer": "在“推荐好友”页面分享您的专属链接。满足推荐条件后，可用奖励会显示在 Points Center。"
       },
       "updateInfo": {
         "question": "如何更新个人信息？",
@@ -4311,13 +4658,9 @@
         "question": "如何添加或更新付款方式？",
         "answer": "账单和付款方式管理目前由线下处理。请联系我们的客服团队更新您的账单信息。"
       },
-      "cancelReschedule": {
-        "question": "可以取消或重新预约已预定的服务吗？",
-        "answer": "可以。打开服务标签，进入已预约预约。选择您要管理的预约，按提示重新预约或取消。"
-      },
       "dataPrivate": {
-        "question": "我的健康数据是否保密？",
-        "answer": "是的。您的健康数据被安全存储，仅您和您的指定医疗团队可以访问。我们绝不会将个人健康信息出售给第三方。"
+        "question": "我的申请数据是否保密？",
+        "answer": "您的申请数据受到保护，仅您本人、获授权的 VIZA 工作人员以及完成所请求签证服务所必需的服务提供商可以访问。"
       },
       "contactSupport": {
         "question": "如何联系客服？",
@@ -4351,7 +4694,8 @@
       "invalidCredentials": "邮箱或密码不正确，请重新输入。",
       "tooManyRequests": "尝试次数过多，请稍后再试。",
       "requestTimedOut": "登录服务响应较慢，请重试。",
-      "providerUnavailable": "Supabase 登录服务暂时不可用。未提交你的登录信息，请稍后重试。",
+      "providerUnavailable": "登录服务暂时不可用，请稍后重试或使用邮箱验证码登录。",
+      "continuityOtpSent": "登录服务正在恢复，我们已向您的邮箱发送独立的 VIZA 登录验证码。",
       "unexpectedError": "发生意外错误。请重试。",
       "failedToResend": "重新发送验证码失败。",
       "checkEmail": "查看您的邮箱",
@@ -4368,7 +4712,6 @@
       "subtitle": "输入电子邮件，开始设置您的 VIZA 账户。",
       "emailPlaceholder": "输入您的电子邮件",
       "referralCodePlaceholder": "Referral code（选填）",
-      "referralCodeHint": "新用户注册时填写 referral code，两边账号各获得 99 积分。",
       "invalidEmail": "请输入有效的电子邮件地址。",
       "submitting": "提交中...",
       "continueToPassword": "继续",
@@ -4509,146 +4852,6 @@
       "singapore": "新加坡"
     }
   },
-  "terms": {
-    "title": "服务条款",
-    "subtitle": "管理您使用我们平台的规则和指南。",
-    "sections": {
-      "acceptance": {
-        "title": "接受条款",
-        "p1": "访问或使用 VIZA 平台即表示您同意受这些服务条款的约束。如果您不同意这些条款，请不要使用我们的服务。",
-        "p2": "这些条款适用于平台的所有用户，包括患者、注册会员以及访问我们服务的任何访客。"
-      },
-      "services": {
-        "title": "我们的服务",
-        "intro": "VIZA 提供远程医疗平台，将患者与持证医疗专业人员连接起来，提供咨询、实验室预约、健康评估和相关健康服务。",
-        "item1": "与持证医生进行在线医疗咨询。",
-        "item2": "血液检测预约和实验室结果交付。",
-        "item3": "通过服务市场购买营养品和产品。",
-        "item4": "个性化行动计划和健康建议。",
-        "item5": "为您的健康之旅提供礼宾支持。",
-        "disclaimer": "我们的平台不能替代紧急医疗护理。如果您正在经历医疗紧急情况，请立即联系当地紧急服务。"
-      },
-      "eligibility": {
-        "title": "资格",
-        "intro": "要使用我们的服务，您必须：",
-        "item1": "年满18岁，或获得父母或监护人的同意。",
-        "item2": "注册时提供准确、最新和完整的信息。",
-        "item3": "维护您的账户凭证安全。",
-        "item4": "居住在我们提供服务的地区。"
-      },
-      "responsibilities": {
-        "title": "用户责任",
-        "intro": "使用我们的平台时，您同意：",
-        "item1": "在咨询和问卷中提供真实和完整的健康信息。",
-        "item2": "负责任地遵循我们持证专业人员提供的医疗建议。",
-        "item3": "不与任何其他人共享您的账户凭证。",
-        "item4": "不将平台用于任何非法或未经授权的目的。",
-        "item5": "如果您怀疑有任何未经授权的账户访问，请立即通知我们。"
-      },
-      "visa": {
-        "title": "医疗免责声明",
-        "p1": "我们平台上的医疗服务由独立持证医师和医疗保健专业人员提供。VIZA 促进您获得这些专业人员的服务，但本身不从事医疗实践。",
-        "p2": "通过我们平台提供的健康信息仅供参考，不能替代专业医疗建议、诊断或治疗。如有任何疑问，请咨询您的医生或其他合格的医疗保健提供者。"
-      },
-      "payments": {
-        "title": "付款和积分",
-        "p1": "在我们的平台上进行购买即表示您授权我们通过您选择的付款方式收取适用费用。所有价格以菲律宾比索（PHP）显示。",
-        "p2": "通过推荐或促销获得的积分没有现金价值，不可转让。",
-        "p3": "退款受我们的退款政策和适用的菲律宾消费者保护法约束。",
-        "p4": "订阅费用（如有）预先计费，除法律要求外不可退款。"
-      },
-      "ip": {
-        "title": "知识产权",
-        "p1": "VIZA 平台上的所有内容、功能和操作——包括文本、图形、标识和软件——均为 VIZA 的专有财产，受适用知识产权法保护。未经我们明确书面许可，您不得复制、分发或创建衍生作品。"
-      },
-      "liability": {
-        "title": "责任限制",
-        "p1": "在法律允许的最大范围内，VIZA 不对因您使用或无法使用我们的服务而产生的任何间接、附带、特殊、后果性或惩罚性损害承担责任。我们对您因这些条款产生的任何索赔的总责任不超过您在索赔前十二个月内向我们支付的金额。"
-      },
-      "termination": {
-        "title": "终止",
-        "p1": "我们保留自行决定暂停或终止您访问平台的权利，恕不另行通知，原因包括我们认为违反这些服务条款或对其他用户、我们或第三方有害的行为。",
-        "p2": "您可以随时通过联系我们的客服团队关闭您的账户。终止不影响在终止日期之前产生的任何权利或义务。"
-      },
-      "changes": {
-        "title": "条款变更",
-        "p1": "我们可能会不时更新这些服务条款。我们将通过在此页面上发布更新后的条款来通知您重大变更。在变更生效后继续使用我们的平台即表示您接受修订后的条款。"
-      },
-      "law": {
-        "title": "管辖法律",
-        "p1": "这些服务条款受菲律宾共和国法律管辖并据此解释。因这些条款产生的任何争议应受菲律宾法院的专属管辖。"
-      },
-      "contact": {
-        "title": "联系我们",
-        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.it.com。"
-      }
-    }
-  },
-  "privacy": {
-    "title": "隐私政策",
-    "subtitle": "我们如何收集、使用和保护您的个人信息。",
-    "sections": {
-      "introduction": {
-        "title": "简介",
-        "p1": "VIZA（“我们”）致力于保护您的隐私。本隐私政策说明了当您使用我们的平台和相关服务时，我们如何收集、使用、披露和保护您的信息。",
-        "p2": "访问或使用我们的服务即表示您同意按照本政策收集和使用信息。请在使用我们的平台之前仔细阅读。"
-      },
-      "collect": {
-        "title": "我们收集的信息",
-        "intro": "我们收集您直接提供给我们的信息以及通过您使用我们服务生成的信息。",
-        "item1": "个人标识信息，如您的姓名、电子邮件地址、电话号码和出生日期。",
-        "item2": "健康和医疗信息，包括实验室结果、生命体征、病史、过敏史和当前用药。",
-        "item3": "通过我们的支付提供商安全处理的付款信息。",
-        "item4": "您与我们医疗团队之间的通信，包括咨询记录和消息。",
-        "item5": "设备和使用数据，如IP地址、浏览器类型和访问的页面。"
-      },
-      "use": {
-        "title": "我们如何使用您的信息",
-        "intro": "我们使用收集的信息来提供和改进我们的服务，包括：",
-        "item1": "提供远程医疗咨询、实验室预约和处方服务。",
-        "item2": "就您的健康、预约和订单与您沟通。",
-        "item3": "通过我们的平台处理付款和履行订单。",
-        "item4": "提高我们健康评估的准确性和质量。",
-        "item5": "遵守适用的法律、法规和医疗标准。",
-        "noSell": "我们绝不会将您的个人或健康信息出售给第三方用于营销目的。"
-      },
-      "sharing": {
-        "title": "信息共享",
-        "intro": "我们仅在以下有限情况下共享您的信息：",
-        "item1": "与参与您护理的持证医疗专业人员。",
-        "item2": "与履行您订单所需的可信服务提供商（如实验室、药房）。",
-        "item3": "与支付处理商安全完成交易。",
-        "item4": "法律、法院命令或适用法规要求时。",
-        "item5": "经您明确同意用于任何其他目的。"
-      },
-      "security": {
-        "title": "数据安全",
-        "p1": "我们实施行业标准的安全措施，以保护您的信息免受未经授权的访问、更改、披露或销毁。这些措施包括传输和存储加密、基于角色的访问控制以及定期安全审查。",
-        "p2": "虽然我们采取了所有合理的预防措施，但没有任何互联网传输方法是100%安全的。我们建议您保护好您的账户凭证，如果您怀疑有未经授权的访问，请立即通知我们。"
-      },
-      "rights": {
-        "title": "您的权利",
-        "intro": "您对您的个人信息享有以下权利：",
-        "access": "访问：请求获取我们持有的关于您的个人信息副本。",
-        "correction": "更正：请求更正不准确或不完整的信息。",
-        "deletion": "删除：请求删除您的个人信息，但须遵守法律和医疗记录保留义务。",
-        "portability": "可携带性：在适用的情况下，请求以机器可读格式获取您的数据。",
-        "withdrawal": "撤回同意：随时撤回对非必要数据处理的同意。"
-      },
-      "retention": {
-        "title": "数据保留",
-        "p1": "我们保留您的个人和健康信息，只要提供我们的服务和遵守适用法律所必需。医疗记录可能按照菲律宾医疗法规的要求保留最低期限。"
-      },
-      "changes": {
-        "title": "政策变更",
-        "p1": "我们可能会不时更新本隐私政策。我们将通过在此页面上发布新政策并更新生效日期来通知您任何重大变更。我们建议您定期查看本政策。"
-      },
-      "contact": {
-        "title": "联系我们",
-        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.it.com。"
-      }
-    }
-  },
   "subscriptionManagement": {
     "back": "返回设置",
     "eyebrow": "订阅方案",
@@ -4679,7 +4882,7 @@
   },
   "subscription": {
     "back": "返回首页",
-    "eyebrow": "VIZA Application",
+    "eyebrow": "VIZA 申请方案",
     "title": "选择适合你的 VIZA 申请方式",
     "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，点击在线付后再选择银行卡、微信支付或支付宝。",
     "current": {
@@ -4817,7 +5020,7 @@
     },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
-    "dryRunNoticeTitle": "受控 assisted-live",
+    "dryRunNoticeTitle": "受控实时协助",
     "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
     "cloud": {
       "title": "云端自动化状态",
@@ -5094,9 +5297,11 @@
       "sendToAccountEmail": "发送到绑定邮箱",
       "sendToCustomEmail": "发送到其他邮箱",
       "customEmailPlaceholder": "输入其他收件邮箱",
-      "newApplication": "重新提交新的申请表",
-      "startingNewApplication": "正在创建新提交任务",
-      "newApplicationError": "创建新提交任务失败",
+      "newApplication": "重新申请并填写表单",
+      "startingNewApplication": "正在创建新的申请草稿",
+      "newApplicationError": "创建新的申请草稿失败",
+      "continueAutomaticSubmission": "继续自动提交",
+      "continuingAutomaticSubmission": "正在启动自动提交",
       "applicationId": "Application ID",
       "surnameFirst5": "姓氏前 5 个字母",
       "yearOfBirth": "出生年份",
@@ -5147,9 +5352,23 @@
       "phone": "手机号码",
       "email": "个人邮箱",
       "address": "现居住地址",
+      "franceVisasReference": "France-Visas 官方申请编号",
       "center": "TLScontact 签证中心",
       "missing": "尚未填写",
-      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 继续进入 TLScontact 官网账号流程。选择名额、付款授权和最终预约仍需分别确认。",
+      "missingFieldsTitle": "仍需补充资料",
+      "missingFieldsBody": "开始 TLScontact 流程前，请先在申请表补充以下字段：",
+      "missingFieldLabels": {
+        "fullName": "护照英文姓名",
+        "dateOfBirth": "出生日期",
+        "nationality": "国籍",
+        "passportNumber": "护照号码",
+        "passportExpiryDate": "护照有效期至",
+        "phone": "手机号码",
+        "email": "个人邮箱",
+        "address": "现居住地址",
+        "franceVisasReference": "France-Visas 官方申请编号"
+      },
+      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 准备 TLScontact 账号及只读观察名额。本里程碑不开放选位、付款或预约。",
       "edit": "修改申请资料",
       "confirmAndContinue": "确认资料无误并继续"
     },
@@ -5165,7 +5384,7 @@
       "portal": "已观察 TLS 日历",
       "preSubmit": "已到最终提交前",
       "stopTitle": "官网最终按钮受保护",
-      "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+      "stopBody": "VIZA 会停在选位、付款及所有官网预约动作之前。本里程碑持续关闭这些动作；仅打开本页也不会启动任务或提交预约。"
     },
     "requirements": {
       "title": "请按顺序完成以下步骤",
@@ -5174,7 +5393,7 @@
       "officialCheckBody": "官网当前要求邮箱、密码及密码确认、必须接受的法律条款和 reCAPTCHA。邮件、电话、短信及推送营销同意均为可选项，注册不需要勾选。",
       "openApplication": "返回申请表复核资料",
       "userInputTitle": "您需要在 VIZA 填写什么",
-      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件；之后由您选择官网名额并批准费用与最终预约。",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件，并在观察到名额结果后停止。",
       "states": {
         "ready": "已就绪",
         "review": "请复核一次",
@@ -5202,11 +5421,11 @@
         },
         "calendar": {
           "title": "读取日历并复核服务费",
-          "body": "VIZA 读取官网名额，不替您选择。您选择一个已观察到的时段并授权所需 TLS 服务费；3DS 或银行验证仍由您完成。"
+          "body": "VIZA 只读观察官网名额，不进行选择。本里程碑在展示当前名额或官网明确无号结果后停止。"
         },
         "booking": {
           "title": "批准最终预约",
-          "body": "复核中心、日期、时间与缴费状态。只有您明确最终批准后，VIZA 才能点击官网预约按钮并记录官方确认凭证。"
+          "body": "选位、服务费支付和官网预约按钮在后续里程碑完成验证前保持不可用。"
         }
       }
     },
@@ -5282,11 +5501,11 @@
     "consent": {
       "title": "授权与边界",
       "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
-      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
-      "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA 和只读名额观察。本里程碑不开放选位、付款或最终预约。",
+      "checkbox": "我授权 VIZA 为本法国申根申请准备 TLScontact 中国账号并执行只读名额观察。"
     },
     "account": {
-      "title": "VIZA Alias 与 TLS 账号",
+      "title": "VIZA 别名邮箱与 TLS 账号",
       "alias": "Alias 邮箱",
       "status": "官网账号状态",
       "verification": "邮箱验证",
@@ -5300,7 +5519,7 @@
       "body": "TLScontact 要求复核后才能继续自动流程。"
     },
     "panel": {
-      "title": "预约 runner",
+      "title": "预约执行器",
       "progressTitle": "预约进度",
       "stepComplete": "已完成",
       "stepPending": "待完成",
@@ -5324,7 +5543,10 @@
       "datePending": "日期待定",
       "timePending": "时间待定",
       "locationPending": "地点待定",
-      "slotLine": "{date} {time}"
+      "slotLine": "{date} {time}",
+      "observedOnly": "VIZA 已观察",
+      "liveObservationTitle": "仅限实时只读观察",
+      "liveObservationBody": "这些是 TLScontact 当前且尚未过期的真实观察结果。选位、付款和最终预约会在后续验证里程碑前保持关闭。"
     },
     "payment": {
       "title": "一次性 TLS 服务费授权",
@@ -5357,7 +5579,7 @@
     },
     "nextStepCard": {
       "title": "下一步：TLS 预约",
-      "body": "继续进入 TLScontact 中国预约设置，保留用户触发名额检查、明确选位、一次性支付授权和最终批准。",
+      "body": "继续准备 TLScontact 中国账号并由用户触发只读名额检查；选位、付款和预约保持关闭。",
       "button": "打开 TLS 预约助手",
       "badge": "TLScontact 中国"
     }
@@ -5371,24 +5593,195 @@
     "select": "请选择",
     "yes": "可用",
     "no": "不可用",
-    "steps": { "label": "预约进度", "review": "资料确认", "account": "官方网站", "slots": "选择时段", "confirm": "确认预约", "result": "预约结果" },
-    "review": { "title": "核对申请人与递交信息", "englishName": "护照英文姓名", "dateOfBirth": "出生日期", "nationality": "国籍", "passport": "护照号码", "passportExpiry": "护照到期日", "phone": "手机号", "email": "个人邮箱", "address": "居住地址", "center": "预约中心", "notProvided": "尚未提供", "edit": "编辑申请资料" },
-    "account": { "title": "官方网站检查点", "mobileAlreadyRegisteredTitle": "该手机号已绑定其他 VFS 账号", "mobileAlreadyRegisteredBody": "官网注册表已接受全部字段并通过 Turnstile，但随后提示该手机号已经注册。继续登录需要提供原 VFS 账号邮箱；或者更换一个可接收新 VFS 验证码的手机号。" },
-    "free": { "title": "仅自动化公开网站", "body": "本模式只使用一个云端浏览器会话访问 VFS 官方公开入口并保存脱敏证据；遇到账号创建或登录边界即停止，无法读取受保护的预约名额。" },
-    "eligibility": { "title": "1. 申请资格", "visaType": "签证请求", "occupation": "职业状态", "passType": "新加坡长期准证", "passExpiry": "准证到期日", "returnDate": "预计返回新加坡日期", "pass": "资格通过", "incomplete": "待补充", "passBody": "新加坡当地递交的基础资格检查已通过。", "incompleteBody": "请提供覆盖返回日期的有效长期准证。" },
-    "visaTypes": { "single_entry": "单次入境", "double_entry": "双次入境", "multiple_entry": "多次入境" },
-    "occupations": { "employed": "受雇", "self_employed": "企业主／自雇", "student": "学生", "retired": "退休", "housewife": "家庭主妇／主夫", "unemployed": "待业" },
-    "passTypes": { "pr": "永久居民 PR", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
-    "documents": { "title": "2. 材料预检", "body": "选择通用资料中最近保存的证件照，或为本次申请更换照片。", "manage": "打开材料中心", "passportStored": "VIZA 已存储护照", "photoStored": "已选择证件照", "profilePhotoTitle": "通用资料证件照", "profilePhotoSelected": "已为本次日本申请选择通用资料证件照；如需使用其他照片，请点击更换。", "profilePhotoLoading": "正在选择最近保存的通用证件照…", "profilePhotoMissing": "通用资料中没有可复用证件照，请上传后继续。", "useProfilePhoto": "使用通用资料证件照", "replaceProfilePhoto": "更换证件照", "noProfilePhoto": "通用资料中尚未保存证件照，请在下方上传。", "photoUploadFailed": "证件照上传失败。请使用 JPG、PNG 或 WebP 图片后重试。", "profileIncomplete": "申请资料尚未完整", "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。" },
-    "workflow": { "title": "3. 网站自动化", "consent": "我确认信息真实，并授权 VIZA 打开和检查日本 VFS 新加坡官方公开入口。本授权不包含创建账号、发送短信或邮件、登录、读取受保护名额、付款或预约。", "saving": "正在保存…", "saveConsent": "记录授权", "consentRecorded": "授权已记录", "consentRecordedBody": "后端已为当前申请保存公开网站自动化授权。", "creating": "正在启动…", "create": "开始网站自动化", "restart": "重新开始", "restartTitle": "自动化已取消", "restartBody": "核对最新资料后，可以重新开始公开网站检查。", "checking": "正在检查…", "check": "运行 VFS 公开入口检查", "publicOnlyTitle": "账号创建已关闭", "publicOnlyBody": "Worker 只能打开 VFS 公开入口并保存脱敏证据；遇到登录或安全边界即停止。", "aliasReady": "账号创建已关闭", "aliasBody": "公开网站模式不会创建 VFS alias 或账号。", "openOfficial": "打开官方 VFS", "cancel": "取消自动化" },
-    "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "entryClick": "已点击 Book now", "replay": "Browserbase 回放" },
-    "checkpoints": { "login": "需要官方登录", "existing_mobile_account": "需要已有 VFS 账号资料", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "slot_selection": "请选择预约时间", "payment": "需要官网付款", "site_policy_review": "官方政策检查点" },
-    "checkpointBodies": { "login": "VFS 官方公开入口已成功渲染并到达登录边界。账号创建已关闭，因此自动化按预期停在这里。", "existing_mobile_account": "VFS 已确认所填手机号已经注册。请提供原 VFS 账号邮箱以继续登录，或提供另一个可接收新验证码的手机号。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，没有创建账号，也不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证；公开网站自动化在此停止。", "selector_drift": "官方网站当前页面与已验证的公开入口状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "slot_selection": "请选择后端刚观察到的一个 VFS 官方预约时间。", "payment": "请继续完成 VFS 官方托管的服务费付款步骤。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
-    "slots": { "title": "官网预约时间", "empty": "尚未观察到官网名额。VFS 账号准备完成后，请点击“检查官方门户”。", "choose": "选择", "selected": "已选择" },
-    "payment": { "title": "VFS 服务费付款", "officialTitle": "请在 VFS 官方页面完成付款", "officialBody": "VIZA 预约助手不会收集完整银行卡资料；公开网站模式下付款功能保持关闭。", "secureTitle": "一次性安全付款", "secureBody": "卡片资料只会一次性传给内存中的预约 worker，数分钟后过期，绝不写入数据库或日志；发卡行仍可能要求完成 3-D Secure 验证。", "holder": "持卡人姓名", "cardNumber": "卡号", "expiry": "有效期", "cvv": "CVV", "authorize": "准备一次性付款" },
-    "final": { "title": "最终预约确认", "consent": "我已核对官网时段和付款条款，并授权 VIZA 请求最终 VFS 预约。", "approve": "批准最终预约", "book": "预约所选时段", "confirmed": "官网预约已确认", "confirmation": "确认号 {number} · {date} {time}" },
-    "result": { "openEvidence": "打开官网证据" },
-    "statuses": { "not_started": "尚未开始", "appointment_account_required": "公开检查已就绪", "appointment_manual_required": "已停在官网边界", "appointment_no_slots_available": "暂无时段", "appointment_slot_selection_required": "请选择时段", "appointment_payment_required": "需要付款", "appointment_payment_completed": "付款授权已记录", "appointment_payment_ready": "付款已就绪", "appointment_final_confirmation_approved": "最终批准已记录", "appointment_confirmation_captured": "预约已确认", "appointment_cancelled": "已取消" },
-    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "slotRequired": "请先选择当前可用的 VFS 官网时段。", "paymentRequired": "请先完成 VFS 安全付款授权。", "finalRequired": "提交前请批准最终预约。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
+    "steps": {
+      "label": "预约进度",
+      "review": "资料确认",
+      "account": "官方网站",
+      "slots": "选择时段",
+      "confirm": "确认预约",
+      "result": "预约结果"
+    },
+    "review": {
+      "title": "核对申请人与递交信息",
+      "englishName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passport": "护照号码",
+      "passportExpiry": "护照到期日",
+      "phone": "手机号",
+      "email": "个人邮箱",
+      "address": "居住地址",
+      "center": "预约中心",
+      "notProvided": "尚未提供",
+      "edit": "编辑申请资料"
+    },
+    "account": {
+      "title": "官方网站检查点",
+      "mobileAlreadyRegisteredTitle": "该手机号已绑定其他 VFS 账号",
+      "mobileAlreadyRegisteredBody": "官网注册表已接受全部字段并通过 Turnstile，但随后提示该手机号已经注册。继续登录需要提供原 VFS 账号邮箱；或者更换一个可接收新 VFS 验证码的手机号。"
+    },
+    "free": {
+      "title": "仅自动化公开网站",
+      "body": "本模式只使用一个云端浏览器会话访问 VFS 官方公开入口并保存脱敏证据；遇到账号创建或登录边界即停止，无法读取受保护的预约名额。"
+    },
+    "eligibility": {
+      "title": "1. 申请资格",
+      "visaType": "签证请求",
+      "occupation": "职业状态",
+      "passType": "新加坡长期准证",
+      "passExpiry": "准证到期日",
+      "returnDate": "预计返回新加坡日期",
+      "pass": "资格通过",
+      "incomplete": "待补充",
+      "passBody": "新加坡当地递交的基础资格检查已通过。",
+      "incompleteBody": "请提供覆盖返回日期的有效长期准证。"
+    },
+    "visaTypes": {
+      "single_entry": "单次入境",
+      "double_entry": "双次入境",
+      "multiple_entry": "多次入境"
+    },
+    "occupations": {
+      "employed": "受雇",
+      "self_employed": "企业主／自雇",
+      "student": "学生",
+      "retired": "退休",
+      "housewife": "家庭主妇／主夫",
+      "unemployed": "待业"
+    },
+    "passTypes": {
+      "pr": "永久居民 PR",
+      "employment_pass": "Employment Pass",
+      "s_pass": "S Pass",
+      "work_permit": "Work Permit",
+      "dependent_pass": "Dependent Pass",
+      "long_term_visit_pass": "Long-Term Visit Pass",
+      "student_pass": "Student Pass"
+    },
+    "documents": {
+      "title": "2. 材料预检",
+      "body": "选择通用资料中最近保存的证件照，或为本次申请更换照片。",
+      "manage": "打开材料中心",
+      "passportStored": "VIZA 已存储护照",
+      "photoStored": "已选择证件照",
+      "profilePhotoTitle": "通用资料证件照",
+      "profilePhotoSelected": "已为本次日本申请选择通用资料证件照；如需使用其他照片，请点击更换。",
+      "profilePhotoLoading": "正在选择最近保存的通用证件照…",
+      "profilePhotoMissing": "通用资料中没有可复用证件照，请上传后继续。",
+      "useProfilePhoto": "使用通用资料证件照",
+      "replaceProfilePhoto": "更换证件照",
+      "noProfilePhoto": "通用资料中尚未保存证件照，请在下方上传。",
+      "photoUploadFailed": "证件照上传失败。请使用 JPG、PNG 或 WebP 图片后重试。",
+      "profileIncomplete": "申请资料尚未完整",
+      "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。"
+    },
+    "workflow": {
+      "title": "3. 网站自动化",
+      "consent": "我确认信息真实，并授权 VIZA 打开和检查日本 VFS 新加坡官方公开入口。本授权不包含创建账号、发送短信或邮件、登录、读取受保护名额、付款或预约。",
+      "saving": "正在保存…",
+      "saveConsent": "记录授权",
+      "consentRecorded": "授权已记录",
+      "consentRecordedBody": "后端已为当前申请保存公开网站自动化授权。",
+      "creating": "正在启动…",
+      "create": "开始网站自动化",
+      "restart": "重新开始",
+      "restartTitle": "自动化已取消",
+      "restartBody": "核对最新资料后，可以重新开始公开网站检查。",
+      "checking": "正在检查…",
+      "check": "运行 VFS 公开入口检查",
+      "publicOnlyTitle": "账号创建已关闭",
+      "publicOnlyBody": "Worker 只能打开 VFS 公开入口并保存脱敏证据；遇到登录或安全边界即停止。",
+      "aliasReady": "账号创建已关闭",
+      "aliasBody": "公开网站模式不会创建 VFS alias 或账号。",
+      "openOfficial": "打开官方 VFS",
+      "cancel": "取消自动化"
+    },
+    "evidence": {
+      "title": "云端证据",
+      "httpStatus": "HTTP 状态",
+      "pageTitle": "官方页面",
+      "observedAt": "检查时间",
+      "entryClick": "已点击 Book now",
+      "replay": "Browserbase 回放"
+    },
+    "checkpoints": {
+      "login": "需要官方登录",
+      "existing_mobile_account": "需要已有 VFS 账号资料",
+      "captcha": "检测到 CAPTCHA",
+      "waf": "WAF 检查点",
+      "identity_verification": "需要身份验证",
+      "selector_drift": "门户状态需要复核",
+      "no_slots": "没有可见时段",
+      "slot_selection": "请选择预约时间",
+      "payment": "需要官网付款",
+      "site_policy_review": "官方政策检查点"
+    },
+    "checkpointBodies": {
+      "login": "VFS 官方公开入口已成功渲染并到达登录边界。账号创建已关闭，因此自动化按预期停在这里。",
+      "existing_mobile_account": "VFS 已确认所填手机号已经注册。请提供原 VFS 账号邮箱以继续登录，或提供另一个可接收新验证码的手机号。",
+      "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，没有创建账号，也不会把该状态误报为预约成功。",
+      "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。",
+      "identity_verification": "官方网站要求申请人身份验证；公开网站自动化在此停止。",
+      "selector_drift": "官方网站当前页面与已验证的公开入口状态不匹配，VIZA 已暂停等待复核。",
+      "no_slots": "最近一次观察中，官方网站没有显示可预约时间。",
+      "slot_selection": "请选择后端刚观察到的一个 VFS 官方预约时间。",
+      "payment": "请继续完成 VFS 官方托管的服务费付款步骤。",
+      "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。"
+    },
+    "slots": {
+      "title": "官网预约时间",
+      "empty": "尚未观察到官网名额。VFS 账号准备完成后，请点击“检查官方门户”。",
+      "choose": "选择",
+      "selected": "已选择"
+    },
+    "payment": {
+      "title": "VFS 服务费付款",
+      "officialTitle": "请在 VFS 官方页面完成付款",
+      "officialBody": "VIZA 预约助手不会收集完整银行卡资料；公开网站模式下付款功能保持关闭。",
+      "secureTitle": "一次性安全付款",
+      "secureBody": "卡片资料只会一次性传给内存中的预约 worker，数分钟后过期，绝不写入数据库或日志；发卡行仍可能要求完成 3-D Secure 验证。",
+      "holder": "持卡人姓名",
+      "cardNumber": "卡号",
+      "expiry": "有效期",
+      "cvv": "CVV",
+      "authorize": "准备一次性付款"
+    },
+    "final": {
+      "title": "最终预约确认",
+      "consent": "我已核对官网时段和付款条款，并授权 VIZA 请求最终 VFS 预约。",
+      "approve": "批准最终预约",
+      "book": "预约所选时段",
+      "confirmed": "官网预约已确认",
+      "confirmation": "确认号 {number} · {date} {time}"
+    },
+    "result": {
+      "openEvidence": "打开官网证据"
+    },
+    "statuses": {
+      "not_started": "尚未开始",
+      "appointment_account_required": "公开检查已就绪",
+      "appointment_manual_required": "已停在官网边界",
+      "appointment_no_slots_available": "暂无时段",
+      "appointment_slot_selection_required": "请选择时段",
+      "appointment_payment_required": "需要付款",
+      "appointment_payment_completed": "付款授权已记录",
+      "appointment_payment_ready": "付款已就绪",
+      "appointment_final_confirmation_approved": "最终批准已记录",
+      "appointment_confirmation_captured": "预约已确认",
+      "appointment_cancelled": "已取消"
+    },
+    "errors": {
+      "title": "无法继续",
+      "load": "无法加载日本预约状态。",
+      "action": "日本预约操作失败。",
+      "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。",
+      "consentRequired": "请先记录授权，再准备预约。",
+      "cancelled": "本次准备已取消，请重新开始后再检查官方网站。",
+      "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。",
+      "slotRequired": "请先选择当前可用的 VFS 官网时段。",
+      "paymentRequired": "请先完成 VFS 安全付款授权。",
+      "finalRequired": "提交前请批准最终预约。",
+      "sessionRequired": "登录会话已过期，请重新登录后继续。"
+    }
   }
 }

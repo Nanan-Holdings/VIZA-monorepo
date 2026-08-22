@@ -1,124 +1,181 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-16",
   "country": "canada",
-  "notes": "Country-level VIZA RAG seed for canada. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Official-source RAG seed for the Canada tourist Temporary Resident Visa product CA_TRV. This product does not include eTA, business visits, family-visit intake, study, work, Super Visa, transit, or permanent residence.",
   "documents": [
     {
-      "slug": "canada-ircc-visitor-visa",
+      "slug": "canada-ircc-tourist-trv",
       "country": "canada",
-      "visaType": "visitor_visa",
+      "visaType": "CA_TRV",
       "documentType": "requirements",
-      "title": "Canada Visitor Visa (Temporary Resident Visa)",
-      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html",
+      "title": "Canada Tourist Temporary Resident Visa (TRV)",
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html",
       "chunks": [
         {
-          "id": "can_visitor_basic_route_zh",
-          "title": "中国护照加拿大旅游签证建议",
+          "id": "can_trv_product_boundary",
+          "title": "CA_TRV is the tourist visitor-visa product",
           "tags": [
             "canada",
-            "china",
-            "chinese-passport",
-            "加拿大旅游",
-            "visitor-visa",
-            "trv"
-          ],
-          "content": "中国护照持有人短期赴加拿大旅游、探亲访友或普通商务访问时，VIZA AI 应优先考虑 Canada visitor visa / Temporary Resident Visa (TRV) 路线，而不是 eTA。先确认国籍、居住地、旅行目的、停留天数、是否探亲、是否有美国签证/加拿大旧签证等背景；如果是学习、工作、移民或长期陪读，应转向对应 permit/visa。"
-        },
-        {
-          "id": "can_trv_definition",
-          "title": "Canada TRV definition and entry decision",
-          "tags": [
-            "canada",
+            "CA_TRV",
+            "tourism",
             "visitor-visa",
             "trv",
-            "passport-sticker",
-            "entry-decision"
+            "product-scope"
           ],
-          "content": "IRCC states that a visitor visa, also called a temporary resident visa, is an official document placed in the passport showing the traveller meets requirements to travel to Canada. It does not by itself guarantee entry; border officers make the final entry decision and decide the allowed period of stay. Most visitors are allowed to stay for up to 6 months unless a different date is indicated."
+          "content": "CA_TRV is VIZA's Canada Temporary Resident Visa product for tourism. Tourism is fixed by package assignment and is not selected inside the applicant questionnaire. The product does not cover business visits, visits primarily to family or friends, transit, study, work, Super Visa, temporary resident permits, or permanent residence. These purposes require separate routing or products. Official source: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html"
         },
         {
-          "id": "can_apply_online_biometrics",
-          "title": "Canada visitor visa online application and biometrics",
+          "id": "can_trv_eta_routing",
+          "title": "Route visa and eTA eligibility before assigning CA_TRV",
           "tags": [
             "canada",
-            "ircc",
-            "online-application",
+            "CA_TRV",
+            "eta",
+            "eligibility",
+            "routing",
+            "travel-document"
+          ],
+          "content": "A Canadian electronic travel authorization (eTA) is a separate authorization with its own eligibility and application flow; it is not a CA_TRV option. VIZA must determine the required travel document before assigning a product by using the applicant's nationality, travel document, travel mode, current status, and any special IRCC eligibility. An eligible eTA traveller should eventually be routed to a separate CA_ETA product, not switched inside a started CA_TRV form. Use IRCC's current official routing tool as the authority: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/check-visa-eta.html"
+        },
+        {
+          "id": "can_trv_entry_decision",
+          "title": "IRCC decides visa entry type and border admission",
+          "tags": [
+            "canada",
+            "CA_TRV",
+            "single-entry",
+            "multiple-entry",
+            "border",
+            "length-of-stay"
+          ],
+          "content": "The applicant does not apply for a single-entry or multiple-entry TRV. IRCC decides which type of visitor visa to issue, and the application fee is the same. A visitor visa shows that the traveller met the requirements to travel to Canada but does not guarantee admission. A border services officer makes the final entry decision and normally authorizes a stay of up to six months unless a different departure date is recorded. Official source: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/guide-5256-applying-visitor-visa-temporary-resident-visa.html"
+        },
+        {
+          "id": "can_trv_application_channel",
+          "title": "Visitor-visa application channels and biometrics",
+          "tags": [
+            "canada",
+            "CA_TRV",
+            "ircc-portal",
+            "secure-account",
             "biometrics",
             "vac"
           ],
-          "content": "IRCC directs visitor visa applicants to apply online through the IRCC Portal, provide passport/travel document copies and supporting documents, pay fees, and give biometrics if required. China is listed among passports that generally need a visitor visa. Applicants outside Canada may need to attend a visa application centre for biometrics and passport submission depending on instructions."
+          "content": "IRCC normally requires visitor-visa applications online. Depending on eligibility and routing, the application may use the regular IRCC Portal, the limited new IRCC Portal, or an IRCC Secure Account. Portal credentials, invite codes, one-time passwords, and sessions are VIZA-managed operational data and must never be requested as applicant form answers. If IRCC issues a biometric instruction letter, the applicant must follow the stated instructions and deadline, normally through a visa application centre. Official sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/portal-application-process.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/application/online-account.html"
         }
       ]
     },
     {
-      "slug": "canada-form-requirements",
+      "slug": "canada-ca-trv-form-requirements",
       "country": "canada",
-      "visaType": "visitor_visa",
+      "visaType": "CA_TRV",
       "documentType": "form_requirements",
-      "title": "Canada Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html",
+      "title": "Canada Tourist TRV Form and Document Intake Requirements",
+      "sourceUrl": "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/guide-5256-applying-visitor-visa-temporary-resident-visa.html",
       "chunks": [
         {
-          "id": "canada_form_channel_and_scope",
-          "title": "Canada application channel and form scope",
+          "id": "canada_imm5257_answer_inventory",
+          "title": "IMM 5257 applicant-answer inventory",
           "tags": [
             "canada",
+            "CA_TRV",
+            "IMM5257",
             "application-form",
             "form-requirements",
-            "workflow",
-            "official-source"
+            "field-mapping"
           ],
-          "content": "Apply online through the IRCC visitor visa flow unless a paper exception applies. Official source URLs reviewed for this seed: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "The CA_TRV answer schema reconstructs IMM 5257 for a tourism application. Collect UCI if known and service language; passport-exact family and given names; prior names; sex; date and place of birth; citizenship; current and previous residence status and dates; country and status where applying; current and former marriages or common-law relationships; language details; passport or travel-document details; Taiwan and Israeli passport questions when applicable; national identity document; United States permanent-resident details when applicable; mailing and residential addresses; telephone, fax, and email details; intended tourism dates, trip details, funds in Canadian dollars, and persons or institutions to visit; post-secondary education; and gap-free employment or activity history for the past ten years. The tourist purpose is fixed by CA_TRV and is not an applicant-facing purpose selector. Official source: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/guide-5256-applying-visitor-visa-temporary-resident-visa.html"
         },
         {
-          "id": "canada_form_fields_to_collect",
-          "title": "Canada fields to collect before filling the form",
+          "id": "canada_imm5257_background",
+          "title": "IMM 5257 background questions remain separate",
           "tags": [
             "canada",
-            "application-form",
-            "autofill",
-            "field-mapping",
-            "intake"
+            "CA_TRV",
+            "IMM5257",
+            "health",
+            "immigration-history",
+            "criminal-history",
+            "military-service"
           ],
-          "content": "Canada visitor visa intake should collect identity, passport/travel document, country of residence, travel purpose and dates, family information, employment or study, funds and payer, travel history, previous refusals/immigration history, invitation or host details if any, and biometrics status."
+          "content": "Collect separate answers and details for tuberculosis affecting the applicant, a family member, or a close contact within the applicable two-year period; a physical or mental condition that may require social or health services during the stay; unauthorized study or work or overstaying status in Canada; any visa or permit refusal, denied entry, or order to leave Canada or another country; prior applications to enter or remain in Canada; criminal acts, arrests, charges, or convictions; military, militia, civil-defence, security-organization, or police service with repeatable periods; association with a political, religious, violent, or criminal organization described by the form; and witnessing or participating in prisoner or civilian ill-treatment, looting, or religious desecration. Do not collapse these questions into a generic security question. Official source: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/guide-5256-applying-visitor-visa-temporary-resident-visa.html"
         },
         {
-          "id": "canada_supporting_documents_and_review",
-          "title": "Canada supporting documents and review checklist",
+          "id": "canada_imm5707_family_information",
+          "title": "Use the family form selected by the IRCC country package",
           "tags": [
             "canada",
+            "CA_TRV",
+            "IMM5707",
+            "IMM5645",
+            "family-information",
+            "conditional-form"
+          ],
+          "content": "Guide 5256 instructs an applicant to complete the Family Information form listed for the applicant's country package, either IMM 5707 or IMM 5645. The country-package audit performed for this seed on 2026-08-16 resolved to IMM 5707, so CA_TRV currently collects IMM 5707 details for the applicant, spouse or common-law/conjugal partner, both parents, and repeatable children including adopted and step-children. For each applicable person collect official/native-script names, date and country of birth, marital status, present address, occupation, and whether the person will accompany the applicant. Preserve the no-partner and no-children certifications and family declaration. Never merge IMM 5707 and IMM 5645; if a personalized checklist selects IMM 5645, route to a schema revision that also supports its sibling rows. Official sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm5707.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm5645.html"
+        },
+        {
+          "id": "canada_china_imm0104",
+          "title": "Chinese-citizen tourist applications require the IMM 0104 supplement",
+          "tags": [
+            "canada",
+            "CA_TRV",
+            "china",
+            "chinese-citizen",
+            "IMM0104",
+            "country-conditional"
+          ],
+          "content": "For a Chinese citizen applying under the current China tourist package, collect the IMM 0104 supplement conditionally. Employment history covers the past ten years or since age 18, whichever period is shorter, with no gaps; each row includes month/year dates, company or military/police unit name and address, position/title/rank, and duties, including military and police service since age 18. Education history includes every post-secondary institution with month/year dates, school name and address, diploma or degree, and course of study. Ask whether this is the first trip outside China; if not, collect travel for the past five years or since age 18, whichever period is shorter, including month/year dates, purpose, city, and country or territory. Official sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm0104.html ; https://ircc.canada.ca/english/information/applications/visa.asp?countrySelect=CN"
+        },
+        {
+          "id": "canada_personalized_document_checklist",
+          "title": "The personalized IRCC checklist controls document requirements",
+          "tags": [
+            "canada",
+            "CA_TRV",
             "documents",
-            "checklist",
-            "upload",
-            "review-before-submit"
+            "personalized-checklist",
+            "application-documents",
+            "conditional-requirements"
           ],
-          "content": "Documents commonly include passport copy, photo, purpose-of-travel evidence, proof of funds, itinerary or tickets if available, employment/study/home ties, family information form when required, invitation letter and host proof if visiting someone, and translations for non-English/French documents. Workflow guardrails: After submission, applicants may receive a biometric instruction letter and must give biometrics within the official deadline unless exempt. VIZA should track biometrics, passport request, and final decision as separate process steps."
+          "content": "Supporting evidence is document data, not a visa_form_fields answer. The personalized IRCC checklist and country package are authoritative. Depending on the applicant, evidence may include passport pages, legal status in the application country, travel history, itinerary and accommodation, financial and employment evidence, invitation and relationship evidence, minor travel authorization, certified translations, the selected family form, Schedule 1 IMM 5257, representative or information-release forms, and any requested photo. Do not present every possible document as universally mandatory. Official sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm5484.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html"
+        },
+        {
+          "id": "canada_china_document_package",
+          "title": "China tourist package has additional conditional documents",
+          "tags": [
+            "canada",
+            "CA_TRV",
+            "china",
+            "IMM5884",
+            "documents",
+            "country-package"
+          ],
+          "content": "The current China visitor-visa package calls for country-specific evidence in addition to the general checklist. Depending on the applicant's circumstances, this can include Hukou and national identity evidence; bilingual IMM 0104; an employer leave letter, retirement certificate, or school enrolment and leave letter; financial history, social-insurance contribution records, individual income-tax certificates, and evidence of assets in China; previous travel evidence; travel-planning agent details; and a detailed itinerary. Military, government, or police history may trigger IMM 5546, IMM 0149, or IMM 0150 and related service documents. Treat these as conditional application_documents slots and re-check the current country package and personalized checklist before requesting them. Official sources: https://ircc.canada.ca/english/information/applications/visa.asp?countrySelect=CN ; https://ircc.canada.ca/english/pdf/kits/forms/IMM5884E.pdf"
         },
         {
           "id": "standard_passport_identity_field_rules",
-          "title": "Standard passport identity-field answer rules",
+          "title": "Passport and identity answers must follow the requested document field",
           "tags": [
             "standard-fields",
             "passport",
-            "issuing-authority",
-            "passport-type",
             "identity-document",
             "field-guidance",
-            "official-source"
-          ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
-        },
-        {
-          "id": "official_field_answer_norms",
-          "title": "Official-source field answer norms",
-          "tags": [
-            "field-guidance",
-            "answer-norms",
             "official-source",
-            "form-requirements",
             "canada"
           ],
-          "content": "Official-source field answer norms for canada.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/apply-visitor-visa.html\n\nPassport and identity fields:\n- A visitor visa (also called a temporary resident visa) is an official document that we stick in your passport.\n- a digital copy of your valid (not expired) passport or travel document\n- Your passport or travel document should be valid for at least 6 months from the date you plan to travel.\n\nIssue, expiry, and validity fields:\n- Your passport or travel document should be valid for at least 6 months from the date you plan to travel.\n- We can’t issue you a visa that’s valid for longer than your biometrics.\n- Extending the validity of your biometrics by giving them again doesn’t automatically extend the validity of your visa to 10 years.\n\nTravel plan and port fields:\n- Biometrics, processing, and documents before your arrival\n- digital copy of a signed Letter of Invitation from a ship or port agent in Canada\n\nAccommodation, host, and address fields:\n- You must include a letter from a person or business inviting you to Canada .\n- You must show proof of your relationship with the person or family member inviting you to Canada.\n- digital copy of a signed Letter of Invitation from a ship or port agent in Canada\n\nPurpose, occupation, work, and study fields:\n- Tell us the purpose of your visit to get the next steps for your situation.\n- To apply for a visitor visa to visit Canada on business, you need to qualify as a business visitor .\n- You must include a letter from a person or business inviting you to Canada .\n\nFunds, insurance, photo, and supporting-document fields:\n- Where you upload these documents depends on which portal you use to apply:\n- This allows us to contact your bank or financial institution with questions.\n- You gave only partial biometrics with your application (fingerprints or photo).\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+          "content": "Copy names, passport or travel-document number, date of birth, sex, citizenship, country of issue, issue date, and expiry date from the matching field on the applicant's valid document. Do not substitute issuing authority, place of issue, residence, pickup location, or destination when IMM 5257 asks for country or territory of issue. Given names may be left blank only if the travel document has no given name. Use the official form's closed-list option when one exists, and do not infer document facts from another answer. The applicant's document and current official field wording control whenever they are more specific than general guidance. Official source: https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/guide-5256-applying-visitor-visa-temporary-resident-visa.html"
+        },
+        {
+          "id": "canada_reconstruction_confidence",
+          "title": "Public-form reconstruction requires authenticated portal QA",
+          "tags": [
+            "canada",
+            "CA_TRV",
+            "reconstruction",
+            "confidence",
+            "live-portal-qa"
+          ],
+          "content": "The IMM 5257, current IMM 5707, and China IMM 0104 inventories have high confidence from public IRCC forms and guides. Exact authenticated portal page order, labels, selectors, value transforms, conditional personalized checklists, and portal variants remain live-portal-QA pending. State uncertainty rather than inventing a requirement, and defer to the current authenticated IRCC application and personalized checklist when they differ from this reconstruction. Portal credentials and sessions are not applicant answers. Official portal sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/portal-application-process.html ; https://www.canada.ca/en/immigration-refugees-citizenship/services/application/online-account.html"
         }
       ]
     }

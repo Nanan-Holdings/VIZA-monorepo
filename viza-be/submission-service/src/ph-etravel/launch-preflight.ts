@@ -25,9 +25,7 @@ export type PhEtravelLaunchPreflightCode =
   | "ph_etravel_launch_sea_customs_flow_review_required"
   | "ph_etravel_launch_sea_electronic_positive_review_required"
   | "ph_etravel_launch_currency_positive_review_required"
-  | "ph_etravel_launch_goods_amount_checklist_required"
   | "ph_etravel_launch_attachment_review_required"
-  | "ph_etravel_launch_customs_signature_review_required"
   | "ph_etravel_launch_final_result_recovery_required";
 
 export interface PhEtravelLaunchPreflightBlocker {
@@ -131,11 +129,6 @@ function hasPositiveChecklist(answers: Record<string, string>, itemNumbers: numb
   return itemNumbers.some((itemNumber) => isTrue(answers[`customs_checklist_${itemNumber}`]));
 }
 
-function hasPositiveGoodsAmount(answers: Record<string, string>): boolean {
-  const amount = text(answers.amount_of_goods_amount ?? answers.goods_amount).replace(/,/g, "");
-  return /^\d+(?:\.\d+)?$/.test(amount) && Number(amount) > 0;
-}
-
 function addBlocker(
   blockers: PhEtravelLaunchPreflightBlocker[],
   code: PhEtravelLaunchPreflightCode,
@@ -202,14 +195,8 @@ export function evaluatePhEtravelArrivalLaunchPreflight(input: {
 
   const positiveCurrency = hasAnyTrue(answers, ["has_currency_to_declare", "has_currency_over_threshold"]) ||
     hasPositiveChecklist(answers, [1, 2]);
-  const positiveGoods = hasAnyTrue(answers, ["has_dutiable_goods", "has_goods_to_declare"]) ||
+  const positiveGoods = hasAnyTrue(answers, ["has_baggage_or_currency_to_declare", "has_dutiable_goods", "has_goods_to_declare"]) ||
     hasPositiveChecklist(answers, Array.from({ length: 10 }, (_, index) => index + 3));
-  if (hasPositiveGoodsAmount(answers) && !hasPositiveChecklist(answers, Array.from({ length: 10 }, (_, index) => index + 3))) {
-    addBlocker(blockers, "ph_etravel_launch_goods_amount_checklist_required", [
-      "customs.amount_of_goods_acquired",
-      "customs.check_lists_3_to_12",
-    ]);
-  }
   if (positiveCurrency) {
     addBlocker(blockers, "ph_etravel_launch_currency_positive_review_required", [
       "currency.bsp_authorization_date",
@@ -217,14 +204,8 @@ export function evaluatePhEtravelArrivalLaunchPreflight(input: {
       "currency.owner_not_applicable",
     ]);
   }
-  if (positiveGoods) {
-    // E45 narrows only the observed AIR Q3-Q12-positive client path: a blank
-    // attachment did not block ordinary Next once signature was present. SEA
-    // and all upload/server contracts remain fail-closed.
-    if (transport === "SEA") {
-      addBlocker(blockers, "ph_etravel_launch_attachment_review_required", ["attachments.travel_document"]);
-    }
-    addBlocker(blockers, "ph_etravel_launch_customs_signature_review_required", ["customs.signature"]);
+  if (positiveCurrency || positiveGoods || Boolean(text(answers.customs_signature_file))) {
+    addBlocker(blockers, "ph_etravel_launch_attachment_review_required", ["attachments.travel_document"]);
   }
 
   if (transport === "SEA") {

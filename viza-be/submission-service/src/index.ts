@@ -44,6 +44,7 @@ import {
   buildPhotoFileFromDownloadedDocument,
   type CeacRunResult,
   type ConfirmApplicationResult,
+  resolveCeacStartLocationCode,
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
@@ -53,13 +54,18 @@ import {
   runDryRunSubmission,
 } from "./country-submissions";
 import type { SubmissionPayload } from "./country-submissions/types";
-import { pollAndRun } from "./queue/worker";
+import { drainAndRun } from "./queue/worker";
 import { runnerJobHandler } from "./queue/handler";
-import { normalizeCountry } from "./queue/dispatch";
 import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
+import { IdleExitController } from "./idle-exit-controller.js";
+import {
+  acquireRunnerSlotWithRetry,
+  RunnerSlotLease,
+  type RunnerMachineKind,
+} from "./runner-slot-lease.js";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -83,10 +89,10 @@ import {
 } from "./france-visas";
 import {
   ensureApplicantInboxAlias,
-  ensureApplicantInboxAliasForDomain,
   generateApplicantInboxAlias,
 } from "./inbox/alias";
 import { assertInboxAliasDomainRoutable } from "./inbox/wait-for-message";
+import { hasAliasEmailForwardingConsent } from "./inbox/forwarding-consent.js";
 import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
   startUkSession,
@@ -107,16 +113,20 @@ import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
 import {
   consumeVietnamCardSession,
   hasVietnamCardSessions,
+  vietnamCardSessionsEnabled,
 } from "./vietnam/card-session.js";
 import {
   consumeIndonesiaCardSession,
+  discardIndonesiaCardSession,
   hasIndonesiaCardSessions,
+  indonesiaCardSessionsEnabled,
 } from "./indonesia/card-session.js";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
   type VietnamProgressStage,
 } from "./vietnam/progress";
+import { nextVietnamQueueAttemptCount } from "./vietnam/retry-policy";
 import {
   fillVisitor600Application,
   NationalityIneligibleError,
@@ -142,9 +152,9 @@ import {
 } from "./queue-scheduler";
 import {
   claimBatchLimitForConcurrency,
+  claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
-  isSubmissionQueueClaimRpcUnavailableError,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
@@ -194,29 +204,15 @@ import {
   normalizePhEtravelPortalPayload,
 } from "./ph-etravel/normalize";
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
-import { evaluatePhEtravelArrivalLaunchPreflight } from "./ph-etravel/launch-preflight";
-import {
-  PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
-  PhEtravelPortalError,
-  isPhEtravelReviewStopError,
-  runPhEtravelPortalSubmission,
-  sanitizePhEtravelLogs,
-  type PhEtravelPortalSubmissionResult,
-} from "./ph-etravel/runner";
-import {
-  buildPhEtravelRecoverableResult,
-  extractCompletePhEtravelStoredSubmissionEvidence,
-  hasCompletePhEtravelSubmissionEvidence,
-  hasCompletePhEtravelStoredSubmissionResult,
-  phEtravelOfficialReference,
-  planPhEtravelConsistencyCompensation,
-} from "./ph-etravel/result-consistency";
-import {
-  safePhEtravelDiagnosticLogs,
-  safePhEtravelErrorSummary,
-  safePhEtravelServiceLog,
-} from "./ph-etravel/error-safety";
+import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
 import { hasOfficialArrivalCardSuccess } from "./arrival-card-success-guard";
+import {
+  loadManagedOfficialFeeExecutionContext,
+  type ManagedOfficialFeeExecutionContext,
+} from "./official-fee/execution-context.js";
+import { createManagedPaymentHooks } from "./official-fee/managed-payment-hooks.js";
+import { recordOfficialFeeReview } from "./official-fee/accounting.js";
+import type { ManagedPaymentCard, ManagedPaymentHooks } from "./runners/managed-payment-boundary.js";
 import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   VnPrearrivalPortalValidationError,
@@ -227,7 +223,6 @@ import { evaluateVietnamPrearrivalSubmissionWindow } from "./vn-prearrival/date-
 import { VnPrearrivalPortalError, runVietnamPrearrivalPortalSubmission } from "./vn-prearrival/runner";
 import {
   choosePhEtravelAccountPlan,
-  generatePhEtravelAccountPassword,
   loadPhEtravelAccount,
   phEtravelAccountEmailFromManagedAlias,
   upsertPhEtravelAccount,
@@ -238,13 +233,22 @@ import {
   INDONESIA_C1_PORTAL_URL,
   runIndonesiaLiveSubmission,
 } from "./indonesia";
-import { hasPreparedIndonesiaPortalAccount } from "./indonesia/managed-account";
-import { bootstrapTwOfficialLoginProvidersFromEnvironment } from "./tw/auth";
+import {
+  generateIndonesiaPortalPassword,
+  IndonesiaAliasPreflightError,
+  prepareIndonesiaCanonicalAliasAccount,
+} from "./indonesia/account-alias.js";
+import {
+  missingIndonesiaRequiredDocumentPaths,
+  selectIndonesiaSubmissionDocuments,
+} from "./indonesia/document-reuse.js";
+import { hasActiveKoreaKvacOfficialSessions } from "./korea-kvac/live-session.js";
+import {
+  hasCountryRunnerWork,
+  hasIndonesiaWorkerWork,
+  hasLegacyWorkerWork,
+} from "./work-availability.js";
 
-const POLL_INTERVAL_MS = Number.parseInt(
-  process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
-  10,
-);
 const MAX_ATTEMPTS = 3;
 const SUBMISSION_QUEUE_WORKER_ID =
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() || `submission-service-${process.pid}`;
@@ -269,6 +273,20 @@ const VN_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
 const DS160_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
   STALE_QUEUE_TIMEOUT_MS,
   (Number.parseInt(process.env.DS160_LIVE_MAX_DURATION_SECONDS ?? "1800", 10) + 300) * 1000,
+);
+const STALE_QUEUE_MAINTENANCE_INTERVAL_MS = Math.max(
+  60_000,
+  Number.parseInt(
+    process.env.VIZA_SUBMISSION_QUEUE_STALE_MAINTENANCE_INTERVAL_MS ?? String(30 * 60 * 1000),
+    10,
+  ),
+);
+const STALE_QUEUE_MAINTENANCE_BATCH_SIZE = Math.max(
+  1,
+  Math.min(
+    500,
+    Number.parseInt(process.env.VIZA_SUBMISSION_QUEUE_STALE_MAINTENANCE_BATCH_SIZE ?? "100", 10),
+  ),
 );
 const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "pending",
@@ -322,10 +340,6 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "phetravel_live_assisted_scheduled",
   "phetravel_live_assisted_pending",
   "phetravel_live_assisted_processing",
-  "tw_dry_run_pending",
-  "tw_dry_run_processing",
-  "tw_live_assisted_pending",
-  "tw_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -367,9 +381,14 @@ const VN_CLOUD_QUEUE_ENABLED = readBooleanEnv(
   "VN_CLOUD_QUEUE_ENABLED",
   false,
 );
+const INDONESIA_QUEUE_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED",
+  false,
+);
 const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
-const RUNNER_JOB_TARGET_ID = process.env.RUNNER_JOB_TARGET_ID?.trim() || undefined;
-const RUNNER_JOB_EXPECTED_APPLICATION_ID = process.env.RUNNER_JOB_EXPECTED_APPLICATION_ID?.trim() || undefined;
+const RUNNER_MACHINE_KIND = (
+  process.env.RUNNER_MACHINE_KIND?.trim().toLowerCase() || ""
+) as RunnerMachineKind | "";
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
@@ -383,7 +402,6 @@ function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("mdac_dry_run_") ||
     item.status.startsWith("tdac_dry_run_") ||
     item.status.startsWith("phetravel_dry_run_") ||
-    item.status.startsWith("tw_dry_run_") ||
     item.status.startsWith("vn_prearrival_dry_run_")
   );
 }
@@ -453,10 +471,6 @@ function isLegacyRealSubmitEnabled(): boolean {
   return process.env.VIZA_ALLOW_LEGACY_REAL_SUBMIT === "1";
 }
 
-function isTaiwanLegacyRealSubmitQueueItem(item: SubmissionQueueItem): boolean {
-  return item.provider === "taiwan_overseas_cn_entry_permit_live";
-}
-
 function redactIdentifier(value: string | null | undefined): string {
   if (!value) return "(none)";
   if (value.length <= 8) return "<redacted>";
@@ -473,32 +487,24 @@ async function fetchPendingItems(input: {
   concurrency: number;
   targetJobId?: string | null;
 }): Promise<SubmissionQueueItem[]> {
-  if (input.targetJobId && TARGET_FAILED_RETRY_ENABLED) {
-    let query = supabase
-      .from("submission_queue")
-      .select("*")
-      .eq("id", input.targetJobId)
-      .in("status", [
-        "mdac_live_assisted_failed",
-        "tdac_live_assisted_failed",
-        "phetravel_live_assisted_failed",
-      ])
-      .limit(1);
-    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
-      query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
-    }
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed targeted arrival-card retry select: ${error.message}`);
-    }
-    return (data ?? []) as SubmissionQueueItem[];
-  }
-
   const claimLimit = input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency);
-  const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED
-    ? await claimPendingVietnamCloudQueueItems(supabase, {
+  const indonesiaItems = INDONESIA_QUEUE_ENABLED
+    ? await claimPendingIndonesiaQueueItems(supabase, {
         workerId: SUBMISSION_QUEUE_WORKER_ID,
         limit: claimLimit,
+        leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+        targetJobId: input.targetJobId ?? null,
+        maxAttempts: MAX_ATTEMPTS,
+      })
+    : [];
+  if (input.targetJobId && indonesiaItems.length > 0) {
+    return indonesiaItems;
+  }
+  const remainingAfterIndonesia = Math.max(0, claimLimit - indonesiaItems.length);
+  const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED && remainingAfterIndonesia > 0
+    ? await claimPendingVietnamCloudQueueItems(supabase, {
+        workerId: SUBMISSION_QUEUE_WORKER_ID,
+        limit: remainingAfterIndonesia,
         leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
         targetJobId: input.targetJobId ?? null,
         maxAttempts: MAX_ATTEMPTS,
@@ -508,79 +514,28 @@ async function fetchPendingItems(input: {
     return cloudVietnamItems;
   }
 
-  let items: SubmissionQueueItem[];
-  try {
-    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
-      let query = supabase
-        .from("submission_queue")
-        .select("*")
-        .in("status", STALE_QUEUE_STATUSES.filter((status) =>
-          status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
-        ))
-        .lt("attempts", MAX_ATTEMPTS)
-        .order("created_at", { ascending: true })
-        .limit(input.targetJobId ? 1 : claimLimit);
-      if (input.targetJobId) {
-        query = query.eq("id", input.targetJobId);
-      } else {
-        query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
-      }
-      const { data, error } = await query;
-      if (error) {
-        throw new Error(`Failed provider-filtered submission_queue select: ${error.message}`);
-      }
-      items = ((data ?? []) as SubmissionQueueItem[]).filter((item) =>
-        input.targetJobId ? SUBMISSION_PROVIDER_ALLOWLIST.has(item.provider ?? "") : true,
-      );
-      return items.sort((left, right) => queuePriority(left) - queuePriority(right));
-    }
-
-    items = await claimPendingSubmissionQueueItems(supabase, {
-      workerId: SUBMISSION_QUEUE_WORKER_ID,
-      limit: Math.max(1, claimLimit - cloudVietnamItems.length),
-      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
-      targetJobId: input.targetJobId ?? null,
-      maxAttempts: MAX_ATTEMPTS,
-    });
-    if (items.length === 0) {
-      items = await selectPendingItemsFallback(input);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!isSubmissionQueueClaimRpcUnavailableError(error)) {
-      throw error;
-    }
-    console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
-    items = await selectPendingItemsFallback(input);
+  const claimedDedicatedItems = [...indonesiaItems, ...cloudVietnamItems];
+  if (!LEGACY_SUBMISSION_QUEUE_ENABLED || claimedDedicatedItems.length >= claimLimit) {
+    return claimedDedicatedItems
+      .slice(0, claimLimit)
+      .sort((left, right) => queuePriority(left) - queuePriority(right));
   }
-  const mergedItems = [...cloudVietnamItems, ...items].filter(
+
+  const items = await claimPendingSubmissionQueueItems(supabase, {
+    workerId: SUBMISSION_QUEUE_WORKER_ID,
+    limit: claimLimit - claimedDedicatedItems.length,
+    leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+    targetJobId: input.targetJobId ?? null,
+    maxAttempts: MAX_ATTEMPTS,
+    providerAllowlist: Array.from(SUBMISSION_PROVIDER_ALLOWLIST),
+    allowFailed: Boolean(input.targetJobId && TARGET_FAILED_RETRY_ENABLED),
+  });
+  const mergedItems = [...claimedDedicatedItems, ...items].filter(
     (item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index,
   );
   return mergedItems
     .slice(0, claimLimit)
     .sort((left, right) => queuePriority(left) - queuePriority(right));
-}
-
-async function selectPendingItemsFallback(input: {
-  concurrency: number;
-  targetJobId?: string | null;
-}): Promise<SubmissionQueueItem[]> {
-  const query = supabase
-    .from("submission_queue")
-    .select("*")
-    .in("status", STALE_QUEUE_STATUSES.filter((status) =>
-      status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
-    ))
-    .lt("attempts", MAX_ATTEMPTS)
-    .order("created_at", { ascending: true })
-    .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
-  const { data, error: selectError } = input.targetJobId
-    ? await query.eq("id", input.targetJobId)
-    : await query;
-  if (selectError) {
-    throw new Error(`Failed fallback submission_queue select: ${selectError.message}`);
-  }
-  return (data ?? []) as SubmissionQueueItem[];
 }
 
 function queuePriority(item: SubmissionQueueItem): number {
@@ -594,14 +549,12 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "id_b1_evoa_live_assisted_pending") return 0;
   if (item.status === "phetravel_live_assisted_scheduled") return 0;
   if (item.status === "phetravel_live_assisted_pending") return 0;
-  if (item.status === "tw_live_assisted_pending") return 0;
   if (item.status === "vn_prearrival_live_assisted_scheduled") return 0;
   if (item.status === "vn_prearrival_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
   if (item.status === "mdac_dry_run_pending") return 1;
   if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "phetravel_dry_run_pending") return 1;
-  if (item.status === "tw_dry_run_pending") return 1;
   if (item.status === "vn_prearrival_dry_run_pending") return 1;
   if (item.status === "vn_cloud_live_pending") return 2;
   if (item.status === "vn_live_assisted_pending") return 2;
@@ -1165,24 +1118,19 @@ async function loadReusableApplicantDocuments(
   currentApplicationId: string,
   currentDocuments: ApplicationDocument[],
 ): Promise<ApplicationDocument[]> {
-  const documentsById = new Map<string, ApplicationDocument>();
-  for (const doc of currentDocuments) {
-    documentsById.set(doc.id, doc);
-  }
-
   const { data: applications, error: appError } = await supabase
     .from("applications")
     .select("id")
     .eq("applicant_id", applicantId);
   if (appError) {
     console.warn(`[indonesia] Could not load sibling applications for reusable documents: ${appError.message}`);
-    return Array.from(documentsById.values());
+    return currentDocuments;
   }
 
   const applicationIds = ((applications ?? []) as Array<{ id: string }>)
     .map((row) => row.id)
     .filter((id) => id && id !== currentApplicationId);
-  if (applicationIds.length === 0) return Array.from(documentsById.values());
+  if (applicationIds.length === 0) return currentDocuments;
 
   const { data: siblingDocs, error: docsError } = await supabase
     .from("application_documents")
@@ -1190,16 +1138,16 @@ async function loadReusableApplicantDocuments(
     .in("application_id", applicationIds);
   if (docsError) {
     console.warn(`[indonesia] Could not load reusable applicant documents: ${docsError.message}`);
-    return Array.from(documentsById.values());
+    return currentDocuments;
   }
 
-  for (const doc of (siblingDocs ?? []) as Array<ApplicationDocument & { filename?: string | null }>) {
-    documentsById.set(doc.id, {
+  const normalizedSiblingDocuments = (
+    (siblingDocs ?? []) as Array<ApplicationDocument & { filename?: string | null }>
+  ).map((doc) => ({
       ...doc,
       file_name: doc.file_name ?? doc.filename ?? null,
-    });
-  }
-  return Array.from(documentsById.values());
+    }));
+  return selectIndonesiaSubmissionDocuments(currentDocuments, normalizedSiblingDocuments);
 }
 
 function firstLocalDocumentPathMatching(
@@ -1423,23 +1371,6 @@ function applyEnglishAliases(answers: Record<string, string>): void {
   }
 }
 
-function resolveCeacStartLocationCode(answers: Record<string, string>): string {
-  const candidates = [
-    answers["consular_post"],
-    answers["embassy_or_consulate"],
-    answers["location_where_applying_for_visa"],
-    process.env.CEAC_LOCATION_CODE,
-    "NSS",
-  ];
-
-  for (const candidate of candidates) {
-    const code = candidate?.trim();
-    if (code) return code.toUpperCase();
-  }
-
-  return "NSS";
-}
-
 function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {
   if (status.startsWith("ds160_live_assisted_")) return "ds160_live_assisted_failed";
   if (status.startsWith("ds160_proof_")) return "ds160_proof_failed";
@@ -1468,83 +1399,40 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("phetravel_live_assisted_")) return "phetravel_live_assisted_failed";
   if (status.startsWith("phetravel_dry_run_")) return "phetravel_dry_run_failed";
   if (status.startsWith("phetravel_")) return "phetravel_blocked";
-  if (status.startsWith("tw_live_assisted_")) return "tw_live_assisted_failed";
-  if (status.startsWith("tw_dry_run_")) return "tw_dry_run_failed";
-  if (status.startsWith("tw_")) return "tw_blocked";
   if (status.startsWith("au_")) return "au_prefill_failed";
   return "failed";
 }
 
-function isPendingQueueStatus(status: SubmissionQueueItem["status"]): boolean {
-  return status === "pending" || status.endsWith("_pending");
-}
-
-function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
-  if (status === "ds160_live_assisted_processing") {
-    return DS160_LIVE_PROCESSING_TIMEOUT_MS;
-  }
-  if (status === "vn_live_assisted_processing" || status === "vn_payment_processing") {
-    return VN_LIVE_PROCESSING_TIMEOUT_MS;
-  }
-  return STALE_QUEUE_TIMEOUT_MS;
-}
+let lastStaleQueueMaintenanceAt = 0;
 
 async function markStaleQueueItemsTimedOut(): Promise<void> {
+  const nowMs = Date.now();
   if (!Number.isFinite(STALE_QUEUE_TIMEOUT_MS) || STALE_QUEUE_TIMEOUT_MS <= 0) return;
-  const { data, error } = await supabase
-    .from("submission_queue")
-    .select("*")
-    .in("status", STALE_QUEUE_STATUSES);
+  if (nowMs - lastStaleQueueMaintenanceAt < STALE_QUEUE_MAINTENANCE_INTERVAL_MS) return;
+  lastStaleQueueMaintenanceAt = nowMs;
 
+  const now = new Date(nowMs);
+  const { data, error } = await supabase.rpc("mark_stale_submission_queue_batch", {
+    p_stale_before: new Date(nowMs - STALE_QUEUE_TIMEOUT_MS).toISOString(),
+    p_vn_live_stale_before: new Date(nowMs - VN_LIVE_PROCESSING_TIMEOUT_MS).toISOString(),
+    p_ds160_live_stale_before: new Date(nowMs - DS160_LIVE_PROCESSING_TIMEOUT_MS).toISOString(),
+    p_limit: STALE_QUEUE_MAINTENANCE_BATCH_SIZE,
+  });
   if (error) {
-    console.error(`[queue-timeout] Failed to scan stale submission_queue rows: ${error.message}`);
+    console.error(`[queue-timeout] Failed to mark stale submission_queue rows: ${error.message}`);
     return;
   }
 
-  const staleItems = ((data ?? []) as SubmissionQueueItem[]).filter((item) => {
-    if (isPendingQueueStatus(item.status)) return false;
-    const timeoutMs = timeoutForQueueStatus(item.status);
-    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return false;
-    const cutoffMs = Date.now() - timeoutMs;
-    const lastTouched = item.heartbeat_at || item.updated_at || item.created_at;
-    const touchedMs = lastTouched ? Date.parse(lastTouched) : Number.NaN;
-    return Number.isFinite(touchedMs) && touchedMs < cutoffMs;
-  });
-  for (const item of staleItems) {
-    const timeoutMs = timeoutForQueueStatus(item.status);
-    const timedOutStatus = failedStatusForQueueStatus(item.status);
-    const reason = `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
-    const timedOutAt = new Date().toISOString();
-    const { data: updatedRows, error: updateError } = await supabase
-      .from("submission_queue")
-      .update({
-        status: timedOutStatus,
-        attempts: Math.max(item.attempts, MAX_ATTEMPTS),
-        last_error: reason,
-        error_code: "queue_processing_timed_out",
-        error_message: reason,
-        current_stage: "failed",
-        updated_at: timedOutAt,
-      })
-      .eq("id", item.id)
-      .eq("status", item.status)
-      .eq("updated_at", item.updated_at)
-      .select("id");
-    if (updateError) {
-      console.error(
-        `[queue-timeout] Failed to mark queue=${redactIdentifier(item.id)} timed out: ${updateError.message}`,
-      );
-      continue;
-    }
-    if (!updatedRows || updatedRows.length === 0) {
-      console.log(
-        `[queue-timeout] Skipped queue=${redactIdentifier(item.id)} because its heartbeat/status advanced during the stale scan.`,
-      );
-      continue;
-    }
-    await markSubmissionFailed(item.application_id, reason);
+  const rows = (Array.isArray(data) ? data : []) as Array<{
+    id: string;
+    application_id: string;
+    status: string;
+    timed_out_status: string;
+    timeout_seconds: number;
+  }>;
+  if (rows.length > 0) {
     console.warn(
-      `[queue-timeout] queue=${redactIdentifier(item.id)} application=${redactIdentifier(item.application_id)} -> ${timedOutStatus}: ${reason}`,
+      `[queue-timeout] Marked ${rows.length} stale queue item(s) timed out in one atomic maintenance batch at ${now.toISOString()}.`,
     );
   }
 }
@@ -3552,8 +3440,39 @@ function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknow
     consoleErrors: diagnostics.consoleErrors.map(redactVnDiagnosticText),
     failedRequests: diagnostics.failedRequests.map(redactVnDiagnosticText),
     captchaSolves: diagnostics.captchaSolves,
-    validationErrors: diagnostics.validationErrors,
+    validationErrors: diagnostics.validationErrors?.map((entry) => ({
+      label: redactVnDiagnosticText(entry.label),
+      message: redactVnDiagnosticText(entry.message),
+      ...(entry.domId ? { domId: redactVnDiagnosticText(entry.domId) } : {}),
+    })),
     fieldFallbacks: diagnostics.fieldFallbacks,
+    proxiedPublicRequestCount: diagnostics.proxiedPublicRequestCount,
+    publicProxyFailures: diagnostics.publicProxyFailures?.map(redactVnDiagnosticText),
+    reviewBlockers: diagnostics.reviewBlockers
+      ? {
+          requiredUnfilled: diagnostics.reviewBlockers.requiredUnfilled.map(redactVnDiagnosticText),
+          invalidControls: diagnostics.reviewBlockers.invalidControls.map(redactVnDiagnosticText),
+          validationMessages: diagnostics.reviewBlockers.validationMessages.map((entry) => ({
+            label: redactVnDiagnosticText(entry.label),
+            message: redactVnDiagnosticText(entry.message),
+            ...(entry.domId ? { domId: redactVnDiagnosticText(entry.domId) } : {}),
+          })),
+          declaration: {
+            found: diagnostics.reviewBlockers.declaration.found,
+            checked: diagnostics.reviewBlockers.declaration.checked,
+            identifier: diagnostics.reviewBlockers.declaration.identifier
+              ? redactVnDiagnosticText(diagnostics.reviewBlockers.declaration.identifier)
+              : null,
+          },
+          finalCommitment: {
+            found: diagnostics.reviewBlockers.finalCommitment.found,
+            checked: diagnostics.reviewBlockers.finalCommitment.checked,
+            identifier: diagnostics.reviewBlockers.finalCommitment.identifier
+              ? redactVnDiagnosticText(diagnostics.reviewBlockers.finalCommitment.identifier)
+              : null,
+          },
+        }
+      : undefined,
     tracePath: diagnostics.tracePath,
     finalScreenshotPath: diagnostics.finalScreenshotPath,
     lastSnapshot: snapshot
@@ -3607,12 +3526,14 @@ function buildVnQueuePayload(
       checkpoint: result.checkpoint,
       instruction: result.instruction,
       url: result.url,
+      registrationCodeCaptured: Boolean(result.registrationCode),
     };
   }
   if (result.status === "scaffolded_pending_walk") {
     return {
       ...base,
       reason: result.reason,
+      errorCode: result.errorCode,
       checkpoint: result.checkpoint,
       url: result.url,
     };
@@ -3632,7 +3553,11 @@ function vietnamStatusForAction(result: VietnamActionRequiredRunResult): VnSubmi
   if (result.actionType === "note_modal_required") return "note_modal_required";
   if (result.actionType === "captcha_required") return "captcha_required";
   if (result.actionType === "upload_required") return "upload_required";
-  if (result.actionType === "payment_required" || result.actionType === "final_submit_required") {
+  if (
+    result.actionType === "payment_required" ||
+    result.actionType === "final_submit_required" ||
+    result.actionType === "official_fee_payment_review_required"
+  ) {
     return "stopped_at_pay";
   }
   if (result.actionType === "official_portal_error") return "official_portal_error";
@@ -3653,6 +3578,7 @@ function buildVietnamActionRequiredResult(
     provider: "vietnam_evisa_live",
     portalUrl: result.url,
     checkpoint: result.checkpoint,
+    ...(result.registrationCode ? { registrationCode: result.registrationCode } : {}),
     manualAction: {
       type: result.actionType,
       status: "open",
@@ -3660,8 +3586,10 @@ function buildVietnamActionRequiredResult(
       ...(finalScreenshotPath ? { screenshotUrl: finalScreenshotPath } : {}),
     },
     paymentStatus:
-      result.actionType === "payment_required" || result.actionType === "final_submit_required"
-        ? "manual_required"
+      result.actionType === "payment_required" ||
+      result.actionType === "final_submit_required" ||
+      result.actionType === "official_fee_payment_review_required"
+        ? "blocked"
         : "not_required",
   };
 }
@@ -3689,75 +3617,6 @@ async function createVietnamManualAction(
   if (error) {
     console.warn(`[vn] Failed to create manual action for queue=${redactIdentifier(item.id)}: ${error.message}`);
   }
-}
-
-const DEFAULT_INDONESIA_ALIAS_DOMAIN = "haggstorm.com";
-
-function parseAliasDomain(value: string | null | undefined): string | null {
-  const normalized = value?.trim().toLowerCase();
-  if (!normalized) return null;
-  const at = normalized.lastIndexOf("@");
-  if (at < 0 || at === normalized.length - 1) return null;
-  return normalized.slice(at + 1);
-}
-
-function normalizeAliasDomain(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/^\./, "")
-    .replace(/^@/, "");
-}
-
-function parseIndonesiaManagedAliasDomains(currentDomain: string | null): string[] {
-  const domains: string[] = [];
-  const envValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAINS;
-  const legacyValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAIN;
-
-  const collect = (value: string | undefined) => {
-    if (!value) return;
-    value
-      .split(/[,\s;|]+/)
-      .map((domain) => normalizeAliasDomain(domain))
-      .filter(Boolean)
-      .forEach((domain) => {
-        if (!domains.includes(domain)) {
-          domains.push(domain);
-        }
-      });
-  };
-
-  collect(envValue);
-  if (domains.length === 0) {
-    collect(legacyValue);
-  }
-  if (domains.length === 0) {
-    domains.push(DEFAULT_INDONESIA_ALIAS_DOMAIN);
-  }
-
-  const normalizedCurrent = normalizeAliasDomain(currentDomain ?? "");
-  if (normalizedCurrent && !domains.includes(normalizedCurrent)) {
-    domains.unshift(normalizedCurrent);
-  }
-  return domains;
-}
-
-function isManagedIndonesiaAliasEmail(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return /^appl-[0-9a-z]{26}@/.test(normalized);
-}
-
-function shouldRotateIndonesiaAlias(result: { status?: string; actionType?: string | null; message?: string; actionInstructions?: string | null }, managedEmail: string): boolean {
-  if (!managedEmail || !isManagedIndonesiaAliasEmail(managedEmail)) return false;
-  if (result.status !== "action_required") return false;
-  if (result.actionType !== "official_account_registration_form_reached") return false;
-  const haystack = `${result.actionType ?? ""} ${result.message ?? ""} ${result.actionInstructions ?? ""}`.toLowerCase();
-  return (
-    /indonesia_account_email_verification_not_found_yet/.test(haystack) ||
-    /silahkan\s+periksa\s+kembali\s+email/.test(haystack) ||
-    /check\s+your\s+email/.test(haystack) ||
-    /indonesia_account_registration_errors/.test(haystack)
-  );
 }
 
 function generatePhEtravelMpin(): string {
@@ -3795,7 +3654,7 @@ async function loadOrCreatePhEtravelAccountPlan(input: {
   // Derived local-parts are intentionally rejected as unknown aliases, so the
   // official account must use the managed address verbatim for OTP delivery.
   const aliasEmail = phEtravelAccountEmailFromManagedAlias(alias.alias);
-  const generatedPassword = generatePhEtravelAccountPassword();
+  const generatedPassword = `VizaPH-${randomBytes(9).toString("base64url")}9!`;
   const generatedMpin = generatePhEtravelMpin();
 
   return choosePhEtravelAccountPlan({
@@ -3825,6 +3684,7 @@ type VnOfficialFeeIntentRow = {
   fee_quote_id: string | null;
   mode: string | null;
   provider: string | null;
+  payment_method_type: string | null;
   official_fee_amount: number | string | null;
   official_fee_currency: string | null;
   status: string | null;
@@ -3854,7 +3714,9 @@ async function loadVnRegistrationCode(applicationId: string, item: SubmissionQue
 
 async function getVietnamOfficialLookupEmail(applicantId: string): Promise<string> {
   const alias = await ensureApplicantInboxAlias(applicantId);
-  return alias.alias.trim().toLowerCase();
+  const officialLookupEmail = alias.alias.trim().toLowerCase();
+  await assertInboxAliasDomainRoutable(officialLookupEmail);
+  return officialLookupEmail;
 }
 
 function readAnswerValue(
@@ -3868,7 +3730,18 @@ function readAnswerValue(
   return null;
 }
 
-async function activatePaidVietnamTracking(
+function managedCardToOneTimeCard(card: ManagedPaymentCard) {
+  const [expiryMonth = "", expiryYear = ""] = card.expiry.split("/");
+  return {
+    pan: card.pan,
+    expiryMonth,
+    expiryYear,
+    cvv: card.cvv,
+    holderName: card.holderName,
+  };
+}
+
+async function activateVietnamTracking(
   applicationId: string,
   officialLookupEmail?: string,
 ): Promise<void> {
@@ -3886,7 +3759,7 @@ async function activatePaidVietnamTracking(
 async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOfficialFeeIntentRow | null> {
   const { data, error } = await supabase
     .from("official_fee_payment_intents")
-    .select("id, user_id, fee_quote_id, mode, provider, official_fee_amount, official_fee_currency, status")
+    .select("id, user_id, fee_quote_id, mode, provider, payment_method_type, official_fee_amount, official_fee_currency, status")
     .eq("application_id", applicationId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -3895,6 +3768,12 @@ async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOf
     throw new Error(`Failed to load official fee intent: ${error.message}`);
   }
   return (data ?? null) as VnOfficialFeeIntentRow | null;
+}
+
+function isManagedVirtualCardIntent(
+  intent: VnOfficialFeeIntentRow | null,
+): intent is VnOfficialFeeIntentRow {
+  return intent?.payment_method_type === "viza_managed_virtual_card";
 }
 
 async function nextOfficialFeeAttemptNumber(intentId: string): Promise<number> {
@@ -4037,6 +3916,10 @@ async function hasVnOfficialFeeFallbackAuthorization(applicationId: string): Pro
 }
 
 async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
+  let repairTempDir: string | null = null;
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
     item.id,
@@ -4052,41 +3935,40 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     let intent: VnOfficialFeeIntentRow | null = null;
-    let fallbackAuthorized = false;
     try {
       intent = await getLatestVnOfficialFeeIntent(item.application_id);
     } catch (error) {
-      if (isVnOfficialFeeSchemaMissing(error)) {
-        fallbackAuthorized = await hasVnOfficialFeeFallbackAuthorization(item.application_id);
-      } else {
-        throw error;
-      }
+      throw error;
     }
+    const stopBeforeCardEntry = readBooleanEnv(
+      "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
+      false,
+    );
+    const preCardQaMode =
+      stopBeforeCardEntry &&
+      item.vn_result_payload?.qaMode === "pre_card_only";
     const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
-    const directOneTimeCardAuthorized =
-      autopayEnabled &&
-      readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) &&
-      item.payment_status === "authorized";
-    if (!intent && !fallbackAuthorized && directOneTimeCardAuthorized) {
-      fallbackAuthorized = true;
-      console.log(
-        `[vn] Payment queue ${item.id} proceeding with queue-scoped one-time card authorization without an official-fee intent.`,
-      );
+    if (!preCardQaMode && (!intent || !isManagedVirtualCardIntent(intent))) {
+      throw new Error("No managed official-fee intent and allocation are available for Vietnam payment.");
     }
-    if (!intent && !fallbackAuthorized) {
-      throw new Error("No authorized official_fee_payment_intent found for Vietnam payment.");
-    }
-    if (intent && !["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intent.status ?? "")) {
-      throw new Error(`Official fee intent is not executable from status ${intent.status ?? "(empty)"}.`);
+    if (!preCardQaMode && !["admin_approved", "ready"].includes(intent?.status ?? "")) {
+      throw new Error(`Official fee intent is not executable from status ${intent?.status ?? "(empty)"}.`);
     }
 
     const registrationCode = await loadVnRegistrationCode(item.application_id, item);
-    const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
+    const dryRunReceipt =
+      process.env.NODE_ENV !== "production" &&
+      readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
 
     if (autopayEnabled && !dryRunReceipt) {
-      const { profile } = await loadApplicantData(item.application_id);
+      const { profile, application, documents } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
+      // The initial official submission always uses the managed applicant
+      // alias. Reusing an older profile/persisted email here makes the official
+      // search tuple (registration code, email, DOB) fail even though the
+      // registration code is valid. Keep submission, payment resume, and
+      // status tracking on the same alias.
       const email = await getVietnamOfficialLookupEmail(profile.id);
       const dateOfBirth = readAnswerValue(answers, [
         "date_of_birth",
@@ -4100,10 +3982,37 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
-      const cardSession = await consumeVietnamCardSessionWithGrace(
-        item.application_id,
-        readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false),
-      );
+      let repairAnswers: Record<string, string> | undefined;
+      if (stopBeforeCardEntry && !preCardQaMode) {
+        repairAnswers = applyVietnamAnswerAliases({ ...answers }, profile, application);
+        repairTempDir = fs.mkdtempSync(path.join(os.tmpdir(), `vn-payment-repair-${item.id}-`));
+        const localDocPaths = await downloadDocuments(documents, repairTempDir);
+        const portraitPath = firstLocalDocumentPath(localDocPaths, [
+          "photo",
+          "applicant_photo",
+          "portrait_photo",
+        ]);
+        const passportPath = firstLocalDocumentPath(localDocPaths, [
+          "passport_copy",
+          "passport_scan",
+          "passport_photo",
+          "passport",
+        ]);
+        if (portraitPath) repairAnswers.portrait_photo = portraitPath;
+        if (passportPath) {
+          repairAnswers.passport_copy = passportPath;
+          repairAnswers.passport_photo = passportPath;
+        }
+      }
+      if (!stopBeforeCardEntry) {
+        managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+        managedPaymentHooks = createManagedPaymentHooks({
+          applicationId: item.application_id,
+          workerId: item.id,
+          country: application.country ?? "vietnam",
+          visaType: application.visa_type ?? "VN_E_VISA",
+        });
+      }
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
         email,
@@ -4111,9 +4020,63 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
-        card: cardSession,
+        stopBeforeCardEntry,
+        repairAnswers,
+        expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
+        expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
+        takeCard: async () => {
+          managedPaymentCard = await managedPaymentHooks?.takePaymentCard?.() ?? null;
+          return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+        },
       });
+      if (payment.status === "card_entry_ready") {
+        await updateVnQueueRow(
+          item.id,
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            current_stage: "official_fee_card_entry_ready",
+            payment_status: "card_entry_ready",
+            official_status: "payment_card_entry_ready",
+            error_code: null,
+            error_message: null,
+            manual_action_status: "completed",
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              status: "payment_card_entry_ready",
+              checkpoint: "card_entry_ready",
+              officialFeePaymentIntentId: intent?.id ?? null,
+              registrationCodeCaptured: true,
+              screenshotPath,
+              paymentDiagnostics: payment.diagnostics ?? null,
+              paymentSubmitted: false,
+            },
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          {
+            status: "vn_blocked",
+            attempts: item.attempts + 1,
+            last_error: null,
+            updated_at: now,
+          },
+        );
+        await supabase
+          .from("applications")
+          .update({
+            official_fee_status: "official_fee_card_entry_ready",
+            ...(intent ? { official_fee_payment_intent_id: intent.id } : {}),
+            updated_at: now,
+          })
+          .eq("id", item.application_id);
+        return;
+      }
       if (payment.status === "paid") {
+        if (managedPaymentCard) {
+          await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "consumed");
+          managedPaymentCard = null;
+        }
         const receiptNumber = payment.receiptReference;
         const feeEvidence = intent
           ? await insertVnOfficialFeeAttempt({
@@ -4159,6 +4122,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
               receiptNumber,
               registrationCodeCaptured: true,
               screenshotPath,
+              paymentDiagnostics: payment.diagnostics ?? null,
             },
             heartbeat_at: now,
             updated_at: now,
@@ -4181,11 +4145,22 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
             updated_at: now,
           })
           .eq("id", item.application_id);
-        await activatePaidVietnamTracking(item.application_id, email);
+        await activateVietnamTracking(item.application_id, email);
         return;
       }
 
       const message = `Vietnam official payment resume did not complete automatically: ${payment.reason}`;
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+        managedPaymentCard = null;
+      }
+      if (payment.status === "review_required" && managedOfficialFeeContext) {
+        await recordOfficialFeeReview({
+          context: managedOfficialFeeContext,
+          errorCode: "official_fee_amount_unverified",
+          message,
+        });
+      }
       await updateVnQueueRow(
         item.id,
         {
@@ -4195,16 +4170,16 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
           current_stage: "official_fee_manual_review",
           payment_status: payment.status === "declined" ? "failed" : "manual_review",
           official_status: "payment_authorized",
-          error_code: payment.status === "declined" ? "payment_declined" : "manual_payment_required",
+          error_code: payment.status === "declined" ? "payment_declined" : "official_fee_payment_review_required",
           error_message: message,
           vn_result_payload: {
             ...(item.vn_result_payload ?? {}),
             status: "payment_manual_review",
             officialFeePaymentIntentId: intent?.id ?? null,
-            officialFeeSchemaFallback: fallbackAuthorized,
             registrationCodeCaptured: true,
             paymentResumeUrl: payment.url,
             screenshotPath,
+            paymentDiagnostics: payment.diagnostics ?? null,
           },
           heartbeat_at: now,
           updated_at: now,
@@ -4221,8 +4196,8 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
 
     if (!dryRunReceipt || !intent) {
       const message = autopayEnabled
-        ? "Vietnam official payment is authorized, but queued payment resume is not implemented for the fixed-card pilot. Re-run the live Vietnam runner through the official payment page or use operator payment."
-        : "Vietnam official payment is authorized, but VN_OFFICIAL_PAYMENT_AUTOPAY is disabled. Operator payment is required.";
+        ? "Vietnam managed official-fee payment could not run through the queued resume path. VIZA staff review is required; the applicant must not pay the portal directly."
+        : "Vietnam managed official-fee automation is disabled. VIZA staff review is required; the applicant must not pay the portal directly.";
       const { attemptId } = intent
         ? await insertVnOfficialFeeAttempt({
             applicationId: item.application_id,
@@ -4243,14 +4218,13 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
             current_stage: "official_fee_manual_review",
             payment_status: "manual_review",
             official_status: "payment_authorized",
-            error_code: "manual_payment_required",
+            error_code: "official_fee_payment_review_required",
             error_message: message,
             vn_result_payload: {
               ...(item.vn_result_payload ?? {}),
               status: "payment_manual_review",
               officialFeePaymentIntentId: intent?.id ?? null,
               officialFeePaymentAttemptId: attemptId,
-              officialFeeSchemaFallback: fallbackAuthorized,
               registrationCodeCaptured: Boolean(registrationCode),
             },
             heartbeat_at: now,
@@ -4342,9 +4316,13 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         .eq("id", item.application_id),
     ]);
     if (!dryRunReceipt) {
-      await activatePaidVietnamTracking(item.application_id);
+      await activateVietnamTracking(item.application_id);
     }
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const message = err instanceof Error ? err.message : String(err);
     const failedAt = new Date().toISOString();
     await updateVnQueueRow(
@@ -4368,6 +4346,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         updated_at: failedAt,
       },
     );
+  } finally {
+    if (repairTempDir) {
+      fs.rmSync(repairTempDir, { recursive: true, force: true });
+    }
   }
 }
 
@@ -4413,6 +4395,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const finalScreenshotPath = captureScreenshot ? path.join(diagnosticsDir, "final.png") : undefined;
   const now = new Date().toISOString();
   const currentVnProgressStage = { value: "starting" as string | null };
+  let consumedOneTimeCardAuthorization = false;
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
 
   await updateVnQueueRow(
     item.id,
@@ -4457,19 +4443,19 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
     const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const managedIssuingEnabled = officialPaymentAutopayEnabled;
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
-      (readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) ||
-        readBooleanEnv("VN_CLOUD_CARD_SESSION_ENABLED", false));
+      vietnamCardSessionsEnabled();
     const envFixedCardPaymentEnabled =
-      officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
+      officialPaymentAutopayEnabled && vietnamCardSessionsEnabled() && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
     const oneTimeFixedCard = await consumeVietnamCardSessionWithGrace(
       item.application_id,
       oneTimeCardPaymentEnabled,
     );
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
-    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled) {
+    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled || managedIssuingEnabled) {
       try {
         officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
       } catch (error) {
@@ -4484,9 +4470,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         }
       }
     }
-    const queueAuthorizedOneTimeCard = Boolean(oneTimeFixedCard);
+    const queueAuthorizedOneTimeCard = vietnamCardSessionsEnabled() && Boolean(oneTimeFixedCard);
+    consumedOneTimeCardAuthorization = queueAuthorizedOneTimeCard;
     if (queueAuthorizedOneTimeCard) {
-      officialFeeFallbackAuthorized = true;
       console.log(
         `[vn] Run ${runId} using queue-scoped one-time card authorization for application=${item.application_id.slice(0, 4)}...${item.application_id.slice(-4)} payment_status=${item.payment_status ?? "(empty)"}`,
       );
@@ -4523,6 +4509,19 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       answers.passport_copy = passportPath;
       answers.passport_photo = passportPath;
     }
+    const managedIssuingIntent = isManagedVirtualCardIntent(officialFeeIntent)
+      ? officialFeeIntent
+      : null;
+    if (managedIssuingIntent && managedIssuingEnabled) {
+      managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+      managedPaymentHooks = createManagedPaymentHooks({
+        applicationId: item.application_id,
+        workerId: item.id,
+        country: application.country ?? "vietnam",
+        visaType: application.visa_type ?? "VN_E_VISA",
+      });
+    }
+    const vnPaymentHooks = managedPaymentHooks;
     const result = await fillVietnamApplication(
       { answers },
       {
@@ -4537,8 +4536,16 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
-        allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent) || officialFeeFallbackAuthorized,
+        allowFixedCardPayment: Boolean(managedOfficialFeeContext) || queueAuthorizedOneTimeCard || envFixedCardPaymentEnabled,
         fixedCard: oneTimeFixedCard,
+        expectedPaymentAmountCents: managedOfficialFeeContext?.canonicalAmountCents ?? null,
+        expectedPaymentCurrency: managedOfficialFeeContext?.canonicalCurrency ?? null,
+        takeFixedCard: !oneTimeFixedCard && vnPaymentHooks
+          ? async () => {
+              managedPaymentCard ??= await vnPaymentHooks.takePaymentCard?.() ?? null;
+              return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+            }
+          : undefined,
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
@@ -4547,6 +4554,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
     if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
       const paid = result.status === "submitted_paid";
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(
+          managedPaymentCard,
+          paid ? "consumed" : "review_required",
+        );
+        managedPaymentCard = null;
+      }
       let officialFeeAttemptId: string | null = null;
       let officialFeeReceiptId: string | null = null;
       if (paid) {
@@ -4590,9 +4604,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ...(result.registrationCode ? { registrationCode: result.registrationCode } : {}),
         submittedAtIso: result.submittedAtIso,
         noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
-        paymentStatus: paid ? "paid" : "manual_required",
+        paymentStatus: paid ? "paid" : "blocked",
       };
-      await writeSubmissionResult(item.application_id, vnPayload, paid ? "completed" : "needs_user_action");
+      await writeSubmissionResult(item.application_id, vnPayload, paid ? "completed" : "action_required");
       const completedAt = new Date().toISOString();
       await updateVnQueueRow(
         item.id,
@@ -4604,8 +4618,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           ...(result.registrationCode ? { vn_registration_code_encrypted: encryptSecret(result.registrationCode) } : {}),
           official_status: paid ? "payment_submitted" : "registration_code_captured",
           current_stage: paid ? "official_fee_paid" : "payment_required",
-          manual_action_status: paid ? "completed" : "pending",
-          payment_status: paid ? "paid" : "manual_required",
+          manual_action_status: paid ? "completed" : "review_required",
+          payment_status: paid ? "paid" : "manual_review",
           ...(paid && officialFeeIntent
             ? { official_fee_payment_intent_id: officialFeeIntent.id }
             : {}),
@@ -4635,7 +4649,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
             updated_at: completedAt,
           })
           .eq("id", item.application_id);
-        await activatePaidVietnamTracking(
+        await activateVietnamTracking(
           item.application_id,
           officialLookupEmail ?? undefined,
         );
@@ -4649,6 +4663,17 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     if (result.status === "action_required") {
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+        managedPaymentCard = null;
+      }
+      if (result.actionType === "official_fee_payment_review_required" && managedOfficialFeeContext) {
+        await recordOfficialFeeReview({
+          context: managedOfficialFeeContext,
+          errorCode: "official_fee_amount_unverified",
+          message: result.instruction,
+        });
+      }
       const actionResult = buildVietnamActionRequiredResult(result, finalScreenshotPath);
       await createVietnamManualAction(item, result, finalScreenshotPath);
       const actionAt = new Date().toISOString();
@@ -4661,8 +4686,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           attempts: item.attempts,
           last_error: result.instruction,
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+          ...(result.registrationCode
+            ? { vn_registration_code_encrypted: encryptSecret(result.registrationCode) }
+            : {}),
           manual_action_status: "pending",
-          official_status: "manual_action_required",
+          official_status: result.registrationCode
+            ? "registration_code_captured_payment_pending"
+            : "manual_action_required",
           error_code: result.actionType,
           error_message: result.instruction,
           current_stage: result.checkpoint,
@@ -4679,6 +4709,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         },
       );
       await writeSubmissionResult(item.application_id, actionResult, "action_required");
+      if (
+        result.registrationCode &&
+        officialLookupEmail &&
+        (result.actionType === "payment_required" || result.actionType === "final_submit_required")
+      ) {
+        await activateVietnamTracking(item.application_id, officialLookupEmail);
+      }
       console.warn(`[vn] Run ${runId} requires manual action at ${result.checkpoint}: ${result.actionType}`);
       return;
     }
@@ -4699,7 +4736,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           last_error: reason,
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
           official_status: "official_portal_error",
-          error_code: "registration_code_not_found",
+          error_code: result.errorCode ?? "registration_code_not_found",
           error_message: reason,
           current_stage: result.checkpoint ?? "layout_changed",
           official_portal_url: result.url ?? null,
@@ -4728,7 +4765,12 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       result.checkpoint === "white_screen" ||
       result.checkpoint === "network_blocked" ||
       result.checkpoint === "portal_error";
-    const newAttempts = officialPortalFailure ? MAX_ATTEMPTS : item.attempts + 1;
+    const newAttempts = nextVietnamQueueAttemptCount({
+      currentAttempts: item.attempts,
+      officialPortalFailure,
+      consumedOneTimeCardAuthorization,
+      maxAttempts: MAX_ATTEMPTS,
+    });
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
       : retryPendingStatus;
@@ -4743,10 +4785,14 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         official_status: "official_portal_error",
         error_code: errorCode,
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization ? { payment_status: "failed" } : {}),
         current_stage: result.checkpoint ?? "failed",
         official_portal_url: result.url,
         official_trace_url: tracePath ?? null,
         heartbeat_at: failedAt,
+        ...(newStatus === retryPendingStatus
+          ? { locked_by: null, locked_until: null }
+          : {}),
         updated_at: failedAt,
       },
       {
@@ -4762,8 +4808,17 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
-    const newAttempts = item.attempts + 1;
+    const newAttempts = nextVietnamQueueAttemptCount({
+      currentAttempts: item.attempts,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization,
+      maxAttempts: MAX_ATTEMPTS,
+    });
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
       : retryPendingStatus;
@@ -4777,9 +4832,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         official_status: "official_portal_error",
         error_code: "vietnam_unhandled_error",
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization ? { payment_status: "failed" } : {}),
         current_stage: "failed",
         official_trace_url: tracePath ?? null,
         heartbeat_at: failedAt,
+        ...(newStatus === retryPendingStatus
+          ? { locked_by: null, locked_until: null }
+          : {}),
         updated_at: failedAt,
       },
       {
@@ -6092,30 +6151,17 @@ async function uploadArrivalCardArtifacts(input: {
   return uploaded;
 }
 
-const VN_PREARRIVAL_FORWARDING_CONSENT = {
-  type: "alias_email_forwarding",
-  version: "2026-07-22",
-  documentHash:
-    "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212",
-} as const;
-
-async function hasCurrentVnPrearrivalEmailForwardingConsent(
-  applicantId: string,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("consent_events")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("consent_type", VN_PREARRIVAL_FORWARDING_CONSENT.type)
-    .eq("version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
-    .eq("document_hash", VN_PREARRIVAL_FORWARDING_CONSENT.documentHash)
-    .eq("accepted", true)
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`Vietnam Pre-Arrival email forwarding consent lookup failed: ${error.message}`);
-  }
-  return Boolean(data?.id);
+function legacyPendingQueueStatuses(): SubmissionQueueItem["status"][] {
+  return STALE_QUEUE_STATUSES.filter((status) =>
+    (status.endsWith("_pending") ||
+      status.endsWith("_scheduled") ||
+      status === "pending") &&
+    status !== "id_c1_live_assisted_pending" &&
+    status !== "id_b1_evoa_live_assisted_pending" &&
+    status !== "vn_prearrival_dry_run_pending" &&
+    status !== "vn_prearrival_live_assisted_scheduled" &&
+    status !== "vn_prearrival_live_assisted_pending",
+  );
 }
 
 async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {
@@ -6196,12 +6242,7 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
         message: input.message,
         missingFields: input.missingFields,
       },
-      artifacts: {
-        screenshots: screenshotArtifacts,
-        pdfs: [],
-        logs: input.logs ?? [],
-        traces: [],
-      },
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
@@ -6245,7 +6286,7 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       });
       return;
     }
-    if (!(await hasCurrentVnPrearrivalEmailForwardingConsent(profile.id))) {
+    if (!(await hasAliasEmailForwardingConsent(profile.id))) {
       await writeFailure({
         status: "validation_failed",
         code: "vn_prearrival_email_forwarding_consent_required",
@@ -6449,17 +6490,10 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
   }
 
   const result = application?.submission_result as { submitted?: unknown } | null;
-  const completedQueueSucceeded = (completedQueues ?? []).some((queue) => (
-    queue.mode === "live_assisted"
-    && queue.official_status === "submitted"
-    && Boolean(queue.live_submitted_at?.trim())
-  ));
-  const alreadySucceeded = code === "PH_ETRAVEL"
-    ? hasCompletePhEtravelStoredSubmissionResult(result) && completedQueueSucceeded
-    : hasOfficialArrivalCardSuccess({
-        applicationResult: result,
-        completedQueues,
-      });
+  const alreadySucceeded = hasOfficialArrivalCardSuccess({
+    applicationResult: result,
+    completedQueues,
+  });
   if (!alreadySucceeded) return false;
 
   const now = new Date().toISOString();
@@ -6482,137 +6516,6 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
     `[${arrivalCardLogCode(code)}] Suppressed duplicate queue item after an earlier official submission succeeded.`,
   );
   return true;
-}
-
-async function loadPhEtravelStoredSubmissionResult(applicationId: string): Promise<unknown | null> {
-  const { data, error } = await supabase
-    .from("applications")
-    .select("submission_result")
-    .eq("id", applicationId)
-    .maybeSingle();
-  if (error) {
-    console.warn(`[phetravel] Could not load stored result for consistency guard: ${error.message}`);
-    return null;
-  }
-  return (data as { submission_result?: unknown } | null)?.submission_result ?? null;
-}
-
-async function synchronizePhEtravelStoredSubmittedResult(input: {
-  item: SubmissionQueueItem;
-  evidence: NonNullable<ReturnType<typeof extractCompletePhEtravelStoredSubmissionEvidence>>;
-  source: "stored_complete_result" | "stored_pending_sync_result";
-}): Promise<void> {
-  const now = new Date().toISOString();
-  const officialReference = input.evidence.officialReference;
-  const { error: applicationStatusError } = await supabase
-    .from("applications")
-    .update({
-      status: "submitted",
-      confirmation_number: officialReference,
-      external_reference: input.evidence.referenceNumber,
-      submitted_at: now,
-      updated_at: now,
-    })
-    .eq("id", input.item.application_id);
-
-  if (applicationStatusError) {
-    const safeError = safePhEtravelErrorSummary({ code: "phetravel_result_consistency_sync_failed" });
-    const { error: queueError } = await supabase
-      .from("submission_queue")
-      .update({
-        status: "phetravel_blocked",
-        attempts: input.item.attempts + 1,
-        last_error: safeError.message,
-        error_code: safeError.code,
-        error_message: safeError.message,
-        current_stage: "result_consistency_recovery_required",
-        official_status: "submitted_pending_application_sync",
-        manual_action_status: "open",
-        updated_at: now,
-      })
-      .eq("id", input.item.id);
-    if (queueError) {
-      throw new Error(`Failed to mark PH eTravel consistency recovery queue: ${queueError.message}`);
-    }
-    console.warn("[phetravel] Stored authoritative result evidence was found, but application status sync still needs recovery.");
-    return;
-  }
-
-  const { error: queueUpdateError } = await supabase
-    .from("submission_queue")
-    .update({
-      status: "done",
-      last_error: null,
-      error_code: null,
-      error_message: null,
-      current_stage: "submitted",
-      official_status: "submitted",
-      official_confirmation_number_encrypted: encryptSecret(officialReference),
-      official_confirmation_pdf_url: input.evidence.pdfArtifacts[0] ?? null,
-      live_submitted_at: now,
-      live_screenshot_url: input.evidence.screenshotArtifacts[0] ?? null,
-      updated_at: now,
-    })
-    .eq("id", input.item.id);
-  if (queueUpdateError) {
-    throw new Error(`Failed to synchronize PH eTravel submitted queue from stored result: ${queueUpdateError.message}`);
-  }
-  console.warn(`[phetravel] Synchronized queue from ${input.source}; official portal was not re-submitted.`);
-}
-
-async function blockPhEtravelIncompleteSubmittedEvidence(input: {
-  item: SubmissionQueueItem;
-  code: string | null;
-}): Promise<void> {
-  const now = new Date().toISOString();
-  const safeError = safePhEtravelErrorSummary({
-    code: input.code ?? "ph_etravel_authoritative_result_read_required",
-  });
-  const { error } = await supabase
-    .from("submission_queue")
-    .update({
-      status: "phetravel_blocked",
-      attempts: input.item.attempts + 1,
-      last_error: safeError.message,
-      error_code: safeError.code,
-      error_message: safeError.message,
-      current_stage: "result_consistency_recovery_required",
-      official_status: "submitted_evidence_incomplete",
-      manual_action_status: "open",
-      updated_at: now,
-    })
-    .eq("id", input.item.id);
-  if (error) {
-    throw new Error(`Failed to block PH eTravel incomplete submitted evidence queue: ${error.message}`);
-  }
-  console.warn("[phetravel] Stored result claims submission but lacks complete official evidence; official submit was not retried.");
-}
-
-async function keepPhEtravelActionRequired(input: {
-  item: SubmissionQueueItem;
-  code: string | null;
-}): Promise<void> {
-  const safeError = safePhEtravelErrorSummary({
-    code: input.code ?? "ph_etravel_launch_final_result_recovery_required",
-  });
-  const { error } = await supabase
-    .from("submission_queue")
-    .update({
-      status: "phetravel_blocked",
-      attempts: input.item.attempts + 1,
-      last_error: safeError.message,
-      error_code: safeError.code,
-      error_message: safeError.message,
-      current_stage: "action_required_not_submitted",
-      official_status: "action_required_not_submitted",
-      manual_action_status: "open",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.item.id);
-  if (error) {
-    throw new Error(`Failed to retain PH eTravel action-required queue: ${error.message}`);
-  }
-  console.warn(`[phetravel] ${safePhEtravelServiceLog({ code: safeError.code })}`);
 }
 
 async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code: ArrivalCardCode): Promise<void> {
@@ -6642,40 +6545,6 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     `[${logCode}] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
 
-  if (!isMdac && !isTdac) {
-    const storedPhResult = await loadPhEtravelStoredSubmissionResult(item.application_id);
-    const storedPlan = planPhEtravelConsistencyCompensation(storedPhResult);
-    if (storedPlan.action === "sync_internal_submitted") {
-      await synchronizePhEtravelStoredSubmittedResult({
-        item,
-        evidence: storedPlan.evidence,
-        source: storedPlan.source,
-      });
-      return;
-    }
-    if (storedPlan.action === "recover_authoritative_result") {
-      await blockPhEtravelIncompleteSubmittedEvidence({
-        item,
-        code: storedPlan.code,
-      });
-      return;
-    }
-    if (storedPlan.action === "block_incomplete_submitted_evidence") {
-      await blockPhEtravelIncompleteSubmittedEvidence({
-        item,
-        code: storedPlan.code,
-      });
-      return;
-    }
-    if (storedPlan.action === "keep_action_required") {
-      await keepPhEtravelActionRequired({
-        item,
-        code: storedPlan.code,
-      });
-      return;
-    }
-  }
-
   if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
 
   await supabase
@@ -6701,12 +6570,6 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     screenshotPaths?: string[];
     logs?: string[];
   }): Promise<void> {
-    const safePhError = !isMdac && !isTdac
-      ? safePhEtravelErrorSummary({ code: input.code, missingFields: input.missingFields })
-      : null;
-    const persistedCode = safePhError?.code ?? input.code;
-    const persistedMessage = safePhError?.message ?? input.message;
-    const persistedPortalSummary = safePhError?.portalSummary ?? input.portalSummary;
     const screenshotArtifacts = await uploadArrivalCardArtifacts({
       authUserId: artifactOwnerId,
       applicationId: item.application_id,
@@ -6727,18 +6590,13 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       confirmationNumber: null,
       referenceNumber: null,
       portalUrl,
-      portalResponseSummary: persistedPortalSummary,
+      portalResponseSummary: input.portalSummary,
       errorDetails: {
-        code: persistedCode,
-        message: persistedMessage,
+        code: input.code,
+        message: input.message,
         missingFields: input.missingFields,
       },
-      artifacts: {
-        screenshots: screenshotArtifacts,
-        pdfs: [],
-        logs: !isMdac && !isTdac ? safePhEtravelDiagnosticLogs(input.logs ?? []) : input.logs ?? [],
-        traces: [],
-      },
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
@@ -6747,69 +6605,10 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       .update({
         status: failedStatus,
         attempts: item.attempts + 1,
-        last_error: persistedMessage,
-        error_code: persistedCode,
-        error_message: persistedMessage,
+        last_error: input.message,
+        error_code: input.code,
+        error_message: input.message,
         current_stage: input.status === "validation_failed" ? "validation_failed" : "official_portal_failed",
-        live_screenshot_url: screenshotArtifacts[0] ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
-  }
-
-  async function writePhRecoverable(input: {
-    code: string;
-    message: string;
-    portalSummary: string;
-    portalUrl?: string;
-    confirmationNumber?: string | null;
-    referenceNumber?: string | null;
-    screenshotPaths?: string[];
-    screenshotArtifacts?: string[];
-    qrCodes?: string[];
-    pdfs?: string[];
-    logs?: string[];
-    stage: string;
-    officialStatus: string;
-  }): Promise<void> {
-    const safeError = safePhEtravelErrorSummary({ code: input.code });
-    const screenshotArtifacts = input.screenshotArtifacts ?? await uploadArrivalCardArtifacts({
-      authUserId: artifactOwnerId,
-      applicationId: item.application_id,
-      country: "PH",
-      kind: "phetravel-screenshot",
-      ext: "png",
-      contentType: "image/png",
-      paths: input.screenshotPaths ?? [],
-    });
-    const result = buildPhEtravelRecoverableResult({
-      applicationId: item.application_id,
-      visaType,
-      portalUrl: input.portalUrl ?? portalUrl,
-      portalSummary: input.portalSummary,
-      code: input.code,
-      message: input.message,
-      confirmationNumber: input.confirmationNumber,
-      referenceNumber: input.referenceNumber,
-      screenshots: screenshotArtifacts,
-      qrCodes: input.qrCodes ?? [],
-      pdfs: input.pdfs ?? [],
-      logs: sanitizePhEtravelLogs(input.logs ?? []),
-      payloadSummary,
-    });
-    await writeSubmissionResult(item.application_id, result, "action_required");
-    await supabase
-      .from("submission_queue")
-      .update({
-        status: "phetravel_blocked",
-        attempts: item.attempts + 1,
-        last_error: safeError.message,
-        error_code: safeError.code,
-        error_message: safeError.message,
-        current_stage: input.stage,
-        official_status: input.officialStatus,
-        manual_action_status: "open",
-        official_portal_url: input.portalUrl ?? portalUrl,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),
       })
@@ -6884,26 +6683,6 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         missingFields: validation.missingRequiredFields,
       });
       return;
-    }
-
-    if (!isMdac && !isTdac && visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
-      const preflight = evaluatePhEtravelArrivalLaunchPreflight({
-        payload,
-        finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
-      });
-      if (preflight.status !== "allowed") {
-        await writePhRecoverable({
-          code: preflight.code,
-          message: "Philippines eTravel launch preflight requires operator review.",
-          portalSummary: preflight.code,
-          logs: [],
-          stage: "launch_preflight_action_required",
-          officialStatus: preflight.status === "diverted"
-            ? "ordinary_arrival_diverted"
-            : "launch_preflight_blocked",
-        });
-        return;
-      }
     }
 
     await supabase
@@ -7070,72 +6849,34 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       contentType: "image/png",
       paths: portalResult.qrCodes ?? [],
     });
-    const phPortalResult = !isMdac && !isTdac
-      ? portalResult as PhEtravelPortalSubmissionResult
-      : null;
-    const phCompleteEvidence = !isMdac && !isTdac
-      ? hasCompletePhEtravelSubmissionEvidence({ portalResult })
-      : portalResult.submitted;
-    const safePhNotSubmitted = !isMdac && !isTdac && !phCompleteEvidence
-      ? safePhEtravelErrorSummary({ code: `${logCode}_not_submitted` })
-      : null;
-    if (!isMdac && !isTdac && portalResult.submitted && !phCompleteEvidence) {
-      await writePhRecoverable({
-        code: "ph_etravel_authoritative_result_read_required",
-        message: "Philippines eTravel requires an authoritative post-submit registration read and reference-derived QR render before VIZA can record success.",
-        portalSummary: portalResult.portalResponseSummary,
-        portalUrl: portalResult.portalUrl,
-        confirmationNumber: portalResult.confirmationNumber ?? null,
-        referenceNumber: portalResult.referenceNumber ?? null,
-        screenshotArtifacts,
-        qrCodes: qrArtifacts,
-        pdfs: pdfArtifacts,
-        logs: portalResult.logs,
-        stage: "result_consistency_recovery_required",
-        officialStatus: "submitted_evidence_incomplete",
-      });
-      return;
+    if (!isMdac && !isTdac && portalResult.submitted && qrArtifacts.length === 0) {
+      throw new Error("Philippines eTravel submission cannot complete without a stored official QR artifact.");
     }
-    const result: DigitalArrivalCardSubmissionResult & {
-      resultEvidence?: {
-        authoritativeRead?: PhEtravelPortalSubmissionResult["authoritativeRead"];
-        qrRender?: PhEtravelPortalSubmissionResult["qrRender"];
-      };
-    } = {
+    const result: DigitalArrivalCardSubmissionResult = {
       country,
       visaType,
-      status: phCompleteEvidence ? "submitted" : "official_portal_error",
+      status: portalResult.submitted ? "submitted" : "official_portal_error",
       mode: "live_assisted",
       provider: providerName,
       applicationId: item.application_id,
-      submitted: phCompleteEvidence,
+      submitted: portalResult.submitted,
       confirmationNumber: portalResult.confirmationNumber ?? null,
       referenceNumber: portalResult.referenceNumber ?? null,
       portalUrl: portalResult.portalUrl,
-      portalResponseSummary: safePhNotSubmitted?.portalSummary ?? portalResult.portalResponseSummary,
+      portalResponseSummary: portalResult.portalResponseSummary,
       confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
       artifacts: {
         screenshots: screenshotArtifacts,
         qrCodes: qrArtifacts,
         pdfs: pdfArtifacts,
-        logs: !isMdac && !isTdac ? safePhEtravelDiagnosticLogs(portalResult.logs) : portalResult.logs,
+        logs: portalResult.logs,
         traces: [],
       },
       payloadSummary,
-      ...(phPortalResult && (phPortalResult.authoritativeRead || phPortalResult.qrRender)
-        ? {
-            resultEvidence: {
-              authoritativeRead: phPortalResult.authoritativeRead,
-              qrRender: phPortalResult.qrRender,
-            },
-          }
-        : {}),
     };
-    await writeSubmissionResult(item.application_id, result, phCompleteEvidence ? "completed" : "failed");
-    if (phCompleteEvidence) {
-      const officialReference = !isMdac && !isTdac
-        ? phEtravelOfficialReference(portalResult)
-        : portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
+    await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    if (portalResult.submitted) {
+      const officialReference = portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
       const { error: applicationStatusError } = await supabase
         .from("applications")
         .update({
@@ -7147,88 +6888,41 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         })
         .eq("id", item.application_id);
       if (applicationStatusError) {
-        if (!isMdac && !isTdac) {
-          await writePhRecoverable({
-            code: "phetravel_result_consistency_sync_failed",
-            message: "Official Philippines eTravel reference and QR were captured, but VIZA could not synchronize the application status.",
-            portalSummary: portalResult.portalResponseSummary,
-            portalUrl: portalResult.portalUrl,
-            confirmationNumber: portalResult.confirmationNumber ?? null,
-            referenceNumber: portalResult.referenceNumber ?? null,
-            screenshotArtifacts,
-            qrCodes: qrArtifacts,
-            pdfs: pdfArtifacts,
-            logs: portalResult.logs,
-            stage: "result_consistency_recovery_required",
-            officialStatus: "submitted_pending_application_sync",
-          });
-          return;
-        }
-        console.error(`[${logCode}] Official submission succeeded but application status sync failed.`);
+        console.error(
+          `[${logCode}] Official submission succeeded but application status sync failed: ${applicationStatusError.message}`,
+        );
       }
     }
-    const { error: queueUpdateError } = await supabase
+    await supabase
       .from("submission_queue")
       .update({
-        status: phCompleteEvidence ? "done" : failedStatus,
-        last_error: phCompleteEvidence ? null : safePhNotSubmitted?.message ?? portalResult.portalResponseSummary,
-        error_code: phCompleteEvidence ? null : safePhNotSubmitted?.code ?? `${logCode}_not_submitted`,
-        error_message: phCompleteEvidence ? null : safePhNotSubmitted?.message ?? portalResult.portalResponseSummary,
-        current_stage: phCompleteEvidence ? "submitted" : "official_portal_error",
+        status: portalResult.submitted ? "done" : failedStatus,
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: portalResult.submitted ? "submitted" : "official_portal_error",
         official_portal_url: portalResult.portalUrl,
-        official_status: phCompleteEvidence ? "submitted" : "official_portal_error",
         official_confirmation_number_encrypted: portalResult.confirmationNumber
           ? encryptSecret(portalResult.confirmationNumber)
           : null,
         official_confirmation_pdf_url: pdfArtifacts[0] ?? null,
-        live_submitted_at: phCompleteEvidence ? new Date().toISOString() : null,
+        live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
-    if (queueUpdateError) {
-      if (!isMdac && !isTdac && phCompleteEvidence) {
-        console.error(`[${logCode}] ${safePhEtravelServiceLog({ code: "phetravel_result_consistency_sync_failed" })}`);
-        return;
-      }
-      throw new Error(`Failed to update ${code} submission queue: ${queueUpdateError.message}`);
-    }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
     const validationError = err instanceof MdacPortalValidationError || err instanceof TdacPortalValidationError || err instanceof PhEtravelPortalValidationError;
     const portalError = err instanceof MdacPortalError || err instanceof TdacPortalError || err instanceof PhEtravelPortalError;
-    const errorCode = validationError
-      ? err.code
-      : portalError
-        ? err.code
-        : `${logCode}_live_worker_error`;
-    if (!isMdac && !isTdac && (isPhEtravelReviewStopError(err) || (
-      err instanceof PhEtravelPortalError && [
-        "ph_etravel_confirmation_evidence_missing",
-        "ph_etravel_authoritative_result_read_required",
-        "ph_etravel_final_post_http_200_unverified",
-        "ph_etravel_final_post_ambiguous_recovery_required",
-      ].includes(err.code)
-    ))) {
-      await writePhRecoverable({
-        code: err.code,
-        message: errorMsg,
-        portalSummary: err.portalSummary ??
-          (isPhEtravelReviewStopError(err)
-            ? "Philippines eTravel reached Review and stopped before final submit by policy."
-            : "Philippines eTravel requires an authoritative post-submit registration result read."),
-        portalUrl,
-        screenshotPaths: err.screenshotPaths,
-        logs: err.logs,
-        stage: isPhEtravelReviewStopError(err) ? "review_reached_stop_before_submit" : "result_consistency_recovery_required",
-        officialStatus: isPhEtravelReviewStopError(err) ? "review_reached_not_submitted" : "submitted_evidence_incomplete",
-      });
-      return;
-    }
     await writeFailure({
       status: validationError ? "validation_failed" : "official_portal_error",
-      code: errorCode,
+      code: validationError
+        ? err.code
+        : portalError
+          ? err.code
+          : `${logCode}_live_worker_error`,
       message: errorMsg,
       portalSummary:
         portalError && err.portalSummary
@@ -7240,11 +6934,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       screenshotPaths: portalError ? err.screenshotPaths : [],
       logs: err instanceof PhEtravelPortalError ? err.logs : [],
     });
-    console.error(
-      !isMdac && !isTdac
-        ? `[${logCode}] Live submission failed: ${safePhEtravelServiceLog({ code: errorCode })}`
-        : `[${logCode}] Live submission failed: ${errorMsg}`,
-    );
+    console.error(`[${logCode}] Live submission failed: ${errorMsg}`);
   }
 }
 
@@ -7313,6 +7003,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     });
   }, 60_000);
 
+  let consumedOneTimeCardAuthorization = false;
+  let managedPaymentHooks: ManagedPaymentHooks | null = null;
+  let managedPaymentCard: ManagedPaymentCard | null = null;
+  let managedOfficialFeeContext: ManagedOfficialFeeExecutionContext | null = null;
   try {
     const vaultOpts = {
       actor: "submission-service:indonesia",
@@ -7322,9 +7016,33 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
-
-    const existingAliasDomain = parseAliasDomain(managedVaultEmail);
-    const aliasDomains = parseIndonesiaManagedAliasDomains(existingAliasDomain);
+    const legacyManagedVaultEmail = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.legacy.email",
+      vaultOpts,
+    );
+    const legacyManagedVaultPassword = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.legacy.password",
+      vaultOpts,
+    );
+    const managedAliasVersion = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.alias_version",
+      vaultOpts,
+    );
+    const managedAccount = await prepareIndonesiaCanonicalAliasAccount({
+      applicantId: profile.id,
+      currentEmail: managedVaultEmail,
+      currentPassword: managedVaultPassword,
+      currentAliasVersion: managedAliasVersion,
+      generatedPassword: generateIndonesiaPortalPassword(),
+      correlationId: item.id,
+    });
+    console.log(
+      `[indonesia] Canonical alias ready application=${redactIdentifier(item.application_id)} ` +
+      `migrated=${managedAccount.migrated} reuseAccount=${managedAccount.reuseExistingAccount}`,
+    );
 
     const reusableDocuments = await loadReusableApplicantDocuments(
       profile.id,
@@ -7362,25 +7080,88 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /passport_bio_page/i,
       /passport_copy/i,
     ]);
-    const vaultPortalPassword = managedVaultPassword ?? generateFvPortalPassword();
-    if (!managedVaultPassword) {
-      await applicantVault.set(profile.id, "indonesia.portal.password", vaultPortalPassword, {
-        ...vaultOpts,
-        note: "VIZA-managed Indonesia eVisa portal password",
-      });
-    }
-    const preparedPortalAccount = hasPreparedIndonesiaPortalAccount({
-      email: managedVaultEmail,
-      password: vaultPortalPassword,
+    const missingDocuments = missingIndonesiaRequiredDocumentPaths({
+      isB1,
+      documentTravelType:
+        answers.document_travel_id ??
+        answers.document_type ??
+        answers.travel_document_type ??
+        answers.passport_type,
+      passportImagePath,
+      photoImagePath,
+      returnTicketPath,
+      bankStatementPath,
     });
+    if (missingDocuments.length > 0) {
+      const cardSessionDiscarded = discardIndonesiaCardSession(item.application_id);
+      const message =
+        `Indonesia ${isB1 ? "B1" : "C1"} submission needs the following applicant documents before payment: ` +
+        `${missingDocuments.join(", ")}.`;
+      const documentResult: GenericSubmissionResult = {
+        country: "GENERIC",
+        targetCountry: "ID",
+        visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
+        status: "action_required",
+        mode: "live_assisted",
+        applicationId: item.application_id,
+        actionType: "required_documents_invalid",
+        actionInstructions: message,
+        implementationStatus: "blocked",
+        message,
+      };
+      await writeSubmissionResult(item.application_id, documentResult, "action_required");
+      const { error: documentQueueError } = await supabase
+        .from("submission_queue")
+        .update({
+          status: "action_required",
+          provider,
+          current_stage: "indonesia_documents_required",
+          last_error: null,
+          error_code: "required_documents_invalid",
+          error_message: message,
+          manual_action_status: "pending",
+          locked_until: null,
+          locked_by: null,
+          heartbeat_at: null,
+          vn_result_payload: {
+            status: "action_required",
+            actionType: "required_documents_invalid",
+            checkpoint: "indonesia_documents_required",
+            message,
+            implementationStatus: "blocked",
+            missingDocuments,
+            evidence: {
+              paymentSubmitted: false,
+              officialPaymentSuccess: false,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (documentQueueError) {
+        throw new Error(`Failed to mark Indonesia documents action required: ${documentQueueError.message}`);
+      }
+      console.warn(
+        `[indonesia] Required documents blocked before card consume application=${redactIdentifier(item.application_id)} ` +
+        `missing=${missingDocuments.join(",")} cardSessionDiscarded=${cardSessionDiscarded}`,
+      );
+      return;
+    }
     // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
     // card-authorized run to a visible/manual official-payment handoff.
     const userPaymentHandoffEnabled = true;
+    managedOfficialFeeContext = await loadManagedOfficialFeeExecutionContext(item.application_id);
+    managedPaymentHooks = createManagedPaymentHooks({
+      applicationId: item.application_id,
+      workerId: item.id,
+      country: application.country ?? "indonesia",
+      visaType: application.visa_type ?? (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+    });
     const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
       item.application_id,
-      readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
-        readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
+      indonesiaCardSessionsEnabled(),
     );
+    consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
     console.log(
       `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
     );
@@ -7389,7 +7170,70 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
-      takeOneTimeCard: () => consumeIndonesiaCardSession(item.application_id),
+      expectedAmountCents: managedOfficialFeeContext.canonicalAmountCents,
+      expectedCurrency: managedOfficialFeeContext.canonicalCurrency,
+      takeOneTimeCard: async () => {
+        managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
+        return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+      },
+      beforeCardSubmit: async () => {
+        const memory = process.memoryUsage();
+        const rssMb = Math.round(memory.rss / 1024 / 1024);
+        const heapUsedMb = Math.round(memory.heapUsed / 1024 / 1024);
+        let runtimeUsedMb = rssMb;
+        let runtimeMemorySource = "process_rss";
+        try {
+          const cgroupBytes = Number.parseInt(
+            fs.readFileSync("/sys/fs/cgroup/memory.current", "utf8").trim(),
+            10,
+          );
+          if (Number.isFinite(cgroupBytes)) {
+            runtimeUsedMb = Math.round(cgroupBytes / 1024 / 1024);
+            runtimeMemorySource = "cgroup_v2";
+          }
+        } catch {
+          // Local development and non-cgroup hosts fall back to process RSS.
+        }
+        const configuredLimit = Number.parseInt(
+          process.env.INDONESIA_PAYMENT_MAX_MEMORY_MB ??
+            process.env.INDONESIA_PAYMENT_MAX_RSS_MB ??
+            "1700",
+          10,
+        );
+        const limitMb = Number.isFinite(configuredLimit)
+          ? Math.max(512, configuredLimit)
+          : 1700;
+        const allowed = runtimeUsedMb < limitMb;
+        console.log(
+          `[indonesia] Payment memory preflight application=${redactIdentifier(item.application_id)} ` +
+          `runtimeUsedMb=${runtimeUsedMb} source=${runtimeMemorySource} rssMb=${rssMb} ` +
+          `heapUsedMb=${heapUsedMb} limitMb=${limitMb} allowed=${allowed}`,
+        );
+        await supabase
+          .from("submission_queue")
+          .update({
+            heartbeat_at: new Date().toISOString(),
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              memoryPreflight: {
+                runtimeUsedMb,
+                runtimeMemorySource,
+                rssMb,
+                heapUsedMb,
+                limitMb,
+                allowed,
+              },
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+        return {
+          allowed,
+          reason: allowed
+            ? undefined
+            : `runtime_memory_mb_${runtimeUsedMb}_exceeds_safe_payment_limit_${limitMb}`,
+        };
+      },
       onWaitingForUser: async (snapshot: {
         url: string;
         title: string | null;
@@ -7430,132 +7274,60 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       },
     };
 
-    let result: Awaited<ReturnType<typeof runIndonesiaLiveSubmission>> = {
-      country: "GENERIC",
-      targetCountry: "ID",
-      visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
-      status: "action_required",
-      mode: "live_assisted",
+    await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
+    const result = await runIndonesiaLiveSubmission({
       applicationId: item.application_id,
-      actionType: "live_portal_recon_required",
-      actionInstructions: "Preparing Indonesia managed account before portal recon.",
-      implementationStatus: "partial",
-      message: "Indonesia managed account prep not started.",
-    };
-
-    if (preparedPortalAccount) {
-      const existingPortalEmail = managedVaultEmail!;
-      await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
-      result = await runIndonesiaLiveSubmission({
-        applicationId: item.application_id,
-        visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
-        answers: {
-          ...answers,
-          email: existingPortalEmail,
-          email_address: existingPortalEmail,
-        },
-        managedAccountAvailable: true,
-        managedAccountEmail: existingPortalEmail,
-        managedAccountPassword: vaultPortalPassword,
-        applicantId: profile.id,
-        passportImagePath,
-        photoImagePath,
-        returnTicketPath,
-        bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
-          ? bankStatementPath
-          : undefined,
-        passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-          ? passportSupportPath
-          : undefined,
-        profile: {
-          fullName: profile.full_name,
-          gender: profile.gender,
-          dateOfBirth: profile.date_of_birth,
-          placeOfBirth: profile.place_of_birth,
-          nationality: profile.nationality,
-          passportNumber: profile.passport_number,
-          passportIssueDate: profile.passport_issue_date,
-          passportExpiryDate: profile.passport_expiry_date,
-          passportIssuingCountry: profile.issuing_country,
-          passportIssuingAuthority: profile.issuing_authority,
-          phone: profile.phone,
-        },
-        probeOfficialPortal: true,
-        portalProbeHeadless,
-        userPaymentHandoff,
-        onStage: async (stage, snapshot) => {
-          await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
-        },
-      });
-    } else {
-      for (let attempt = 0; attempt < aliasDomains.length; attempt += 1) {
-        const alias = await ensureApplicantInboxAliasForDomain(profile.id, aliasDomains[attempt], supabase);
-        const managedAliasEmail = alias.alias;
-
-        await applicantVault.set(profile.id, "indonesia.portal.email", managedAliasEmail, {
+      visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+      answers: {
+        ...answers,
+        email: managedAccount.email,
+        email_address: managedAccount.email,
+      },
+      managedAccountAvailable: true,
+      managedAccountEmail: managedAccount.email,
+      managedAccountPassword: managedAccount.password,
+      managedAccountReusable: managedAccount.reuseExistingAccount,
+      accountRecoveryPassword: generateIndonesiaPortalPassword(),
+      onAccountPasswordReset: async (password: string) => {
+        await applicantVault.set(profile.id, "indonesia.portal.password", password, {
           ...vaultOpts,
-          note: "VIZA-managed Indonesia eVisa portal alias email",
+          note: "VIZA-managed Indonesia eVisa portal password recovered through the official reset flow",
         });
-
-        await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
-        result = await runIndonesiaLiveSubmission({
-          applicationId: item.application_id,
-          visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
-          answers: {
-            ...answers,
-            email: managedAliasEmail,
-            email_address: managedAliasEmail,
-          },
-          managedAccountAvailable: true,
-          managedAccountEmail: managedAliasEmail,
-          managedAccountPassword: vaultPortalPassword,
-          applicantId: profile.id,
-          passportImagePath,
-          photoImagePath,
-          returnTicketPath,
-          bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
-            ? bankStatementPath
-            : undefined,
-          passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-            ? passportSupportPath
-            : undefined,
-          profile: {
-            fullName: profile.full_name,
-            gender: profile.gender,
-            dateOfBirth: profile.date_of_birth,
-            placeOfBirth: profile.place_of_birth,
-            nationality: profile.nationality,
-            passportNumber: profile.passport_number,
-            passportIssueDate: profile.passport_issue_date,
-            passportExpiryDate: profile.passport_expiry_date,
-            passportIssuingCountry: profile.issuing_country,
-            passportIssuingAuthority: profile.issuing_authority,
-            phone: profile.phone,
-          },
-          probeOfficialPortal: true,
-          portalProbeHeadless,
-          userPaymentHandoff,
-          onStage: async (stage, snapshot) => {
-            await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
-          },
-        });
-
-        if (
-          result.status === "action_required" &&
-          result.implementationStatus === "partial" &&
-          shouldRotateIndonesiaAlias(result, managedAliasEmail) &&
-          attempt + 1 < aliasDomains.length
-        ) {
-          console.log(
-            `[indonesia] ${provider} email check failed for ${redactIdentifier(managedAliasEmail)}; rotating domain`,
-          );
-          continue;
-        }
-        break;
-      }
-    }
+      },
+      legacyManagedAccountEmail: legacyManagedVaultEmail,
+      legacyManagedAccountPassword: legacyManagedVaultPassword,
+      applicantId: profile.id,
+      passportImagePath,
+      photoImagePath,
+      returnTicketPath,
+      bankStatementPath,
+      passportSupportPath,
+      profile: {
+        fullName: profile.full_name,
+        gender: profile.gender,
+        dateOfBirth: profile.date_of_birth,
+        placeOfBirth: profile.place_of_birth,
+        nationality: profile.nationality,
+        passportNumber: profile.passport_number,
+        passportIssueDate: profile.passport_issue_date,
+        passportExpiryDate: profile.passport_expiry_date,
+        passportIssuingCountry: profile.issuing_country,
+        passportIssuingAuthority: profile.issuing_authority,
+        phone: profile.phone,
+      },
+      probeOfficialPortal: true,
+      portalProbeHeadless,
+      userPaymentHandoff,
+      onStage: async (stage, snapshot) => {
+        await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
+      },
+    });
 
     if (result.country === "ID" && result.status === "submitted") {
+      if (managedPaymentCard) {
+        await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "consumed");
+        managedPaymentCard = null;
+      }
       const artifactStoragePath = await uploadArtifact({
         authUserId: profile.auth_user_id,
         applicationId: item.application_id,
@@ -7617,6 +7389,18 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       result.status === "action_required" &&
       result.actionType === "official_fee_payment_failed";
 
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required");
+      managedPaymentCard = null;
+    }
+    if (result.actionType === "official_fee_payment_review_required" && managedOfficialFeeContext) {
+      await recordOfficialFeeReview({
+        context: managedOfficialFeeContext,
+        errorCode: "official_fee_amount_unverified",
+        message: result.message,
+      });
+    }
+
     const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
       ? paymentPendingStatus
@@ -7628,9 +7412,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const currentStage = isPaymentFailed
       ? "official_fee_payment_failed"
       : result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required"
-      ? userPaymentHandoffEnabled
-        ? "user_payment_required"
-        : "payment_page_visible"
+      ? "official_fee_payment_review"
       : result.actionType ?? "indonesia_live_action_required";
     const portalUrl =
       result.portalUrl ??
@@ -7666,8 +7448,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         manual_action_status: result.status === "action_required"
           ? isPaymentFailed
             ? "payment_failed"
-            : userPaymentHandoffEnabled && isPaymentAuthorizationRequired
-            ? "user_payment_required"
+            : isPaymentAuthorizationRequired
+            ? "review_required"
             : "pending"
           : null,
         vn_result_payload: queuePayload,
@@ -7682,9 +7464,59 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
     );
   } catch (err) {
+    if (managedPaymentCard) {
+      await managedPaymentHooks?.finalizePaymentCard?.(managedPaymentCard, "review_required").catch(() => undefined);
+      managedPaymentCard = null;
+    }
     const errorMsg = err instanceof Error ? err.message : String(err);
-    const newAttempts = item.attempts + 1;
+    if (err instanceof IndonesiaAliasPreflightError) {
+      const actionResult = {
+        country: "GENERIC" as const,
+        targetCountry: "ID",
+        visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
+        status: "action_required" as const,
+        mode: "live_assisted" as const,
+        applicationId: item.application_id,
+        actionType: err.code,
+        actionInstructions: errorMsg,
+        implementationStatus: "blocked" as const,
+        message: errorMsg,
+      };
+      await writeSubmissionResult(item.application_id, actionResult, "action_required");
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "action_required",
+          provider,
+          last_error: null,
+          error_code: err.code,
+          error_message: errorMsg,
+          current_stage: "alias_preflight_action_required",
+          manual_action_status: "pending",
+          vn_result_payload: {
+            actionType: err.code,
+            actionInstructions: errorMsg,
+            checkpoint: "alias_preflight_action_required",
+            message: errorMsg,
+            implementationStatus: "blocked",
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      console.warn(
+        `[indonesia] Alias preflight requires action application=${redactIdentifier(item.application_id)} code=${err.code}`,
+      );
+      return;
+    }
+    // A one-time card authorization is removed from memory as soon as this
+    // worker claims it. Never put that row back into an automatic pending
+    // state after an unhandled error: a later worker cannot safely reproduce
+    // the same run without the user explicitly entering the card again.
+    const newAttempts = consumedOneTimeCardAuthorization
+      ? MAX_ATTEMPTS
+      : item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS ? failedStatus : pendingStatus;
+    const failedAt = new Date().toISOString();
     await supabase
       .from("submission_queue")
       .update({
@@ -7693,8 +7525,18 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         last_error: errorMsg,
         error_code: "indonesia_live_worker_error",
         error_message: errorMsg,
+        ...(consumedOneTimeCardAuthorization
+          ? {
+              payment_status: "failed",
+              manual_action_status: "payment_failed",
+              locked_by: null,
+              locked_at: null,
+              locked_until: null,
+            }
+          : {}),
         current_stage: "failed",
-        updated_at: new Date().toISOString(),
+        heartbeat_at: failedAt,
+        updated_at: failedAt,
       })
       .eq("id", item.id);
     if (newAttempts >= MAX_ATTEMPTS) {
@@ -7758,9 +7600,7 @@ async function processDryRunItem(
                 ? "phetravel_dry_run_processing"
                 : item.status === "vn_prearrival_dry_run_pending"
                   ? "vn_prearrival_dry_run_processing"
-                  : item.status === "tw_dry_run_pending"
-                    ? "tw_dry_run_processing"
-                    : "processing",
+                  : "processing",
       updated_at: new Date().toISOString(),
     })
     .eq("id", item.id);
@@ -7861,27 +7701,6 @@ async function processDryRunItem(
   }
 }
 
-async function failClosedTaiwanLegacyRealSubmitItem(item: SubmissionQueueItem): Promise<void> {
-  const message =
-    "taiwan: legacy real-submit is disabled; set VIZA_ALLOW_LEGACY_REAL_SUBMIT=1 only for an approved Taiwan smoke";
-  console.warn(
-    `[tw] Legacy real-submit blocked application=${redactIdentifier(item.application_id)} provider=${item.provider ?? "(none)"}`,
-  );
-  await supabase
-    .from("submission_queue")
-    .update({
-      status: "failed",
-      attempts: item.attempts + 1,
-      last_error: message,
-      error_code: "tw_legacy_real_submit_disabled",
-      error_message: message,
-      current_stage: "fail_closed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", item.id);
-  await markSubmissionFailed(item.application_id, message);
-}
-
 // ─── Main processing loop ────────────────────────────────────────────────────
 
 async function processItem(item: SubmissionQueueItem): Promise<void> {
@@ -7934,10 +7753,6 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   const item = await normalizeDigitalArrivalCardQueueItem(
     await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
   );
-  if (isTaiwanLegacyRealSubmitQueueItem(item) && !isLegacyRealSubmitEnabled()) {
-    await failClosedTaiwanLegacyRealSubmitItem(item);
-    return;
-  }
   if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
     await processDryRunItem(item, "global_dry_run");
   } else if (isDs160ProofJob(item)) {
@@ -8045,33 +7860,39 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
   }
 }
 
-async function pollOnce(): Promise<void> {
+async function pollOnce(runMaintenance = true): Promise<boolean> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
-  if (!targetJobId) {
+  if (runMaintenance && !targetJobId) {
     try {
       const queuedDailyChecks = await enqueueDueVietnamStatusChecks();
       if (queuedDailyChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Queued ${queuedDailyChecks} daily Vietnam official status check(s).`);
       }
       const queuedEmailChecks = await enqueueVietnamEmailTriggeredChecks();
       if (queuedEmailChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Queued ${queuedEmailChecks} email-triggered Vietnam status check(s).`);
       }
-      const processedStatusChecks = await processQueuedVietnamStatusChecks();
+      const processedStatusChecks = await processQueuedVietnamStatusChecks(
+        SUBMISSION_QUEUE_WORKER_ID,
+      );
       if (processedStatusChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Processed ${processedStatusChecks} Vietnam official status check(s).`);
       }
     } catch (err) {
       console.error("[poll] Vietnam official status checks failed:", err);
     }
   }
-  if (LEGACY_US_APPOINTMENT_POLL_ENABLED) {
+  if (runMaintenance && LEGACY_US_APPOINTMENT_POLL_ENABLED) {
     try {
       const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
         createUSAppointmentRunnerRepository(),
       );
       if (processedUsAppointmentJobs > 0) {
+        idleExitController?.noteActivity();
         console.log(
           `[poll] Processed ${processedUsAppointmentJobs} US appointment assisted job(s).`,
         );
@@ -8083,41 +7904,56 @@ async function pollOnce(): Promise<void> {
 
   const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
   let items: SubmissionQueueItem[];
+  legacyQueueWorkInFlight = true;
   try {
     items = await fetchPendingItems({ concurrency, targetJobId });
   } catch (err) {
+    legacyQueueWorkInFlight = false;
     console.error("[poll] Failed to claim queue:", err);
-    return;
+    return false;
   }
 
   if (items.length === 0) {
+    legacyQueueWorkInFlight = false;
     console.log("[poll] No pending items.");
     if (!targetJobId) {
       await markStaleQueueItemsTimedOut();
     }
-    return;
+    return false;
   }
 
   if (targetJobId && items.length === 0) {
     console.log(`[poll] No claimable pending item matched target job ${redactIdentifier(targetJobId)}.`);
-    return;
+    return false;
   }
 
   console.log(`[poll] Found ${items.length} pending item(s).`);
 
   console.log(`[poll] Processing pending item(s) with concurrency=${concurrency}.`);
-  await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
+  idleExitController?.workStarted();
+  try {
+    await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
+  } finally {
+    legacyQueueWorkInFlight = false;
+    idleExitController?.workFinished();
+  }
 
   if (!targetJobId) {
     await markStaleQueueItemsTimedOut();
   }
+  return true;
 }
 
 let pollInFlight = false;
 let immediatePollRequested = false;
-let legacyPollTimer: NodeJS.Timeout | null = null;
 let healthServer: ReturnType<typeof startHealthServer> | null = null;
 let shutdownRequested = false;
+let runnerJobInFlight = false;
+// Deployment readiness must block queue claims and user work, but not
+// best-effort maintenance queries that are safe to interrupt during rollout.
+let legacyQueueWorkInFlight = false;
+let activeHttpWork = 0;
+let idleExitController: IdleExitController | null = null;
 
 function wakeSubmissionQueue(): void {
   if (shutdownRequested) return;
@@ -8135,10 +7971,15 @@ async function poll(): Promise<void> {
 
   pollInFlight = true;
   try {
+    let runMaintenance = true;
     do {
       immediatePollRequested = false;
-      await pollOnce();
-    } while (immediatePollRequested);
+      const processedWork = await pollOnce(runMaintenance);
+      runMaintenance = false;
+      // A drain wake keeps claiming until the queue is empty. A wake arriving
+      // while a batch is running is coalesced by immediatePollRequested.
+      if (processedWork) immediatePollRequested = true;
+    } while (immediatePollRequested && !shutdownRequested);
   } finally {
     pollInFlight = false;
     if (shutdownRequested) closeHealthServer();
@@ -8147,9 +7988,19 @@ async function poll(): Promise<void> {
 
 // QUE-002: runner_job consumer wiring. Runs alongside the legacy
 // submission_queue poll. Stops cleanly on SIGTERM for Cloud Run shutdown.
-const RUNNER_WORKER_ID = `submission-service-${process.pid}`;
+const RUNNER_WORKER_ID =
+  process.env.FLY_MACHINE_ID?.trim() ||
+  process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() ||
+  `local-submission-service-${process.pid}`;
 const runnerAbort = new AbortController();
 let runnerStarted = false;
+let runnerPoolDatabaseHealthy = true;
+let runnerSlotLease: RunnerSlotLease | null = null;
+let shutdownFinalizing = false;
+let runnerDrainInFlight: Promise<void> | null = null;
+let runnerWakeRequested = false;
+let runnerRetryWakeTimer: NodeJS.Timeout | null = null;
+let runnerRetryWakeAt = 0;
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -8185,16 +8036,27 @@ async function consumeIndonesiaCardSessionWithGrace(
   return card;
 }
 
+function finishShutdown(): void {
+  if (shutdownFinalizing) return;
+  shutdownFinalizing = true;
+  void (async () => {
+    await runnerSlotLease?.stop();
+    runnerSlotLease = null;
+    console.log("[main] Shutdown complete");
+    process.exit(0);
+  })();
+}
+
 function closeHealthServer(): void {
   if (!healthServer) {
-    process.exitCode = 0;
+    finishShutdown();
     return;
   }
   const server = healthServer;
   healthServer = null;
   server.close(() => {
-    console.log("[main] Health server closed; shutdown complete");
-    process.exit(0);
+    console.log("[main] Health server closed");
+    finishShutdown();
   });
   server.closeIdleConnections();
 }
@@ -8202,38 +8064,198 @@ function closeHealthServer(): void {
 function shutdownRunner(signal: string): void {
   if (shutdownRequested) return;
   shutdownRequested = true;
+  idleExitController?.stop();
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
   immediatePollRequested = false;
-  if (legacyPollTimer) {
-    clearInterval(legacyPollTimer);
-    legacyPollTimer = null;
+  if (runnerRetryWakeTimer) {
+    clearTimeout(runnerRetryWakeTimer);
+    runnerRetryWakeTimer = null;
   }
-  if (!pollInFlight) {
+  runnerRetryWakeAt = 0;
+  if (!pollInFlight && !runnerJobInFlight) {
     closeHealthServer();
   } else {
-    console.log("[main] Waiting for the active submission_queue item to finish before shutdown");
+    console.log("[main] Waiting for active queue work to finish before shutdown");
   }
 }
+
+function wakeRunnerJobs(): void {
+  if (shutdownRequested || !RUNNER_JOB_CONSUMER_ENABLED) return;
+  if (runnerDrainInFlight) {
+    runnerWakeRequested = true;
+    return;
+  }
+
+  runnerWakeRequested = false;
+  const operation = drainAndRun({
+    workerId: RUNNER_WORKER_ID,
+    handler: runnerJobHandler,
+    signal: runnerAbort.signal,
+    onClaimHealthy: () => {
+      runnerPoolDatabaseHealthy = true;
+    },
+    onClaimError: () => {
+      runnerPoolDatabaseHealthy = false;
+    },
+    onRetryScheduled: (delayMs) => {
+      if (shutdownRequested) return;
+      const dueAt = Date.now() + Math.max(0, delayMs);
+      // Keep the earliest local retry wake when a drain fails multiple jobs;
+      // never postpone a row that became claimable sooner.
+      if (runnerRetryWakeTimer && runnerRetryWakeAt <= dueAt) return;
+      if (runnerRetryWakeTimer) clearTimeout(runnerRetryWakeTimer);
+      runnerRetryWakeAt = dueAt;
+      runnerRetryWakeTimer = setTimeout(() => {
+        runnerRetryWakeTimer = null;
+        runnerRetryWakeAt = 0;
+        wakeRunnerJobs();
+      }, Math.max(0, dueAt - Date.now()));
+      runnerRetryWakeTimer.unref?.();
+    },
+    onJobStart: () => {
+      runnerJobInFlight = true;
+      idleExitController?.workStarted();
+    },
+    onJobFinish: () => {
+      runnerJobInFlight = false;
+      idleExitController?.workFinished();
+      if (shutdownRequested && !pollInFlight) {
+        closeHealthServer();
+      }
+    },
+  })
+    .then((result) => {
+      if (result.stoppedBecause === "claim_error") {
+        console.error("[main] runner_job drain stopped after claim failure");
+      }
+    })
+    .catch((error) => {
+      runnerPoolDatabaseHealthy = false;
+      console.error("[main] runner_job drain crashed", error);
+    })
+    .finally(() => {
+      runnerDrainInFlight = null;
+      if (runnerWakeRequested && !shutdownRequested) {
+        wakeRunnerJobs();
+      }
+    });
+  runnerDrainInFlight = operation;
+}
+
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
 process.on("SIGINT", () => shutdownRunner("SIGINT"));
+
+async function isSafeForIdleExit(): Promise<boolean> {
+  if (
+    shutdownRequested ||
+    pollInFlight ||
+    runnerJobInFlight ||
+    activeHttpWork > 0 ||
+    hasVietnamCardSessions() ||
+    hasIndonesiaCardSessions() ||
+    hasActiveKoreaKvacOfficialSessions()
+  ) {
+    return false;
+  }
+  if (!runnerPoolDatabaseHealthy || (runnerSlotLease && !runnerSlotLease.isHealthy())) {
+    return false;
+  }
+
+  try {
+    if (
+      RUNNER_JOB_CONSUMER_ENABLED
+      && await hasCountryRunnerWork(RUNNER_JOB_COUNTRY || undefined)
+    ) {
+      return false;
+    }
+    if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {
+      return false;
+    }
+    if (INDONESIA_QUEUE_ENABLED && await hasIndonesiaWorkerWork()) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("[idle] Authoritative work check failed; keeping Machine running.", error);
+    return false;
+  }
+}
 
 async function main(): Promise<void> {
   // DEP-003: fail fast on misconfiguration before doing any work.
   validateEnv();
 
+  const configuredIdleMs = Number.parseInt(
+    process.env.SUBMISSION_SERVICE_IDLE_EXIT_MS ?? "0",
+    10,
+  );
+  const idleMs = Number.isFinite(configuredIdleMs) ? Math.max(0, configuredIdleMs) : 0;
+  idleExitController = new IdleExitController({
+    enabled: Boolean(process.env.FLY_MACHINE_ID) && idleMs > 0,
+    idleMs: idleMs || 120_000,
+    isSafeToExit: isSafeForIdleExit,
+    onExit: () => shutdownRunner("idle timeout"),
+  });
+  idleExitController.start();
+
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
   healthServer = startHealthServer({
     isWorkerStarted: () => runnerStarted,
-    isWorkerBusy: () => pollInFlight,
+    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
     wakeSubmissionQueue,
+    wakeRunnerJob: wakeRunnerJobs,
+    onWorkStart: () => {
+      activeHttpWork += 1;
+      idleExitController?.workStarted();
+    },
+    onWorkFinish: () => {
+      activeHttpWork = Math.max(0, activeHttpWork - 1);
+      idleExitController?.workFinished();
+    },
+    getLifecycle: () => idleExitController?.snapshot() ?? {
+      state: "booting",
+      activeWork: 0,
+      idleSince: null,
+    },
   });
 
+  const flyMachineId = process.env.FLY_MACHINE_ID?.trim();
+  if (flyMachineId && RUNNER_MACHINE_KIND) {
+    runnerSlotLease = new RunnerSlotLease({
+      machineId: flyMachineId,
+      kind: RUNNER_MACHINE_KIND,
+      // Slot leases are valid for 30 minutes; renew once per minute through
+      // the exact owner-fenced renew RPC, never by re-reserving a slot.
+      renewEveryMs: 60_000,
+      onLeaseLost: () => shutdownRunner("capacity slot reassigned"),
+    });
+    runnerPoolDatabaseHealthy = false;
+    const acquired = await acquireRunnerSlotWithRetry(runnerSlotLease, {
+      signal: runnerAbort.signal,
+      onError: (_error, attempt) => {
+        console.error(`[capacity] Machine slot reserve unavailable; retrying attempt=${attempt}.`);
+      },
+    });
+    if (!acquired) {
+      if (!shutdownRequested) {
+        console.log(
+          `[capacity] No logical slot is available for kind=${RUNNER_MACHINE_KIND}; exiting without polling.`,
+        );
+      }
+      await runnerSlotLease.stop();
+      runnerSlotLease = null;
+      if (!shutdownRequested) closeHealthServer();
+      return;
+    }
+    runnerPoolDatabaseHealthy = true;
+  }
+
   console.log("[main] VIZA Submission Service starting...");
-  console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log("[main] Queue consumers run on startup and explicit enqueue wake; idle polling disabled");
   if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
     console.log(`[main] Provider allowlist active: ${Array.from(SUBMISSION_PROVIDER_ALLOWLIST).join(",")}`);
   }
@@ -8243,24 +8265,18 @@ async function main(): Promise<void> {
   if (!RUNNER_JOB_CONSUMER_ENABLED) {
     console.log("[main] runner_job consumer disabled by env");
   }
-  if (!LEGACY_SUBMISSION_QUEUE_ENABLED) {
-    console.log("[main] Legacy submission_queue polling disabled by env");
+  if (
+    !LEGACY_SUBMISSION_QUEUE_ENABLED &&
+    !VN_CLOUD_QUEUE_ENABLED &&
+    !INDONESIA_QUEUE_ENABLED
+  ) {
+    console.log("[main] submission_queue polling disabled by env");
+  } else if (INDONESIA_QUEUE_ENABLED) {
+    console.log("[main] Dedicated Indonesia submission_queue polling enabled");
   }
   if (RUNNER_JOB_COUNTRY) {
     console.log(`[main] runner_job country scope=${RUNNER_JOB_COUNTRY}`);
   }
-  if (RUNNER_JOB_TARGET_ID) {
-    console.log(`[main] runner_job single-target mode active job=${RUNNER_JOB_TARGET_ID.slice(0, 8)}`);
-  }
-  const twOfficialLoginBootstrap = await bootstrapTwOfficialLoginProvidersFromEnvironment();
-  if (twOfficialLoginBootstrap.status === "configured") {
-    console.log(`[main] Taiwan official login bootstrap configured adapter=${twOfficialLoginBootstrap.adapterName}`);
-  } else {
-    console.warn(
-      `[main] Taiwan official login bootstrap fail-closed reason=${twOfficialLoginBootstrap.reason ?? "unknown"}`,
-    );
-  }
-  console.log(`[main] Legacy real-submit gate=${isLegacyRealSubmitEnabled() ? "enabled" : "disabled"}`);
   const ds160Config = loadDs160SubmissionConfig();
   console.log(
     [
@@ -8327,60 +8343,33 @@ async function main(): Promise<void> {
   }
 
   if (/^(1|true|yes|on)$/i.test(process.env.SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY ?? "")) {
-    if (RUNNER_JOB_TARGET_ID) {
-      throw new Error("[main] runner_job single-target mode cannot run with SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY=true");
-    }
     runnerStarted = true;
+    idleExitController.markReady();
     console.log("[main] Local endpoints only mode enabled; submission polling and runner_job consumer are disabled.");
     return;
   }
 
-  if (RUNNER_JOB_TARGET_ID) {
-    if (!RUNNER_JOB_CONSUMER_ENABLED) {
-      throw new Error("[main] runner_job single-target mode requires SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED=true");
-    }
-    if (!RUNNER_JOB_COUNTRY) {
-      throw new Error("[main] runner_job single-target mode requires RUNNER_JOB_COUNTRY");
-    }
-    if (!["taiwan", "philippines"].includes(normalizeCountry(RUNNER_JOB_COUNTRY))) {
-      throw new Error("[main] runner_job single-target mode is currently allowed only for RUNNER_JOB_COUNTRY=taiwan or philippines");
-    }
-  }
-
   // Country-scoped cloud workers must not also contend for the legacy queue.
   // A single dedicated legacy worker retains this consumer during migration.
-  if (LEGACY_SUBMISSION_QUEUE_ENABLED) {
+  if (
+    LEGACY_SUBMISSION_QUEUE_ENABLED ||
+    VN_CLOUD_QUEUE_ENABLED ||
+    INDONESIA_QUEUE_ENABLED
+  ) {
     await poll();
-    if (!shutdownRequested) {
-      legacyPollTimer = setInterval(poll, POLL_INTERVAL_MS);
-    }
   }
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).
   if (RUNNER_JOB_CONSUMER_ENABLED) {
     console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
     runnerStarted = true;
-    if (RUNNER_JOB_TARGET_ID) {
-      await pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
-        country: RUNNER_JOB_COUNTRY,
-        targetJobId: RUNNER_JOB_TARGET_ID,
-        expectedApplicationId: RUNNER_JOB_EXPECTED_APPLICATION_ID,
-        normalizeCountry,
-        signal: runnerAbort.signal,
-      });
-      console.log(`[main] runner_job single-target mode completed job=${RUNNER_JOB_TARGET_ID.slice(0, 8)}`);
-      closeHealthServer();
-      return;
-    }
-    void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
-      country: RUNNER_JOB_COUNTRY,
-      signal: runnerAbort.signal,
-    }).catch((err) => {
-      console.error("[main] runner_job consumer crashed", err);
-    });
+    // Startup performs one explicit drain. There is no idle claim/poll loop;
+    // subsequent enqueues wake this process through /internal/submission-queue/wake.
+    wakeRunnerJobs();
   } else {
     runnerStarted = true;
   }
+  idleExitController.markReady();
 }
 
 main().catch((err) => {

@@ -19,6 +19,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fillVietnamApplication } from "../src/vietnam";
 
+function isoDateFromToday(offsetDays: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+const intendedArrivalDate = isoDateFromToday(7);
+const intendedDepartureDate = isoDateFromToday(21);
+
 const answers: Record<string, string> = {
   surname: "ZHANG",
   given_name: "EDWARD",
@@ -32,8 +41,8 @@ const answers: Record<string, string> = {
   has_multiple_nationalities: "no",
   has_violated_vietnam_laws: "no",
   visa_type_requested: "single",
-  visa_valid_from: "2026-08-01",
-  visa_valid_to: "2026-08-15",
+  visa_valid_from: intendedArrivalDate,
+  visa_valid_to: intendedDepartureDate,
   passport_number: "E12345678",
   passport_issuing_authority: "Exit and Entry Administration",
   passport_type: "ordinary_passport",
@@ -53,12 +62,12 @@ const answers: Record<string, string> = {
   company_address: "1 Employer Road, Beijing",
   company_phone: "+8610123456789",
   purpose_of_entry: "tourist",
-  intended_date_of_entry: "2026-08-01",
+  intended_date_of_entry: intendedArrivalDate,
   intended_length_of_stay: "15",
   phone_in_vietnam: "+84900000000",
   residential_address_in_vietnam: "Hotel",
-  intended_province_city: "ha_noi",
-  intended_ward_commune: "phuong_my_binh",
+  intended_province_city: "an_giang",
+  intended_ward_commune: "dac_khu_kien_hai",
   intended_border_gate_of_entry: "noi_bai_int_airport_ha_noi",
   intended_border_gate_of_exit: "noi_bai_int_airport_ha_noi",
   declaration_temporary_residence: "yes",
@@ -168,6 +177,11 @@ async function main(): Promise<void> {
   if (result.status === "action_required") {
     console.error(`[vn-smoke] Manual checkpoint: ${result.checkpoint} (${result.actionType})`);
     process.exit(0);
+  }
+
+  if (result.status === "submitted_paid") {
+    console.error("[vn-smoke] Safety failure: a stop-before-submit smoke unexpectedly reached paid status.");
+    process.exit(3);
   }
 
   console.error(`[vn-smoke] Failed at ${result.failedStep}`);

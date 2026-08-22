@@ -21,7 +21,11 @@ Public marketing site for VIZA. Next.js 16 App Router. Deploys to `viza.com`.
 Every `/visa/<slug>` page renders from data via one rich, shared component — there
 is no bespoke per-country page. The pieces:
 
-- `lib/countries.ts` — `CountryMeta` (slug, flag, visa type, validity, hero image, launched).
+- `lib/countries.ts` — static presentation fallback metadata for known routes;
+  every fallback stays browsable but is unavailable for application until
+  overlaid by a published snapshot.
+- `lib/public-catalogue.ts` + `components/CatalogueProvider.tsx` — fail-closed
+  public availability and SGD price snapshots from the portal catalogue API.
 - `lib/visa-content/<slug>.ts` — the rich `VisaContent` (hero, overview, process,
   documents, rejection reasons, entry/exit, extension, reviews, FAQ, sources, price copy).
   `lib/visa-content/types.ts` is the schema; `indonesia.ts` is the reference.
@@ -30,18 +34,20 @@ is no bespoke per-country page. The pieces:
   `app/[locale]/visa/[country]/page.tsx` resolves the slug: launched + has content →
   `VisaCountryRich`; launched without content yet → thin `VisaCountryTemplate` fallback;
   unlaunched/unknown → `ComingSoon`.
-- Price card numbers are **computed** from `lib/pricing.ts` (`priceBreakdownSgd`), not
-  authored per country — keep `PRICING` in sync with the portal mirror.
+- Price card numbers are computed from the published snapshot by
+  `lib/pricing.ts`; there is no hand-maintained marketing price mirror.
 
 ### Adding a new visa destination
 
-1. Add a `CountryMeta` entry to `lib/countries.ts` (set `image: HERO("<slug>")`, `launched: true`).
-2. Add the pricing key to `lib/pricing.ts` `PRICING` (mirror the portal `PACKAGE_PRICING`).
-3. Add a hero image at `public/assets/heroes/<slug>.jpg` — add the slug→Unsplash id to
+1. Add a `CountryMeta` fallback entry to `lib/countries.ts` with
+   `launched: false` so the route can render a coming-soon state.
+2. Add a hero image at `public/assets/heroes/<slug>.jpg` — add the slug→Unsplash id to
    `scripts/fetch-hero-images.mjs` and run `node scripts/fetch-hero-images.mjs`, then commit it.
-4. Create `lib/visa-content/<slug>.ts` exporting a `VisaContent` (mirror `indonesia.ts`) and
+3. Create `lib/visa-content/<slug>.ts` exporting a `VisaContent` (mirror `indonesia.ts`) and
    register it in `lib/visa-content/index.ts`.
-5. SEO + sitemap update automatically via `generateStaticParams`.
+4. In `/admin/catalogue-publication`, save the public draft, resolve every
+   readiness blocker, and publish. Only then do cards, detail pages, checkout,
+   and sitemap availability appear.
 
 > i18n note: per-country `VisaContent` prose is authored English-first. Section chrome in
 > `VisaCountryRich` is currently inlined English (matching the former bespoke Indonesia page).

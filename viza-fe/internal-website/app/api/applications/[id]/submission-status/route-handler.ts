@@ -1,0 +1,1334 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import {
+  isUkMisroutedDryRunError,
+  isUkPrefillSubmissionResult,
+  ukPrefillProgressPercent,
+} from "@/lib/submission-queue";
+import {
+  resolveRunnerPoolFlow,
+  type RunnerPoolFlowKey,
+} from "@/lib/queue/flows";
+import { getClientSessionFromRequest } from "@/lib/client-session";
+import {
+  isIndonesiaPaymentApplication,
+  isVietnamPaymentCheckpointState,
+  resolveVietnamSubmissionActionType,
+} from "./payment-country";
+import { sanitizeCustomerSubmissionResult } from "../../customer-submission-result";
+import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
+
+export const dynamic = "force-dynamic";
+
+type SubmissionApiStatus =
+  | "scheduled"
+  | "queued"
+  | "running"
+  | "needs_user_action"
+  | "needs_attention"
+  | "completed"
+  | "submitted"
+  | "qr_ready"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "stalled";
+
+type SubmissionApiStage =
+  | "scheduled"
+  | "preparing"
+  | "mapping_answers"
+  | "filling_form"
+  | "submitting_form"
+  | "confirming_result"
+  | "payment_handoff"
+  | "completed"
+  | "failed";
+
+type ApplicationForStatus = {
+  id: string;
+  applicant_id: string;
+  country: string | null;
+  visa_type: string | null;
+  submitted_at: string | null;
+  submission_result: unknown | null;
+  submission_result_status: string | null;
+  submission_result_updated_at: string | null;
+  updated_at: string | null;
+};
+
+type QueueRow = {
+  [key: string]: unknown;
+  id: string;
+  status: string;
+  attempts: number | null;
+  mode: string | null;
+  provider: string | null;
+  last_error: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  current_stage: string | null;
+  heartbeat_at: string | null;
+  leased_until?: string | null;
+  manual_action_status: string | null;
+  official_status: string | null;
+  official_portal_url?: string | null;
+  vn_result_payload?: unknown | null;
+  created_at: string | null;
+  updated_at: string | null;
+  transport?: "submission_queue" | "runner_job";
+};
+
+type RunnerJobRow = {
+  id: string;
+  status: string;
+  attempts: number | null;
+  last_error: string | null;
+  available_at?: string | null;
+  enqueued_at: string | null;
+  started_at: string | null;
+  leased_until?: string | null;
+  finished_at: string | null;
+};
+
+// Keep the status endpoint on the smallest durable queue projection. The
+// status card only needs the current row; history remains available through
+// the application record and the dedicated history surfaces.
+const SUBMISSION_QUEUE_STATUS_SELECT =
+  "id, status, attempts, mode, provider, last_error, error_code, error_message, current_stage, heartbeat_at, manual_action_status, official_status, official_portal_url, payment_status, vn_result_payload, created_at, updated_at";
+
+const RUNNER_JOB_STATUS_SELECT =
+  "id, status, attempts, last_error, available_at, enqueued_at, started_at, leased_until, finished_at";
+
+type DerivedStatus = {
+  status: SubmissionApiStatus;
+  stage: SubmissionApiStage;
+  progress: number;
+  message: string;
+  error: string | null;
+};
+
+// A live official portal session can take longer than a minute to launch and
+// pass its entry CAPTCHA. Do not present a recoverable queued job as failed
+// while the worker is still allowed to claim it.
+const PENDING_PICKUP_STALE_AFTER_MS = 5 * 60 * 1000;
+const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
+
+const COMPLETED_APPLICATION_STATUSES = new Set([
+  "completed",
+  "submitted_mock",
+  "form_ready_for_agency",
+]);
+
+const COMPLETED_QUEUE_STATUSES = new Set([
+  "done",
+  "submitted",
+  "lodged",
+  "filed",
+  "vn_submitted",
+  "ds160_submitted",
+  "france_submitted",
+  "mdac_live_assisted_submitted",
+  "mdac_live_assisted_completed",
+  "tdac_live_assisted_submitted",
+  "tdac_live_assisted_completed",
+  "phetravel_live_assisted_submitted",
+  "phetravel_live_assisted_completed",
+  "kr_eac_live_assisted_submitted",
+  "kr_eac_live_assisted_completed",
+  "jp_vjw_live_assisted_submitted",
+  "jp_vjw_live_assisted_completed",
+  "ke_eta_live_assisted_submitted",
+  "ke_eta_live_assisted_completed",
+]);
+
+const ACTION_REQUIRED_APPLICATION_STATUSES = new Set([
+  "needs_user_action",
+  "action_required",
+  "stopped_at_sign",
+  "stopped_at_pay",
+  "stopped_at_review",
+  "unsupported",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeStatus(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function readPayloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  return isVietnamPaymentCheckpointState({
+    status: queue.status,
+    provider: queue.provider,
+    errorCode: queue.error_code,
+    currentStage: queue.current_stage,
+    officialStatus: queue.official_status,
+    paymentStatus:
+      typeof queue.payment_status === "string" ? queue.payment_status : null,
+    payloadCheckpoint: readPayloadString(payload, "checkpoint"),
+    payloadActionType: readPayloadString(payload, "actionType"),
+    payloadStatus: readPayloadString(payload, "status"),
+  });
+}
+
+function isIndonesiaPaymentCheckpointQueue(
+  queue: QueueRow | null,
+  application: ApplicationForStatus,
+): boolean {
+  if (!queue) return false;
+  if (!isIndonesiaPaymentApplication(application.country, application.visa_type)) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const queueStatus = normalizeStatus(queue.status);
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType");
+  // Indonesia payment queue rows are a closed cloud workflow. Their concrete
+  // pending/processing/paid/failed status is authoritative and must never be
+  // synthesized into a manual "open the official payment page" handoff.
+  if (queueStatus.startsWith("id_c1_payment_") || queueStatus.startsWith("id_b1_evoa_payment_")) {
+    return false;
+  }
+  return (
+    checkpoint === "payment_page_visible" ||
+    actionType === "official_fee_payment_required" ||
+    actionType === "official_fee_otp_required"
+  );
+}
+
+function isIndonesiaPassportScanInvalidDataQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType") ?? queue.error_code;
+  const combined = [
+    checkpoint,
+    actionType,
+    queue.error_message,
+    queue.last_error,
+  ].filter(Boolean).join(" ");
+  return /step_1_passport_scan_invalid_data|official_passport_scan_invalid_data|indonesia_passport_scan_invalid_data/i.test(combined);
+}
+
+function normalizeVisaType(visaType: string | null | undefined): string {
+  return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function isTaiwanEntryPermitApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    normalizeStatus(country) === "taiwan" &&
+    normalizeVisaType(visaType) === "TW_ENTRY_PERMIT"
+  );
+}
+
+export function hasTaiwanApplicantHandoffReady(
+  application: Pick<
+    ApplicationForStatus,
+    "country" | "visa_type" | "submission_result" | "submission_result_status"
+  >,
+): boolean {
+  if (!isTaiwanEntryPermitApplication(application.country, application.visa_type)) return false;
+  if (normalizeStatus(application.submission_result_status) !== "needs_user_action") return false;
+  if (!isRecord(application.submission_result)) return false;
+  return (
+    normalizeStatus(application.submission_result.status as string | undefined) === "stopped_at_captcha" &&
+    typeof application.submission_result.handoffId === "string" &&
+    application.submission_result.handoffId.trim().length > 0
+  );
+}
+
+function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
+  return normalizeVisaType(visaType) === "ID_B1_EVOA";
+}
+
+function indonesiaProviderForQueue(queue: QueueRow | null, application: ApplicationForStatus): string {
+  if (queue?.provider && queue.provider !== "vietnam_evisa_live") return queue.provider;
+  if (isIndonesiaB1Evoa(application.visa_type)) return "indonesia_b1_evoa_live";
+  return "indonesia_c1_live";
+}
+
+function clampProgress(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function extractResultError(result: unknown): string | null {
+  if (!isRecord(result)) return null;
+  const error = result.error;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (isRecord(error) && typeof error.message === "string" && error.message.trim()) {
+    return error.message.trim();
+  }
+  return null;
+}
+
+function extractFieldFallbacks(payload: unknown): unknown[] {
+  if (!isRecord(payload)) return [];
+  const direct = payload.fieldFallbacks;
+  if (Array.isArray(direct)) return direct;
+  const diagnostics = payload.diagnostics;
+  if (isRecord(diagnostics) && Array.isArray(diagnostics.fieldFallbacks)) {
+    return diagnostics.fieldFallbacks;
+  }
+  return [];
+}
+
+function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
+  const queueStatus = normalizeStatus(queue?.status);
+  const isVietnamPayment = isVietnamPaymentCheckpointQueue(queue);
+  const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue, application);
+  const isKoreaBlocked = queueStatus === "kr_eac_blocked";
+  if (
+    !queue ||
+    !(
+      queueStatus === "vn_blocked" ||
+      isVietnamPayment ||
+      isIndonesiaPayment ||
+      isKoreaBlocked
+    )
+  ) {
+    return null;
+  }
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  if (isKoreaBlocked) {
+    return {
+      country: "KR",
+      visaType: "KR_E_ARRIVAL_CARD",
+      status: "blocked",
+      mode: "live_assisted",
+      provider: queue.provider === "korea_e_arrival_card_dry_run"
+        ? "korea_e_arrival_card_dry_run"
+        : "korea_e_arrival_card_live",
+      applicationId: application.id,
+      submitted: false,
+      issueNumber: null,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: queue.official_portal_url ?? "https://www.e-arrivalcard.go.kr/portal/",
+      portalResponseSummary:
+        queue.error_message ?? queue.last_error ?? "Korea e-Arrival Card requires attention before the official submission can continue.",
+      errorDetails: {
+        code: queue.error_code ?? "kr_eac_blocked",
+        message: queue.error_message ?? queue.last_error ?? "Korea e-Arrival Card submission is blocked.",
+      },
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: typeof payload.arrivalDate === "string" ? payload.arrivalDate : null,
+        departureDate: typeof payload.departureDate === "string" ? payload.departureDate : null,
+        modeOfTravel: typeof payload.modeOfTravel === "string" ? payload.modeOfTravel : null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+  }
+  const payloadActionType =
+    typeof payload.actionType === "string" ? payload.actionType : null;
+  const actionType = isVietnamPayment
+    ? resolveVietnamSubmissionActionType(true, payloadActionType)
+    : payloadActionType?.trim() || (isIndonesiaPayment ? "payment_required" : "captcha_required");
+  const instruction =
+    typeof payload.instruction === "string" && payload.instruction.trim()
+      ? payload.instruction.trim()
+      : queue.error_message ??
+        queue.last_error ??
+        (actionType === "payment_required"
+        ? "The official portal reached payment. VIZA will continue with the application-scoped virtual card."
+        : "Vietnam official portal needs action before VIZA can continue.");
+    const checkpoint =
+      typeof payload.checkpoint === "string" && payload.checkpoint.trim()
+        ? payload.checkpoint.trim()
+        : queue.current_stage ??
+          (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
+  const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+  const instructionText = isVietnamPayment
+    ? "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+    : isIndonesiaPayment
+      ? checkpoint === "user_payment_required"
+        ? actionType === "official_fee_otp_required"
+          ? "The official Indonesia payment needs bank verification. VIZA staff will review it; do not make a duplicate payment."
+          : "The official Indonesia payment needs review. VIZA will continue with the application-scoped virtual card."
+        : "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+      : "The official portal needs action before VIZA can continue.";
+  const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
+
+    return {
+      country: isIndonesiaPayment ? "ID" : "VN",
+      status: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
+        ? "stopped_at_pay"
+        : actionType,
+      mode: "live_assisted",
+      provider: isIndonesiaPayment
+        ? indonesiaProviderForQueue(queue, application)
+        : "vietnam_evisa_live",
+      portalUrl:
+        isIndonesiaPayment
+          ? resolvedPortalUrl ?? "https://evisa.imigrasi.go.id"
+          : resolvedPortalUrl ?? "https://evisa.gov.vn/e-visa/foreigners",
+      checkpoint,
+      manualAction: {
+        type: actionType,
+        status: "open",
+        instructions: isIndonesiaPayment ? instructionText : instruction,
+      },
+      paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
+        ? "manual_required"
+        : "not_required",
+      applicationCountry: application.country,
+      applicationVisaType: application.visa_type,
+      evidence,
+  };
+}
+
+function latestTimestamp(...values: Array<string | null | undefined>): string | null {
+  let latest: string | null = null;
+  let latestMs = Number.NEGATIVE_INFINITY;
+  for (const value of values) {
+    if (!value) continue;
+    const ms = Date.parse(value);
+    if (!Number.isFinite(ms) || ms <= latestMs) continue;
+    latest = value;
+    latestMs = ms;
+  }
+  return latest;
+}
+
+function isStale(updatedAt: string | null, staleAfterMs = RUNNING_STALE_AFTER_MS): boolean {
+  if (!updatedAt) return false;
+  const ms = Date.parse(updatedAt);
+  return Number.isFinite(ms) && Date.now() - ms > staleAfterMs;
+}
+
+function isAfterOrEqual(candidate: string | null, baseline: string | null): boolean {
+  if (!candidate) return false;
+  if (!baseline) return true;
+  const candidateMs = Date.parse(candidate);
+  const baselineMs = Date.parse(baseline);
+  return Number.isFinite(candidateMs) && Number.isFinite(baselineMs) && candidateMs >= baselineMs;
+}
+
+function stageForActionStatus(status: string): SubmissionApiStage {
+  if (status === "stopped_at_pay" || status === "needs_user_action" || status === "action_required") {
+    return "payment_handoff";
+  }
+  return "confirming_result";
+}
+
+function messageForStage(stage: SubmissionApiStage): string {
+  switch (stage) {
+    case "scheduled":
+      return "SG Arrival Card is scheduled for automatic submission when ICA accepts it.";
+    case "preparing":
+      return "Submission job is queued and waiting for the runner.";
+    case "mapping_answers":
+      return "Preparing and mapping application answers for the official portal.";
+    case "filling_form":
+      return "The runner is filling the official portal form.";
+    case "submitting_form":
+      return "The runner is advancing through the safe submit/review checkpoint.";
+    case "confirming_result":
+      return "Still confirming the submission result.";
+    case "payment_handoff":
+      return "The official portal needs a human action before VIZA can continue.";
+    case "completed":
+      return "Submission completed.";
+    case "failed":
+      return "Submission failed.";
+  }
+}
+
+function deriveTerminalApplicationStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+): DerivedStatus | null {
+  const appStatus = normalizeStatus(application.submission_result_status);
+  const storedResult = application.submission_result;
+  const ukPrefillStored = isUkPrefillSubmissionResult(storedResult);
+  const resultError = extractResultError(storedResult);
+  const queueError = queue?.last_error?.trim() || queue?.error_message?.trim() || null;
+  const automatedEntryProduct =
+    application.visa_type === "JP_VISIT_JAPAN_WEB" || application.visa_type === "KE_ETA";
+  const safeAutomatedFailure = automatedEntryProduct
+    ? "The official portal flow needs staff review. Internal portal details are not shown here."
+    : null;
+  const staleUkMisroute =
+    ukPrefillStored && queueError ? isUkMisroutedDryRunError(queueError) : false;
+
+  if (appStatus === "failed") {
+    if (ukPrefillStored) {
+      const progress = ukPrefillProgressPercent(storedResult) ?? 99;
+      return {
+        status: "needs_user_action",
+        stage: "payment_handoff",
+        progress,
+        message: "UK gov.uk pre-fill partially completed.",
+        error: null,
+      };
+    }
+    return {
+      status: "failed",
+      stage: "failed",
+      progress: 0,
+      message: safeAutomatedFailure ?? resultError ?? queueError ?? "Submission failed.",
+      error: safeAutomatedFailure ?? resultError ?? queueError ?? "Submission failed.",
+    };
+  }
+
+  if (appStatus === "stalled") {
+    return {
+      status: "stalled",
+      stage: "confirming_result",
+      progress: 99,
+      message: safeAutomatedFailure ?? resultError ?? queueError ??
+        "Submission job stalled because the worker did not pick it up in time.",
+      error: safeAutomatedFailure ?? resultError ?? queueError ??
+        "Submission job stalled because the worker did not pick it up in time.",
+    };
+  }
+
+  const automatedEntryEvidence = automatedEntryProduct
+    ? getAutomatedOnlineSubmissionEvidence(storedResult, application.visa_type)
+    : null;
+
+  if (automatedEntryProduct && appStatus === "needs_attention") {
+    return {
+      status: "needs_attention",
+      stage: "confirming_result",
+      progress: 99,
+      message: "The official portal needs attention before the result can be confirmed.",
+      error: safeAutomatedFailure,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "qr_ready") {
+    if (!automatedEntryEvidence?.qrReady) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "Visit Japan Web QR evidence is not available yet.",
+        error: "Official QR evidence is missing.",
+      };
+    }
+    return {
+      status: "qr_ready",
+      stage: "completed",
+      progress: 100,
+      message: "Visit Japan Web QR code is ready.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "approved") {
+    if (!automatedEntryEvidence?.approved) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "Kenya eTA approval evidence is not available yet.",
+        error: "Official approval PDF is missing.",
+      };
+    }
+    return {
+      status: "approved",
+      stage: "completed",
+      progress: 100,
+      message: "Kenya eTA approval is ready.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "rejected") {
+    return {
+      status: "rejected",
+      stage: "completed",
+      progress: 100,
+      message: "The official travel authorization was rejected.",
+      error: null,
+    };
+  }
+
+  if (automatedEntryProduct && appStatus === "submitted") {
+    if (!automatedEntryEvidence?.submitted) {
+      return {
+        status: "needs_attention",
+        stage: "confirming_result",
+        progress: 99,
+        message: "The official application reference is not available yet.",
+        error: "Official application reference is missing.",
+      };
+    }
+    return {
+      status: "submitted",
+      stage: "completed",
+      progress: 100,
+      message: "The official application was submitted.",
+      error: null,
+    };
+  }
+
+  if (appStatus === "scheduled") {
+    return {
+      status: "scheduled",
+      stage: "scheduled",
+      progress: 0,
+      message:
+        resultError ??
+        queueError ??
+        "SG Arrival Card is scheduled for automatic submission when ICA accepts it.",
+      error: null,
+    };
+  }
+
+  if (COMPLETED_APPLICATION_STATUSES.has(appStatus)) {
+    return {
+      status: "completed",
+      stage: "completed",
+      progress: 100,
+      message: "Submission completed.",
+      error: null,
+    };
+  }
+
+  if (ACTION_REQUIRED_APPLICATION_STATUSES.has(appStatus)) {
+    const stage = stageForActionStatus(appStatus);
+    const ukProgress = ukPrefillStored ? ukPrefillProgressPercent(storedResult) : null;
+    return {
+      status: "needs_user_action",
+      stage,
+      progress: ukProgress ?? 99,
+      message:
+        ukPrefillStored
+          ? "UK gov.uk pre-fill partially completed."
+          : resultError ?? queueError ?? messageForStage(stage),
+      error: ukPrefillStored || staleUkMisroute ? null : resultError ?? queueError,
+    };
+  }
+
+  return null;
+}
+
+function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "stage" | "progress"> {
+  if (!queueStatus || queueStatus === "retry_superseded") {
+    return { status: "queued", stage: "preparing", progress: 0 };
+  }
+
+  if (
+    queueStatus === "sgac_live_assisted_scheduled" ||
+    queueStatus === "kr_eac_live_assisted_scheduled" ||
+    queueStatus === "jp_vjw_live_assisted_scheduled" ||
+    queueStatus === "ke_eta_live_assisted_scheduled"
+  ) {
+    return { status: "scheduled", stage: "scheduled", progress: 0 };
+  }
+
+  if (
+    queueStatus === "failed" ||
+    queueStatus.endsWith("_failed") ||
+    queueStatus === "needs_manual_verification" ||
+    queueStatus === "vn_blocked"
+  ) {
+    if (queueStatus === "vn_blocked") {
+      return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+    }
+    return { status: "failed", stage: "failed", progress: 0 };
+  }
+
+  if (queueStatus === "stalled") {
+    return { status: "stalled", stage: "confirming_result", progress: 99 };
+  }
+
+  if (queueStatus.endsWith("_blocked")) {
+    return { status: "needs_user_action", stage: "confirming_result", progress: 99 };
+  }
+
+  if (queueStatus === "action_required") {
+    return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+  }
+
+  if (queueStatus === "jp_vjw_blocked" || queueStatus === "ke_eta_blocked") {
+    return { status: "needs_attention", stage: "confirming_result", progress: 99 };
+  }
+
+  if (COMPLETED_QUEUE_STATUSES.has(queueStatus)) {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
+  if (queueStatus.endsWith("_prefilled")) {
+    return { status: "running", stage: "confirming_result", progress: 92 };
+  }
+
+  if (queueStatus === "vn_payment_pending") {
+    return { status: "running", stage: "payment_handoff", progress: 82 };
+  }
+
+  if (queueStatus === "vn_payment_processing") {
+    return { status: "running", stage: "payment_handoff", progress: 88 };
+  }
+
+  if (queueStatus === "vn_payment_paid") {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
+  if (
+    queueStatus === "id_c1_payment_pending" ||
+    queueStatus === "id_c1_payment_processing" ||
+    queueStatus === "id_b1_evoa_payment_pending" ||
+    queueStatus === "id_b1_evoa_payment_processing"
+  ) {
+    return { status: "running", stage: "payment_handoff", progress: 90 };
+  }
+
+  if (
+    queueStatus === "id_c1_payment_paid" ||
+    queueStatus === "id_b1_evoa_payment_paid"
+  ) {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
+  if (queueStatus === "processing" || queueStatus === "france_live_processing") {
+    return { status: "running", stage: "mapping_answers", progress: 34 };
+  }
+
+  if (queueStatus === "france_live_official_portal_opened") {
+    return { status: "running", stage: "filling_form", progress: 48 };
+  }
+
+  if (queueStatus === "uk_live_assisted_pending") {
+    return { status: "queued", stage: "preparing", progress: 12 };
+  }
+
+  if (queueStatus === "uk_live_processing") {
+    return { status: "running", stage: "mapping_answers", progress: 34 };
+  }
+
+  if (queueStatus === "uk_live_official_portal_opened") {
+    return { status: "running", stage: "filling_form", progress: 48 };
+  }
+
+  if (queueStatus.endsWith("_processing")) {
+    return { status: "running", stage: "filling_form", progress: 72 };
+  }
+
+  if (
+    queueStatus === "pending" ||
+    queueStatus === "france_live_assisted_pending" ||
+    queueStatus.endsWith("_pending")
+  ) {
+    if (
+      queueStatus === "sgac_live_assisted_pending" ||
+      queueStatus === "mdac_live_assisted_pending" ||
+      queueStatus === "tdac_live_assisted_pending" ||
+      queueStatus === "kr_eac_live_assisted_pending"
+    ) {
+      return { status: "queued", stage: "preparing", progress: 52 };
+    }
+    return { status: "queued", stage: "preparing", progress: 12 };
+  }
+
+  return { status: "running", stage: "confirming_result", progress: 92 };
+}
+
+function isVietnamAuthorizedPaymentQueue(queue: QueueRow | null): boolean {
+  if (!queue || normalizeStatus(queue.provider) !== "vietnam_evisa_live") return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const paymentStatus = normalizeStatus(
+    typeof queue.payment_status === "string" ? queue.payment_status : null,
+  );
+  const officialStatus = normalizeStatus(queue.official_status);
+  const payloadStatus = normalizeStatus(readPayloadString(payload, "status"));
+  return (
+    paymentStatus === "authorized" ||
+    officialStatus === "payment_authorized" ||
+    payloadStatus === "payment_authorized"
+  );
+}
+
+function hasActiveRunnerJobLease(queue: QueueRow | null): boolean {
+  if (!queue || queue.transport !== "runner_job") return false;
+  if (!normalizeStatus(queue.status).endsWith("_processing")) return false;
+  if (!queue.leased_until) return false;
+  const leasedUntilMs = Date.parse(queue.leased_until);
+  return Number.isFinite(leasedUntilMs) && leasedUntilMs > Date.now();
+}
+
+function staleTimestampForQueue(
+  queue: QueueRow | null,
+  fallback: string | null,
+): string | null {
+  // runner_job has no heartbeat column. Once its lease expires, use the lease
+  // boundary as the activity timestamp so the existing stale grace period is
+  // measured after the worker actually lost ownership, not from started_at.
+  if (
+    queue?.transport === "runner_job" &&
+    normalizeStatus(queue.status).endsWith("_processing") &&
+    queue.leased_until
+  ) {
+    return queue.leased_until;
+  }
+  return fallback;
+}
+
+function isActiveQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const queueStatus = normalizeStatus(queue.status);
+  const provider = normalizeStatus(queue.provider);
+  if (queueStatus.startsWith("ds160_proof_") || provider === "ceac_proof") return false;
+  if (queueStatus === "retry_superseded") return false;
+  if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) return false;
+  const derived = deriveQueueStage(queueStatus);
+  return derived.status === "scheduled" || derived.status === "queued" || derived.status === "running";
+}
+
+function queueSortTime(queue: QueueRow): number {
+  const latest = latestTimestamp(queue.heartbeat_at, queue.updated_at, queue.created_at);
+  const ms = latest ? Date.parse(latest) : Number.NaN;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function newestQueue(rows: QueueRow[]): QueueRow | null {
+  let selected: QueueRow | null = null;
+  let selectedMs = Number.NEGATIVE_INFINITY;
+  for (const row of rows) {
+    const ms = queueSortTime(row);
+    if (!selected || ms > selectedMs) {
+      selected = row;
+      selectedMs = ms;
+      continue;
+    }
+
+    if (ms === selectedMs) {
+      const rowCreatedMs = row.created_at ? Date.parse(row.created_at) : Number.NEGATIVE_INFINITY;
+      const selectedCreatedMs = selected.created_at ? Date.parse(selected.created_at) : Number.NEGATIVE_INFINITY;
+      if (Number.isFinite(rowCreatedMs) && rowCreatedMs > selectedCreatedMs) {
+        selected = row;
+        selectedMs = ms;
+      }
+    }
+  }
+  return selected;
+}
+
+export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | null {
+  const submissionRows = rows.filter((row) => {
+    const status = normalizeStatus(row.status);
+    const provider = normalizeStatus(row.provider);
+    return !status.startsWith("ds160_proof_") && provider !== "ceac_proof";
+  });
+
+  // The latest explicit retry is authoritative even when it has already
+  // failed. Falling back to an older payment-pending row would make the UI
+  // look active forever after a newer cloud worker attempt has terminated.
+  return newestQueue(submissionRows);
+}
+
+const RUNNER_JOB_STATUS_CONTRACT: Record<
+  RunnerPoolFlowKey,
+  { prefix: string; provider: string }
+> = {
+  vn_evisa: { prefix: "vn_live_assisted", provider: "vietnam_evisa_runner_job" },
+  vn_prearrival: {
+    prefix: "vn_prearrival_live_assisted",
+    provider: "vietnam_prearrival_runner_job",
+  },
+  sgac: { prefix: "sgac_live_assisted", provider: "sg_arrival_card_runner_job" },
+  mdac: { prefix: "mdac_live_assisted", provider: "malaysia_mdac_runner_job" },
+  tdac: { prefix: "tdac_live_assisted", provider: "thailand_tdac_runner_job" },
+  kr_eform: { prefix: "kr_eform", provider: "korea_eform_runner_job" },
+  kr_arrival_card: {
+    prefix: "kr_eac_live_assisted",
+    provider: "korea_e_arrival_card_runner_job",
+  },
+  tw_entry_permit: { prefix: "tw_live_assisted", provider: "taiwan_entry_permit_runner_job" },
+  jp_vjw: { prefix: "jp_vjw_live_assisted", provider: "jp_visit_japan_web_live" },
+  ke_eta: { prefix: "ke_eta_live_assisted", provider: "ke_eta_live" },
+};
+
+function runnerJobIsScheduled(row: RunnerJobRow): boolean {
+  // `available_at` also carries the worker's short retry backoff. Once an
+  // attempt has started, a future timestamp means "retry shortly", not
+  // "wait for the official submission window". Calendar-scheduled jobs have
+  // not been attempted yet.
+  if ((row.attempts ?? 0) > 0) return false;
+  if (!row.available_at) return false;
+  const availableAtMs = Date.parse(row.available_at);
+  return Number.isFinite(availableAtMs) && availableAtMs > Date.now();
+}
+
+export function runnerPoolJobToQueueRow(
+  row: RunnerJobRow,
+  flowKey: RunnerPoolFlowKey,
+): QueueRow {
+  const status = normalizeStatus(row.status);
+  const contract = RUNNER_JOB_STATUS_CONTRACT[flowKey];
+  const queueStatus =
+    status === "queued"
+      ? runnerJobIsScheduled(row)
+        ? `${contract.prefix}_scheduled`
+        : `${contract.prefix}_pending`
+      : status === "running"
+        ? `${contract.prefix}_processing`
+        : status === "succeeded"
+          ? "done"
+          : status === "paused"
+            ? "stalled"
+            : status === "cancelled" || status === "canceled"
+              ? `${contract.prefix}_cancelled`
+              : `${contract.prefix}_failed`;
+  const updatedAt = latestTimestamp(row.finished_at, row.started_at, row.enqueued_at);
+  return {
+    id: row.id,
+    status: queueStatus,
+    attempts: row.attempts,
+    mode: "live_assisted",
+    provider: contract.provider,
+    last_error: row.last_error,
+    error_code: null,
+    error_message: row.last_error,
+    current_stage:
+      status === "running"
+        ? "official_portal_submission"
+        : status === "queued"
+          ? runnerJobIsScheduled(row)
+            ? "scheduled_for_submission_window"
+            : `waiting_for_${flowKey}_runner`
+          : null,
+    heartbeat_at: row.started_at,
+    leased_until: row.leased_until ?? null,
+    manual_action_status: null,
+    official_status: status === "succeeded" ? "submitted" : null,
+    created_at: row.enqueued_at,
+    updated_at: updatedAt,
+    transport: "runner_job",
+  };
+}
+
+export function sgacRunnerJobToQueueRow(row: RunnerJobRow): QueueRow {
+  return runnerPoolJobToQueueRow(row, "sgac");
+}
+
+export function runnerFlowForSubmissionStatus(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): RunnerPoolFlowKey | null {
+  const flow = resolveRunnerPoolFlow(country, visaType);
+  // Vietnam e-Visa intentionally stays on the sticky submission_queue worker.
+  return flow === "vn_evisa" ? null : flow;
+}
+
+export function deriveNonTerminalStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  preferQueue = false,
+): DerivedStatus {
+  const queueStatus = normalizeStatus(queue?.status);
+  const queueDerived = deriveQueueStage(queueStatus);
+  const updatedAt = latestTimestamp(
+    queue?.heartbeat_at,
+    queue?.updated_at,
+    application.submission_result_updated_at,
+    application.updated_at,
+  );
+  const activeQueue = isActiveQueue(queue);
+  const queueMessage =
+    queue?.error_message?.trim() ||
+    queue?.last_error?.trim() ||
+    (activeQueue ? null : extractResultError(application.submission_result));
+  const currentStage = normalizeStatus(queue?.current_stage);
+  const error = queueMessage;
+  const runnerJobLeaseActive = hasActiveRunnerJobLease(queue);
+
+  if (currentStage === "bank_authentication_waiting") {
+    return {
+      status: "running",
+      stage: "payment_handoff",
+      progress: 94,
+      message:
+        "Approve the payment in your SC Mobile Banking App now. The cloud browser is keeping the 3DS session open and will continue automatically.",
+      error: null,
+    };
+  }
+
+  // The fixed-card continuation is the same user-visible submission, not a new
+  // workflow. Its queue is initially `vn_cloud_live_pending`, and the worker
+  // later rewrites it to `vn_live_assisted_processing` with stage `starting`.
+  // Neither transition may send the UI back to the generic 12%/preparing state
+  // after the official form already reached payment.
+  if (
+    (queueDerived.status === "queued" || queueDerived.status === "running") &&
+    isVietnamAuthorizedPaymentQueue(queue)
+  ) {
+    return {
+      status: "running",
+      stage: "payment_handoff",
+      progress: 88,
+      message: `Current stage: ${currentStage || "payment_authorized"}.`,
+      error: null,
+    };
+  }
+
+  if (isVietnamPaymentCheckpointQueue(queue)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+      error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPaymentCheckpointQueue(queue, application)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+      error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPassportScanInvalidDataQueue(queue)) {
+    const message =
+      "Indonesia official portal could not read required fields from the passport image. Please upload a clearer, well-lit, landscape passport bio page image and retry.";
+    return {
+      status: "needs_user_action",
+      stage: "confirming_result",
+      progress: 99,
+      message,
+      error: message,
+    };
+  }
+
+  if (queueDerived.status === "needs_user_action") {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        (currentStage
+          ? `Official portal checkpoint: ${currentStage}.`
+          : "The official portal needs a human action before VIZA can continue."),
+      error: queueMessage,
+    };
+  }
+
+  if (queueDerived.status === "scheduled") {
+    return {
+      status: "scheduled",
+      stage: "scheduled",
+      progress: 0,
+      message:
+        queueMessage ??
+        queueStatus === "kr_eac_live_assisted_scheduled"
+          ? "Korea e-Arrival Card is scheduled for automatic submission when the Korea-time window opens."
+          : queueStatus === "jp_vjw_live_assisted_scheduled"
+            ? "Visit Japan Web is scheduled for automatic submission after the compliance gate is cleared."
+            : queueStatus === "ke_eta_live_assisted_scheduled"
+              ? "Kenya eTA is scheduled for automatic submission."
+              : "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
+      error: null,
+    };
+  }
+
+  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
+  if (terminalFromApplication && !isActiveQueue(queue) && !preferQueue) {
+    return terminalFromApplication;
+  }
+
+  if (
+    (queueDerived.status === "queued" || queueDerived.status === "running") &&
+    !runnerJobLeaseActive &&
+    isStale(
+      staleTimestampForQueue(queue, updatedAt),
+      queueStatus === "pending" || queueStatus.endsWith("_pending")
+        ? PENDING_PICKUP_STALE_AFTER_MS
+        : RUNNING_STALE_AFTER_MS,
+    )
+  ) {
+    return {
+      status: "stalled",
+      stage: "confirming_result",
+      progress: 99,
+      message:
+        error ??
+        (queueStatus === "pending" || queueStatus.endsWith("_pending")
+          ? "Submission job is still queued. The worker has not picked it up yet."
+          : "Still confirming the submission result. The runner heartbeat has not changed recently."),
+      error,
+    };
+  }
+
+  return {
+    status: queueDerived.status,
+    stage: queueDerived.stage,
+    progress: clampProgress(queueDerived.progress),
+    message:
+      error ??
+      (currentStage ? `Current stage: ${currentStage}.` : messageForStage(queueDerived.stage)),
+    error: queueDerived.status === "failed" ? error ?? "Submission failed." : error,
+  };
+}
+
+export function deriveSubmissionStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  queueOverridesApplication: boolean,
+): DerivedStatus {
+  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
+  return queueOverridesApplication
+    ? deriveNonTerminalStatus(application, queue, true)
+    : terminalFromApplication ?? deriveNonTerminalStatus(application, queue);
+}
+
+const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
+
+async function getSubmissionStatus(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const { id: applicationId } = await context.params;
+  if (!applicationId) {
+    return NextResponse.json({ error: "Missing application id" }, { status: 400 });
+  }
+
+  // Client routes still support the signed legacy client_session cookie. Prefer
+  // it here so status polling keeps working while a Supabase session refreshes.
+  const legacySession = await getClientSessionFromRequest(request);
+  let authUserId: string | null = null;
+  if (!legacySession) {
+    const supabase = await createClient({
+      requestTimeoutMs: 3_000,
+      retryDelaysMs: [250],
+    });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+  }
+  if (!legacySession && !authUserId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const admin = createAdminClient({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [250],
+  });
+  const profileQuery = admin
+    .from("applicant_profiles")
+    .select("id");
+  const { data: profile, error: profileError } = legacySession
+    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
+    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+  if (!profile) {
+    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
+  }
+
+  const { data: applicationData, error: applicationError } = await admin
+    .from("applications")
+    .select(
+      "id, applicant_id, country, visa_type, submitted_at, submission_result, submission_result_status, submission_result_updated_at, updated_at",
+    )
+    .eq("id", applicationId)
+    .maybeSingle();
+
+  if (applicationError) {
+    return NextResponse.json({ error: applicationError.message }, { status: 500 });
+  }
+
+  const application = applicationData as ApplicationForStatus | null;
+  if (!application) {
+    return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+  if (application.applicant_id !== profile.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const runnerFlow = runnerFlowForSubmissionStatus(
+    application.country,
+    application.visa_type,
+  );
+  const queueQuery = admin
+    .from("submission_queue")
+    .select(SUBMISSION_QUEUE_STATUS_SELECT)
+    .eq("application_id", applicationId)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const runnerQuery = runnerFlow
+    ? admin
+        .from("runner_job")
+        .select(RUNNER_JOB_STATUS_SELECT)
+        .eq("application_id", applicationId)
+        .eq("flow_key", runnerFlow)
+        .order("enqueued_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+    : null;
+  const [{ data: queueRows, error: queueError }, runnerResult] = await Promise.all([
+    queueQuery,
+    runnerQuery ?? Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (queueError) {
+    return NextResponse.json({ error: queueError.message }, { status: 500 });
+  }
+  if (runnerResult.error) {
+    return NextResponse.json({ error: runnerResult.error.message }, { status: 500 });
+  }
+
+  const candidateRows: QueueRow[] = ((queueRows ?? []) as QueueRow[]).map((row) => ({
+    ...row,
+    transport: "submission_queue" as const,
+  }));
+  if (runnerFlow) {
+    candidateRows.push(
+      ...((runnerResult.data ?? []) as RunnerJobRow[]).map((row) =>
+        runnerPoolJobToQueueRow(row, runnerFlow),
+      ),
+    );
+  }
+
+  const queue = selectQueueForSubmissionStatus(candidateRows);
+  const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
+  const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
+  // A newly created active queue represents an explicit retry. It must always
+  // override an older terminal application result, even when the application
+  // row has not yet been updated by the worker.
+  // Taiwan deliberately keeps the worker lease active while the applicant's
+  // Browserbase handoff is open. The durable handoff must win so the applicant
+  // sees the button needed to finish on the official portal.
+  const activeQueueOverridesTerminal =
+    isActiveQueue(queue) && !hasTaiwanApplicantHandoffReady(application);
+  const authoritativeAutomatedResult =
+    !activeQueueOverridesTerminal &&
+    (application.visa_type === "JP_VISIT_JAPAN_WEB" || application.visa_type === "KE_ETA") &&
+    ["needs_attention", "submitted", "qr_ready", "approved", "rejected"].includes(
+      normalizeStatus(application.submission_result_status),
+    );
+  const terminalQueueOverridesApplication =
+    !activeQueueOverridesTerminal &&
+    !authoritativeAutomatedResult &&
+    queueDerived.status !== "queued" &&
+    queueDerived.status !== "running" &&
+    isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
+  const queueResult = authoritativeAutomatedResult
+    ? null
+    : synthesizeQueueResult(queue, application);
+  const storedResult = application.submission_result;
+  const queueOverridesApplication = activeQueueOverridesTerminal || terminalQueueOverridesApplication;
+  const derived = deriveSubmissionStatus(application, queue, queueOverridesApplication);
+  const updatedAt = latestTimestamp(
+    application.submission_result_updated_at,
+    queue?.updated_at,
+    application.updated_at,
+  );
+  const resolvedResult =
+    queueResult ??
+    (isUkPrefillSubmissionResult(storedResult) ? storedResult : null) ??
+    (activeQueueOverridesTerminal ? null : storedResult ?? null);
+
+  return NextResponse.json(
+    {
+      ok: true,
+      applicationId,
+      jobId: queue?.id ?? null,
+      country: application.country,
+      visaType: application.visa_type,
+      status: derived.status,
+      stage: derived.stage,
+      progress: derived.progress,
+      message: derived.message,
+      result: sanitizeCustomerSubmissionResult(resolvedResult),
+      error: derived.error,
+      updatedAt,
+      applicationStatus: queueResult
+        ? "action_required"
+        : queueOverridesApplication
+        ? queue?.status?.endsWith("_scheduled")
+          ? "scheduled"
+          : queue?.status?.endsWith("_pending")
+          ? "waiting"
+          : terminalQueueOverridesApplication
+            ? "action_required"
+            : "processing"
+        : application.submission_result_status ?? null,
+      queue: queue
+        ? {
+            id: queue.id,
+            transport: queue.transport ?? "submission_queue",
+            status: queue.status,
+            attempts: queue.attempts,
+            mode: queue.mode,
+            provider: queue.provider,
+            lastError: queue.last_error,
+            errorCode: queue.error_code,
+            errorMessage: queue.error_message,
+            currentStage: queue.current_stage,
+            heartbeatAt: queue.heartbeat_at,
+            manualActionStatus: queue.manual_action_status,
+            officialStatus: queue.official_status,
+            fieldFallbacks: extractFieldFallbacks(queue.vn_result_payload),
+            createdAt: queue.created_at,
+            updatedAt: queue.updated_at,
+          }
+        : null,
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error("Submission status upstream request timed out")),
+        SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+      );
+    });
+    return await Promise.race([
+      getSubmissionStatus(request, context),
+      timeoutPromise,
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[submission-status] temporarily unavailable:", message);
+    return NextResponse.json(
+      {
+        error: "Submission status is temporarily unavailable.",
+        retryable: true,
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": "3",
+        },
+      },
+    );
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}

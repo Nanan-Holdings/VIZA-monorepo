@@ -105,6 +105,19 @@ export {
 } from "./session";
 
 export {
+  launchFvBrowser,
+  resolveFranceVisasBrowserSelection,
+  classifyFranceVisasBrowserState,
+  type FvBrowserOptions,
+  type FvBrowserHandles,
+  type FvBrowserSelection,
+  type FvBrowserProvider,
+  type FvBrowserStateInput,
+  type FvBrowserState,
+  type FvBrowserSecurityCheckpoint,
+} from "./browser";
+
+export {
   startNewApplication,
   finalizeAndDownloadPdf,
   type CreateApplicationOptions,

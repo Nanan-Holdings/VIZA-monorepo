@@ -100,7 +100,7 @@ export function CsQueueClient({ initialTab, initialRows }: CsQueueClientProps) {
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link
-                        href={`/admin/cs/${row.id}`}
+                        href={`/admin/support?ticket=${row.id}`}
                         className="inline-flex items-center text-sm font-medium text-brand-500 hover:underline"
                       >
                         Open <ChevronRight className="ml-1 h-4 w-4" />

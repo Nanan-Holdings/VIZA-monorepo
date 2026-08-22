@@ -1,12 +1,109 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 import {
+  chooseVietnamReviewAction,
   classifyVietnamPortalSnapshot,
   checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
   isAutoAcknowledgeableVietnamPortalState,
+  readVietnamPortalSnapshot,
+  shouldTryVietnamFallbackLanding,
   type VietnamPortalSnapshot,
 } from "../portal-state";
+import { VN_STOP_BUTTON_PATTERNS } from "../field-mappings.js";
+
+test("Vietnam review action: Next outranks a later primary Save button", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      { domIndex: 4, label: "Next", isPrimary: false, type: "button", top: 800 },
+      { domIndex: 9, label: "Save", isPrimary: true, type: "submit", top: 900 },
+    ]),
+    { domIndex: 4, label: "Next", isPrimary: false, type: "button", top: 800 },
+  );
+});
+
+test("Vietnam review action: accepts localized Continue and ignores unrelated controls", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      { domIndex: 1, label: "Cancel", isPrimary: true, type: "button", top: 700 },
+      { domIndex: 2, label: "Lưu", isPrimary: true, type: "button", top: 710 },
+      { domIndex: 3, label: "Tiếp tục", isPrimary: false, type: "button", top: 705 },
+    ]),
+    { domIndex: 3, label: "Tiếp tục", isPrimary: false, type: "button", top: 705 },
+  );
+});
+
+test("Vietnam review action: accepts safe suffix text and excludes disabled candidates", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      {
+        domIndex: 1,
+        label: "Next",
+        isPrimary: true,
+        type: "button",
+        top: 700,
+        disabled: true,
+      },
+      {
+        domIndex: 2,
+        label: "Continue to review",
+        isPrimary: false,
+        type: "button",
+        top: 705,
+        disabled: false,
+      },
+    ]),
+    {
+      domIndex: 2,
+      label: "Continue to review",
+      isPrimary: false,
+      type: "button",
+      top: 705,
+      disabled: false,
+    },
+  );
+});
+
+test("Vietnam review action: ignores the official ordinal review step", () => {
+  assert.deepEqual(
+    chooseVietnamReviewAction([
+      {
+        domIndex: 1,
+        label: "2Xem lại hồ sơ",
+        isPrimary: false,
+        type: "button",
+        tagName: "div",
+        top: 120,
+      },
+      {
+        domIndex: 8,
+        label: "Lưu",
+        isPrimary: true,
+        type: "button",
+        tagName: "button",
+        top: 920,
+      },
+    ]),
+    {
+      domIndex: 8,
+      label: "Lưu",
+      isPrimary: true,
+      type: "button",
+      tagName: "button",
+      top: 920,
+    },
+  );
+});
+
+test("Vietnam review action: never treats submit or payment labels as review actions", () => {
+  const stopped = (label: string) => VN_STOP_BUTTON_PATTERNS.some((pattern) => pattern.test(label));
+  assert.equal(stopped("Save and submit"), true);
+  assert.equal(stopped("Continue to payment"), true);
+  assert.equal(stopped("Proceed to payment"), true);
+  assert.equal(stopped("Pay now"), true);
+  assert.equal(stopped("Continue to review"), false);
+});
 
 function snapshot(overrides: Partial<VietnamPortalSnapshot>): VietnamPortalSnapshot {
   return {
@@ -84,6 +181,19 @@ test("Vietnam portal state: white screen is explicit terminal state", () => {
   assert.equal(state, "white_screen");
 });
 
+test("Vietnam portal state: nginx HTTP-to-HTTPS 400 is an official portal error", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    title: "400 The plain HTTP request was sent to HTTPS port",
+    bodyText: "400 Bad Request The plain HTTP request was sent to HTTPS port nginx",
+    buttonTexts: [],
+    linkHrefs: [],
+    hasApplyEntry: false,
+  }));
+
+  assert.equal(state, "portal_error");
+  assert.equal(shouldTryVietnamFallbackLanding(state), true);
+});
+
 test("Vietnam portal state: asset 502 Error page is a portal error, not a layout change", () => {
   const state = classifyVietnamPortalSnapshot(snapshot({
     title: "Error",
@@ -141,4 +251,25 @@ test("Vietnam portal state: registration code extraction is explicit", () => {
     classifyVietnamPortalSnapshot(snapshot({ registrationCode: "E240610ABC123" })),
     "registration_code_visible",
   );
+});
+
+test("Vietnam portal snapshot evaluates in a real browser under tsx", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <main>
+        <h1>Vietnam e-Visa official portal</h1>
+        <a href="https://evisa.gov.vn/e-visa/foreigners">Apply now</a>
+      </main>
+    `);
+
+    const result = await readVietnamPortalSnapshot(page);
+
+    assert.equal(result.hasBody, true);
+    assert.equal(result.hasApplyEntry, true);
+    assert.deepEqual(result.buttonTexts, []);
+  } finally {
+    await browser.close();
+  }
 });

@@ -284,6 +284,7 @@
     "save": "Save",
     "startApplication": "Start application",
     "seePricing": "See pricing",
+    "catalogueUnavailable": "No destinations are open for online applications right now. Please check back soon.",
     "choosePassport": "Choose your passport",
     "searchPassport": "Search passport country…",
     "visaFree": "{n} visa-free",
@@ -2125,15 +2126,20 @@
     "crumbHere": "System Status",
     "hero": {
       "title": "On time, <em>guaranteed.</em><br></br>Or you’ll be the first to know.",
-      "lead": "A real-time dashboard for VIZA and every government visa portal we file against — whether it’s up, slow, or buckling under a 9pm Monday rush. We publish what we see, the moment we see it."
+      "lead": "Evidence-backed availability for VIZA and the government visa portals we work with. Every percentage, timeline bar, and incident below comes from a recorded synthetic check."
     },
     "console": {
       "title": "VIZA Reliability · Live",
-      "live": "On time",
+      "live": "Verified",
+      "unverified": "Unverified",
       "allOperational": "All systems operational",
-      "lastRefresh": "Last refresh 12 seconds ago · monitored every 30s",
-      "kAtlys": "Atlys, 90‑day",
-      "kPortals": "Portals monitored",
+      "degraded": "Some systems are degraded",
+      "majorOutage": "A monitored system is unavailable",
+      "dataUnavailable": "Monitoring data unavailable",
+      "lastChecked": "Latest recorded check: {time}",
+      "noChecks": "No completed checks have been recorded yet",
+      "kUptime": "90-day checks passing",
+      "kMonitors": "Endpoints monitored",
       "kIncidents": "Active incident"
     },
     "subnav": {
@@ -2145,31 +2151,43 @@
     },
     "platform": {
       "title": "VIZA platform",
-      "meta": "Monitored 30s · 12 services",
-      "name": "Atlys application platform",
-      "sub": "Web · iOS · Android · Consultant console"
+      "realMeta": "Checked every 5 minutes · {count} endpoint(s)",
+      "meta": "Checked every 5 minutes",
+      "name": "VIZA application platform",
+      "sub": "Public VIZA services"
     },
     "uptime": {
       "ago": "90 days ago",
       "today": "Today",
-      "pct": "{pct}% uptime"
+      "pct": "{pct}% checks passing",
+      "noData": "No recorded checks"
     },
+    "dayObservation": "{date}: {checks} recorded check(s)",
+    "dayNoData": "{date}: no recorded data",
     "dayTitle": "Day {n}",
     "statusLabels": {
       "op": "Operational",
       "deg": "Degraded",
       "part": "Partial outage",
-      "maj": "Major outage"
+      "maj": "Unavailable",
+      "none": "No current data"
     },
+    "lastChecked": "Checked {time}",
+    "monitorStale": "Missing or stale check",
+    "monitoringUnavailable": "The status API has no fresh evidence. VIZA will not display cached or generated availability as current service health.",
+    "noSearchResults": "No monitored country matches this search.",
+    "noRecordedIncidents": "No incidents have been derived from recorded checks in the last 90 days.",
+    "incidentCount": "{count, plural, one {# incident} other {# incidents}}",
+    "incidentRecovered": "Recorded checks show that this service recovered.",
     "noIssues": "No active issues",
     "activeIncident": "Active incident",
     "portalsHead": {
       "title": "Government portals",
-      "lead": "We poll each portal continuously and surface what we observe — so you don’t have to refresh a 2003-era webform yourself."
+      "lead": "A bounded synthetic request checks each configured portal every five minutes. Gray history means no observation was recorded; it is never filled with estimated data."
     },
     "incidentsHead": {
       "title": "Past incidents",
-      "lead": "Every event we logged, in plain words. We don’t hide them — we link to them."
+      "lead": "Incidents open and resolve from persisted monitor transitions. This is operational availability, not an applicant’s personal visa decision status."
     },
     "tags": {
       "identified": "Identified",

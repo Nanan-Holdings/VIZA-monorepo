@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { Loader2, CheckCircle2, Clock3, Eye, EyeOff, ExternalLink, XCircle } from "lucide-react";
+import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,12 @@ const PHASES: Phase[] = [
 
 const PHASE_PROGRESS = [34, 67, 99] as const;
 
+function phaseIndexForProgress(progress: number): number {
+  if (progress <= PHASE_PROGRESS[0]) return 0;
+  if (progress <= PHASE_PROGRESS[1]) return 1;
+  return 2;
+}
+
 function normalizeStatus(status: SubmissionVisualStatus | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
 }
@@ -74,17 +81,19 @@ function isCompletionStatus(status: SubmissionVisualStatus | null | undefined): 
   return [
     "completed",
     "submitted",
+    "qr_ready",
+    "approved",
     "submitted_mock",
     "form_ready_for_agency",
   ].includes(normalizeStatus(status));
 }
 
 function isFailedStatus(status: SubmissionVisualStatus | null | undefined): boolean {
-  return normalizeStatus(status) === "failed";
+  return ["failed", "rejected"].includes(normalizeStatus(status));
 }
 
 function isWaitingForUserStatus(status: SubmissionVisualStatus | null | undefined): boolean {
-  return ["needs_user_action", "action_required"].includes(normalizeStatus(status));
+  return ["needs_user_action", "needs_attention", "action_required", "blocked"].includes(normalizeStatus(status));
 }
 
 function isScheduledStatus(status: SubmissionVisualStatus | null | undefined): boolean {
@@ -111,7 +120,44 @@ function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): nu
   }
 }
 
-function localizeProgressMessage(message: string | null | undefined, isZh: boolean): string | null {
+function chineseStageMessage(stage: string): string {
+  const normalized = stage.trim().toLowerCase();
+  const exactMessages: Record<string, string> = {
+    payment_authorized: "官方付款已授权，正在等待云端任务继续。",
+    official_fee_payment_processing: "正在处理官网费用付款。",
+    official_fee_payment_required: "正在等待官网费用付款授权。",
+    payment_page_visible: "已到达官网付款页面，正在准备付款。",
+    bank_authentication_waiting: "正在等待银行验证结果。",
+    registration_code_captured: "已取得官网登记编号，正在确认最终结果。",
+    preparing_managed_alias: "正在准备本次申请使用的专属邮箱。",
+    managed_account_required: "正在准备官网托管账号。",
+    captcha_required: "正在等待完成官网验证码。",
+    otp_required: "正在等待完成一次性验证码验证。",
+    email_verification_pending: "正在等待完成官网邮箱验证。",
+    payment_processing: "正在处理官网付款。",
+    payment_confirming: "正在确认官网付款结果。",
+    confirmation_pending: "正在等待官网返回最终确认。",
+    completed: "官网流程已完成。",
+  };
+  const exact = exactMessages[normalized];
+  if (exact) return exact;
+  if (/payment|fee|bank|3ds/.test(normalized)) return "正在处理官网付款或银行验证。";
+  if (/captcha|turnstile|waf/.test(normalized)) return "正在处理官网安全验证。";
+  if (/otp|email|alias|account/.test(normalized)) return "正在处理官网账号或验证码。";
+  if (/fill|form|answer|mapping/.test(normalized)) return "正在填写并校验官网表单。";
+  if (/submit|confirm|result|reference|registration/.test(normalized)) {
+    return "正在提交并确认官网结果。";
+  }
+  if (/queue|pending|prepar|start|launch|authorized/.test(normalized)) {
+    return "云端任务正在准备并等待继续。";
+  }
+  return "云端任务正在处理，页面会自动更新。";
+}
+
+export function localizeProgressMessage(
+  message: string | null | undefined,
+  isZh: boolean,
+): string | null {
   if (!message) return null;
   if (/approve the payment in your sc mobile banking app/i.test(message)) {
     return isZh
@@ -127,7 +173,40 @@ function localizeProgressMessage(message: string | null | undefined, isZh: boole
       ? "印尼官网无法读取护照图片里的必要字段。请重新上传更清晰、光线充足、横向放置的护照资料页，然后重试。"
       : "Indonesia official portal could not read required fields from the passport image. Upload a clearer, well-lit, landscape passport bio page image and retry.";
   }
+  if (isZh) {
+    const currentStage = message.match(/^\s*Current stage:\s*([a-z0-9._-]+)\.?\s*$/i);
+    if (currentStage?.[1]) return chineseStageMessage(currentStage[1].replace(/\.+$/, ""));
+
+    const normalized = message.trim().replace(/\s+/g, " ").toLowerCase();
+    const standardMessages: Record<string, string> = {
+      "submission job is queued and waiting for the runner.": "提交任务已排队，正在等待云端执行。",
+      "preparing and mapping application answers for the official portal.": "正在整理并校验官网所需的英文答案。",
+      "the runner is filling the official portal form.": "正在填写官网表单。",
+      "the runner is advancing through the safe submit/review checkpoint.": "正在通过官网提交前的安全检查。",
+      "still confirming the submission result.": "正在确认官网提交结果。",
+      "the official portal needs a human action before viza can continue.": "官网需要完成必要操作后才能继续。",
+      "submission completed.": "官网提交已完成。",
+      "submission failed.": "官网提交未完成。",
+      "automated submission has started.": "自动提交任务已启动。",
+    };
+    const standard = standardMessages[normalized];
+    if (standard) return standard;
+
+    if (/^[a-z][a-z0-9._-]+$/i.test(message.trim())) {
+      return chineseStageMessage(message.trim());
+    }
+
+    if (/\p{Script=Han}/u.test(message)) return message;
+    return chineseStageMessage(normalized);
+  }
   return message;
+}
+
+function isPacedRuntimeMessage(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /^(?:\s*Current stage:)|Fly 云端已到达官方付款阶段|Fly 云端正在填写|Fly cloud.*official payment stage|The Fly cloud run is filling|submission job is queued|preparing and mapping|the runner is filling|the runner is advancing|still confirming the submission result|submission completed|automated submission has started|自动提交任务已启动|银行卡已安全送入云端|正在准备官网填写任务/i.test(
+    message.trim(),
+  );
 }
 
 /**
@@ -143,6 +222,9 @@ export function WaitingCard({
   message,
   error,
   applicationId,
+  persistenceKey,
+  progressCycleKey,
+  resetProgressOnMount,
   country,
   visaType,
   onVisualComplete,
@@ -153,13 +235,15 @@ export function WaitingCard({
   message?: string | null;
   error?: string | null;
   applicationId?: string | null;
+  persistenceKey?: string | null;
+  progressCycleKey?: string | null;
+  resetProgressOnMount?: boolean;
   country?: string | null;
   visaType?: string | null;
   onVisualComplete?: () => void;
 }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
-  const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [cancelingScheduled, setCancelingScheduled] = useState(false);
@@ -172,17 +256,28 @@ export function WaitingCard({
     country?.toUpperCase() === "FR" ||
     country?.toLowerCase() === "france" ||
     visaType === "EU_SCHENGEN_C_SHORT_STAY";
+  const reportedPhaseIdx =
+    phaseIndexForStage(stage) ??
+    (completeStatus || failedStatus || waitingForUser
+      ? PHASES.length - 1
+      : normalizeStatus(status) === "processing"
+        ? 1
+        : 0);
+  const reportedPhaseProgress = PHASE_PROGRESS[reportedPhaseIdx] ?? PHASE_PROGRESS[0];
   const visualServerProgress =
-    typeof serverProgress === "number"
-      ? serverProgress
-      : completeStatus
-        ? 100
-        : PHASE_PROGRESS[activePhaseIdx] ?? PHASE_PROGRESS[0];
+    completeStatus
+      ? 100
+      : typeof serverProgress === "number"
+        ? Math.max(serverProgress, reportedPhaseProgress)
+        : reportedPhaseProgress;
   const {
     displayedProgress,
     isVisuallyComplete,
   } = useSmoothProgress({
     serverProgress: visualServerProgress,
+    persistenceKey: persistenceKey?.trim() || undefined,
+    progressCycleKey,
+    resetPersistedProgressOnMount: resetProgressOnMount,
     status: completeStatus
       ? "completed"
       : failedStatus
@@ -192,42 +287,37 @@ export function WaitingCard({
           : "running",
     intervalMs: 800,
     initialProgress: 0,
+    syncToServerProgress: false,
     onVisualComplete,
   });
+  const activePhaseIdx = phaseIndexForProgress(displayedProgress);
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
 
   useEffect(() => {
-    const stagePhaseIndex = phaseIndexForStage(stage);
-    if (stagePhaseIndex !== null) {
-      setActivePhaseIdx(stagePhaseIndex);
-    } else if (scheduledStatus) {
-      setActivePhaseIdx(0);
-    } else if (completeStatus || failedStatus || waitingForUser) {
-      setActivePhaseIdx(PHASES.length - 1);
-    } else if (status === "processing") {
-      setActivePhaseIdx(1);
-    } else if (status === "waiting") {
-      setActivePhaseIdx(0);
-    }
-  }, [completeStatus, failedStatus, scheduledStatus, stage, status, waitingForUser]);
-
-  // Soft auto-advance only when no backend stage/progress has arrived yet.
-  useEffect(() => {
-    if (stage || typeof serverProgress === "number") return;
-    if (completeStatus || failedStatus || waitingForUser || scheduledStatus) return;
-    if (activePhaseIdx >= PHASES.length - 1) return;
-    const id = setTimeout(() => setActivePhaseIdx((i) => Math.min(i + 1, PHASES.length - 1)), 12_000);
-    return () => clearTimeout(id);
-  }, [activePhaseIdx, completeStatus, failedStatus, scheduledStatus, serverProgress, stage, waitingForUser]);
-
-  useEffect(() => {
-    if (!applicationId || !isFrance) return;
+    if (!applicationId || !isFrance || officialAccount) return;
     let cancelled = false;
+    let timer: number | undefined;
+    let controller: AbortController | null = null;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void loadAccount(), delayMs);
+    };
 
     const loadAccount = async () => {
+      if (cancelled) return;
+      if (document.visibilityState !== "visible") {
+        schedule(30_000);
+        return;
+      }
+
+      controller = new AbortController();
+      const deadline = window.setTimeout(() => controller?.abort(), 5_000);
       try {
         const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const payload = (await response.json().catch(() => null)) as {
           account?: FvOfficialAccount | null;
@@ -239,16 +329,26 @@ export function WaitingCard({
         if (!cancelled) {
           setOfficialAccount(null);
         }
+      } finally {
+        window.clearTimeout(deadline);
+        controller = null;
+        schedule(10_000);
       }
     };
 
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
     void loadAccount();
-    const timer = window.setInterval(loadAccount, 10_000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      controller?.abort();
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
     };
-  }, [applicationId, isFrance]);
+  }, [applicationId, isFrance, officialAccount]);
 
   const progressMessage = (() => {
     const localizedError = localizeProgressMessage(error, isZh);
@@ -264,15 +364,27 @@ export function WaitingCard({
         ? "流程已暂停，等待您或工作人员完成官网上的必要操作。"
         : "The flow is paused while a required official-portal action is completed.";
     }
-    if (localizedMessage) return localizedMessage;
-    if (activePhase.id === "confirming" && !isVisuallyComplete) {
+    const reportedPhaseMatchesVisual = reportedPhaseIdx === activePhaseIdx;
+    if (
+      localizedMessage &&
+      (!isPacedRuntimeMessage(message) ||
+        (reportedPhaseMatchesVisual && (!completeStatus || isVisuallyComplete)))
+    ) {
+      return localizedMessage;
+    }
+    if (activePhase.id === "preparing") {
       return isZh
-        ? "仍在等待检查点或结果，请稍候。"
-        : "Still waiting for a checkpoint or result. Please wait.";
+        ? "正在整理并校验官网所需的英文答案。"
+        : "Preparing and validating the English answers required by the official portal.";
+    }
+    if (activePhase.id === "filling") {
+      return isZh
+        ? "正在填写官网表单。"
+        : "Filling the official portal form.";
     }
     return isZh
-      ? "该进度会随后台状态自动推进；如果需要你本人操作，会切换到检查点提示。"
-      : "This progress updates with the background worker. If your action is needed, this card will switch to a checkpoint prompt.";
+      ? "正在等待官网检查点或最终结果。"
+      : "Waiting for an official-portal checkpoint or the final result.";
   })();
 
   async function cancelScheduledSubmission() {
@@ -337,7 +449,7 @@ export function WaitingCard({
               )}
               {isZh ? "取消提交" : "Cancel submission"}
             </Button>
-            {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
+            {cancelError ? <ClientErrorAlert message={cancelError} /> : null}
           </div>
         </CardContent>
       </Card>

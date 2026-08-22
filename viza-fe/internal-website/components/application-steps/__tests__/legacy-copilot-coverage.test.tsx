@@ -52,6 +52,10 @@ function expectCopilotCoverage(container: HTMLElement, expectedFields: string[])
 
   expect(fields).toHaveLength(expectedFields.length);
   expect(new Set(fields)).toEqual(new Set(expectedFields));
+  for (const fieldName of expectedFields) {
+    expect(container.querySelector(`[data-application-field-name="${fieldName}"]`))
+      .toBeInTheDocument();
+  }
 }
 
 describe("legacy application step copilot coverage", () => {
@@ -71,7 +75,7 @@ describe("legacy application step copilot coverage", () => {
       "us_address_state",
       "us_address_zip",
     ]);
-    expect(screen.getAllByText("必填项").length).toBeGreaterThan(0);
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
     expect(screen.queryByText("Required field")).not.toBeInTheDocument();
   });
 
@@ -104,19 +108,18 @@ describe("legacy application step copilot coverage", () => {
       "state_of_birth",
       "city_of_birth",
     ]);
-    expect(container.querySelector('[data-copilot-panel-frame="surname"]')).toHaveClass(
-      "md:col-span-2",
-    );
+    expect(container.querySelector('[data-copilot-panel-frame="surname"]')).toHaveClass("min-w-0");
   });
 
-  it("transliterates Chinese given names instead of showing confirm text", () => {
+  it("keeps the English given-name translation hidden during Chinese entry", () => {
     render(<PersonalInfoStep onComplete={vi.fn()} />);
 
     fireEvent.change(screen.getByPlaceholderText("如：小明"), {
       target: { value: "小明" },
     });
 
-    expect(screen.getByPlaceholderText("e.g. XIAOMING")).toHaveValue("XIAOMING");
+    expect(screen.queryByPlaceholderText("e.g. XIAOMING")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("如：小明")).toHaveValue("小明");
     expect(screen.queryByDisplayValue(/Please confirm/i)).not.toBeInTheDocument();
   });
 
@@ -138,9 +141,9 @@ describe("legacy application step copilot coverage", () => {
       '[data-copilot-panel-frame="arrival_city"]',
     );
 
-    fireEvent.focus(screen.getByPlaceholderText("e.g. John F. Kennedy International Airport"));
+    fireEvent.focus(screen.getByPlaceholderText("travel.arrivalCityPlaceholder"));
     expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
-    expect(arrivalCityFrame).toHaveClass("md:col-span-2");
+    expect(arrivalCityFrame).toHaveClass("min-w-0");
 
     const arrivalCityTrigger = container.querySelector<HTMLElement>(
       '[data-copilot-trigger="arrival_city"]',
@@ -173,7 +176,7 @@ describe("legacy application step copilot coverage", () => {
     );
     expect(trigger).toBeInTheDocument();
     expect(trigger).toHaveTextContent("问 AI");
-    expect(screen.getByText("必填项")).toBeInTheDocument();
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
     expect(screen.queryByTestId("field-guidance-panel")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("browse"));

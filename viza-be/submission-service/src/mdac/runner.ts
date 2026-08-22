@@ -4,6 +4,12 @@ import * as path from "path";
 import { type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { MDAC_OFFICIAL_PORTAL_URL, type MdacPortalPayload } from "./normalize";
+import type { RunnerExecutionContext } from "../queue/execution-context.js";
+import {
+  acceptOwnedDialog,
+  closeResourceBestEffort,
+  launchAbortableResource,
+} from "../queue/portal-safety.js";
 
 export interface MdacPortalSubmissionResult {
   submitted: boolean;
@@ -520,17 +526,26 @@ async function assertMdacOfficialFormValid(page: Page, screenshots: string[], lo
   });
 }
 
-async function submitMdacRegistrationForm(page: Page, screenshots: string[], logs: string[]): Promise<void> {
+async function submitMdacRegistrationForm(
+  page: Page,
+  screenshots: string[],
+  logs: string[],
+  executionContext?: RunnerExecutionContext,
+): Promise<void> {
   await assertMdacOfficialFormValid(page, screenshots, logs, "before-submit");
 
   const beforeUrl = page.url();
   let dialogMessage: string | null = null;
+  let dialogOwnershipError: unknown = null;
   page.once("dialog", async (dialog) => {
     dialogMessage = dialog.message();
     logs.push(`mdac_dialog ${dialog.type()} ${dialogMessage}`);
-    await dialog.accept().catch((error) => {
+    try {
+      await acceptOwnedDialog(dialog, executionContext);
+    } catch (error) {
+      dialogOwnershipError = error;
       logs.push(`mdac_dialog_accept_failed ${error instanceof Error ? error.message : String(error)}`);
-    });
+    }
   });
 
   const submit = page.locator("#submit").first();
@@ -545,8 +560,10 @@ async function submitMdacRegistrationForm(page: Page, screenshots: string[], log
     });
   }
 
+  executionContext?.assertOwned();
   await submit.click({ timeout: 10_000 }).catch(async (error) => {
     logs.push(`mdac_submit_click_retry ${error instanceof Error ? error.message : String(error)}`);
+    executionContext?.assertOwned();
     await submit.evaluate((element) => (element as HTMLElement).click());
   });
 
@@ -568,6 +585,7 @@ async function submitMdacRegistrationForm(page: Page, screenshots: string[], log
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
 
+  if (dialogOwnershipError) throw dialogOwnershipError;
   if (dialogMessage) {
     await assertMdacOfficialFormValid(page, screenshots, logs, "after-dialog");
   }
@@ -575,15 +593,35 @@ async function submitMdacRegistrationForm(page: Page, screenshots: string[], log
 
 export async function runMdacPortalSubmission(
   payload: MdacPortalPayload,
-  options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
+  options: {
+    headless?: boolean;
+    stopBeforeSubmit?: boolean;
+    executionContext?: RunnerExecutionContext;
+  } = {},
 ): Promise<MdacPortalSubmissionResult> {
+  options.executionContext?.assertOwned();
   const logs: string[] = [`mdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browserSession = await createArrivalCardBrowserSession({
-    prefix: "MDAC",
-    headless: options.headless,
-  });
+  const browserSession = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => createArrivalCardBrowserSession({
+      prefix: "MDAC",
+      headless: options.headless,
+    }),
+    (resource) => resource.close(),
+  );
   const page = browserSession.page;
+  const abortListener = (): void => {
+    void browserSession.close().catch(() => undefined);
+  };
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+  } catch (error) {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await browserSession.close().catch(() => undefined);
+    throw error;
+  }
   logs.push(`mdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 
@@ -622,7 +660,8 @@ export async function runMdacPortalSubmission(
 
     await solveMdacSliderCaptcha(page, logs);
     screenshots.push(await saveScreenshot(page, "after-slider", logs));
-    await submitMdacRegistrationForm(page, screenshots, logs);
+    options.executionContext?.assertOwned();
+    await submitMdacRegistrationForm(page, screenshots, logs, options.executionContext);
     screenshots.push(await saveScreenshot(page, "after-submit", logs));
 
     const portalText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => currentText);
@@ -640,7 +679,8 @@ export async function runMdacPortalSubmission(
 
     return buildMdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);
   } finally {
-    await browserSession.close();
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await closeResourceBestEffort(browserSession);
   }
 }
 

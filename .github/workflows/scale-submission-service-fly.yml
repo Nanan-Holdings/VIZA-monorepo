@@ -2,14 +2,33 @@ name: scale-submission-service-fly
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Endpoint wake is the normal path. This is recovery-only for a missed
+    # enqueue wake, so keep its database reads to a 30-minute cadence.
+    - cron: "*/30 * * * *"
+    # Wake the legacy worker briefly for email-triggered and periodic status
+    # maintenance that is not represented by submission_queue depth.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# A scheduled recovery and a manual scale run must not race each other over
+# the same database-backed Machine slots. Queue both runs and let the next
+# run observe the committed state before making another decision.
+concurrency:
+  group: production-submission-service-fly-scale
+  cancel-in-progress: false
+
+env:
+  FLY_RUNNER_POOL_APP: ${{ vars.FLY_RUNNER_POOL_APP }}
+  FLY_SUBMISSION_LEGACY_APP: ${{ vars.FLY_SUBMISSION_LEGACY_APP }}
+  FLY_RUNNER_INDONESIA_APP: ${{ vars.FLY_RUNNER_INDONESIA_APP }}
+  FLY_RUNNER_SOUTH_KOREA_APP: ${{ vars.FLY_RUNNER_SOUTH_KOREA_APP }}
+
 jobs:
   scale:
+    if: github.event_name != 'schedule' || github.event.schedule != '17,47 * * * *'
     environment: production-submission_service
     runs-on: ubuntu-latest
     env:
@@ -33,3 +52,22 @@ jobs:
           npx tsx scripts/autoscale-runners.ts --json > "$RUNNER_TEMP/runner-decisions.json"
           bash ../submission-service/scripts/fly/scale-workers.sh "$RUNNER_TEMP/runner-decisions.json"
         working-directory: viza-be/agent-backend
+
+  legacy-maintenance-pulse:
+    if: github.event_name == 'schedule' && github.event.schedule == '17,47 * * * *'
+    environment: production-submission_service
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Run one legacy maintenance window
+        run: |
+          legacy_app="${FLY_SUBMISSION_LEGACY_APP:-viza-submission-legacy}"
+          jq -n --arg app "$legacy_app" '[{kind:"legacy",app:$app,queued:0,desired:1}]' > "$RUNNER_TEMP/legacy-start.json"
+          bash scripts/fly/scale-workers.sh "$RUNNER_TEMP/legacy-start.json"
+          sleep 45
+          jq -n --arg app "$legacy_app" '[{kind:"legacy",app:$app,queued:0,desired:0}]' > "$RUNNER_TEMP/legacy-stop.json"
+          bash scripts/fly/scale-workers.sh "$RUNNER_TEMP/legacy-stop.json"
+        working-directory: viza-be/submission-service

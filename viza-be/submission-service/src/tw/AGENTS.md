@@ -4,25 +4,32 @@ Scope: Taiwan `TW_ENTRY_PERMIT` (旅居海外大陸地區人民申請來臺觀�
 official National Immigration Agency online entry-permit application at
 coa.immigration.gov.tw only.
 
-- **Applicant final-submit handoff is the canonical runner path.** Fill every
-  field, verify every required field/file, solve the final image CAPTCHA
-  (`/coa-frontend/captcha`) via `src/captcha`, then expose the same short-lived
-  Browserbase session to the owning applicant. Only the applicant clicks the
-  official "確認資料" button. Do not add a Taiwan-only network client.
+- **Background formal submit is the canonical runner path.** After the
+  applicant completes VIZA's final confirmation and separately authorizes the
+  official entry prompt plus terms modal, fill every field, verify every
+  required field/file, solve the final image CAPTCHA
+  (`/coa-frontend/captcha`) via `src/captcha`, and click the official
+  "確認資料" button. Do not add a Taiwan-only network client.
 - **Final submit is allowed only after verification passes.** The final submit
-  control is a real NIA POST, so the applicant handoff must be created only after the
-  authorized login hook, terms modal, delivery location, email OTP, field
-  verification, and file verification have all succeeded. While the live
-  handoff is active, persist `stopped_at_captcha` plus an opaque handoff id;
-  persist `submitted` only after the runner captures official receipt evidence.
+  control is a real NIA POST, so it may be clicked only after the authorized
+  login hook, terms modal, delivery location, email OTP, field verification,
+  file verification, and official validation gate have all succeeded. Persist
+  `submitted` only after the runner captures official success-page evidence
+  with an application/receipt number.
+- **Two official terms authorizations are mandatory and auditable.** The
+  `runner_job.metadata.taiwanOfficialTermsConsent` record must confirm the
+  official entry prompt and official terms modal separately. If an expected
+  Agree-first alert already exists, accept it; then check the official terms
+  checkbox, verify `checked=true`, and only then click the modal's confirm
+  button. Unknown alerts and unchecked controls fail closed.
 - **No VIZA-created persistent account.** Taiwan may use an authorized
   official login through the replaceable `TwOfficialLoginProvider`, but this
   runner must not create, store, fixture, log, or document any real official
   username, password, OTP, cookie, or storage state. Every application fill
-  remains a single continuous Browserbase session: authorized login hook → terms
+  remains a single continuous browser session: authorized login hook → terms
   modal → delivery location → application form tab → one-time email OTP
-  verification → every field/file verified → CAPTCHA solve → applicant live
-  handoff → official receipt capture.
+  verification → every field/file verified → CAPTCHA solve → official final
+  confirmation → official receipt capture.
 - **Verify after every field/file.** Required fields, enum values, and uploads
   must fail immediately when the official page's actual value/file input does
   not match the normalized VIZA contract. Successful CAPTCHA-boundary metadata

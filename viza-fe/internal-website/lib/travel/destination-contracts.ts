@@ -1,4 +1,7 @@
 import curatedTravelCardData from "../../components/client/travel/travel-card-curated-data.json";
+import curatedTravelCardLocalization01 from "../../components/client/travel/travel-card-curated-localization-01.json";
+import curatedTravelCardLocalization02 from "../../components/client/travel/travel-card-curated-localization-02.json";
+import curatedTravelCardLocalization03 from "../../components/client/travel/travel-card-curated-localization-03.json";
 import {
   CURATED_CITIES_BY_COUNTRY,
   type CuratedCity,
@@ -130,6 +133,8 @@ type CuratedTravelAttraction = {
   cityKeys: string[];
   cityLabel: string;
   name: string;
+  /** Pre-generated Chinese label for cards; kept separate from the source name. */
+  nameZh?: string;
   aliases?: string[];
   location: string;
   lat?: number;
@@ -137,6 +142,11 @@ type CuratedTravelAttraction = {
   imageSrc: string;
   sourceUrl: string;
   description?: string;
+};
+
+type CuratedTravelAttractionLocalization = {
+  nameZh?: string;
+  descriptionZh?: string;
 };
 
 type CuratedTravelCardData = {
@@ -152,6 +162,12 @@ type CountryMeta = {
 };
 
 const CURATED_CARD_DATA = curatedTravelCardData as CuratedTravelCardData;
+const CURATED_CARD_LOCALIZATION =
+  {
+    ...curatedTravelCardLocalization01,
+    ...curatedTravelCardLocalization02,
+    ...curatedTravelCardLocalization03,
+  } as Record<string, CuratedTravelAttractionLocalization>;
 
 const SUPPLEMENTAL_CITY_CARDS: CuratedTravelCity[] = [
   {
@@ -627,12 +643,70 @@ function attractionNameEn(item: CuratedTravelAttraction): string {
   return item.aliases?.find((alias) => /[A-Za-z]/.test(alias)) ?? item.name;
 }
 
+function attractionLocalization(
+  item: CuratedTravelAttraction
+): CuratedTravelAttractionLocalization {
+  return (
+    CURATED_CARD_LOCALIZATION[`${item.cityLabel}::${item.name}`] ?? {}
+  );
+}
+
+function hasChineseCharacters(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function specificAttractionDescription(
+  item: CuratedTravelAttraction,
+  nameZh: string
+): string {
+  const source = [item.name, item.location, item.sourceUrl].join(" ").toLowerCase();
+  const city = item.cityLabel || "该城市";
+  let category = "城市文化与观光地点";
+  if (/museum|gallery|博物馆|美术馆|展览/.test(source)) {
+    category = "博物馆或美术馆";
+  } else if (
+    /temple|shrine|church|mosque|cathedral|basilica|monastery|pura|寺|庙|教堂|清真寺|礼拜堂/.test(
+      source
+    )
+  ) {
+    category = "宗教与历史建筑";
+  } else if (/park|garden|square|公园|花园|广场|植物园/.test(source)) {
+    category = "公园或城市公共空间";
+  } else if (
+    /bridge|tower|monument|palace|castle|fort|gate|stadium|building|塔|桥|宫|城堡|堡|纪念碑|大厦/.test(
+      source
+    )
+  ) {
+    category = "城市地标与建筑";
+  } else if (
+    /beach|island|lake|waterfall|mount|bay|海滩|海岛|湖|瀑布|山|海湾/.test(
+      source
+    )
+  ) {
+    category = "自然景观";
+  } else if (/market|mall|bazaar|marketplace|市场|商场|购物/.test(source)) {
+    category = "市集与商业街区";
+  }
+  return `${nameZh}位于${city}，是一处${category}，适合安排参观、拍照并了解当地文化。`;
+}
+
 function toAttractionContract(
   item: CuratedTravelAttraction,
   destinationKey: string,
   city: CuratedCity
 ): TravelAttractionContract {
   const key = `${destinationKey}-${normalizeDestinationContractKey(item.name)}`;
+  const localization = attractionLocalization(item);
+  const localizedName =
+    localization.nameZh ?? item.nameZh ?? item.name;
+  const nameZh = hasChineseCharacters(localizedName)
+    ? localizedName
+    : `${city.zh ?? city.en}代表性地标`;
+  const descriptionZh =
+    localization.descriptionZh ??
+    (item.description && !item.description.includes("代表性景点")
+      ? item.description
+      : specificAttractionDescription(item, nameZh));
   const image =
     toAssetContract({
       entityType: "attraction",
@@ -649,9 +723,9 @@ function toAttractionContract(
     key,
     canonicalName: attractionNameEn(item),
     nameEn: attractionNameEn(item),
-    nameZh: item.name,
-    descriptionEn: item.description ?? `${attractionNameEn(item)} local attraction.`,
-    descriptionZh: item.description ?? `${item.name}是当地推荐景点。`,
+    nameZh,
+    descriptionEn: `${attractionNameEn(item)} in ${city.en}.`,
+    descriptionZh,
     category: "attraction",
     latitude: typeof item.lat === "number" && Number.isFinite(item.lat) ? item.lat : null,
     longitude: typeof item.lng === "number" && Number.isFinite(item.lng) ? item.lng : null,

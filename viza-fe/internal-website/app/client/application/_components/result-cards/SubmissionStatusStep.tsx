@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
+import {
+  Warning as AlertTriangle,
+  Clock,
+  Download,
+  ArrowSquareOut as ExternalLink,
+  Flask as FlaskConical,
+  CircleNotch as Loader2,
+  Plus,
+  ArrowClockwise as RotateCw,
+  ShieldCheck,
+} from "@phosphor-icons/react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
@@ -18,12 +28,13 @@ import {
   createPhEtravelStoredResultRecoveryPresentation,
   createPhEtravelUserStatusMessage,
 } from "@/features/ph-etravel/status";
-import { PhEtravelApplicantStatusCard } from "@/features/ph-etravel/PhEtravelApplicantStatusCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import {
   WaitingCard,
   type SubmissionVisualStage,
@@ -39,7 +50,12 @@ import { JpResultCard } from "./JpResultCard";
 import { normalizeTwStatus, TwResultCard } from "./TwResultCard";
 import { KrResultCard } from "./KrResultCard";
 import {
+  AutomatedOnlineResultCard,
+  isAutomatedOnlineResult,
+} from "./AutomatedOnlineResultCard";
+import {
   isDs160VisaType,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isPhilippinesEtravelApplication,
@@ -52,9 +68,11 @@ import {
   isVietnamEVisaApplication,
   isIndonesiaEVisaApplication,
   type SubmissionMode,
+  type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
+import { buildKoreaArrivalCardGateHref } from "@/features/kr-arrival-card/routes";
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
@@ -68,6 +86,7 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
+  submissionStarting?: boolean;
   onResubmit?: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
@@ -96,6 +115,11 @@ interface SubmissionStatusSnapshot {
     createdAt?: string | null;
     updatedAt?: string | null;
   } | null;
+}
+
+function submissionProgressPersistenceKey(queueId: string | null | undefined): string | null {
+  const normalizedQueueId = queueId?.trim();
+  return normalizedQueueId ? `submission-run:${normalizedQueueId}` : null;
 }
 
 type ManualAction = {
@@ -173,7 +197,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
   const [startingAgain, setStartingAgain] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const scheduled = result.status === "scheduled";
-  const rawReferenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const rawReferenceNumber = result.issueNumber ?? result.referenceNumber ?? result.confirmationNumber;
   const referenceNumber =
     result.country === "VN" && !isOfficialVietnamPrearrivalReference(rawReferenceNumber)
       ? null
@@ -194,17 +218,26 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     : null;
   const successful = result.country === "PH"
     ? phRecovery?.state === "submitted_candidate"
-    : result.submitted && result.status === "submitted" && !vietnamFinalizing;
+    : result.country === "KR"
+      ? hasSuccessfulArrivalCardSubmission({
+          country: "south_korea",
+          visaType: result.visaType,
+          submissionResult: result,
+        })
+      : result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
-    (result.country === "TH" || result.country === "VN") &&
+    (result.country === "KR" || result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
     (
       Boolean(result.confirmationPdfStoragePath) ||
+      (result.country === "KR" && (result.artifacts?.pdfs?.length ?? 0) > 0) ||
       result.artifacts?.logs?.some((log) =>
         log.includes("tdac_pdf_downloaded") ||
         log.includes("tdac_confirmation_page_pdf_saved") ||
         log.includes("vn_prearrival_pdf_downloaded") ||
-        log.includes("vn_prearrival_confirmation_page_pdf_saved"),
+        log.includes("vn_prearrival_confirmation_page_pdf_saved") ||
+        log.includes("korea_e_arrival_card_pdf_downloaded") ||
+        log.includes("kr_eac_pdf_downloaded"),
       ) === true
     );
   const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
@@ -215,6 +248,8 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         ? { label: "TDAC", countryParam: "thailand" }
         : result.country === "VN"
           ? { label: "Vietnam Pre-Arrival", countryParam: "vietnam" }
+          : result.country === "KR"
+            ? { label: "Korea e-Arrival Card", countryParam: "south_korea" }
           : { label: "eTravel", countryParam: "philippines" };
   const countryLabel = arrivalCardMeta.label;
   const countryParam = arrivalCardMeta.countryParam;
@@ -265,12 +300,14 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
       if (!response.ok || !body?.applicationId) {
         throw new Error(body?.error || `Could not create a new application (${response.status})`);
       }
-      window.location.href = `/client/application/long-form?country=${countryParam}&visaType=${result.visaType}&applicationId=${encodeURIComponent(body.applicationId)}`;
+      window.location.href = result.country === "KR"
+        ? buildKoreaArrivalCardGateHref(body.applicationId)
+        : `/client/application/long-form?country=${countryParam}&visaType=${result.visaType}&applicationId=${encodeURIComponent(body.applicationId)}`;
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : String(error));
       setStartingAgain(false);
     }
-  }, [countryParam, result.applicationId, result.visaType]);
+  }, [countryParam, result.applicationId, result.country, result.visaType]);
 
   return (
     <Card className="rounded-lg border-input">
@@ -346,8 +383,8 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
           {successful
             ? result.country === "PH"
               ? isZh
-                ? "菲律宾 eTravel 官网已确认提交。下方参考号来自权威登记记录，旁边显示的是与该参考号对应并已验证的二维码；请同时保存官方确认页截图。"
-                : "The Philippines eTravel portal confirmed the submission. The reference below comes from the authoritative registration record, and the adjacent QR code is the verified match for that reference. Save the official confirmation screenshot as well."
+                ? "菲律宾 eTravel 官网已确认提交。请保存下方官方确认页截图；如果本次记录包含独立 QR，二维码会优先显示在参考号旁。"
+                : "The Philippines eTravel portal confirmed the submission. Save the official confirmation screenshot below; when a standalone QR is available, it appears beside the reference number."
               : result.portalResponseSummary
             : vietnamFinalizing
               ? isZh
@@ -449,10 +486,12 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "No official downloadable confirmation PDF is available for this submission."}
           </p>
         ) : null}
-        {downloadError ? <p className="text-sm text-red-700">{downloadError}</p> : null}
+        {downloadError ? <ClientErrorAlert message={downloadError} /> : null}
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
-            {isZh ? "打开官方入境卡网站" : "Open official arrival card website"}
+            {result.country === "KR"
+              ? (isZh ? "打开韩国入境卡 Check/Edit 官网" : "Open Korea e-Arrival Card Check/Edit")
+              : (isZh ? "打开官方入境卡网站" : "Open official arrival card website")}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>
@@ -468,6 +507,7 @@ function isDigitalArrivalCardResult(result: SubmissionResult): result is Digital
     (result.country === "PH" && "visaType" in result &&
       (result.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || result.visaType === "PH_ETRAVEL_DEPARTURE_CARD")) ||
     (result.country === "VN" && "visaType" in result && result.visaType === "VN_PREARRIVAL_DECLARATION")
+    || (result.country === "KR" && "visaType" in result && result.visaType === "KR_E_ARRIVAL_CARD")
   );
 }
 
@@ -497,12 +537,16 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
   if (normalized === "processing") return "running";
   if (normalized === "failed") return "failed";
   if (normalized === "stalled") return "stalled";
+  if (normalized === "needs_attention") return "needs_user_action";
+  if (normalized === "rejected") return "failed";
+  if (normalized === "qr_ready" || normalized === "approved" || normalized === "submitted") return "completed";
   if (
     normalized === "needs_user_action" ||
     normalized === "action_required" ||
     normalized === "stopped_at_sign" ||
     normalized === "stopped_at_pay" ||
     normalized === "stopped_at_review" ||
+    normalized === "blocked" ||
     normalized === "unsupported"
   ) {
     return "needs_user_action";
@@ -513,6 +557,7 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
 function isArrivalCardTarget(country: string | null | undefined, visaType: string | null | undefined): boolean {
   return (
     isSgArrivalCardApplication(country, visaType) ||
+    isKoreaEArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
@@ -566,6 +611,21 @@ export function userFacingSubmissionRuntimeMessage(
     .replace(/\r\n?/gu, "\n")
     .trim();
   if (!normalized) return undefined;
+
+  if (isZh) {
+    const automatedProductMessagesZh: Record<string, string> = {
+      "Visit Japan Web QR evidence is not available yet.": "日本官方入境与海关申报二维码凭证暂不可用。",
+      "Official QR evidence is missing.": "缺少官方二维码凭证。",
+      "Visit Japan Web QR code is ready.": "日本入境与海关申报二维码已准备好。",
+      "Kenya eTA approval evidence is not available yet.": "肯尼亚电子旅行授权批准凭证暂不可用。",
+      "Official approval PDF is missing.": "缺少官方批准文件。",
+      "Kenya eTA approval is ready.": "肯尼亚电子旅行授权批准文件已准备好。",
+      "Visit Japan Web is scheduled for automatic submission after the compliance gate is cleared.": "日本入境与海关申报已进入自动提交计划，将在合规开关允许后执行。",
+      "Kenya eTA is scheduled for automatic submission.": "肯尼亚电子旅行授权已进入自动提交计划。",
+    };
+    const localizedAutomatedProductMessage = automatedProductMessagesZh[normalized];
+    if (localizedAutomatedProductMessage) return localizedAutomatedProductMessage;
+  }
 
   if (
     /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|Executable doesn't exist|Failed to launch|Target page, context or browser has been closed/i.test(
@@ -668,6 +728,7 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isVietnamEVisaApplication(country, visaType) ||
     isIndonesiaEVisaApplication(country, visaType) ||
     isSgArrivalCardApplication(country, visaType) ||
+    isKoreaEArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
@@ -743,11 +804,6 @@ function GenericResultCard({
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingManualAction, setCompletingManualAction] = useState(false);
-  const [indonesiaCardNumber, setIndonesiaCardNumber] = useState("");
-  const [indonesiaCardExpiry, setIndonesiaCardExpiry] = useState("");
-  const [indonesiaCardCvv, setIndonesiaCardCvv] = useState("");
-  const [indonesiaCardHolderName, setIndonesiaCardHolderName] = useState("");
-  const [indonesiaCardLast4, setIndonesiaCardLast4] = useState<string | null>(null);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
   const isDs160Action =
@@ -786,16 +842,7 @@ function GenericResultCard({
     isUkStandardVisitorApplication(applicationCountry, applicationVisaType ?? result.visaType);
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
-  // Indonesia recovery jobs always need a fresh one-time card session. The
-  // previous session is destroyed as soon as the cloud worker consumes it, so
-  // retrying an account/application checkpoint without a card can never reach
-  // the official payment gateway.
   const indonesiaPaymentAction = isIndonesiaAction;
-  const indonesiaCardReady =
-    indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
-    indonesiaCardExpiry.trim().length >= 4 &&
-    indonesiaCardCvv.replace(/\D/g, "").length >= 3 &&
-    indonesiaCardHolderName.trim().length >= 2;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = isIndonesiaAction
     ? result.actionType === "official_fee_otp_required"
@@ -907,8 +954,8 @@ function GenericResultCard({
 
     const confirmed = window.confirm(
       isZh
-        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号并自动填写申请表，停在 £135 支付页由你本人完成付款。确认继续？"
-        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill your application, and stop at the £135 payment page for you to pay. Continue?",
+        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号、自动填写申请表，并由 VIZA 使用本申请专属的一次性虚拟卡支付官网签证费。确认继续？"
+        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill the application, and let VIZA pay the official fee with an application-scoped one-use virtual card. Continue?",
     );
     if (!confirmed) return;
 
@@ -919,7 +966,7 @@ function GenericResultCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "dry_run",
+          mode: "live_assisted",
           country: applicationCountry,
           visaType: applicationVisaType ?? result.visaType,
         }),
@@ -937,33 +984,19 @@ function GenericResultCard({
   };
 
   const restartIndonesiaOfficialPayment = async () => {
-    if (!applicationId || !indonesiaCardReady) return;
+    if (!applicationId) return;
     setStartingLive(true);
     setLiveError(null);
     try {
       const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          card: {
-            pan: indonesiaCardNumber,
-            expiry: indonesiaCardExpiry,
-            cvv: indonesiaCardCvv,
-            holderName: indonesiaCardHolderName.trim(),
-          },
-        }),
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
       });
       const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (!response.ok) {
         throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/pay returned ${response.status}`);
       }
-      const cardSession = payload?.cardSession as Record<string, unknown> | undefined;
-      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
-      setIndonesiaCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
-      setIndonesiaCardNumber("");
-      setIndonesiaCardExpiry("");
-      setIndonesiaCardCvv("");
-      setIndonesiaCardHolderName("");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setLiveError(error instanceof Error ? error.message : String(error));
@@ -1056,72 +1089,20 @@ function GenericResultCard({
             {indonesiaPaymentAction ? (
               <div className="mt-3 space-y-3 rounded-md border border-brand-100 bg-white p-3">
                 <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "本次官方流程与付款银行卡" : "Card for this official application and payment"}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                    <input
-                      value={indonesiaCardNumber}
-                      onChange={(event) => setIndonesiaCardNumber(event.target.value)}
-                      autoComplete="cc-number"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                    <input
-                      value={indonesiaCardExpiry}
-                      onChange={(event) => setIndonesiaCardExpiry(event.target.value)}
-                      autoComplete="cc-exp"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="MM/YY"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">CVV</span>
-                    <input
-                      value={indonesiaCardCvv}
-                      onChange={(event) => setIndonesiaCardCvv(event.target.value)}
-                      autoComplete="cc-csc"
-                      inputMode="numeric"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder="CVV"
-                    />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">
-                      {isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)"}
-                    </span>
-                    <input
-                      value={indonesiaCardHolderName}
-                      onChange={(event) => setIndonesiaCardHolderName(event.target.value)}
-                      autoComplete="cc-name"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "请输入银行卡上的姓名" : "Name printed on card"}
-                    />
-                  </label>
+                  {isZh ? "本申请专用限额虚拟卡" : "Limited virtual card for this application"}
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "卡号和 CVV 只用于本次官方付款，会发送到 VIZA 云端 submission-service 的短时内存会话；不会保存到数据库、日志或个人资料。"
-                    : "Card number and CVV are used only for this official payment through a short-lived VIZA cloud submission-service session."}
+                    ? "确认后，VIZA 只会在印尼官网付款页准备就绪时开立虚拟卡。卡片绑定本申请和本次官方费用；卡号、有效期和 CVV 不会保存。"
+                    : "After confirmation, VIZA opens the virtual card only when the Indonesia official payment page is ready. It is bound to this application and fee; PAN, expiry, and CVV are never stored."}
                 </p>
-                {indonesiaCardLast4 ? (
-                  <p className="text-xs text-brand-600">
-                    {isZh ? `已刷新一次性卡会话：尾号 ${indonesiaCardLast4}` : `One-time card session refreshed: ending ${indonesiaCardLast4}`}
-                  </p>
-                ) : null}
               </div>
             ) : null}
             <Button
               type="button"
               className="mt-3 w-full"
               onClick={indonesiaPaymentAction ? restartIndonesiaOfficialPayment : startLiveAssisted}
-              disabled={startingLive || (indonesiaPaymentAction && !indonesiaCardReady)}
+              disabled={startingLive}
             >
               {startingLive ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1151,8 +1132,8 @@ function GenericResultCard({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
               <span>
                 {isZh
-                  ? "表单校验已通过。点击下方按钮将在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并停在 £135 签证费支付页——最后付款需你在官网完成。"
-                  : "Validation passed. The button below creates a real UKVI account on gov.uk, pre-fills every page, and stops at the £135 visa fee — you complete payment on the official site."}
+                  ? "表单校验已通过。点击下方按钮后，VIZA 会在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并使用本申请专属的一次性虚拟卡支付官网签证费。若资金尚未分配，系统会先引导你完成 VIZA 安全结算。"
+                  : "Validation passed. VIZA will create the UKVI account, complete the gov.uk form, and pay the official fee with an application-scoped one-use virtual card. If funding has not been allocated yet, VIZA will first direct you to its secure checkout."}
               </span>
             </div>
             <Button
@@ -1173,11 +1154,7 @@ function GenericResultCard({
           </div>
         )}
 
-        {liveError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {liveError}
-          </div>
-        )}
+        {liveError ? <ClientErrorAlert message={liveError} /> : null}
 
         {actionRequired && result.actionType && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
@@ -1261,9 +1238,7 @@ function GenericResultCard({
                   : "The current live job is still syncing. Refresh this status shortly."}
               </p>
             )}
-            {manualActionError && (
-              <p className="text-sm text-red-700">{manualActionError}</p>
-            )}
+            {manualActionError ? <ClientErrorAlert message={manualActionError} /> : null}
           </div>
         )}
 
@@ -1380,7 +1355,7 @@ function ArrivalCardPreparedResultCard({
           )}
           {submitting ? (isZh ? "正在提交" : "Submitting") : (isZh ? "提交" : "Submit")}
         </Button>
-        {submitError ? <p className="text-sm text-red-700">{submitError}</p> : null}
+        {submitError ? <ClientErrorAlert message={submitError} /> : null}
       </CardContent>
     </Card>
   );
@@ -1411,7 +1386,7 @@ function FranceResubmitPanel({
               ? "会先保存当前表单里的最新答案，再重新创建法国官网提交任务。"
               : "VIZA saves the latest answers from this form first, then creates a new France-Visas submission job."}
           </p>
-          {error && <p className="text-xs text-red-700">{error}</p>}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
         <Button
           type="button"
@@ -1458,7 +1433,7 @@ function UkResubmitPanel({
               ? "会先保存当前表单里的最新答案，再通过 UK 专用 worker 继续填写 gov.uk（与 France-Visas 一样走 live assisted 队列）。"
               : "VIZA saves your latest answers first, then enqueues a UK-specific live worker to continue gov.uk pre-fill (same live-assisted pattern as France-Visas)."}
           </p>
-          {error && <p className="text-xs text-red-700">{error}</p>}
+          {error ? <ClientErrorAlert message={error} /> : null}
         </div>
         <Button
           type="button"
@@ -1492,6 +1467,7 @@ export function SubmissionStatusStep({
   visaType,
   status,
   result,
+  submissionStarting = false,
   onResubmit,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
@@ -1500,21 +1476,39 @@ export function SubmissionStatusStep({
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
-  const [phStatusRefreshVersion, setPhStatusRefreshVersion] = useState(0);
+  const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (!applicationId) return;
+    setActiveProgressCycleKey(`retry:${applicationId}:${Date.now()}`);
+    setActiveRetryQueueId(null);
     setRetryError(null);
     setRetryCompleteness(null);
     setResubmitting(true);
+    const retryCountry = snapshot?.country ?? country;
+    const retryVisaType = snapshot?.visaType ?? visaType;
+    const optimisticStartedAt = new Date().toISOString();
+    setLocalRetryActive(true);
+    setSnapshot({
+      status: "queued",
+      stage: "preparing",
+      progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
+      message: isZh ? "自动提交任务正在启动。" : "The automated submission is starting.",
+      result: null,
+      error: null,
+      updatedAt: optimisticStartedAt,
+      applicationStatus: "waiting",
+      country: retryCountry,
+      visaType: retryVisaType,
+      queue: null,
+    });
     try {
-      const retryCountry = snapshot?.country ?? country;
-      const retryVisaType = snapshot?.visaType ?? visaType;
       const isOfficialPaymentCardRetry =
         Boolean(vietnamPaymentCard) &&
         (
@@ -1579,9 +1573,16 @@ export function SubmissionStatusStep({
       // through the fresh-application endpoint instead of re-running the
       // long-form save/validation callback before the queue write.
       const isTaiwanRetry = isTaiwanEntryPermitApplication(retryCountry, retryVisaType);
-      if (onResubmit && !isDs160VisaType(retryVisaType) && !isTaiwanRetry) {
+      const isVietnamPrearrivalRetry = isVietnamPrearrivalApplication(retryCountry, retryVisaType);
+      if (
+        onResubmit &&
+        !isDs160VisaType(retryVisaType) &&
+        !isTaiwanRetry &&
+        !isVietnamPrearrivalRetry
+      ) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
+        setLocalRetryActive(false);
         return;
       }
       const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
@@ -1595,6 +1596,7 @@ export function SubmissionStatusStep({
           // normal retry is intentionally idempotent and returns the previous
           // successful submission when this VIZA application has history.
           intent: isDs160VisaType(retryVisaType) ? "new_application" : "retry",
+          taiwanOfficialTermsConsent,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -1611,6 +1613,8 @@ export function SubmissionStatusStep({
           setRetryCompleteness(body.completeness);
         }
         setRetryError(message);
+        setSnapshot(null);
+        setLocalRetryActive(false);
         return;
       }
       const now = new Date().toISOString();
@@ -1623,8 +1627,8 @@ export function SubmissionStatusStep({
         progress: fallbackProgressForStatus("queued", snapshot?.country ?? country, snapshot?.visaType ?? visaType),
         message: isTaiwanRetry
           ? isZh
-            ? "台湾官网自动填写任务已重新排队；仍不会处理 CAPTCHA 或最终提交。"
-            : "Taiwan official-site filling has been requeued; CAPTCHA and final submit are still not automated."
+            ? "台湾官网正式提交任务已排队；只有取得官方回执编号才会显示成功，VIZA 不会自动付款。"
+            : "The formal Taiwan submission is queued. Success requires an official receipt number, and VIZA will not pay automatically."
           : isZh ? "自动提交任务已启动。" : "Automated submission has started.",
         result: null,
         error: null,
@@ -1644,6 +1648,10 @@ export function SubmissionStatusStep({
           updatedAt: now,
         },
       });
+    } catch (error) {
+      setSnapshot(null);
+      setLocalRetryActive(false);
+      throw error;
     } finally {
       setResubmitting(false);
     }
@@ -1670,6 +1678,7 @@ export function SubmissionStatusStep({
     durableTerminalPropsAvailable,
     localRetryActive,
     snapshotIsActive,
+    snapshotAvailable: snapshot !== null,
   });
   const parentHasTerminalSubmission =
     Boolean(result) &&
@@ -1694,6 +1703,11 @@ export function SubmissionStatusStep({
   const effectiveProgress = terminalPropsAvailable
     ? fallbackProgressForStatus(effectiveStatus, country, visaType)
     : snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
+  const effectiveQueueId = localRetryActive
+    ? activeRetryQueueId
+    : snapshot?.queue?.id ?? null;
+  const effectiveProgressCycleKey = activeProgressCycleKey ?? effectiveQueueId;
+  const effectiveProgressPersistenceKey = submissionProgressPersistenceKey(effectiveQueueId);
   const polledVietnamPrearrivalHasQr =
     snapshot?.result &&
     isDigitalArrivalCardResult(snapshot.result) &&
@@ -1711,6 +1725,10 @@ export function SubmissionStatusStep({
     (Boolean(snapshot) || terminalPropsAvailable);
   const effectiveError = userFacingSubmissionRuntimeMessage(
     extractError(effectiveResult, snapshot?.error),
+    isZh,
+  );
+  const effectiveMessage = userFacingSubmissionRuntimeMessage(
+    snapshot?.message?.trim() || effectiveError,
     isZh,
   );
   const effectiveApplicationStatus = terminalPropsAvailable
@@ -1780,32 +1798,26 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
+    setActiveProgressCycleKey(null);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
     if (!applicationId) return;
     if (
+      !submissionStarting &&
       shouldStopSubmissionStatusPolling({
         completedWithResult,
         failed,
         snapshotHasQueue,
       })
     ) {
-      const keepPollingPhRecovery =
-        isPhilippinesEtravelApplication(country, visaType) &&
-        visaType === "PH_ETRAVEL_ARRIVAL_CARD" &&
-        Boolean(effectiveResult) &&
-        createPhEtravelStoredResultRecoveryPresentation(effectiveResult).state ===
-          "recovery_required";
-      if (!keepPollingPhRecovery) {
-        // UK dry-run jobs can be misrouted to a legacy worker that reports a
-        // spurious "failed" result even though the answers are complete — keep
-        // polling in that specific case so the real live-assisted result can
-        // still arrive instead of getting stuck on the stale failure.
-        const misroute = isUkStandardVisitorApplication(country, visaType) &&
-          isUkMisroutedDryRunError(snapshot?.error ?? effectiveError);
-        if (!misroute) return;
-      }
+      // UK dry-run jobs can be misrouted to a legacy worker that reports a
+      // spurious "failed" result even though the answers are complete — keep
+      // polling in that specific case so the real live-assisted result can
+      // still arrive instead of getting stuck on the stale failure.
+      const misroute = isUkStandardVisitorApplication(country, visaType) &&
+        isUkMisroutedDryRunError(snapshot?.error ?? effectiveError);
+      if (!misroute) return;
     }
 
     let cancelled = false;
@@ -1866,13 +1878,32 @@ export function SubmissionStatusStep({
           isRecord(body.queue) && typeof body.queue.id === "string"
             ? body.queue.id
             : null;
+        const polledApplicationStatus =
+          typeof body.applicationStatus === "string" ? body.applicationStatus : null;
+        // On the first submit click the new queue may not have been inserted
+        // when this request reaches the status endpoint. Never let a terminal
+        // snapshot from the previous attempt replace the parent's optimistic
+        // loading state while the new submission request is still in flight.
+        if (
+          submissionStarting &&
+          (
+            body.status === "failed" ||
+            body.status === "stalled" ||
+            polledApplicationStatus === "failed" ||
+            polledApplicationStatus === "stalled"
+          )
+        ) {
+          return;
+        }
         // The status endpoint can briefly return the previous terminal queue
         // immediately after a new retry is accepted. Keep the new loading UI
         // authoritative until the exact queue created by this click appears.
         if (
           localRetryActive &&
-          activeRetryQueueId &&
-          polledQueueId !== activeRetryQueueId
+          (
+            (activeRetryQueueId && polledQueueId !== activeRetryQueueId) ||
+            (!activeRetryQueueId && resubmitting)
+          )
         ) {
           return;
         }
@@ -1948,11 +1979,12 @@ export function SubmissionStatusStep({
     country,
     isZh,
     localRetryActive,
+    resubmitting,
     visaType,
     result,
     snapshotHasQueue,
     status,
-    phStatusRefreshVersion,
+    submissionStarting,
   ]);
 
   const ukStoredResult = useMemo(() => {
@@ -1962,23 +1994,20 @@ export function SubmissionStatusStep({
     return null;
   }, [effectiveResult, result, snapshot?.result]);
 
-  const isPhEtravelArrivalSubmission = isPhilippinesEtravelApplication(
-    snapshot?.country ?? country,
-    snapshot?.visaType ?? visaType,
-  ) && (snapshot?.visaType ?? visaType) === "PH_ETRAVEL_ARRIVAL_CARD";
-
-  if (isPhEtravelArrivalSubmission) {
+  if (submissionStarting) {
     return (
-      <PhEtravelApplicantStatusCard
-        applicationId={applicationId}
-        status={{
-          status: effectiveStatus,
-          applicationStatus: effectiveApplicationStatus,
-          queueStatus: snapshot?.queue?.status ?? null,
-          result: effectiveResult,
-        }}
-        onRefresh={() => setPhStatusRefreshVersion((version) => version + 1)}
-      />
+      <div className="space-y-4">
+        <WaitingCard
+          status="queued"
+          stage="preparing"
+          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          message={isZh ? "自动提交任务正在启动。" : "The automated submission is starting."}
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(null)}
+          country={country}
+          visaType={visaType}
+        />
+      </div>
     );
   }
 
@@ -1992,10 +2021,15 @@ export function SubmissionStatusStep({
           serverProgress={fallbackProgressForStatus("queued", country, visaType)}
           message={isTaiwanResubmitting
             ? isZh
-              ? "正在重新排队台湾官网自动填写任务；不会处理 CAPTCHA 或最终提交。"
-              : "Requeueing Taiwan official-site filling; CAPTCHA and final submit will not be automated."
+              ? "正在排队台湾官网正式提交任务；只有官方回执验证通过后才会显示成功。"
+              : "Queueing the formal Taiwan submission; success is shown only after official receipt verification."
             : isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
           applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(
+            activeRetryQueueId ?? snapshot?.queue?.id ?? null,
+          )}
+          progressCycleKey={activeProgressCycleKey}
+          resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
         />
@@ -2086,7 +2120,7 @@ export function SubmissionStatusStep({
 
   if (
     vietnamPaymentCheckpointResult &&
-    (failed || stalled || actionWithResult || completedWithResult)
+    (snapshotIsActive || failed || stalled || actionWithResult || completedWithResult)
   ) {
     return (
       <div className="space-y-4">
@@ -2096,6 +2130,7 @@ export function SubmissionStatusStep({
           visaType,
           vietnamPaymentCheckpointResult,
           snapshot?.queue?.id ?? null,
+          isZh,
         )}
       </div>
     );
@@ -2151,7 +2186,7 @@ export function SubmissionStatusStep({
           retryBusy={resubmitting}
           retryError={retryError}
           retryCompleteness={retryCompleteness}
-          onRetry={handleRetry}
+          onRetry={(mode, consent) => handleRetry(mode, undefined, consent)}
           result={buildTwResultFromStatus({
             result: effectiveResult,
             snapshot,
@@ -2193,6 +2228,7 @@ export function SubmissionStatusStep({
           applicationId={applicationId ?? undefined}
           errorMessage={
             retryError ??
+            effectiveMessage ??
             effectiveError ??
             "Submission job stalled because the worker did not pick it up in time."
           }
@@ -2254,6 +2290,7 @@ export function SubmissionStatusStep({
           visaType,
           effectiveResult,
           snapshot?.queue?.id ?? null,
+          isZh,
         )}
       </div>
     );
@@ -2281,10 +2318,13 @@ export function SubmissionStatusStep({
             ? isZh
               ? "官网已接收申报。系统每 3 秒自动检查一次；二维码生成后，本页面会立即显示提交成功和下载按钮。"
               : "The official portal received the declaration. VIZA checks every 3 seconds and will show success and the QR download as soon as it is available."
-            : userFacingSubmissionRuntimeMessage(snapshot?.message, isZh)
+            : effectiveMessage
         }
         error={effectiveError}
         applicationId={applicationId}
+        persistenceKey={effectiveProgressPersistenceKey}
+        progressCycleKey={effectiveProgressCycleKey}
+        resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
       />
@@ -2306,8 +2346,21 @@ function renderSubmissionResultCard(
   visaType: string | null,
   result: SubmissionResult | null,
   jobId: string | null = null,
+  isZh = false,
 ) {
-  if (!result) return <WaitingCard status="running" />;
+  if (!result) {
+    const persistenceKey = submissionProgressPersistenceKey(jobId);
+    return (
+      <WaitingCard
+        status="running"
+        applicationId={applicationId}
+        persistenceKey={persistenceKey}
+        progressCycleKey={jobId}
+        country={country}
+        visaType={visaType}
+      />
+    );
+  }
 
   if (
     result.country === "GENERIC" &&
@@ -2371,15 +2424,27 @@ function renderSubmissionResultCard(
         <AuResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "JP":
+      if (isAutomatedOnlineResult(result)) {
+        return <AutomatedOnlineResultCard result={result} />;
+      }
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "TW":
       return <TwResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "KR":
+      if (isDigitalArrivalCardResult(result)) {
+        return <DigitalArrivalCardResultCard result={result} />;
+      }
       return applicationId ? (
         <KrResultCard applicationId={applicationId} result={result} />
       ) : null;
+    case "KE":
+      return isAutomatedOnlineResult(result) ? (
+        <AutomatedOnlineResultCard result={result} />
+      ) : (
+        <FailureCard errorMessage={isZh ? "保存的肯尼亚电子旅行授权结果无效。" : "The stored Kenya eTA result is invalid."} />
+      );
     case "GENERIC":
       return (
         <GenericResultCard
@@ -2407,7 +2472,14 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
       );
     case "AE":
     case "CA":
@@ -2422,9 +2494,25 @@ function renderSubmissionResultCard(
           result={result}
         />
       ) : (
-        <WaitingCard status="running" />
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
       );
     default:
-      return <WaitingCard status="running" />;
+      return (
+        <WaitingCard
+          status="running"
+          applicationId={applicationId}
+          persistenceKey={submissionProgressPersistenceKey(jobId)}
+          progressCycleKey={jobId}
+          country={country}
+          visaType={visaType}
+        />
+      );
   }
 }

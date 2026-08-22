@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +144,16 @@ export async function POST(
     });
   }
 
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Official status refresh is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
+  }
+
   const now = new Date().toISOString();
   const idempotencyKey = `vn:user:${applicationId}:${Math.floor(Date.now() / REFRESH_COOLDOWN_MS)}`;
   const { data: check, error: checkError } = await admin
@@ -190,6 +202,8 @@ export async function POST(
     },
     { onConflict: "idempotency_key", ignoreDuplicates: true },
   );
+
+  await wakeCloudSubmissionWorker(null, { target: "vietnam" });
 
   return NextResponse.json({
     ok: true,

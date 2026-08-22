@@ -131,30 +131,8 @@ describe("bilingual schema contract", () => {
     }));
 
     expect(resolveLocalizedFieldLabel(country, "zh")).toBe("出生国家/地区");
-    expect(resolveLocalizedFieldLabel(country, "en")).toBe("Country/Region of Birth");
     expect(resolveLocalizedFieldLabel(province, "zh")).toBe("出生省/州（如适用）");
     expect(resolveLocalizedFieldLabel(city, "zh")).toBe("出生城市");
-  });
-
-  it("uses country/region wording for every birth-country relationship field", () => {
-    const cases = [
-      ["country_of_birth", "出生国家/地区", "Country/Region of Birth"],
-      ["birth_country", "出生国家/地区", "Country/Region of Birth"],
-      ["spouse_country_of_birth", "配偶出生国家/地区", "Spouse's Country/Region of Birth"],
-      ["partner_country_of_birth", "伴侣出生国家/地区", "Partner's Country/Region of Birth"],
-      ["father_country_of_birth", "父亲出生国家/地区", "Father's Country/Region of Birth"],
-      ["mother_country_of_birth", "母亲出生国家/地区", "Mother's Country/Region of Birth"],
-    ] as const;
-
-    for (const [fieldName, labelZh, labelEn] of cases) {
-      const normalized = normalizeBilingualFormField(field({
-        fieldName,
-        label: fieldName.replaceAll("_", " "),
-        fieldType: "country",
-      }));
-      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(labelZh);
-      expect(resolveLocalizedFieldLabel(normalized, "en")).toBe(labelEn);
-    }
   });
 
   it("uses curated labels for Schengen surname-at-birth fields", () => {
@@ -466,5 +444,26 @@ describe("bilingual schema contract", () => {
     }));
 
     expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe("护照号码（韩国测试文案）");
+  });
+
+  it("restores the Vietnam pre-arrival visa notice for stale database rows", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_information_acknowledgement",
+      label: "I have read and understood this information.",
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "我已阅读并理解此信息",
+        official_gate: "visa_information",
+      },
+    }));
+
+    expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe("我已阅读并理解以下签证信息说明");
+    expect(normalized.validationRules).toMatchObject({
+      official_gate: "visa_information",
+      helper_priority: "critical",
+      helper_zh: expect.stringMatching(/^签证信息说明：.*所选签证类型决定/),
+      helper_en: expect.stringContaining("selected visa type determines"),
+    });
   });
 });

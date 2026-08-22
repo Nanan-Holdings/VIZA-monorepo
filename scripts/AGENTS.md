@@ -56,6 +56,65 @@ smoke-test helpers for the VIZA monorepo.
   and unsafe `NEXT_PUBLIC_` names without printing values.
 - `doctor-env.ts`: cross-platform env doctor used by package scripts and the
   internal website wrapper.
+- `audit-travel-cards.mjs`: validates the complete Travel city/attraction
+  catalog, localized names, specific descriptions, source links and image
+  paths; `--check-remote` also verifies the deployed image rewrite.
 - `__tests__/start-all-vn-autopay.test.mjs`: static regression coverage for
   the global `dev:all:with-db` startup chain, especially the Vietnam
   one-time card-session submission-service handoff and matching frontend env.
+- `supabase-self-heal.mjs`: fail-closed, read-only Supabase Auth/REST canary
+  for an external GitHub Actions runner. It requires a project-ref-matching
+  `SUPABASE_URL`, runs three dual-endpoint probe rounds per schedule, requires
+  three independently scheduled failures before recovery, and persists
+  incident/lease state in the configured GitHub
+  Issue (`GITHUB_TOKEN`, `GITHUB_REPOSITORY`,
+  `SUPABASE_SELF_HEAL_ISSUE_NUMBER`) rather than local/cache storage. It never
+  prints key/token values.
+  The scheduled entry point is `.github/workflows/supabase-self-heal.yml`;
+  keep all credential values in GitHub Actions secrets and use
+  `SUPABASE_SELF_HEAL_DRY_RUN=true` to exercise the decision path without
+  calling the Management API restart endpoint.
+- `production-db-maintenance.mjs`: fail-closed production database maintenance
+  helper invoked only from the protected GitHub Environment. Preflight uses
+  Supabase's read-only Management API endpoint and emits aggregate queue/lease,
+  cap, cron, migration-ledger, and strict-object metadata without row payloads
+  or credential values. Pause is a separate exact-confirmation action that
+  atomically requires the approved cap/cron snapshot and zero live work before
+  pausing pool caps and unscheduling the Vietnam status cron. Apply accepts only
+  the reviewed strict source commit and exact hashes for migration versions
+  `20260816160000` and `20260816161000`, rechecks the drained pause state, and
+  records both migrations atomically with the schema changes. Resume requires
+  those ledger versions and strict objects, zero live work, six exact paused
+  caps, and no status cron before atomically restoring the caps and cron. The
+  separate `apply-stable-speed` path is pinned to the reviewed additive
+  concurrency migration, verifies the active six-country cap topology before
+  and after, and installs the renewal/health/metric objects without pausing or
+  mutating jobs, caps, slots, or cron.
+- `database-migration-governance.mjs`: pull-request gate for the two VIZA SQL
+  migration roots. It preserves the exact 17 historical duplicate Drizzle
+  prefixes, rejects edits/renames/deletes of existing migrations, requires each
+  new migration to be classified as one byte-identical mirror pair or an
+  explicitly justified no-mirror file, and statically enforces public-table
+  RLS/ACL, empty SECURITY DEFINER search paths, and invoker views. It also
+  preserves the exact historical Supabase duplicate-version allowlist and
+  requires new Supabase files to use unique 14-digit timestamps.
+- `database-architecture/migration-governance.json`: immutable duplicate-prefix
+  allowlist plus hash-pinned mirror/no-mirror decisions for new migrations.
+- `database-architecture/approved-migration-batches.json`: reviewed batch ids,
+  exact migration paths/versions/SHA-256 values, execution modes, and migration
+  ledger pre/postconditions used by `apply-approved-batch`.
+
+`production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
+sanitized Security/Performance Advisor metadata with a read-only catalog/stat
+snapshot, and `apply-approved-batch`, which accepts only a full commit SHA and
+an exact manifest entry. Architecture audit must never emit statement text,
+SQL parameters, table rows, applicant data, or advisor detail/remediation text.
+Approved batches use structured catalog assertions only; concurrent-index
+batches pin exact index definitions and may retry only an invalid/not-ready
+index. Temporary Management API login roles must not exceed ten minutes and
+must be revoked after successful, failed, or ambiguous creation attempts.
+When a transactional migration committed but a later metadata postflight was
+stricter than the target PostgreSQL catalog representation, use the read-only
+`verify-approved-batch` action after correcting and reviewing the exact
+structured assertion. Never replay an already-recorded migration to repair a
+postflight-only failure.

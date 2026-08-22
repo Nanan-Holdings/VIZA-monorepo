@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { Warning as AlertTriangle, CheckCircle as CheckCircle2, ArrowSquareOut as ExternalLink, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import type { LiveManualActionSummary, LiveSubmissionSummary } from "@/lib/submission-live-status";
 
 type Copy = {
@@ -58,7 +58,7 @@ export function LiveManualActionCard({
   }
 
   return (
-    <section id="live-action" className="rounded-[8px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+    <section id="live-action" className="rounded-[8px] border border-[#e5e7eb] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-amber-900">

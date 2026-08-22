@@ -4,9 +4,11 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 
 import { TwoCaptchaApiError, type CaptchaSolveResult } from "../../captcha";
 import {
+  clickTwFinalSubmit,
   inspectTwCaptchaPng,
   solveTwEmailCaptchaAndSendCodeWithRetry,
 } from "../captcha";
+import { RunnerJobOwnershipLostError } from "../../queue/execution-context";
 
 let browser: Browser;
 
@@ -76,6 +78,23 @@ function solved(id: string): CaptchaSolveResult {
 }
 
 describe("Taiwan email CAPTCHA image and refresh contract", () => {
+  it("blocks the irreversible final click when ownership is lost", async () => {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <button type="submit">確認資料</button>
+      <script>window.finalSubmitClicks = 0; document.querySelector('button').addEventListener('click', () => { window.finalSubmitClicks += 1; });</script>
+    `);
+    try {
+      await assert.rejects(
+        () => clickTwFinalSubmit(page, () => { throw new RunnerJobOwnershipLostError(); }),
+        RunnerJobOwnershipLostError,
+      );
+      assert.equal(await page.evaluate(() => (window as unknown as { finalSubmitClicks: number }).finalSubmitClicks), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("extracts a non-empty PNG with dimensions, content type, and a hash prefix", async () => {
     const page = await captchaPage();
     try {

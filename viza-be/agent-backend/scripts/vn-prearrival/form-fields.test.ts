@@ -4,6 +4,9 @@ import {
   VN_PREARRIVAL_AIRPORT_OPTIONS,
   VN_PREARRIVAL_FLIGHT_OPTIONS,
   VN_PREARRIVAL_PURPOSE_OPTIONS,
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+  VN_PREARRIVAL_VISA_TYPE_OPTIONS,
 } from "./official-options";
 
 const fieldNames = VN_PREARRIVAL_FORM_FIELDS.map((field) => field.field_name);
@@ -26,6 +29,26 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       "Transit",
       "Other",
     ]);
+  });
+
+  it("loads the departure country from the same official nationality catalog as the portal", () => {
+    const departureCountry = VN_PREARRIVAL_FORM_FIELDS.find(
+      (field) => field.field_name === "departure_country_before_arrival",
+    );
+    const nationality = VN_PREARRIVAL_FORM_FIELDS.find(
+      (field) => field.field_name === "nationality",
+    );
+
+    for (const field of [nationality, departureCountry]) {
+      expect(field).toMatchObject({
+        field_type: "country",
+        required: true,
+        validation_rules: expect.objectContaining({
+          official_source: "prearrival_category:nationality",
+          remote_search: true,
+        }),
+      });
+    }
   });
 
   it("models official flights plus the official Other/manual-flight branch", () => {
@@ -80,13 +103,72 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     const visaNumber = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_number");
 
     expect(acknowledgement?.validation_rules).toMatchObject({
-      helper_zh: expect.stringContaining("所选签证类型决定"),
+      label_zh: "我已阅读并理解以下签证信息说明",
+      helper_priority: "critical",
+      helper_zh: expect.stringMatching(/^签证信息说明：.*所选签证类型决定/),
       helper_en: expect.stringContaining("selected visa type determines"),
     });
     expect(visaNumber?.validation_rules).toMatchObject({
       numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
       helper_zh: expect.stringContaining("9 位纯数字"),
       helper_en: expect.stringContaining("9-digit numeric"),
+    });
+  });
+
+  it("matches the official visa-type options and conditional required fields", () => {
+    const visaNumber = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_number");
+    const visaIssueDate = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_issue_date");
+    const visaExpiryDate = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_expiry_date");
+    const visaIssuedPlace = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_issued_place");
+
+    expect(VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.value)).toEqual([
+      "GMTT", "EV", "MMT", "MTTQ", "TDL", "ABTC", "TTR", "TTA", "TT", "MM1", "MM2",
+    ]);
+    expect(VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.label_zh)).toEqual([
+      "免签证证明",
+      "电子签证（E-Visa）",
+      "按国籍适用的默认免签政策",
+      "富国岛签证豁免",
+      "旅游卡",
+      "APEC商务旅行卡（ABTC）",
+      "永久居留卡",
+      "临时居留卡",
+      "签证",
+      "双边免签",
+      "单边免签",
+    ]);
+    expect(new Set([
+      ...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+      ...VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+    ])).toEqual(new Set([
+      "TMTT", "MTT",
+      ...VN_PREARRIVAL_VISA_TYPE_OPTIONS.map((option) => option.value),
+    ]));
+    expect(visaNumber?.validation_rules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaNumber?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiryDate?.validation_rules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiryDate?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaIssueDate?.required).toBe(false);
+    expect(visaIssueDate?.conditional_logic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaIssuedPlace).toMatchObject({
+      required: false,
+      conditional_logic: {
+        showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+      },
+      validation_rules: expect.objectContaining({
+        official_source: "prearrival_category:visa_issue_place",
+        depends_on: "visa_type",
+      }),
     });
   });
 

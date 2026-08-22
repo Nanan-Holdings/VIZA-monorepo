@@ -92,6 +92,47 @@ function fakeClient(initial: FakeProfile, options: { collisionOnce?: boolean } =
   };
 }
 
+function fakeApplicationAliasClient() {
+  const rows = new Map<string, {
+    application_id: string;
+    applicant_id: string;
+    alias: string;
+    retired_at: string | null;
+  }>();
+  return {
+    rows,
+    from(table: string) {
+      assert.equal(table, "application_inbox_aliases");
+      return {
+        select() {
+          return {
+            eq(_key: string, applicationId: string) {
+              return {
+                async maybeSingle() {
+                  return { data: rows.get(applicationId) ?? null, error: null };
+                },
+              };
+            },
+          };
+        },
+        insert(input: { application_id: string; applicant_id: string; alias: string }) {
+          const row = { ...input, retired_at: null };
+          rows.set(input.application_id, row);
+          return {
+            select() {
+              return {
+                async maybeSingle() {
+                  return { data: row, error: null };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
 describe("applicant inbox alias", () => {
   it("returns an existing alias", async () => {
     const { ensureApplicantInboxAlias } = await import("../alias");
@@ -109,7 +150,7 @@ describe("applicant inbox alias", () => {
     const result = await ensureApplicantInboxAlias("profile-1", client as never);
 
     assert.equal(result.created, true);
-    assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
+    assert.match(result.alias, /^appl-[0-9a-z]{26}@viza\.it\.com$/);
   });
 
   it("supports custom domain for generated alias", async () => {
@@ -137,7 +178,21 @@ describe("applicant inbox alias", () => {
     const result = await ensureApplicantInboxAlias("profile-1", client as never);
 
     assert.equal(result.created, true);
-    assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
+    assert.match(result.alias, /^appl-[0-9a-z]{26}@viza\.it\.com$/);
+  });
+
+  it("isolates aliases by application and reuses only the same application row", async () => {
+    const { ensureApplicationInboxAlias } = await import("../alias");
+    const client = fakeApplicationAliasClient();
+
+    const first = await ensureApplicationInboxAlias("application-1", "profile-1", client as never);
+    const firstAgain = await ensureApplicationInboxAlias("application-1", "profile-1", client as never);
+    const second = await ensureApplicationInboxAlias("application-2", "profile-1", client as never);
+
+    assert.equal(first.created, true);
+    assert.deepEqual(firstAgain, { ...first, created: false });
+    assert.notEqual(first.alias, second.alias);
+    assert.equal(client.rows.size, 2);
   });
 });
 
@@ -178,5 +233,77 @@ describe("applicant inbox routing", () => {
       ),
       InboxDomainUnroutableError,
     );
+  });
+
+  it("retries a transient DNS timeout before accepting a usable MX record", async () => {
+    const { assertInboxAliasDomainRoutable } = await import("../wait-for-message");
+    let attempts = 0;
+
+    await assert.doesNotReject(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+              code: "ETIMEOUT",
+            });
+          }
+          return [{ exchange: "inbound.example.org", priority: 10 }];
+        },
+        { retryDelaysMs: [0] },
+      ),
+    );
+    assert.equal(attempts, 2);
+  });
+
+  it("still rejects a transient DNS failure after bounded retries", async () => {
+    const {
+      assertInboxAliasDomainRoutable,
+      InboxDomainUnroutableError,
+    } = await import("../wait-for-message");
+    let attempts = 0;
+
+    await assert.rejects(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          attempts += 1;
+          throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+            code: "ETIMEOUT",
+          });
+        },
+        { retryDelaysMs: [0, 0], fallbackResolver: null },
+      ),
+      InboxDomainUnroutableError,
+    );
+    assert.equal(attempts, 3);
+  });
+
+  it("uses DNS-over-HTTPS after native MX lookups exhaust transient retries", async () => {
+    const { assertInboxAliasDomainRoutable } = await import("../wait-for-message");
+    let nativeAttempts = 0;
+    let fallbackAttempts = 0;
+
+    await assert.doesNotReject(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => {
+          nativeAttempts += 1;
+          throw Object.assign(new Error("queryMx ETIMEOUT example.org"), {
+            code: "ETIMEOUT",
+          });
+        },
+        {
+          retryDelaysMs: [0],
+          fallbackResolver: async () => {
+            fallbackAttempts += 1;
+            return [{ exchange: "inbound.example.org", priority: 10 }];
+          },
+        },
+      ),
+    );
+    assert.equal(nativeAttempts, 2);
+    assert.equal(fallbackAttempts, 1);
   });
 });

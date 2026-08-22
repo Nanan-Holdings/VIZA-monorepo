@@ -52,6 +52,8 @@ export interface UploadPhotoOptions {
 export interface UploadPhotoResult {
   /** Did identix accept the photo? */
   accepted: boolean;
+  /** Active CEAC page after Identix returns; Identix may replace/close the source page. */
+  page: Page;
   /** URL after accept (CEAC Confirm Photo page). */
   postContinueUrl: string | null;
   /** Identix error text (if rejected). */
@@ -69,6 +71,11 @@ const IDENTIX_UPLOAD_BUTTON_SELECTOR =
   '#ctl00_cphButtons_btnUpload, input[type="image"].next';
 // Identix Result.aspx Continue button — clicks back to CEAC.
 const IDENTIX_CONTINUE_BUTTON_SELECTOR = '#ctl00_cphButtons_btnContinue';
+// Identix sometimes lands on Default.aspx first and opens Upload.aspx from
+// there. Keep this narrow so we do not accidentally click its cancel/back
+// controls.
+const IDENTIX_START_UPLOAD_SELECTOR =
+  'a[href*="/qotw/Upload.aspx" i], input[type="submit"][value*="Upload Photo" i], button:has-text("Upload Photo")';
 // Identix error surface — typically a span with class "error" or
 // validation summary above the form.
 const IDENTIX_ERROR_SELECTOR =
@@ -135,44 +142,80 @@ export async function handleUploadPhotoPage(
   options: UploadPhotoOptions,
 ): Promise<UploadPhotoResult> {
   const timeoutMs = options.timeoutMs ?? 90_000;
+  const context = page.context();
+  let activePage = page;
 
   // Identix's pages render their action buttons below an image preview;
   // the default headless viewport (~720px) leaves the buttons off-screen,
   // and Playwright rejects clicks outside the viewport even with
   // force:true. Bumping the viewport tall enough keeps the buttons in
   // view for both Upload.aspx and Result.aspx.
-  await page.setViewportSize({ width: 1280, height: 1600 });
+  await activePage.setViewportSize({ width: 1280, height: 1600 });
 
   if (options.diagnosticPath) {
-    await dumpUploadPageDom(page, options.diagnosticPath);
+    await dumpUploadPageDom(activePage, options.diagnosticPath);
   }
 
   // 1. On CEAC: click the styled trigger. The form posts and the page
   //    navigates cross-domain to identix.state.gov. waitForURL handles
   //    the cross-origin navigation cleanly.
-  const trigger = page.locator(CEAC_TRIGGER_SELECTOR).first();
+  const trigger = activePage.locator(CEAC_TRIGGER_SELECTOR).first();
   await trigger.waitFor({ state: "visible", timeout: 10_000 });
+  const identixPopup = context.waitForEvent("page", { timeout: 30_000 }).catch(() => null);
   await Promise.all([
-    page.waitForURL(/identix\.state\.gov\/qotw\/Upload\.aspx/i, { timeout: 30_000 }),
-    trigger.click({ force: true }),
+    activePage
+      .waitForURL(/identix\.state\.gov\/qotw\/(?:Default|Upload)\.aspx/i, { timeout: 30_000 })
+      .catch(() => undefined),
+    trigger.click({ force: true }).catch(() => undefined),
   ]);
+  activePage = await waitForPortalPage(
+    context.pages(),
+    identixPopup,
+    /identix\.state\.gov\/qotw\/(?:Default|Upload)\.aspx/i,
+    30_000,
+    "Identix photo entry",
+  );
+  await activePage.setViewportSize({ width: 1280, height: 1600 });
+
+  // The live portal may first render qotw/Default.aspx, whose Upload Photo
+  // action replaces the current window (and can close it while opening a new
+  // one). Follow that transition and keep the surviving Page reference.
+  if (/identix\.state\.gov\/qotw\/Default\.aspx/i.test(activePage.url())) {
+    const startUpload = activePage.locator(IDENTIX_START_UPLOAD_SELECTOR).first();
+    await startUpload.waitFor({ state: "visible", timeout: 15_000 });
+    const uploadPopup = context.waitForEvent("page", { timeout: 30_000 }).catch(() => null);
+    await Promise.all([
+      activePage
+        .waitForURL(/identix\.state\.gov\/qotw\/Upload\.aspx/i, { timeout: 30_000 })
+        .catch(() => undefined),
+      startUpload.click({ force: true, timeout: 10_000 }).catch(() => undefined),
+    ]);
+    activePage = await waitForPortalPage(
+      context.pages(),
+      uploadPopup,
+      /identix\.state\.gov\/qotw\/Upload\.aspx/i,
+      30_000,
+      "Identix photo upload",
+    );
+    await activePage.setViewportSize({ width: 1280, height: 1600 });
+  }
 
   // 2. On identix: set the file on the real file input, then click the
   //    image-input upload submit. Identix processes the upload server-
   //    side; on accept it 302s back to CEAC's Confirm Photo page.
-  const fileInput = page.locator(IDENTIX_FILE_INPUT_SELECTOR).first();
+  const fileInput = activePage.locator(IDENTIX_FILE_INPUT_SELECTOR).first();
   await fileInput.waitFor({ state: "attached", timeout: 15_000 });
   const payload = toSetFiles(options.photo);
   await fileInput.setInputFiles(payload);
 
-  const uploadBtn = page.locator(IDENTIX_UPLOAD_BUTTON_SELECTOR).first();
+  const uploadBtn = activePage.locator(IDENTIX_UPLOAD_BUTTON_SELECTOR).first();
   await uploadBtn.waitFor({ state: "visible", timeout: 10_000 });
 
   // 3. Click upload. The post can either redirect back to CEAC (accept)
   //    or re-render identix with an error (reject). Race the two outcomes
   //    instead of relying on a single waitForURL — we want to surface
   //    rejections quickly rather than waiting for the full timeout.
-  const acceptPromise = page
+  const acceptPromise = activePage
     .waitForURL(/ceac\.state\.gov\/GenNIV\/General\/photo\/.*ConfirmPhoto/i, {
       timeout: timeoutMs,
     })
@@ -182,7 +225,7 @@ export async function handleUploadPhotoPage(
   // Some identix builds use a different post-accept path; widen the
   // accept condition to any return to ceac.state.gov with a CEAC photo
   // page.
-  const acceptFallback = page
+  const acceptFallback = activePage
     .waitForURL(/ceac\.state\.gov\/GenNIV/i, { timeout: timeoutMs })
     .then(() => "accepted" as const)
     .catch(() => null);
@@ -200,7 +243,28 @@ export async function handleUploadPhotoPage(
   let accepted = false;
   let resultPageHandled = false;
   while (Date.now() < deadline) {
-    const url = page.url();
+    const ceacPage = context
+      .pages()
+      .find((candidate) =>
+        !candidate.isClosed() &&
+        /ceac\.state\.gov\/GenNIV\/General\/photo\//i.test(candidate.url()),
+      );
+    if (ceacPage) {
+      activePage = ceacPage;
+      accepted = true;
+      break;
+    }
+
+    if (activePage.isClosed()) {
+      activePage = await waitForPortalPage(
+        context.pages(),
+        Promise.resolve(null),
+        /(?:identix\.state\.gov\/qotw\/(?:Upload|Result)\.aspx|ceac\.state\.gov\/GenNIV\/General\/photo\/)/i,
+        15_000,
+        "photo continuation",
+      );
+    }
+    const url = activePage.url();
 
     if (/ceac\.state\.gov\/GenNIV/i.test(url)) {
       accepted = true;
@@ -214,12 +278,13 @@ export async function handleUploadPhotoPage(
     // viewport) nor el.click() (browsers don't add x/y) accomplishes
     // that. We submit the form directly with the coords appended.
     if (/identix\.state\.gov\/qotw\/Result\.aspx/i.test(url) && !resultPageHandled) {
-      const continueBtn = page.locator(IDENTIX_CONTINUE_BUTTON_SELECTOR).first();
+      const continueBtn = activePage.locator(IDENTIX_CONTINUE_BUTTON_SELECTOR).first();
       if ((await continueBtn.count()) > 0) {
         resultPageHandled = true;
+        const ceacPopup = context.waitForEvent("page", { timeout: timeoutMs }).catch(() => null);
         await Promise.all([
-          page.waitForURL(/ceac\.state\.gov\/GenNIV/i, { timeout: timeoutMs }).catch(() => null),
-          page.evaluate(`
+          activePage.waitForURL(/ceac\.state\.gov\/GenNIV/i, { timeout: timeoutMs }).catch(() => null),
+          activePage.evaluate(`
             (function() {
               var btn = document.querySelector('#ctl00_cphButtons_btnContinue');
               if (!btn) return;
@@ -235,13 +300,20 @@ export async function handleUploadPhotoPage(
             })();
           `),
         ]);
+        activePage = await waitForPortalPage(
+          context.pages(),
+          ceacPopup,
+          /ceac\.state\.gov\/GenNIV\/General\/photo\//i,
+          timeoutMs,
+          "CEAC photo confirmation",
+        );
         continue;
       }
     }
 
     // Identix Upload.aspx still showing → check for error banner.
     if (/identix\.state\.gov\/qotw\/Upload\.aspx/i.test(url)) {
-      const errLoc = page.locator(IDENTIX_ERROR_SELECTOR).first();
+      const errLoc = activePage.locator(IDENTIX_ERROR_SELECTOR).first();
       if ((await errLoc.count()) > 0) {
         const visible = await errLoc.isVisible().catch(() => false);
         if (visible) {
@@ -250,14 +322,14 @@ export async function handleUploadPhotoPage(
           ).trim();
           if (text.length > 0) {
             if (options.diagnosticPath) {
-              await dumpUploadPageDom(page, options.diagnosticPath);
+              await dumpUploadPageDom(activePage, options.diagnosticPath);
             }
             throw new PhotoRejectedError(text, text);
           }
         }
       }
     }
-    await page.waitForTimeout(500);
+    await activePage.waitForTimeout(500);
   }
 
   // Drain the racing promises so they don't leak warnings.
@@ -265,23 +337,65 @@ export async function handleUploadPhotoPage(
 
   if (!accepted) {
     if (options.diagnosticPath) {
-      await dumpUploadPageDom(page, options.diagnosticPath);
+      await dumpUploadPageDom(activePage, options.diagnosticPath);
     }
     throw new PhotoRejectedError(
-      `Upload Photo flow did not return to CEAC within ${timeoutMs}ms (currently at ${page.url()})`,
+      `Upload Photo flow did not return to CEAC within ${timeoutMs}ms (currently at ${activePage.url()})`,
     );
   }
 
   // 4. Settle on CEAC's Confirm Photo page before returning.
   try {
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await activePage.waitForLoadState("networkidle", { timeout: 15_000 });
   } catch {
-    await page.waitForTimeout(2_000);
+    await activePage.waitForTimeout(2_000);
   }
 
   return {
     accepted: true,
-    postContinueUrl: page.url(),
+    page: activePage,
+    postContinueUrl: activePage.url(),
     rejectionReason: null,
   };
+}
+
+async function waitForPortalPage(
+  currentPages: Page[],
+  popupPromise: Promise<Page | null>,
+  urlPattern: RegExp,
+  timeoutMs: number,
+  label: string,
+): Promise<Page> {
+  const deadline = Date.now() + timeoutMs;
+  let pages = currentPages;
+
+  while (Date.now() < deadline) {
+    const popup = await Promise.race([
+      popupPromise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 100)),
+    ]);
+    if (popup && !popup.isClosed()) {
+      pages = [...pages, popup];
+    }
+
+    const match = pages.find(
+      (candidate) => !candidate.isClosed() && urlPattern.test(candidate.url()),
+    );
+    if (match) {
+      await match.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      return match;
+    }
+
+    const context = pages[0]?.context();
+    if (context) pages = context.pages();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  const liveUrls = pages
+    .filter((candidate) => !candidate.isClosed())
+    .map((candidate) => candidate.url())
+    .join(", ");
+  throw new PhotoRejectedError(
+    `${label} did not open within ${timeoutMs}ms${liveUrls ? ` (open pages: ${liveUrls})` : ""}`,
+  );
 }

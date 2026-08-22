@@ -56,24 +56,6 @@ Scope: Philippines eTravel-specific frontend helpers.
   presentation. It keeps photo, mobile, and residence branches review-gated,
   records Philippines residence clear-on-change behavior, and must never
   present client wiring as file, mobile, address, or server acceptance.
-- `residence-cascade.ts` owns the current official PH residence read contract.
-  It preserves Province, Municipality, and Barangay `code` values as opaque
-  submission identities, derives Region only from Province metadata, clears
-  descendants on parent changes, and supplies missing-field focus targets.
-  Third-party place names or codes may never replace official response values.
-- `profile-checkpoint.ts` separates Personal Information Review/profile save
-  from registration Review/final Submit. Profile HTTP success or dashboard
-  navigation must never become submitted success; the registration final
-  Submit remains the default stop-before-submit target.
-- `travel-registration.ts` owns the PH arrival-only Start-page presentation,
-  normalization, completeness, and enqueue gate. It locks `flight_type` to
-  `ARRIVAL`, preserves official `registration_for` and `transport_type` values,
-  and keeps versioned privacy/affidavit consent in a separate audit record that
-  is never projected into the official submission payload.
-- `SeaManualCustomsFormsNotice.tsx` owns the PH-only external official PDF
-  links for the verified `SEA + manual_forms` notice. It must never render for
-  AIR or SEA electronic paths, proxy/cache a document, or create an applicant
-  answer or completeness requirement.
 - `air-destination-presentation.ts` owns E22 public-bundle AIR/destination
   presentation. It treats Special Flight as a derived display branch only,
   keeps its detail on `flight_number_special`, and leaves AIR/destination
@@ -82,26 +64,6 @@ Scope: Philippines eTravel-specific frontend helpers.
   keeps client conditions and positive branches review-gated, excludes
   inherited vaccine/age state and bats/animals translation-only text from
   rendered questions, and never treats local validation as server acceptance.
-- `general-declaration.ts` owns E42/E43 electronic General Declaration display
-  and completeness metadata. It keeps Q1/Q2 out of Add Item, gives only Q3-Q12
-  their conditional Description/Quantity/Amount-in-USD repeaters, makes a
-  positive displayed goods amount require a Q3-Q12 Yes, clears rows when their
-  parent answer hides them, and treats AIR E45 attachments as
-  visible-but-not-required while signature remains an action requirement.
-- `applicant-experience.ts` owns the PH-only shared-page experience adapter.
-  It exposes final-confirmation boundaries, field/document return targets,
-  explicit-true live gating, status refresh, result re-read recovery, and the
-  stable-reference plus same-reference QR success gate without creating queues
-  or allowing automatic re-submit.
-- `PhEtravelApplicantStatusCard.tsx` consumes that adapter in shared status
-  pages. It renders a QR only from the same authoritative reference, falls
-  back to read-only recovery if browser QR rendering fails, and never exposes
-  retry-submit controls or raw runner diagnostics.
-- `synthetic-fixture.ts` owns the production-test-only PH draft creation
-  boundary. It must remain fail-closed unless explicitly enabled, create only
-  new `country=philippines` / `PH_ETRAVEL_ARRIVAL_CARD` drafts, mark them as
-  synthetic fixtures without PII, and never reuse, overwrite, delete, submit,
-  or route through Taiwan applications.
 - `option-labels.ts` localizes the official country, airline, and Philippine
   arrival-port codes for the Chinese form column. It must preserve the official
   option value and keep every official arrival-port code one-to-one and unique.

@@ -18,16 +18,22 @@ function getSecret() {
 export interface ClientSession {
   userId: string;
   email: string;
+  /** Supabase Auth UUID, retained only for legacy ownership columns. */
+  authUserId?: string;
   isImpersonation?: boolean;
   userName?: string;
   auditLogId?: string;
 }
 
-export async function createClientSession(userId: string, email: string): Promise<void> {
+export async function createClientSession(
+  userId: string,
+  email: string,
+  authUserId?: string,
+): Promise<void> {
   const secret = getSecret();
   const expires = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
-  const token = await new SignJWT({ userId, email })
-    .setProtectedHeader({ alg: "HS256" })
+  const token = await new SignJWT({ userId, email, authUserId, type: "client_session", version: 1 })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setExpirationTime(expires)
     .setIssuedAt()
     .sign(secret);
@@ -48,8 +54,16 @@ export async function getClientSession(): Promise<ClientSession | null> {
   try {
     const secret = getSecret();
     const { payload } = await jwtVerify(token, secret);
-    if (typeof payload.userId !== "string" || typeof payload.email !== "string") return null;
-    return { userId: payload.userId, email: payload.email };
+    if (
+      typeof payload.userId !== "string" ||
+      typeof payload.email !== "string" ||
+      (payload.type !== undefined && payload.type !== "client_session")
+    ) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      authUserId: typeof payload.authUserId === "string" ? payload.authUserId : undefined,
+    };
   } catch {
     return null;
   }
@@ -61,8 +75,16 @@ export async function getClientSessionFromRequest(request: NextRequest): Promise
   try {
     const secret = getSecret();
     const { payload } = await jwtVerify(token, secret);
-    if (typeof payload.userId !== "string" || typeof payload.email !== "string") return null;
-    return { userId: payload.userId, email: payload.email };
+    if (
+      typeof payload.userId !== "string" ||
+      typeof payload.email !== "string" ||
+      (payload.type !== undefined && payload.type !== "client_session")
+    ) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      authUserId: typeof payload.authUserId === "string" ? payload.authUserId : undefined,
+    };
   } catch {
     return null;
   }
@@ -76,6 +98,11 @@ export async function clearClientSession(): Promise<void> {
 type ApplicantProfileSessionRow = {
   id: string;
   auth_user_id: string | null;
+};
+
+type SupabaseSessionOptions = {
+  requestTimeoutMs?: number;
+  retryDelaysMs?: readonly number[];
 };
 
 export function chooseApplicantProfileForAuthSession({
@@ -100,13 +127,15 @@ export function chooseApplicantProfileForAuthSession({
  * Get applicant session from Supabase Auth.
  * Finds or creates an applicant_profiles record for the authenticated user.
  */
-export async function getUserFromSupabaseSession(): Promise<ClientSession | null> {
+export async function getUserFromSupabaseSession(
+  options: SupabaseSessionOptions = {}
+): Promise<ClientSession | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient(options);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !user.email) return null;
 
-    const adminClient = createAdminClient();
+    const adminClient = createAdminClient(options);
 
     // Try by auth_user_id first
     let { data: profile } = await adminClient
@@ -172,7 +201,7 @@ export async function getUserFromSupabaseSession(): Promise<ClientSession | null
     }
 
     if (!profile) return null;
-    return { userId: profile.id, email: user.email };
+    return { userId: profile.id, email: user.email, authUserId: user.id };
   } catch (error) {
     console.error("Error getting applicant from Supabase session:", error);
     return null;

@@ -1,13 +1,44 @@
-# CLI deploys upload from the repo root so each project's Root Directory
-# (viza-fe/marketing-website or viza-fe/internal-website) resolves. Exclude
-# everything the two Next apps don't need to keep the upload small and the
-# build context clean.
-viza-be
-travel-agent
-.codex
-docs
+# The Vercel projects select their own Root Directory under viza-fe. Keep both
+# deployable frontend roots in the Git archive; exclude only non-Vercel apps,
+# local credentials, browser profiles, and audit output here.
+/.agents
+/.claude
+/.codex
+/.codex-worktrees
+/.dev-logs
+/.git
+/.github
+/.ralph
+/.release
+/.tmp
+/.venv
+/.worktrees
+/db
+/docs
+/knowledge-base
+/output
+/research
+/scripts
+/shared
+/supabase
+/travel-agent
+/vietnam-visa-helper-v1
+/viza-be
+
+*.log
+*.zip
+/output-*.png
+/tmp-*
+/bilingual-schema-audit-report.*
+/architecture.payment
+/prd.json
+/progress.txt
+**/.env*
+**/.vercel
 **/node_modules
 **/.next
 **/.turbo
+**/__pycache__
+**/*.tsbuildinfo
 **/test-results
 **/playwright-report

@@ -536,7 +536,6 @@ export function getPhEtravelOrderedPage(
 export function createPhEtravelSeaPortOrderedPageContract(input: {
   destinationPortCode: string | null | undefined;
   snapshot: PhEtravelSeaDestinationPortSnapshot | null | undefined;
-  customsDeclaration?: "yes" | "no" | null;
   now?: Date;
 }): PhEtravelSeaPortOrderedContract {
   const resolution = resolvePhEtravelSeaDestinationPortFlow(
@@ -545,72 +544,14 @@ export function createPhEtravelSeaPortOrderedPageContract(input: {
     input.now
   );
 
-  if (resolution.status !== "resolved") {
-    return {
-      resolution,
-      contract: null,
-      actionOnlyGates: [
-        ACTION_ONLY(
-          "sea.destination_port_metadata_review",
-          "Destination-port metadata is required before VIZA can choose the SEA manual or electronic customs presentation.",
-          "official_evidence_required"
-        ),
-      ],
-    };
-  }
-
-  if (resolution.customsFlowHint === "manual_forms") {
-    return {
-      resolution,
-      contract: createPhEtravelOrderedPageContract("sea_manual"),
-      actionOnlyGates: [
-        ACTION_ONLY(
-          "sea.manual_forms_page_content_review",
-          "with_custom_declaration=0 is a manual-forms hint. The rendered official manual notice must still match; do not show electronic customs fields.",
-          "verified_public"
-        ),
-      ],
-    };
-  }
-
-  if (input.customsDeclaration === "yes") {
-    return {
-      resolution,
-      contract: createPhEtravelOrderedPageContract(
-        "sea_electronic_yes_through_signature"
-      ),
-      actionOnlyGates: [
-        ACTION_ONLY(
-          "sea.electronic_page_content_review",
-          "with_custom_declaration=1 is an electronic-customs hint. Rendered official page content must still match before continuing.",
-          "verified_public"
-        ),
-      ],
-    };
-  }
-
-  if (input.customsDeclaration === "no") {
-    return {
-      resolution,
-      contract: createPhEtravelOrderedPageContract("sea_electronic_no"),
-      actionOnlyGates: [
-        ACTION_ONLY(
-          "sea.electronic_page_content_review",
-          "with_custom_declaration=1 is an electronic-customs hint. Rendered official page content must still match before continuing.",
-          "verified_public"
-        ),
-      ],
-    };
-  }
-
   return {
     resolution,
     contract: null,
     actionOnlyGates: [
       ACTION_ONLY(
-        "sea.electronic_customs_choice_required",
-        "with_custom_declaration=1 can show the electronic customs confirmation, but the applicant's Yes/No branch is needed before VIZA can render downstream electronic customs questions.",
-        "verified_public"
+        "sea.destination_port_dynamic_page_array_review",
+        "Destination-port metadata only describes public wizard page-array insertion. It cannot select a manual/electronic customs flow or authorize live continuation.",
+        "official_evidence_required"
       ),
     ],
   };

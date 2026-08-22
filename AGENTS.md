@@ -14,6 +14,10 @@ Current workspace:
 D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 ```
 
+Production Vercel uploads use the root `.vercelignore` because the linked
+project's `rootDirectory` is `viza-fe/internal-website`. Keep local build
+artifacts and non-frontend services out of the deployment bundle.
+
 ## Local Test Admin
 
 Use this admin account for local portal smoke testing:
@@ -97,6 +101,7 @@ Read the nearest source before making changes:
 - Application forms: `docs/application/DG.md`
 - VIZA AI chat: `docs/viza-ai-chat-development-guide.md`
 - Travel AI: `docs/travel-agent-development-guide.md`
+- Payment architecture: `architecture.payment`
 - Website internal automation: `docs/internal-automation/AGENTS.md`
 - Visa schema process: `docs/visa-schema-playbook.md`
 - RAG seeds: `knowledge-base/visa-rag-seeds/README.md`
@@ -231,6 +236,27 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 Then smoke the changed endpoint or frontend route. Docs-only changes usually do
 not need type-checks.
 
+## Runner Infrastructure Cost Guardrails
+
+These rules apply whenever an agent creates, changes, or reviews hosted runner
+machines, runner queues, or deployment configuration:
+
+- Runner machines must use cold start/on-demand startup by default. Do not keep
+  idle runner machines continuously running unless an explicit operational
+  requirement has been documented and approved.
+- Every runner job must stop, destroy, or release its machine after the run
+  finishes, fails, times out, or is cancelled. Implement cleanup as a guaranteed
+  lifecycle step so an exception cannot leave a billable machine running.
+- Use the lowest machine configuration that can reliably complete the workload.
+  Increase CPU, memory, or machine count only after measurements show that the
+  lower configuration is insufficient.
+- Prefer a shared runner pool backed by one queue. Route straightforward jobs to
+  machines in that pool instead of creating separate always-on runners for each
+  country or workflow.
+- Before deploying runner changes, verify cold-start behavior, terminal-state
+  cleanup, idle timeout/TTL protection, queue routing, and machine sizing. Treat
+  any path that can leave an unused billable machine running as a release blocker.
+
 ## Required Smoke Testing
 
 Every user-facing feature or bug fix needs at least one self-test beyond static
@@ -272,8 +298,10 @@ checks:
 - In client settings, new user-facing functionality should default to a single
   tab/entry point, with the full detail surface shown only after selection.
   Keep the points center and points marketplace behind one Points Center tab.
-- Dynamic visa forms must preserve the bilingual Chinese/English two-column
-  contract.
+- Dynamic visa forms show only the selected interface language while users
+  enter answers. They must still preserve synchronized Chinese and
+  English/official values internally, and Chinese-mode final review must show
+  both values for verification.
 - All user-facing copy must observe the current user's selected language and
   render in the matching display language/style. Avoid hard-coded single-
   language UI text, chat text, status text, validation messages, notification
@@ -284,6 +312,12 @@ checks:
 - VIZA AI user-facing answers should be plain text by default.
 - RAG answers must not invent official requirements. State uncertainty and point
   to official sources when data is missing.
+- For every electronically payable official fee, VIZA provisions an
+  application-scoped, limited virtual card and pays the government portal on
+  the applicant's behalf. Applicant-facing UI must never ask for an official-
+  portal card number or tell the applicant to pay the portal directly. Keep
+  the commercial agency-fee checkout and official-fee allocation/receipt as
+  separate records.
 - Website internal automation covers payment, consent, documents, OCR, packet
   generation, status display, notifications, staff monitoring, and external
   status ingestion only.

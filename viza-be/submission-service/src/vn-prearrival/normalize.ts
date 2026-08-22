@@ -21,9 +21,9 @@ export interface VnPrearrivalPortalPayload {
   phoneNumber: string;
   visaInformationAcknowledgement: boolean;
   visaType: string;
-  visaNumber: string;
+  visaNumber: string | null;
   visaIssueDate: string | null;
-  visaExpiryDate: string;
+  visaExpiryDate: string | null;
   visaIssuedPlace: string | null;
   departureCountryBeforeArrival: string;
   purposeOfTravel: string;
@@ -51,6 +51,16 @@ export class VnPrearrivalPortalValidationError extends Error {
     super(message);
     this.name = "VnPrearrivalPortalValidationError";
   }
+}
+
+export function reconcileHotelDependentControlFailures(
+  missingControls: string[],
+  exactOfficialHotelSelected: boolean,
+): string[] {
+  if (!exactOfficialHotelSelected) return [...missingControls];
+  return missingControls.filter(
+    (field) => field !== "province_city_of_hotel" && field !== "ward_commune_of_hotel",
+  );
 }
 
 export function routeVnPrearrivalEmailAnswers(
@@ -136,6 +146,33 @@ function airportFromFlightNumber(flightNumber: string): string | null {
   return suffix ? suffix.toUpperCase() : null;
 }
 
+export const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES = [
+  "TMTT",
+  "MTT",
+  "MMT",
+  "MM2",
+  "MM1",
+  "MTTQ",
+] as const;
+
+export const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES = [
+  "GMTT",
+  "EV",
+  "TDL",
+  "ABTC",
+  "TTR",
+  "TTA",
+  "TT",
+] as const;
+
+const VISA_CREDENTIALS_OPTIONAL_TYPES = new Set<string>(
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+);
+
+export function vnPrearrivalVisaCredentialsRequired(visaType: string): boolean {
+  return !VISA_CREDENTIALS_OPTIONAL_TYPES.has(visaType.trim().toUpperCase());
+}
+
 export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): VnPrearrivalPortalPayload {
   const missing: string[] = [];
   if (payload.countryCode !== "VN") missing.push("countryCode");
@@ -179,10 +216,16 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
       ? hotelAccommodationAddress
       : requireAnswer(payload, "accommodation_address", missing);
   const visaType = requireAnswer(payload, "visa_type", missing);
-  const visaNumber = requireAnswer(payload, "visa_number", missing);
-  if (visaType === "EV" && !/^\d{9}$/.test(visaNumber)) {
+  const visaCredentialsRequired = vnPrearrivalVisaCredentialsRequired(visaType);
+  const visaNumber = visaCredentialsRequired
+    ? requireAnswer(payload, "visa_number", missing)
+    : answer(payload, "visa_number") || null;
+  if (visaType === "EV" && !/^\d{9}$/.test(visaNumber ?? "")) {
     missing.push("answers.visa_number(9_digit_numeric_evisa_number)");
   }
+  const visaExpiryDate = visaCredentialsRequired
+    ? requireAnswer(payload, "visa_expiry_date", missing)
+    : answer(payload, "visa_expiry_date") || null;
 
   const normalized: VnPrearrivalPortalPayload = {
     applicationId: payload.applicationId,
@@ -203,7 +246,7 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
     visaType,
     visaNumber,
     visaIssueDate: answer(payload, "visa_issue_date") || null,
-    visaExpiryDate: requireAnswer(payload, "visa_expiry_date", missing),
+    visaExpiryDate,
     visaIssuedPlace: answer(payload, "visa_issued_place") || null,
     departureCountryBeforeArrival: requireAnswer(payload, "departure_country_before_arrival", missing),
     purposeOfTravel: requireAnswer(payload, "purpose_of_travel", missing),

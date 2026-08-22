@@ -1,5 +1,5 @@
-import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTravelUserSession } from "@/lib/travel/auth";
 import type { Json } from "@/types/database";
 
 type TravelSessionArchive = {
@@ -90,7 +90,7 @@ async function findArchiveRow(
 }
 
 export async function GET(request: Request) {
-  const session = await getUserFromSupabaseSession();
+  const session = await getTravelUserSession();
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const session = await getUserFromSupabaseSession();
+  const session = await getTravelUserSession();
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

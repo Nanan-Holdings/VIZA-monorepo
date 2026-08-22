@@ -6,39 +6,44 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
-  ChevronRight,
-  CircleHelp,
+  CaretRight as ChevronRight,
+  Question as CircleHelp,
   Coins,
   CreditCard,
   Database,
   Gift,
-  Globe2,
+  GlobeHemisphereWest as Globe2,
   Headphones,
-  KeyRound,
-  Loader2,
-  LockKeyhole,
-  LogOut,
-  Mail,
-  MessageCircle,
+  IdentificationCard as IdCard,
+  Key as KeyRound,
+  CircleNotch as Loader2,
+  LockKey as LockKeyhole,
+  SignOut as LogOut,
+  Envelope as Mail,
+  ChatCircle as MessageCircle,
   Pencil,
   QrCode,
-  ReceiptText,
+  Receipt as ReceiptText,
   ShieldCheck,
-  Sparkles,
-  TicketPercent,
+  Sparkle as Sparkles,
+  SealPercent as TicketPercent,
   Trophy,
-  Trash2,
-  UsersRound,
-  WalletCards,
-  type LucideIcon,
-} from "lucide-react";
+  Trash as Trash2,
+  Phone,
+  UserCircle as UserRound,
+  UsersThree as UsersRound,
+  Cards as WalletCards,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ActionButton } from "@/components/ui/action-button";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
-import { SmoothProgressBar } from "@/components/smooth-progress";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -153,7 +158,7 @@ const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
 
 const paymentMethods: Array<{
   id: PaymentMethodId;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   accentClass: string;
 }> = [
   {
@@ -188,24 +193,6 @@ function isWalletMethod(method: PaymentMethodId): method is Exclude<PaymentMetho
   return method === "wechat_pay" || method === "alipay";
 }
 
-function initialsFromName(name: string, fallback: string) {
-  const source = name.trim() || fallback.trim();
-  if (!source) return "V";
-
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-
-  return source.slice(0, 2).toUpperCase();
-}
-
-function obfuscatePassport(value: string | null) {
-  if (!value) return null;
-  if (value.length <= 4) return value;
-  return `••${value.slice(-4)}`;
-}
-
 function SettingsRow({
   icon: Icon,
   title,
@@ -216,7 +203,7 @@ function SettingsRow({
   isActive,
   ariaControls,
 }: {
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   title: string;
   description: string;
   href?: string;
@@ -288,9 +275,9 @@ function SectionCard({
       <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
         {title}
       </h2>
-      <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+      <ApplicationFormPanel aria-label={title} className="px-4 sm:px-5">
         {children}
-      </div>
+      </ApplicationFormPanel>
     </section>
   );
 }
@@ -373,6 +360,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   const router = useRouter();
   const t = useTranslations("settings");
   const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<ApplicantSettingsProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -443,25 +431,29 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     async function loadSettings() {
       const supabase = createClient();
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (!user) {
         router.replace("/client/login");
         return;
       }
 
-      const { data } = await supabase
-        .from("applicant_profiles")
-        .select("full_name, email, phone, passport_number")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      const { data: walletData } = await supabase
-        .from("reward_wallets")
-        .select("balance, lifetime_earned, lifetime_spent")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // These independent reads used to run serially after an extra remote
+      // auth validation. RLS still validates the access token on both queries.
+      const [{ data }, { data: walletData }] = await Promise.all([
+        supabase
+          .from("applicant_profiles")
+          .select("full_name, email, phone, passport_number")
+          .eq("auth_user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("reward_wallets")
+          .select("balance, lifetime_earned, lifetime_spent")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
 
       if (!mounted) return;
 
@@ -482,7 +474,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     };
   }, [router]);
 
-  const displayName = profile?.full_name?.trim() || email || t("profile.fallbackName");
   const profileCompletion = useMemo(() => {
     const fields = [
       profile?.full_name,
@@ -1049,92 +1040,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         onLoad={() => setAirwallexScriptReady(true)}
         onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
       />
-      {view === "home" ? (
-      <section className="grid gap-5 pt-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <motion.div
-          className="overflow-hidden rounded-xl border bg-white shadow-sm"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-        >
-          <div className="h-24 bg-gradient-to-br from-brand-700 via-brand-500 to-brand-300" />
-          <div className="-mt-10 p-5 sm:p-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex items-end gap-4">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-brand-50 text-2xl font-semibold text-brand-700 shadow-sm">
-                  {initialsFromName(displayName, email)}
-                </div>
-                <div className="pb-1">
-                  <p className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {displayName}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">{email}</p>
-                </div>
-              </div>
-              <Button asChild className="h-11 rounded-full">
-                <Link href="/client/universal-info">
-                  {t("profile.editDetails")}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="mt-6 rounded-lg border bg-brand-50/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    {t("profile.completion")}
-                  </p>
-                  <p className="mt-1 text-sm text-brand-700">
-                    {t("profile.completionHint")}
-                  </p>
-                </div>
-              </div>
-              <SmoothProgressBar
-                displayedProgress={profileCompletion}
-                className="mt-3"
-                labelClassName="justify-end"
-                valueClassName="text-2xl font-semibold text-brand-700"
-                trackClassName="bg-white"
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          className="rounded-xl border bg-white p-5 shadow-sm sm:p-6"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.05 }}
-        >
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
-            {t("quickSnapshot.label")}
-          </p>
-          <dl className="mt-4 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.passport")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
-                {obfuscatePassport(profile?.passport_number ?? null) ?? t("quickSnapshot.notSet")}
-              </dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.phone")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
-                {profile?.phone || t("quickSnapshot.notSet")}
-              </dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-sm text-muted-foreground">{t("quickSnapshot.payment")}</dt>
-              <dd className="text-right text-sm font-semibold text-foreground">
-                {paymentSummary}
-              </dd>
-            </div>
-          </dl>
-        </motion.div>
-      </section>
+      {view !== "home" ? (
+        <div className="pt-4">
+          <PageBackButton
+            fallbackHref="/client/settings"
+            label={isZh ? "返回上一页" : "Back to previous page"}
+          />
+        </div>
       ) : null}
 
-      <section className={cn("space-y-4", view === "home" ? "mt-8" : "pt-4")}>
+      <section className={view === "home" ? "pt-4" : "pt-8"}>
         <div>
           <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {t(settingsTitleKey(view))}
@@ -1143,16 +1058,97 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             {t("subtitle")}
           </p>
         </div>
-
-        {view !== "home" ? (
-          <Button asChild variant="outline" className="h-10 rounded-full">
-            <Link href="/client/settings">
-              <ArrowLeft className="h-4 w-4" />
-              {t("backToSettings")}
-            </Link>
-          </Button>
-        ) : null}
       </section>
+
+      {view === "home" ? (
+        <section className="mt-8 grid gap-5 lg:grid-cols-[0.82fr_1.18fr]">
+        <motion.div
+          className="self-start"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <UserRound className="h-6 w-6" />
+              </span>
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                {t("profile.complete", { percent: profileCompletion })}
+              </span>
+            </div>
+
+            <div className="mt-5">
+              <h2 className="font-heading text-2xl font-semibold text-foreground">
+                {t("profile.universalTitle")}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {t("profile.universalDescription")}
+              </p>
+            </div>
+
+            <Button asChild className="mt-6 h-11 w-full rounded-full">
+              <Link href="/client/universal-info">
+                {t("profile.reviewProfile")}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </ApplicationFormPanel>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+        >
+          <ApplicationFormPanel className="p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">
+                {t("quickSnapshot.label")}
+              </p>
+            </div>
+            <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Mail className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.email")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {profile?.email || email || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Phone className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.phone")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {profile?.phone || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <IdCard className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.passport")}
+                </dt>
+                <dd className="mt-2 break-all text-sm font-semibold text-foreground">
+                  {profile?.passport_number || t("quickSnapshot.notSet")}
+                </dd>
+              </div>
+              <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
+                <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <CreditCard className="h-4 w-4 text-brand-500" />
+                  {t("quickSnapshot.payment")}
+                </dt>
+                <dd className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {paymentSummary}
+                </dd>
+              </div>
+            </dl>
+          </ApplicationFormPanel>
+        </motion.div>
+        </section>
+      ) : null}
 
       {view === "payment-methods" ? (
       <section className="mt-6 space-y-4" id="payment-methods">
@@ -1236,18 +1232,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           </div>
 
           {paymentMessage ? (
-            <p
-              className={cn(
-                "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
-                paymentMessage.tone === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-red-200 bg-red-50 text-red-700"
-              )}
-              role="status"
-              aria-live="polite"
-            >
-              {paymentMessage.text}
-            </p>
+            paymentMessage.tone === "success" ? (
+              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                {paymentMessage.text}
+              </p>
+            ) : (
+              <ClientErrorAlert className="mt-4" message={paymentMessage.text} />
+            )
           ) : null}
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
@@ -1478,6 +1469,12 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               badge={t("rows.universalInfo.badge")}
             />
             <SettingsRow
+              icon={UserRound}
+              title={t("rows.account.title")}
+              description={t("rows.account.description")}
+              href="/client/universal-info"
+            />
+            <SettingsRow
               icon={UsersRound}
               title={t("rows.travelers.title")}
               description={t("rows.travelers.description")}
@@ -1496,6 +1493,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               title={t("rows.language.title")}
               description={t("rows.language.description")}
               href="/client/help/getting-started/complete-your-profile"
+            />
+            <SettingsRow
+              icon={MessageCircle}
+              title={isZh ? "旅行偏好记忆" : "Travel preference memory"}
+              description={
+                isZh
+                  ? "查看或清除旅行顾问可在新对话中复用的偏好"
+                  : "Review or clear preferences the Travel Advisor may reuse"
+              }
+              href="/client/settings/travel-memory"
             />
           </SectionCard>
 
@@ -1543,7 +1550,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
               {t("security.title")}
             </h2>
-            <div className="rounded-xl border bg-white px-4 shadow-sm sm:px-5">
+            <ApplicationFormPanel aria-label={t("security.title")} className="px-4 sm:px-5">
               <SettingsRow
                 icon={LockKeyhole}
                 title={t("security.passwordTitle")}
@@ -1562,7 +1569,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 description={t("security.guideDescription")}
                 href="/client/help/privacy-and-security/account-security-tips"
               />
-            </div>
+            </ApplicationFormPanel>
 
             {activeSecurityPanel ? (
               <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
@@ -1723,18 +1730,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   ) : null}
 
                   {securityMessage ? (
-                    <p
-                      className={cn(
-                        "rounded-lg border px-3 py-2 text-sm font-medium",
-                        securityMessage.tone === "success"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-red-200 bg-red-50 text-red-700"
-                      )}
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {securityMessage.text}
-                    </p>
+                    securityMessage.tone === "success" ? (
+                      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                        {securityMessage.text}
+                      </p>
+                    ) : (
+                      <ClientErrorAlert message={securityMessage.text} />
+                    )
                   ) : null}
                 </div>
               </div>
@@ -1745,7 +1747,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
             <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
               {t("account.title")}
             </h2>
-            <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+            <ApplicationFormPanel aria-label={t("account.title")} className="p-5 sm:p-6">
               <div className="flex items-start gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
                   <Mail className="h-5 w-5" />
@@ -1760,17 +1762,18 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 </div>
               </div>
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Button
+                <ActionButton
                   type="button"
                   variant="outline"
-                  className="h-11 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  size="sm"
+                  className="!border-[#d8d3d4] bg-[#fafafa] text-[#76696b] hover:bg-[#f1eeee] hover:text-[#68595c]"
                   onClick={handleSignOut}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut />
                   {t("signOut.button")}
-                </Button>
+                </ActionButton>
               </div>
-            </div>
+            </ApplicationFormPanel>
           </section>
         </div>
       </div>

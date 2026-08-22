@@ -23,8 +23,12 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 ## Key Files
 
 - `travel-planner-form.tsx`: step form UI and structured payload emission
+- `travel-planner-copy.ts`: locale-scoped Travel planner questions, controls,
+  validation, search, and hotel-state copy; payload keys and deterministic step
+  order remain language-neutral.
 - `travel-itinerary-panel.tsx`: itinerary render/export
 - `trip-route-map.tsx`: map route, markers, hover preview, map-to-form handoff
+- `trip-route-map.test.ts`: regression coverage for shared marker-anchor and hover-pointer geometry.
 
 ## Guardrails
 
@@ -42,6 +46,9 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
 - `travel-attraction-knowledge.ts`: curated attraction knowledge base with city aliases, exact map coordinates, image URLs, and source URLs for itinerary editing and route maps.
 - `travel-card-curated-data.json`: local Travel card city/attraction data with image paths, source URLs, descriptions, and verified coordinates.
+- `travel-card-curated-localization-01.json`, `-02.json`, `-03.json`:
+  pre-generated Chinese names for curated cards whose source catalog is
+  English; keeps localization out of the page-load path.
 - `public/travel/cities/*` and `public/travel/attractions/*`: local imagery used by map and itinerary cards to avoid broken remote hotlinks.
 - `travel-itinerary-share-renderer.tsx`: public share-page renderer for standalone itinery cards, tables, and downloads.
 - `app/api/travel/geocode/route.ts`: resolves travel city coordinates through Google Geocoding API for map markers and routes.

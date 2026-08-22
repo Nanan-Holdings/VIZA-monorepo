@@ -50,7 +50,11 @@ export interface VnFieldFallbackRecord {
 }
 
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
-const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
+// The current official fallback portal renders the compact values `M` / `F`,
+// while older portal builds rendered `Male` / `Female`. The select matcher
+// treats the compact value as a prefix-equivalent match, so using `M` / `F`
+// works on both versions and avoids an expensive failed-search path.
+const SEX_LABELS = { male: "M", m: "M", female: "F", f: "F" };
 const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
   Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
 );
@@ -84,8 +88,11 @@ const NATIONALITY_LABELS = buildCountryOptionLabels({
   chinese: "China",
 });
 const PASSPORT_TYPE_LABELS = {
+  ordinary: "Ordinary passport",
   ordinary_passport: "Ordinary passport",
+  diplomatic: "Diplomatic passport",
   diplomatic_passport: "Diplomatic passport",
+  official: "Official passport",
   official_passport: "Official passport",
   other: "Other",
 };
@@ -199,8 +206,9 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   const mapping = VN_FIELD_MAPPINGS[fieldName];
   const normalized = rawValue.trim().toLowerCase();
   const normalizedSlug = normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-  const explicit = mapping?.optionLabels?.[normalized];
+  const explicit = mapping?.optionLabels?.[normalized] ?? mapping?.optionLabels?.[normalizedSlug];
   if (explicit) return explicit;
+  if (fieldName === "occupation") return normalizeVnOccupationOption(rawValue);
   const countryText = normalizeVnCountryOptionText(rawValue);
   if (
     countryText &&
@@ -228,6 +236,33 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
       .replace(/\bSeaport\b/g, "Seaport");
   }
   return rawValue;
+}
+
+export function normalizeVnOccupationOption(rawValue: string): string {
+  const normalized = rawValue
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  if (!normalized) return "Others";
+  if (/\b(unemployed|jobless|not employed)\b/.test(normalized)) return "Unemployed";
+  if (/\b(retired|retiree|pensioner)\b/.test(normalized)) return "Retired";
+  if (/\b(student|pupil|undergraduate|postgraduate)\b/.test(normalized)) return "Student";
+  if (/\b(government|civil servant|public servant|official|diplomat|military|police)\b/.test(normalized)) {
+    return "Official";
+  }
+  if (/\b(businessman|business owner|entrepreneur|merchant|self employed|selfemployed)\b/.test(normalized)) {
+    return "Businessman";
+  }
+  if (
+    /\b(employee|engineer|developer|manager|consultant|accountant|teacher|doctor|nurse|lawyer|designer|analyst|staff|worker|sales|marketing|banker|architect|scientist|researcher|professor)\b/.test(
+      normalized,
+    )
+  ) {
+    return "Employee";
+  }
+  return "Others";
 }
 
 export function normalizeVnCountryOptionText(rawValue: string): string | null {
@@ -391,9 +426,31 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   // 8. Trip's Expenses, Insurance
   intended_expenses_usd: { domId: "basic_kpbhDuTinh", type: "text", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
   bought_travel_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: YES_NO_LABELS },
-  expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: EXPENSE_COVERAGE_LABELS },
+  expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_COVERAGE_LABELS },
   expense_payment_method: { domId: "basic_kpbhHinhThuc", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_PAYMENT_METHOD_LABELS },
 };
+
+/**
+ * Legacy answer payloads can contain both `passport_copy` and
+ * `passport_photo`. They are aliases for the same official file input, so
+ * uploading both can replace a successful upload with a second rejected
+ * request. Keep the first mapped answer for each official upload control.
+ */
+export function dedupeVietnamUploadAnswers(
+  answers: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const deduped = { ...answers };
+  const seenDomIds = new Set<string>();
+  for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
+    if (mapping.type !== "upload" || !deduped[fieldName]) continue;
+    if (seenDomIds.has(mapping.domId)) {
+      delete deduped[fieldName];
+      continue;
+    }
+    seenDomIds.add(mapping.domId);
+  }
+  return deduped;
+}
 
 /** Selector for the registration-code element shown after a successful save
  *  (pre-payment review). The portal renders it as `Mã hồ sơ: <code>` near
@@ -403,9 +460,11 @@ export const VN_REGISTRATION_CODE_SELECTOR = '[class*="ho-so"], [class*="registr
 /** Pay/submit button label patterns — runner halts as soon as one of these
  *  becomes the dominant CTA. */
 export const VN_STOP_BUTTON_PATTERNS: readonly RegExp[] = [
-  /^pay\b/i,
-  /^thanh toán/i,
-  /^submit\b/i,
-  /^xác nhận và thanh toán/i,
-  /^proceed to payment/i,
+  /\bpay\b/i,
+  /\bpayment\b/i,
+  /thanh toán/i,
+  /\bsubmit\b/i,
+  /xác nhận và thanh toán/i,
+  /proceed to payment/i,
+  /nộp hồ sơ/i,
 ];

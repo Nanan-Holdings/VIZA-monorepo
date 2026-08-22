@@ -40,6 +40,9 @@ generation or external handoff.
   application signatures, audit metadata, and application events.
 - `consent-config.ts`: current ToS, Privacy, agency authorisation, and alias
   forwarding versions and document hashes.
+- `consent-copy.ts`: route-scoped English/Chinese document, consent, signature,
+  status, and next-step copy; unknown backend values must use localized safe
+  fallbacks instead of leaking source-language text.
 - `session.ts`: applicant session resolution for normal and impersonated
   client sessions.
 

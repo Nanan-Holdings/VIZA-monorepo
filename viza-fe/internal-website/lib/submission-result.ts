@@ -37,6 +37,8 @@ export type SubmissionResult =
   | VnSubmissionResult
   | SgArrivalCardSubmissionResult
   | DigitalArrivalCardSubmissionResult
+  | JpVisitJapanWebSubmissionResult
+  | KeEtaSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
   | TwSubmissionResult
@@ -151,11 +153,24 @@ export interface FrSubmissionResult {
 
 export interface UkSubmissionResult {
   country: "UK";
-  status: "registered" | "stopped_at_pay";
-  portalUrl: string;
-  portalUsername: string;
-  generatedPasswordCipher: string;
+  status:
+    | "registered"
+    | "stopped_at_pay"
+    | "funding_required"
+    | "payment_pending"
+    | "payment_review_required"
+    | "paid";
+  paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
+  paymentStateCode?: string;
+  staffReviewCode?: string;
+  officialFeeReceiptId?: string;
   applicationReference?: string;
+  /** @deprecated Legacy rows only; new runners must never write portal handoff data. */
+  portalUrl?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  portalUsername?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  generatedPasswordCipher?: string;
   /** Optional prefill progress summary (pre-existing field; not currently populated). */
   prefillProgress?: {
     pagesFilled: number;
@@ -241,15 +256,21 @@ export interface SgArrivalCardSubmissionResult {
 }
 
 export interface DigitalArrivalCardSubmissionResult {
-  country: "MY" | "TH" | "PH" | "VN";
-  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION";
-  status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
+  country: "MY" | "TH" | "PH" | "VN" | "KR";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION" | "KR_E_ARRIVAL_CARD";
+  status: "submitted" | "scheduled" | "blocked" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
-  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live" | "korea_e_arrival_card_live";
   applicationId: string;
   submitted: boolean;
+  issueNumber?: string | null;
   confirmationNumber?: string | null;
   referenceNumber?: string | null;
+  submittedAt?: string | null;
+  validUntil?: string | null;
+  scheduledFor?: string | null;
+  arrivalDate?: string | null;
+  departureDate?: string | null;
   portalUrl: string;
   portalResponseSummary: string;
   confirmationPdfStoragePath?: string | null;
@@ -292,6 +313,68 @@ export interface DigitalArrivalCardSubmissionResult {
     modeOfTravel?: string | null;
     transportNumber?: string | null;
     accommodationAddressProvided: boolean;
+  };
+}
+
+/** Japan Visit Japan Web. Success requires an official QR artifact. */
+export interface JpVisitJapanWebSubmissionResult {
+  country: "JP";
+  visaType: "JP_VISIT_JAPAN_WEB";
+  status: "qr_ready" | "blocked" | "validation_failed" | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "jp_visit_japan_web_live";
+  applicationId: string;
+  submitted: boolean;
+  qrReady: boolean;
+  referenceNumber?: string | null;
+  submittedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    qrCodes: string[];
+    logs: string[];
+    traces: string[];
+  };
+}
+
+/** Kenya eTA. Approval is authoritative only with an official PDF artifact. */
+export interface KeEtaSubmissionResult {
+  country: "KE";
+  visaType: "KE_ETA";
+  status:
+    | "submitted"
+    | "approved"
+    | "rejected"
+    | "blocked"
+    | "validation_failed"
+    | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "ke_eta_live";
+  applicationId: string;
+  submitted: boolean;
+  officialReference?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  paymentReceipt?: string | null;
+  approvalPdfStoragePath?: string | null;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    pdfs: string[];
+    logs: string[];
+    traces: string[];
   };
 }
 
@@ -466,9 +549,13 @@ export type SubmissionResultStatus =
   | "scheduled"
   | "processing"
   | "needs_user_action"
+  | "needs_attention"
   | "completed"
   | "stalled"
   | "submitted"
+  | "qr_ready"
+  | "approved"
+  | "rejected"
   | "submitted_mock"
   | "unsupported"
   | "action_required"
@@ -476,6 +563,7 @@ export type SubmissionResultStatus =
   | "stopped_at_pay"
   | "stopped_at_review"
   | "final_review_required"
+  | "blocked"
   | "form_ready_for_agency"
   | "form_ready_for_kvac"
   | "failed";

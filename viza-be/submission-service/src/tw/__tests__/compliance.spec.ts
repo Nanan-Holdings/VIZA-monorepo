@@ -28,7 +28,7 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(captchaSource, /solveAndFillTwCaptchaOnce/);
     assert.match(captchaSource, /clickTwFinalSubmit/);
     assert.match(applySource, /prepareSubmit:\s*\(\)\s*=>\s*solveTwCaptchaForSubmitWithRetry\(page\)/);
-    assert.match(applySource, /submit:\s*\(\)\s*=>\s*solveTwCaptchaAndSubmitWithRetry\(page\)/);
+    assert.match(applySource, /beforeFinalSubmit:\s*\(\)\s*=>\s*options\.executionContext\?\.checkpoint\("taiwan final official submit"\)/);
     assert.equal(runtimeSource.includes("../captcha/two-captcha"), false);
     assert.match(haltRunnerSource, /text:\s*"\[redacted\]"/);
   });
@@ -62,7 +62,7 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(taiwanRegistryBlock, /routeStatus:\s*"runner_job_dispatched"/);
     assert.match(taiwanRegistryBlock, /fail-closed official receipt capture/);
     assert.doesNotMatch(taiwanRegistryBlock, /halting at the CAPTCHA/i);
-    assert.match(dispatchSource, /taiwan:\s*\(a,\s*j\)\s*=>\s*runTaiwan\(a,\s*j\)/);
+    assert.match(dispatchSource, /taiwan:\s*\(a,\s*j,\s*execution\)\s*=>\s*runTaiwan\(a,\s*j,\s*execution\)/);
     assert.match(dispatchSource, /official receipt/);
     assert.match(runnerSource, /fillTwEntryPermitApplication/);
     assert.doesNotMatch(runnerSource, /stopped_at_captcha.*halted_before_pay/);
@@ -137,7 +137,7 @@ describe("Taiwan runner compliance boundary", () => {
         applySource.indexOf("otpProvider.waitForEmailOtp"),
     );
     assert.ok(
-      applySource.indexOf("solveTwCaptchaAndSubmitWithRetry(page)") >
+      applySource.indexOf("solveTwCaptchaAndSubmitWithRetry(page, {") >
         applySource.indexOf("runTwRepairSubmissionLoop"),
     );
     assert.ok(
@@ -162,21 +162,62 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(diagnosticsSource, /mask:\s*\[/);
   });
 
-  it("guards Taiwan prepare with submitted, active-job, and reusable-handoff state", async () => {
+  it("guards Taiwan prepare with submitted and active-job state without legacy handoff blocking", async () => {
     const [haltRunnerSource, guardSource] = await Promise.all([
       readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
       readTwSource("prepare-guard.ts"),
     ]);
 
-    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: jobId \}\)/);
+    assert.match(haltRunnerSource, /requirePoolExecutionIdentity\(execution, jobId, "taiwan runner"\)/);
+    assert.match(haltRunnerSource, /prepareTwEntryPermitApplication\(applicationId, \{ currentJobId: identity\.jobId \}\)/);
     assert.match(haltRunnerSource, /\.eq\("application_id", applicationId\)/);
     assert.match(haltRunnerSource, /\.eq\("country", "taiwan"\)/);
     assert.match(haltRunnerSource, /TW_ACTIVE_RUNNER_JOB_STATUSES/);
-    assert.match(haltRunnerSource, /TW_APPLICANT_HANDOFF_KIND/);
     assert.match(guardSource, /result\?\.country === "TW" && result\.status === "submitted"/);
     assert.match(guardSource, /job\.id !== snapshot\.currentJobId/);
-    assert.match(guardSource, /Date\.parse\(expiresAt\) > nowMs/);
+    assert.doesNotMatch(guardSource, /activeHandoffs|takeover_session|handoff/i);
     assert.doesNotMatch(guardSource, /stopped_at_captcha[^\n]+throw/);
+  });
+
+  it("requires both audited VIZA terms authorizations before canonical final submit", async () => {
+    const [haltRunnerSource, consentSource, termsSource, applySource] = await Promise.all([
+      readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
+      readTwSource("official-terms-consent.ts"),
+      readTwSource("terms-modal.ts"),
+      readTwSource("apply.ts"),
+    ]);
+
+    assert.match(haltRunnerSource, /loadTwOfficialTermsConsent\(identity\.jobId, applicationId\)/);
+    assert.match(haltRunnerSource, /mode:\s*"submit"/);
+    assert.match(haltRunnerSource, /officialTermsConsent/);
+    assert.match(applySource, /if \(err instanceof RunnerJobOwnershipLostError\) throw err/);
+    assert.match(consentSource, /entryPromptAccepted !== true/);
+    assert.match(consentSource, /termsModalAccepted !== true/);
+    assert.match(consentSource, /viza_final_confirmation/);
+    assert.match(termsSource, /await ensureTermsCheckboxChecked/);
+    assert.ok(
+      termsSource.indexOf("await ensureTermsCheckboxChecked") <
+        termsSource.indexOf("await okButton.click"),
+    );
+  });
+
+  it("does not depend on the legacy Taiwan Browserbase applicant handoff runtime", async () => {
+    const [sessionSource, indexSource, flyTemplate, secretSync] = await Promise.all([
+      readTwSource("session.ts"),
+      readTwSource("index.ts"),
+      readFile(join(process.cwd(), "deploy", "fly", "fly.country.toml.template"), "utf8"),
+      readFile(join(process.cwd(), "scripts", "fly", "sync-runtime-secrets.sh"), "utf8"),
+    ]);
+
+    assert.doesNotMatch(sessionSource, /applicantHandoff|handoffTimeoutSeconds|Browserbase/i);
+    assert.doesNotMatch(indexSource, /registerTwApplicantHandoff|waitForTwApplicantSubmission/);
+    assert.doesNotMatch(flyTemplate, /TW_ENTRY_PERMIT_BROWSERBASE|TW_ENTRY_PERMIT_HANDOFF/);
+    const taiwanSecrets = secretSync.slice(
+      secretSync.indexOf("taiwan)"),
+      secretSync.indexOf("united_states)"),
+    );
+    assert.doesNotMatch(taiwanSecrets, /BROWSERBASE_API_KEY/);
+    assert.match(taiwanSecrets, /TWOCAPTCHA_API_KEY/);
   });
 
   it("exposes a no-job formal pre-submit CLI without enabling runner pre-submit mode", async () => {

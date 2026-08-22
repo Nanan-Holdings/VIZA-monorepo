@@ -112,17 +112,8 @@ export function verifyPhEtravelSeaPortFlowPage(input: {
   if (input.metadata.status === "dynamic_pages_enabled" && input.pageFlow === "manual") {
     return { status: "action_required", code: "sea_port_flow_metadata_page_mismatch" };
   }
-  if (input.metadata.status === "dynamic_pages_not_enabled" && input.pageFlow === "manual") {
-    return { status: "matched", flow: "manual" };
-  }
-  if (input.metadata.status === "dynamic_pages_not_enabled" && input.pageFlow === "electronic") {
-    return { status: "action_required", code: "sea_port_flow_metadata_page_mismatch" };
-  }
-  if (input.metadata.status === "dynamic_pages_not_enabled" && input.pageFlow === "shared_confirmation") {
-    return { status: "action_required", code: "sea_port_flow_metadata_page_mismatch" };
-  }
-  // Metadata is a route hint only; the rendered page must still provide a
-  // recognizable manual/electronic customs surface before the runner moves on.
+  // A false metadata flag means only that the static array does not insert
+  // dynamic pages. It cannot be reinterpreted as a manual-port mapping.
   return { status: "action_required", code: "sea_dynamic_page_gate_live_content_required" };
 }
 

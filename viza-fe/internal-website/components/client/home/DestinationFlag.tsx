@@ -1,21 +1,27 @@
 import { CircleFlag } from "react-circle-flags";
 
-/**
- * Some regional-indicator flag emoji (notably 🇹🇼 Taiwan) render as a broken
- * "tofu" box on systems whose emoji font omits them for political reasons
- * (e.g. Windows' Segoe UI Emoji). Rather than switching every destination
- * card to an image-based flag, this renders an actual SVG flag (via the
- * already-installed `react-circle-flags` package, same one used by
- * components/client/travel/travel-planner-form.tsx) only for the specific
- * emoji known to be affected, and falls back to the plain emoji text for
- * everyone else.
- */
-const EMOJI_FLAG_ISO2_OVERRIDES: Record<string, string> = {
-  "🇹🇼": "tw",
-};
+const REGIONAL_INDICATOR_A = 0x1f1e6;
+
+function getFlagCountryCode(flag: string): string | null {
+  const characters = Array.from(flag);
+  if (characters.length !== 2) return null;
+
+  const countryCode = characters
+    .map((character) => character.codePointAt(0))
+    .map((codePoint) => {
+      if (codePoint === undefined) return "";
+      const alphabetIndex = codePoint - REGIONAL_INDICATOR_A;
+      return alphabetIndex >= 0 && alphabetIndex < 26
+        ? String.fromCharCode(97 + alphabetIndex)
+        : "";
+    })
+    .join("");
+
+  return countryCode.length === 2 ? countryCode : null;
+}
 
 export function DestinationFlag({ flag, size = 34 }: { flag: string; size?: number }) {
-  const iso2 = EMOJI_FLAG_ISO2_OVERRIDES[flag];
+  const iso2 = getFlagCountryCode(flag);
   if (iso2) {
     return (
       <span

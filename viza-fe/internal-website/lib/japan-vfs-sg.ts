@@ -70,3 +70,12 @@ export function getJapanVfsChecklist(
 }
 
 export const JAPAN_VFS_SG_OFFICIAL_URL = "https://visa.vfsglobal.com/sgp/en/jpn/book-an-appointment";
+
+export function buildJapanApplicationFormHref(applicationId: string): string {
+  const params = new URLSearchParams({
+    country: "japan",
+    visaType: "JP_TOURIST",
+    applicationId,
+  });
+  return `/client/application/long-form?${params.toString()}`;
+}

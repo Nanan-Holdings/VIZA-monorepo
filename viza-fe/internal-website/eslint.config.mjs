@@ -83,6 +83,16 @@ export default [
               message:
                 "withAdmin() must not be imported from client code. Call it from a server action or route handler.",
             },
+            {
+              name: "lucide-react",
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
+            },
+            {
+              name: "@radix-ui/react-icons",
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
+            },
           ],
           patterns: [
             {
@@ -95,9 +105,30 @@ export default [
               message:
                 "Service-role / withAdmin imports are forbidden under app/client/** and components/**.",
             },
+            {
+              group: ["react-icons", "react-icons/*", "@heroicons/*"],
+              message:
+                "The client portal icon system is Phosphor. Import icons from `@phosphor-icons/react`.",
+            },
           ],
         },
       ],
+    },
+  },
+  // These files live under the client route tree but are guaranteed server
+  // boundaries (Server Actions, server-only modules, or Server Components).
+  // Keep the broad browser-path restriction above and exempt only this audited
+  // allowlist instead of weakening the service-role guard for the whole tree.
+  {
+    files: [
+      "app/client/billing/actions.ts",
+      "app/client/billing/data.ts",
+      "app/client/checkout/data.ts",
+      "app/client/consent/actions.ts",
+      "app/client/consent/page.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
 ];

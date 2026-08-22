@@ -70,6 +70,16 @@ type QueueRow = {
   created_at: string | null;
 };
 
+type RunnerJobRow = {
+  id: string;
+  application_id: string;
+  status: string;
+  last_error: string | null;
+  enqueued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
 type ManualActionRow = {
   id: string;
   submission_queue_id?: string | null;
@@ -98,6 +108,7 @@ const LIVE_PROVIDERS = new Set([
   "malaysia_mdac_live",
   "thailand_tdac_live",
   "philippines_etravel_live",
+  "korea_e_arrival_card_live",
 ]);
 
 const LIVE_PENDING_STATUSES = new Set([
@@ -111,6 +122,8 @@ const LIVE_PENDING_STATUSES = new Set([
   "mdac_live_assisted_pending",
   "tdac_live_assisted_pending",
   "phetravel_live_assisted_pending",
+  "kr_eac_live_assisted_pending",
+  "kr_eac_live_assisted_scheduled",
 ]);
 
 const LIVE_RUNNING_STATUSES = new Set([
@@ -123,6 +136,7 @@ const LIVE_RUNNING_STATUSES = new Set([
   "mdac_live_assisted_processing",
   "tdac_live_assisted_processing",
   "phetravel_live_assisted_processing",
+  "kr_eac_live_assisted_processing",
 ]);
 
 const LIVE_ACTION_STATUSES = new Set([
@@ -135,6 +149,7 @@ const LIVE_ACTION_STATUSES = new Set([
   "mdac_live_assisted_blocked",
   "tdac_live_assisted_blocked",
   "phetravel_live_assisted_blocked",
+  "kr_eac_blocked",
 ]);
 
 const LIVE_SUBMITTED_STATUSES = new Set([
@@ -147,6 +162,7 @@ const LIVE_SUBMITTED_STATUSES = new Set([
   "mdac_live_assisted_submitted",
   "tdac_live_assisted_submitted",
   "phetravel_live_assisted_submitted",
+  "kr_eac_live_assisted_submitted",
 ]);
 
 const LIVE_FAILED_STATUSES = new Set([
@@ -163,6 +179,8 @@ const LIVE_FAILED_STATUSES = new Set([
   "tdac_live_assisted_cancelled",
   "phetravel_live_assisted_failed",
   "phetravel_live_assisted_cancelled",
+  "kr_eac_live_assisted_failed",
+  "kr_eac_live_assisted_cancelled",
 ]);
 
 const LIVE_COMPLETED_STATUSES = new Set([
@@ -175,6 +193,7 @@ const LIVE_COMPLETED_STATUSES = new Set([
   "mdac_live_assisted_completed",
   "tdac_live_assisted_completed",
   "phetravel_live_assisted_completed",
+  "kr_eac_live_assisted_completed",
 ]);
 
 function normalizeStatus(value: string | null | undefined): string {
@@ -222,6 +241,14 @@ function deriveState(row: QueueRow, pendingManualAction: LiveManualActionSummary
   if (LIVE_RUNNING_STATUSES.has(status) || row.current_stage || row.live_checkpoint) return "running";
   if (LIVE_PENDING_STATUSES.has(status)) return "pending";
   return row.mode === "live_assisted" ? "running" : "pending";
+}
+
+function deriveRunnerState(statusValue: string): LiveSubmissionState {
+  const status = normalizeStatus(statusValue);
+  if (status === "queued" || status === "paused") return "pending";
+  if (status === "running") return "running";
+  if (status === "succeeded") return "completed";
+  return "failed";
 }
 
 function normalizeAction(row: ManualActionRow, sourceTable: string): LiveManualActionSummary {
@@ -289,6 +316,17 @@ export async function loadLiveSubmissionSummaries(
   if (error) {
     if (isSchemaMissingError(error)) return new Map();
     throw new Error(error.message);
+  }
+
+  const { data: runnerData, error: runnerError } = await adminClient
+    .from("runner_job")
+    .select("id, application_id, status, last_error, enqueued_at, started_at, finished_at")
+    .in("application_id", applicationIds)
+    .eq("country", "singapore")
+    .order("enqueued_at", { ascending: false, nullsFirst: false })
+    .limit(500);
+  if (runnerError && !isSchemaMissingError(runnerError)) {
+    throw new Error(runnerError.message);
   }
 
   const liveRows = ((data ?? []) as QueueRow[]).filter(isLiveQueue);
@@ -364,6 +402,55 @@ export async function loadLiveSubmissionSummaries(
       createdAt: row.created_at,
       pendingManualAction,
       manualActions,
+    });
+  }
+
+  const latestRunnerByApplication = new Map<string, RunnerJobRow>();
+  for (const row of ([...(runnerData ?? [])] as RunnerJobRow[]).sort((a, b) =>
+    compareByNewest(
+      { updated_at: a.finished_at ?? a.started_at, created_at: a.enqueued_at },
+      { updated_at: b.finished_at ?? b.started_at, created_at: b.enqueued_at },
+    ),
+  )) {
+    if (!latestRunnerByApplication.has(row.application_id)) {
+      latestRunnerByApplication.set(row.application_id, row);
+    }
+  }
+
+  for (const [applicationId, row] of latestRunnerByApplication.entries()) {
+    const runnerUpdatedAt = row.finished_at ?? row.started_at ?? row.enqueued_at;
+    const existing = summaries.get(applicationId);
+    const existingMs = Date.parse(existing?.updatedAt ?? existing?.createdAt ?? "");
+    const runnerMs = Date.parse(runnerUpdatedAt ?? "");
+    if (existing && Number.isFinite(existingMs) && (!Number.isFinite(runnerMs) || existingMs > runnerMs)) {
+      continue;
+    }
+    summaries.set(applicationId, {
+      jobId: row.id,
+      applicationId,
+      status: row.status,
+      state: deriveRunnerState(row.status),
+      mode: "live_assisted",
+      provider: "sg_arrival_card_runner_job",
+      currentStage:
+        normalizeStatus(row.status) === "running"
+          ? "official_portal_submission"
+          : normalizeStatus(row.status) === "queued"
+            ? "waiting_for_singapore_runner"
+            : null,
+      liveCheckpoint: null,
+      manualActionStatus: null,
+      errorCode: null,
+      errorMessage: row.last_error,
+      officialPortalUrl: null,
+      officialStatus: normalizeStatus(row.status) === "succeeded" ? "submitted" : null,
+      paymentStatus: null,
+      officialReference: null,
+      liveSubmittedAt: row.finished_at,
+      updatedAt: runnerUpdatedAt,
+      createdAt: row.enqueued_at,
+      pendingManualAction: null,
+      manualActions: [],
     });
   }
 

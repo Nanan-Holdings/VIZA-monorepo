@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
+import { findApplicationIdentityFields } from "./application-identity-guard";
 
 interface SaveBlockBody {
   saveTarget: string;
@@ -122,6 +123,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           { message: "applicationId is required for saveTarget=application" },
           { status: 400 }
+        );
+      }
+
+      const identityFields = findApplicationIdentityFields(data);
+      if (identityFields.length > 0) {
+        return NextResponse.json(
+          {
+            message:
+              "Application identity fields cannot be updated through chat save blocks",
+          },
+          { status: 400 },
         );
       }
 

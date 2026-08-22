@@ -8,8 +8,6 @@ export type PhEtravelCompletenessSeverity = "P0" | "P1" | "P2";
 
 export type PhEtravelCompletenessArea =
   | "eligibility"
-  | "travel_registration"
-  | "residence"
   | "air_travel_details"
   | "sea_travel_details"
   | "destination"
@@ -42,26 +40,6 @@ export const PH_ETRAVEL_FORM_COMPLETENESS_MATRIX: PhEtravelCompletenessItem[] =
         "PH eligibility page diverts crew, cruise, special registration, diplomats, 9(e), and diplomatic/official/service passports before the ordinary form.",
       requiredNextStep:
         "Keep unsupported identities outside PH_ETRAVEL_ARRIVAL_CARD; do not submit them through ordinary passenger answers.",
-    },
-    {
-      area: "travel_registration",
-      owner: "shared_unfreeze_required",
-      severity: "P0",
-      label: "Arrival-only Travel Registration and consent gate",
-      currentFrontendState:
-        "The PH-only Travel Registration contract locks PH_ETRAVEL_ARRIVAL_CARD to ARRIVAL, preserves FOR_ME/FOR_OTHER and AIR/SEA official values, and requires a separate versioned privacy-and-affidavit consent audit before enqueue. Consent is explicitly excluded from the official answer projection.",
-      requiredNextStep:
-        "Shared dynamic form must render ARRIVAL as a locked value, never expose DEPARTURE, persist the consent audit through an authenticated server boundary, use its missing-field anchor in completeness, and block enqueue until all Travel Registration gates pass.",
-    },
-    {
-      area: "residence",
-      owner: "shared_unfreeze_required",
-      severity: "P0",
-      label: "Philippine permanent-residence official cascade",
-      currentFrontendState:
-        "PH-only residence helpers parse the current official State/Province, City/Municipality, and Barangay responses, preserve exact official codes, clear descendants on parent changes, and return clickable missing-field targets. The shared dynamic form and same-origin official-options proxy are not connected yet.",
-      requiredNextStep:
-        "Add the four residence fields to the PH schema, proxy the three verified read-only official endpoints, and consume the PH-only cascade helper in dynamic-step-form without deriving codes from labels. Keep non-PH residence as country plus address line 1 and optional line 2.",
     },
     {
       area: "air_travel_details",

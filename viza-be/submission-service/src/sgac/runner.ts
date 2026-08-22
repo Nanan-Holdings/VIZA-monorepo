@@ -2,9 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
-import { browserbaseEnabled } from "../browserbase-session";
 import type { SgacPortalPayload } from "./normalize";
 import {
   reportBadCaptcha,
@@ -13,6 +12,11 @@ import {
   TwoCaptchaNetworkError,
   TwoCaptchaSolveTimeoutError,
 } from "../captcha";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "../queue/execution-context.js";
+import { launchAbortableResource } from "../queue/portal-safety.js";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
 
@@ -41,6 +45,8 @@ export interface RunSgacPortalOptions {
   stopBeforeSubmit?: boolean;
   artifactDir?: string;
   timeoutMs?: number;
+  /** Queue ownership cancellation and irreversible-action checkpoint. */
+  executionContext?: RunnerExecutionContext;
 }
 
 export interface SgacPortalRunResult {
@@ -312,6 +318,7 @@ async function solveSecurityVerificationIfPresent(
   page: Page,
   artifactDir: string,
   logs: string[],
+  assertOwned?: () => void,
 ): Promise<void> {
   const initialTarget = await waitForSecurityVerificationTarget(page, 8_000);
   if (!initialTarget) {
@@ -367,6 +374,7 @@ async function solveSecurityVerificationIfPresent(
     const fillTarget = await waitForSecurityVerificationTarget(page, 10_000) ?? target;
     await fillTarget.input.fill("");
     await fillTarget.input.fill(answer);
+    assertOwned?.();
     await fillTarget.dialog.getByRole("button", { name: /^Submit$/i }).last().click({ timeout: 20_000 });
 
     await Promise.race([
@@ -593,21 +601,15 @@ async function checkReviewDeclaration(page: Page, artifactDir: string): Promise<
 }
 
 async function launch(headless: boolean): Promise<Handles> {
-  if (browserbaseEnabled("SGAC")) {
-    const session = await createArrivalCardBrowserSession({ prefix: "SGAC", headless });
+  const session = await createArrivalCardBrowserSession({ prefix: "SGAC", headless });
+  try {
     await session.page.setViewportSize({ width: 1365, height: 950 });
     session.page.setDefaultTimeout(30_000);
     return { browser: session.browser, context: session.context, page: session.page };
+  } catch (error) {
+    await session.close().catch(() => undefined);
+    throw error;
   }
-  const browser = await chromium.launch({ headless });
-  const context = await browser.newContext({
-    viewport: { width: 1365, height: 950 },
-    locale: "en-SG",
-    acceptDownloads: true,
-  });
-  const page = await context.newPage();
-  page.setDefaultTimeout(30_000);
-  return { browser, context, page };
 }
 
 async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {
@@ -789,12 +791,32 @@ export async function runSgacPortalSubmission(
   payload: SgacPortalPayload,
   options: RunSgacPortalOptions = {},
 ): Promise<SgacPortalRunResult> {
+  options.executionContext?.assertOwned();
   const artifactDir =
     options.artifactDir ?? fs.mkdtempSync(path.join(os.tmpdir(), `viza-sgac-${payload.applicationId}-`));
   const screenshots: string[] = [];
   const logs: string[] = [];
   const headless = options.headless ?? process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false";
-  const handles = await launch(headless);
+  const handles = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => launch(headless),
+    async (resource) => {
+      await resource.context.close().catch(() => undefined);
+      await resource.browser.close().catch(() => undefined);
+    },
+  );
+  const abortListener = (): void => {
+    void handles.browser.close().catch(() => undefined);
+  };
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+  } catch (error) {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await handles.context.close().catch(() => undefined);
+    await handles.browser.close().catch(() => undefined);
+    throw error;
+  }
 
   try {
     const { page } = handles;
@@ -819,9 +841,16 @@ export async function runSgacPortalSubmission(
       };
     }
 
+    options.executionContext?.assertOwned();
     await checkReviewDeclaration(page, artifactDir);
+    options.executionContext?.assertOwned();
     await clickVisibleRoleButton(page, /^Next$/i);
-    await solveSecurityVerificationIfPresent(page, artifactDir, logs);
+    await solveSecurityVerificationIfPresent(
+      page,
+      artifactDir,
+      logs,
+      options.executionContext?.assertOwned,
+    );
     await Promise.race([
       page.waitForFunction(
         () => /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
@@ -862,6 +891,11 @@ export async function runSgacPortalSubmission(
       logs,
     };
   } catch (err) {
+    const isAbortError = err instanceof Error && err.name === "AbortError";
+    if (err instanceof RunnerJobOwnershipLostError || isAbortError || options.executionContext?.signal.aborted) {
+      const abortReason = options.executionContext?.signal.reason;
+      throw abortReason instanceof Error ? abortReason : err;
+    }
     const extraScreenshot = await screenshot(handles.page, artifactDir, "sgac-error").catch(() => null);
     const message = err instanceof Error ? err.message : String(err);
     if (err instanceof SgacPortalError) {
@@ -877,6 +911,7 @@ export async function runSgacPortalSubmission(
       portalSummary: await visibleBodySummary(handles.page).catch(() => undefined),
     });
   } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
     await handles.context.close().catch(() => undefined);
     await handles.browser.close().catch(() => undefined);
   }

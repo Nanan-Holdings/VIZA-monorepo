@@ -32,8 +32,8 @@ export async function POST(request: Request) {
       if (response.status !== 404) {
         return Response.json(
           {
-            error: text || "Failed to load hotel options.",
-            debug: { path, status: response.status },
+            error: "暂时无法加载酒店候选，请稍后再试。",
+            debug: { path, status: response.status, detail: text || undefined },
           },
           { status: response.status }
         );
@@ -42,15 +42,18 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
-        error:
-          "No compatible hotel endpoint found on backend. Please verify backend routes.",
+        error: "酒店服务暂时不可用，请稍后再试。",
         debug: tried,
       },
       { status: 502 }
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load hotel options.";
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(
+      {
+        error: "暂时无法加载酒店候选，请稍后再试。",
+        debug: error instanceof Error ? error.message : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

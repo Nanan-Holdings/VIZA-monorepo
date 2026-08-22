@@ -3,6 +3,7 @@ import type { DocumentCenterData } from "@/app/client/documents/actions";
 import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
+  getMissingDynamicFormFields,
 } from "@/lib/application-tab-completion";
 import type { WizardStep } from "@/types/visa-form-fields";
 
@@ -169,6 +170,163 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("does not count a false required checkbox as complete", () => {
+    const checkbox = {
+      ...field("accepted_terms"),
+      visaType: "TW_ENTRY_PERMIT",
+      fieldType: "checkbox" as const,
+      validationRules: { mustBeTrue: true },
+    };
+    const declarationSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Declaration",
+      fields: [checkbox],
+    }];
+
+    expect(getMissingDynamicFormFields(declarationSteps, { accepted_terms: "false" }))
+      .toMatchObject([{ fieldName: "accepted_terms" }]);
+    expect(getMissingDynamicFormFields(declarationSteps, { accepted_terms: "true" }))
+      .toEqual([]);
+  });
+
+  test("keeps a select field missing when a non-empty prefill is not an official option", () => {
+    const birthCountry = {
+      ...field("place_of_birth", { label: "Place of Birth" }),
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      fieldType: "select" as const,
+      options: [
+        { value: "CHN", text: "CHINA", label_zh: "中国" },
+        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
+      ],
+    };
+    const countrySteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [birthCountry],
+    }];
+
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "Changsha" }))
+      .toMatchObject([{ fieldName: "place_of_birth" }]);
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "CHN" }))
+      .toEqual([]);
+  });
+
+  test("does not reject a live official value against a partial fallback option list", () => {
+    const remoteCountry = {
+      ...field("place_of_birth", { label: "Place of Birth" }),
+      visaType: "AUDIT",
+      fieldType: "select" as const,
+      validationRules: { official_options_source: "/api/official-countries" },
+      options: [{ value: "fallback", text: "Fallback" }],
+    };
+    const countrySteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [remoteCountry],
+    }];
+
+    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "LIVE_OFFICIAL_VALUE" }))
+      .toEqual([]);
+  });
+
+  test("uses the same __2 suffix as the repeatable form for its second instance", () => {
+    const repeatedPassport = {
+      ...field("other_passport_number", { label: "Other passport number" }),
+      validationRules: {
+        repeatable: true,
+        repeat_group: "other_passports",
+        max_items: 3,
+      },
+    };
+    const repeatSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Other passports",
+      fields: [repeatedPassport],
+    }];
+
+    expect(getMissingDynamicFormFields(repeatSteps, { other_passport_number__2: "E1234567" }))
+      .toEqual([]);
+  });
+
+  test("derives TDAC transit status from same-day dates before validating accommodation", () => {
+    const tdacSteps: WizardStep[] = [
+      {
+        stepNumber: 1,
+        stepName: "Trip Information",
+        fields: [
+          { ...field("arrival_date"), visaType: "TH_TDAC_ARRIVAL_CARD" },
+          { ...field("departure_date"), visaType: "TH_TDAC_ARRIVAL_CARD" },
+        ],
+      },
+      {
+        stepNumber: 2,
+        stepName: "Accommodation Information",
+        fields: [
+          {
+            ...field("accommodation_type", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+          {
+            ...field("province", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+          {
+            ...field("address_in_thailand", { showIf: "is_transit_traveler !== yes" }),
+            visaType: "TH_TDAC_ARRIVAL_CARD",
+          },
+        ],
+      },
+    ];
+    const result = computeAllTabCompletion({
+      dbSteps: tdacSteps,
+      effectiveSteps: [{ id: 0, name: "Trip" }, { id: 1, name: "Accommodation" }],
+      answers: { arrival_date: "2026-08-08", departure_date: "2026-08-08" },
+      documentCenterData: null,
+      country: "thailand",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      documentStepId: 2,
+      reviewStepId: 2,
+      teamStepId: 3,
+      confirmationStepId: 3,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields).toEqual([]);
+    expect(result.completedStepIds).toEqual([0, 1, 2]);
+  });
+
+  test("clears a stale TDAC transit answer when the departure date changes", () => {
+    const tdacAccommodationStep: WizardStep = {
+      stepNumber: 1,
+      stepName: "Accommodation Information",
+      fields: [{
+        ...field("accommodation_type", { showIf: "is_transit_traveler !== yes" }),
+        visaType: "TH_TDAC_ARRIVAL_CARD",
+      }],
+    };
+    const result = computeAllTabCompletion({
+      dbSteps: [tdacAccommodationStep],
+      effectiveSteps: [{ id: 0, name: "Accommodation" }],
+      answers: {
+        arrival_date: "2026-08-08",
+        departure_date: "2026-08-09",
+        is_transit_traveler: "yes",
+      },
+      documentCenterData: null,
+      country: "thailand",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      documentStepId: 1,
+      reviewStepId: 1,
+      teamStepId: 2,
+      confirmationStepId: 2,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields.map((item) => item.fieldName)).toContain("accommodation_type");
+  });
+
   test("marks tabs complete from loaded saved answers without visited state", () => {
     const result = computeAllTabCompletion({
       dbSteps: steps,

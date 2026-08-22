@@ -21,6 +21,7 @@
  */
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from "./sign-in";
@@ -39,6 +40,7 @@ import {
   sanitizeFranceAnswersForOfficialPortal,
   type FranceFieldFallback,
 } from "./fallbacks";
+import { redactOfficialUrl } from "../appointment-free-smoke";
 
 export interface FillFranceVisasInput {
   credentials: FvSignInInput;
@@ -62,7 +64,7 @@ export interface FillFranceVisasOptions {
   pdfOutputDir?: string;
   /** Optional heartbeat invoked once a signed-in official portal page is open. */
   onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
-  /** Where to save failure screenshots/HTML/text. Default: artifacts/france-live/<runId>. */
+  /** Where to save failure screenshots. Default: an OS temp directory. */
   diagnosticsDir?: string;
   /** After the confirmed application is visible, tick "I declare" and click Continue. */
   continueAfterConfirmation?: boolean;
@@ -150,7 +152,7 @@ export async function fillFranceVisasApplication(
       runId,
     });
     logRun(runId, "sign-in complete");
-    await options.onOfficialPortalOpened?.({ url: session.page.url() });
+    await options.onOfficialPortalOpened?.({ url: redactOfficialUrl(session.page.url()) });
 
     // ── Start a fresh application ────────────────────────────────────────
     logRun(runId, "starting new application");
@@ -282,7 +284,14 @@ export async function fillFranceVisasApplication(
         // best-effort
       }
       diagnostics = await captureFailureDiagnostics(session.page, {
-        dir: options.diagnosticsDir ?? path.join(process.cwd(), "artifacts", "france-live", runId ?? "latest"),
+        dir: options.diagnosticsDir
+          ?? path.join(
+            process.env.SUBMISSION_ARTIFACTS_DIR?.trim()
+              ? path.resolve(process.env.SUBMISSION_ARTIFACTS_DIR)
+              : path.join(os.tmpdir(), "viza-submission-artifacts"),
+            "france-visas",
+            runId ?? "latest",
+          ),
         failedStep: currentStep,
       });
     }
@@ -293,7 +302,7 @@ export async function fillFranceVisasApplication(
       validationMessages,
       diagnostics,
       error: serializeError(err),
-      url,
+      url: redactOfficialUrl(url),
     };
   } finally {
     if (session) {
@@ -448,12 +457,10 @@ async function captureFailureDiagnostics(
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const base = path.join(input.dir, `${timestamp}-${safeStep}`);
   const screenshotPath = `${base}.png`;
-  const htmlPath = `${base}.html`;
-  const textPath = `${base}.txt`;
   const out: FranceVisasFailureDiagnostics = {
     screenshotPath,
-    htmlPath,
-    textPath,
+    htmlPath: null,
+    textPath: null,
   };
 
   try {
@@ -463,21 +470,12 @@ async function captureFailureDiagnostics(
   }
 
   try {
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    const mask = [page.locator(
+      "input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']), textarea, [contenteditable='true']",
+    )];
+    await page.screenshot({ path: screenshotPath, fullPage: true, mask });
   } catch {
     out.screenshotPath = null;
-  }
-
-  try {
-    await fs.writeFile(htmlPath, await page.content(), "utf8");
-  } catch {
-    out.htmlPath = null;
-  }
-
-  try {
-    await fs.writeFile(textPath, await page.locator("body").innerText({ timeout: 2_000 }), "utf8");
-  } catch {
-    out.textPath = null;
   }
 
   return out;

@@ -1,7 +1,12 @@
+import {
+  getCanonicalApplicationProductCountry,
+  getFormVisaType,
+} from "@/lib/visa-destinations";
+
 export const RECENT_APPLICATION_FORM_STORAGE_KEY = "viza:recent-application-form-href";
 export const RECENT_APPLICATION_FORM_EVENT = "viza:recent-application-form";
 
-const CANONICAL_APPLICATION_FORM_PATH = "/client/application/long-form";
+export const CANONICAL_APPLICATION_FORM_PATH = "/client/application/long-form";
 const APPLICATION_FORM_PATHS = [CANONICAL_APPLICATION_FORM_PATH, "/client/simplified-form"] as const;
 const TRANSIENT_QUERY_PARAMS = ["applicationId", "returnTo", "teamNotice", "skipFormCheck"];
 
@@ -13,6 +18,34 @@ export interface ApplicationFormTarget {
   applicationId: string | null;
   country: string | null;
   visaType: string | null;
+}
+
+export function buildApplicationLongFormHref({
+  applicationId,
+  country,
+  visaType,
+  step,
+  skipFormCheck,
+}: {
+  applicationId?: string | null;
+  country?: string | null;
+  visaType?: string | null;
+  step?: string | null;
+  skipFormCheck?: boolean | null;
+} = {}): string {
+  const params = new URLSearchParams();
+  const normalizedVisaType = visaType ? getFormVisaType(visaType) : null;
+  const normalizedCountry = normalizedVisaType
+    ? getCanonicalApplicationProductCountry(country ?? "", normalizedVisaType)
+    : country?.trim() ?? null;
+  if (applicationId) params.set("applicationId", applicationId);
+  if (normalizedCountry) params.set("country", normalizedCountry);
+  if (normalizedVisaType) params.set("visaType", normalizedVisaType);
+  if (step) params.set("step", step);
+  if (skipFormCheck) params.set("skipFormCheck", "true");
+
+  const query = params.toString();
+  return `${CANONICAL_APPLICATION_FORM_PATH}${query ? `?${query}` : ""}`;
 }
 
 function getBaseOrigin(): string {

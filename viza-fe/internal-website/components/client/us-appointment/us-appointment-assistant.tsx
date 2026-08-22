@@ -3,21 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  WarningCircle as CircleAlert,
+  Clock as Clock3,
   Eye,
-  EyeOff,
-  Loader2,
+  EyeSlash as EyeOff,
+  CircleNotch as Loader2,
   PauseCircle,
   Play,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -350,12 +350,39 @@ export function USAppointmentAssistant({
 
   useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
-    const timer = window.setInterval(() => {
-      void getAppointmentStatus(applicationId)
-        .then(setSnapshot)
-        .catch(() => undefined);
-    }, 7000);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), delayMs);
+    };
+    const poll = async () => {
+      if (document.visibilityState !== "visible") {
+        schedule(30_000);
+        return;
+      }
+      try {
+        const next = await getAppointmentStatus(applicationId);
+        if (!cancelled) setSnapshot(next);
+      } catch {
+        // Keep the last persisted snapshot and retry with the normal cadence.
+      } finally {
+        schedule(7_000);
+      }
+    };
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
+    schedule(7_000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
+    };
   }, [applicationId, job]);
 
   const runWithBusy = useCallback(

@@ -78,9 +78,8 @@ describe("ChatMessage", () => {
     const { container } = render(
       <ChatMessage role="error" content="Error occurred" timestamp={Date.now()} />
     );
-    // Error messages have red styling
-    expect(container.querySelector(".bg-red-100")).toBeInTheDocument();
-    expect(container.querySelector(".text-red-700")).toBeInTheDocument();
+    expect(container.querySelector("[data-client-error-alert]")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Error occurred");
   });
 
   it("renders markdown links as plain text with URL", () => {
@@ -89,6 +88,43 @@ describe("ChatMessage", () => {
     );
     expect(screen.getByText("Visit example (https://example.com)")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "example" })).not.toBeInTheDocument();
+  });
+
+  it("removes internal application navigation when a form card owns the CTA", () => {
+    render(
+      <ChatMessage
+        role="agent"
+        content={
+          "持中国普通护照赴新加坡旅游5天可免签。\n请点击以下链接填写：新加坡电子入境卡 form link /client/application?country=singapore&visaType=SGARRIVALCARD。"
+        }
+        timestamp={Date.now()}
+      />
+    );
+
+    expect(
+      screen.getByText("持中国普通护照赴新加坡旅游5天可免签。")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/form link/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/client\/application/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SGARRIVALCARD/)).not.toBeInTheDocument();
+  });
+
+  it("removes a legacy official SGAC application link when a form card owns the CTA", () => {
+    render(
+      <ChatMessage
+        role="agent"
+        content={
+          "持中国普通护照赴新加坡旅游5天可免签。\n如果准备好申请，请通过新加坡电子入境卡申请 https://www.ica.gov.sg/enter-transit-depart/entering-singapore/sg-arrival-card。"
+        }
+        timestamp={Date.now()}
+      />
+    );
+
+    expect(
+      screen.getByText("持中国普通护照赴新加坡旅游5天可免签。")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/ica\.gov\.sg/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/如果准备好申请/)).not.toBeInTheDocument();
   });
 
   it("renders inline code markers as plain text", () => {

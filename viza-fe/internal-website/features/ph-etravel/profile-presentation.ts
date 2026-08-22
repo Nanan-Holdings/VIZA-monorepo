@@ -1,5 +1,3 @@
-import { PH_ETRAVEL_SUBMIT_BOUNDARIES } from "./profile-checkpoint";
-
 export type PhEtravelPassportHolderType = "FILIPINO" | "FOREIGNER";
 
 export type PhEtravelProfilePresentationInput = {
@@ -32,13 +30,7 @@ export type PhEtravelProfilePresentation = {
   fields: PhEtravelProfileReviewField[];
   clearOnChange: Record<string, readonly string[]>;
   gate: {
-    authorization: "profile_save_checkpoint";
-    checkpoint: "profile_review_ready";
-    submitAction: "profile_save_submit";
-    successStage: "profile_saved_dashboard";
-    registrationStopBeforeSubmitTarget: "final_submit";
-    requiresOfficialWriteAuthorization: true;
-    isRegistrationFinalSubmit: false;
+    authorization: "stop_before_submit";
     submitted: false;
     noQueue: true;
     noBrowser: true;
@@ -51,21 +43,14 @@ export type PhEtravelProfilePresentation = {
 };
 
 const profileGate = {
-  authorization: "profile_save_checkpoint" as const,
-  checkpoint: PH_ETRAVEL_SUBMIT_BOUNDARIES.profile.reviewStage,
-  submitAction: PH_ETRAVEL_SUBMIT_BOUNDARIES.profile.submitStage,
-  successStage: PH_ETRAVEL_SUBMIT_BOUNDARIES.profile.successStage,
-  registrationStopBeforeSubmitTarget:
-    PH_ETRAVEL_SUBMIT_BOUNDARIES.registration.stopBeforeSubmitDefaultTarget,
-  requiresOfficialWriteAuthorization: true as const,
-  isRegistrationFinalSubmit: false as const,
+  authorization: "stop_before_submit" as const,
   submitted: false as const,
   noQueue: true as const,
   noBrowser: true as const,
   noResubmit: true as const,
   userCopy: {
-    en: "Reviewing and saving this profile does not submit an eTravel registration.",
-    zh: "审核并保存这份个人资料不等于提交 eTravel 入境申报。",
+    en: "This profile information needs official review before you can continue.",
+    zh: "这些个人资料需要官方复核后才能继续。",
   },
 };
 

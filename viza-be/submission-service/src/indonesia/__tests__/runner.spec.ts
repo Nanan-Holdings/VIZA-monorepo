@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import {
   INDONESIA_B1_EVOA_PORTAL_URL,
@@ -8,15 +10,89 @@ import {
 } from "../index";
 import {
   extractIndonesiaOtpCode,
+  extractIndonesiaPasswordResetUrlFromEmail,
   isIndonesiaBillingCodeOnlyPaymentSnapshot,
+  classifyIndonesiaSweetAlertSnapshot,
+  INDONESIA_SAVED_PORTAL_URL_HISTORY_LIMIT,
   isIndonesiaApplicationDetailOtpChallenge,
   isExpiredIndonesiaApplicationText,
   isIndonesiaPortalAccountOtpChallenge,
+  isIndonesiaSavedUrlSelectionEcho,
+  isIndonesiaStepOneLegacyFallbackEnabled,
+  isIndonesiaStepThreePassportReviewComplete,
   normalizeIndonesiaMobilePhone,
   normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
+  hasUnconfirmedIndonesiaPaymentResult,
+  shouldPreferLegacyIndonesiaAccountResume,
+  shouldRegisterIndonesiaAccountAfterPasswordResetFeedback,
+  shouldResumeSavedIndonesiaApplicationAfterAccountGate,
   shouldSubmitIndonesiaPortalEmailOtp,
+  verifyIndonesiaOfficialFeeText,
 } from "../runner";
+
+test("verifies Indonesia portal amount and currency before card acquisition", () => {
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({
+      bodyText: "Total Payment Rp 500.000",
+      expectedAmountCents: 50_000_000,
+      expectedCurrency: "IDR",
+    }),
+    { verified: true, amountCents: 50_000_000, currency: "IDR" },
+  );
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({
+      bodyText: "Total Payment IDR 1.500.000",
+      expectedAmountCents: 50_000_000,
+      expectedCurrency: "IDR",
+    }),
+    { verified: false, reason: "amount_mismatch" },
+  );
+  assert.deepEqual(
+    verifyIndonesiaOfficialFeeText({ bodyText: "Payment", expectedAmountCents: 50_000_000 }),
+    { verified: false, reason: "expectation_missing" },
+  );
+});
+
+test("ignores echoed Indonesia saved-URL diagnostics while keeping direct payment evidence", () => {
+  assert.equal(INDONESIA_SAVED_PORTAL_URL_HISTORY_LIMIT, 100);
+  assert.equal(
+    isIndonesiaSavedUrlSelectionEcho(
+      "indonesia_existing_application_saved_url_selected https://evisa.imigrasi.go.id/front/payment/stale",
+    ),
+    true,
+  );
+  assert.equal(
+    isIndonesiaSavedUrlSelectionEcho(
+      "indonesia_existing_application_redirecting_to_saved_url https://evisa.imigrasi.go.id/front/payment/stale",
+    ),
+    true,
+  );
+  assert.equal(
+    isIndonesiaSavedUrlSelectionEcho(
+      "indonesia_payment_detail_make_payment_opening https://evisa.imigrasi.go.id/front/payment/current",
+    ),
+    false,
+  );
+});
+
+test("classifies Indonesia SweetAlert success and preserves existing-application warnings", () => {
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({ text: "Success Application saved", successIcon: true }),
+    "success",
+  );
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({
+      text: "Currently the foreigner has a visa application that is being verified",
+      successIcon: true,
+    }),
+    "existing_application_warning",
+  );
+  assert.equal(
+    classifyIndonesiaSweetAlertSnapshot({ text: "Something wrong, Please try again", errorIcon: true }),
+    "error",
+  );
+});
 
 test("preserves the international plus sign for Indonesia mobile fields", () => {
   assert.equal(normalizeIndonesiaMobilePhone("+86 133 1234 5678"), "+8613312345678");
@@ -171,6 +247,65 @@ test("extracts Indonesia email OTP from quoted-printable portal wording", () => 
   );
 });
 
+test("scopes Indonesia verification and OTP waits to applicant alias inboxes", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const aliasAddressChecks =
+    source.match(/candidate\.to_addr\.trim\(\)\.toLowerCase\(\) === alias/g) ?? [];
+
+  assert.equal(aliasAddressChecks.length, 3);
+  assert.doesNotMatch(source, /\.from\(["']inbound_email["']\)/);
+});
+
+test("extracts only official Indonesia password-reset links", () => {
+  assert.equal(
+    extractIndonesiaPasswordResetUrlFromEmail({
+      text: "Reset: https://evisa.imigrasi.go.id/front/reset-password?token=abc123",
+    })?.hostname,
+    "evisa.imigrasi.go.id",
+  );
+  assert.equal(
+    extractIndonesiaPasswordResetUrlFromEmail({
+      text: "Reset: https://example.com/reset-password?token=abc123",
+    }),
+    null,
+  );
+});
+
+test("registers a canonical Indonesia account only after the official missing-reset-account signal", () => {
+  assert.equal(
+    shouldRegisterIndonesiaAccountAfterPasswordResetFeedback([
+      "Failed If email is registered, you will receive password recovery instructions. OK",
+    ]),
+    true,
+  );
+  assert.equal(
+    shouldRegisterIndonesiaAccountAfterPasswordResetFeedback([
+      "Success Password recovery instructions were sent.",
+    ]),
+    false,
+  );
+});
+
+test("falls back to the page-level Send control on the current Indonesia password-reset page", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const recoverySource = source.slice(
+    source.indexOf("async function recoverIndonesiaOfficialAccount"),
+    source.indexOf("async function continueFromAccountGate"),
+  );
+
+  assert.match(recoverySource, /const resetSubmitInForm = passwordControls/);
+  assert.match(
+    recoverySource,
+    /getByRole\("button", \{ name: \/\^\(\?:send\|reset password\|change password\|submit\)\$\/i \}\)/,
+  );
+  assert.match(recoverySource, /passwordControls\.nth\(1\)\.press\("End"\)/);
+  assert.match(recoverySource, /indonesia_account_password_reset_confirm_submit_disabled/);
+  assert.ok(
+    recoverySource.indexOf("resetSubmitInForm") <
+      recoverySource.indexOf("indonesia_account_password_reset_confirm_submit_not_found"),
+  );
+});
+
 test("classifies Indonesia portal login and registration gates", () => {
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -254,6 +389,15 @@ test("classifies Indonesia portal login and registration gates", () => {
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/application_add/visa/step_3`,
+      title: "Indonesia eVisa",
+      text: "Waiting For Payment Make a Payment Payment Information",
+    }),
+    "payment_required",
+    "step 3 payment evidence must win over the generic application-form URL",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
       url: `${INDONESIA_C1_PORTAL_URL}web/application/abc/detail`,
       title: "Visa Application",
       text: "Waiting For Payment Make a Payment Payment Information OTP Code",
@@ -306,6 +450,89 @@ test("classifies Indonesia portal login and registration gates", () => {
   );
 });
 
+test("fills a newly opened Indonesia registration form before resuming a saved application", () => {
+  assert.equal(
+    shouldResumeSavedIndonesiaApplicationAfterAccountGate(
+      `${INDONESIA_C1_PORTAL_URL}front/register/wna`,
+    ),
+    false,
+  );
+  assert.equal(
+    shouldResumeSavedIndonesiaApplicationAfterAccountGate(
+      `${INDONESIA_C1_PORTAL_URL}web/visa-selection`,
+    ),
+    true,
+  );
+});
+
+test("preflights the Indonesia registration email and records redacted server feedback", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const registrationSource = source.slice(
+    source.indexOf("export async function fillForeignerAccountRegistration"),
+    source.indexOf("async function continueFromApplicationStepOne"),
+  );
+
+  assert.match(registrationSource, /\/front\/check-emails\?q=/);
+  assert.match(registrationSource, /indonesia_account_registration_email_preflight/);
+  assert.match(registrationSource, /indonesia_account_registration_email_already_exists_stop_before_post/);
+  assert.match(registrationSource, /indonesia_account_registration_pre_submit/);
+  assert.match(registrationSource, /indonesia_account_registration_dialog/);
+  assert.match(registrationSource, /queryKeys=/);
+  assert.match(registrationSource, /indonesia_account_passport_crop_upload/);
+  assert.match(registrationSource, /indonesia_account_passport_upload_paths_not_ready/);
+});
+
+test("uses archived Indonesia credentials only to resume a saved official application", () => {
+  assert.equal(shouldPreferLegacyIndonesiaAccountResume({
+    hasSavedApplicationUrl: true,
+    legacyAccountEmail: "legacy@example.com",
+    legacyAccountPassword: "legacy-password",
+  }), true);
+  assert.equal(shouldPreferLegacyIndonesiaAccountResume({
+    hasSavedApplicationUrl: false,
+    legacyAccountEmail: "legacy@example.com",
+    legacyAccountPassword: "legacy-password",
+  }), false);
+  assert.equal(shouldPreferLegacyIndonesiaAccountResume({
+    hasSavedApplicationUrl: true,
+    legacyAccountEmail: "legacy@example.com",
+    legacyAccountPassword: null,
+  }), false);
+});
+
+test("freshens the Indonesia login page and only registers an explicitly fresh managed alias after legacy resume fails", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const indexSource = readFileSync(path.resolve(__dirname, "..", "index.ts"), "utf8");
+  const gateSource = source.slice(
+    source.indexOf("async function continueFromAccountGate"),
+    source.indexOf("export function shouldPreferLegacyIndonesiaAccountResume"),
+  );
+  assert.match(gateSource, /reopenIndonesiaAccountLogin\(page, input, diagnostics\)/);
+  assert.match(gateSource, /indonesia_current_account_fresh_login_started/);
+  assert.match(gateSource, /indonesia_official_account_recovery_required/);
+  assert.match(gateSource, /!input\.allowFreshAccountRegistration/);
+  assert.match(gateSource, /indonesia_fresh_managed_account_registration_started_after_legacy_resume_failed/);
+  assert.ok(
+    gateSource.indexOf("indonesia_official_account_recovery_required") <
+      gateSource.indexOf("const createAccountLink"),
+    "a reusable account with failed recovery must stop before opening registration",
+  );
+  assert.match(indexSource, /allowFreshAccountRegistration: input\.managedAccountReusable === false/);
+  assert.match(source, /indonesia_stale_saved_application_url_discarded_for_fresh_account/);
+  assert.match(source, /actionType: "official_account_recovery_required"/);
+  assert.match(source, /indonesia_account_login_controls_not_ready/);
+  assert.match(source, /waitFor\(\{ state: "visible", timeout: 15_000 \}\)/);
+  assert.match(source, /page\.context\(\)\.clearCookies\(\)/);
+  assert.match(source, /indonesia_account_login_cookie_session_reset/);
+  assert.match(source, /a\[href\*="\/front\/login"\]:visible/);
+  assert.match(source, /indonesia_account_login_entry_opened_after_session_reset/);
+});
+
+test("scopes saved Indonesia portal URLs to the current provider", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /\.eq\("provider", input\.provider\)/);
+});
+
 test("maps portal states to actionable automation checkpoints", () => {
   assert.equal(
     actionForIndonesiaPortalState("captcha_required").actionType,
@@ -341,7 +568,7 @@ test("maps portal states to actionable automation checkpoints", () => {
   );
   assert.match(
     actionForIndonesiaPortalState("payment_failed").instruction,
-    /OTP\/3DS may have expired, been declined, or not been approved/,
+    /VIZA staff must reconcile the attempt before any retry/,
   );
 });
 
@@ -350,6 +577,106 @@ test("does not bypass Indonesia official step 1 submit by default", () => {
   assert.equal(shouldDirectNavigateIndonesiaStepOne(""), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("false"), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("true"), true);
+});
+
+test("keeps Indonesia legacy step 1 form fallbacks explicitly disabled by default", () => {
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled(undefined), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled(""), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled("false"), false);
+  assert.equal(isIndonesiaStepOneLegacyFallbackEnabled("TRUE"), true);
+});
+
+test("requires passport review evidence and declarations before Indonesia step 3 can submit", () => {
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport P123 4567 Declaration",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 2,
+  }), true);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 2,
+  }), false);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport P1234567",
+    expectedPassportNumber: "P1234567",
+    checkboxCount: 0,
+  }), false);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport",
+    expectedPassportNumber: "P1234567",
+    reviewPassportNumber: "P123 4567",
+    checkboxCount: 2,
+  }), true);
+  assert.equal(isIndonesiaStepThreePassportReviewComplete({
+    bodyText: "Personal Information Passport",
+    expectedPassportNumber: "P1234567",
+    reviewPassportNumber: "P7654321",
+    checkboxCount: 2,
+  }), false);
+});
+
+test("tries Indonesia official step 1 AJAX persistence before any legacy form fallback", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  const start = source.indexOf("async function continueFromApplicationStepOne");
+  const end = source.indexOf("async function fillIndonesiaStayAndSupportFieldsIfPresent", start);
+  const stepOneSource = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(
+    stepOneSource.indexOf("submitIndonesiaStepOneOfficialAjax") <
+      stepOneSource.indexOf("submitIndonesiaStepOneFormFallback"),
+  );
+  assert.match(stepOneSource, /isIndonesiaStepOneLegacyFallbackEnabled/);
+  assert.match(stepOneSource, /indonesia_step_1_passport_upload_not_ready/);
+  assert.match(stepOneSource, /invokeIndonesiaOfficialPhotoUpload/);
+  assert.match(stepOneSource, /fillIndonesiaApplicantAndPassportFieldsIfPresent/);
+  assert.match(stepOneSource, /step_1_applicant_passport_fields_not_ready/);
+  const officialPhotoHelperSource = source.slice(
+    source.indexOf("async function invokeIndonesiaOfficialPhotoUpload"),
+    source.indexOf("async function waitForIndonesiaMrzScannerReady"),
+  );
+  assert.ok(
+    officialPhotoHelperSource.indexOf("officialWindow.onFileChange") <
+      officialPhotoHelperSource.indexOf("officialWindow.uploadPhoto"),
+    "the official face-validation handler must run before the raw photo upload handler",
+  );
+  assert.match(officialPhotoHelperSource, /onFileChange_timeout/);
+  assert.match(officialPhotoHelperSource, /official_raw_fallback/);
+  assert.match(officialPhotoHelperSource, /official_raw_response/);
+  assert.match(officialPhotoHelperSource, /uploadResponse\.filePath/);
+  assert.match(officialPhotoHelperSource, /raw_fallback/);
+  assert.match(officialPhotoHelperSource, /\/front\/upload-photo/);
+  assert.match(officialPhotoHelperSource, /official_direct_upload/);
+  assert.match(officialPhotoHelperSource, /context\(\)\.request\.post/);
+  assert.match(officialPhotoHelperSource, /channel: "api_request"/);
+  assert.match(stepOneSource, /if \(!photoUploadReady\)/);
+});
+
+test("does not let the Indonesia Apply click wait on implicit navigation", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /applyControl\.click\(\{ timeout: 10_000, noWaitAfter: true \}\)/);
+  assert.match(source, /waitForURL\(\/\\\/\(\?:web\|front\)\\\/visa-selection\/i/);
+});
+
+test("falls back to the Indonesia portal root when a saved application URL times out", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /indonesia_saved_application_initial_navigation_failed/);
+  assert.match(source, /indonesia_saved_application_initial_navigation_recovered_from_portal_root/);
+});
+
+test("retries the dependent Indonesia activity list after its AJAX load stalls", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /indonesia_visa_selection_activity_retry_failed/);
+  assert.match(source, /locator\("#selectParentActivity"\)\.dispatchEvent\("change"\)/);
+});
+
+test("blocks Indonesia payment handoff when step 3 review evidence is incomplete", () => {
+  const source = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(
+    source,
+    /input\.userPaymentHandoff\?\.enabled\s*&&\s*!stepThreeReviewIncomplete/,
+  );
+  assert.match(source, /indonesia_payment_blocked_by_incomplete_step_3_review/);
 });
 
 test("does not auto-submit bank payment OTP with email OTP automation", () => {
@@ -444,5 +771,19 @@ test("keeps Indonesia Finpay handoff in bank OTP state once OTP is detected", ()
       "indonesia_one_time_card_finpay_terms_after stillVisible=yes hasFailure=no hasOtp=no url=https://live.finpay.id/pg/payment/card/id/v4/access/test",
     ]),
     "payment_required",
+  );
+});
+
+test("marks an unconfirmed Indonesia payment result as reconciliation-only", () => {
+  assert.equal(
+    hasUnconfirmedIndonesiaPaymentResult([
+      "indonesia_user_payment_wait_timeout",
+      "indonesia_payment_terminal_result_unconfirmed unknown",
+    ]),
+    true,
+  );
+  assert.equal(
+    hasUnconfirmedIndonesiaPaymentResult(["indonesia_user_payment_completed"]),
+    false,
   );
 });

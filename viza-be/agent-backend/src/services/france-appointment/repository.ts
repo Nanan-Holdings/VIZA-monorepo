@@ -40,6 +40,11 @@ function mapApplication(
   officialReferenceEncrypted: string | null,
 ): FranceAppointmentApplication {
   const country = nullableString(row.country);
+  const profile = readProfileRow(row.applicant_profiles);
+  const fullName = profileString(profile, "full_name", "full_name_en")
+    ?? ([profileString(profile, "given_names", "given_names_en"), profileString(profile, "surname", "surname_en")]
+      .filter(Boolean)
+      .join(" ") || null);
   return {
     id: requiredString(row.id),
     userId: readProfileAuthUserId(row.applicant_profiles) ?? "",
@@ -49,6 +54,18 @@ function mapApplication(
     visaType: nullableString(row.visa_type),
     officialReferenceEncrypted,
     appointmentAssistanceStatus: nullableString(row.appointment_assistance_status),
+    profile: {
+      fullName,
+      surname: profileString(profile, "surname", "surname_en"),
+      givenNames: profileString(profile, "given_names", "given_names_en"),
+      dateOfBirth: profileString(profile, "date_of_birth"),
+      nationality: profileString(profile, "nationality"),
+      passportNumber: profileString(profile, "passport_number"),
+      passportExpiryDate: profileString(profile, "passport_expiry_date"),
+      phone: profileString(profile, "phone"),
+      email: profileString(profile, "email"),
+      address: profileString(profile, "address", "address_en"),
+    },
   };
 }
 
@@ -69,7 +86,7 @@ function mapJob(row: SupabaseObject): FranceAppointmentJob {
     requiresUserAction: requiredBoolean(row.requires_user_action),
     currentManualAction: nullableString(row.current_manual_action),
     userPreferencesJson: preferences,
-    lastSlotCheckAt: nullableString(preferences.lastSlotCheckAt),
+    lastSlotCheckAt: nullableString(row.last_slot_check_at) ?? nullableString(preferences.lastSlotCheckAt),
     paymentSessionStatus:
       (nullableString(preferences.paymentSessionStatus) as FranceAppointmentJob["paymentSessionStatus"] | null) ?? "required",
     paymentAuthorizationRedactedJson:
@@ -84,14 +101,38 @@ function mapJob(row: SupabaseObject): FranceAppointmentJob {
   };
 }
 
+function readProfileRow(value: unknown): SupabaseObject {
+  if (Array.isArray(value)) return readProfileRow(value[0]);
+  if (!value || typeof value !== "object") return {};
+  return value as SupabaseObject;
+}
+
+function profileString(row: SupabaseObject, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = nullableString(row[key]);
+    if (value?.trim()) return value;
+  }
+  return null;
+}
+
+function maskAccountEmail(value: string | null): string | null {
+  if (!value) return null;
+  const at = value.indexOf("@");
+  if (at <= 0) return "••••";
+  return `${value.slice(0, 1)}•••@${value.slice(at + 1)}`;
+}
+
 function mapAccount(row: SupabaseObject): FranceAppointmentAccount {
+  const metadata = toJsonObject(row.metadata_redacted_json);
   return {
     id: requiredString(row.id),
     applicationId: nullableString(row.application_id),
-    accountEmail: nullableString(row.account_email),
+    accountEmail: maskAccountEmail(nullableString(row.account_email)),
     accountStatus: requiredString(row.account_status, "not_created"),
     emailVerified: requiredBoolean(row.email_verified),
     lastLoginAt: nullableString(row.last_login_at),
+    referenceReady: metadata.referenceReady === true,
+    metadataRedactedJson: metadata,
     updatedAt: nullableString(row.updated_at),
   };
 }
@@ -124,6 +165,7 @@ function mapSlot(row: SupabaseObject): FranceAppointmentSlot {
     source: requiredString(row.source),
     status: requiredString(row.status, "observed"),
     observedAt: nullableString(row.observed_at),
+    expiresAt: nullableString(row.expires_at),
     metadataRedactedJson: toJsonObject(row.metadata_redacted_json),
   };
 }
@@ -166,7 +208,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
     const [{ data, error }, officialReference] = await Promise.all([
       getSupabaseClient()
         .from("applications")
-        .select("id, applicant_id, country, visa_type, appointment_assistance_status, applicant_profiles!inner(auth_user_id)")
+        .select("id, applicant_id, country, visa_type, appointment_assistance_status, applicant_profiles!inner(auth_user_id, full_name, full_name_en, surname, surname_en, given_names, given_names_en, date_of_birth, passport_number, passport_expiry_date, email, phone, nationality, address, address_en)")
         .eq("id", applicationId)
         .maybeSingle(),
       readOfficialReference(applicationId),
@@ -247,6 +289,18 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
     return data ? mapJob(data as SupabaseObject) : null;
   }
 
+  async findJobByIdempotencyKey(idempotencyKey: string): Promise<FranceAppointmentJob | null> {
+    const { data, error } = await getSupabaseClient()
+      .from("appointment_assistance_jobs")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("country_code", "FR")
+      .eq("scheduling_provider", "tlscontact_cn_fr")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapJob(data as SupabaseObject) : null;
+  }
+
   async getAccountForApplication(applicationId: string): Promise<FranceAppointmentAccount | null> {
     const { data, error } = await getSupabaseClient()
       .from("appointment_accounts")
@@ -254,6 +308,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
       .eq("application_id", applicationId)
       .eq("country_code", "FR")
       .eq("portal", "tlscontact_cn_fr")
+      .neq("account_status", "abandoned")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -279,6 +334,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
         mode: input.mode,
         requires_user_action: input.requiresUserAction,
         current_manual_action: input.currentManualAction,
+        last_slot_check_at: input.lastSlotCheckAt,
         user_preferences_json: {
           ...input.userPreferencesJson,
           lastSlotCheckAt: input.lastSlotCheckAt,
@@ -309,9 +365,11 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
     const { data, error } = await getSupabaseClient()
       .from("appointment_assistance_jobs")
       .update({
+        appointment_account_id: patch.appointmentAccountId,
         status: patch.status,
         requires_user_action: patch.requiresUserAction,
         current_manual_action: patch.currentManualAction,
+        last_slot_check_at: patch.lastSlotCheckAt,
         user_preferences_json: preferences,
         updated_at: new Date().toISOString(),
       })
@@ -324,7 +382,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
 
   async replaceObservedSlots(
     jobId: string,
-    slots: Omit<FranceAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt">[],
+    slots: Omit<FranceAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt" | "expiresAt">[],
   ): Promise<FranceAppointmentSlot[]> {
     const job = await this.getJob(jobId);
     if (!job) throw new Error("France appointment job not found");
@@ -335,6 +393,9 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
       .eq("job_id", jobId)
       .eq("status", "observed");
     if (deleteError) throw new Error(deleteError.message);
+    if (slots.length === 0) return [];
+    const observedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.parse(observedAt) + 10 * 60_000).toISOString();
     const { data, error } = await client
       .from("appointment_slots")
       .insert(slots.map((slot) => ({
@@ -346,7 +407,8 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
         appointment_type: slot.appointmentType,
         source: slot.source,
         status: "observed",
-        observed_at: new Date().toISOString(),
+        observed_at: observedAt,
+        expires_at: expiresAt,
         metadata_redacted_json: slot.metadataRedactedJson,
       })))
       .select("*");
@@ -355,10 +417,13 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
   }
 
   async listSlots(jobId: string): Promise<FranceAppointmentSlot[]> {
+    const now = new Date().toISOString();
     const { data, error } = await getSupabaseClient()
       .from("appointment_slots")
       .select("*")
       .eq("job_id", jobId)
+      .neq("status", "expired")
+      .gt("expires_at", now)
       .order("appointment_date", { ascending: true })
       .order("appointment_time", { ascending: true });
     if (error) throw new Error(error.message);
@@ -367,29 +432,36 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
 
   async selectSlot(jobId: string, slotId: string): Promise<FranceAppointmentSlot | null> {
     const client = getSupabaseClient();
-    const { error: expireError } = await client
-      .from("appointment_slots")
-      .update({ status: "expired" })
-      .eq("job_id", jobId)
-      .eq("status", "observed");
-    if (expireError) throw new Error(expireError.message);
+    const now = new Date().toISOString();
     const { data, error } = await client
       .from("appointment_slots")
       .update({ status: "user_selected" })
       .eq("id", slotId)
       .eq("job_id", jobId)
+      .eq("status", "observed")
+      .gt("expires_at", now)
       .select("*")
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return data ? mapSlot(data as SupabaseObject) : null;
+    if (!data) return null;
+    const { error: expireError } = await client
+      .from("appointment_slots")
+      .update({ status: "expired" })
+      .eq("job_id", jobId)
+      .eq("status", "observed")
+      .neq("id", slotId);
+    if (expireError) throw new Error(expireError.message);
+    return mapSlot(data as SupabaseObject);
   }
 
   async getSelectedSlot(jobId: string): Promise<FranceAppointmentSlot | null> {
+    const now = new Date().toISOString();
     const { data, error } = await getSupabaseClient()
       .from("appointment_slots")
       .select("*")
       .eq("job_id", jobId)
       .eq("status", "user_selected")
+      .gt("expires_at", now)
       .limit(1)
       .maybeSingle();
     if (error) throw new Error(error.message);

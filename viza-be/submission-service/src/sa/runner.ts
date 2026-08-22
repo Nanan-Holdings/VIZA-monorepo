@@ -6,7 +6,11 @@ import { artifact } from "../artifact.js";
 import { fillSaForm } from "./fillers.js";
 import { missingRequired } from "./field-mappings.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
-import { routingFor, policyFor, collectorFor, feeCentsFor } from "../payment-routing.js";
+import { createManagedPaymentHooks } from "../official-fee/managed-payment-hooks.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 import { softTranslationGate } from "../runners/standard-evisa.js";
 import {
   NeedsHumanError,
@@ -18,9 +22,9 @@ import {
  * Saudi Arabia e-Visa runner (RUN-SA-001) — built from scratch.
  *
  * Fills the Saudi e-Visa portal from canonical answers and HALTS before the
- * government payment step. Capability: Saudi e-Visa is online-pay; until
- * escrow-card payment is integrated the runner halts (collector per
- * payment-routing). Best-effort selectors pending recon (form-recon.ts).
+ * government payment step. The current recon has no evidenced payment
+ * controls, so the managed-card boundary ends in staff review without issuing
+ * a card.
  */
 
 const BASE_URL = process.env.SA_PORTAL_URL ?? "https://visa.visitsaudi.com";
@@ -31,10 +35,11 @@ export interface SaRunInput {
   answers: Record<string, string>;
   visaType?: string;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface SaRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -76,14 +81,17 @@ export async function runSaRunner(input: SaRunInput): Promise<SaRunResult> {
 
     reachedStep = "pre_payment";
     const visaType = input.visaType ?? "SA_E_VISA";
-    let reason = "halted before government payment";
-    try {
-      const routing = routingFor("saudi_arabia", visaType);
-      reason = `halted before payment; policy=${policyFor(routing.mechanism)} collector=${collectorFor(routing.mechanism)} fee=${feeCentsFor("saudi_arabia", visaType) ?? "TBD"}c`;
-    } catch {
-      reason = "halted before government payment (saudi_arabia routing not yet configured — see PAYP-001)";
-    }
-    return { status: "stopped_before_pay", reason, reachedStep, artefacts };
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "saudi_arabia",
+      visaType,
+      hooks: input.paymentHooks,
+    });
+    return {
+      status: payment.status,
+      reason: payment.reason,
+      reachedStep: "managed_payment_review_required",
+      artefacts,
+    };
   } catch (err) {
     return { status: "blocked", reason: err instanceof Error ? err.message : String(err), reachedStep, artefacts };
   } finally {
@@ -92,11 +100,25 @@ export async function runSaRunner(input: SaRunInput): Promise<SaRunResult> {
   }
 }
 
-export async function runOne(applicationId: string, jobId?: string): Promise<DispatchOutcome> {
+export async function runOne(
+  applicationId: string,
+  jobId?: string,
+  paymentHooks?: ManagedPaymentHooks,
+): Promise<DispatchOutcome> {
   const answers = await loadCanonicalAnswers(applicationId);
-  const result = await runSaRunner({ jobId: jobId ?? applicationId, applicationId, answers });
+  const result = await runSaRunner({
+    jobId: jobId ?? applicationId,
+    applicationId,
+    answers,
+    paymentHooks: paymentHooks ?? createManagedPaymentHooks({
+      applicationId,
+      workerId: jobId ?? applicationId,
+      country: "saudi_arabia",
+      visaType: "SA_E_VISA",
+    }),
+  });
   switch (result.status) {
-    case "stopped_before_pay":
+    case "managed_payment_adapter_unavailable":
       return { outcome: "halted_before_pay", reachedStep: result.reachedStep, artefacts: result.artefacts };
     case "blocked":
     case "anti_bot_gate":

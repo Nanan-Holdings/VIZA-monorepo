@@ -1,47 +1,105 @@
 import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { EventEmitter } from "node:events";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client, Pool } from "pg";
+import {
+	buildDatabasePoolConfig,
+	observePoolQueries,
+	readDatabaseRuntimeGuardExpectations,
+	verifyDatabaseRoleTimeoutSamples,
+} from "./connection-config.js";
 import * as schema from "./schema.js";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import { Logger as DrizzleLogger } from "drizzle-orm/logger";
-import { EventEmitter } from "events";
 
-// Event emitter for broadcasting database queries to debug UI
-export const dbLogEmitter = new EventEmitter();
+export type DatabasePoolState = "open" | "closing" | "closed" | "error";
 
-class QueryLogger implements DrizzleLogger {
-	logQuery(query: string, params: unknown[]): void {
-		dbLogEmitter.emit("db_query", {
-			query: query.substring(0, 500),
-			params: params.slice(0, 5),
-			timestamp: Date.now(),
-		});
-	}
+export interface DatabasePoolMetrics {
+	state: DatabasePoolState;
+	maxConnections: number;
+	totalConnections: number;
+	activeConnections: number;
+	idleConnections: number;
+	waitingRequests: number;
+	utilizationPercent: number;
 }
 
-// Get project root and load .env.local (with .env as fallback)
+// Event emitter for redacted database telemetry consumed by the debug UI and
+// health instrumentation. Events never include SQL text or parameter values.
+export const dbLogEmitter = new EventEmitter();
+
+// Get project root and load .env.local (with .env as fallback).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "../../.env.local") });
 dotenv.config({ path: join(__dirname, "../../.env") });
 
-// Use DATABASE_URL from environment (supports both direct and pooled connections)
-const connectionString = process.env.DATABASE_URL;
+const poolConfig = buildDatabasePoolConfig(process.env);
+const pool = observePoolQueries(new Pool(poolConfig), dbLogEmitter);
+let poolState: DatabasePoolState = "open";
+let closePromise: Promise<void> | null = null;
 
-if (!connectionString) {
-	throw new Error(
-		"DATABASE_URL is required. Get your database connection string from:\n" +
-		"Supabase Dashboard → Project Settings → Database → Connection String\n" +
-		"Use either 'Direct connection' or 'Transaction pooler' depending on your needs."
+export function getDatabasePoolMetrics(): DatabasePoolMetrics {
+	const activeConnections = Math.max(0, pool.totalCount - pool.idleCount);
+	return {
+		state: poolState,
+		maxConnections: poolConfig.max,
+		totalConnections: pool.totalCount,
+		activeConnections,
+		idleConnections: pool.idleCount,
+		waitingRequests: pool.waitingCount,
+		utilizationPercent:
+			Math.round((activeConnections / poolConfig.max) * 10_000) / 100,
+	};
+}
+
+pool.on("error", (error: Error & { code?: string }) => {
+	const event = {
+		name: error.name || "Error",
+		code: error.code ?? "UNKNOWN",
+		timestamp: Date.now(),
+		pool: getDatabasePoolMetrics(),
+	};
+	dbLogEmitter.emit("db_pool_error", event);
+	console.error("database_pool_idle_client_error", event);
+});
+
+export function closeDatabase(): Promise<void> {
+	if (closePromise) return closePromise;
+	poolState = "closing";
+	closePromise = pool.end().then(
+		() => {
+			poolState = "closed";
+		},
+		(error: unknown) => {
+			poolState = "error";
+			throw error;
+		},
+	);
+	return closePromise;
+}
+
+export async function verifyDatabaseRuntimeGuards(): Promise<{
+	samplesVerified: number;
+	statementTimeoutMs: number;
+	idleInTransactionTimeoutMs: number;
+} | null> {
+	if (process.env.NODE_ENV !== "production") return null;
+
+	return verifyDatabaseRoleTimeoutSamples(
+		() => {
+			const client = new Client(poolConfig);
+			return {
+				connect: () => client.connect(),
+				query: async (sql) => {
+					const result = await client.query<Record<string, unknown>>(sql);
+					return { rows: result.rows };
+				},
+				close: () => client.end(),
+			};
+		},
+		readDatabaseRuntimeGuardExpectations(process.env),
 	);
 }
 
-const pool = new Pool({
-	connectionString,
-	ssl: connectionString.includes("supabase")
-		? { rejectUnauthorized: false }
-		: undefined,
-});
-
-export const db = drizzle(pool, { schema, logger: new QueryLogger() });
+export const db = drizzle(pool, { schema });

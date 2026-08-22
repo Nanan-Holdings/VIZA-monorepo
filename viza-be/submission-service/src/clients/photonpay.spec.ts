@@ -156,6 +156,92 @@ test("a failed token fetch is not cached — the next call retries", async () =>
   }
 });
 
+test("openCard sends arrivalAmount for exact cross-currency card funding", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> | undefined;
+  globalThis.fetch = (async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => {
+    if (String(input).includes("/oauth2/token/accessToken")) {
+      return new Response(
+        JSON.stringify({ code: "0000", data: { token: "tok", expiresIn: 7200 } }),
+      );
+    }
+    if (String(input).includes("/vcc/openApi/v4/openCard")) {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          code: "0000",
+          data: { status: "succeed", cardDetail: { cardId: "card-test" } },
+        }),
+      );
+    }
+    throw new Error(`Unexpected PhotonPay test request: ${String(input)}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await client(EXAMPLE_PRIVATE_KEY).openCard({
+      requestId: "cross-currency-test",
+      cardBin: "52298927",
+      cardCurrency: "USD",
+      cardType: "recharge",
+      accountId: "FA-SGD-test",
+      arrivalAmount: 1,
+      transactionLimitType: "unlimited",
+    });
+    assert.equal(result.card?.cardId, "card-test");
+    assert.equal(requestBody?.arrivalAmount, 1);
+    assert.equal("rechargeAmount" in (requestBody ?? {}), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("openCard sends a limited shared-card request without a recharge amount", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> | undefined;
+  globalThis.fetch = (async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => {
+    if (String(input).includes("/oauth2/token/accessToken")) {
+      return new Response(
+        JSON.stringify({ code: "0000", data: { token: "tok", expiresIn: 7200 } }),
+      );
+    }
+    if (String(input).includes("/vcc/openApi/v4/openCard")) {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          code: "0000",
+          data: { status: "succeed", cardDetail: { cardId: "shared-card-test" } },
+        }),
+      );
+    }
+    throw new Error(`Unexpected PhotonPay test request: ${String(input)}`);
+  }) as typeof fetch;
+
+  try {
+    await client(EXAMPLE_PRIVATE_KEY).openCard({
+      requestId: "shared-card-test",
+      cardBin: "52298927",
+      cardCurrency: "USD",
+      cardType: "share",
+      accountId: "FA-USD-test",
+      transactionLimitType: "limited",
+      transactionLimit: 20.01,
+    });
+    assert.equal(requestBody?.cardType, "share");
+    assert.equal(requestBody?.transactionLimitType, "limited");
+    assert.equal(requestBody?.transactionLimit, 20.01);
+    assert.equal("rechargeAmount" in (requestBody ?? {}), false);
+    assert.equal("arrivalAmount" in (requestBody ?? {}), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 // --- factory config guards -------------------------------------------------
 
 test("createPhotonPayClient() returns null while disabled", () => {

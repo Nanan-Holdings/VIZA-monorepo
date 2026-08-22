@@ -1,29 +1,21 @@
 /**
- * Seed script: visa_form_fields for India e-Visa.
+ * Seed script: official-source India e-Tourist Visa answer schema.
  *
- * Field definitions mirror the Government of India Ministry of Home
- * Affairs Bureau of Immigration e-Visa application at
- * `https://indianvisaonline.gov.in/evisa`. Public portal — applicant
- * creates an application reference number on first visit. Schema is
- * a high-fidelity reconstruction from public landing pages, the
- * Bureau of Immigration applicant guidance, and the form-VI paper
- * antecedent.
+ * Compatibility decision: retain the established `IN_E_VISA` key because
+ * existing applications and payment/runner integrations reference it. The
+ * product is now scoped strictly to e-Tourist Visa (e-T1 V): 30 days, one
+ * year, or five years. Business, medical, attendant, conference, transit,
+ * student, family, and mountaineering services require separate products.
  *
- * Scope: e-Visa across the four eligible categories — Tourist, Business,
- * Medical, Conference — with stay-length variants under Tourist
- * (30-day double, 1-year multi, 5-year multi). All under a single schema
- * with variant captured by `visa_type_requested`. Biometric at arrival
- * port is mandatory.
+ * Sources checked 2026-08-16:
+ * - https://indianvisaonline.gov.in/evisa/Registration
+ * - https://indianvisaonline.gov.in/evisa/images/SampleForm.pdf
+ * - https://indianvisaonline.gov.in/evisa/
  *
- * Out of scope: Regular Tourist Visa (paper at consular post), Employment
- * Visa, Student Visa, Research Visa, Journalist Visa, OCI (Overseas
- * Citizen of India), e-Visa for Visa-On-Arrival (5 specific
- * nationalities — JP/KR/UAE — handled at port), and consular paper
- * categories.
- *
- * Document uploads (passport bio, photo, supporting documents per
- * category — itinerary, hospital letter, business invitation,
- * conference invitation) are out-of-schema per playbook §5.6.
+ * CAPTCHA, temporary-application credentials, review, payment, and official
+ * session state are VIZA workflow concerns and are absent here. Photograph,
+ * passport-bio-page, and purpose-specific uploads belong to
+ * application_documents, never visa_form_fields.
  *
  * Run: npx tsx scripts/seed-in-e-visa-form-fields.ts
  */
@@ -50,32 +42,73 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const VISA_TYPE = "IN_E_VISA";
 
-interface FieldDef { field_name: string; label: string; field_type: string; required: boolean; step_number: number; step_name: string; display_order: number; placeholder?: string; validation_rules?: Record<string, unknown>; options?: Array<{ value: string; text: string }>; conditional_logic?: Record<string, unknown>; }
+interface FieldDef {
+  field_name: string;
+  label: string;
+  field_type: string;
+  required: boolean;
+  step_number: number;
+  step_name: string;
+  display_order: number;
+  placeholder?: string;
+  validation_rules?: Record<string, unknown>;
+  options?: Array<{ value: string; text: string }>;
+  conditional_logic?: Record<string, unknown>;
+}
 
-const YES_NO = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
+const YES_NO = [
+  { value: "yes", text: "Yes" },
+  { value: "no", text: "No" },
+];
 
-const HAS_OTHER_NAMES = "has_other_names_used === yes";
-const HAS_OTHER_NATIONALITIES = "has_other_nationalities === yes";
-const IS_MARRIED = "marital_status === married";
-const HAS_OTHER_PASSPORTS = "has_other_passports === yes";
-const HAS_HOST_IN_IN = "has_host_in_india === yes";
-const VISITED_IN_BEFORE = "visited_india_before === yes";
-const REFUSED_VISA_IN = "refused_visa_or_entry_india === yes";
-const REFUSED_VISA_OTHER = "refused_visa_other_country === yes";
-const HAS_CRIMINAL = "has_criminal_record === yes";
-const HAS_DEPORTED = "has_been_deported === yes";
-const IS_BUSINESS = "purpose_of_visit === business";
-const IS_MEDICAL = "purpose_of_visit === medical";
-const IS_CONFERENCE = "purpose_of_visit === conference";
-const SAARC_NATIONALITY = "saarc_nationality === yes";
+const TOURIST_VALIDITY_OPTIONS = [
+  { value: "30_days", text: "e-Tourist Visa — 30 days" },
+  { value: "1_year", text: "e-Tourist Visa — 1 year" },
+  { value: "5_years", text: "e-Tourist Visa — 5 years" },
+];
 
-const SEX_OPTIONS = [
+const TOURIST_PURPOSE_OPTIONS = [
+  { value: "recreation_sightseeing", text: "Tourism, recreation, or sightseeing" },
+  { value: "meeting_friends_relatives", text: "Meeting friends or relatives" },
+  { value: "short_term_yoga", text: "Short-term yoga programme" },
+  { value: "short_term_course", text: "Short course of no more than 6 months with no qualification issued" },
+  { value: "voluntary_work", text: "Unpaid voluntary work for no more than one month" },
+];
+
+const GENDER_OPTIONS = [
   { value: "male", text: "Male" },
   { value: "female", text: "Female" },
   { value: "transgender", text: "Transgender" },
 ];
 
-const PASSPORT_TYPE_OPTIONS = [{ value: "ordinary", text: "Ordinary" }];
+const NATIONALITY_ACQUISITION_OPTIONS = [
+  { value: "birth", text: "By birth" },
+  { value: "naturalization", text: "By naturalization" },
+];
+
+const RELIGION_OPTIONS = [
+  { value: "buddhism", text: "Buddhism" },
+  { value: "christianity", text: "Christianity" },
+  { value: "hinduism", text: "Hinduism" },
+  { value: "islam", text: "Islam" },
+  { value: "jainism", text: "Jainism" },
+  { value: "judaism", text: "Judaism" },
+  { value: "sikhism", text: "Sikhism" },
+  { value: "zoroastrianism", text: "Zoroastrianism" },
+  { value: "other", text: "Other" },
+];
+
+const EDUCATION_OPTIONS = [
+  { value: "below_matriculation", text: "Below matriculation" },
+  { value: "graduate", text: "Graduate" },
+  { value: "higher_secondary", text: "Higher secondary" },
+  { value: "illiterate", text: "Illiterate" },
+  { value: "matriculation", text: "Matriculation" },
+  { value: "minor_not_applicable", text: "Not applicable — minor" },
+  { value: "post_graduate", text: "Post graduate" },
+  { value: "professional", text: "Professional" },
+  { value: "other", text: "Other" },
+];
 
 const MARITAL_STATUS_OPTIONS = [
   { value: "single", text: "Single" },
@@ -84,220 +117,232 @@ const MARITAL_STATUS_OPTIONS = [
   { value: "widowed", text: "Widowed" },
 ];
 
-// India Bureau of Immigration form-VI collects religion.
-const RELIGION_OPTIONS = [
-  { value: "hinduism", text: "Hinduism" },
-  { value: "islam", text: "Islam" },
-  { value: "christianity", text: "Christianity" },
-  { value: "sikhism", text: "Sikhism" },
-  { value: "buddhism", text: "Buddhism" },
-  { value: "jainism", text: "Jainism" },
-  { value: "judaism", text: "Judaism" },
-  { value: "zoroastrianism", text: "Zoroastrianism (Parsi)" },
-  { value: "no_religion", text: "No religion" },
-  { value: "other", text: "Other" },
+// Official values read from the live registration page on 2026-08-16.
+const PORT_OPTIONS = [
+  { value: "I140", text: "AGARTALA LANDPORT" },
+  { value: "I270", text: "AGATTI SEAPORT" },
+  { value: "I022", text: "AHMEDABAD AIRPORT" },
+  { value: "I298", text: "ALANG SEAPORT" },
+  { value: "I032", text: "AMRITSAR AIRPORT" },
+  { value: "I096", text: "BAGDOGRA AIRPORT" },
+  { value: "I221", text: "BEDI BANDAR SEAPORT" },
+  { value: "I085", text: "BENGALURU AIRPORT" },
+  { value: "I203", text: "BHAVNAGAR SEAPORT" },
+  { value: "I027", text: "BHOPAL AIRPORT" },
+  { value: "I084", text: "BHUBANESHWAR AIRPORT" },
+  { value: "I010", text: "CALICUT AIRPORT" },
+  { value: "I210", text: "CALICUT SEAPORT" },
+  { value: "I005", text: "CHANDIGARH AIRPORT" },
+  { value: "I008", text: "CHENNAI AIRPORT" },
+  { value: "I208", text: "CHENNAI SEAPORT" },
+  { value: "I024", text: "COCHIN AIRPORT" },
+  { value: "I224", text: "COCHIN SEAPORT" },
+  { value: "I094", text: "COIMBATORE AIRPORT" },
+  { value: "I239", text: "CUDDALORE SEAPORT" },
+  { value: "I217", text: "DAHEJ SEAPORT" },
+  { value: "I132", text: "DARRANGA LANDPORT" },
+  { value: "I130", text: "DAWKI LANDPORT" },
+  { value: "I004", text: "DELHI AIRPORT" },
+  { value: "I288", text: "DHAMRA SEAPORT" },
+  { value: "I012", text: "GAYA AIRPORT" },
+  { value: "I164", text: "GEDE LANDPORT" },
+  { value: "I163", text: "GHOJADANGA LANDPORT" },
+  { value: "I033", text: "GOA AIRPORT (DABOLIM)" },
+  { value: "I034", text: "GOA AIRPORT (MOPA)" },
+  { value: "I283", text: "GOA SEAPORT" },
+  { value: "I019", text: "GUWAHATI AIRPORT" },
+  { value: "I204", text: "HALDIA SEAPORT" },
+  { value: "I162", text: "HARIDASPUR LANDPORT" },
+  { value: "I229", text: "HAZIRA SEAPORT" },
+  { value: "I041", text: "HYDERABAD AIRPORT" },
+  { value: "I017", text: "INDORE AIRPORT" },
+  { value: "I199", text: "JAIGAON LANDPORT" },
+  { value: "I006", text: "JAIPUR AIRPORT" },
+  { value: "I119", text: "JOGBANI LANDPORT" },
+  { value: "I258", text: "KAKINADA SEAPORT" },
+  { value: "I207", text: "KAMARAJAR SEAPORT" },
+  { value: "I234", text: "KANDLA SEAPORT" },
+  { value: "I030", text: "KANNUR AIRPORT" },
+  { value: "I211", text: "KARAIKAL SEAPORT" },
+  { value: "I209", text: "KATTUPALI SEAPORT" },
+  { value: "I002", text: "KOLKATA AIRPORT" },
+  { value: "I202", text: "KOLKATA SEAPORT" },
+  { value: "I212", text: "KOLLAM SEAPORT" },
+  { value: "I227", text: "KRISHNAPATNAM SEAPORT" },
+  { value: "I021", text: "LUCKNOW AIRPORT" },
+  { value: "I015", text: "MADURAI AIRPORT" },
+  { value: "I272", text: "MANDVI SEAPORT" },
+  { value: "I092", text: "MANGALORE AIRPORT" },
+  { value: "I293", text: "MANGALORE SEAPORT" },
+  { value: "I126", text: "MOREH LANDPORT" },
+  { value: "I001", text: "MUMBAI AIRPORT" },
+  { value: "I201", text: "MUMBAI SEAPORT" },
+  { value: "I222", text: "MUNDRA SEAPORT" },
+  { value: "I238", text: "NAGAPATTINAM SEAPORT" },
+  { value: "I016", text: "NAGPUR AIRPORT" },
+  { value: "I044", text: "NAVI MUMBAI AIRPORT" },
+  { value: "I240", text: "NHAVA SHEVA SEAPORT" },
+  { value: "I291", text: "PARADEEP SEAPORT" },
+  { value: "I231", text: "PIPAVAV SEAPORT" },
+  { value: "I220", text: "PORBANDAR SEAPORT" },
+  { value: "I077", text: "PORTBLAIR AIRPORT" },
+  { value: "I277", text: "PORT BLAIR SEAPORT" },
+  { value: "I026", text: "PUNE AIRPORT" },
+  { value: "I112", text: "RAXAUL LANDPORT" },
+  { value: "I153", text: "RUPAIDIHA LANDPORT" },
+  { value: "I218", text: "SIKKA SEAPORT" },
+  { value: "I029", text: "SURAT AIRPORT" },
+  { value: "I003", text: "TIRUCHIRAPALLI AIRPORT" },
+  { value: "I042", text: "TIRUPATI AIRPORT" },
+  { value: "I023", text: "TRIVANDRUM AIRPORT" },
+  { value: "I219", text: "TUNA TEKRA SEAPORT" },
+  { value: "I237", text: "TUTICORIN SEAPORT" },
+  { value: "I223", text: "VALLARPADAM SEAPORT" },
+  { value: "I007", text: "VARANASI AIRPORT" },
+  { value: "I043", text: "VIJAYAWADA AIRPORT" },
+  { value: "I025", text: "VISHAKHAPATNAM AIRPORT" },
+  { value: "I225", text: "VISHAKHAPATNAM SEAPORT" },
+  { value: "I228", text: "VIZHINJAM INTERNATIONAL SEAPORT" },
+  { value: "I226", text: "VIZHINJAM SEAPORT" },
 ];
 
-const OCCUPATION_OPTIONS = [
-  { value: "employed", text: "Employed" },
-  { value: "self_employed", text: "Self-employed" },
-  { value: "businessperson", text: "Businessperson" },
-  { value: "student", text: "Student" },
-  { value: "retired", text: "Retired" },
-  { value: "homemaker", text: "Homemaker" },
-  { value: "unemployed", text: "Unemployed" },
-  { value: "government_service", text: "Government service" },
-  { value: "media", text: "Media / Journalist" },
-  { value: "other", text: "Other" },
-];
-
-// India e-Visa categories per Bureau of Immigration. Tourist purpose
-// covers sightseeing / casual visit / yoga / short courses / volunteer.
-const PURPOSE_OF_VISIT_OPTIONS = [
-  { value: "tourism", text: "Tourism (sightseeing, casual visit, yoga, short courses, volunteer)" },
-  { value: "business", text: "Business (meetings, sales, conferences as business invitee)" },
-  { value: "medical", text: "Medical treatment (patient)" },
-  { value: "medical_attendant", text: "Medical Attendant (accompanying patient)" },
-  { value: "conference", text: "Conference (attending an MEA-cleared conference)" },
-];
-
-const VISA_TYPE_REQUESTED_OPTIONS = [
-  { value: "tourist_30d", text: "e-Tourist Visa — 30 days, double entry, ~USD 25" },
-  { value: "tourist_1y", text: "e-Tourist Visa — 1 year, multiple entry, max 90-day stay (180 for US/UK/CA/JP), ~USD 40" },
-  { value: "tourist_5y", text: "e-Tourist Visa — 5 years, multiple entry, max 90-day stay per visit, ~USD 80" },
-  { value: "business_1y", text: "e-Business Visa — 1 year, multiple entry, max 180-day stay, ~USD 80" },
-  { value: "medical_60d", text: "e-Medical Visa — 60 days, triple entry, ~USD 80" },
-  { value: "medical_attendant_60d", text: "e-Medical Attendant Visa — 60 days, triple entry, ~USD 80" },
-  { value: "conference_30d", text: "e-Conference Visa — 30 days, single entry, ~USD 80" },
-];
-
-const PORT_OF_ENTRY_OPTIONS = [
-  { value: "delhi_del", text: "Indira Gandhi International Airport, Delhi (DEL)" },
-  { value: "mumbai_bom", text: "Chhatrapati Shivaji Maharaj International Airport, Mumbai (BOM)" },
-  { value: "bangalore_blr", text: "Kempegowda International Airport, Bengaluru (BLR)" },
-  { value: "chennai_maa", text: "Chennai International Airport (MAA)" },
-  { value: "kolkata_ccu", text: "Netaji Subhas Chandra Bose International Airport, Kolkata (CCU)" },
-  { value: "hyderabad_hyd", text: "Rajiv Gandhi International Airport, Hyderabad (HYD)" },
-  { value: "ahmedabad_amd", text: "Sardar Vallabhbhai Patel International Airport, Ahmedabad (AMD)" },
-  { value: "kochi_cok", text: "Cochin International Airport (COK)" },
-  { value: "goa_goi", text: "Manohar International Airport, Goa (GOX)" },
-  { value: "amritsar_atq", text: "Sri Guru Ram Dass Jee International Airport, Amritsar (ATQ)" },
-  { value: "lucknow_lko", text: "Chaudhary Charan Singh International Airport, Lucknow (LKO)" },
-  { value: "pune_pnq", text: "Pune International Airport (PNQ)" },
-  { value: "trivandrum_trv", text: "Trivandrum International Airport (TRV)" },
-  { value: "mumbai_seaport", text: "Mumbai Seaport (cruise)" },
-  { value: "chennai_seaport", text: "Chennai Seaport (cruise)" },
-  { value: "cochin_seaport", text: "Cochin Seaport (cruise)" },
-  { value: "goa_seaport", text: "Mormugao Port, Goa (cruise)" },
-  { value: "mangalore_seaport", text: "New Mangalore Seaport (cruise)" },
-  { value: "other", text: "Other" },
-];
-
-const ACCOMMODATION_TYPE_OPTIONS = [
-  { value: "hotel", text: "Hotel" },
-  { value: "resort", text: "Resort" },
-  { value: "rental_apartment", text: "Holiday rental / Service apartment" },
-  { value: "host_residence", text: "Residence of host (friend or relative)" },
-  { value: "guesthouse", text: "Guesthouse / Homestay" },
-  { value: "ashram", text: "Ashram / Spiritual retreat" },
-  { value: "hospital", text: "Hospital (medical visa)" },
-  { value: "other", text: "Other" },
-];
-
-const EXPENSE_BEARER_OPTIONS = [{ value: "self", text: "Self" }, { value: "employer", text: "Employer" }, { value: "family", text: "Family member" }, { value: "host", text: "Host / Sponsor in India" }, { value: "indian_company", text: "Indian company (business invitee)" }, { value: "indian_hospital", text: "Indian hospital (medical visa)" }, { value: "other", text: "Other" }];
+const PRIOR_NAME = "has_changed_name === yes";
+const OTHER_RELIGION = "religion === other";
+const OTHER_DOCUMENT = "has_other_valid_travel_document === yes";
+const DIFFERENT_PERMANENT_ADDRESS = "permanent_address_same_as_present === no";
+const PAKISTAN_ANCESTRY = "has_pakistan_parent_or_grandparent_history === yes";
+const VISITED_INDIA = "visited_india_before === yes";
+const INDIA_PERMISSION_REFUSED = "india_permission_previously_refused === yes";
+const VISITED_SAARC = "visited_saarc_last_three_years === yes";
 
 const FIELDS: FieldDef[] = [
-  // STEP 1: Personal Information
-  { field_name: "surname", label: "Surname (Family name)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 1, validation_rules: { maxLength: 50 } },
-  { field_name: "given_names", label: "Given and middle names", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 2, validation_rules: { maxLength: 80 } },
-  { field_name: "has_other_names_used", label: "Have you ever been known by any other names (former names, maiden name, aliases)?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 3, options: YES_NO },
-  { field_name: "other_names_used", label: "Other names used", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 4, conditional_logic: { showIf: HAS_OTHER_NAMES }, validation_rules: { maxLength: 120 } },
-  { field_name: "sex", label: "Sex", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 5, options: SEX_OPTIONS },
-  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Personal Information", display_order: 6, validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "place_of_birth_city", label: "Place of birth — City / Town / Village", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 7, validation_rules: { maxLength: 60, block_group: "place_of_birth" } },
-  { field_name: "place_of_birth_country", label: "Place of birth — Country", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 8, validation_rules: { source: "ISO3166-1", block_group: "place_of_birth" } },
-  { field_name: "nationality", label: "Current nationality / citizenship", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 9, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "religion", label: "Religion", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 10, options: RELIGION_OPTIONS },
-  { field_name: "saarc_nationality", label: "Are you a SAARC national or were you ever a citizen of a SAARC country (Bangladesh, Bhutan, Nepal, Pakistan, Sri Lanka, Maldives, Afghanistan)?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 11, options: YES_NO },
-  { field_name: "saarc_country_visit_history", label: "Provide details of SAARC-country residence / citizenship history", field_type: "textarea", required: true, step_number: 1, step_name: "Personal Information", display_order: 12, conditional_logic: { showIf: SAARC_NATIONALITY }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_other_nationalities", label: "Do you hold any other nationality / citizenship?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 13, options: YES_NO },
-  { field_name: "other_nationality", label: "Other nationality / citizenship", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 14, conditional_logic: { showIf: HAS_OTHER_NATIONALITIES }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_nationalities", max_items: 3 } },
-  { field_name: "national_id_number", label: "National ID number (if your country issues one)", field_type: "text", required: false, step_number: 1, step_name: "Personal Information", display_order: 15, validation_rules: { maxLength: 30 } },
-  { field_name: "marital_status", label: "Marital status", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 16, options: MARITAL_STATUS_OPTIONS },
-  { field_name: "spouse_full_name", label: "Spouse — Full name", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 17, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 120, block_group: "spouse" } },
-  { field_name: "spouse_nationality", label: "Spouse — Nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 18, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { source: "ISO3166-1", block_group: "spouse" } },
-  { field_name: "father_full_name", label: "Father's full name", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 19, validation_rules: { maxLength: 120 } },
-  { field_name: "father_nationality", label: "Father's nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 20, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "father_place_of_birth", label: "Father's place of birth (city, country)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 21, validation_rules: { maxLength: 120 } },
-  { field_name: "mother_full_name", label: "Mother's full name (including maiden name)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 22, validation_rules: { maxLength: 120 } },
-  { field_name: "mother_nationality", label: "Mother's nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 23, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "mother_place_of_birth", label: "Mother's place of birth (city, country)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 24, validation_rules: { maxLength: 120 } },
+  // Step 1 — public registration screen. Duplicate-email confirmation and
+  // CAPTCHA are UI/session controls and deliberately not answer fields.
+  { field_name: "nationality", label: "Nationality/region", field_type: "country", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 1, validation_rules: { source: "official-evisa-nationality-list", official_field: "appl.nationality" } },
+  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 2, options: [{ value: "1", text: "Ordinary Passport" }], validation_rules: { official_field: "appl.ppt_type_id", note: "Non-ordinary passport holders are not eligible for this product." } },
+  { field_name: "port_of_arrival", label: "Port of arrival", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 3, options: PORT_OPTIONS, validation_rules: { official_field: "appl.missioncode", official_values_preserved: true } },
+  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 4, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.birthdate" } },
+  { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 5, validation_rules: { maxLength: 50, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", official_field: "appl.email" } },
+  { field_name: "tourist_validity", label: "e-Tourist Visa validity", field_type: "radio", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 6, options: TOURIST_VALIDITY_OPTIONS, validation_rules: { official_service_ids: { "30_days": "31", "1_year": "3", "5_years": "32" } } },
+  { field_name: "tourist_purpose", label: "Purpose of the e-Tourist visit", field_type: "select", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 7, options: TOURIST_PURPOSE_OPTIONS, validation_rules: { official_field: "evisa_purpose", official_purpose_ids_by_validity: { "30_days": { recreation_sightseeing: "251", meeting_friends_relatives: "252", short_term_yoga: "253", short_term_course: "259", voluntary_work: "260" }, "1_year": { recreation_sightseeing: "21", meeting_friends_relatives: "22", short_term_yoga: "23", short_term_course: "257", voluntary_work: "258" }, "5_years": { recreation_sightseeing: "254", meeting_friends_relatives: "255", short_term_yoga: "256", short_term_course: "261", voluntary_work: "262" } } } },
+  { field_name: "expected_arrival_date", label: "Expected date of arrival", field_type: "date", required: true, step_number: 1, step_name: "Registration & Eligibility", display_order: 8, validation_rules: { format: "DD/MM/YYYY", official_field: "appl.journeydate" } },
 
-  // STEP 2: Passport
-  { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 1, validation_rules: { maxLength: 20 } },
-  { field_name: "passport_type", label: "Passport type", field_type: "select", required: true, step_number: 2, step_name: "Passport", display_order: 2, options: PASSPORT_TYPE_OPTIONS },
-  { field_name: "passport_issuing_country", label: "Passport issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 3, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "passport_place_of_issue", label: "Place of issue", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 4, validation_rules: { maxLength: 100 } },
-  { field_name: "passport_issue_date", label: "Date of issue", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 5, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
-  { field_name: "passport_expiry_date", label: "Date of expiry (must be valid 6+ months beyond intended departure)", field_type: "date", required: true, step_number: 2, step_name: "Passport", display_order: 6, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
-  { field_name: "has_other_passports", label: "Do you currently hold or have you previously held any other passport (incl. Pakistan / Bangladesh)?", field_type: "radio", required: true, step_number: 2, step_name: "Passport", display_order: 7, options: YES_NO },
-  { field_name: "other_passport_number", label: "Other passport number", field_type: "text", required: true, step_number: 2, step_name: "Passport", display_order: 8, conditional_logic: { showIf: HAS_OTHER_PASSPORTS }, validation_rules: { maxLength: 20, repeatable: true, repeat_group: "other_passports", max_items: 3 } },
-  { field_name: "other_passport_country", label: "Other passport — Issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport", display_order: 9, conditional_logic: { showIf: HAS_OTHER_PASSPORTS }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_passports" } },
+  // Step 2 — applicant and travel-document details.
+  { field_name: "surname", label: "Surname / family name, exactly as in your passport", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 1, validation_rules: { maxLength: 50 } },
+  { field_name: "given_names", label: "Given name(s), exactly as in your passport", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 2, validation_rules: { maxLength: 50 } },
+  { field_name: "has_changed_name", label: "Have you ever changed your name?", field_type: "radio", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 3, options: YES_NO },
+  { field_name: "previous_name_details", label: "Previous name details", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 4, conditional_logic: { showIf: PRIOR_NAME }, validation_rules: { maxLength: 120 } },
+  { field_name: "gender", label: "Gender", field_type: "select", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 5, options: GENDER_OPTIONS },
+  { field_name: "birth_town_city", label: "Town/city of birth", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 6, validation_rules: { maxLength: 60 } },
+  { field_name: "birth_country", label: "Country of birth", field_type: "country", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 7, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "national_id_number", label: "Citizenship / national identification number", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 8, placeholder: "Enter NA if not applicable", validation_rules: { maxLength: 40 } },
+  { field_name: "religion", label: "Religion", field_type: "select", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 9, options: RELIGION_OPTIONS },
+  { field_name: "religion_other", label: "Specify religion", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 10, conditional_logic: { showIf: OTHER_RELIGION }, validation_rules: { maxLength: 50 } },
+  { field_name: "visible_identification_marks", label: "Visible identification marks", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 11, validation_rules: { maxLength: 120 } },
+  { field_name: "educational_qualification", label: "Educational qualification", field_type: "select", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 12, options: EDUCATION_OPTIONS },
+  { field_name: "nationality_acquisition", label: "Did you acquire nationality by birth or by naturalization?", field_type: "radio", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 13, options: NATIONALITY_ACQUISITION_OPTIONS },
+  { field_name: "lived_two_years_in_application_country", label: "Have you lived for at least two years in the country where you are applying?", field_type: "radio", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 14, options: YES_NO },
+  { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 15, validation_rules: { maxLength: 20, block_group: "passport" } },
+  { field_name: "passport_place_of_issue", label: "Place of issue", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 16, validation_rules: { maxLength: 100, block_group: "passport" } },
+  { field_name: "passport_issue_date", label: "Passport issue date", field_type: "date", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 17, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates", block_group: "passport" } },
+  { field_name: "passport_expiry_date", label: "Passport expiry date", field_type: "date", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 18, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates", block_group: "passport", note: "Passport must have at least six months' validity when applying." } },
+  { field_name: "has_other_valid_travel_document", label: "Do you hold any other valid passport or identity certificate?", field_type: "radio", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 19, options: YES_NO },
+  { field_name: "other_document_country_of_issue", label: "Other document — Country of issue", field_type: "country", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 20, conditional_logic: { showIf: OTHER_DOCUMENT }, validation_rules: { source: "ISO3166-1", block_group: "other_travel_document" } },
+  { field_name: "other_document_number", label: "Other passport / identity certificate number", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 21, conditional_logic: { showIf: OTHER_DOCUMENT }, validation_rules: { maxLength: 30, block_group: "other_travel_document" } },
+  { field_name: "other_document_issue_date", label: "Other document — Issue date", field_type: "date", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 22, conditional_logic: { showIf: OTHER_DOCUMENT }, validation_rules: { format: "DD/MM/YYYY", block_group: "other_travel_document" } },
+  { field_name: "other_document_place_of_issue", label: "Other document — Place of issue", field_type: "text", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 23, conditional_logic: { showIf: OTHER_DOCUMENT }, validation_rules: { maxLength: 100, block_group: "other_travel_document" } },
+  { field_name: "other_document_nationality", label: "Other document — Nationality mentioned therein", field_type: "country", required: true, step_number: 2, step_name: "Applicant & Passport Details", display_order: 24, conditional_logic: { showIf: OTHER_DOCUMENT }, validation_rules: { source: "ISO3166-1", block_group: "other_travel_document" } },
 
-  // STEP 3: Contact & Home Address
-  { field_name: "home_address_line1", label: "Home address — House / Street", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 1, validation_rules: { maxLength: 200, block_group: "home_address" } },
-  { field_name: "home_address_city", label: "Home address — City / Town", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 2, validation_rules: { maxLength: 80, block_group: "home_address" } },
-  { field_name: "home_address_state", label: "Home address — State / Province", field_type: "text", required: false, step_number: 3, step_name: "Contact & Home Address", display_order: 3, validation_rules: { maxLength: 80, block_group: "home_address" } },
-  { field_name: "home_address_postcode", label: "Home address — Postal code / ZIP", field_type: "text", required: false, step_number: 3, step_name: "Contact & Home Address", display_order: 4, validation_rules: { maxLength: 20, block_group: "home_address" } },
-  { field_name: "home_address_country", label: "Home address — Country of residence", field_type: "country", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 5, validation_rules: { source: "ISO3166-1", block_group: "home_address" } },
-  { field_name: "mobile_number", label: "Mobile number", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 6, validation_rules: { maxLength: 30 } },
-  { field_name: "email_address", label: "Email address", field_type: "text", required: true, step_number: 3, step_name: "Contact & Home Address", display_order: 7, validation_rules: { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
+  // Step 3 — address and family details.
+  { field_name: "present_house_street", label: "Present address — House number / street", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 1, validation_rules: { maxLength: 35, block_group: "present_address" } },
+  { field_name: "present_village_town_city", label: "Present address — Village / town / city", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 2, validation_rules: { maxLength: 35, block_group: "present_address" } },
+  { field_name: "present_country", label: "Present address — Country", field_type: "country", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 3, validation_rules: { source: "ISO3166-1", block_group: "present_address" } },
+  { field_name: "present_state_province_district", label: "Present address — State / province / district", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 4, validation_rules: { maxLength: 35, block_group: "present_address" } },
+  { field_name: "present_postal_code", label: "Present address — Postal / ZIP code", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 5, validation_rules: { maxLength: 20, block_group: "present_address" } },
+  { field_name: "phone_number", label: "Phone number", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 6, validation_rules: { maxLength: 30 } },
+  { field_name: "mobile_number", label: "Mobile number", field_type: "text", required: false, step_number: 3, step_name: "Address & Family Details", display_order: 7, validation_rules: { maxLength: 30 } },
+  { field_name: "permanent_address_same_as_present", label: "Is your permanent address the same as your present address?", field_type: "radio", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 8, options: YES_NO },
+  { field_name: "permanent_house_street", label: "Permanent address — House number / street", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 9, conditional_logic: { showIf: DIFFERENT_PERMANENT_ADDRESS }, validation_rules: { maxLength: 35, block_group: "permanent_address" } },
+  { field_name: "permanent_village_town_city", label: "Permanent address — Village / town / city", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 10, conditional_logic: { showIf: DIFFERENT_PERMANENT_ADDRESS }, validation_rules: { maxLength: 35, block_group: "permanent_address" } },
+  { field_name: "permanent_state_province_district", label: "Permanent address — State / province / district", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 11, conditional_logic: { showIf: DIFFERENT_PERMANENT_ADDRESS }, validation_rules: { maxLength: 35, block_group: "permanent_address" } },
+  { field_name: "father_name", label: "Father's name", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 12, validation_rules: { maxLength: 100, block_group: "father_details" } },
+  { field_name: "father_nationality", label: "Father's nationality", field_type: "country", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 13, validation_rules: { source: "ISO3166-1", block_group: "father_details" } },
+  { field_name: "father_previous_nationality", label: "Father's previous nationality", field_type: "country", required: false, step_number: 3, step_name: "Address & Family Details", display_order: 14, validation_rules: { source: "ISO3166-1", block_group: "father_details" } },
+  { field_name: "father_place_of_birth", label: "Father's place of birth", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 15, validation_rules: { maxLength: 100, block_group: "father_details" } },
+  { field_name: "father_country_of_birth", label: "Father's country of birth", field_type: "country", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 16, validation_rules: { source: "ISO3166-1", block_group: "father_details" } },
+  { field_name: "mother_name", label: "Mother's name", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 17, validation_rules: { maxLength: 100, block_group: "mother_details" } },
+  { field_name: "mother_nationality", label: "Mother's nationality", field_type: "country", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 18, validation_rules: { source: "ISO3166-1", block_group: "mother_details" } },
+  { field_name: "mother_previous_nationality", label: "Mother's previous nationality", field_type: "country", required: false, step_number: 3, step_name: "Address & Family Details", display_order: 19, validation_rules: { source: "ISO3166-1", block_group: "mother_details" } },
+  { field_name: "mother_place_of_birth", label: "Mother's place of birth", field_type: "text", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 20, validation_rules: { maxLength: 100, block_group: "mother_details" } },
+  { field_name: "mother_country_of_birth", label: "Mother's country of birth", field_type: "country", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 21, validation_rules: { source: "ISO3166-1", block_group: "mother_details" } },
+  { field_name: "marital_status", label: "Marital status", field_type: "select", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 22, options: MARITAL_STATUS_OPTIONS },
+  { field_name: "has_pakistan_parent_or_grandparent_history", label: "Were your parents or grandparents Pakistani nationals or did they belong to a Pakistan-held area?", field_type: "radio", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 23, options: YES_NO },
+  { field_name: "pakistan_parent_or_grandparent_details", label: "Give details of the Pakistan nationality or area connection", field_type: "textarea", required: true, step_number: 3, step_name: "Address & Family Details", display_order: 24, conditional_logic: { showIf: PAKISTAN_ANCESTRY }, validation_rules: { maxLength: 1000 } },
 
-  // STEP 4: Occupation
-  { field_name: "current_profession", label: "Current profession or occupation", field_type: "select", required: true, step_number: 4, step_name: "Occupation", display_order: 1, options: OCCUPATION_OPTIONS },
-  { field_name: "position_title", label: "Position / Title", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 2, validation_rules: { maxLength: 80 } },
-  { field_name: "employer_or_school_name", label: "Name of employer or school", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 3, validation_rules: { maxLength: 120, block_group: "employer_details" } },
-  { field_name: "employer_or_school_address", label: "Address of employer or school", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 4, validation_rules: { maxLength: 200, block_group: "employer_details" } },
-  { field_name: "employer_or_school_phone", label: "Telephone of employer or school", field_type: "text", required: false, step_number: 4, step_name: "Occupation", display_order: 5, validation_rules: { maxLength: 30, block_group: "employer_details" } },
+  // Step 4 — visa, travel history, and references.
+  { field_name: "place_to_visit_1", label: "Place to be visited", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 1, validation_rules: { maxLength: 100 } },
+  { field_name: "place_to_visit_2", label: "Second place to be visited", field_type: "text", required: false, step_number: 4, step_name: "Visa, Travel History & References", display_order: 2, validation_rules: { maxLength: 100 } },
+  { field_name: "hotel_booked_through_tour_operator", label: "Have you booked a hotel or resort through a tour operator?", field_type: "radio", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 3, options: YES_NO },
+  { field_name: "expected_port_of_exit", label: "Expected port of exit from India", field_type: "select", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 4, options: PORT_OPTIONS, validation_rules: { official_values_preserved: true } },
+  { field_name: "visited_india_before", label: "Have you ever visited India before?", field_type: "radio", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 5, options: YES_NO },
+  { field_name: "previous_india_stay_address", label: "Address where you stayed during your last visit", field_type: "textarea", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 6, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { maxLength: 300, block_group: "previous_india_visa" } },
+  { field_name: "cities_previously_visited_in_india", label: "Cities previously visited in India", field_type: "textarea", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 7, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { maxLength: 500, block_group: "previous_india_visa" } },
+  { field_name: "previous_indian_visa_number", label: "Last or currently valid Indian visa number", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 8, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { maxLength: 40, block_group: "previous_india_visa" } },
+  { field_name: "previous_indian_visa_type", label: "Previous Indian visa type", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 9, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { maxLength: 80, official_control: "select", live_options_pending_capture: true, block_group: "previous_india_visa" } },
+  { field_name: "previous_indian_visa_place_of_issue", label: "Previous Indian visa — Place of issue", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 10, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { maxLength: 100, block_group: "previous_india_visa" } },
+  { field_name: "previous_indian_visa_issue_date", label: "Previous Indian visa — Date of issue", field_type: "date", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 11, conditional_logic: { showIf: VISITED_INDIA }, validation_rules: { format: "DD/MM/YYYY", block_group: "previous_india_visa" } },
+  { field_name: "india_permission_previously_refused", label: "Has permission to visit or extend stay in India previously been refused?", field_type: "radio", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 12, options: YES_NO },
+  { field_name: "india_permission_refusal_details", label: "When and by whom was permission refused? Include the control number and date", field_type: "textarea", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 13, conditional_logic: { showIf: INDIA_PERMISSION_REFUSED }, validation_rules: { maxLength: 1000 } },
+  { field_name: "countries_visited_last_ten_years", label: "Countries visited in the last 10 years", field_type: "textarea", required: false, step_number: 4, step_name: "Visa, Travel History & References", display_order: 14, validation_rules: { maxLength: 2000, official_control: "multi_select" } },
+  { field_name: "visited_saarc_last_three_years", label: "Have you visited SAARC countries, except your own country, during the last 3 years?", field_type: "radio", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 15, options: YES_NO },
+  { field_name: "saarc_country", label: "SAARC country visited", field_type: "country", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 16, conditional_logic: { showIf: VISITED_SAARC }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "saarc_visits", max_items: 8 } },
+  { field_name: "saarc_visit_year", label: "Year of SAARC visit", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 17, conditional_logic: { showIf: VISITED_SAARC }, validation_rules: { pattern: "^[0-9]{4}$", repeatable: true, repeat_group: "saarc_visits" } },
+  { field_name: "saarc_number_of_visits", label: "Number of visits", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 18, conditional_logic: { showIf: VISITED_SAARC }, validation_rules: { pattern: "^[1-9][0-9]*$", repeatable: true, repeat_group: "saarc_visits" } },
+  { field_name: "india_reference_name", label: "Reference name in India", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 19, validation_rules: { maxLength: 100, block_group: "india_reference" } },
+  { field_name: "india_reference_address", label: "Reference address in India", field_type: "textarea", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 20, validation_rules: { maxLength: 300, block_group: "india_reference" } },
+  { field_name: "india_reference_phone", label: "Reference phone number in India", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 21, validation_rules: { maxLength: 30, block_group: "india_reference" } },
+  { field_name: "home_country_reference_name", label: "Reference name in your home country", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 22, validation_rules: { maxLength: 100, block_group: "home_country_reference" } },
+  { field_name: "home_country_reference_address", label: "Reference address in your home country", field_type: "textarea", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 23, validation_rules: { maxLength: 300, block_group: "home_country_reference" } },
+  { field_name: "home_country_reference_phone", label: "Reference phone number in your home country", field_type: "text", required: true, step_number: 4, step_name: "Visa, Travel History & References", display_order: 24, validation_rules: { maxLength: 30, block_group: "home_country_reference" } },
 
-  // STEP 5: Trip Details
-  { field_name: "visa_type_requested", label: "Visa type requested", field_type: "radio", required: true, step_number: 5, step_name: "Trip Details", display_order: 1, options: VISA_TYPE_REQUESTED_OPTIONS },
-  { field_name: "purpose_of_visit", label: "Purpose of visit to India", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 2, options: PURPOSE_OF_VISIT_OPTIONS },
-  { field_name: "intended_arrival_date", label: "Intended date of arrival in India", field_type: "date", required: true, step_number: 5, step_name: "Trip Details", display_order: 3, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
-  { field_name: "intended_length_of_stay", label: "Intended length of stay (days, max 180)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 4, validation_rules: { pattern: "^(?:[1-9]|[1-9][0-9]|1[0-7][0-9]|180)$", inline_group: "trip_dates" } },
-  { field_name: "port_of_entry", label: "Intended port of entry", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 5, options: PORT_OF_ENTRY_OPTIONS },
-  { field_name: "port_of_entry_other", label: "Specify other port of entry", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 6, conditional_logic: { showIf: "port_of_entry === other" }, validation_rules: { maxLength: 80 } },
-  { field_name: "carrier_name", label: "Name of airline, ship, or transport carrier", field_type: "text", required: false, step_number: 5, step_name: "Trip Details", display_order: 7, placeholder: "e.g. Air India, IndiGo, Vistara", validation_rules: { maxLength: 80 } },
-  { field_name: "cities_to_visit", label: "Cities / Places intended to visit in India", field_type: "textarea", required: true, step_number: 5, step_name: "Trip Details", display_order: 8, placeholder: "e.g. Delhi, Agra, Jaipur, Varanasi, Goa", validation_rules: { maxLength: 500 } },
-  { field_name: "accommodation_type", label: "Type of accommodation in India", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 9, options: ACCOMMODATION_TYPE_OPTIONS },
-  { field_name: "accommodation_name", label: "Name of hotel or property (first stop)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 10, validation_rules: { maxLength: 120, block_group: "accommodation_details" } },
-  { field_name: "accommodation_address", label: "Address in India (first stop)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 11, validation_rules: { maxLength: 200, block_group: "accommodation_details" } },
-  { field_name: "accommodation_city", label: "City / State in India (first stop)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 12, validation_rules: { maxLength: 80, block_group: "accommodation_details" } },
-  { field_name: "accommodation_phone", label: "Telephone of accommodation", field_type: "text", required: false, step_number: 5, step_name: "Trip Details", display_order: 13, validation_rules: { maxLength: 30, block_group: "accommodation_details" } },
-  { field_name: "expense_bearer", label: "Who will cover the expenses for your visit?", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 14, options: EXPENSE_BEARER_OPTIONS },
-
-  // STEP 6: Purpose-Specific Details (sub-journey gated by purpose_of_visit)
-  // Business
-  { field_name: "in_business_company_name", label: "Indian business invitee — Company name", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 1, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 200, block_group: "business" } },
-  { field_name: "in_business_address", label: "Indian business invitee — Address", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 2, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 200, block_group: "business" } },
-  { field_name: "in_business_phone", label: "Indian business invitee — Phone", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 3, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 30, block_group: "business" } },
-  { field_name: "in_business_purpose", label: "Nature of business activity", field_type: "textarea", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 4, conditional_logic: { showIf: IS_BUSINESS }, validation_rules: { maxLength: 1000, block_group: "business" } },
-  // Medical
-  { field_name: "in_medical_hospital_name", label: "Indian hospital — Name", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 5, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 200, block_group: "medical" } },
-  { field_name: "in_medical_hospital_address", label: "Indian hospital — Address", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 6, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 200, block_group: "medical" } },
-  { field_name: "in_medical_hospital_phone", label: "Indian hospital — Phone", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 7, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 30, block_group: "medical" } },
-  { field_name: "in_medical_treatment_purpose", label: "Nature of medical treatment", field_type: "textarea", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 8, conditional_logic: { showIf: IS_MEDICAL }, validation_rules: { maxLength: 1000, block_group: "medical" } },
-  // Conference
-  { field_name: "in_conference_name", label: "Conference — Name", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 9, conditional_logic: { showIf: IS_CONFERENCE }, validation_rules: { maxLength: 200, block_group: "conference" } },
-  { field_name: "in_conference_dates", label: "Conference — Dates", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 10, conditional_logic: { showIf: IS_CONFERENCE }, placeholder: "DD/MM/YYYY-DD/MM/YYYY", validation_rules: { maxLength: 80, block_group: "conference" } },
-  { field_name: "in_conference_organiser", label: "Conference — Organiser", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 11, conditional_logic: { showIf: IS_CONFERENCE }, validation_rules: { maxLength: 200, block_group: "conference" } },
-  { field_name: "in_conference_mea_clearance_number", label: "Conference — MEA political clearance number", field_type: "text", required: true, step_number: 6, step_name: "Purpose-Specific Details", display_order: 12, conditional_logic: { showIf: IS_CONFERENCE }, validation_rules: { maxLength: 50, block_group: "conference" } },
-
-  // STEP 7: Host (optional)
-  { field_name: "has_host_in_india", label: "Do you have a host (friend, relative, or sponsor) in India?", field_type: "radio", required: true, step_number: 7, step_name: "Host in India", display_order: 1, options: YES_NO },
-  { field_name: "host_full_name", label: "Host — Full name", field_type: "text", required: true, step_number: 7, step_name: "Host in India", display_order: 2, conditional_logic: { showIf: HAS_HOST_IN_IN }, validation_rules: { maxLength: 120, block_group: "host" } },
-  { field_name: "host_relationship_to_applicant", label: "Host — Relationship to applicant", field_type: "text", required: true, step_number: 7, step_name: "Host in India", display_order: 3, conditional_logic: { showIf: HAS_HOST_IN_IN }, validation_rules: { maxLength: 80, block_group: "host" } },
-  { field_name: "host_address", label: "Host — Address in India", field_type: "text", required: true, step_number: 7, step_name: "Host in India", display_order: 4, conditional_logic: { showIf: HAS_HOST_IN_IN }, validation_rules: { maxLength: 200, block_group: "host" } },
-  { field_name: "host_phone", label: "Host — Telephone (incl. country code)", field_type: "text", required: true, step_number: 7, step_name: "Host in India", display_order: 5, conditional_logic: { showIf: HAS_HOST_IN_IN }, validation_rules: { maxLength: 30, block_group: "host" } },
-  { field_name: "host_aadhaar_or_passport", label: "Host — Aadhaar / PAN / passport number", field_type: "text", required: true, step_number: 7, step_name: "Host in India", display_order: 6, conditional_logic: { showIf: HAS_HOST_IN_IN }, validation_rules: { maxLength: 30, block_group: "host" } },
-
-  // STEP 8: Travel History
-  { field_name: "visited_india_before", label: "Have you ever visited India before?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History", display_order: 1, options: YES_NO },
-  { field_name: "prior_in_visit_arrival_date", label: "Prior India visit — Arrival date", field_type: "date", required: true, step_number: 8, step_name: "Travel History", display_order: 2, conditional_logic: { showIf: VISITED_IN_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_in_visits", max_items: 5 } },
-  { field_name: "prior_in_visit_departure_date", label: "Prior India visit — Departure date", field_type: "date", required: true, step_number: 8, step_name: "Travel History", display_order: 3, conditional_logic: { showIf: VISITED_IN_BEFORE }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "prior_in_visits" } },
-  { field_name: "prior_in_visit_purpose", label: "Prior India visit — Purpose", field_type: "text", required: true, step_number: 8, step_name: "Travel History", display_order: 4, conditional_logic: { showIf: VISITED_IN_BEFORE }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "prior_in_visits" } },
-  { field_name: "prior_in_visa_number", label: "Prior India visit — Visa number (if known)", field_type: "text", required: false, step_number: 8, step_name: "Travel History", display_order: 5, conditional_logic: { showIf: VISITED_IN_BEFORE }, validation_rules: { maxLength: 30, repeatable: true, repeat_group: "prior_in_visits" } },
-  { field_name: "refused_visa_or_entry_india", label: "Have you ever been refused a visa to, or denied entry into, India?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History", display_order: 6, options: YES_NO },
-  { field_name: "refused_visa_in_details", label: "Provide details", field_type: "textarea", required: true, step_number: 8, step_name: "Travel History", display_order: 7, conditional_logic: { showIf: REFUSED_VISA_IN }, validation_rules: { maxLength: 1000 } },
-  { field_name: "refused_visa_other_country", label: "Have you ever been refused a visa to, or denied entry into, any other country?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History", display_order: 8, options: YES_NO },
-  { field_name: "refused_visa_other_country_details", label: "Provide details", field_type: "textarea", required: true, step_number: 8, step_name: "Travel History", display_order: 9, conditional_logic: { showIf: REFUSED_VISA_OTHER }, validation_rules: { maxLength: 1000 } },
-  { field_name: "countries_visited_last_10_years", label: "Countries visited in the last 10 years", field_type: "textarea", required: true, step_number: 8, step_name: "Travel History", display_order: 10, validation_rules: { maxLength: 2000 } },
-
-  // STEP 9: Character & Declaration
-  { field_name: "has_criminal_record", label: "Have you ever been convicted of a crime in any country?", field_type: "radio", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 1, options: YES_NO },
-  { field_name: "criminal_record_details", label: "Provide details", field_type: "textarea", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 2, conditional_logic: { showIf: HAS_CRIMINAL }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_been_deported", label: "Have you ever been deported from India or any other country?", field_type: "radio", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 3, options: YES_NO },
-  { field_name: "deportation_details", label: "Provide details", field_type: "textarea", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 4, conditional_logic: { showIf: HAS_DEPORTED }, validation_rules: { maxLength: 1500 } },
-  { field_name: "has_terrorism_or_security_history", label: "Have you ever been involved in terrorism, espionage, sabotage, narcotics trafficking, human trafficking, or any activity that might endanger public order or national security?", field_type: "radio", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 5, options: YES_NO },
-  { field_name: "remarks_special_circumstances", label: "Remarks / Special Circumstances (optional)", field_type: "textarea", required: false, step_number: 9, step_name: "Character & Declaration", display_order: 6, validation_rules: { maxLength: 2000 } },
-  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 7, validation_rules: { format: "DD/MM/YYYY" } },
-  { field_name: "final_declaration", label: "I hereby declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into the Republic of India.", field_type: "checkbox", required: true, step_number: 9, step_name: "Character & Declaration", display_order: 8, options: [{ value: "yes", text: "I agree" }] },
+  // Step 5 — six distinct official background questions.
+  { field_name: "arrested_prosecuted_or_convicted", label: "Have you ever been arrested, prosecuted, or convicted by a court of law in any country?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 1, options: YES_NO },
+  { field_name: "arrested_prosecuted_or_convicted_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 2, conditional_logic: { showIf: "arrested_prosecuted_or_convicted === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "refused_entry_or_deported", label: "Have you ever been refused entry to or deported by any country, including India?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 3, options: YES_NO },
+  { field_name: "refused_entry_or_deported_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 4, conditional_logic: { showIf: "refused_entry_or_deported === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "trafficking_abuse_or_financial_offence", label: "Have you ever engaged in human trafficking, drug trafficking, child abuse, crimes against women, an economic offence, or financial fraud?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 5, options: YES_NO },
+  { field_name: "trafficking_abuse_or_financial_offence_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 6, conditional_logic: { showIf: "trafficking_abuse_or_financial_offence === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "cybercrime_terrorism_or_violence", label: "Have you ever engaged in cybercrime, terrorist activity, sabotage, espionage, genocide, political killing, or another act of violence?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 7, options: YES_NO },
+  { field_name: "cybercrime_terrorism_or_violence_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 8, conditional_logic: { showIf: "cybercrime_terrorism_or_violence === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "expressed_support_for_terrorist_violence", label: "Have you expressed views that justify or glorify terrorist violence, or encouraged others to commit terrorist or other serious criminal acts?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 9, options: YES_NO },
+  { field_name: "expressed_support_for_terrorist_violence_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 10, conditional_logic: { showIf: "expressed_support_for_terrorist_violence === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "sought_asylum", label: "Have you sought asylum, political or otherwise, in any country?", field_type: "radio", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 11, options: YES_NO },
+  { field_name: "sought_asylum_details", label: "Give details", field_type: "textarea", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 12, conditional_logic: { showIf: "sought_asylum === yes" }, validation_rules: { maxLength: 1500 } },
+  { field_name: "final_declaration", label: "I declare that the information furnished is correct to the best of my knowledge and belief, and I understand that false information may result in legal action, deportation, or blacklisting.", field_type: "checkbox", required: true, step_number: 5, step_name: "Additional Questions & Declaration", display_order: 13, options: [{ value: "yes", text: "I agree" }] },
 ];
 
 async function seed() {
   console.log(`Seeding ${FIELDS.length} fields for visa_type="${VISA_TYPE}"...\n`);
   const { error: delError } = await supabase.from("visa_form_fields").delete().eq("visa_type", VISA_TYPE);
-  if (delError) console.error(`Error deleting:`, delError.message); else console.log(`Cleared ${VISA_TYPE}`);
-  const rows = FIELDS.map((f) => toBilingualSeedRow(VISA_TYPE, f));
+  if (delError) console.error("Error deleting:", delError.message);
+  else console.log(`Cleared ${VISA_TYPE}`);
+
+  const rows = FIELDS.map((field) => toBilingualSeedRow(VISA_TYPE, field));
   const BATCH = 20;
   let total = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH);
     const { data, error } = await supabase.from("visa_form_fields").insert(batch).select("id");
     if (error) console.error(`Batch ${Math.floor(i / BATCH) + 1} error:`, error.message);
-    else { total += data?.length ?? 0; process.stdout.write(`Batch ${Math.floor(i / BATCH) + 1}: ${data?.length ?? 0} inserted\n`); }
+    else {
+      total += data?.length ?? 0;
+      process.stdout.write(`Batch ${Math.floor(i / BATCH) + 1}: ${data?.length ?? 0} inserted\n`);
+    }
   }
   console.log(`\nDone: ${total} rows seeded (${FIELDS.length} defined)`);
 }
 
-seed().catch((err) => { console.error(err); process.exit(1); });
+seed().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -1,5 +1,8 @@
 # Submission Service Agent Guide
 
+`src/deploy-readiness.ts` contains the pure safety decision used before a
+retained Fly machine is stopped or replaced; keep its focused test in sync.
+
 Scope: this file applies to `viza-be/submission-service/**`.
 
 ## Purpose
@@ -8,6 +11,23 @@ The submission service is a long-running Node/TypeScript worker that polls
 `submission_queue` and drives official portal automation with Playwright. Its
 product contract is reliable official-portal automation that completes form
 filling and one-shot submission for the applicant.
+
+## Concurrency phase-two strict cutover
+
+The phase-two migration and its RPC callers are a single controlled cutover;
+do not run mixed old/new claim contracts. Before changing the claim contract:
+
+1. Pause enqueue and wake publication at the frontend and worker boundaries.
+2. Drain the existing workers until `runner_job.status = 'running'` is zero,
+   then stop the BASE/legacy submission worker.
+3. Apply the strict phase-two migration and verify the exact RPC signatures and
+   service-role grants. Do not add a fallback wrapper or caller-controlled
+   timestamp override.
+4. Deploy the matching RPC callers, run the queue/cancellation/takeover smoke
+   checks, and resume enqueue and wakes only after all checks pass.
+
+Any false or zero-row result from a settlement/cancellation RPC is a conflict
+and must fail closed; callers must not perform a direct table settlement.
 
 ## User Override
 
@@ -57,14 +77,96 @@ filling and one-shot submission for the applicant.
 
 ## Key Flows
 
+- `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/queue/arrival-card-runners.ts` and
+  `src/queue/korea-eform-runner.ts`: shared-pool adapters for complete
+  MDAC/TDAC/Vietnam Pre-Arrival portal runs and Korea background e-Form
+  validation/readiness. Korea final-review browser, SMS, and KVAC appointment
+  sessions remain on the sticky Korea service.
 - `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
   Allows different account/country/provider work to run in parallel while
   serializing the same application and the same user/provider lane. The current
   single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
   wider product-scale concurrency uses `src/submission-queue-claim.ts` and
   migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- `src/queue/poll-backoff.ts`: exponential jittered database-outage backoff and
+  bounded queue error summaries; keep runner failures from amplifying a
+  degraded Supabase data plane or dumping provider HTML into logs.
+- `src/submission-queue-claim.ts`: all production `submission_queue` pickup,
+  including provider allowlists and targeted failed retries, goes through an
+  atomic service-role claim RPC. Missing/unavailable claim RPCs fail closed;
+  never add a plain table-select fallback because concurrent workers could run
+  the same official submission.
+- `src/queue/worker.ts`: shared `runner_job` settlement must call the
+  service-role-only `complete_runner_pool_job` RPC with the stable worker id.
+  Failure and renewal use the service-role-only `fail_runner_pool_job` and
+  `renew_runner_pool_job` RPCs, whose ownership predicates use PostgreSQL's
+  `clock_timestamp()` rather than a caller timestamp. Production callers do not
+  pass caller-controlled timestamps; all failure, renewal, and success writes
+  are fenced by status, owner, and a live lease; a typed
+  `runner_job_ownership_lost` result skips fallback failure writes, alerts, and
+  metrics so a stale worker cannot mutate a reclaimed job.
+- Queue handlers receive a `RunnerExecutionContext` with an `AbortSignal` and
+  `assertOwned` checkpoints. Lease renewal loss or expiry aborts the active
+  portal session, and every shared-pool adapter checks ownership immediately
+  before final official submit/payment and before persisting a successful or
+  failed local result. Cancellation/ownership errors must escape runner catch
+  blocks without being converted into portal failures.
+- `src/result-writer.ts` keeps `writeSubmissionResult` for explicitly non-pool
+  callers. Shared-pool adapters must use `writeRunnerPoolSubmissionResult`
+  with the required `jobId`/`workerId` execution identity; a missing identity,
+  rejected RPC, or zero-row RPC result must fail closed without a direct
+  `applications` update.
+- All six `runner_job` pool adapters require the dispatch `jobId` to exactly
+  match `RunnerExecutionContext.jobId` before loading answers, launching a
+  portal, persisting artifacts, or writing a result. The Vietnam legacy
+  `submission_queue` entrypoint is explicitly separate from its pool runner.
+- `src/queue/portal-safety.ts` is the shared boundary for cancellation-safe
+  portal clicks, dialog acceptance, and browser/session launch. Keep irreversible
+  actions behind its ownership checks, dismiss dialogs on lease loss, and close
+  resources when an abort races launch or listener handoff; resource-close
+  failures are best-effort and must not become unhandled rejections or replace
+  the typed ownership cancellation. The queue handler
+  reports ownership cancellation as `ownership_lost`, never as an ordinary
+  portal `failed` event.
+- `src/queue/handler.ts` treats `runner_job.flow_key` as required pool
+  identity. Null/blank flow keys fail before dispatch, so the pool consumer
+  never falls through to the legacy country dispatch table. The paid-order
+  backfill derives only explicit supported pool flows and always inserts the
+  exact non-null `flow_key`; Vietnam eVisa remains excluded because it uses
+  the sticky worker.
+- `src/queue/takeover.ts` requires the claiming `workerId` and filters the
+  update by `runner_job.id`, `status='running'`, and `leased_by` before
+  inserting a takeover session or sending an alert. A zero-row/`RETURN NULL`
+  update is a `RunnerJobOwnershipLostError` and creates no takeover side effects.
+- `src/vietnam/status-check-lease.ts`: Vietnam official-status checks are
+  worker-leased and may be completed or failed only by their claiming worker;
+  the consumer must honor a false conditional-RPC result as lost ownership.
+  Provider-gate denial uses the service-role-only
+  `defer_vn_official_status_check` RPC to requeue the live claim, reverse the
+  admission attempt, and avoid consuming portal retry budget.
+- `src/resilience-gate.ts` and `src/vietnam/status-tracking.ts`: each Vietnam
+  official status lookup optionally acquires the `vietnam`/`evisa/status`
+  provider gate with a 120-second fenced lease around official-portal I/O only.
+  The gate is disabled by default and fail-open only on transport/429/5xx
+  acquisition unavailability; an `at_capacity` or `capacity_mismatch` response
+  defers the check without opening the portal. Missing/invalid enabled config or
+  malformed/non-retryable responses fail loudly without marking the check failed.
+  PostgreSQL ownership remains authoritative for artifact/status settlement. A
+  lost gate or database lease skips both final completion and failure settlement,
+  and the exact latest lease/fencing token is released in `finally`. A typed
+  gate denial defers the current Postgres claim for a bounded 1–300 seconds;
+  configuration/protocol errors remain fail-loud and are never converted into
+  a failed official check.
+- Resilience gate configuration is server-only and read from
+  `VIZA_RESILIENCE_GATEWAY_URL`, `VIZA_RESILIENCE_HMAC_KEY_ID`,
+  `VIZA_RESILIENCE_HMAC_SECRET`, `RESILIENCE_VN_STATUS_GATE_ENABLED`, and
+  `RESILIENCE_VN_STATUS_GATE_CAPACITY`. Gateway requests use the Worker HMAC
+  contract and a three-second abort timeout; secrets, signatures, nonces, raw
+  bodies, and owner references must never be logged. This provider gate does not
+  create, retain, or scale runner machines.
 - Official-fee enqueue operations use migration
   `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
   claimed/running jobs are reused, and stale jobs for only that application
@@ -73,22 +175,56 @@ filling and one-shot submission for the applicant.
   `0119_submission_retry_queue_isolation.sql`: supersede-and-insert is one
   transaction, one application has at most one active browser job, and
   different application IDs remain independent queue items.
-- Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
-  `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
-  must remain false there. Only the dedicated legacy worker may poll
-  `submission_queue` during the migration.
+- Shared cloud topology uses `viza-runner-pool` for Vietnam Pre-Arrival,
+  Singapore, Malaysia, Thailand, Korea background, and Taiwan Entry Permit
+  `runner_job` flows.
+  Indonesia B1/C1 uses one retained sticky `viza-runner-indonesia` Machine and
+  its dedicated `submission_queue` claim RPC so its account, OTP, card and
+  payment state stay on one process. `src/runner-slot-lease.ts` binds every
+  started process to a database slot using `FLY_MACHINE_ID`; idle workers exit
+  after 120 seconds. Slot leases renew through the dedicated
+  `renew_runner_machine_slot` RPC every 60 seconds against a 30-minute lease.
+  A zero-row renewal or a returned slot-number mismatch is an authoritative
+  ownership loss: stop the renewal timer, mark the worker unhealthy, and shut
+  it down without switching slots. Temporary renewal/RPC errors retain the
+  current slot and never re-reserve; consecutive failures are emitted as
+  structured capacity diagnostics. Claim latency/outcome telemetry is written
+  to `runner_concurrency_metric` only with operational dimensions and no
+  applicant/job identifiers, and telemetry failures must never affect queue
+  behavior. The dedicated 4GB legacy worker remains authoritative for other
+  active `submission_queue` and maintenance work. The Korea worker remains
+  sticky for SMS, appointment, and continuous browser sessions.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
+  Retained workers drain database queues only at startup or after the
+  authenticated `/internal/submission-queue/wake` endpoint. Deployment must
+  provide the same `SUBMISSION_QUEUE_INTERNAL_TOKEN` to Vercel and every
+  retained Fly target; do not reintroduce an idle database claim loop.
+  `deploy/fly/fly.pool.toml` defines the retained shared pool without native
+  Fly autostart/autostop; application enqueue wakes exact capacity and the
+  scheduled reconciler is recovery-only.
+  `deploy/fly/fly.indonesia.toml` defines the one-CPU/2GB Indonesia sticky
+  Machine with scale-to-zero and one-job concurrency.
   `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
-  service to one always-on machine so an OTP request and its follow-up code use
-  the same in-memory official browser session.
-- `scripts/fly/` renders and deploys country workers, deploys the dedicated
-  legacy worker, syncs the three boot-required runtime secrets, and applies
-  autoscaler decisions. These scripts require operator-provided Fly
-  authentication and must never print or persist secret values.
-- `scripts/__tests__/fly-country-deploy-contract.test.mjs`: read-only deployment
-  contract test for supported country workers, app naming, queue mode, and
-  capability-secret routing. It never calls Fly or reads secret values.
+  service to one retained machine. Explicit server-side wake starts it, while
+  `/deploy-ready` blocks autoscaler stop whenever an SMS/cancellation browser
+  session is still in memory so the OTP request and follow-up code reach the
+  same process.
+- `scripts/fly/` renders and deploys country workers, the sticky Indonesia and
+  Korea services, the dedicated legacy worker and shared pool, syncs
+  boot-required runtime secrets, and applies autoscaler decisions without
+  stopping Machine IDs that own active
+  jobs. These scripts require operator-provided Fly authentication and must
+  never print or persist secret values.
+  The four retained production names may be overridden by
+  `FLY_RUNNER_POOL_APP`, `FLY_SUBMISSION_LEGACY_APP`,
+  `FLY_RUNNER_INDONESIA_APP`, and `FLY_RUNNER_SOUTH_KOREA_APP`; scripts retain
+  the original names when these variables are unset.
+  The production deploy workflow defaults `countries` to `none`: current
+  arrival-card background work belongs to the shared pool, while generic
+  country workers are legacy/operator-explicit only. `/deploy-ready` blocks
+  real queue claims and active user work, but does not treat interruptible
+  maintenance queries as protected browser work.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
@@ -96,6 +232,14 @@ filling and one-shot submission for the applicant.
   use the separate `claim_vn_cloud_submission_queue_batch` RPC and
   `vn_cloud_live_pending`; only the Fly legacy worker may enable
   `VN_CLOUD_QUEUE_ENABLED`.
+- `src/inbox/forwarding-consent.ts`: shared applicant-level authorization
+  lookup used by Vietnam Pre-Arrival and Indonesia canonical alias setup.
+- `src/__tests__/fly-topology-config.spec.ts`: static deployment contract for
+  shared-pool Vietnam routing plus the dedicated sticky Indonesia and South
+  Korea Machines. Korea deployments must use
+  `scripts/fly/deploy-south-korea.sh`, which explicitly starts the retained
+  Machine to check `/deploy-ready` before secret staging and replacement; the
+  generic country-template script must reject `south_korea`.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
@@ -109,9 +253,11 @@ filling and one-shot submission for the applicant.
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
-  reference capture, optional CERFA PDF finalization, standard Chromium launch,
-  VIZA-alias account registration, registration CAPTCHA solving when explicitly
-  enabled, manual checkpoints, and typed failures.
+  reference capture, optional CERFA PDF finalization, Browserbase-only launch,
+  VIZA-alias account registration,
+  registration CAPTCHA solving when explicitly enabled, manual checkpoints,
+  and typed failures. Blank pages and Cloudflare/WAF pages fail closed; failure
+  screenshots are masked and written outside the repository by default.
 - `src/france-tls/**`: TLScontact China appointment scaffold for France
   Schengen. Keeps the mainland China center registry in one provider, models
   selector/page boundaries, reads backend-observed slots, consumes short-TTL
@@ -121,28 +267,33 @@ filling and one-shot submission for the applicant.
   reCAPTCHA image-grid challenges to 2captcha `GridTask` solves and page
   clicks; it must not be treated as a Cloudflare/WAF, MFA, identity, or
   payment-challenge bypass. `src/france-tls/browser-api.ts` owns TLS-specific
-  Browser API/CDP endpoint selection, provider-native CAPTCHA solve attempts,
+  Browserbase sessions, provider-native CAPTCHA solve attempts,
   Cloudflare/WAF classification, and shared live-smoke page state detection.
-  Bright Data Browser API zones block password entry by default; TLS login can
-  only be fully automated in the same session when the configured Browser API
-  zone has password entry enabled by the provider, or when a local/TLS CDP
-  session is already past Cloudflare and authorized for official login.
+  `src/france-tls/slot-observation.ts` reads one official DOM container per
+  slot and requires a provider slot id plus a paired date/time; it never
+  creates Cartesian-product or `00:00` fallback slots. Empty availability is
+  returned explicitly and unparseable containers become `selector_drift`.
   `src/france-tls/account-registration.ts` owns the idempotent VIZA-alias
   account preparation path: encrypted password persistence, mandatory legal
-  consent only, Cloudflare Email Worker activation, login, and France-Visas
-  reference prefill. It always stops before submitting appointment data,
-  selecting a slot, payment, or booking; real account creation also requires
-  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true` at the caller boundary.
+  consent only, Cloudflare Email Worker activation, separately authorized
+  official password recovery for a routable account alias, login, and
+  France-Visas reference prefill. It always stops before submitting appointment
+  data, selecting a slot, payment, or booking; real account creation and
+  password reset use separate explicit gates at the caller boundary.
 - `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
   gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
-  configured TLS VAC official URL through France-specific Browser API/CDP or a
-  local browser, returns visible slots when safely observed, and otherwise
+  configured TLS VAC official URL through Browserbase, returns visible slots
+  when safely observed, and otherwise
   returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
   or `selector_drift` without logging Browser API endpoints.
 - `POST /internal/vietnam/card-session`: bearer-protected production handoff
   from Vercel to the single Fly legacy queue worker. It keeps one Vietnam
   official-fee card in worker memory until one consumption or expiry and must
   never log or persist PAN/CVV.
+- Vietnam payment-search CAPTCHA capture must wait for a stable bitmap and
+  re-resolve the current image after every reload. The official Vue SPA may
+  replace the image node during mount/reload; never solve or resubmit a
+  detached, transient, or previously rejected challenge.
 - `POST /internal/france-tls/register-account`: internal-token protected
   account preparation endpoint gated by
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`. It runs exactly one
@@ -169,6 +320,20 @@ filling and one-shot submission for the applicant.
   Japan/Singapore registration form, fills clearly synthetic placeholder data
   through the same production selector helper, verifies the rendered values,
   masks evidence, and exits without clicking Continue or creating an account.
+- `scripts/run-indonesia-visible-qa.ts`: headed local QA runner for one
+  authorized Indonesia C1 application. It signs into the local VIZA form with
+  a one-time test session, uploads the operator-approved local documents, and
+  can fill the public official WNA registration page with the production
+  selector helper. It never clicks VIZA Submit or the official Register button,
+  and it deliberately omits official-site file uploads because those endpoints
+  may retain files before registration is submitted.
+- `scripts/run-active-schema-dry-run-qa.ts`: concurrently loads the newest
+  operator-marked dry-run application for every active schema and runs the
+  country-provider validation/dry-run boundary without enqueueing or opening an
+  official portal.
+- `scripts/run-arrival-card-pre-submit-qa.ts`: concurrently opens the seven
+  supported arrival-card portals from tagged QA drafts, disables external
+  CAPTCHA/cloud-browser services, and always stops before final submission.
 - `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
   Browserbase-proxy smoke that creates one clearly marked placeholder VFS
   account for a supplied local test application, consumes managed-alias
@@ -187,6 +352,8 @@ filling and one-shot submission for the applicant.
   registration. Country runners that need email OTP must force the managed
   alias into the official form; user-entered email remains the forwarding
   destination only.
+  `ensureApplicationInboxAlias` is mandatory for new unattended products;
+  applicant-level aliases remain compatibility-only for older runners.
 - `scripts/ts-node-js-resolver.cjs`: local dev preload that lets `ts-node`
   resolve relative `.js` source imports to sibling `.ts` files while preserving
   build output imports.
@@ -210,8 +377,10 @@ filling and one-shot submission for the applicant.
 - `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
   Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
   with the frontend catalogs whenever the official portal options are refreshed.
-- `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
-  still a known gap.
+- `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
+  official-fee flow. It verifies the displayed portal amount/currency before
+  card acquisition or PAN entry and sends unsupported/uncertain outcomes to
+  staff review without exposing an applicant portal handoff.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. Polls `appointment_assistance_jobs` when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
@@ -236,7 +405,11 @@ filling and one-shot submission for the applicant.
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
   when the official form is reached, uses a VIZA alias for official
   correspondence, tracks newly paid submissions through daily/email/user
-  official queries, and privately delivers validated official PDFs.
+  official queries, and privately delivers validated official PDFs. Email
+  status matching is parsed in `status-tracking.ts` and handed to the bounded
+  `email-status-matcher.ts` adapter, which calls the service-only batch RPC
+  once for up to 100 messages; matching, ambiguity, idempotency, and event
+  audit writes stay in the database function.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
@@ -310,6 +483,13 @@ filling and one-shot submission for the applicant.
   registration additionally requires both `--submit-registration` and
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`, then waits for the applicant
   alias activation email and stops before appointment reference submission.
+  The separately authorized `--reset-password` path requires
+  `FRANCE_TLS_ACCOUNT_PASSWORD_RESET_ENABLED=true`, uses the immutable account
+  alias bound to the existing verified appointment account, verifies that
+  alias/domain can receive mail before clicking the official reset control,
+  persists only the encrypted replacement password, verifies a real login,
+  and never creates a second account. Legacy accounts bound to an unreachable
+  non-VIZA mailbox must stop before another reset request.
 - `scripts/run-france-tls-appointment-flow.ts`: resumable, single-application
   TLScontact operator flow. It prepares the alias account, observes and persists
   official slots, stops for the applicant's Portal slot choice and final
@@ -358,11 +538,15 @@ filling and one-shot submission for the applicant.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
   e-Form completion behind the gated `src/korea-eform/**` automation.
-- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
-  observes deterministic slots and books only after a user-selected slot. Live
-  KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
-  and stop with structured manual-required evidence for unsupported SMS,
-  real-name, WAF, or center-specific policy gates instead of marking success.
+- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment flows with center-specific
+  maturity. Dry-run observes deterministic slots and books only after a
+  user-selected slot. Live KVAC booking must be explicitly env-gated, use
+  TWOCAPTCHA if CAPTCHA appears, and stop with structured manual-required
+  evidence for unsupported SMS, real-name, WAF, or center-specific policy
+  gates instead of marking success. Shenyang VFS is implemented separately in
+  `src/korea-vfs-shenyang/**` with its fail-closed applicant-details validation
+  and authenticated account/session flow; the remaining centers retain their
+  assisted/scaffold gates until their own selectors are validated.
   The Korea KVAC endpoints are
   `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
   `/local/korea-kvac/sms/complete`. They accept localhost calls or remote
@@ -383,13 +567,25 @@ filling and one-shot submission for the applicant.
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without
   sending SMS codes or clicking final booking.
+- `src/korea-kvac/chengdu-slots.ts` reads Chengdu's official live
+  calendar and schedule APIs and accepts only `isUse=Y` schedules with positive
+  remaining capacity. `scripts/probe-korea-shenyang-browserbase.ts` is the
+  read-only Browserbase reachability probe for Shenyang/VFS and must never log
+  provider credentials or submit an appointment.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
-  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
+  `scripts/run-vn-smoke.ts`, `scripts/run-vn-payment-pre-card-smoke.ts`,
+  `scripts/run-vn-cloud-pre-card-smoke.ts`,
+  `scripts/run-sgac-smoke.ts`,
   `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
-  entry points for official portal reach/fill validation. Arrival-card smokes
+  entry points for official portal reach/fill validation. The cloud Vietnam
+  pre-card smoke is an explicit service-role/operator harness for one selected
+  application: it attests the Fly stop-before-card guard, rejects receipts and
+  active/successful payment attempts, uses the atomic queue RPC plus encrypted
+  registration-code handoff, and verifies card-entry readiness without taking
+  or submitting a card. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
 - `src/tw/**`: Taiwan Online Entry Permit (`TW_ENTRY_PERMIT`) — real
   DOM-name-attribute-driven fill of the coa.immigration.gov.tw application
@@ -435,18 +631,97 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- `src/vietnam/fixed-card-payment.ts` waits a bounded period for a delayed
+  Standard Chartered bank-app challenge after the payment gateway handoff and
+  exits early if an official receipt or terminal payment result appears first.
+- `src/vietnam/payment-resume.ts` opens each official eVisa payment-search load
+  attempt in a fresh browser context. This avoids retaining a transient failed
+  SPA module graph when evisa.gov.vn intermittently returns a 4xx response for
+  a hashed static asset; keep `src/vietnam/__tests__/payment-resume.spec.ts` in
+  sync with that fresh-context retry contract. The search CAPTCHA is exactly
+  six numeric characters: send those constraints to 2captcha, report unusable
+  answers, refresh the challenge, and persist only safe attempt telemetry
+  (length, duration, outcome and fingerprint prefix), never the answer. If the
+  challenge changes while solving, its input redraw cannot be confirmed, the
+  official page rejects it, or refresh cannot be proven, discard the page and
+  repeat the whole search in a new context under one shared timeout budget.
+  A stable challenge may be sent to the solver even when the official Vue SPA
+  reuses its initial bitmap across fresh contexts. If 2captcha fails before it
+  returns any answer (bounded unsolvable/network/timeout outcomes), the same
+  stable bitmap may be retried within the shared solver/time budget because no
+  value reached the official portal. A structurally unusable answer that was
+  never entered may retry the same stable bitmap within the bounded solver
+  budget. Once an answer is entered, becomes stale, or is rejected, keep the
+  fingerprint registered, use the official
+  reload control, and prove that the bitmap changed before another solver
+  request. If a bounded reload cannot produce a new fingerprint, stop without
+  resending the answered/rejected challenge or submitting the form.
+- `src/issuing/photonpay-card-provider.ts` owns durable just-in-time virtual
+  card issuance. Scope cards to `government_fee_allocations` and
+  `official_fee_payment_intents`, use the database issuer request id for
+  restart recovery, and persist only card id plus masked PAN. PAN, expiry, CVV,
+  and OTP must stay in memory. Do not call it for `client_in_portal`,
+  `applicant_direct_link`, or `paper_only_no_fee` routes.
+- `src/issuing/managed-card-provider.ts` selects an issuer before the durable
+  claim. Prefer PhotonPay only with an exact currency BIN/account pair; use the
+  vault-free `src/issuing/airwallex-card-provider.ts` fallback only for an
+  explicitly configured currency capability. Active attempts never switch
+  issuer on retry, and neither adapter may persist PAN, CVV, or expiry.
+  Airwallex creation is application/allocation/attempt-idempotent, accepts only
+  exact two-decimal official-fee amounts in explicitly allowlisted currencies,
+  and requires a configured per-currency card maximum before any API call;
+  it must also pass Airwallex Config Read with Remote Auth version 2 enabled
+  and `default_action=DECLINED` before it claims an issuer-card attempt;
+  `src/clients/airwallex-issuing.spec.ts` keeps those client-side guards covered
+  without network access.
+- The historical applicant-vault Airwallex adapter
+  `src/issuing/escrow-card-provider.ts` was removed. Do not restore a path that
+  stores PAN/CVV or creates a generic issuer card; every runtime card must pass
+  through the durable application/allocation-bound issuer router above.
+- `src/official-fee/execution-context.ts` resolves one explicitly consented
+  VIZA-managed payment intent to one exact issuer-ready government-fee
+  allocation. Issuer claims must carry that allocation id and fail closed on
+  ambiguous, mismatched, unconsented, or non-issuable financial state.
+- `src/official-fee/managed-payment-hooks.ts` adapts that exact execution
+  context and the country-neutral issuer router into lazy card/finalizer
+  callbacks for generic country runners.
+- `src/official-fee/accounting.ts` records redacted official-fee attempts and
+  receipts, intent outcomes, allocation review quarantine, and application
+  official-fee status for country runner payments.
+- `src/runners/managed-payment-boundary.ts` provides the lazy managed-card
+  contract for generic e-Visa runners, strict amount/currency and receipt
+  evidence gates, and an explicit staff-review state when no payment controls
+  have been evidenced.
+- Vietnam and Indonesia may acquire a managed issuer card only after the
+  official payment page is visible. An uncertain provider or portal result must enter
+  `review_required`; never issue a second card while that state is unresolved.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use
-  `POST /internal/indonesia/card-session` only on the single always-on legacy
-  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true` and a matching
+  `POST /internal/indonesia/card-session` only on the single retained Indonesia
+  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true`, Fly HTTP autostart, and a matching
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
-- `GET /deploy-ready` reports whether the legacy worker is idle and holds no
-  unconsumed Vietnam/Indonesia card session. `scripts/fly/deploy-legacy.sh`
-  must fail closed unless this endpoint returns HTTP 200 both before secret
-  staging and immediately before a rolling deploy. Runtime secrets are staged
+- `GET /deploy-ready` reports whether the worker is idle and holds no
+  unconsumed Vietnam/Indonesia card session or protected Korea KVAC browser
+  session. `scripts/fly/deploy-legacy.sh`, `scripts/fly/deploy-indonesia.sh`,
+  and `scripts/fly/deploy-south-korea.sh` must fail closed unless this endpoint
+  returns HTTP 200 before secret staging and again immediately before the
+  controlled cutover replacement. The Indonesia deploy retries this readiness
+  check for a bounded three minutes so an initial maintenance/claim tick does
+  not cause a false failure; exhausting the bound still refuses the rollout.
+  Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the
   single memory-backed worker.
+- `src/idle-exit-controller.ts`, `src/work-availability.ts`, and
+  `src/scheduled-work.ts` own Fly scale-to-zero safety. A Fly worker may exit
+  cleanly only after the configured idle grace, a second five-second
+  authoritative queue check, and confirmation that no protected in-memory
+  payment or Korea browser session remains. Future-window arrival-card rows do
+  not count as runnable work until their persisted `scheduledFor` date.
+  Health and one-time-card endpoints must listen before Machine slot
+  reservation completes. A transient Supabase/Cloudflare outage keeps the
+  process alive with bounded retry and no queue claims until a slot is acquired;
+  it must not cause a Fly restart loop or dump gateway HTML into logs.
 - `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
   registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
   or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
@@ -485,11 +760,12 @@ filling and one-shot submission for the applicant.
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
 | Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
+| Korea e-Arrival Card | Live dispatch gated + KST scheduling | Dry-run validates `KR_E_ARRIVAL_CARD`; the shared pool injects only a VIZA-managed inbox alias, the pre-submit QA always stops before the official final action, and live success requires both an official confirmation page and issue number before PDF evidence is persisted. |
 | Taiwan Online Entry Permit | `runner_job` dispatch, DOM-verified fill | `TW_ENTRY_PERMIT` fills every field via confirmed-live DOM `name` attributes (see `src/tw/**`), uploads required supporting documents, best-effort auto-fills the CAPTCHA, and halts before the real "確認資料" submit POST — never clicks it. No persistent account; single continuous session with inline email-OTP verification. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
-| Korea C-3-9 | Official e-Form + appointment scaffold | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback; `src/korea-eform/**` models official e-Form checkpoints and `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live portal completion remains gated pending per-center/post selector validation and official PDF capture. |
+| Korea C-3-9 | Official e-Form + center-specific appointment flows | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback. `src/korea-eform/**` models official e-Form checkpoints; Shenyang VFS uses the fail-closed applicant-details contract and authenticated slot/account FSM, while other KVAC centers retain their dry-run/assisted gates pending per-center selector validation and official PDF capture. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
@@ -499,9 +775,13 @@ filling and one-shot submission for the applicant.
 - France TLS service-fee payment sessions must be short TTL, in-memory/local
   handoffs. Do not persist full card numbers, CVV, OTP, payment passwords, or
   official TLS cookies to DB, logs, traces, screenshots, `.env`, or AGENTS.
-- France TLS official-page checks should prefer `FRANCE_TLS_BROWSER_API_ENDPOINT`
-  or `FRANCE_TLS_CDP_ENDPOINT` before global Browser API settings. Never log
-  endpoint URLs or embedded credentials.
+- France-Visas and mainland-China France TLScontact are Browserbase-only.
+  Their runners must ignore country/global CDP and Bright Data endpoint
+  variables, fail closed when Browserbase is disabled or unavailable, and
+  never fall back to local Chromium. Use a France proxy location for
+  France-Visas and a China proxy location for the mainland TLS centers. Never
+  log Browserbase API keys, connection URLs, session credentials, or live-view
+  URLs.
 - France TLS live booking must not bypass unsupported official-site MFA,
   real-name, WAF, policy, or payment-challenge gates. Stop with structured
   checkpoint/error evidence instead of marking success.
@@ -534,7 +814,7 @@ npm run install-browsers
 npx ts-node src/ceac/smoke.ts
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
-# Requires an authorized FRANCE_TLS_* or global Browser API/CDP endpoint;
+# Requires the authorized France TLS Browserbase configuration;
 # captures official TLS WAF/login/slot/payment checkpoints:
 npm run france-tls:live-smoke -- --url=https://visas-fr.tlscontact.com/en-us/login
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:
@@ -594,6 +874,16 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/result-writer.ts`
+- `viza-be/submission-service/src/__tests__/result-writer.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-result-writes.spec.ts`
+- `viza-be/submission-service/src/queue/__tests__/pool-identity.spec.ts`
+- `viza-be/submission-service/src/queue/requeue-runner-job.ts` and
+  `src/queue/__tests__/requeue-jobs.spec.ts` own the strict
+  `requeue_runner_job` RPC adapter. It returns success only for an explicit
+  `true`; a false result is a concurrent conflict and must not be counted as
+  requeued.
+- `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
@@ -602,13 +892,23 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/korea-eform/*`
 - `viza-be/submission-service/src/korea-kvac/*`
+- `viza-be/submission-service/src/korea-vfs-shenyang/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
+- `viza-be/submission-service/src/vietnam/email-status-matcher.ts`
+- `viza-be/submission-service/src/resilience-gate.ts`
+- `viza-be/submission-service/src/resilience-gate.spec.ts`
+- `viza-be/submission-service/src/vietnam/status-tracking.ts`
+- `viza-be/submission-service/src/vietnam/__tests__/status-check-lease.spec.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/tw/*`
 - `viza-be/submission-service/scripts/run-france-tls-live-smoke.ts`
+- `viza-be/submission-service/scripts/run-france-tls-registration-recon.ts`
+- `viza-be/submission-service/scripts/run-france-visas-browser-recon.ts`
+- `viza-be/submission-service/src/france-visas/__tests__/browser.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/browser-api.spec.ts`
+- `viza-be/submission-service/src/france-tls/__tests__/slot-observation.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`
 - `viza-be/submission-service/src/captcha/__tests__/two-captcha-grid.spec.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`

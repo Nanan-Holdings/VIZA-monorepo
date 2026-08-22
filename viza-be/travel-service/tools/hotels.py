@@ -1,12 +1,17 @@
+import asyncio
 import os
+import time
 from datetime import date, timedelta
+from typing import Any
 
-import httpx
+from tools.http_client import REQUEST_TIMEOUT, request_json
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
-REQUEST_TIMEOUT = httpx.Timeout(20.0)
+RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+_destination_cache: dict[str, tuple[float, str, str]] = {}
 
 
 def _headers():
@@ -19,30 +24,28 @@ def _headers():
     }
 
 
-def _request_json(path: str, params: dict):
+async def _request_json(path: str, params: dict[str, Any]):
     headers = _headers()
     if not headers:
         return None
 
-    try:
-        response = httpx.get(
-            f"{RAPIDAPI_BASE_URL}{path}",
-            params=params,
-            headers=headers,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        print(f"RapidAPI hotel request failed ({path}):", exc)
-        return None
+    return await request_json(
+        f"{RAPIDAPI_BASE_URL}{path}",
+        params=params,
+        headers=headers,
+    )
 
 
-def _resolve_destination(query: str):
+async def _resolve_destination(query: str):
     if not query:
         return None, None
 
-    payload = _request_json("/api/v1/hotels/searchDestination", {"query": query})
+    query_key = query.strip().lower()
+    cached = _destination_cache.get(query_key)
+    if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
+        return cached[1], cached[2]
+
+    payload = await _request_json("/api/v1/hotels/searchDestination", {"query": query})
     if not payload or payload.get("status") is not True:
         return None, None
 
@@ -57,6 +60,11 @@ def _resolve_destination(query: str):
         search_type = item.get("search_type")
         if isinstance(dest_id, str) and isinstance(search_type, str):
             if dest_id and search_type:
+                _destination_cache[query_key] = (
+                    time.monotonic(),
+                    dest_id,
+                    search_type,
+                )
                 return dest_id, search_type
 
     return None, None
@@ -73,17 +81,17 @@ def _normalize_dates(check_in_date, check_out_date):
 
 
 def _fallback_hotels(destination, adults=1):
-    city_name = str(destination or "Destination").strip() or "Destination"
+    city_name = str(destination or "目的地").strip() or "目的地"
     return [
         {
             "provider": "api-default",
             "city": destination,
-            "name": f"{city_name} Central Hotel",
+            "name": f"{city_name}市中心酒店",
             "price_per_night": "120.00",
             "currency": "USD",
             "rating": 4.5,
             "adults": adults,
-            "address": f"1 Central Avenue, {city_name}",
+            "address": f"{city_name}市中心区域",
             "contact_phone": "+1 555 010 1200",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
@@ -91,12 +99,12 @@ def _fallback_hotels(destination, adults=1):
         {
             "provider": "api-default",
             "city": destination,
-            "name": f"{city_name} Comfort Stay",
+            "name": f"{city_name}舒适酒店",
             "price_per_night": "60.00",
             "currency": "USD",
             "rating": 3.8,
             "adults": adults,
-            "address": f"88 Station Road, {city_name}",
+            "address": f"{city_name}车站附近",
             "contact_phone": "+1 555 010 0600",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
@@ -172,7 +180,7 @@ def _repair_mojibake_text(value):
     return repaired or value
 
 
-def _fetch_hotel_details(
+async def _fetch_hotel_details(
     hotel_id,
     check_in_date,
     check_out_date,
@@ -182,7 +190,7 @@ def _fetch_hotel_details(
     if hotel_id in (None, ""):
         return None
 
-    payload = _request_json(
+    payload = await _request_json(
         "/api/v1/hotels/getHotelDetails",
         {
             "hotel_id": hotel_id,
@@ -201,7 +209,7 @@ def _fetch_hotel_details(
     return data if isinstance(data, dict) else None
 
 
-def search_hotels(
+async def search_hotels(
     destination,
     check_in_date=None,
     check_out_date=None,
@@ -215,11 +223,11 @@ def search_hotels(
     check_in_date, check_out_date = _normalize_dates(check_in_date, check_out_date)
     adults = max(int(adults or 1), 1)
 
-    dest_id, search_type = _resolve_destination(destination)
+    dest_id, search_type = await _resolve_destination(destination)
     if not dest_id or not search_type:
         return _fallback_hotels(destination, adults=adults)
 
-    payload = _request_json(
+    payload = await _request_json(
         "/api/v1/hotels/searchHotels",
         {
             "dest_id": dest_id,
@@ -246,15 +254,35 @@ def search_hotels(
     if not isinstance(hotels, list) or not hotels:
         return _fallback_hotels(destination, adults=adults)
 
+    selected_hotels = hotels[: max(max_results, 1)]
+    detail_requests = []
+    for entry in selected_hotels:
+        if not isinstance(entry, dict):
+            detail_requests.append(asyncio.sleep(0, result=None))
+            continue
+        property_data = entry.get("property")
+        if not isinstance(property_data, dict):
+            property_data = {}
+        detail_requests.append(
+            _fetch_hotel_details(
+                hotel_id=entry.get("hotel_id") or property_data.get("id"),
+                check_in_date=check_in_date,
+                check_out_date=check_out_date,
+                adults=adults,
+                currency_code=currency_code,
+            )
+        )
+
+    detail_results = await asyncio.gather(*detail_requests, return_exceptions=True)
+
     normalized = []
-    for entry in hotels[: max(max_results, 1)]:
+    for entry, details_result in zip(selected_hotels, detail_results):
         if not isinstance(entry, dict):
             continue
         property_data = entry.get("property")
         if not isinstance(property_data, dict):
             property_data = {}
 
-        name = property_data.get("name") or entry.get("accessibilityLabel") or "Unknown hotel"
         review_score = property_data.get("reviewScore")
 
         gross_price, gross_currency = _extract_price_value(
@@ -265,13 +293,21 @@ def search_hotels(
         )
         hotel_id = entry.get("hotel_id") or property_data.get("id")
 
-        details = _fetch_hotel_details(
-            hotel_id=hotel_id,
-            check_in_date=check_in_date,
-            check_out_date=check_out_date,
-            adults=adults,
-            currency_code=currency_code,
+        details = details_result if isinstance(details_result, dict) else None
+        raw_details = details.get("rawData") if details else None
+        if not isinstance(raw_details, dict):
+            raw_details = {}
+        name = (
+            (details or {}).get("hotel_name_trans")
+            or (details or {}).get("hotel_name")
+            or raw_details.get("hotel_name_trans")
+            or raw_details.get("hotel_name")
+            or property_data.get("name")
+            or entry.get("accessibilityLabel")
+            or "酒店名称待确认"
         )
+        if isinstance(name, str):
+            name = _repair_mojibake_text(name).strip() or "酒店名称待确认"
 
         average_price_per_night = None
         total_price = None
@@ -295,7 +331,7 @@ def search_hotels(
                 if isinstance(all_inclusive, dict):
                     total_price, _ = _extract_price_value(all_inclusive)
 
-            raw_data = details.get("rawData")
+            raw_data = raw_details
             if isinstance(raw_data, dict):
                 if latitude is None:
                     latitude = raw_data.get("latitude")

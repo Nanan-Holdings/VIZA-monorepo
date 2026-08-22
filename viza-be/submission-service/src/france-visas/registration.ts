@@ -18,6 +18,7 @@ import { detectPage, waitForPage } from "./pages";
 import { assertNoGate } from "./gates";
 import type { MailboxProvider } from "./inbox-poller";
 import { RegistrationFailedError } from "./errors";
+import { redactOfficialUrl } from "../appointment-free-smoke";
 import { pollInboxForVerificationLink } from "./inbox-poller";
 import { reportBadCaptcha } from "../captcha";
 import {
@@ -120,7 +121,7 @@ export async function registerFvAccount(
     if (!enableCaptchaSolving) {
       throw new RegistrationFailedError(
         "France-Visas registration CAPTCHA solving is disabled by configuration.",
-        { url: page.url(), details: { runId, manualAction: "captcha_required" } },
+        { url: redactOfficialUrl(page.url()), details: { runId, manualAction: "captcha_required" } },
       );
     }
 
@@ -162,7 +163,7 @@ export async function registerFvAccount(
         }
         throw new RegistrationFailedError(
           `France-Visas registration did not reach the email verification step; detected ${detected.id}.`,
-          { url: detected.url, details: { runId, captchaTelemetry: telemetry } },
+          { url: redactOfficialUrl(detected.url), details: { runId, captchaTelemetry: telemetry } },
         );
       });
 
@@ -188,7 +189,7 @@ export async function registerFvAccount(
     if (pageAfterSubmit === "registration" || pageAfterSubmit === null) {
       throw new RegistrationFailedError(
         `France-Visas registration did not advance after CAPTCHA submission (${lastRegistrationFailure}).`,
-        { url: page.url(), details: { runId, captchaTelemetry: telemetry } },
+        { url: redactOfficialUrl(page.url()), details: { runId, captchaTelemetry: telemetry } },
       );
     }
 
@@ -206,7 +207,7 @@ export async function registerFvAccount(
       if (detected.id === "registration" || detected.id === "check_mailbox" || detected.id === "session_expired") {
         throw new RegistrationFailedError(
           `France-Visas email verification did not complete; detected ${detected.id}.`,
-          { url: detected.url, details: { runId } },
+          { url: redactOfficialUrl(detected.url), details: { runId } },
         );
       }
     });
@@ -226,7 +227,7 @@ export async function registerFvAccount(
       ? err
       : new RegistrationFailedError(
           `France-Visas registration failed: ${err instanceof Error ? err.message : String(err)}`,
-          { url: page.url(), details: { runId } },
+          { url: redactOfficialUrl(page.url()), details: { runId } },
         );
   } finally {
     await context.close().catch(() => undefined);

@@ -1,6 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { visaChatMessages } from '../db/schema.js';
+import { getSupabaseClient } from '../db/supabase-client.js';
 import {
   COUNTRY_DISPLAY_NAMES,
   detectKnowledgeCountriesInOrder,
@@ -23,10 +21,27 @@ export type TripPurpose =
   | 'long_stay'
   | 'unknown';
 
+export type PassportType =
+  | 'ordinary'
+  | 'diplomatic'
+  | 'service'
+  | 'public_affairs'
+  | 'travel_document'
+  | 'unknown';
+
+export type VisaMemoryFieldSource =
+  | 'current_message'
+  | 'chat_memory'
+  | 'profile'
+  | 'application'
+  | 'manual';
+
 export interface VisaConversationState {
   destinationCountries: SupportedKnowledgeCountry[];
   mainDestination: SupportedKnowledgeCountry | null;
   nationality: string | null;
+  passportCountryIso3: string | null;
+  passportType: PassportType | null;
   residenceCountry: string | null;
   residenceCity: string | null;
   tripPurpose: TripPurpose | null;
@@ -34,6 +49,7 @@ export interface VisaConversationState {
   schengenDaySplit: Partial<Record<SupportedKnowledgeCountry, number>>;
   firstEntryCountry: SupportedKnowledgeCountry | null;
   recommendedVisaType: string | null;
+  fieldSources: Record<string, VisaMemoryFieldSource>;
   missingSlots: string[];
   confidence: number;
   updatedAt: string;
@@ -49,6 +65,8 @@ const EMPTY_STATE: VisaConversationState = {
   destinationCountries: [],
   mainDestination: null,
   nationality: null,
+  passportCountryIso3: null,
+  passportType: null,
   residenceCountry: null,
   residenceCity: null,
   tripPurpose: null,
@@ -56,6 +74,7 @@ const EMPTY_STATE: VisaConversationState = {
   schengenDaySplit: {},
   firstEntryCountry: null,
   recommendedVisaType: null,
+  fieldSources: {},
   missingSlots: [],
   confidence: 0,
   updatedAt: new Date(0).toISOString(),
@@ -77,6 +96,39 @@ function normalizeFreeTextCountry(value: string): string {
   if (/^(美国|usa|us|united states)$/i.test(trimmed)) return 'United States';
   if (/^(英国|uk|united kingdom)$/i.test(trimmed)) return 'United Kingdom';
   return trimmed;
+}
+
+const PASSPORT_COUNTRY_ISO3: Record<string, string> = {
+  china: 'CHN',
+  chn: 'CHN',
+  中国: 'CHN',
+  singapore: 'SGP',
+  sgp: 'SGP',
+  新加坡: 'SGP',
+  'united kingdom': 'GBR',
+  uk: 'GBR',
+  gbr: 'GBR',
+  英国: 'GBR',
+  'united states': 'USA',
+  us: 'USA',
+  usa: 'USA',
+  美国: 'USA',
+  canada: 'CAN',
+  can: 'CAN',
+  加拿大: 'CAN',
+  australia: 'AUS',
+  aus: 'AUS',
+  澳大利亚: 'AUS',
+  newzealand: 'NZL',
+  'new zealand': 'NZL',
+  nzl: 'NZL',
+  新西兰: 'NZL',
+};
+
+export function normalizePassportCountryIso3(value?: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  return PASSPORT_COUNTRY_ISO3[normalized] ?? (/^[a-z]{3}$/i.test(value) ? value.toUpperCase() : null);
 }
 
 function splitCompactAnswer(message: string): string[] {
@@ -142,8 +194,23 @@ function inferTripPurpose(message: string): TripPurpose | null {
   return null;
 }
 
+function inferPassportType(message: string): PassportType | null {
+  if (/(普通护照|ordinary passport|regular passport)/i.test(message)) {
+    return 'ordinary';
+  }
+  if (/(外交护照|diplomatic passport)/i.test(message)) return 'diplomatic';
+  if (/(公务普通护照|public affairs passport)/i.test(message)) {
+    return 'public_affairs';
+  }
+  if (/(公务护照|service passport|official passport)/i.test(message)) {
+    return 'service';
+  }
+  if (/(旅行证|travel document)/i.test(message)) return 'travel_document';
+  return null;
+}
+
 function extractNationality(message: string): string | null {
-  if (/(中国护照|中国国籍|我是中国人|chinese passport|chinese citizen)/i.test(message)) {
+  if (/(中国(?:普通)?护照|中国国籍|我是中国人|chinese (?:ordinary )?passport|chinese citizen)/i.test(message)) {
     return 'China';
   }
 
@@ -588,7 +655,11 @@ export function normalizeVisaConversationState(
     ...value,
     destinationCountries: uniqueCountries(value?.destinationCountries ?? []),
     mainDestination: value?.mainDestination ?? null,
+    passportCountryIso3:
+      value?.passportCountryIso3 ?? normalizePassportCountryIso3(value?.nationality),
+    passportType: value?.passportType ?? null,
     schengenDaySplit: value?.schengenDaySplit ?? {},
+    fieldSources: value?.fieldSources ?? {},
     missingSlots: value?.missingSlots ?? [],
     updatedAt: value?.updatedAt ?? new Date().toISOString(),
   };
@@ -643,6 +714,40 @@ export function updateVisaConversationState(
     updatedAt: new Date().toISOString(),
   };
 
+  if (directPatch.nationality !== undefined || compactPatch.nationality !== undefined) {
+    merged.passportCountryIso3 = normalizePassportCountryIso3(merged.nationality);
+    merged.fieldSources = {
+      ...merged.fieldSources,
+      nationality: 'current_message',
+      passportCountryIso3: 'current_message',
+    };
+  }
+  const passportType = inferPassportType(latestMessage);
+  if (passportType) {
+    merged.passportType = passportType;
+    merged.fieldSources = {
+      ...merged.fieldSources,
+      passportType: 'current_message',
+    };
+  }
+
+  const currentMessageFields: Array<keyof VisaConversationStatePatch> = [
+    'destinationCountries',
+    'mainDestination',
+    'residenceCountry',
+    'tripPurpose',
+    'stayLengthDays',
+    'schengenDaySplit',
+    'firstEntryCountry',
+  ];
+  const nextFieldSources = { ...merged.fieldSources };
+  for (const field of currentMessageFields) {
+    if (directPatch[field] !== undefined || compactPatch[field] !== undefined) {
+      nextFieldSources[field] = 'current_message';
+    }
+  }
+  merged.fieldSources = nextFieldSources;
+
   merged.mainDestination = resolveMainDestination(merged);
   merged.recommendedVisaType = shouldUseVisitorRoute(merged)
     ? getDefaultVisitorVisaType(merged.mainDestination)
@@ -668,6 +773,8 @@ export function buildVisaConversationStatePrompt(
       state.mainDestination ? COUNTRY_DISPLAY_NAMES[state.mainDestination] : 'unknown'
     }`,
     `Nationality/passport: ${state.nationality ?? 'unknown'}`,
+    `Passport country ISO3: ${state.passportCountryIso3 ?? 'unknown'}`,
+    `Passport type: ${state.passportType ?? 'unknown'}`,
     `Residence/apply-from: ${state.residenceCountry ?? 'unknown'}`,
     `Trip purpose: ${state.tripPurpose ?? 'unknown'}`,
     `Stay length: ${state.stayLengthDays ?? 'unknown'} days`,
@@ -688,42 +795,87 @@ export function summarizeVisaConversationState(
     destinationCountries: state.destinationCountries,
     mainDestination: state.mainDestination,
     nationality: state.nationality,
+    passportCountryIso3: state.passportCountryIso3,
+    passportType: state.passportType,
     residenceCountry: state.residenceCountry,
     tripPurpose: state.tripPurpose,
     stayLengthDays: state.stayLengthDays,
     schengenDaySplit: state.schengenDaySplit,
     firstEntryCountry: state.firstEntryCountry,
     recommendedVisaType: state.recommendedVisaType,
+    fieldSources: state.fieldSources,
     missingSlots: state.missingSlots,
     confidence: state.confidence,
   };
 }
 
+export interface PersistedVisaConversationState {
+  state: VisaConversationState;
+  revision: number;
+}
+
 export async function loadVisaConversationState(
   sessionId: string
-): Promise<VisaConversationState> {
-  const rows = await db
-    .select({ content: visaChatMessages.content })
-    .from(visaChatMessages)
-    .where(eq(visaChatMessages.sessionId, sessionId))
-    .orderBy(asc(visaChatMessages.createdAt))
-    .limit(120);
+): Promise<PersistedVisaConversationState> {
+  const supabase = getSupabaseClient();
+  const { data: session, error: sessionError } = await supabase
+    .from('visa_chat_sessions')
+    .select('memory_json, memory_revision')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (sessionError) throw sessionError;
 
-  const latest = rows
+  const memory = session?.memory_json as Partial<VisaConversationState> | undefined;
+  if (memory && Object.keys(memory).length > 0) {
+    return {
+      state: normalizeVisaConversationState(memory),
+      revision: Number(session?.memory_revision ?? 0),
+    };
+  }
+
+  const { data: rows, error: messagesError } = await supabase
+    .from('visa_chat_messages')
+    .select('content')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(120);
+  if (messagesError) throw messagesError;
+
+  const latest = (rows ?? [])
     .map((row) => parseVisaConversationStateMarker(row.content))
     .filter((state): state is VisaConversationState => state !== null)
-    .at(-1);
+    .at(0);
 
-  return latest ?? createEmptyVisaConversationState();
+  return {
+    state: latest ?? createEmptyVisaConversationState(),
+    revision: Number(session?.memory_revision ?? 0),
+  };
 }
 
 export async function saveVisaConversationState(
   sessionId: string,
-  state: VisaConversationState
-): Promise<void> {
-  await db.insert(visaChatMessages).values({
-    sessionId,
-    role: 'system',
-    content: `${VISA_CONVERSATION_STATE_MARKER_PREFIX}${JSON.stringify(state)}`,
-  });
+  state: VisaConversationState,
+  expectedRevision: number
+): Promise<number> {
+  const supabase = getSupabaseClient();
+  const nextRevision = expectedRevision + 1;
+  const now = new Date().toISOString();
+  const { data: updated, error } = await supabase
+    .from('visa_chat_sessions')
+    .update({
+      memory_json: normalizeVisaConversationState(state),
+      memory_revision: nextRevision,
+      memory_updated_at: now,
+      updated_at: now,
+    })
+    .eq('id', sessionId)
+    .eq('memory_revision', expectedRevision)
+    .select('memory_revision')
+    .maybeSingle();
+  if (error) throw error;
+
+  if (!updated) {
+    throw new Error('VISA_MEMORY_REVISION_CONFLICT');
+  }
+  return Number(updated.memory_revision);
 }

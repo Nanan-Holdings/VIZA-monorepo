@@ -1,7 +1,7 @@
 # Japan Tourist Visa (Short-Term Stay) — Gap Report
 
 **Generated:** 2026-04-27
-**Schema version:** v1 (`seed-jp-tourist-form-fields.ts`)
+**Schema version:** v1.1 (`seed-jp-tourist-form-fields.ts`)
 **Visa type:** `JP_TOURIST`
 
 Goal: when a user is assigned the `JP_TOURIST` package, their
@@ -22,14 +22,16 @@ nationalities the same field set is accepted at Japanese embassies and
 | Passport | 2 | 9 | Other-passports gate + repeatable group |
 | Contact & Home Address | 3 | 6 | `home_address` block group |
 | Occupation | 4 | 5 | `employer_details` block group |
-| Trip Details | 5 | 10 | Tourism purpose locked; `trip_dates` inline group; `accommodation_details` block group |
+| Trip Details | 5 | 13 | Tourism purpose locked; `trip_dates` inline group; `accommodation_details` block group |
 | Inviter in Japan | 6 | 11 | `inviter` block group, full block gated on `has_inviter_in_japan` |
 | Travel History | 7 | 8 | Repeatable `prior_japan_visits`; refusals (Japan + other-country) gated |
-| Character & Declaration | 8 | 10 | Criminal / deportation / overstay gated; declaration checkbox |
-| **Total** | **8** | **76** | — |
+| Character & Declaration | 8 | 22 | Four conditional repeat groups for criminal, deportation, overstay, and prohibited-activity details; declaration checkbox |
+| **Total** | **8** | **91** | — |
 
-Field count source: `Done: 76 rows seeded (76 defined)` from the seed
-runner against live Supabase on 2026-04-27.
+The original v1 seed produced 76 rows against live Supabase on 2026-04-27.
+Schema v1.1 currently defines 91 rows after later trip-detail additions and
+the declaration repeat groups; apply the updated seed before authenticated UI
+QA.
 
 ---
 
@@ -135,7 +137,11 @@ enums; staff can enumerate later if data shows need.
 
 ## 4. Closed in this version
 
-This is v1 — first release of `JP_TOURIST`. Nothing closed yet.
+- Character declaration guidance is now progressive: the four declaration
+  questions render without helper tips, and selecting **Yes** reveals the
+  standard conditional repeat-group panel for structured incident details.
+- The MOFA Form A renderer serializes every repeated declaration entry into
+  the form's "If yes" details field while retaining legacy free-text answers.
 
 ---
 
@@ -169,6 +175,10 @@ ATV / fingerprint waivers).
 | `other_nationalities` | 1 | 3 | `has_other_nationalities === yes` |
 | `other_passports` | 2 | 3 | `has_other_passports === yes` |
 | `prior_japan_visits` | 7 | 5 | `visited_japan_before === yes` |
+| `criminal_records` | 8 | 5 | `has_criminal_record === yes` |
+| `deportations` | 8 | 5 | `has_been_deported === yes` |
+| `japan_overstays` | 8 | 5 | `has_overstayed_japan === yes` |
+| `prohibited_activities` | 8 | 5 | `has_drug_or_trafficking_history === yes` |
 
 ---
 
@@ -267,18 +277,21 @@ fontkit) would unlock CJK and other scripts but adds ~5MB to the bundle
 
 Before marking as production-ready:
 
-- [ ] Seed applied (76 rows in `visa_form_fields` with
+- [ ] Seed applied (91 rows in `visa_form_fields` with
       `visa_type = 'JP_TOURIST'`)
 - [ ] Package registered in `visa_packages` via migration 0021
 - [ ] Assign a test user the `JP_TOURIST` package
 - [ ] Walk every step, answer every conditional, trigger every
       sub-block (other-names, other-nationalities, married, other-
       passports, has-inviter, visited-japan, refused-japan,
-      refused-other-country, criminal, deported, overstayed)
+      refused-other-country, criminal, deported, overstayed,
+      drug/prostitution/trafficking/smuggling/illegal-weapons history)
 - [ ] Test every repeatable group (`other_nationalities`,
-      `other_passports`, `prior_japan_visits`) — add / remove
-      instances, values persist
-- [ ] Submit a test application — verify all 76 answers persist to
+      `other_passports`, `prior_japan_visits`, `criminal_records`,
+      `deportations`, `japan_overstays`, `prohibited_activities`) — add /
+      remove instances, values persist
+- [ ] Submit a test application — verify all 91 schema fields and repeated
+      answer instances persist to
       `visa_application_answers`
 - [ ] Review step (`DynamicReviewStep`) renders every field
 - [ ] **PDF rendering of MOFA Form A** — track as a separate v1.1 item;

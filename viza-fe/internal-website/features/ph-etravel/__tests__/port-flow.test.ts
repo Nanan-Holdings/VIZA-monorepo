@@ -10,8 +10,6 @@ const snapshot = {
   ports: [
     { code: "TP0103", label: "Manila South Harbor", withCustomDeclaration: 1 },
     { code: "TP0011", label: "Port of Cebu (PHCEB)", withCustomDeclaration: 0 },
-    { code: "TP120", label: "Port of Legazpi", withCustomDeclaration: 1 },
-    { code: "LEGAZPI", label: "Port of Legazpi", withCustomDeclaration: 1 },
   ] as const,
 };
 
@@ -26,7 +24,6 @@ describe("Philippines eTravel E24 SEA destination presentation", () => {
     ).toMatchObject({
       status: "resolved",
       dynamicPageArrayGate: "electronic_sections_inserted",
-      customsFlowHint: "electronic_customs",
       port: { code: "TP0103", withCustomDeclaration: 1 },
       requiresLiveContinuationReview: true,
     });
@@ -35,7 +32,6 @@ describe("Philippines eTravel E24 SEA destination presentation", () => {
     ).toMatchObject({
       status: "resolved",
       dynamicPageArrayGate: "electronic_sections_not_inserted",
-      customsFlowHint: "manual_forms",
       port: { code: "TP0011", withCustomDeclaration: 0 },
       requiresLiveContinuationReview: true,
     });
@@ -67,62 +63,20 @@ describe("Philippines eTravel E24 SEA destination presentation", () => {
     ).toBe("stale_port_metadata");
   });
 
-  test("selects the PH-only manual/electronic presentation from code metadata but keeps page drift gates", () => {
-    const manual = createPhEtravelSeaPortOrderedPageContract({
-      destinationPortCode: "TP0011",
-      snapshot,
-      now,
-    });
-    const electronicNo = createPhEtravelSeaPortOrderedPageContract({
-      destinationPortCode: "TP0103",
-      customsDeclaration: "no",
-      snapshot,
-      now,
-    });
-    const electronicYes = createPhEtravelSeaPortOrderedPageContract({
-      destinationPortCode: "TP0103",
-      customsDeclaration: "yes",
-      snapshot,
-      now,
-    });
-    const electronicPending = createPhEtravelSeaPortOrderedPageContract({
-      destinationPortCode: "TP0103",
-      snapshot,
-      now,
-    });
+  test("does not select a SEA ordered customs path from either metadata value", () => {
+    for (const destinationPortCode of ["TP0103", "TP0011"]) {
+      const result = createPhEtravelSeaPortOrderedPageContract({
+        destinationPortCode,
+        snapshot,
+        now,
+      });
 
-    expect(manual.contract?.path).toBe("sea_manual");
-    expect(electronicNo.contract?.path).toBe("sea_electronic_no");
-    expect(electronicYes.contract?.path).toBe(
-      "sea_electronic_yes_through_signature"
-    );
-    expect(electronicPending.contract).toBeNull();
-    expect(electronicPending.actionOnlyGates[0]).toMatchObject({
-      key: "sea.electronic_customs_choice_required",
-      evidence: "verified_public",
-    });
-    expect(manual.actionOnlyGates[0].reason).toContain("rendered official");
-    expect(electronicNo.actionOnlyGates[0].reason).toContain(
-      "Rendered official"
-    );
-  });
-
-  test("keeps duplicate Port of Legazpi labels code-addressable", () => {
-    const byCode = new Map(snapshot.ports.map((port) => [port.code, port]));
-    expect(byCode.get("TP120")).toMatchObject({
-      label: "Port of Legazpi",
-      withCustomDeclaration: 1,
-    });
-    expect(byCode.get("LEGAZPI")).toMatchObject({
-      label: "Port of Legazpi",
-      withCustomDeclaration: 1,
-    });
-    expect(
-      resolvePhEtravelSeaDestinationPortFlow("TP120", snapshot, now).port
-    ).toMatchObject({ code: "TP120" });
-    expect(
-      resolvePhEtravelSeaDestinationPortFlow("LEGAZPI", snapshot, now).port
-    ).toMatchObject({ code: "LEGAZPI" });
+      expect(result.contract).toBeNull();
+      expect(result.actionOnlyGates[0]).toMatchObject({
+        key: "sea.destination_port_dynamic_page_array_review",
+        evidence: "official_evidence_required",
+      });
+    }
   });
 
   test("shows the SEA disembarking control only for SEA ARRIVAL and falsey hides the stay subtree", () => {

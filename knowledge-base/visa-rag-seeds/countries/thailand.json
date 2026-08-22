@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "thailand",
   "notes": "Country-level VIZA RAG seed for thailand. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -34,7 +34,7 @@
             "onward-ticket",
             "funds"
           ],
-          "content": "Royal Thai Embassy guidance for the visa exemption scheme states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
+          "content": "The latest currently published Thai consular eligibility list states that ordinary passport holders of eligible countries/territories can enter for tourism without a visa for a period not exceeding 60 days, subject to current official lists and entry checks. Thailand announced on 19 May 2026 that this 60-day scheme will be replaced after new Ministry of Interior notices are published in the Royal Gazette and take effect. Until those notices take effect, use the current published list, but recheck https://consular.mfa.go.th/th/content/20-5-69-0000 and the current consular eligibility list immediately before answering or travel. Travellers may be asked for proof of adequate funds, confirmed onward travel, accommodation, and passport validity. If the user's nationality is not eligible, recommend Thai e-Visa or a tourist visa route."
         },
         {
           "id": "tha_tourist_visa_when_needed",
@@ -106,7 +106,7 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
           "id": "official_field_answer_norms",
@@ -119,6 +119,38 @@
             "thailand"
           ],
           "content": "Official-source field answer norms for thailand.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://tdac.immigration.go.th/manual/en/index.html ; https://tdac.immigration.go.th/manual/en/faq.html\n\nPassport and identity fields:\n- yo​ur personal information, including passport details.\n- the personal information of Traveler 1, including passport details.\n- - Please note that you will not be able to update the following information: 1) Full Name (In Passport) 2) ​Nationality / Citizenship 3) Date of Birth\n\nIssue, expiry, and validity fields:\n- No, This Thailand Digital Arrival Card is only valid for one time use for travel on the expected date of arrival indicated.\n\nTravel plan and port fields:\n- The Thailand Digital Arrival Card (TDAC) is an online form designed to replace the traditional paper-based arrival card and facilitate the entry process for travelers to Thailand, regardless of their mode of transportation via land, air, or sea.\n- All non-Thai nationals entering the Kingdom of Thailand are required to complete the Thailand Digital Arrival Card online prior to entry.\n- Foreigners are required to submit their arrival card information 3 days in advance of their arrival date in Thailand.\n\nAccommodation, host, and address fields:\n- your trip information and accommodation information details, then click \" Continue \".\n- your email address to receive the Thailand Digital Arrival Card.\n- the email address provided for the duration of your stay in Thailand.\n\nFunds, insurance, photo, and supporting-document fields:\n- MRZ or upload an MRZ image to retrieve data automatically.\n- also scan the MRZ or upload an MRZ image to retrieve data automatically.\n- For Kiosk submissions, foreigners can take a photo of the QR Code from the Digital Arrival Card.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "thailand-tourist-evisa-requirements",
+      "country": "thailand",
+      "visaType": "TH_TOURIST_E_VISA",
+      "documentType": "requirements",
+      "title": "Thailand Tourist e-Visa",
+      "sourceUrl": "https://www.thaievisa.go.th/",
+      "chunks": [
+        {
+          "id": "thailand_evisa_separate_route",
+          "title": "Thailand e-Visa is separate from TDAC",
+          "tags": ["thailand", "evisa", "tdac", "routing"],
+          "content": "Use TH_TOURIST_E_VISA only when a deterministic passport, purpose and stay rule confirms that the traveller requires or is eligible for a tourist visa. TDAC is a separate arrival declaration and does not grant visa eligibility."
+        }
+      ]
+    },
+    {
+      "slug": "thailand-tourist-evisa-form-requirements",
+      "country": "thailand",
+      "visaType": "TH_TOURIST_E_VISA",
+      "documentType": "form_requirements",
+      "title": "Thailand Tourist e-Visa Form Requirements",
+      "sourceUrl": "https://www.thaievisa.go.th/",
+      "chunks": [
+        {
+          "id": "thailand_evisa_form_route",
+          "title": "Thailand e-Visa application preparation",
+          "tags": ["thailand", "evisa", "form-requirements"],
+          "content": "For travellers deterministically routed to the Thai tourist e-Visa, prepare official portal identity, passport, residence/application-location, travel, accommodation, finance, photograph and supporting-document fields. Current Thai official eligibility controls. Keep TDAC preparation in its own product workflow."
         }
       ]
     }

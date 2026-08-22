@@ -2,8 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildVietnamBrowserAttempts,
+  computeVietnamPortalRetryDelayMs,
   finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
+  nextVietnamQueueAttemptCount,
 } from "../retry-policy.js";
 import type { FillVietnamResult } from "../run.js";
 
@@ -19,7 +21,23 @@ test("vn.retry-policy: builds bounded bundled/Edge/Chrome attempts", () => {
     undefined,
     undefined,
   ]);
-  assert.equal(buildVietnamBrowserAttempts("bundled", 99).length, 3);
+  assert.equal(buildVietnamBrowserAttempts("bundled", 99).length, 6);
+});
+
+test("vn.retry-policy: applies capped exponential backoff with bounded jitter", () => {
+  assert.equal(computeVietnamPortalRetryDelayMs({ completedAttempts: 1, randomValue: 0.5 }), 5_000);
+  assert.equal(computeVietnamPortalRetryDelayMs({ completedAttempts: 2, randomValue: 0.5 }), 10_000);
+  assert.equal(computeVietnamPortalRetryDelayMs({ completedAttempts: 5, randomValue: 0.5 }), 60_000);
+  assert.equal(
+    computeVietnamPortalRetryDelayMs({
+      completedAttempts: 1,
+      baseDelayMs: 10_000,
+      maxDelayMs: 60_000,
+      jitterRatio: 0.2,
+      randomValue: 0,
+    }),
+    8_000,
+  );
 });
 
 test("vn.retry-policy: retries portal hydration and navigation failures", () => {
@@ -60,7 +78,42 @@ test("vn.retry-policy: does not retry user data validation or payment checkpoint
   assert.equal(isRetryableVietnamResult(paymentResult), false);
 });
 
-test("vn.retry-policy: reports temporary portal outage after three attempts", () => {
+test("vn.retry-policy: does not restart the whole form after the bounded CAPTCHA loop", () => {
+  const captchaFailure: FillVietnamResult = {
+    status: "failed",
+    failedStep: "captcha_visible",
+    error: {
+      code: "captcha_automatic_failed",
+      message: "Automatic CAPTCHA retries ended after a 2captcha timeout.",
+    },
+    checkpoint: "captcha_visible",
+    url: "https://evisa.gov.vn/e-visa/foreigners",
+  };
+
+  assert.equal(isRetryableVietnamResult(captchaFailure), false);
+});
+
+test("vn.retry-policy: never restarts after final-submit or payment uncertainty", () => {
+  const paymentNavigationFailure: FillVietnamResult = {
+    status: "failed",
+    failedStep: "payment_navigation",
+    error: { message: "Navigation timeout after the gateway redirect" },
+    checkpoint: "payment_page_visible",
+    url: "https://evisa.gov.vn/payment",
+  };
+  const submittedButUnconfirmed: FillVietnamResult = {
+    status: "failed",
+    failedStep: "registration_capture",
+    error: { message: "Navigation timeout while reading the official reference" },
+    checkpoint: "final_submit_visible",
+    url: "https://evisa.gov.vn/e-visa/foreigners",
+  };
+
+  assert.equal(isRetryableVietnamResult(paymentNavigationFailure), false);
+  assert.equal(isRetryableVietnamResult(submittedButUnconfirmed), false);
+});
+
+test("vn.retry-policy: reports temporary portal outage after bounded attempts", () => {
   const transientError: FillVietnamResult = {
     status: "action_required",
     actionType: "layout_changed",
@@ -96,12 +149,12 @@ test("vn.retry-policy: reports temporary portal outage after three attempts", ()
     },
   };
 
-  const finalized = finalizeVietnamResultAfterRetries(transientError, 3);
+  const finalized = finalizeVietnamResultAfterRetries(transientError, 5);
 
   assert.equal(finalized.status, "failed");
   if (finalized.status !== "failed") return;
   assert.equal(finalized.error?.code, "official_portal_unavailable_after_retries");
-  assert.match(String(finalized.error?.message), /after 3 attempts/i);
+  assert.match(String(finalized.error?.message), /after 5 attempts/i);
   assert.match(String(finalized.error?.message), /did not attempt payment/i);
   assert.equal(finalized.checkpoint, "portal_error");
 });
@@ -116,4 +169,23 @@ test("vn.retry-policy: preserves a genuine layout change after retries", () => {
   };
 
   assert.equal(finalizeVietnamResultAfterRetries(layoutResult, 3), layoutResult);
+});
+
+test("vn.retry-policy: exhausts a queue retry after consuming a one-time card", () => {
+  assert.equal(
+    nextVietnamQueueAttemptCount({
+      currentAttempts: 0,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization: true,
+    }),
+    3,
+  );
+  assert.equal(
+    nextVietnamQueueAttemptCount({
+      currentAttempts: 0,
+      officialPortalFailure: false,
+      consumedOneTimeCardAuthorization: false,
+    }),
+    1,
+  );
 });

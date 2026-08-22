@@ -18,16 +18,6 @@ import {
   type PhEtravelPostSignatureSemantic,
 } from "./wizard-semantics";
 import { buildPhEtravelProfileOwnedActionPlan } from "./profile-owned-preflight";
-import {
-  buildPhEtravelInitialRegistrationPlan,
-  PhEtravelInitialRegistrationError,
-  type PhEtravelInitialRegistrationChoice,
-} from "./registration-start";
-import {
-  consumePhEtravelFinalSubmitAuthorization,
-  PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
-  type PhEtravelFinalSubmitAuthorization,
-} from "./final-submit-gate";
 
 export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox";
 
@@ -39,34 +29,10 @@ export interface PhEtravelFieldPlanItem {
   kind: PhEtravelFieldKind;
   value: string | boolean | null;
   required?: boolean;
-  repeatable?: boolean;
-  minimumItems?: number;
 }
-
-export const PH_ETRAVEL_HEALTH_STATIC_WARNING =
-  "As of July 22, 2023, No Covid-19 test or Vaccination requirement when traveling to the Philippines.";
-
-export const PH_ETRAVEL_HEALTH_SYMPTOM_LABELS = [
-  "Altered Mental Status",
-  "Colds",
-  "Cough",
-  "Diarrhea",
-  "Difficulty of Breathing",
-  "Dizziness",
-  "Fever",
-  "Headache",
-  "Loss of appetite",
-  "Loss of smell",
-  "Loss of taste",
-  "Muscle Pain",
-  "Nausea",
-  "Rashes, vesicles or blisters",
-  "Sore throat",
-] as const;
 
 export interface PhEtravelFormFillResult {
   reachedReview: boolean;
-  /** Never true from text, navigation, or a visible Submit button alone. */
   submitted: boolean;
   portalText: string;
   filledFields: string[];
@@ -113,43 +79,12 @@ export type PhEtravelSeaCustomsPageKind =
   | "review_summary"
   | "unknown";
 
-export type PhEtravelAirCustomsPageKind =
-  | "general_declaration"
-  | "attachments_signature"
-  | "signature_only"
-  | "unknown";
-
 export function isPhEtravelSignaturePageText(portalText: string): boolean {
   return !isPhEtravelReviewSummaryText(portalText) &&
     /customs declaration attachments and signature|for customs\s*-\s*declaration signature|declaration signature/i.test(portalText) &&
     /\bsignature\b/i.test(portalText) &&
     /\bclear\b/i.test(portalText) &&
     /by clicking\s+["']?next["']?.*true and correct/i.test(portalText);
-}
-
-/**
- * AIR customs pages are classified only from their visible title and controls.
- * wizard_page is intentionally not consulted because optional customs branches
- * change the page array.
- */
-export function classifyPhEtravelAirCustomsPage(portalText: string): PhEtravelAirCustomsPageKind {
-  if (
-    /for customs\s*-\s*declaration attachments and signature/i.test(portalText) &&
-    /take a photo or upload a file/i.test(portalText) &&
-    /\bsignature\b/i.test(portalText)
-  ) {
-    return "attachments_signature";
-  }
-  if (isPhEtravelSignaturePageText(portalText)) return "signature_only";
-  if (
-    /for customs\s*-\s*general declaration/i.test(portalText) &&
-    /total amount of goods purchased and\/or acquired abroad/i.test(portalText) &&
-    /\byes\b/i.test(portalText) &&
-    /\bno\b/i.test(portalText)
-  ) {
-    return "general_declaration";
-  }
-  return "unknown";
 }
 
 export function classifyPhEtravelSeaCustomsPage(portalText: string): PhEtravelSeaCustomsPageKind {
@@ -241,8 +176,7 @@ export type PhEtravelElectronicCustomsAutofillPhaseKey =
   | "currency_item_modal_table"
   | "currency_source_purpose_checkboxes"
   | "currency_transfer_branch"
-  | "attachments_signature"
-  | "signature_only";
+  | "attachments_signature";
 
 export interface PhEtravelElectronicCustomsAutofillPhase {
   key: PhEtravelElectronicCustomsAutofillPhaseKey;
@@ -271,7 +205,6 @@ export interface PhEtravelElectronicCustomsAction {
   kind: PhEtravelElectronicCustomsActionKind;
   selector: string;
   value?: string | boolean;
-  checklistItemNumber?: number;
 }
 
 export interface PhEtravelElectronicCustomsActionPlan {
@@ -324,25 +257,8 @@ function hasPositiveGeneralDeclaration(payload: PhEtravelPortalPayload): boolean
 }
 
 function hasGoodsItemModalBranch(payload: PhEtravelPortalPayload): boolean {
-  return positiveGoodsChecklistItemNumbers(payload).length > 0;
-}
-
-function positiveGoodsChecklistItemNumbers(payload: PhEtravelPortalPayload): number[] {
-  return (payload.customs.generalDeclarationResponses ?? [])
-    .filter((item) => item.itemNumber >= 3 && item.itemNumber <= 12 && item.response)
-    .map((item) => item.itemNumber)
-    .sort((left, right) => left - right);
-}
-
-function goodsItemsForChecklistItem(
-  payload: PhEtravelPortalPayload,
-  checklistItemNumber: number,
-  positiveChecklistItemNumbers: number[],
-): typeof payload.customs.goodsItems {
-  return payload.customs.goodsItems.filter((item) =>
-    item.checklistItemNumber === checklistItemNumber ||
-    (!item.checklistItemNumber && positiveChecklistItemNumbers.length === 1),
-  );
+  return (payload.customs.goodsItems ?? []).length > 0 ||
+    (payload.customs.generalDeclarationResponses ?? []).some((item) => item.itemNumber === 12 && item.response === true);
 }
 
 function hasCurrencyDeclarationBranch(payload: PhEtravelPortalPayload): boolean {
@@ -375,9 +291,6 @@ function phEtravelPostSignatureEvidencePath(input: {
 }): PhEtravelPostSignatureEvidencePath {
   const isSeaArrival = input.payload.travelType === "ARRIVAL" &&
     (input.payload.transportType === "SEA" || input.payload.arrivalBranch?.transportType === "SEA");
-  if (!isSeaArrival && input.payload.transportType === "AIR" && positiveGoodsChecklistItemNumbers(input.payload).length > 0) {
-    return "air_electronic_positive_family_live";
-  }
   if (!isSeaArrival || !input.seaPortFlow) return "unverified";
   // E24 limits metadata to a dynamic page-array gate. It cannot select an
   // electronic evidence path before the rendered route and page content agree.
@@ -390,22 +303,6 @@ function uniqueCodes(codes: string[]): string[] {
 
 function hasTextValue(value: string | null): value is string {
   return Boolean(value?.trim());
-}
-
-function isOfficialNumericOptionId(value: string): boolean {
-  return /^\d+$/.test(value);
-}
-
-function currencyOwnerBranchBlockingCodes(
-  ownerBranch: ReturnType<typeof normalizePhEtravelCurrencyOwnerBranch>,
-  branch: "AIR" | "SEA",
-): string[] {
-  if (ownerBranch.ownerNotApplicable) return ownerBranch.blockingCodes;
-  // E45 proves empty owner/recipient direct fields did not client-block this
-  // AIR path. Server conditions remain unknown, so this is not an enablement.
-  return branch === "AIR"
-    ? ["owner_recipient_server_requiredness_unverified"]
-    : ownerBranch.blockingCodes;
 }
 
 function completeChecklistResponses(payload: PhEtravelPortalPayload): boolean {
@@ -464,8 +361,8 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     }
   }
 
-  const positiveGoodsItems = positiveGoodsChecklistItemNumbers(payload);
-  if (positiveGoodsItems.length > 0) {
+  const otherGoodsSelected = checklist.some((item) => item.itemNumber === 12 && item.response);
+  if (otherGoodsSelected || payload.customs.goodsItems.length > 0) {
     if (!hasTextValue(payload.customs.amountOfGoodsCurrency) || !hasTextValue(payload.customs.amountOfGoodsAmount)) {
       blockingCodes.push("customs_goods_amount_incomplete");
     } else {
@@ -484,22 +381,19 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
         },
       );
     }
-    const unassociatedItems = payload.customs.goodsItems.filter((item) => !item.checklistItemNumber);
-    if (unassociatedItems.length > 0 && positiveGoodsItems.length > 1) {
-      blockingCodes.push("customs_goods_item_checklist_association_required");
+    if (otherGoodsSelected && payload.customs.goodsItems.length === 0) {
+      blockingCodes.push("customs_other_goods_item_required");
     }
-    for (const checklistItemNumber of positiveGoodsItems) {
-      for (const item of goodsItemsForChecklistItem(payload, checklistItemNumber, positiveGoodsItems)) {
-        actions.push(
-          { phase: "goods_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')", checklistItemNumber },
-          { phase: "goods_item_modal_table", kind: "fill_text", selector: "textarea[name='description']", value: item.description, checklistItemNumber },
-          { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='quantity']", value: item.quantity, checklistItemNumber },
-          { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='amount']", value: item.amountUsd, checklistItemNumber },
-          { phase: "goods_item_modal_table", kind: "add_modal_row", selector: "button:has-text('Add')", checklistItemNumber },
-        );
-      }
+    for (const item of payload.customs.goodsItems) {
+      actions.push(
+        { phase: "goods_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')" },
+        { phase: "goods_item_modal_table", kind: "fill_text", selector: "textarea[name='description']", value: item.description },
+        { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='quantity']", value: item.quantity },
+        { phase: "goods_item_modal_table", kind: "fill_text", selector: "input[name='amount']", value: item.amountUsd },
+        { phase: "goods_item_modal_table", kind: "add_modal_row", selector: "button:has-text('Add')" },
+      );
     }
-    blockingCodes.push("other_goods_no_row_page_level_blocking_unverified");
+    if (otherGoodsSelected) blockingCodes.push("other_goods_no_row_page_level_blocking_unverified");
   }
 
   if (hasCurrencyDeclarationBranch(payload)) {
@@ -510,16 +404,12 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     });
     actions.push(...currencyPartyActions("currency_owner_recipient", "owner", ownerBranch.owner));
     actions.push(...currencyPartyActions("currency_owner_recipient", "recipient", ownerBranch.recipient));
-    blockingCodes.push(...currencyOwnerBranchBlockingCodes(ownerBranch, branch));
+    blockingCodes.push(...ownerBranch.blockingCodes);
 
     if (payload.customs.currencyItems.length === 0) {
       blockingCodes.push("customs_currency_item_required");
     }
     for (const item of payload.customs.currencyItems) {
-      if (!isOfficialNumericOptionId(item.currency) || !isOfficialNumericOptionId(item.monetaryInstrument)) {
-        blockingCodes.push("customs_currency_item_api_id_required");
-        continue;
-      }
       actions.push(
         { phase: "currency_item_modal_table", kind: "open_modal", selector: "button:has-text('Add Item')" },
         { phase: "currency_item_modal_table", kind: "set_choice", selector: "[name='currency_id']", value: item.currency },
@@ -540,7 +430,11 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       }
     }
     if (payload.customs.currencySources.includes("OTHER")) {
-      blockingCodes.push("customs_currency_source_other_live_behavior_unverified");
+      if (!hasTextValue(payload.customs.currencySourceOther)) {
+        blockingCodes.push("customs_currency_source_other_required");
+      } else {
+        actions.push({ phase: "currency_source_purpose_checkboxes", kind: "fill_text", selector: "input[name='currency_source_other']", value: payload.customs.currencySourceOther });
+      }
     }
 
     if (payload.customs.currencyTransportPurposes.length === 0) blockingCodes.push("customs_currency_purpose_required");
@@ -553,7 +447,11 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       }
     }
     if (payload.customs.currencyTransportPurposes.includes("OTHER")) {
-      blockingCodes.push("customs_currency_purpose_other_live_behavior_unverified");
+      if (!hasTextValue(payload.customs.currencyTransportPurposeOther)) {
+        blockingCodes.push("customs_currency_purpose_other_required");
+      } else {
+        actions.push({ phase: "currency_source_purpose_checkboxes", kind: "fill_text", selector: "input[name='transport_purpose_other']", value: payload.customs.currencyTransportPurposeOther });
+      }
     }
 
     if (!payload.customs.currencyTransportMethod) {
@@ -583,20 +481,16 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
       });
       if (hasTextValue(payload.customs.noOfDaysInPhilippines)) {
         actions.push({ phase: "currency_transfer_branch", kind: "fill_text", selector: "input[name='no_of_days_in_philippines']", value: payload.customs.noOfDaysInPhilippines });
-      } else {
-        blockingCodes.push(branch === "AIR"
-          ? "customs_no_of_days_in_philippines_required"
-          : "sea_electronic_positive_no_of_days_in_philippines_required");
+      } else if (branch === "SEA") {
+        blockingCodes.push("sea_electronic_positive_no_of_days_in_philippines_required");
       }
       if (hasTextValue(payload.customs.lastTravelToPhilippines)) {
         actions.push({ phase: "currency_transfer_branch", kind: "fill_text", selector: "input[name='last_travel_to_philippines']", value: payload.customs.lastTravelToPhilippines });
-      } else {
-        blockingCodes.push(branch === "AIR"
-          ? "customs_last_travel_to_philippines_required"
-          : "sea_electronic_positive_last_travel_to_philippines_required");
+      } else if (branch === "SEA") {
+        blockingCodes.push("sea_electronic_positive_last_travel_to_philippines_required");
       }
       if (branch === "AIR") {
-        blockingCodes.push("physical_branch_server_acceptance_unverified");
+        blockingCodes.push("physical_branch_empty_requiredness_unverified");
       }
     }
     if (hasTextValue(payload.customs.bspAuthorizationDate)) {
@@ -604,11 +498,8 @@ function buildPhEtravelElectronicPositiveCustomsActionPlan(
     }
   }
 
-  if (branch === "AIR" && completeChecklistResponses(payload)) {
-    // E45: AIR Q3-Q12-positive continuation reached Family with no attachment
-    // after a valid signature. File behavior stays unknown, but blank upload is
-    // not an unconditional client blocker for this narrow path.
-    blockingCodes.push("ph_etravel_signature_required");
+  if (branch === "AIR" && (payload.customs.customsSignatureDeclaration || payload.customs.customsSignatureFile)) {
+    blockingCodes.push(...buildPhEtravelAttachmentActionContract(undefined).blockingCodes);
   }
 
   return { branch, actions, blockingCodes: uniqueCodes(blockingCodes), actionRequired: true };
@@ -863,7 +754,7 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
           "input[name='recipient_postal_code']",
         ],
         ["Owner/recipient field selectors observed on AIR positive currency page"],
-        currencyOwnerBranchBlockingCodes(ownerBranch, payload.transportType === "SEA" ? "SEA" : "AIR"),
+        ownerBranch.blockingCodes,
       ),
       actionRequiredPhase(
         "currency_item_modal_table",
@@ -901,7 +792,7 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
         [
           "Source values observed: SALARY, BUSINESS, OTHER",
           "Purpose values observed: LEISURE, MEDICAL, PAYABLES, EDUCATION, OTHER",
-          "Live Other-detail control conflicts with earlier static wiring",
+          "Other source/purpose empty fields show Required",
         ],
       ),
       payload.customs.currencyTransportMethod === "is_shipped_thru_courier_service"
@@ -941,36 +832,21 @@ export function buildPhEtravelElectronicCustomsAutofillPhases(
               "input[name='last_travel_to_philippines']",
               "input[name='bsp_authorization_date']",
             ],
-            [
-              "AIR physical branch: No. of days in the Philippines Required",
-              "AIR physical branch: Last travel to the Philippines Required",
-            ],
-            ["physical_branch_server_acceptance_unverified"],
+            ["Physical branch selectors observed"],
+            ["physical_branch_empty_requiredness_unverified"],
           ),
     );
   }
 
-  const positiveGoodsItems = positiveGoodsChecklistItemNumbers(payload);
-  if (positiveGoodsItems.length > 0) {
-    const attachmentBlockingCodes = payload.transportType === "SEA"
-      ? buildPhEtravelAttachmentActionContract(undefined).blockingCodes
-      : ["ph_etravel_signature_required"];
+  if (payload.customs.customsSignatureDeclaration || payload.customs.customsSignatureFile) {
+    const attachmentContract = buildPhEtravelAttachmentActionContract(undefined);
     phases.push(actionRequiredPhase(
       "attachments_signature",
       ["attachments", "signature"],
       "customs_attachments_signature_controls",
       [],
       ["Signature canvas and Clear button observed where signature page appears"],
-      attachmentBlockingCodes,
-    ));
-  } else if (payload.customs.generalDeclarationResponses.length > 0) {
-    phases.push(actionRequiredPhase(
-      "signature_only",
-      ["signature"],
-      "customs_signature_only_controls",
-      [],
-      ["Q3 through Q12 all No leads to the observed signature-only variant"],
-      ["ph_etravel_signature_required"],
+      attachmentContract.blockingCodes,
     ));
   }
 
@@ -1154,7 +1030,7 @@ export function buildPhEtravelFieldPlan(
       { key: "passport_expiry_date", labels: ["Passport Expiry Date", "Passport Expiration Date"], kind: "date", value: payload.passportExpiryDate, required: true },
       { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
       { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
-      { key: "purpose", portalName: "purpose_of_visit_code", portalValue: payload.purposeOfTravel, labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+      { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
       { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? (isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER")), required: true },
       { key: "travel_company", portalName: "travel_company_code", labels: ["Name of Airline", "Name of Vessel", "Travel Company"], kind: isAir ? "choice" : "text", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
       { key: "transport_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "text", value: payload.flightNumber, required: true },
@@ -1195,7 +1071,7 @@ export function buildPhEtravelFieldPlan(
     { key: "sex", labels: ["Sex", "Gender"], kind: "choice", value: optionLabel(payload.sex), required: true },
     { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
     { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
-    { key: "purpose", portalName: "purpose_of_visit_code", portalValue: payload.purposeOfTravel, labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+    { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
     { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? arrivalTravellerType), required: true },
     {
       key: isAirArrival ? "airline" : "vessel_name",
@@ -1204,10 +1080,7 @@ export function buildPhEtravelFieldPlan(
         ? ["Name of Airline", "Airline Name", "Name of Airline/Vessel"]
         : ["Name of Vessel", "Vessel Name", "Name of Airline/Vessel"],
       kind: isAirArrival ? "choice" : "text",
-      portalValue: isAirArrival ? payload.airlineCode ?? payload.airlineOrVesselName : undefined,
-      value: isAirArrival
-        ? payload.airlineName ?? resolvedOptionLabel(payload.airlineOrVesselName, officialLabels)
-        : resolvedOptionLabel(payload.airlineOrVesselName, officialLabels),
+      value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels),
       required: true,
     },
     {
@@ -1217,8 +1090,7 @@ export function buildPhEtravelFieldPlan(
         ? ["Specify special flight number"]
         : isAirArrival ? ["Flight Number", "Vehicle/Vessel Number"] : ["Voyage Number", "Vehicle/Vessel Number"],
       kind: isAirArrival && payload.isSpecialFlight ? "text" : isAirArrival ? "choice" : "text",
-      portalValue: isAirArrival && !payload.isSpecialFlight ? payload.flightCode ?? payload.flightNumber : undefined,
-      value: isAirArrival && !payload.isSpecialFlight ? payload.flightName ?? payload.flightNumber : payload.flightNumber,
+      value: payload.flightNumber,
       required: true,
     },
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
@@ -1230,7 +1102,7 @@ export function buildPhEtravelFieldPlan(
       value: payload.airportOfOrigin,
       required: true,
     },
-    { key: "port_of_entry", portalName: "destination_port_code", portalValue: payload.portOfEntry, labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", isAirArrival ? "Airport of Destination" : "Seaport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
+    { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", isAirArrival ? "Airport of Destination" : "Seaport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
     { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
     { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
@@ -1255,17 +1127,12 @@ export function buildPhEtravelFieldPlan(
     { key: "under_18_count", labels: ["Below 18 yrs. old"], kind: "choice", value: payload.accompaniedUnder18Count ?? "0" },
     { key: "adult_count", labels: ["18 yrs. old and above"], kind: "choice", value: payload.accompanied18PlusCount ?? "0" },
     { key: "first_visit", labels: ["First time visiting Philippines"], kind: "choice", value: yesNo(payload.firstTimeVisitingPhilippines) },
-    { key: "health_recent_travel", portalName: "meta.with_recent_travel_history", labels: ["Do you have any recent travel history in the last 30 days?"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d), required: true },
-    ...(payload.hasRecentTravelHistory30d ? [
-      { key: "visited_countries", portalName: "visited_countries", labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: null, required: true, repeatable: true, minimumItems: 1 },
-      ...(payload.visitedCountries30d ?? []).map((country, index) => ({ key: `visited_country_${index}`, portalName: "visited_countries", labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: resolvedOptionLabel(country, officialLabels), required: true, repeatable: true, minimumItems: 1 })),
-    ] : []),
-    { key: "health_exposure", portalName: "is_with_history_exposure", labels: ["Have you had any history of exposure to a person who is sick or known to have communicable/infectious disease in the past 30 days prior to travel?"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d), required: true },
-    { key: "health_sick", portalName: "is_sicked_within_thirty_days", labels: ["Have you been sick in the past 30 days?"], kind: "choice", value: yesNo(payload.hasBeenSick30d), required: true },
-    ...(payload.hasBeenSick30d ? [
-      { key: "sickness_symptoms", portalName: "sickness_symptoms", labels: ["Symptoms"], kind: "choice" as const, value: null, required: true, repeatable: true, minimumItems: 1 },
-      ...(payload.sicknessSymptoms ?? []).map((symptom, index) => ({ key: `sickness_symptom_${index}`, portalName: "sickness_symptoms", labels: ["Symptoms"], kind: "choice" as const, value: resolvedOptionLabel(symptom, officialLabels), required: true, repeatable: true, minimumItems: 1 })),
-    ] : []),
+    { key: "health_recent_travel", portalName: "meta.with_recent_travel_history", labels: ["recent travel history in the last 30 days"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d), required: true },
+    ...(payload.visitedCountries30d ?? []).map((country, index) => ({ key: `visited_country_${index}`, labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: resolvedOptionLabel(country, officialLabels) })),
+    { key: "health_exposure", portalName: "is_with_history_exposure", labels: ["history of exposure to a person who is sick"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d), required: true },
+    { key: "health_sick", portalName: "is_sicked_within_thirty_days", labels: ["been sick in the past 30 days"], kind: "choice", value: yesNo(payload.hasBeenSick30d), required: true },
+    ...(payload.sicknessSymptoms ?? []).map((symptom, index) => ({ key: `sickness_symptom_${index}`, labels: ["Symptoms", "Symptom"], kind: "choice" as const, value: resolvedOptionLabel(symptom, officialLabels) })),
+    { key: "health_details", labels: ["Health Declaration Details", "Symptoms Details"], kind: "text", value: payload.healthSymptomsDetails },
     ...customsDeclarationPlan(payload),
   ];
 }
@@ -1448,10 +1315,6 @@ function expectedRadioValue(item: PhEtravelFieldPlanItem): string {
   return wanted;
 }
 
-function expectedChoiceStoredValue(item: PhEtravelFieldPlanItem): string {
-  return normalizedChoiceText(String(item.portalValue ?? item.value ?? ""));
-}
-
 async function selectStaticNamedCombobox(
   page: Page,
   item: PhEtravelFieldPlanItem,
@@ -1481,7 +1344,7 @@ async function selectStaticNamedCombobox(
       if (normalizedChoiceText(await option.innerText().catch(() => "")) !== wanted) continue;
       if (!await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false)) continue;
       await page.waitForTimeout(250);
-      return normalizedChoiceText(await hidden.inputValue().catch(() => "")) === expectedChoiceStoredValue(item);
+      return normalizedChoiceText(await hidden.inputValue().catch(() => "")) === wanted;
     }
   }
 
@@ -1521,10 +1384,6 @@ async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Pr
   if (await page.locator(`${namedSelector}[type="hidden"]`).count().catch(() => 0)) {
     return selectStaticNamedCombobox(page, item, namedSelector);
   }
-  // If the page exposes only a display combobox, there is no observable way to
-  // verify that its selected submission value equals the official opaque code.
-  // Do not guess from the label or proceed with an unverified dynamic option.
-  if (item.portalValue && normalizedChoiceText(item.portalValue) !== normalizedChoiceText(item.value)) return false;
   const control = await firstVisible([page.locator(`${namedSelector}:visible`)]);
   if (!control || await control.getAttribute("role") !== "combobox") return false;
 
@@ -1711,85 +1570,27 @@ async function clickVisibleButton(page: Page, pattern: RegExp): Promise<boolean>
   return true;
 }
 
-async function selectInitialRegistrationChoice(
-  page: Page,
-  choice: PhEtravelInitialRegistrationChoice,
-): Promise<boolean> {
-  const namedRadio = page.locator(
-    `input[type="radio"][name="${choice.key}"][value="${choice.value}"]`,
-  ).first();
-  if (await namedRadio.isVisible().catch(() => false)) {
-    await namedRadio.check({ force: true, timeout: 5_000 }).catch(() => undefined);
-    return namedRadio.isChecked().catch(() => false);
-  }
-
-  const roleRadio = page.getByRole("radio", { name: choice.label }).first();
-  if (await roleRadio.isVisible().catch(() => false)) {
-    await roleRadio.check({ force: true, timeout: 5_000 }).catch(async () => {
-      await roleRadio.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-    });
-    return roleRadio.isChecked().catch(() => false);
-  }
-
-  const label = page.locator("label").filter({ hasText: choice.label }).first();
-  if (!await label.isVisible().catch(() => false)) return false;
-  await label.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-  const nestedRadio = label.locator("input[type='radio']").first();
-  if (await nestedRadio.count().catch(() => 0)) {
-    return nestedRadio.isChecked().catch(() => false);
-  }
-  const selectedCard = page.locator("[role='radio'][aria-checked='true']").filter({ hasText: choice.label }).first();
-  return selectedCard.isVisible().catch(() => false);
-}
-
 async function chooseInitialRegistration(page: Page, completed: Set<string>, payload: PhEtravelPortalPayload): Promise<boolean> {
   const portalText = await page.locator("body").innerText().catch(() => "");
   if (!/Travel Registration/i.test(portalText)) return false;
 
-  let registrationPlan;
-  try {
-    registrationPlan = buildPhEtravelInitialRegistrationPlan(payload);
-  } catch (error) {
-    if (!(error instanceof PhEtravelInitialRegistrationError)) throw error;
-    throw new PhEtravelFormFillError(error.message, error.code, error.code);
-  }
-  for (const choice of registrationPlan.choices) {
-    if (!await selectInitialRegistrationChoice(page, choice)) {
-      throw new PhEtravelFormFillError(
-        `Official eTravel did not retain the expected ${choice.value} registration choice.`,
-        "ph_etravel_initial_registration_selection_failed",
-        choice.key,
-      );
+  const choices: Array<[string, RegExp]> = [
+    ["registration_for", /FOR ME\s*\(Current User\)/i],
+    ["transport_type", payload.arrivalBranch?.transportType === "SEA" || payload.transportType === "SEA" ? /^SEA$/i : /^AIR$/i],
+    ["passport_holder_type", payload.arrivalBranch?.passportHolderType === "FILIPINO" || payload.passportHolderType === "FILIPINO"
+      ? /PHILIPPINE\s+PASSPORT|FILIPINO/i
+      : /FOREIGN\s+PASSPORT|FOREIGNER/i],
+    ["travel_type", payload.travelType === "DEPARTURE" ? /DEPARTURE\s*Leaving the Philippines/i : /ARRIVAL\s*Entering the Philippines/i],
+  ];
+  for (const [key, pattern] of choices) {
+    const target = await firstVisible([
+      page.getByText(pattern),
+      page.locator("label, button, [role='radio'], div").filter({ hasText: pattern }),
+    ]);
+    if (target) {
+      await target.click({ force: true, timeout: 5_000 });
+      completed.add(key);
     }
-    completed.add(choice.key);
-  }
-
-  // The consent record only authorizes Continue. It is deliberately not added
-  // to the official field plan or submission payload.
-  completed.add("registration_consent_authorized");
-
-  if (registrationPlan.continuation === "for_other_action_required") {
-    throw new PhEtravelFormFillError(
-      "Philippines eTravel FOR OTHER continuation is not verified after the selected Travel Registration branch.",
-      "ph_etravel_arrival_for_other_action_required",
-      "registration_for",
-    );
-  }
-
-  const passportHolderPattern = payload.arrivalBranch?.passportHolderType === "FILIPINO" || payload.passportHolderType === "FILIPINO"
-    ? /PHILIPPINE\s+PASSPORT|FILIPINO/i
-    : /FOREIGN\s+PASSPORT|FOREIGNER/i;
-  const passportHolder = page.getByRole("radio", { name: passportHolderPattern }).first();
-  if (await passportHolder.isVisible().catch(() => false)) {
-    await passportHolder.check({ force: true, timeout: 5_000 }).catch(() => undefined);
-    if (!await passportHolder.isChecked().catch(() => false)) {
-      throw new PhEtravelFormFillError(
-        "Official eTravel did not retain the expected passport-holder choice.",
-        "ph_etravel_initial_registration_selection_failed",
-        "passport_holder_type",
-      );
-    }
-    completed.add("passport_holder_type");
   }
 
   const specialFlight = await firstVisible([page.getByLabel(/Special Flight/i)]);
@@ -1803,6 +1604,17 @@ async function chooseInitialRegistration(page: Page, completed: Set<string>, pay
   return true;
 }
 
+async function checkReviewDeclarations(page: Page): Promise<void> {
+  const checkboxes = page.locator("input[type='checkbox']:visible, [role='checkbox']:visible");
+  const count = await checkboxes.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const checkbox = checkboxes.nth(index);
+    if (!await checkbox.isChecked().catch(() => false)) {
+      await checkbox.click({ force: true, timeout: 5_000 });
+    }
+  }
+}
+
 export async function fillPhEtravelOfficialDeclaration(
   page: Page,
   payload: PhEtravelPortalPayload,
@@ -1810,7 +1622,6 @@ export async function fillPhEtravelOfficialDeclaration(
     stopBeforeSubmit: boolean;
     onStep?: (name: string) => Promise<void>;
     beforeSubmit?: () => Promise<void>;
-    finalSubmitAuthorization?: PhEtravelFinalSubmitAuthorization;
   },
 ): Promise<PhEtravelFormFillResult> {
   if (payload.travelType === "ARRIVAL") {
@@ -1912,11 +1723,7 @@ export async function fillPhEtravelOfficialDeclaration(
     const confirmation = isPhEtravelConfirmationText(portalText);
     if (confirmation) {
       await options.onStep?.("confirmation");
-      throw new PhEtravelFormFillError(
-        "Official eTravel result text requires an authoritative registration read and matching reference-derived QR validation.",
-        "ph_etravel_authoritative_result_read_required",
-        "ph_etravel_authoritative_result_read_required",
-      );
+      return { reachedReview: true, submitted: true, portalText, filledFields: [...completed] };
     }
     if (/enter email address|create an account|login|password/i.test(portalText) && !/travel details|travel registration/i.test(portalText)) {
       throw new PhEtravelFormFillError(
@@ -1941,17 +1748,7 @@ export async function fillPhEtravelOfficialDeclaration(
       if (options.stopBeforeSubmit || postSignatureGuard?.status === "review_stop_only") {
         return { reachedReview: true, submitted: false, portalText, filledFields: [...completed] };
       }
-      const finalSubmitGate = consumePhEtravelFinalSubmitAuthorization({
-        finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
-        authorization: options.finalSubmitAuthorization,
-      });
-      if (finalSubmitGate.status !== "authorized") {
-        throw new PhEtravelFormFillError(
-          "Philippines eTravel final Submit remains disabled without a one-time authorization.",
-          finalSubmitGate.code,
-          finalSubmitGate.code,
-        );
-      }
+      await checkReviewDeclarations(page);
       await options.beforeSubmit?.();
       if (!await clickVisibleButton(page, /^submit$|submit declaration|confirm and submit|complete registration/i)) {
         throw new PhEtravelFormFillError(

@@ -17,6 +17,8 @@ namespace `/visa` and sends/receives streaming events.
 4. Assistant output is persisted to `visa_chat_messages`.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
+6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
+   replica so an upstream slowdown cannot exhaust every socket worker.
 
 ## Ownership Boundaries
 
@@ -64,6 +66,8 @@ Also smoke `/client/chat` with the frontend when possible.
 - `viza-be/agent-backend/src/agent/index.ts`
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
+- `viza-be/agent-backend/src/socket/chat-concurrency.ts`
+- `viza-be/agent-backend/src/socket/visa-product-recommendations.test.ts`
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
 - `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`
 - `viza-fe/internal-website/app/client/chat/AGENTS.md`

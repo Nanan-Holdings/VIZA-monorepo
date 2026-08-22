@@ -21,5 +21,5 @@ export async function completeFreeOrder(
     .eq("id", orderId);
   if (error) throw new Error(`free order paid update: ${error.message}`);
 
-  runPostPaidSideEffects(orderId, "free");
+  await runPostPaidSideEffects(orderId, "free", `free:${orderId}`);
 }

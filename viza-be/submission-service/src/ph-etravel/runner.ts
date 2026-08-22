@@ -12,20 +12,11 @@ import {
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
 import { safePhEtravelDiagnosticLogs } from "./error-safety";
-import { isPhEtravelAccountPasswordCompliant } from "./account";
 import {
   gatePhEtravelAuthoritativeResult,
   type PhEtravelAuthoritativeRegistrationRead,
   type PhEtravelDerivedQrRenderMetadata,
 } from "./result-evidence";
-import {
-  buildPhEtravelResidenceActionPlan,
-  resolvePhEtravelOfficialResidenceHierarchy,
-  type PhEtravelCanonicalOption,
-} from "./residence-address";
-import { PH_ETRAVEL_FINAL_SUBMIT_ENABLED } from "./final-submit-gate";
-
-export { PH_ETRAVEL_FINAL_SUBMIT_ENABLED } from "./final-submit-gate";
 
 export interface PhEtravelPortalSubmissionResult {
   submitted: boolean;
@@ -65,8 +56,6 @@ export class PhEtravelPortalError extends Error {
 export interface PhEtravelRunnerOptions {
   headless?: boolean;
   stopBeforeSubmit?: boolean;
-  /** Separate official write gate for saving the eGovPH basic profile. */
-  allowProfileSave?: boolean;
   applicantId?: string;
   profilePhotoPath?: string;
   officialAccountEmail?: string;
@@ -79,34 +68,8 @@ export interface PhEtravelRunnerOptions {
   emailVerificationTimeoutMs?: number;
 }
 
-export type PhEtravelPortalWorkflowState =
-  | "profile_review_ready"
-  | "profile_saved_dashboard"
-  | "etravel_registration_review_ready"
-  | "other";
-
-export type PhEtravelProfileCheckpoint = "profile_review_ready" | "profile_saved" | "unknown";
-
-export function classifyPhEtravelPortalWorkflowState(value: string): PhEtravelPortalWorkflowState {
-  if (/personal information review|onboarding summary|kindly double check/i.test(value)) {
-    return "profile_review_ready";
-  }
-  if (/dashboard|new travel declaration|travel history/i.test(value)) {
-    return "profile_saved_dashboard";
-  }
-  if (/review(?: your)? (?:etravel|travel|registration)|registration review/i.test(value)) {
-    return "etravel_registration_review_ready";
-  }
-  return "other";
-}
-
-/** A dashboard marker is the only restart-resume signal for a saved profile. */
-export function resolvePhEtravelProfileCheckpoint(portalText: string): PhEtravelProfileCheckpoint {
-  const workflow = classifyPhEtravelPortalWorkflowState(portalText);
-  if (workflow === "profile_review_ready") return "profile_review_ready";
-  if (workflow === "profile_saved_dashboard") return "profile_saved";
-  return "unknown";
-}
+/** E16: no browser final-submit path is enabled until controlled live evidence closes. */
+export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
 
 export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
   return /bright\s*data|proxy_error|classified\s+as\s+government|residential.*policy/i.test(message) &&
@@ -126,13 +89,6 @@ export function sanitizePhEtravelLog(value: string): string {
 
 export function sanitizePhEtravelLogs(logs: string[]): string[] {
   return logs.map(sanitizePhEtravelLog);
-}
-
-export function phEtravelPasswordFieldValues(password: string): {
-  password: string;
-  confirmation: string;
-} {
-  return { password, confirmation: password };
 }
 
 export function isPhEtravelReviewStopError(error: unknown): error is PhEtravelPortalError {
@@ -254,43 +210,12 @@ async function firstSuccessful<T>(promises: Array<Promise<T>>): Promise<T> {
   });
 }
 
-function normalizedOptionText(value: string | null | undefined): string {
-  return value?.trim() ?? "";
-}
-
-/** Citizenship options use demonyms; country fields use country names. */
-export function phEtravelCitizenshipLabel(value: string): string {
-  const normalized = normalizedOptionText(value);
-  if (/^(philippines|philippine|filipino|ph|phl)$/i.test(normalized)) return "Filipino";
-  if (/^(china|chinese|cn|chn)$/i.test(normalized)) return "Chinese";
-  return normalized;
-}
-
-export function phEtravelCountryNameLabel(value: string): string {
-  const normalized = normalizedOptionText(value);
-  if (/^(philippines|philippine|filipino|ph|phl)$/i.test(normalized)) return "Philippines";
-  if (/^(china|chinese|cn|chn)$/i.test(normalized)) return "China";
-  if (/^(singapore|singaporean|sg|sgp)$/i.test(normalized)) return "Singapore";
-  return normalized;
-}
-
-export function phEtravelPersonalInformationPlan(payload: PhEtravelPortalPayload): {
-  firstName: string;
-  middleName: string | null;
-  lastName: string | null;
-  suffix: string | null;
-  citizenshipLabel: string;
-  countryOfBirthLabel: string;
-  passportIssuingAuthorityLabel: string;
-} {
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { firstName: parts[0] ?? fullName.trim(), lastName: "" };
   return {
-    firstName: payload.firstName,
-    middleName: payload.middleName,
-    lastName: payload.lastName,
-    suffix: payload.suffix,
-    citizenshipLabel: phEtravelCitizenshipLabel(payload.nationality),
-    countryOfBirthLabel: phEtravelCountryNameLabel(payload.countryOfBirth),
-    passportIssuingAuthorityLabel: phEtravelCountryNameLabel(payload.passportIssuingAuthority),
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts[parts.length - 1],
   };
 }
 
@@ -612,41 +537,6 @@ export function shouldRetryMissingPhEtravelResponse(pageText: string): boolean {
 }
 
 export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 90_000;
-export const PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS = 180_000;
-
-export function phEtravelEmailOtpWaitMs(
-  requestedTimeoutMs: number | undefined,
-  environment: Record<string, string | undefined> = process.env,
-): number {
-  const configured = requestedTimeoutMs ?? Number(environment.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
-  return Math.max(
-    PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS,
-    Number.isFinite(configured) ? configured : PH_ETRAVEL_EMAIL_OTP_MIN_WAIT_MS,
-  );
-}
-
-export function phEtravelOtpInputPlan(otp: string, visibleInputIndexes: readonly number[]):
-  | { mode: "six_individual_inputs"; indexes: number[]; digits: string[] }
-  | { mode: "single_input"; indexes: []; digits: string[] } {
-  const digits = otp.trim().split("");
-  if (digits.length === 6 && visibleInputIndexes.length >= 6) {
-    return {
-      mode: "six_individual_inputs",
-      indexes: visibleInputIndexes.slice(-6),
-      digits,
-    };
-  }
-  return { mode: "single_input", indexes: [], digits };
-}
-
-export function canResendPhEtravelEmailOtp(input: {
-  visible: boolean;
-  enabled: boolean;
-  pageText: string;
-}): boolean {
-  const countdown = /resend\s+(?:email\s+)?code\s*(?:in)?\s*\d{1,2}:\d{2}|resend\s+(?:email\s+)?code\s+(?:in|after)\s+\d+\s*(?:s|sec(?:ond)?s?|m|min(?:ute)?s?)/i;
-  return input.visible && input.enabled && !countdown.test(input.pageText);
-}
 
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
@@ -836,12 +726,6 @@ async function uploadEgovProfilePhoto(
     base64: filePayload.buffer.toString("base64"),
   };
   const uploadDirectlyAndInjectUrl = async (): Promise<boolean> => {
-    const uploadUrl = process.env.PH_ETRAVEL_EGOV_UPLOAD_URL?.trim();
-    const uploadApiKey = process.env.PH_ETRAVEL_EGOV_UPLOAD_API_KEY?.trim();
-    if (!uploadUrl || !uploadApiKey) {
-      logs.push("ph_etravel_egov_profile_photo_direct_upload_not_configured");
-      return false;
-    }
     const formData = new FormData();
     formData.append(
       "file",
@@ -849,11 +733,11 @@ async function uploadEgovProfilePhoto(
       filePayload.name,
     );
     const uploadResponse = await fetch(
-      uploadUrl,
+      process.env.PH_ETRAVEL_EGOV_UPLOAD_URL?.trim() || "https://egov-upload-ws.e.gov.ph/ext/etravel/upload",
       {
         method: "POST",
         headers: {
-          "X-Api-Key": uploadApiKey,
+          "X-Api-Key": process.env.PH_ETRAVEL_EGOV_UPLOAD_API_KEY?.trim() || "3fcc23fb808f43b4b474f478c62e035d",
         },
         body: formData,
       },
@@ -1083,51 +967,6 @@ async function chooseHeadlessComboboxByInputName(
   return expectedText.test(value);
 }
 
-async function chooseCanonicalResidenceOption(
-  page: Page,
-  inputName: string,
-  option: PhEtravelCanonicalOption,
-  fallbackLabel?: string,
-): Promise<boolean> {
-  const nativeSelect = page.locator(`select[name="${inputName}"]`).first();
-  if (await nativeSelect.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    const selected: string[] = await nativeSelect.selectOption(option.code, { timeout: 5_000 }).catch(() => [] as string[]);
-    return selected.includes(option.code);
-  }
-
-  const label = option.label || fallbackLabel || "";
-  const opened = await page.evaluate((name) => {
-    const hidden = document.querySelector<HTMLInputElement>(`input[name="${name}"]`);
-    const root = hidden?.parentElement;
-    const input = root?.querySelector<HTMLInputElement>("input[role='combobox']")
-      ?? (hidden?.getAttribute("role") === "combobox" ? hidden : null);
-    input?.focus();
-    input?.click();
-    return Boolean(input);
-  }, inputName).catch(() => false);
-  if (!opened) return false;
-
-  const searchText = label || option.code;
-  await page.keyboard.press("Control+A").catch(() => undefined);
-  await page.keyboard.type(searchText, { delay: 30 });
-  await page.waitForTimeout(700);
-
-  const exactLabel = label
-    ? new RegExp(`^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i")
-    : null;
-  const safeCode = option.code.replace(/[^A-Za-z0-9_-]/g, "");
-  const clicked = await clickFirstAvailable(page, [
-    exactLabel ? page.getByRole("option", { name: exactLabel }) : page.locator("__never__"),
-    exactLabel ? page.locator("[role='option'], li").filter({ hasText: exactLabel }) : page.locator("__never__"),
-    safeCode ? page.locator(`[role='option'][data-value="${safeCode}"], option[value="${safeCode}"]`) : page.locator("__never__"),
-  ]);
-  if (!clicked) return false;
-  await page.waitForTimeout(700);
-
-  const selectedCode = await page.locator(`input[name="${inputName}"]`).first().inputValue().catch(() => "");
-  return selectedCode === option.code;
-}
-
 async function chooseDropdownOption(
   page: Page,
   triggerText: RegExp,
@@ -1195,78 +1034,14 @@ async function chooseDropdownOption(
   return true;
 }
 
-async function completeEgovProfileReview(
-  page: Page,
-  text: string,
-  options: PhEtravelRunnerOptions,
-  logs: string[],
-  screenshots: string[],
-): Promise<string> {
-  logs.push("ph_etravel_profile_review_ready");
-  if (options.allowProfileSave !== true) {
-    screenshots.push(await saveScreenshot(page, "egov-profile-review-ready", logs));
-    throw new PhEtravelPortalError(
-      "Official eGovPH basic profile is ready to save and requires separate profile-save authorization.",
-      {
-        code: "ph_etravel_profile_save_authorization_required",
-        screenshotPaths: screenshots,
-        portalSummary: text.slice(0, 700),
-        reachedReview: false,
-      },
-    );
-  }
-
-  let currentText = text;
-  let reachedDashboard = false;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const saved = await clickFirstEnabledAvailable(page, [
-      page.getByRole("button", { name: /^submit$/i }),
-      page.locator("button").filter({ hasText: /^submit$/i }),
-    ], 60_000);
-    logs.push(`ph_etravel_profile_save_submit attempt=${attempt} clicked=${saved}`);
-    if (!saved) continue;
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    reachedDashboard = await page.waitForFunction(
-      () => {
-        const current = document.body?.innerText ?? "";
-        return /dashboard|new travel declaration|travel history/i.test(current)
-          && !/personal information review|onboarding summary|kindly double check/i.test(current);
-      },
-      undefined,
-      { timeout: 30_000 },
-    ).then(() => true).catch(() => false);
-    currentText = await bodyText(page);
-    if (reachedDashboard) break;
-    await page.waitForTimeout(2_000);
-  }
-  if (!reachedDashboard) {
-    screenshots.push(await saveScreenshot(page, "egov-profile-review-still-open", logs));
-    await saveHtmlSnapshot(page, "egov-profile-review-still-open", logs);
-    throw new PhEtravelPortalError(
-      "Official eGovPH profile review did not advance to the dashboard after profile Save Submit.",
-      {
-        code: "ph_etravel_profile_save_not_completed",
-        screenshotPaths: screenshots,
-        portalSummary: currentText.slice(0, 700),
-      },
-    );
-  }
-  logs.push("ph_etravel_profile_saved_dashboard");
-  return currentText;
-}
-
 async function completeEgovPermanentResidenceOnboarding(
   page: Page,
   payload: PhEtravelPortalPayload,
-  options: PhEtravelRunnerOptions,
   logs: string[],
   screenshots: string[],
 ): Promise<string> {
   let text = await bodyText(page);
-  if (classifyPhEtravelPortalWorkflowState(text) === "profile_review_ready") {
-    return completeEgovProfileReview(page, text, options, logs, screenshots);
-  }
-  if (/profile is complete/i.test(text) && classifyPhEtravelPortalWorkflowState(text) !== "profile_review_ready") {
+  if (/profile is complete|onboarding summary/i.test(text)) {
     await page.waitForFunction(
       () => /dashboard|new travel declaration|travel history/i.test(document.body?.innerText ?? ""),
       undefined,
@@ -1279,17 +1054,15 @@ async function completeEgovPermanentResidenceOnboarding(
   }
 
   logs.push("ph_etravel_egov_onboarding_residence_detected");
-  const residence = await resolvePhEtravelOfficialResidenceHierarchy(payload.residence);
-  const actions = buildPhEtravelResidenceActionPlan(residence);
-  const countryText = residence.country.label
-    || (/china|chinese|cn|chn/i.test(residence.country.code) ? "China" : residence.country.code);
+  const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
+  const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
   let choseCountry = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    choseCountry = await chooseCanonicalResidenceOption(
+    choseCountry = await chooseHeadlessComboboxByInputName(
       page,
       "country_code",
-      residence.country,
       countryText,
+      countryOptionPattern(payload.countryOfResidence),
     );
     await page.waitForTimeout(1_200);
     const provinceStillVisible = await page
@@ -1297,21 +1070,42 @@ async function completeEgovPermanentResidenceOnboarding(
       .first()
       .isVisible({ timeout: 1_000 })
       .catch(() => false);
-    if (choseCountry && (residence.isPhilippines || !provinceStillVisible)) break;
+    if (choseCountry && (isPhilippineResidence || !provinceStillVisible)) break;
     choseCountry = false;
   }
-  const choseProvince = !residence.isPhilippines || await chooseCanonicalResidenceOption(
-    page, "province_code", residence.province!,
+  const address = payload.residenceAddress || payload.countryOfResidence;
+  const addressParts = (payload.residenceAddressLine2 || address)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !/^\d{4,10}$/.test(part))
+    .filter((part) => !countryOptionPattern(payload.countryOfResidence).test(part));
+  const province = addressParts.at(-1) || payload.residenceAddressLine1 || address;
+  const city = addressParts.at(-2) || addressParts.at(-1) || address;
+  const barangay = addressParts[0] || city;
+  const choseProvince = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
+    page,
+    "province_code",
+    province,
+    new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  if (residence.isPhilippines) await page.waitForTimeout(1_200);
-  const choseCity = !residence.isPhilippines || await chooseCanonicalResidenceOption(
-    page, "municipality_code", residence.municipality!,
+  if (isPhilippineResidence) await page.waitForTimeout(1_200);
+  const choseCity = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
+    page,
+    "municipality_code",
+    city,
+    new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  if (residence.isPhilippines) await page.waitForTimeout(1_200);
-  const choseBarangay = !residence.isPhilippines || await chooseCanonicalResidenceOption(
-    page, "barangay_code", residence.barangay!,
-  );
-  const streetAddress = residence.line1;
+  if (isPhilippineResidence) await page.waitForTimeout(1_200);
+  const choseBarangay = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
+    page,
+    "barangay_code",
+    barangay,
+    new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+  ) || await fillVisibleTextField(page, "Barangay", barangay);
+  const streetAddress = isPhilippineResidence
+    ? payload.residenceAddressLine1 || address
+    : payload.residenceAddressLine2 || payload.residenceAddressLine1 || address;
   const streetInput = page.locator('input[name="street"]').first();
   const filledAddress = await streetInput
     .fill(streetAddress, { timeout: 10_000 })
@@ -1319,17 +1113,11 @@ async function completeEgovPermanentResidenceOnboarding(
     .catch(() => false)
     || await fillVisibleByPlaceholder(page, /house|no\.?\/bldg|street|address line 1|city\/state\/province/i, streetAddress)
     || await fillVisibleTextField(page, "House No./Bldg./Street", streetAddress);
-  let filledAddressLine2 = true;
-  if (residence.line2) {
-    const streetTwoInput = page.locator('input[name="street_two"]').first();
-    filledAddressLine2 = await streetTwoInput
-      .fill(residence.line2, { timeout: 10_000 })
-      .then(() => true)
-      .catch(() => false)
-      || await fillVisibleByPlaceholder(page, /address line 2/i, residence.line2);
+  if (payload.residenceAddressLine2) {
+    await fillVisibleByPlaceholder(page, /address line 2/i, payload.residenceAddressLine2);
   }
   const selectedResidenceValues = await page.evaluate(() => Object.fromEntries(
-    ["country_code", "province_code", "municipality_code", "barangay_code"]
+    ["country_code", "province_code", "municipality_code", "barangay_code", "street"]
       .map((name) => [
         name,
         document.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value ?? "",
@@ -1337,31 +1125,19 @@ async function completeEgovPermanentResidenceOnboarding(
   )).catch(() => ({}));
   logs.push(`ph_etravel_egov_residence_values ${JSON.stringify(selectedResidenceValues)}`);
 
-  if (!choseCountry || !choseProvince || !choseCity || !choseBarangay || !filledAddress || !filledAddressLine2) {
+  if (!choseCountry || !choseProvince || !choseCity || !choseBarangay || !filledAddress) {
     logs.push(`ph_etravel_egov_residence_precheck_incomplete ${JSON.stringify({
       choseCountry,
       choseProvince,
       choseCity,
       choseBarangay,
       filledAddress,
-      filledAddressLine2,
     })}`);
-    screenshots.push(await saveScreenshot(page, "egov-residence-action-required", logs));
-    throw new PhEtravelPortalError(
-      "Official eGovPH residence fields could not be matched to their canonical values.",
-      {
-        code: "ph_etravel_residence_action_required",
-        screenshotPaths: screenshots,
-        portalSummary: text.slice(0, 700),
-      },
-    );
   }
 
-  logs.push(`ph_etravel_egov_residence_plan_complete actions=${actions.length}`);
-
   const clickedContinue = await clickFirstEnabledAvailable(page, [
-    page.getByRole("button", { name: /continue|next|save/i }),
-    page.locator("button").filter({ hasText: /continue|next|save/i }),
+    page.getByRole("button", { name: /continue|next|submit|save/i }),
+    page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
   ], 60_000);
   if (!clickedContinue) {
     screenshots.push(await saveScreenshot(page, "egov-residence-continue-disabled", logs));
@@ -1378,9 +1154,44 @@ async function completeEgovPermanentResidenceOnboarding(
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(2_000);
   text = await bodyText(page);
-  if (classifyPhEtravelPortalWorkflowState(text) === "profile_review_ready") {
-    text = await completeEgovProfileReview(page, text, options, logs, screenshots);
-    logs.push("ph_etravel_egov_onboarding_residence_saved");
+  if (/onboarding summary|kindly double check/i.test(text)) {
+    let leftOnboardingSummary = false;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const submitted = await clickFirstEnabledAvailable(page, [
+        page.getByRole("button", { name: /^submit$/i }),
+        page.locator("button").filter({ hasText: /^submit$/i }),
+        page.getByRole("button", { name: /continue|next|save/i }),
+      ], 60_000);
+      logs.push(`ph_etravel_egov_onboarding_summary_submit attempt=${attempt} clicked=${submitted}`);
+      if (!submitted) continue;
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      leftOnboardingSummary = await page.waitForFunction(
+        () => {
+          const current = document.body?.innerText ?? "";
+          return /dashboard|new travel declaration|travel history/i.test(current)
+            && !/onboarding summary|kindly double check/i.test(current);
+        },
+        undefined,
+        { timeout: 30_000 },
+      ).then(() => true).catch(() => false);
+      text = await bodyText(page);
+      if (leftOnboardingSummary) break;
+      await page.waitForTimeout(2_000);
+    }
+    if (!leftOnboardingSummary) {
+      screenshots.push(await saveScreenshot(page, "egov-onboarding-summary-still-open", logs));
+      await saveHtmlSnapshot(page, "egov-onboarding-summary-still-open", logs);
+      throw new PhEtravelPortalError(
+        "Official eGovPH onboarding summary did not advance to the dashboard after Submit.",
+        {
+          code: "ph_etravel_egov_onboarding_summary_not_completed",
+          screenshotPaths: screenshots,
+          portalSummary: text.slice(0, 700),
+        },
+      );
+    }
+    logs.push("ph_etravel_egov_onboarding_summary_submitted");
+    logs.push("ph_etravel_egov_onboarding_residence_submitted");
     return text;
   }
   if (/permanent country of residence|please make sure to fill out all required fields/i.test(text)) {
@@ -1396,7 +1207,7 @@ async function completeEgovPermanentResidenceOnboarding(
     );
   }
 
-  logs.push("ph_etravel_egov_onboarding_residence_completed");
+  logs.push("ph_etravel_egov_onboarding_residence_submitted");
   return text;
 }
 
@@ -1420,6 +1231,7 @@ async function fillMpinInputs(page: Page, mpin: string): Promise<boolean> {
 }
 
 async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
+  const digits = otp.trim().split("");
   const inputs = page.locator("input:not([type='hidden'])");
   const count = await inputs.count().catch(() => 0);
   const visibleIndexes: number[] = [];
@@ -1428,16 +1240,15 @@ async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
       visibleIndexes.push(index);
     }
   }
-  const plan = phEtravelOtpInputPlan(otp, visibleIndexes);
-  if (plan.mode === "six_individual_inputs") {
-    const otpIndexes = plan.indexes;
+  if (visibleIndexes.length >= digits.length) {
+    const otpIndexes = visibleIndexes.slice(-digits.length);
     await inputs.nth(otpIndexes[0]).click({ timeout: 10_000 });
     await page.keyboard.type(otp.trim(), { delay: 40 });
     await page.waitForTimeout(300);
-    for (let index = 0; index < plan.digits.length; index += 1) {
+    for (let index = 0; index < digits.length; index += 1) {
       const value = await inputs.nth(otpIndexes[index]).inputValue({ timeout: 1_000 }).catch(() => "");
-      if (value !== plan.digits[index]) {
-        await inputs.nth(otpIndexes[index]).fill(plan.digits[index], { timeout: 10_000 });
+      if (value !== digits[index]) {
+        await inputs.nth(otpIndexes[index]).fill(digits[index], { timeout: 10_000 });
       }
     }
     return true;
@@ -1507,10 +1318,7 @@ async function completeEgovPersonalInformationOnboarding(
   screenshots: string[],
 ): Promise<string> {
   let text = await bodyText(page);
-  if (classifyPhEtravelPortalWorkflowState(text) === "profile_review_ready") {
-    return completeEgovPermanentResidenceOnboarding(page, payload, options, logs, screenshots);
-  }
-  if (/profile is complete/i.test(text)) {
+  if (/profile is complete|onboarding summary/i.test(text)) {
     await page.waitForFunction(
       () => /dashboard|new travel declaration|travel history/i.test(document.body?.innerText ?? ""),
       undefined,
@@ -1519,7 +1327,7 @@ async function completeEgovPersonalInformationOnboarding(
     return bodyText(page);
   }
   if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
-    return completeEgovPermanentResidenceOnboarding(page, payload, options, logs, screenshots);
+    return completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
   }
   if (!/onboarding|personal information|foreign passport holder|first name|citizenship/i.test(text)) {
     return text;
@@ -1540,18 +1348,10 @@ async function completeEgovPersonalInformationOnboarding(
   ]);
   logs.push(`ph_etravel_egov_passport_holder_selected=${selectedPassportHolder}`);
 
-  const personalInformation = phEtravelPersonalInformationPlan(payload);
+  const name = splitFullName(payload.fullName);
   const filled = {
-    firstName: await fillVisibleTextField(page, "First Name", personalInformation.firstName),
-    middleName: personalInformation.middleName
-      ? await fillVisibleTextField(page, "Middle Name", personalInformation.middleName)
-      : true,
-    lastName: personalInformation.lastName
-      ? await fillVisibleTextField(page, "Last Name", personalInformation.lastName)
-      : true,
-    suffix: personalInformation.suffix
-      ? await fillVisibleTextField(page, "Suffix", personalInformation.suffix)
-      : true,
+    firstName: await fillVisibleTextField(page, "First Name", name.firstName),
+    lastName: await fillVisibleTextField(page, "Last Name", name.lastName || name.firstName),
     birthDate: await fillVisibleTextField(page, "Birth Date", formatUsDate(payload.dateOfBirth)),
     mobile: await fillMobileNumberField(page, payload.mobileCountryCode, payload.mobileNumber),
     passportNumber: await fillVisibleTextField(page, "Passport Number", payload.passportNumber),
@@ -1561,23 +1361,24 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForTimeout(300);
   const sexText = /^m|male/i.test(payload.sex) ? "MALE" : /^f|female/i.test(payload.sex) ? "FEMALE" : payload.sex.toUpperCase();
   const choseSex = await chooseReactSelectByHiddenName(page, "gender", sexText, sexOptionPattern(payload.sex));
+  const citizenshipText = /china|chinese|cn|chn/i.test(payload.nationality) ? "Chinese" : payload.nationality;
   const choseCitizenship = await chooseHeadlessComboboxByInputName(
     page,
     "nationality_country_code",
-    personalInformation.citizenshipLabel,
-    countryOptionPattern(personalInformation.citizenshipLabel),
+    citizenshipText,
+    countryOptionPattern(payload.nationality),
   );
   const choseCountryOfBirth = await chooseDropdownOption(
     page,
     /country of birth/i,
-    countryOptionPattern(personalInformation.countryOfBirthLabel),
-    personalInformation.countryOfBirthLabel,
+    countryOptionPattern(payload.countryOfBirth),
+    payload.countryOfBirth,
   );
   const chosePassportIssuingAuthority = await chooseDropdownOption(
     page,
     /passport issuing authority/i,
-    countryOptionPattern(personalInformation.passportIssuingAuthorityLabel),
-    personalInformation.passportIssuingAuthorityLabel,
+    countryOptionPattern(payload.passportIssuingAuthority),
+    payload.passportIssuingAuthority,
   );
   const choseOccupation = await chooseDropdownOption(
     page,
@@ -1590,9 +1391,7 @@ async function completeEgovPersonalInformationOnboarding(
 
   if (
     !filled.firstName ||
-    !filled.middleName ||
     !filled.lastName ||
-    !filled.suffix ||
     !filled.birthDate ||
     !filled.mobile ||
     !filled.passportNumber ||
@@ -1618,8 +1417,8 @@ async function completeEgovPersonalInformationOnboarding(
   }
 
   const clickedContinue = await clickFirstEnabledAvailable(page, [
-    page.getByRole("button", { name: /continue|next|save/i }),
-    page.locator("button").filter({ hasText: /continue|next|save/i }),
+    page.getByRole("button", { name: /continue|next|submit|save/i }),
+    page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
   ], 60_000);
   if (!clickedContinue) {
     screenshots.push(await saveScreenshot(page, "egov-onboarding-continue-disabled", logs));
@@ -1637,7 +1436,7 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForTimeout(3_000);
   text = await bodyText(page);
   if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
-    text = await completeEgovPermanentResidenceOnboarding(page, payload, options, logs, screenshots);
+    text = await completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
   }
   if (
     !/profile is complete|begin creating your etravel transactions/i.test(text) &&
@@ -1844,7 +1643,8 @@ async function completeEgovEmailVerification(
   let text = await bodyText(page);
   if (/otp|code|verification|one[-\s]?time/i.test(text)) {
     const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
-    const timeoutMs = phEtravelEmailOtpWaitMs(options.emailVerificationTimeoutMs);
+    const timeoutMs = options.emailVerificationTimeoutMs
+      ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
     await fillOtpInputs(page, otp);
     const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
@@ -1980,11 +1780,10 @@ async function maybeCreatePhEtravelAccount(
   }
   if (/enter one[-\s]?time[-\s]?password|resend email code/i.test(currentText)) {
     const resendButton = page.getByRole("button", { name: /resend email code/i }).first();
-    if (canResendPhEtravelEmailOtp({
-      visible: await resendButton.isVisible({ timeout: 1_000 }).catch(() => false),
-      enabled: await resendButton.isEnabled({ timeout: 1_000 }).catch(() => false),
-      pageText: currentText,
-    })) {
+    if (
+      await resendButton.isVisible({ timeout: 1_000 }).catch(() => false) &&
+      await resendButton.isEnabled({ timeout: 1_000 }).catch(() => false)
+    ) {
       since = new Date().toISOString();
       await resendButton.click({ timeout: 10_000 });
       logs.push("ph_etravel_registration_otp_resend_clicked");
@@ -2008,7 +1807,8 @@ async function maybeCreatePhEtravelAccount(
     );
   }
 
-  const timeoutMs = phEtravelEmailOtpWaitMs(options.emailVerificationTimeoutMs);
+  const timeoutMs = options.emailVerificationTimeoutMs
+    ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
   const waitForExistingAccountNotice = () => mailbox
     .waitForExistingAccountNotice({ timeoutMs, since })
     .then(async () => {
@@ -2139,26 +1939,15 @@ async function maybeCreatePhEtravelAccount(
   }
 
   if (/password|set password|create password/i.test(currentText)) {
-    const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim();
-    if (!password || !isPhEtravelAccountPasswordCompliant(password)) {
-      throw new PhEtravelPortalError(
-        "Official eTravel account password did not satisfy the observed Create your password policy.",
-        {
-          code: "ph_etravel_registration_password_policy_failed",
-          screenshotPaths: screenshots,
-          portalSummary: (await bodyText(page)).slice(0, 700),
-        },
-      );
-    }
-    const passwordFields = phEtravelPasswordFieldValues(password);
+    const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim() || payload.passportNumber;
     const passwordInput = page.locator("input[name='password'], input[type='password']").first();
     const confirmPassword = page
       .locator("input[name='password_confirmation'], input[type='password']")
       .filter({ visible: true })
       .last();
     const fillPasswordInputs = async (): Promise<void> => {
-      await passwordInput.fill(passwordFields.password, { timeout: 15_000 });
-      await confirmPassword.fill(passwordFields.confirmation, { timeout: 15_000 });
+      await passwordInput.fill(password, { timeout: 15_000 });
+      await confirmPassword.fill(password, { timeout: 15_000 });
       await confirmPassword.blur().catch(() => undefined);
       const valuesMatch =
         await passwordInput.inputValue({ timeout: 5_000 }).catch(() => "") === password &&

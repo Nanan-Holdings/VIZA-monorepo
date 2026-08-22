@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "@/components/dynamic-step-form";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
@@ -165,12 +165,14 @@ describe("DynamicStepForm Taiwan occupation conditions", () => {
     );
     expectCompanyVisible(true);
     expectTitleVisible(true);
-    expect(screen.getAllByText("必填项")).toHaveLength(2);
+    expect(screen.queryByText("必填项")).not.toBeInTheDocument();
+    expect(screen.getByText("公司名称及单位全衔或学校名称").parentElement).toHaveTextContent("*");
+    expect(screen.getByText("职称").parentElement).toHaveTextContent("*");
     expect(screen.getByPlaceholderText("请填写公司名称及单位全衔或学校名称")).toBeRequired();
     expect(screen.getByPlaceholderText("请填写职称")).toBeRequired();
   });
 
-  it("updates occupation visibility after the official occupation code changes", () => {
+  it("updates occupation visibility after the official occupation code changes", async () => {
     renderOccupationStep("52");
     expectCompanyVisible(true);
     expectTitleVisible(true);
@@ -178,12 +180,14 @@ describe("DynamicStepForm Taiwan occupation conditions", () => {
     fireEvent.click(screen.getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "学生" }));
     expectCompanyVisible(true);
-    expectTitleVisible(false);
+    await waitFor(() => expectTitleVisible(false));
 
     fireEvent.click(screen.getByRole("combobox"));
     fireEvent.click(screen.getByRole("option", { name: "退休" }));
-    expectCompanyVisible(false);
-    expectTitleVisible(false);
+    await waitFor(() => {
+      expectCompanyVisible(false);
+      expectTitleVisible(false);
+    });
   });
 
   it("renders Taiwan contact city and district options in Simplified Chinese without changing canonical values", () => {

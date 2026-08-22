@@ -36,6 +36,10 @@ export {
 } from "./start-page-navigation";
 
 export {
+  resolveCeacStartLocationCode,
+} from "./start-location";
+
+export {
   advance,
   goBack,
   saveCurrent,

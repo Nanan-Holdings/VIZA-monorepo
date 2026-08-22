@@ -3,9 +3,11 @@
 import { useLocale, useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
-import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries";
+import { visaHref, type CountryMeta } from "@/lib/countries";
 import { displayFeeSGD, totalSgd } from "@/lib/pricing";
+import { useCatalogue, type CatalogueCountry } from "@/components/CatalogueProvider";
 import "./visa-template.css";
+import VisaStructuredData from "@/components/VisaStructuredData";
 
 const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
 
@@ -16,20 +18,27 @@ const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
  * page). All section labels are localized via the `visa` message namespace
  * (MKT-008); country-specific copy comes from data, not hardcoded.
  */
-export default function VisaCountryTemplate({ country }: { country: CountryMeta }) {
+export default function VisaCountryTemplate({ country }: { country: CountryMeta & Pick<CatalogueCountry, "pricing"> }) {
   const t = useTranslations("visa");
   const tc = useTranslations("countries");
   const tt = useTranslations("visaTypes");
   const locale = useLocale();
+  const { launchedCountries } = useCatalogue();
   const applyHref = `${locale === "en" ? "" : `/${locale}`}/apply?country=${encodeURIComponent(country.slug)}`;
-  const fee = totalSgd(country.visaType) === 0 ? t("priceFree") : displayFeeSGD(country.visaType) ?? t("seePricing");
-  const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
+  const fee = totalSgd(country.pricing) === 0 ? t("priceFree") : displayFeeSGD(country.pricing) ?? t("seePricing");
+  const nearby = launchedCountries.filter((c) => c.slug !== country.slug).slice(0, 4);
   // Localized name/type with English data as the fallback.
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
   const localType = tt.has(country.type) ? tt(country.type) : country.type;
 
   return (
     <>
+      <VisaStructuredData
+        country={country}
+        locale={locale}
+        localName={localName}
+        localType={localType}
+      />
       <SiteNav />
       <main className="vt-wrap">
         <header className="vt-hero">

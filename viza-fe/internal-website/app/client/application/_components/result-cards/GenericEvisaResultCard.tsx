@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ExternalLink, Loader2, Mail, RotateCw, ShieldCheck } from "lucide-react";
+import { Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
 
@@ -38,10 +39,9 @@ export function GenericEvisaResultCard({
 }) {
   const isZh = isChineseLocale(useLocale());
   const [locatingPayment, setLocatingPayment] = useState(false);
+  const [startingManagedPayment, setStartingManagedPayment] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   const portalUrl = result.portalUrl;
-  const checkpoint = (result as GenericEvisaSubmissionResult & { checkpoint?: string }).checkpoint;
-  const userPaymentRequired = result.country === "ID" && checkpoint === "user_payment_required";
   // Only show the bank-verification wording after the runner explicitly records a card handoff.
   // Reaching Finpay alone is a payment-page handoff, not a completed or initiated card payment.
   const indonesiaAutopayCheckpoint =
@@ -52,10 +52,6 @@ export function GenericEvisaResultCard({
     result.country === "ID" &&
     portalUrl !== undefined &&
     /^https:\/\/evisa\.imigrasi\.go\.id\/?$/i.test(portalUrl.trim());
-  const isIndonesiaPaymentGatewayUrl =
-    result.country === "ID" &&
-    portalUrl !== undefined &&
-    /^https:\/\/live\.finpay\.id\//i.test(portalUrl.trim());
   const country = (isZh ? COUNTRY_LABEL_ZH[result.country] : COUNTRY_LABEL[result.country]) ?? result.country;
   const hasArtifact = Boolean(result.artifactStoragePath);
 
@@ -84,6 +80,42 @@ export function GenericEvisaResultCard({
     }
   }
 
+  async function startManagedOfficialPayment(): Promise<void> {
+    if (!applicationId) return;
+    setStartingManagedPayment(true);
+    setLocateError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        code?: unknown;
+        checkoutUrl?: unknown;
+      } | null;
+      if (!response.ok) {
+        if (
+          body?.code === "official_fee_funding_required" &&
+          typeof body.checkoutUrl === "string"
+        ) {
+          window.location.assign(body.checkoutUrl);
+          return;
+        }
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : `Official-fee payment returned ${response.status}`,
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setLocateError(error instanceof Error ? error.message : String(error));
+      setStartingManagedPayment(false);
+    }
+  }
+
   const heading =
     result.status === "submitted"
       ? isZh ? `${country}申请已提交` : `${country} application submitted`
@@ -92,10 +124,8 @@ export function GenericEvisaResultCard({
         : isZh ? `${country}申请已准备好` : `${country} application prepared`;
 
   const badge =
-    result.country === "ID" && result.status === "stopped_at_pay"
-      ? isZh ? "云端处理中" : "Processing in cloud"
-      : result.status === "stopped_at_pay"
-        ? isZh ? "等待付款" : "Action required: payment"
+    result.status === "stopped_at_pay"
+      ? isZh ? "VIZA 正在处理付款" : "VIZA is handling payment"
       : result.status === "form_ready_for_agency"
         ? isZh ? "下载并提交" : "Download & submit"
         : isZh ? "已提交" : "Submitted";
@@ -115,12 +145,8 @@ export function GenericEvisaResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {result.status === "stopped_at_pay"
             ? isZh
-              ? result.country === "ID"
-                ? "VIZA 已将银行卡送入云端官方付款流程，正在自动确认银行和印尼官网的最终结果。本页会自动更新；只有官网成功凭证保存完成后才会显示成功。"
-                : `我们已把你的${country}申请推进到官网付款节点。请在官方页面完成付款，付款后 VIZA 会继续跟踪结果并在这里保存获批签证。`
-              : result.country === "ID"
-                ? "VIZA sent the card into the cloud official-payment flow and is confirming the final bank and Indonesia portal result. This page updates automatically; success appears only after official evidence is stored."
-                : `We prepared your ${country} application and stopped at the government payment step. Complete the payment to finalize; we monitor the outcome and store your approved visa here.`
+              ? `VIZA 已把你的${country}申请推进到官网付款节点，并会使用本申请专属的一次性虚拟卡支付。只有官网成功凭证保存完成后才会显示成功；系统不会要求你向官网提供银行卡。`
+              : `VIZA advanced your ${country} application to the government payment step and will pay with an application-scoped one-use virtual card. Success appears only after official evidence is stored; you will not be asked to give card details to the government portal.`
             : result.status === "form_ready_for_agency"
               ? isZh
                 ? `你的${country}申请资料包已准备好，可下载、打印并递交至签证中心。`
@@ -146,37 +172,11 @@ export function GenericEvisaResultCard({
                 : isZh ? "下载文件" : "Download document"}
             </a>
           </Button>
-        ) : result.country === "ID" && result.status === "stopped_at_pay" ? (
+        ) : result.status === "stopped_at_pay" && indonesiaAutopayCheckpoint ? (
           <div className="flex items-center justify-center gap-2 rounded-md border border-brand-100 bg-brand-50 p-4 text-sm font-medium text-brand-700">
             <Loader2 className="h-4 w-4 animate-spin" />
             {isZh ? "正在确认官方付款结果…" : "Confirming the official payment result…"}
           </div>
-        ) : result.status === "stopped_at_pay" && userPaymentRequired ? (
-          <div className="space-y-3">
-            {portalUrl && !isIndonesiaHomePaymentUrl ? (
-              <Button asChild className="w-full">
-                <a href={portalUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {isIndonesiaPaymentGatewayUrl
-                    ? isZh ? "打开官方付款页" : "Open official payment page"
-                    : isZh ? "打开官方付款页" : "Open official payment page"}
-                </a>
-              </Button>
-            ) : null}
-            <Button type="button" className="w-full" onClick={() => window.location.reload()}>
-              <RotateCw className="mr-2 h-4 w-4" />
-              {indonesiaAutopayCheckpoint
-                ? isZh ? "我已完成银行验证，刷新状态" : "I finished bank verification, refresh status"
-                : isZh ? "我已完成官方付款，刷新状态" : "I completed the official payment, refresh status"}
-            </Button>
-            {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
-          </div>
-        ) : result.status === "stopped_at_pay" && portalUrl && !isIndonesiaHomePaymentUrl ? (
-          <Button asChild className="w-full">
-            <a href={portalUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" /> {isZh ? "打开官方付款页" : "Continue to official payment page"}
-            </a>
-          </Button>
         ) : result.status === "stopped_at_pay" && isIndonesiaHomePaymentUrl ? (
           <div className="space-y-2">
             <Button
@@ -196,7 +196,28 @@ export function GenericEvisaResultCard({
                 ? isZh ? "正在定位官方付款页" : "Locating official payment page"
                 : isZh ? "定位官方付款页" : "Locate official payment page"}
             </Button>
-            {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
+            {locateError ? <ClientErrorAlert message={locateError} /> : null}
+          </div>
+        ) : result.status === "stopped_at_pay" ? (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!applicationId || startingManagedPayment}
+              onClick={() => {
+                void startManagedOfficialPayment();
+              }}
+            >
+              {startingManagedPayment ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="mr-2 h-4 w-4" />
+              )}
+              {startingManagedPayment
+                ? isZh ? "正在启动 VIZA 官网付款" : "Starting VIZA official payment"
+                : isZh ? "由 VIZA 继续支付官网费用" : "Continue official payment with VIZA"}
+            </Button>
+            {locateError ? <ClientErrorAlert message={locateError} /> : null}
           </div>
         ) : (
           <div className="rounded-md border border-brand-100 bg-brand-50 p-3">

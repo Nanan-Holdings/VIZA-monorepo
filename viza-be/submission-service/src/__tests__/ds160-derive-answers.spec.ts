@@ -65,6 +65,38 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.mother_in_us, "Y");
   });
 
+  it("normalizes canonical portal choice values for CEAC controls", () => {
+    const answers = deriveDS160Answers({
+      sex: "male",
+      marital_status: "single",
+      other_names_used: "no",
+      has_specific_plans: "no",
+      trip_payer_type: "self",
+      lost_passport: "no",
+      has_attended_education: "no",
+      has_traveled_last_five_years: "no",
+      has_belonged_to_organization: "no",
+      has_served_paramilitary: "no",
+      purpose_of_trip_specify: "B1/B2",
+      intended_length_of_stay_unit: "DAY(S)",
+    });
+
+    assert.equal(answers.sex, "M");
+    assert.equal(answers.marital_status, "S");
+    assert.equal(answers.has_other_names, "N");
+    assert.equal(answers.has_specific_travel_plans, "N");
+    assert.equal(answers.trip_payer_type, "self");
+    assert.equal(answers.who_is_paying, "S");
+    assert.equal(answers.travel_payer, "S");
+    assert.equal(answers.passport_lost_or_stolen, "N");
+    assert.equal(answers.has_other_education, "N");
+    assert.equal(answers.has_countries_visited, "N");
+    assert.equal(answers.has_organization, "N");
+    assert.equal(answers.has_served_insurgent, "N");
+    assert.equal(answers.purpose_of_trip_specify, "B1-B2");
+    assert.equal(answers.intended_length_of_stay_unit, "D");
+  });
+
   it("derives present education fallback fields for CEAC required inputs", () => {
     const answers = deriveDS160Answers({
       primary_occupation: "education",

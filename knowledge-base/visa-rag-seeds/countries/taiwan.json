@@ -1,12 +1,12 @@
 {
-  "version": "2026-07-13",
+  "version": "2026-08-04",
   "country": "taiwan",
   "notes": "Official-source VIZA RAG seed for the Taiwan tourist entry permit available to Chinese mainland passport holders resident in Singapore.",
   "documents": [
     {
       "slug": "taiwan-overseas-chinese-mainland-tourist-entry-permit",
       "country": "taiwan",
-      "visaType": "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT",
+      "visaType": "TW_ENTRY_PERMIT",
       "documentType": "requirements",
       "title": "Taiwan Overseas Chinese Mainland Tourist Entry Permit",
       "sourceUrl": "https://coa.immigration.gov.tw/coa-frontend/overseas-foreign-china",
@@ -28,7 +28,7 @@
     {
       "slug": "taiwan-overseas-cn-form-requirements",
       "country": "taiwan",
-      "visaType": "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT",
+      "visaType": "TW_ENTRY_PERMIT",
       "documentType": "form_requirements",
       "title": "Taiwan Entry Permit Intake Requirements",
       "sourceUrl": "https://www.immigration.gov.tw/media/44181/1080412%E4%B8%89%E9%A1%9E%E9%9B%B2%E7%AB%AF%E7%B3%BB%E7%B5%B1%E7%94%B3%E8%AB%8B%E9%A0%88%E7%9F%A5.pdf",
@@ -50,6 +50,38 @@
           "title": "Standard passport identity-field answer rules",
           "tags": ["standard-fields", "passport", "identity-document", "field-guidance"],
           "content": "护照号码、姓名、出生日期、性别、国籍、签发机关、签发日期和有效期必须从护照资料页逐字填写。不得从居住地、旅行目的地或旧申请猜测。中国普通护照的签发机关以该申请人护照印制内容为准。"
+        }
+      ]
+    },
+    {
+      "slug": "taiwan-arrival-card-requirements",
+      "country": "taiwan",
+      "visaType": "TW_ARRIVAL_CARD",
+      "documentType": "requirements",
+      "title": "Taiwan Arrival Card",
+      "sourceUrl": "https://twac.immigration.gov.tw/",
+      "chunks": [
+        {
+          "id": "taiwan_arrival_card_scope_and_timing",
+          "title": "台湾网络入境卡适用范围与时间",
+          "tags": ["taiwan", "arrival-card", "twac", "seven-days"],
+          "content": "台湾网络入境卡是独立的入境申报，不是签证或入境许可。按移民署现行官方页面，符合适用范围的旅客应在抵达台湾前7天内免费提交。外国旅客以免签或停留签证入境时通常需要填写；持居留证、居留签证或外交官员证等官方豁免身份者按页面说明处理。"
+        }
+      ]
+    },
+    {
+      "slug": "taiwan-arrival-card-form-requirements",
+      "country": "taiwan",
+      "visaType": "TW_ARRIVAL_CARD",
+      "documentType": "form_requirements",
+      "title": "Taiwan Arrival Card Official Form Requirements",
+      "sourceUrl": "https://twac.immigration.gov.tw/",
+      "chunks": [
+        {
+          "id": "taiwan_arrival_card_official_fields",
+          "title": "台湾网络入境卡官方填写资料",
+          "tags": ["taiwan", "arrival-card", "official-form", "fields"],
+          "content": "官方页面要求邮箱验证、有效护照、旅客个人资料、职业和联系电话，以及旅行与住宿信息。VIZA 暂无内部台湾网络入境卡表单，只能提供移民署官方入口，不得声称代填或自动递交。"
         }
       ]
     }

@@ -8,6 +8,10 @@ import {
 } from "../index";
 import type { CountrySubmissionApplication } from "../types";
 import type { ApplicantProfile, Application } from "../../types";
+import {
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+} from "../../vn-prearrival/normalize";
 
 function baseApplication(
   overrides: Partial<CountrySubmissionApplication> = {},
@@ -95,6 +99,39 @@ function vietnamAnswers(): Record<string, string> {
   };
 }
 
+function vietnamPrearrivalAnswers(
+  overrides: Record<string, string> = {},
+): Record<string, string> {
+  return {
+    expected_arrival_date: "2026-07-14",
+    passport_type: "P",
+    passport_number: "TEST123456",
+    passport_expiry_date: "2033-01-01",
+    gender: "male",
+    given_name: "ALEX",
+    date_of_birth: "1999-01-15",
+    nationality: "Singapore",
+    phone_country_code: "+65",
+    phone_number: "91234567",
+    alias_email_address: "alias-test@inbox.viza.test",
+    visa_information_acknowledgement: "true",
+    visa_type: "EV",
+    visa_number: "123456789",
+    visa_expiry_date: "2026-08-01",
+    departure_country_before_arrival: "Singapore",
+    purpose_of_travel: "travel",
+    mode_of_travel: "air",
+    flight_number: "VJ5439_CXR",
+    border_gate_airport: "CXR",
+    accommodation_type: "hotel",
+    province_city_of_hotel: "Da Nang City",
+    ward_commune_of_hotel: "Hoa Xuan Ward",
+    hotel_accommodation_address: "T&D Hoi An House",
+    final_declaration: "true",
+    ...overrides,
+  };
+}
+
 test("registry: every provider declares implementation and dry-run metadata", () => {
   const providers = listCountrySubmissionProviders();
   assert.ok(providers.length >= 20);
@@ -119,6 +156,74 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION")?.countryCode, "VN");
   assert.equal(getCountrySubmissionProvider("taiwan", "TW_ENTRY_PERMIT")?.countryCode, "TW");
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
+});
+
+test("registry: Korea e-Arrival Card is an independent exact-flow provider", () => {
+  const arrival = getCountrySubmissionProvider("south_korea", "KR_E_ARRIVAL_CARD");
+  const visa = getCountrySubmissionProvider("south_korea", "KR_C39_SHORT_TERM_VISIT");
+  assert.ok(arrival);
+  assert.ok(visa);
+  assert.notEqual(arrival, visa);
+  assert.deepEqual(arrival.supportedVisaTypes, ["KR_E_ARRIVAL_CARD"]);
+  assert.equal(arrival.realSubmitAvailable, true);
+  assert.equal(arrival.routeStatus, "submission_queue_dispatched");
+  assert.ok(arrival.requiredFields.some((field) => field.key === "answers.declaration_confirmed"));
+
+  const validation = arrival.validate(baseApplication({
+    countryCode: "south_korea",
+    visaType: "KR_E_ARRIVAL_CARD",
+    answers: {
+      surname: "ZHANG",
+      given_name: "SAN",
+      date_of_birth: "1995-02-03",
+      sex: "Male",
+      nationality: "CHN",
+      passport_number: "E12345678",
+      passport_expiry_date: "2030-01-01",
+      email_address: "alias@example.com",
+      arrival_mode: "air",
+      arrival_date: "2026-09-01",
+      arrival_flight_or_ship: "KE123",
+      departure_mode: "air",
+      departure_date: "2026-09-05",
+      purpose_of_entry: "Tourism (individual)",
+      occupation: "Student",
+      stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_postal_code: "04524",
+      stay_contact_phone: "0212345678",
+      declaration_confirmed: "true",
+    },
+  }));
+  assert.equal(validation.ok, true);
+  const payload = arrival.mapToSubmissionPayload(baseApplication({
+    countryCode: "south_korea",
+    visaType: "KR_E_ARRIVAL_CARD",
+    answers: {
+      surname: "ZHANG",
+      given_name: "SAN",
+      date_of_birth: "1995-02-03",
+      sex: "Male",
+      nationality: "CHN",
+      passport_number: "E12345678",
+      passport_expiry_date: "2030-01-01",
+      email_address: "alias@example.com",
+      arrival_mode: "air",
+      arrival_date: "2026-09-01",
+      arrival_flight_or_ship: "KE123",
+      departure_mode: "air",
+      departure_date: "2026-09-05",
+      purpose_of_entry: "Tourism (individual)",
+      occupation: "Student",
+      stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_postal_code: "04524",
+      stay_contact_phone: "0212345678",
+      declaration_confirmed: "true",
+    },
+  }));
+  assert.equal(payload.countryCode, "KR");
+  assert.equal(payload.visaType, "KR_E_ARRIVAL_CARD");
+  assert.equal(payload.countrySpecific.sex, "Male");
+  assert.equal(payload.countrySpecific.purpose_of_entry, "Tourism (individual)");
 });
 
 test("registry: Taiwan routes to canonical runner_job live submit path", () => {
@@ -151,33 +256,7 @@ test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", as
   const application = baseApplication({
     countryCode: "vietnam",
     visaType: "VN_PREARRIVAL_DECLARATION",
-    answers: {
-      expected_arrival_date: "2026-07-14",
-      passport_type: "P",
-      passport_number: "TEST123456",
-      passport_expiry_date: "2033-01-01",
-      gender: "male",
-      given_name: "ALEX",
-      date_of_birth: "1999-01-15",
-      nationality: "Singapore",
-      phone_country_code: "+65",
-      phone_number: "91234567",
-      alias_email_address: "alias-test@inbox.viza.test",
-      visa_information_acknowledgement: "true",
-      visa_type: "EV",
-      visa_number: "123456789",
-      visa_expiry_date: "2026-08-01",
-      departure_country_before_arrival: "Singapore",
-      purpose_of_travel: "travel",
-      mode_of_travel: "air",
-      flight_number: "VJ5439_CXR",
-      border_gate_airport: "CXR",
-      accommodation_type: "hotel",
-      province_city_of_hotel: "Da Nang City",
-      ward_commune_of_hotel: "Hoa Xuan Ward",
-      hotel_accommodation_address: "T&D Hoi An House",
-      final_declaration: "true",
-    },
+    answers: vietnamPrearrivalAnswers(),
   });
   const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
   assert.ok(provider);
@@ -192,6 +271,39 @@ test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", as
   });
   assert.equal(result.status, "submitted_mock");
   assert.match(result.confirmationNumber ?? "", /^DRYRUN-VNPREARRIVAL-/);
+});
+
+test("registry: Vietnam Pre-Arrival applies visa credentials to every official visa type", () => {
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
+    const validation = provider.validate(baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      answers: vietnamPrearrivalAnswers({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      }),
+    }));
+    assert.equal(validation.ok, true, `${visaType} should not require visa credentials`);
+  }
+
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
+    const validation = provider.validate(baseApplication({
+      countryCode: "vietnam",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      answers: vietnamPrearrivalAnswers({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      }),
+    }));
+    assert.equal(validation.ok, false, `${visaType} should require visa credentials`);
+    assert.ok(validation.missingRequiredFields.includes("answers.visa_number"));
+    assert.ok(validation.missingRequiredFields.includes("answers.visa_expiry_date"));
+  }
 });
 
 test("registry: Vietnam Pre-Arrival requires a manual address for the official Other hotel option", () => {
@@ -262,6 +374,54 @@ test("registry: France Schengen dry-run resolves to the Schengen provider", asyn
   assert.match(result.confirmationNumber ?? "", /^MOCK-SCHENGEN-111111112222$/);
 });
 
+test("from-records: maps the VIZA DS-160 travel-plans field to the provider key", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "Alex Tan",
+    date_of_birth: "1999-01-15",
+    place_of_birth: null,
+    gender: "male",
+    nationality: "Singapore",
+    occupation: "Student",
+    address: "1 Test Street, Singapore 000001",
+    passport_number: "TEST123456",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    issuing_country: "Singapore",
+    issuing_authority: null,
+    email: "test.viza.user@example.com",
+    phone: "+6591234567",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "united_states",
+    visa_type: "DS160",
+    status: "draft",
+    arrival_date: "2026-10-01",
+    departure_date: "2026-10-10",
+    port_of_entry: null,
+    purpose: "tourism",
+    accommodation_name: "Test Hotel",
+    accommodation_address: "1 Test Hotel Road",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: null,
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const mapped = buildCountrySubmissionApplication(profile, application, {
+    has_specific_plans: "no",
+    intended_length_of_stay: "10",
+  });
+  assert.equal(mapped.answers?.has_specific_travel_plans, "no");
+  assert.equal(mapped.answers?.intended_length_of_stay_value, "10");
+});
+
 test("from-records: maps Schengen dynamic answers into required dry-run trip fields", async () => {
   const profile: ApplicantProfile = {
     id: "test-applicant",
@@ -272,7 +432,7 @@ test("from-records: maps Schengen dynamic answers into required dry-run trip fie
     gender: "Male",
     nationality: "Singapore",
     occupation: "Student",
-    address: "1 Test Street, Singapore 000001",
+    address: null,
     passport_number: "TEST123456",
     passport_issue_date: "2023-01-01",
     passport_expiry_date: "2033-01-01",
@@ -306,10 +466,12 @@ test("from-records: maps Schengen dynamic answers into required dry-run trip fie
     intended_arrival_date: "2026-10-01",
     intended_departure_date: "2026-10-10",
     purpose_of_journey: "tourism",
+    home_address_line1: "1 Test Street, Singapore 000001",
     accommodation_name: "Test Hotel",
     accommodation_address_line_1: "1 Test Hotel Road",
   });
 
+  assert.equal(dryRunApplication.profile.address, "1 Test Street, Singapore 000001");
   assert.equal(dryRunApplication.trip.arrivalDate, "2026-10-01");
   assert.equal(dryRunApplication.trip.departureDate, "2026-10-10");
   assert.equal(dryRunApplication.trip.purpose, "tourism");

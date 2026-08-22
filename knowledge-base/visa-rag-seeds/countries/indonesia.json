@@ -1,12 +1,12 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "indonesia",
   "notes": "Country-level VIZA RAG seed for indonesia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
       "slug": "indonesia-official-evisa-portal",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_B1_EVOA",
       "documentType": "process",
       "title": "Official Indonesia e-Visa Portal and Application Flow",
       "sourceUrl": "https://evisa.imigrasi.go.id/web/home",
@@ -40,10 +40,10 @@
     {
       "slug": "indonesia-evoa-and-voa",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_B1_EVOA",
       "documentType": "requirements",
       "title": "Indonesia e-VOA and Visa on Arrival for Short Visits",
-      "sourceUrl": "https://indonesianembassy.de/visa/online-application/visa-on-arrival/",
+      "sourceUrl": "https://evisa.imigrasi.go.id/web/home",
       "chunks": [
         {
           "id": "idn_voa_short_tourism_china",
@@ -88,7 +88,7 @@
     {
       "slug": "indonesia-c1-tourist-visit-visa",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_C1_TOURIST",
       "documentType": "requirements",
       "title": "Indonesia C1 Tourist Visit Visa",
       "sourceUrl": "https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1",
@@ -135,7 +135,7 @@
     {
       "slug": "indonesia-stay-permit-extension",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_C1_TOURIST",
       "documentType": "process",
       "title": "Indonesia Visit Stay Permit Extension Rules",
       "sourceUrl": "https://www.imigrasi.go.id/wna/izin-tinggal-keimigrasian",
@@ -170,7 +170,7 @@
     {
       "slug": "indonesia-voa-online-extension-news",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_B1_EVOA",
       "documentType": "faq",
       "title": "Online Extension for VoA and Visit Visa",
       "sourceUrl": "https://imigrasi.go.id/berita/ini-aturan-perpanjangan-visa-on-arrival-dan-visa-kunjungan-indonesia-yang-wajib-diperhatikan-wna",
@@ -191,7 +191,7 @@
     {
       "slug": "indonesia-tourist-visa-no-sponsor-news",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_C1_TOURIST",
       "documentType": "faq",
       "title": "Tourist Visit Visa Without Sponsor",
       "sourceUrl": "https://www.imigrasi.go.id/berita/2023/02/08/genjot-pariwisata-indonesia-visa-kunjungan-wisata-tidak-lagi-perlu-penjamin",
@@ -213,7 +213,7 @@
     {
       "slug": "indonesia-form-requirements",
       "country": "indonesia",
-      "visaType": "tourist_b211a",
+      "visaType": "ID_B1_EVOA",
       "documentType": "form_requirements",
       "title": "Indonesia Application Form and Document Intake Requirements",
       "sourceUrl": "https://evisa.imigrasi.go.id/web/home",
@@ -228,7 +228,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Use the official Indonesia e-Visa portal for e-VOA, C1 tourist visit visa, or extension where applicable. Official source URLs reviewed for this seed: https://evisa.imigrasi.go.id/web/home ; https://indonesianembassy.de/visa/online-application/visa-on-arrival/ ; https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1 ; https://www.imigrasi.go.id/wna/izin-tinggal-keimigrasian ; https://imigrasi.go.id/berita/ini-aturan-perpanjangan-visa-on-arrival-dan-visa-kunjungan-indonesia-yang-wajib-diperhatikan-wna ; https://www.imigrasi.go.id/berita/2023/02/08/genjot-pariwisata-indonesia-visa-kunjungan-wisata-tidak-lagi-perlu-penjamin. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Use the official Indonesia e-Visa portal for B1 e-VOA applications and follow the separate arrival-card declaration when required. Official source URLs reviewed for this seed: https://evisa.imigrasi.go.id/web/home ; https://indonesianembassy.de/visa/online-application/visa-on-arrival/ . C1 tourist visit visa intake is maintained in a separate product document. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
         },
         {
           "id": "indonesia_form_fields_to_collect",
@@ -240,7 +240,7 @@
             "field-mapping",
             "intake"
           ],
-          "content": "Indonesia e-Visa intake should collect identity, passport, nationality, place/date of birth, contact details, travel dates, accommodation/address in Indonesia, visa type, entry point, sponsor/no-sponsor route where applicable, and arrival card information."
+          "content": "Indonesia B1 e-VOA intake should collect identity, passport, nationality, place/date of birth, contact details, travel dates, accommodation/address in Indonesia, entry point, and the official payment/arrival-card acknowledgement. Do not reuse C1 tourist-visit fields as a substitute for this package."
         },
         {
           "id": "indonesia_supporting_documents_and_review",
@@ -252,7 +252,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "Common documents include passport biodata page with sufficient validity, photo, return/onward ticket, proof of living expenses or bank statement where required, hotel/accommodation, and sponsor/guarantor evidence for sponsored categories. Workflow guardrails: VIZA should decide between visa-free/VoA/e-VOA/C1 before collecting forms. Arrival Card, visa application and extension are separate workflows."
+          "content": "For B1 e-VOA, prepare the passport biodata page, compliant photo where requested, return/onward ticket, accommodation and payment evidence required by the official portal. Workflow guardrails: VIZA must decide between an eligible VoA/e-VOA route and C1 before collecting forms. The Indonesia arrival declaration, visa application and any extension remain separate workflows."
         },
         {
           "id": "standard_passport_identity_field_rules",
@@ -266,7 +266,7 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
           "id": "official_field_answer_norms",
@@ -279,6 +279,40 @@
             "indonesia"
           ],
           "content": "Official-source field answer norms for indonesia.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://evisa.imigrasi.go.id/web/home ; https://indonesianembassy.de/visa/online-application/visa-on-arrival/ ; https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1 ; https://www.imigrasi.go.id/wna/izin-tinggal-keimigrasian ; https://imigrasi.go.id/berita/ini-aturan-perpanjangan-visa-on-arrival-dan-visa-kunjungan-indonesia-yang-wajib-diperhatikan-wna ; https://www.imigrasi.go.id/berita/2023/02/08/genjot-pariwisata-indonesia-visa-kunjungan-wisata-tidak-lagi-perlu-penjamin\n\nTravel plan and port fields:\n- Electronic Visa on Arrival (e-VOA) application can be done simultaneously for 5 people\n- All travellers are required to submit an arrival card within 3 (three) days prior arrival in Indonesia\n- Orang Asing yang masuk ke Indonesia dengan Visa Kunjungan saat Kedatangan ( Visa on Arrival /VoA) di Tempat Pemeriksaan Imigrasi;\n\nAccommodation, host, and address fields:\n- Silakan lihat kode billing yang muncul di sistem setelah pengajuan visa oleh sponsor.\n- Anda tidak membutuhkan penjamin/sponsor untuk mengajukan visa ini.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "indonesia-c1-form-requirements",
+      "country": "indonesia",
+      "visaType": "ID_C1_TOURIST",
+      "documentType": "form_requirements",
+      "title": "Indonesia C1 Tourist Visit Visa Form Requirements",
+      "sourceUrl": "https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1",
+      "chunks": [
+        {
+          "id": "indonesia_c1_form_channel_and_scope",
+          "title": "Indonesia C1 form channel and scope",
+          "tags": ["indonesia", "c1", "application-form", "form-requirements", "official-source"],
+          "content": "Use the official Indonesia e-Visa portal for the C1 tourist visit visa. The official C1 page describes a single-entry tourist visit route with a first stay of up to 60 days and possible extensions subject to the current immigration rules. This package is separate from B1 e-VOA and from the Indonesia arrival declaration. Work, study, residence and other regulated purposes require a different route. Source reviewed: https://www.imigrasi.go.id/wna/daftar-visa-indonesia/C1"
+        },
+        {
+          "id": "indonesia_c1_form_fields_to_collect",
+          "title": "Indonesia C1 fields to collect before filling",
+          "tags": ["indonesia", "c1", "intake", "field-mapping"],
+          "content": "Collect passport identity, nationality, date and place of birth, contact details, intended entry date and point, accommodation in Indonesia, planned stay, return or onward travel, and the applicant's purpose statement. Ask whether a sponsor or guarantor is required for the applicant's document and nationality before choosing any sponsor fields."
+        },
+        {
+          "id": "indonesia_c1_supporting_documents_and_review",
+          "title": "Indonesia C1 supporting documents and review",
+          "tags": ["indonesia", "c1", "documents", "review-before-submit"],
+          "content": "The official C1 page lists a travel document with at least six months validity remaining, a recent colour photo and proof of living expenses such as the applicant's or sponsor's three-month bank statement at the stated threshold. Confirm current fee, sponsor exceptions, payment and processing information on the official page before submission. Do not treat an arrival declaration as evidence of visa approval."
+        },
+        {
+          "id": "indonesia_c1_standard_passport_identity_field_rules",
+          "title": "Standard passport identity fields for Indonesia C1",
+          "tags": ["standard-fields", "passport", "identity-document", "official-source"],
+          "content": "Copy passport number, name, date of birth, sex, nationality, issue date, expiry date, issuing authority, place of issue and passport type from the applicant's passport or official identity document. Never infer these values from residence, travel destination or an older application. Select ordinary passport only when the document explicitly identifies it as ordinary/regular."
         }
       ]
     }

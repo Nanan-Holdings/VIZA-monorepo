@@ -52,9 +52,10 @@ submitted by a parent or legal guardian and will be flagged as such.
 ## 4. Fees and payment
 
 - The agency fee is collected up front via Stripe Checkout (PAY-002).
-- The government fee for the destination country is collected
-  separately (where the portal accepts third-party payment) or paid
-  directly by the applicant on the portal (where it does not).
+- Electronically payable government fees are handled separately from the
+  agency-fee receipt. When due, VIZA provisions an application-scoped virtual
+  card and pays the official portal on the applicant's behalf. Applicants are
+  not asked to provide card details to the government portal through VIZA.
 - Payment is in the currency displayed at checkout. Stripe applies
   applicable taxes and currency conversion at the time of charge.
 

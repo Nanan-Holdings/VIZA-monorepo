@@ -1,23 +1,12 @@
 import { redirect } from "next/navigation";
 import { TravelChatClient } from "./travel-chat-client";
-import { getImpersonationSession } from "@/lib/impersonation-session";
-import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { getTravelUserSession } from "@/lib/travel/auth";
 import { getLatestTravelApplicationIdForApplicant } from "@/lib/travel/travel-chat-application";
 
 export const dynamic = "force-dynamic";
 
 async function getApplicantId(): Promise<string | null> {
-  const impersonation = await getImpersonationSession();
-  if (impersonation) {
-    return impersonation.userId;
-  }
-
-  const session = await getUserFromSupabaseSession();
-  if (session) {
-    return session.userId;
-  }
-
-  return null;
+  return (await getTravelUserSession())?.userId ?? null;
 }
 
 export default async function TravelChatPage() {

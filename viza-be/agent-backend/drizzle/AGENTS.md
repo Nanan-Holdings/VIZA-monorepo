@@ -62,6 +62,15 @@ The current internal automation migrations are:
   encrypted official retrieval fields, review snapshot/diff tables, and manual
   checkpoint tables. Dry-run remains the default and final applicant
   Sign/Submit remains outside automation.
+- `0123_viza_knowledge_releases_and_chat_memory.sql`: versioned RAG releases,
+  structured entry rules, durable per-session VIZA memory, and redacted agent
+  diagnostics.
+- `0124_travel_agent_conversation_state.sql`: server-owned Travel Agent state,
+  optimistic versions, idempotent messages, OpenAI response continuity, and
+  opt-in cross-session preferences.
+- `0130_universal_profile_answers.sql`: service-only field-keyed reusable
+  applicant facts synced explicitly from completed country forms and reused as
+  non-overwriting autofill in future applications.
 - `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
   requirements and bilingual label metadata so the app uses official materials
   instead of generic fallback requirements.
@@ -80,6 +89,48 @@ The current internal automation migrations are:
   and redacted official status check history for applicant status refreshes.
 - `0100_mdac_tdac_arrival_card_packages.sql`: Malaysia MDAC and Thailand TDAC
   package catalog rows. They are separate from eVisa/tourist visa workflows.
+- `0151_kr_e_arrival_card.sql`: Korea e-Arrival Card package/catalog metadata,
+  official-free fee rows, and the sequential shared-runner tuple/cancellation
+  compatibility patch for `south_korea + kr_arrival_card`.
+- `0152_repair_arrival_card_product_country_identity.sql`: repairs legacy
+  dedicated arrival-card rows whose stored country conflicts with their product
+  code, archives colliding in-flight drafts, and adds the database invariant
+  that prevents another cross-country product identity. Its catalog-backed
+  trigger also enforces exact linked-package identity and the canonical country
+  for every product offered by exactly one country.
+- `0153_france_appointment_slot_expiry.sql`: adds the ten-minute expiry
+  contract and job/status/expiry lookup indexes for observed France TLS slots.
+- `0154_japan_vjw_kenya_eta_products.sql`: installs the separate
+  `JP_VISIT_JAPAN_WEB` arrival-declaration and `KE_ETA` travel-authorisation
+  catalog rows, baseline official-fee metadata, and package-owned document
+  requirements. Japan remains paper-form compatible and its delegated live
+  automation is explicitly gated pending Digital Agency authorization; Kenya
+  eTA is the only first-phase delegated online authorisation.
+- `0155_application_inbox_aliases.sql`: adds the service-role-only,
+  application-scoped alias table used by unattended portal runners so OTP and
+  approval mail remain isolated between applications.
+- `0157_jp_vjw_compliance_approval.sql`: records the operator-approved VJW
+  compliance decision in package and fee-rule metadata while leaving runtime
+  and applicant final-submission gates fail-closed.
+- `0158_database_access_baseline.sql`: establishes deny-by-default future
+  public-schema privileges for the `postgres` application migration owner and
+  requires postflight findings for unsafe defaults owned by platform roles,
+  restores the typed application-translation table
+  with authenticated ownership RLS, restricts encrypted/runner/takeover state
+  to service role, enables own-row RLS on `users`, switches
+  `runner_queue_depth` to security-invoker, and removes the confirmed
+  SECURITY DEFINER search-path/execute exposure without changing RPC identity.
+- `0159_database_performance_indexes.sql`: creates three evidence-backed online
+  indexes for application-scoped submission lookups and the confirmed
+  `visa_chunks.document_id` / `pii_access_log.application_id` foreign-key scan
+  gaps. It must run only through the non-transactional concurrent-index batch
+  executor and never removes an existing index.
+- `0160_agent_backend_role_timeouts.sql`: sets the `postgres` runtime role's
+  `statement_timeout` and `idle_in_transaction_session_timeout` defaults to 30
+  seconds. Apply it before deploying the fail-closed agent-backend runtime;
+  postflight must verify the exact `pg_roles.rolconfig` entries and three new
+  connections after the application/pooler connection lifecycle is recycled.
+  The migration never terminates sessions or restarts PostgreSQL.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
@@ -130,9 +181,141 @@ The current internal automation migrations are:
 - `0120_vn_evisa_strict_validity_range.sql`: requires the Vietnam e-Visa
   validity end date to be at least one calendar day after its start date,
   matching the official portal's strict date-order validation.
-- `0149_runner_country_claim.sql`: adds a service-role-only, country-scoped
-  `runner_job` claim RPC for dedicated country workers. It preserves the
-  existing shared-pool claim RPC and atomically enforces country concurrency.
+- `0121_ds160_consular_post.sql`: adds the required CEAC China issuing-post
+  selector to the DS-160 form using the live official location codes.
+- `0125_backfill_account_alias_forwarding_consent.sql`: promotes accepted
+  application-alias forwarding consent into the canonical consent event used
+  by queue and email-worker authorization checks.
+- `0126_sgac_country_runner_retry.sql`: adds the SGAC country-runner retry RPC
+  and compatibility mapping for queued runner jobs.
+- `0127_runner_pool.sql`: adds typed six-country `runner_job` scheduling,
+  service-role-only atomic enqueue/claim RPCs, country concurrency caps, ten
+  logical Machine lease slots, sticky-service priority, scheduled availability,
+  lease recovery, and the shared-pool depth view.
+- `0128_dedupe_visa_packages.sql`: removes the unused duplicate Japan and South
+  Korea package rows, preserves referenced canonical rows, and adds a
+  case-insensitive country/visa-type uniqueness guard.
+- `0129_indonesia_sticky_runner.sql`: migrates queued Indonesia B1/C1 jobs out
+  of the generic pool, adds the sticky Indonesia Machine slot/claim RPC,
+  excludes Indonesia from legacy and pool claims, and prevents new simplified
+  Indonesia `runner_job` inserts.
+- `0131_client_bootstrap_concurrency.sql`: adds the service-only first-login
+  request table and atomic bootstrap/destination-selection RPCs so client
+  navigation does not depend on check-then-insert request chains.
+- `0132_reviewed_entry_rules_and_product_recommendations.sql`: adds reviewed
+  rule evidence, policy expiry/review metadata, structured product
+  recommendations, the `not_applicable` outcome, and the 77-row publication
+  gate for the first audited passport matrix.
+- `0133_harden_visa_knowledge_promotion.sql`: removes inherited anonymous and
+  signed-in execution grants from knowledge promotion and keeps it service-only.
+- `0134_form_assistant_sessions.sql`: durable application-scoped Form Filling
+  Assistant sessions/messages, idempotency keys, validation state, indexes,
+  answer provenance columns, explicit grants, and authenticated ownership RLS
+  policies.
+- `0135_retire_indonesia_b211a.sql`: retires obsolete Indonesia B211A catalog
+  rows without deleting historical records, and changes application/form-field
+  defaults to the canonical `ID_C1_TOURIST` product code.
+- `0136_form_assistant_required_checkbox_rules.sql`: marks the Philippines
+  eTravel privacy declarations and Taiwan permit terms as true-only required
+  acknowledgements for consistent form and assistant validation.
+- `0137_queue_worker_leases_and_runtime_claims.sql`: adds atomic notification
+  claims with conditional ack/nack and DLQ settlement, Vietnam status-check
+  worker leases with safe completion/failure RPCs and provider-filtered/
+  targeted submission-queue claims.
+- `0138_bounded_queue_maintenance.sql`: adds a bounded, service-role-only
+  atomic stale-processing cleanup RPC and an index matching its heartbeat/status
+  cutoff scan; callers run it as low-frequency maintenance rather than per poll.
+- `0149_concurrency_phase_two.sql`: supersedes the global runner-pool advisory
+  claim lock with country-cap row serialization, bounded one-row lease recovery,
+  and partial indexes for queued ordering, running-country counts, lease
+  expiry, and one-live-job-per-worker fencing. The service-role-only
+  `claim_runner_pool_job`, `complete_runner_pool_job`, `renew_runner_pool_job`,
+  and `fail_runner_pool_job` RPCs are `SECURITY DEFINER`, use an empty
+  `search_path`, ignore caller-supplied timestamps in favor of
+  `clock_timestamp()`, and grant execution only to `service_role`. Each locks
+  the exact owner row, mints a generalized full OLD/NEW-row capability, and
+  lets the permanent `BEFORE UPDATE` fence consume only that capability;
+  metadata-only writes are the sole direct exception. Recovery is just one
+  capability operation among the full-row lifecycle set, not a separate
+  expired-row bypass.
+  The service-role-only `write_runner_pool_submission_result` RPC locks the
+  exact live owner, samples the post-lock database clock, and atomically writes
+  the application result while changing application status only for
+  `submitted`. The migration also carries the
+  `defer_vn_official_status_check` RPC used to return provider-gate-denied
+  status checks to the queue without consuming an admission attempt. Phase-two
+  admission is restricted to the six canonical country/flow tuples and uses
+  application-first locking; queued inserts and requeues are guarded against
+  staff-review races, while active reuse requires an exact country/flow match.
+  Claim candidate scans exclude staff-review applications, and the queued to
+  running trigger takes the application mutex with `NOWAIT` before consuming a
+  claim capability. Claiming mints and consumes a full old/new-row `claim`
+  capability, and a `BEFORE INSERT` guard rejects direct running rows. The
+  service-role-only `claim_takeover_session`,
+  `cancel_application_submission`, `requeue_runner_job`, and
+  `settle_runner_job_takeover` RPCs use exact row locks/capabilities. Takeover
+  claims are kind-fenced and same-claimant idempotent; settlement requires the
+  claimant's `claimed` session, writes only bounded string-valued answer JSON,
+  derives the answer count, and atomically updates answers, queue/job,
+  application, session, and takeover action-log state. Review pause atomically
+  marks the application, pauses active legacy queue rows, and then pauses
+  runner jobs under the application-first mutex.
+  Apply this as a controlled-drain-only migration: pause enqueue/wakes, drain
+  running jobs to zero, stop BASE workers, apply the migration, deploy strict
+  RPC callers, smoke test, then resume workers.
+  The same migration also installs the private shared claim core and the
+  service-role-only `claim_runner_pool_load_test_job` wrapper. Its
+  `runner_private.runner_load_test_config` row is owner-only, seeded disabled,
+  and must be enabled/disabled out-of-band for an exact staging/local-test
+  project; the load harness must never toggle it. Scoped claims require the
+  synthetic application/metadata/correlation marker and never scan production
+  rows. The global probe takes a private advisory lock, uses an effective
+  per-country cap of ten, and counts all canonical running rows while leaving
+  `runner_concurrency_cap` unchanged.
+- `0150_vn_status_settlement_fence.sql`: replaces Vietnam official-status
+  worker leases with a monotonic `BIGINT` lease generation and exact
+  generation-bearing service-role RPCs for claim, renew, defer, fail, and
+  complete. Settlement locks application, status-check, and tracking rows in
+  that order, derives result state and bounded notification payloads, preserves
+  legacy artifact paths, and atomically records deterministic full-SHA eVisa
+  documents, events, bounded retry rows, and failure backoff. Legacy
+  worker-only signatures are removed for the controlled cutover; callers must
+  pass the generation returned by claim.
+- `0156_concurrency_stable_speed.sql`: adds the service-role-only exact-owner
+  machine-slot renewal RPC, queue/capacity health views for the six canonical
+  shared-runner tuples and ten logical slots, and bounded non-PII claim/start
+  timing samples. It does not change runner caps or slot allocation.
+- `0139_dedupe_ongoing_applications.sql`: consolidates duplicate in-flight
+  applications and enforces one ongoing row per applicant/country/visa type
+  while preserving completed submission history; QA dry-run rows are isolated
+  from deduplication and the customer uniqueness gate.
+- `0140_prevent_qa_placeholder_submission.sql`: rejects synthetic QA answers on
+  ordinary applications, blocks QA-marked data from live runner queues, and
+  removes previously persisted QA sentinels from reusable/customer data.
+- `0141_block_known_qa_account_sentinel.sql`: patches already-migrated databases
+  to reject and remove the historical dedicated-QA WeChat sentinel.
+- `0142_managed_card_issuer_router.sql`: permits PhotonPay and Airwallex card
+  identities while preserving exact application/allocation/payment-intent
+  binding in the service-only issuer-aware card-attempt claim RPC.
+- `0143_scrub_uk_submission_result_credentials.sql`: removes legacy UK portal
+  URLs, usernames, and password/cipher fields from customer-readable
+  `applications.submission_result`; credentials remain only in `uk_accounts`.
+- `0144_exclude_qa_drafts_from_ongoing_uniqueness.sql`: rebuilds the ongoing
+  application uniqueness index so isolated schema-QA drafts can coexist with
+  one real customer application for the same country and visa type.
+- `0145_protect_issuer_card_attempt_leases.sql`: prevents a different worker
+  from overwriting an unexpired issuer-card claim lease while preserving
+  same-worker renewal and expired-lease recovery.
+- `0146_vietnam_payment_registration_code_handoff.sql`: carries an existing
+  encrypted Vietnam registration code into the next isolated payment queue row
+  for the same application/provider without exposing the code in RPC payloads.
+- `0147_uk_passport_upload_document_slot.sql`: maps the UK passport upload to
+  the `passport_bio_page` application-document slot so it cannot be treated as
+  an ordinary file-path answer.
+- `0148_five_tourist_country_packages_and_documents.sql`: corrects the Canada,
+  Türkiye, India, Saudi Arabia, and UAE tourist-product catalog boundaries and
+  installs their audited Document Center requirements outside the answer
+  schema.
 
 ## Guardrails
 

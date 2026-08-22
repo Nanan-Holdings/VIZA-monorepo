@@ -6,8 +6,10 @@ import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import { PayByCardButton } from "@/components/PayByCardButton";
 import { WechatPayButton } from "@/components/WechatPayButton";
-import { countryBySlug } from "@/lib/countries";
+import { useCatalogue } from "@/components/CatalogueProvider";
+import ComingSoon from "@/components/ComingSoon";
 import SiteFooter from "@/components/SiteFooter";
+import { trackEvent } from "@/lib/analytics";
 
 type PassportExtraction = {
   surname: string;
@@ -75,13 +77,10 @@ type Step = 1 | 2 | 3;
 type Speed = "standard" | "express" | "superrush";
 type Addon = "insurance" | "esim";
 
-// Base price: government fee (50) + VIZA processing (32) − first-time discount (10).
-const BASE_PRICE = 50 + 32 - 10;
 const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush: 89 };
 const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
 const TEST_CHECKOUT_VISA_TYPE = "TEST_CHECKOUT";
-const TEST_CHECKOUT_TOTAL_SGD = 0;
 const TEST_CHECKOUT_PASSPORT: PassportExtraction = {
   surname: "ZHANG",
   givenNames: "EDWARD TEST",
@@ -230,6 +229,7 @@ function ReviewField({
 
 export default function ApplyPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { countryBySlug } = useCatalogue();
 
   // The wizard is country-aware: /apply?country=<slug> drives the destination
   // identity (name, flag, visa type) and the final-step checkout deep-links.
@@ -239,8 +239,9 @@ export default function ApplyPage() {
   useEffect(() => {
     const c = new URLSearchParams(window.location.search).get("country");
     if (c && countryBySlug(c)) setCountrySlug(c);
-  }, []);
+  }, [countryBySlug]);
   const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
+  const publishedPricing = country.pricing;
   const isTestCheckout = country.visaType === TEST_CHECKOUT_VISA_TYPE;
 
   const locale = useLocale();
@@ -308,6 +309,11 @@ export default function ApplyPage() {
 
   const runExtraction = useCallback(async (file: File) => {
     if (!file) return;
+    trackEvent("passport_scan_start", {
+      destination_country: countrySlug,
+      upload_mode: uploadMode,
+      file_type: file.type,
+    });
     setExtracted(null);
     setScanOutcome(null);
     setScanFailure(null);
@@ -381,6 +387,13 @@ export default function ApplyPage() {
       setScanOutcome(outcome);
       setTriedContinue(false);
       setExtractStage("done");
+      trackEvent("passport_scan_complete", {
+        destination_country: countrySlug,
+        scan_outcome: outcome,
+        confidence: data.confidence,
+        missing_field_count: missing.length,
+        warning_count: warnings.length,
+      });
 
       try {
         sessionStorage.setItem("viza.passport.extracted", JSON.stringify(data));
@@ -394,7 +407,7 @@ export default function ApplyPage() {
       setScanFailureDetail(err instanceof Error ? err.message : String(err));
       setExtractStage("idle");
     }
-  }, [goStep]);
+  }, [countrySlug, goStep, uploadMode]);
 
   const onFilePicked = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -450,9 +463,9 @@ export default function ApplyPage() {
   }, []);
 
   // -------------- DERIVED PRICING / SUMMARY --------------
-  const summaryGovFee = isTestCheckout ? 0 : 50;
-  const summaryVizaFee = isTestCheckout ? TEST_CHECKOUT_TOTAL_SGD : 32;
-  const summaryDiscount = isTestCheckout ? 0 : 10;
+  const summaryGovFee = (publishedPricing?.governmentFeeMinor ?? 0) / 100;
+  const summaryVizaFee = (publishedPricing?.agencyFeeMinor ?? 0) / 100;
+  const summaryDiscount = (publishedPricing?.firstTimeDiscountMinor ?? 0) / 100;
   const speedAdd = isTestCheckout ? 0 : SPEED_PRICE[speed];
   const addonsAdd = isTestCheckout ? 0 : (addons.insurance ? ADDON_PRICE.insurance : 0) + (addons.esim ? ADDON_PRICE.esim : 0);
   const total = summaryGovFee + summaryVizaFee - summaryDiscount + speedAdd + addonsAdd;
@@ -561,6 +574,10 @@ export default function ApplyPage() {
   const onNext = useCallback(() => {
     if (!canProceed) return;
     if (step === 1 && isTestCheckout) {
+      trackEvent("apply_start", {
+        destination_country: countrySlug,
+        entry_point: "test_checkout_next",
+      });
       goStep(2);
       return;
     }
@@ -579,6 +596,12 @@ export default function ApplyPage() {
         }));
         return;
       }
+      trackEvent("apply_start", {
+        destination_country: countrySlug,
+        entry_point: "passport_review_complete",
+        selected_speed: speed,
+        addon_count: (Object.keys(addons) as Addon[]).filter((a) => addons[a]).length,
+      });
       try {
         sessionStorage.setItem(
           "viza.passport.extracted",
@@ -593,7 +616,7 @@ export default function ApplyPage() {
       }
     }
     goStep((step + 1) as Step);
-  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
+  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone, countrySlug, speed, addons]);
 
   const showWarning = scanOutcome === "partial";
   const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>
@@ -634,6 +657,10 @@ export default function ApplyPage() {
 
   const pstepClass = (n: Step) =>
     `pstep${n < step ? " done" : ""}${n === step ? " current" : ""}`;
+
+  if (!country.launched || !publishedPricing) {
+    return <ComingSoon name={countryName} />;
+  }
 
   return (
     <>

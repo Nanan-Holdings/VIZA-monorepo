@@ -22,6 +22,16 @@ export interface VietnamCardSessionResult {
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const sessions = new Map<string, VietnamCardSession>();
 
+function envEnabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
+}
+
+export function vietnamCardSessionsEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return env.NODE_ENV !== "production" && envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED);
+}
+
 function nowMs(): number {
   return Date.now();
 }
@@ -47,7 +57,10 @@ export function putVietnamCardSession(input: {
   card: VietnamFixedCardInput;
   ttlMs?: number;
   referenceTimeMs?: number;
-}): VietnamCardSessionResult {
+}, env: Record<string, string | undefined> = process.env): VietnamCardSessionResult {
+  if (!vietnamCardSessionsEnabled(env)) {
+    throw new Error("Vietnam applicant-card sessions are local-development fixtures only.");
+  }
   const applicationId = normalizeApplicationId(input.applicationId);
   const referenceTime = input.referenceTimeMs ?? nowMs();
   cleanupExpired(referenceTime);
@@ -78,6 +91,13 @@ export function consumeVietnamCardSession(applicationId: string, referenceTimeMs
   if (!session) return null;
   sessions.delete(session.applicationId);
   return session.card;
+}
+
+/** Delete an unused card without returning its sensitive contents. */
+export function discardVietnamCardSession(applicationId: string, referenceTimeMs = nowMs()): boolean {
+  const normalized = normalizeApplicationId(applicationId);
+  cleanupExpired(referenceTimeMs);
+  return sessions.delete(normalized);
 }
 
 export function hasVietnamCardSessions(referenceTimeMs = nowMs()): boolean {

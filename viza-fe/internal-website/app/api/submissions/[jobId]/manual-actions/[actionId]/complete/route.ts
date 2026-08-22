@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 
 export const dynamic = "force-dynamic";
 
@@ -313,6 +315,16 @@ export async function POST(
     return NextResponse.json({ error: "Manual action not found" }, { status: 404 });
   }
 
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Submission resume is temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
+  }
+
   const now = new Date().toISOString();
   if (action.status !== "completed") {
     const { error: updateActionError } = await authorized.admin
@@ -352,6 +364,11 @@ export async function POST(
 
   if (applicationError) {
     return NextResponse.json({ error: applicationError.message }, { status: 500 });
+  }
+
+  const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+  if (!wake.ok) {
+    console.warn("[submission-queue] Manual-action requeue wake failed; durable queue remains recoverable.", wake);
   }
 
   return NextResponse.json({
