@@ -1730,6 +1730,7 @@ async function managementJsonRequest({
     const requestError = new Error(
       `Supabase temporary database access failed (${response.status}): ${message}`,
     );
+    requestError.statusCode = response.status;
     if (suffix === "/cli/login-role" && method === "POST") {
       try {
         await revokeTemporaryRole({ token, projectRef, fetchImpl });
@@ -1979,7 +1980,9 @@ async function managementQuery({
       payload && typeof payload === "object" && typeof payload.message === "string"
         ? payload.message
         : "Management API request failed";
-    throw new Error(`Supabase ${action} failed (${response.status}): ${message}`);
+    const requestError = new Error(`Supabase ${action} failed (${response.status}): ${message}`);
+    requestError.statusCode = response.status;
+    throw requestError;
   }
 
   return payload;
@@ -2036,7 +2039,41 @@ function assertManagementProjectIdentity(payload, projectRef) {
   }
 }
 
-export async function runArchitectureAudit({ env = process.env, fetchImpl = fetch } = {}) {
+function isTransientReadOnlyManagementError(error) {
+  const statusCode = Number(error?.statusCode);
+  if (statusCode === 429 || (statusCode >= 500 && statusCode <= 599)) return true;
+  if (error?.name === "AbortError" || error?.name === "TimeoutError") return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /\b(?:ECONNRESET|ETIMEDOUT|fetch failed|connection timeout)\b/iu.test(message);
+}
+
+async function retryArchitectureAuditRead({ phase, run, wait }) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientReadOnlyManagementError(error) || attempt === 2) {
+        const suffix = attempt === 2 ? " after two attempts" : "";
+        throw new Error(
+          `Production architecture audit ${phase} failed${suffix}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+      await new Promise((resolve) => wait(resolve, 500));
+    }
+  }
+  throw lastError;
+}
+
+export async function runArchitectureAudit({
+  env = process.env,
+  fetchImpl = fetch,
+  wait = setTimeout,
+} = {}) {
   const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
   const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
   const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
@@ -2047,33 +2084,50 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize architecture-audit");
   }
 
-  assertManagementProjectIdentity(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "",
-    method: "GET",
-    fetchImpl,
-  }), projectRef);
-  const security = sanitizeAdvisorPayload(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "/advisors/security",
-    method: "GET",
-    fetchImpl,
+  const projectIdentity = await retryArchitectureAuditRead({
+    phase: "project identity",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "",
+      method: "GET",
+      fetchImpl,
+    }),
+  });
+  assertManagementProjectIdentity(projectIdentity, projectRef);
+  const security = sanitizeAdvisorPayload(await retryArchitectureAuditRead({
+    phase: "security advisor",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/advisors/security",
+      method: "GET",
+      fetchImpl,
+    }),
   }));
-  const performance = sanitizeAdvisorPayload(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "/advisors/performance",
-    method: "GET",
-    fetchImpl,
+  const performance = sanitizeAdvisorPayload(await retryArchitectureAuditRead({
+    phase: "performance advisor",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/advisors/performance",
+      method: "GET",
+      fetchImpl,
+    }),
   }));
-  const catalogPayload = await managementQuery({
-    env,
-    fetchImpl,
-    action: "architecture-audit",
-    query: ARCHITECTURE_AUDIT_SQL,
-    readOnly: true,
+  const catalogPayload = await retryArchitectureAuditRead({
+    phase: "catalog query",
+    wait,
+    run: () => managementQuery({
+      env,
+      fetchImpl,
+      action: "architecture-audit",
+      query: ARCHITECTURE_AUDIT_SQL,
+      readOnly: true,
+    }),
   });
   const catalog = metadataRow(
     catalogPayload,
@@ -2091,12 +2145,16 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     statements: [],
   };
   if (catalog.pg_stat_statements_available === true) {
-    const statementPayload = await managementQuery({
-      env,
-      fetchImpl,
-      action: "architecture-audit",
-      query: PG_STAT_STATEMENTS_AUDIT_SQL,
-      readOnly: true,
+    const statementPayload = await retryArchitectureAuditRead({
+      phase: "statement metrics query",
+      wait,
+      run: () => managementQuery({
+        env,
+        fetchImpl,
+        action: "architecture-audit",
+        query: PG_STAT_STATEMENTS_AUDIT_SQL,
+        readOnly: true,
+      }),
     });
     const rawMetrics = metadataRow(
       statementPayload,
