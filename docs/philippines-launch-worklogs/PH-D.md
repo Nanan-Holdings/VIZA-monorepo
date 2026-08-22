@@ -1720,3 +1720,21 @@
 - `npm run build`：passed，Next production build 成功；仅有 Browserslist 过期提示，build 仍跳过 type validation。
 - `npm run type-check`：仍失败于既有非 PH blocker：`lib/travel/__tests__/travel-llm-connectivity.spec.ts` 的 tuple index errors，以及 `scripts/capture-travel-city-coverage-screenshots.ts` 缺 `playwright` types。
 - `git diff --check`：passed。
+
+## 第三十六轮：PH synthetic fixture 隔离草稿创建边界（2026-08-22）
+
+- 定位当前生产阻断：普通 PH long-form 会复用最近同产品 draft；`arrival-card-new-application` 面向已提交后的重新申请，不适合未提交 synthetic fixture；目的地/状态页受 active application 影响，曾把点击结果带到既有 Taiwan application，不能作为 PH 测试草稿来源。
+- 新增 PH-only `synthetic-fixture.ts` 与 `POST /api/ph-etravel/synthetic-fixtures/applications`。该边界默认 fail-closed；生产必须显式 `PH_ETRAVEL_SYNTHETIC_FIXTURES_ENABLED === "true"`，并配置 email allowlist 或 bearer token gate。创建时只新建 `country=philippines` / `PH_ETRAVEL_ARRIVAL_CARD` / `visa_package_id=null` draft，并写入 synthetic marker、`ARRIVAL`、`FOR_ME`、`AIR|SEA` 初始答案；不复用、不覆盖、不删除现有申请，不创建 runner job，不触发官网。
+- 普通用户路径未改：`ensureDraftApplication`、destination cards、long-form autosave、status/result/retry 逻辑均不变，既有 active-application/重复申请保护不被削弱。此 API 只用于已批准生产测试账号生成彼此隔离的 AIR/SEA fixture drafts，后续仍必须走 canonical answers/documents/consent/completeness/retry 链路。
+- 更新 `features/ph-etravel/AGENTS.md` 记录该 helper 的 fail-closed、PH-only、no overwrite/no submit 边界。
+
+### Focused validation
+
+- `npx vitest run features/ph-etravel/__tests__/synthetic-fixture.test.ts features/ph-etravel/__tests__/travel-registration.test.ts 'app/api/applications/[id]/retry-submission/__tests__/retry-submission-ph.test.ts' --testTimeout=15000`：3 files / 19 tests passed。
+- `npx prettier --write` 后 focused files clean。
+- `git diff --check -- viza-fe/internal-website/features/ph-etravel viza-fe/internal-website/app/api/ph-etravel docs/philippines-launch-worklogs/PH-D.md`：passed。
+- `npx tsc --noEmit --incremental false --pretty false`：仍失败于既有非 PH blocker：`lib/travel/__tests__/travel-llm-connectivity.spec.ts` tuple index errors，以及 `scripts/capture-travel-city-coverage-screenshots.ts` 缺 `playwright` types；未见本轮 PH 文件错误。
+
+### Deployment / fixture creation note
+
+- 下一步部署后，若生产 env gate 未配置，API 会返回 `synthetic_fixtures_disabled` 或 `synthetic_fixture_gate_unconfigured`，这是预期 fail-closed 状态；不能通过覆盖既有 PH draft 或 service-role/manual DB insert 绕过。
