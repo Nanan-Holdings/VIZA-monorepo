@@ -1738,3 +1738,11 @@
 ### Deployment / fixture creation note
 
 - 下一步部署后，若生产 env gate 未配置，API 会返回 `synthetic_fixtures_disabled` 或 `synthetic_fixture_gate_unconfigured`，这是预期 fail-closed 状态；不能通过覆盖既有 PH draft 或 service-role/manual DB insert 绕过。
+
+## 第三十七轮：生产部署与 synthetic fixture 会话阻断（2026-08-22）
+
+- 以 `integration/product-work-20260813` 最新 HEAD `cfef2b7d` 部署 `viza-internal` production；第一次从 `viza-fe/internal-website` 子目录部署失败，原因是 Vercel 项目已配置 Root Directory `viza-fe/internal-website`，云端重复拼接路径。随后从仓库根目录重新部署成功。
+- Production deployment：`dpl_6M3GhZefbG65rwfdfbHePub4kZzL`，URL `https://viza-internal-owrlnfzik-viza-gmail-s-projects.vercel.app`，alias `https://app.viza.it.com`，Vercel inspect 显示 `READY`，target `production`，created `2026-08-22 14:25:53 +08:00`。未输出任何 env 值或 token。
+- 已配置 synthetic fixture production gate：`PH_ETRAVEL_SYNTHETIC_FIXTURES_ENABLED` 与 `PH_ETRAVEL_SYNTHETIC_FIXTURE_TOKEN` 存在；API 仍要求 Supabase 登录用户与 bearer token，未配置 email allowlist，普通用户无 token 不可调用。`NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED` / `PH_ETRAVEL_LIVE_SUBMISSION_ENABLED` 未在本轮开启。
+- 生产 smoke：`app.viza.it.com` 根路径返回登录重定向；`/client/arrival-cards/philippines` 可达登录页并保留 `next=%2Fclient%2Farrival-cards%2Fphilippines`。Chrome 可控会话中未找到已登录 PH/VIZA session；可见 VIZA tabs 只有 PH login 页与旧 Taiwan long-form tab，因此未创建 AIR/SEA applications、未保存 answers/documents/consent、未 completeness、未 enqueue runner_job。
+- 阻断结论：无法通过 canonical UI/API 创建隔离 AIR/SEA synthetic fixture，因为当前可控 Chrome production session 未登录；按安全边界未请求密码/Cookie/token，未 service-role 直插业务表，未覆盖/删除既有草稿，未触发菲律宾官网或 final Submit。
