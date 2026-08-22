@@ -118,6 +118,12 @@ function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, 
   return evaluateShowIf(field, values, fields);
 }
 
+function getAtLeastOneOf(field: VisaFormFieldRow): string[] {
+  const value = field.validationRules?.at_least_one_of;
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | undefined): boolean {
   if (!hasValue(value)) return false;
   if (
@@ -156,6 +162,31 @@ function missingForDynamicStep(step: WizardStep, stepId: number, stepName: strin
       stepName,
       fieldName: field.fieldName,
       label: field.label || field.fieldName,
+      reason: "required",
+    });
+  }
+
+  // Some official forms express an OR requirement as a group of individually
+  // optional fields. Treat the visible group as required at final review too;
+  // otherwise the inline validator and the submit validator disagree.
+  const visitedGroups = new Set<string>();
+  for (const field of step.fields) {
+    const group = getAtLeastOneOf(field);
+    if (group.length === 0 || !evaluateShowIf(field, answers, step.fields)) continue;
+    const groupKey = [...group].sort().join("|");
+    if (visitedGroups.has(groupKey)) continue;
+    visitedGroups.add(groupKey);
+    const visibleMembers = group
+      .map((fieldName) => step.fields.find((candidate) => candidate.fieldName === fieldName))
+      .filter((candidate): candidate is VisaFormFieldRow => Boolean(candidate))
+      .filter((candidate) => evaluateShowIf(candidate, answers, step.fields));
+    if (visibleMembers.length === 0 || group.some((fieldName) => hasValue(answers[fieldName]))) continue;
+    const first = visibleMembers[0];
+    missing.push({
+      stepId,
+      stepName,
+      fieldName: first.fieldName,
+      label: first.label || first.fieldName,
       reason: "required",
     });
   }

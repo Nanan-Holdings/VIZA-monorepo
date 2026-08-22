@@ -344,7 +344,12 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
 function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
   // Postal codes are structured identifiers. Translating them can replace a
   // valid numeric value with a place name and breaks the official lookup.
-  return isTextLikeField(field) && field.fieldName !== "postal_code";
+  const rules = field.validationRules as { derived_from?: unknown; read_only?: unknown } | null;
+  const isOfficialAddressDerivedValue = rules?.derived_from === "stay_address_search"
+    && rules.read_only === true;
+  return isTextLikeField(field)
+    && !/(?:^|_)postal_code$/u.test(field.fieldName)
+    && !isOfficialAddressDerivedValue;
 }
 
 function hasChineseText(value: string): boolean {
@@ -1158,6 +1163,14 @@ function getPhEtravelOfficialOptionSource(field: VisaFormFieldRow): string | nul
     : null;
 }
 
+function isKoreaOfficialAddressSearchField(field: VisaFormFieldRow): boolean {
+  const source = (field.validationRules as { source?: unknown } | null)?.source;
+  return (
+    (field.fieldName === "address_in_korea" && source === "korea_visa_portal_address_search")
+    || (field.fieldName === "stay_address_search" && source === "korea_e_arrival_card_address_search")
+  );
+}
+
 function getPhEtravelDependsOn(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
   const dependsOn = rules?.depends_on ?? rules?.dependsOn;
@@ -1591,6 +1604,8 @@ function getLocalFieldIssue(
       equals?: string;
       length?: number;
     };
+    specific_error_zh?: string;
+    specific_error_en?: string;
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -1652,13 +1667,14 @@ function getLocalFieldIssue(
           ?? rules.pattern.match(/^\^\\d\{(\d+)\}\$$/u)?.[1];
         return issue(
           "error",
-          exactDigitLength
+          (isZh ? rules.specific_error_zh : rules.specific_error_en)
+            ?? (exactDigitLength
             ? isZh
               ? `请输入 ${exactDigitLength} 位数字`
               : `Enter exactly ${exactDigitLength} digits`
             : isZh
               ? "格式不符合要求"
-              : "Format does not match the requirement",
+              : "Format does not match the requirement"),
         );
       }
     } catch {
@@ -3187,12 +3203,8 @@ export function DynamicStepForm({
 
   const hasKoreaAddressSearchField = useMemo(
     () =>
-      visaType === "KR_C39_SHORT_TERM_VISIT" &&
-      step.fields.some(
-        (field) =>
-          field.fieldName === "address_in_korea" &&
-          (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search",
-      ),
+      (visaType === "KR_C39_SHORT_TERM_VISIT" || visaType === "KR_E_ARRIVAL_CARD") &&
+      step.fields.some(isKoreaOfficialAddressSearchField),
     [step.fields, visaType],
   );
 
@@ -3990,6 +4002,42 @@ export function DynamicStepForm({
     setValues(normalizedNext);
   };
 
+  const handleKoreaOfficialAddressSelection = (fieldName: string, value: string) => {
+    if (!value) {
+      onUserChange?.();
+      pushUndoSnapshot();
+      const next = {
+        ...valuesRef.current,
+        [fieldName]: "",
+        stay_address_ko: "",
+        stay_address_en: "",
+        stay_postal_code: "",
+      };
+      valuesRef.current = next;
+      setValues(next);
+      return;
+    }
+    const selected = koreaAddressOptions.find((option) =>
+      typeof option === "string" ? option === value : option.value === value,
+    );
+    if (typeof selected === "string" || !selected) {
+      handleChange(fieldName, value);
+      return;
+    }
+
+    onUserChange?.();
+    pushUndoSnapshot();
+    const next = {
+      ...valuesRef.current,
+      [fieldName]: value,
+      stay_address_ko: selected.koreanAddress ?? selected.official_label ?? "",
+      stay_address_en: selected.englishAddress ?? selected.value,
+      stay_postal_code: selected.postalCode ?? "",
+    };
+    valuesRef.current = next;
+    setValues(next);
+  };
+
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
@@ -4265,10 +4313,7 @@ export function DynamicStepForm({
         ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
         : remoteOptions;
     }
-    if (
-      field.fieldName === "address_in_korea" &&
-      (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search"
-    ) {
+    if (isKoreaOfficialAddressSearchField(field)) {
       const selectedValue = values[valueKey]?.trim();
       const hasSelectedValue =
         selectedValue &&
@@ -4358,9 +4403,7 @@ export function DynamicStepForm({
 
     const renderSide = (side: BilingualSide) => {
       const isTaiwanEntryPermit = (visaType ?? field.visaType) === "TW_ENTRY_PERMIT";
-      const isKoreaAddressSearchSelect =
-        field.fieldName === "address_in_korea" &&
-        (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
+      const isKoreaAddressSearchSelect = isKoreaOfficialAddressSearchField(field);
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
       const vnReadOnlyRules = field.validationRules as {
         read_only?: boolean;
@@ -4374,14 +4417,15 @@ export function DynamicStepForm({
       const isVnPrearrivalEditableOverride = Boolean(
         editableWhenValue && lockedByValue === editableWhenValue,
       );
-      const isVnPrearrivalReadOnly =
-        isVnPrearrivalField &&
+      const isFieldReadOnly =
         !isVnPrearrivalEditableOverride &&
         Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: isTaiwanEntryPermit ? field.fieldName : `${valueKey}-${side}`,
-        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+        fieldType: isKoreaAddressSearchSelect
+          ? "select"
+          : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: isTaiwanEntryPermit && field.fieldName === "name_english"
           ? "英文姓名（依护照大写拼写）"
           : isTaiwanEntryPermit && field.fieldName === "name_chinese"
@@ -4419,10 +4463,14 @@ export function DynamicStepForm({
                 handleBilingualTextChange(valueKey, side, nextValue);
                 return;
               }
+              if (isKoreaAddressSearchSelect && field.fieldName === "stay_address_search") {
+                handleKoreaOfficialAddressSelection(valueKey, nextValue);
+                return;
+              }
               handleChange(valueKey, nextValue);
             }}
             forceWhiteBackground={forceWhiteBackground}
-            disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
+            disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}
             displayLocale={side}
             labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
             onSearchQuery={
@@ -4475,7 +4523,9 @@ export function DynamicStepForm({
     const guidanceField: VisaFormFieldRow = {
       ...field,
       required: isRequiredField(field),
-      fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+      fieldType: isKoreaOfficialAddressSearchField(field)
+        ? "select"
+        : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };

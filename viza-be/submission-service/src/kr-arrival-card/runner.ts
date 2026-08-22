@@ -791,9 +791,15 @@ async function selectOfficialStayAddress(
   const korean = await page.locator("input.soj_prrpl_rnm_bs_han_addr").first().inputValue().catch(() => "");
   const english = await page.locator("input.soj_prrpl_rnm_bs_eng_addr").first().inputValue().catch(() => "");
   const postal = await page.locator("input.zip").first().inputValue().catch(() => "");
-  if (!korean || !english || postal !== payload.postalCode) {
+  if (
+    !korean
+    || !english
+    || postal !== payload.postalCode
+    || !addressContainsOrMatches(payload.addressKorean, korean)
+    || !addressContainsOrMatches(payload.addressEnglish, english)
+  ) {
     throw new KrEArrivalPortalError(
-      "Official Korea e-Arrival Card address widget did not commit a complete address result.",
+      "Official Korea e-Arrival Card address widget did not commit the selected Korean/English/ZIP address record.",
       { code: "kr_eac_address_commit_failed", blocked: true },
     );
   }

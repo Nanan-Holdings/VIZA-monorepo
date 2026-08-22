@@ -1,7 +1,7 @@
 {
   "source": "https://www.e-arrivalcard.go.kr/portal/apply/agreementPolicy.do",
-  "snapshotVersion": "2026-08-18",
-  "reviewedAt": "2026-08-18",
+  "snapshotVersion": "2026-08-22",
+  "reviewedAt": "2026-08-22",
   "sourceEndpoints": {
     "terms": "/portal/apply/agreementPolicy.do",
     "nationality": "/portal/apply/srchIbmsNatList.do",
@@ -17,7 +17,10 @@
       { "value": "M", "code": "M", "text": "Male", "label_en": "Male", "label_zh": "男", "official_label": "Male" },
       { "value": "X", "code": "X", "text": "Third gender", "label_en": "Third gender", "label_zh": "第三性别", "official_label": "Third gender" }
     ],
-    "transport": ["Air", "Sea"],
+    "transport": [
+      { "value": "A", "code": "A", "text": "Air", "label_en": "Air", "label_zh": "航空", "official_label": "Air" },
+      { "value": "S", "code": "S", "text": "Sea", "label_en": "Sea", "label_zh": "海路", "official_label": "Sea" }
+    ],
     "purpose": [
       { "value": "01", "code": "01", "text": "Tourism (individual)", "label_en": "Tourism (individual)", "label_zh": "旅游（个人）", "official_label": "Tourism (individual)" },
       { "value": "02", "code": "02", "text": "Tourism (group)", "label_en": "Tourism (group)", "label_zh": "旅游（团体）", "official_label": "Tourism (group)" },

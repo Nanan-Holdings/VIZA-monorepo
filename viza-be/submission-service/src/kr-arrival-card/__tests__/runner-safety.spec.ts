@@ -35,6 +35,10 @@ test("Korea runner uses official widgets for controlled fields", () => {
   assert.match(runnerSource, /\[onclick\*='addrSet\('\]/);
   assert.match(runnerSource, /searchDiagnostics/);
   assert.match(runnerSource, /kr_eac_address_result_click_failed/);
+  assert.match(runnerSource, /input\.soj_prrpl_rnm_bs_han_addr/);
+  assert.match(runnerSource, /input\.soj_prrpl_rnm_bs_eng_addr/);
+  assert.match(runnerSource, /input\.zip/);
+  assert.match(runnerSource, /kr_eac_address_commit_failed/);
   assert.match(runnerSource, /acknowledgeOfficialAddressNoResultsPrompt/);
   assert.match(runnerSource, /kr_eac_address_prompt_drift/);
   assert.match(runnerSource, /KR_EARRIVAL_ADDITIONAL_QUESTION_KEYS\.length === 0/);
