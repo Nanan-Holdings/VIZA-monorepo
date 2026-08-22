@@ -78,6 +78,7 @@ const step: WizardStep = {
 
 describe("DynamicStepForm Korea official address lookup", () => {
   it("stores the Korean address, English address, and ZIP from one selected result", async () => {
+    const onDraftChange = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -99,6 +100,7 @@ describe("DynamicStepForm Korea official address lookup", () => {
         step={step}
         prefill={{}}
         onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
         country="south_korea"
         visaType="KR_E_ARRIVAL_CARD"
       />,
@@ -114,6 +116,17 @@ describe("DynamicStepForm Korea official address lookup", () => {
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByText("首尔特别市 中区 世宗大路 1 (04524)"));
+
+    await waitFor(() => {
+      expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({
+        stay_address_search: "1 Sejong-daero, Jung-gu, Seoul",
+        stay_address_search_zh: "首尔特别市 中区 世宗大路 1 (04524)",
+        stay_address_search_en: "1 Sejong-daero, Jung-gu, Seoul",
+        stay_address_ko: "서울특별시 중구 세종대로 1",
+        stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+        stay_postal_code: "04524",
+      }));
+    });
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("서울특별시 중구 세종대로 1")).toBeDisabled();

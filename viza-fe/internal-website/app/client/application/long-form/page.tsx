@@ -1335,6 +1335,7 @@ interface SubmissionQueueJobInput {
   visaType: string;
   mode: SubmissionMode;
   createdAt: string;
+  locale: string;
   taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput;
 }
 
@@ -1443,11 +1444,40 @@ async function insertSubmissionQueueJob(
     }),
   });
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    const payload = (await response.json().catch(() => null)) as {
+      error?: unknown;
+      code?: unknown;
+    } | null;
+    const rawError = typeof payload?.error === "string"
+      ? payload.error
+      : `Submission queue creation failed with ${response.status}`;
+    const koreaErrorMessagesZh: Record<string, string> = {
+      kr_eac_arrival_date_required: "请填写抵达韩国的日期。",
+      kr_eac_departure_date_required: "请填写离开韩国的日期。",
+      kr_eac_invalid_date: "抵达和离境日期格式不正确，请重新选择日期。",
+      kr_eac_departure_before_arrival: "离境日期不能早于抵达日期。",
+      kr_eac_invalid_arrival_date: "抵达日期格式不正确，请重新选择日期。",
+      kr_eac_arrival_date_past: "抵达日期已过期，请更新行程日期后再提交。",
+      kr_eac_stay_address_required: "请重新搜索并选择韩国住宿地址，确认韩文地址、英文地址和 5 位邮编均已自动填写。",
+      kr_eac_preflight_missing: "请先完成韩国 e-Arrival Card 资格确认。",
+      kr_eac_preflight_not_needing_declaration: "资格确认结果显示当前无需提交韩国 e-Arrival Card。",
+      kr_eac_preflight_invalid: "资格确认记录不完整，请重新完成资格确认。",
+      kr_eac_preflight_load_failed: "暂时无法读取资格确认记录，请稍后重试。",
+      kr_eac_date_load_failed: "暂时无法读取韩国行程信息，请稍后重试。",
+      runner_cutover_paused: "真实提交服务正在短暂维护，请稍后再试。",
+    };
+    const isChineseKoreaSubmission = input.visaType === "KR_E_ARRIVAL_CARD"
+      && input.locale.toLowerCase().startsWith("zh");
+    const localizedError = isChineseKoreaSubmission
+      ? koreaErrorMessagesZh[typeof payload?.code === "string" ? payload.code : ""]
+        ?? (/not authenticated/i.test(rawError)
+          ? "登录状态已过期，请刷新页面或重新登录后再提交。"
+          : /disabled by environment configuration/i.test(rawError)
+            ? "韩国 e-Arrival Card 真实提交功能暂未启用。"
+            : "韩国 e-Arrival Card 提交请求未被接受，请稍后重试；你的表单内容已保存。")
+      : rawError;
     throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : `Submission queue creation failed with ${response.status}`,
+      localizedError,
     );
   }
   const payload = (await response.json().catch(() => null)) as {
@@ -2010,6 +2040,10 @@ export default function ApplicationPage() {
     if (hasChangedValue) {
       markFormAssistantAnswersChanged();
       setAutosaveFailed(false);
+      // A server-side validation error describes the prior answer snapshot.
+      // Once the applicant edits any field, remove that stale message; a new
+      // submit attempt will surface a fresh, localized error if it still fails.
+      setError(null);
     }
     if (hasChangedValue) {
       // Refresh cross-step conditional visibility separately from persistence.
@@ -3936,22 +3970,7 @@ export default function ApplicationPage() {
     setError(null);
     const isJpTourist = resolvedVisaType === "JP_TOURIST";
     const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
-    const shouldShowSubmissionImmediately = !isJpTourist && !isKrC39;
-    let previousSubmissionState = {
-      submittedAt: appState.submittedAt,
-      submissionResultStatus: appState.submissionResultStatus,
-      submissionResult: appState.submissionResult,
-      confirmationNumber: appState.confirmationNumber,
-    };
-    if (shouldShowSubmissionImmediately) {
-      const submittedAt = new Date().toISOString();
-      setAppState((prev) => ({
-        ...prev,
-        submittedAt: prev.submittedAt ?? submittedAt,
-        submissionResultStatus: "waiting",
-        submissionResult: null,
-      }));
-    }
+    let queueAccepted = false;
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
         throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
@@ -3971,14 +3990,6 @@ export default function ApplicationPage() {
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
-          if (applicationId !== appState.applicationId) {
-            previousSubmissionState = {
-              submittedAt: undefined,
-              submissionResultStatus: null,
-              submissionResult: null,
-              confirmationNumber: undefined,
-            };
-          }
         } else {
           const result = await ensureDraftApplication(resolvedCountry, resolvedVisaType, {
             preferExplicit: preferExplicitPackage,
@@ -4014,10 +4025,22 @@ export default function ApplicationPage() {
                 visaType: resolvedVisaType,
                 mode,
                 createdAt: new Date().toISOString(),
+                locale,
                 taiwanOfficialTermsConsent,
               });
             })();
         const submittedAt = new Date().toISOString();
+        queueAccepted = true;
+        // The route has now returned a durable queue/job result. Only at this
+        // point switch to the submission status UI; doing so before the POST
+        // completed caused the page to flash "waiting" and then jump back to
+        // the review form whenever server validation rejected the request.
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt: prev.submittedAt ?? submittedAt,
+          submissionResultStatus: queueJob.submissionResultStatus,
+          submissionResult: queueJob.submissionResult,
+        }));
         const submissionState = await markApplicationSubmissionQueued(supabase, {
           applicationId,
           submittedAt,
@@ -4091,19 +4114,19 @@ export default function ApplicationPage() {
       const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
     } catch (err) {
-      if (shouldShowSubmissionImmediately && isIgnorableRuntimeAbortError(err)) {
+      if (isIgnorableRuntimeAbortError(err)) {
         // Supabase/Next can abort the client request after the queue write has
-        // already committed. Keep the optimistic submission state and let the
+        // already committed. Keep a recoverable waiting state and let the
         // status endpoint reconcile the durable queue instead of showing the
         // raw AbortSignal implementation message.
-        setError(null);
-        return;
-      }
-      if (shouldShowSubmissionImmediately) {
+        const submittedAt = new Date().toISOString();
         setAppState((prev) => ({
           ...prev,
-          ...previousSubmissionState,
+          submittedAt: prev.submittedAt ?? submittedAt,
+          submissionResultStatus: prev.submissionResultStatus ?? "waiting",
         }));
+        setError(null);
+        return;
       }
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
       const message = recoverOrFormatServerActionError(
@@ -4113,6 +4136,11 @@ export default function ApplicationPage() {
       );
       if (!message) return;
       setError(message);
+      // If the queue endpoint succeeded but the follow-up application refresh
+      // failed, keep the status panel visible. The server-side queue is the
+      // authoritative side effect and reverting to the form would invite a
+      // duplicate retry.
+      if (queueAccepted) return;
       throw submissionError;
     } finally {
       setSaving(false);
@@ -4209,6 +4237,7 @@ export default function ApplicationPage() {
               visaType: resolvedVisaType,
               mode,
               createdAt: new Date().toISOString(),
+              locale,
               taiwanOfficialTermsConsent,
             });
           })();

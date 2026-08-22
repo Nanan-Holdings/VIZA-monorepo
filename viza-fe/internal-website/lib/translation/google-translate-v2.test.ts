@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { translateWithGoogleV2 } from "@/lib/translation/google-translate-v2";
+import {
+  translateManyWithGoogleV2,
+  translateWithGoogleV2,
+} from "@/lib/translation/google-translate-v2";
 
 const ENV_KEYS = [
   "TRANSLATION_PROVIDER",
@@ -113,5 +116,44 @@ describe("translateWithGoogleV2", () => {
       code: "provider_unavailable",
       error: "Google Translate is disabled",
     });
+  });
+
+  it("translates an ordered label batch in one request", async () => {
+    setEnv("GOOGLE_TRANSLATE_PROVIDER", "google_cloud_basic");
+    setEnv("GOOGLE_TRANSLATE_API_VERSION", "v2");
+    setEnv("GOOGLE_TRANSLATE_API_KEY", "test-google-key");
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        q: ["서울특별시 강남구 가로수길 15", "서울특별시 강남구 테헤란로 1"],
+        source: "ko",
+        target: "zh-CN",
+        format: "text",
+      });
+      return new Response(JSON.stringify({
+        data: {
+          translations: [
+            { translatedText: "首尔特别市江南区林荫路15号" },
+            { translatedText: "首尔特别市江南区德黑兰路1号" },
+          ],
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await translateManyWithGoogleV2({
+      texts: ["서울특별시 강남구 가로수길 15", "서울특별시 강남구 테헤란로 1"],
+      sourceLanguage: "ko",
+      targetLanguage: "zh-CN",
+      fieldType: "korea_official_address_display",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      translatedTexts: ["首尔特别市江南区林荫路15号", "首尔特别市江南区德黑兰路1号"],
+      detectedSourceLanguages: [null, null],
+      provider: "google",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

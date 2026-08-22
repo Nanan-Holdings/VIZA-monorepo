@@ -1,4 +1,5 @@
 import { type VisaFormFieldOption } from "@/types/visa-form-fields";
+import { translateManyWithGoogleV2 } from "@/lib/translation/google-translate-v2";
 
 export interface KoreaAddressSearchRecord {
   roadAddress: string;
@@ -64,6 +65,7 @@ const KOREA_ADMIN_ZH: Record<string, string> = {
   "퇴계로": "退溪路",
   "세종대로": "世宗大路",
   "언주로": "彦州路",
+  "가로수길": "林荫路",
 };
 
 const KOREA_EN_ADMIN_ZH: Record<string, string> = {
@@ -290,11 +292,77 @@ function localizeEnglishAddressForChineseDisplay(englishAddress: string): string
   const buildingNo = streetMatch?.[1] ?? "";
   const streetName = streetMatch?.[2] ?? streetPart;
   const streetZh = streetName
+    .replace(/Garosu-gil/gi, "林荫路")
     .replace(/-daero/gi, "大路")
     .replace(/-ro/gi, "路")
     .replace(/-gil/gi, "街")
     .replace(/-/g, "");
   return [...adminZh, streetZh, buildingNo].filter(Boolean).join(" ");
+}
+
+const koreaAddressChineseLabelCache = new Map<string, string>();
+const MAX_KOREA_ADDRESS_TRANSLATION_CACHE_SIZE = 2_000;
+
+function needsChineseAddressTranslation(value: string): boolean {
+  return /[A-Za-z가-힣]/.test(value);
+}
+
+function cacheChineseAddressLabel(source: string, translated: string) {
+  if (koreaAddressChineseLabelCache.size >= MAX_KOREA_ADDRESS_TRANSLATION_CACHE_SIZE) {
+    const oldest = koreaAddressChineseLabelCache.keys().next().value;
+    if (typeof oldest === "string") koreaAddressChineseLabelCache.delete(oldest);
+  }
+  koreaAddressChineseLabelCache.set(source, translated);
+}
+
+function normalizeTranslatedChineseAddress(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/\s*(?:韩国|大韩民国|South Korea|Republic of Korea)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function getTranslatedChineseAddressLabels(
+  records: KoreaAddressSearchRecord[],
+  fallbackLabels: string[],
+): Promise<string[]> {
+  const translatedLabels = [...fallbackLabels];
+  const pending: Array<{ index: number; source: string }> = [];
+
+  records.forEach((record, index) => {
+    if (!needsChineseAddressTranslation(fallbackLabels[index] ?? "")) return;
+    const source = record.koreanAddress?.trim() || record.roadAddress.trim();
+    const cached = koreaAddressChineseLabelCache.get(source);
+    if (cached) {
+      translatedLabels[index] = cached;
+      return;
+    }
+    pending.push({ index, source });
+  });
+
+  if (pending.length === 0) return translatedLabels;
+
+  let result: Awaited<ReturnType<typeof translateManyWithGoogleV2>>;
+  try {
+    result = await translateManyWithGoogleV2({
+      texts: pending.map((item) => item.source),
+      sourceLanguage: "ko",
+      targetLanguage: "zh-CN",
+      fieldType: "korea_official_address_display",
+    });
+  } catch {
+    return translatedLabels;
+  }
+  if (!result.ok) return translatedLabels;
+
+  pending.forEach((item, pendingIndex) => {
+    const translated = normalizeTranslatedChineseAddress(result.translatedTexts[pendingIndex] ?? "");
+    if (!translated) return;
+    translatedLabels[item.index] = translated;
+    cacheChineseAddressLabel(item.source, translated);
+  });
+  return translatedLabels;
 }
 
 function unwrapJsonpResponse(payload: string): string {
@@ -374,15 +442,20 @@ export async function searchKoreaAddresses(keyword: string, options: { limit?: n
   }
 
   const records = Array.from(recordsByKey.values()).slice(0, countPerPage);
+  const fallbackChineseLabels = records.map((record) => {
+    const value = record.englishAddress ?? record.roadAddress;
+    const koreanLocalized = localizeKoreanAddressForChineseDisplay(record.koreanAddress, value);
+    return /[가-힣]/.test(koreanLocalized)
+      ? localizeEnglishAddressForChineseDisplay(value)
+      : koreanLocalized;
+  });
+  const chineseLabels = await getTranslatedChineseAddressLabels(records, fallbackChineseLabels);
   return {
     totalCount,
-    options: records.map((record) => {
+    options: records.map((record, index) => {
       const value = record.englishAddress ?? record.roadAddress;
       const suffix = record.zipNo ? ` (${record.zipNo})` : "";
-      const koreanLocalized = localizeKoreanAddressForChineseDisplay(record.koreanAddress, value);
-      const labelZhBase = /[가-힣]/.test(koreanLocalized)
-        ? localizeEnglishAddressForChineseDisplay(value)
-        : koreanLocalized;
+      const labelZhBase = chineseLabels[index] ?? fallbackChineseLabels[index] ?? value;
       const labelZh = `${labelZhBase}${suffix}`;
       return {
         value,
