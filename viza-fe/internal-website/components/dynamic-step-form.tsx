@@ -3248,6 +3248,75 @@ export function DynamicStepForm({
     };
   }, [hasKoreaAddressSearchField, koreaAddressSearchQuery]);
 
+  useEffect(() => {
+    if (!hasKoreaAddressSearchField) return;
+    const addressField = step.fields.find(isKoreaOfficialAddressSearchField);
+    if (!addressField) return;
+
+    const fieldName = addressField.fieldName;
+    const selectedValue = valuesRef.current[fieldName]?.trim() ?? "";
+    const savedChineseLabel = valuesRef.current[`${fieldName}_zh`]?.trim() ?? "";
+    if (!selectedValue || savedChineseLabel) return;
+
+    // Older Korea applications saved only the official English/Korean values.
+    // Re-resolve that same official address once so the shared C-3-9/EAC
+    // selector can display and persist the newer Chinese-only label without
+    // changing any official submission value.
+    const keyword = valuesRef.current.stay_address_ko?.trim() || selectedValue;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(`/api/korea-addresses?keyword=${encodeURIComponent(keyword)}&limit=20`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const selected = options.find((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue
+            || option.englishAddress === selectedValue
+            || option.koreanAddress === valuesRef.current.stay_address_ko;
+        });
+        if (!selected || typeof selected === "string") return;
+        const chineseLabel = selected.label_zh?.trim();
+        if (!chineseLabel) return;
+
+        setKoreaAddressOptions((current) => {
+          const withoutDuplicate = current.filter((option) =>
+            typeof option === "string" ? option !== selected.value : option.value !== selected.value,
+          );
+          return [selected, ...withoutDuplicate];
+        });
+        const next = {
+          ...valuesRef.current,
+          [`${fieldName}_zh`]: chineseLabel,
+          [`${fieldName}_en`]: selected.label_en ?? selected.englishAddress ?? selectedValue,
+        };
+        valuesRef.current = next;
+        setValues(next);
+        onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+          step.fields,
+          next,
+          groupCountsRef.current,
+          textPairsRef.current,
+        ));
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          // The saved official value remains usable even if label enrichment is unavailable.
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    hasKoreaAddressSearchField,
+    step.fields,
+    values.address_in_korea,
+    values.stay_address_ko,
+    values.stay_address_search,
+  ]);
+
   const vnPrearrivalRemoteFields = useMemo(
     () =>
       isVnPrearrivalStep

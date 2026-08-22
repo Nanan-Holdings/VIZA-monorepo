@@ -134,4 +134,47 @@ describe("DynamicStepForm Korea official address lookup", () => {
       expect(screen.getByDisplayValue("04524")).toBeDisabled();
     });
   });
+
+  it("hydrates a Chinese display alias for an older saved official address", async () => {
+    const onDraftChange = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        options: [{
+          value: "864 Eonju-ro, Gangnam-gu, Seoul",
+          text: "首尔特别市 江南区 彦州路 864 (06017)",
+          label_zh: "首尔特别市 江南区 彦州路 864 (06017)",
+          label_en: "864 Eonju-ro, Gangnam-gu, Seoul",
+          official_label: "서울특별시 강남구 언주로 864",
+          koreanAddress: "서울특별시 강남구 언주로 864",
+          englishAddress: "864 Eonju-ro, Gangnam-gu, Seoul",
+          postalCode: "06017",
+        }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          stay_address_search: "864 Eonju-ro, Gangnam-gu, Seoul",
+          stay_address_ko: "서울특별시 강남구 언주로 864",
+          stay_address_en: "864 Eonju-ro, Gangnam-gu, Seoul",
+          stay_postal_code: "06017",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        country="south_korea"
+        visaType="KR_E_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(await screen.findByText("首尔特别市 江南区 彦州路 864 (06017)")).toBeInTheDocument();
+    expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({
+      stay_address_search: "864 Eonju-ro, Gangnam-gu, Seoul",
+      stay_address_search_zh: "首尔特别市 江南区 彦州路 864 (06017)",
+      stay_address_search_en: "864 Eonju-ro, Gangnam-gu, Seoul",
+    }));
+  });
 });
