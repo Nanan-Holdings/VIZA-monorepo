@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, CircleHelp, Loader2, Plus, Trash2 } from "lucide-react";
+import { Bot, CircleHelp, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
@@ -34,6 +34,10 @@ import {
   type RealtimeTranslationStatus,
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
+import {
+  matchAddressOptionValue,
+  type AddressLookupLocation,
+} from "@/lib/address-autofill";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
 import { TW_DISTRICTS_BY_CITY } from "@/lib/taiwan-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
@@ -206,6 +210,32 @@ type IndonesiaPostalLookup =
   | { status: "checking" }
   | { status: "resolved"; summaryZh: string; summaryEn: string }
   | { status: "invalid" | "unavailable"; messageZh: string; messageEn: string };
+
+type MalaysiaAddressLookup =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "resolved" | "partial"; summaryZh: string; summaryEn: string }
+  | { status: "not_found" | "unavailable"; messageZh: string; messageEn: string };
+
+function getMalaysiaAddressLookupMessage(
+  lookup: MalaysiaAddressLookup,
+  isChineseInterface: boolean,
+): string {
+  switch (lookup.status) {
+    case "idle":
+      return "";
+    case "checking":
+      return isChineseInterface
+        ? "正在识别酒店地址、州属、城市和邮政编码..."
+        : "Finding the hotel address, state, city, and postcode...";
+    case "resolved":
+    case "partial":
+      return isChineseInterface ? lookup.summaryZh : lookup.summaryEn;
+    case "not_found":
+    case "unavailable":
+      return isChineseInterface ? lookup.messageZh : lookup.messageEn;
+  }
+}
 
 function isIndonesiaOfficialEVisaContext(country: string | null | undefined, visaType: string | undefined): boolean {
   const normalizedCountry = country?.trim().toLowerCase();
@@ -2606,6 +2636,7 @@ export function DynamicStepForm({
   const [phEtravelOptions, setPhEtravelOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [phEtravelSearching, setPhEtravelSearching] = useState<Record<string, boolean>>({});
   const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
+  const [malaysiaAddressLookup, setMalaysiaAddressLookup] = useState<MalaysiaAddressLookup>({ status: "idle" });
   const isVnPrearrivalStep = useMemo(
     () => isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field)),
     [step.fields, visaType],
@@ -2619,12 +2650,15 @@ export function DynamicStepForm({
     () => isIndonesiaOfficialEVisaContext(country, visaType),
     [country, visaType],
   );
+  const isMalaysiaMdac = visaType === "MY_MDAC_ARRIVAL_CARD"
+    || step.fields.some((field) => field.visaType === "MY_MDAC_ARRIVAL_CARD");
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
   const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
   const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
+  const lastMalaysiaAddressLookupRef = useRef("");
   const onDraftChangeRef = useRef(onDraftChange);
   const lastDraftPatchRef = useRef<Record<string, string> | null>(null);
   const previousPrefillRef = useRef(prefill);
@@ -2729,6 +2763,131 @@ export function DynamicStepForm({
       window.clearTimeout(timer);
     };
   }, [isIndonesiaOfficialEVisa, step.fields, values.address_in_indonesia, values.postal_code]);
+
+  useEffect(() => {
+    const addressField = step.fields.find((field) => field.fieldName === "address_in_malaysia");
+    const stateField = step.fields.find((field) => field.fieldName === "state");
+    const cityField = step.fields.find((field) => field.fieldName === "city");
+    const postcodeField = step.fields.find((field) => field.fieldName === "postcode");
+    if (!isMalaysiaMdac || !addressField || !stateField || !cityField || !postcodeField) {
+      lastMalaysiaAddressLookupRef.current = "";
+      setMalaysiaAddressLookup({ status: "idle" });
+      return;
+    }
+
+    const addressPair = textPairsRef.current.address_in_malaysia;
+    const address = (addressPair?.en || addressPair?.zh || values.address_in_malaysia || "").trim();
+    const postcode = (values.postcode ?? "").replace(/\D/g, "").slice(0, 5);
+    if (address.length < 4 && postcode.length !== 5) {
+      lastMalaysiaAddressLookupRef.current = "";
+      setMalaysiaAddressLookup({ status: "idle" });
+      return;
+    }
+
+    const lookupSource = `${address}|${postcode}`;
+    if (lastMalaysiaAddressLookupRef.current === lookupSource) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      lastMalaysiaAddressLookupRef.current = lookupSource;
+      setMalaysiaAddressLookup({ status: "checking" });
+      const query = [address, postcode, "Malaysia"].filter(Boolean).join(", ");
+      try {
+        const params = new URLSearchParams({ query, country: "MY" });
+        const response = await fetch(`/api/address-lookup?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json() as {
+          location?: AddressLookupLocation | null;
+        };
+        if (!response.ok) {
+          setMalaysiaAddressLookup({
+            status: "unavailable",
+            messageZh: "暂时无法自动识别地址，可继续手动选择州属和城市。",
+            messageEn: "Address lookup is temporarily unavailable. You can still select the state and city manually.",
+          });
+          return;
+        }
+
+        const location = payload.location;
+        if (!location || (location.countryCode && location.countryCode !== "MY")) {
+          setMalaysiaAddressLookup({
+            status: "not_found",
+            messageZh: "未能识别该酒店或地址，请补充酒店名称、完整地址或 5 位邮政编码。",
+            messageEn: "The hotel or address could not be recognized. Add the hotel name, full address, or 5-digit postcode.",
+          });
+          return;
+        }
+
+        const stateValue = matchAddressOptionValue(stateField.options, [location.state]);
+        const cityOptions = stateValue
+          ? getDynamicDependentOptions(cityField, { ...valuesRef.current, state: stateValue }) ?? cityField.options
+          : cityField.options;
+        const cityValue = matchAddressOptionValue(cityOptions, location.cityCandidates);
+        const resolvedPostcode = /^\d{5}$/.test(location.postalCode) ? location.postalCode : postcode;
+        const nextValues = { ...valuesRef.current };
+
+        if (stateValue) nextValues.state = stateValue;
+        if (cityValue) nextValues.city = cityValue;
+        if (resolvedPostcode) nextValues.postcode = resolvedPostcode;
+        if (address && location.formattedAddress) {
+          nextValues.address_in_malaysia = location.formattedAddress;
+          const currentPair = textPairsRef.current.address_in_malaysia ?? { zh: address, en: address };
+          const nextPairs = {
+            ...textPairsRef.current,
+            address_in_malaysia: {
+              zh: currentPair.zh || location.formattedAddress,
+              en: location.formattedAddress,
+            },
+          };
+          textPairsRef.current = nextPairs;
+          setTextPairs(nextPairs);
+        }
+        if (resolvedPostcode && usesBilingualTextPair(postcodeField)) {
+          const nextPairs = {
+            ...textPairsRef.current,
+            postcode: { zh: resolvedPostcode, en: resolvedPostcode },
+          };
+          textPairsRef.current = nextPairs;
+          setTextPairs(nextPairs);
+        }
+        lastMalaysiaAddressLookupRef.current = `${nextValues.address_in_malaysia?.trim() ?? address}|${resolvedPostcode}`;
+
+        valuesRef.current = nextValues;
+        setValues(nextValues);
+        const summary = [location.state, location.cityCandidates[0], resolvedPostcode].filter(Boolean).join(" / ");
+        const fullyResolved = Boolean(stateValue && cityValue && resolvedPostcode);
+        setMalaysiaAddressLookup({
+          status: fullyResolved ? "resolved" : "partial",
+          summaryZh: fullyResolved
+            ? `已自动填写州属、城市和邮政编码：${summary}`
+            : `已识别地址：${summary}。请确认尚未匹配的下拉选项。`,
+          summaryEn: fullyResolved
+            ? `State, city, and postcode auto-filled: ${summary}`
+            : `Address found: ${summary}. Confirm any dropdown that could not be matched.`,
+        });
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setMalaysiaAddressLookup({
+          status: "unavailable",
+          messageZh: "暂时无法自动识别地址，可继续手动选择州属和城市。",
+          messageEn: "Address lookup is temporarily unavailable. You can still select the state and city manually.",
+        });
+      }
+    }, 650);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [
+    isMalaysiaMdac,
+    step.fields,
+    textPairs.address_in_malaysia?.en,
+    textPairs.address_in_malaysia?.zh,
+    values.address_in_malaysia,
+    values.postcode,
+  ]);
 
   useEffect(() => {
     if (!isVnPrearrivalStep || !step.fields.some((field) => field.fieldName === "expected_arrival_date")) return;
@@ -3958,6 +4117,32 @@ export function DynamicStepForm({
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
+    const showMalaysiaAddressFeedback =
+      field.fieldName === "address_in_malaysia" && malaysiaAddressLookup.status !== "idle";
+    const malaysiaAddressFeedbackText = showMalaysiaAddressFeedback
+      ? getMalaysiaAddressLookupMessage(malaysiaAddressLookup, isChineseInterface)
+      : "";
+    const malaysiaAddressFeedback = showMalaysiaAddressFeedback ? (
+      <div
+        className={cn(
+          "mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-[13px] font-medium",
+          malaysiaAddressLookup.status === "resolved"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+            : malaysiaAddressLookup.status === "checking"
+              ? "border-sky-200 bg-sky-50 text-sky-800"
+              : "border-amber-200 bg-amber-50 text-amber-900",
+        )}
+        role="status"
+        data-address-autofill-status={malaysiaAddressLookup.status}
+      >
+        {malaysiaAddressLookup.status === "checking" ? (
+          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+        ) : (
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+        )}
+        <span>{malaysiaAddressFeedbackText}</span>
+      </div>
+    ) : null;
     const fieldFrameClassName = cn(
       "py-3 transition-colors",
       panelOpen ? "bg-[#fbfdff]" : "",
@@ -3975,6 +4160,7 @@ export function DynamicStepForm({
             {renderSide("zh")}
           </div>
           <TaiwanEntryPermitFieldNotice fieldName={field.fieldName} />
+          {malaysiaAddressFeedback}
           <div className="mt-2 flex items-center justify-end gap-2">
             {issue.severity !== "ok" && (
               <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
@@ -4026,6 +4212,7 @@ export function DynamicStepForm({
           <div className="min-w-0">
             {renderSide("en")}
           </div>
+          {malaysiaAddressFeedback}
           <div className="mt-2 flex items-center justify-end gap-2">
             {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
             {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
@@ -4081,6 +4268,7 @@ export function DynamicStepForm({
           {renderSide("zh")}
           {renderSide("en")}
         </div>
+        {malaysiaAddressFeedback}
         <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
           <div className="flex min-w-0 items-start">
             {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
