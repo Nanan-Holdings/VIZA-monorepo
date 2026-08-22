@@ -22,7 +22,7 @@ type LoginMethod = 'password' | 'otp'
 
 // Keep the browser deadline above the server's Supabase/SMTP deadline so the
 // API can return the real Auth result instead of being misreported as an outage.
-const AUTH_REQUEST_TIMEOUT_MS = 25_000
+export const AUTH_REQUEST_TIMEOUT_MS = 25_000
 const AUTH_RETRY_DELAY_MS = 500
 const LOGIN_INPUT_GROUP_CLASS_NAME =
   "isolate h-12 border-black [--application-control-border-color:theme(colors.black)] [--application-control-focus-color:theme(colors.black)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-[var(--application-control-border-width)] after:border-black after:content-[''] focus-within:after:border-black"
