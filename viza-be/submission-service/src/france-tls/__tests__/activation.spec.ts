@@ -3,9 +3,12 @@ import { describe, it } from "node:test";
 
 import {
   extractFranceTlsActivationUrlFromMessage,
+  extractFranceTlsPasswordResetUrlFromMessage,
   isFranceTlsActivationMessage,
   isFranceTlsActivationRequiredText,
   isFranceTlsActivationExpiredText,
+  isFranceTlsPasswordResetCompletedText,
+  isFranceTlsPasswordResetMessage,
 } from "../activation";
 
 describe("France TLS activation", () => {
@@ -53,5 +56,36 @@ describe("France TLS activation", () => {
       text: "Open https://example.com/activate?token=opaque",
       html: null,
     }), false);
+  });
+
+  it("extracts only trusted TLScontact password-reset action links", () => {
+    const message = {
+      from_addr: "no-reply@eu-north-1.amazonses.com",
+      subject: "Reset your TLScontact password",
+      text: null,
+      html: [
+        '<a href="https://example.com/login-actions/action-token?key=wrong">Ignore</a>',
+        '<a href="https://i2-auth.visas-fr.tlscontact.com/auth/realms/atlas/login-actions/action-token?key=opaque&amp;client_id=atlas">Reset password</a>',
+      ].join(""),
+    };
+
+    const url = extractFranceTlsPasswordResetUrlFromMessage(message);
+    assert.equal(url?.hostname, "i2-auth.visas-fr.tlscontact.com");
+    assert.equal(url?.searchParams.get("key"), "opaque");
+    assert.equal(isFranceTlsPasswordResetMessage(message), true);
+  });
+
+  it("rejects password-reset lookalikes from an untrusted sender", () => {
+    assert.equal(isFranceTlsPasswordResetMessage({
+      from_addr: "attacker@example.com",
+      subject: "Reset your TLScontact password",
+      text: "https://i2-auth.visas-fr.tlscontact.com/auth/realms/atlas/login-actions/action-token?key=opaque",
+      html: null,
+    }), false);
+  });
+
+  it("recognizes verified password-reset completion copy", () => {
+    assert.equal(isFranceTlsPasswordResetCompletedText("Your password has been updated."), true);
+    assert.equal(isFranceTlsPasswordResetCompletedText("Enter a new password"), false);
   });
 });

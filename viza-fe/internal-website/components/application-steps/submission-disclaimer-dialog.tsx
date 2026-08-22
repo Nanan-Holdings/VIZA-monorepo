@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { Warning as AlertTriangle } from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
 import { Button } from "@/components/ui/button";
 
 interface SubmissionDisclaimerDialogProps {
@@ -62,7 +63,7 @@ export function SubmissionDisclaimerDialog({
 
         <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10">
           <div className="mx-auto flex max-w-3xl flex-col gap-6 text-[15px] leading-7 text-[#24272f] sm:text-base">
-            <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 text-[#71717a]">
               <AlertTriangle className="mt-1 h-5 w-5 shrink-0" />
               <p>
                 以下为提交前占位声明。正式版本会替换为对应国家、签证类型和服务条款的官方确认内容。
@@ -84,17 +85,15 @@ export function SubmissionDisclaimerDialog({
               <p className="mb-4 font-semibold">提交确认</p>
               <div className="flex flex-col gap-4">
                 {CHECKBOXES.map((item) => (
-                  <label key={item.id} className="flex cursor-pointer items-start gap-3 text-sm font-medium text-[#24272f] sm:text-base">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 shrink-0 rounded border-[#9aa6b2] accent-[#03346E]"
-                      checked={Boolean(checked[item.id])}
-                      onChange={(event) => {
-                        setChecked((prev) => ({ ...prev, [item.id]: event.target.checked }));
-                      }}
-                    />
-                    <span>{item.label}</span>
-                  </label>
+                  <ApplicationCheckbox
+                    key={item.id}
+                    checked={Boolean(checked[item.id])}
+                    label={item.label}
+                    className="flex text-[15px] text-[#24272f]"
+                    onCheckedChange={(next) => {
+                      setChecked((prev) => ({ ...prev, [item.id]: next }));
+                    }}
+                  />
                 ))}
               </div>
             </div>

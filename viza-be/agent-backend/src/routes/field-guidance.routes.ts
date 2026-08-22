@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import OpenAI from "openai";
+import { createOpenAiClient } from "../utils/openai-client.js";
 import {
   retrieveVisaKnowledge,
   type VisaKnowledgeChunk,
@@ -25,28 +25,33 @@ const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === 
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 const MAX_HISTORY_MESSAGES = 8;
 const OPTION_CONTEXT_VALUE_LIMIT = 12;
-const MAX_OPTION_EXPLANATIONS = 3;
+const MAX_OPTION_EXPLANATIONS = 2;
 
 const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
   title: "Standard passport identity-field guidance",
   url: "https://www.nia.gov.cn/n741440/n741547/c1295795/content.html",
   excerpt:
-    "Use the exact wording printed on the passport biodata page for passport identity fields. For Chinese ordinary passports, the issuing authority shown on the passport is the source of truth; newer passports may show the National Immigration Administration, PRC, while older valid passports may show MPS Exit & Entry Administration. Do not infer the issuing authority from the pickup city.",
+    "Treat issuing country, place of issue, and issuing authority as separate passport fields. Copy the exact value for the requested field from the passport or the official form options. National Immigration Administration, PRC and MPS Exit & Entry Administration are Chinese passport issuing authorities, not places of issue.",
 };
 
 const STANDARD_IDENTITY_FIELD_CONTEXT = [
   "Standard identity-field RAG for visa form copilot:",
   "Passport number, name, date of birth, sex, nationality, passport issue date, passport expiry date, issuing country, issuing authority, place of issue, and passport type are standard-answer fields.",
   "For these fields, the answer must come from the passport biodata page, MRZ, official document, or the official dropdown options. Do not infer a value from the application country, pickup city, residence city, travel plan, or translation memory.",
-  "For passport issuing authority / issuing authority / 签发机关 / 签发地点字段: first ask the user to check the exact 'Authority' or 'Issuing authority' text printed on the passport. If the user has a Chinese ordinary passport, newer passports may show 'National Immigration Administration, PRC' / '中华人民共和国国家移民管理局'; older valid passports may show 'MPS Exit & Entry Administration' / '公安部出入境管理局'. If the passport prints a different authority, copy that printed text exactly.",
-  "If the user says they obtained the passport in a city such as Chongqing, do not answer that the issuing authority is Chongqing Public Security Bureau unless the passport itself prints that wording. A pickup or application city may be relevant only to a separate place-of-issue field, and even then the passport text controls.",
+  "Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another.",
+  "For place of issue / 签发地点, copy the location printed for that field on the passport or use the official form's required location option. Enter a country only when the field explicitly asks for Country of issue / Issuing country or provides a country-only selector.",
+  "For passport issuing authority / issuing authority / 签发机关, copy the exact Authority or Issuing authority text printed on the passport. For Chinese ordinary passports, 'National Immigration Administration, PRC' / '中华人民共和国国家移民管理局' and 'MPS Exit & Entry Administration' / '公安部出入境管理局' are issuing-authority examples only; never suggest them as place-of-issue answers.",
   "For passport type / document type, ordinary personal tourist passports are usually Ordinary / Regular / Normal passport. Diplomatic, official, service, special, travel document, refugee, or other should be selected only when the passport or travel document explicitly says so.",
   "For country and nationality fields, use the official country/region option offered by the form. For dates, use the date printed on the passport and the format required by the form.",
 ].join("\n");
 
 type FieldType =
   | "text"
+  | "email"
+  | "tel"
+  | "number"
   | "select"
+  | "multi_select"
   | "date"
   | "file"
   | "radio"
@@ -497,35 +502,109 @@ function isPhotoField(field: FieldGuidanceField): boolean {
   ]);
 }
 
+function isChoiceControl(field: FieldGuidanceField): boolean {
+  return ["select", "multi_select", "country", "radio", "checkbox"].includes(field.fieldType);
+}
+
+function localizedValidationText(
+  field: FieldGuidanceField,
+  locale: "zh" | "en",
+  baseName: string,
+): string | null {
+  const rules = field.validationRules ?? {};
+  const localized = rules[`${baseName}_${locale}`];
+  if (typeof localized === "string" && localized.trim()) return localized.trim();
+  const fallback = rules[baseName];
+  return typeof fallback === "string" && fallback.trim() ? fallback.trim() : null;
+}
+
+function isAcknowledgementField(field: FieldGuidanceField): boolean {
+  const combined = `${field.fieldName} ${field.label}`.toLowerCase();
+  return field.fieldType === "checkbox" &&
+    /acknowledg|read and (?:understood|accept)|read.*understand|已阅读|已閱覽|理解.*信息|知悉/.test(combined);
+}
+
+function isDeclarationField(field: FieldGuidanceField): boolean {
+  const combined = `${field.fieldName} ${field.label}`.toLowerCase();
+  return field.fieldType === "checkbox" &&
+    /declar|undertak|commit|consent|agree|accept|confirm.*(?:true|accurate|correct|complete)|声明|申明|承诺|承諾|同意|接受|确认.*(?:真实|准确|完整|無誤)/.test(combined);
+}
+
+function isPassportHolderTypeField(field: FieldGuidanceField): boolean {
+  return /passport_holder_type|travel_document_holder|护照持有人|旅行证件持有人/.test(
+    `${field.fieldName} ${field.label}`.toLowerCase()
+  );
+}
+
+function isCountrySelector(field: FieldGuidanceField): boolean {
+  if (field.fieldType === "country") return true;
+  if (field.fieldType !== "select") return false;
+  const combined = `${field.fieldName} ${field.label}`.toLowerCase();
+  return includesAny(combined, ["country", "nationality", "citizenship", "国家", "国籍", "公民身份"]) ||
+    field.validationRules?.source === "ISO3166-1" ||
+    field.validationRules?.canonical_source === "official_country_code";
+}
+
+function isCombinedPassportIssueField(field: FieldGuidanceField): boolean {
+  const combined = `${field.fieldName} ${field.label}`.toLowerCase();
+  return (
+    includesAny(combined, ["issuing authority", "issuing_authority", "签发机关"]) &&
+    includesAny(combined, ["place of issue", "place_of_issue", "签发地点"])
+  ) || /place.?of.?issue.*(?:city|authority)|city.*authority/.test(combined);
+}
+
+function isPhoneCountryCodeField(field: FieldGuidanceField): boolean {
+  return /country.?code|calling.?code|国家.*代码|地区.*代码/.test(
+    `${field.fieldName} ${field.label}`.toLowerCase()
+  ) && includesAny(`${field.fieldName} ${field.label}`.toLowerCase(), ["phone", "telephone", "mobile", "电话", "手机"]);
+}
+
+function isChineseNameField(field: FieldGuidanceField): boolean {
+  return /name_chinese|chinese.?name|中文姓名|中文名字/.test(
+    `${field.fieldName} ${field.label}`.toLowerCase()
+  );
+}
+
+const DATE_FORMAT_EXAMPLES: Readonly<Record<string, string>> = {
+  "YYYY-MM-DD": "2026-09-15",
+  "DD/MM/YYYY": "15/09/2026",
+  "YYYY/MM/DD": "2026/09/15",
+  "DD-MMM-YYYY": "15-SEP-2026",
+  YYYYMMDD: "20260915",
+  "MM-YYYY": "09-2026",
+  "MM/YYYY": "09/2026",
+  YYYY: "2026",
+};
+
+function deterministicDateExample(field: FieldGuidanceField): string[] {
+  const rawFormat = /(?:^|_)year$/.test(field.fieldName.toLowerCase()) || /\(year\)|年份|仅年份/.test(field.label.toLowerCase())
+    ? "YYYY"
+    : asString(field.validationRules?.format ?? field.validationRules?.canonical_format);
+  const format = rawFormat?.trim().toUpperCase();
+  return format && DATE_FORMAT_EXAMPLES[format] ? [DATE_FORMAT_EXAMPLES[format]] : [];
+}
+
 function deterministicExamples(field: FieldGuidanceField, locale: "zh" | "en"): string[] {
   const name = field.fieldName.toLowerCase();
   const label = field.label.toLowerCase();
-  const options = normalizeOptions(field.options);
+
+  // Choices are answers, not worked text examples. Rendering an instruction
+  // such as "copy your passport" under a checkbox is actively misleading.
+  if (isChoiceControl(field)) return [];
 
   if (isPhotoField(field)) {
     return locale === "zh"
       ? ["近期白色或浅色背景证件照", "清晰正面 JPG/JPEG 签证照片"]
       : ["Recent photo with a white or light background", "Clear front-facing JPG/JPEG visa photo"];
   }
+  if (isPassportPlaceOfIssueField(field)) {
+    return [];
+  }
   if (isPassportIssuingAuthorityField(field)) {
-    return locale === "zh"
-      ? [
-          "National Immigration Administration, PRC",
-          "MPS Exit & Entry Administration",
-          "按护照资料页 Authority/签发机关原文填写",
-        ]
-      : [
-          "National Immigration Administration, PRC",
-          "MPS Exit & Entry Administration",
-          "Use the exact Authority wording printed on the passport",
-        ];
+    return [];
   }
-  if (options.length > 0) {
-    return options.slice(0, 3).map((option) => option.text || option.value);
-  }
-
-  if (field.fieldType === "date" || name.includes("date")) {
-    return ["15/03/1990", "04/11/2026"];
+  if (field.fieldType === "date" || name.includes("date") || /(?:^|_)year$/.test(name)) {
+    return deterministicDateExample(field);
   }
   if (includesAny(`${name} ${label}`, ["surname", "family name"])) {
     return ["ZHANG", "GARCIA"];
@@ -539,23 +618,28 @@ function deterministicExamples(field: FieldGuidanceField, locale: "zh" | "en"): 
   if (includesAny(`${name} ${label}`, ["email", "e-mail"])) {
     return ["name@example.com"];
   }
-  if (includesAny(`${name} ${label}`, ["phone", "telephone"])) {
-    return ["+86 138 0000 0000"];
+  if (includesAny(`${name} ${label}`, ["phone", "telephone", "mobile"])) {
+    return [];
   }
   if (includesAny(`${name} ${label}`, ["address", "street"])) {
-    return ["12 Example Road, Beijing, China"];
+    return [];
   }
   if (field.fieldType === "textarea") {
-    return ["Briefly explain the situation with dates, places, and names that match your documents."];
+    return [];
   }
-  return ["Use the exact wording from your official document where possible."];
+  return [];
 }
 
 function deterministicHints(field: FieldGuidanceField, locale: "zh" | "en"): string[] {
   const rules = field.validationRules ?? {};
   const hints: string[] = [];
-  const format = asString(rules.format);
+  const configuredHelper = localizedValidationText(field, locale, "helper");
+  const format = /(?:^|_)year$/.test(field.fieldName.toLowerCase()) || /\(year\)|年份|仅年份/.test(field.label.toLowerCase())
+    ? "YYYY"
+    : asString(rules.format ?? rules.canonical_format);
   const maxLength = typeof rules.maxLength === "number" ? rules.maxLength : null;
+
+  if (configuredHelper) hints.push(configuredHelper);
 
   if (isPhotoField(field)) {
     hints.push(
@@ -572,14 +656,70 @@ function deterministicHints(field: FieldGuidanceField, locale: "zh" | "en"): str
   if (field.required) {
     hints.push(locale === "zh" ? "此项为必填项。" : "This field is required.");
   }
-  if (field.placeholder) {
+  if (isAcknowledgementField(field)) {
     hints.push(
       locale === "zh"
-        ? `参考占位示例：${field.placeholder}`
-        : `Use the placeholder as a guide: ${field.placeholder}`
+        ? "请先阅读与本项相邻的说明；这里不需要填写护照或其他文字内容。"
+        : "Read the adjacent notice first; this control does not ask for passport text or another written value."
+    );
+  } else if (isDeclarationField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "请先复核申请答案和材料；勾选本身就是确认，不需要另填示例文字。"
+        : "Review the answers and evidence first; selecting the box is the confirmation, so no sample text is needed."
+    );
+  } else if (field.fieldType === "checkbox") {
+    hints.push(
+      locale === "zh"
+        ? "只有题目描述适用于你的实际情况时才勾选。"
+        : "Select this only when the statement applies to your actual situation."
+    );
+  } else if (field.fieldType === "multi_select") {
+    hints.push(
+      locale === "zh"
+        ? "请选择所有符合实际情况的项目，不要漏选或多选。"
+        : "Select every option that applies, without omitting or adding items."
+    );
+  } else if (["select", "radio", "country"].includes(field.fieldType)) {
+    hints.push(
+      locale === "zh"
+        ? "请按题目语义和实际情况从官方选项中选择。"
+        : "Choose from the official options according to the question and your actual circumstances."
     );
   }
-  if (isPassportIssuingAuthorityField(field)) {
+  if (isPhoneCountryCodeField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "只填写这部电话实际所属的国际区号；是否保留“+”请按页面格式。"
+        : "Enter only the calling code that belongs to this phone; include or omit “+” as the form requires."
+    );
+  }
+  if (isChineseNameField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "请按页面要求使用繁体或简体中文，不要填写拼音或自行翻译的姓名。"
+        : "Use the Traditional or Simplified Chinese script required by the form; do not enter romanization or invent a translation."
+    );
+  }
+  if (isCountrySelector(field)) {
+    hints.push(
+      locale === "zh"
+        ? "这是国家/地区选择项，请按题目含义从官方列表选择，不要填写城市或机关名称。"
+        : "This is a country/region selector; choose from the official list and do not enter a city or authority name."
+    );
+  } else if (isCombinedPassportIssueField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "该栏合并了签发机关/地点含义，请照抄护照对应栏位，不要根据办理地或国籍推断。"
+        : "This field combines authority/place wording; copy the corresponding passport entry rather than inferring from application place or nationality."
+    );
+  } else if (isPassportPlaceOfIssueField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "请查看护照资料页的 Place of issue/签发地点；这是地点字段，不是签发机关。"
+        : "Check the Place of issue printed on the passport biodata page; this is a location field, not the issuing authority."
+    );
+  } else if (isPassportIssuingAuthorityField(field)) {
     hints.push(
       locale === "zh"
         ? "请直接查看护照资料页的 Authority/签发机关，不要根据领取城市或户籍地推断。"
@@ -621,6 +761,29 @@ function deterministicHints(field: FieldGuidanceField, locale: "zh" | "en"): str
 function deterministicWarnings(field: FieldGuidanceField, locale: "zh" | "en"): string[] {
   const combined = `${field.fieldName} ${field.label}`.toLowerCase();
   const warnings: string[] = [];
+  const serializedRules = JSON.stringify(field.validationRules ?? {}).toLowerCase();
+
+  if (field.validationRules?.official === false || serializedRules.includes("needs_review")) {
+    warnings.push(
+      locale === "zh"
+        ? "该字段元数据尚未标记为已核验官方内容，请以当前官方页面和证明材料为准，不要依赖示例推断。"
+        : "This field metadata is not marked as officially verified; follow the current official page and supporting records instead of inferring from examples."
+    );
+  }
+
+  if (isAcknowledgementField(field)) {
+    warnings.push(
+      locale === "zh"
+        ? "不要在未阅读或未理解相关说明时勾选。"
+        : "Do not select this before reading and understanding the related notice."
+    );
+  } else if (isDeclarationField(field)) {
+    warnings.push(
+      locale === "zh"
+        ? "不要在陈述不真实或你不同意承担相应责任时勾选。"
+        : "Do not select this if the statement is untrue or you do not accept the stated responsibility."
+    );
+  }
 
   if (isPhotoField(field)) {
     warnings.push(
@@ -641,11 +804,18 @@ function deterministicWarnings(field: FieldGuidanceField, locale: "zh" | "en"): 
         : "Names and passport numbers must match the passport bio page or MRZ."
     );
   }
-  if (isPassportIssuingAuthorityField(field)) {
+  if (isPassportIssuingAuthorityField(field) && !isCountrySelector(field)) {
     warnings.push(
       locale === "zh"
         ? "不要把“在重庆领取/办理”直接写成“重庆市公安局”或 Chongqing Public Security Bureau，除非护照签发机关栏就是这样印的。"
         : "Do not write Chongqing Public Security Bureau merely because the passport was collected or applied for in Chongqing, unless the passport authority field prints that wording."
+    );
+  }
+  if (isPassportPlaceOfIssueField(field) && !isCountrySelector(field)) {
+    warnings.push(
+      locale === "zh"
+        ? "不要把国家移民管理局或公安部出入境管理局填入签发地点；这些是签发机关。"
+        : "Do not enter National Immigration Administration or MPS Exit & Entry Administration as the place of issue; those are issuing authorities."
     );
   }
   if (includesAny(combined, ["birth", "nationality", "country"])) {
@@ -684,13 +854,19 @@ function deterministicFormatHints(field: FieldGuidanceField, locale: "zh" | "en"
   const rules = field.validationRules ?? {};
   const hints: string[] = [];
   const pattern = asString(rules.pattern);
-  const format = asString(rules.format);
+  const format = /(?:^|_)year$/.test(field.fieldName.toLowerCase()) || /\(year\)|年份|仅年份/.test(field.label.toLowerCase())
+    ? "YYYY"
+    : asString(rules.format ?? rules.canonical_format);
   const source = asString(rules.source);
 
   if (format) {
-    hints.push(format);
+    hints.push(locale === "zh" ? `请使用格式：${format}` : `Use this format: ${format}`);
   } else if (field.fieldType === "date") {
-    hints.push("DD/MM/YYYY");
+    hints.push(
+      locale === "zh"
+        ? "请使用页面日期选择器；未明确格式时不要自行猜测日、月、年顺序。"
+        : "Use the page date picker; do not guess the day, month, and year order when no format is specified."
+    );
   }
   if (pattern) {
     hints.push(locale === "zh" ? "需要符合字段格式规则。" : "Must match the field format rule.");
@@ -698,8 +874,14 @@ function deterministicFormatHints(field: FieldGuidanceField, locale: "zh" | "en"
   if (source === "ISO3166-1") {
     hints.push(locale === "zh" ? "请选择官方国家/地区名称。" : "Choose the official country or region name.");
   }
-  if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") {
+  if (field.fieldType === "select" || field.fieldType === "radio") {
     hints.push(locale === "zh" ? "请选择题目提供的一个选项。" : "Choose one of the options provided by the form.");
+  }
+  if (field.fieldType === "checkbox") {
+    hints.push(locale === "zh" ? "符合题目陈述时勾选；不符合时保持未勾选。" : "Select when the statement applies; otherwise leave it clear.");
+  }
+  if (field.fieldType === "multi_select") {
+    hints.push(locale === "zh" ? "请选择所有符合题意的选项。" : "Choose all options that apply.");
   }
   if (field.fieldType === "country") {
     hints.push(locale === "zh" ? "使用官方国家/地区名称。" : "Use the official country or region name.");
@@ -732,7 +914,43 @@ function buildDeterministicGuidance(
   return {
     title: makeTitle(field, locale),
     summary:
-      isPhotoField(field)
+      isAcknowledgementField(field)
+        ? locale === "zh"
+          ? "这是阅读确认项：请先读完相关说明，仅在确实理解后勾选。"
+          : "This is a reading acknowledgement: review the related notice and select it only after you understand it."
+        : isDeclarationField(field)
+          ? locale === "zh"
+            ? "这是声明或同意项：请确认陈述真实并接受相应责任后再勾选。"
+            : "This is a declaration or consent: select it only after confirming the statement is true and accepting the stated responsibility."
+        : isPassportHolderTypeField(field)
+          ? locale === "zh"
+            ? "请选择你此次旅行实际使用的护照或旅行证件持有人类别；这不是第二个国籍字段。"
+            : "Choose the passport or travel-document holder category used for this trip; this is not a second nationality field."
+        : field.fieldType === "checkbox"
+          ? locale === "zh"
+            ? "这是勾选项：只有题目描述确实适用于你时才勾选。"
+            : "This is a checkbox: select it only when the statement actually applies to you."
+        : field.fieldType === "multi_select"
+          ? locale === "zh"
+            ? "请从给出的选项中选出所有符合实际情况的项目。"
+            : "Select every listed option that truthfully applies."
+        : isCountrySelector(field)
+          ? locale === "zh"
+            ? "请先确认题目问的是国籍、签发国家、出生地、居住地还是行程国家，再从官方国家/地区列表选择。"
+            : "Identify whether the field means nationality, issuing country, birthplace, residence, or a trip country, then choose from the official list."
+        : ["select", "radio", "country"].includes(field.fieldType)
+          ? locale === "zh"
+            ? "请根据题目含义和实际情况选择最合适的官方选项。"
+            : "Choose the official option that best matches the question and your actual situation."
+        : isChineseNameField(field)
+          ? locale === "zh"
+            ? "请填写证件或官方记录使用的中文姓名，并遵循页面要求的中文书写体系。"
+            : "Enter the Chinese-script name used by the identity document or official record, following the script required by the form."
+        : isCombinedPassportIssueField(field)
+          ? locale === "zh"
+            ? "请按护照资料页对应栏位填写签发机关或签发地点，不要根据办理城市或国籍推断。"
+            : "Copy the corresponding issuing-authority or place-of-issue entry from the passport; do not infer it from application city or nationality."
+        : isPhotoField(field)
         ? locale === "zh"
           ? "上传的签证照片应符合当前目的地官方照片规格，并与本人当前外貌一致。"
           : "The uploaded visa photo should follow the destination's official photo rules and reflect your current appearance."
@@ -756,11 +974,14 @@ function mergeGuidance(
   return {
     title: makeTitle(field, locale),
     summary: asString(ai.summary) ? stripMarkdown(asString(ai.summary) ?? "") : base.summary,
-    examples: cleanAiStringArray(ai.examples, 4),
+    // Examples remain deterministic. Model-generated examples can silently
+    // introduce the wrong date order, phone prefix, address, or authority for
+    // the active country even when the prose explanation is otherwise useful.
+    examples: base.examples,
     optionExplanations: cleanAiOptionExplanations(ai.optionExplanations, field),
-    hints: cleanAiStringArray(ai.hints, 5),
-    officialWarnings: cleanAiStringArray(ai.officialWarnings, 4),
-    formatHints: cleanAiStringArray(ai.formatHints, 4),
+    hints: cleanAiStringArray(ai.hints, 1),
+    officialWarnings: cleanAiStringArray(ai.officialWarnings, 1),
+    formatHints: cleanAiStringArray(ai.formatHints, 1),
   };
 }
 
@@ -883,6 +1104,7 @@ const DOCUMENT_EXPIRY_DATE_CANDIDATES = [
 
 const ARRIVAL_DATE_CANDIDATES = [
   "arrival_date",
+  "expected_arrival_date",
   "intended_arrival_date",
   "entry_date",
 ] as const;
@@ -890,6 +1112,8 @@ const ARRIVAL_DATE_CANDIDATES = [
 const DEPARTURE_DATE_CANDIDATES = [
   "departure_date",
   "intended_departure_date",
+  "departure_from_origin_date",
+  "departure_date_from_vietnam",
   "date_of_departure",
   "exit_date",
 ] as const;
@@ -969,8 +1193,13 @@ function isPassportIssuingAuthorityField(field: FieldGuidanceField): boolean {
     "issuing authority",
     "authority",
     "签发机关",
-    "签发地点",
   ]);
+}
+
+function isPassportPlaceOfIssueField(field: FieldGuidanceField): boolean {
+  const searchText = fieldSearchText(field);
+  return includesAny(searchText, ["passport_place_of_issue", "place of issue", "签发地点"]) &&
+    !includesAny(searchText, ["passport_issuing_authority", "issuing authority", "签发机关", "authority"]);
 }
 
 function standardIdentityContextFor(field: FieldGuidanceField): string {
@@ -986,6 +1215,11 @@ function standardIdentityQuestionFallback(
   field: FieldGuidanceField,
   locale: "zh" | "en"
 ): string | null {
+  if (isPassportPlaceOfIssueField(field)) {
+    return locale === "zh"
+      ? "请按护照资料页的 Place of issue/签发地点原文填写。这是地点字段，不要填写国家移民管理局或公安部出入境管理局；只有字段明确要求 Country of issue/签发国家或提供国家下拉框时才填国家。"
+      : "Copy the passport's exact Place of issue value. This is a location field, so do not enter National Immigration Administration or MPS Exit & Entry Administration; enter a country only when the form explicitly asks for Country of issue or provides a country-only selector.";
+  }
   if (!isPassportIssuingAuthorityField(field)) return null;
 
   const questionText = `${reqBody.question ?? ""} ${reqBody.answer ?? ""}`;
@@ -1199,7 +1433,7 @@ async function generateAiGuidance(
     return null;
   }
 
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const client = createOpenAiClient(OPENAI_API_KEY);
   const standardContext = standardIdentityContextFor(field);
   const context = chunks
     .slice(0, 5)
@@ -1212,8 +1446,8 @@ async function generateAiGuidance(
   try {
     const message = await client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
-      max_output_tokens: 700,
-      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document, and never infer an issuing authority from a pickup city. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, option descriptions, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Return at most ${MAX_OPTION_EXPLANATIONS} option explanations. Include only exact official options that are directly relevant to the current answer or related filled answers. If there is not enough evidence to identify relevant options, return an empty optionExplanations array; never describe arbitrary choices from the start of a long dropdown. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      max_output_tokens: 500,
+      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document. Treat issuing country, place of issue, and issuing authority as distinct fields; authority names must never be suggested as place-of-issue answers. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, option descriptions, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Produce a compact guidance card: summary must be one actionable sentence (at most ${locale === "zh" ? "60 Chinese characters" : "140 characters"}); return at most 2 short examples; formatHints, hints, and officialWarnings may contain at most one short item each; return at most ${MAX_OPTION_EXPLANATIONS} directly relevant option explanations. Use empty arrays for anything that adds no value. Do not repeat the field name, sources, confidence, or generic disclaimers. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
       input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nCurrent answer:\n${reqBody.answer?.trim() || "(empty)"}\n\nRelated filled answers:\n${JSON.stringify(relevantAnswerEntries(reqBody.allAnswers), null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
       text: {
         format: {
@@ -1291,7 +1525,7 @@ async function generateQuestionReply(
     return { reply: scopedFallback, aiUsed: false };
   }
 
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const client = createOpenAiClient(OPENAI_API_KEY);
   const standardContext = standardIdentityContextFor(field);
   const context = chunks
     .slice(0, 3)

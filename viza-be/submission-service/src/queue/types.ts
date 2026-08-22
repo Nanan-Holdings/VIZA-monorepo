@@ -6,6 +6,7 @@
  * here without creating an import cycle with dispatch.ts (which imports
  * every runner). dispatch.ts re-exports these for back-compat.
  */
+import type { RunnerExecutionContext } from "./execution-context.js";
 
 /** Thrown when no runner is wired for a country — worker dead-letters. */
 export class UnsupportedCountryError extends Error {
@@ -37,4 +38,8 @@ export interface DispatchOutcome {
   artefacts: string[];
 }
 
-export type RunOne = (applicationId: string, jobId?: string) => Promise<DispatchOutcome>;
+export type RunOne = (
+  applicationId: string,
+  jobId?: string,
+  execution?: RunnerExecutionContext,
+) => Promise<DispatchOutcome>;

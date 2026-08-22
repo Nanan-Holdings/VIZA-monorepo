@@ -13,6 +13,10 @@ const YES_NO_OPTIONS: VisaFormFieldOption[] = [
   { value: "no", text: "No", label_zh: "否", label_en: "No" },
 ];
 
+const DOCUMENT_ONLY_FIELD_NAMES = new Set([
+  "accompanying_child_portrait_photo",
+]);
+
 function mergeRules(
   field: VisaFormFieldRow,
   rules: Record<string, unknown>,
@@ -467,25 +471,6 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     conditionalLogic: { showIf: "visited_vietnam_in_last_year === yes" },
   },
   {
-    fieldName: "accompanying_child_portrait_photo",
-    label: "Portrait photography",
-    fieldType: "file",
-    required: true,
-    stepNumber: 7,
-    stepName: "Accompanying Children",
-    displayOrder: 4,
-    placeholder: "Upload portrait photo",
-    validationRules: {
-      label_zh: "同行儿童证件照片",
-      repeatable: true,
-      repeat_group: "accompanying_children",
-      max_items: 10,
-      accept: [".jpg", ".jpeg", ".png"],
-      helper_zh: "官方表单要求每名同行儿童上传照片。",
-    },
-    conditionalLogic: { showIf: "has_accompanying_children === yes" },
-  },
-  {
     fieldName: "travel_insurance_specify",
     label: "Specify",
     fieldType: "text",
@@ -496,6 +481,21 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     placeholder: "Enter specify",
     validationRules: { label_zh: "保险说明", maxLength: 200 },
     conditionalLogic: { showIf: "bought_travel_insurance === yes" },
+  },
+  {
+    fieldName: "expense_coverage",
+    label: "Who will cover the applicant's trip expenses?",
+    fieldType: "select",
+    required: true,
+    stepNumber: 8,
+    stepName: "Travel Expenses and Insurance",
+    displayOrder: 4,
+    placeholder: "Choose one",
+    options: [
+      { value: "personal", text: "Personal", label_zh: "个人", label_en: "Personal", official_label: "Personal" },
+      { value: "company", text: "Company", label_zh: "公司/机构", label_en: "Company", official_label: "Company" },
+    ],
+    validationRules: { label_zh: "谁承担申请人的旅行费用？", live_dom_id: "basic_kpbhNguoiDamBao" },
   },
   {
     fieldName: "expense_payment_method",
@@ -512,7 +512,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       { value: "travellers_cheques", text: "Traveller's cheques", label_zh: "旅行支票", label_en: "Traveller's cheques" },
     ],
     validationRules: { label_zh: "付款方式", live_dom_id: "basic_kpbhHinhThuc" },
-    conditionalLogic: { showIf: "expense_coverage in [personal, company]" },
+    conditionalLogic: { showIf: "expense_coverage === personal || expense_coverage === company" },
   },
   {
     fieldName: "expense_company_name",
@@ -666,7 +666,7 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
   for (const step of steps) {
     stepMap.set(step.stepNumber, {
       ...step,
-      fields: step.fields.map((field) => {
+      fields: step.fields.filter((field) => !DOCUMENT_ONLY_FIELD_NAMES.has(field.fieldName)).map((field) => {
         fieldNames.add(field.fieldName);
         const parityPatch = PARITY_PATCH_BY_FIELD_NAME.get(field.fieldName);
         const patchedField = parityPatch ? applyFieldPatch(field, parityPatch) : field;
@@ -749,10 +749,6 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
         if (patchedField.fieldName === "bought_travel_insurance") {
           return { ...patchedField, displayOrder: 2 };
         }
-        if (patchedField.fieldName === "expense_coverage") {
-          return { ...patchedField, displayOrder: 4 };
-        }
-
         return patchedField;
       }),
     });

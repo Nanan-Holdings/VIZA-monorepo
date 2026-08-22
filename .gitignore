@@ -128,6 +128,17 @@ __pycache__/
 
 # Generated output files
 knowledge-base/visa-news.json
+load-test-results/concurrency/
+
+# Local temporary directories (at any workspace depth)
+**/.tmp/
+**/.temp/
+**/tmp/
+**/temp/
+/.codex-worktrees/
+/.worktrees/
+/.release/
+**/node_modules.link-backup/
 
 # Submission service recon/diagnostic artifacts (HTML/PNG dumps)
 viza-be/submission-service/diag-out/
@@ -156,4 +167,5 @@ viza-fe/internal-website/.env.local.bak
 
 # Local secrets (PhotonPay RSA keys etc.) — never commit
 .secrets/
+/.env.local
 .env*

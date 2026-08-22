@@ -1,12 +1,18 @@
 import type { InboundMessage, WaitForMessageOpts } from "../inbox/wait-for-message";
 
 const TLS_ACTIVATION_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
-const DEFAULT_TLS_ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_TLS_ALIAS_DOMAIN = "viza.it.com";
 
 export interface FranceTlsActivationEmailResult {
   alias: string;
   messageId: string;
   activationUrl: URL;
+  receivedAt: string;
+}
+
+export interface FranceTlsPasswordResetEmailResult {
+  messageId: string;
+  resetUrl: URL;
   receivedAt: string;
 }
 
@@ -87,6 +93,52 @@ export function extractFranceTlsActivationUrlFromMessage(
   return null;
 }
 
+export function extractFranceTlsPasswordResetUrlFromMessage(
+  message: Pick<InboundMessage, "html" | "text">,
+): URL | null {
+  const haystacks = [
+    message.html ?? "",
+    message.html ? decodeQuotedPrintableSoftBreaks(message.html) : "",
+    message.html ? htmlToText(message.html) : "",
+    message.text ?? "",
+    message.text ? decodeQuotedPrintableSoftBreaks(message.text) : "",
+  ].filter(Boolean);
+
+  for (const haystack of haystacks) {
+    const matches = haystack.match(TLS_ACTIVATION_URL_PATTERN) ?? [];
+    for (const match of matches) {
+      const candidate = normalizeCandidateUrl(match);
+      try {
+        const url = new URL(candidate);
+        if (url.hostname !== "visas-fr.tlscontact.com"
+          && url.hostname !== "i2-auth.visas-fr.tlscontact.com") continue;
+        if (!/reset|forgot|credential|action-token|execute-actions|required-action|login-actions/i
+          .test(`${url.pathname} ${url.search}`)) continue;
+        return url;
+      } catch {
+        // Keep scanning.
+      }
+    }
+  }
+  return null;
+}
+
+export function isFranceTlsPasswordResetMessage(
+  message: Pick<InboundMessage, "from_addr" | "subject" | "html" | "text">,
+): boolean {
+  const resetSubject = /reset.{0,30}password|password.{0,30}reset|forgot.{0,30}password|change.{0,30}password|r[ée]initialis.{0,30}mot de passe/i
+    .test(message.subject ?? "");
+  const trustedDeliveryPath = /tlscontact|amazonaws|ses/i.test(message.from_addr ?? "");
+  return resetSubject
+    && trustedDeliveryPath
+    && extractFranceTlsPasswordResetUrlFromMessage(message) !== null;
+}
+
+export function isFranceTlsPasswordResetCompletedText(text: string): boolean {
+  return /password.{0,40}(?:updated|reset|changed)|(?:updated|reset|changed).{0,40}password|mot de passe.{0,40}(?:modifi[ée]|r[ée]initialis[ée])/i
+    .test(text.replace(/\s+/g, " "));
+}
+
 export function isFranceTlsActivationExpiredText(text: string): boolean {
   return /action expired|activation expired|link expired|expired.*start again|请重新开始|链接.*过期/i.test(text);
 }
@@ -127,6 +179,33 @@ export async function waitForFranceTlsActivationEmail(
     alias: message.to_addr.toLowerCase(),
     messageId: message.id,
     activationUrl,
+    receivedAt: message.received_at,
+  };
+}
+
+export async function waitForFranceTlsPasswordResetEmail(
+  input: {
+    applicationId: string;
+    applicantId: string;
+    accountId: string;
+  },
+  timeoutMs: number,
+  opts: WaitForMessageOpts = {},
+): Promise<FranceTlsPasswordResetEmailResult> {
+  const { inbox } = await import("../inbox/wait-for-message");
+  const message = await inbox.waitForAppointmentAccountMessage(
+    { ...input, portal: "tlscontact_cn_fr" },
+    isFranceTlsPasswordResetMessage,
+    timeoutMs,
+    { ...opts, newestFirst: true },
+  );
+  const resetUrl = extractFranceTlsPasswordResetUrlFromMessage(message);
+  if (!resetUrl) {
+    throw new Error("TLScontact password-reset email matched but no reset URL was found");
+  }
+  return {
+    messageId: message.id,
+    resetUrl,
     receivedAt: message.received_at,
   };
 }

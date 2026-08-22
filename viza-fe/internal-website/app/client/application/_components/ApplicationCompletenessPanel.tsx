@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertCircle, ArrowRight, CheckCircle2, FileUp, PencilLine } from "lucide-react";
+import {
+  WarningCircle as AlertCircle,
+  ArrowRight,
+  CheckCircle as CheckCircle2,
+  FileArrowUp as FileUp,
+  PencilLine,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type {
   ApplicationCompletenessMissingDocument,

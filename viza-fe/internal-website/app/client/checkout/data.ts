@@ -2,15 +2,19 @@ import "server-only";
 
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import {
+  getCanonicalVisaDestinationCountry,
   getDestinationDisplayName,
   getVisaTypeDisplayName,
 } from "@/lib/visa-destinations";
+import { pricingFor } from "@/lib/pricing";
+import { visaTypesReferToSameApplication } from "@/lib/submission-queue";
 import {
   advanceApplicationAfterConfirmedPayment,
   type StripeSupabaseClient,
 } from "@/app/api/stripe/_shared";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 type Json =
   | string
@@ -198,6 +202,29 @@ export interface CheckoutSelection {
   applicationId?: string | null;
 }
 
+export function resolveCheckoutPackageSelection<
+  PackageSummary extends Pick<CheckoutPackageSummary, "applicationId" | "packageId">,
+>(
+  packages: PackageSummary[],
+  selection: CheckoutSelection,
+): PackageSummary | null {
+  if (selection.applicationId) {
+    return (
+      packages.find(
+        (packageSummary) => packageSummary.applicationId === selection.applicationId,
+      ) ?? null
+    );
+  }
+
+  return (
+    packages.find(
+      (packageSummary) => packageSummary.packageId === selection.packageId,
+    ) ??
+    packages[0] ??
+    null
+  );
+}
+
 export type CheckoutReturnState =
   | {
       tone: "success" | "warning" | "error";
@@ -240,6 +267,34 @@ export function formatMoney(cents: number, currency: string): string {
 
 export function normalizeCurrency(currency: string | null | undefined): string {
   return (currency || "USD").trim().toUpperCase();
+}
+
+function packageMatchesApplication(packageRow: VisaPackageRow, application: ApplicationRow): boolean {
+  return (
+    getCanonicalVisaDestinationCountry(packageRow.country) ===
+      getCanonicalVisaDestinationCountry(application.country) &&
+    visaTypesReferToSameApplication(packageRow.visa_type, application.visa_type)
+  );
+}
+
+function resolveAgencyFee(packageRow: VisaPackageRow): MoneyAmount | null {
+  if (typeof packageRow.price_cents === "number" && packageRow.price_cents > 0) {
+    const currency = normalizeCurrency(packageRow.currency);
+    return {
+      cents: packageRow.price_cents,
+      currency,
+      label: formatMoney(packageRow.price_cents, currency),
+    };
+  }
+
+  const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
+  if (!configuredPricing || configuredPricing.agencyFeeCents <= 0) return null;
+
+  return {
+    cents: configuredPricing.agencyFeeCents,
+    currency: "USD",
+    label: formatMoney(configuredPricing.agencyFeeCents, "USD"),
+  };
 }
 
 function isPaidStatus(status: string | null | undefined): boolean {
@@ -301,17 +356,28 @@ export function resolveGovernmentFee(
   application: ApplicationRow | null,
 ): GovernmentFeeDisclosure {
   const metadata = getGovernmentFeeMetadata(packageRow);
+  const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
+  const persistedAmountCents = application?.government_fee_cents ?? null;
+  const configuredAmountCents = configuredPricing?.govtFeeCents ?? null;
+  const applicationAmountCents =
+    persistedAmountCents === 0 && configuredAmountCents !== null && configuredAmountCents > 0
+      ? null
+      : persistedAmountCents;
   const amountCents =
-    application?.government_fee_cents ??
-    getNumber(metadata, ["amount_cents", "amountCents", "cents", "estimated_amount_cents"]);
+    applicationAmountCents ??
+    getNumber(metadata, ["amount_cents", "amountCents", "cents", "estimated_amount_cents"]) ??
+    configuredAmountCents ??
+    null;
   const amount = amountCents ?? getNumber(metadata, ["amount", "estimated_amount"]);
   const currency = normalizeCurrency(
     application?.government_fee_currency ??
-      getString(metadata, ["currency", "estimated_currency"]),
+      getString(metadata, ["currency", "estimated_currency"]) ??
+      configuredPricing?.currency,
   );
   const rawMode =
     application?.government_fee_mode ??
-    getString(metadata, ["mode", "payment_mode", "paymentMode", "status"]);
+    getString(metadata, ["mode", "payment_mode", "paymentMode", "status"]) ??
+    (configuredPricing?.govtFeeChannel === "portal_direct" ? "external" : null);
   const mode = normalizeGovernmentFeeMode(rawMode, amountCents ?? amount);
   const metadataNote = getString(metadata, ["note", "description", "disclosure"]);
   const amountLabel =
@@ -320,65 +386,65 @@ export function resolveGovernmentFee(
       : amount !== null
         ? `${currency} ${amount.toFixed(2)}`
         : mode === "unknown"
-          ? "Not available yet"
-          : "Shown by the official portal or external process";
+          ? "Confirmed before payment"
+          : "Confirmed at the official payment step";
 
   if (mode === "included") {
     return {
       mode,
-      label: "Government fee disclosure",
+      label: "Official fee payment",
       amountLabel,
-      description: "A package note marks the government fee as covered by a separate written arrangement.",
+      description: "VIZA manages the official fee payment for this application.",
       detail:
         metadataNote ??
-        "This page still starts Stripe Checkout for VIZA's agency fee only. It does not collect official portal card details.",
+        "When payment is due, VIZA creates a limited virtual card for this application and pays the official portal on your behalf.",
     };
   }
 
   if (mode === "estimated") {
     return {
       mode,
-      label: "Estimated government fee",
+      label: "Estimated official fee",
       amountLabel,
-      description: "Government portal fees are separate from the VIZA agency fee.",
+      description: "This estimate is managed separately from today's VIZA agency-fee checkout.",
       detail:
         metadataNote ??
-        "The official amount can change. VIZA will surface the latest known amount before any external handoff.",
+        "The official amount can change. VIZA confirms it before creating an exact-purpose virtual card and paying the portal.",
     };
   }
 
   if (mode === "external") {
     return {
       mode,
-      label: "Government fee handled separately",
+      label: "Official fee managed by VIZA",
       amountLabel,
-      description: "The official portal or another external process may ask you to pay this directly.",
+      description: "VIZA pays the official portal for you when the application reaches the payment step.",
       detail:
         metadataNote ??
-        "VIZA does not automatically pay official government portal fees from this checkout.",
+        "A secure virtual card is created only for this application and official fee. You do not enter card details on the government portal.",
     };
   }
 
   if (mode === "separate") {
     return {
       mode,
-      label: "Separate government fee",
+      label: "Official fee managed by VIZA",
       amountLabel,
-      description: "This fee is not part of today's Stripe Checkout total.",
+      description: "This fee is managed separately from today's Stripe agency-fee checkout.",
       detail:
         metadataNote ??
-        "If a government portal fee is required, VIZA will guide you through the separate official payment step.",
+        "When the official fee is due, VIZA creates an application-specific virtual card and pays the portal on your behalf.",
     };
   }
 
   return {
     mode,
-    label: "Government fee not confirmed",
+    label: "Official fee amount pending",
     amountLabel,
-    description: "VIZA agency payment can be started, but the official fee is not confirmed in the package data.",
+    description: "The official amount will be confirmed before VIZA pays it for this application.",
     detail:
       metadataNote ??
-      "We will confirm official government fee details before any external handoff. This checkout will not charge them.",
+      "VIZA will confirm the amount, create a limited virtual card for that amount, and pay the government portal on your behalf.",
   };
 }
 
@@ -395,7 +461,10 @@ function buildNextStep(
 
   if (!summary.applicationId) {
     return {
-      href: `/client/application?${params.toString()}`,
+      href: buildApplicationLongFormHref({
+        country: summary.country,
+        visaType: summary.visaType,
+      }),
       label: "Start application",
       description: "Start the application form so VIZA can prepare the next steps.",
     };
@@ -456,6 +525,7 @@ function buildPackageSummaries({
   payments,
   consentEvents,
   signatures,
+  selectedApplicationId,
 }: {
   assignments: UserPackageRow[];
   packages: VisaPackageRow[];
@@ -463,15 +533,25 @@ function buildPackageSummaries({
   payments: PaymentRecordRow[];
   consentEvents: ConsentEventRow[];
   signatures: ApplicationSignatureRow[];
+  selectedApplicationId?: string | null;
 }): CheckoutPackageSummary[] {
   const packagesById = new Map(packages.map((packageRow) => [packageRow.id, packageRow]));
+  const selectedApplication = selectedApplicationId
+    ? applications.find((application) => application.id === selectedApplicationId) ?? null
+    : null;
 
   return assignments
     .map((assignment) => {
       const packageRow = packagesById.get(assignment.visa_package_id);
       if (!packageRow) return null;
 
-      const application = selectApplication(packageRow.id, assignment, applications);
+      const assignedApplication = selectApplication(packageRow.id, assignment, applications);
+      const application =
+        selectedApplication &&
+        (selectedApplication.visa_package_id === packageRow.id ||
+          (!selectedApplication.visa_package_id && packageMatchesApplication(packageRow, selectedApplication)))
+          ? selectedApplication
+          : assignedApplication;
       const latestPayment = selectLatestPayment(packageRow.id, application?.id ?? null, payments);
       const applicationId = application?.id ?? assignment.application_id;
       const hasConsent = applicationId
@@ -480,14 +560,7 @@ function buildPackageSummaries({
       const hasSignature = applicationId
         ? signatures.some((signature) => signature.application_id === applicationId && Boolean(signature.signed_at))
         : false;
-      const agencyFee =
-        typeof packageRow.price_cents === "number" && packageRow.price_cents > 0
-          ? {
-              cents: packageRow.price_cents,
-              currency: normalizeCurrency(packageRow.currency),
-              label: formatMoney(packageRow.price_cents, normalizeCurrency(packageRow.currency)),
-            }
-          : null;
+      const agencyFee = resolveAgencyFee(packageRow);
 
       const summaryBase = {
         assignmentId: assignment.id,
@@ -518,8 +591,8 @@ function buildPackageSummaries({
 }
 
 export async function getCheckoutContext(selection: CheckoutSelection = {}): Promise<CheckoutContext> {
-  const authenticatedUser = await getAuthenticatedUser();
-  if (!authenticatedUser) {
+  const session = await getClientSessionWithFallback();
+  if (!session) {
     return {
       user: null,
       applicantProfile: null,
@@ -530,31 +603,45 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
     };
   }
 
-  const user: CheckoutUser = {
-    id: authenticatedUser.id,
-    name: authenticatedUser.name,
-    email: authenticatedUser.email,
+  const fallbackUser: CheckoutUser = {
+    id: session.userId,
+    name: session.userName ?? session.email,
+    email: session.email,
   };
 
   try {
     const adminClient = createCheckoutAdminClient();
 
-    const [{ data: profileData }, { data: assignmentData, error: assignmentError }] = await Promise.all([
-      adminClient
+    let profileResult = await adminClient
+      .from("applicant_profiles")
+      .select("id, auth_user_id, full_name, email")
+      .eq("id", session.userId)
+      .maybeSingle();
+
+    if (!profileResult.data && !profileResult.error) {
+      profileResult = await adminClient
         .from("applicant_profiles")
         .select("id, auth_user_id, full_name, email")
-        .eq("auth_user_id", user.id)
+        .eq("auth_user_id", session.userId)
         .limit(1)
-        .maybeSingle(),
-      adminClient
-        .from("user_packages")
-        .select("id, auth_user_id, visa_package_id, application_id, status, assigned_at")
-        .eq("auth_user_id", user.id)
-        .eq("status", "active")
-        .order("assigned_at", { ascending: false }),
-    ]);
+        .maybeSingle();
+    }
 
-    if (assignmentError) {
+    const applicantProfile = profileResult.data ?? null;
+    const user: CheckoutUser = {
+      id: applicantProfile?.id ?? session.userId,
+      name: applicantProfile?.full_name ?? session.userName ?? session.email,
+      email: applicantProfile?.email ?? session.email,
+    };
+    const authUserId = applicantProfile?.auth_user_id ?? session.userId;
+    const { data: assignmentData, error: assignmentError } = await adminClient
+      .from("user_packages")
+      .select("id, auth_user_id, visa_package_id, application_id, status, assigned_at")
+      .eq("auth_user_id", authUserId)
+      .eq("status", "active")
+      .order("assigned_at", { ascending: false });
+
+    if (profileResult.error || assignmentError) {
       return {
         user,
         applicantProfile: null,
@@ -565,7 +652,6 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       };
     }
 
-    const applicantProfile = profileData ?? null;
     const assignments = assignmentData ?? [];
     const packageIds = [...new Set(assignments.map((assignment) => assignment.visa_package_id))];
 
@@ -609,7 +695,6 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
           "id, applicant_id, country, visa_type, status, visa_package_id, government_fee_cents, government_fee_currency, government_fee_mode, created_at, updated_at",
         )
         .eq("applicant_id", applicantProfile.id)
-        .in("visa_package_id", packageIds)
         .order("updated_at", { ascending: false });
 
       applications = applicationData ?? [];
@@ -656,16 +741,9 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       payments,
       consentEvents,
       signatures,
+      selectedApplicationId: selection.applicationId,
     });
-    const selectedPackage =
-      packages.find(
-        (packageSummary) =>
-          Boolean(selection.applicationId) &&
-          packageSummary.applicationId === selection.applicationId,
-      ) ??
-      packages.find((packageSummary) => packageSummary.packageId === selection.packageId) ??
-      packages[0] ??
-      null;
+    const selectedPackage = resolveCheckoutPackageSelection(packages, selection);
 
     return {
       user,
@@ -673,12 +751,15 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       selectedPackage,
       packages,
       stripeConfigured: isStripeConfigured(),
-      error: null,
+      error:
+        selection.applicationId && !selectedPackage
+          ? "We could not match this application to an active visa package. Return to Home and try again, or contact support."
+          : null,
     };
   } catch (error) {
     console.error("[checkout] Failed to load checkout context:", error);
     return {
-      user,
+      user: fallbackUser,
       applicantProfile: null,
       selectedPackage: null,
       packages: [],
@@ -697,8 +778,8 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
     };
   }
 
-  const authenticatedUser = await getAuthenticatedUser();
-  if (!authenticatedUser) {
+  const checkoutContext = await getCheckoutContext();
+  if (!checkoutContext.user) {
     return {
       tone: "error",
       title: "Please sign in to confirm payment",
@@ -718,7 +799,7 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (session.metadata?.userId !== authenticatedUser.id) {
+    if (session.metadata?.userId !== checkoutContext.user.id) {
       return {
         tone: "error",
         title: "Payment session does not match this account",
@@ -745,7 +826,7 @@ export async function reconcileStripeCheckoutSession(sessionId: string | null): 
       updated_at: now,
       metadata: {
         ...existingMetadata,
-        user_id: authenticatedUser.id,
+        user_id: checkoutContext.user.id,
         applicant_id: session.metadata?.applicantId ?? null,
         application_id: session.metadata?.applicationId ?? null,
         visa_package_id: session.metadata?.visaPackageId ?? null,

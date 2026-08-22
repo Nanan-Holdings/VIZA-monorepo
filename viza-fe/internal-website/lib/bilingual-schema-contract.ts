@@ -623,6 +623,25 @@ function normalizeTaiwanOccupationDependentField(field: VisaFormFieldRow): Parti
   return {};
 }
 
+function normalizeVnPrearrivalVisaInformationField(field: VisaFormFieldRow): Partial<VisaFormFieldRow> {
+  if (
+    field.visaType !== "VN_PREARRIVAL_DECLARATION"
+    || normalizeFieldName(field.fieldName) !== "visa_information_acknowledgement"
+  ) {
+    return {};
+  }
+
+  return {
+    validationRules: {
+      ...(field.validationRules ?? {}),
+      label_zh: "我已阅读并理解以下签证信息说明",
+      helper_priority: "critical",
+      helper_zh: "签证信息说明：请按实际情况提供越南签证信息（如适用）。所选签证类型决定允许入境期限；请填写签证编号，以便在机场使用该服务。",
+      helper_en: "Visa information notice: Provide details of your Vietnam visa (if applicable). The selected visa type determines your permitted entry period. Enter your visa number to enable the service at the airport.",
+    },
+  };
+}
+
 const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   full_name: "护照上的完整姓名",
   applicant_full_name: "申请人护照上的完整姓名",
@@ -660,14 +679,7 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   birth_province_or_state: "出生省/州（如适用）",
   state_or_province_of_birth: "出生州/省（如适用）",
   country_of_birth: "出生国家/地区",
-  country_of_birth_code: "出生国家/地区",
   birth_country: "出生国家/地区",
-  spouse_country_of_birth: "配偶出生国家/地区",
-  partner_country_of_birth: "伴侣出生国家/地区",
-  deceased_spouse_country_of_birth: "已故配偶出生国家/地区",
-  former_spouse_country_of_birth: "前配偶出生国家/地区",
-  father_country_of_birth: "父亲出生国家/地区",
-  mother_country_of_birth: "母亲出生国家/地区",
   religion: "宗教信仰",
   current_nationality: "当前国籍",
   nationality: "国籍",
@@ -971,16 +983,6 @@ const LABEL_ZH_OVERRIDES: Record<string, string> = {
 };
 
 const FIELD_NAME_EN_OVERRIDES: Record<string, string> = {
-  place_of_birth_country: "Country/Region of Birth",
-  country_of_birth: "Country/Region of Birth",
-  country_of_birth_code: "Country/Region of Birth",
-  birth_country: "Country/Region of Birth",
-  spouse_country_of_birth: "Spouse's Country/Region of Birth",
-  partner_country_of_birth: "Partner's Country/Region of Birth",
-  deceased_spouse_country_of_birth: "Deceased Spouse's Country/Region of Birth",
-  former_spouse_country_of_birth: "Former Spouse's Country/Region of Birth",
-  father_country_of_birth: "Father's Country/Region of Birth",
-  mother_country_of_birth: "Mother's Country/Region of Birth",
   identity_card_number: "Identity card number",
   visa_valid_from: "Grant e-Visa valid from",
   visa_valid_to: "Grant e-Visa valid to",
@@ -1709,14 +1711,17 @@ export function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormF
 export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T): T {
   const taiwanAddressOverride = normalizeTaiwanAddressField(field);
   const taiwanOccupationOverride = normalizeTaiwanOccupationDependentField(field);
+  const vnPrearrivalVisaInformationOverride = normalizeVnPrearrivalVisaInformationField(field);
   const fieldWithOverrides = {
     ...field,
     ...taiwanAddressOverride,
     ...taiwanOccupationOverride,
+    ...vnPrearrivalVisaInformationOverride,
     validationRules: {
       ...(field.validationRules ?? {}),
       ...(taiwanAddressOverride.validationRules ?? {}),
       ...(taiwanOccupationOverride.validationRules ?? {}),
+      ...(vnPrearrivalVisaInformationOverride.validationRules ?? {}),
     },
   };
   const labelZh = deriveChineseFieldLabel(fieldWithOverrides);

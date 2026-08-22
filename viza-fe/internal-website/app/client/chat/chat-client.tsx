@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Loader2,
-  PanelLeft,
+  CircleNotch as Loader2,
+  ArrowUp,
+  SidebarSimple as PanelLeft,
   Pencil,
-  Plus,
-  Trash2,
+  MagnifyingGlass as Search,
+  NotePencil as SquarePen,
+  Trash as Trash2,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Sparkle } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -40,6 +42,7 @@ import {
   type PersistableVisaMessageRole,
   type Session,
 } from "@/app/actions/companion-sessions";
+import { buildLegacyApplicationBlocks } from "./legacy-application-blocks";
 import type {
   ChatMessage as SocketChatMessage,
   ConnectionStatus,
@@ -127,8 +130,9 @@ interface ChatClientProps {
 const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || "http://localhost:3002";
 
-const TOKEN_BATCH_INTERVAL = 500;
+const CHARACTER_REVEAL_INTERVAL = 18;
 const ACTIVE_VIZA_SESSION_STORAGE_KEY = "viza_chat_session_id";
+const CONNECTION_TOAST_ID = "viza-agent-connection";
 
 type ChatAgentMode = "viza" | "travel";
 
@@ -137,13 +141,13 @@ interface PendingVizaMessage {
   sessionId: string;
 }
 
-function getSessionDisplayTitle(session: Session): string {
-  return session.title || session.firstMessagePreview || "New conversation";
+function getSessionDisplayTitle(session: Session, fallback: string): string {
+  return session.title || session.firstMessagePreview || fallback;
 }
 
-function formatSessionDate(value: string | null): string {
+function formatSessionDate(value: string | null, locale: string): string {
   if (!value) return "";
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
@@ -165,13 +169,21 @@ function formatStoredMessages(messages: Message[]): SocketChatMessage[] {
 function formatStoredBlocks(
   messages: Message[]
 ): Array<{ id: string; payload: ApplicationBlockPayload; timestamp: number }> {
-  return messages
+  const storedBlocks = messages
     .filter((msg) => msg.senderType === "block" && msg.blockData)
     .map((msg) => ({
       id: msg.id,
       payload: msg.blockData as unknown as ApplicationBlockPayload,
       timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
     }));
+
+  return [
+    ...storedBlocks,
+    ...buildLegacyApplicationBlocks(
+      messages,
+      storedBlocks.map((block) => block.payload)
+    ),
+  ].sort((left, right) => left.timestamp - right.timestamp);
 }
 
 function parseRequestedChatMode(value: string | null): ChatAgentMode | null {
@@ -201,21 +213,32 @@ function ChatSessionPanel({
   onClose?: () => void;
   onCollapse?: () => void;
 }) {
+  const t = useTranslations("chat");
+  const locale = useLocale();
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<
     string | null
   >(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [pendingSessionAction, setPendingSessionAction] = useState<string | null>(
     null
   );
 
   const actionDisabled = disabled || pendingSessionAction !== null;
+  const normalizedSearchValue = searchValue.trim().toLocaleLowerCase(locale);
+  const visibleSessions = normalizedSearchValue
+    ? sessions.filter((session) =>
+        getSessionDisplayTitle(session, t("sessionUntitled"))
+          .toLocaleLowerCase(locale)
+          .includes(normalizedSearchValue)
+      )
+    : sessions;
 
   const startRename = (session: Session) => {
     setDeleteConfirmSessionId(null);
     setEditingSessionId(session.id);
-    setDraftTitle(getSessionDisplayTitle(session));
+    setDraftTitle(getSessionDisplayTitle(session, t("sessionUntitled")));
   };
 
   const cancelRename = () => {
@@ -246,69 +269,82 @@ function ChatSessionPanel({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
-        <div>
-          <p className="text-base font-semibold leading-tight text-[#3d3d3d]">
-            VIZA chats
-          </p>
-          <p className="mt-1 text-xs leading-snug text-[rgba(0,0,0,0.48)]">
-            Separate visa conversations
-          </p>
-        </div>
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#fafafa] text-gray-900">
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2">
+        <p className="font-heading text-[22px] font-medium leading-tight text-foreground">
+          {t("sessionPanelTitle")}
+        </p>
         {(onCollapse || onClose) && (
-          <div className="flex items-center gap-1">
-          {onCollapse && (
-            <button
-              aria-label="Collapse VIZA chat list"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
-              onClick={onCollapse}
-              type="button"
-            >
-              <PanelLeft className="h-4 w-4" />
-            </button>
-          )}
-          {onClose && (
-            <button
-              aria-label="Close chat list"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
-              onClick={onClose}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {onCollapse && (
+              <button
+                aria-label={t("sessionCollapse")}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onCollapse}
+                type="button"
+              >
+                <PanelLeft className="h-5 w-5" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                aria-label={t("sessionClose")}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onClose}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="shrink-0 space-y-0 pb-4 pt-1">
+        <label className="flex min-h-11 items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground transition-colors focus-within:text-foreground">
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="sr-only">{t("searchChats")}</span>
+          <input
+            className="min-w-0 flex-1 bg-transparent py-2 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground"
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder={t("searchChats")}
+            type="search"
+            value={searchValue}
+          />
+        </label>
         <button
-          className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
           disabled={actionDisabled}
           onClick={onNewSession}
           type="button"
         >
-          <Plus className="h-4 w-4" />
-          <span>New chat</span>
+          <SquarePen className="h-[18px] w-[18px]" />
+          <span>{t("sessionNew")}</span>
         </button>
+      </div>
 
-        {sessions.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-gray-400">
-            No conversations yet
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {sessions.map((session) => {
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p className="shrink-0 pb-1 text-sm font-medium text-muted-foreground">
+          {t("sessionRecent")}
+        </p>
+
+        <div className="min-h-0 flex-1 overflow-y-auto pb-3 [scrollbar-color:#c7ced8_transparent] [scrollbar-width:thin]">
+          {visibleSessions.length === 0 ? (
+            <p className="py-1 text-sm text-muted-foreground">
+              {sessions.length === 0 ? t("noConversations") : t("noResults")}
+            </p>
+          ) : (
+            <div className="space-y-0.5">
+              {visibleSessions.map((session) => {
               const active = session.id === activeSessionId;
-              const title = getSessionDisplayTitle(session);
+              const title = getSessionDisplayTitle(session, t("sessionUntitled"));
               const editing = editingSessionId === session.id;
               const confirmingDelete = deleteConfirmSessionId === session.id;
 
               if (editing) {
                 return (
                   <form
-                    className="rounded-md border border-[#03346E]/20 bg-[#03346E]/5 p-2"
+                    className="rounded-xl border border-[#03346E]/15 bg-white p-2 shadow-sm"
                     key={session.id}
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -316,7 +352,7 @@ function ChatSessionPanel({
                     }}
                   >
                     <input
-                      aria-label="Conversation title"
+                      aria-label={t("sessionTitleInput")}
                       autoFocus
                       className="w-full rounded bg-white px-2.5 py-2 text-sm text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
                       disabled={pendingSessionAction !== null}
@@ -336,7 +372,7 @@ function ChatSessionPanel({
                         disabled={pendingSessionAction !== null}
                         type="submit"
                       >
-                        Save
+                        {t("sessionSave")}
                       </button>
                       <button
                         className="rounded-md px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-white disabled:opacity-40"
@@ -344,7 +380,7 @@ function ChatSessionPanel({
                         onClick={cancelRename}
                         type="button"
                       >
-                        Cancel
+                        {t("sessionCancel")}
                       </button>
                     </div>
                   </form>
@@ -359,14 +395,14 @@ function ChatSessionPanel({
                   >
                     <div className="min-w-0 flex-1 px-2">
                       <span className="block text-sm font-medium text-red-700">
-                        Delete conversation?
+                        {t("sessionDeleteConfirm")}
                       </span>
                       <span className="block truncate text-xs text-red-500">
                         {title}
                       </span>
                     </div>
                     <button
-                      aria-label={`Confirm delete ${title}`}
+                      aria-label={t("sessionConfirmDelete", { title })}
                       className="flex h-7 w-7 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-100 disabled:opacity-40"
                       disabled={pendingSessionAction !== null}
                       onClick={() => {
@@ -377,7 +413,7 @@ function ChatSessionPanel({
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      aria-label="Cancel delete"
+                      aria-label={t("sessionCancelDelete")}
                       className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white disabled:opacity-40"
                       disabled={pendingSessionAction !== null}
                       onClick={() => setDeleteConfirmSessionId(null)}
@@ -392,16 +428,16 @@ function ChatSessionPanel({
               return (
                 <div
                   className={cn(
-                    "group flex w-full items-center rounded-md transition-colors",
+                    "group flex w-full items-center rounded-lg transition-colors",
                     active
-                      ? "bg-[#03346E]/8 text-[#03346E]"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "text-brand-500"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                   key={session.id}
                 >
                   <button
                     aria-pressed={active}
-                    className="min-h-11 min-w-0 flex-1 px-2.5 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 min-w-0 flex-1 py-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={actionDisabled}
                     onClick={() => onSelectSession(session.id)}
                     type="button"
@@ -409,13 +445,13 @@ function ChatSessionPanel({
                     <span className="block truncate text-sm font-medium leading-snug">
                       {title}
                     </span>
-                    <span className="mt-0.5 block text-xs leading-snug text-gray-400">
-                      {formatSessionDate(session.createdAt)}
+                    <span className="mt-0.5 block text-xs leading-snug text-muted-foreground/70">
+                      {formatSessionDate(session.createdAt, locale)}
                     </span>
                   </button>
                   <div className="flex items-center gap-0.5 pr-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                     <button
-                      aria-label={`Rename ${title}`}
+                      aria-label={t("sessionRename", { title })}
                       className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-white hover:text-[#03346E] disabled:opacity-40"
                       disabled={actionDisabled}
                       onClick={() => startRename(session)}
@@ -424,7 +460,7 @@ function ChatSessionPanel({
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      aria-label={`Delete ${title}`}
+                      aria-label={t("sessionDelete", { title })}
                       className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                       disabled={actionDisabled}
                       onClick={() => setDeleteConfirmSessionId(session.id)}
@@ -438,6 +474,7 @@ function ChatSessionPanel({
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -621,7 +658,7 @@ export function ChatClient({
   );
   const [showDebug] = useState(false);
   const [sessionPanelOpen, setSessionPanelOpen] = useState(false);
-  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(true);
+  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingVizaMessage[]>([]);
@@ -651,9 +688,14 @@ export function ChatClient({
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const activeSessionIdRef = useRef<string | null>(sessionId);
   const prevScrollHeightRef = useRef<number>(0);
   const hasScrolledToBottomRef = useRef(false);
   const queuedMessageRef = useRef<{ message: string; tempId: string } | null>(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // ==========================================================================
   // Socket Management
@@ -664,7 +706,8 @@ export function ChatClient({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const tokenBufferRef = useRef<string>("");
-  const tokenFlushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tokenRevealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingResponseCompleteRef = useRef<ResponseCompleteEvent | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
   const chatContextRef = useRef<SocketChatMessage[]>([]);
 
@@ -708,10 +751,37 @@ export function ChatClient({
     [userId]
   );
 
+  const finishResponseComplete = useCallback(
+    (event: ResponseCompleteEvent) => {
+      if (currentMessageIdRef.current) {
+        const messageId = currentMessageIdRef.current;
+        setSocketMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, isStreaming: false, content: event.fullResponse || "" }
+              : msg
+          )
+        );
+        currentMessageIdRef.current = null;
+      }
+
+      if (event.sessionId && event.fullResponse?.trim()) {
+        ensureMessagePersisted(event.sessionId, "assistant", event.fullResponse);
+      }
+    },
+    [ensureMessagePersisted]
+  );
+
+  const stopTokenReveal = useCallback(() => {
+    if (tokenRevealIntervalRef.current) {
+      clearInterval(tokenRevealIntervalRef.current);
+      tokenRevealIntervalRef.current = null;
+    }
+  }, []);
+
   const flushTokenBuffer = useCallback(() => {
     if (tokenBufferRef.current) {
       const buffered = tokenBufferRef.current;
-      addLog("token", { text: buffered });
       tokenBufferRef.current = "";
 
       if (currentMessageIdRef.current) {
@@ -725,17 +795,46 @@ export function ChatClient({
         );
       }
     }
-    if (tokenFlushTimeoutRef.current) {
-      clearTimeout(tokenFlushTimeoutRef.current);
-      tokenFlushTimeoutRef.current = null;
+    stopTokenReveal();
+    if (pendingResponseCompleteRef.current) {
+      const completed = pendingResponseCompleteRef.current;
+      pendingResponseCompleteRef.current = null;
+      finishResponseComplete(completed);
     }
-  }, [addLog]);
+  }, [finishResponseComplete, stopTokenReveal]);
 
-  const scheduleTokenFlush = useCallback(() => {
-    if (!tokenFlushTimeoutRef.current) {
-      tokenFlushTimeoutRef.current = setTimeout(flushTokenBuffer, TOKEN_BATCH_INTERVAL);
-    }
-  }, [flushTokenBuffer]);
+  const scheduleTokenReveal = useCallback(() => {
+    if (tokenRevealIntervalRef.current) return;
+
+    tokenRevealIntervalRef.current = setInterval(() => {
+      const buffered = tokenBufferRef.current;
+      if (!buffered) {
+        stopTokenReveal();
+        if (pendingResponseCompleteRef.current) {
+          const completed = pendingResponseCompleteRef.current;
+          pendingResponseCompleteRef.current = null;
+          finishResponseComplete(completed);
+        }
+        return;
+      }
+
+      const codePoint = buffered.codePointAt(0);
+      if (codePoint === undefined) return;
+      const nextCharacter = String.fromCodePoint(codePoint);
+      tokenBufferRef.current = buffered.slice(nextCharacter.length);
+
+      if (currentMessageIdRef.current) {
+        const msgId = currentMessageIdRef.current;
+        setSocketMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? { ...msg, content: (msg.content || "") + nextCharacter }
+              : msg
+          )
+        );
+      }
+    }, CHARACTER_REVEAL_INTERVAL);
+  }, [finishResponseComplete, stopTokenReveal]);
 
   const connect = useCallback(() => {
     if (socketRef.current?.connected) return;
@@ -747,7 +846,10 @@ export function ChatClient({
       transports: ["polling", "websocket"],
       upgrade: true,
       reconnection: true,
-      reconnectionAttempts: 10,
+      // Render can need more than a minute to wake a sleeping instance. Keep
+      // retrying long enough for that cold start instead of abandoning the
+      // chat connection while the service is still coming online.
+      reconnectionAttempts: 20,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       timeout: 20000,
@@ -757,24 +859,36 @@ export function ChatClient({
 
     socket.on("connect", () => {
       setStatus("connected");
+      toast.dismiss(CONNECTION_TOAST_ID);
       addLog("connected", { socketId: socket.id });
       socket.emit("join_room", `user:${userId}`);
     });
 
     socket.on("disconnect", (reason) => {
-      setStatus("disconnected");
+      setStatus(socket.active ? "connecting" : "disconnected");
       addLog("disconnected", { reason });
       flushTokenBuffer();
     });
 
     socket.on("connect_error", (error) => {
-      setStatus("error");
+      // `active` means Socket.IO will automatically retry. A failed polling
+      // attempt during a backend cold start is therefore still "connecting",
+      // not a terminal connection error.
+      setStatus(socket.active ? "connecting" : "error");
       addLog("error", { message: error.message, type: "connect_error" });
+    });
+
+    socket.io.on("reconnect_attempt", () => {
+      setStatus("connecting");
+    });
+
+    socket.io.on("reconnect_failed", () => {
+      setStatus("error");
     });
 
     socket.on("token", (event: TokenEvent) => {
       tokenBufferRef.current += event.payload;
-      scheduleTokenFlush();
+      scheduleTokenReveal();
     });
 
     socket.on("tool_call", (event: ToolCallEvent) => {
@@ -796,7 +910,6 @@ export function ChatClient({
     });
 
     socket.on("response_complete", (event: ResponseCompleteEvent) => {
-      flushTokenBuffer();
       addLog("response_complete", {
         duration: event.duration,
         toolsUsed: event.toolsUsed,
@@ -804,20 +917,12 @@ export function ChatClient({
         responseLength: event.fullResponse?.length || 0,
       });
 
-      if (currentMessageIdRef.current) {
-        const messageId = currentMessageIdRef.current;
-        setSocketMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === messageId
-              ? { ...msg, isStreaming: false, content: event.fullResponse || "" }
-              : msg
-          )
-        );
-        currentMessageIdRef.current = null;
-      }
-
-      if (event.sessionId && event.fullResponse?.trim()) {
-        ensureMessagePersisted(event.sessionId, "assistant", event.fullResponse);
+      pendingResponseCompleteRef.current = event;
+      if (tokenBufferRef.current) {
+        scheduleTokenReveal();
+      } else {
+        pendingResponseCompleteRef.current = null;
+        finishResponseComplete(event);
       }
     });
 
@@ -894,9 +999,9 @@ export function ChatClient({
   }, [
     userId,
     addLog,
-    ensureMessagePersisted,
+    finishResponseComplete,
     flushTokenBuffer,
-    scheduleTokenFlush,
+    scheduleTokenReveal,
   ]);
 
   const disconnect = useCallback(() => {
@@ -993,14 +1098,6 @@ export function ChatClient({
     return () => disconnect();
   }, [connect, disconnect]);
 
-  useEffect(() => {
-    return () => {
-      if (tokenFlushTimeoutRef.current) {
-        clearTimeout(tokenFlushTimeoutRef.current);
-      }
-    };
-  }, []);
-
   // ==========================================================================
   // Continuous Chat Hook
   // ==========================================================================
@@ -1046,10 +1143,8 @@ export function ChatClient({
   const resetRuntimeMessages = useCallback(() => {
     flushTokenBuffer();
     tokenBufferRef.current = "";
-    if (tokenFlushTimeoutRef.current) {
-      clearTimeout(tokenFlushTimeoutRef.current);
-      tokenFlushTimeoutRef.current = null;
-    }
+    pendingResponseCompleteRef.current = null;
+    stopTokenReveal();
     currentMessageIdRef.current = null;
     queuedMessageRef.current = null;
     prevSocketMessagesRef.current = [];
@@ -1060,7 +1155,7 @@ export function ChatClient({
     setBlockMessages([]);
     setShowNewMessageButton(false);
     setShowScrollToBottom(false);
-  }, [flushTokenBuffer, setShowNewMessageButton, setShowScrollToBottom]);
+  }, [flushTokenBuffer, setShowNewMessageButton, setShowScrollToBottom, stopTokenReveal]);
 
   useEffect(() => {
     const prev = prevSocketMessagesRef.current;
@@ -1086,11 +1181,35 @@ export function ChatClient({
     [chatMessages]
   );
 
+  const visibleBlockMessages = useMemo(() => {
+    const legacyBlocks = buildLegacyApplicationBlocks(
+      chatMessages.map((message) => ({
+        id: message.id,
+        sessionId: sessionId ?? "current-session",
+        senderType: message.role === "user" ? "user" : "agent",
+        content: message.content,
+        intent: null,
+        riskLevel: null,
+        createdAt: new Date(message.timestamp).toISOString(),
+      })),
+      blockMessages.map((block) => block.payload)
+    );
+
+    return [...blockMessages, ...legacyBlocks].sort(
+      (left, right) => left.timestamp - right.timestamp
+    );
+  }, [blockMessages, chatMessages, sessionId]);
+
   const shouldShowNewChatGreeting =
     !isLoadingMessages &&
     chatMessages.length === 0 &&
     pendingComponents.length === 0 &&
-    blockMessages.length === 0;
+    visibleBlockMessages.length === 0;
+  const starterPrompts = [
+    t("starterRoute"),
+    t("starterDocuments"),
+    t("starterTiming"),
+  ];
 
   const wasStreamingRef = useRef(false);
   useEffect(() => {
@@ -1226,8 +1345,9 @@ export function ChatClient({
 
   useEffect(() => {
     if (status === "error") {
-      toast.error(t("connectionReconnecting"));
+      toast.error(t("connectionUnavailable"), { id: CONNECTION_TOAST_ID });
     } else if (status === "connected" && pendingMessages.length > 0) {
+      toast.dismiss(CONNECTION_TOAST_ID);
       for (const pending of pendingMessages) {
         socketSendMessage(pending.message, pending.sessionId);
       }
@@ -1272,6 +1392,7 @@ export function ChatClient({
       return;
     }
 
+    activeSessionIdRef.current = null;
     setSessionId(null);
     sessionStorage.removeItem(ACTIVE_VIZA_SESSION_STORAGE_KEY);
     setChatMessages([]);
@@ -1299,6 +1420,7 @@ export function ChatClient({
       }
 
       setIsLoadingMessages(true);
+      activeSessionIdRef.current = nextSessionId;
       setSessionId(nextSessionId);
       sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, nextSessionId);
       setShowChat(true);
@@ -1355,7 +1477,7 @@ export function ChatClient({
       const result = await renameSession(userId, targetSessionId, nextTitle);
 
       if (!result.success) {
-        toast.error(result.error || "Failed to rename conversation");
+        toast.error(result.error || t("sessionRenameFailed"));
         return false;
       }
 
@@ -1371,25 +1493,23 @@ export function ChatClient({
           return nextSession;
         })
       );
-      toast.success(
-        result.title ? "Conversation renamed" : "Conversation title cleared"
-      );
+      toast.success(result.title ? t("sessionRenamed") : t("sessionTitleCleared"));
       return true;
     },
-    [userId]
+    [t, userId]
   );
 
   const handleDeleteVizaSession = useCallback(
     async (targetSessionId: string) => {
       if (isStreaming) {
-        toast.info("Please wait for the current response to finish.");
+        toast.info(t("sessionWaitForResponse"));
         return false;
       }
 
       const result = await deleteSession(userId, targetSessionId);
 
       if (!result.success) {
-        toast.error(result.error || "Failed to delete conversation");
+        toast.error(result.error || t("sessionDeleteFailed"));
         return false;
       }
 
@@ -1413,7 +1533,7 @@ export function ChatClient({
         }
       }
 
-      toast.success("Conversation deleted");
+      toast.success(t("sessionDeleted"));
       return true;
     },
     [
@@ -1424,6 +1544,7 @@ export function ChatClient({
       sessionId,
       sessions,
       setChatMessages,
+      t,
       userId,
     ]
   );
@@ -1441,6 +1562,7 @@ export function ChatClient({
         }
 
         effectiveSessionId = newSession.id;
+        activeSessionIdRef.current = effectiveSessionId;
         setSessionId(effectiveSessionId);
         sessionStorage.setItem(ACTIVE_VIZA_SESSION_STORAGE_KEY, effectiveSessionId);
         setSessions((prev) => [
@@ -1600,11 +1722,18 @@ export function ChatClient({
 
   return (
     <div className="chat-page fixed top-[104px] bottom-0 left-0 right-0 bg-[#fafafa] z-10 border-t border-[#e5e5e5]">
-      {chatMode === "viza" && !sessionPanelCollapsed && (
+      {chatMode === "viza" && (
         <>
           <aside
-            className="absolute bottom-3 left-3 top-3 z-20 hidden w-[240px] lg:block"
+            aria-hidden={sessionPanelCollapsed}
+            className={cn(
+              "absolute bottom-6 left-4 top-6 z-20 hidden w-[220px] transition-[opacity,transform] duration-200 ease-out lg:block xl:left-20",
+              sessionPanelCollapsed
+                ? "pointer-events-none -translate-x-[18px] opacity-0"
+                : "translate-x-0 opacity-100"
+            )}
             data-testid="viza-session-sidebar"
+            inert={sessionPanelCollapsed}
           >
             <ChatSessionPanel
               activeSessionId={sessionId}
@@ -1621,57 +1750,50 @@ export function ChatClient({
             />
           </aside>
 
-          {sessionPanelOpen && (
-            <div className="fixed inset-x-0 bottom-0 top-[104px] z-40 lg:hidden">
-              <button
-                aria-label="Close chat list"
-                className="absolute inset-0 bg-black/20"
-                onClick={() => {
-                  setSessionPanelOpen(false);
-                  setSessionPanelCollapsed(true);
-                }}
-                type="button"
-              />
-              <aside className="absolute bottom-3 left-3 top-3 w-[min(82vw,280px)] shadow-xl">
-                <ChatSessionPanel
-                  activeSessionId={sessionId}
-                  disabled={isStreaming || isLoadingMessages}
-                  onClose={() => {
-                    setSessionPanelOpen(false);
-                    setSessionPanelCollapsed(true);
-                  }}
-                  onDeleteSession={handleDeleteVizaSession}
-                  onNewSession={handleNewVizaSession}
-                  onRenameSession={handleRenameVizaSession}
-                  onSelectSession={handleSessionSelect}
-                  sessions={sessions}
-                />
-              </aside>
-            </div>
-          )}
+          <div
+            aria-hidden={!sessionPanelCollapsed}
+            className={cn(
+              "absolute left-4 top-6 z-30 hidden transition-[opacity,transform] duration-150 ease-out lg:flex xl:left-20",
+              sessionPanelCollapsed
+                ? "translate-x-0 opacity-100 delay-200"
+                : "pointer-events-none -translate-x-2 opacity-0"
+            )}
+            inert={!sessionPanelCollapsed}
+          >
+            <button
+              aria-label={t("sessionExpand")}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onClick={() => setSessionPanelCollapsed(false)}
+              type="button"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
+          </div>
         </>
       )}
 
-      {chatMode === "viza" && sessionPanelCollapsed && (
-        <button
-          aria-label="Expand VIZA chat list"
-          className="absolute left-4 top-4 z-30 hidden h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:flex"
-          onClick={() => setSessionPanelCollapsed(false)}
-          type="button"
-        >
-          <PanelLeft className="h-4 w-4" />
-        </button>
+      {chatMode === "viza" && !sessionPanelOpen && (
+        <div className="absolute left-4 top-4 z-30 lg:hidden">
+          <button
+            aria-label={t("sessionExpand")}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onClick={() => setSessionPanelOpen(true)}
+            type="button"
+          >
+            <PanelLeft className="h-5 w-5" />
+          </button>
+        </div>
       )}
 
-      {chatMode === "viza" && sessionPanelCollapsed && sessionPanelOpen && (
-        <div className="fixed inset-x-0 bottom-0 top-[104px] z-40 lg:hidden">
+      {chatMode === "viza" && sessionPanelOpen && (
+        <div className="fixed inset-x-0 bottom-0 top-[105px] z-40 lg:hidden">
           <button
-            aria-label="Close chat list"
+            aria-label={t("sessionClose")}
             className="absolute inset-0 bg-black/20"
             onClick={() => setSessionPanelOpen(false)}
             type="button"
           />
-          <aside className="absolute bottom-3 left-3 top-3 w-[min(82vw,280px)] shadow-xl">
+          <aside className="absolute bottom-0 left-0 top-0 w-[min(88vw,300px)] bg-[#fafafa] px-4 py-6">
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
@@ -1700,14 +1822,6 @@ export function ChatClient({
               transition={{ duration: 0.25 }}
               className="flex-1 flex flex-col overflow-y-auto pt-6 pb-12 md:pb-4 md:pt-8 lg:py-10 h-full min-h-0"
             >
-              <button
-                aria-label="Open VIZA chat list"
-                className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm lg:hidden"
-                onClick={() => setSessionPanelOpen(true)}
-                type="button"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
               <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 lg:px-0">
                 <div className="max-w-4xl w-full mx-auto flex flex-col flex-1 justify-between">
                   <div className="w-full flex flex-col gap-3 md:gap-6">
@@ -1918,19 +2032,7 @@ export function ChatClient({
                           aria-label="Send message"
                         >
                           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-500 flex items-center justify-center">
-                            <svg
-                              className="w-4 h-4 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 10l7-7m0 0l7 7m-7-7v18"
-                              />
-                            </svg>
+                            <ArrowUp className="size-4 text-white" weight="bold" />
                           </div>
                         </button>
                       </div>
@@ -1962,28 +2064,6 @@ export function ChatClient({
                   chatMode === "travel" ? "max-w-[2100px]" : "max-w-[980px]"
                 )}
               >
-                {chatMode === "viza" && sessionPanelCollapsed && (
-                  <div className="mx-auto mb-2 mt-3 flex w-full max-w-[900px] items-center">
-                    <button
-                      aria-label="Open VIZA chat list"
-                      className="absolute left-4 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:hidden"
-                      onClick={() => setSessionPanelOpen(true)}
-                      type="button"
-                    >
-                      <PanelLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      aria-label="New VIZA chat"
-                      className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#03346E]/20 bg-white text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={isStreaming || isLoadingMessages}
-                      onClick={handleNewVizaSession}
-                      type="button"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-
                 {chatMode === "travel" ? (
                   <div className="w-full min-h-0 flex-1 overflow-hidden">
                     <TravelChatClient applicationId={travelApplicationId} embedded />
@@ -1993,7 +2073,12 @@ export function ChatClient({
                     <div
                       ref={messagesContainerRef}
                       onScroll={checkScrollPosition}
-                      className="relative mx-auto mb-0 w-full max-w-[760px] flex-1 space-y-8 overflow-y-auto overscroll-y-contain pt-6 min-h-0"
+                      className={cn(
+                        "relative mx-auto mb-0 w-full max-w-[760px] flex-1 overflow-y-auto overscroll-y-contain min-h-0",
+                        shouldShowNewChatGreeting
+                          ? "flex items-center justify-center"
+                          : "space-y-8 pt-6"
+                      )}
                       style={{ WebkitOverflowScrolling: "touch" }}
                     >
                   {continuousChat.isLoadingMore && (
@@ -2023,13 +2108,32 @@ export function ChatClient({
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="w-full"
+                      className="flex w-full flex-col items-center gap-8 pb-16"
                     >
-                      <ChatMessage
-                        role="agent"
-                        content={t("newChatGreeting")}
-                        density="compact"
+                      <h1 className="max-w-[620px] text-center text-2xl font-medium tracking-tight text-foreground sm:text-[28px]">
+                        {t("emptyPromptTitle")}
+                      </h1>
+                      <ChatInput
+                        buttonClassName="h-11 w-11"
+                        className="w-full flex-row items-end gap-2 rounded-2xl px-4 py-2 shadow-[0_1px_5px_rgba(15,23,42,0.08)]"
+                        disabled={isLoadingMessages}
+                        isConnecting={status === "connecting"}
+                        onSend={handleSendMessage}
+                        placeholder={t("inputPlaceholder")}
+                        textareaClassName="min-h-11 py-2 text-base leading-7"
                       />
+                      <div className="flex max-w-full flex-wrap justify-center gap-2">
+                        {starterPrompts.map((prompt) => (
+                          <button
+                            className="min-h-11 rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-brand-200 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            key={prompt}
+                            onClick={() => void handleSendMessage(prompt)}
+                            type="button"
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
                     </motion.div>
                   )}
 
@@ -2056,7 +2160,7 @@ export function ChatClient({
                   ))}
 
                   {/* Application redirect CTA messages from the VIZA backend */}
-                  {blockMessages.map((block) => (
+                  {visibleBlockMessages.map((block) => (
                     <motion.div
                       key={block.id}
                       initial={{ opacity: 0, y: 8 }}
@@ -2070,6 +2174,7 @@ export function ChatClient({
                   <div ref={messagesEndRef} />
                 </div>
 
+                    {!shouldShowNewChatGreeting && (
                     <div className="mt-auto pt-0 relative">
                       <ScrollToBottomFab
                         show={continuousChat.showScrollToBottom}
@@ -2091,6 +2196,7 @@ export function ChatClient({
                         {t("consultantDisclaimer")}
                       </p>
                     </div>
+                    )}
                   </>
                 )}
               </div>
@@ -2111,8 +2217,3 @@ export function ChatClient({
     </div>
   );
 }
-
-
-
-
-

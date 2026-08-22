@@ -11,7 +11,12 @@ describe("isIgnorableRuntimeAbortError", () => {
     expect(isIgnorableRuntimeAbortError(new Error("signal is aborted without reason"))).toBe(true);
   });
 
+  it("matches the plain abort error emitted by the Next server runtime", () => {
+    expect(isIgnorableRuntimeAbortError(new Error("aborted"))).toBe(true);
+  });
+
   it("does not match real runtime failures", () => {
     expect(isIgnorableRuntimeAbortError(new Error("permission denied for table applications"))).toBe(false);
+    expect(isIgnorableRuntimeAbortError(new Error("application load aborted after database failure"))).toBe(false);
   });
 });

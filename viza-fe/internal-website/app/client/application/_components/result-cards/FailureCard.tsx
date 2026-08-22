@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
+import { Warning as AlertTriangle, ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { SubmissionMode } from "@/lib/submission-queue";
 import { translateOfficialImagePortalError } from "@/lib/document-image-validation";
@@ -39,6 +41,7 @@ type FvOfficialAccount = {
 };
 
 const VALIDATION_LABELS: Record<string, string> = {
+  "profile.address": "居住地址 / Home address",
   "trip.purpose": "旅行目的 / Purpose of travel",
   "trip.accommodationName": "住宿名称 / Accommodation name",
   "answers.phone_number": "电话号码 / Phone number",
@@ -67,6 +70,7 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.purpose_of_entry": "入境目的 / Purpose of entry",
   "answers.intended_date_of_entry": "计划入境日期 / Intended entry date",
   "answers.intended_length_of_stay": "预计停留时间 / Length of stay",
+  "answers.intended_length_of_stay_value": "预计停留时间 / Length of stay",
   "answers.accommodation_name": "住宿名称 / Accommodation name",
   "answers.residential_address_in_vietnam": "越南住宿地址 / Address in Viet Nam",
   "answers.intended_province_city": "拟停留省/市 / Province or city",
@@ -82,7 +86,17 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.final_declaration": "最终声明确认 / Final declaration",
 };
 
-function parseValidationError(errorMessage?: string): { title: string; fields: string[] } | null {
+function localizedValidationLabel(field: string, isZh: boolean): string {
+  const label = VALIDATION_LABELS[field];
+  if (!label) return isZh ? "必填信息尚未完整" : field;
+  const [zh, en] = label.split(" / ", 2);
+  return isZh ? zh ?? label : en ?? label;
+}
+
+function parseValidationError(
+  errorMessage: string | undefined,
+  isZh: boolean,
+): { title: string; fields: string[] } | null {
   if (!errorMessage) return null;
   const marker = errorMessage.match(/^(Dry-run validation failed|Live-assisted validation failed):\s*(?:missing\s*)?/i);
   if (!marker) return null;
@@ -97,10 +111,32 @@ function parseValidationError(errorMessage?: string): { title: string; fields: s
   if (rawFields.length === 0) return null;
   return {
     title: marker[1]?.toLowerCase().startsWith("live")
-      ? "Live assisted needs more information before it can start."
-      : "Dry-run validation found missing information.",
-    fields: rawFields.map((field) => VALIDATION_LABELS[field] ?? field),
+      ? isZh
+        ? "启动官网自动填写前，还需要补充以下信息。"
+        : "Live assisted needs more information before it can start."
+      : isZh
+        ? "云端演练发现以下必填信息尚未完整。"
+        : "Dry-run validation found missing information.",
+    fields: rawFields.map((field) => localizedValidationLabel(field, isZh)),
   };
+}
+
+function localizedFailureMessage(errorMessage: string, isZh: boolean): string {
+  if (!isZh) return errorMessage;
+  const normalized = errorMessage.toLowerCase();
+  if (
+    normalized.includes("requires an uploaded applicant photo") ||
+    normalized.includes("applicant photo before ceac submission")
+  ) {
+    return "提交 DS-160 前必须上传符合要求的申请人照片。";
+  }
+  if (normalized.includes("requested visa type does not match")) {
+    return "所选签证类型与当前申请的签证类型不一致。";
+  }
+  if (normalized.includes("worker did not pick it up")) {
+    return "云端任务未被及时领取，请重新提交。";
+  }
+  return "云端任务未能完成，错误详情已记录。请重新提交；如果仍然失败，请联系支持人员。";
 }
 
 function isWorkerPickupError(errorMessage?: string): boolean {
@@ -198,16 +234,11 @@ export function FailureCard({
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardHolderName, setCardHolderName] = useState("");
   const [retryFailure, setRetryFailure] = useState<string | null>(null);
-  const cardNumberRef = useRef<HTMLInputElement>(null);
-  const cardExpiryRef = useRef<HTMLInputElement>(null);
-  const cardCvvRef = useRef<HTMLInputElement>(null);
-  const cardHolderNameRef = useRef<HTMLInputElement>(null);
-  const validationError = parseValidationError(errorMessage);
+  const validationError = parseValidationError(errorMessage, isZh);
+  const displayErrorMessage = errorMessage
+    ? localizedFailureMessage(errorMessage, isZh)
+    : null;
   const workerPickupError = isWorkerPickupError(errorMessage);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
@@ -218,24 +249,8 @@ export function FailureCard({
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
-  const requiresPaymentCard =
+  const requiresManagedPayment =
     requiresOfficialPaymentCard || requiresVietnamPaymentCard || indonesiaPaymentFailure;
-  const cardReady =
-    !requiresPaymentCard ||
-    (
-      cardNumber.replace(/\D/g, "").length >= 12 &&
-      cardExpiry.trim().length >= 4 &&
-      cardCvv.replace(/\D/g, "").length >= 3 &&
-      (!indonesiaPaymentFailure || cardHolderName.trim().length >= 2)
-    );
-  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
-    ? {
-        pan: cardNumber,
-        expiry: cardExpiry,
-        cvv: cardCvv,
-        holderName: cardHolderName,
-      }
-    : undefined;
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -267,34 +282,10 @@ export function FailureCard({
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry || retryingMode !== null) return;
-    if (!cardReady) {
-      setRetryFailure(
-        isZh
-          ? indonesiaPaymentFailure
-            ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
-            : "请填写银行卡号、有效期和 CVV 后再提交。"
-          : indonesiaPaymentFailure
-            ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
-            : "Enter the card number, expiry, and CVV before submitting.",
-      );
-      if (cardNumber.replace(/\D/g, "").length < 12) {
-        cardNumberRef.current?.focus();
-      } else if (cardExpiry.trim().length < 4) {
-        cardExpiryRef.current?.focus();
-      } else if (cardCvv.replace(/\D/g, "").length < 3) {
-        cardCvvRef.current?.focus();
-      } else {
-        cardHolderNameRef.current?.focus();
-      }
-      return;
-    }
     setRetryFailure(null);
     setRetryingMode(mode);
     try {
-      await onRetry(mode, vietnamPaymentCard);
-      if (requiresPaymentCard) {
-        setCardCvv("");
-      }
+      await onRetry(mode);
     } catch (error) {
       setRetryFailure(
         error instanceof Error
@@ -304,12 +295,6 @@ export function FailureCard({
             : "The submission job could not be started. Please try again.",
       );
     } finally {
-      if (requiresPaymentCard) {
-        setCardNumber("");
-        setCardExpiry("");
-        setCardCvv("");
-        setCardHolderName("");
-      }
       setRetryingMode(null);
     }
   };
@@ -358,18 +343,18 @@ export function FailureCard({
                 : "The cloud submission job did not advance in time. Your answers are saved; submit again to create a new cloud job and continue tracking it.")
             : indonesiaPaymentFailure
             ? (isZh
-                ? "印尼官网付款没有成功。你的申请答案已保存；请重新填写本次银行卡后重试，VIZA 会再次在云端完成付款并确认最终结果。"
-                : "The Indonesia official payment did not succeed. Your application answers are saved; enter the one-time card again and VIZA will retry and confirm the final result in the cloud.")
+                ? "印尼官网付款没有成功。你的申请答案已保存；请重试，VIZA 会使用此申请专用的限额虚拟卡再次付款并确认最终结果。"
+                : "The Indonesia official payment did not succeed. Your answers are saved; retry and VIZA will use this application's limited virtual card to pay again and confirm the result.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
         {vnPrearrivalVisaNumberError ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-950">
-            {isZh
+          <ClientErrorAlert
+            message={isZh
               ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
               : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
-          </div>
+          />
         ) : vnPrearrivalOtpErrorKind ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
             {vnPrearrivalOtpErrorKind === "consent_required"
@@ -399,9 +384,9 @@ export function FailureCard({
               ))}
             </ul>
           </div>
-        ) : errorMessage && (
+        ) : displayErrorMessage && (
           <pre className="whitespace-pre-wrap break-words rounded-md border border-input bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
-            {errorMessage}
+            {displayErrorMessage}
           </pre>
         )}
         {applicationId &&
@@ -416,96 +401,27 @@ export function FailureCard({
             </a>
           </Button>
         )}
-        {requiresPaymentCard && (
-          <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4">
-            <div className="flex items-start gap-3">
-              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "补填本次官方付款银行卡" : "Add one-time official payment card"}
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期、CVV 和银行卡上的持卡人姓名。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
-                    : "Before retrying, enter the card number, expiry, CVV, and cardholder name printed on the card. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                <input
-                  ref={cardNumberRef}
-                  value={cardNumber}
-                  onChange={(event) => setCardNumber(event.target.value)}
-                  autoComplete="cc-number"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                <input
-                  ref={cardExpiryRef}
-                  value={cardExpiry}
-                  onChange={(event) => setCardExpiry(event.target.value)}
-                  autoComplete="cc-exp"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder="MM/YY"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">CVV</span>
-                <input
-                  ref={cardCvvRef}
-                  value={cardCvv}
-                  onChange={(event) => setCardCvv(event.target.value)}
-                  autoComplete="cc-csc"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder="CVV"
-                />
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">
-                  {indonesiaPaymentFailure
-                    ? (isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)")
-                    : (isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)")}
-                </span>
-                <input
-                  ref={cardHolderNameRef}
-                  value={cardHolderName}
-                  onChange={(event) => setCardHolderName(event.target.value)}
-                  autoComplete="cc-name"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={indonesiaPaymentFailure
-                    ? (isZh ? "请输入银行卡上的姓名" : "Name printed on card")
-                    : (isZh ? "不填则使用 VIZA" : "Defaults to VIZA")}
-                />
-              </label>
-            </div>
-            {!cardReady && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        {requiresManagedPayment && (
+          <Alert variant="info">
+            <AlertIcon variant="info" />
+            <AlertTitle>{isZh ? "VIZA 将处理官方付款" : "VIZA will handle the official payment"}</AlertTitle>
+            <AlertDescription>
+              <p>
                 {isZh
-                  ? indonesiaPaymentFailure
-                    ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
-                    : "请填写银行卡号、有效期和 CVV 后再提交。"
-                  : indonesiaPaymentFailure
-                    ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
-                    : "Enter the card number, expiry, and CVV before submitting."}
+                  ? "无需输入银行卡资料或前往官网付款。重试后，VIZA 会使用仅限此申请和已核对金额的虚拟卡继续。"
+                  : "Do not enter card details or pay on the official portal. On retry, VIZA will continue with a virtual card limited to this application and verified amount."}
               </p>
-            )}
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
         {retryFailure && (
-          <div
-            role="alert"
-            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-800"
-          >
-            {retryFailure}
-          </div>
+          <Alert variant="destructive">
+            <AlertIcon variant="destructive" />
+            <AlertTitle>{isZh ? "重试失败" : "Retry failed"}</AlertTitle>
+            <AlertDescription>
+              <p>{retryFailure}</p>
+            </AlertDescription>
+          </Alert>
         )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>

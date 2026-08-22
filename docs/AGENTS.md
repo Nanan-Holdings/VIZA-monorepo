@@ -16,22 +16,45 @@ reports, and workflow documentation for VIZA.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
 - `application/UG.md`: application form user guide.
+- `application/schema-ui-contract.md`: canonical mapping from scraped master
+  schema fields to frozen application components, conditional-panel ownership,
+  strict audit workflow, and the edge-case component backlog.
 - `viza-ai-chat-development-guide.md`: VIZA AI chat guide.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
   destination-index runbook, and known limitations.
+- `infra/1000-user-concurrency-roadmap.md`: measured concurrency assumptions,
+  current code baseline, and the infrastructure scaling sequence for a
+  1,000-session target; recommendations only, not applied configuration.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
 - `pitch/**`: pitch-deck-ready product/module summaries and bilingual investor
   narrative material.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
+- `application-qa-multithread-testing.md`: authenticated Universal Profile
+  completion and six-tab Chrome QA across every DB-driven application schema.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
+- `db/database-architecture-governance.md`: metadata-only production database
+  architecture audit, immutable migration CI, and hash-pinned approved-batch
+  operating contract.
+- `operations/supabase-self-heal.md`: production Supabase health probes,
+  guarded restart policy, GitHub Actions controls, and incident runbook.
+- `operations/viza-zero-ops-resilience.md`: three-layer database pressure,
+  encrypted continuity, independent watchdog, replay, and disaster-recovery
+  deployment runbook.
+- `observability/public-status-tracking.md`: ADR and deployment contract for
+  evidence-backed public service/portal availability.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
 - `superpowers/plans/*`: implementation plans written before staged feature
   work; keep them aligned with the current module guides and product scope.
+- `superpowers/specs/*`: approved design notes that record scope, alternatives,
+  data flow, error handling, and verification criteria before implementation.
+- `superpowers/specs/2026-08-14-pre-958-dynamic-form-ui-rollback-design.md`:
+  exact frontend-only rollback boundary for the shared dynamic-form UI changed
+  by `958d69d6`, preserving that commit's submission-service fixes.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
   assistant provider mapping, China gated assisted-live scope, dry-run fallback,
@@ -39,6 +62,11 @@ reports, and workflow documentation for VIZA.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
 - `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
   scope and gaps.
+- `canada-visa-scope.md`, `turkiye-visa-scope.md`,
+  `india-visa-scope.md`, `saudi-arabia-visa-scope.md`, and
+  `uae-visa-scope.md`: official product boundaries, captured fields,
+  document ownership, evidence confidence, and remaining authenticated-portal
+  QA for the five-country tourist-form expansion.
 - `_templates/*`: templates for future visa scope/gap docs.
 
 ## Ownership Boundaries

@@ -3,12 +3,6 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel could not start because the traveller's VIZA answers are incomplete or unsupported.",
   ph_etravel_stopped_before_submit:
     "Philippines eTravel reached the official Review step and stopped before final submit.",
-  ph_etravel_final_submit_disabled:
-    "Philippines eTravel final Submit is disabled for this runner.",
-  ph_etravel_final_submit_authorization_required:
-    "Philippines eTravel final Submit requires a separate one-time authorization.",
-  ph_etravel_final_submit_authorization_consumed:
-    "Philippines eTravel final Submit authorization was already consumed and cannot be reused.",
   ph_etravel_confirmation_evidence_missing:
     "Philippines eTravel needs recovery because VIZA could not confirm an authoritative official reference and reference-derived QR render.",
   ph_etravel_authoritative_result_read_required:
@@ -21,26 +15,10 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel ordinary arrival automation does not support this traveller category.",
   ph_etravel_arrival_for_other_action_required:
     "Philippines eTravel needs operator review because the ordinary For Other registration path is not verified.",
-  ph_etravel_registration_for_action_required:
-    "Philippines eTravel needs operator review because the registration target is missing or unsupported.",
-  ph_etravel_arrival_choice_action_required:
-    "Philippines eTravel needs operator review because the official ARRIVAL choice could not be verified.",
-  ph_etravel_transport_choice_action_required:
-    "Philippines eTravel needs operator review because the official AIR or SEA choice could not be verified.",
-  ph_etravel_registration_consent_required:
-    "Philippines eTravel needs auditable VIZA authorization for the Data Privacy and Affidavit terms before official Continue.",
-  ph_etravel_initial_registration_selection_failed:
-    "Philippines eTravel needs operator review because an official Travel Registration choice did not remain selected.",
   ph_etravel_launch_profile_persona_review_required:
     "Philippines eTravel launch is blocked until the enabled profile and persona branch is verified.",
   ph_etravel_launch_residence_review_required:
     "Philippines eTravel launch is blocked until the enabled residence branch is verified.",
-  ph_etravel_residence_action_required:
-    "Philippines eTravel needs operator review because the permanent residence could not be matched to the official address hierarchy.",
-  ph_etravel_profile_save_authorization_required:
-    "Philippines eTravel reached Personal Information Review and needs separate authorization to save the official eGovPH basic profile.",
-  ph_etravel_profile_save_not_completed:
-    "Philippines eTravel needs operator review because the official basic-profile save did not reach the dashboard.",
   ph_etravel_launch_air_travel_review_required:
     "Philippines eTravel launch is blocked until the enabled AIR travel and destination branches are verified.",
   ph_etravel_launch_air_special_flight_review_required:
@@ -55,12 +33,8 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel launch is blocked until the SEA electronic positive customs continuation is verified.",
   ph_etravel_launch_currency_positive_review_required:
     "Philippines eTravel launch is blocked until the positive currency declaration branch is verified.",
-  ph_etravel_launch_goods_amount_checklist_required:
-    "Philippines eTravel launch is blocked because a positive goods amount needs at least one General Declaration item from 3 through 12.",
   ph_etravel_launch_attachment_review_required:
     "Philippines eTravel launch is blocked until attachment requiredness and server behavior are verified.",
-  ph_etravel_launch_customs_signature_review_required:
-    "Philippines eTravel launch is blocked until the official customs declaration signature gate is handled.",
   ph_etravel_launch_final_result_recovery_required:
     "Philippines eTravel launch is blocked until final result and recovery behavior are verified.",
   ph_etravel_structured_customs_action_required:
@@ -127,8 +101,6 @@ const PH_ETRAVEL_SAFE_ERROR_MESSAGES: Record<string, string> = {
     "Philippines eTravel could not continue because the official email verification checkpoint needs operator review.",
   ph_etravel_official_registration_verification_required:
     "Philippines eTravel could not continue because the official registration verification checkpoint needs operator review.",
-  ph_etravel_registration_password_policy_failed:
-    "Philippines eTravel could not continue because the managed account password did not satisfy the official password policy.",
   ph_etravel_registration_turnstile_blocked:
     "Philippines eTravel could not continue because the official Turnstile checkpoint needs operator review.",
   ph_etravel_official_portal_blocked:

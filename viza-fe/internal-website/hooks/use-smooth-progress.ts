@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 export type SmoothProgressStatus =
   | "queued"
@@ -18,6 +18,9 @@ export type SmoothProgressStatus =
 
 export interface UseSmoothProgressOptions {
   serverProgress?: number;
+  persistenceKey?: string;
+  progressCycleKey?: string | null;
+  resetPersistedProgressOnMount?: boolean;
   status?: SmoothProgressStatus | null;
   isComplete?: boolean;
   isFailed?: boolean;
@@ -27,6 +30,7 @@ export interface UseSmoothProgressOptions {
   step?: number;
   maxBeforeComplete?: number;
   initialProgress?: number;
+  syncToServerProgress?: boolean;
   onVisualComplete?: () => void;
 }
 
@@ -39,13 +43,64 @@ const WAITING_FOR_USER_STATUSES = new Set([
   "payment_required",
 ]);
 
+const persistedProgress = new Map<string, number>();
+const resetProgressCycles = new Set<string>();
+const resetProgressPersistenceKeys = new Set<string>();
+const MAX_PERSISTED_PROGRESS_ENTRIES = 50;
+const MAX_RESET_PROGRESS_CYCLES = 100;
+const SESSION_STORAGE_PREFIX = "viza:smooth-progress:";
+const PROGRESS_CYCLE_KEY_PREFIX = "progress-cycle:";
+
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 function clampProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function readPersistedProgress(key: string): number {
+  const memoryValue = persistedProgress.get(key) ?? 0;
+  if (typeof window === "undefined") return memoryValue;
+  try {
+    const storedValue = Number(window.sessionStorage.getItem(`${SESSION_STORAGE_PREFIX}${key}`));
+    return Math.max(memoryValue, clampProgress(storedValue));
+  } catch {
+    return memoryValue;
+  }
+}
+
+function persistProgress(key: string, value: number): void {
+  const nextValue = Math.max(persistedProgress.get(key) ?? 0, clampProgress(value));
+  persistedProgress.set(key, nextValue);
+  if (persistedProgress.size > MAX_PERSISTED_PROGRESS_ENTRIES) {
+    const oldestKey = persistedProgress.keys().next().value;
+    if (typeof oldestKey === "string") persistedProgress.delete(oldestKey);
+  }
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(`${SESSION_STORAGE_PREFIX}${key}`, String(nextValue));
+  } catch {
+    // Some privacy modes disable sessionStorage. The in-memory high-water mark
+    // still protects ordinary React remounts in that case.
+  }
+}
+
+function clearPersistedProgress(key: string): void {
+  persistedProgress.delete(key);
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(`${SESSION_STORAGE_PREFIX}${key}`);
+  } catch {
+    // The in-memory value has already been cleared. Disabled storage does not
+    // prevent a fresh submission cycle from starting at zero.
+  }
+}
+
 export function useSmoothProgress({
   serverProgress = 0,
+  persistenceKey,
+  progressCycleKey,
+  resetPersistedProgressOnMount = false,
   status = "running",
   isComplete: explicitComplete,
   isFailed: explicitFailed,
@@ -55,10 +110,49 @@ export function useSmoothProgress({
   step = 1,
   maxBeforeComplete = 99,
   initialProgress = 0,
+  syncToServerProgress = false,
   onVisualComplete,
 }: UseSmoothProgressOptions) {
   const normalizedStatus = (status ?? "running").trim().toLowerCase();
-  const [displayedProgress, setDisplayedProgress] = useState(() => clampProgress(initialProgress));
+  const normalizedPersistenceKey = persistenceKey?.trim() || null;
+  const normalizedProgressCycleKey = progressCycleKey?.trim() || null;
+  const progressCyclePersistenceKey = normalizedProgressCycleKey
+    ? `${PROGRESS_CYCLE_KEY_PREFIX}${normalizedProgressCycleKey}`
+    : null;
+  const resetProgressCycleSignature =
+    resetPersistedProgressOnMount && normalizedProgressCycleKey
+      ? normalizedProgressCycleKey
+      : null;
+  const resetProgressPersistenceSignature =
+    resetPersistedProgressOnMount &&
+    normalizedPersistenceKey &&
+    normalizedProgressCycleKey
+      ? `${normalizedPersistenceKey}\u0000${normalizedProgressCycleKey}`
+      : null;
+  const shouldResetPersistedProgress = Boolean(
+    resetProgressCycleSignature && !resetProgressCycles.has(resetProgressCycleSignature),
+  );
+  const shouldClearPersistenceKey = Boolean(
+    resetProgressPersistenceSignature &&
+      !resetProgressPersistenceKeys.has(resetProgressPersistenceSignature),
+  );
+  const [displayedProgress, setDisplayedProgress] = useState(() => {
+    if (shouldResetPersistedProgress) return clampProgress(initialProgress);
+    const persisted = normalizedPersistenceKey
+      ? persistedProgress.get(normalizedPersistenceKey) ?? 0
+      : 0;
+    const cyclePersisted = progressCyclePersistenceKey
+      ? persistedProgress.get(progressCyclePersistenceKey) ?? 0
+      : 0;
+    return Math.max(
+      clampProgress(initialProgress),
+      resetPersistedProgressOnMount ? cyclePersisted : Math.max(persisted, cyclePersisted),
+    );
+  });
+  const displayedProgressRef = useRef(displayedProgress);
+  const progressCycleKeyRef = useRef(normalizedProgressCycleKey);
+  const persistenceKeyRef = useRef(normalizedPersistenceKey);
+  const pendingCycleResetProgressRef = useRef<number | null>(null);
   const visualCompleteNotifiedRef = useRef(false);
 
   const isComplete = explicitComplete ?? COMPLETE_STATUSES.has(normalizedStatus);
@@ -78,6 +172,7 @@ export function useSmoothProgress({
       safeMaxBeforeComplete,
     );
   }, [displayedProgress, isComplete, safeMaxBeforeComplete, serverProgress]);
+  const canAdvance = !isFailed && !isWaitingForUser && displayedProgress < visualTarget;
 
   useEffect(() => {
     if (!isComplete) {
@@ -85,21 +180,131 @@ export function useSmoothProgress({
     }
   }, [isComplete]);
 
+  useBrowserLayoutEffect(() => {
+    const previousCycleKey = progressCycleKeyRef.current;
+    const previousPersistenceKey = persistenceKeyRef.current;
+    const cycleChanged = Boolean(
+      previousCycleKey &&
+        normalizedProgressCycleKey &&
+        previousCycleKey !== normalizedProgressCycleKey,
+    );
+    const persistenceKeyArrived = Boolean(
+      !previousPersistenceKey && normalizedPersistenceKey,
+    );
+    const persistenceKeyChangedWithinCycle = Boolean(
+      previousPersistenceKey &&
+        normalizedPersistenceKey &&
+        previousPersistenceKey !== normalizedPersistenceKey &&
+        previousCycleKey === normalizedProgressCycleKey,
+    );
+    if (shouldResetPersistedProgress && progressCyclePersistenceKey) {
+      clearPersistedProgress(progressCyclePersistenceKey);
+    }
+    if (shouldClearPersistenceKey && normalizedPersistenceKey) {
+      clearPersistedProgress(normalizedPersistenceKey);
+    }
+    if (shouldResetPersistedProgress && resetProgressCycleSignature) {
+      resetProgressCycles.add(resetProgressCycleSignature);
+      if (resetProgressCycles.size > MAX_RESET_PROGRESS_CYCLES) {
+        const oldestCycle = resetProgressCycles.values().next().value;
+        if (typeof oldestCycle === "string") resetProgressCycles.delete(oldestCycle);
+      }
+    }
+    if (shouldClearPersistenceKey && resetProgressPersistenceSignature) {
+      resetProgressPersistenceKeys.add(resetProgressPersistenceSignature);
+      if (resetProgressPersistenceKeys.size > MAX_RESET_PROGRESS_CYCLES) {
+        const oldestPersistenceKey = resetProgressPersistenceKeys.values().next().value;
+        if (typeof oldestPersistenceKey === "string") {
+          resetProgressPersistenceKeys.delete(oldestPersistenceKey);
+        }
+      }
+    }
+    const persisted = normalizedPersistenceKey
+      ? readPersistedProgress(normalizedPersistenceKey)
+      : 0;
+    const cyclePersisted = progressCyclePersistenceKey
+      ? readPersistedProgress(progressCyclePersistenceKey)
+      : 0;
+    const authoritativeFloor = syncToServerProgress
+      ? isComplete
+        ? 100
+        : Math.min(clampProgress(serverProgress), safeMaxBeforeComplete)
+      : 0;
+
+    const resetProgress = Math.max(
+      resetPersistedProgressOnMount ? cyclePersisted : Math.max(persisted, cyclePersisted),
+      authoritativeFloor,
+    );
+    const resetDisplayedProgress =
+      cycleChanged ||
+      (shouldResetPersistedProgress &&
+        !persistenceKeyArrived &&
+        !persistenceKeyChangedWithinCycle);
+    if (resetDisplayedProgress) {
+      pendingCycleResetProgressRef.current = resetProgress;
+    }
+    setDisplayedProgress((current) =>
+      resetDisplayedProgress
+        ? resetProgress
+        : Math.max(current, persisted, authoritativeFloor),
+    );
+    if (normalizedProgressCycleKey) {
+      progressCycleKeyRef.current = normalizedProgressCycleKey;
+    }
+    persistenceKeyRef.current = normalizedPersistenceKey;
+  }, [
+    isComplete,
+    normalizedPersistenceKey,
+    normalizedProgressCycleKey,
+    progressCyclePersistenceKey,
+    resetProgressCycleSignature,
+    resetProgressPersistenceSignature,
+    resetPersistedProgressOnMount,
+    safeMaxBeforeComplete,
+    serverProgress,
+    shouldClearPersistenceKey,
+    shouldResetPersistedProgress,
+    syncToServerProgress,
+  ]);
+
   useEffect(() => {
-    if (isFailed || isWaitingForUser || displayedProgress >= visualTarget) return;
+    if (!normalizedPersistenceKey && !progressCyclePersistenceKey) return;
+    const pendingResetProgress = pendingCycleResetProgressRef.current;
+    if (pendingResetProgress !== null) {
+      if (displayedProgress !== pendingResetProgress) return;
+      pendingCycleResetProgressRef.current = null;
+    }
+    if (normalizedPersistenceKey) {
+      persistProgress(normalizedPersistenceKey, displayedProgress);
+    }
+    if (progressCyclePersistenceKey) {
+      persistProgress(progressCyclePersistenceKey, displayedProgress);
+    }
+  }, [displayedProgress, normalizedPersistenceKey, progressCyclePersistenceKey]);
+
+  useBrowserLayoutEffect(() => {
+    displayedProgressRef.current = displayedProgress;
+  }, [displayedProgress]);
+
+  useEffect(() => {
+    if (!canAdvance) return;
 
     const timer = window.setInterval(() => {
       setDisplayedProgress((current) => {
-        if (current >= visualTarget) return current;
-        return Math.min(current + safeStep, visualTarget);
+        if (current >= visualTarget) {
+          window.clearInterval(timer);
+          return current;
+        }
+        const next = Math.min(current + safeStep, visualTarget);
+        if (next >= visualTarget) window.clearInterval(timer);
+        return next;
       });
     }, safeIntervalMs);
 
     return () => window.clearInterval(timer);
   }, [
-    displayedProgress,
-    isFailed,
-    isWaitingForUser,
+    canAdvance,
+    normalizedProgressCycleKey,
     safeIntervalMs,
     safeStep,
     visualTarget,

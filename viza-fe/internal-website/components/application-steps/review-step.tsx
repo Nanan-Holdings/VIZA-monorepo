@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandActionButton } from "@/components/client/brand-action-button";
-import { CheckCircle2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
+import { CheckCircle as CheckCircle2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 interface ReviewStepProps {
   applicationId: string;
@@ -18,13 +20,18 @@ interface ReviewStepProps {
     passport?: Partial<PassportData>;
     travel?: Partial<TravelInfoData>;
   };
-  onEdit?: (section: "personal" | "passport" | "travel" | "documents") => void;
+  onEdit?: (
+    section: "personal" | "passport" | "travel" | "documents",
+    fieldName: string,
+  ) => void;
   onComplete: (result: { confirmed: true }) => void;
   mode?: "submit" | "continue";
   continueLabel?: string;
+  showAction?: boolean;
 }
 
 interface ReviewRow {
+  fieldName: string;
   label: string;
   value?: string;
 }
@@ -87,38 +94,42 @@ function ReviewSummarySection({
   onEdit?: () => void;
 }) {
   return (
-    <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-heading text-[15px] font-semibold text-[#03346E]">{title}</h3>
+    <section>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h3 className="font-heading text-sm font-semibold text-brand-500">{title}</h3>
         {onEdit ? (
-          <button
-            type="button"
+          <ReviewEditButton
             onClick={onEdit}
-            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
-          >
-            <Pencil className="h-4 w-4" />
-            修改
-          </button>
+            label={`修改${title} / Edit ${title}`}
+          />
         ) : null}
       </div>
-      <div className="mt-3 divide-y divide-[#eef1f5]">
-        {rows.map((row) => {
-          const value = displayValue(row.value);
-          const isEmpty = value === EMPTY_VALUE;
+      <Table className="table-fixed">
+        <TableBody>
+          {rows.map((row) => {
+            const value = displayValue(row.value);
+            const isEmpty = value === EMPTY_VALUE;
 
-          return (
-            <div
-              key={row.label}
-              className="grid gap-1 py-2.5 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-4"
-            >
-              <span className="text-[#697386]">{row.label}</span>
-              <span className={isEmpty ? "text-gray-400" : "font-medium text-[#24272f]"}>
-                {value}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <TableRow key={row.label} className="hover:bg-transparent">
+                <th
+                  scope="row"
+                  className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
+                >
+                  {row.label}
+                </th>
+                <TableCell
+                  className={isEmpty
+                    ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+                    : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
+                >
+                  <span className="whitespace-pre-wrap break-words">{value}</span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </section>
   );
 }
@@ -187,22 +198,21 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
     <div className="flex flex-col gap-3">
       {/* Errors */}
       {state === "done" && hasErrors && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-          <div className="flex items-center gap-2 mb-2 text-red-700">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">{t("review.validation.hasErrors")} / Application has errors</p>
-          </div>
-          <ul className="flex flex-col gap-1">
-            {result!.errors.map((e, i) => (
-              <li key={i} className="text-xs text-red-600">• <span className="font-medium">{displayValidationField(e.field, fieldLabels, side)}:</span> {e.message}</li>
-            ))}
-          </ul>
-        </div>
+        <ClientErrorAlert
+          title={`${t("review.validation.hasErrors")} / Application has errors`}
+          message={
+            <ul className="flex flex-col gap-1">
+              {result!.errors.map((e, i) => (
+                <li key={i}>• <span className="font-medium">{displayValidationField(e.field, fieldLabels, side)}:</span> {e.message}</li>
+              ))}
+            </ul>
+          }
+        />
       )}
 
       {/* Warnings */}
       {state === "done" && hasWarnings && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-3">
           <div className="flex items-center gap-2 mb-2 text-amber-700">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <p className="text-sm font-semibold">{t("review.validation.hasWarnings")} / Warnings</p>
@@ -217,16 +227,14 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
 
       {/* All good */}
       {state === "done" && !hasErrors && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
+        <div className="flex items-center gap-2 rounded-lg border border-[#e5e7eb] bg-white p-3 text-[#166534]">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <p className="text-sm">{t("review.validation.allGood")} / Ready to submit</p>
         </div>
       )}
 
       {/* Validation error */}
-      {error && (
-        <p className="text-xs text-red-500">{t("review.validation.errorFallback", { error })}</p>
-      )}
+      {error ? <ClientErrorAlert message={t("review.validation.errorFallback", { error })} /> : null}
 
       {/* Actions */}
       <div className="flex flex-col gap-2">
@@ -261,80 +269,112 @@ export function ReviewStep({
   onComplete,
   mode = "submit",
   continueLabel,
+  showAction = true,
 }: ReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const actionLabel = continueLabel ?? t("review.continueToTeam");
   const personalRows: ReviewRow[] = [
-    { label: "姓 / Surname", value: data?.personal?.surname },
-    { label: "名 / Given name(s)", value: data?.personal?.givenNames },
-    { label: "中文姓名 / Full name in native alphabet", value: data?.personal?.fullNameNativeAlphabet },
-    { label: "出生日期 / Date of birth", value: displayDate(data?.personal?.dateOfBirth) },
-    { label: "性别 / Sex", value: displayMappedValue(data?.personal?.sex, SEX_LABELS) },
-    { label: "婚姻状况 / Marital status", value: displayMappedValue(data?.personal?.maritalStatus, MARITAL_STATUS_LABELS) },
-    { label: "国籍 / Nationality", value: data?.personal?.nationality },
-    { label: "出生国家/地区 / Country/Region of Birth", value: data?.personal?.countryOfBirth },
-    { label: "出生省 / 州 / State or province of birth", value: data?.personal?.stateOfBirth },
-    { label: "出生城市 / City of birth", value: data?.personal?.cityOfBirth },
+    { fieldName: "surname", label: "姓 / Surname", value: data?.personal?.surname },
+    { fieldName: "given_names", label: "名 / Given name(s)", value: data?.personal?.givenNames },
+    { fieldName: "full_name_native_alphabet", label: "中文姓名 / Full name in native alphabet", value: data?.personal?.fullNameNativeAlphabet },
+    { fieldName: "date_of_birth", label: "出生日期 / Date of birth", value: displayDate(data?.personal?.dateOfBirth) },
+    { fieldName: "sex", label: "性别 / Sex", value: displayMappedValue(data?.personal?.sex, SEX_LABELS) },
+    { fieldName: "marital_status", label: "婚姻状况 / Marital status", value: displayMappedValue(data?.personal?.maritalStatus, MARITAL_STATUS_LABELS) },
+    { fieldName: "nationality", label: "国籍 / Nationality", value: data?.personal?.nationality },
+    { fieldName: "country_of_birth", label: "出生国家 / Country of birth", value: data?.personal?.countryOfBirth },
+    { fieldName: "state_of_birth", label: "出生省 / 州 / State or province of birth", value: data?.personal?.stateOfBirth },
+    { fieldName: "city_of_birth", label: "出生城市 / City of birth", value: data?.personal?.cityOfBirth },
   ];
   const passportRows: ReviewRow[] = [
-    { label: "护照类型 / Passport type", value: displayMappedValue(data?.passport?.passportDocumentType, PASSPORT_TYPE_LABELS) },
-    { label: "护照号码 / Passport number", value: data?.passport?.passportNumber },
-    { label: "护照本号 / Passport book number", value: data?.passport?.passportBookNumber },
-    { label: "签发国家 / Issuing country", value: data?.passport?.passportIssuingCountry },
-    { label: "签发城市 / Issuance city", value: data?.passport?.passportIssuanceCity },
-    { label: "签发日期 / Issue date", value: displayDate(data?.passport?.passportIssuanceDate) },
-    { label: "到期日期 / Expiry date", value: displayDate(data?.passport?.passportExpirationDate) },
+    { fieldName: "passport_document_type", label: "护照类型 / Passport type", value: displayMappedValue(data?.passport?.passportDocumentType, PASSPORT_TYPE_LABELS) },
+    { fieldName: "passport_number", label: "护照号码 / Passport number", value: data?.passport?.passportNumber },
+    { fieldName: "passport_book_number", label: "护照本号 / Passport book number", value: data?.passport?.passportBookNumber },
+    { fieldName: "passport_issuing_country", label: "签发国家 / Issuing country", value: data?.passport?.passportIssuingCountry },
+    { fieldName: "passport_issuance_city", label: "签发城市 / Issuance city", value: data?.passport?.passportIssuanceCity },
+    { fieldName: "passport_issuance_date", label: "签发日期 / Issue date", value: displayDate(data?.passport?.passportIssuanceDate) },
+    { fieldName: "passport_expiration_date", label: "到期日期 / Expiry date", value: displayDate(data?.passport?.passportExpirationDate) },
   ];
   const travelRows: ReviewRow[] = [
-    { label: "访问目的 / Purpose", value: displayMappedValue(data?.travel?.purposeOfTrip, PURPOSE_LABELS) },
-    { label: "到达日期 / Arrival date", value: displayDate(data?.travel?.arrivalDate) },
-    { label: "离开日期 / Departure date", value: displayDate(data?.travel?.departureDate) },
-    { label: "到达城市 / 口岸 / Arrival city or port", value: data?.travel?.arrivalCity },
-    { label: "住宿名称 / Accommodation name", value: data?.travel?.accommodationName },
-    { label: "住宿街道地址 / Street address", value: data?.travel?.usAddressStreet1 },
-    { label: "住宿城市 / Accommodation city", value: data?.travel?.usAddressCity },
-    { label: "州 / State", value: data?.travel?.usAddressState },
-    { label: "邮编 / ZIP code", value: data?.travel?.usAddressZip },
+    { fieldName: "purpose_of_trip", label: "访问目的 / Purpose", value: displayMappedValue(data?.travel?.purposeOfTrip, PURPOSE_LABELS) },
+    { fieldName: "arrival_date", label: "到达日期 / Arrival date", value: displayDate(data?.travel?.arrivalDate) },
+    { fieldName: "departure_date", label: "离开日期 / Departure date", value: displayDate(data?.travel?.departureDate) },
+    { fieldName: "arrival_city", label: "到达城市 / 口岸 / Arrival city or port", value: data?.travel?.arrivalCity },
+    { fieldName: "accommodation_name", label: "住宿名称 / Accommodation name", value: data?.travel?.accommodationName },
+    { fieldName: "us_address_street1", label: "住宿街道地址 / Street address", value: data?.travel?.usAddressStreet1 },
+    { fieldName: "us_address_city", label: "住宿城市 / Accommodation city", value: data?.travel?.usAddressCity },
+    { fieldName: "us_address_state", label: "州 / State", value: data?.travel?.usAddressState },
+    { fieldName: "us_address_zip", label: "邮编 / ZIP code", value: data?.travel?.usAddressZip },
   ];
+  const splitRows = (rows: ReviewRow[]) => ({
+    completed: rows.filter((row) => displayValue(row.value) !== EMPTY_VALUE),
+    missing: rows.filter((row) => displayValue(row.value) === EMPTY_VALUE),
+  });
+  const personal = splitRows(personalRows);
+  const passport = splitRows(passportRows);
+  const travel = splitRows(travelRows);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-heading text-lg">{t("review.title")} / Review Your Application</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <ReviewSummarySection
-          title={`${t("review.personalInformation")} / Personal Information`}
-          rows={personalRows}
-          onEdit={onEdit ? () => onEdit("personal") : undefined}
-        />
-        <ReviewSummarySection
-          title={`${t("review.passportDetails")} / Passport Details`}
-          rows={passportRows}
-          onEdit={onEdit ? () => onEdit("passport") : undefined}
-        />
-        <ReviewSummarySection
-          title={`${t("review.travelInformation")} / Travel Information`}
-          rows={travelRows}
-          onEdit={onEdit ? () => onEdit("travel") : undefined}
-        />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-0">
+        {personal.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.personalInformation")}
+            rows={personal.completed}
+            onEdit={onEdit ? () => onEdit("personal", personal.completed[0].fieldName) : undefined}
+          />
+        ) : null}
+        {passport.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.passportDetails")}
+            rows={passport.completed}
+            onEdit={onEdit ? () => onEdit("passport", passport.completed[0].fieldName) : undefined}
+          />
+        ) : null}
+        {travel.completed.length > 0 ? (
+          <ReviewSummarySection
+            title={t("review.travelInformation")}
+            rows={travel.completed}
+            onEdit={onEdit ? () => onEdit("travel", travel.completed[0].fieldName) : undefined}
+          />
+        ) : null}
+        {personal.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.personalInformation")} · ${t("review.missingInformation")}`}
+            rows={personal.missing}
+            onEdit={onEdit ? () => onEdit("personal", personal.missing[0].fieldName) : undefined}
+          />
+        ) : null}
+        {passport.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.passportDetails")} · ${t("review.missingInformation")}`}
+            rows={passport.missing}
+            onEdit={onEdit ? () => onEdit("passport", passport.missing[0].fieldName) : undefined}
+          />
+        ) : null}
+        {travel.missing.length > 0 ? (
+          <ReviewSummarySection
+            title={`${t("review.travelInformation")} · ${t("review.missingInformation")}`}
+            rows={travel.missing}
+            onEdit={onEdit ? () => onEdit("travel", travel.missing[0].fieldName) : undefined}
+          />
+        ) : null}
+      </div>
 
-        {mode === "submit" ? (
-          <>
-            <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
-            <SubmissionDisclaimerDialog
-              open={disclaimerOpen}
-              onCancel={() => setDisclaimerOpen(false)}
-              onConfirm={() => onComplete({ confirmed: true })}
-            />
-          </>
-        ) : (
-          <BrandActionButton onClick={() => onComplete({ confirmed: true })}>
-            {actionLabel}
-          </BrandActionButton>
-        )}
-      </CardContent>
-    </Card>
+      {showAction && mode === "submit" ? (
+        <>
+          <ValidationPanel applicationId={_applicationId} onProceed={() => setDisclaimerOpen(true)} />
+          <SubmissionDisclaimerDialog
+            open={disclaimerOpen}
+            onCancel={() => setDisclaimerOpen(false)}
+            onConfirm={() => onComplete({ confirmed: true })}
+          />
+        </>
+      ) : showAction ? (
+        <BrandActionButton onClick={() => onComplete({ confirmed: true })}>
+          {actionLabel}
+        </BrandActionButton>
+      ) : null}
+    </div>
   );
 }

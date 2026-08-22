@@ -1,9 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 import {
+  DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS,
+  DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS,
+  DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS,
+  buildVietnamReviewCaptchaTaskOptions,
+  captureVietnamCaptchaImage,
   describeVietnamCaptchaError,
+  fingerprintVietnamCaptchaImage,
   getVietnamCaptchaTimeoutMs,
+  isVietnamCaptchaAnswerUsable,
+  isVietnamCaptchaFailureRetryable,
+  isVietnamCaptchaSolveCurrent,
+  normalizeVietnamCaptchaAnswer,
+  refreshVietnamCaptchaChallenge,
+  reportAcceptedVietnamCaptcha,
+  reportRejectedVietnamCaptcha,
   shouldSolveVietnamCaptcha,
+  solveVietnamImageCaptcha,
+  solveVietnamImageCaptchaWithRetry,
+  submitVietnamCaptchaAnswer,
 } from "../captcha.js";
 import { TwoCaptchaConfigError, TwoCaptchaZeroBalanceError } from "../../captcha/two-captcha.js";
 
@@ -26,18 +43,527 @@ test("vn.captcha: config and balance failures become operator-readable reasons",
   assert.equal(describeVietnamCaptchaError(new Error("portal changed")), "portal changed");
 });
 
-test("vn.captcha: solve timeout has an independent configurable floor", () => {
+test("vn.captcha: caller deadline caps the configurable solve timeout", () => {
   const previous = process.env.VN_CAPTCHA_TIMEOUT_MS;
   delete process.env.VN_CAPTCHA_TIMEOUT_MS;
-  assert.equal(getVietnamCaptchaTimeoutMs(60_000), 180_000);
+  assert.equal(getVietnamCaptchaTimeoutMs(60_000), 60_000);
+  assert.equal(getVietnamCaptchaTimeoutMs(), 180_000);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TIMEOUT_MS, 180_000);
 
   process.env.VN_CAPTCHA_TIMEOUT_MS = "240000";
-  assert.equal(getVietnamCaptchaTimeoutMs(60_000), 240_000);
-  assert.equal(getVietnamCaptchaTimeoutMs(300_000), 300_000);
+  assert.equal(getVietnamCaptchaTimeoutMs(60_000), 60_000);
+  assert.equal(getVietnamCaptchaTimeoutMs(300_000), 240_000);
 
   if (previous === undefined) {
     delete process.env.VN_CAPTCHA_TIMEOUT_MS;
   } else {
     process.env.VN_CAPTCHA_TIMEOUT_MS = previous;
   }
+});
+
+test("vn.captcha: fingerprints distinguish refreshed challenges", () => {
+  const first = fingerprintVietnamCaptchaImage(Buffer.from("captcha-one"));
+  const same = fingerprintVietnamCaptchaImage(Buffer.from("captcha-one"));
+  const refreshed = fingerprintVietnamCaptchaImage(Buffer.from("captcha-two"));
+
+  assert.equal(first, same);
+  assert.notEqual(first, refreshed);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, same), true);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, refreshed), false);
+  assert.equal(isVietnamCaptchaSolveCurrent(first, null), false);
+});
+
+test("vn.captcha: normalizes whitespace and distinguishes terminal solver failures", () => {
+  assert.equal(normalizeVietnamCaptchaAnswer(" A 1 b 2 \n"), "A1b2");
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha network error: reset"), true);
+  assert.equal(isVietnamCaptchaFailureRetryable("Vietnam CAPTCHA changed while solving"), true);
+  assert.equal(
+    isVietnamCaptchaFailureRetryable("TWOCAPTCHA_API_KEY is missing; cannot solve the official portal CAPTCHA."),
+    false,
+  );
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha account has zero balance"), false);
+  assert.equal(isVietnamCaptchaFailureRetryable("2captcha API error: ERROR_CAPTCHA_UNSOLVABLE"), true);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_ATTEMPTS, 5);
+  assert.equal(DEFAULT_VIETNAM_CAPTCHA_TOTAL_BUDGET_MS, 480_000);
+  assert.equal(isVietnamCaptchaAnswerUsable("AB12", { minLength: 4, maxLength: 8 }), true);
+  assert.equal(isVietnamCaptchaAnswerUsable("Ab", { minLength: 4, maxLength: 8 }), false);
+  assert.equal(isVietnamCaptchaAnswerUsable("A#12", { minLength: 4, maxLength: 8 }), false);
+});
+
+test("vn.captcha: rejects an unusable provider answer before filling the portal input", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let receivedConstraints: { minLength: number; maxLength: number } | null = null;
+  try {
+    await page.setContent(`
+      <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+      <input type="text" />
+    `);
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (_image, _timeout, constraints) => {
+      receivedConstraints = constraints;
+      return { text: "?", solveId: "fixture", durationMs: 5 };
+    });
+
+    assert.equal(outcome.solved, false);
+    assert.match(outcome.reason ?? "", /expected 4-8 alphanumeric characters/);
+    assert.deepEqual(receivedConstraints, { minLength: 4, maxLength: 8 });
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: never screenshots a broken image placeholder for the solver", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<img alt="captcha img" src="https://invalid.invalid/missing-captcha.png" />');
+    const image = page.locator('img[alt="captcha img"]');
+    await assert.rejects(
+      captureVietnamCaptchaImage(image, 2_000),
+      /not loaded|placeholder/i,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: refreshes an id-less inline challenge through its nearby sync control", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <button id="unrelated" style="display:block">Back</button>
+      <section>
+        <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button class="anticon-sync" type="button">Refresh</button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+    await page.locator(".anticon-sync").evaluate((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(".captcha-image")?.setAttribute(
+          "src",
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3ECD34%3C/text%3E%3C/svg%3E",
+        );
+        document.body.dataset.refreshed = "yes";
+      });
+    });
+
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 2_000), true);
+    assert.equal(await page.locator("body").getAttribute("data-refreshed"), "yes");
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: refresh selection stays bounded with many unrelated controls", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const decoys = Array.from({ length: 120 }, (_, index) => `<button type="button">Decoy ${index}</button>`).join("");
+    await page.setContent(`
+      ${decoys}
+      <section>
+        <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button id="refresh" type="button"><svg data-icon="sync" width="16" height="16"></svg></button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+    await page.locator("#refresh").evaluate((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(".captcha-image")?.setAttribute(
+          "src",
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3ECD34%3C/text%3E%3C/svg%3E",
+        );
+      });
+    });
+
+    const startedAt = Date.now();
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 2_000), true);
+    assert.ok(Date.now() - startedAt < 1_500, "refresh should not scan controls through serial Playwright calls");
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: id-less challenge excludes the nearby refresh SVG", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section role="dialog" aria-label="Captcha verification" style="position:relative;width:500px;height:220px">
+        <span>Captcha verification</span>
+        <img id="official-challenge" style="position:absolute;left:120px;top:30px;width:165px;height:106px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="generic-security-input" type="text" style="position:absolute;left:120px;top:100px;width:220px;height:36px" />
+        <button type="button" style="position:absolute;left:350px;top:100px;width:40px;height:36px">
+          <svg data-icon="sync" width="32" height="28"><circle cx="16" cy="14" r="10" /></svg>
+        </button>
+      </section>
+    `);
+    let receivedDimensions: { width: number; height: number } | null = null;
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (image) => {
+      receivedDimensions = {
+        width: image.readUInt32BE(16),
+        height: image.readUInt32BE(20),
+      };
+      return { text: "AB12", solveId: "task-idless", durationMs: 10 };
+    });
+
+    assert.equal(outcome.solved, true);
+    assert.deepEqual(receivedDimensions, { width: 420, height: 132 });
+    assert.equal(outcome.telemetry?.captureWidth, 420);
+    assert.equal(outcome.telemetry?.captureHeight, 132);
+    assert.equal(outcome.telemetry?.sourceWidth, 140);
+    assert.equal(outcome.telemetry?.sourceHeight, 44);
+    assert.equal(await page.locator("#generic-security-input").inputValue(), "AB12");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: official alt/name markers beat a large nearby review image", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section style="position:relative;width:900px;height:700px">
+        <img id="review-photo" alt="portrait photography" style="position:absolute;left:80px;top:80px;width:495px;height:318px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='495' height='318'%3E%3Crect width='495' height='318' fill='navy'/%3E%3C/svg%3E" />
+        <img id="official-challenge" alt="captcha img" style="position:absolute;left:300px;top:520px;width:150px;height:36px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Crect width='140' height='44' fill='white'/%3E%3Ctext x='20' y='30'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="official-input" name="maXacNhan" type="text" style="position:absolute;left:300px;top:570px;width:220px;height:36px" />
+      </section>
+    `);
+    let receivedDimensions: { width: number; height: number } | null = null;
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async (image) => {
+      receivedDimensions = {
+        width: image.readUInt32BE(16),
+        height: image.readUInt32BE(20),
+      };
+      return { text: "AB12", solveId: "task-official-markers", durationMs: 10 };
+    });
+
+    assert.equal(outcome.solved, true);
+    assert.deepEqual(receivedDimensions, { width: 420, height: 132 });
+    assert.equal(await page.locator("#official-input").inputValue(), "AB12");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: a no-op refresh does not report a changed raster fingerprint", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section>
+        <img class="captcha-image" style="display:block;width:165px;height:106px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='44'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <button type="button"><svg data-icon="sync" width="16" height="16"></svg></button>
+        <input type="text" value="stale" />
+      </section>
+    `);
+
+    assert.equal(await refreshVietnamCaptchaChallenge(page, 500), false);
+    assert.equal(await page.locator("input").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: provider retries are not multiplied inside one portal attempt", async () => {
+  const previous = process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
+  delete process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let calls = 0;
+  try {
+    await page.setContent(`
+      <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+      <input type="text" />
+    `);
+    const outcome = await solveVietnamImageCaptcha(page, 1_000, async () => {
+      calls += 1;
+      throw new Error("2captcha network error: reset");
+    });
+
+    assert.equal(outcome.solved, false);
+    assert.equal(calls, 1);
+  } finally {
+    await browser.close();
+    if (previous === undefined) {
+      delete process.env.VN_CAPTCHA_SOLVER_ATTEMPTS;
+    } else {
+      process.env.VN_CAPTCHA_SOLVER_ATTEMPTS = previous;
+    }
+  }
+});
+
+test("vn.captcha: retries the current challenge when the portal redraws it during solving", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let solveCalls = 0;
+  let refreshCalls = 0;
+  try {
+    const result = await solveVietnamImageCaptchaWithRetry(page, 10_000, {
+      solveAttempt: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? {
+              solved: false,
+              reason: "Vietnam CAPTCHA changed while 2captcha was solving; discarded the stale answer.",
+            }
+          : {
+              solved: true,
+              telemetry: {
+                solveId: "fresh-challenge",
+                durationMs: 10,
+                challengeFingerprint: "fresh-fingerprint",
+              },
+            };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.equal(solveCalls, 2);
+    assert.equal(refreshCalls, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: refreshes an unusable challenge before retrying", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let solveCalls = 0;
+  let refreshCalls = 0;
+  try {
+    const result = await solveVietnamImageCaptchaWithRetry(page, 10_000, {
+      solveAttempt: async () => {
+        solveCalls += 1;
+        return solveCalls === 1
+          ? { solved: false, reason: "2captcha returned an unusable Vietnam CAPTCHA answer." }
+          : {
+              solved: true,
+              telemetry: {
+                solveId: "refreshed-challenge",
+                durationMs: 10,
+                challengeFingerprint: "refreshed-fingerprint",
+              },
+            };
+      },
+      refreshChallenge: async () => {
+        refreshCalls += 1;
+        return true;
+      },
+    });
+
+    assert.equal(result.solved, true);
+    assert.equal(solveCalls, 2);
+    assert.equal(refreshCalls, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: submits a localized verification button near the CAPTCHA", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <form id="captcha-form">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="AB12" />
+        <button type="button" id="unrelated">Back</button>
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Xác nhận</button>
+      </form>
+    `);
+
+    await page.locator("#captcha-image").waitFor({ state: "visible" });
+    assert.equal(
+      await page.locator("#verify").evaluate((element) => /xác nhận/i.test(element.textContent ?? "")),
+      true,
+    );
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: submits after the official dialog redraw hides the solved CAPTCHA image", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div role="dialog">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="AB12" />
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Kiểm tra</button>
+      </div>
+    `);
+    await page.locator("#captcha-image").evaluate((element) => {
+      (element as HTMLElement).style.display = "none";
+    });
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: submits the current inline generic CAPTCHA input", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section id="review-checkpoint">
+        <img class="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input type="text" value="AB12" />
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Verify</button>
+      </section>
+    `);
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: review task preserves the live variable-length numeric constraint", () => {
+  assert.deepEqual(buildVietnamReviewCaptchaTaskOptions({ minLength: 4, maxLength: 8 }), {
+    case: false,
+    numeric: 1,
+    minLength: 4,
+    maxLength: 8,
+    comment: "Vietnam e-Visa review security code. Return only the 4-8 visible digits.",
+  });
+  assert.deepEqual(buildVietnamReviewCaptchaTaskOptions({ minLength: 6, maxLength: 6 }), {
+    case: false,
+    numeric: 1,
+    minLength: 6,
+    maxLength: 6,
+    comment: "Vietnam e-Visa review security code. Return only the 6-6 visible digits.",
+  });
+});
+
+test("vn.captcha: trusted-clicks a review Next rendered outside the CAPTCHA form", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <form id="captcha-form">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3E123456%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="123456" />
+      </form>
+      <div id="review-actions">
+        <button type="button">Back</button>
+        <button type="button" id="review-next">Next</button>
+      </div>
+      <script>
+        document.getElementById('review-next').addEventListener('click', event => {
+          document.body.dataset.captchaSubmitted = 'yes';
+          document.body.dataset.trustedClick = String(event.isTrusted);
+        });
+      </script>
+    `);
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+    assert.equal(await page.locator("body").getAttribute("data-trusted-click"), "true");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: re-resolves a localized verification control after an Ant dialog redraw", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div role="dialog">
+        <img id="captcha-image" style="display:block;width:120px;height:40px" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Ctext x='10' y='25'%3EAB12%3C/text%3E%3C/svg%3E" />
+        <input id="security-captcha" name="captcha" value="AB12" />
+        <button type="button">Quay lại</button>
+        <button type="button" id="verify" onclick="document.body.dataset.captchaSubmitted='yes'">Duyệt</button>
+      </div>
+    `);
+
+    assert.equal(await submitVietnamCaptchaAnswer(page, 100), true);
+    assert.equal(await page.locator("body").getAttribute("data-captcha-submitted"), "yes");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.captcha: reports only a rejected solved task", async () => {
+  const reported: string[] = [];
+  const reporter = async (solveId: string) => {
+    reported.push(solveId);
+  };
+
+  assert.equal(await reportRejectedVietnamCaptcha({ solved: false }, reporter), false);
+  assert.equal(
+    await reportRejectedVietnamCaptcha(
+      {
+        solved: true,
+        telemetry: {
+          solveId: "task-123",
+          durationMs: 500,
+          challengeFingerprint: "fingerprint",
+        },
+      },
+      reporter,
+    ),
+    true,
+  );
+  assert.deepEqual(reported, ["task-123"]);
+});
+
+test("vn.captcha: reports only an accepted solved task", async () => {
+  const reported: string[] = [];
+  const reporter = async (solveId: string) => {
+    reported.push(solveId);
+  };
+
+  assert.equal(await reportAcceptedVietnamCaptcha({ solved: false }, reporter), false);
+  assert.equal(
+    await reportAcceptedVietnamCaptcha(
+      {
+        solved: true,
+        telemetry: {
+          solveId: "task-good",
+          durationMs: 500,
+          challengeFingerprint: "fingerprint",
+        },
+      },
+      reporter,
+    ),
+    true,
+  );
+  assert.deepEqual(reported, ["task-good"]);
+});
+
+test("vn.captcha: reporting failures do not fail the submission flow", async () => {
+  const reported = await reportRejectedVietnamCaptcha(
+    {
+      solved: true,
+      telemetry: {
+        solveId: "task-456",
+        durationMs: 500,
+        challengeFingerprint: "fingerprint",
+      },
+    },
+    async () => {
+      throw new Error("2captcha reporting unavailable");
+    },
+  );
+
+  assert.equal(reported, false);
 });

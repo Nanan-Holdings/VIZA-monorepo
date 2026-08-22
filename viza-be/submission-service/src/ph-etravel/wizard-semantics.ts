@@ -7,7 +7,6 @@ export type PhEtravelPostSignatureSemantic =
   | "summary";
 
 export type PhEtravelPostSignatureEvidencePath =
-  | "air_electronic_positive_family_live"
   | "sea_electronic_no_live"
   | "sea_electronic_positive_pending"
   | "unverified";
@@ -79,15 +78,6 @@ export function guardPhEtravelPostSignatureWizardStep(input: {
   }
   if (input.evidencePath === "sea_electronic_positive_pending") {
     return { status: "action_required", code: "sea_electronic_positive_post_signature_evidence_pending" };
-  }
-  if (input.evidencePath === "air_electronic_positive_family_live") {
-    // E45 observed Family after a user-provided signature. A resumed runner may
-    // enter directly at Family without retaining pre-signature page history.
-    if (input.semantic === "family" &&
-      (input.previous.length === 0 || (input.previous.length === 1 && input.previous[0] === "signature"))) {
-      return { status: "action_required", code: "ph_etravel_family_member_action_required" };
-    }
-    return { status: "action_required", code: "ph_etravel_post_signature_live_evidence_required" };
   }
   if (input.evidencePath !== "sea_electronic_no_live") {
     return { status: "action_required", code: "ph_etravel_post_signature_live_evidence_required" };

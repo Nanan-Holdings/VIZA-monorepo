@@ -15,7 +15,7 @@ export default function AddPaymentMethodPage() {
           content: [
             {
               type: "paragraph",
-              text: "Billing and payment method management are currently handled offline by our support team. This allows us to offer flexible payment arrangements and keep your financial details off digital systems where possible.",
+              text: "VIZA uses secure checkout for eligible application, subscription, and agency-fee payments. Available payment methods are shown before you confirm a purchase.",
             },
           ],
         },
@@ -25,23 +25,23 @@ export default function AddPaymentMethodPage() {
             {
               type: "list",
               items: [
-                "Contact our support team via the Concierge tab or by emailing support@viza.it.com.",
-                "Let the team know the payment method you'd like to use (credit card, bank transfer, or GCash).",
-                "The team will securely record your details and confirm setup.",
+                "Open the application or subscription checkout you want to pay.",
+                "Review the amount, currency, and payment description.",
+                "Choose one of the payment methods offered at checkout and complete the provider's secure flow.",
               ],
             },
             {
               type: "tip",
-              text: "Once your payment method is set up, you can use credits at checkout to offset the cost of any service.",
+              text: "VIZA does not ask you to send full card details through chat or email. Contact Support if a checkout does not show the payment method you expect.",
             },
           ],
         },
         {
-          heading: "Using credits at checkout",
+          heading: "Using points",
           content: [
             {
               type: "paragraph",
-              text: "If you have available credits, they will appear as a payment option at the checkout screen when booking a service. You can choose to apply all or part of your credits to reduce the amount charged to your payment method.",
+              text: "Eligible VIZA Points and their redemption options are shown in Points Center. Availability and limits can vary by plan, promotion, and purchase type.",
             },
           ],
         },
@@ -50,7 +50,7 @@ export default function AddPaymentMethodPage() {
           content: [
             {
               type: "paragraph",
-              text: "A summary of your billing history is available in the Billing tab under Settings. You can view past transactions and credit usage there.",
+              text: "Open Billing to view payment history, receipts, invoice requests, and refund status.",
             },
           ],
         },

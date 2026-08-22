@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { decidePhEtravelLiveSchedule } from "../../../app/api/applications/[id]/retry-submission/route";
+import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 
 type AnswerRow = {
   field_name: string;

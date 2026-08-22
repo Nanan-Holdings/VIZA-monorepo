@@ -1,17 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocale } from "next-intl";
-import { ExternalLink, Eye, EyeOff, Loader2, RotateCw, ShieldCheck } from "lucide-react";
+import { CircleNotch as Loader2, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { UkSubmissionResult } from "@/lib/submission-result";
 
+type CustomerUkSubmissionResult = Omit<
+  UkSubmissionResult,
+  "generatedPasswordCipher" | "portalUrl" | "portalUsername"
+>;
+
 interface UkResultCardProps {
   applicationId: string;
-  result: UkSubmissionResult;
+  result: CustomerUkSubmissionResult;
   applicationCountry?: string | null;
   applicationVisaType?: string | null;
 }
@@ -23,67 +29,24 @@ export function UkResultCard({
   applicationVisaType = null,
 }: UkResultCardProps) {
   const isZh = isChineseLocale(useLocale());
-  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
-  const [revealing, setRevealing] = useState(false);
-  const [revealError, setRevealError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const atPayment = result.status === "stopped_at_pay";
+  const canStartPayment = ["stopped_at_pay", "funding_required"].includes(result.status);
+  const paymentPending = result.status === "payment_pending";
+  const paymentReviewRequired = result.status === "payment_review_required";
+  const paid = result.status === "paid";
   const progress = result.prefillProgress;
-  const needsPrefillRetry = !atPayment;
-
-  const loadPassword = useCallback(async (opts?: { silent?: boolean }) => {
-    setRevealing(true);
-    if (!opts?.silent) setRevealError(null);
-    try {
-      const res = await fetch(`/api/applications/${applicationId}/uk-portal-credentials`, {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      const payload = (await res.json().catch(() => null)) as { password?: string; error?: string } | null;
-      if (!res.ok) {
-        const message =
-          res.status === 401
-            ? (isZh ? "登录已过期，请刷新页面或重新登录后再查看密码。" : "Session expired. Refresh or log in again to view the password.")
-            : (payload?.error ?? (isZh ? "无法获取密码" : "Failed to fetch credentials"));
-        setRevealError(message);
-        return null;
-      }
-      if (!payload?.password) {
-        setRevealError(isZh ? "密码暂不可用" : "Password not available yet");
-        return null;
-      }
-      setRevealedPassword(payload.password);
-      setRevealError(null);
-      return payload.password;
-    } catch {
-      setRevealError(isZh ? "无法获取密码" : "Failed to fetch credentials");
-      return null;
-    } finally {
-      setRevealing(false);
-    }
-  }, [applicationId, isZh]);
-
-  useEffect(() => {
-    void loadPassword({ silent: true });
-  }, [loadPassword]);
-
-  const togglePassword = async () => {
-    if (revealedPassword) {
-      setRevealedPassword(null);
-      setRevealError(null);
-      return;
-    }
-    await loadPassword();
-  };
+  const needsPrefillRetry = result.status === "registered";
 
   const retryPrefill = async () => {
     if (retrying) return;
     const confirmed = window.confirm(
       isZh
-        ? "这会在 gov.uk 上重新自动填写申请表（约 10–15 分钟），停在支付页由你本人完成付款。确认继续？"
-        : "This will re-run automated pre-fill on gov.uk (~10–15 minutes) and stop at the payment page for you to pay. Continue?",
+        ? "这会在 gov.uk 上重新自动填写申请表（约 10–15 分钟），并在到达官方付款页后由 VIZA 继续处理。确认继续？"
+        : "This will re-run automated pre-fill on gov.uk (~10–15 minutes). VIZA will continue when the official payment page is reached. Continue?",
     );
     if (!confirmed) return;
 
@@ -111,29 +74,88 @@ export function UkResultCard({
     }
   };
 
+  const payOfficialFee = async () => {
+    if (paying) return;
+    setPaying(true);
+    setPaymentError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        code?: unknown;
+        checkoutUrl?: unknown;
+      } | null;
+      if (!response.ok) {
+        if (
+          payload?.code === "official_fee_funding_required" &&
+          typeof payload.checkoutUrl === "string"
+        ) {
+          window.location.assign(payload.checkoutUrl);
+          return;
+        }
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : isZh
+              ? "无法启动官方费用自动支付，请稍后重试。"
+              : "Could not start the automated official-fee payment. Please try again.",
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPaying(false);
+    }
+  };
+
   return (
     <Card className="rounded-xl border-input">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-foreground">
             <ShieldCheck className="h-5 w-5 text-brand-500" />
-            {atPayment
-              ? (isZh ? "英国签证申请已填写完成" : "Your UK application is saved & pre-filled")
-              : (isZh ? "英国签证账户已创建" : "Your UK visa account is ready")}
+            {paid
+              ? (isZh ? "英国签证官网费用已支付" : "UK official fee paid")
+              : needsPrefillRetry
+                ? (isZh ? "英国签证账户已创建" : "Your UK visa account is ready")
+                : (isZh ? "英国签证申请已填写完成" : "Your UK application is saved & pre-filled")}
           </CardTitle>
-          <Badge variant={atPayment ? "secondary" : "outline"}>
-            {atPayment
-              ? (isZh ? "待支付" : "Awaiting payment")
-              : (isZh ? "填写进行中" : "Prefill in progress")}
+          <Badge variant={paid ? "default" : canStartPayment || paymentPending ? "secondary" : "outline"}>
+            {paid
+              ? (isZh ? "已支付" : "Paid")
+              : paymentPending
+                ? (isZh ? "付款处理中" : "Payment processing")
+                : paymentReviewRequired
+                  ? (isZh ? "VIZA 正在复核" : "VIZA review")
+                  : canStartPayment
+                    ? (isZh ? "待 VIZA 自动支付" : "VIZA payment pending")
+                    : (isZh ? "填写进行中" : "Prefill in progress")}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {atPayment
+          {paid
             ? (isZh
-                ? "我们已在 gov.uk 上保存并填写你的英国签证申请。请使用下方邮箱和密码登录，核对答案、接受声明，并在官网支付 £135 签证费——这些最后步骤需由你本人完成。"
-                : "We saved your UK visa application and pre-filled all your answers. Log back in with the email and password below to review your answers, accept the declaration, and pay the £135 visa fee on gov.uk — these final steps must be completed by you.")
+                ? "VIZA 已使用本申请专属虚拟卡完成官网费用支付，并保存官方回执。"
+                : "VIZA paid the official fee with this application's dedicated virtual card and saved the official receipt.")
+            : paymentPending
+              ? (isZh
+                  ? "VIZA 正在使用本申请专属虚拟卡完成官网付款并核对官方结果。本页会自动更新。"
+                  : "VIZA is paying with this application's dedicated virtual card and confirming the official result. This page will update automatically.")
+              : paymentReviewRequired
+                ? (isZh
+                    ? "官网付款结果或银行验证需要 VIZA 工作人员复核。你的申请和资金分配已安全保留；请勿前往 gov.uk 重复付款。"
+                    : "The portal result or bank authentication requires VIZA staff review. Your application and funding allocation are safely preserved; do not make a duplicate payment on gov.uk.")
+            : canStartPayment
+            ? (isZh
+                ? "我们已在 gov.uk 上保存并填写你的英国签证申请，并到达官方付款阶段。VIZA 将为本申请开立限额虚拟卡并自动支付官方费用；你无需登录 gov.uk 或自行付款。"
+                : "We saved and pre-filled your UK visa application and reached the official payment stage. VIZA will open a limited virtual card for this application and pay the official fee automatically; you do not need to sign in to gov.uk or pay it yourself.")
             : (isZh
                 ? "gov.uk 账户已创建，但自动填写尚未完成。请点击下方「重新提交到 gov.uk」启动自动填写；运行期间请保持 submission-service worker 运行。"
                 : "Your gov.uk account is ready, but automated pre-fill has not finished yet. Click “Retry gov.uk prefill” below to start the fill — keep the submission-service worker running.")}
@@ -145,8 +167,8 @@ export function UkResultCard({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
               <span>
                 {isZh
-                  ? "自动填写会在后台用 Playwright 逐页保存答案，完成后此页会显示「待支付」。"
-                  : "Pre-fill runs in the background via Playwright, saving each page. When complete, this card will show “Awaiting payment”."}
+                  ? "自动填写会在后台用 Playwright 逐页保存答案，完成后 VIZA 会继续处理官方付款。"
+                  : "Pre-fill runs in the background via Playwright, saving each page. Once complete, VIZA will continue with the official payment."}
               </span>
             </div>
             <Button
@@ -166,47 +188,17 @@ export function UkResultCard({
                 ? (isZh ? "正在提交到 gov.uk" : "Submitting to gov.uk")
                 : (isZh ? "重新提交到 gov.uk" : "Retry gov.uk prefill")}
             </Button>
-            {retryError && (
-              <p className="mt-2 text-xs text-red-600">{retryError}</p>
-            )}
+            {retryError ? <ClientErrorAlert className="mt-2" message={retryError} /> : null}
           </div>
         )}
 
-        {progress && !atPayment && (
+        {progress && needsPrefillRetry && (
           <p className="text-xs text-muted-foreground">
             {isZh
               ? `自动填写进度：约 ${progress.pagesFilled}/${progress.totalPages} 页已保存。`
               : `Prefill progress: about ${progress.pagesFilled}/${progress.totalPages} pages saved.`}
           </p>
         )}
-
-        <div className="rounded-md border border-input bg-background px-3 py-2">
-          <div className="text-xs text-muted-foreground">
-            {isZh ? "登录邮箱" : "Username (email)"}
-          </div>
-          <div className="mt-0.5 break-all font-mono text-sm text-foreground">
-            {result.portalUsername}
-          </div>
-        </div>
-
-        <div className="rounded-md border border-input bg-background px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted-foreground">
-                {isZh ? "密码" : "Password"}
-              </div>
-              <div className="mt-0.5 break-all font-mono text-sm text-foreground">
-                {revealedPassword ?? "••••••••••"}
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={togglePassword} disabled={revealing}>
-              {revealedPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
-          {revealError && (
-            <p className="mt-1 text-xs text-red-600">{revealError}</p>
-          )}
-        </div>
 
         {result.applicationReference && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
@@ -217,14 +209,28 @@ export function UkResultCard({
           </div>
         )}
 
-        <Button asChild className="w-full">
-          <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
-            {atPayment
-              ? (isZh ? "前往 gov.uk 核对并支付" : "Review & pay on gov.uk")
-              : (isZh ? "打开 gov.uk 继续填写" : "Continue on gov.uk")}
-            <ExternalLink className="ml-2 h-4 w-4" />
-          </a>
-        </Button>
+        {canStartPayment ? (
+          <>
+            <Button
+              type="button"
+              className="w-full"
+              disabled={paying}
+              onClick={() => {
+                void payOfficialFee();
+              }}
+            >
+              {paying ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="mr-2 h-4 w-4" />
+              )}
+              {paying
+                ? (isZh ? "正在启动自动支付" : "Starting automated payment")
+                : (isZh ? "由 VIZA 自动支付官方费用" : "Pay the official fee with VIZA")}
+            </Button>
+            {paymentError ? <ClientErrorAlert message={paymentError} /> : null}
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );

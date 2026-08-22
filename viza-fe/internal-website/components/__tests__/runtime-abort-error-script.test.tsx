@@ -7,6 +7,7 @@ describe("runtimeAbortErrorScript", () => {
     expect(runtimeAbortErrorScript).toContain("unhandledrejection");
     expect(runtimeAbortErrorScript).toContain("error");
     expect(runtimeAbortErrorScript).toContain("console.error");
+    expect(runtimeAbortErrorScript).toContain('message === "aborted"');
     expect(runtimeAbortErrorScript).toContain("signal is aborted");
     expect(runtimeAbortErrorScript).toContain("preventDefault");
   });

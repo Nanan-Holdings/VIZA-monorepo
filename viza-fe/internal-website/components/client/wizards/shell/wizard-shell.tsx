@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { CircleNotch as Loader2 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { DocumentCenterClient } from "@/app/client/documents/document-center-client";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   loadDocumentCenterData,
   type DocumentCenterData,
@@ -438,11 +439,7 @@ export function WizardShell<TForm>({
         </AnimatePresence>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-center text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ClientErrorAlert message={error} /> : null}
 
       <p className="text-center text-xs text-muted-foreground">
         {tShared("openLongFormLead")}{" "}

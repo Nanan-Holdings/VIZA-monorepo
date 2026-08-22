@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { stripeCheckoutPaymentMethodsFor } from "@/lib/payments/method-availability";
+import { pricingFor } from "@/lib/pricing";
+import { visaTypesReferToSameApplication } from "@/lib/submission-queue";
+import { getCanonicalVisaDestinationCountry } from "@/lib/visa-destinations";
 import {
   AGENCY_FEE_TYPE,
   PAYMENT_RECORD_SELECT,
@@ -64,6 +68,41 @@ async function getVisaPackage(
 
   if (error) throw error;
   return (data as unknown as VisaPackageRow | null) ?? null;
+}
+
+async function getVisaPackageForApplication(
+  adminClient: StripeSupabaseClient,
+  application: ApplicationRow,
+  requestedPackageId: string | null,
+): Promise<VisaPackageRow | null> {
+  const packageId = application.visa_package_id ?? requestedPackageId;
+  if (packageId) return getVisaPackage(adminClient, packageId);
+
+  const { data, error } = await adminClient
+    .from("visa_packages")
+    .select("id, country, visa_type, name, description, price_cents, currency, is_active, metadata")
+    .eq("country", application.country)
+    .eq("is_active", true);
+
+  if (error) throw error;
+  return (
+    ((data as unknown as VisaPackageRow[] | null) ?? []).find((packageRow) =>
+      visaTypesReferToSameApplication(packageRow.visa_type, application.visa_type),
+    ) ?? null
+  );
+}
+
+function resolveAgencyCharge(packageRow: VisaPackageRow): { amountCents: number; currency: string } | null {
+  if (typeof packageRow.price_cents === "number" && packageRow.price_cents > 0) {
+    return {
+      amountCents: packageRow.price_cents,
+      currency: normalizeCurrency(packageRow.currency),
+    };
+  }
+
+  const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
+  if (!configuredPricing || configuredPricing.agencyFeeCents <= 0) return null;
+  return { amountCents: configuredPricing.agencyFeeCents, currency: "USD" };
 }
 
 async function getExistingPaidRecord(
@@ -211,22 +250,43 @@ export async function POST(request: NextRequest) {
       return jsonError("Application not found.", 404);
     }
 
-    const packageId = application.visa_package_id ?? parsed.data.packageId ?? null;
-    if (!packageId) {
-      return jsonError("Application package is not configured.", 409);
-    }
-
-    if (parsed.data.packageId && parsed.data.packageId !== packageId) {
+    if (
+      application.visa_package_id &&
+      parsed.data.packageId &&
+      parsed.data.packageId !== application.visa_package_id
+    ) {
       return jsonError("Package does not match application.", 409);
     }
 
-    const packageRow = await getVisaPackage(adminClient, packageId);
+    const packageRow = await getVisaPackageForApplication(
+      adminClient,
+      application,
+      parsed.data.packageId ?? null,
+    );
     if (!packageRow || packageRow.is_active === false) {
       return jsonError("Visa package is unavailable.", 409);
     }
 
-    if (typeof packageRow.price_cents !== "number" || packageRow.price_cents <= 0) {
+    if (
+      getCanonicalVisaDestinationCountry(packageRow.country) !==
+        getCanonicalVisaDestinationCountry(application.country) ||
+      !visaTypesReferToSameApplication(packageRow.visa_type, application.visa_type)
+    ) {
+      return jsonError("Package does not match application.", 409);
+    }
+
+    const agencyCharge = resolveAgencyCharge(packageRow);
+    if (!agencyCharge) {
       return jsonError("Agency fee pricing is not configured.", 409);
+    }
+
+    if (application.visa_package_id !== packageRow.id) {
+      const { error: applicationPackageError } = await adminClient
+        .from("applications")
+        .update({ visa_package_id: packageRow.id, updated_at: new Date().toISOString() })
+        .eq("id", application.id)
+        .eq("applicant_id", application.applicant_id);
+      if (applicationPackageError) throw applicationPackageError;
     }
 
     const existingPaidRecord = await getExistingPaidRecord(adminClient, application.id);
@@ -248,13 +308,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const currency = normalizeCurrency(packageRow.currency);
+    const currency = agencyCharge.currency;
     const metadata = buildCheckoutMetadata({
       application,
       applicantEmail: session.email,
       packageRow,
     });
     const appBaseUrl = getAppBaseUrl(request);
+    const stripePaymentMethods = stripeCheckoutPaymentMethodsFor(
+      application.country,
+      application.visa_type,
+    );
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -263,7 +327,7 @@ export async function POST(request: NextRequest) {
         {
           price_data: {
             currency: currency.toLowerCase(),
-            unit_amount: packageRow.price_cents,
+            unit_amount: agencyCharge.amountCents,
             product_data: {
               name: packageRow.name,
               description:
@@ -276,6 +340,10 @@ export async function POST(request: NextRequest) {
       ],
       success_url: checkoutReturnUrl(appBaseUrl, application.id, "success"),
       cancel_url: checkoutReturnUrl(appBaseUrl, application.id, "cancelled"),
+      payment_method_types: stripePaymentMethods,
+      payment_method_options: stripePaymentMethods.includes("wechat_pay")
+        ? { wechat_pay: { client: "web" } }
+        : undefined,
       client_reference_id: application.id,
       metadata,
       payment_intent_data: { metadata },
@@ -289,7 +357,7 @@ export async function POST(request: NextRequest) {
       custom_text: {
         submit: {
           message:
-            "This Stripe Checkout charges only the VIZA agency fee. Government portal fees, if required, are handled separately.",
+            "This Stripe Checkout charges only the VIZA agency fee. When an official fee is due, VIZA creates a secure virtual card and pays the government portal on your behalf.",
         },
       },
     });
@@ -307,7 +375,7 @@ export async function POST(request: NextRequest) {
         typeof checkoutSession.payment_intent === "string"
           ? checkoutSession.payment_intent
           : checkoutSession.payment_intent?.id ?? null,
-      amountCents: packageRow.price_cents,
+      amountCents: agencyCharge.amountCents,
       currency,
       status: "pending",
       receiptUrl: null,

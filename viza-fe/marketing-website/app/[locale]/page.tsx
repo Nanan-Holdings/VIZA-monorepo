@@ -4,8 +4,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
-import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
+import { visaHref } from "@/lib/countries";
 import { displayFeeSGD, totalSgd } from "@/lib/pricing";
+import { useCatalogue } from "@/components/CatalogueProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import SiteFooter from "@/components/SiteFooter";
 import VisaWorldMap from "@/components/VisaWorldMap";
@@ -63,6 +64,7 @@ type OpenMenu = { kind: "filter"; key: FilterKey; left: number; top: number } | 
 
 export default function ExplorePage() {
   const t = useTranslations();
+  const { countries: catalogueCountries } = useCatalogue();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -173,22 +175,25 @@ export default function ExplorePage() {
     });
   const [search, setSearch] = useState("");
 
-  // --- Country cards (localized, derived from shared metadata) ---
+  // Keep known destinations browsable when the publication API is empty or
+  // unavailable. The detail and apply routes still use `launched` to prevent
+  // unpublished products from being presented as ready for purchase.
   const countries = useMemo(
     () =>
-      COUNTRY_META.map((c) => ({
+      catalogueCountries.map((c) => ({
         slug: c.slug,
-        name: t(`countries.${c.slug}`),
-        city: t(`cities.${c.slug}`),
-        type: t(`visaTypes.${c.type}`),
-        valid: t(`validity.${c.slug}`),
-        fee: totalSgd(c.visaType) === 0 ? t("visa.priceFree") : displayFeeSGD(c.visaType) ?? t("explore.seePricing"),
+        name: t.has(`countries.${c.slug}`) ? t(`countries.${c.slug}`) : c.name,
+        city: t.has(`cities.${c.slug}`) ? t(`cities.${c.slug}`) : c.city,
+        type: t.has(`visaTypes.${c.type}`) ? t(`visaTypes.${c.type}`) : c.type,
+        valid: t.has(`validity.${c.slug}`) ? t(`validity.${c.slug}`) : c.validity,
+        fee: totalSgd(c.pricing) === 0 ? t("visa.priceFree") : displayFeeSGD(c.pricing) ?? t("explore.seePricing"),
         tag: c.tag,
         img: c.image,
         flagCode: c.flagCode,
         featured: c.featured,
+        launched: c.launched,
       })),
-    [t],
+    [catalogueCountries, t],
   );
 
   const matches = (name: string, city: string) => {
@@ -208,7 +213,9 @@ export default function ExplorePage() {
       <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
         <div className="card-img">
           <div className="photo" style={{ backgroundImage: `url('${c.img}')` }}></div>
-          {isFast && <span className="card-tag tag-fast">{t("explore.fastTrack")}</span>}
+          {c.launched
+            ? isFast && <span className="card-tag tag-fast">{t("explore.fastTrack")}</span>
+            : <span className="card-tag tag-evisa">{t("common.comingSoon")}</span>}
           <button
             className={`card-fav ${fav ? "on" : ""}`}
             aria-label={t("explore.save")}
@@ -236,10 +243,10 @@ export default function ExplorePage() {
           </div>
           <div className="card-foot">
             <div className="foot-eta">
-              <span className="lk">{t("explore.guaranteedBy")}</span>
-              <span className="lv">{t("explore.guarantor")}</span>
+              <span className="lk">{c.launched ? t("explore.guaranteedBy") : t("common.comingSoon")}</span>
+              <span className="lv">{c.launched ? t("explore.guarantor") : t("visa.seePricing")}</span>
             </div>
-            <button className="foot-cta" aria-label={t("explore.startApplication")} onClick={(e) => e.preventDefault()}>
+            <button className="foot-cta" aria-label={c.launched ? t("explore.startApplication") : t("common.learnMore")} onClick={(e) => e.preventDefault()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           </div>
@@ -363,7 +370,7 @@ export default function ExplorePage() {
       </section>
 
       {/* Page */}
-      <main className="page">
+      <main className="page" id="visa-catalogue">
         <header className="pagehead">
           <h1>{t("pages.home.heroTitle")}</h1>
           <p>{t("pages.home.heroLede")}</p>
@@ -414,7 +421,9 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        {view === "map" ? (
+        {countries.length === 0 ? (
+          <div className="footnote" role="status">{t("explore.catalogueUnavailable")}</div>
+        ) : view === "map" ? (
           /* Dotted world map: colorized dots for supported destinations, hover for the card */
           <VisaWorldMap
             countries={countries}
@@ -434,7 +443,7 @@ export default function ExplorePage() {
 
             <div className="section-head">
               <h2>{t("explore.sectionTitle", { country: passportName })}</h2>
-              <a href="#" className="seeall">{t("explore.seeAll", { n: COUNTRY_META.length })} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></a>
+              <a href="#visa-catalogue" className="seeall">{t("explore.seeAll", { n: countries.length })} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></a>
             </div>
             <div className="grid">
               {rest.map((c) => (

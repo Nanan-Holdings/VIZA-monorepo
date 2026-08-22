@@ -57,6 +57,14 @@ export type FranceAppointmentManualActionType =
   | "waf"
   | "selector_drift"
   | "account_preparation_failed"
+  | "account_preparation_disabled"
+  | "account_preparation_not_configured"
+  | "account_preparation_incomplete"
+  | "applicant_profile_review_required"
+  | "worker_readiness_timeout"
+  | "worker_not_configured"
+  | "captcha_grid"
+  | "captcha_token"
   | "official_field_mapping_required";
 
 export type FranceAppointmentManualActionStatus =
@@ -117,7 +125,30 @@ export interface FranceAppointmentSlot {
   source: string | null;
   status: string;
   observedAt: string | null;
+  expiresAt: string | null;
   metadataRedactedJson: JsonObject | null;
+}
+
+/**
+ * Server-owned applicant review data for the appointment assistant.
+ *
+ * The values are captured with the status snapshot so the client never needs
+ * to compose a second, potentially stale review from a profile action.
+ */
+export interface FranceAppointmentReview {
+  fullName: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  passportNumber: string | null;
+  passportExpiryDate: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  franceVisasReferenceMasked: string | null;
+  centerCode: string | null;
+  centerName: string | null;
+  missingFields: string[];
+  complete: boolean;
 }
 
 export interface FranceAppointmentConfirmation {
@@ -144,6 +175,8 @@ export interface FranceAppointmentAccount {
   accountEmail: string | null;
   accountStatus: string;
   emailVerified: boolean;
+  referenceReady?: boolean;
+  metadataRedactedJson?: JsonObject;
   lastLoginAt: string | null;
   updatedAt: string | null;
 }
@@ -151,12 +184,67 @@ export interface FranceAppointmentAccount {
 export interface FranceAppointmentStatusSnapshot {
   job: FranceAppointmentJob | null;
   account: FranceAppointmentAccount | null;
+  review: FranceAppointmentReview | null;
   pendingManualAction: FranceAppointmentManualAction | null;
   manualActions: FranceAppointmentManualAction[];
   slots: FranceAppointmentSlot[];
   confirmation: FranceAppointmentConfirmation | null;
   latestStatusCheck: null;
   dryRunNotice: string | null;
+}
+
+export type FranceAppointmentStage = "review" | "account" | "slots" | "confirm" | "result";
+
+const TERMINAL_APPOINTMENT_STATUSES = new Set<FranceAppointmentStatus>([
+  "appointment_failed",
+  "appointment_cancelled",
+  "appointment_blocked_by_site_policy",
+]);
+
+/**
+ * Derive the current screen solely from persisted server state.
+ *
+ * This function intentionally has no local consent/review override. A refresh
+ * must render the same stage as the last persisted snapshot, and terminal
+ * failures/cancellations expose the review/restart entry point.
+ */
+export function getFranceAppointmentStage(
+  snapshot: FranceAppointmentStatusSnapshot | null,
+): FranceAppointmentStage {
+  if (!snapshot?.job) return "review";
+  if (snapshot.confirmation) return "result";
+  if (TERMINAL_APPOINTMENT_STATUSES.has(snapshot.job.status)) return "review";
+
+  const hasSelectedSlot = snapshot.slots.some((slot) =>
+    ["selected", "user_selected"].includes(slot.status),
+  );
+  if (
+    hasSelectedSlot ||
+    snapshot.pendingManualAction?.actionType === "final_confirmation" ||
+    [
+      "appointment_slot_selected",
+      "appointment_final_confirmation_required",
+      "appointment_final_confirmation_approved",
+      "appointment_booked",
+    ].includes(snapshot.job.status)
+  ) {
+    return "confirm";
+  }
+
+  const hasSlotObservation = snapshot.slots.length > 0;
+  if (
+    hasSlotObservation ||
+    [
+      "appointment_calendar_opened",
+      "appointment_slots_observed",
+      "appointment_slot_selection_required",
+      "appointment_no_slots_available",
+    ].includes(snapshot.job.status)
+  ) {
+    return "slots";
+  }
+
+  return "account";
 }
 
 export interface FranceAppointmentApiResponse<T> {

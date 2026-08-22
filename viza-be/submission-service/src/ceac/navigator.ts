@@ -67,6 +67,17 @@ export interface CeacValidationReport {
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_POLL_INTERVAL_MS = 500;
+const PRIMARY_CLICK_SETTLE_MS = 10_000;
+const REQUEST_SUBMIT_SETTLE_MS = 10_000;
+
+interface ClientValidationDiagnostic {
+  pageIsValid: boolean | null;
+  invalidValidators: Array<{
+    id: string;
+    message: string;
+    visible: boolean;
+  }>;
+}
 
 /**
  * Read all visible validation messages on the current page.
@@ -187,13 +198,21 @@ async function runTransition(
       },
     );
   }
+  const navButtonId = (await navButton.getAttribute("id")) ?? "";
+  const navButtonName = (await navButton.getAttribute("name")) ?? "";
+  const navButtonValue = (await navButton.getAttribute("value")) ?? "";
 
   // Click + wait for either the destination identity or a ValidationSummary
   // to appear. `Promise.race` is not quite right here because we want to
   // prefer validation failures — if CEAC short-circuits the submit with
   // errors, the URL/heading may not change at all.
+  let pageCompleteDialogHandled = false;
   try {
-    await navButton.click();
+    pageCompleteDialogHandled = await performWithPageCompleteDialogAcceptance(
+      page,
+      params.from,
+      () => navButton.click(),
+    );
   } catch (err) {
     throw new NavigationError(
       `Failed to click CEAC ${params.action} button on page "${params.from}"`,
@@ -207,6 +226,11 @@ async function runTransition(
       },
     );
   }
+
+  let pageCompletePromptHandled = await continueAfterPageCompletePrompt(
+    page,
+    params.from,
+  );
 
   // Give CEAC a moment to either navigate or render validators. Using
   // `waitForLoadState('networkidle')` with a short budget is safe: if the
@@ -245,12 +269,113 @@ async function runTransition(
     }
   }
 
-  // No validation failure and not yet on destination — poll until identity
-  // settles or we time out. `waitForPage` throws `UnexpectedPageError` on
-  // timeout; translate that into `NavigationError` so the failure class
-  // reflects "navigation didn't land" rather than "page identity mismatch".
+  // Allow the ordinary click a bounded window to settle. Passport has
+  // occasionally remained on the same WebForms page even though all client
+  // validators passed and Playwright reported a successful click. In that
+  // narrow case, requestSubmit preserves the clicked button's name/value and
+  // gives the browser a standards-based form-submit fallback.
+  const primaryWindowMs = Math.min(PRIMARY_CLICK_SETTLE_MS, timeoutMs);
   try {
-    return await waitForPage(page, expectedList, { timeoutMs, pollIntervalMs });
+    return await waitForPage(page, expectedList, {
+      timeoutMs: primaryWindowMs,
+      pollIntervalMs,
+    });
+  } catch {
+    // Continue into the same-page diagnostic/fallback path below.
+  }
+
+  let validationDiagnostic = await readClientValidationDiagnostic(page);
+  let currentProbe = await detectPage(page);
+  const canRetrySubmit =
+    params.action === "next" &&
+    currentProbe.id === params.from &&
+    validationDiagnostic.pageIsValid !== false &&
+    validationDiagnostic.invalidValidators.length === 0 &&
+    timeoutMs > primaryWindowMs;
+
+  let requestSubmitAttempted = false;
+  if (canRetrySubmit) {
+    requestSubmitAttempted = true;
+    pageCompleteDialogHandled =
+      (await performWithPageCompleteDialogAcceptance(
+        page,
+        params.from,
+        () =>
+          navButton.evaluate((node) => {
+            const button = node as HTMLInputElement;
+            if (button.form && typeof button.form.requestSubmit === "function") {
+              button.form.requestSubmit(button);
+            } else {
+              button.click();
+            }
+          }),
+      ).catch(() => false)) || pageCompleteDialogHandled;
+    pageCompletePromptHandled =
+      (await continueAfterPageCompletePrompt(page, params.from)) ||
+      pageCompletePromptHandled;
+  }
+
+  if (requestSubmitAttempted) {
+    try {
+      return await waitForPage(page, expectedList, {
+        timeoutMs: Math.min(
+          REQUEST_SUBMIT_SETTLE_MS,
+          timeoutMs - primaryWindowMs,
+        ),
+        pollIntervalMs,
+      });
+    } catch {
+      // Continue into the WebForms-specific postback fallback below.
+    }
+  }
+
+  validationDiagnostic = await readClientValidationDiagnostic(page);
+  currentProbe = await detectPage(page);
+  const canRetryWebFormsPostback =
+    requestSubmitAttempted &&
+    currentProbe.id === params.from &&
+    validationDiagnostic.pageIsValid !== false &&
+    validationDiagnostic.invalidValidators.length === 0;
+
+  if (canRetryWebFormsPostback) {
+    pageCompleteDialogHandled =
+      (await performWithPageCompleteDialogAcceptance(
+        page,
+        params.from,
+        () =>
+          navButton.evaluate((node) => {
+            type WebFormsWindow = Window & {
+              __doPostBack?: (eventTarget: string, eventArgument: string) => void;
+              ValidNavigation?: () => unknown;
+            };
+            const button = node as HTMLInputElement;
+            const webFormsWindow = window as WebFormsWindow;
+            if (typeof webFormsWindow.ValidNavigation === "function") {
+              webFormsWindow.ValidNavigation();
+            }
+            if (typeof webFormsWindow.__doPostBack === "function" && button.name) {
+              webFormsWindow.__doPostBack(button.name, "");
+            } else {
+              button.click();
+            }
+          }),
+      ).catch(() => false)) || pageCompleteDialogHandled;
+    pageCompletePromptHandled =
+      (await continueAfterPageCompletePrompt(page, params.from)) ||
+      pageCompletePromptHandled;
+  }
+
+  // Poll the remaining timeout budget after the optional WebForms postback.
+  // `waitForPage` throws on timeout; translate it below.
+  try {
+    return await waitForPage(page, expectedList, {
+      timeoutMs: Math.max(
+        pollIntervalMs,
+        timeoutMs - primaryWindowMs -
+          (requestSubmitAttempted ? REQUEST_SUBMIT_SETTLE_MS : 0),
+      ),
+      pollIntervalMs,
+    });
   } catch (err) {
     const detected = (err as { context?: { detected?: CeacPageId | "unknown" } })?.context?.detected;
     // ASP.NET validators can be rendered by a late UpdatePanel response after
@@ -275,6 +400,8 @@ async function runTransition(
         },
       );
     }
+    validationDiagnostic = await readClientValidationDiagnostic(page);
+    currentProbe = await detectPage(page);
     throw new NavigationError(
       `CEAC ${params.action} from "${params.from}" did not reach [${expectedList.join(", ")}] within ${timeoutMs}ms`,
       {
@@ -284,11 +411,120 @@ async function runTransition(
         details: {
           action: params.action,
           from: params.from,
+          navButtonId,
+          navButtonName,
+          navButtonValue,
+          clientValidation: validationDiagnostic,
+          requestSubmitAttempted,
+          webFormsPostbackAttempted: canRetryWebFormsPostback,
+          pageCompleteDialogHandled,
+          pageCompletePromptHandled,
           cause: err instanceof Error ? err.message : String(err),
         },
       },
     );
   }
+}
+
+async function performWithPageCompleteDialogAcceptance(
+  page: Page,
+  from: CeacPageId,
+  action: () => Promise<unknown>,
+): Promise<boolean> {
+  if (from !== "passport") {
+    await action();
+    return false;
+  }
+
+  let handled = false;
+  const acceptDialog = async (dialog: {
+    accept: () => Promise<void>;
+  }): Promise<void> => {
+    handled = true;
+    await dialog.accept();
+  };
+  page.once("dialog", acceptDialog);
+  try {
+    await action();
+  } finally {
+    if (!handled) {
+      page.off("dialog", acceptDialog);
+    }
+  }
+  return handled;
+}
+
+async function continueAfterPageCompletePrompt(
+  page: Page,
+  from: CeacPageId,
+): Promise<boolean> {
+  // CEAC can show a section-boundary prompt or a passport-country warning
+  // after Passport. "No – Continue Form" and "Save and Continue" both mean
+  // continue to U.S. Contact; they are required second clicks, not the page's
+  // primary Next button.
+  if (from !== "passport") return false;
+
+  const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete);
+  try {
+    await candidates.first().waitFor({ state: "visible", timeout: 5_000 });
+  } catch {
+    return false;
+  }
+
+  const count = await candidates.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    await candidate.click({ timeout: 5_000 });
+    return true;
+  }
+  return false;
+}
+
+async function readClientValidationDiagnostic(
+  page: Page,
+): Promise<ClientValidationDiagnostic> {
+  return page.evaluate(() => {
+    type ValidatorNode = HTMLElement & {
+      isvalid?: boolean;
+      errormessage?: string;
+    };
+    type CeacWindow = Window & {
+      Page_ClientValidate?: () => boolean;
+      Page_IsValid?: boolean;
+      Page_Validators?: ValidatorNode[];
+    };
+
+    const ceacWindow = window as CeacWindow;
+    let pageIsValid: boolean | null = null;
+    try {
+      if (typeof ceacWindow.Page_ClientValidate === "function") {
+        pageIsValid = Boolean(ceacWindow.Page_ClientValidate());
+      } else if (typeof ceacWindow.Page_IsValid === "boolean") {
+        pageIsValid = ceacWindow.Page_IsValid;
+      }
+    } catch {
+      pageIsValid = typeof ceacWindow.Page_IsValid === "boolean"
+        ? ceacWindow.Page_IsValid
+        : null;
+    }
+
+    const validators = Array.isArray(ceacWindow.Page_Validators)
+      ? ceacWindow.Page_Validators
+      : [];
+    const invalidValidators = validators
+      .filter((validator) => validator?.isvalid === false)
+      .map((validator) => ({
+        id: validator.id || "",
+        message: (validator.errormessage || validator.textContent || "").trim(),
+        visible: Boolean(
+          validator.getClientRects().length &&
+          window.getComputedStyle(validator).visibility !== "hidden",
+        ),
+      }));
+
+    return { pageIsValid, invalidValidators };
+  }).catch(() => ({ pageIsValid: null, invalidValidators: [] }));
 }
 
 /**

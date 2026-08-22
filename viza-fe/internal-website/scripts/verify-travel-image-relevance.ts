@@ -15,6 +15,9 @@ type ImageIssue = {
 
 function localAssetExists(imageUrl: string): boolean {
   if (!imageUrl.startsWith("/")) return true;
+  // Travel card binaries are hosted in Supabase Storage and exposed through
+  // the Next.js /travel/* rewrite, so they are intentionally absent locally.
+  if (imageUrl.startsWith("/travel/")) return true;
   return fs.existsSync(path.resolve(process.cwd(), "public", imageUrl.slice(1)));
 }
 

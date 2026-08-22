@@ -9,12 +9,15 @@
     "home": "[VI] Home",
     "application": "[VI] Application",
     "status": "[VI] Status",
-    "chat": "[VI] Chat",
+    "chat": "[VI] Concierge",
     "documents": "[VI] Documents",
     "settings": "[VI] Settings",
     "support": "[VI] Help",
     "visaConsultant": "[VI] Visa Consultant",
     "travelAgent": "[VI] Travel Agent",
+    "mockInterview": "[VI] Mock Interview",
+    "saving": "Đang lưu",
+    "saved": "Đã lưu",
     "inviteFriends": "[VI] Invite Friends"
   },
   "menu": {
@@ -49,9 +52,22 @@
     "percentComplete": "[VI] {pct}% complete",
     "quickActions": {
       "title": "[VI] Quick Actions",
-      "continueWithAI": "[VI] Continue with AI",
-      "uploadDocuments": "[VI] Upload Documents",
-      "viewApplication": "[VI] View Application"
+      "visaAI": "[VI] Open Visa AI",
+      "travelAI": "[VI] Open Travel AI",
+      "viewStatus": "[VI] View Application Status"
+    },
+    "activeVisa": {
+      "label": "[VI] Active visa",
+      "empty": "[VI] No active visa application",
+      "open": "[VI] Open application",
+      "choose": "[VI] Choose a visa"
+    },
+    "universalInfo": {
+      "title": "[VI] Profile readiness",
+      "subtitle": "[VI] Reusable details for this and future applications",
+      "saved": "[VI] {completed} of {total} details ready",
+      "fields": "[VI] Surname, given names, birthday, birthplace, passport, contact",
+      "edit": "[VI] Review profile"
     },
     "emptyApplication": {
       "noActiveApplication": "[VI] No active application",
@@ -61,6 +77,7 @@
     "statusLabels": {
       "draft": "[VI] Draft",
       "in_progress": "[VI] In Progress",
+      "processing": "[VI] Processing",
       "submitted": "[VI] Submitted",
       "approved": "[VI] Approved",
       "rejected": "[VI] Rejected"
@@ -377,89 +394,6 @@
       "submitting": "[VI] Submitting…"
     }
   },
-  "services": {
-    "title": "[VI] Services",
-    "scheduled": "[VI] Scheduled",
-    "yourHistory": "[VI] Your history",
-    "reschedule": "[VI] Reschedule",
-    "cancel": "[VI] Cancel",
-    "cancelling": "[VI] Cancelling...",
-    "cannotReschedule": "[VI] Cannot reschedule within 24 hours",
-    "comingSoon": "[VI] Coming Soon",
-    "noScheduledServices": "[VI] No scheduled services",
-    "noScheduledDescription": "[VI] You don't have any upcoming services. Browse our recommended tests below to get started.",
-    "noServiceHistory": "[VI] No service history",
-    "noHistoryDescription": "[VI] You haven't completed any services yet. Your history will appear here.",
-    "cancelDialog": {
-      "title": "[VI] Cancel scheduled service?",
-      "keep": "[VI] Keep"
-    },
-    "recommended": {
-      "heading": "[VI] Recommended for you",
-      "subheading": "[VI] Our top test recommendations"
-    },
-    "personalized": {
-      "heading": "[VI] Personalized recommendations",
-      "subheading": "[VI] Tests based on your profile and health data"
-    },
-    "upcoming": {
-      "heading": "[VI] Upcoming tests",
-      "subheading": "[VI] New tests we're working on"
-    },
-    "marketplace": {
-      "supplement": {
-        "title": "[VI] Supplement Marketplace",
-        "description": "[VI] Insider prices on 300+ curated longevity products"
-      },
-      "service": {
-        "title": "[VI] Service Marketplace",
-        "description": "[VI] Access to curated RX's like documents or peptides"
-      }
-    },
-    "cards": {
-      "bloodPanel": {
-        "title": "[VI] Blood Panel",
-        "description": "[VI] 40+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "[VI] Included in your plan"
-      },
-      "advancedBloodPanel": {
-        "title": "[VI] Advanced Blood Panel",
-        "description": "[VI] 130+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "[VI] Get Started",
-        "badge": "[VI] Recommended"
-      },
-      "glp1": {
-        "title": "[VI] GLP-1 Treatment",
-        "description": "[VI] You may be a candidate for GLP-1 service. See how it could help you.",
-        "cta": "[VI] Get Started"
-      },
-      "allergyTesting": {
-        "title": "[VI] Food & Environmental Allergy Testing",
-        "description": "[VI] Determine your specific food and environmental allergies.",
-        "cta": "[VI] Coming Soon"
-      },
-      "cancerTest": {
-        "title": "[VI] Grail Galleri Multi Cancer Test",
-        "description": "[VI] Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
-        "cta": "[VI] Coming Soon"
-      },
-      "dexaScan": {
-        "title": "[VI] DEXA Bone Density Scan",
-        "description": "[VI] Measure your bone density and risk of osteoporosis.",
-        "cta": "[VI] Coming Soon"
-      },
-      "gutMicrobiome": {
-        "title": "[VI] Gut Microbiome Testing",
-        "description": "[VI] Analyze your gut microbiome to understand your digestive health.",
-        "cta": "[VI] Coming Soon"
-      },
-      "toxicology": {
-        "title": "[VI] Environmental Toxicology Testing",
-        "description": "[VI] Analyze your environmental toxins and exposure.",
-        "cta": "[VI] Coming Soon"
-      }
-    }
-  },
   "application": {
     "title": "[VI] Indonesia Tourist Visa B211A",
     "saving": "[VI] Saving...",
@@ -660,6 +594,8 @@
       "accommodation": "[VI] Accommodation",
       "accommodationAddress": "[VI] Accommodation address",
       "reviewMessage": "[VI] Please review your details carefully before submitting.",
+      "missingInformation": "[VI] Missing information",
+      "notProvided": "[VI] Not provided",
       "confirmAndSubmit": "[VI] Confirm & Submit",
       "validation": {
         "failed": "[VI] Validation failed",
@@ -1698,11 +1634,11 @@
       "1": "[VI] Contact",
       "2": "[VI] Passport",
       "3": "[VI] Travel",
-      "usStay": "[VI] U.S. stay",
-      "usContact": "[VI] U.S. Contact",
       "4": "[VI] Family",
       "5": "[VI] Background",
-      "6": "[VI] Work & education"
+      "6": "[VI] Work & education",
+      "usStay": "[VI] U.S. stay",
+      "usContact": "[VI] U.S. Contact"
     },
     "common": {
       "continue": "[VI] Continue",
@@ -2614,6 +2550,27 @@
     "searchPlaceholder": "[VI] Search chats...",
     "noResults": "[VI] No results found",
     "sessionHistory": "[VI] Session History",
+    "sessionPanelTitle": "Cuộc trò chuyện thị thực",
+    "sessionRecent": "Gần đây",
+    "sessionNew": "Cuộc trò chuyện mới",
+    "sessionUntitled": "Cuộc trò chuyện mới",
+    "sessionCollapse": "Thu gọn danh sách trò chuyện",
+    "sessionExpand": "Mở danh sách trò chuyện",
+    "sessionClose": "Đóng danh sách trò chuyện",
+    "sessionRename": "Đổi tên {title}",
+    "sessionDelete": "Xóa {title}",
+    "sessionTitleInput": "Tiêu đề cuộc trò chuyện",
+    "sessionSave": "Lưu",
+    "sessionCancel": "Hủy",
+    "sessionDeleteConfirm": "Xóa cuộc trò chuyện này?",
+    "sessionConfirmDelete": "Xác nhận xóa {title}",
+    "sessionCancelDelete": "Hủy xóa",
+    "sessionDeleted": "Đã xóa cuộc trò chuyện",
+    "sessionRenameFailed": "Không thể đổi tên cuộc trò chuyện",
+    "sessionRenamed": "Đã đổi tên cuộc trò chuyện",
+    "sessionTitleCleared": "Đã xóa tiêu đề cuộc trò chuyện",
+    "sessionDeleteFailed": "Không thể xóa cuộc trò chuyện",
+    "sessionWaitForResponse": "Vui lòng chờ phản hồi hiện tại hoàn tất",
     "noConversations": "[VI] No conversations yet",
     "chatWith": "[VI] Chat with",
     "vizaAI": "[VI] VIZA AI",
@@ -2623,8 +2580,35 @@
     "supportDescription": "[VI] Complex topics and customer service",
     "supportResponseTime": "[VI] <24h on weekdays",
     "inputPlaceholder": "[VI] Ask about your visa application...",
+    "memoryTitle": "Bộ nhớ cuộc trò chuyện",
+    "memoryPassport": "Hộ chiếu",
+    "memoryResidence": "Nơi cư trú",
+    "memoryDestination": "Điểm đến",
+    "memoryPurpose": "Mục đích",
+    "memoryPurposeTourism": "Du lịch",
+    "memoryPurposeBusiness": "Công tác",
+    "memoryPurposeFamilyVisit": "Thăm gia đình",
+    "memoryPurposeVisit": "Thăm người thân hoặc bạn bè",
+    "memoryPurposeTransit": "Quá cảnh",
+    "memoryPurposeStudy": "Học tập",
+    "memoryPurposeWork": "Làm việc",
+    "memoryPurposeMedical": "Điều trị y tế",
+    "memoryDays": "Số ngày",
+    "memoryEmpty": "Chưa có thông tin được xác nhận trong cuộc trò chuyện này",
+    "memoryEdit": "Chỉnh sửa bộ nhớ",
+    "memoryCancel": "Hủy",
+    "memorySave": "Lưu",
+    "memoryClear": "Xóa bộ nhớ cuộc trò chuyện",
+    "memorySavePassport": "Lưu hộ chiếu vào hồ sơ",
+    "memorySavePassportConfirm": "Lưu quốc gia hộ chiếu này vào hồ sơ của bạn?",
+    "memorySaved": "Đã lưu bộ nhớ",
+    "memoryCleared": "Đã xóa bộ nhớ",
+    "memoryPassportSaved": "Đã lưu hộ chiếu vào hồ sơ",
+    "memoryConflict": "Bộ nhớ đã thay đổi khi bạn chỉnh sửa. Đang hiển thị bản mới nhất.",
+    "memorySaveFailed": "Không thể lưu bộ nhớ",
     "supportComingSoon": "[VI] Support team chat coming soon",
-    "connectionReconnecting": "[VI] Connection issue - reconnecting...",
+    "connectionReconnecting": "Đang khôi phục kết nối…",
+    "connectionUnavailable": "Cố vấn thị thực tạm thời chưa thể kết nối. Vui lòng thử lại sau ít phút.",
     "connectedSending": "[VI] Connected - sending queued messages",
     "agentNotified": "[VI] Your visa agent has been notified about this conversation",
     "failedToStart": "[VI] Failed to start conversation",
@@ -2690,14 +2674,19 @@
       "fallbackName": "[VI] VIZA applicant",
       "editDetails": "[VI] Edit details",
       "completion": "[VI] Reusable profile completion",
-      "completionHint": "[VI] Complete this once so VIZA can prefill repeated visa questions."
+      "completionHint": "[VI] Complete this once so VIZA can prefill repeated visa questions.",
+      "universalTitle": "Hồ sơ dùng chung",
+      "universalDescription": "Lưu thông tin cá nhân thường dùng một lần để hoàn thành các đơn xin thị thực sau này nhanh hơn.",
+      "complete": "Hoàn thành {percent}%",
+      "reviewProfile": "Xem hồ sơ dùng chung"
     },
     "quickSnapshot": {
-      "label": "[VI] Account snapshot",
-      "passport": "[VI] Passport",
-      "phone": "[VI] Phone",
-      "payment": "[VI] Payment",
-      "notSet": "[VI] Not set"
+      "label": "Tóm tắt tài khoản",
+      "email": "Email",
+      "passport": "Số hộ chiếu",
+      "phone": "Số điện thoại",
+      "payment": "Phương thức thanh toán",
+      "notSet": "Chưa thiết lập"
     },
     "sections": {
       "general": "[VI] General",
@@ -3011,8 +3000,8 @@
         "description": "[VI] Invite friends and track your rewards."
       },
       "payments": {
-        "title": "[VI] Payments & Credits",
-        "description": "[VI] View transactions, credits, and receipts."
+        "title": "Thanh toán và điểm",
+        "description": "Xem giao dịch, điểm và biên lai."
       }
     },
     "guides": {
@@ -3021,13 +3010,7 @@
         "title": "[VI] Getting started",
         "completeProfile": "[VI] Complete your profile",
         "addPayment": "[VI] Add a payment method",
-        "exploreServices": "[VI] Explore services"
-      },
-      "usingCredits": {
-        "title": "[VI] Using your credits",
-        "whereApply": "[VI] Where credits apply",
-        "expiration": "[VI] Expiration rules",
-        "troubleshooting": "[VI] Troubleshooting"
+        "exploreServices": "Khám phá VIZA"
       },
       "privacy": {
         "title": "[VI] Privacy & security",
@@ -3042,21 +3025,9 @@
         "question": "[VI] How do I reset my password?",
         "answer": "[VI] Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
       },
-      "seeCredits": {
-        "question": "[VI] Where can I see my credits?",
-        "answer": "[VI] Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
-      },
       "referrals": {
-        "question": "[VI] How do referrals work?",
-        "answer": "[VI] Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
-      },
-      "bookBloodTest": {
-        "question": "[VI] How do I book a blood test?",
-        "answer": "[VI] Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
-      },
-      "labResults": {
-        "question": "[VI] When will I receive my results?",
-        "answer": "[VI] Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+        "question": "Chương trình giới thiệu hoạt động như thế nào?",
+        "answer": "Chia sẻ liên kết giới thiệu trên trang Giới thiệu bạn bè. Phần thưởng đủ điều kiện sẽ xuất hiện trong Points Center sau khi đáp ứng các yêu cầu."
       },
       "updateInfo": {
         "question": "[VI] How do I update my personal information?",
@@ -3066,13 +3037,9 @@
         "question": "[VI] How do I add or update a payment method?",
         "answer": "[VI] Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
       },
-      "cancelReschedule": {
-        "question": "[VI] Can I cancel or reschedule a booked service?",
-        "answer": "[VI] Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
-      },
       "dataPrivate": {
-        "question": "[VI] Is my health data private?",
-        "answer": "[VI] Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+        "question": "Dữ liệu hồ sơ của tôi có được bảo mật không?",
+        "answer": "Dữ liệu hồ sơ được bảo vệ và chỉ bạn, nhân viên VIZA được ủy quyền cùng các nhà cung cấp cần thiết để thực hiện dịch vụ thị thực đã yêu cầu mới có thể truy cập."
       },
       "contactSupport": {
         "question": "[VI] How do I contact support?",
@@ -3257,146 +3224,6 @@
       "egypt": "[VI] Egypt",
       "pisa": "[VI] Pisa",
       "singapore": "[VI] Singapore"
-    }
-  },
-  "terms": {
-    "title": "[VI] Terms of Service",
-    "subtitle": "[VI] The rules and guidelines that govern your use of our platform.",
-    "sections": {
-      "acceptance": {
-        "title": "[VI] Acceptance of terms",
-        "p1": "[VI] By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
-        "p2": "[VI] These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
-      },
-      "services": {
-        "title": "[VI] Our services",
-        "intro": "[VI] VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
-        "item1": "[VI] Online visa consultations with licensed consultants.",
-        "item2": "[VI] Blood panel bookings and lab result delivery.",
-        "item3": "[VI] Supplement and product purchases through the Services marketplace.",
-        "item4": "[VI] Personalized action plans and health recommendations.",
-        "item5": "[VI] Concierge support for your health journey.",
-        "disclaimer": "[VI] Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
-      },
-      "eligibility": {
-        "title": "[VI] Eligibility",
-        "intro": "[VI] To use our services, you must:",
-        "item1": "[VI] Be at least 18 years of age, or have parental or guardian consent.",
-        "item2": "[VI] Provide accurate, current, and complete information when registering.",
-        "item3": "[VI] Maintain the security of your account credentials.",
-        "item4": "[VI] Reside in a location where our services are available."
-      },
-      "responsibilities": {
-        "title": "[VI] User responsibilities",
-        "intro": "[VI] When using our platform, you agree to:",
-        "item1": "[VI] Provide truthful and complete health information during consultations and questionnaires.",
-        "item2": "[VI] Follow visa advice provided by our licensed professionals responsibly.",
-        "item3": "[VI] Not share your account credentials with any other person.",
-        "item4": "[VI] Not use the platform for any unlawful or unauthorized purpose.",
-        "item5": "[VI] Notify us promptly if you suspect any unauthorized access to your account."
-      },
-      "visa": {
-        "title": "[VI] Visa disclaimer",
-        "p1": "[VI] The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
-        "p2": "[VI] Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
-      },
-      "payments": {
-        "title": "[VI] Payments and credits",
-        "p1": "[VI] By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
-        "p2": "[VI] Credits earned through referrals or promotions have no cash value and cannot be transferred.",
-        "p3": "[VI] Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
-        "p4": "[VI] Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
-      },
-      "ip": {
-        "title": "[VI] Intellectual property",
-        "p1": "[VI] All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
-      },
-      "liability": {
-        "title": "[VI] Limitation of liability",
-        "p1": "[VI] To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
-      },
-      "termination": {
-        "title": "[VI] Termination",
-        "p1": "[VI] We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
-        "p2": "[VI] You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
-      },
-      "changes": {
-        "title": "[VI] Changes to these terms",
-        "p1": "[VI] We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
-      },
-      "law": {
-        "title": "[VI] Governing law",
-        "p1": "[VI] These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
-      },
-      "contact": {
-        "title": "[VI] Contact us",
-        "p1": "[VI] If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.it.com."
-      }
-    }
-  },
-  "privacy": {
-    "title": "[VI] Privacy Policy",
-    "subtitle": "[VI] How we collect, use, and protect your personal information.",
-    "sections": {
-      "introduction": {
-        "title": "[VI] Introduction",
-        "p1": "[VI] VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
-        "p2": "[VI] By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
-      },
-      "collect": {
-        "title": "[VI] Information we collect",
-        "intro": "[VI] We collect information that you provide directly to us and information generated through your use of our services.",
-        "item1": "[VI] Personal identifiers such as your name, email address, phone number, and date of birth.",
-        "item2": "[VI] Health and visa information including results, profile data, visa history, allergies, and current documents.",
-        "item3": "[VI] Payment information processed securely through our payment providers.",
-        "item4": "[VI] Communications between you and our visa team, including consultation notes and messages.",
-        "item5": "[VI] Device and usage data such as IP address, browser type, and pages visited."
-      },
-      "use": {
-        "title": "[VI] How we use your information",
-        "intro": "[VI] We use the information we collect to deliver and improve our services, including:",
-        "item1": "[VI] Providing visa services consultations, lab bookings, and service services.",
-        "item2": "[VI] Communicating with you about your health, appointments, and orders.",
-        "item3": "[VI] Processing payments and fulfilling orders through our platform.",
-        "item4": "[VI] Improving the accuracy and quality of our health assessments.",
-        "item5": "[VI] Complying with applicable laws, regulations, and visa standards.",
-        "noSell": "[VI] We never sell your personal or health information to third parties for marketing purposes."
-      },
-      "sharing": {
-        "title": "[VI] Sharing your information",
-        "intro": "[VI] We may share your information only in the following limited circumstances:",
-        "item1": "[VI] With licensed visa professionals involved in your care.",
-        "item2": "[VI] With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
-        "item3": "[VI] With payment processors to complete transactions securely.",
-        "item4": "[VI] When required by law, court order, or applicable regulation.",
-        "item5": "[VI] With your explicit consent for any other purpose."
-      },
-      "security": {
-        "title": "[VI] Data security",
-        "p1": "[VI] We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
-        "p2": "[VI] While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
-      },
-      "rights": {
-        "title": "[VI] Your rights",
-        "intro": "[VI] You have the following rights regarding your personal information:",
-        "access": "[VI] Access: Request a copy of the personal information we hold about you.",
-        "correction": "[VI] Correction: Request that inaccurate or incomplete information be corrected.",
-        "deletion": "[VI] Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
-        "portability": "[VI] Portability: Request your data in a machine-readable format where applicable.",
-        "withdrawal": "[VI] Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
-      },
-      "retention": {
-        "title": "[VI] Data retention",
-        "p1": "[VI] We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
-      },
-      "changes": {
-        "title": "[VI] Changes to this policy",
-        "p1": "[VI] We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
-      },
-      "contact": {
-        "title": "[VI] Contact us",
-        "p1": "[VI] If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.it.com."
-      }
     }
   }
 }

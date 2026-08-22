@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "batches": [
+    {
+      "batch_id": "database-access-baseline-v1",
+      "source_ref": "48c724e1592945456e8d9d9ade8f9b87424e7d2b",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260821131006",
+          "name": "database_access_baseline",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821131006_database_access_baseline.sql",
+          "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260820175334"
+        ],
+        "absent_migration_versions": [
+          "20260821131006"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "users_table_exists",
+            "kind": "relation_exists",
+            "identity": "public.users"
+          },
+          {
+            "id": "applications_table_exists",
+            "kind": "relation_exists",
+            "identity": "public.applications"
+          },
+          {
+            "id": "application_translations_absent",
+            "kind": "relation_absent",
+            "identity": "public.application_translations"
+          },
+          {
+            "id": "runner_queue_depth_exists",
+            "kind": "relation_exists",
+            "identity": "public.runner_queue_depth"
+          },
+          {
+            "id": "travel_commit_rpc_exists",
+            "kind": "function_exists",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)"
+          }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821131006"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821131006",
+            "name": "database_access_baseline",
+            "sha256": "78302df52e8c127355e0a2167900cbe4e3832b2d850fc81cded57b9884aeaa18"
+          },
+          {
+            "id": "users_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.users"
+          },
+          {
+            "id": "application_translations_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.application_translations"
+          },
+          {
+            "id": "users_acl_exact",
+            "kind": "relation_acl",
+            "identity": "public.users",
+            "relation_kind": "table",
+            "required": [
+              { "role": "authenticated", "privileges": ["SELECT"], "exact": true },
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon"]
+          },
+          {
+            "id": "application_translations_acl_exact",
+            "kind": "relation_acl",
+            "identity": "public.application_translations",
+            "relation_kind": "table",
+            "required": [
+              { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE"], "exact": true },
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon"]
+          },
+          {
+            "id": "users_legacy_policy_absent",
+            "kind": "policy_absent",
+            "identity": "public.users",
+            "policy": "Users can view all users"
+          },
+          {
+            "id": "users_select_own_policy_exact",
+            "kind": "policy_contract",
+            "identity": "public.users",
+            "policy": "users_select_own",
+            "command": "SELECT",
+            "roles": ["authenticated"],
+            "permissive": true,
+            "using_sha256": "9eb2ae882c5df8f07df6b9694b665ca1e1a718b39812bbbde6a8f95af17637ba",
+            "check_sha256": null
+          },
+          {
+            "id": "application_translations_select_policy_exact",
+            "kind": "policy_contract",
+            "identity": "public.application_translations",
+            "policy": "application_translations_select_own",
+            "command": "SELECT",
+            "roles": ["authenticated"],
+            "permissive": true,
+            "using_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4",
+            "check_sha256": null
+          },
+          {
+            "id": "application_translations_insert_policy_exact",
+            "kind": "policy_contract",
+            "identity": "public.application_translations",
+            "policy": "application_translations_insert_own",
+            "command": "INSERT",
+            "roles": ["authenticated"],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4"
+          },
+          {
+            "id": "application_translations_update_policy_exact",
+            "kind": "policy_contract",
+            "identity": "public.application_translations",
+            "policy": "application_translations_update_own",
+            "command": "UPDATE",
+            "roles": ["authenticated"],
+            "permissive": true,
+            "using_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4",
+            "check_sha256": "798452f9af245df3fabc82efdd13ce75324ce5a06cfd6d1e4341dc8525f83fc4"
+          },
+          {
+            "id": "ds160_sessions_service_only",
+            "kind": "relation_acl",
+            "identity": "public.ds160_live_sessions",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "ds160_sessions_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.ds160_live_sessions"
+          },
+          {
+            "id": "takeover_sessions_service_only",
+            "kind": "relation_acl",
+            "identity": "public.takeover_session",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "takeover_sessions_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.takeover_session"
+          },
+          {
+            "id": "takeover_logs_service_only",
+            "kind": "relation_acl",
+            "identity": "public.takeover_action_log",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "takeover_logs_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.takeover_action_log"
+          },
+          {
+            "id": "takeover_log_sequence_service_only",
+            "kind": "relation_acl",
+            "identity": "public.takeover_action_log_id_seq",
+            "relation_kind": "sequence",
+            "required": [
+              { "role": "service_role", "privileges": ["USAGE", "SELECT"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "inbox_aliases_service_only",
+            "kind": "relation_acl",
+            "identity": "public.application_inbox_aliases",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "inbox_aliases_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.application_inbox_aliases"
+          },
+          {
+            "id": "runner_metrics_service_only",
+            "kind": "relation_acl",
+            "identity": "public.runner_concurrency_metric",
+            "relation_kind": "table",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT", "INSERT"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "runner_metrics_rls_enabled",
+            "kind": "rls_enabled",
+            "identity": "public.runner_concurrency_metric"
+          },
+          {
+            "id": "runner_metrics_sequence_service_only",
+            "kind": "relation_acl",
+            "identity": "public.runner_concurrency_metric_id_seq",
+            "relation_kind": "sequence",
+            "required": [
+              { "role": "service_role", "privileges": ["USAGE", "SELECT"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "runner_queue_depth_invoker",
+            "kind": "view_security_invoker",
+            "identity": "public.runner_queue_depth"
+          },
+          {
+            "id": "runner_queue_depth_service_only",
+            "kind": "relation_acl",
+            "identity": "public.runner_queue_depth",
+            "relation_kind": "view",
+            "required": [
+              { "role": "service_role", "privileges": ["SELECT"], "exact": true }
+            ],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "travel_commit_rpc_service_only",
+            "kind": "function_execute_acl",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)",
+            "required_roles": ["service_role"],
+            "forbidden_roles": ["PUBLIC", "anon", "authenticated"]
+          },
+          {
+            "id": "travel_commit_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)"
+          },
+          {
+            "id": "portal_health_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.record_portal_health_check(text,text,integer,integer,text,text,timestamp with time zone,text)"
+          },
+          {
+            "id": "public_portal_status_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.get_public_portal_status(integer)"
+          },
+          {
+            "id": "catalogue_draft_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.save_catalogue_draft(uuid,jsonb,jsonb,uuid,text)"
+          },
+          {
+            "id": "catalogue_publish_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.publish_catalogue_entry(uuid,jsonb,uuid,text)"
+          },
+          {
+            "id": "catalogue_retire_rpc_empty_search_path",
+            "kind": "function_empty_search_path",
+            "identity": "public.retire_catalogue_entry(uuid,uuid,text)"
+          },
+          {
+            "id": "postgres_future_objects_private",
+            "kind": "default_acl_denied",
+            "owner_roles": ["postgres"],
+            "object_types": ["r", "S", "f"],
+            "denied_roles": ["PUBLIC", "anon", "authenticated", "service_role"]
+          }
+        ]
+      }
+    },
+    {
+      "batch_id": "database-performance-indexes-v1",
+      "source_ref": "acb1a0694afb8b572acfaba626596702e0a88d2e",
+      "mode": "concurrent-index",
+      "migrations": [
+        {
+          "version": "20260821175138",
+          "name": "database_performance_indexes",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821175138_database_performance_indexes.sql",
+          "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944",
+          "indexes": [
+            {
+              "identity": "public.submission_queue_application_latest_idx",
+              "definition": "CREATE INDEX submission_queue_application_latest_idx ON public.submission_queue USING btree (application_id, updated_at DESC, created_at DESC)"
+            },
+            {
+              "identity": "public.visa_chunks_document_id_idx",
+              "definition": "CREATE INDEX visa_chunks_document_id_idx ON public.visa_chunks USING btree (document_id)"
+            },
+            {
+              "identity": "public.pii_access_log_application_id_idx",
+              "definition": "CREATE INDEX pii_access_log_application_id_idx ON public.pii_access_log USING btree (application_id)"
+            }
+          ]
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821131006"
+        ],
+        "absent_migration_versions": [
+          "20260821175138"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "submission_queue_exists",
+            "kind": "relation_exists",
+            "identity": "public.submission_queue"
+          },
+          {
+            "id": "visa_chunks_exists",
+            "kind": "relation_exists",
+            "identity": "public.visa_chunks"
+          },
+          {
+            "id": "pii_access_log_exists",
+            "kind": "relation_exists",
+            "identity": "public.pii_access_log"
+          }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821175138"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "performance_indexes_migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821175138",
+            "name": "database_performance_indexes",
+            "sha256": "34474dd9e3e265a1d3333abf13c0b7034727b2a1e08e44f8a28475d2997f3944"
+          }
+        ]
+      }
+    },
+    {
+      "batch_id": "agent-backend-role-timeouts-v1",
+      "source_ref": "a468609c31ccadd0ec758caedc18f1c6a037dcfe",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260821181514",
+          "name": "agent_backend_role_timeouts",
+          "path": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
+          "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821175138"
+        ],
+        "absent_migration_versions": [
+          "20260821181514"
+        ],
+        "catalog_assertions": []
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260821181514"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "role_timeouts_migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260821181514",
+            "name": "agent_backend_role_timeouts",
+            "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+          },
+          {
+            "id": "postgres_runtime_timeouts_exact",
+            "kind": "role_settings",
+            "role": "postgres",
+            "settings": {
+              "statement_timeout": "30s",
+              "idle_in_transaction_session_timeout": "30s"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

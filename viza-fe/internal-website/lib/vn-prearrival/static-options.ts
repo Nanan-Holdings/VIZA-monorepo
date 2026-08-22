@@ -151,11 +151,48 @@ const AIRPORT_ZH_BY_CODE: Record<string, string> = {
   PQC: "富国国际机场",
 };
 
+const VISA_TYPE_ZH_BY_CODE: Record<string, string> = {
+  GMTT: "免签证证明",
+  EV: "电子签证（E-Visa）",
+  MMT: "按国家的默认免签政策",
+  MTTQ: "富国岛签证豁免",
+  TDL: "旅游卡",
+  ABTC: "ABTC卡",
+  TTR: "永久居留卡",
+  TTA: "临时居留卡",
+  TT: "签证",
+  MM1: "双边免签",
+  MM2: "单边免签",
+};
+
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
 export function formatVnPrearrivalOfficialFlightLabel(flightNumber: string, airport = ""): string {
+  // The official category feed currently prefixes a few Phu Quoc rows with
+  // `##` when its airline metadata is missing. Keep the raw option value for
+  // portal submission, but do not expose that source-data marker to users.
+  const compact = flightNumber.replace(/^##\s*/, "").replace(/\s+/g, "");
+  const match = /^([A-Za-z]{2})(\d+)$/.exec(compact);
+  let displayNumber = compact;
+
+  if (match) {
+    const [, airline, digits] = match;
+    if (digits.length < 4) {
+      displayNumber = `${airline}${digits} (${airline}${digits.padStart(4, "0")})`;
+    } else if (digits.length === 4) {
+      const unpaddedDigits = digits.replace(/^0+(?!$)/, "");
+      displayNumber = unpaddedDigits === digits
+        ? `${airline}${digits}`
+        : `${airline}${unpaddedDigits} (${airline}${digits})`;
+    }
+  }
+
+  return airport ? `${displayNumber} - ${airport}` : displayNumber;
+}
+
+export function formatVnPrearrivalPortalFlightLabel(flightNumber: string, airport = ""): string {
   const compact = flightNumber.replace(/\s+/g, "");
   const match = /^([A-Za-z]{2})(\d+)$/.exec(compact);
   let displayNumber = compact;
@@ -220,9 +257,15 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
   const airline = stringValue(item.airline);
   const provinceCity = stringValue(item.province_city);
   const ward = stringValue(item.ward);
+  const officialValue = source === "flight"
+    ? stringValue(item.vn_value) || stringValue(item.vietnam_value) || enValue
+    : "";
   const officialLabel = source === "flight"
-    ? formatVnPrearrivalOfficialFlightLabel(enValue, airport)
+    ? formatVnPrearrivalOfficialFlightLabel(officialValue, airport)
     : enValue;
+  const portalLabel = source === "flight"
+    ? formatVnPrearrivalPortalFlightLabel(officialValue, airport)
+    : officialLabel;
   const value = source === "flight"
     ? code || (airport ? `${enValue}_${airport}` : enValue)
     : code || rawValue || enValue;
@@ -230,6 +273,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
     ? officialLabel
     : source === "visa_issue_place"
       ? translateIssuePlace(enValue)
+      : source === "visa_type"
+        ? (VISA_TYPE_ZH_BY_CODE[code] ?? zhValue)
       : source === "airport"
         ? (AIRPORT_ZH_BY_CODE[code] ?? (zhValue || enValue))
         : source === "hotel"
@@ -248,7 +293,10 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
     label_en: officialLabel,
     label_zh: labelZh,
     official_label: officialLabel,
-    searchText: `${enValue} ${zhValue} ${labelZh} ${code} ${rawValue}`,
+    searchText: `${enValue} ${officialValue} ${zhValue} ${labelZh} ${code} ${rawValue}`,
+    ...(officialValue ? { official_value: officialValue } : {}),
+    ...(portalLabel ? { portal_label: portalLabel } : {}),
+    ...(code ? { code } : {}),
     ...(airport ? { airport } : {}),
     ...(airline ? { airline } : {}),
     ...(provinceCity ? { province_city: provinceCity } : {}),

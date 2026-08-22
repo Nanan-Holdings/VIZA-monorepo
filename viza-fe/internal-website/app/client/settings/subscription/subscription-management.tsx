@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft,
-  CalendarDays,
-  CheckCircle2,
+  Calendar as CalendarDays,
+  CheckCircle as CheckCircle2,
   CreditCard,
-  Loader2,
-  ReceiptText,
-  RotateCcw,
+  CircleNotch as Loader2,
+  Receipt as ReceiptText,
+  ArrowCounterClockwise as RotateCcw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import type { CurrentSubscriptionState } from "@/lib/payments/commercial-records";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export function SubscriptionManagement({
 }) {
   const t = useTranslations("subscriptionManagement");
   const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
   const [subscription, setSubscription] = useState(initialSubscription);
   const [isSubmitting, setIsSubmitting] = useState<"cancel" | "resume" | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -94,30 +96,23 @@ export function SubscriptionManagement({
 
   return (
     <main className="mx-auto w-full max-w-[1040px] pb-16 pt-4">
-      <Button asChild variant="outline" className="h-10 rounded-full">
-        <Link href="/client/settings">
-          <ArrowLeft className="h-4 w-4" />
-          {t("back")}
-        </Link>
-      </Button>
+      <PageBackButton
+        fallbackHref="/client/settings"
+        label={isZh ? "返回上一页" : "Back to previous page"}
+      />
 
-      <section className="mt-6 overflow-hidden rounded-xl border bg-white shadow-sm">
+      <section className="mt-8 overflow-hidden rounded-xl border bg-white shadow-sm">
         <div className="grid gap-6 bg-brand-50/80 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-700 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-normal text-brand-700">
-                {t("eyebrow")}
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold text-foreground sm:text-4xl">
-                {t("title")}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                {t("subtitle")}
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-normal text-brand-700">
+              {t("eyebrow")}
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold text-foreground sm:text-4xl">
+              {t("title")}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              {t("subtitle")}
+            </p>
           </div>
           <span
             className={cn(
@@ -187,18 +182,13 @@ export function SubscriptionManagement({
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("actionsDescription")}</p>
 
             {message ? (
-              <p
-                className={cn(
-                  "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
-                  message.tone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700",
-                )}
-                role="status"
-                aria-live="polite"
-              >
-                {message.text}
-              </p>
+              message.tone === "success" ? (
+                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
+                  {message.text}
+                </p>
+              ) : (
+                <ClientErrorAlert className="mt-4" message={message.text} />
+              )
             ) : null}
 
             <div className="mt-5 grid gap-3">

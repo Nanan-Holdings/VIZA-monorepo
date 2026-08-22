@@ -8,6 +8,10 @@ import { classifyPage, type LkRunnerError } from "./errors";
 import { LK_SELECTORS } from "./selectors";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message.js";
 import { extractAuto } from "../inbox/extractors/index.js";
+import {
+  unavailableManagedPaymentBoundary,
+  type ManagedPaymentHooks,
+} from "../runners/managed-payment-boundary.js";
 
 /**
  * Sri Lanka ETA prefill runner (AUTO-LK-01 + AUTO-LK-02).
@@ -43,10 +47,11 @@ export interface LkRunInput {
   applicationId: string;
   answers: LkCanonicalAnswers;
   headless?: boolean;
+  paymentHooks?: ManagedPaymentHooks;
 }
 
 export interface LkRunResult {
-  status: "stopped_before_pay" | "blocked" | "anti_bot_gate" | "needs_human";
+  status: "managed_payment_adapter_unavailable" | "blocked" | "anti_bot_gate" | "needs_human";
   reason: string;
   reachedStep: string;
   artefacts: string[];
@@ -208,8 +213,14 @@ export async function runLkPrefill(input: LkRunInput): Promise<LkRunResult> {
       if (reviewErr) return dispatchError(reviewErr);
     }
 
-    result.status = "stopped_before_pay";
-    result.reason = "runner halted at the review step before payment";
+    const payment = await unavailableManagedPaymentBoundary({
+      country: "sri_lanka",
+      visaType: "LK_ETA",
+      hooks: input.paymentHooks,
+    });
+    result.status = payment.status;
+    result.reason = payment.reason;
+    result.reachedStep = "managed_payment_review_required";
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

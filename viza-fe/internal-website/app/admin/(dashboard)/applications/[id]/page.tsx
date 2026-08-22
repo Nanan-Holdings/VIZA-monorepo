@@ -43,6 +43,11 @@ import {
   maskPassportForLocale,
 } from "../copy";
 import { completeLiveManualAction } from "../actions";
+import {
+  createAdminWorkItem,
+  type AdminWorkItemRow,
+} from "@/app/actions/admin-work-items";
+import { reviewAdminDocument } from "@/app/actions/admin-documents";
 
 export const dynamic = "force-dynamic";
 
@@ -691,7 +696,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const profileWithAlias = applicant.profile as ApplicantProfileWithAlias | null;
   const aliasEmailStr = profileWithAlias?.inbox_alias ? String(profileWithAlias.inbox_alias).toLowerCase() : null;
 
-  const [{ data: jobs }, { data: orders }, inbound] = await Promise.all([
+  const [{ data: jobs }, { data: orders }, inbound, { data: workItems }] = await Promise.all([
     appIds.length > 0
       ? admin
           .from("runner_job")
@@ -715,11 +720,78 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           .order("received_at", { ascending: false })
           .limit(10)
       : Promise.resolve({ data: [] as InboundRow[] }),
+    appIds.length > 0
+      ? admin
+          .from("admin_work_items")
+          .select("*")
+          .in("application_id", appIds)
+          .order("created_at", { ascending: false })
+          .limit(50)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const jobRows = (jobs ?? []) as RunnerJobRow[];
   const orderRows = (orders ?? []) as OrderRow[];
   const inboundRows = (inbound.data ?? []) as InboundRow[];
+  const workRows = (workItems ?? []) as AdminWorkItemRow[];
+  const documentLinks = new Map<string, string>();
+  await Promise.all(
+    applicant.applications.flatMap((application) =>
+      application.applicationDocuments.map(async (document) => {
+        if (!document.storage_path) return;
+        const { data: signed } = await admin.storage
+          .from("application-documents")
+          .createSignedUrl(document.storage_path, 300);
+        if (signed?.signedUrl) documentLinks.set(document.id, signed.signedUrl);
+      }),
+    ),
+  );
+
+  async function createCaseWork(formData: FormData) {
+    "use server";
+    await createAdminWorkItem({
+      applicationId: String(formData.get("applicationId")),
+      applicantId: String(formData.get("applicantId")),
+      kind: String(formData.get("kind")),
+      title: String(formData.get("title")),
+      description: String(formData.get("description") || ""),
+    });
+  }
+
+  async function reviewDocument(formData: FormData) {
+    "use server";
+    await reviewAdminDocument({
+      documentId: String(formData.get("documentId")),
+      decision: String(formData.get("decision")) as "validated" | "rejected",
+      reason: String(formData.get("reason") || ""),
+    });
+  }
+
+  const workCopy = locale === "zh"
+    ? {
+        title: "案件工作项",
+        description: "把跟进事项分配到有负责人、截止时间和审计记录的队列中。",
+        empty: "此案件暂无工作项。",
+        create: "创建工作项",
+        taskTitle: "工作项标题",
+        detail: "说明",
+        queue: "打开完整队列",
+      }
+    : {
+        title: "Case work items",
+        description: "Put follow-up into an owned, time-bound, auditable queue.",
+        empty: "No work items exist for this case.",
+        create: "Create work item",
+        taskTitle: "Work item title",
+        detail: "Description",
+        queue: "Open full queue",
+      };
+  const documentCopy = locale === "zh"
+    ? { title: "文件审核", description: "在受保护的临时链接中查看文件，并记录可审计的通过或拒绝决定。", empty: "此案件没有已上传文件。", open: "打开文件", approve: "通过", reject: "拒绝", reason: "审核备注或拒绝原因", expires: "文件链接 5 分钟后过期" }
+    : { title: "Document review", description: "Inspect protected files and record an auditable acceptance or rejection decision.", empty: "No uploaded documents exist for this case.", open: "Open file", approve: "Validate", reject: "Reject", reason: "Review note or rejection reason", expires: "File links expire after 5 minutes" };
+  const caseDocuments = applicant.applications.flatMap((application) =>
+    application.applicationDocuments.map((document) => ({ application, document })),
+  );
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
@@ -750,6 +822,81 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />
       <PackageOverview applicant={applicant} copy={copy} locale={locale} />
       <SupportItems applicant={applicant} copy={copy} />
+
+      <SectionPanel title={documentCopy.title} description={documentCopy.description}>
+        {caseDocuments.length === 0 ? <p className="text-sm text-[#64748b]">{documentCopy.empty}</p> : (
+          <div className="space-y-3">
+            <p className="text-xs text-[#94a3b8]">{documentCopy.expires}</p>
+            {caseDocuments.map(({ application, document }) => (
+              <div key={document.id} className="rounded-lg border border-[#e5e7eb] p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-[#334155]">{document.document_type.replaceAll("_", " ")}</span><StatusPill tone={document.status === "rejected" ? "danger" : document.status === "validated" ? "success" : "warning"}>{localizeStatusText(document.status, locale)}</StatusPill></div>
+                    <p className="mt-1 text-xs text-[#64748b]">{application.countryLabel} · {document.filename || document.id}</p>
+                    {document.review_notes || document.rejection_reason ? <p className="mt-2 text-sm text-[#64748b]">{document.review_notes || document.rejection_reason}</p> : null}
+                  </div>
+                  {documentLinks.get(document.id) ? <a href={documentLinks.get(document.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">{documentCopy.open}<ExternalLink className="h-3.5 w-3.5" /></a> : null}
+                </div>
+                <form action={reviewDocument} className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input type="hidden" name="documentId" value={document.id} />
+                  <input name="reason" placeholder={documentCopy.reason} className="h-9 flex-1 rounded-md border border-[#d7dce3] px-3 text-sm" />
+                  <button name="decision" value="validated" className="h-9 rounded-md border border-emerald-300 px-3 text-sm font-semibold text-emerald-700">{documentCopy.approve}</button>
+                  <button name="decision" value="rejected" className="h-9 rounded-md border border-red-300 px-3 text-sm font-semibold text-red-700">{documentCopy.reject}</button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionPanel>
+
+      <SectionPanel title={workCopy.title} description={workCopy.description}>
+        <div className="space-y-4">
+          {workRows.length === 0 ? (
+            <p className="text-sm text-[#64748b]">{workCopy.empty}</p>
+          ) : (
+            <ul className="divide-y rounded-lg border border-[#e5e7eb]">
+              {workRows.map((item) => (
+                <li key={item.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold uppercase text-slate-700">{item.priority}</span>
+                      <span className="text-sm font-medium text-[#232323]">{item.title}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {item.status.replaceAll("_", " ")} · {item.owning_team}
+                      {item.due_at ? ` · ${formatAdminDateTime(item.due_at, locale, copy.common.notRecorded)}` : ""}
+                    </p>
+                  </div>
+                  <Link href="/admin/work" className="text-sm font-medium text-brand-600 hover:underline">{workCopy.queue}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {applicant.latestApplication ? (
+            <details className="rounded-lg border border-[#e5e7eb] bg-[#fafbfc] p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-[#334155]">{workCopy.create}</summary>
+              <form action={createCaseWork} className="mt-3 grid gap-3 md:grid-cols-2">
+                <input type="hidden" name="applicationId" value={applicant.latestApplication.id} />
+                <input type="hidden" name="applicantId" value={applicant.applicantId} />
+                <select name="kind" className="h-10 rounded-md border border-[#d7dce3] bg-white px-3 text-sm">
+                  <option value="document_review">document review</option>
+                  <option value="submission_action_required">submission action required</option>
+                  <option value="refund_or_dispute">refund or dispute</option>
+                  <option value="support_sla_risk">customer follow-up</option>
+                  <option value="privacy_request">privacy request</option>
+                </select>
+                <input name="title" required placeholder={workCopy.taskTitle} className="h-10 rounded-md border border-[#d7dce3] bg-white px-3 text-sm" />
+                <input name="description" placeholder={workCopy.detail} className="h-10 rounded-md border border-[#d7dce3] bg-white px-3 text-sm" />
+                <button type="submit" className="h-10 rounded-md bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600">
+                  {workCopy.create}
+                </button>
+              </form>
+            </details>
+          ) : null}
+        </div>
+      </SectionPanel>
+
       <LiveSubmissionPanel applicant={applicant} locale={locale} />
       <ApplicationsOverview applicant={applicant} copy={copy} locale={locale} />
       <EventTimeline applicant={applicant} copy={copy} locale={locale} />

@@ -6,17 +6,17 @@ import { motion } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  CircleAlert,
-  CircleDot,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  WarningCircle as CircleAlert,
+  Circle as CircleDot,
+  Clock as Clock3,
   FileText,
-  Loader2,
-  Send,
+  CircleNotch as Loader2,
+  PaperPlaneTilt as Send,
   Upload,
   XCircle,
-  type LucideIcon,
-} from "lucide-react";
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getApplicationLifecycleSummaries,
@@ -24,7 +24,9 @@ import {
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { getFormVisaType } from "@/lib/visa-destinations";
 
 type HubMode = "overview" | "detail";
@@ -61,7 +63,7 @@ const FILTER_STATUS_MAP: Record<HubFilter, ApplicationLifecycleStatus[]> = {
 
 const STATUS_TONE: Record<
   ApplicationLifecycleStatus,
-  { icon: LucideIcon; badge: string; ring: string; bar: string; dot: string }
+  { icon: PhosphorIcon; badge: string; ring: string; bar: string; dot: string }
 > = {
   not_started: {
     icon: CircleDot,
@@ -136,8 +138,16 @@ function getDetailHref(summary: ApplicationLifecycleSummary, basePath: string): 
   return `${basePath}?view=detail&country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
 }
 
-function getFormHref(summary: Pick<ApplicationLifecycleSummary, "country" | "visaType">): string {
-  return `/client/application?country=${encodeURIComponent(summary.country)}&visaType=${encodeURIComponent(summary.visaType)}`;
+function getFormHref(summary: {
+  country: string;
+  visaType: string;
+  applicationId?: string | null;
+}): string {
+  return buildApplicationLongFormHref({
+    applicationId: summary.applicationId,
+    country: summary.country,
+    visaType: summary.visaType,
+  });
 }
 
 function formatDate(value: string | null, locale: string): string {
@@ -309,7 +319,7 @@ function ErrorState({ message }: { message: string }) {
   const t = useTranslations("application.statusHub");
 
   return (
-    <div className="rounded-[8px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+    <div className="rounded-[8px] border border-[#e5e7eb] bg-white px-5 py-4 text-sm text-[#71717a]">
       <p className="font-semibold">{t("loadError")}</p>
       <p className="mt-1">{message}</p>
     </div>
@@ -551,9 +561,10 @@ function DetailView({
                 {visaTypeLabel}
               </p>
               {summary.latestSubmission?.lastError && (
-                <p className="mt-3 rounded-[8px] border border-red-100 bg-red-50 px-3 py-2 text-[13px] text-red-700">
-                  {summary.latestSubmission.lastError}
-                </p>
+                <ClientErrorAlert
+                  className="mt-3"
+                  message={summary.latestSubmission.lastError}
+                />
               )}
             </div>
           </div>

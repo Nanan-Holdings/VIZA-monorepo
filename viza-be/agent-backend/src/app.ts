@@ -1,5 +1,6 @@
 ﻿import express from 'express';
 import cors from 'cors';
+import type { ErrorRequestHandler } from 'express';
 import { errorHandler } from './middleware/errorHandler.js';
 import adminRemindersRouter from './routes/admin-reminders.routes.js';
 import telegramWebhookRouter from './routes/telegram-webhook.js';
@@ -30,6 +31,14 @@ import {
   japanAppointmentApplicationRouter,
   japanAppointmentOperationsRouter,
 } from './routes/japan-appointment.routes.js';
+import {
+  publicStatusRouter,
+  statusOperationsRouter,
+} from './routes/public-status.routes.js';
+import {
+  testActiveKnowledgeRelease,
+  testSupabaseConnection,
+} from './db/supabase-client.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -39,21 +48,82 @@ const allowedOrigins = (
 
 const app = express();
 
+const MIN_READINESS_TIMEOUT_MS = 2_000;
+const MAX_READINESS_TIMEOUT_MS = 3_000;
+
+function getReadinessTimeoutMs(): number {
+  const configured = Number(
+    process.env.READINESS_DB_TIMEOUT_MS ?? process.env.READINESS_TIMEOUT_MS ?? MAX_READINESS_TIMEOUT_MS,
+  );
+  if (!Number.isFinite(configured)) return MAX_READINESS_TIMEOUT_MS;
+  return Math.min(
+    MAX_READINESS_TIMEOUT_MS,
+    Math.max(MIN_READINESS_TIMEOUT_MS, Math.floor(configured)),
+  );
+}
+
 // Middleware
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-// Body limit raised from the 100kb default: the passport-scan OCR route
-// (POST /api/passport-scan/extract) receives base64-encoded images that
-// reach several MB. Without this, express.json() rejects the body before
-// the route runs and the error handler returns a bare 500. 15mb comfortably
-// covers the route's own 8mb-base64 cap (which still enforces the real limit
-// with a clean 413).
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
+// Passport scan / OCR receives a base64 image and therefore needs a larger
+// parser than ordinary API requests. Mount this before the 1 MB global parser
+// and retain the route's own ~8 MB base64 validation cap.
+app.use(
+  '/api/passport-scan',
+  express.json({ limit: '15mb' }),
+  express.urlencoded({ extended: true, limit: '15mb' }),
+  passportScanRouter,
+);
+
+// Keep normal API payloads small. The passport OCR endpoint is mounted with
+// its own parser below, before this global parser can reject its larger image.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Process-only liveness probe. This must not touch Supabase or any other
+// dependency so an outage cannot make the process look dead.
+app.get('/live', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
+
+// Dependency readiness probe. A failed or timed-out Supabase check is a real
+// readiness failure, while the bounded timeout prevents health infrastructure
+// from waiting on a stalled network connection.
+app.get('/ready', async (_req, res) => {
+  const check = await testSupabaseConnection(getReadinessTimeoutMs());
+  res.status(check.success ? 200 : 503).json({
+    status: check.success ? 'ready' : 'not_ready',
+    dependency: 'supabase',
+    dependencyStatus: check.success ? 'ok' : 'unavailable',
+    error: check.success ? null : check.error ?? check.message,
+    latencyMs: check.latencyMs,
+  });
+});
+
+// Legacy health endpoint. Keep the 200 response contract used by existing
+// Render probes, but report dependency degradation truthfully in the body.
+app.get('/health', async (_req, res) => {
+  const check = await testActiveKnowledgeRelease(getReadinessTimeoutMs());
+  res.status(200).json({
+    status: check.success ? 'ok' : 'degraded',
+    dependency: 'supabase',
+    dependencyStatus: check.success ? 'ok' : 'unavailable',
+    error: check.success ? null : check.error ?? check.message,
+    latencyMs: check.latencyMs,
+    gitSha:
+      process.env.RENDER_GIT_COMMIT ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      process.env.GIT_COMMIT_SHA ??
+      'unknown',
+    memorySchemaVersion: 1,
+    knowledgeReleaseId: check.releaseId,
+    knowledgeReleaseKey: check.releaseKey,
+  });
+});
+
+// Public, redacted service-status snapshot and secret-protected probe trigger.
+app.use('/api/public/status', publicStatusRouter);
+app.use('/api/internal/status', statusOperationsRouter);
 
 // Admin routes
 app.use('/api/admin/reminders', adminRemindersRouter);
@@ -107,11 +177,22 @@ app.use('/api/applications', submissionResultRouter);
 // UK account credential registration (for forceResume + post-auth walk)
 app.use('/api/applications', ukAccountRouter);
 
-// Passport scan / OCR extraction
-app.use('/api/passport-scan', passportScanRouter);
+const bodyParserErrorHandler: ErrorRequestHandler = (error, _req, res, next) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.too.large'
+  ) {
+    res.status(413).json({ success: false, error: 'Request body too large' });
+    return;
+  }
+  next(error);
+};
+
+app.use(bodyParserErrorHandler);
 
 // Error Handler Middleware
 app.use(errorHandler);
 
 export default app;
-

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { assertRunnerCutoverActive } from "@/lib/runner-cutover-pause.server";
 import { buildStatusSummary, fetchAdminApplicationDetail } from "./data";
 
 type QueueRow = {
@@ -262,6 +264,8 @@ export async function completeLiveManualAction(formData: FormData) {
     const found = await findManualAction(adminClient, jobId, actionId, manualActionTables(queue, application));
     if (!found || found.action.application_id !== application.id) redirect(target);
 
+    assertRunnerCutoverActive();
+
     const now = new Date().toISOString();
     if (found.action.status !== "completed") {
       const { error: actionError } = await adminClient
@@ -278,6 +282,11 @@ export async function completeLiveManualAction(formData: FormData) {
       .update(queuePatch)
       .eq("id", jobId);
     if (updateQueueError) redirect(target);
+
+    const wake = await wakeCloudSubmissionWorker(jobId, { target: "legacy" });
+    if (!wake.ok) {
+      console.warn("[submission-queue] Staff manual-action requeue wake failed; durable queue remains recoverable.", wake);
+    }
 
     await adminClient.from("applications").update({
       status: "submitted",

@@ -16,12 +16,18 @@ explicitly reintroduces another provider.
 
 ## Key Flows
 
-- Startup: `src/index.ts` loads `.env`, creates HTTP server, attaches Socket.IO,
-  registers `/visa`, and checks Supabase.
+- Startup: `src/index.ts` loads `.env`, verifies production database-role
+  timeout defaults on three fresh connections before readiness, creates the HTTP server, attaches
+  Socket.IO, registers `/visa`, and checks Supabase. `src/server-shutdown.ts`
+  owns the bounded Socket.IO/HTTP/database shutdown order.
 - Express app: `src/app.ts` mounts REST routes and error handling.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
+- Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
+  `scripts/stage-visa-knowledge-supplements.ts`,
+  `scripts/promote-visa-knowledge-release.ts`, and
+  `visa_knowledge_releases`.
 - Conversation state: `src/services/visa-conversation-state.service.ts`.
 - Field guidance: `src/routes/field-guidance.routes.ts`.
 - Application translation/validation: `src/routes/translation.routes.ts` and
@@ -72,14 +78,28 @@ explicitly reintroduces another provider.
 - Transactional notification delivery: `src/notify/templates/**` and
   `src/notify/worker.ts`; Vietnam status changes use the locale-aware
   `vietnam_status_update` template and link to the VIZA status center.
+- Public service health: `src/services/portal-health.service.ts`,
+  `src/routes/public-status.routes.ts`, and
+  `drizzle/0150_public_status_tracking.sql` own bounded synthetic probes,
+  durable observations/incidents, and the redacted public snapshot.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- Audited tourist-form seeds:
+  `scripts/seed-ca-trv-form-fields.ts`,
+  `scripts/seed-tr-e-visa-form-fields.ts`,
+  `scripts/seed-in-e-visa-form-fields.ts`,
+  `scripts/seed-sa-e-visa-form-fields.ts`, and
+  `scripts/seed-ae-tourist-visa-form-fields.ts`. Their canonical products are
+  intentionally narrower than legacy generic route aliases; uploads belong in
+  `application_documents`, never file-path answers.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for
   `TH_TDAC_ARRIVAL_CARD`, `scripts/ph-etravel/**` for
-  `PH_ETRAVEL_ARRIVAL_CARD`, and `scripts/vn-prearrival/**` for
-  `VN_PREARRIVAL_DECLARATION`. Keep the top-level
+  `PH_ETRAVEL_ARRIVAL_CARD`, `scripts/vn-prearrival/**` for
+  `VN_PREARRIVAL_DECLARATION`, and `scripts/kr-e-arrival/**` for
+  `KR_E_ARRIVAL_CARD`; `scripts/jp-vjw/**` for `JP_VISIT_JAPAN_WEB`, and
+  `scripts/ke-eta/**` for `KE_ETA`. Keep the top-level
   `scripts/seed-*-form-fields.ts` files as command entries and keep country
   packages separate from visa flows.
 - Taiwan entry-permit seed: `scripts/seed-tw-entry-permit-form-fields.ts` owns
@@ -89,6 +109,20 @@ explicitly reintroduces another provider.
   against the production DB as of this writing).
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
+- Staging concurrency release gate: `scripts/concurrency-load.ts` is a guarded,
+  staging-only harness for the `0149_concurrency_phase_two.sql` runner-pool
+  claim/settlement RPCs. It requires `CONCURRENCY_LOAD_CONFIRM=staging-only`,
+  a Supabase direct/pooler URL bound to the explicit non-production
+  `CONCURRENCY_LOAD_PROJECT_REF`, and authoritative database settings
+  `app.viza_environment=staging` plus `app.viza_project_ref=<ref>` before it
+  creates synthetic rows. The script never sets those markers. The default
+  release matrix is exactly 100/300/600/1000; subsets are diagnostics and fail
+  the release gate. It refuses to run when non-synthetic eligible pool jobs or
+  owned machine slots are present, uses bounded workers/timeouts, and always
+  cleans up synthetic rows in `finally`. Results are written to the ignored
+  `load-test-results/concurrency/<runId>/summary.json`; never commit result
+  files or credentials. Run only against an isolated staging database:
+  `npm run load:concurrency`.
 
 ## Ownership Boundaries
 
@@ -150,8 +184,11 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`
+- `src/config/visa-product-registry.ts`: canonical internal form and audited
+  official-redirect catalogue used by deterministic entry-rule recommendations.
 - `src/routes/*`
 - `scripts/ingest-country-visa-rag.ts`
+- `scripts/stage-visa-knowledge-supplements.ts`
 - `scripts/enrich-field-answer-norms-rag.ts`
 - `scripts/ingest-photo-requirements-rag.ts`
 - `scripts/import-geonames-destinations.ts`

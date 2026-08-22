@@ -2,7 +2,6 @@ import {
   evaluatePhEtravelEligibility,
   type PhEtravelEligibilityChoice,
 } from "./eligibility";
-import { createPhEtravelGeneralDeclarationPresentation } from "./general-declaration";
 
 export type PhEtravelPresentationTransport = "AIR" | "SEA";
 export type PhEtravelSeaFlow =
@@ -30,10 +29,6 @@ export type PhEtravelPresentationInput = {
   stayLocationType?: PhEtravelStayLocationType | null;
   customsDeclaration?: PhEtravelDeclarationAnswer;
   otherGoodsDeclared?: boolean | null;
-  generalDeclarationGoodsAmount?: number | string | null;
-  generalDeclarationChecklistResponses?: readonly (
-    boolean | null | undefined
-  )[];
   currencyDeclaration?: PhEtravelDeclarationAnswer;
   currencyOwnerNotApplicable?: boolean | null;
   currencySources?: readonly PhEtravelCurrencySource[];
@@ -86,7 +81,6 @@ export type PhEtravelPresentationField = {
   gate: PhEtravelPresentationGate;
   reason: string;
   requiredWhen?: string;
-  repeatableItemForQuestion?: number;
 };
 
 export type PhEtravelPresentationSection = {
@@ -189,11 +183,11 @@ function createTravelSection(
   input: PhEtravelPresentationInput
 ): PhEtravelPresentationSection {
   const fields: PhEtravelPresentationField[] = [
-    sharedField(
+    reviewField(
       "travel.purpose_code",
       "purpose_of_visit_code",
       "select",
-      "E49 confirms the current official UI-shaped 16-option arrival purpose source, including POV999/Others. Submit the official code, never the display label."
+      "Official purpose options and requiredness remain under review."
     ),
     sharedField(
       "travel.origin_country_code",
@@ -573,27 +567,6 @@ function createCustomsSection(
         input.seaFlow === "electronic_customs"));
 
   if (hasPositiveElectronicCustoms) {
-    const generalDeclaration = createPhEtravelGeneralDeclarationPresentation({
-      goodsAmount: input.generalDeclarationGoodsAmount,
-      checklistResponses:
-        input.generalDeclarationChecklistResponses ??
-        (input.otherGoodsDeclared
-          ? [
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              true,
-            ]
-          : undefined),
-    });
     fields.push(
       sharedField(
         "baggage.goods_amount_currency",
@@ -611,19 +584,18 @@ function createCustomsSection(
         "customs.checklist",
         "check_lists.*.response",
         "repeat_group",
-        "Positive electronic 12-item declaration confirmed for AIR and SEA; do not collapse it into one answer. A positive goods amount requires a Yes among questions 3 through 12."
+        "Positive electronic 12-item declaration confirmed for AIR and SEA; do not collapse it into one answer."
       )
     );
-    for (const questionNumber of generalDeclaration.positiveItemQuestionNumbers) {
-      fields.push({
-        ...sharedField(
+    if (input.otherGoodsDeclared) {
+      fields.push(
+        sharedField(
           "baggage.items",
-          "baggage.items",
+          "description|quantity|amount",
           "repeat_group",
-          "Questions 3 through 12 each show their own Add Item group with Description, Quantity, and Amount in USD only when answered Yes."
-        ),
-        repeatableItemForQuestion: questionNumber,
-      });
+          "Positive electronic Other Goods modal/table branch confirmed for AIR and SEA through Currency Declaration."
+        )
+      );
     }
   }
 
@@ -821,27 +793,6 @@ function createSignatureReviewSection(
   const signaturePageReached = input.reviewProgress === "signature_required";
   const positiveElectronicSignaturePageReached =
     positiveElectronicCustoms && signaturePageReached;
-  const generalDeclaration = createPhEtravelGeneralDeclarationPresentation({
-    goodsAmount: input.generalDeclarationGoodsAmount,
-    checklistResponses:
-      input.generalDeclarationChecklistResponses ??
-      (input.otherGoodsDeclared
-        ? [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            true,
-          ]
-        : undefined),
-  });
 
   if (input.transportType === "SEA" && input.seaFlow === "manual_forms") {
     fields.push(
@@ -853,19 +804,12 @@ function createSignatureReviewSection(
     );
   }
 
-  if (
-    (input.transportType === "AIR" &&
-      positiveElectronicCustoms &&
-      generalDeclaration.attachmentAreaVisible) ||
-    (input.transportType === "SEA" && positiveElectronicSignaturePageReached)
-  ) {
+  if (positiveElectronicSignaturePageReached) {
     fields.push(
       officialOnlyField(
         "attachments.upload_rules",
         "static_notice",
-        input.transportType === "AIR"
-          ? "E45 confirms this AIR attachment area can remain empty: a signature can continue to Family Member(s). Do not list an attachment as missing or required. Upload formats, count, server acceptance, and SEA parity remain unverified."
-          : "E11 confirms the SEA electronic positive attachment/signature page. Attachment count, live requiredness, and server rules remain unverified; do not model this as a required file-upload question."
+        "E14 confirms a conditional multi-file client hint of PNG/JPG/JPEG and 5.00 MB per file. Attachment count, live requiredness, and server rules remain unverified; do not model this as a required file-upload question."
       )
     );
   }
@@ -913,7 +857,7 @@ function createSignatureReviewSection(
     id: "signature_review",
     fields,
     blockedReason: positiveElectronicSignaturePageReached
-      ? "Conditional attachment area is visible only for a positive General Declaration item. Upload rules remain official-only; signature is action-required; Family Member(s), no-companion confirmation, and Summary remain unverified for the SEA positive path."
+      ? "E14 confirms conditional attachment client hints only. Upload rules remain official-only; signature is action-required; Family Member(s), no-companion confirmation, and Summary remain unverified for the SEA positive path."
       : seaPositiveStopsAfterCurrency
         ? "SEA electronic positive evidence is confirmed through Currency Declaration only. Attachments, signature, Family Member(s), no-companion confirmation, and Summary remain gated until the official page is reached."
         : undefined,

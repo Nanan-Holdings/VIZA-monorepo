@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Info, Plus, X } from "lucide-react";
+import { Info, Plus, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { Textarea } from "@/components/ui/textarea";

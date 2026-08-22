@@ -3,17 +3,21 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  buildAntSelectMatchTexts,
   buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
+  getVietnamSelectFieldTimeoutMs,
   isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
 } from "../fillers.js";
 import {
+  dedupeVietnamUploadAnswers,
   getVnCountryAlpha3ForOptionText,
   getVnCountryOptionIndex,
   getVnCountrySearchTextForOptionText,
   getVnPortalOptionText,
+  normalizeVnOccupationOption,
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
 } from "../field-mappings.js";
@@ -87,6 +91,8 @@ test("vn.step-fill: invalid validity range is rejected before browser launch", a
       answers: {
         visa_valid_from: "2099-06-22",
         visa_valid_to: "2099-06-22",
+        expense_coverage: "personal",
+        expense_payment_method: "credit_card",
       },
     },
     {
@@ -102,6 +108,23 @@ test("vn.step-fill: invalid validity range is rejected before browser launch", a
   assert.equal(result.diagnostics?.validationErrors?.length, 2);
 });
 
+test("vn.step-fill: missing trip-expense answers are rejected before browser launch", async () => {
+  const result = await fillVietnamApplication(
+    { answers: {} },
+    { officialBaseUrl: "https://example.invalid/" },
+  );
+
+  assert.equal(result.status, "scaffolded_pending_walk");
+  assert.match(
+    result.status === "scaffolded_pending_walk" ? result.reason : "",
+    /expense_coverage.*who will cover/i,
+  );
+  assert.deepEqual(
+    result.diagnostics?.validationErrors?.map((error) => error.label),
+    ["expense_coverage"],
+  );
+});
+
 test("vn.step-fill: uploads and unanswered fields are excluded", () => {
   const plan = resolveStepPlan(ANSWERS, VN_FIELD_MAPPINGS);
   assert.ok(!plan.some((p) => p.type === "upload"), "no upload fields in plan");
@@ -109,10 +132,38 @@ test("vn.step-fill: uploads and unanswered fields are excluded", () => {
   assert.equal(plan.length, 3);
 });
 
+test("vn.step-fill: duplicate passport aliases target the official upload only once", () => {
+  const answers = dedupeVietnamUploadAnswers({
+    portrait_photo: "C:/tmp/portrait.jpg",
+    passport_copy: "C:/tmp/passport.jpg",
+    passport_photo: "C:/tmp/passport.jpg",
+    surname: "ZHANG",
+  });
+
+  assert.equal(answers.portrait_photo, "C:/tmp/portrait.jpg");
+  assert.equal(answers.passport_copy, "C:/tmp/passport.jpg");
+  assert.equal(answers.passport_photo, undefined);
+  assert.equal(answers.surname, "ZHANG");
+});
+
 test("vn.step-fill: select option matching escapes portal labels", () => {
   const pattern = buildAntSelectOptionRegex("Cat Bi Int Airport (Hai Phong)");
   assert.equal(pattern.test("Cat Bi Int Airport (Hai Phong)"), true);
   assert.equal(pattern.test("Cat Bi Int Airport Hai Phong"), false);
+});
+
+test("vn.step-fill: current Vietnamese border-gate labels preserve the saved English choice", () => {
+  assert.ok(buildAntSelectMatchTexts("Cat Bi Int Airport (Hai Phong)").includes("SBQT Cát Bi"));
+  assert.ok(buildAntSelectMatchTexts("Bo Y Landport").includes("Cửa khẩu Bờ Y"));
+});
+
+test("vn.step-fill: free-text occupations map to official portal categories", () => {
+  assert.equal(normalizeVnOccupationOption("Software engineer"), "Employee");
+  assert.equal(normalizeVnOccupationOption("Self-employed consultant"), "Businessman");
+  assert.equal(normalizeVnOccupationOption("Civil servant"), "Official");
+  assert.equal(normalizeVnOccupationOption("University student"), "Student");
+  assert.equal(normalizeVnOccupationOption("Homemaker"), "Others");
+  assert.equal(getVnPortalOptionText("occupation", "software_engineer"), "Employee");
 });
 
 test("vn.step-fill: virtual select candidates match exact and token-equivalent labels", () => {
@@ -165,36 +216,44 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(getVnCountrySearchTextForOptionText("China"), "Trung Quốc");
   assert.equal(getVnCountrySearchTextForOptionText("Hungary"), "Hung-ga-ri");
   assert.equal(getVnCountrySearchTextForOptionText("Panama"), "Pa-na-ma");
-  assert.deepEqual(buildAntSelectSearchTerms("China").slice(0, 6), [
+  assert.deepEqual(buildAntSelectSearchTerms("China"), [
     "China",
     "Chin",
-    "Chi",
-    "Ch",
-    "C",
     "Trung Quốc",
+    "Trung",
+    "Trun",
+    "",
   ]);
-  assert.deepEqual(buildAntSelectSearchTerms("Hungary").slice(0, 7), [
+  assert.deepEqual(buildAntSelectSearchTerms("Hungary"), [
     "Hungary",
-    "Hungar",
-    "Hunga",
     "Hung",
-    "Hun",
-    "Hu",
-    "H",
+    "Hung-ga-ri",
+    "",
   ]);
   assert.deepEqual(buildAntSelectSearchTerms("Panama"), [
     "Panama",
-    "Panam",
     "Pana",
-    "Pan",
-    "Pa",
-    "P",
     "Pa-na-ma",
-    "Pa-na-m",
-    "Pa-na",
+    "Pa",
     "Pa-n",
     "",
   ]);
+});
+
+test("vn.step-fill: portal controls accept Vietnamese visible aliases", () => {
+  assert.deepEqual(buildAntSelectMatchTexts("China"), ["China", "Trung Quốc"]);
+  assert.ok(buildAntSelectMatchTexts("No").includes("Không"));
+  assert.ok(buildAntSelectMatchTexts("Single-entry").includes("Một lần"));
+  assert.ok(buildAntSelectMatchTexts("Ordinary passport").includes("Hộ chiếu phổ thông"));
+  assert.ok(buildAntSelectMatchTexts("ordinary").includes("Phổ thông"));
+  assert.equal(getVnPortalOptionText("passport_type", "official"), "Official passport");
+});
+
+test("vn.step-fill: select field timeout is bounded", () => {
+  assert.equal(getVietnamSelectFieldTimeoutMs(undefined), 45_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("100"), 1_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("90000"), 60_000);
+  assert.equal(getVietnamSelectFieldTimeoutMs("invalid"), 45_000);
 });
 
 test("vn.step-fill: every official country code maps both ways and matches the frontend source", () => {

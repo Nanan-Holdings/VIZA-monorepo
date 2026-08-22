@@ -4,17 +4,18 @@ Scope: this file applies to `viza-fe/internal-website/app/api/passport-ocr/**`.
 
 ## Purpose
 
-This module owns passport OCR extraction for uploaded passport documents. It
-extracts candidate fields only; applicants must confirm extracted data before
-it updates profile or application answers.
+This module owns identity OCR extraction for uploaded passport and national
+identity-card documents. It extracts candidate fields only; applicants must
+confirm extracted data before it updates profile or application answers.
 
 ## Key Responsibilities
 
 - Load passport document files from Supabase Storage using server-side access.
 - Call the configured OCR provider only from the server.
 - Store extraction attempts in `ocr_extractions`.
-- Return structured candidate fields: full name, passport number, date of
-  birth, nationality, issuing country, issue date, and expiry date.
+- Return structured candidate fields: full name, passport or national identity
+  number, date of birth, nationality, issuing country, issue date, and expiry
+  date. Identity-card numbers must never be mapped to passport-number fields.
 - Provide a confirm action that writes accepted data to `applicant_profiles`
   and `visa_application_answers`.
 
@@ -31,7 +32,13 @@ it updates profile or application answers.
   download, audit metadata, and structured responses.
 - `provider.ts`: server-only OCR adapter. Default provider is `openai_vision`
   and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`. MRZ name
-  fields should remain surname/given-name authoritative when available.
+  fields should remain surname/given-name authoritative when available. Calls
+  use a bounded timeout and one transient retry by default; tune with
+  `PASSPORT_OCR_REQUEST_TIMEOUT_MS`, `PASSPORT_OCR_REQUEST_ATTEMPTS`, and
+  `PASSPORT_OCR_RETRY_DELAY_MS` only when the deployment requires it. Networks
+  that require an outbound HTTPS proxy may set `PASSPORT_OCR_PROXY_URL` (or the
+  conventional `HTTPS_PROXY`); TLS still terminates against the official
+  `api.openai.com` origin.
 - `provider.test.ts`: mocked-provider regression tests for request payloads,
   model fallback, and structured parsing.
 - `types.ts`: response, proposal, provider, and error contracts.

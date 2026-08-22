@@ -15,3 +15,23 @@ district, and subdistrict contracts. Regenerate it only from a read-only
 contains session-scoped encrypted IDs.
 Do not restore the former `tdac-residence-regions.generated.ts` snapshot from
 CountriesNow; residence regions must come from the official TDAC API audit.
+
+`residence-region-translations.zh.json` contains Chinese display labels for
+every official residence-region option. Regenerate it with
+`generate-residence-region-translations.ts`; the generator prefers pinned
+Unicode CLDR subdivision names and uses an explicit online Simplified Chinese
+fallback only where TDAC returns settlements or non-standard administrative
+names that CLDR does not cover. Never alter the official English option values.
+
+`administrative-translations.zh.json` is the checked-in, no-network Chinese
+cache for all 77 provinces, 927 districts, and 7,439 subdistrict options in
+the official TDAC administrative snapshot. Regenerate it with
+`generate-administrative-translations.ts` after a new sanitized official
+snapshot is captured. District and subdistrict cache keys include the parent
+province/district (and a postcode/ordinal when the official snapshot contains
+duplicate names), so equal names in different branches cannot reuse a label.
+The generator keeps the verified common Chinese names and applies a
+deterministic local phonetic transliteration with a Chinese administrative
+suffix for lower-level names without a separately verified Chinese name. It
+never calls the network at runtime and must not change `value`, `label_en`, or
+`official_label`.

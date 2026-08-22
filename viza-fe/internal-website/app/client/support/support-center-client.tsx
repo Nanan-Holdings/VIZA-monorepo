@@ -5,21 +5,22 @@ import { ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  Bot,
-  CalendarClock,
-  CheckCircle2,
-  ClipboardList,
+  CalendarDots as CalendarClock,
+  CheckCircle as CheckCircle2,
+  ClipboardText as ClipboardList,
   CreditCard,
-  FileCheck2,
-  FolderKanban,
-  HelpCircle,
-  Inbox,
-  MessageSquareText,
-  Search,
-  SendHorizontal,
-  type LucideIcon,
-} from "lucide-react";
+  FileText as FileCheck2,
+  Kanban as FolderKanban,
+  Question as HelpCircle,
+  Tray as Inbox,
+  ChatText as MessageSquareText,
+  MagnifyingGlass as Search,
+  PaperPlaneRight as SendHorizontal,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import { createSupportTicket } from "@/app/actions/support";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +36,7 @@ type ChatTurn = {
 
 const ISSUE_TYPES: Array<{
   key: IssueTypeKey;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   href: string;
   tone: "info" | "success" | "warning";
 }> = [
@@ -48,7 +49,7 @@ const ISSUE_TYPES: Array<{
 
 const HELP_ACTIONS: Array<{
   key: HelpActionKey;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   href: string;
 }> = [
   { key: "faqs", icon: HelpCircle, href: "/client/help" },
@@ -212,7 +213,7 @@ export function SupportCenterClient() {
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-white/20 bg-white/10 p-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-brand-500">
-              <Bot className="h-5 w-5" />
+              <AiAssistIcon className="h-5 w-5" />
             </span>
             <div className="space-y-1">
               <p className="font-semibold">{t("agent.cardTitle")}</p>
@@ -424,11 +425,7 @@ export function SupportCenterClient() {
                       )}
                     </div>
 
-                    {requestError ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        {requestError}
-                      </div>
-                    ) : null}
+                    {requestError ? <ClientErrorAlert message={requestError} /> : null}
 
                     <div className="flex flex-wrap items-center gap-3">
                       <Button type="submit" className="h-11" disabled={isSubmitting}>
@@ -444,7 +441,7 @@ export function SupportCenterClient() {
                 <div className="flex-1 space-y-4 p-4 sm:p-6">
                   <div className="flex items-start gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
-                      <Bot className="h-4 w-4" />
+                      <AiAssistIcon />
                     </span>
                     <div className="max-w-3xl rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-foreground">
                       {t("agent.greeting", { activity: selectedIssueTitle })}

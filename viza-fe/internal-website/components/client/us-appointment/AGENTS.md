@@ -42,4 +42,4 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
   `inbound_email`), not legacy IMAP.
 - All text must use `messages/en.json` and `messages/zh.json`.
 - Use client portal primitives (`BrandField`, `BrandInput`,
-  `BrandActionButton`, shadcn `Card`, `Alert`, and lucide icons).
+  `BrandActionButton`, shadcn `Card`, `Alert`, and Phosphor icons).

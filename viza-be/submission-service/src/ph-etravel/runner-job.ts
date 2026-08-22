@@ -26,7 +26,6 @@ import {
   type PhEtravelPortalSubmissionResult,
   type PhEtravelRunnerOptions,
 } from "./runner.js";
-import type { PhEtravelRegistrationConsentAuthorization } from "./registration-start.js";
 
 const PH_ETRAVEL_ACTIVE_RUNNER_JOB_STATUSES = ["queued", "running"] as const;
 
@@ -67,11 +66,6 @@ export interface PhEtravelRunnerJobDependencies {
     options: PhEtravelRunnerOptions,
   ) => Promise<PhEtravelPortalSubmissionResult>;
   allowBrowser?: boolean;
-  /** Explicit per-run authorization for the separate eGovPH basic-profile write. */
-  allowProfileSave?: boolean;
-  loadRegistrationConsent?: (
-    applicationId: string,
-  ) => Promise<PhEtravelRegistrationConsentAuthorization | null>;
   now?: Date;
 }
 
@@ -83,13 +77,6 @@ export interface PhEtravelRunnerJobResult {
   queue: "not_started";
   officialResubmitAllowed: false;
 }
-
-export type PhEtravelRunnerJobFrontendState =
-  | "processing"
-  | "action_required"
-  | "failed"
-  | "recovery_required"
-  | "submitted";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -118,36 +105,6 @@ export function classifyPhEtravelRunnerJobPortalCheckpoint(code: string): PhEtra
   return safeResult("account_or_portal_action_required", code);
 }
 
-/** Stable PH-only state projection for UI adapters; it carries no PII or portal text. */
-export function classifyPhEtravelRunnerJobFrontendState(
-  result: Pick<PhEtravelRunnerJobResult, "stage">,
-): PhEtravelRunnerJobFrontendState {
-  switch (result.stage) {
-    case "submitted_state_synchronized":
-      return "submitted";
-    case "result_recovery_required":
-      return "recovery_required";
-    case "scheduled":
-    case "active_job_guard":
-      return "processing";
-    case "past_date_action_required":
-      return "failed";
-    case "preflight_action_required":
-    case "account_or_portal_action_required":
-    case "review_stop":
-    case "browser_execution_disabled":
-      return "action_required";
-  }
-}
-
-export const PH_ETRAVEL_RUNNER_JOB_FRONTEND_STATES = [
-  "processing",
-  "action_required",
-  "failed",
-  "recovery_required",
-  "submitted",
-] as const satisfies readonly PhEtravelRunnerJobFrontendState[];
-
 function fullName(answers: CanonicalRecord): string {
   return text(answers.full_name) || [text(answers.first_name ?? answers.given_names), text(answers.last_name ?? answers.surname)]
     .filter(Boolean)
@@ -163,7 +120,6 @@ export function buildPhEtravelArrivalRunnerJobPayload(
   applicationId: string,
   jobId: string,
   answers: CanonicalRecord,
-  registrationConsent: PhEtravelRegistrationConsentAuthorization | null = null,
 ): SubmissionPayload {
   return {
     payloadVersion: "ph_etravel_runner_job_v1",
@@ -192,13 +148,8 @@ export function buildPhEtravelArrivalRunnerJobPayload(
         : text(answers.flight_departure_date) || null,
       purpose: text(answers.purpose_of_travel) || null,
     },
-    // Retain the supplied value so the arrival-only runner can reject a
-    // non-ARRIVAL or missing travel type instead of silently rewriting it.
-    countrySpecific: { ...answers },
-    metadata: {
-      runnerJob: true,
-      phEtravelRegistrationConsent: registrationConsent,
-    },
+    countrySpecific: { ...answers, travel_type: "ARRIVAL" },
+    metadata: { runnerJob: true },
   };
 }
 
@@ -337,20 +288,6 @@ function windowResult(window: PhEtravelSubmissionWindow): PhEtravelRunnerJobResu
   return null;
 }
 
-export function classifyPhEtravelRunnerJobPortalFailure(code: string): PhEtravelRunnerJobResult {
-  if (code === "ph_etravel_stopped_before_submit") {
-    return safeResult("review_stop", code);
-  }
-  if (
-    code === "ph_etravel_final_post_http_200_unverified" ||
-    code === "ph_etravel_final_post_ambiguous_recovery_required" ||
-    code === "ph_etravel_authoritative_result_read_required"
-  ) {
-    return safeResult("result_recovery_required", code);
-  }
-  return classifyPhEtravelRunnerJobPortalCheckpoint(code);
-}
-
 /**
  * Canonical PH arrival runner_job orchestration. It is intentionally local and
  * fail-closed: state/recovery, 72-hour window, and launch preflight all happen
@@ -416,13 +353,7 @@ export async function runPhEtravelArrivalRunnerJob(
   const windowStop = windowResult(window);
   if (windowStop) return windowStop;
 
-  const registrationConsent = dependencies.loadRegistrationConsent
-    ? await dependencies.loadRegistrationConsent(applicationId).catch(() => null)
-    : null;
-  if (!registrationConsent) {
-    return safeResult("preflight_action_required", "ph_etravel_registration_consent_required");
-  }
-  const payload = buildPhEtravelArrivalRunnerJobPayload(applicationId, jobId, answers, registrationConsent);
+  const payload = buildPhEtravelArrivalRunnerJobPayload(applicationId, jobId, answers);
   const preflight = evaluatePhEtravelArrivalLaunchPreflight({
     payload,
     finalSubmitEnabled: PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
@@ -437,7 +368,6 @@ export async function runPhEtravelArrivalRunnerJob(
   try {
     const portal = await dependencies.portalRunner(normalizePhEtravelPortalPayload(payload), {
       stopBeforeSubmit: true,
-      allowProfileSave: dependencies.allowProfileSave === true,
     });
     if (!portal.submitted) return safeResult("review_stop", "ph_etravel_stopped_before_submit");
     const gate = gatePhEtravelAuthoritativeResult({
@@ -466,7 +396,7 @@ export async function runPhEtravelArrivalRunnerJob(
       typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code
       : "ph_etravel_stopped_before_submit";
-    return classifyPhEtravelRunnerJobPortalFailure(code);
+    return classifyPhEtravelRunnerJobPortalCheckpoint(code);
   }
 }
 

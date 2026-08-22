@@ -3,11 +3,15 @@ import test from "node:test";
 import type { SubmissionPayload } from "../../country-submissions/types";
 import { evaluateVietnamPrearrivalSubmissionWindow } from "../date-window";
 import {
+  reconcileHotelDependentControlFailures,
   VnPrearrivalPortalValidationError,
+  VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES,
+  VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
   matchesOfficialDialingCodeOption,
   normalizeVnPrearrivalPortalPayload,
   officialLocalPhoneNumber,
   routeVnPrearrivalEmailAnswers,
+  vnPrearrivalVisaCredentialsRequired,
 } from "../normalize";
 
 function payload(overrides: Record<string, string> = {}): SubmissionPayload {
@@ -159,6 +163,76 @@ test("rejects an E-Visa number unless it is exactly nine numeric digits", () => 
   );
 });
 
+test("requires visa credentials only for the official credential-bearing visa types", () => {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
+    assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), true);
+  }
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
+    assert.equal(vnPrearrivalVisaCredentialsRequired(visaType), false);
+  }
+});
+
+test("maps every Vietnam Pre-Arrival visa type to its own official portal label", async () => {
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role";
+  const { officialCatalogLabel, officialCatalogValue, officialNationalityLabel } = await import("../runner");
+
+  assert.equal(officialCatalogLabel("visa_type", "MTTQ"), "Phu Quoc Visa Exemption");
+  assert.equal(officialCatalogValue("flight", "MR0681_PQC"), "MR0681");
+  assert.equal(officialCatalogValue("flight", "##HMZ2083_PQC"), "##HMZ2083");
+  assert.equal(officialCatalogLabel("flight", "##HMZ2083_PQC"), "##HMZ2083 - PQC");
+  const officialNationalities = [
+    { code: "HMD", en_value: "Heard and McDonald Islands" },
+    { code: "SGP", en_value: "Singapore" },
+  ];
+  assert.equal(officialNationalityLabel(officialNationalities, "HMD"), "Heard and McDonald Islands");
+  assert.equal(
+    officialNationalityLabel(officialNationalities, "Heard Island And McDonald Islands"),
+    "Heard and McDonald Islands",
+  );
+  assert.equal(officialNationalityLabel(officialNationalities, "SINGAPORE"), "Singapore");
+  for (const visaType of [
+    ...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.filter((value) => !["TMTT", "MTT"].includes(value)),
+    ...VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES,
+  ]) {
+    assert.notEqual(
+      officialCatalogLabel("visa_type", visaType),
+      visaType,
+      `${visaType} must use its official displayed label rather than the persisted code`,
+    );
+  }
+});
+
+test("allows official exemption types without a visa number or expiry date", () => {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES) {
+    const normalized = normalizeVnPrearrivalPortalPayload(payload({
+      visa_type: visaType,
+      visa_number: "",
+      visa_expiry_date: "",
+    }));
+    assert.equal(normalized.visaNumber, null);
+    assert.equal(normalized.visaExpiryDate, null);
+  }
+});
+
+test("still requires a visa number and expiry date for every credential-bearing type", () => {
+  for (const visaType of VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_TYPES) {
+    assert.throws(
+      () => normalizeVnPrearrivalPortalPayload(payload({
+        visa_type: visaType,
+        visa_number: "",
+        visa_expiry_date: "",
+      })),
+      (error) => {
+        assert.ok(error instanceof VnPrearrivalPortalValidationError);
+        assert.ok(error.missingFields.includes("answers.visa_number"));
+        assert.ok(error.missingFields.includes("answers.visa_expiry_date"));
+        return true;
+      },
+    );
+  }
+});
+
 test("requires alias email for OTP and keeps the real email for forwarding only", () => {
   assert.throws(
     () => normalizeVnPrearrivalPortalPayload(payload({ alias_email_address: "" })),
@@ -213,4 +287,17 @@ test("evaluates Vietnam Pre-Arrival 72-hour submission window", () => {
     evaluateVietnamPrearrivalSubmissionWindow("2026-07-05", now).status,
     "past",
   );
+});
+
+test("uses an exact official hotel selection to prove its dependent province and ward", () => {
+  const failures = [
+    "province_city_of_hotel",
+    "ward_commune_of_hotel",
+    "departure_date_from_vietnam",
+  ];
+  assert.deepEqual(
+    reconcileHotelDependentControlFailures(failures, true),
+    ["departure_date_from_vietnam"],
+  );
+  assert.deepEqual(reconcileHotelDependentControlFailures(failures, false), failures);
 });

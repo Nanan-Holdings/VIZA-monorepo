@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { Loader2, CircleAlert } from "lucide-react";
+import { CircleNotch as Loader2, WarningCircle as CircleAlert } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
@@ -13,31 +12,41 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { RecentActivitySection, type ActivityEvent } from "@/components/client/home/RecentActivitySection";
+import { ApplicationTimelineSection } from "@/components/client/home/ApplicationTimelineSection";
 
 // ─── 完美还原与保留的核心卡片组件 ───
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
-import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
+import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
 import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
+import { getClientApplicationStatuses } from "@/app/actions/client-application-status";
+import type { StatusApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
-import { getCountryHeroTheme, heroGradientCss } from "@/lib/client/country-hero-theme";
+import {
+  getCountryHeroTheme,
+  heroGradientCss,
+} from "@/lib/client/country-hero-theme";
 import {
   getRecentApplicationFormHref,
   readApplicationFormTarget,
 } from "@/lib/client/recent-application-form";
+import {
+  isOngoingApplicationState,
+  readActiveApplicationSelection,
+  setActiveApplicationSelection,
+} from "@/lib/client/active-application-selection";
 import {
   getNextApplicationHref,
   type ApplicationRow,
   type DocumentRow,
   type PaymentRow,
 } from "@/lib/client/application-progress";
-import { resolveHomeDocumentLabel } from "./home-activity";
 import { isIgnorableDashboardLoadError } from "./home-load-errors";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -67,6 +76,25 @@ function ErrorState({ message }: { message: string }) {
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
+    </div>
+  );
+}
+
+function TimelineLoadingState() {
+  const t = useTranslations("home");
+
+  return (
+    <div
+      aria-label={t("loadingDashboard")}
+      className="mx-auto w-full max-w-[1090px] space-y-5 pb-[80px]"
+      role="status"
+    >
+      <Skeleton className="h-9 w-40 rounded-lg" />
+      <div className="space-y-3">
+        {[0, 1, 2].map((item) => (
+          <Skeleton key={item} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -102,6 +130,12 @@ interface UniversalInfoProgress {
   totalCount: number;
 }
 
+interface ActiveVisaSummary {
+  href: string;
+  status: string;
+  visaName: string;
+}
+
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "surname",
   "given_names",
@@ -122,32 +156,12 @@ const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "wechat",
 ];
 
-const PASSPORT_DOCUMENT_TYPES = new Set(["passport_copy", "passport_bio_page", "passport_scan", "passport"]);
-
-const MULTI_CATEGORY_APPLICATIONS = [
-  { country: "vietnam", visaType: "evisa_tourism" },
-  { country: "vietnam", visaType: "VN_PREARRIVAL_DECLARATION" },
-  { country: "indonesia", visaType: "ID_C1_TOURIST" },
-  { country: "indonesia", visaType: "ID_B1_EVOA" },
-  { country: "philippines", visaType: "PH_ETRAVEL_ARRIVAL_CARD" },
-  { country: "philippines", visaType: "PH_ETRAVEL_DEPARTURE_CARD" },
-] as const;
-
-function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia" | "philippines" | null {
-  switch (country?.trim().toLowerCase()) {
-    case "vietnam":
-    case "vn":
-      return "vietnam";
-    case "indonesia":
-    case "id":
-      return "indonesia";
-    case "philippines":
-    case "ph":
-      return "philippines";
-    default:
-      return null;
-  }
-}
+const PASSPORT_DOCUMENT_TYPES = new Set([
+  "passport_copy",
+  "passport_bio_page",
+  "passport_scan",
+  "passport",
+]);
 
 function parseLegacyBirthplace(value?: string | null) {
   const parts = (value ?? "")
@@ -190,20 +204,32 @@ function parseLegacyName(value?: string | null) {
 function buildUniversalInfoProgress(
   profile: ApplicantProfileSummary | null,
   authEmail?: string | null,
-  hasPassportUpload = false,
+  hasPassportUpload = false
 ): UniversalInfoProgress {
   const legacyBirthplace = parseLegacyBirthplace(profile?.place_of_birth);
   const legacyName = parseLegacyName(profile?.full_name);
   const completedCount = UNIVERSAL_PROFILE_FIELDS.filter((field) => {
     if (field === "email" && !profile?.email && authEmail) return true;
-    if (field === "surname") return Boolean(profile?.surname?.trim() || legacyName.surname);
-    if (field === "given_names") return Boolean(profile?.given_names?.trim() || legacyName.givenNames);
-    if (field === "birth_country") return Boolean(profile?.birth_country?.trim() || legacyBirthplace.country);
+    if (field === "surname")
+      return Boolean(profile?.surname?.trim() || legacyName.surname);
+    if (field === "given_names")
+      return Boolean(profile?.given_names?.trim() || legacyName.givenNames);
+    if (field === "birth_country")
+      return Boolean(
+        profile?.birth_country?.trim() || legacyBirthplace.country
+      );
     if (field === "birth_province_or_state") {
-      return Boolean(profile?.birth_province_or_state?.trim() || legacyBirthplace.provinceOrState);
+      return Boolean(
+        profile?.birth_province_or_state?.trim() ||
+        legacyBirthplace.provinceOrState
+      );
     }
     if (field === "birth_city") {
-      return Boolean(profile?.birth_city?.trim() || legacyBirthplace.city || profile?.place_of_birth?.trim());
+      return Boolean(
+        profile?.birth_city?.trim() ||
+        legacyBirthplace.city ||
+        profile?.place_of_birth?.trim()
+      );
     }
     return Boolean(profile?.[field]?.trim());
   }).length;
@@ -222,21 +248,28 @@ export default function HomePage() {
   const t = useTranslations("home");
   const locale = useLocale();
   const PAGE_SCALE = 1;
+  const heroRef = useRef<HTMLDivElement>(null);
   const [applicantName, setApplicantName] = useState<string | null>(null);
   // Country code of the current application, shown in the hero subtitle.
   const [heroCountry, setHeroCountry] = useState<string | null>(null);
+  const [activeVisa, setActiveVisa] = useState<ActiveVisaSummary | null>(null);
 
   // 核心业务状态
-  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
-  const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
-    completedCount: 0,
-    totalCount: UNIVERSAL_PROFILE_FIELDS.length,
-  });
+  const [selectedApplicationStatus, setSelectedApplicationStatus] =
+    useState<StatusApplication | null>(null);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true);
+  const [universalInfoProgress, setUniversalInfoProgress] =
+    useState<UniversalInfoProgress>({
+      completedCount: 0,
+      totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+    });
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const latestLoadRequestId = useRef(0);
+  const dashboardLoadInFlightRef = useRef(false);
+  const lastDashboardLoadAtRef = useRef(0);
 
   // Handle magic link auth callback
   useEffect(() => {
@@ -250,7 +283,10 @@ export default function HomePage() {
 
       if (accessToken && refreshToken) {
         supabase.auth
-          .setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
           .then(({ data, error: authError }) => {
             if (authError) {
               setError(t("authError"));
@@ -270,64 +306,6 @@ export default function HomePage() {
     }
   }, [t]);
 
-  const buildActivityEvents = useCallback(
-    (
-      appsList: ApplicationRow[],
-      docsList: DocumentRow[],
-      paymentsList: PaymentRow[],
-    ): ActivityEvent[] => {
-      const events: ActivityEvent[] = [];
-      const applicationsById = new Map(appsList.map((application) => [application.id, application]));
-
-      for (const application of appsList) {
-        const applicationName = getVisaPackageTitle(application.country, application.visa_type, locale);
-        const href = getNextApplicationHref(application, paymentsList);
-        if (application.submitted_at) {
-          events.push({
-            id: `app-submitted-${application.id}`,
-            eventType: "status_change",
-            label: t("activity.applicationSubmitted"),
-            sublabel: applicationName,
-            timestamp: application.submitted_at,
-            icon: "check",
-            href,
-          });
-        }
-        events.push({
-          id: `app-created-${application.id}`,
-          eventType: "application_created",
-          label: t("activity.applicationCreated"),
-          sublabel: applicationName,
-          timestamp: application.created_at,
-          icon: "clock",
-          href,
-        });
-      }
-
-      for (const doc of docsList) {
-        const application = applicationsById.get(doc.application_id);
-        const docLabel = resolveHomeDocumentLabel(t, doc.document_type);
-        events.push({
-          id: `doc-${doc.id}`,
-          eventType: "document_upload",
-          label: t("activity.documentUploaded", { docType: docLabel }),
-          sublabel: doc.status === "rejected" ? t("activity.documentRejected") : t("activity.documentReceived"),
-          timestamp: doc.updated_at,
-          icon: doc.status === "rejected" ? "alert" : "upload",
-          href: application
-            ? doc.status === "rejected"
-              ? `/client/documents?applicationId=${encodeURIComponent(application.id)}`
-              : getNextApplicationHref(application, paymentsList)
-            : undefined,
-        });
-      }
-
-      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      return events.slice(0, 5);
-    },
-    [locale, t],
-  );
-
   const fetchData = useCallback(
     async ({
       showLoading = true,
@@ -336,6 +314,8 @@ export default function HomePage() {
       showLoading?: boolean;
       retryOnAbort?: boolean;
     } = {}) => {
+      if (dashboardLoadInFlightRef.current) return;
+      dashboardLoadInFlightRef.current = true;
       const requestId = latestLoadRequestId.current + 1;
       latestLoadRequestId.current = requestId;
       const isLatestRequest = () => latestLoadRequestId.current === requestId;
@@ -344,8 +324,24 @@ export default function HomePage() {
       setError(null);
 
       try {
+        // Start the expensive lifecycle read at the same time, but do not keep
+        // the whole dashboard behind it. The hero and primary actions only
+        // depend on the compact dashboard query.
+        const statusPromise = getClientApplicationStatuses().catch(
+          (statusError) => {
+            if (!isIgnorableDashboardLoadError(statusError)) {
+              console.error(
+                "Failed to load client home timeline",
+                statusError,
+              );
+            }
+            return null;
+          },
+        );
         const dashboard = await getClientHomeDashboardData();
+        lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
+          if (isLatestRequest()) setIsTimelineLoading(false);
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
@@ -356,13 +352,21 @@ export default function HomePage() {
         const authName = dashboard.authEmail?.split("@")[0] ?? null;
         if (!isLatestRequest()) return;
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
+          buildUniversalInfoProgress(
+            profile as ApplicantProfileSummary | null,
+            dashboard.authEmail
+          )
         );
 
-        const profileTyped = profile as { id: string; full_name: string | null } | null;
+        const profileTyped = profile as {
+          id: string;
+          full_name: string | null;
+        } | null;
         if (!profileTyped) {
           if (authName) setApplicantName(authName);
-          setActivityEvents([]);
+          setActiveVisa(null);
+          setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
           return;
         }
 
@@ -370,45 +374,110 @@ export default function HomePage() {
 
         if (!isLatestRequest()) return;
         const loadedApplications = dashboard.applications as ApplicationRow[];
+        const loadedPayments = dashboard.payments as PaymentRow[];
 
-        // Current application = last-visited form context, else newest application.
-        const formTarget = readApplicationFormTarget(getRecentApplicationFormHref());
+        // Current application = explicit active selection, then last-visited
+        // form context, then the newest ongoing application.
+        const activeSelection = readActiveApplicationSelection();
+        const formTarget = readApplicationFormTarget(
+          getRecentApplicationFormHref()
+        );
         const currentApplication =
+          loadedApplications.find((application) =>
+            activeSelection?.applicationId
+              ? application.id === activeSelection.applicationId
+              : false,
+          ) ??
           loadedApplications.find((application) => {
-            if (formTarget?.applicationId) return application.id === formTarget.applicationId;
+            if (formTarget?.applicationId)
+              return application.id === formTarget.applicationId;
             if (!formTarget?.country || !formTarget.visaType) return false;
             return (
-              application.country.toLowerCase() === formTarget.country.toLowerCase() &&
+              application.country.toLowerCase() ===
+                formTarget.country.toLowerCase() &&
               getFormVisaType(application.visa_type).toLowerCase() ===
                 getFormVisaType(formTarget.visaType).toLowerCase()
             );
-          }) ?? loadedApplications[0] ?? null;
+          }) ??
+          loadedApplications.find((application) => isOngoingApplicationState(application.status)) ??
+          null;
+        if (!currentApplication) {
+          setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
+        } else {
+          setIsTimelineLoading(true);
+          void statusPromise
+            .then((statusResult) => {
+              if (!isLatestRequest() || !statusResult) return;
+              const currentStatus =
+                statusResult.applications.find(
+                  (application) => application.id === currentApplication.id,
+                ) ?? null;
+              setSelectedApplicationStatus(currentStatus);
+              if (
+                currentStatus &&
+                activeSelection?.applicationId !== currentApplication.id
+              ) {
+                setActiveApplicationSelection({
+                  applicationId: currentApplication.id,
+                  packageId: currentApplication.visa_package_id,
+                  country: currentApplication.country,
+                  visaType: currentApplication.visa_type,
+                  href: getNextApplicationHref(
+                    currentApplication,
+                    loadedPayments,
+                  ),
+                });
+              }
+            })
+            .finally(() => {
+              if (isLatestRequest()) setIsTimelineLoading(false);
+            });
+        }
         setHeroCountry(currentApplication?.country ?? null);
+        setActiveVisa(
+          currentApplication
+            ? {
+                href: getNextApplicationHref(
+                  currentApplication,
+                  loadedPayments
+                ),
+                status: currentApplication.status,
+                visaName: getVisaPackageTitle(
+                  currentApplication.country,
+                  currentApplication.visa_type,
+                  locale
+                ),
+              }
+            : null
+        );
 
         if (loadedApplications.length === 0) {
           setUniversalInfoProgress(
-            buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
+            buildUniversalInfoProgress(
+              profile as ApplicantProfileSummary | null,
+              dashboard.authEmail
+            )
           );
-          setActivityEvents([]);
+          setSelectedApplicationStatus(null);
+          setIsTimelineLoading(false);
           return;
         }
 
         if (!isLatestRequest()) return;
         const loadedDocuments = dashboard.documents as DocumentRow[];
-        const loadedPayments = dashboard.payments as PaymentRow[];
         const hasPassportUpload = loadedDocuments.some(
-          (document) => PASSPORT_DOCUMENT_TYPES.has(document.document_type) && document.status !== "missing",
+          (document) =>
+            PASSPORT_DOCUMENT_TYPES.has(document.document_type) &&
+            document.status !== "missing"
         );
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail, hasPassportUpload),
+          buildUniversalInfoProgress(
+            profile as ApplicantProfileSummary | null,
+            dashboard.authEmail,
+            hasPassportUpload
+          )
         );
-        // Recent activity is scoped to the current application only — other
-        // applications are visible from /client/destinations.
-        const currentApplications = currentApplication ? [currentApplication] : [];
-        const currentDocuments = loadedDocuments.filter(
-          (document) => document.application_id === currentApplication?.id,
-        );
-        setActivityEvents(buildActivityEvents(currentApplications, currentDocuments, loadedPayments));
       } catch (loadError) {
         if (!isLatestRequest()) return;
         if (isIgnorableDashboardLoadError(loadError)) {
@@ -423,68 +492,64 @@ export default function HomePage() {
         console.error("Failed to load client home dashboard", loadError);
         setError(t("dashboardError"));
       } finally {
-        if (showLoading && isLatestRequest() && !keepLoadingForRetry) setIsLoading(false);
+        dashboardLoadInFlightRef.current = false;
+        if (showLoading && isLatestRequest() && !keepLoadingForRetry)
+          setIsLoading(false);
       }
     },
-    [buildActivityEvents, t],
+    [locale, t]
   );
 
   useEffect(() => {
     if (!authChecked) return;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const supabase = createClient();
-
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        void fetchData({ showLoading: false });
-      }, 350);
+    const refreshIfStale = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastDashboardLoadAtRef.current < 30_000) return;
+      void fetchData({ showLoading: false });
     };
 
     void fetchData();
-    const channel = supabase
-      .channel("home-activity-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "application_documents" }, scheduleRefresh)
-      .subscribe();
+    window.addEventListener("focus", refreshIfStale);
+    document.addEventListener("visibilitychange", refreshIfStale);
 
     return () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      void supabase.removeChannel(channel);
+      window.removeEventListener("focus", refreshIfStale);
+      document.removeEventListener("visibilitychange", refreshIfStale);
     };
   }, [authChecked, fetchData]);
 
-  // 顶部沉浸式导航颜色动态同步
+  // Keep the immersive navigation white until the hero has fully left the viewport.
   useEffect(() => {
-    const handleScroll = () => {
-      const isScrolled = window.scrollY > 320;
-      document.documentElement.style.setProperty("--nav-text-color", isScrolled ? "#000000" : "#ffffff");
-      document.documentElement.style.setProperty("--nav-stroke-color", isScrolled ? "#000000" : "#ffffff");
+    const syncNavColor = () => {
+      const isPastHero = (heroRef.current?.getBoundingClientRect().bottom ?? 0) <= 0;
+      document.documentElement.style.setProperty(
+        "--nav-text-color",
+        isPastHero ? "#000000" : "#ffffff"
+      );
+      document.documentElement.style.setProperty(
+        "--nav-stroke-color",
+        isPastHero ? "#000000" : "#ffffff"
+      );
     };
 
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    window.addEventListener("scroll", syncNavColor, { passive: true });
+    window.addEventListener("resize", syncNavColor);
+    syncNavColor();
+    return () => {
+      window.removeEventListener("scroll", syncNavColor);
+      window.removeEventListener("resize", syncNavColor);
+    };
+  }, [isLoading]);
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
-  // Hero background + graphic reflect the current application's country.
+  // The hero keeps the shared blue gradient and reflects the country through its artwork.
   const heroTheme = getCountryHeroTheme(heroCountry);
-  const multiCategoryCountry = getMultiCategoryCountry(heroCountry);
-  const multiCategoryEntries = multiCategoryCountry
-    ? MULTI_CATEGORY_APPLICATIONS.filter((entry) => entry.country === multiCategoryCountry)
-    : [];
 
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.5 } },
-  };
-
-  const activityHeadingVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { delay: 0.3, duration: 0.4 } },
   };
 
   return (
@@ -497,13 +562,24 @@ export default function HomePage() {
         width: `${100 / PAGE_SCALE}vw`,
       }}
     >
-      {/* Hero Background — gradient + graphic vary by the current country. */}
-      <div className="absolute top-0 left-0 right-0 h-[720px] xl:h-[538px] overflow-hidden z-0">
-        <div className="absolute inset-0" style={{ backgroundImage: heroGradientCss(heroTheme) }} />
+      {/* Hero Background — shared blue gradient with country-specific artwork. */}
+      <div
+        ref={heroRef}
+        data-home-hero
+        className="absolute left-0 right-0 top-0 z-0 h-[1080px] overflow-hidden xl:h-[538px]"
+      >
+        <div
+          className="absolute inset-0"
+          style={{ backgroundImage: heroGradientCss(heroTheme) }}
+        />
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.05)] mix-blend-hard-light" />
         {heroTheme.image && (
-          <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[600px] blur-sm">
-            <img alt="" className="w-full h-full object-contain object-bottom" src={heroTheme.image} />
+          <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[760px] blur-sm">
+            <img
+              alt=""
+              className="w-full h-full object-contain object-bottom"
+              src={heroTheme.image}
+            />
           </div>
         )}
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.08)]" />
@@ -519,12 +595,17 @@ export default function HomePage() {
           variants={headingVariants}
         >
           <p className="mb-0 text-[rgba(255,255,255,0.65)]">
-            {t("welcomeBack", { name: applicantName?.split(" ")[0] || "there" })}
+            {t("welcomeBack", {
+              name: applicantName?.split(" ")[0] || "there",
+            })}
           </p>
           <p>
             {heroCountry
               ? t("vizaApplicationForCountry", {
-                  country: getDestinationDisplayNameForLocale(heroCountry, locale),
+                  country: getDestinationDisplayNameForLocale(
+                    heroCountry,
+                    locale
+                  ),
                 })
               : t("vizaApplication")}
           </p>
@@ -538,51 +619,23 @@ export default function HomePage() {
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           <div className="flex flex-col xl:flex-row gap-[16px] items-stretch w-full">
-            <SubscriptionPlanCard />
+            <ActiveVisaCard
+              href={activeVisa?.href ?? "/client/destinations"}
+              status={activeVisa?.status ?? null}
+              visaName={activeVisa?.visaName ?? null}
+            />
             <UniversalInfoCard {...universalInfoProgress} />
             <QuickActionsCard />
           </div>
         </motion.div>
 
-        {multiCategoryCountry && (
-          <section className="mt-12 w-full max-w-[1090px] rounded-[16px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:mt-16 sm:p-6">
-            <div>
-              <h2 className="font-heading text-[22px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[26px]">
-                {t("applicationCategories")}
-              </h2>
-              <p className="mt-1 text-[14px] leading-6 text-[#667085]">{t("applicationCategoriesHint")}</p>
-            </div>
-            <p className="mt-5 text-[14px] font-semibold text-[#03346E]">
-              {getDestinationDisplayNameForLocale(multiCategoryCountry, locale)}
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {multiCategoryEntries.map((entry) => {
-                const params = new URLSearchParams({ country: entry.country, visaType: entry.visaType });
-                return (
-                  <Link
-                    key={entry.visaType}
-                    href={`/client/application?${params.toString()}`}
-                    className="flex min-h-11 items-center rounded-lg border border-[#d7e1ef] px-3 py-2 text-[13px] font-medium leading-5 text-[#03346E] transition hover:border-[#03346E] hover:bg-[#eef3fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-                  >
-                    {getVisaPackageTitle(entry.country, entry.visaType, locale)}
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Recent Activity Heading — 与 hero 底部保持充足间距 */}
-        <motion.p
-          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:mb-10 sm:mt-20 sm:text-[30px] sm:tracking-[-0.9px]"
-          initial="hidden"
-          animate="visible"
-          variants={activityHeadingVariants}
-        >
-          {t("recentActivity")}
-        </motion.p>
-
-        <RecentActivitySection events={activityEvents} />
+        <div className="mt-12 w-full sm:mt-16">
+          {isTimelineLoading ? (
+            <TimelineLoadingState />
+          ) : (
+            <ApplicationTimelineSection application={selectedApplicationStatus} />
+          )}
+        </div>
       </div>
     </div>
   );

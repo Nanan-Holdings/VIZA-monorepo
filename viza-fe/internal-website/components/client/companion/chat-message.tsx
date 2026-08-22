@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { Warning as AlertTriangle } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
@@ -12,6 +13,13 @@ interface ChatMessageProps {
 
 function normalizePlainTextContent(content: string): string {
   return content
+    // Application navigation is rendered as a dedicated BlockMessage card.
+    // Drop any model-generated fallback sentence that leaks an internal route
+    // or product code instead of duplicating it in assistant prose.
+    .replace(
+      /[^。！？\n]*(?:form\s*link|\/client\/application(?:\/long-form)?\?[^\s。！？\n]*|visaType=[A-Z0-9_]+|SG_?ARRIVAL_?CARD|https?:\/\/(?:www\.)?ica\.gov\.sg\/[^\s。！？\n]*sg-arrival-card[^\s。！？\n]*)[^。！？\n]*[。！？]?/giu,
+      ""
+    )
     .replace(/```[\s\S]*?```/g, (block) => {
       const code = block.slice(3, -3);
       const firstNewline = code.indexOf("\n");
@@ -35,6 +43,7 @@ function normalizePlainTextContent(content: string): string {
     .replace(/\*([^*\n]+)\*/g, "$1")
     .replace(/_([^_\n]+)_/g, "$1")
     .replace(/^\s*---+\s*$/gm, "")
+    .replace(/^\s*\n/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -96,14 +105,7 @@ export function ChatMessage({
   // Error message
   if (role === "error") {
     return (
-      <div className="w-full flex gap-3 items-start">
-        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-4 h-4 text-red-600" />
-        </div>
-        <p className="text-red-700 text-base sm:text-lg whitespace-pre-wrap leading-relaxed">
-          {content}
-        </p>
-      </div>
+      <ClientErrorAlert className="w-full" message={content} />
     );
   }
 

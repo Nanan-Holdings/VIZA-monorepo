@@ -47,7 +47,7 @@ steps:
       # Runtime environment variables
       - '--set-env-vars'
       - >-
-        NODE_ENV=staging,GCP_PROJECT_ID=$_AR_PROJECT_ID,NEXT_PUBLIC_SUPABASE_URL=$_NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY=$_NEXT_PUBLIC_SUPABASE_ANON_KEY,LAB_REPORT_API_BASE=$_LAB_REPORT_API_BASE,LOG_LEVEL=info
+        NODE_ENV=staging,GCP_PROJECT_ID=$_AR_PROJECT_ID,NEXT_PUBLIC_SUPABASE_URL=$_NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY=$_NEXT_PUBLIC_SUPABASE_ANON_KEY,LAB_REPORT_API_BASE=$_LAB_REPORT_API_BASE,LOG_LEVEL=info,DB_POOL_MAX=3,DB_CONNECTION_TIMEOUT_MS=2000,DB_IDLE_TIMEOUT_MS=30000,DB_QUERY_TIMEOUT_MS=30000,DB_STATEMENT_TIMEOUT_MS=30000
       # Secrets from Secret Manager
       - '--update-secrets'
       - >-
@@ -57,6 +57,7 @@ steps:
       - '--cpu=2'
       - '--min-instances=1'
       - '--max-instances=10'
+      - '--concurrency=20'
       - '--timeout=300'
       - '--port=8080'
       # WebSocket support (session affinity + HTTP/1.1 for Socket.IO)

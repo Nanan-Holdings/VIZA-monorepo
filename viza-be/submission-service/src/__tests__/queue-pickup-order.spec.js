@@ -58,6 +58,20 @@ test("Vietnam live processing has a longer outage grace period than the generic 
   );
 });
 
+test("Vietnam retry rows release their database claim lease immediately", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const vietnamStart = source.indexOf("async function processVnItem");
+  const vietnamEnd = source.indexOf("async function loadAuAccount", vietnamStart);
+  assert.notEqual(vietnamStart, -1);
+  assert.notEqual(vietnamEnd, -1);
+
+  const vietnamBody = source.slice(vietnamStart, vietnamEnd);
+  assert.match(vietnamBody, /newStatus === retryPendingStatus/);
+  assert.match(vietnamBody, /locked_by: null, locked_until: null/);
+  assert.match(vietnamBody, /consumedOneTimeCardAuthorization/);
+  assert.match(vietnamBody, /payment_status: "failed"/);
+});
+
 test("stale timeout scanning covers interrupted Indonesia payment workers", () => {
   const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
   const statusesStart = source.indexOf("const STALE_QUEUE_STATUSES");
@@ -96,4 +110,23 @@ test("Indonesia cloud processing refreshes its queue heartbeat until the run end
   assert.match(indonesiaBody, /heartbeat_at: heartbeatAt/);
   assert.match(indonesiaBody, /\.in\("status", \[processingStatus, paymentProcessingStatus\]\)/);
   assert.match(indonesiaBody, /clearInterval\(heartbeatTimer\)/);
+});
+
+test("Indonesia worker errors cannot auto-retry after consuming a one-time card", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const indonesiaStart = source.indexOf("async function processIndonesiaItem");
+  const indonesiaEnd = source.indexOf("async function markIndonesiaQueueStage", indonesiaStart);
+  assert.notEqual(indonesiaStart, -1);
+  assert.notEqual(indonesiaEnd, -1);
+
+  const indonesiaBody = source.slice(indonesiaStart, indonesiaEnd);
+  assert.match(indonesiaBody, /let consumedOneTimeCardAuthorization = false/);
+  assert.match(indonesiaBody, /consumedOneTimeCardAuthorization = Boolean\(oneTimeIndonesiaCard\)/);
+  assert.match(
+    indonesiaBody,
+    /const newAttempts = consumedOneTimeCardAuthorization\s*\? MAX_ATTEMPTS\s*:\s*item\.attempts \+ 1/,
+  );
+  assert.match(indonesiaBody, /payment_status: "failed"/);
+  assert.match(indonesiaBody, /locked_by: null/);
+  assert.match(indonesiaBody, /locked_until: null/);
 });

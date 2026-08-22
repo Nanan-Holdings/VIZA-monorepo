@@ -4,6 +4,9 @@ import {
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isIndonesiaEVisaApplication,
+  isJapanVisitJapanWebApplication,
+  isKenyaEtaApplication,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isTaiwanEntryPermitApplication,
@@ -14,9 +17,11 @@ import {
   queueProviderForVisaType,
   parseSubmissionRetryIntent,
   submissionQueueRequiresServerEnqueue,
+  kenyaEtaSubmissionSchedule,
   queueStatusForApplication,
   queueStatusForVisaType,
   submitModeForPrimaryApplicationAction,
+  visaTypesReferToSameApplication,
 } from "@/lib/submission-queue";
 
 describe("queueStatusForVisaType", () => {
@@ -30,6 +35,38 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForVisaType("UK_STANDARD_VISITOR")).toBe("uk_prefill_pending");
     expect(queueStatusForVisaType("VN_E_VISA")).toBe("vn_dry_run_pending");
     expect(queueStatusForVisaType("AU_VISITOR_600")).toBe("au_prefill_pending");
+  });
+
+  it("schedules Kenya eTA fourteen days before a far-future arrival", () => {
+    expect(kenyaEtaSubmissionSchedule("2026-09-30", new Date("2026-08-20T00:00:00.000Z"))).toEqual({
+      status: "scheduled",
+      availableAt: "2026-09-16T12:00:00.000Z",
+    });
+    expect(kenyaEtaSubmissionSchedule("2026-08-30", new Date("2026-08-20T00:00:00.000Z"))).toEqual({
+      status: "ready",
+      availableAt: null,
+    });
+  });
+
+  it("routes Japan Visit Japan Web and Kenya eTA to dedicated live queues", () => {
+    expect(isJapanVisitJapanWebApplication("JP", "JP_VISIT_JAPAN_WEB")).toBe(true);
+    expect(isKenyaEtaApplication("kenya", "KE_ETA")).toBe(true);
+    expect(queueStatusForVisaType("JP_VISIT_JAPAN_WEB")).toBe("jp_vjw_live_assisted_pending");
+    expect(queueStatusForVisaType("KE_ETA")).toBe("ke_eta_live_assisted_pending");
+    expect(queueStatusForApplication("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(
+      "jp_vjw_live_assisted_pending",
+    );
+    expect(queueStatusForApplication("KE", "KE_ETA", "live_assisted")).toBe(
+      "ke_eta_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(
+      "jp_visit_japan_web_live",
+    );
+    expect(queueProviderForApplication("kenya", "KE_ETA", "live_assisted")).toBe("ke_eta_live");
+    expect(submitModeForPrimaryApplicationAction("japan", "JP_VISIT_JAPAN_WEB")).toBe("live_assisted");
+    expect(submitModeForPrimaryApplicationAction("kenya", "KE_ETA")).toBe("live_assisted");
+    expect(submissionQueueRequiresServerEnqueue("japan", "JP_VISIT_JAPAN_WEB", "live_assisted")).toBe(true);
+    expect(submissionQueueRequiresServerEnqueue("kenya", "KE_ETA", "live_assisted")).toBe(true);
   });
 
   it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {
@@ -47,6 +84,9 @@ describe("queueStatusForVisaType", () => {
 
   it("marks U.S. DS-160 submissions with the CEAC provider for each mode", () => {
     expect(isDs160VisaType("US-B1/B2")).toBe(true);
+    expect(visaTypesReferToSameApplication("B1_B2", "DS160")).toBe(true);
+    expect(visaTypesReferToSameApplication("US_B1_B2", "DS-160")).toBe(true);
+    expect(visaTypesReferToSameApplication("B1_B2", "VN_E_VISA")).toBe(false);
     expect(queueProviderForVisaType("DS160", "dry_run")).toBe("ceac_dry_run");
     expect(queueProviderForVisaType("DS160", "live_assisted")).toBe("ceac_live");
     expect(queueProviderForVisaType("UK_STANDARD_VISITOR", "dry_run")).toBe("uk_standard_visitor");
@@ -171,6 +211,19 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
       "phetravel_live_assisted_pending",
     );
+  });
+
+  it("routes Korea e-Arrival Card separately from the Korea C-3 e-form", () => {
+    expect(isKoreaEArrivalCardApplication("south_korea", "KR_E_ARRIVAL_CARD")).toBe(true);
+    expect(isKoreaEArrivalCardApplication("KR", "KR_C39_SHORT_TERM_VISIT")).toBe(false);
+    expect(queueStatusForVisaType("KR_E_ARRIVAL_CARD")).toBe("kr_eac_dry_run_pending");
+    expect(queueStatusForApplication("KR", "KR_E_ARRIVAL_CARD", "live_assisted")).toBe(
+      "kr_eac_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("south_korea", "KR_E_ARRIVAL_CARD", "live_assisted")).toBe(
+      "korea_e_arrival_card_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("south_korea", "KR_E_ARRIVAL_CARD")).toBe("live_assisted");
   });
 
   it("routes Taiwan entry permits to explicit live and dry-run queues", () => {

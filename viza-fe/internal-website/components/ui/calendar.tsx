@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "lucide-react"
+  CaretDownIcon as ChevronDownIcon,
+  CaretLeftIcon as ChevronLeftIcon,
+  CaretRightIcon as ChevronRightIcon,
+} from "@phosphor-icons/react";
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -68,7 +68,7 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "has-[:focus]:border-ring border-input shadow-sm has-[:focus]:ring-ring/50 has-[:focus]:ring-[3px] relative rounded-md border",
+          "relative",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(

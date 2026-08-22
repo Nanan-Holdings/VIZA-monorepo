@@ -25,6 +25,26 @@ function field(input: Partial<VisaFormFieldRow> & { fieldName: string; displayOr
 }
 
 describe("augmentVietnamEVisaOfficialParitySteps", () => {
+  it("keeps accompanying-child portrait uploads in Document Center, not answer fields", () => {
+    const steps: WizardStep[] = [{
+      stepNumber: 7,
+      stepName: "Accompanying Children",
+      fields: [field({
+        fieldName: "accompanying_child_portrait_photo",
+        fieldType: "file",
+        displayOrder: 4,
+        stepNumber: 7,
+        stepName: "Accompanying Children",
+      })],
+    }];
+
+    const patchedFields = augmentVietnamEVisaOfficialParitySteps(steps)
+      .flatMap((step) => step.fields);
+
+    expect(patchedFields.some((item) => item.fieldName === "accompanying_child_portrait_photo"))
+      .toBe(false);
+  });
+
   it("uses the exact 205 official country options for every Vietnam eVisa nationality field", () => {
     const countryFieldNames = [
       "nationality",
@@ -95,6 +115,63 @@ describe("augmentVietnamEVisaOfficialParitySteps", () => {
     expect(validTo?.validationRules?.min_days_after_field).toBe("visa_valid_from");
     expect(validTo?.validationRules?.min_days_after_field_days).toBe(1);
     expect(validTo?.validationRules?.helper_zh).toBe("结束日期必须至少晚于开始日期 1 天。");
+  });
+
+  it("requires the applicant to identify who covers trip expenses", () => {
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 8,
+        stepName: "Travel Expenses and Insurance",
+        fields: [
+          field({
+            fieldName: "expense_coverage",
+            fieldType: "select",
+            required: false,
+            displayOrder: 3,
+            stepNumber: 8,
+            stepName: "Travel Expenses and Insurance",
+          }),
+        ],
+      },
+    ];
+
+    const expenseCoverage = augmentVietnamEVisaOfficialParitySteps(steps)
+      .find((step) => step.stepNumber === 8)
+      ?.fields.find((item) => item.fieldName === "expense_coverage");
+
+    expect(expenseCoverage?.required).toBe(true);
+  });
+
+  it("restores the required expense coverage field and its conditional payment method when missing", () => {
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 8,
+        stepName: "Travel Expenses and Insurance",
+        fields: [],
+      },
+    ];
+
+    const fields = augmentVietnamEVisaOfficialParitySteps(steps)
+      .find((step) => step.stepNumber === 8)
+      ?.fields ?? [];
+    const expenseCoverage = fields.find((item) => item.fieldName === "expense_coverage");
+    const paymentMethod = fields.find((item) => item.fieldName === "expense_payment_method");
+
+    expect(expenseCoverage).toMatchObject({
+      fieldType: "select",
+      required: true,
+      displayOrder: 4,
+      options: [
+        expect.objectContaining({ value: "personal" }),
+        expect.objectContaining({ value: "company" }),
+      ],
+    });
+    expect(paymentMethod).toMatchObject({
+      required: true,
+      conditionalLogic: {
+        showIf: "expense_coverage === personal || expense_coverage === company",
+      },
+    });
   });
 
   it("inserts missing relatives fields immediately after the relatives yes/no question", () => {

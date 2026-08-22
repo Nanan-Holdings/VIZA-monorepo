@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle as CheckCircle2, CircleNotch as Loader2, MagnifyingGlass as Search } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getVisaDestinationCountryName,
@@ -16,11 +16,31 @@ import {
   type VisaDestinationRegionGroup,
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
-  getUserVisaPackages,
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
+
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function selectWithDeadline(destinationId: string) {
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      selectUserVisaDestination(destinationId),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
+}
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -33,32 +53,39 @@ function isSelectedDestination(
   );
 }
 
+export const SUPPORT_LABELS_ZH: Record<string, string> = {
+  "Visitor intake": "访客申请表",
+  "DS-160 form": "DS-160 表单",
+  "Indonesia eVisa": "印度尼西亚电子签证",
+  "Indonesia e-VoA": "印度尼西亚电子落地签",
+  "Philippines eTravel": "菲律宾 eTravel 申报",
+  "Schengen countries": "申根国家",
+  "Schengen Type C": "申根 C 类签证",
+  "UKVI form": "英国签证与移民局表单",
+  "Vietnam pre-arrival declaration": "越南入境前申报",
+  "Korea e-Arrival Card": "韩国电子入境卡",
+  "Arrival declaration · compliance review": "入境与海关申报",
+  "Electronic travel authorization": "电子旅行授权",
+  "Application categories": "申请类别",
+  "Destination region": "目的地区域",
+};
+
 export function DestinationRegionPageClient({
   region,
   destinations,
+  initialSelectedPackages,
 }: {
   region: VisaDestinationRegionGroup;
   destinations: PopularVisaDestination[];
+  initialSelectedPackages: UserVisaPackage[];
 }) {
   const router = useRouter();
   const locale = useLocale();
   const destinationMessages = useTranslations("home.popularDestinations");
   const isZh = locale.toLowerCase().startsWith("zh");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPackages, setSelectedPackages] = useState<UserVisaPackage[]>([]);
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let isMounted = true;
-    getUserVisaPackages().then((packages) => {
-      if (isMounted) setSelectedPackages(packages);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -67,27 +94,33 @@ export function DestinationRegionPageClient({
   }, [destinations, searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {
+    if (pendingDestinationId) return;
     setSelectionError(null);
 
-    if (destination.kind === "group" && destination.href) {
+    if (destination.href) {
       router.push(destination.href);
       return;
     }
 
-    setPendingDestinationId(destination.id);
-
-    startTransition(async () => {
-      const result = await selectUserVisaDestination(destination.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
-        setPendingDestinationId(null);
-        return;
-      }
-
-      router.push(
-        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-      );
+    const href = buildApplicationLongFormHref({
+      country: destination.country,
+      visaType: destination.visaType,
     });
+
+    setPendingDestinationId(destination.id);
+    router.push(href);
+    void (async () => {
+      try {
+        const result = await selectWithDeadline(destination.id);
+        if (!result.success) {
+          setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
+        }
+      } catch {
+        setSelectionError(isZh ? "服务器响应较慢，请稍后重试。" : "The server is taking too long. Please try again shortly.");
+      } finally {
+        setPendingDestinationId(null);
+      }
+    })();
   }
 
   return (
@@ -104,7 +137,7 @@ export function DestinationRegionPageClient({
         <section className="rounded-[18px] border border-[#e7edf5] bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? region.name : "Destination region"}</p>
+              <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? "目的地区域" : "Destination region"}</p>
               <h1 className="mt-2 font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
                 {isZh ? region.nameZh : region.name}
               </h1>
@@ -124,17 +157,20 @@ export function DestinationRegionPageClient({
             </label>
           </div>
 
-          {selectionError && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {selectionError}
-            </div>
-          )}
+          {selectionError ? <ClientErrorAlert className="mt-5" message={selectionError} /> : null}
 
           <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
-              const selected = isSelectedDestination(destination, selectedPackages);
-              const loading = isPending && pendingDestinationId === destination.id;
+              const selected = isSelectedDestination(destination, initialSelectedPackages);
+              const loading = pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
+              const applicationHref = destination.href
+                ?? (isGroup
+                  ? null
+                  : buildApplicationLongFormHref({
+                      country: destination.country,
+                      visaType: destination.visaType,
+                    }));
               const actionLabel = isGroup
                 ? destinationMessages("chooseCategory")
                 : selected
@@ -150,6 +186,12 @@ export function DestinationRegionPageClient({
                   key={destination.id}
                   type="button"
                   onClick={() => handleSelect(destination)}
+                  onFocus={() => {
+                    if (applicationHref) router.prefetch(applicationHref);
+                  }}
+                  onMouseEnter={() => {
+                    if (applicationHref) router.prefetch(applicationHref);
+                  }}
                   disabled={loading}
                   className={[
                     "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",
@@ -187,7 +229,9 @@ export function DestinationRegionPageClient({
                       <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
                         {isGroup
                           ? destinationMessages("categoryCount", { count: destination.countryCount ?? 0 })
-                          : destination.supportLabel}
+                          : isZh
+                            ? (SUPPORT_LABELS_ZH[destination.supportLabel] ?? "签证申请表")
+                            : destination.supportLabel}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
                         {loading ? (isZh ? "正在开始" : "Starting") : actionLabel}

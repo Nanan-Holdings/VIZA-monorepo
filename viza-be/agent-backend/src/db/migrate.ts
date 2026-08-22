@@ -20,14 +20,13 @@ const projectRoot = join(__dirname, "../..");
 dotenv.config({ path: join(projectRoot, ".env.local") });
 dotenv.config({ path: join(projectRoot, ".env") });
 
-// Use DATABASE_URL from environment (supports both direct and pooled connections)
+// Migration commands may use a direct or session-pooled operator connection.
+// The runtime service has separate, stricter pooler guidance in db/index.ts.
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
 	console.error("❌ Missing DATABASE_URL environment variable");
-	console.error("\n💡 Get your database connection string from:");
-	console.error("   Supabase Dashboard → Project Settings → Database → Connection String");
-	console.error("   You can use either 'Direct connection' or 'Transaction pooler'\n");
+	console.error("\nSet DATABASE_URL to an operator-only migration connection.\n");
 	process.exit(1);
 }
 
@@ -49,6 +48,11 @@ async function runMigrations() {
 
 	const pool = new Pool({
 		connectionString,
+		max: 1,
+		connectionTimeoutMillis: 5_000,
+		idleTimeoutMillis: 10_000,
+		query_timeout: 120_000,
+		statement_timeout: 120_000,
 		ssl: connectionString.includes("supabase.com")
 			? { rejectUnauthorized: false }
 			: undefined,

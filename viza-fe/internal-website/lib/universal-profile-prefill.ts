@@ -1,5 +1,7 @@
 import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
+import { buildReusableAnswerPatch, type UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
+import { omitSyntheticQaValues } from "@/lib/applications/qa-safety";
 
 interface CountryRecord {
   alpha2: string;
@@ -63,9 +65,13 @@ export interface UniversalProfileSnapshot {
   passport_expiry_date?: string | null;
   passport_issuing_country?: string | null;
   passport_issuing_authority?: string | null;
+  passport_place_of_issue?: string | null;
+  passport_issuance_city?: string | null;
   email?: string | null;
   phone?: string | null;
+  national_identity_number?: string | null;
   wechat?: string | null;
+  reusable_answers?: UniversalProfileAnswerRecord[] | null;
 }
 
 export const UNIVERSAL_PROFILE_SELECT =
@@ -277,10 +283,10 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
     givenNamesZh,
     givenNamesEn,
   );
-  setAnswer(out, ["date_of_birth", "dob", "birth_date"], profile.date_of_birth);
+  setAnswer(out, ["date_of_birth", "dob", "birth_date", "birthday"], profile.date_of_birth);
   setBilingualAnswerFromParts(
     out,
-    ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city"],
+    ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city", "birth_place"],
     profile.birth_city || legacyBirthplace.city || profile.place_of_birth,
     profile.birth_city_zh || legacyBirthplaceZh.city || profile.place_of_birth_zh,
     profile.birth_city_en || legacyBirthplace.city || profile.place_of_birth_en,
@@ -347,26 +353,17 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       profile.residence_province_or_state ||
       profile.residence_city ||
       profile.home_address_state ||
-      profile.home_address_city ||
-      profile.birth_province_or_state ||
-      legacyBirthplace.provinceOrState ||
-      legacyBirthplace.city,
+      profile.home_address_city,
     profile.residence_state_zh ||
       profile.residence_province_or_state_zh ||
       profile.residence_city_zh ||
       profile.home_address_state_zh ||
-      profile.home_address_city_zh ||
-      profile.birth_province_or_state_zh ||
-      legacyBirthplaceZh.provinceOrState ||
-      legacyBirthplaceZh.city,
+      profile.home_address_city_zh,
     profile.residence_state_en ||
       profile.residence_province_or_state_en ||
       profile.residence_city_en ||
       profile.home_address_state_en ||
-      profile.home_address_city_en ||
-      profile.birth_province_or_state_en ||
-      legacyBirthplace.provinceOrState ||
-      legacyBirthplace.city,
+      profile.home_address_city_en,
   );
   setAnswer(
     out,
@@ -376,12 +373,24 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setAnswer(out, ["passport_number", "passportNumber", "travel_document_number"], profile.passport_number);
   setAnswer(
     out,
-    ["passport_issue_date", "passport_issuance_date", "date_of_issue", "passport_date_of_issue"],
+    [
+      "passport_issue_date",
+      "passport_issuance_date",
+      "date_of_issue",
+      "passport_date_of_issue",
+      "travel_document_issue_date",
+    ],
     profile.passport_issue_date,
   );
   setAnswer(
     out,
-    ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"],
+    [
+      "passport_expiry_date",
+      "passport_expiration_date",
+      "valid_until",
+      "passport_date_of_expiry",
+      "travel_document_expiry_date",
+    ],
     profile.passport_expiry_date,
   );
   setAnswer(
@@ -392,15 +401,41 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       "passport_country",
       "passport_country_of_issue",
       "issued_by_country",
+      "travel_document_issuing_country",
     ],
     profile.passport_issuing_country,
   );
+  setAnswer(
+    out,
+    ["passport_place_of_issue", "passport_issuance_city", "place_of_issue"],
+    profile.passport_place_of_issue || profile.passport_issuance_city,
+  );
   setAnswer(out, ["passport_issuing_authority"], profile.passport_issuing_authority);
+  setAnswer(
+    out,
+    [
+      "national_identity_number",
+      "national_identity_no",
+      "national_id_number",
+      "national_id_no",
+      "identity_card_number",
+      "id_card_number",
+    ],
+    profile.national_identity_number,
+  );
   setAnswer(out, ["email", "email_address"], profile.email);
-  setAnswer(out, ["phone", "phone_number", "primary_phone_number", "mobile_phone", "telephone_number"], profile.phone);
+  setAnswer(
+    out,
+    ["phone", "phone_number", "primary_phone", "primary_phone_number", "mobile_phone", "telephone_number"],
+    profile.phone,
+  );
   setAnswer(out, ["wechat", "wechat_id"], profile.wechat);
 
-  return out;
+  Object.assign(out, buildReusableAnswerPatch(profile.reusable_answers ?? []));
+
+  // A reusable profile is copied into every future application. Never spread
+  // synthetic QA sentinels from a test profile into a real customer draft.
+  return omitSyntheticQaValues(out);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -475,7 +510,12 @@ export function mergeUniversalProfileIntoWizardForm<TForm>(
     const passport = { ...next.passport };
     setIfAllowed(passport, "number", profile.passport_number, force);
     setIfAllowed(passport, "issuingCountry", profile.passport_issuing_country, force);
-    setIfAllowed(passport, "issuanceCity", profile.passport_issuing_authority, force);
+    setIfAllowed(
+      passport,
+      "issuanceCity",
+      profile.passport_place_of_issue || profile.passport_issuance_city,
+      force,
+    );
     setIfAllowed(passport, "issueDate", profile.passport_issue_date, force);
     setIfAllowed(passport, "expiryDate", profile.passport_expiry_date, force);
     next.passport = passport;

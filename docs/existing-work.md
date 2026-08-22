@@ -35,10 +35,10 @@ VIZA SaaS 平台已建工作的模块化清单。**不含浏览器扩展**（扩
 **作为用户**：我需要在最终提交前直观核对信息被准确翻译成官方格式。
 **仓库证据**：`app/client/simplified-form/review/`、`viza-be/submission-service/src/translation-gate.ts`。
 
-### 4. 引导式自我介绍 (About-Me Onboarding / Companion)
-**描述**：把"填表"包装成"对话"。客户自然语言聊一段，系统抽出结构化字段写入答案集。
-**作为用户**：我不想直接面对一堆字段，希望像聊天一样把基本信息交代清楚。
-**仓库证据**：`components/client/about-me/`、`components/client/companion/`、`app/client/about-me-form/`、`app/client/about/`、`app/client/onboarding/`。
+### 4. AI 签证助手与申请资料引导 (VIZA AI / Onboarding)
+**描述**：通过对话帮助客户确认签证路线、理解材料要求与下一步，并通过申请引导和通用申请人资料进入正式申请流程；已退役与签证无关的健康资料问卷。
+**作为用户**：我可以先理解签证路线并整理可复用资料，再在正式申请页完成准确填写。
+**仓库证据**：`components/client/companion/`、`app/client/chat/`、`app/client/onboarding/`、`app/client/universal-info/`、`app/client/application/`。
 
 ### 5. 电子签名工作流 (E-Sign Workflow)
 **描述**：浏览器内对申请文件电子签名，含审计轨迹（IP、时间、文件哈希），与提交 orchestrator 已对接。

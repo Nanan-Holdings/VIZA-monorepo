@@ -1,14 +1,29 @@
+import asyncio
 import json
 import os
 import re
 from pathlib import Path
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
-client = OpenAI(api_key=api_key) if api_key else None
+try:
+    OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
+except (TypeError, ValueError):
+    OPENAI_TIMEOUT_SECONDS = 45.0
+if OPENAI_TIMEOUT_SECONDS <= 0:
+    OPENAI_TIMEOUT_SECONDS = 45.0
+client = (
+    AsyncOpenAI(
+        api_key=api_key,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+        max_retries=0,
+    )
+    if api_key
+    else None
+)
 
 
 CITY_ALIASES = {
@@ -75,7 +90,7 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "筑地场外市场",
         "上野公园与东京国立博物馆",
         "新宿御苑",
-        "teamLab Planets TOKYO 丰洲",
+        "丰洲森大厦数字艺术美术馆",
         "秋叶原电器街",
         "原宿竹下通",
     ],
@@ -123,13 +138,13 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "里昂美术馆",
         "特拉布勒隐秘通道",
         "红十字山街区",
-        "里昂半岛 Presqu'ile",
+        "里昂半岛街区",
     ],
     "marseille": [
         "马赛老港",
         "守护圣母圣殿",
         "卡朗格国家公园",
-        "欧洲及地中海文明博物馆 Mucem",
+        "欧洲及地中海文明博物馆",
         "伊夫堡",
         "勒帕尼耶老城区",
         "隆尚宫",
@@ -153,13 +168,13 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "小印度实龙岗路",
         "圣淘沙西乐索海滩",
         "新加坡国家美术馆",
-        "赞美广场 CHIJMES",
+        "赞美广场",
     ],
     "sydney": [
         "悉尼歌剧院",
         "海港大桥攀桥观景点",
-        "岩石区 The Rocks",
-        "邦迪海滩与 Bondi to Coogee 海岸步道",
+        "岩石区",
+        "邦迪海滩至库吉海岸步道",
         "达令港",
         "皇家植物园麦考利夫人椅",
         "塔龙加动物园",
@@ -192,7 +207,7 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "南山首尔塔",
         "广藏市场",
         "弘大街区",
-        "东大门设计广场 DDP",
+        "东大门设计广场",
         "汉江盘浦大桥月光彩虹喷泉",
     ],
     "bangkok": [
@@ -200,9 +215,9 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "卧佛寺",
         "郑王庙",
         "乍都乍周末市场",
-        "暹罗商圈 Siam Paragon",
+        "暹罗商圈与暹罗百丽宫",
         "唐人街耀华力路",
-        "ICONSIAM",
+        "暹罗天地",
         "金山寺",
     ],
     "hongkong": [
@@ -282,7 +297,7 @@ SPECIFIC_ATTRACTIONS_BY_KEY = {
         "圣若望洗礼堂",
         "骑士广场",
         "圣玛利亚德拉斯皮纳教堂",
-        "阿诺河岸 Lungarni",
+        "阿诺河岸步道",
         "博尔戈斯特雷托街",
     ],
 }
@@ -293,15 +308,15 @@ SPECIFIC_FOOD_BY_KEY = {
     "kyoto": ["锦市场小吃", "祇园怀石料理"],
     "osaka": ["道顿堀章鱼烧", "黑门市场海鲜"],
     "paris": ["圣日耳曼可颂咖啡", "玛黑区小酒馆晚餐"],
-    "lyon": ["里昂老城 Bouchon 传统餐馆", "白莱果广场周边咖啡"],
+    "lyon": ["里昂老城传统餐馆", "白莱果广场周边咖啡"],
     "marseille": ["马赛老港海鲜餐厅", "勒帕尼耶老城区咖啡馆"],
     "nice": ["萨雷雅市场尼斯沙拉", "尼斯老城小酒馆晚餐"],
     "singapore": ["老巴刹沙爹", "麦士威熟食中心海南鸡饭"],
     "sydney": ["岩石区早午餐", "邦迪海滩海鲜"],
-    "london": ["博罗市场小吃", "Covent Garden 餐酒馆"],
-    "rome": ["特拉斯提弗列意面", "Campo de' Fiori 披萨"],
+    "london": ["博罗市场小吃", "科文特花园餐酒馆"],
+    "rome": ["特拉斯提弗列意面", "鲜花广场披萨"],
     "seoul": ["广藏市场绿豆煎饼", "明洞韩式烤肉"],
-    "bangkok": ["耀华力路街头小吃", "ICONSIAM 水上市场美食"],
+    "bangkok": ["耀华力路街头小吃", "暹罗天地水上市场美食"],
     "hongkong": ["中环茶餐厅", "庙街煲仔饭"],
     "beijing": ["什刹海京味小吃", "前门烤鸭"],
     "changsha": ["坡子街臭豆腐", "文和友小龙虾"],
@@ -309,7 +324,7 @@ SPECIFIC_FOOD_BY_KEY = {
     "hangzhou": ["湖滨杭帮菜", "龙井村茶点"],
     "zhangjiajie": ["三下锅", "土家腊肉"],
     "sanfrancisco": ["渡轮大厦市场", "渔人码头酸面包海鲜汤"],
-    "pisa": ["骑士广场意式小馆", "阿诺河岸 Gelato"],
+    "pisa": ["骑士广场意式小馆", "阿诺河岸意式冰淇淋"],
 }
 
 
@@ -1149,13 +1164,13 @@ def _fallback_revision(request):
 def _openai_revision_unavailable(reason, current):
     return _revision_response(
         "clarify",
-        f"这次行程修改需要 OpenAI API 来理解并重写 itinerary，但{reason}。我没有改动当前行程，请配置或恢复 OpenAI 后再试一次。",
+        f"这次行程修改需要智能服务来理解并重排行程，但{reason}。我没有改动当前行程，请稍后再试一次。",
         current,
         edit_summary="OpenAI revision unavailable",
     )
 
 
-def revise_itinerary(request):
+async def revise_itinerary(request):
     state = request.get("state") if isinstance(request.get("state"), dict) else {}
     current_itinerary = request.get("current_itinerary")
     prompt_text = str(request.get("user_prompt") or "").strip()
@@ -1216,21 +1231,24 @@ reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列�
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.2,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
-                        "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
-                        "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.2,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
+                            "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
+                            "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            ),
+            timeout=OPENAI_TIMEOUT_SECONDS,
         )
         text = response.choices[0].message.content
     except Exception as exc:
@@ -1329,7 +1347,7 @@ def _format_attached_files(state):
     return "\n".join(lines) if lines else "无"
 
 
-def generate_itinerary(state):
+async def generate_itinerary(state):
     if client is None:
         print("OPENAI_API_KEY 未配置，使用 fallback itinerary。")
         return _fallback_itinerary(state)
@@ -1424,24 +1442,27 @@ def generate_itinerary(state):
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.4,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
-                        "不能使用泛泛的旅行活动描述。"
-                        + (
-                            " All user-facing itinerary text must be English."
-                            if is_english
-                            else ""
-                        )
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.4,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
+                            "不能使用泛泛的旅行活动描述。"
+                            + (
+                                " All user-facing itinerary text must be English."
+                                if is_english
+                                else ""
+                            )
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            ),
+            timeout=OPENAI_TIMEOUT_SECONDS,
         )
         text = response.choices[0].message.content
     except Exception as exc:

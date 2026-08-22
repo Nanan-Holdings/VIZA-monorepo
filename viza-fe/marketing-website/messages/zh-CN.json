@@ -284,6 +284,7 @@
     "save": "收藏",
     "startApplication": "开始申请",
     "seePricing": "查看价格",
+    "catalogueUnavailable": "目前暂无可在线申请的目的地，请稍后再来查看。",
     "choosePassport": "选择您的护照",
     "searchPassport": "搜索护照国家…",
     "visaFree": "{n} 个免签",
@@ -2125,15 +2126,20 @@
     "crumbHere": "系统状态",
     "hero": {
       "title": "准时交付，<em>有保障。</em><br></br>如有异常，您将第一时间知晓。",
-      "lead": "实时监控 VIZA 平台以及我们所对接的每一个政府签证系统——无论它运行正常、响应缓慢，还是在周一晚九点的高峰中不堪重负。我们所见即所报，第一时间公开。"
+      "lead": "基于真实观测记录展示 VIZA 及相关政府签证门户的可用性。下方每一个百分比、时间条和事件均来自已保存的合成检查。"
     },
     "console": {
       "title": "VIZA 可靠性 · 实时",
-      "live": "准时",
+      "live": "已验证",
+      "unverified": "未验证",
       "allOperational": "所有系统运行正常",
-      "lastRefresh": "12 秒前刷新 · 每 30 秒监测一次",
-      "kAtlys": "Atlys（90 天）",
-      "kPortals": "受监测门户",
+      "degraded": "部分系统性能下降",
+      "majorOutage": "有受监测系统当前不可用",
+      "dataUnavailable": "监测数据暂不可用",
+      "lastChecked": "最近一次记录检查：{time}",
+      "noChecks": "尚未记录任何已完成检查",
+      "kUptime": "90 天检查通过率",
+      "kMonitors": "受监测端点",
       "kIncidents": "进行中的事件"
     },
     "subnav": {
@@ -2145,31 +2151,43 @@
     },
     "platform": {
       "title": "VIZA 平台",
-      "meta": "每 30 秒监测 · 12 项服务",
-      "name": "Atlys 申请平台",
-      "sub": "网页端 · iOS · Android · 顾问控制台"
+      "realMeta": "每 5 分钟检查 · {count} 个端点",
+      "meta": "每 5 分钟检查",
+      "name": "VIZA 申请平台",
+      "sub": "VIZA 公共服务"
     },
     "uptime": {
       "ago": "90 天前",
       "today": "今天",
-      "pct": "正常运行率 {pct}%"
+      "pct": "检查通过率 {pct}%",
+      "noData": "暂无检查记录"
     },
+    "dayObservation": "{date}：已记录 {checks} 次检查",
+    "dayNoData": "{date}：暂无记录数据",
     "dayTitle": "第 {n} 天",
     "statusLabels": {
       "op": "运行正常",
       "deg": "性能下降",
       "part": "部分中断",
-      "maj": "严重中断"
+      "maj": "当前不可用",
+      "none": "暂无当前数据"
     },
+    "lastChecked": "检查时间：{time}",
+    "monitorStale": "检查缺失或已过期",
+    "monitoringUnavailable": "状态 API 暂无新鲜证据。VIZA 不会把缓存或生成的数据冒充为当前服务状态。",
+    "noSearchResults": "没有与搜索条件匹配的受监测国家或地区。",
+    "noRecordedIncidents": "最近 90 天的真实检查记录中没有衍生事件。",
+    "incidentCount": "{count} 个事件",
+    "incidentRecovered": "检查记录显示该服务已恢复。",
     "noIssues": "暂无异常",
     "activeIncident": "事件处理中",
     "portalsHead": {
       "title": "政府签证门户",
-      "lead": "我们持续轮询每个政府门户并公布观测结果——您无需再亲自反复刷新那些 2003 年风格的老旧网页表单。"
+      "lead": "系统每 5 分钟向已配置门户发起一次有边界的合成请求。灰色历史表示当日没有观测记录，绝不会用估算数据填充。"
     },
     "incidentsHead": {
       "title": "历史事件",
-      "lead": "我们记录的每一起事件，都以直白的语言呈现。我们从不隐瞒——并附上完整记录链接。"
+      "lead": "事件由已保存的监测状态变化自动开启和解决。这里展示的是系统可用性，而不是申请人的个人签证审批状态。"
     },
     "tags": {
       "identified": "已确认",

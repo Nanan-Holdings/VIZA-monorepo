@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 // eslint-disable-next-line no-restricted-imports -- This is a server action module; uploads use service-role only after applicant ownership checks.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import {
   getDestinationDisplayName,
@@ -36,12 +36,26 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
+function isMissingSchemaFeatureError(
+  error: { code?: string | null; message?: string | null } | null,
+  featureNames: string[],
+): boolean {
+  if (!error) return false;
+  const normalized = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "PGRST204" ||
+    normalized.includes("schema cache") ||
+    normalized.includes("does not exist") ||
+    normalized.includes("relation")
+  ) && featureNames.some((name) => normalized.includes(name.toLowerCase()));
+}
+
 export type DocumentCenterResult =
   | { ok: true; data: DocumentCenterData }
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
 
 export type DocumentMutationResult =
-  | { ok: true }
+  | { ok: true; appliedFieldNames?: string[] }
   | { ok: false; code: "not_authenticated" | "not_found" | "invalid_request" | "server_error"; error: string };
 
 export interface DocumentCenterData {
@@ -140,7 +154,7 @@ export interface UniversalProfileReusableDocumentStatus {
 export type UniversalProfileReusableDocumentsResult =
   | {
       ok: true;
-      documents: Record<"photo" | "signature", UniversalProfileReusableDocumentStatus>;
+      documents: Record<"identityCard" | "photo" | "signature", UniversalProfileReusableDocumentStatus>;
     }
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
 
@@ -341,7 +355,7 @@ const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
     labelZh: "旅行行程（可选）",
     description: "Optional VIZA review aid. Vietnam official e-Visa intake does not require this upload by default.",
     required: false,
-    sortOrder: 30,
+    sortOrder: 40,
     accept: [".pdf", ".doc", ".docx", ".json"],
     source: "fallback",
   },
@@ -452,6 +466,18 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
     source: "fallback",
   },
   {
+    key: "return_ticket",
+    documentType: "return_ticket",
+    labelEn: "Return or onward ticket",
+    labelZh: "返程或续程机票",
+    description:
+      "Official C1 requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
+    required: true,
+    sortOrder: 30,
+    accept: [".pdf"],
+    source: "fallback",
+  },
+  {
     key: "bank_statement",
     documentType: "bank_statement",
     labelEn: "Personal bank statement with minimum USD 2,000 or equivalent",
@@ -459,13 +485,14 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
     description:
       "Official C1 requirement: personal bank statement for the last 3 months showing the applicant name, statement period, and account balance, with a minimum amount of USD 2,000 or equivalent. PDF format only.",
     required: true,
-    sortOrder: 30,
+    sortOrder: 40,
     accept: [".pdf"],
     source: "fallback",
   },
 ];
 
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
+const IDENTITY_CARD_DOCUMENT_TYPES = ["national_identity_card", "identity_card", "id_card"] as const;
 const PHOTO_DOCUMENT_TYPES = [
   "photo",
   "applicant_photo",
@@ -964,12 +991,9 @@ async function getApplicantContext(): Promise<
   | { ok: false; code: "not_authenticated" | "server_error"; error: string }
 > {
   const impersonation = await getImpersonationSession();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = impersonation ? null : await getClientSessionWithFallback();
 
-  if (!impersonation && !user) {
+  if (!impersonation && !session) {
     return { ok: false, code: "not_authenticated", error: "Not authenticated" };
   }
 
@@ -1015,15 +1039,36 @@ async function getApplicantContext(): Promise<
     return { ok: false, code: "not_authenticated", error: "No applicant profile found for impersonation session" };
   }
 
-  if (!user?.email) {
+  if (!session?.email) {
     return { ok: false, code: "not_authenticated", error: "Not authenticated" };
   }
 
-  const { data: profileByAuthUser } = await adminClient
+  const { data: profileById } = await adminClient
     .from("applicant_profiles")
     .select("id, auth_user_id, email")
-    .eq("auth_user_id", user.id)
+    .eq("id", session.userId)
     .maybeSingle();
+
+  if (profileById) {
+    const profile = profileById as ApplicantProfileRow;
+    return {
+      ok: true,
+      context: {
+        applicantId: profile.id,
+        authUserId: profile.auth_user_id ?? session.authUserId ?? null,
+        email: profile.email ?? session.email,
+      },
+    };
+  }
+
+  const profileByAuthUser = session.authUserId
+    ? await adminClient
+      .from("applicant_profiles")
+      .select("id, auth_user_id, email")
+      .eq("auth_user_id", session.authUserId)
+      .maybeSingle()
+      .then(({ data }) => data)
+    : null;
 
   if (profileByAuthUser) {
     const profile = profileByAuthUser as ApplicantProfileRow;
@@ -1031,8 +1076,8 @@ async function getApplicantContext(): Promise<
       ok: true,
       context: {
         applicantId: profile.id,
-        authUserId: profile.auth_user_id ?? user.id,
-        email: profile.email ?? user.email,
+        authUserId: profile.auth_user_id ?? session.authUserId ?? null,
+        email: profile.email ?? session.email,
       },
     };
   }
@@ -1040,18 +1085,30 @@ async function getApplicantContext(): Promise<
   const { data: profileByEmail } = await adminClient
     .from("applicant_profiles")
     .select("id, auth_user_id, email")
-    .eq("email", user.email)
+    .eq("email", session.email)
     .maybeSingle();
 
   if (profileByEmail) {
     const profile = profileByEmail as ApplicantProfileRow;
-    await adminClient.from("applicant_profiles").update({ auth_user_id: user.id }).eq("id", profile.id);
-    return { ok: true, context: { applicantId: profile.id, authUserId: user.id, email: user.email } };
+    if (session.authUserId && !profile.auth_user_id) {
+      await adminClient
+        .from("applicant_profiles")
+        .update({ auth_user_id: session.authUserId })
+        .eq("id", profile.id);
+    }
+    return {
+      ok: true,
+      context: {
+        applicantId: profile.id,
+        authUserId: profile.auth_user_id ?? session.authUserId ?? null,
+        email: profile.email ?? session.email,
+      },
+    };
   }
 
   const { data: createdProfile, error: createError } = await adminClient
     .from("applicant_profiles")
-    .insert({ auth_user_id: user.id, email: user.email, language_pref: "en" })
+    .insert({ auth_user_id: session.authUserId ?? null, email: session.email, language_pref: "en" })
     .select("id")
     .single();
 
@@ -1061,7 +1118,11 @@ async function getApplicantContext(): Promise<
 
   return {
     ok: true,
-    context: { applicantId: (createdProfile as ApplicantProfileRow).id, authUserId: user.id, email: user.email },
+    context: {
+      applicantId: (createdProfile as ApplicantProfileRow).id,
+      authUserId: session.authUserId ?? null,
+      email: session.email,
+    },
   };
 }
 
@@ -1419,13 +1480,13 @@ export async function loadUniversalProfileReusableDocumentStatuses(): Promise<Un
       .from("universal_profile_documents")
       .select("document_type, filename, status, created_at, updated_at")
       .eq("applicant_id", contextResult.context.applicantId)
-      .in("document_type", [...PHOTO_DOCUMENT_TYPES, ...SIGNATURE_DOCUMENT_TYPES])
+      .in("document_type", [...IDENTITY_CARD_DOCUMENT_TYPES, ...PHOTO_DOCUMENT_TYPES, ...SIGNATURE_DOCUMENT_TYPES])
       .neq("status", "missing")
       .order("updated_at", { ascending: false, nullsFirst: false });
 
     if (error) {
       if (isMissingUniversalProfileDocumentsError(error)) {
-        return { ok: true, documents: { photo: emptyStatus, signature: emptyStatus } };
+        return { ok: true, documents: { identityCard: emptyStatus, photo: emptyStatus, signature: emptyStatus } };
       }
       return { ok: false, code: "server_error", error: error.message };
     }
@@ -1445,6 +1506,7 @@ export async function loadUniversalProfileReusableDocumentStatuses(): Promise<Un
     return {
       ok: true,
       documents: {
+        identityCard: toStatus(IDENTITY_CARD_DOCUMENT_TYPES),
         photo: toStatus(PHOTO_DOCUMENT_TYPES),
         signature: toStatus(SIGNATURE_DOCUMENT_TYPES),
       },
@@ -2215,6 +2277,17 @@ function isMissingOcrBilingualColumnError(message: string) {
     (normalized.includes("schema cache") || normalized.includes("column") || normalized.includes("relation"));
 }
 
+function isMissingOcrAnswerProvenanceColumnError(message: string) {
+  const normalized = message.toLowerCase();
+  return ["source", "source_profile_updated_at", "source_metadata"].some(
+    (column) => normalized.includes(column),
+  ) && (
+    normalized.includes("schema cache")
+    || normalized.includes("column")
+    || normalized.includes("does not exist")
+  );
+}
+
 function buildPassportProfileUpdates(fields: JsonRecord) {
   const updates: Record<string, string> = {};
   const fullName = pickExtractedField(fields, ["full_name", "fullName", "name", "passport_full_name", "holder_name"]);
@@ -2308,6 +2381,16 @@ function buildPassportProfileUpdates(fields: JsonRecord) {
     if (value) updates[target] = value;
   }
 
+  const identityDocumentNumber = pickExtractedField(fields, [
+    "identity_document_number",
+    "identityDocumentNumber",
+    "national_identity_number",
+    "national_id_number",
+    "identity_card_number",
+    "id_card_number",
+  ]);
+  if (identityDocumentNumber) updates.national_identity_number = identityDocumentNumber;
+
   return updates;
 }
 
@@ -2343,11 +2426,28 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
     ["nationality", profileUpdates.nationality],
     ["nationality_country", profileUpdates.nationality],
     ["passport_number", profileUpdates.passport_number],
+    ["passportNumber", profileUpdates.passport_number],
+    ["travel_document_number", profileUpdates.passport_number],
     ["passport_issue_date", profileUpdates.passport_issue_date],
     ["passport_issuance_date", profileUpdates.passport_issue_date],
+    ["date_of_issue", profileUpdates.passport_issue_date],
+    ["passport_date_of_issue", profileUpdates.passport_issue_date],
+    ["travel_document_issue_date", profileUpdates.passport_issue_date],
     ["passport_expiry_date", profileUpdates.passport_expiry_date],
     ["passport_expiration_date", profileUpdates.passport_expiry_date],
+    ["valid_until", profileUpdates.passport_expiry_date],
+    ["passport_date_of_expiry", profileUpdates.passport_expiry_date],
+    ["travel_document_expiry_date", profileUpdates.passport_expiry_date],
     ["passport_issuing_country", profileUpdates.passport_issuing_country],
+    ["passport_issuance_country", profileUpdates.passport_issuing_country],
+    ["passport_country_of_issue", profileUpdates.passport_issuing_country],
+    ["travel_document_issuing_country", profileUpdates.passport_issuing_country],
+    ["national_identity_number", profileUpdates.national_identity_number],
+    ["national_identity_no", profileUpdates.national_identity_number],
+    ["national_id_number", profileUpdates.national_identity_number],
+    ["national_id_no", profileUpdates.national_identity_number],
+    ["identity_card_number", profileUpdates.national_identity_number],
+    ["id_card_number", profileUpdates.national_identity_number],
   ];
   const now = new Date().toISOString();
 
@@ -2357,8 +2457,28 @@ function buildPassportAnswerRows(applicationId: string, fields: JsonRecord) {
       application_id: applicationId,
       field_name: fieldName,
       value_text: value,
+      source: "passport_ocr",
+      source_profile_updated_at: null,
+      source_metadata: { source: "passport_ocr" },
       updated_at: now,
     }));
+}
+
+type PassportAnswerRow = ReturnType<typeof buildPassportAnswerRows>[number];
+
+function selectPassportOcrAnswerRowsToApply(
+  answerRows: PassportAnswerRow[],
+  existingRows: Array<{ field_name: string; value_text: string | null; source?: string | null }>,
+): PassportAnswerRow[] {
+  const existingByFieldName = new Map(existingRows.map((row) => [row.field_name, row]));
+  return answerRows.filter((row) => {
+    const existing = existingByFieldName.get(row.field_name);
+    if (!existing?.value_text?.trim()) return true;
+
+    // OCR may refresh a value that OCR filled previously, but must never
+    // replace an answer that the applicant or form assistant already supplied.
+    return existing.source === "passport_ocr";
+  });
 }
 
 export async function confirmPassportOcrExtraction(input: {
@@ -2390,7 +2510,11 @@ export async function confirmPassportOcrExtraction(input: {
 
     const extraction = extractionData as { extracted_fields: unknown; confirmed_at: string | null };
     const fields = isRecord(extraction.extracted_fields) ? extraction.extracted_fields : {};
-    const profileUpdates = input.saveToUniversalProfile ? buildPassportProfileUpdates(fields) : {};
+    const extractedProfileUpdates = input.saveToUniversalProfile ? buildPassportProfileUpdates(fields) : {};
+    const {
+      national_identity_number: nationalIdentityNumber,
+      ...profileUpdates
+    } = extractedProfileUpdates;
     const answerRows = buildPassportAnswerRows(input.applicationId, fields);
 
     if (Object.keys(profileUpdates).length === 0 && answerRows.length === 0) {
@@ -2438,12 +2562,95 @@ export async function confirmPassportOcrExtraction(input: {
       }
     }
 
+    if (input.saveToUniversalProfile && nationalIdentityNumber && contextResult.context.authUserId) {
+      const now = new Date().toISOString();
+      const { error: identityAnswerError } = await adminClient
+        .from("universal_profile_answers")
+        .upsert(
+          {
+            applicant_id: contextResult.context.applicantId,
+            auth_user_id: contextResult.context.authUserId,
+            canonical_key: "national_identity_number",
+            value_text: nationalIdentityNumber,
+            value_zh: null,
+            value_en: nationalIdentityNumber,
+            label_zh: "国民身份证件号码",
+            label_en: "National identity number",
+            field_type: "text",
+            category: "travel_documents",
+            source_application_id: input.applicationId,
+            source_visa_type: application.visa_type,
+            source_field_name: "identity_document_number",
+            field_schema: { source: "identity_ocr", documentKind: "national_identity_card" },
+            updated_at: now,
+          },
+          { onConflict: "auth_user_id,canonical_key" },
+        );
+
+      if (identityAnswerError) {
+        return { ok: false, code: "server_error", error: identityAnswerError.message };
+      }
+    }
+
+    let answerRowsToApply = answerRows;
     if (answerRows.length > 0) {
+      const answerFieldNames = answerRows.map((row) => row.field_name);
+      const existingResult = await adminClient
+        .from("visa_application_answers")
+        .select("field_name, value_text, source")
+        .eq("application_id", input.applicationId)
+        .in("field_name", answerFieldNames);
+
+      if (existingResult.error) {
+        if (!isMissingOcrAnswerProvenanceColumnError(existingResult.error.message)) {
+          return { ok: false, code: "server_error", error: existingResult.error.message };
+        }
+        const legacyExistingResult = await adminClient
+          .from("visa_application_answers")
+          .select("field_name, value_text")
+          .eq("application_id", input.applicationId)
+          .in("field_name", answerFieldNames);
+        if (legacyExistingResult.error) {
+          return { ok: false, code: "server_error", error: legacyExistingResult.error.message };
+        }
+        answerRowsToApply = selectPassportOcrAnswerRowsToApply(
+          answerRows,
+          (legacyExistingResult.data ?? []) as Array<{ field_name: string; value_text: string | null }>,
+        );
+      } else {
+        answerRowsToApply = selectPassportOcrAnswerRowsToApply(
+          answerRows,
+          (existingResult.data ?? []) as Array<{
+            field_name: string;
+            value_text: string | null;
+            source: string | null;
+          }>,
+        );
+      }
+    }
+
+    if (answerRowsToApply.length > 0) {
       const { error: answersError } = await adminClient
         .from("visa_application_answers")
-        .upsert(answerRows, { onConflict: "application_id,field_name" });
+        .upsert(answerRowsToApply, { onConflict: "application_id,field_name" });
 
-      if (answersError) return { ok: false, code: "server_error", error: answersError.message };
+      if (answersError) {
+        if (!isMissingOcrAnswerProvenanceColumnError(answersError.message)) {
+          return { ok: false, code: "server_error", error: answersError.message };
+        }
+        const legacyAnswerRows = answerRowsToApply.map(({
+          source: _source,
+          source_profile_updated_at: _sourceProfileUpdatedAt,
+          source_metadata: _sourceMetadata,
+          ...row
+        }) => row);
+        const { error: legacyAnswersError } = await adminClient
+          .from("visa_application_answers")
+          .upsert(legacyAnswerRows, { onConflict: "application_id,field_name" });
+        if (legacyAnswersError) {
+          return { ok: false, code: "server_error", error: legacyAnswersError.message };
+        }
+      }
     }
 
     const { error: confirmError } = await adminClient
@@ -2456,7 +2663,7 @@ export async function confirmPassportOcrExtraction(input: {
 
     revalidatePath("/client/documents");
     revalidatePath("/client/application");
-    return { ok: true };
+    return { ok: true, appliedFieldNames: answerRowsToApply.map((row) => row.field_name) };
   } catch (error) {
     return {
       ok: false,

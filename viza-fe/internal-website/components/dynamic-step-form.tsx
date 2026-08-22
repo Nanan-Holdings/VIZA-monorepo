@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, CircleHelp, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { Question as CircleHelp, CircleNotch as Loader2, Sparkle as Sparkles, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
+import { AiAssistButton } from "@/components/ui/ai-assist-button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -15,7 +18,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
+import { type FieldGuidanceChatMessage } from "@/types/field-guidance";
+import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import {
   getChinesePlaceholder,
   getEnglishPlaceholder,
@@ -34,23 +44,23 @@ import {
   type RealtimeTranslationStatus,
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
-import {
-  matchAddressOptionValue,
-  type AddressLookupLocation,
-} from "@/lib/address-autofill";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
-import { TW_DISTRICTS_BY_CITY } from "@/lib/taiwan-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
-import { normalizePhEtravelArrivalFormAnswers } from "@/features/ph-etravel/form-answer-normalization";
 import { countries } from "country-data-list";
+import {
+  getCompiledConditionalPanelController,
+  getCompiledConditionalPanelMode,
+} from "@/lib/application-schema-ui-contract";
 
 interface DynamicStepFormProps {
   step: WizardStep;
   prefill: Record<string, string>;
   onComplete: (data: Record<string, string>) => void;
   onDraftChange?: (data: Record<string, string>) => void;
+  onUserChange?: () => void;
   saving?: boolean;
+  showContinueButton?: boolean;
   country?: string | null;
   visaType?: string;
   focusFieldName?: string | null;
@@ -61,6 +71,18 @@ interface DynamicStepFormProps {
    * step's value must be supplied through `prefill`.
    */
   externallyHandledFieldNames?: string[];
+  /**
+   * Required fields surfaced by the page-level submit check. This state is
+   * intentionally controlled by the page so one click can validate every
+   * visible step in the long form at once.
+   */
+  invalidFieldNames?: ReadonlySet<string>;
+  /** Fields last written by the form assistant. Manual edits clear this flag. */
+  aiFilledFieldNames?: ReadonlySet<string>;
+  /** Final-answer review issues keyed by the concrete answer field name. */
+  reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
+  /** Navigate to the next issue, or back to the assistant when the target is null. */
+  onNavigateReviewIssue?: (targetFieldName: string | null) => void;
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -70,105 +92,43 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
 /** Default max instances for repeatable groups without an explicit max_items */
 const REPEAT_GROUP_DEFAULT_MAX = 5;
 
-/**
- * Visa types whose applicants are Chinese-speaking end to end (no English
- * form is meaningful — e.g. Taiwan's Online Entry Permit is for mainland
- * Chinese nationals residing abroad/HK/Macau). For these, the long-form
- * renders a single Chinese-only column instead of the usual side-by-side
- * Chinese/English bilingual field row.
- */
-const CHINESE_ONLY_VISA_TYPES = new Set(["TW_ENTRY_PERMIT"]);
-
-const TAIWAN_ENTRY_PERMIT_NOTICE = [
-  <>请勿以手机或平板申请、上传文件及修改资料，否则系统将无法受理您的申请案。</>,
-  <>
-    本系统仅供旅居海外大陆地区人民以「观光」目的来台申请；如果来台目的属于「商务」或「专业」交流，请以「商务」或「专业」交流申请（请点选本署全球资讯网
-    <a
-      className="font-semibold text-emerald-700 underline underline-offset-2"
-      href="http://www.immigration.gov.tw/lp.asp?CtNode=32595&CtUnit=16735&BaseDSD=111&mp=1&xq_xCat=L"
-      rel="noreferrer"
-      target="_blank"
-    >
-      送件须知
-    </a>
-    ），以避免来台目的与申请证件不符而被拒绝入境。
-  </>,
-  <>
-    旅居香港之大陆居民，请先点选并参阅
-    <a
-      className="font-semibold text-emerald-700 underline underline-offset-2"
-      href="http://www.teco-hk.org/ct.asp?xItem=111583&CtNode=7511&mp=10"
-      rel="noreferrer"
-      target="_blank"
-    >
-      申请资格及应备文件
-    </a>
-    。
-  </>,
-  <>
-    递送地点非属下列驻外馆处者，请以书面资料向所辖驻外馆处申请。（驻
-    <span className="font-semibold text-red-600">横滨及墨尔本办事处申请案</span>
-    ，请至「大陆港澳地区短期入台线上申请平台」申请（请点选
-    <a
-      className="font-semibold text-emerald-700 underline underline-offset-2"
-      href="https://csts.immigration.gov.tw/HKMO/home/index"
-      rel="noreferrer"
-      target="_blank"
-    >
-      申请网站
-    </a>
-    ）。）
-  </>,
-  <>
-    申请资格/应检附文件相关问题，请洽所在
-    <a
-      className="font-semibold text-emerald-700 underline underline-offset-2"
-      href="https://www.immigration.gov.tw/5382/5385/5388/7181/7208/7211"
-      rel="noreferrer"
-      target="_blank"
-    >
-      驻外馆处
-    </a>
-    。
-  </>,
-  <span className="font-semibold text-red-600">
-    本系统无付费加急速件处理机制，为避免影响您的行程，建议您于取得入出境许可证之后，再安排行程。
-  </span>,
-] as const;
-
-const TAIWAN_ENTRY_PERMIT_FIELD_NOTICES: Record<string, readonly string[]> = {
-  permit_type: [
-    "最终以审核人员视申请人条件核可发给证别为准。",
-    "以依亲居留资格申请，居留证明效期未满 1 年，仅得申请单次证。",
-    "以工作资格申请，工作证明或居留证明未满 1 年，仅得申请单次证。",
-    "以留学资格申请，申请日离预定毕业日未满 1 年或居留效期未满 1 年，仅得申请单次证。",
-  ],
-  permit_count: [
-    "来台搭乘邮轮旅游者，得 1 次申请 2 张单次入出境许可证；申请人须检附邮轮船票或订位确认单，始得申请一次核发 2 张单次入出境许可证，所持第 2 张单次入出境许可证限搭乘邮轮使用；2 张单次入出境许可证之停留期间分开计算。但不得于入境后，为搭乘邮轮而再申请第 2 张单次入出境许可证。",
-    "如有随行申请人，请于主要申请人资料填写完成后，再填写随行申请人资料。",
-  ],
-};
-
 const TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE =
   "可填写在台住宿酒店的地址；即使尚未预订酒店，也可以先填写预计入住的酒店地址。没有在台个人联系电话时，可将酒店电话填写在‘在台市内电话’。";
-
-function TaiwanEntryPermitFieldNotice({ fieldName }: { fieldName: string }) {
-  const items = TAIWAN_ENTRY_PERMIT_FIELD_NOTICES[fieldName];
-  if (!items) return null;
-  return (
-    <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[14px] leading-7 text-sky-950">
-      <ol className="list-decimal space-y-1 pl-5">
-        {items.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ol>
-    </div>
-  );
-}
 
 function isTaiwanEntryPermitContactAddressStep(stepName: string | null | undefined): boolean {
   return stepName?.trim().toLowerCase() === "taiwan contact address";
 }
+
+function isClearablePrefillField(field: VisaFormFieldRow): boolean {
+  return ["text", "textarea", "tel", "email", "number", "date", "week"].includes(String(field.fieldType));
+}
+
+function initialAppliedPrefillValues(
+  fields: VisaFormFieldRow[],
+  prefill: Record<string, string>,
+): Record<string, string> {
+  const applied: Record<string, string> = {};
+  for (const field of fields) {
+    if (!isClearablePrefillField(field)) continue;
+    const value = prefill[field.fieldName]?.trim();
+    if (value) applied[field.fieldName] = value;
+  }
+  return applied;
+}
+
+export const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES = [
+  "TMTT",
+  "MTT",
+  "MMT",
+  "MM2",
+  "MM1",
+  "MTTQ",
+] as const;
+
+const VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_EXPRESSION =
+  `visa_type in [${VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.join(", ")}]`;
+const VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_EXPRESSION =
+  `visa_type not in [${VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES.join(", ")}]`;
 
 const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
   austria: "Austria",
@@ -211,93 +171,10 @@ type IndonesiaPostalLookup =
   | { status: "resolved"; summaryZh: string; summaryEn: string }
   | { status: "invalid" | "unavailable"; messageZh: string; messageEn: string };
 
-type MalaysiaAddressLookup =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "resolved" | "partial"; summaryZh: string; summaryEn: string }
-  | { status: "not_found" | "unavailable"; messageZh: string; messageEn: string };
-
-function getMalaysiaAddressLookupMessage(
-  lookup: MalaysiaAddressLookup,
-  isChineseInterface: boolean,
-): string {
-  switch (lookup.status) {
-    case "idle":
-      return "";
-    case "checking":
-      return isChineseInterface
-        ? "正在识别酒店地址、州属、城市和邮政编码..."
-        : "Finding the hotel address, state, city, and postcode...";
-    case "resolved":
-    case "partial":
-      return isChineseInterface ? lookup.summaryZh : lookup.summaryEn;
-    case "not_found":
-    case "unavailable":
-      return isChineseInterface ? lookup.messageZh : lookup.messageEn;
-  }
-}
-
 function isIndonesiaOfficialEVisaContext(country: string | null | undefined, visaType: string | undefined): boolean {
   const normalizedCountry = country?.trim().toLowerCase();
   return (normalizedCountry === "indonesia" || normalizedCountry === "id") &&
     (visaType === "ID_B1_EVOA" || visaType === "ID_C1_TOURIST");
-}
-
-const TW_EMBASSY_OFFICES_BY_CONTINENT: Record<string, VisaFormFieldOption[]> = {
-  A: [
-    { value: "50", text: "Taipei Economic and Cultural Office / Hong Kong Office", label_zh: "台北经济文化办事处／香港办事处", official_label: "台北經濟文化辦事處／香港辦事處" },
-    { value: "51", text: "Taipei Economic and Cultural Office / Macau Office", label_zh: "台北经济文化办事处／澳门办事处", official_label: "台北經濟文化辦事處／澳門辦事處" },
-    { value: "5A", text: "Taipei Economic and Cultural Representative Office (Tokyo)", label_zh: "台北驻日经济文化代表处(东京)", official_label: "台北駐日經濟文化代表處(東京)" },
-    { value: "5C", text: "Taipei Economic and Cultural Office in Osaka", label_zh: "台北驻大阪经济文化办事处", official_label: "台北駐大阪經濟文化辦事處" },
-    { value: "5F", text: "Taipei Mission in Korea", label_zh: "驻韩国台北代表处", official_label: "駐韓國台北代表處" },
-    { value: "55", text: "Taipei Economic and Cultural Office in Malaysia", label_zh: "驻马来西亚台北经济文化办事处", official_label: "駐馬來西亞台北經濟文化辦事處" },
-    { value: "56", text: "Taipei Economic and Cultural Office in the Philippines", label_zh: "驻菲律宾台北经济文化办事处", official_label: "駐菲律賓台北經濟文化辦事處" },
-    { value: "53", text: "Taipei Representative Office in Singapore", label_zh: "驻新加坡台北代表处", official_label: "駐新加坡台北代表處" },
-    { value: "52", text: "Taipei Economic and Cultural Office in Thailand", label_zh: "驻泰国台北经济文化办事处", official_label: "駐泰國台北經濟文化辦事處" },
-    { value: "67", text: "Taipei Economic and Cultural Office (Hanoi)", label_zh: "驻越南代表处(河内)", official_label: "駐越南代表處(河內)" },
-    { value: "57", text: "Taipei Economic and Cultural Office in Ho Chi Minh City", label_zh: "驻胡志明市台北经济文化办事处", official_label: "駐胡志明市台北經濟文化辦事處" },
-    { value: "58", text: "Taipei Economic and Cultural Office in Myanmar", label_zh: "驻缅甸代表处", official_label: "駐緬甸代表處" },
-    { value: "66", text: "Taipei Economic and Cultural Center in India", label_zh: "驻印度代表处", official_label: "駐印度代表處" },
-    { value: "54", text: "Taipei Economic and Trade Office in Indonesia", label_zh: "驻印尼台北经济贸易代表处", official_label: "駐印尼台北經濟貿易代表處" },
-  ],
-  B: [
-    { value: "6A", text: "Taipei Economic and Cultural Office in Vancouver", label_zh: "驻温哥华台北经济文化办事处", official_label: "駐溫哥華台北經濟文化辦事處" },
-    { value: "6B", text: "Taipei Economic and Cultural Office in Toronto", label_zh: "驻多伦多台北经济文化办事处", official_label: "駐多倫多台北經濟文化辦事處" },
-    { value: "60", text: "Taipei Economic and Cultural Office in New York", label_zh: "驻纽约台北经济文化办事处", official_label: "駐紐約台北經濟文化辦事處" },
-    { value: "61", text: "Taipei Economic and Cultural Office in Los Angeles", label_zh: "驻洛杉矶台北经济文化办事处", official_label: "駐洛杉磯台北經濟文化辦事處" },
-    { value: "62", text: "Taipei Economic and Cultural Office in San Francisco", label_zh: "驻旧金山台北经济文化办事处", official_label: "駐舊金山台北經濟文化辦事處" },
-    { value: "64", text: "Taipei Economic and Cultural Representative Office in the United States (Washington, DC)", label_zh: "驻美国台北经济文化代表处(华盛顿特区)", official_label: "駐美國台北經濟文化代表處(華盛頓特區)" },
-    { value: "65", text: "Taipei Economic and Cultural Office in Miami", label_zh: "驻迈阿密台北经济文化办事处", official_label: "駐邁阿密台北經濟文化辦事處" },
-    { value: "70", text: "Embassy of the Republic of China (Taiwan) in Paraguay", label_zh: "驻巴拉圭共和国大使馆", official_label: "駐巴拉圭共和國大使館" },
-  ],
-  C: [
-    { value: "GP", text: "Taipei Representative Office in the EU and Belgium", label_zh: "驻欧盟兼驻比利时代表处", official_label: "駐歐盟兼駐比利時代表處" },
-    { value: "72", text: "Taipei Representative Office in France", label_zh: "驻法国台北代表处", official_label: "駐法國台北代表處" },
-    { value: "63", text: "Taipei Representative Office in the United Kingdom", label_zh: "驻英国台北代表处", official_label: "駐英國台北代表處" },
-  ],
-  D: [
-    { value: "71", text: "Taipei Liaison Office in the Republic of South Africa", label_zh: "驻南非共和国台北联络代表处", official_label: "駐南非共和國台北聯絡代表處" },
-  ],
-  E: [
-    { value: "73", text: "Taipei Economic and Cultural Office in Sydney", label_zh: "驻雪梨台北经济文化办事处", official_label: "駐雪梨台北經濟文化辦事處" },
-    { value: "74", text: "Taipei Economic and Cultural Office in Auckland", label_zh: "驻奥克兰台北经济文化办事处", official_label: "駐奧克蘭台北經濟文化辦事處" },
-  ],
-};
-
-const TW_EMPTY_EMBASSY_OFFICE_OPTIONS: VisaFormFieldOption[] = [];
-
-function getTaiwanEmbassyOfficeOptions(
-  field: VisaFormFieldRow,
-  values: Record<string, string>,
-  currentVisaType?: string
-): VisaFormFieldOption[] | null {
-  const isTaiwanEntryPermit =
-    field.visaType === "TW_ENTRY_PERMIT" || currentVisaType === "TW_ENTRY_PERMIT";
-
-  if (field.fieldName !== "embassy_office" || !isTaiwanEntryPermit) return null;
-  const continent = values.continent?.trim();
-  if (!continent) return TW_EMPTY_EMBASSY_OFFICE_OPTIONS;
-  return TW_EMBASSY_OFFICES_BY_CONTINENT[continent] ?? TW_EMPTY_EMBASSY_OFFICE_OPTIONS;
 }
 
 function normalizeIndonesiaMobileNumber(value: string): string {
@@ -306,6 +183,7 @@ function normalizeIndonesiaMobileNumber(value: string): string {
 
 interface CountryDataListCountry {
   alpha2: string;
+  alpha3: string;
   countryCallingCodes: string[];
   name: string;
   status: string;
@@ -329,7 +207,6 @@ export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
     .filter((country) => country.status !== "deleted")
     .flatMap((country) =>
       country.countryCallingCodes
-        .map((code) => code.replace(/\s+/g, ""))
         .filter((code) => /^\+\d+$/.test(code))
         .map((code) => ({ country, code })),
     )
@@ -351,6 +228,7 @@ export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
       label_en: `(${code}) ${country.name}`,
       label_zh: labelZh,
       official_label: `(${code})`,
+      flagCountryCode: country.alpha2.toLowerCase(),
       };
     });
 
@@ -459,48 +337,8 @@ function cloneTextPairs(pairs: Record<string, BilingualTextValue>): Record<strin
   );
 }
 
-function initialAppliedPrefillValues(
-  fields: VisaFormFieldRow[],
-  prefill: Record<string, string>,
-  groupCounts: Record<string, number>,
-): Record<string, string> {
-  const applied: Record<string, string> = {};
-  for (const field of fields) {
-    if (!isClearablePrefillField(field)) continue;
-    const group = getRepeatGroup(field);
-    const keys = group
-      ? Array.from({ length: groupCounts[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
-      : [field.fieldName];
-    for (const key of keys) {
-      const value = prefill[key]?.trim();
-      if (value) applied[key] = value;
-    }
-  }
-  return applied;
-}
-
 function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
-}
-
-const CLEARABLE_PREFILL_FIELD_TYPES = new Set([
-  "date",
-  "datetime-local",
-  "email",
-  "month",
-  "number",
-  "password",
-  "search",
-  "tel",
-  "text",
-  "textarea",
-  "time",
-  "url",
-  "week",
-]);
-
-function isClearablePrefillField(field: VisaFormFieldRow): boolean {
-  return CLEARABLE_PREFILL_FIELD_TYPES.has(String(field.fieldType));
 }
 
 function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
@@ -586,7 +424,7 @@ function RealtimeTranslationStatusLine({
   isChineseInterface: boolean;
   onRetry: () => void;
 }) {
-  if (status === "idle" || status === "skipped") return null;
+  if (status === "idle" || status === "skipped" || status === "translated") return null;
 
   const isBusy = status === "typing" || status === "translating";
   const copy = {
@@ -632,6 +470,7 @@ function DynamicFieldRealtimeTranslation({
   targetWasManuallyEdited,
   onApplyTranslation,
   onResetManualEdit,
+  onWarningChange,
 }: {
   field: VisaFormFieldRow;
   valueKey: string;
@@ -641,6 +480,7 @@ function DynamicFieldRealtimeTranslation({
   targetWasManuallyEdited: boolean;
   onApplyTranslation: (valueKey: string, sourceText: string, translatedText: string, force: boolean) => void;
   onResetManualEdit: (valueKey: string) => void;
+  onWarningChange: (valueKey: string, hasWarning: boolean) => void;
 }) {
   const handleTranslatedText = useCallback(
     (translatedText: string, options: { force: boolean; sourceText: string }) => {
@@ -666,6 +506,15 @@ function DynamicFieldRealtimeTranslation({
     onTranslatedText: handleTranslatedText,
     onManualEditReset: handleManualEditReset,
   });
+  const hasWarning = status === "failed" || status === "user_edited";
+
+  useEffect(() => {
+    onWarningChange(valueKey, hasWarning);
+  }, [hasWarning, onWarningChange, valueKey]);
+
+  useEffect(() => () => {
+    onWarningChange(valueKey, false);
+  }, [onWarningChange, valueKey]);
 
   return (
     <RealtimeTranslationStatusLine
@@ -724,6 +573,13 @@ function formatOfficialDateFromUtcDate(date: Date): string {
   return `${day}/${month}/${year}`;
 }
 
+function formatIsoDateFromUtcDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption, string>> {
   const vietnamNow = getVietnamNow();
   const startOfVietnamToday = Date.UTC(
@@ -733,13 +589,14 @@ function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption,
   );
   return Array.from({ length: 3 }, (_, index) => {
     const date = new Date(startOfVietnamToday + index * 24 * 60 * 60 * 1000);
-    const value = formatOfficialDateFromUtcDate(date);
+    const value = formatIsoDateFromUtcDate(date);
+    const officialLabel = formatOfficialDateFromUtcDate(date);
     return {
       value,
-      text: value,
-      label_en: value,
-      label_zh: value,
-      official_label: value,
+      text: officialLabel,
+      label_en: officialLabel,
+      label_zh: officialLabel,
+      official_label: officialLabel,
     };
   });
 }
@@ -747,7 +604,7 @@ function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption,
 function normaliseVnPrearrivalArrivalDate(value: string): string | null {
   const parsed = parseFlexibleDate(value);
   if (!parsed) return null;
-  return formatOfficialDateFromUtcDate(new Date(Date.UTC(
+  return formatIsoDateFromUtcDate(new Date(Date.UTC(
     parsed.getFullYear(),
     parsed.getMonth(),
     parsed.getDate(),
@@ -1050,13 +907,114 @@ export function withVnPrearrivalOtherHotelOption(
 export function ensureVnPrearrivalOtherFlightFlow(
   steps: WizardStep[],
 ): WizardStep[] {
-  return steps.map((step) => {
-    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
-    if (!flightField || flightField.visaType !== "VN_PREARRIVAL_DECLARATION") return step;
+  const visaTypeOptions =
+    getVnPrearrivalStaticOptions("prearrival_category:visa_type") ?? [];
+  const visaCredentialsOptionalExpression =
+    VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_EXPRESSION;
+  const visaCredentialsRequiredExpression =
+    VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED_EXPRESSION;
 
+  return steps.map((step) => {
+    const isVnPrearrivalStep = step.fields.some(
+      (field) => field.visaType === "VN_PREARRIVAL_DECLARATION",
+    );
+    if (!isVnPrearrivalStep) return step;
+
+    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
     let changed = false;
     let hasCustomFlightField = false;
     const fields = step.fields.map((field) => {
+      if (field.fieldName === "visa_type") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          options: visaTypeOptions.length > 0 ? visaTypeOptions : field.options,
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            official_source: "prearrival_category:visa_type",
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_number") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            maxLength: 64,
+            required_unless: visaCredentialsOptionalExpression,
+            numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_expiry_date") {
+        changed = true;
+        return {
+          ...field,
+          required: true,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            required_unless: visaCredentialsOptionalExpression,
+          },
+        };
+      }
+
+      if (field.fieldName === "visa_issue_date") {
+        const expectedCondition = { showIf: visaCredentialsRequiredExpression };
+        if (!field.required && field.conditionalLogic?.showIf === expectedCondition.showIf) return field;
+        changed = true;
+        return { ...field, required: false, conditionalLogic: expectedCondition };
+      }
+
+      if (field.fieldName === "visa_issued_place") {
+        changed = true;
+        return {
+          ...field,
+          required: false,
+          conditionalLogic: { showIf: visaCredentialsRequiredExpression },
+          validationRules: {
+            ...(field.validationRules ?? {}),
+            official: true,
+            official_source: "prearrival_category:visa_issue_place",
+            remote_search: true,
+            depends_on: "visa_type",
+          },
+        };
+      }
+
+      if (
+        field.fieldName === "nationality"
+        || field.fieldName === "departure_country_before_arrival"
+      ) {
+        const rules = field.validationRules ?? {};
+        if (
+          rules.official === true
+          && rules.official_source === "prearrival_category:nationality"
+          && rules.remote_search === true
+        ) {
+          return field;
+        }
+        changed = true;
+        return {
+          ...field,
+          validationRules: {
+            ...rules,
+            official: true,
+            official_source: "prearrival_category:nationality",
+            remote_search: true,
+          },
+        };
+      }
+
       if (field.fieldName === "custom_flight_number") {
         hasCustomFlightField = true;
         const expectedCondition = "mode_of_travel === air && flight_number === other";
@@ -1092,7 +1050,7 @@ export function ensureVnPrearrivalOtherFlightFlow(
       };
     });
 
-    if (!hasCustomFlightField) {
+    if (flightField && !hasCustomFlightField) {
       changed = true;
       fields.push({
         id: `${flightField.id}:custom-flight-number`,
@@ -1125,6 +1083,42 @@ export function ensureVnPrearrivalOtherFlightFlow(
       fields: fields.sort((left, right) => left.displayOrder - right.displayOrder),
     };
   });
+}
+
+export function reconcileVnPrearrivalNationalityValue(
+  currentValue: string,
+  options: VisaFormFieldOption[],
+): string {
+  const trimmed = currentValue.trim();
+  if (!trimmed || options.length === 0) return currentValue;
+
+  const normalized = normalizeComparableOptionValue(trimmed);
+  const directMatch = options.find((option) => {
+    if (typeof option === "string") {
+      return normalizeComparableOptionValue(option) === normalized;
+    }
+    return [
+      option.value,
+      option.code,
+      option.text,
+      option.label_en,
+      option.official_label,
+    ].some((candidate) => normalizeComparableOptionValue(candidate) === normalized);
+  });
+  if (directMatch) return optionValue(directMatch);
+
+  const country = (countries.all as CountryDataListCountry[]).find((candidate) =>
+    [candidate.alpha2, candidate.alpha3, candidate.name]
+      .some((candidateValue) => normalizeComparableOptionValue(candidateValue) === normalized),
+  );
+  if (!country?.alpha3) return currentValue;
+
+  const officialCode = country.alpha3.toUpperCase();
+  const officialMatch = options.find((option) => {
+    if (typeof option === "string") return option.toUpperCase() === officialCode;
+    return option.value.toUpperCase() === officialCode || option.code?.toUpperCase() === officialCode;
+  });
+  return officialMatch ? optionValue(officialMatch) : currentValue;
 }
 
 function mergeVnPrearrivalFlightPages(
@@ -1195,6 +1189,47 @@ function findCanonicalOptionValue(
   return null;
 }
 
+function normalizeFixedChoiceStepValues(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+): Record<string, string> {
+  const next = { ...values };
+
+  for (const field of fields) {
+    if (field.fieldType !== "select" || !field.options?.length) continue;
+
+    const rules = field.validationRules as {
+      dependent_on?: unknown;
+      depends_on?: unknown;
+      dependsOn?: unknown;
+      official_options_source?: unknown;
+      official_source?: unknown;
+      remote_search?: unknown;
+    } | null;
+    const optionsAreLoadedOrDependent = Boolean(
+      rules?.dependent_on
+      || rules?.depends_on
+      || rules?.dependsOn
+      || rules?.official_options_source
+      || rules?.official_source
+      || rules?.remote_search,
+    );
+    if (optionsAreLoadedOrDependent) continue;
+
+    const currentValue = next[field.fieldName]?.trim();
+    if (!currentValue) continue;
+
+    // Universal Profile and legacy answers may contain a displayed label (for
+    // example "Employed") or unrelated free text instead of the option's
+    // stored value ("employed"). Radix Select cannot display such a value, so
+    // canonicalize known labels and discard stale values that the user cannot
+    // actually see or select.
+    next[field.fieldName] = findCanonicalOptionValue(field.options, currentValue) ?? "";
+  }
+
+  return next;
+}
+
 function parsePhoneParts(rawPhone: string | null | undefined) {
   const value = rawPhone?.trim();
   if (!value) return { countryCode: "", localNumber: "" };
@@ -1237,6 +1272,23 @@ function getAirportCodeFromFlightValue(value: string): string {
   if (underscoreMatch) return underscoreMatch[1];
   const dashMatch = trimmed.match(/-\s*([A-Z]{3})$/);
   return dashMatch?.[1] ?? "";
+}
+
+export function reconcileVnPrearrivalFlightAfterCatalogRefresh(
+  currentValues: Record<string, string>,
+  checkedFlightValue: string,
+  result: { catalogSource?: string; selectedExists?: boolean | null },
+): Record<string, string> {
+  const checkedValue = checkedFlightValue.trim();
+  if (!checkedValue || checkedValue.toLowerCase() === "other") return currentValues;
+  if ((currentValues.flight_number ?? "").trim() !== checkedValue) return currentValues;
+  if (result.catalogSource !== "official_live" || result.selectedExists !== false) return currentValues;
+  return {
+    ...currentValues,
+    flight_number: "",
+    custom_flight_number: "",
+    border_gate_airport: "",
+  };
 }
 
 function restoreVnPrearrivalHotelHierarchy(values: Record<string, string>): Record<string, string> {
@@ -1311,8 +1363,9 @@ function normalizeTdacStepValues(
   visaType?: string,
 ): Record<string, string> {
   const resolvedVisaType = visaType ?? fields[0]?.visaType;
+  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values);
   if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
-    const next = { ...values };
+    const next = { ...fixedChoiceValues };
     const legacyChinaAliases = new Set([
       "hk",
       "hkg",
@@ -1347,9 +1400,9 @@ function normalizeTdacStepValues(
     }
     return next;
   }
-  if (resolvedVisaType !== "TH_TDAC_ARRIVAL_CARD") return values;
+  if (resolvedVisaType !== "TH_TDAC_ARRIVAL_CARD") return fixedChoiceValues;
 
-  const next = { ...values };
+  const next = { ...fixedChoiceValues };
   const fieldByName = new Map(fields.map((field) => [field.fieldName, field]));
 
   const normalizeOptionField = (fieldName: string, fallbackKeys: string[] = []) => {
@@ -1451,10 +1504,6 @@ function isCheckedCheckboxValue(value: string): boolean {
   return normalised === "true" || normalised === "yes" || normalised === "1" || normalised === "on";
 }
 
-function isAuxiliaryBilingualKey(key: string): boolean {
-  return /_(zh|en)$/.test(key);
-}
-
 function filterCurrentStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
@@ -1475,7 +1524,11 @@ function filterCurrentStepValues(
 
   const filtered: Record<string, string> = {};
   for (const key of allowedKeys) {
-    if (isAuxiliaryBilingualKey(key)) continue;
+    // `allowedKeys` contains only canonical schema field names. A canonical
+    // field may legitimately end in `_en` (for example Korea's
+    // `stay_address_en`), so suffix-based auxiliary filtering here would drop
+    // an official answer before it reaches the runner. Generated bilingual
+    // companion keys are added later and are never part of this set.
     filtered[key] = values[key] ?? "";
   }
   return filtered;
@@ -1510,17 +1563,6 @@ function buildCurrentStepAnswerPatch(
   return answers;
 }
 
-function answerPatchesEqual(
-  previous: Record<string, string> | null,
-  next: Record<string, string>,
-): boolean {
-  if (!previous) return false;
-  const previousKeys = Object.keys(previous);
-  const nextKeys = Object.keys(next);
-  if (previousKeys.length !== nextKeys.length) return false;
-  return nextKeys.every((key) => previous[key] === next[key]);
-}
-
 function getLocalFieldIssue(
   field: VisaFormFieldRow,
   valueKey: string,
@@ -1533,6 +1575,7 @@ function getLocalFieldIssue(
   const rules = field.validationRules as {
     maxLength?: number;
     pattern?: string;
+    at_least_one_of?: string[];
     allow_year_only?: boolean;
     min_date?: "today";
     max_days_from_today?: number;
@@ -1557,6 +1600,25 @@ function getLocalFieldIssue(
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
     return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
+  }
+
+  if (
+    !trimmed &&
+    rules?.at_least_one_of?.length &&
+    !rules.at_least_one_of.some((fieldName) => (values[fieldName] ?? "").trim())
+  ) {
+    const isKoreaStayAddressGroup = rules.at_least_one_of.includes("stay_address_ko")
+      && rules.at_least_one_of.includes("stay_address_en");
+    return issue(
+      "error",
+      isKoreaStayAddressGroup
+        ? isZh
+          ? "请填写韩国住宿地址（韩文或英文任选一项）"
+          : "Enter the address in Korea in either Korean or English"
+        : isZh
+          ? "请至少填写这组字段中的一项"
+          : "Complete at least one field in this group",
+    );
   }
 
   const numericLengthRule = rules?.numeric_length_when
@@ -1586,7 +1648,18 @@ function getLocalFieldIssue(
   if (rules?.pattern && trimmed) {
     try {
       if (!new RegExp(rules.pattern).test(trimmed)) {
-        return issue("error", isZh ? "格式不符合要求" : "Format does not match the requirement");
+        const exactDigitLength = rules.pattern.match(/^\^\[0-9\]\{(\d+)\}\$$/u)?.[1]
+          ?? rules.pattern.match(/^\^\\d\{(\d+)\}\$$/u)?.[1];
+        return issue(
+          "error",
+          exactDigitLength
+            ? isZh
+              ? `请输入 ${exactDigitLength} 位数字`
+              : `Enter exactly ${exactDigitLength} digits`
+            : isZh
+              ? "格式不符合要求"
+              : "Format does not match the requirement",
+        );
       }
     } catch {
       // Ignore malformed schema regexes here; the backend logs them.
@@ -1762,10 +1835,6 @@ function issueMessageClasses(severity: FieldIssueSeverity): string {
   return "text-[#03346E]";
 }
 
-function copilotButtonClasses(): string {
-  return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E] hover:bg-[#e3f0ff]";
-}
-
 /** Helper: get the repeat_group name from a field's validationRules */
 function getRepeatGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { repeatable?: boolean; repeat_group?: string } | null;
@@ -1829,10 +1898,6 @@ function normalizeOptionKey(value?: string | null): string {
     .replace(/^_+|_+$/g, "");
 }
 
-function stableOptionArray(options: readonly VisaFormFieldOption[] | undefined): VisaFormFieldOption[] {
-  return (options ?? []) as VisaFormFieldOption[];
-}
-
 function getDynamicDependentOptions(
   field: VisaFormFieldRow,
   values: Record<string, string>,
@@ -1857,13 +1922,7 @@ function getDynamicDependentOptions(
       : Array.isArray(normalizedOptions)
         ? normalizedOptions
         : null;
-    return stableOptionArray(dynamicOptions ?? []);
-  }
-
-  if (rules?.dependent_options_key === "taiwan_districts_by_city") {
-    const cityKey = parentValue?.trim();
-    if (!cityKey) return [];
-    return stableOptionArray(TW_DISTRICTS_BY_CITY[cityKey]);
+    return dynamicOptions ? [...dynamicOptions] : [];
   }
 
   if (rules?.dependent_options_key !== "vietnam_wards_by_province") return null;
@@ -1872,7 +1931,7 @@ function getDynamicDependentOptions(
   if (!provinceKey) return [];
 
   const wards = VIETNAM_WARDS_BY_PROVINCE[provinceKey as keyof typeof VIETNAM_WARDS_BY_PROVINCE];
-  return stableOptionArray(wards);
+  return wards ? [...wards] : [];
 }
 
 const VIETNAMESE_PLACE_TOKEN_ZH: Record<string, string> = {
@@ -2432,14 +2491,6 @@ function getDefaultFieldValue(
     return SCHENGEN_DESTINATION_BY_COUNTRY_SLUG[normalizeCountrySlug(country)] ?? "";
   }
 
-  if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" && field.fieldName === "mobile_country_code") {
-    return "+63";
-  }
-
-  if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" && field.fieldName === "passport_holder_type") {
-    return "FILIPINO";
-  }
-
   if (!isPurposeOfTripField(field)) return "";
   return findBOptionValue(field.options) ?? "";
 }
@@ -2460,6 +2511,193 @@ function getInlineGroup(field: VisaFormFieldRow): string | null {
 function getBlockGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { block_group?: string } | null;
   return rules?.block_group ?? null;
+}
+
+function hasConditionalDependency(field: VisaFormFieldRow): boolean {
+  const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+
+  return Boolean(showIf || rules?.dependent_on || rules?.depends_on || rules?.dependsOn);
+}
+
+function hasConditionalVisibility(field: VisaFormFieldRow): boolean {
+  return Boolean((field.conditionalLogic as { showIf?: string } | null)?.showIf);
+}
+
+function shouldOwnConditionalPanel(field: VisaFormFieldRow): boolean {
+  return hasConditionalVisibility(field) && getCompiledConditionalPanelMode(field) !== "outer_only";
+}
+
+function getDataDependencies(field: VisaFormFieldRow): string[] {
+  const dependencies = new Set<string>();
+  const rules = field.validationRules as {
+    dependent_on?: string;
+    depends_on?: string;
+    dependsOn?: string;
+  } | null;
+  for (const dependency of [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]) {
+    if (dependency) dependencies.add(dependency);
+  }
+  return [...dependencies];
+}
+
+function getConditionalDependencies(field: VisaFormFieldRow): string[] {
+  const visibilityDependencies = new Set<string>();
+  const showIf = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+  if (showIf) {
+    const atoms = showIf.matchAll(
+      /(?:^|\|\||&&)\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:===|!==|not\s+in\b|in\b|contains_any\b)/g,
+    );
+    for (const atom of atoms) visibilityDependencies.add(atom[1]);
+  }
+
+  // Visual grouping follows the field's visibility controller. Data-loading
+  // dependencies (for example a flight list keyed by arrival date) must not
+  // split fields that are revealed by the same radio/dropdown branch.
+  if (visibilityDependencies.size > 0) return [...visibilityDependencies];
+  return getDataDependencies(field);
+}
+
+const GATING_TOGGLE_LABEL_PATTERNS = [
+  "specific travel plan",
+  "part of a group",
+  "traveling with",
+  "persons traveling with",
+] as const;
+
+function getConditionalControllerFieldNames(fields: VisaFormFieldRow[]): Set<string> {
+  const names = new Set<string>();
+  const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
+  const yesNoControllers = fields.filter(
+    (field) =>
+      (field.fieldType === "radio" || field.fieldType === "select") &&
+      field.options?.some((option) =>
+        (typeof option === "string" ? option : option.value).toLowerCase() === "yes"
+      ),
+  );
+
+  for (const field of fields) {
+    for (const dependency of getConditionalDependencies(field)) names.add(dependency);
+
+    // Keep the legacy inference contract in form-utils hydrated too. Older
+    // country schemas may omit showIf and rely on repeat-group or field-name
+    // relationships to a yes/no controller.
+    if (!field.conditionalLogic) {
+      const repeatGroup = getRepeatGroup(field);
+      if (repeatGroup) {
+        for (const candidate of [`${repeatGroup}_used`, `has_${repeatGroup}`]) {
+          if (fieldsByName.has(candidate)) names.add(candidate);
+        }
+      }
+
+      for (const controller of yesNoControllers) {
+        if (controller.fieldName === field.fieldName) continue;
+        const stems = new Set<string>([controller.fieldName]);
+        const withoutUsed = controller.fieldName.replace(/_used$/, "");
+        const withoutHas = controller.fieldName.replace(/^has_/, "");
+        for (const stem of [withoutUsed, withoutHas]) {
+          if (stem === controller.fieldName) continue;
+          stems.add(stem);
+          if (stem.endsWith("s")) stems.add(stem.slice(0, -1));
+        }
+        if ([...stems].some((stem) => field.fieldName.startsWith(stem))) {
+          names.add(controller.fieldName);
+        }
+      }
+    }
+  }
+
+  for (const field of fields) {
+    if (
+      (field.fieldType === "radio" || field.fieldType === "select") &&
+      GATING_TOGGLE_LABEL_PATTERNS.some((pattern) => field.label.toLowerCase().includes(pattern))
+    ) {
+      names.add(field.fieldName);
+    }
+  }
+
+  return names;
+}
+
+function getMultiOptionConditionalRoot(
+  field: VisaFormFieldRow,
+  allFields: VisaFormFieldRow[],
+): string | null {
+  if (getCompiledConditionalPanelMode(field) === "outer_only") return null;
+  const compiledController = getCompiledConditionalPanelController(field);
+  if (compiledController) return compiledController;
+  if (!hasConditionalDependency(field)) return null;
+
+  const fieldsByName = new Map(allFields.map((candidate) => [candidate.fieldName, candidate]));
+  const roots = new Set<string>();
+  const visited = new Set<string>();
+
+  const visit = (fieldName: string) => {
+    if (visited.has(fieldName)) return;
+    visited.add(fieldName);
+
+    const dependencyField = fieldsByName.get(fieldName);
+    if (!dependencyField) return;
+    const dependencies = getConditionalDependencies(dependencyField);
+    if (dependencies.length === 0) {
+      roots.add(fieldName);
+      return;
+    }
+    dependencies.forEach(visit);
+  };
+
+  getConditionalDependencies(field).forEach(visit);
+  if (roots.size !== 1) return null;
+
+  const rootFieldName = [...roots][0];
+  const rootField = fieldsByName.get(rootFieldName);
+  if (rootField?.fieldType !== "select" && rootField?.fieldType !== "radio") return null;
+
+  const optionValues = new Set(
+    (rootField.options ?? []).map((option) =>
+      typeof option === "string" ? option : option.value,
+    ),
+  );
+  // Every option controller owns one shared panel for its active descendants.
+  // This includes two-option radios such as yes/no: rendering each dependent
+  // field separately would create adjacent nested panels for the same branch.
+  return optionValues.size > 1 ? rootFieldName : null;
+}
+
+function findVerticalScrollContainer(element: HTMLElement): HTMLElement | null {
+  let parent = element.parentElement;
+  while (parent) {
+    const overflowY = window.getComputedStyle(parent).overflowY;
+    if (overflowY === "auto" || overflowY === "scroll") return parent;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+function getScrollMetrics(container: HTMLElement | null) {
+  return container
+    ? {
+        offset: container.scrollTop,
+        viewportSize: container.clientHeight,
+        scrollSize: container.scrollHeight,
+      }
+    : {
+        offset: window.scrollY,
+        viewportSize: window.innerHeight,
+        scrollSize: document.documentElement.scrollHeight,
+      };
+}
+
+function setScrollOffset(container: HTMLElement | null, offset: number) {
+  if (container) {
+    container.scrollTop = offset;
+    return;
+  }
+  window.scrollTo({ top: offset, behavior: "auto" });
 }
 
 /** Check if a field should be disabled because a sibling select in its
@@ -2529,16 +2767,28 @@ function groupFieldsInline(fields: VisaFormFieldRow[]): Array<VisaFormFieldRow |
   return result;
 }
 
+function inlineGroupGridStyle(fieldCount: number) {
+  return {
+    gridTemplateColumns: `repeat(${Math.max(fieldCount, 1)}, minmax(0, 1fr))`,
+  };
+}
+
 export function DynamicStepForm({
   step,
   prefill,
   onComplete,
   onDraftChange,
+  onUserChange,
   saving,
+  showContinueButton = true,
   country,
   visaType,
   focusFieldName,
   externallyHandledFieldNames,
+  invalidFieldNames,
+  aiFilledFieldNames,
+  reviewIssues,
+  onNavigateReviewIssue,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
   const externallyHandled = useMemo(
@@ -2547,10 +2797,103 @@ export function DynamicStepForm({
   );
   const locale = useLocale();
   const isChineseInterface = isChineseLocale(locale);
-  const isPhEtravelArrivalStep = visaType === "PH_ETRAVEL_ARRIVAL_CARD"
-    || step.fields.some((field) => field.visaType === "PH_ETRAVEL_ARRIVAL_CARD");
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
   const [highlightedFieldName, setHighlightedFieldName] = useState<string | null>(null);
+  const [guidanceConversations, setGuidanceConversations] = useState<
+    Record<string, FieldGuidanceChatMessage[]>
+  >({});
+  const formContentRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const previousContentHeightRef = useRef(0);
+  const measuredStepKeyRef = useRef(`${step.stepNumber}:${step.stepName}`);
+  const lastScrollYRef = useRef(0);
+  const preMutationScrollOffsetRef = useRef<number | null>(null);
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+  const [preservedFormHeight, setPreservedFormHeight] = useState(0);
+
+  const captureScrollOffsetBeforeMutation = () => {
+    const content = formContentRef.current;
+    if (!content) return;
+    const scrollContainer = findVerticalScrollContainer(content);
+    scrollContainerRef.current = scrollContainer;
+    preMutationScrollOffsetRef.current = getScrollMetrics(scrollContainer).offset;
+  };
+
+  // This intentionally measures after every render so conditional UI changes,
+  // not only repeat-count changes, participate in scroll-height preservation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const content = formContentRef.current;
+    if (!content) return;
+
+    const nextHeight = content.getBoundingClientRect().height;
+    const scrollContainer = findVerticalScrollContainer(content);
+    scrollContainerRef.current = scrollContainer;
+
+    if (preservedFormHeight > 0 && pendingScrollRestoreRef.current !== null) {
+      const restoreOffset = pendingScrollRestoreRef.current;
+      pendingScrollRestoreRef.current = null;
+      setScrollOffset(scrollContainer, restoreOffset);
+      lastScrollYRef.current = restoreOffset;
+    }
+
+    const stepKey = `${step.stepNumber}:${step.stepName}`;
+    if (measuredStepKeyRef.current !== stepKey) {
+      measuredStepKeyRef.current = stepKey;
+      previousContentHeightRef.current = nextHeight;
+      preMutationScrollOffsetRef.current = null;
+      pendingScrollRestoreRef.current = null;
+      if (preservedFormHeight > 0) setPreservedFormHeight(0);
+      return;
+    }
+
+    const previousHeight = previousContentHeightRef.current;
+    previousContentHeightRef.current = nextHeight;
+
+    if (previousHeight <= nextHeight + 1) {
+      preMutationScrollOffsetRef.current = null;
+      if (preservedFormHeight > 0 && nextHeight >= preservedFormHeight - 1) {
+        setPreservedFormHeight(0);
+      }
+      return;
+    }
+
+    const metrics = getScrollMetrics(scrollContainer);
+    const offsetBeforeMutation = preMutationScrollOffsetRef.current ?? metrics.offset;
+    preMutationScrollOffsetRef.current = null;
+    const viewportBottom = offsetBeforeMutation + metrics.viewportSize;
+    const naturalPageBottom = metrics.scrollSize;
+    if (viewportBottom < naturalPageBottom - 1) return;
+
+    pendingScrollRestoreRef.current = offsetBeforeMutation;
+    lastScrollYRef.current = offsetBeforeMutation;
+    setPreservedFormHeight((current) => Math.max(current, previousHeight));
+  });
+
+  useEffect(() => {
+    if (preservedFormHeight <= 0) return;
+
+    const handleScroll = () => {
+      const scrollContainer = scrollContainerRef.current;
+      const metrics = getScrollMetrics(scrollContainer);
+      const nextScrollY = metrics.offset;
+      const scrollingUp = nextScrollY < lastScrollYRef.current - 1;
+      lastScrollYRef.current = nextScrollY;
+      if (!scrollingUp) return;
+
+      const contentHeight = formContentRef.current?.getBoundingClientRect().height ?? 0;
+      const retainedSpace = Math.max(0, preservedFormHeight - contentHeight);
+      const naturalPageBottom = metrics.scrollSize - retainedSpace;
+      if (nextScrollY + metrics.viewportSize <= naturalPageBottom + 1) {
+        setPreservedFormHeight(0);
+      }
+    };
+
+    const scrollTarget = scrollContainerRef.current ?? window;
+    lastScrollYRef.current = getScrollMetrics(scrollContainerRef.current).offset;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollTarget.removeEventListener("scroll", handleScroll);
+  }, [preservedFormHeight]);
 
   // Track how many instances each repeat_group has (min 1)
   const [groupCounts, setGroupCounts] = useState<Record<string, number>>(() => {
@@ -2596,12 +2939,9 @@ export function DynamicStepForm({
       }
     }
     const normalizedValues = normalizeTdacStepValues(step.fields, init, visaType);
-    const phNormalizedValues = isPhEtravelArrivalStep
-      ? normalizePhEtravelArrivalFormAnswers(normalizedValues).values
-      : normalizedValues;
     return isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field))
-      ? restoreVnPrearrivalHotelHierarchy(phNormalizedValues)
-      : phNormalizedValues;
+      ? restoreVnPrearrivalHotelHierarchy(normalizedValues)
+      : normalizedValues;
   });
 
   const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
@@ -2623,6 +2963,7 @@ export function DynamicStepForm({
     return init;
   });
   const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
+  const [translationWarningValueKeys, setTranslationWarningValueKeys] = useState<Record<string, boolean>>({});
   const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
   const [koreaAddressSearchQuery, setKoreaAddressSearchQuery] = useState("");
   const [koreaAddressSearching, setKoreaAddressSearching] = useState(false);
@@ -2636,7 +2977,6 @@ export function DynamicStepForm({
   const [phEtravelOptions, setPhEtravelOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [phEtravelSearching, setPhEtravelSearching] = useState<Record<string, boolean>>({});
   const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
-  const [malaysiaAddressLookup, setMalaysiaAddressLookup] = useState<MalaysiaAddressLookup>({ status: "idle" });
   const isVnPrearrivalStep = useMemo(
     () => isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field)),
     [step.fields, visaType],
@@ -2650,28 +2990,53 @@ export function DynamicStepForm({
     () => isIndonesiaOfficialEVisaContext(country, visaType),
     [country, visaType],
   );
-  const isMalaysiaMdac = visaType === "MY_MDAC_ARRIVAL_CARD"
-    || step.fields.some((field) => field.visaType === "MY_MDAC_ARRIVAL_CARD");
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
   const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
   const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
-  const lastMalaysiaAddressLookupRef = useRef("");
+  const vnPrearrivalQueriesRef = useRef(vnPrearrivalQueries);
   const onDraftChangeRef = useRef(onDraftChange);
   const lastDraftPatchRef = useRef<Record<string, string> | null>(null);
   const previousPrefillRef = useRef(prefill);
   const appliedPrefillValuesRef = useRef<Record<string, string>>(
-    initialAppliedPrefillValues(step.fields, prefill, groupCounts),
+    initialAppliedPrefillValues(step.fields, prefill),
   );
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
+
+  const conditionalControllerFieldNames = useMemo(
+    () => getConditionalControllerFieldNames(step.fields),
+    [step.fields],
+  );
 
   valuesRef.current = values;
   textPairsRef.current = textPairs;
   manualEnglishValueKeysRef.current = manualEnglishValueKeys;
   groupCountsRef.current = groupCounts;
+  vnPrearrivalQueriesRef.current = vnPrearrivalQueries;
+
+  // Saved answers can arrive just after the form component mounts. Hydrate
+  // visibility controllers in a layout effect so their dependent panels are
+  // present on the first visible paint instead of appearing only after the
+  // user toggles the controller again.
+  useLayoutEffect(() => {
+    let nextValues = valuesRef.current;
+    let changed = false;
+
+    for (const fieldName of conditionalControllerFieldNames) {
+      const savedValue = prefill[fieldName]?.trim();
+      if (!savedValue || nextValues[fieldName]?.trim()) continue;
+      if (!changed) nextValues = { ...nextValues };
+      nextValues[fieldName] = savedValue;
+      changed = true;
+    }
+
+    if (!changed) return;
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [conditionalControllerFieldNames, prefill]);
 
   useEffect(() => {
     onDraftChangeRef.current = onDraftChange;
@@ -2763,131 +3128,6 @@ export function DynamicStepForm({
       window.clearTimeout(timer);
     };
   }, [isIndonesiaOfficialEVisa, step.fields, values.address_in_indonesia, values.postal_code]);
-
-  useEffect(() => {
-    const addressField = step.fields.find((field) => field.fieldName === "address_in_malaysia");
-    const stateField = step.fields.find((field) => field.fieldName === "state");
-    const cityField = step.fields.find((field) => field.fieldName === "city");
-    const postcodeField = step.fields.find((field) => field.fieldName === "postcode");
-    if (!isMalaysiaMdac || !addressField || !stateField || !cityField || !postcodeField) {
-      lastMalaysiaAddressLookupRef.current = "";
-      setMalaysiaAddressLookup({ status: "idle" });
-      return;
-    }
-
-    const addressPair = textPairsRef.current.address_in_malaysia;
-    const address = (addressPair?.en || addressPair?.zh || values.address_in_malaysia || "").trim();
-    const postcode = (values.postcode ?? "").replace(/\D/g, "").slice(0, 5);
-    if (address.length < 4 && postcode.length !== 5) {
-      lastMalaysiaAddressLookupRef.current = "";
-      setMalaysiaAddressLookup({ status: "idle" });
-      return;
-    }
-
-    const lookupSource = `${address}|${postcode}`;
-    if (lastMalaysiaAddressLookupRef.current === lookupSource) return;
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      lastMalaysiaAddressLookupRef.current = lookupSource;
-      setMalaysiaAddressLookup({ status: "checking" });
-      const query = [address, postcode, "Malaysia"].filter(Boolean).join(", ");
-      try {
-        const params = new URLSearchParams({ query, country: "MY" });
-        const response = await fetch(`/api/address-lookup?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        const payload = await response.json() as {
-          location?: AddressLookupLocation | null;
-        };
-        if (!response.ok) {
-          setMalaysiaAddressLookup({
-            status: "unavailable",
-            messageZh: "暂时无法自动识别地址，可继续手动选择州属和城市。",
-            messageEn: "Address lookup is temporarily unavailable. You can still select the state and city manually.",
-          });
-          return;
-        }
-
-        const location = payload.location;
-        if (!location || (location.countryCode && location.countryCode !== "MY")) {
-          setMalaysiaAddressLookup({
-            status: "not_found",
-            messageZh: "未能识别该酒店或地址，请补充酒店名称、完整地址或 5 位邮政编码。",
-            messageEn: "The hotel or address could not be recognized. Add the hotel name, full address, or 5-digit postcode.",
-          });
-          return;
-        }
-
-        const stateValue = matchAddressOptionValue(stateField.options, [location.state]);
-        const cityOptions = stateValue
-          ? getDynamicDependentOptions(cityField, { ...valuesRef.current, state: stateValue }) ?? cityField.options
-          : cityField.options;
-        const cityValue = matchAddressOptionValue(cityOptions, location.cityCandidates);
-        const resolvedPostcode = /^\d{5}$/.test(location.postalCode) ? location.postalCode : postcode;
-        const nextValues = { ...valuesRef.current };
-
-        if (stateValue) nextValues.state = stateValue;
-        if (cityValue) nextValues.city = cityValue;
-        if (resolvedPostcode) nextValues.postcode = resolvedPostcode;
-        if (address && location.formattedAddress) {
-          nextValues.address_in_malaysia = location.formattedAddress;
-          const currentPair = textPairsRef.current.address_in_malaysia ?? { zh: address, en: address };
-          const nextPairs = {
-            ...textPairsRef.current,
-            address_in_malaysia: {
-              zh: currentPair.zh || location.formattedAddress,
-              en: location.formattedAddress,
-            },
-          };
-          textPairsRef.current = nextPairs;
-          setTextPairs(nextPairs);
-        }
-        if (resolvedPostcode && usesBilingualTextPair(postcodeField)) {
-          const nextPairs = {
-            ...textPairsRef.current,
-            postcode: { zh: resolvedPostcode, en: resolvedPostcode },
-          };
-          textPairsRef.current = nextPairs;
-          setTextPairs(nextPairs);
-        }
-        lastMalaysiaAddressLookupRef.current = `${nextValues.address_in_malaysia?.trim() ?? address}|${resolvedPostcode}`;
-
-        valuesRef.current = nextValues;
-        setValues(nextValues);
-        const summary = [location.state, location.cityCandidates[0], resolvedPostcode].filter(Boolean).join(" / ");
-        const fullyResolved = Boolean(stateValue && cityValue && resolvedPostcode);
-        setMalaysiaAddressLookup({
-          status: fullyResolved ? "resolved" : "partial",
-          summaryZh: fullyResolved
-            ? `已自动填写州属、城市和邮政编码：${summary}`
-            : `已识别地址：${summary}。请确认尚未匹配的下拉选项。`,
-          summaryEn: fullyResolved
-            ? `State, city, and postcode auto-filled: ${summary}`
-            : `Address found: ${summary}. Confirm any dropdown that could not be matched.`,
-        });
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-        setMalaysiaAddressLookup({
-          status: "unavailable",
-          messageZh: "暂时无法自动识别地址，可继续手动选择州属和城市。",
-          messageEn: "Address lookup is temporarily unavailable. You can still select the state and city manually.",
-        });
-      }
-    }, 650);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [
-    isMalaysiaMdac,
-    step.fields,
-    textPairs.address_in_malaysia?.en,
-    textPairs.address_in_malaysia?.zh,
-    values.address_in_malaysia,
-    values.postcode,
-  ]);
 
   useEffect(() => {
     if (!isVnPrearrivalStep || !step.fields.some((field) => field.fieldName === "expected_arrival_date")) return;
@@ -3016,6 +3256,94 @@ export function DynamicStepForm({
         .join("|"),
     [values, vnPrearrivalRemoteFields],
   );
+  const vnPrearrivalFlightField = useMemo(
+    () => vnPrearrivalRemoteFields.find((field) =>
+      getVnPrearrivalOfficialSource(field)?.endsWith(":flight")
+    ),
+    [vnPrearrivalRemoteFields],
+  );
+
+  useEffect(() => {
+    if (!isVnPrearrivalStep || !vnPrearrivalFlightField) return;
+    const source = getVnPrearrivalOfficialSource(vnPrearrivalFlightField);
+    if (!source) return;
+
+    const key = vnPrearrivalOptionKey(vnPrearrivalFlightField);
+    const selectedAtRequest = valuesRef.current.flight_number?.trim() ?? "";
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const params = new URLSearchParams({
+          source,
+          keyword: "",
+          page: "0",
+          size: String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE),
+          refresh: "1",
+        });
+        if (selectedAtRequest) params.set("selected", selectedAtRequest);
+        const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as {
+          options?: VisaFormFieldOption[];
+          page?: number;
+          hasMore?: boolean;
+          catalogSource?: string;
+          selectedExists?: boolean | null;
+          selectedOption?: VisaFormFieldOption | null;
+        };
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const currentFlight = valuesRef.current.flight_number?.trim() ?? "";
+        const queryStillEmpty = !(vnPrearrivalQueriesRef.current[key]?.trim());
+        if (currentFlight === selectedAtRequest && queryStillEmpty) {
+          let nextOptions = options;
+          const selectedOption = payload.selectedOption;
+          if (
+            payload.selectedExists === true &&
+            selectedOption &&
+            !nextOptions.some((option) => optionValue(option) === optionValue(selectedOption))
+          ) {
+            nextOptions = [selectedOption, ...nextOptions];
+          }
+          setVnPrearrivalOptions((current) => ({
+            ...current,
+            [key]: withVnPrearrivalOtherFlightOption(nextOptions),
+          }));
+          setVnPrearrivalPagination((current) => ({
+            ...current,
+            [key]: {
+              page: payload.page ?? 0,
+              hasMore: Boolean(payload.hasMore),
+            },
+          }));
+        }
+
+        const nextValues = reconcileVnPrearrivalFlightAfterCatalogRefresh(
+          valuesRef.current,
+          selectedAtRequest,
+          payload,
+        );
+        if (nextValues !== valuesRef.current) {
+          valuesRef.current = nextValues;
+          setValues(nextValues);
+        }
+      } catch (error) {
+        if ((error as { name?: string }).name === "AbortError") return;
+        // A failed refresh is not proof that a saved official option was removed.
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    isVnPrearrivalStep,
+    prefill.flight_number,
+    step.stepName,
+    step.stepNumber,
+    vnPrearrivalFlightField,
+  ]);
 
   useEffect(() => {
     if (vnPrearrivalRemoteFields.length === 0) return;
@@ -3134,6 +3462,15 @@ export function DynamicStepForm({
             const normalizedValue = (matchingCodeOption as { value: string }).value;
             valuesRef.current = { ...valuesRef.current, [field.fieldName]: normalizedValue };
             setValues((current) => ({ ...current, [field.fieldName]: normalizedValue }));
+          }
+        }
+        if (source.endsWith(":nationality")) {
+          const currentValue = valuesRef.current[field.fieldName] ?? "";
+          const normalizedValue = reconcileVnPrearrivalNationalityValue(currentValue, options);
+          if (normalizedValue !== currentValue) {
+            const nextValues = { ...valuesRef.current, [field.fieldName]: normalizedValue };
+            valuesRef.current = nextValues;
+            setValues(nextValues);
           }
         }
         // A parent-field change is handled synchronously in `handleChange`.
@@ -3294,7 +3631,7 @@ export function DynamicStepForm({
 
     const currentPair = textPairsRef.current[valueKey];
     if (!currentPair || currentPair.zh.trim() !== sourceText) return;
-    if (!force && manualEnglishValueKeysRef.current[valueKey]) return;
+    if (!force && manualEnglishValueKeysRef.current[valueKey] && currentPair.en.trim()) return;
 
     const nextPair = { ...currentPair, en: normalized };
     const nextTextPairs = { ...textPairsRef.current, [valueKey]: nextPair };
@@ -3321,6 +3658,17 @@ export function DynamicStepForm({
     setManualEnglishValueKeys(nextManualKeys);
   }, []);
 
+  const handleTranslationWarningChange = useCallback((valueKey: string, hasWarning: boolean) => {
+    setTranslationWarningValueKeys((current) => {
+      if (Boolean(current[valueKey]) === hasWarning) return current;
+      if (hasWarning) return { ...current, [valueKey]: true };
+
+      const next = { ...current };
+      delete next[valueKey];
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     const previousPrefill = previousPrefillRef.current;
     let valuesChanged = false;
@@ -3335,19 +3683,16 @@ export function DynamicStepForm({
       const currentValue = valuesRef.current[key] ?? "";
       const previousValue = previousPrefill[key] ?? "";
       const isClearableField = isClearablePrefillField(field);
-      const alreadyAppliedPrefill = appliedPrefillValuesRef.current[key];
       if (
         isClearableField &&
-        alreadyAppliedPrefill === nextPrefill &&
+        appliedPrefillValuesRef.current[key] === nextPrefill &&
         currentValue !== nextPrefill
       ) {
         return;
       }
       if (currentValue.trim() && currentValue !== previousValue) return;
 
-      if (isClearableField) {
-        appliedPrefillValuesRef.current[key] = nextPrefill;
-      }
+      if (isClearableField) appliedPrefillValuesRef.current[key] = nextPrefill;
 
       if (nextValues[key] !== nextPrefill) {
         nextValues[key] = nextPrefill;
@@ -3388,6 +3733,25 @@ export function DynamicStepForm({
         }
       } else {
         applyPrefillValue(field.fieldName, field);
+      }
+    }
+
+    // TDAC arrival/departure dates live on the preceding trip step. When the
+    // user navigates immediately, this accommodation step can mount before
+    // that step's draft finishes saving. Once the full prefill catches up,
+    // copy the two cross-step inputs so transit status is recalculated here.
+    if (visaType === "TH_TDAC_ARRIVAL_CARD") {
+      const currentStepFieldNames = new Set(step.fields.map((field) => field.fieldName));
+      for (const fieldName of ["arrival_date", "departure_date"] as const) {
+        const prefillValue = prefill[fieldName]?.trim();
+        if (
+          !currentStepFieldNames.has(fieldName) &&
+          prefillValue !== undefined &&
+          nextValues[fieldName] !== prefillValue
+        ) {
+          nextValues[fieldName] = prefillValue;
+          valuesChanged = true;
+        }
       }
     }
 
@@ -3433,33 +3797,22 @@ export function DynamicStepForm({
 
   useEffect(() => {
     const nextPatch = buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs);
-    if (answerPatchesEqual(lastDraftPatchRef.current, nextPatch)) return;
+    const previousPatch = lastDraftPatchRef.current;
+    if (
+      previousPatch &&
+      Object.keys(previousPatch).length === Object.keys(nextPatch).length &&
+      Object.entries(nextPatch).every(([key, value]) => previousPatch[key] === value)
+    ) {
+      return;
+    }
     lastDraftPatchRef.current = nextPatch;
     onDraftChangeRef.current?.(nextPatch);
   }, [groupCounts, step.fields, textPairs, values]);
 
-  useEffect(() => {
-    if (!focusFieldName) return;
-    const timer = window.setTimeout(() => {
-      const selector = `[data-field-name="${CSS.escape(focusFieldName)}"]`;
-      const container = document.querySelector<HTMLElement>(selector);
-      if (!container) return;
-      container.scrollIntoView?.({ block: "center", behavior: "smooth" });
-      const focusTarget = container.querySelector<HTMLElement>(
-        "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex='-1'])",
-      );
-      focusTarget?.focus({ preventScroll: true });
-      setHighlightedFieldName(focusFieldName);
-      window.setTimeout(() => {
-        setHighlightedFieldName((current) => current === focusFieldName ? null : current);
-      }, 2500);
-    }, 80);
-    return () => window.clearTimeout(timer);
-  }, [focusFieldName, step.stepNumber]);
-
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
     if (!previous) return false;
+    onUserChange?.();
     undoStackRef.current = undoStackRef.current.slice(0, -1);
     redoStackRef.current = [...redoStackRef.current.slice(-79), getSnapshot()];
     restoreSnapshot(previous);
@@ -3469,6 +3822,7 @@ export function DynamicStepForm({
   const redoLastFormChange = () => {
     const next = redoStackRef.current.at(-1);
     if (!next) return false;
+    onUserChange?.();
     redoStackRef.current = redoStackRef.current.slice(0, -1);
     undoStackRef.current = [...undoStackRef.current.slice(-79), getSnapshot()];
     restoreSnapshot(next);
@@ -3503,49 +3857,79 @@ export function DynamicStepForm({
     return map;
   }, [step.fields]);
 
-  // Find all fields whose visibility depends on a given parent field.
-  const getDependentFields = useCallback(
-    (parentFieldName: string): string[] => {
-      const directlyDependsOn = (f: VisaFormFieldRow, candidateParent: string): boolean => {
-          if (f.fieldName === candidateParent) return false;
-          const showIf = (f.conditionalLogic as { showIf?: string } | null)?.showIf;
-          if (showIf && showIf.includes(candidateParent)) return true;
-          const rules = f.validationRules as {
-            dependent_on?: string;
-            depends_on?: string;
-            dependsOn?: string;
-          } | null;
-          if (
-            rules?.dependent_on === candidateParent ||
-            rules?.depends_on === candidateParent ||
-            rules?.dependsOn === candidateParent
-          ) return true;
-          if (!f.conditionalLogic) {
-            const currentValues = valuesRef.current;
-            const withYes = { ...currentValues, [candidateParent]: "yes" };
-            const withNo = { ...currentValues, [candidateParent]: "" };
-            const visibleWithYes = evaluateShowIf(f, withYes, step.fields);
-            const visibleWithNo = evaluateShowIf(f, withNo, step.fields);
-            if (visibleWithYes !== visibleWithNo) return true;
-          }
-          return false;
-      };
+  const multiOptionConditionalGroups = useMemo(() => {
+    const fieldToRoot: Record<string, string> = {};
+    const fieldsByRoot: Record<string, VisaFormFieldRow[]> = {};
 
-      const dependents = new Set<string>();
-      const queue = [parentFieldName];
-      while (queue.length > 0) {
-        const candidateParent = queue.shift();
-        if (!candidateParent) continue;
-        for (const field of step.fields) {
-          if (dependents.has(field.fieldName) || !directlyDependsOn(field, candidateParent)) continue;
-          dependents.add(field.fieldName);
-          queue.push(field.fieldName);
+    for (const field of step.fields) {
+      if (getRepeatGroup(field)) continue;
+      const root = getMultiOptionConditionalRoot(field, step.fields);
+      if (!root) continue;
+      fieldToRoot[field.fieldName] = root;
+      if (!fieldsByRoot[root]) fieldsByRoot[root] = [];
+      fieldsByRoot[root].push(field);
+    }
+
+    return { fieldToRoot, fieldsByRoot };
+  }, [step.fields]);
+
+  // Compile the visibility graph once for the schema. Previously every click
+  // scanned every field (and repeatedly evaluated legacy inference rules) for
+  // every descendant. Large UK forms made that work visible as multi-second
+  // input lag.
+  const dependentFieldsByParent = useMemo(() => {
+    const graph = new Map<string, Set<string>>();
+    const addDependency = (parent: string, child: string) => {
+      if (!parent || parent === child) return;
+      const children = graph.get(parent) ?? new Set<string>();
+      children.add(child);
+      graph.set(parent, children);
+    };
+
+    for (const field of step.fields) {
+      for (const dependency of getConditionalDependencies(field)) {
+        addDependency(dependency, field.fieldName);
+      }
+      // A field can be both visibility-gated and data-dependent. Keep the
+      // data edge as well so changing a parent select synchronously clears
+      // stale descendants (province -> ward -> hotel, for example).
+      for (const dependency of getDataDependencies(field)) {
+        addDependency(dependency, field.fieldName);
+      }
+    }
+
+    // Preserve the legacy schemas that rely on form-utils field-name
+    // inference instead of an explicit showIf expression, but pay that cost
+    // once when the schema is loaded rather than on every interaction.
+    const currentValues = valuesRef.current;
+    for (const candidateParent of conditionalControllerFieldNames) {
+      const withYes = { ...currentValues, [candidateParent]: "yes" };
+      const withNo = { ...currentValues, [candidateParent]: "" };
+      for (const field of step.fields) {
+        if (field.fieldName === candidateParent || field.conditionalLogic) continue;
+        if (evaluateShowIf(field, withYes, step.fields) !== evaluateShowIf(field, withNo, step.fields)) {
+          addDependency(candidateParent, field.fieldName);
         }
       }
-      return [...dependents];
-    },
-    [step.fields]
-  );
+    }
+
+    return graph;
+  }, [conditionalControllerFieldNames, step.fields]);
+
+  const getDependentFields = useCallback((parentFieldName: string): string[] => {
+    const dependents = new Set<string>();
+    const queue = [parentFieldName];
+    while (queue.length > 0) {
+      const candidateParent = queue.shift();
+      if (!candidateParent) continue;
+      for (const fieldName of dependentFieldsByParent.get(candidateParent) ?? []) {
+        if (dependents.has(fieldName)) continue;
+        dependents.add(fieldName);
+        queue.push(fieldName);
+      }
+    }
+    return [...dependents];
+  }, [dependentFieldsByParent]);
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
     const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
@@ -3553,8 +3937,8 @@ export function DynamicStepForm({
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
         ? value.replace(/\D/g, "").slice(0, 5)
         : value;
-    if (valuesRef.current[fieldName] === normalizedValue) return;
     if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
+      onUserChange?.();
       pushUndoSnapshot();
     }
 
@@ -3567,9 +3951,6 @@ export function DynamicStepForm({
     if (isVnPrearrivalStep && fieldName === "flight_number") {
       next.border_gate_airport = getAirportCodeFromFlightValue(value);
       next.custom_flight_number = "";
-    }
-    if (visaType === "TW_ENTRY_PERMIT" && fieldName === "continent") {
-      next.embassy_office = "";
     }
     const dependents = getDependentFields(fieldName);
     for (const dep of dependents) {
@@ -3605,27 +3986,25 @@ export function DynamicStepForm({
     }
 
     const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
-    const phNormalizedNext = isPhEtravelArrivalStep
-      ? normalizePhEtravelArrivalFormAnswers(normalizedNext).values
-      : normalizedNext;
-    valuesRef.current = phNormalizedNext;
-    setValues(phNormalizedNext);
+    valuesRef.current = normalizedNext;
+    setValues(normalizedNext);
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
-    const englishWasManuallyEdited = Boolean(manualEnglishValueKeysRef.current[fieldName]);
     const nextPair = side === "zh"
-      ? {
-          zh: value,
-          en: englishWasManuallyEdited ? currentPair.en : toOfficialEnglishValue(value),
-        }
+      ? { zh: value, en: toOfficialEnglishValue(value) }
       : { zh: currentPair.zh, en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     if (side === "en") {
-      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: true };
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
+      manualEnglishValueKeysRef.current = nextManualKeys;
+      setManualEnglishValueKeys(nextManualKeys);
+    } else {
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: false };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
     }
@@ -3634,9 +4013,7 @@ export function DynamicStepForm({
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
 
-    const officialValue = side === "en"
-      ? value
-      : nextPair.en || (englishWasManuallyEdited ? "" : nextPair.zh);
+    const officialValue = side === "en" ? value : nextPair.en || nextPair.zh;
     handleChange(fieldName, officialValue, { recordUndo: false });
   };
 
@@ -3645,6 +4022,7 @@ export function DynamicStepForm({
     const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
     if (currentCount >= max) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     const count = currentCount + 1;
     setGroupCounts((prev) => {
@@ -3677,6 +4055,7 @@ export function DynamicStepForm({
     const count = groupCounts[group] ?? 1;
     if (count <= 1) return;
 
+    onUserChange?.();
     pushUndoSnapshot();
     setValues((prev) => {
       const next = { ...prev };
@@ -3737,7 +4116,12 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (indonesiaPostalLookupBlocksContinue) return;
+    // The long-form page hides the per-step Continue button, but the form can
+    // still receive an implicit submit (for example, Enter from a text input).
+    // Keep that path subject to the same required/field validation gate as the
+    // visible button so incomplete Vietnam expense answers cannot be saved as
+    // a completed step.
+    if (!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue) return;
     const stepData = buildCurrentStepAnswerPatch(
       step.fields,
       valuesRef.current,
@@ -3751,16 +4135,10 @@ export function DynamicStepForm({
   // Detect yes/no toggles that gate subsequent fields until answered.
   // These are toggles where following fields should be hidden until the user picks Yes or No.
   const gatingToggles = useMemo(() => {
-    const GATING_LABEL_PATTERNS = [
-      "specific travel plan",
-      "part of a group",
-      "traveling with",
-      "persons traveling with",
-    ];
     return step.fields
       .filter((f) =>
         (f.fieldType === "radio" || f.fieldType === "select") &&
-        GATING_LABEL_PATTERNS.some((p) => f.label.toLowerCase().includes(p))
+        GATING_TOGGLE_LABEL_PATTERNS.some((p) => f.label.toLowerCase().includes(p))
       )
       .sort((a, b) => a.displayOrder - b.displayOrder);
   }, [step.fields]);
@@ -3814,7 +4192,7 @@ export function DynamicStepForm({
     ) {
       return true;
     }
-    return field.required || isRequiredWhenSatisfied(field, values);
+    return (field.required && !isRequiredUnlessSatisfied(field, values)) || isRequiredWhenSatisfied(field, values);
   };
 
   // Required validation: only check visible fields (and all instances of repeat groups)
@@ -3823,10 +4201,6 @@ export function DynamicStepForm({
     // File fields are mirrored from official portals for parity, but the
     // actual upload state is managed by Document Center.
     .filter((f) => f.fieldType !== "file")
-    // Annex-I-style starred fields: required_unless exempts the field when its
-    // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
-    // skip fields 21/22/30/31/32 of the Schengen form).
-    .filter((f) => !isRequiredUnlessSatisfied(f, values))
     .every((f) => {
       const group = getRepeatGroup(f);
       if (group) {
@@ -3858,6 +4232,11 @@ export function DynamicStepForm({
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
+    const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
+    const submitCheckInvalid = Boolean(
+      invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey) || reviewIssue?.severity === "error",
+    );
+    const reviewWarning = reviewIssue?.severity === "warning";
     const rawPlaceholder = field.placeholder ?? null;
     const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
       ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
@@ -3866,11 +4245,7 @@ export function DynamicStepForm({
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
-    if (
-      (field.fieldName === "phone_country_code" ||
-        (isPhEtravelArrivalStep && field.fieldName === "mobile_country_code")) &&
-      (!fieldOptions || fieldOptions.length === 0)
-    ) {
+    if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
       fieldOptions = getPhoneCountryCodeOptions();
     }
     const dynamicOptions = getDynamicDependentOptions(field, values);
@@ -3878,10 +4253,6 @@ export function DynamicStepForm({
       fieldOptions = field.fieldName === "intended_ward_commune"
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
-    }
-    const taiwanEmbassyOfficeOptions = getTaiwanEmbassyOfficeOptions(field, values, visaType);
-    if (taiwanEmbassyOfficeOptions) {
-      fieldOptions = taiwanEmbassyOfficeOptions;
     }
     const phEtravelSource = getPhEtravelOfficialOptionSource(field);
     if (phEtravelSource) {
@@ -3982,15 +4353,11 @@ export function DynamicStepForm({
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
-    const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey]);
-    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
-    const isChineseOnlyVisaType = CHINESE_ONLY_VISA_TYPES.has(resolvedVisaType);
-    const shouldExposeBaseFieldNameToControl =
-      isChineseInterface &&
-      isChineseOnlyVisaType &&
-      (field.fieldName === "name_english" || field.fieldName === "name_chinese");
+    const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    let guidancePopover: ReactNode = null;
 
     const renderSide = (side: BilingualSide) => {
+      const isTaiwanEntryPermit = (visaType ?? field.visaType) === "TW_ENTRY_PERMIT";
       const isKoreaAddressSearchSelect =
         field.fieldName === "address_in_korea" &&
         (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
@@ -4013,13 +4380,13 @@ export function DynamicStepForm({
         Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
-        fieldName: shouldExposeBaseFieldNameToControl ? valueKey : `${valueKey}-${side}`,
-        fieldType: isVnPrearrivalArrivalDateField
-          ? "radio"
-          : isPhEtravelArrivalStep && field.fieldName === "mobile_country_code"
-            ? "select"
-            : field.fieldType,
-        label: getLocalizedFieldLabel(field, side),
+        fieldName: isTaiwanEntryPermit ? field.fieldName : `${valueKey}-${side}`,
+        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+        label: isTaiwanEntryPermit && field.fieldName === "name_english"
+          ? "英文姓名（依护照大写拼写）"
+          : isTaiwanEntryPermit && field.fieldName === "name_chinese"
+            ? "中文姓名（繁体字）"
+            : getLocalizedFieldLabel(field, side),
         required: isRequiredField(field),
         placeholder: getLocalizedPlaceholder(
           field,
@@ -4028,75 +4395,94 @@ export function DynamicStepForm({
         ),
         options: resolveLocalizedOptions(fieldOptions, side),
       };
+      if (
+        isPhEtravelStep &&
+        side === "zh" &&
+        field.fieldName === "surname" &&
+        !field.validationRules &&
+        field.label === "Surname"
+      ) {
+        sideField.label = "姓氏";
+      }
 
       return (
-        <DynamicFormField
-          key={`${valueKey}-${side}`}
-          field={sideField}
-          value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
-          onChange={(nextValue) => {
-            if (isTextLike) {
-              handleBilingualTextChange(valueKey, side, nextValue);
-              return;
+        <div
+          className="min-w-0"
+          data-guidance-label-space={side === (isChineseInterface ? "zh" : "en") ? "true" : undefined}
+        >
+          <DynamicFormField
+            key={`${valueKey}-${side}`}
+            field={sideField}
+            value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
+            onChange={(nextValue) => {
+              if (isTextLike) {
+                handleBilingualTextChange(valueKey, side, nextValue);
+                return;
+              }
+              handleChange(valueKey, nextValue);
+            }}
+            forceWhiteBackground={forceWhiteBackground}
+            disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
+            displayLocale={side}
+            labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
+            onSearchQuery={
+              isKoreaAddressSearchSelect
+                ? setKoreaAddressSearchQuery
+                : isVnPrearrivalRemoteSelect && vnPrearrivalKey
+                  ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+                  : undefined
             }
-            handleChange(valueKey, nextValue);
-          }}
-          forceWhiteBackground={forceWhiteBackground}
-          disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
-          displayLocale={side}
-          onSearchQuery={
-            isKoreaAddressSearchSelect
-              ? setKoreaAddressSearchQuery
-              : isVnPrearrivalRemoteSelect && vnPrearrivalKey
-                ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+            onLoadMore={
+              isVnPrearrivalRemoteSelect
+                && vnPrearrivalKey
+                && vnPrearrivalSource?.endsWith(":flight")
+                ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
                 : undefined
-          }
-          onLoadMore={
-            isVnPrearrivalRemoteSelect
-              && vnPrearrivalKey
-              && vnPrearrivalSource?.endsWith(":flight")
-              ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
-              : undefined
-          }
-          hasMore={
-            Boolean(
-              vnPrearrivalKey
-              && vnPrearrivalSource?.endsWith(":flight")
-              && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
-            )
-          }
-          loadingMore={
-            Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
-          }
-          searching={
-            isKoreaAddressSearchSelect
-              ? koreaAddressSearching
-              : phEtravelSource
-                ? Boolean(phEtravelSearching[field.fieldName])
-              : vnPrearrivalKey
-                ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
-                : false
-          }
-          loadingText={
-            isKoreaAddressSearchSelect
-              ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
-              : phEtravelSource
-                ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
-              : isVnPrearrivalRemoteSelect
-                ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
-                : undefined
-          }
-        />
+            }
+            hasMore={
+              Boolean(
+                vnPrearrivalKey
+                && vnPrearrivalSource?.endsWith(":flight")
+                && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
+              )
+            }
+            loadingMore={
+              Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
+            }
+            searching={
+              isKoreaAddressSearchSelect
+                ? koreaAddressSearching
+                : phEtravelSource
+                  ? Boolean(phEtravelSearching[field.fieldName])
+                : vnPrearrivalKey
+                  ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
+                  : false
+            }
+            loadingText={
+              isKoreaAddressSearchSelect
+                ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
+                : phEtravelSource
+                  ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
+                : isVnPrearrivalRemoteSelect
+                  ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
+                  : undefined
+            }
+          />
+        </div>
       );
     };
 
     const guidanceField: VisaFormFieldRow = {
       ...field,
+      required: isRequiredField(field),
       fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
     const localIssue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
+    const requiredIssue = isRequiredField(field) && !field.required && !(values[valueKey] ?? "").trim()
+      ? { severity: "warning" as const, message: isChineseInterface ? "必填项" : "Required" }
+      : null;
     const postalLookupIssue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
       ? indonesiaPostalLookup.status === "checking"
         ? {
@@ -4108,152 +4494,135 @@ export function DynamicStepForm({
             message: isChineseInterface ? indonesiaPostalLookup.messageZh : indonesiaPostalLookup.messageEn,
           }
       : null;
-    const issue = postalLookupIssue ?? localIssue;
+    const issue = postalLookupIssue ?? requiredIssue ?? localIssue;
+    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
+    const aiFilledBadge = isAiFilled ? (
+      <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        {isChineseInterface ? "AI 已填写" : "AI filled"}
+      </span>
+    ) : null;
+    // Requiredness is already communicated by the canonical red asterisk on
+    // the field label. Do not repeat a bare "Required"/"必填项" tag below the
+    // control for any country; submit-time invalid styling remains separate.
+    const isBareRequiredIssue = issue.message === "Required" || issue.message === "必填项";
+    const showIssue = issue.severity !== "ok" && !isBareRequiredIssue;
+    const translationWarning = isChineseInterface && Boolean(translationWarningValueKeys[valueKey]);
+    const highlightControlAsWarning = submitCheckInvalid || showIssue || translationWarning;
     const panelOpen = activeGuidanceKey === valueKey;
-    const buttonLabel = panelOpen
-      ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
-      : (isChineseInterface ? "问 AI" : "Ask AI");
+    const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "ID_C1_TOURIST";
+    const buttonLabel = isChineseInterface ? "问 AI" : "Ask AI";
     const showVnPrearrivalEvisaHelp =
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
-    const showMalaysiaAddressFeedback =
-      field.fieldName === "address_in_malaysia" && malaysiaAddressLookup.status !== "idle";
-    const malaysiaAddressFeedbackText = showMalaysiaAddressFeedback
-      ? getMalaysiaAddressLookupMessage(malaysiaAddressLookup, isChineseInterface)
-      : "";
-    const malaysiaAddressFeedback = showMalaysiaAddressFeedback ? (
-      <div
-        className={cn(
-          "mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-[13px] font-medium",
-          malaysiaAddressLookup.status === "resolved"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-            : malaysiaAddressLookup.status === "checking"
-              ? "border-sky-200 bg-sky-50 text-sky-800"
-              : "border-amber-200 bg-amber-50 text-amber-900",
-        )}
-        role="status"
-        data-address-autofill-status={malaysiaAddressLookup.status}
+    const showChineseFieldFooter = isTextLike
+      || showVnPrearrivalEvisaHelp
+      || (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved")
+      || showIssue;
+    guidancePopover = (
+      <Popover
+        open={panelOpen}
+        onOpenChange={(open) => setActiveGuidanceKey(open ? valueKey : null)}
       >
-        {malaysiaAddressLookup.status === "checking" ? (
-          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-        ) : (
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-        )}
-        <span>{malaysiaAddressFeedbackText}</span>
-      </div>
-    ) : null;
-    const fieldFrameClassName = cn(
-      "py-3 transition-colors",
-      panelOpen ? "bg-[#fbfdff]" : "",
-      highlightedFieldName === field.fieldName ? "rounded-lg bg-amber-50 ring-2 ring-amber-300 ring-offset-2" : "",
-    );
-
-    if (isChineseInterface && isChineseOnlyVisaType) {
-      return (
-        <div
-          key={valueKey}
-          className={fieldFrameClassName}
-          data-field-name={field.fieldName}
+        <PopoverTrigger asChild>
+          <AiAssistButton
+            label={buttonLabel}
+            variant="field"
+            onClick={(event) => event.stopPropagation()}
+            className="application-form-ai-trigger"
+            data-copilot-trigger={valueKey}
+          />
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-[min(448px,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none"
+          sideOffset={10}
         >
-          <div className="min-w-0">
-            {renderSide("zh")}
-          </div>
-          <TaiwanEntryPermitFieldNotice fieldName={field.fieldName} />
-          {malaysiaAddressFeedback}
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {issue.severity !== "ok" && (
-              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                {issue.message}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
+          <div data-copilot-panel-frame={valueKey}>
+            <FieldGuidancePanel
+              country={country}
+              visaType={resolvedVisaType}
+              locale={locale}
+              field={guidanceField}
+              answer={values[valueKey] ?? ""}
+              allAnswers={values}
+              initialConversation={guidanceConversations[valueKey]}
+              onConversationChange={(messages) => {
+                setGuidanceConversations((current) => ({
+                  ...current,
+                  [valueKey]: messages,
+                }));
               }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                copilotButtonClasses(),
-              )}
-              aria-expanded={panelOpen}
-              aria-label={buttonLabel}
-              data-copilot-trigger={valueKey}
-            >
-              <Bot className="h-3.5 w-3.5" />
-              {buttonLabel}
-            </button>
+              onClose={() => setActiveGuidanceKey(null)}
+            />
           </div>
-          {panelOpen && (
-            <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
-              <FieldGuidancePanel
-                country={country}
-                visaType={resolvedVisaType}
-                locale={locale}
-                field={guidanceField}
-                answer={values[valueKey] ?? ""}
-                allAnswers={values}
-                onClose={() => setActiveGuidanceKey(null)}
-              />
-            </div>
-          )}
-        </div>
-      );
-    }
+        </PopoverContent>
+      </Popover>
+    );
 
     if (!isChineseInterface) {
       return (
         <div
           key={valueKey}
-          className={fieldFrameClassName}
-          data-field-name={field.fieldName}
+          data-field-name={valueKey}
+          data-application-field-name={valueKey}
+          data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+          data-field-warning={showIssue || translationWarning ? "true" : "false"}
+          data-review-issue={reviewIssue?.severity}
+          aria-invalid={submitCheckInvalid || undefined}
+          className={cn(
+            "application-form-field group/field relative transition-colors",
+            forceWhiteBackground && "py-1.5",
+            panelOpen ? "bg-[#fbfdff]" : "",
+            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+            highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+            reviewIssue && "-mx-3 px-3 py-3",
+            reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
+            reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
+          )}
         >
+          {aiFilledBadge}
           <div className="min-w-0">
             {renderSide("en")}
           </div>
-          {malaysiaAddressFeedback}
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
-            {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
-              <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
-            )}
-            {issue.severity !== "ok" && (
-              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                {issue.message}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-              }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                copilotButtonClasses(),
+          {(showVnPrearrivalEvisaHelp ||
+            (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
+            showIssue) && (
+            <div className="mt-2 flex items-center justify-end gap-2">
+              {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
+              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+                <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
               )}
-              aria-expanded={panelOpen}
-              aria-label={buttonLabel}
-              data-copilot-trigger={valueKey}
-            >
-              <Bot className="h-3.5 w-3.5" />
-              {buttonLabel}
-            </button>
-          </div>
-          {panelOpen && (
-            <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
-              <FieldGuidancePanel
-                country={country}
-                visaType={resolvedVisaType}
-                locale={locale}
-                field={guidanceField}
-                answer={values[valueKey] ?? ""}
-                allAnswers={values}
-                onClose={() => setActiveGuidanceKey(null)}
-              />
+              {showIssue && (
+                <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                  {issue.message}
+                </span>
+              )}
             </div>
           )}
+          {reviewIssue ? (
+            <div className={cn(
+              "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
+              reviewIssue.severity === "error"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-amber-200 bg-amber-50 text-amber-900",
+            )}>
+              <p className="text-sm leading-5">{reviewIssue.message}</p>
+              {onNavigateReviewIssue ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
+                >
+                  {reviewIssue.nextFieldName
+                    ? tButtons("reviewRepair.nextIssue")
+                    : tButtons("reviewRepair.returnToAssistant")}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -4261,19 +4630,30 @@ export function DynamicStepForm({
     return (
       <div
         key={valueKey}
-        className={fieldFrameClassName}
-        data-field-name={field.fieldName}
+        data-field-name={valueKey}
+        data-application-field-name={valueKey}
+        data-validation-invalid={submitCheckInvalid ? "true" : "false"}
+        data-field-warning={showIssue || translationWarning ? "true" : "false"}
+        data-review-issue={reviewIssue?.severity}
+        aria-invalid={submitCheckInvalid || undefined}
+        className={cn(
+          "application-form-field group/field relative transition-colors",
+          forceWhiteBackground && "py-1.5",
+          panelOpen ? "bg-[#fbfdff]" : "",
+          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+          highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
+          reviewIssue && "-mx-3 px-3 py-3",
+          reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
+          reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
+          highlightedFieldName === valueKey && "rounded-lg ring-2 ring-amber-300 ring-offset-2",
+        )}
       >
-        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        {aiFilledBadge}
+        <div className="min-w-0">
           {renderSide("zh")}
-          {renderSide("en")}
         </div>
-        {malaysiaAddressFeedback}
-        <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
-          <div className="flex min-w-0 items-start">
-            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
-          </div>
-          <div className="flex min-w-0 flex-col items-end gap-2">
+        {showChineseFieldFooter ? (
+          <div className="mt-1 flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (
               <DynamicFieldRealtimeTranslation
                 field={field}
@@ -4284,52 +4664,46 @@ export function DynamicStepForm({
                 targetWasManuallyEdited={targetWasManuallyEdited}
                 onApplyTranslation={applyRealtimeTranslation}
                 onResetManualEdit={resetManualEnglishValue}
+                onWarningChange={handleTranslationWarningChange}
               />
             ) : null}
             <div className="flex items-center justify-end gap-2">
+              {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
               {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
                 <span className="text-[13px] font-medium text-emerald-700">
                   {indonesiaPostalLookup.summaryZh}
                 </span>
               )}
-              {issue.severity !== "ok" && (
+              {showIssue && (
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
                 </span>
               )}
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-                }}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                  copilotButtonClasses(),
-                )}
-                aria-expanded={panelOpen}
-                aria-label={buttonLabel}
-                data-copilot-trigger={valueKey}
-              >
-                <Bot className="h-3.5 w-3.5" />
-                {buttonLabel}
-              </button>
             </div>
           </div>
-        </div>
-        {panelOpen && (
-          <div className="mt-2 w-full" data-copilot-panel-frame={valueKey}>
-            <FieldGuidancePanel
-              country={country}
-              visaType={resolvedVisaType}
-              locale={locale}
-              field={guidanceField}
-              answer={values[valueKey] ?? ""}
-              allAnswers={values}
-              onClose={() => setActiveGuidanceKey(null)}
-            />
+        ) : null}
+        {reviewIssue ? (
+          <div className={cn(
+            "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
+            reviewIssue.severity === "error"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-amber-200 bg-amber-50 text-amber-900",
+          )}>
+            <p className="text-sm leading-5">{reviewIssue.message}</p>
+            {onNavigateReviewIssue ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
+              >
+                {reviewIssue.nextFieldName
+                  ? tButtons("reviewRepair.nextIssue")
+                  : tButtons("reviewRepair.returnToAssistant")}
+              </Button>
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
     );
   };
@@ -4338,27 +4712,40 @@ export function DynamicStepForm({
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
   const renderedBlockGroups = new Set<string>();
+  const renderedMultiOptionConditionalGroups = new Set<string>();
   const formVisaType = visaType ?? step.fields[0]?.visaType;
-  const showTaiwanEntryPermitNotice = formVisaType === "TW_ENTRY_PERMIT" && step.stepName === "Delivery Location";
-  const showTaiwanContactAddressNotice =
-    formVisaType === "TW_ENTRY_PERMIT" && isTaiwanEntryPermitContactAddressStep(step.stepName);
+  const showTaiwanContactAddressNotice = formVisaType === "TW_ENTRY_PERMIT"
+    && isTaiwanEntryPermitContactAddressStep(step.stepName);
+
+  useEffect(() => {
+    if (!focusFieldName) return;
+    const timer = window.setTimeout(() => {
+      const container = document.querySelector<HTMLElement>(`[data-field-name="${CSS.escape(focusFieldName)}"]`);
+      if (!container) return;
+      container.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      setHighlightedFieldName(focusFieldName);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [focusFieldName, step.stepNumber]);
 
   return (
-    <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
-      {showTaiwanEntryPermitNotice && (
-        <section className="mb-2 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950 shadow-sm">
-          <ol className="list-decimal space-y-1 pl-5">
-            {TAIWAN_ENTRY_PERMIT_NOTICE.map((item, index) => (
-              <li key={index}>{item}</li>
-            ))}
-          </ol>
-        </section>
-      )}
-      {showTaiwanContactAddressNotice && (
-        <section className="mb-2 rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950 shadow-sm">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={handleKeyboardShortcuts}
+      onClickCapture={captureScrollOffsetBeforeMutation}
+      onChangeCapture={captureScrollOffsetBeforeMutation}
+      style={preservedFormHeight > 0 ? { minHeight: `${preservedFormHeight}px` } : undefined}
+    >
+      <div
+        ref={formContentRef}
+        className="flex flex-col gap-2"
+        data-scroll-height-content="true"
+      >
+      {showTaiwanContactAddressNotice ? (
+        <section className="mb-2 rounded-lg border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950">
           {TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE}
         </section>
-      )}
+      ) : null}
       {step.fields.map((field) => {
         // Skip fields handled by an external control (e.g. passport OCR upload
         // card). They stay in required validation but are not rendered here.
@@ -4373,6 +4760,47 @@ export function DynamicStepForm({
 
         // Non-repeatable field
         if (!group) {
+          const multiOptionRoot = multiOptionConditionalGroups.fieldToRoot[field.fieldName];
+          if (multiOptionRoot) {
+            if (renderedMultiOptionConditionalGroups.has(multiOptionRoot)) return null;
+            renderedMultiOptionConditionalGroups.add(multiOptionRoot);
+
+            const visibleConditionalFields = (
+              multiOptionConditionalGroups.fieldsByRoot[multiOptionRoot] ?? []
+            ).filter(
+              (candidate) =>
+                !externallyHandled.has(candidate.fieldName) &&
+                !isIndonesiaPostalAutoFillField(candidate) &&
+                (evaluateShowIf(candidate, values, step.fields) ||
+                  isDisabledByLT24(candidate, candidate.fieldName, values, step.fields)) &&
+                !isGatedByUnansweredToggle(candidate),
+            );
+            if (visibleConditionalFields.length === 0) return null;
+
+            return (
+              <ApplicationConditionalFieldsPanel
+                key={`multi-option-conditional-${multiOptionRoot}`}
+                className="-mt-1"
+                data-conditional-controller={multiOptionRoot}
+              >
+                {groupFieldsInline(visibleConditionalFields).map((item) => {
+                  if (Array.isArray(item)) {
+                    return (
+                      <div
+                        key={item.map((candidate) => candidate.fieldName).join("-")}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(item.length)}
+                      >
+                        {item.map((candidate) => renderField(candidate, candidate.fieldName, true))}
+                      </div>
+                    );
+                  }
+                  return renderField(item, item.fieldName, true);
+                })}
+              </ApplicationConditionalFieldsPanel>
+            );
+          }
+
           // Block group: wrap a consecutive set of non-repeatable fields in a
           // container box, rendered once for the group.
           const bg = getBlockGroup(field);
@@ -4391,11 +4819,12 @@ export function DynamicStepForm({
 
             if (blockFields.length === 0) return null;
 
+            const blockOwnsConditionalPanel = blockFields.some(shouldOwnConditionalPanel);
             const renderedInlineInBlock = new Set<string>();
-            return (
+            const blockContent = (
               <div
                 key={`block-${bg}`}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
               >
                 {blockFields.map((f) => {
                   const inlineInBlock = getInlineGroup(f);
@@ -4403,17 +4832,40 @@ export function DynamicStepForm({
                     if (renderedInlineInBlock.has(inlineInBlock)) return null;
                     renderedInlineInBlock.add(inlineInBlock);
                     const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
-                    if (inlineFields.length <= 1) return renderField(f, f.fieldName, true);
+                    if (inlineFields.length <= 1) {
+                      return renderField(f, f.fieldName, blockOwnsConditionalPanel);
+                    }
                     return (
-                      <div key={`inline-${inlineInBlock}`} className="grid gap-3">
-                        {inlineFields.map((x) => renderField(x, x.fieldName, true))}
+                      <div
+                        key={`inline-${inlineInBlock}`}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(inlineFields.length)}
+                      >
+                        {inlineFields.map((x) => renderField(
+                          x,
+                          x.fieldName,
+                          blockOwnsConditionalPanel,
+                        ))}
                       </div>
                     );
                   }
-                  return renderField(f, f.fieldName, true);
+                  return renderField(f, f.fieldName, blockOwnsConditionalPanel);
                 })}
               </div>
             );
+
+            if (blockOwnsConditionalPanel) {
+              return (
+                <ApplicationConditionalFieldsPanel
+                  key={`block-${bg}`}
+                  className="-mt-1"
+                >
+                  {blockContent}
+                </ApplicationConditionalFieldsPanel>
+              );
+            }
+
+            return blockContent;
           }
 
           const ig = getInlineGroup(field);
@@ -4432,16 +4884,62 @@ export function DynamicStepForm({
             );
 
             if (inlineFields.length <= 1) {
-              return renderField(inlineFields[0], inlineFields[0].fieldName);
+              const inlineField = inlineFields[0];
+              const renderedInlineField = renderField(
+                inlineField,
+                inlineField.fieldName,
+                shouldOwnConditionalPanel(inlineField),
+              );
+
+              return shouldOwnConditionalPanel(inlineField) ? (
+                <ApplicationConditionalFieldsPanel
+                  key={`inline-${ig}`}
+                  className="-mt-1"
+                >
+                  {renderedInlineField}
+                </ApplicationConditionalFieldsPanel>
+              ) : renderedInlineField;
             }
 
-            return (
-              <div key={`inline-${ig}`} className="grid gap-3">
-                {inlineFields.map((f) => renderField(f, f.fieldName))}
+            const isConditionalInlineGroup = inlineFields.some(shouldOwnConditionalPanel);
+            const inlineContent = (
+              <div
+                key={`inline-${ig}`}
+                className="grid gap-2"
+                style={inlineGroupGridStyle(inlineFields.length)}
+              >
+                {inlineFields.map((f) => renderField(
+                  f,
+                  f.fieldName,
+                  isConditionalInlineGroup,
+                ))}
               </div>
             );
+
+            return isConditionalInlineGroup ? (
+              <ApplicationConditionalFieldsPanel
+                key={`inline-${ig}`}
+                className="-mt-1"
+              >
+                {inlineContent}
+              </ApplicationConditionalFieldsPanel>
+            ) : inlineContent;
           }
-          return renderField(field, field.fieldName);
+
+          const renderedField = renderField(
+            field,
+            field.fieldName,
+            shouldOwnConditionalPanel(field),
+          );
+
+          return shouldOwnConditionalPanel(field) ? (
+            <ApplicationConditionalFieldsPanel
+              key={`conditional-${field.fieldName}`}
+              className="-mt-1"
+            >
+              {renderedField}
+            </ApplicationConditionalFieldsPanel>
+          ) : renderedField;
         }
 
         // Repeatable group: render the whole group container once
@@ -4457,13 +4955,23 @@ export function DynamicStepForm({
         if (visibleGroupFields.length === 0) return null;
 
         const count = groupCounts[group] ?? 1;
+        const isConditionalGroup = groupFields.some(hasConditionalDependency);
+        const canAddGroupInstance =
+          (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
 
         return (
-          <div key={`group-${group}`} className="flex flex-col gap-3">
+          <ApplicationConditionalFieldsPanel
+            key={`group-${group}`}
+            className={cn(isConditionalGroup && "-mt-1")}
+            canAdd={canAddGroupInstance}
+            onAdd={() => addGroupInstance(group)}
+            addLabel={tButtons("addAnother")}
+          >
             {Array.from({ length: count }, (_, instanceIdx) => (
               <div
                 key={`${group}-${instanceIdx}`}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
+                data-repeat-group-instance="true"
               >
                 {count > 1 && (
                   <div className="flex items-center justify-between">
@@ -4483,7 +4991,11 @@ export function DynamicStepForm({
                 {groupFieldsInline(visibleGroupFields).map((item) => {
                   if (Array.isArray(item)) {
                     return (
-                      <div key={item.map((f) => f.fieldName).join("-")} className="grid gap-3">
+                      <div
+                        key={item.map((f) => f.fieldName).join("-")}
+                        className="grid gap-2"
+                        style={inlineGroupGridStyle(item.length)}
+                      >
                         {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
                       </div>
                     );
@@ -4492,41 +5004,24 @@ export function DynamicStepForm({
                 })}
               </div>
             ))}
-            {(groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX) && (
-              <button
-                type="button"
-                onClick={() => addGroupInstance(group)}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[#03346E] hover:text-[#022a5a] transition-colors self-start cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                {tButtons("addAnother")}
-              </button>
-            )}
-          </div>
+          </ApplicationConditionalFieldsPanel>
         );
       })}
 
-      <BrandActionButton
-        type="submit"
-        disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
-        data-required-filled={requiredFilled ? "true" : "false"}
-        data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
-        data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
-        loading={saving}
-        loadingText={tButtons("saving")}
-        className="mt-2"
-      >
-        {tButtons("continue")}
-      </BrandActionButton>
-      <div className="fixed bottom-4 right-4 z-40 flex max-w-[260px] items-center gap-2 rounded-lg border border-[#dbe7f5] bg-white/95 px-3 py-2 text-[12px] text-[#3f4652] shadow-lg backdrop-blur">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
-          <Bot className="h-4 w-4" />
-        </span>
-        <span>
-          {isChineseInterface
-            ? "对问题有疑问？点击题目旁的 AI 提示。"
-            : "Need help? Click the AI tip beside any question."}
-        </span>
+      {showContinueButton && (
+        <BrandActionButton
+          type="submit"
+          disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
+          data-required-filled={requiredFilled ? "true" : "false"}
+          data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
+          data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
+          loading={saving}
+          loadingText={tButtons("saving")}
+          className="mt-2"
+        >
+          {tButtons("continue")}
+        </BrandActionButton>
+      )}
       </div>
     </form>
   );

@@ -4,28 +4,40 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
-import { enqueueRunnerJob } from "@/lib/queue/enqueue";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import {
+  enqueueRunnerJob,
+  enqueueRunnerPoolJob,
+  enqueueSgacRunnerRetry,
+} from "@/lib/queue/enqueue";
 import { loadApplicationCompleteness } from "@/lib/application-completeness";
+import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import {
+  resolveRunnerPoolFlow,
+  shouldUseSharedRunnerPool,
+} from "@/lib/queue/flows";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
+import { koreaSeoulMidnightIso } from "@/features/kr-arrival-card/date-window";
+import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
+import { decideKoreaEArrivalCardLiveSchedule } from "@/features/kr-arrival-card/retry-schedule";
+import { extractKoreaEArrivalAnswers } from "@/features/kr-arrival-card/answer-loader";
+import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
-  evaluatePhEtravelSubmissionWindow,
-  validatePhEtravelTravelDates,
-} from "@/features/ph-etravel/date-window";
-import {
-  createPhEtravelScheduledPortalSummary,
-  createPhEtravelStoredResultRecoveryPresentation,
-  isPhEtravelServerLiveSubmissionEnabled,
-  phEtravelUserFacingError,
-} from "@/features/ph-etravel/status";
+  KOREA_E_ARRIVAL_PREFLIGHT_ANSWER_KEYS,
+  validateKoreaEArrivalPreflight,
+} from "@/features/kr-arrival-card/preflight";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isFranceVisasVisaType,
   isIndonesiaEVisaApplication,
+  isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
@@ -38,17 +50,22 @@ import {
   parseSubmissionRetryIntent,
   queueProviderForApplication,
   queueStatusForApplication,
+  visaTypesReferToSameApplication,
   type SubmissionMode,
   type SubmissionQueueStatus,
   type SubmissionRetryIntent,
+  type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
+import {
+  isQaDryRunPurpose,
+  isSyntheticQaValue,
+} from "@/lib/applications/qa-safety";
 
 type ApplicationForRetry = {
   id: string;
   applicant_id: string;
   country: string | null;
   visa_type: string | null;
-  visa_package_id?: string | null;
   arrival_date: string | null;
   departure_date: string | null;
   purpose: string | null;
@@ -80,6 +97,7 @@ type RetrySubmissionRequest = {
   intent: SubmissionRetryIntent;
   country: string | null;
   visaType: string | null;
+  taiwanOfficialTermsConsent: TaiwanOfficialTermsConsentInput | null;
 };
 
 type RetryQueueInsertResult = {
@@ -91,25 +109,6 @@ type RetryQueueInsertResult = {
   reusedExisting: boolean;
   supersededCount: number;
 };
-
-type QueueBackend = "submission_queue" | "runner_job";
-
-type TaiwanRetryBlocker =
-  | {
-      code: "tw_active_job_exists";
-      error: string;
-      status: 409;
-      jobId: string;
-      jobStatus: string;
-    }
-  | {
-      code: "tw_handoff_active";
-      error: string;
-      status: 409;
-      handoffId: string;
-      handoffStatus: string;
-      handoffExpiresAt: string;
-    };
 
 type SgacScheduleDecision =
   | { action: "submit"; arrivalDate: string; departureDate: string }
@@ -145,15 +144,60 @@ const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE || 0.7);
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
-const DEFAULT_MANAGED_INBOX_DOMAIN = "haggstorm.com";
+const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
+const LEGACY_MANAGED_INBOX_DOMAINS = new Set(["haggstorm.com"]);
+
+function activeManagedInboxDomain(): string {
+  const configured =
+    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") || "";
+  return configured && !LEGACY_MANAGED_INBOX_DOMAINS.has(configured)
+    ? configured
+    : DEFAULT_MANAGED_INBOX_DOMAIN;
+}
 
 function managedInboxDomain(alias: string | null): string {
   const aliasDomain = alias?.trim().toLowerCase().split("@").at(-1);
-  return (
-    aliasDomain ||
-    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
-    DEFAULT_MANAGED_INBOX_DOMAIN
-  );
+  if (aliasDomain && LEGACY_MANAGED_INBOX_DOMAINS.has(aliasDomain)) {
+    return activeManagedInboxDomain();
+  }
+  return aliasDomain || activeManagedInboxDomain();
+}
+
+async function rotateLegacyManagedInboxAlias(
+  admin: ReturnType<typeof createAdminClient>,
+  applicantId: string,
+  alias: string | null,
+): Promise<string | null> {
+  const normalized = alias?.trim().toLowerCase() ?? null;
+  if (!normalized) return null;
+  const atIndex = normalized.lastIndexOf("@");
+  if (atIndex <= 0) return normalized;
+  const localPart = normalized.slice(0, atIndex);
+  const domain = normalized.slice(atIndex + 1);
+  if (!LEGACY_MANAGED_INBOX_DOMAINS.has(domain)) return normalized;
+
+  const replacement = `${localPart}@${managedInboxDomain(normalized)}`;
+  const { data: rotated, error: rotateError } = await admin
+    .from("applicant_profiles")
+    .update({ inbox_alias: replacement })
+    .eq("id", applicantId)
+    .eq("inbox_alias", alias)
+    .select("inbox_alias")
+    .maybeSingle();
+  if (rotateError) {
+    throw new Error(`Managed inbox alias rotation failed: ${rotateError.message}`);
+  }
+  if (rotated?.inbox_alias) return rotated.inbox_alias;
+
+  const { data: current, error: currentError } = await admin
+    .from("applicant_profiles")
+    .select("inbox_alias")
+    .eq("id", applicantId)
+    .maybeSingle();
+  if (currentError) {
+    throw new Error(`Managed inbox alias refresh failed: ${currentError.message}`);
+  }
+  return current?.inbox_alias?.trim().toLowerCase() ?? null;
 }
 
 async function getManagedInboxRouteBlocker(alias: string | null): Promise<string | null> {
@@ -172,53 +216,6 @@ async function getManagedInboxRouteBlocker(alias: string | null): Promise<string
     "the official email verification code. Your answers are saved. Restore the official-email " +
     "route before retrying."
   );
-}
-
-async function triggerCloudSubmissionWorker(jobId: string | null): Promise<boolean> {
-  if (!jobId) return false;
-  const baseUrl = (
-    process.env.VIETNAM_SUBMISSION_SERVICE_URL ??
-    process.env.SUBMISSION_SERVICE_CLOUD_URL
-  )?.trim().replace(/\/+$/u, "");
-  const token = (
-    process.env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
-    process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN
-  )?.trim();
-  if (!baseUrl || !token) {
-    console.warn("[submission-queue] Cloud worker wake is not configured.");
-    return false;
-  }
-  if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) {
-    console.warn("[submission-queue] Refusing to wake a non-HTTPS cloud worker.");
-    return false;
-  }
-
-  try {
-    const response = await fetch(`${baseUrl}/internal/submission-queue/wake`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ jobId }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) {
-      console.warn(
-        `[submission-queue] Cloud worker wake returned ${response.status}.`,
-      );
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.warn(
-      `[submission-queue] Cloud worker wake failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return false;
-  }
 }
 
 const VIETNAM_REQUIRED_FIELDS: VietnamRequirement[] = [
@@ -277,12 +274,25 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent?: unknown;
       country?: unknown;
       visaType?: unknown;
+      taiwanOfficialTermsConsent?: unknown;
     };
+    const rawTaiwanConsent =
+      body.taiwanOfficialTermsConsent &&
+      typeof body.taiwanOfficialTermsConsent === "object" &&
+      !Array.isArray(body.taiwanOfficialTermsConsent)
+        ? body.taiwanOfficialTermsConsent as Record<string, unknown>
+        : null;
     return {
       mode: body.mode === "live_assisted" || body.mode === "dry_run" ? body.mode : null,
       intent: parseSubmissionRetryIntent(body.intent),
       country: typeof body.country === "string" && body.country.trim() ? body.country : null,
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
+      taiwanOfficialTermsConsent: rawTaiwanConsent
+        ? {
+            entryPromptAccepted: rawTaiwanConsent.entryPromptAccepted === true,
+            termsModalAccepted: rawTaiwanConsent.termsModalAccepted === true,
+          }
+        : null,
     };
   } catch {
     return {
@@ -290,6 +300,7 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent: "retry",
       country: null,
       visaType: null,
+      taiwanOfficialTermsConsent: null,
     };
   }
 }
@@ -311,21 +322,38 @@ function normalizeComparable(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
 }
 
+function runnerPoolAvailableAt(
+  scheduledFor: string | null,
+  country: string | null,
+): string | undefined {
+  if (!scheduledFor || !/^\d{4}-\d{2}-\d{2}$/u.test(scheduledFor)) return undefined;
+  const normalized = normalizeComparable(country);
+  if (normalized === "south_korea" || normalized === "korea" || normalized === "kr") {
+    return koreaSeoulMidnightIso(scheduledFor);
+  }
+  const offset =
+    normalized === "vietnam" || normalized === "vn" ||
+    normalized === "thailand" || normalized === "th"
+      ? "+07:00"
+      : "+08:00";
+  return new Date(`${scheduledFor}T00:00:00${offset}`).toISOString();
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function hasCompletedOfficialSubmission(application: ApplicationForRetry): boolean {
-  if (isPhilippinesEtravelArrivalApplication(application.country, application.visa_type)) {
-    return createPhEtravelStoredResultRecoveryPresentation(application.submission_result).state === "submitted_candidate";
-  }
   if (isTaiwanEntryPermitApplication(application.country, application.visa_type)) {
     const result = application.submission_result;
-    if (isRecord(result)) {
-      if (result.status === "submitted" || result.submitted === true || isRecord(result.officialReceipt)) {
-        return true;
-      }
-    }
+    return Boolean(
+      isRecord(result) &&
+      result.country === "TW" &&
+      result.status === "submitted" &&
+      isRecord(result.officialReceipt) &&
+      typeof result.officialReceipt.caseNumber === "string" &&
+      result.officialReceipt.caseNumber.trim(),
+    );
   }
   if (isVietnamPrearrivalApplication(application.country, application.visa_type)) {
     const result = application.submission_result;
@@ -336,6 +364,13 @@ function hasCompletedOfficialSubmission(application: ApplicationForRetry): boole
       Array.isArray(artifacts.qrCodes) &&
       artifacts.qrCodes.some((value) => typeof value === "string" && value.trim().length > 0),
     );
+  }
+  if (isKoreaEArrivalCardApplication(application.country, application.visa_type)) {
+    return hasSuccessfulArrivalCardSubmission({
+      country: application.country,
+      visaType: application.visa_type,
+      submissionResult: application.submission_result,
+    });
   }
   const normalizedStatus = normalizeComparable(application.submission_result_status);
   if (["completed", "complete", "submitted", "success", "done"].includes(normalizedStatus)) return true;
@@ -351,37 +386,35 @@ function requestedValueMatchesApplication(
   return normalizeComparable(requested) === normalizeComparable(actual);
 }
 
+async function validateDs160ConsularPost(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("value_text, value_json")
+    .eq("application_id", applicationId)
+    .eq("field_name", "consular_post")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  const value = (answerValueToText(data ?? {}) ?? "").trim().toUpperCase();
+  if (!["BEJ", "GUZ", "SHG", "SNY", "WUH"].includes(value)) {
+    return {
+      ok: false,
+      error:
+        "请选择您计划提交 DS-160 的美国使领馆（北京、广州、上海、沈阳或武汉），然后再提交申请。",
+    };
+  }
+  return { ok: true };
+}
+
 function isFranceLiveRetryApplication(country: string | null, visaType: string | null): boolean {
   return isFranceCountry(country) && isFranceVisasVisaType(visaType);
 }
 
 function isUkLiveRetryApplication(country: string | null, visaType: string | null): boolean {
   return isUkStandardVisitorApplication(country, visaType);
-}
-
-function isPhilippinesEtravelArrivalApplication(
-  country: string | null,
-  visaType: string | null,
-): boolean {
-  return isPhilippinesEtravelApplication(country, visaType)
-    && visaType?.trim().toUpperCase() === "PH_ETRAVEL_ARRIVAL_CARD";
-}
-
-async function getPhEtravelArrivalActiveRunnerJob(
-  admin: ReturnType<typeof createAdminClient>,
-  applicationId: string,
-): Promise<{ id: string; status: string } | null> {
-  const { data, error } = await admin
-    .from("runner_job")
-    .select("id, status")
-    .eq("application_id", applicationId)
-    .eq("country", "philippines")
-    .in("status", ["queued", "running", "needs_human", "paused"])
-    .order("enqueued_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error || !data || typeof data.id !== "string" || typeof data.status !== "string") return null;
-  return { id: data.id, status: data.status };
 }
 
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
@@ -429,7 +462,14 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
   }
   if (isPhilippinesEtravelApplication(country, visaType)) {
-    return isPhEtravelServerLiveSubmissionEnabled();
+    return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isKoreaEArrivalCardApplication(country, visaType)) {
+    return isKoreaEArrivalCardLiveEnabled({
+      serverFlag: process.env.KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED,
+      clientFlag: process.env.NEXT_PUBLIC_KR_E_ARRIVAL_CARD_LIVE_SUBMISSION_ENABLED,
+    });
   }
   if (isTaiwanEntryPermitApplication(country, visaType)) {
     return process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED === "true";
@@ -439,6 +479,56 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
+}
+
+async function getActiveTaiwanRunnerJob(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ id: string; status: string } | null> {
+  const { data, error } = await admin
+    .from("runner_job")
+    .select("id, status")
+    .eq("application_id", applicationId)
+    .eq("country", "taiwan")
+    .in("status", ["queued", "running", "needs_human", "paused"])
+    .order("enqueued_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`taiwan active-job guard: ${error.message}`);
+  return data as { id: string; status: string } | null;
+}
+
+async function insertTaiwanRunnerJob(input: {
+  applicationId: string;
+  now: string;
+  consent: TaiwanOfficialTermsConsentInput;
+}): Promise<RetryQueueInsertResult> {
+  const result = await enqueueRunnerJob(input.applicationId, "taiwan", {
+    correlationId: `tw-entry-permit:${input.applicationId}:${input.now}`,
+    maxAttempts: 1,
+    metadata: {
+      source: "retry-submission",
+      visaType: "TW_ENTRY_PERMIT",
+      mode: "live_assisted",
+      queuedStage: "queued_for_tw_entry_permit_submit",
+      taiwanOfficialTermsConsent: {
+        version: "tw_official_terms_v1",
+        entryPromptAccepted: input.consent.entryPromptAccepted,
+        termsModalAccepted: input.consent.termsModalAccepted,
+        recordedAt: input.now,
+        source: "viza_final_confirmation",
+      },
+    },
+  });
+  return {
+    error: null,
+    jobId: result.id,
+    queueStatus: "tw_live_assisted_pending",
+    mode: "live_assisted",
+    provider: "taiwan_overseas_cn_entry_permit_live",
+    reusedExisting: !result.created,
+    supersededCount: 0,
+  };
 }
 
 function isMissingVietnamLiveSchemaError(error: { message?: string; code?: string }): boolean {
@@ -1033,201 +1123,14 @@ async function insertRetryQueueRow(
   };
 }
 
-async function insertTaiwanRunnerJob(input: {
-  applicationId: string;
-  now: string;
-}): Promise<RetryQueueInsertResult> {
-  try {
-    const result = await enqueueRunnerJob(input.applicationId, "taiwan", {
-      correlationId: `tw-entry-permit:${input.applicationId}:${input.now}`,
-      maxAttempts: 1,
-      metadata: {
-        source: "retry-submission",
-        visaType: "TW_ENTRY_PERMIT",
-        mode: "live_assisted",
-        queuedStage: "queued_for_tw_entry_permit_live",
-      },
-    });
-    return {
-      error: null,
-      jobId: result.id,
-      queueStatus: "tw_live_assisted_pending",
-      mode: "live_assisted",
-      provider: "taiwan_overseas_cn_entry_permit_live",
-      reusedExisting: !result.created,
-      supersededCount: 0,
-    };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : String(error),
-      jobId: null,
-      queueStatus: null,
-      mode: null,
-      provider: null,
-      reusedExisting: false,
-      supersededCount: 0,
-    };
-  }
-}
-
-async function insertPhEtravelArrivalRunnerJob(input: {
-  applicationId: string;
-  now: string;
-}): Promise<RetryQueueInsertResult> {
-  try {
-    const result = await enqueueRunnerJob(input.applicationId, "philippines", {
-      correlationId: `ph-etravel-arrival:${input.applicationId}:${input.now}`,
-      maxAttempts: 1,
-      metadata: {
-        source: "retry-submission",
-        visaType: "PH_ETRAVEL_ARRIVAL_CARD",
-        mode: "live_assisted",
-        queuedStage: "queued_for_ph_etravel_arrival_live",
-      },
-    });
-    return {
-      error: null,
-      jobId: result.id,
-      queueStatus: "phetravel_live_assisted_pending",
-      mode: "live_assisted",
-      provider: "philippines_etravel_live",
-      reusedExisting: !result.created,
-      supersededCount: 0,
-    };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : String(error),
-      jobId: null,
-      queueStatus: null,
-      mode: null,
-      provider: null,
-      reusedExisting: false,
-      supersededCount: 0,
-    };
-  }
-}
-
-async function getTaiwanRetryBlocker(
-  admin: ReturnType<typeof createAdminClient>,
-  applicationId: string,
-  nowMs: number,
-): Promise<TaiwanRetryBlocker | { code: "query_failed"; error: string; status: 500 } | null> {
-  const { data: activeJob, error: activeJobError } = await admin
-    .from("runner_job")
-    .select("id, status")
-    .eq("application_id", applicationId)
-    .eq("country", "taiwan")
-    .in("status", ["queued", "running", "needs_human", "paused"])
-    .order("enqueued_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (activeJobError) {
-    return {
-      code: "query_failed",
-      error: activeJobError.message,
-      status: 500,
-    };
-  }
-  if (activeJob && typeof activeJob.id === "string") {
-    return {
-      code: "tw_active_job_exists",
-      error: "台湾官网自动填写任务已经在进行中，请等待当前任务更新。",
-      status: 409,
-      jobId: activeJob.id,
-      jobStatus: typeof activeJob.status === "string" ? activeJob.status : "unknown",
-    };
-  }
-
-  const { data: activeHandoff, error: activeHandoffError } = await admin
-    .from("takeover_session")
-    .select("id, status, expires_at")
-    .eq("application_id", applicationId)
-    .eq("handoff_kind", "taiwan_applicant_final_submit")
-    .in("status", ["queued", "claimed"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (activeHandoffError) {
-    return {
-      code: "query_failed",
-      error: activeHandoffError.message,
-      status: 500,
-    };
-  }
-
-  const expiresAt = typeof activeHandoff?.expires_at === "string" ? activeHandoff.expires_at : null;
-  if (activeHandoff && typeof activeHandoff.id === "string" && expiresAt && Date.parse(expiresAt) > nowMs) {
-    return {
-      code: "tw_handoff_active",
-      error: "台湾官网会话仍在有效期内，请打开已填写的台湾官网，不要重复创建任务。",
-      status: 409,
-      handoffId: activeHandoff.id,
-      handoffStatus: typeof activeHandoff.status === "string" ? activeHandoff.status : "unknown",
-      handoffExpiresAt: expiresAt,
-    };
-  }
-
-  return null;
-}
-
 async function readSgacDateAnswers(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
   application: ApplicationForRetry,
-): Promise<{ arrivalDate: string | null; departureDate: string | null; error: string | null }> {
-  const { data, error } = await admin
-    .from("visa_application_answers")
-    .select("field_name, value_text, value_json")
-    .eq("application_id", applicationId)
-    .in("field_name", [
-      "arrival_date",
-      "flight_arrival_date",
-      "intended_arrival_date",
-      "planned_arrival_date",
-      "departure_date",
-      "flight_departure_date",
-      "intended_departure_date",
-      "planned_departure_date",
-    ]);
-
-  if (error) return { arrivalDate: null, departureDate: null, error: error.message };
-
-  const answers: Record<string, string> = {};
-  for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
-    if (typeof row.field_name !== "string") continue;
-    const value = answerValueToText(row);
-    if (value) answers[row.field_name] = value;
-  }
-
-  return {
-    arrivalDate: firstText([
-      answers.flight_arrival_date,
-      answers.arrival_date,
-      answers.intended_arrival_date,
-      answers.planned_arrival_date,
-      application.arrival_date,
-    ]),
-    departureDate: firstText([
-      answers.flight_departure_date,
-      answers.departure_date,
-      answers.intended_departure_date,
-      answers.planned_departure_date,
-      application.departure_date,
-    ]),
-    error: null,
-  };
-}
-
-async function readPhEtravelDateAnswers(
-  admin: ReturnType<typeof createAdminClient>,
-  applicationId: string,
-  application: ApplicationForRetry,
 ): Promise<{
+  arrivalDate: string | null;
+  departureDate: string | null;
   transportType: string | null;
-  flightArrivalDate: string | null;
-  flightDepartureDate: string | null;
-  voyageArrivalDate: string | null;
-  voyageDepartureDate: string | null;
   error: string | null;
 }> {
   const { data, error } = await admin
@@ -1235,28 +1138,27 @@ async function readPhEtravelDateAnswers(
     .select("field_name, value_text, value_json")
     .eq("application_id", applicationId)
     .in("field_name", [
-      "transport_type",
-      "transportation_type",
-      "flight_arrival_date",
-      "flight_departure_date",
-      "voyage_arrival_date",
-      "voyage_departure_date",
       "arrival_date",
-      "departure_date",
+      "flight_arrival_date",
       "intended_arrival_date",
-      "intended_departure_date",
       "planned_arrival_date",
+      "voyage_arrival_date",
+      "departure_date",
+      "flight_departure_date",
+      "intended_departure_date",
       "planned_departure_date",
+      "voyage_departure_date",
+      "transport_type",
     ]);
 
-  if (error) return {
-    transportType: null,
-    flightArrivalDate: null,
-    flightDepartureDate: null,
-    voyageArrivalDate: null,
-    voyageDepartureDate: null,
-    error: error.message,
-  };
+  if (error) {
+    return {
+      arrivalDate: null,
+      departureDate: null,
+      transportType: null,
+      error: error.message,
+    };
+  }
 
   const answers: Record<string, string> = {};
   for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
@@ -1265,41 +1167,85 @@ async function readPhEtravelDateAnswers(
     if (value) answers[row.field_name] = value;
   }
 
+  const transportType = firstText([answers.transport_type])?.toUpperCase() ?? null;
+  const usesVoyageDates = transportType === "SEA";
+
   return {
-    transportType: firstText([
-      answers.transport_type,
-      answers.transportation_type,
-    ]),
-    flightArrivalDate: firstText([
-      answers.flight_arrival_date,
+    arrivalDate: firstText([
+      usesVoyageDates ? answers.voyage_arrival_date : answers.flight_arrival_date,
       answers.arrival_date,
       answers.intended_arrival_date,
       answers.planned_arrival_date,
       application.arrival_date,
     ]),
-    flightDepartureDate: firstText([
-      answers.flight_departure_date,
+    departureDate: firstText([
+      usesVoyageDates ? answers.voyage_departure_date : answers.flight_departure_date,
       answers.departure_date,
       answers.intended_departure_date,
       answers.planned_departure_date,
       application.departure_date,
     ]),
-    voyageArrivalDate: firstText([
-      answers.voyage_arrival_date,
-      answers.arrival_date,
-      answers.intended_arrival_date,
-      answers.planned_arrival_date,
-      application.arrival_date,
-    ]),
-    voyageDepartureDate: firstText([
-      answers.voyage_departure_date,
-      answers.departure_date,
-      answers.intended_departure_date,
-      answers.planned_departure_date,
-      application.departure_date,
-    ]),
+    transportType,
     error: null,
   };
+}
+
+async function readKoreaEArrivalAnswers(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  application: ApplicationForRetry,
+): Promise<{
+  arrivalDate: string | null;
+  departureDate: string | null;
+  arrivalMode: string | null;
+  stayAddressProvided: boolean;
+  error: string | null;
+}> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", ["arrival_date", "departure_date", "arrival_mode", "stay_address_ko", "stay_address_en"]);
+
+  if (error) {
+    return {
+      arrivalDate: null,
+      departureDate: null,
+      arrivalMode: null,
+      stayAddressProvided: false,
+      error: error.message,
+    };
+  }
+
+  const snapshot = extractKoreaEArrivalAnswers(
+    (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>,
+    {
+      arrival_date: application.arrival_date,
+      departure_date: application.departure_date,
+      accommodation_address: application.accommodation_address,
+    },
+  );
+  return { ...snapshot, error: null };
+}
+
+async function readKoreaEArrivalPreflight(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<ReturnType<typeof validateKoreaEArrivalPreflight> | { ok: false; code: "load_failed"; message: string }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", [...KOREA_E_ARRIVAL_PREFLIGHT_ANSWER_KEYS]);
+  if (error) return { ok: false, code: "load_failed", message: error.message };
+
+  const answers: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
+    if (typeof row.field_name !== "string") continue;
+    const value = answerValueToText(row);
+    if (value) answers[row.field_name] = value;
+  }
+  return validateKoreaEArrivalPreflight(answers);
 }
 
 async function decideSgacLiveSchedule(input: {
@@ -1545,101 +1491,6 @@ async function decideTdacLiveSchedule(input: {
   };
 }
 
-export async function decidePhEtravelLiveSchedule(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  applicationId: string;
-  application: ApplicationForRetry;
-  now: string;
-}): Promise<SgacScheduleDecision> {
-  const isDepartureCard = input.application.visa_type?.trim().toUpperCase() === "PH_ETRAVEL_DEPARTURE_CARD";
-  const dates = await readPhEtravelDateAnswers(input.admin, input.applicationId, input.application);
-  if (dates.error) {
-    return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
-  }
-
-  const travelDates = validatePhEtravelTravelDates({
-    transportType: dates.transportType,
-    flightDepartureDate: dates.flightDepartureDate,
-    flightArrivalDate: dates.flightArrivalDate,
-    voyageDepartureDate: dates.voyageDepartureDate,
-    voyageArrivalDate: dates.voyageArrivalDate,
-  });
-  if (!travelDates.ok) {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_${travelDates.code}`,
-      message: travelDates.message,
-    };
-  }
-
-  const submissionTravelDate = isDepartureCard ? travelDates.departureDate : travelDates.arrivalDate;
-  const travelDateLabel = isDepartureCard ? "departure" : "arrival";
-  const window = evaluatePhEtravelSubmissionWindow(submissionTravelDate, new Date(input.now));
-  if (window.status === "invalid") {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_invalid_${travelDateLabel}_date`,
-      message: `Philippines eTravel ${travelDateLabel} date must use YYYY-MM-DD.`,
-    };
-  }
-  if (window.status === "past") {
-    return {
-      action: "reject",
-      status: 422,
-      code: `phetravel_${travelDateLabel}_date_past`,
-      message: `Philippines eTravel ${travelDateLabel} date is already in the past. Please update the travel dates before submitting.`,
-    };
-  }
-  if (window.status === "scheduled") {
-    const result = {
-      country: "PH",
-      visaType: isDepartureCard ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
-      status: "scheduled",
-      mode: "live_assisted",
-      provider: "philippines_etravel_live",
-      applicationId: input.applicationId,
-      submitted: false,
-      confirmationNumber: null,
-      referenceNumber: null,
-      portalUrl: "https://etravel.gov.ph",
-      portalResponseSummary:
-        createPhEtravelScheduledPortalSummary({
-          travelDateLabel,
-          earliestSubmissionDate: window.earliestSubmissionDate,
-          daysUntilOpen: window.daysUntilOpen,
-        }),
-      scheduledFor: window.earliestSubmissionDate,
-      arrivalDate: travelDates.arrivalDate,
-      departureDate: travelDates.departureDate,
-      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
-      payloadSummary: {
-        arrivalDate: travelDates.arrivalDate,
-        departureDate: travelDates.departureDate,
-        modeOfTravel: travelDates.transportType,
-        dateSource: travelDates.dateSource,
-        transportNumber: null,
-        accommodationAddressProvided: false,
-      },
-    };
-    return {
-      action: "schedule",
-      arrivalDate: travelDates.arrivalDate,
-      departureDate: travelDates.departureDate,
-      earliestSubmissionDate: window.earliestSubmissionDate,
-      daysUntilOpen: window.daysUntilOpen,
-      result,
-    };
-  }
-
-  return {
-    action: "submit",
-    arrivalDate: travelDates.arrivalDate,
-    departureDate: travelDates.departureDate,
-  };
-}
-
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -1679,7 +1530,7 @@ export async function POST(
 
   const { data: application, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, visa_package_id, arrival_date, departure_date, purpose, accommodation_name, accommodation_address, submission_result, submission_result_status")
+    .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address, submission_result, submission_result_status")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -1697,12 +1548,42 @@ export async function POST(
 
   const now = new Date().toISOString();
   const requestedSubmission = await readRetrySubmissionRequest(request);
-  const mode = requestedSubmission.mode;
-  if (!mode) {
+  const requestedMode = requestedSubmission.mode;
+  if (!requestedMode) {
     return NextResponse.json(
       { error: "Submission retry mode is required. Choose dry_run or live_assisted." },
       { status: 400 },
     );
+  }
+  // This marker is reserved for the isolated production smoke application.
+  // Never allow a client retry button to upgrade its synthetic answers into a
+  // live CEAC task, even if an older failure card requests live_assisted.
+  const mode: SubmissionMode =
+    isQaDryRunPurpose(ownedApplication.purpose)
+      ? "dry_run"
+      : requestedMode;
+
+  if (!isQaDryRunPurpose(ownedApplication.purpose)) {
+    const { data: answerRows, error: answerError } = await admin
+      .from("visa_application_answers")
+      .select("field_name, value_text, value_json")
+      .eq("application_id", applicationId);
+    if (answerError) {
+      return NextResponse.json({ error: answerError.message }, { status: 500 });
+    }
+    const unsafeAnswer = (answerRows ?? []).find(
+      (answer) =>
+        isSyntheticQaValue(answer.value_text) ||
+        isSyntheticQaValue(JSON.stringify(answer.value_json ?? null)),
+    );
+    if (unsafeAnswer) {
+      return NextResponse.json(
+        {
+          error: `Application contains synthetic QA data in ${unsafeAnswer.field_name}. Clear it and enter the applicant's real information before submission.`,
+        },
+        { status: 409 },
+      );
+    }
   }
 
   if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
@@ -1711,7 +1592,7 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (!requestedValueMatchesApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
+  if (!visaTypesReferToSameApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
     return NextResponse.json(
       { error: "Requested visa type does not match the application visa type." },
       { status: 400 },
@@ -1746,6 +1627,29 @@ export async function POST(
     });
   }
 
+  if (isRunnerCutoverPaused()) {
+    return NextResponse.json(
+      {
+        error: "Submission retries are temporarily paused for a controlled runner cutover.",
+        code: "runner_cutover_paused",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (isDs160VisaType(ownedApplication.visa_type)) {
+    const postValidation = await validateDs160ConsularPost(admin, applicationId);
+    if (!postValidation.ok) {
+      return NextResponse.json(
+        {
+          error: postValidation.error,
+          code: "ds160_consular_post_required",
+        },
+        { status: 422 },
+      );
+    }
+  }
+
   let queueStatus = queueStatusForApplication(
     ownedApplication.country,
     ownedApplication.visa_type,
@@ -1759,7 +1663,6 @@ export async function POST(
 
   let scheduledResult: Record<string, unknown> | null = null;
   let scheduledFor: string | null = null;
-  let enqueuePhEtravelArrivalRunnerJob = false;
 
   if (mode === "live_assisted") {
     const supportsLiveAssisted =
@@ -1777,21 +1680,75 @@ export async function POST(
       );
     }
     if (!liveRetryEnabledForApplication(ownedApplication.country, ownedApplication.visa_type)) {
-      if (isPhilippinesEtravelApplication(ownedApplication.country, ownedApplication.visa_type)) {
-        return NextResponse.json(
-          {
-            error: phEtravelUserFacingError({ code: "live_disabled" }),
-            code: "live_disabled",
-          },
-          { status: 403 },
-        );
-      }
       return NextResponse.json(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
     }
+    if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const consent = requestedSubmission.taiwanOfficialTermsConsent;
+      if (!consent?.entryPromptAccepted || !consent.termsModalAccepted) {
+        return NextResponse.json(
+          {
+            error: "请分别确认台湾官网进入提示与条款弹窗授权后再提交。",
+            code: "tw_official_terms_consent_required",
+          },
+          { status: 422 },
+        );
+      }
+      try {
+        const activeJob = await getActiveTaiwanRunnerJob(admin, applicationId);
+        if (activeJob) {
+          return NextResponse.json(
+            {
+              error: "A Taiwan submission job is already active.",
+              code: "tw_active_job_exists",
+              jobId: activeJob.id,
+              jobStatus: activeJob.status,
+            },
+            { status: 409 },
+          );
+        }
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: "query_failed",
+          },
+          { status: 500 },
+        );
+      }
+      const completeness = await loadApplicationCompleteness({
+        admin,
+        application: ownedApplication,
+      });
+      if (!completeness.complete) {
+        return NextResponse.json(
+          {
+            error: "请先补齐台湾申请的必填信息和材料。",
+            code: "application_incomplete",
+            completeness,
+          },
+          { status: 422 },
+        );
+      }
+    }
     if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      try {
+        ownedProfile.inbox_alias = await rotateLegacyManagedInboxAlias(
+          admin,
+          ownedProfile.id,
+          ownedProfile.inbox_alias,
+        );
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : "Managed inbox alias rotation failed.",
+            code: "vn_prearrival_otp_alias_rotation_failed",
+          },
+          { status: 500 },
+        );
+      }
       const inboxRouteBlocker = await getManagedInboxRouteBlocker(ownedProfile.inbox_alias);
       if (inboxRouteBlocker) {
         return NextResponse.json(
@@ -1872,10 +1829,7 @@ export async function POST(
       if (scheduleDecision.action === "reject") {
         return NextResponse.json(
           {
-            error: phEtravelUserFacingError({
-              code: scheduleDecision.code,
-              message: scheduleDecision.message,
-            }),
+            error: scheduleDecision.message,
             code: scheduleDecision.code,
           },
           { status: scheduleDecision.status },
@@ -1931,29 +1885,7 @@ export async function POST(
         scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
-    if (isPhilippinesEtravelArrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
-      const activeRunnerJob = await getPhEtravelArrivalActiveRunnerJob(admin, applicationId);
-      if (activeRunnerJob) {
-        return NextResponse.json(
-          {
-            error: phEtravelUserFacingError({ code: "active_job_exists" }),
-            code: "active_job_exists",
-            jobId: activeRunnerJob.id,
-          },
-          { status: 409 },
-        );
-      }
-      const completeness = await loadApplicationCompleteness({ admin, application: ownedApplication });
-      if (!completeness.complete) {
-        return NextResponse.json(
-          {
-            error: phEtravelUserFacingError({ code: "application_incomplete" }),
-            code: "application_incomplete",
-            completeness,
-          },
-          { status: 422 },
-        );
-      }
+    if (isPhilippinesEtravelApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const scheduleDecision = await decidePhEtravelLiveSchedule({
         admin,
         applicationId,
@@ -1963,7 +1895,7 @@ export async function POST(
       if (scheduleDecision.action === "reject") {
         return NextResponse.json(
           {
-            error: phEtravelUserFacingError({ code: scheduleDecision.code }),
+            error: scheduleDecision.message,
             code: scheduleDecision.code,
           },
           { status: scheduleDecision.status },
@@ -1973,43 +1905,169 @@ export async function POST(
         queueStatus = "phetravel_live_assisted_scheduled";
         scheduledResult = scheduleDecision.result;
         scheduledFor = scheduleDecision.earliestSubmissionDate;
-      } else {
-        enqueuePhEtravelArrivalRunnerJob = true;
       }
     }
-    if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
-      const blocker = await getTaiwanRetryBlocker(admin, applicationId, Date.parse(now));
-      if (blocker) {
-        return NextResponse.json(blocker, { status: blocker.status });
-      }
-      const completeness = await loadApplicationCompleteness({
-        admin,
-        application: ownedApplication,
-      });
-      if (!completeness.complete) {
+    if (isKoreaEArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const preflight = await readKoreaEArrivalPreflight(admin, applicationId);
+      if (!preflight.ok) {
         return NextResponse.json(
           {
-            error: "申请资料尚未完整，不能开始官网自动填写。请先补齐缺失信息和材料。",
-            code: "application_incomplete",
-            completeness,
+            error: preflight.message,
+            code: preflight.code === "load_failed"
+              ? "kr_eac_preflight_load_failed"
+              : `kr_eac_preflight_${preflight.code}`,
           },
-          { status: 422 },
+          { status: preflight.code === "load_failed" ? 500 : 422 },
         );
+      }
+      const dates = await readKoreaEArrivalAnswers(admin, applicationId, ownedApplication);
+      if (dates.error) {
+        return NextResponse.json(
+          { error: dates.error, code: "kr_eac_date_load_failed" },
+          { status: 500 },
+        );
+      }
+      const scheduleDecision = decideKoreaEArrivalCardLiveSchedule({
+        applicationId,
+        arrivalDate: dates.arrivalDate,
+        departureDate: dates.departureDate,
+        transportType: dates.arrivalMode,
+        accommodationAddressProvided: dates.stayAddressProvided,
+        now: new Date(now),
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "kr_eac_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
   }
 
-  const queueBackend: QueueBackend =
+  const poolFlow = resolveRunnerPoolFlow(
+    ownedApplication.country,
+    ownedApplication.visa_type,
+  );
+  const useRunnerPool =
     mode === "live_assisted" &&
-      (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type) ||
-        enqueuePhEtravelArrivalRunnerJob)
-      ? "runner_job"
-      : "submission_queue";
+    poolFlow !== null &&
+    shouldUseSharedRunnerPool(
+      poolFlow,
+      process.env.RUNNER_POOL_MIGRATION_ENABLED === "true",
+    );
 
-  const queueResult = queueBackend === "runner_job"
-    ? enqueuePhEtravelArrivalRunnerJob
-      ? await insertPhEtravelArrivalRunnerJob({ applicationId, now })
-      : await insertTaiwanRunnerJob({ applicationId, now })
+  // Keep the pre-pool Singapore migration available as a rollback path. When
+  // the shared pool is enabled it is authoritative; never enqueue the same
+  // application through both transports in one retry request.
+  const useSgacCountryRunner =
+    !useRunnerPool &&
+    mode === "live_assisted" &&
+    !scheduledResult &&
+    isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) &&
+    process.env.SGAC_RUNNER_JOB_MIGRATION_ENABLED !== "false";
+
+  if (useSgacCountryRunner) {
+    try {
+      const countryQueue = await enqueueSgacRunnerRetry(applicationId, {
+        correlationId: `retry:${applicationId}:${now}`,
+        metadata: {
+          source: "retry_submission",
+          mode,
+          provider,
+        },
+      });
+
+      if (countryQueue.route === "runner_job") {
+        const { error: appUpdateError } = await admin
+          .from("applications")
+          .update({
+            status: "submitted",
+            submitted_at: now,
+            submission_result_status: "waiting",
+            submission_result: null,
+            confirmation_number: null,
+            submission_result_updated_at: now,
+            updated_at: now,
+          })
+          .eq("id", applicationId);
+        if (appUpdateError) {
+          return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          ok: true,
+          applicationId,
+          jobId: countryQueue.id,
+          queueStatus: "sgac_live_assisted_pending",
+          queueTransport: "runner_job",
+          mode,
+          provider,
+          alreadyQueued: !countryQueue.created,
+          newApplication: freshDs160Submission,
+          supersededCount: 0,
+          scheduled: false,
+          scheduledFor: null,
+          result: null,
+          workerTriggered: countryQueue.workerTriggered,
+        });
+      }
+      // A legacy row is already scheduled or processing. Continue through the
+      // established legacy enqueue RPC, which atomically reuses that row.
+    } catch (error) {
+      // Migration safety valve: if the RPC is unavailable or the country wake
+      // fails before a job is returned, preserve the established legacy path.
+      console.warn("[retry-submission] SGAC country runner unavailable; using legacy queue.", {
+        applicationId: applicationId.slice(0, 8),
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const isTaiwanFormalSubmit =
+    mode === "live_assisted" &&
+    isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type);
+  const taiwanQueueResult = isTaiwanFormalSubmit
+    ? await insertTaiwanRunnerJob({
+        applicationId,
+        now,
+        consent: requestedSubmission.taiwanOfficialTermsConsent!,
+      })
+    : null;
+  const poolEnqueue = !isTaiwanFormalSubmit && useRunnerPool
+    ? await enqueueRunnerPoolJob(
+        applicationId,
+        ownedApplication.country ?? "",
+        poolFlow,
+        {
+          metadata: { retryIntent: requestedSubmission.intent },
+          availableAt: runnerPoolAvailableAt(
+            scheduledFor,
+            ownedApplication.country,
+          ),
+        },
+      )
+    : null;
+  const queueResult: RetryQueueInsertResult = taiwanQueueResult ?? (poolEnqueue
+    ? {
+        error: null,
+        jobId: poolEnqueue.id,
+        queueStatus:
+          poolEnqueue.transport === "submission_queue"
+            ? (poolEnqueue.status as SubmissionQueueStatus | null)
+            : queueStatus,
+        mode,
+        provider,
+        reusedExisting: !poolEnqueue.created,
+        supersededCount: 0,
+      }
     : await insertRetryQueueRow(admin, {
         applicationId,
         queueStatus,
@@ -2025,12 +2083,20 @@ export async function POST(
                 ? "scheduled_for_tdac_window"
                 : queueStatus === "phetravel_live_assisted_scheduled"
                   ? "scheduled_for_phetravel_window"
+                  : queueStatus === "kr_eac_live_assisted_scheduled"
+                    ? "scheduled_for_kr_e_arrival_window"
                   : null,
-      });
+      }));
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
   if (queueResult.reusedExisting) {
+    const stickyWake = isIndonesiaEVisaApplication(
+      ownedApplication.country,
+      ownedApplication.visa_type,
+    )
+      ? await ensureFlyMachineStarted("indonesia")
+      : null;
     if (freshDs160Submission) {
       const { error: appUpdateError } = await admin
         .from("applications")
@@ -2055,11 +2121,13 @@ export async function POST(
       queueStatus: queueResult.queueStatus,
       mode: queueResult.mode ?? mode,
       provider: queueResult.provider ?? provider,
-      queueBackend,
       alreadyQueued: true,
       newApplication: freshDs160Submission,
       supersededCount: queueResult.supersededCount,
       result: ownedApplication.submission_result,
+      queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
+      queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
+      workerTriggered: poolEnqueue?.workerTriggered ?? stickyWake?.ok ?? false,
     });
   }
 
@@ -2087,8 +2155,8 @@ export async function POST(
   const { error: appUpdateError } = await admin
     .from("applications")
     .update({
-      status: queueBackend === "runner_job" ? "processing" : "submitted",
-      submitted_at: now,
+      status: isTaiwanFormalSubmit ? "processing" : "submitted",
+      submitted_at: isTaiwanFormalSubmit ? null : now,
       submission_result_status: nextSubmissionResultStatus,
       submission_result: nextSubmissionResult,
       confirmation_number: null,
@@ -2101,11 +2169,18 @@ export async function POST(
     return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
   }
 
-  const workerTriggered = queueBackend === "runner_job"
+  const workerTriggered = scheduledResult
     ? false
-    : scheduledResult
-    ? false
-    : await triggerCloudSubmissionWorker(queueResult.jobId);
+    : poolEnqueue
+      ? poolEnqueue.workerTriggered
+      : isIndonesiaEVisaApplication(
+          ownedApplication.country,
+          ownedApplication.visa_type,
+        )
+        ? (await ensureFlyMachineStarted("indonesia")).ok
+        : (await wakeCloudSubmissionWorker(queueResult.jobId, {
+            target: ownedApplication.country ?? "legacy",
+          })).ok;
 
   return NextResponse.json({
     ok: true,
@@ -2114,12 +2189,13 @@ export async function POST(
     queueStatus,
     mode,
     provider,
-    queueBackend,
+    queueBackend: isTaiwanFormalSubmit ? "runner_job" : undefined,
     newApplication: freshDs160Submission,
     supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
     result: nextSubmissionResult,
     workerTriggered,
+    queueTransport: isTaiwanFormalSubmit ? "runner_job" : poolEnqueue?.transport ?? "submission_queue",
   });
 }

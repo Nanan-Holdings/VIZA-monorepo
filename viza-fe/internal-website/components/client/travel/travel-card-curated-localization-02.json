@@ -1,0 +1,668 @@
+{
+"皇后镇::Arrowtown Chinese Settlement": {
+    "nameZh": "箭城华人聚居区"
+  },
+  "皇后镇::Ballarat St Bridge": {
+    "nameZh": "巴拉瑞特街桥"
+  },
+  "皇后镇::Coronation Bath House": {
+    "nameZh": "加冕浴场"
+  },
+  "皇后镇::Hidden Island": {
+    "nameZh": "隐藏岛"
+  },
+  "皇后镇::Skyline Queenstown": {
+    "nameZh": "皇后镇天际线"
+  },
+  "皇后镇::The Queenstown Trail": {
+    "nameZh": "皇后镇步道"
+  },
+  "黄金海岸::Jubilee Bridge": {
+    "nameZh": "禧年桥"
+  },
+  "黄金海岸::Ocean (building)": {
+    "nameZh": "海洋（建筑）"
+  },
+  "黄金海岸::Q1大厦": {
+    "nameZh": "1大厦"
+  },
+  "会安::Hoi An Museum": {
+    "nameZh": "会安博物馆"
+  },
+  "会安::Museum of Sa Huynh Culture": {
+    "nameZh": "沙黄文化博物馆"
+  },
+  "会安::Nguyen Tri Phuong Bridge": {
+    "nameZh": "阮知方桥"
+  },
+  "会安::Nguyen Van Troi Bridge": {
+    "nameZh": "阮文追桥"
+  },
+  "会安::Tiên Sơn Bridge": {
+    "nameZh": "天山桥"
+  },
+  "惠灵顿::City Gallery Wellington": {
+    "nameZh": "惠灵顿市立美术馆"
+  },
+  "惠灵顿::City to Sea Bridge": {
+    "nameZh": "城市至海洋大桥"
+  },
+  "惠灵顿::Dominion Observatory": {
+    "nameZh": "多米尼恩天文台"
+  },
+  "惠灵顿::Frank Kitts Park": {
+    "nameZh": "弗兰克·基茨公园"
+  },
+  "惠灵顿::St Gerard's Church and Monastery": {
+    "nameZh": "圣杰拉德教堂和修道院"
+  },
+  "惠灵顿::Te Ngākau Civic Square": {
+    "nameZh": "ā 市政广场"
+  },
+  "惠灵顿::Wellington Cable Car": {
+    "nameZh": "惠灵顿缆车"
+  },
+  "惠灵顿::Wellington Central": {
+    "nameZh": "惠灵顿中心"
+  },
+  "惠灵顿::Wellington Museum": {
+    "nameZh": "惠灵顿博物馆"
+  },
+  "基督城::Chateau on the Park": {
+    "nameZh": "公园城堡"
+  },
+  "基督城::Christ Church Cathedral, Christchurch": {
+    "nameZh": "基督教堂大教堂，基督城"
+  },
+  "基督城::Christchurch Art Gallery": {
+    "nameZh": "基督城美术馆"
+  },
+  "基督城::Christchurch tramway system": {
+    "nameZh": "基督城有轨电车系统"
+  },
+  "基督城::Firefighters Reserve": {
+    "nameZh": "消防员后备队"
+  },
+  "基督城::Hornby Clocktower": {
+    "nameZh": "霍恩比钟楼"
+  },
+  "基督城::Lancaster Park": {
+    "nameZh": "兰卡斯特公园"
+  },
+  "基督城::New Brighton Pier, Christchurch": {
+    "nameZh": "新布莱顿码头，基督城"
+  },
+  "基督城::St Michael's Church School": {
+    "nameZh": "圣迈克尔教堂学校"
+  },
+  "基督城::St Ninian's Church of Riccarton": {
+    "nameZh": "里卡顿圣尼尼安教堂"
+  },
+  "济州::April 3 Jeju Peace Park": {
+    "nameZh": "4月3日 济州和平公园"
+  },
+  "济州::Former Jeju Provincial Government Building": {
+    "nameZh": "济州道政府旧址"
+  },
+  "济州::Goneul Donghwan Haejangseong Fortress": {
+    "nameZh": "古尔东焕海长城"
+  },
+  "济州::Hotel Regent Marine the Blue": {
+    "nameZh": "丽晶海洋蓝酒店"
+  },
+  "济州::Nexon Computer Museum": {
+    "nameZh": "电脑博物馆"
+  },
+  "甲米::Chinese Temple": {
+    "nameZh": "中国寺庙"
+  },
+  "甲米::Hat Noppharat Thara–Mu Ko Phi Phi National Park": {
+    "nameZh": "帽子诺帕拉特塔拉 – 皮皮岛穆岛国家公园"
+  },
+  "甲米::Khao Phanom Bencha National Park": {
+    "nameZh": "国家公园"
+  },
+  "甲米::Ko Phi Phi Don": {
+    "nameZh": "你在那里"
+  },
+  "甲米::Ko Po Da Nai": {
+    "nameZh": "我不在这里。"
+  },
+  "甲米::Ko Po Da Nok": {
+    "nameZh": "甲米?????"
+  },
+  "甲米::Krabi Mangrove Walking Trail": {
+    "nameZh": "甲米红树林步道"
+  },
+  "甲米::Phra Nang Nai Cave": {
+    "nameZh": "帕南奈洞"
+  },
+  "甲米::Wat Kaeo Korawaram": {
+    "nameZh": "瓦卡奥科拉瓦拉姆"
+  },
+  "金奈::Armenian Church, Chennai": {
+    "nameZh": "金奈亚美尼亚教堂"
+  },
+  "金奈::Chepauk Palace": {
+    "nameZh": "切帕克宫"
+  },
+  "金奈::Guindy National Park": {
+    "nameZh": "金迪国家公园"
+  },
+  "金奈::Marundeeswarar Temple": {
+    "nameZh": "马伦迪斯瓦拉尔神庙"
+  },
+  "金奈::Parthasarathy Temple": {
+    "nameZh": "帕尔塔萨拉蒂神庙"
+  },
+  "金奈::The Park, Chennai": {
+    "nameZh": "钦奈公园"
+  },
+  "卡尔加里::Calgary Stampede": {
+    "nameZh": "卡尔加里牛仔节"
+  },
+  "卡尔加里::Cathedral Church of the Redeemer": {
+    "nameZh": "救世主大教堂"
+  },
+  "卡尔加里::Fort Calgary": {
+    "nameZh": "卡尔加里堡"
+  },
+  "卡尔加里::Pai Yuin Temple": {
+    "nameZh": "派云寺"
+  },
+  "卡尔加里::Prince's Island Park (Calgary)": {
+    "nameZh": "王子岛公园（卡尔加里）"
+  },
+  "卡尔加里::Stephen Avenue": {
+    "nameZh": "斯蒂芬大道"
+  },
+  "卡帕多奇亚::Castle of Ortahisar": {
+    "nameZh": "奥尔塔希萨尔城堡"
+  },
+  "卡帕多奇亚::Church of Saint Barbara": {
+    "nameZh": "圣芭芭拉教堂"
+  },
+  "卡帕多奇亚::Churches of Göreme": {
+    "nameZh": "格雷梅的教堂"
+  },
+  "卡帕多奇亚::Damsa Dam": {
+    "nameZh": "大坝"
+  },
+  "卡帕多奇亚::Derinkuyu underground city": {
+    "nameZh": "德林库尤地下城"
+  },
+  "卡帕多奇亚::Göreme": {
+    "nameZh": "戈雷梅"
+  },
+  "卡帕多奇亚::Kaymakli underground city": {
+    "nameZh": "卡伊马克勒地下城"
+  },
+  "卡帕多奇亚::Nevşehir": {
+    "nameZh": "内夫谢希尔"
+  },
+  "卡帕多奇亚::Özkonak underground city": {
+    "nameZh": "厄兹科纳克地下城"
+  },
+  "卡萨布兰卡::Abderrahman Slaoui Museum": {
+    "nameZh": "阿卜杜勒拉赫曼·斯拉维博物馆"
+  },
+  "卡萨布兰卡::Al-Quds Mosque": {
+    "nameZh": "阿克萨清真寺"
+  },
+  "卡萨布兰卡::Notre-Dame-de-Lourdes Church": {
+    "nameZh": "露德圣母教堂"
+  },
+  "卡萨布兰卡::Temple Beth-El": {
+    "nameZh": "贝斯埃尔犹太教堂"
+  },
+  "开罗::Cairo Citadel": {
+    "nameZh": "开罗城堡"
+  },
+  "开罗::Coptic Cairo": {
+    "nameZh": "科普特开罗"
+  },
+  "开罗::Egyptian Museum": {
+    "nameZh": "埃及博物馆"
+  },
+  "开罗::Giza": {
+    "nameZh": "人类"
+  },
+  "坎昆::Cancun Underwater Museum": {
+    "nameZh": "坎昆水下博物馆"
+  },
+  "坎昆::Estadio Cancun 86": {
+    "nameZh": "坎昆体育场 86"
+  },
+  "坎昆::Plaza Las Américas": {
+    "nameZh": "美洲广场"
+  },
+  "科尔多瓦::Patio Olmos": {
+    "nameZh": "奥尔莫斯庭院"
+  },
+  "科尔多瓦::Plaza de la Intendencia (Córdoba, Argentina)": {
+    "nameZh": "（阿根廷科尔多瓦）"
+  },
+  "科尔多瓦::Provincial Museum of Fine Arts Emilio A. Caraffa": {
+    "nameZh": "省立美术馆 埃米利奥··卡拉法"
+  },
+  "科尔多瓦::Saint Roch Church": {
+    "nameZh": "圣罗克教堂"
+  },
+  "科尔多瓦::Teatro del Libertador General San Martín": {
+    "nameZh": "圣马丁将军解放者剧院"
+  },
+  "科克::Bishop Lucey Park": {
+    "nameZh": "卢西主教公园"
+  },
+  "科克::Cork Butter Museum": {
+    "nameZh": "软木黄油博物馆"
+  },
+  "科克::Cork Opera House": {
+    "nameZh": "科克歌剧院"
+  },
+  "科克::Holy Trinity Church, Cork": {
+    "nameZh": "科克圣三一教堂"
+  },
+  "科克::Saints Peter and Paul's Church, Cork": {
+    "nameZh": "科克圣彼得和圣保罗教堂"
+  },
+  "科克::St. Finbarr's South Church": {
+    "nameZh": "圣芬巴尔南教堂"
+  },
+  "科隆::Cologne Cathedral": {
+    "nameZh": "科隆大教堂"
+  },
+  "科隆::Cologne Cathedral quarter": {
+    "nameZh": "科隆大教堂区"
+  },
+  "科隆::Kolumba": {
+    "nameZh": "哥伦布"
+  },
+  "科隆::Museum für Angewandte Kunst (Cologne)": {
+    "nameZh": "科隆应用艺术博物馆"
+  },
+  "科隆::Wallraf–Richartz Museum": {
+    "nameZh": "瓦尔拉夫-里夏茨博物馆"
+  },
+  "魁北克城::Beauport, Quebec City": {
+    "nameZh": "魁北克市博波尔"
+  },
+  "魁北克城::Musée de la civilisation": {
+    "nameZh": "文明博物馆"
+  },
+  "魁北克城::Musée national des beaux-arts du Québec": {
+    "nameZh": "魁北克国家美术博物馆"
+  },
+  "魁北克城::Quebec City Armoury": {
+    "nameZh": "魁北克市军械库"
+  },
+  "拉巴特::Ahl Fez Mosque": {
+    "nameZh": "阿赫尔菲斯清真寺"
+  },
+  "拉巴特::Kasbah of the Udayas": {
+    "nameZh": "乌达雅堡"
+  },
+  "拉巴特::Museum of History and Civilizations": {
+    "nameZh": "历史与文明博物馆"
+  },
+  "拉巴特::Museum of History and Civilizations in Rabat": {
+    "nameZh": "拉巴特历史与文明博物馆"
+  },
+  "拉巴特::National Jewellery Museum (Morocco)": {
+    "nameZh": "摩洛哥国家珠宝博物馆"
+  },
+  "拉巴特::Royal Theatre of Rabat": {
+    "nameZh": "拉巴特皇家剧院"
+  },
+  "拉巴特::St. Peter's Cathedral (Rabat)": {
+    "nameZh": "圣彼得大教堂（拉巴特）"
+  },
+  "拉巴特::Sunnah Mosque": {
+    "nameZh": "逊尼清真寺"
+  },
+  "拉巴特::The Great Mosque of Rabat": {
+    "nameZh": "拉巴特大清真寺"
+  },
+  "拉斯维加斯::Sphere球馆": {
+    "nameZh": "球馆"
+  },
+  "兰卡威::Langkawi Craft Complex": {
+    "nameZh": "兰卡威工艺中心"
+  },
+  "兰卡威::Pantai Kok Lighthouse": {
+    "nameZh": "科克灯塔海滩"
+  },
+  "兰卡威::Underwater World Langkawi": {
+    "nameZh": "兰卡威海底世界"
+  },
+  "里昂::Ancient Theatre of Fourvière": {
+    "nameZh": "富维耶古剧场"
+  },
+  "里昂::Lyon Zoo": {
+    "nameZh": "里昂动物园"
+  },
+  "里昂::Musée Gadagne": {
+    "nameZh": "加达涅博物馆"
+  },
+  "里昂::Museum of Fine Arts of Lyon": {
+    "nameZh": "里昂美术博物馆"
+  },
+  "里昂::Odeon of Lyon": {
+    "nameZh": "里昂剧院"
+  },
+  "里昂::Vieux Lyon": {
+    "nameZh": "老里昂"
+  },
+  "里斯本::Calouste Gulbenkian Museum": {
+    "nameZh": "卡洛斯特·古尔本基安博物馆"
+  },
+  "里斯本::Carmo Convent": {
+    "nameZh": "卡尔莫修道院"
+  },
+  "里斯本::Lisbon Cathedral": {
+    "nameZh": "里斯本大教堂"
+  },
+  "里斯本::Museum of Lisbon": {
+    "nameZh": "里斯本博物馆"
+  },
+  "里约热内卢::Laranjeiras, Rio de Janeiro": {
+    "nameZh": "拉兰热拉斯，里约热内卢"
+  },
+  "里约热内卢::Museum of Modern Art, Rio de Janeiro": {
+    "nameZh": "里约热内卢现代艺术博物馆"
+  },
+  "里约热内卢::Museum of Tomorrow": {
+    "nameZh": "明日博物馆"
+  },
+  "里约热内卢::National Museum of Brazil": {
+    "nameZh": "巴西国家博物馆"
+  },
+  "龙目岛::Bayan Beleq Mosque": {
+    "nameZh": "巴彦贝莱克清真寺"
+  },
+  "龙目岛::Gili Air": {
+    "nameZh": "吉利艾尔岛"
+  },
+  "龙目岛::Gili Meno": {
+    "nameZh": "吉利梅诺"
+  },
+  "龙目岛::Mataram Mall": {
+    "nameZh": "马塔兰购物中心"
+  },
+  "龙目岛::Narmada Palace": {
+    "nameZh": "纳尔默达宫"
+  },
+  "龙目岛::Pura Lingsar": {
+    "nameZh": "林萨寺"
+  },
+  "龙目岛::Suranadi Temple": {
+    "nameZh": "苏拉纳迪神庙"
+  },
+  "卢克索::Abu Haggag Mosque": {
+    "nameZh": "阿布哈加格清真寺"
+  },
+  "卢克索::KV8": {
+    "nameZh": "帝王谷第八墓室"
+  },
+  "卢克索::KV9": {
+    "nameZh": "帝王谷第九墓室"
+  },
+  "卢克索::Mortuary Temple of Thutmosis III": {
+    "nameZh": "图特摩斯三世陵庙"
+  },
+  "卢塞恩::Church of St. Leodegar (Lucerne)": {
+    "nameZh": "圣莱奥德加教堂（卢塞恩）"
+  },
+  "卢塞恩::Flieger Flab Museum": {
+    "nameZh": "空军博物馆"
+  },
+  "卢塞恩::Jesuit Church, Lucerne": {
+    "nameZh": "卢塞恩耶稣会教堂"
+  },
+  "卢塞恩::Kapellbrücke": {
+    "nameZh": "卡佩尔桥"
+  },
+  "卢塞恩::Lake Lucerne": {
+    "nameZh": "卢塞恩湖"
+  },
+  "卢塞恩::Lion Monument": {
+    "nameZh": "狮子纪念碑"
+  },
+  "卢塞恩::Lucerne Culture and Congress Centre": {
+    "nameZh": "卢塞恩文化和会议中心"
+  },
+  "卢塞恩::Meggenhorn Castle": {
+    "nameZh": "梅根霍恩城堡"
+  },
+  "卢塞恩::Rosengart Collection Museum": {
+    "nameZh": "罗森加特收藏博物馆"
+  },
+  "卢塞恩::Swiss Museum of Transport": {
+    "nameZh": "瑞士交通博物馆"
+  },
+  "鹿特丹::City Tour Line 10": {
+    "nameZh": "城市观光线路 10"
+  },
+  "鹿特丹::Diergaarde Blijdorp": {
+    "nameZh": "布莱多普动物园"
+  },
+  "鹿特丹::Erasmusbrug": {
+    "nameZh": "伊拉斯谟桥"
+  },
+  "鹿特丹::German bombing of Rotterdam": {
+    "nameZh": "德国轰炸鹿特丹"
+  },
+  "鹿特丹::Kunsthal": {
+    "nameZh": "艺术厅"
+  },
+  "鹿特丹::Maritime Museum Rotterdam": {
+    "nameZh": "鹿特丹海事博物馆"
+  },
+  "鹿特丹::Museum Boijmans Van Beuningen": {
+    "nameZh": "博伊曼斯·范·伯宁根博物馆"
+  },
+  "鹿特丹::Museum Rotterdam": {
+    "nameZh": "鹿特丹博物馆"
+  },
+  "鹿特丹::The Tower of Babel (Bruegel)": {
+    "nameZh": "巴别塔（勃鲁盖尔）"
+  },
+  "鹿特丹::Wereldmuseum Rotterdam": {
+    "nameZh": "鹿特丹世界博物馆"
+  },
+  "罗马::Capitoline Museums": {
+    "nameZh": "卡比托利欧博物馆"
+  },
+  "罗马::Museo Nazionale Romano": {
+    "nameZh": "国家罗马博物馆"
+  },
+  "罗马::Pantheon, Rome": {
+    "nameZh": "罗马万神殿"
+  },
+  "罗马::Piazza della Repubblica, Rome": {
+    "nameZh": "罗马共和国广场"
+  },
+  "罗马::San Vitale, Rome": {
+    "nameZh": "圣维塔莱，罗马"
+  },
+  "罗马::Victor Emmanuel II Monument": {
+    "nameZh": "维克托·伊曼纽尔二世纪念碑"
+  },
+  "马德拉::Church of St Martin": {
+    "nameZh": "圣马丁教堂"
+  },
+  "马德拉::Fortaleza de São Tiago": {
+    "nameZh": "圣詹姆斯要塞"
+  },
+  "马德拉::Igreja de Nossa Senhora do Monte": {
+    "nameZh": "山中圣母教堂"
+  },
+  "马德拉::João Gomes Bridge": {
+    "nameZh": "约翰·戈麦斯桥"
+  },
+  "马德里::Museo del Prado": {
+    "nameZh": "普拉多博物馆"
+  },
+  "马德里::Plaza Mayor, Madrid": {
+    "nameZh": "马德里马约尔广场"
+  },
+  "马德里::Railway Museum (Madrid)": {
+    "nameZh": "马德里铁路博物馆"
+  },
+  "马德里::Royal Alcázar of Madrid": {
+    "nameZh": "马德里皇家阿尔卡萨宫"
+  },
+  "马德里::Royal Palace of Madrid": {
+    "nameZh": "马德里王宫"
+  },
+  "马德里::Santa Cruz Palace, Madrid": {
+    "nameZh": "圣克鲁斯宫，马德里"
+  },
+  "马拉加::Andalusia": {
+    "nameZh": "安达卢西亚"
+  },
+  "马拉加::Carmen Thyssen Museum": {
+    "nameZh": "卡门·蒂森博物馆"
+  },
+  "马拉加::Museo de Málaga": {
+    "nameZh": "马拉加博物馆"
+  },
+  "马拉加::Museo Picasso Málaga": {
+    "nameZh": "马拉加毕加索博物馆"
+  },
+  "马拉加::Plaza de toros de La Malagueta": {
+    "nameZh": "拉马拉盖塔斗牛场"
+  },
+  "马拉加::Sohail Castle": {
+    "nameZh": "索海尔城堡"
+  },
+  "马拉加::Teatro Cervantes (Málaga)": {
+    "nameZh": "塞万提斯剧院（马拉加）"
+  },
+  "马拉喀什::Al-Shorafaa Mosque": {
+    "nameZh": "舒拉法清真寺"
+  },
+  "马拉喀什::Dar el Bacha": {
+    "nameZh": "给巴查"
+  },
+  "马拉喀什::Kutubiyya Mosque": {
+    "nameZh": "库图比亚清真寺"
+  },
+  "马拉喀什::Majorelle Garden": {
+    "nameZh": "马约尔花园"
+  },
+  "马拉喀什::Yves Saint Laurent Museum in Marrakesh": {
+    "nameZh": "马拉喀什的伊夫·圣罗兰博物馆"
+  },
+  "马尼拉::Masjid Al-Dahab": {
+    "nameZh": "达哈卜清真寺"
+  },
+  "马赛::Château d'If": {
+    "nameZh": "伊夫堡"
+  },
+  "马赛::CMA CGM Tower": {
+    "nameZh": "达飞大厦"
+  },
+  "马赛::Marseille Cathedral": {
+    "nameZh": "马赛大教堂"
+  },
+  "马赛::Marseille History Museum": {
+    "nameZh": "马赛历史博物馆"
+  },
+  "马赛::Opéra de Marseille": {
+    "nameZh": "马赛歌剧院"
+  },
+  "曼彻斯特::Manchester Jewish Museum": {
+    "nameZh": "曼彻斯特犹太博物馆"
+  },
+  "曼彻斯特::Manchester Museum": {
+    "nameZh": "曼彻斯特博物馆"
+  },
+  "曼彻斯特::Palace Theatre, Manchester": {
+    "nameZh": "曼彻斯特宫殿剧院"
+  },
+  "曼彻斯特::St Ann's Church, Manchester": {
+    "nameZh": "曼彻斯特圣安妮教堂"
+  },
+  "门多萨::autista Tragantini Stadium": {
+    "nameZh": "特拉甘蒂尼体育场司机"
+  },
+  "门多萨::Museum of the Foundation Area": {
+    "nameZh": "基金会区博物馆"
+  },
+  "门多萨::Plaza Independencia": {
+    "nameZh": "独立广场"
+  },
+  "门多萨::Víctor Legrotaglie Stadium": {
+    "nameZh": "维克托·莱格罗塔格列体育场"
+  },
+  "蒙特雷::Mirador del Obispado": {
+    "nameZh": "主教瞭望台"
+  },
+  "蒙特雷::Monterrey Cathedral": {
+    "nameZh": "蒙特雷大教堂"
+  },
+  "蒙特雷::Museo de Arte Contemporáneo de Monterrey": {
+    "nameZh": "蒙特雷当代艺术博物馆"
+  },
+  "蒙特雷::Old Basilica of Guadalupe, Monterrey": {
+    "nameZh": "蒙特雷瓜达卢佩老教堂"
+  },
+  "蒙特雷::Pabellón M Tower": {
+    "nameZh": "塔亭"
+  },
+  "蒙特雷::Palacio del Obispado": {
+    "nameZh": "主教宫"
+  },
+  "蒙特雷::Papalote Museum, Monterrey": {
+    "nameZh": "蒙特雷帕帕洛特博物馆"
+  },
+  "蒙特雷::Santa Lucía riverwalk": {
+    "nameZh": "圣卢西亚河滨步道"
+  },
+  "蒙特雷::Temple of Our Lady of Sorrow": {
+    "nameZh": "悲伤圣母堂"
+  },
+  "蒙特利尔::Downtown Montreal": {
+    "nameZh": "蒙特利尔市中心"
+  },
+  "蒙特利尔::Montreal Holocaust Museum": {
+    "nameZh": "蒙特利尔大屠杀博物馆"
+  },
+  "蒙特利尔::Old Montreal": {
+    "nameZh": "老蒙特利尔"
+  },
+  "蒙特利尔::Place Jacques-Cartier": {
+    "nameZh": "雅克·卡蒂埃广场"
+  },
+  "孟买::Chhatrapati Shivaji Maharaj Vastu Sangrahalaya": {
+    "nameZh": "贾特拉帕蒂·希瓦吉·玛哈拉吉瓦斯图博物馆"
+  },
+  "孟买::Haji Ali Dargah": {
+    "nameZh": "哈吉阿里陵墓"
+  },
+  "孟买::Mumba Devi Temple": {
+    "nameZh": "孟买女神庙"
+  },
+  "孟买::Siddhivinayak Temple, Mumbai": {
+    "nameZh": "孟买悉地维纳亚克神庙"
+  },
+  "米科诺斯::Aegean Maritime Museum": {
+    "nameZh": "爱琴海海事博物馆"
+  },
+  "米科诺斯::Agora of the Competaliasts": {
+    "nameZh": "竞争者广场"
+  },
+  "米科诺斯::Catholic Church of Mykonos": {
+    "nameZh": "米科诺斯天主教堂"
+  },
+  "米科诺斯::Paraportiani": {
+    "nameZh": "帕拉波尔蒂亚尼"
+  },
+  "米科诺斯::Tourliani monastery": {
+    "nameZh": "图尔利亚尼修道院"
+  },
+  "米兰::Diocesan Museum of Milan": {
+    "nameZh": "米兰教区博物馆"
+  }
+}

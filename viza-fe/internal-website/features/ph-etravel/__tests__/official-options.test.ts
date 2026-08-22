@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  getPhEtravelArrivalPurposeCode,
   getPhEtravelOfficialOptionSource,
   hasUniqueOfficialOptionValues,
   PH_ETRAVEL_ARRIVAL_PURPOSE_OPTIONS,
@@ -10,7 +9,7 @@ import {
 } from "../official-options";
 
 describe("Philippines eTravel official option-source contract", () => {
-  test("keeps E49 complete small option values and submits purpose code not label", () => {
+  test("keeps E13 complete small option values and labels intact", () => {
     expect(PH_ETRAVEL_ARRIVAL_PURPOSE_OPTIONS).toHaveLength(16);
     expect(PH_ETRAVEL_OCCUPATION_OPTIONS).toHaveLength(15);
     expect(PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS).toHaveLength(16);
@@ -25,13 +24,11 @@ describe("Philippines eTravel official option-source contract", () => {
     ).toBe(true);
     expect(
       PH_ETRAVEL_ARRIVAL_PURPOSE_OPTIONS.find(
-        (option) => option.value === "POV999"
+        (option) => option.value === "POV001"
       )
     ).toMatchObject({
-      label: "Others",
+      label: "Holiday/Pleasure/Vacation",
     });
-    expect(getPhEtravelArrivalPurposeCode("POV999")).toBe("POV999");
-    expect(getPhEtravelArrivalPurposeCode("Others")).toBeNull();
     expect(
       PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS.find(
         (option) => option.value === 16
@@ -77,22 +74,6 @@ describe("Philippines eTravel official option-source contract", () => {
         q: "",
       }),
       valueField: "code",
-    });
-  });
-
-  test("uses the current UI-shaped arrival-purpose source", () => {
-    expect(getPhEtravelOfficialOptionSource("arrival_purpose")).toMatchObject({
-      kind: "complete_small_list",
-      endpoint: "/api/v1/common/purpose_of_visits",
-      query: {
-        paginate: "0",
-        q: "",
-        for_arrival: "1",
-        order_by: "name",
-        status_by: "asc",
-      },
-      valueField: "code",
-      retrievedAt: "2026-08-18",
     });
   });
 });

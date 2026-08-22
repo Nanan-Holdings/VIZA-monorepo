@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, MapPin, Phone, ShieldCheck, User, WalletCards } from "lucide-react";
+import { At as AtSign, MapPin, Phone, ShieldCheck, User, Cards as WalletCards } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import {
   BilingualCountryControl,

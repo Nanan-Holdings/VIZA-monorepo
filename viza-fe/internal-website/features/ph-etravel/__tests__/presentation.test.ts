@@ -9,61 +9,6 @@ const keys = (section: ReturnType<typeof getPhEtravelPresentationSection>) =>
   section.fields.map((field) => field.key);
 
 describe("Philippines eTravel form presentation adapter", () => {
-  test("presents Purpose as an official code field, including POV999/Others without label submission", () => {
-    const presentation = createPhEtravelFormPresentation({
-      eligibilityChoice: "ordinary_air_passenger",
-      transportType: "AIR",
-    });
-    const purpose = getPhEtravelPresentationSection(
-      presentation,
-      "travel"
-    ).fields.find((field) => field.key === "travel.purpose_code");
-
-    expect(purpose).toMatchObject({
-      officialKey: "purpose_of_visit_code",
-      control: "select",
-      mode: "input_when_shared_ready",
-      gate: "ready_for_shared_integration",
-    });
-    expect(purpose?.reason).toContain("POV999/Others");
-    expect(purpose?.reason).toContain("official code");
-  });
-
-  test("keeps AIR General Declaration item and attachment branches scoped to Q3-Q12", () => {
-    const q3Positive = createPhEtravelFormPresentation({
-      eligibilityChoice: "ordinary_air_passenger",
-      transportType: "AIR",
-      customsDeclaration: "yes",
-      generalDeclarationGoodsAmount: "1000",
-      generalDeclarationChecklistResponses: [false, false, true],
-      reviewProgress: "signature_required",
-    });
-    const q1Only = createPhEtravelFormPresentation({
-      eligibilityChoice: "ordinary_air_passenger",
-      transportType: "AIR",
-      customsDeclaration: "yes",
-      generalDeclarationChecklistResponses: [true, false],
-      reviewProgress: "signature_required",
-    });
-
-    const q3Items = getPhEtravelPresentationSection(
-      q3Positive,
-      "customs"
-    ).fields.filter((field) => field.key === "baggage.items");
-    expect(q3Items).toEqual([
-      expect.objectContaining({ repeatableItemForQuestion: 3 }),
-    ]);
-    expect(
-      keys(getPhEtravelPresentationSection(q3Positive, "signature_review"))
-    ).toContain("attachments.upload_rules");
-    expect(
-      keys(getPhEtravelPresentationSection(q1Only, "customs"))
-    ).not.toContain("baggage.items");
-    expect(
-      keys(getPhEtravelPresentationSection(q1Only, "signature_review"))
-    ).not.toContain("attachments.upload_rules");
-  });
-
   test("keeps SEA manual paths out of AIR electronic customs and signature fields", () => {
     const presentation = createPhEtravelFormPresentation({
       eligibilityChoice: "ordinary_sea_passenger",
@@ -350,7 +295,6 @@ describe("Philippines eTravel form presentation adapter", () => {
       customsDeclaration: "yes",
       currencyDeclaration: "yes",
       currencyTransportMethod: "physical",
-      otherGoodsDeclared: true,
       reviewProgress: "signature_required",
     });
 

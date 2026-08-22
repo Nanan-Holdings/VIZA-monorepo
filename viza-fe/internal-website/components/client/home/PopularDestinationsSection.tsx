@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
+import { ArrowRight, CheckCircle as CheckCircle2, CircleNotch as Loader2, MagnifyingGlass as Search } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   DESTINATION_REGION_GROUP_DESTINATIONS,
@@ -17,6 +17,7 @@ import {
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import {
   selectUserVisaDestination,
   type UserVisaPackage,
@@ -24,8 +25,28 @@ import {
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isCountryLaunched } from "@/lib/launched-countries";
 import type { DestinationApplicationProgress } from "@/lib/client/application-progress";
+import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 export type { DestinationApplicationProgress };
+
+const DESTINATION_SELECTION_UI_TIMEOUT_MS = 5_000;
+
+async function withUiDeadline<T>(operation: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("destination_selection_timeout")),
+          DESTINATION_SELECTION_UI_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -45,11 +66,9 @@ function isSchemaChoiceCountry(country: string): boolean {
 export function PopularDestinationsSection({
   selectedPackages,
   applicationProgress,
-  onDestinationSelected,
 }: {
   selectedPackages: UserVisaPackage[];
   applicationProgress: Record<string, DestinationApplicationProgress>;
-  onDestinationSelected?: (destination: PopularVisaDestination) => void;
 }) {
   const t = useTranslations("home.popularDestinations");
   const locale = useLocale();
@@ -57,7 +76,7 @@ export function PopularDestinationsSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const isPending = pendingDestinationId !== null;
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const searchResults = normalizedSearch
     ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
@@ -74,26 +93,25 @@ export function PopularDestinationsSection({
       return;
     }
 
-    setPendingDestinationId(destination.id);
-
-    startTransition(async () => {
-      const result = await selectUserVisaDestination(destination.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? t("selectError"));
-        setPendingDestinationId(null);
-        return;
-      }
-
-      if (onDestinationSelected) {
-        onDestinationSelected(destination);
-        setPendingDestinationId(null);
-        return;
-      }
-
-      router.push(
-        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-      );
+    const href = buildApplicationLongFormHref({
+      country: destination.country,
+      visaType: destination.visaType,
     });
+
+    setPendingDestinationId(destination.id);
+    router.push(href);
+    void (async () => {
+      try {
+        const result = await withUiDeadline(selectUserVisaDestination(destination.id));
+        if (!result.success) {
+          setSelectionError(result.error ?? t("selectError"));
+        }
+      } catch {
+        setSelectionError(t("selectError"));
+      } finally {
+        setPendingDestinationId(null);
+      }
+    })();
   }
 
   function renderDestinationCard(destination: PopularVisaDestination) {
@@ -111,6 +129,12 @@ export function PopularDestinationsSection({
     const selected = isSelectedDestination(destination, selectedPackages) || Boolean(progress);
     const highlighted = selected && !isGroup;
     const loading = isPending && pendingDestinationId === destination.id;
+    const applicationHref = isGroup
+      ? null
+      : buildApplicationLongFormHref({
+          country: destination.country,
+          visaType: destination.visaType,
+        });
     const actionLabel = isGroup
       ? t("browseRegion")
       : progress
@@ -145,7 +169,13 @@ export function PopularDestinationsSection({
         key={destination.id}
         type="button"
         onClick={() => handleSelect(destination)}
-        disabled={loading || !launched}
+        onFocus={() => {
+          if (applicationHref) router.prefetch(applicationHref);
+        }}
+        onMouseEnter={() => {
+          if (applicationHref) router.prefetch(applicationHref);
+        }}
+        disabled={isPending || !launched}
         title={launched ? undefined : t("comingSoon")}
         aria-disabled={!launched}
         className={[
@@ -153,7 +183,11 @@ export function PopularDestinationsSection({
           highlighted
             ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
             : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
-          !launched ? "cursor-not-allowed opacity-50" : loading ? "cursor-wait opacity-80" : "cursor-pointer",
+          !launched || (isPending && !loading)
+            ? "cursor-not-allowed opacity-50"
+            : loading
+              ? "cursor-wait opacity-80"
+              : "cursor-pointer",
         ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">
@@ -236,11 +270,7 @@ export function PopularDestinationsSection({
         </div>
       </div>
 
-      {selectionError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {selectionError}
-        </div>
-      )}
+      {selectionError ? <ClientErrorAlert className="mb-4" message={selectionError} /> : null}
 
       {normalizedSearch ? (
         <>

@@ -16,24 +16,61 @@ application lifecycle state.
   application, answer, document, and queue tables.
 - `client-home-dashboard.ts`: server-side home dashboard reads using the same
   client session/profile identity resolution as authenticated customer routes.
+- `applicant-inbox.ts`: resolves current and legacy client-session identities,
+  initializes applicant inbox aliases, and records explicit forwarding consent.
+  Keep its client-facing failures typed and covered by
+  `applicant-inbox.test.ts`.
+- `client-application-status.ts`: customer-safe application timeline, file,
+  and update reads shared by the home dashboard and the submitted application
+  view.
 - `application-group.ts`: group application and team companion creation,
-  companion review state, and authorized companion application reads.
+  companion review state, and authorized companion application reads. Explicit
+  application-form context must accept the signed VIZA client session as well
+  as Supabase Auth while still matching the applicant profile or legacy auth
+  owner; keep this boundary covered by `application-group.test.ts`.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
-- `visa-form-fields.ts`: loads DB-driven visa form fields.
+  Critical answer reads refresh an encrypted independent cache; transient save
+  failures enqueue encrypted, idempotent replay events instead of losing work.
+  Reusable-profile prefill/sync and ordinary answer saves must reject synthetic
+  QA markers, and QA dry-run applications must never sync into Universal Profile.
+  Korea e-Arrival Card preflight completion also lives here so ownership,
+  active-application identity, draft creation, and audit-answer persistence happen
+  behind one authenticated server boundary.
+- `visa-form-fields.ts`: loads DB-driven visa form fields, then runs the shared
+  schema/UI compiler so component mapping and conditional-panel ownership are
+  deterministic across countries.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
 - `user-package.ts`: package/destination assignment and active package reads.
 - `internal-automation/**`: trusted mutations and reads for payment, consent,
   document readiness, packet lifecycle, status events, notifications, and
   admin/customer status summaries.
-- `settings.ts`, `user-profile.ts`, `about-me-sync.ts`: applicant profile data.
 - `client-settings.ts`: client settings privacy requests and frequent traveler
   CRUD backed by applicant profiles.
-- `form-requests.ts`: first-login/about-me form request flow.
 - `support.ts`, `admin-cs.ts`, `support-storage.ts`: applicant support
   ticket submission, admin P2 support inbox reads/replies, and the temporary
   Storage fallback used when a Supabase project has not applied
   `support_ticket` migrations yet.
+- `takeover.ts`: admin 2FA-gated operator takeover listing, claims, and
+  bounded answer capture. Claims use `claim_takeover_session`; completion and
+  abandonment settle the session and runner job only through the guarded
+  `settle_runner_job_takeover` RPC. The completion RPC receives the answer map
+  so answer upserts and settlement remain atomic; focused race/conflict
+  coverage lives in `takeover.test.ts`.
+- `admin-work-items.ts`: reconciles durable operational exceptions into the
+  staff queue and owns auditable assignment/status transitions.
+- `admin-commerce.ts`: audited provisioning retry, refund decision, and
+  approved line-based refund execution commands.
+- `admin-documents.ts`, `admin-privacy.ts`, `admin-leads.ts`: auditable admin
+  decisions for document review, data rights, and marketing lead handling.
+- `admin-submission.ts`: audited, state-checked runner retry commands that refuse
+  to race an active operator takeover.
+- `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
+  auditable publish/retire commands through database functions.
+- `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
+  evidence files, and submits the reviewed response without exposing API keys.
+- `admin-appointments.ts`: owns the staff-side appointment case, expires only
+  persisted-overdue actions, and captures missing official confirmation evidence.
 
 ## Ownership Boundaries
 
@@ -66,5 +103,6 @@ nearest affected route such as `/client/status`, `/client/documents`,
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`
 - `viza-fe/internal-website/types/database.ts`
 - `viza-fe/internal-website/types/visa-form-fields.ts`
+- `viza-fe/internal-website/lib/application-schema-ui-contract.ts`
 - `viza-fe/internal-website/types/agent-test.ts`
 - `viza-fe/internal-website/app/actions/internal-automation/AGENTS.md`

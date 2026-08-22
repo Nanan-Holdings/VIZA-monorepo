@@ -1839,3 +1839,24 @@ Cross-reference this checklist against
 file listed there for an existing country at Phase 3 should have a
 counterpart for yours. If any are missing, you are not at Phase 3
 yet.
+
+## 14. Schema-to-UI contract (required)
+
+Every country schema must satisfy the canonical component and conditional-panel
+contract in `docs/application/schema-ui-contract.md`. The frontend compiles the
+complete visa schema before rendering so one option controller owns one shared
+conditional panel and unsafe shapes fall back to the outer step card.
+
+After adding or refreshing a country, run:
+
+```bash
+cd viza-fe/internal-website
+npm run qa:audit-schema-ui -- --visa-type=<VISA_TYPE> --strict
+```
+
+Do not launch with strict errors. Persist explicit `validation_rules.source`,
+`option_source_field`, remote/dependent option metadata, and deterministic
+`display_order` values even when the runtime compiler can safely infer them.
+Unknown scraped control types remain evidence in the source artifact, but they
+need a reviewed canonical component contract before insertion into the live
+master schema.

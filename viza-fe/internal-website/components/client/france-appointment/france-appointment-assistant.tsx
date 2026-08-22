@@ -3,23 +3,22 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
-  CheckCircle2,
-  Clock3,
+  CheckCircle as CheckCircle2,
+  Clock as Clock3,
   CreditCard,
-  Loader2,
-  Mail,
+  CircleNotch as Loader2,
+  Envelope as Mail,
   MapPin,
   PauseCircle,
   Play,
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   ShieldCheck,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
-import { getTeamApplicationContext } from "@/app/actions/application-group";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -41,6 +40,7 @@ import {
   selectFranceAppointmentSlot,
 } from "@/lib/france-appointment/client";
 import { cn } from "@/lib/utils";
+import { getFranceAppointmentStage } from "@/types/france-appointment";
 import type {
   FranceAppointmentSlot,
   FranceAppointmentStatus,
@@ -58,19 +58,6 @@ type BusyAction =
   | "approve"
   | "book"
   | "cancel";
-
-type AppointmentStage = "review" | "account" | "slots" | "confirm" | "result";
-
-interface AppointmentReviewData {
-  fullName: string | null;
-  dateOfBirth: string | null;
-  nationality: string | null;
-  passportNumber: string | null;
-  passportExpiryDate: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-}
 
 const TERMINAL_STATUSES = new Set<FranceAppointmentStatus>([
   "appointment_confirmation_captured",
@@ -158,40 +145,23 @@ function selectedSlot(slots: FranceAppointmentSlot[]) {
   return slots.find((slot) => ["selected", "user_selected"].includes(slot.status)) ?? null;
 }
 
-function getAppointmentStage(
-  snapshot: FranceAppointmentStatusSnapshot | null,
-): AppointmentStage {
-  if (!snapshot?.job) return "review";
-  if (snapshot.confirmation) return "result";
-  if (TERMINAL_STATUSES.has(snapshot.job.status)) return "review";
-  const hasSelectedSlot = snapshot.slots.some((slot) =>
-    ["selected", "user_selected"].includes(slot.status),
-  );
-  if (
-    hasSelectedSlot ||
-    snapshot.pendingManualAction?.actionType === "final_confirmation" ||
-    [
-      "appointment_slot_selected",
-      "appointment_final_confirmation_required",
-      "appointment_final_confirmation_approved",
-      "appointment_booked",
-    ].includes(snapshot.job.status)
-  ) {
-    return "confirm";
-  }
-  if (
-    snapshot.slots.length > 0 ||
-    [
-      "appointment_calendar_opened",
-      "appointment_slots_observed",
-      "appointment_slot_selection_required",
-      "appointment_no_slots_available",
-    ].includes(snapshot.job.status)
-  ) {
-    return "slots";
-  }
-  return "account";
+function isNonExpiredSlot(slot: FranceAppointmentSlot, nowMs: number): boolean {
+  if (!slot.expiresAt) return false;
+  const expiresAtMs = Date.parse(slot.expiresAt);
+  return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
 }
+
+const REVIEW_MISSING_FIELD_LABEL_KEYS: Record<string, string> = {
+  fullName: "review.missingFieldLabels.fullName",
+  dateOfBirth: "review.missingFieldLabels.dateOfBirth",
+  nationality: "review.missingFieldLabels.nationality",
+  passportNumber: "review.missingFieldLabels.passportNumber",
+  passportExpiryDate: "review.missingFieldLabels.passportExpiryDate",
+  phone: "review.missingFieldLabels.phone",
+  email: "review.missingFieldLabels.email",
+  address: "review.missingFieldLabels.address",
+  franceVisasReference: "review.missingFieldLabels.franceVisasReference",
+};
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
@@ -204,10 +174,8 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 export function FranceAppointmentAssistant({
   applicationId,
-  workerReady,
 }: {
   applicationId: string;
-  workerReady: boolean;
 }) {
   const t = useTranslations("franceAppointment");
   const locale = useLocale();
@@ -222,11 +190,16 @@ export function FranceAppointmentAssistant({
   const [paymentLast4, setPaymentLast4] = useState("");
   const [paymentExpMonth, setPaymentExpMonth] = useState("");
   const [paymentExpYear, setPaymentExpYear] = useState("");
-  const [reviewData, setReviewData] = useState<AppointmentReviewData | null>(null);
-  const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
   const job = snapshot?.job ?? null;
-  const slots = useMemo(() => snapshot?.slots ?? [], [snapshot?.slots]);
+  const slots = useMemo(() => {
+    const allSlots = snapshot?.slots ?? [];
+    if (snapshot?.job?.mode !== "assisted_live") return allSlots;
+    const nowMs = Date.now();
+    return allSlots.filter(
+      (slot) => slot.status === "observed" && isNonExpiredSlot(slot, nowMs),
+    );
+  }, [snapshot?.job?.mode, snapshot?.slots]);
   const selectedAppointmentSlot = useMemo(() => selectedSlot(slots), [slots]);
   const finalApproved = useMemo(
     () =>
@@ -269,7 +242,9 @@ export function FranceAppointmentAssistant({
         setConsentRecorded(true);
       }
       const preferredCenter =
-        typeof next.job?.userPreferencesJson.centerCode === "string"
+        typeof next.review?.centerCode === "string"
+          ? next.review.centerCode
+          : typeof next.job?.userPreferencesJson.centerCode === "string"
           ? next.job.userPreferencesJson.centerCode
           : null;
       if (preferredCenter) setCenterCode(preferredCenter);
@@ -285,35 +260,40 @@ export function FranceAppointmentAssistant({
   }, [loadStatus]);
 
   useEffect(() => {
-    let active = true;
-    void getTeamApplicationContext(applicationId).then((context) => {
-      if (!active || !context.ok || !context.profile) return;
-      const profile = context.profile;
-      const composedName = [profile.given_names_en, profile.surname_en]
-        .filter(Boolean)
-        .join(" ") || null;
-      setReviewData({
-        fullName: profile.full_name_en ?? composedName ?? profile.full_name ?? null,
-        dateOfBirth: profile.date_of_birth ?? null,
-        nationality: profile.nationality ?? null,
-        passportNumber: profile.passport_number ?? null,
-        passportExpiryDate: profile.passport_expiry_date ?? null,
-        phone: profile.phone ?? null,
-        email: profile.email ?? null,
-        address: profile.address_en ?? profile.address ?? null,
-      });
-    });
-    return () => {
-      active = false;
-    };
-  }, [applicationId]);
-
-  useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
-    const timer = window.setInterval(() => {
-      void getFranceAppointmentStatus(applicationId).then(setSnapshot).catch(() => undefined);
-    }, 7000);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void poll(), delayMs);
+    };
+    const poll = async () => {
+      if (document.visibilityState !== "visible") {
+        schedule(30_000);
+        return;
+      }
+      try {
+        const next = await getFranceAppointmentStatus(applicationId);
+        if (!cancelled) setSnapshot(next);
+      } catch {
+        // Keep the last persisted snapshot and retry with the normal cadence.
+      } finally {
+        schedule(7_000);
+      }
+    };
+    const pollWhenVisible = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+
+    schedule(7_000);
+    document.addEventListener("visibilitychange", pollWhenVisible);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", pollWhenVisible);
+    };
   }, [applicationId, job]);
 
   const runAction = async (
@@ -361,7 +341,6 @@ export function FranceAppointmentAssistant({
         },
       });
       const next = await runFranceAppointmentJob(created.id);
-      setReviewConfirmed(true);
       return next;
     });
 
@@ -382,7 +361,6 @@ export function FranceAppointmentAssistant({
         },
       });
       setConsentRecorded(true);
-      setReviewConfirmed(true);
       return getFranceAppointmentStatus(applicationId);
     });
   };
@@ -409,19 +387,31 @@ export function FranceAppointmentAssistant({
       });
     });
 
-  const persistedStage = getAppointmentStage(snapshot);
-  const stage = snapshot?.confirmation
-    ? persistedStage
-    : reviewConfirmed
-      ? persistedStage
-      : "review";
+  const stage = getFranceAppointmentStage(snapshot);
   const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
   const currentStep = stepKeys.indexOf(stage);
   const statusLabel = job
     ? t(`statusLabels.${job.status}`)
     : t("statusLabels.appointment_not_started");
   const isBusy = Boolean(busyAction);
-  const canCheckSlots = Boolean(job) && !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started");
+  const accountReadyForSlotCheck = Boolean(
+    job &&
+      snapshot?.account?.emailVerified &&
+      (
+        snapshot.account.referenceReady === true ||
+        snapshot.account.accountStatus === "appointment_reference_filled" ||
+        job.userPreferencesJson.referenceReady === true
+      ) &&
+      (
+        Boolean(snapshot.account.lastLoginAt) ||
+        ["logged_in", "appointment_reference_filled", "ready"].includes(
+          snapshot.account.accountStatus,
+        )
+      ),
+  );
+  const canCheckSlots = Boolean(job) &&
+    !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started") &&
+    (job?.mode !== "assisted_live" || accountReadyForSlotCheck);
   const canBook = Boolean(
     job &&
       selectedAppointmentSlot &&
@@ -429,16 +419,29 @@ export function FranceAppointmentAssistant({
       (job.mode === "assisted_live" || paymentAuthorized) &&
       !snapshot?.confirmation,
   );
+  const isAssistedLive = job?.mode === "assisted_live";
+  const reviewComplete = snapshot?.review?.complete === true;
   const reviewRows = [
-    { label: t("review.fullName"), value: reviewData?.fullName },
-    { label: t("review.dateOfBirth"), value: reviewData?.dateOfBirth },
-    { label: t("review.nationality"), value: reviewData?.nationality },
-    { label: t("review.passportNumber"), value: reviewData?.passportNumber },
-    { label: t("review.passportExpiry"), value: reviewData?.passportExpiryDate },
-    { label: t("review.phone"), value: reviewData?.phone },
-    { label: t("review.email"), value: reviewData?.email },
-    { label: t("review.address"), value: reviewData?.address },
-    { label: t("review.center"), value: t(`centers.${centerCode}`) },
+    { label: t("review.fullName"), value: snapshot?.review?.fullName },
+    { label: t("review.dateOfBirth"), value: snapshot?.review?.dateOfBirth },
+    { label: t("review.nationality"), value: snapshot?.review?.nationality },
+    { label: t("review.passportNumber"), value: snapshot?.review?.passportNumber },
+    { label: t("review.passportExpiry"), value: snapshot?.review?.passportExpiryDate },
+    { label: t("review.phone"), value: snapshot?.review?.phone },
+    { label: t("review.email"), value: snapshot?.review?.email },
+    { label: t("review.address"), value: snapshot?.review?.address },
+    {
+      label: t("review.franceVisasReference"),
+      value: snapshot?.review?.franceVisasReferenceMasked,
+    },
+    {
+      label: t("review.center"),
+      value:
+        snapshot?.review?.centerName ??
+        (snapshot?.review?.centerCode
+          ? t(`centers.${snapshot.review.centerCode}`)
+          : null),
+    },
   ];
 
   return (
@@ -489,14 +492,6 @@ export function FranceAppointmentAssistant({
         </Alert>
       ) : null}
 
-      {!workerReady ? (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t("cloud.unavailable")}</AlertTitle>
-          <AlertDescription>{t("stateMachine.workerUnavailable")}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {busyAction === "load" && !snapshot ? (
         <Card className="rounded-[8px]">
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-3">
@@ -521,6 +516,24 @@ export function FranceAppointmentAssistant({
                 <Detail key={row.label} label={row.label} value={row.value || t("review.missing")} />
               ))}
             </div>
+            {snapshot?.review?.missingFields && snapshot.review.missingFields.length > 0 ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{t("review.missingFieldsTitle")}</AlertTitle>
+                <AlertDescription>
+                  <p>{t("review.missingFieldsBody")}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {snapshot.review.missingFields.map((field) => (
+                      <li key={field}>
+                        {REVIEW_MISSING_FIELD_LABEL_KEYS[field]
+                          ? t(REVIEW_MISSING_FIELD_LABEL_KEYS[field])
+                          : t("review.missing")}
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <BrandField label={t("setup.center")} htmlFor="france-tls-center">
               <select
                 id="france-tls-center"
@@ -556,7 +569,7 @@ export function FranceAppointmentAssistant({
                 onClick={handleConfirmReview}
                 loading={busyAction === "create" || busyAction === "review"}
                 loadingText={t("setup.creating")}
-                disabled={isBusy || !consentAccepted}
+                disabled={isBusy || !consentAccepted || !reviewComplete}
               >
                 {t("review.confirmAndContinue")}
               </BrandActionButton>
@@ -598,10 +611,6 @@ export function FranceAppointmentAssistant({
               <Detail label={t("account.status")} value={statusLabel} />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => setReviewConfirmed(false)} disabled={isBusy}>
-                <ShieldCheck className="h-4 w-4" />
-                {t("stateMachine.reviewAgain")}
-              </Button>
               <BrandActionButton
                 type="button"
                 onClick={() => job && void runAction("run", () => runFranceAppointmentJob(job.id))}
@@ -611,6 +620,21 @@ export function FranceAppointmentAssistant({
                 <Play className="h-4 w-4" />
                 {t("panel.run")}
               </BrandActionButton>
+              {canCheckSlots ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => job && void runAction("checkSlots", () => checkFranceAppointmentSlots(job.id))}
+                  disabled={isBusy}
+                >
+                  {busyAction === "checkSlots" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {t("panel.checkSlots")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -660,18 +684,31 @@ export function FranceAppointmentAssistant({
                         {slot.appointmentLocation ?? t("slots.locationPending")}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant={chosen ? "secondary" : "outline"}
-                      onClick={() => job && void runAction("slot", () => selectFranceAppointmentSlot(job.id, slot.id))}
-                      disabled={!job || chosen || isBusy}
-                    >
-                      {chosen ? t("slots.selected") : t("slots.choose")}
-                    </Button>
+                    {isAssistedLive ? (
+                      <span className="inline-flex min-h-11 items-center rounded-full border border-brand-200 bg-brand-50 px-4 text-sm font-medium text-brand-700">
+                        {t("slots.observedOnly")}
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant={chosen ? "secondary" : "outline"}
+                        onClick={() => job && void runAction("slot", () => selectFranceAppointmentSlot(job.id, slot.id))}
+                        disabled={!job || chosen || isBusy}
+                      >
+                        {chosen ? t("slots.selected") : t("slots.choose")}
+                      </Button>
+                    )}
                   </div>
                 );
               })
             )}
+            {isAssistedLive ? (
+              <Alert className="border-brand-200 bg-brand-50/60">
+                <ShieldCheck className="h-4 w-4 text-brand-600" />
+                <AlertTitle>{t("slots.liveObservationTitle")}</AlertTitle>
+                <AlertDescription>{t("slots.liveObservationBody")}</AlertDescription>
+              </Alert>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -694,6 +731,13 @@ export function FranceAppointmentAssistant({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
+            {isAssistedLive ? (
+              <Alert className="border-brand-200 bg-brand-50/60">
+                <ShieldCheck className="h-4 w-4 text-brand-600" />
+                <AlertTitle>{t("slots.liveObservationTitle")}</AlertTitle>
+                <AlertDescription>{t("slots.liveObservationBody")}</AlertDescription>
+              </Alert>
+            ) : null}
             {selectedAppointmentSlot ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Detail label={t("results.date")} value={formatDate(selectedAppointmentSlot.appointmentDate, locale) ?? "-"} />
@@ -705,7 +749,7 @@ export function FranceAppointmentAssistant({
               <p className="text-sm text-muted-foreground">{t("final.requirement")}</p>
             )}
 
-            {!paymentAuthorized ? (
+            {!isAssistedLive && !paymentAuthorized ? (
               <div className="space-y-4 rounded-[8px] border bg-muted/20 p-4">
                 <div className="flex items-center gap-2 font-medium">
                   <CreditCard className="h-4 w-4 text-brand-600" />
@@ -733,32 +777,36 @@ export function FranceAppointmentAssistant({
               </div>
             ) : null}
 
-            <Alert className="border-amber-200 bg-amber-50">
+            {!isAssistedLive ? (
+              <Alert className="border-amber-200 bg-amber-50">
               <ShieldCheck className="h-4 w-4" />
               <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
               <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
-            </Alert>
-            <div className="flex flex-wrap gap-2">
-              <BrandActionButton
-                type="button"
-                variant="secondary"
-                onClick={() => job && void runAction("approve", () => approveFranceAppointmentFinalConfirmation(job.id))}
-                loading={busyAction === "approve"}
-                disabled={!job || !selectedAppointmentSlot || isBusy || finalApproved}
-              >
-                {finalApproved ? t("final.approvedBadge") : t("final.approve")}
-              </BrandActionButton>
-              {finalApproved ? (
+              </Alert>
+            ) : null}
+            {!isAssistedLive ? (
+              <div className="flex flex-wrap gap-2">
                 <BrandActionButton
                   type="button"
-                  onClick={() => job && void runAction("book", () => bookSelectedFranceAppointmentSlot(job.id))}
-                  loading={busyAction === "book"}
-                  disabled={!canBook || isBusy}
+                  variant="secondary"
+                  onClick={() => job && void runAction("approve", () => approveFranceAppointmentFinalConfirmation(job.id))}
+                  loading={busyAction === "approve"}
+                  disabled={!job || !selectedAppointmentSlot || isBusy || finalApproved}
                 >
-                  {t("final.book")}
+                  {finalApproved ? t("final.approvedBadge") : t("final.approve")}
                 </BrandActionButton>
-              ) : null}
-            </div>
+                {finalApproved ? (
+                  <BrandActionButton
+                    type="button"
+                    onClick={() => job && void runAction("book", () => bookSelectedFranceAppointmentSlot(job.id))}
+                    loading={busyAction === "book"}
+                    disabled={!canBook || isBusy}
+                  >
+                    {t("final.book")}
+                  </BrandActionButton>
+                ) : null}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

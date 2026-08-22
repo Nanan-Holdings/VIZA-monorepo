@@ -18,7 +18,7 @@ import {
 
 import { cn, matchesSearchText } from "@/lib/utils";
 
-import { ChevronDown, CheckIcon, Globe } from "lucide-react";
+import { CaretDown as ChevronDown, CheckIcon, Globe } from "@phosphor-icons/react";
 import { CircleFlag } from "react-circle-flags";
 
 import { countries } from "country-data-list";
@@ -43,6 +43,7 @@ interface CountryDropdownProps {
   className?: string;
   displayLocale?: string;
   allowedCountryCodes?: readonly string[];
+  forceWhiteBackground?: boolean;
 }
 
 const filteredCountries: Country[] = countries.all.filter(
@@ -68,6 +69,7 @@ const CountryDropdownComponent = (
     className,
     displayLocale,
     allowedCountryCodes,
+    forceWhiteBackground = false,
   }: CountryDropdownProps,
   ref: React.ForwardedRef<HTMLButtonElement>
 ) => {
@@ -138,9 +140,11 @@ const CountryDropdownComponent = (
       <PopoverTrigger
         ref={ref}
         className={cn(
-          "flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] bg-transparent px-3 text-[15px] font-normal shadow-xs hover:bg-transparent focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] disabled:cursor-not-allowed disabled:opacity-50",
+          "application-form-control flex h-12 w-full items-center justify-between bg-transparent px-3 text-[15px] font-normal shadow-none focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
+        data-filled={selected ? "true" : "false"}
+        data-force-white={forceWhiteBackground ? "true" : "false"}
         disabled={disabled}
       >
         {selected ? (
@@ -166,7 +170,7 @@ const CountryDropdownComponent = (
       <PopoverContent
         collisionPadding={10}
         side="bottom"
-        className="min-w-[--radix-popper-anchor-width] p-0"
+        className="min-w-[--radix-popper-anchor-width] overflow-hidden rounded-[var(--application-control-radius)] p-0 shadow-none"
       >
         <Command
           className="w-full"

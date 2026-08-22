@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import {
-  AlertCircle,
+  WarningCircle as AlertCircle,
   ArrowLeft,
-  BadgeCheck,
-  CheckCircle2,
-  Plane,
+  SealCheck as BadgeCheck,
+  CheckCircle as CheckCircle2,
+  Airplane as Plane,
   ShieldCheck,
-  Sparkles,
-  UsersRound,
+  Sparkle as Sparkles,
+  UsersThree as UsersRound,
   XCircle,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import {
   getCurrentSubscriptionForCurrentUser,
   reconcileStripeSubscriptionReturn,
@@ -156,12 +156,8 @@ function ReturnStateAlert({ state }: { state: SubscriptionReturnState }) {
 
   return (
     <Alert
-      className={cn(
-        "shadow-sm",
-        state.tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-950",
-        state.tone === "warning" && "border-amber-200 bg-amber-50 text-amber-950",
-        state.tone === "error" && "border-destructive/30 bg-destructive/5 text-destructive",
-      )}
+      variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
+      className="shadow-sm"
     >
       <Icon className="h-4 w-4" />
       <AlertTitle>{state.title}</AlertTitle>

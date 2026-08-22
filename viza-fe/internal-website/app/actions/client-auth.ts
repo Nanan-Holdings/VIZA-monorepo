@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   clearClientSession,
-  getUserFromSupabaseSession,
+  getClientSessionWithFallback,
 } from "@/lib/client-session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -106,7 +106,7 @@ export interface UserSession {
  * Get the current applicant session from Supabase auth
  */
 export async function getUserSession(): Promise<UserSession | null> {
-  const session = await getUserFromSupabaseSession();
+  const session = await getClientSessionWithFallback();
   if (!session) return null;
 
   const adminClient = createAdminClient();
@@ -127,7 +127,7 @@ export async function checkClientSession(): Promise<{
   valid: boolean;
   userId?: string;
 }> {
-  const session = await getUserFromSupabaseSession();
+  const session = await getClientSessionWithFallback();
   if (session) return { valid: true, userId: session.userId };
   return { valid: false };
 }

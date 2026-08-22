@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import {
   buildUniversalProfileAnswerPatch,
   type UniversalProfileSnapshot,
@@ -16,6 +17,7 @@ import {
   type FrequentTravelerInput,
   type FrequentTravelerProfileRow,
 } from "@/lib/frequent-traveler-profile";
+import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 
 /**
  * Family / multi-applicant application group (PRODUCT-002).
@@ -130,7 +132,18 @@ function shouldCopyAnswer(fieldName: string) {
   return true;
 }
 
-async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdminClient>, applicationId: string, userId: string) {
+type ApplicationAccessIdentity = {
+  /** Signed VIZA applicant-profile ID from the client session. */
+  profileId?: string;
+  /** Supabase Auth UUID used by legacy ownership and group-payer columns. */
+  authUserId?: string;
+};
+
+async function getAuthorizedApplication(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  identity: ApplicationAccessIdentity,
+) {
   let { data: app, error: appError } = await adminClient
     .from("applications")
     .select(
@@ -175,14 +188,17 @@ async function getAuthorizedApplication(adminClient: ReturnType<typeof createAdm
   if (profileError) return { error: profileError.message } as const;
   if (!profile) return { error: "Applicant profile not found" } as const;
 
-  const ownsProfile = profile.auth_user_id === userId || profile.dependant_of_user_id === userId;
+  const ownsProfile =
+    (Boolean(identity.profileId) && profile.id === identity.profileId) ||
+    (Boolean(identity.authUserId) && profile.auth_user_id === identity.authUserId) ||
+    (Boolean(identity.authUserId) && profile.dependant_of_user_id === identity.authUserId);
   let ownsGroup = false;
-  if (!ownsProfile && app.group_id) {
+  if (!ownsProfile && app.group_id && identity.authUserId) {
     const { data: group, error: groupError } = await adminClient
       .from("application_group")
       .select("id")
       .eq("id", app.group_id)
-      .eq("payer_user_id", userId)
+      .eq("payer_user_id", identity.authUserId)
       .maybeSingle();
 
     if (groupError) return { error: groupError.message } as const;
@@ -390,7 +406,9 @@ export async function listTeamCompanions(applicationId: string): Promise<TeamCom
   if (!user) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, applicationId, user.id);
+  const resolved = await getAuthorizedApplication(adminClient, applicationId, {
+    authUserId: user.id,
+  });
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
   const groupId = resolved.app.group_id as string | null;
@@ -443,14 +461,14 @@ export async function listTeamCompanions(applicationId: string): Promise<TeamCom
 }
 
 export async function getTeamApplicationContext(applicationId: string): Promise<TeamApplicationContextResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, reason: "Not authenticated" };
+  const session = await getClientSessionWithFallback();
+  if (!session) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, applicationId, user.id);
+  const resolved = await getAuthorizedApplication(adminClient, applicationId, {
+    profileId: session.userId,
+    authUserId: session.authUserId,
+  });
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
   const { data: profile, error } = await adminClient
@@ -470,7 +488,9 @@ export async function getTeamApplicationContext(applicationId: string): Promise<
       visa_type: (resolved.app.visa_type as string | null) ?? null,
       confirmation_number: (resolved.app.confirmation_number as string | null) ?? null,
       submitted_at: (resolved.app.submitted_at as string | null) ?? null,
-      submission_result: (resolved.app.submission_result as unknown | null) ?? null,
+      submission_result: sanitizeCustomerSubmissionResult(
+        (resolved.app.submission_result as unknown | null) ?? null,
+      ),
       submission_result_status: (resolved.app.submission_result_status as string | null) ?? null,
       arrival_date: (resolved.app.arrival_date as string | null) ?? null,
       departure_date: (resolved.app.departure_date as string | null) ?? null,
@@ -493,7 +513,9 @@ export async function createTeamCompanion(
   if (!user) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, input.applicationId, user.id);
+  const resolved = await getAuthorizedApplication(adminClient, input.applicationId, {
+    authUserId: user.id,
+  });
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
   const visaPackageId = await resolveVisaPackageId(
@@ -656,7 +678,9 @@ export async function deleteTeamCompanion(
   if (!user) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, applicationId, user.id);
+  const resolved = await getAuthorizedApplication(adminClient, applicationId, {
+    authUserId: user.id,
+  });
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
   const groupId = resolved.app.group_id as string | null;
@@ -685,7 +709,9 @@ export async function markTeamCompanionReviewed(
   if (!user) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, applicationId, user.id);
+  const resolved = await getAuthorizedApplication(adminClient, applicationId, {
+    authUserId: user.id,
+  });
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
   const { error } = await adminClient

@@ -10,7 +10,11 @@ export type VisaFormFieldOption =
       label_zh?: string;
       label_en?: string;
       official_label?: string;
+      official_value?: string;
+      portal_label?: string;
       searchText?: string;
+      /** Display-only ISO alpha-2 code used to render a flag; never submitted. */
+      flagCountryCode?: string;
       code?: string;
       airport?: string;
       airline?: string;
@@ -18,12 +22,27 @@ export type VisaFormFieldOption =
       ward?: string;
     };
 
+export type VisaFormFieldType =
+  | "text"
+  | "password"
+  | "email"
+  | "tel"
+  | "number"
+  | "select"
+  | "multi_select"
+  | "date"
+  | "file"
+  | "radio"
+  | "checkbox"
+  | "textarea"
+  | "country";
+
 export interface VisaFormFieldRow {
   id: string;
   visaType: string;
   fieldName: string;
   label: string;
-  fieldType: "text" | "select" | "multi_select" | "date" | "file" | "radio" | "checkbox" | "textarea" | "country";
+  fieldType: VisaFormFieldType;
   required: boolean;
   stepNumber: number;
   stepName: string | null;

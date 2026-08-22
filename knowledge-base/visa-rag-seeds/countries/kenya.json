@@ -1,0 +1,87 @@
+{
+  "version": "2026-08-20",
+  "country": "kenya",
+  "notes": "Country-level VIZA RAG seed for Kenya. The first product is KE_ETA for Chinese ordinary-passport tourism. Kenya's official FAQ expressly allows a person to apply on behalf of another traveller; the traveller remains responsible for the accuracy of the supplied information. No Kenya F88 or separate arrival-card product is included.",
+  "documents": [
+    {
+      "slug": "kenya-eta-requirements",
+      "country": "kenya",
+      "visaType": "KE_ETA",
+      "documentType": "requirements",
+      "title": "Kenya Electronic Travel Authorisation (eTA)",
+      "sourceUrl": "https://etakenya.go.ke/form/apply/how-to-apply?type=tourist",
+      "chunks": [
+        {
+          "id": "kenya_eta_china_tourism_route",
+          "title": "中国普通护照肯尼亚旅游 eTA 路线",
+          "tags": ["kenya", "china", "chinese-passport", "eta", "tourism", "online-authorization"],
+          "content": "肯尼亚官方 eTA 页面要求所有计划前往肯尼亚的访客（包括婴儿和儿童）在开始行程前取得批准的 Electronic Travel Authorisation。中国普通护照旅游旅客首期按标准 eTA 路线处理；eTA 不是传统签证，且必须在获批后才可前往肯尼亚。其他护照、外交/公务旅行、过境或豁免情形应重新检查官方资格页，不得从本产品规则推断。官方来源：https://etakenya.go.ke/form/apply/how-to-apply?type=tourist"
+        },
+        {
+          "id": "kenya_eta_validity_and_processing",
+          "title": "肯尼亚 eTA 有效期、处理时间和费用",
+          "tags": ["kenya", "eta", "validity", "processing-time", "fee"],
+          "content": "官方 How to Apply 页面说明 eTA 自签发日起可在90天内用于旅行，抵达后的停留期限由入境口岸决定。官方 FAQ 说明通常处理时间为三个工作日/72小时，正常费用起价30美元，加急服务在正常费用之外增加100美元；实际费用和速度必须以提交时官方门户显示为准。VIZA 将标准30美元作为政府费用基线，加急选项单独记录。官方来源：https://etakenya.go.ke/faqs ; https://etakenya.go.ke/eligibility"
+        },
+        {
+          "id": "kenya_eta_required_materials",
+          "title": "肯尼亚 eTA 申请材料",
+          "tags": ["kenya", "eta", "documents", "passport", "photo", "itinerary", "accommodation"],
+          "content": "官方列出的常见材料包括：抵达肯尼亚计划日期后至少六个月有效且至少有一页空白页的护照、自拍或护照照片、邮箱和电话、抵达及离境行程、住宿预订确认，以及信用卡/借记卡等支付方式。根据访问目的还可能要求额外文件；旅游首期不加入商业邀请函、探亲材料、医疗文件或 F88。文件应保存在 application_documents，不能把本地路径写进 answers。"
+        },
+        {
+          "id": "kenya_eta_apply_on_behalf",
+          "title": "肯尼亚 eTA 允许代申请",
+          "tags": ["kenya", "eta", "apply-on-behalf", "automation", "official-policy"],
+          "content": "肯尼亚官方 FAQ 明确允许为其他旅客代申请，只要填写旅客真实信息并在完成申请时表明是在代其申请。获批后，官方会通过邮件发送批准/拒绝通知；获批 PDF 需要在出发和抵达环节出示。VIZA 可以在用户最终授权后代理官方门户流程，但必须保存申请参考号、付款收据和批准 PDF，且不得把普通页面截图当作批准证明。官方来源：https://etakenya.go.ke/faqs"
+        },
+        {
+          "id": "kenya_eta_no_f88_scope",
+          "title": "肯尼亚首期不包含 F88",
+          "tags": ["kenya", "eta", "scope", "f88", "arrival-card"],
+          "content": "本产品只覆盖官方 Kenya eTA 在线授权。当前种子没有把 F88 或独立入境卡建成产品，也不应在 VIZA 推荐、表单或 runner 中创建 F88 分支；如果官方门户或入境政策要求额外申报，应先人工复核官方来源再另立产品。"
+        }
+      ]
+    },
+    {
+      "slug": "kenya-eta-form-requirements",
+      "country": "kenya",
+      "visaType": "KE_ETA",
+      "documentType": "form_requirements",
+      "title": "Kenya eTA Form Intake Requirements",
+      "sourceUrl": "https://etakenya.go.ke/faqs",
+      "chunks": [
+        {
+          "id": "kenya_eta_form_channel_and_scope",
+          "title": "肯尼亚 eTA 表单渠道和范围",
+          "tags": ["kenya", "eta", "form-requirements", "official-source"],
+          "content": "KE_ETA 只对应肯尼亚政府官方 eTA 网站 https://etakenya.go.ke 或官方 Kenya Travel Authorisation 移动应用。首期只收集中国普通护照旅游申请所需的申请人、护照、联系、行程、住宿、处理速度和声明字段，并上传官方要求的材料。肯尼亚 eTA 不是 F88、入境卡或传统签证；最终批准由肯尼亚移民官作出。"
+        },
+        {
+          "id": "kenya_eta_form_fields_to_collect",
+          "title": "肯尼亚 eTA 自动化前置答案",
+          "tags": ["kenya", "eta", "autofill", "field-mapping", "passport", "itinerary"],
+          "content": "VIZA 应收集护照姓名、出生日期、性别、国籍、护照号码、签发日、有效期、签发国家、邮箱、电话、居住地址、抵达和离境日期、抵达口岸、航班号、旅游目的、住宿名称/地址/电话、标准或加急处理速度、是否携带超过10,000美元或等值外币的现金/货币工具，以及最终声明。官方闭合选项的英文值与中文显示标签必须分开保存；未在官方页面确认的问题不得凭其他国家表单类推。"
+        },
+        {
+          "id": "kenya_eta_document_uploads",
+          "title": "肯尼亚 eTA 文件上传元数据",
+          "tags": ["kenya", "eta", "uploads", "application-documents", "metadata"],
+          "content": "必备材料元数据包括 passport_copy、applicant_photo、flight_itinerary、accommodation_booking；材料文件进入 application_documents 的私有存储，并带有文件类型、格式、大小和核验状态。答案表只保存结构化字段，不保存 storage path、文件名路径或二进制内容。商务、探亲、医疗和其他目的的额外材料保持条件性元数据，不能在旅游首期强制收集。"
+        },
+        {
+          "id": "kenya_eta_review_and_evidence",
+          "title": "肯尼亚 eTA 提交和证据要求",
+          "tags": ["kenya", "eta", "submission", "approval", "evidence"],
+          "content": "官方流程会发送申请收件、适用时的付款确认以及批准或拒绝邮件。只有取得官方申请参考号才可标记 submitted，只有取得官方批准 PDF 才可标记 approved；拒绝或门户异常必须进入 rejected/needs_attention/failed，不得以普通页面截图冒充成功。每次重试前应按参考号查询官方状态，避免重复提交和重复扣费。"
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": ["standard-fields", "passport", "issuing-authority", "passport-type", "identity-document", "field-guidance", "official-source"],
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. Treat passport issuing country, place of issue, and issuing authority as distinct fields. For the first phase, only a Chinese ordinary passport is supported; diplomatic, official, service, refugee, and other travel documents require a separate eligibility review."
+        }
+      ]
+    }
+  ]
+}

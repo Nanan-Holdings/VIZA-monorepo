@@ -7,19 +7,33 @@ kill_timeout = "5m"
 [env]
   NODE_ENV = "production"
   PORT = "8080"
+  RUNNER_MACHINE_KIND = "legacy"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
   # Vietnam e-Visa live jobs use a cloud-only queue status and RPC that older
   # local workers cannot see or claim.
   VN_CLOUD_QUEUE_ENABLED = "true"
   # Vercel registers Indonesia payment cards through the token-protected
-  # internal endpoint. Cards remain in this single always-on machine's memory
-  # for one consumption and are never written to Fly config, logs, or storage.
+  # internal endpoint. While the retained Machine is running, cards remain in
+  # its memory for one consumption and are never written to Fly config, logs,
+  # or storage. Deploy readiness prevents stop while any card is present.
   ID_CLOUD_CARD_SESSION_ENABLED = "true"
   # Vietnam official-fee jobs also use submission_queue, so the protected
   # one-time card handoff must terminate on this same single-memory worker.
   VN_CLOUD_CARD_SESSION_ENABLED = "true"
   VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # Current production acceptance gate: solve the official search flow and
+  # stop only after an empty VNPAY card-number field is visible. No PAN/CVV is
+  # filled and no payment control is submitted while this flag is enabled.
+  VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY = "true"
+  # Fly has no X server. Vietnam must launch the bundled browser headlessly;
+  # interactive payment challenges are surfaced as explicit checkpoints.
+  VN_PLAYWRIGHT_HEADLESS = "true"
+  # The Playwright Fly image only guarantees its bundled Chromium binary.
+  # Retry that browser for transient launch/portal failures instead of falling
+  # through to host-installed Edge/Chrome channels that do not exist here.
+  VN_BROWSER_CHANNELS = "bundled"
   # Standard Chartered SC Mobile approval is valid for about 100 seconds.
   # Keep the same cloud browser alive long enough to observe the issuer result.
   VN_BANK_APP_3DS_WAIT_MS = "115000"
@@ -50,8 +64,9 @@ kill_timeout = "5m"
   internal_port = 8080
   force_https = true
   auto_stop_machines = "off"
-  auto_start_machines = true
-  min_machines_running = 1
+  auto_start_machines = false
+  # Queue-depth autoscaling stops only after two safe deploy-readiness checks.
+  min_machines_running = 0
 
   [[http_service.checks]]
     grace_period = "30s"
@@ -63,7 +78,13 @@ kill_timeout = "5m"
     # still reach this live in-memory worker so the caller can retry safely.
     path = "/health"
 
+[[restart]]
+  policy = "on-failure"
+  retries = 10
+
 [[vm]]
-  cpu_kind = "performance"
+  # Keep two CPUs and 4 GB for concurrent Playwright flows, but shared CPUs
+  # avoid paying for dedicated performance cores while the queue is quiet.
+  cpu_kind = "shared"
   cpus = 2
   memory_mb = 4096

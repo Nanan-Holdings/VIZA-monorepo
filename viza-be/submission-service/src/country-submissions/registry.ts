@@ -1,4 +1,5 @@
 import type { GenericSubmissionResult } from "../submission-result";
+import { VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES } from "../vn-prearrival/normalize";
 import type {
   CountrySubmissionApplication,
   CountrySubmissionProvider,
@@ -312,6 +313,42 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("postcode", "Postcode", "trip"),
 ];
 
+const KR_EARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("surname", "Surname", "personal"),
+  arrivalCardField("given_name", "Given name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("email_address", "Managed alias email", "contact"),
+  arrivalCardField("arrival_mode", "Arrival mode", "trip"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+    key: "answers.arrival_mode",
+    equals: "air",
+  }),
+  arrivalCardField("arrival_flight_or_ship", "Arrival flight / ship", "trip", {
+    key: "answers.arrival_mode",
+    equals: "sea",
+  }),
+  arrivalCardField("departure_mode", "Departure mode", "trip"),
+  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("purpose_of_entry", "Purpose of entry", "trip"),
+  arrivalCardField("occupation", "Occupation", "personal"),
+  arrivalCardField("stay_postal_code", "Korea stay postal code", "trip"),
+  arrivalCardField("stay_contact_phone", "Korea stay contact phone", "contact"),
+  arrivalCardField("declaration_confirmed", "Official declaration confirmation", "security"),
+  // The official form accepts a Korean or English base address. The
+  // normalizer enforces this OR requirement because FieldRequirement cannot
+  // express a mutually exclusive pair.
+  { key: "answers.stay_address_en", label: "Korea stay address (English)", category: "trip", required: false },
+  { key: "answers.stay_address_ko", label: "Korea stay address (Korean)", category: "trip", required: false },
+  { key: "answers.departure_flight_or_ship", label: "Departure flight / ship", category: "trip", required: false },
+  { key: "answers.purpose_other", label: "Other entry purpose", category: "trip", required: false },
+  { key: "answers.occupation_other", label: "Other occupation", category: "personal", required: false },
+];
+
 const WHEN_TDAC_AIR = {
   key: "answers.arrival_mode_of_travel",
   equals: "air",
@@ -459,6 +496,70 @@ const PH_ETRAVEL_DEPARTURE_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
+const JP_VJW_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("passport_type", "Passport type", "passport"),
+  arrivalCardField("surname", "Surname", "personal"),
+  arrivalCardField("given_names", "Given names", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("passport_issuing_country", "Passport issuing country", "passport"),
+  arrivalCardField("email_address", "Email address", "contact"),
+  arrivalCardField("phone_number", "Phone number", "contact"),
+  arrivalCardField("residence_country", "Country/region of residence", "personal"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("arrival_airport", "Intended port of entry", "trip"),
+  arrivalCardField("flight_number", "Arrival flight number", "trip"),
+  arrivalCardField("last_embarkation_country", "Country/region of embarkation", "trip"),
+  arrivalCardField("departure_city_or_port", "City/port of embarkation", "trip"),
+  arrivalCardField("purpose_of_visit", "Purpose of visit", "trip"),
+  arrivalCardField("planned_stay_days", "Planned length of stay", "trip"),
+  arrivalCardField("accommodation_name", "Accommodation name", "trip"),
+  arrivalCardField("accommodation_address", "Accommodation address", "trip"),
+  arrivalCardField("accommodation_postal_code", "Accommodation postal code", "trip"),
+  arrivalCardField("accommodation_phone", "Accommodation phone", "contact"),
+  arrivalCardField("has_been_deported", "Previous deportation, departure order, or denied entry", "security"),
+  arrivalCardField("has_criminal_record", "Criminal conviction declaration", "security"),
+  arrivalCardField("has_controlled_substances_or_weapons", "Controlled substances or weapons declaration", "security"),
+  arrivalCardField("has_prohibited_or_restricted_goods", "Prohibited/restricted goods declaration", "security"),
+  arrivalCardField("has_dutiable_goods", "Dutiable goods declaration", "security"),
+  arrivalCardField("has_commercial_goods", "Commercial goods declaration", "security"),
+  arrivalCardField("has_goods_for_other_person", "Goods for another person declaration", "security"),
+  arrivalCardField("has_unaccompanied_baggage", "Unaccompanied baggage declaration", "security"),
+  arrivalCardField("has_cash_or_valuables_over_threshold", "Cash/valuables declaration", "security"),
+  arrivalCardField("customs_declaration_confirmed", "Customs declaration confirmation", "security"),
+  arrivalCardField("immigration_declaration", "Immigration declaration confirmation", "security"),
+];
+
+const KE_ETA_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("surname", "Surname", "personal"),
+  arrivalCardField("given_names", "Given names", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_issue_date", "Passport issue date", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("passport_issuing_country", "Passport issuing country", "passport"),
+  arrivalCardField("email_address", "Email address", "contact"),
+  arrivalCardField("phone_number", "Phone number", "contact"),
+  arrivalCardField("residential_address", "Residential address", "contact"),
+  arrivalCardField("country_of_residence", "Country of residence", "contact"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("entry_point", "Arrival point", "trip"),
+  arrivalCardField("flight_number", "Arrival flight number", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of visit", "trip"),
+  arrivalCardField("accommodation_name", "Accommodation name", "trip"),
+  arrivalCardField("accommodation_address", "Accommodation address", "trip"),
+  arrivalCardField("accommodation_phone", "Accommodation phone", "contact"),
+  arrivalCardField("processing_speed", "Processing speed", "trip"),
+  arrivalCardField("has_currency_over_usd_10000", "Currency over USD 10,000 declaration", "security"),
+  arrivalCardField("declaration_confirmed", "Declaration confirmation", "security"),
+];
+
 // This must stay in lockstep with agent-backend/scripts/vn-prearrival/form-fields.ts
 // and vn-prearrival/normalize.ts. The previous generic arrival-card field list
 // predated the dedicated Vietnam Pre-Arrival schema, so valid saved answers were
@@ -491,6 +592,10 @@ const WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS = {
   key: "answers.hotel_accommodation_address",
   equals: "other",
 };
+const WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED = {
+  key: "answers.visa_type",
+  notIn: [...VN_PREARRIVAL_VISA_CREDENTIALS_OPTIONAL_TYPES],
+};
 
 const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("expected_arrival_date", "Expected arrival date", "trip"),
@@ -506,8 +611,18 @@ const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("alias_email_address", "VIZA alias email", "contact"),
   arrivalCardField("visa_information_acknowledgement", "Visa information acknowledgement", "passport"),
   arrivalCardField("visa_type", "Visa type / purpose", "passport"),
-  arrivalCardField("visa_number", "Visa number", "passport"),
-  arrivalCardField("visa_expiry_date", "Visa expiry date", "passport"),
+  arrivalCardField(
+    "visa_number",
+    "Visa number",
+    "passport",
+    WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED,
+  ),
+  arrivalCardField(
+    "visa_expiry_date",
+    "Visa expiry date",
+    "passport",
+    WHEN_VN_PREARRIVAL_VISA_CREDENTIALS_REQUIRED,
+  ),
   arrivalCardField("departure_country_before_arrival", "Departure country before arrival", "trip"),
   arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
   arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
@@ -699,6 +814,25 @@ const CONFIGS: ProviderConfig[] = [
     notes: "No online submission portal in scope; frontend renders MOFA Form A PDF.",
   },
   {
+    countryCode: "JP",
+    countryAliases: ["jp", "japan"],
+    displayName: "Japan Visit Japan Web",
+    supportedVisaTypes: ["JP_VISIT_JAPAN_WEB"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: false,
+    routeStatus: "runner_job_dispatched",
+    serviceFiles: ["src/jp-vjw/**", "src/queue/automated-portal-runners.ts"],
+    schemaFiles: ["../agent-backend/scripts/seed-jp-visit-japan-web-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/jp-vjw/normalize.ts"],
+    automationFiles: ["src/jp-vjw/runner.ts"],
+    requiredFields: JP_VJW_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-JP-VJW",
+    notes: "Dedicated Visit Japan Web arrival/customs declaration. Live success requires an official vjw.digital.go.jp QR artifact; live operation remains compliance- and selector-recon-gated, and the existing JP_TOURIST paper form remains separate.",
+  },
+  {
     countryCode: "IT_VFS_CN",
     countryAliases: ["it_vfs_cn", "italy-vfs-cn"],
     displayName: "Italy VFS China corridor",
@@ -728,6 +862,25 @@ const CONFIGS: ProviderConfig[] = [
     notes: "Package and schema seed exist; no submission-service runner.",
   },
   {
+    countryCode: "KE",
+    countryAliases: ["ke", "kenya"],
+    displayName: "Kenya electronic Travel Authorisation",
+    supportedVisaTypes: ["KE_ETA"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: false,
+    routeStatus: "runner_job_dispatched",
+    serviceFiles: ["src/ke-eta/**", "src/queue/automated-portal-runners.ts"],
+    schemaFiles: ["../agent-backend/scripts/seed-ke-eta-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/ke-eta/normalize.ts"],
+    automationFiles: ["src/ke-eta/runner.ts", "src/ke-eta/date-window.ts"],
+    requiredFields: KE_ETA_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-KE-ETA",
+    notes: "Official Kenya eTA only. The runner uses a managed alias, a restricted application-scoped card handoff, and fail-closed reference/PDF evidence; live submission remains selector-recon-gated and F88 is out of scope.",
+  },
+  {
     countryCode: "KR",
     countryAliases: ["kr", "south_korea", "korea"],
     displayName: "Korea C-3-9",
@@ -741,6 +894,25 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["../agent-backend/scripts/seed-kr-c39-short-term-visit-form-fields.ts"],
     automationFiles: ["src/korea-kvac/runner.ts"],
     notes: "Package and schema seed exist. PDF/KVAC appointment dry-run scaffold exists; live KVAC booking remains gated pending per-center selector and CAPTCHA/SMS validation.",
+  },
+  {
+    countryCode: "KR",
+    countryAliases: ["kr", "south_korea", "korea"],
+    displayName: "Korea e-Arrival Card",
+    supportedVisaTypes: ["KR_E_ARRIVAL_CARD"],
+    implementationStatus: "implemented",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/kr-arrival-card/**", "src/queue/arrival-card-runners.ts"],
+    schemaFiles: ["../agent-backend/scripts/seed-kr-e-arrival-card-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/kr-arrival-card/normalize.ts"],
+    automationFiles: ["src/kr-arrival-card/runner.ts"],
+    requiredFields: KR_EARRIVAL_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-KR-EAC",
+    notes: "Independent Korea e-Arrival Card flow. Official submission is free, uses the VIZA-managed alias for OTP delivery, and reports success only with an official confirmation page plus issue number and artifact.",
   },
   {
     countryCode: "AE",
@@ -1069,6 +1241,20 @@ function shouldValidateRequirement(
     return actual
       ? normalizeRequirementValue(actual) !== normalizeRequirementValue(requirement.condition.notEquals)
       : true;
+  }
+  if (requirement.condition.in !== undefined) {
+    if (!actual) return false;
+    const normalizedActual = normalizeRequirementValue(actual);
+    return requirement.condition.in.some(
+      (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
+    );
+  }
+  if (requirement.condition.notIn !== undefined) {
+    if (!actual) return true;
+    const normalizedActual = normalizeRequirementValue(actual);
+    return !requirement.condition.notIn.some(
+      (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
+    );
   }
   return true;
 }

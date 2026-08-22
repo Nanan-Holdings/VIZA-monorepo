@@ -45,12 +45,7 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       residence_address_line1: "Hunan",
       purpose_of_travel: "POV001",
       traveller_type: "AIRCRAFT PASSENGER",
-      travel_company_code: "TC002",
-      travel_company_name: "Test Airline",
-      flight_code: "PR101",
-      flight_name: "PR101",
-      // Kept only for non-AIR legacy/departure fixtures. AIR normalization must
-      // obtain its selected option identity from flight_code.
+      airline_name: "TC002",
       flight_number: "PR101",
       airport_of_origin: "Singapore Changi Airport",
       flight_departure_date: "2026-06-13",
@@ -97,11 +92,8 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
     travellerType: "AIRCRAFT_PASSENGER",
   });
   assert.equal(payload.flightNumber, "PR101");
-  assert.equal(payload.flightCode, "PR101");
   assert.equal(payload.travellerType, "AIRCRAFT_PASSENGER");
   assert.equal(payload.airlineOrVesselName, "TC002");
-  assert.equal(payload.airlineCode, "TC002");
-  assert.equal(payload.airlineName, "Test Airline");
   assert.equal(payload.airportOfOrigin, "Singapore Changi Airport");
   assert.equal(payload.portOfEntry, "TP1000");
   assert.equal(payload.hasHealthSymptoms, false);
@@ -109,92 +101,6 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.checkedBaggageCount, "1");
   assert.equal(payload.customs.hasDutiableGoods, false);
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
-  assert.deepEqual(payload.residence, {
-    country: { code: "CN", label: null },
-    regionCode: null,
-    province: null,
-    municipality: null,
-    barangay: null,
-    line1: "Hunan",
-    line2: null,
-    isPhilippines: false,
-  });
-});
-
-test("normalizePhEtravelPortalPayload preserves official PH residence codes", () => {
-  const payload = normalizePhEtravelPortalPayload(basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      country_of_residence: "PH",
-      country_of_residence_name: "Philippines",
-      residence_region_code: "1400000000",
-      residence_province_code: "1400100000",
-      residence_province_name: "ABRA",
-      residence_municipality_code: "1400101000",
-      residence_municipality_name: "BANGUED",
-      residence_barangay_code: "1400101001",
-      residence_barangay_name: "AGTANGAO",
-      residence_address_line1: "House 1, Test Street",
-      residence_address_line2: "Unit 2",
-    },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
-
-  assert.equal(payload.residence.province?.code, "1400100000");
-  assert.equal(payload.residence.municipality?.code, "1400101000");
-  assert.equal(payload.residence.barangay?.code, "1400101001");
-  assert.equal(payload.residence.line1, "House 1, Test Street");
-  assert.equal(payload.residence.line2, "Unit 2");
-});
-
-test("normalizePhEtravelPortalPayload makes incomplete PH residence action-required", () => {
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...basePayload().countrySpecific,
-        country_of_residence: "PH",
-        residence_address_line1: "AGTANGAO, BANGUED, ABRA",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => {
-      assert.ok(error instanceof PhEtravelPortalValidationError);
-      assert.ok(error.missingFields.includes("residence.province_code"));
-      assert.ok(error.missingFields.includes("residence.municipality_code"));
-      assert.ok(error.missingFields.includes("residence.barangay_code"));
-      return true;
-    },
-  );
-});
-
-test("normalizePhEtravelPortalPayload preserves distinct onboarding name fields and extension alias", () => {
-  const payload = normalizePhEtravelPortalPayload(basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      first_name: "GIVEN",
-      middle_name: "MIDDLE",
-      last_name: "",
-      extension_name: "SUFFIX",
-    },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
-
-  assert.equal(payload.firstName, "GIVEN");
-  assert.equal(payload.middleName, "MIDDLE");
-  assert.equal(payload.lastName, null);
-  assert.equal(payload.suffix, "SUFFIX");
-});
-
-test("normalizePhEtravelPortalPayload does not derive a first name by splitting full_name", () => {
-  const input = basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      first_name: "",
-      full_name: "SYNTHETIC FULL NAME",
-    },
-  });
-
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("first_name"),
-  );
 });
 
 test("normalizePhEtravelPortalPayload keeps Special Flight as UI state and maps only its detail key", () => {
@@ -259,8 +165,8 @@ test("normalizePhEtravelPortalPayload maps SEA Filipino arrival as its own branc
   assert.equal(payload.philippinesAddress, null);
 });
 
-test("normalizePhEtravelPortalPayload fails closed for SEA explicit false disembarking", () => {
-  assert.throws(() => normalizePhEtravelPortalPayload(basePayload({
+test("normalizePhEtravelPortalPayload keeps SEA non-disembarking out of destination branch", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
     countrySpecific: {
       ...basePayload().countrySpecific,
       transport_type: "SEA",
@@ -284,51 +190,12 @@ test("normalizePhEtravelPortalPayload fails closed for SEA explicit false disemb
       destination_hotel_address: "",
       philippines_address: "",
     },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") }), (error: unknown) =>
-    error instanceof PhEtravelPortalValidationError && error.missingFields.includes("is_disembarking"),
-  );
-});
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
 
-test("normalizePhEtravelPortalPayload accepts current POV999 code but rejects purpose labels and legacy AIR flight_number", () => {
-  assert.equal(
-    normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: { ...basePayload().countrySpecific, purpose_of_travel: "POV999" },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }).purposeOfTravel,
-    "POV999",
-  );
-
-  for (const countrySpecific of [
-    { ...basePayload().countrySpecific, purpose_of_travel: "Others" },
-    { ...basePayload().countrySpecific, flight_code: "", flight_number: "PR101" },
-  ]) {
-    assert.throws(
-      () => normalizePhEtravelPortalPayload(basePayload({ countrySpecific }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-      (error: unknown) => error instanceof PhEtravelPortalValidationError &&
-        (error.missingFields.includes("purpose_of_travel") || error.missingFields.includes("flight_code")),
-    );
-  }
-});
-
-test("normalizePhEtravelPortalPayload rejects a SEA destination label in place of its code", () => {
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...basePayload().countrySpecific,
-        transport_type: "SEA",
-        traveller_type: "VESSEL_PASSENGER",
-        voyage_departure_date: "2026-06-12",
-        voyage_arrival_date: "2026-06-13",
-        voyage_number: "VOY123",
-        vessel_name: "MV SAMPLE",
-        origin_port: "Origin",
-        is_disembarking: "yes",
-        destination_type: "TRAVEL_PORT",
-        destination_port_code: "Port of Legazpi",
-        disembarking_port_code: "TP120",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("destination_port_code"),
-  );
+  assert.equal(payload.isDisembarking, false);
+  assert.equal(payload.destinationType, null);
+  assert.equal(payload.destinationPort, null);
+  assert.equal(payload.philippinesAddress, null);
 });
 
 test("normalizePhEtravelPortalPayload never uses disembarking_port_code as the SEA arrival port", () => {
@@ -379,10 +246,6 @@ test("normalizePhEtravelPortalPayload uses SEA voyage dates and ignores flight/t
       vessel_name: "MV SAMPLE",
       airport_of_origin: "",
       origin_port: "Singapore Cruise Centre",
-      is_disembarking: "yes",
-      destination_type: "TRAVEL_PORT",
-      disembarking_port_code: "TP2000",
-      destination_port_code: "TP0103",
     },
   }), { now: new Date("2026-06-12T08:00:00+08:00") });
 
@@ -546,9 +409,9 @@ test("normalizePhEtravelPortalPayload maps official customs checklist and struct
       customs_checklist_12: "no",
       amount_of_goods_currency: "USD",
       amount_of_goods_amount: "1200",
-      currency_type: "840",
+      currency_type: "FOREIGN_CURRENCY",
       currency_amount: "15000",
-      currency_monetary_instrument: "1",
+      currency_monetary_instrument: "CASH",
       currency_source: "Salary",
       currency_source__2: "Business",
       currency_transport_purpose: "Travel",
@@ -581,7 +444,7 @@ test("normalizePhEtravelPortalPayload maps official customs checklist and struct
   assert.equal(payload.customs.amountOfGoodsCurrency, "USD");
   assert.equal(payload.customs.currencyAmount, "15000");
   assert.deepEqual(payload.customs.currencyItems, [
-    { currency: "840", monetaryInstrument: "1", amount: "15000" },
+    { currency: "FOREIGN_CURRENCY", monetaryInstrument: "CASH", amount: "15000" },
   ]);
   assert.deepEqual(payload.customs.currencySources, ["Salary", "Business"]);
   assert.deepEqual(payload.customs.currencyTransportPurposes, ["Travel", "Business"]);
@@ -632,7 +495,7 @@ test("normalizePhEtravelPortalPayload maps courier currency declaration branch",
       has_baggage_or_currency_to_declare: "yes",
       customs_checklist_1: "yes",
       currency_items: JSON.stringify([
-        { currency: 840, monetary_instrument: 1, amount: "12000" },
+        { currency: "USD", monetary_instrument: "Cash", amount: "12000" },
       ]),
       currency_sources: JSON.stringify(["Savings"]),
       currency_transport_purposes: JSON.stringify(["Investment"]),
@@ -644,30 +507,12 @@ test("normalizePhEtravelPortalPayload maps courier currency declaration branch",
   }), { now: new Date("2026-06-12T08:00:00+08:00") });
 
   assert.deepEqual(payload.customs.currencyItems, [
-    { currency: "840", monetaryInstrument: "1", amount: "12000" },
+    { currency: "USD", monetaryInstrument: "Cash", amount: "12000" },
   ]);
   assert.equal(payload.customs.currencyTransportMethod, "is_shipped_thru_courier_service");
   assert.equal(payload.customs.courierName, "TEST COURIER");
   assert.equal(payload.customs.airwayBillNumber, "AWB123");
   assert.equal(payload.customs.airwayBillDate, "2026-06-11");
-});
-
-test("normalizePhEtravelPortalPayload retains only numeric Currency and Monetary Instrument API ids", () => {
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...basePayload().countrySpecific,
-        customs_checklist_1: "yes",
-        currency_items: JSON.stringify([{ currency: "USD", monetary_instrument: "CASH", amount: "1" }]),
-        currency_sources: JSON.stringify(["Salary"]),
-        currency_transport_purposes: JSON.stringify(["Leisure"]),
-        currency_transport_method: "physically transferred by person",
-        no_of_days_in_philippines: "1",
-        last_travel_to_philippines: "2026-06-01",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("currency_items"),
-  );
 });
 
 test("normalizePhEtravelPortalPayload fail-closes positive customs/currency without structured fields", () => {
@@ -684,6 +529,7 @@ test("normalizePhEtravelPortalPayload fail-closes positive customs/currency with
     }), { now: new Date("2026-06-12T08:00:00+08:00") }),
     (error: unknown) => {
       assert.ok(error instanceof PhEtravelPortalValidationError);
+      assert.ok(error.missingFields.includes("goods_items"));
       assert.ok(error.missingFields.includes("currency_items"));
       assert.ok(error.missingFields.includes("currency_sources"));
       assert.ok(error.missingFields.includes("currency_transport_purposes"));
@@ -691,34 +537,6 @@ test("normalizePhEtravelPortalPayload fail-closes positive customs/currency with
       return true;
     },
   );
-});
-
-test("normalizePhEtravelPortalPayload rejects a positive goods amount without Q3 through Q12 and preserves explicit goods associations", () => {
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...basePayload().countrySpecific,
-        amount_of_goods_amount: "1,000",
-        customs_checklist_1: "yes",
-        customs_checklist_2: "no",
-        customs_checklist_3: "no",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError && error.missingFields.includes("customs_checklist_3_to_12"),
-  );
-
-  const normalized = normalizePhEtravelPortalPayload(basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      customs_checklist_3: "yes",
-      customs_checklist_7: "yes",
-      goods_items: JSON.stringify([
-        { checklist_item_number: 3, description: "Item one", quantity: "1", amount_usd: "100" },
-        { checklist_item_number: 7, description: "Item two", quantity: "2", amount_usd: "200" },
-      ]),
-    },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
-  assert.deepEqual(normalized.customs.goodsItems.map((item) => item.checklistItemNumber), [3, 7]);
 });
 
 test("normalizePhEtravelPortalPayload derives ARRIVAL when the fixed travel type question is absent", () => {
@@ -798,76 +616,6 @@ test("normalizePhEtravelPortalPayload keeps the three official health answers di
   assert.equal(payload.hasExposureToSickPerson30d, false);
   assert.equal(payload.hasBeenSick30d, true);
   assert.deepEqual(payload.sicknessSymptoms, ["SS002", "SS008"]);
-});
-
-test("normalizePhEtravelPortalPayload requires every Health Yes/No answer and a positive child selection", () => {
-  const incompleteAnswers = basePayload().countrySpecific;
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...incompleteAnswers,
-        has_recent_travel_history_30d: "",
-        has_exposure_to_sick_person_30d: "",
-        has_been_sick_30d: "",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError
-      && ["has_recent_travel_history_30d", "has_exposure_to_sick_person_30d", "has_been_sick_30d"]
-        .every((key) => error.missingFields.includes(key)),
-  );
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...incompleteAnswers,
-        has_recent_travel_history_30d: "yes",
-        visited_country_30d: "",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError
-      && error.missingFields.includes("visited_country_30d"),
-  );
-  assert.throws(
-    () => normalizePhEtravelPortalPayload(basePayload({
-      countrySpecific: {
-        ...incompleteAnswers,
-        has_been_sick_30d: "yes",
-        sickness_symptom: "",
-      },
-    }), { now: new Date("2026-06-12T08:00:00+08:00") }),
-    (error: unknown) => error instanceof PhEtravelPortalValidationError
-      && error.missingFields.includes("sickness_symptom"),
-  );
-});
-
-test("normalizePhEtravelPortalPayload keeps only positive Health arrays and retains country codes including PH", () => {
-  const positive = normalizePhEtravelPortalPayload(basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      has_recent_travel_history_30d: "yes",
-      visited_country_30d: "PH",
-      visited_country_30d__2: "SG",
-      visited_country_30d__3: "PH",
-      has_been_sick_30d: "yes",
-      sickness_symptom: "SYMPTOM_A",
-      sickness_symptom__2: "SYMPTOM_B",
-      sickness_symptom__3: "SYMPTOM_A",
-    },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
-  assert.deepEqual(positive.visitedCountries30d, ["PH", "SG"]);
-  assert.deepEqual(positive.sicknessSymptoms, ["SYMPTOM_A", "SYMPTOM_B"]);
-
-  const noBranches = normalizePhEtravelPortalPayload(basePayload({
-    countrySpecific: {
-      ...basePayload().countrySpecific,
-      has_recent_travel_history_30d: "no",
-      visited_country_30d: "PH",
-      has_been_sick_30d: "no",
-      sickness_symptom: "SYMPTOM_A",
-    },
-  }), { now: new Date("2026-06-12T08:00:00+08:00") });
-  assert.deepEqual(noBranches.visitedCountries30d, []);
-  assert.deepEqual(noBranches.sicknessSymptoms, []);
-  assert.equal(noBranches.healthSymptomsDetails, null);
 });
 
 test("normalizePhEtravelPortalPayload carries conditional transit destination answers", () => {

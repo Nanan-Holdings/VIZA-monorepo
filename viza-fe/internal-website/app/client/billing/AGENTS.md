@@ -31,12 +31,17 @@ requests, refund eligibility, and government-fee display notes.
 - `data.ts`: billing-only server reads through authenticated applicant context.
 - `actions.ts`: billing-local server mutations such as invoice requests.
 - `invoice-request-form.tsx`: client dialog for request-based invoice intake.
+- `copy.ts`: route-scoped English/Chinese billing, invoice, refund, and status
+  copy shared by the server page, client form, and locale-aware actions.
 
 ## Guardrails
 
 - Do not show raw Stripe event payloads or provider IDs unless useful as a
   short support reference.
 - Do not process government portal payments here.
+- Explain that official-fee records remain separate from agency-fee receipts
+  because VIZA pays official portals with application-scoped virtual cards.
+  Never imply that the applicant must pay the portal directly.
 - Do not expose other applicants' billing records.
 
 ## Validation

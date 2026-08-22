@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Minus, Plus } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
-const svgPaths = {
-  plus: "M12 20.1667H28.3333M20.1667 12V28.3333",
-};
 
 function QuickLinksSection() {
   const t = useTranslations("help");
@@ -74,14 +70,6 @@ function GuidesSection() {
       ],
     },
     {
-      title: t("guides.usingCredits.title"),
-      items: [
-        { label: t("guides.usingCredits.whereApply"), href: "/client/help/using-your-credits/where-credits-apply" },
-        { label: t("guides.usingCredits.expiration"), href: "/client/help/using-your-credits/expiration-rules" },
-        { label: t("guides.usingCredits.troubleshooting"), href: "/client/help/using-your-credits/troubleshooting" },
-      ],
-    },
-    {
       title: t("guides.privacy.title"),
       items: [
         { label: t("guides.privacy.dataUsage"), href: "/client/help/privacy-and-security/data-usage" },
@@ -141,7 +129,7 @@ function FAQSection() {
   const t = useTranslations("help");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const FAQ_KEYS = ["resetPassword", "seeCredits", "referrals", "bookBloodTest", "labResults", "updateInfo", "updatePayment", "cancelReschedule", "dataPrivate", "contactSupport"] as const;
+  const FAQ_KEYS = ["resetPassword", "referrals", "updateInfo", "updatePayment", "dataPrivate", "contactSupport"] as const;
   const faqs = FAQ_KEYS.map(key => ({
     question: t(`faqs.${key}.question`),
     answer: t(`faqs.${key}.answer`),
@@ -176,25 +164,15 @@ function FAQSection() {
                 {faq.question}
               </p>
               <motion.div
-                className="relative shrink-0 size-[40.333px] flex items-center justify-center"
+                className="relative flex size-[40.333px] shrink-0 items-center justify-center rounded-full bg-black/[0.04]"
                 animate={{ rotate: openIndex === index ? 180 : 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <svg className="size-full" fill="none" viewBox="0 0 40.3333 40.3333">
-                  <rect
-                    fill="rgba(0,0,0,0.04)"
-                    height="40.3333"
-                    rx="20.1667"
-                    width="40.3333"
-                  />
-                  <path
-                    d={openIndex === index ? "M12 20.165H28.3333" : svgPaths.plus}
-                    stroke="black"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.75"
-                  />
-                </svg>
+                {openIndex === index ? (
+                  <Minus className="size-4" weight="regular" />
+                ) : (
+                  <Plus className="size-4" weight="regular" />
+                )}
               </motion.div>
             </div>
 

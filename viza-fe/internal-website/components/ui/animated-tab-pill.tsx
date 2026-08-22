@@ -50,6 +50,7 @@ export function AnimatedTabPill({
               whileTap={{ scale: 0.95 }}
             >
               <motion.span
+                data-nav-anchor={tab.id}
                 className="relative transition-colors duration-600"
                 style={{ color: isActive ? resolvedActive : resolvedInactive }}
               >
@@ -71,6 +72,7 @@ export function AnimatedTabPill({
           <button
             key={tab.id}
             type="button"
+            data-nav-anchor={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={clsx(
               "px-[16px] py-[6px] rounded-full text-[16px] leading-[1.6] font-medium whitespace-nowrap shrink-0 transition-colors duration-200 border border-solid",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ensureVnPrearrivalOtherFlightFlow,
   getPhoneCountryCodeOptions,
+  reconcileVnPrearrivalFlightAfterCatalogRefresh,
+  reconcileVnPrearrivalNationalityValue,
   withVnPrearrivalOtherHotelOption,
 } from "@/components/dynamic-step-form";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
@@ -9,6 +11,116 @@ import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options
 import type { WizardStep } from "@/types/visa-form-fields";
 
 describe("Vietnam pre-arrival dynamic form options", () => {
+  it("keeps the saved flight when the live official catalog still contains it", () => {
+    const current = {
+      flight_number: "VN0650_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN0650_SGN", {
+      catalogSource: "official_live",
+      selectedExists: true,
+    })).toBe(current);
+  });
+
+  it("clears a saved flight and its derived fields when the live official catalog removed it", () => {
+    const current = {
+      flight_number: "VN9999_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "VN9999",
+      purpose_of_entry: "DL",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN9999_SGN", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toEqual({
+      flight_number: "",
+      border_gate_airport: "",
+      custom_flight_number: "",
+      purpose_of_entry: "DL",
+    });
+  });
+
+  it("does not clear from a stale response or bundled fallback catalog", () => {
+    const current = {
+      flight_number: "VN0650_SGN",
+      border_gate_airport: "SGN",
+      custom_flight_number: "",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "MH0746_DAD", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toBe(current);
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "VN0650_SGN", {
+      catalogSource: "bundled_snapshot",
+      selectedExists: false,
+    })).toBe(current);
+  });
+
+  it("preserves the manual Other flight flow during catalog refresh", () => {
+    const current = {
+      flight_number: "other",
+      border_gate_airport: "DAD",
+      custom_flight_number: "VZ123",
+    };
+
+    expect(reconcileVnPrearrivalFlightAfterCatalogRefresh(current, "other", {
+      catalogSource: "official_live",
+      selectedExists: false,
+    })).toBe(current);
+  });
+
+  it("migrates a legacy country-data-list name to the current official nationality code", () => {
+    const officialOptions = [
+      {
+        value: "HMD",
+        code: "HMD",
+        text: "Heard and McDonald Islands",
+        label_en: "Heard and McDonald Islands",
+        label_zh: "赫德岛和麦克唐纳群岛",
+        official_label: "Heard and McDonald Islands",
+      },
+    ];
+
+    expect(reconcileVnPrearrivalNationalityValue(
+      "Heard Island And McDonald Islands",
+      officialOptions,
+    )).toBe("HMD");
+    expect(reconcileVnPrearrivalNationalityValue("HMD", officialOptions)).toBe("HMD");
+  });
+
+  it("repairs stale country fields to load the official Vietnam nationality catalog", () => {
+    const staleSteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Trip Information",
+      fields: [{
+        id: "departure-country",
+        visaType: "VN_PREARRIVAL_DECLARATION",
+        fieldName: "departure_country_before_arrival",
+        label: "Departure country before Arrival in Vietnam",
+        fieldType: "country",
+        required: true,
+        stepNumber: 2,
+        stepName: "Trip Information",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: { official: true },
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const [repairedStep] = ensureVnPrearrivalOtherFlightFlow(staleSteps);
+    expect(repairedStep.fields[0]?.validationRules).toMatchObject({
+      official: true,
+      official_source: "prearrival_category:nationality",
+      remote_search: true,
+    });
+  });
+
   it("repairs stale schemas so Other flight exposes a manual number and editable airport", () => {
     const staleSteps: WizardStep[] = [{
       stepNumber: 2,
@@ -61,6 +173,84 @@ describe("Vietnam pre-arrival dynamic form options", () => {
     });
   });
 
+  it("repairs stale visa fields with the official type-specific required rules", () => {
+    const staleSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Passenger Information",
+      fields: [
+        {
+          id: "visa-type",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_type",
+          label: "Visa Type / Purpose",
+          fieldType: "select",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 14,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "visa-number",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_number",
+          label: "Number",
+          fieldType: "text",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 15,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "visa-expiry",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "visa_expiry_date",
+          label: "Date of Expiry",
+          fieldType: "date",
+          required: true,
+          stepNumber: 1,
+          stepName: "Passenger Information",
+          displayOrder: 17,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const [repairedStep] = ensureVnPrearrivalOtherFlightFlow(staleSteps);
+    const visaType = repairedStep.fields.find((field) => field.fieldName === "visa_type");
+    const visaNumber = repairedStep.fields.find((field) => field.fieldName === "visa_number");
+    const visaExpiry = repairedStep.fields.find((field) => field.fieldName === "visa_expiry_date");
+
+    expect(visaType?.options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "TT", label_zh: "签证" }),
+      expect.objectContaining({ value: "MM1", label_zh: "双边免签" }),
+      expect.objectContaining({ value: "MM2", label_zh: "单边免签" }),
+    ]));
+    expect(visaNumber?.validationRules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+      numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+    });
+    expect(visaNumber?.conditionalLogic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiry?.validationRules).toMatchObject({
+      required_unless: "visa_type in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+    expect(visaExpiry?.conditionalLogic).toEqual({
+      showIf: "visa_type not in [TMTT, MTT, MMT, MM2, MM1, MTTQ]",
+    });
+  });
+
   it("provides selectable phone country codes when the official category is not session-readable", () => {
     const options = getPhoneCountryCodeOptions();
 
@@ -70,10 +260,12 @@ describe("Vietnam pre-arrival dynamic form options", () => {
         expect.objectContaining({
           value: "+86",
           official_label: "(+86)",
+          flagCountryCode: "cn",
         }),
         expect.objectContaining({
           value: "+65",
           official_label: "(+65)",
+          flagCountryCode: "sg",
         }),
         expect.objectContaining({
           value: "+1",
@@ -151,8 +343,37 @@ describe("Vietnam pre-arrival dynamic form options", () => {
           label_en: "MH746 (MH0746) - DAD",
           airport: "DAD",
         }),
+        expect.objectContaining({
+          value: "MR0681_PQC",
+          official_value: "MR0681",
+          label_en: "MR681 (MR0681) - PQC",
+          label_zh: "MR681 (MR0681) - PQC",
+          airport: "PQC",
+        }),
       ]),
     );
+    expect(
+      flights
+        .filter((flight) => typeof flight !== "string" && flight.value.startsWith("##"))
+        .every((flight) =>
+          typeof flight !== "string"
+          && !flight.label_en?.includes("##")
+          && !flight.label_zh?.includes("##"),
+        ),
+    ).toBe(true);
+    expect(flights).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: "##N77999_PQC",
+        official_value: "##N77999",
+        label_en: "N77999 - PQC",
+        portal_label: "##N77999 - PQC",
+      }),
+      expect.objectContaining({
+        value: "N77999_PQC",
+        official_value: "N77999",
+        label_en: "N77999 - PQC",
+      }),
+    ]));
 
     expect(getVnPrearrivalStaticOptions("prearrival_category:administrative_unit_level1")).toBeNull();
     expect(getVnPrearrivalStaticOptions("prearrival_category:administrative_unit_level2", "48")).toBeNull();

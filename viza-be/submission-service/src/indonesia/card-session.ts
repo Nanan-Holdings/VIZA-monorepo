@@ -26,6 +26,16 @@ export interface IndonesiaCardSessionResult {
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const sessions = new Map<string, IndonesiaCardSession>();
 
+function envEnabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
+}
+
+export function indonesiaCardSessionsEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return env.NODE_ENV !== "production" && envEnabled(env.ID_LOCAL_CARD_SESSION_ENABLED);
+}
+
 function nowMs(): number {
   return Date.now();
 }
@@ -49,7 +59,10 @@ export function putIndonesiaCardSession(input: {
   card: IndonesiaOneTimeCardInput;
   ttlMs?: number;
   referenceTimeMs?: number;
-}): IndonesiaCardSessionResult {
+}, env: Record<string, string | undefined> = process.env): IndonesiaCardSessionResult {
+  if (!indonesiaCardSessionsEnabled(env)) {
+    throw new Error("Indonesia applicant-card sessions are local-development fixtures only.");
+  }
   const applicationId = normalizeApplicationId(input.applicationId);
   const referenceTime = input.referenceTimeMs ?? nowMs();
   cleanupExpired(referenceTime);
@@ -87,6 +100,13 @@ export function consumeIndonesiaCardSession(applicationId: string, referenceTime
   if (!session) return null;
   sessions.delete(session.applicationId);
   return session.card;
+}
+
+/** Delete an unused card without returning its sensitive contents. */
+export function discardIndonesiaCardSession(applicationId: string, referenceTimeMs = nowMs()): boolean {
+  const normalized = normalizeApplicationId(applicationId);
+  cleanupExpired(referenceTimeMs);
+  return sessions.delete(normalized);
 }
 
 export function hasIndonesiaCardSessions(referenceTimeMs = nowMs()): boolean {

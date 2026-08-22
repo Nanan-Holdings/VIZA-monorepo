@@ -93,12 +93,12 @@ export async function selectUserVisaDestination(
       return { success: false, error: "Unknown destination" };
     }
 
-    const supabase = await createClient();
+    const supabase = await createClient({ requestTimeoutMs: 3_000 });
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const adminClient = createAdminClient();
+    const adminClient = createAdminClient({ requestTimeoutMs: 5_000 });
     let authUserId = user?.id ?? null;
 
     if (!authUserId) {
@@ -119,6 +119,42 @@ export async function selectUserVisaDestination(
       if (!authUserId) {
         return { success: false, error: "Your client profile is not linked to a login account yet" };
       }
+    }
+
+    // Prefer the atomic RPC added by migration 0131. During a rolling deploy,
+    // fall back to the legacy path only when the function is not installed yet.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rpcData, error: rpcError } = await (adminClient as any).rpc(
+      "select_user_visa_destination",
+      {
+        p_auth_user_id: authUserId,
+        p_country: destination.country,
+        p_visa_type: destination.visaType,
+        p_name: `${destination.countryName} ${destination.visaName}`,
+        p_description: destination.description,
+        p_metadata: {
+          destination_id: destination.id,
+          support_label: destination.supportLabel,
+          source: "popular_destination_catalog",
+        },
+      }
+    );
+
+    if (!rpcError) {
+      const selectedPackage = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as
+        | VisaPackageRow
+        | null;
+      if (!selectedPackage) {
+        return { success: false, error: "Could not resolve destination package" };
+      }
+
+      revalidatePath("/client/home");
+      revalidatePath("/client/application");
+      return { success: true, package: selectedPackage };
+    }
+
+    if (!["42883", "PGRST202"].includes(rpcError.code ?? "")) {
+      return { success: false, error: rpcError.message };
     }
 
     const { data: existingPackage, error: packageLookupError } = await adminClient
@@ -218,17 +254,27 @@ export async function selectUserVisaDestination(
  */
 export async function getUserVisaPackages(): Promise<UserVisaPackage[]> {
   try {
-    const supabase = await createClient();
+    const session = await getClientSessionWithFallback();
+    if (!session) return [];
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+    const adminClient = createAdminClient({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [250],
+    });
+    const { data: profile, error: profileError } = await adminClient
+      .from("applicant_profiles")
+      .select("auth_user_id")
+      .eq("id", session.userId)
+      .maybeSingle();
+    if (profileError) return [];
 
-    const { data, error } = await supabase
+    // Normal applicant sessions store the applicant profile id. Legacy client
+    // sessions may store the auth id directly, so retain it as the fallback.
+    const authUserId = profile?.auth_user_id ?? session.userId;
+    const { data, error } = await adminClient
       .from("user_packages")
       .select("visa_package_id, visa_packages(id, country, visa_type, name, description)")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .eq("status", "active")
       .order("assigned_at", { ascending: false });
 

@@ -21,6 +21,7 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getOrCreateApplicantProfile, type BrowserFingerprint } from "../browser/profile";
+import { RunnerJobOwnershipLostError } from "../queue/execution-context";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -133,25 +134,39 @@ export async function rotateFingerprint(
 
 export async function recordFingerprintUsage(
   jobId: string,
+  workerId: string,
   applicantId: string,
   attempt: number,
   rotationKey: string,
 ): Promise<void> {
+  if (!jobId || !workerId?.trim()) {
+    throw new RunnerJobOwnershipLostError(
+      "fingerprint usage requires a live runner job and worker identity",
+    );
+  }
   const entry: HistoryEntry = {
     rotation_key: rotationKey,
     attempt,
     ts: new Date().toISOString(),
   };
-  const { data: existing } = await supabase
-    .from("runner_job")
-    .select("fingerprint_history")
-    .eq("id", jobId)
-    .maybeSingle();
-  const prior = (existing?.fingerprint_history as HistoryEntry[] | null) ?? [];
-  await supabase
-    .from("runner_job")
-    .update({ fingerprint_history: [...prior, entry] })
-    .eq("id", jobId);
+  const { data, error } = await supabase.rpc("append_runner_job_fingerprint", {
+    p_job_id: jobId,
+    p_worker_id: workerId,
+    p_entry: entry,
+  });
+  if (error) {
+    throw new Error(`append_runner_job_fingerprint: ${error.message}`);
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (
+    typeof row !== "object"
+    || row === null
+    || typeof (row as { job_id?: unknown }).job_id !== "string"
+  ) {
+    throw new RunnerJobOwnershipLostError(
+      "runner job ownership was lost before recording fingerprint usage",
+    );
+  }
   // Also touch applicant-scoped history if you maintain a sister table —
   // for now `runner_job.fingerprint_history` is enough.
   void applicantId;

@@ -5,6 +5,7 @@
 
 import { getSupabaseClient } from './supabase-client.js';
 import { Logger } from '../utils/logger.js';
+import { describeParameterTypes, fingerprintSql } from './connection-config.js';
 
 const logger = new Logger({ serviceName: 'SupabaseAdapter' });
 
@@ -207,7 +208,9 @@ export async function hybridSearchFaqChunks(
 
 	logger.debug('hybrid_search_faq_chunks', {
 		embeddingLength: embedding.length,
-		query: query.substring(0, 50),
+		queryFingerprint: fingerprintSql(query),
+		parameterCount: 1,
+		parameterTypes: describeParameterTypes([query]),
 		limit,
 		vectorWeight,
 	});

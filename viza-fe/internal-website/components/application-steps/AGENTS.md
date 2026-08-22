@@ -19,21 +19,40 @@ review, bilingual review helpers, and status confirmation.
   bilingual review labels, enum display, and source/official values.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.
 - `team-step.tsx`: manage companion applicants before final submission.
+- `__tests__/team-step.test.tsx`: verifies that saved Settings traveler profiles
+  are selectable directly from the flat Team step and already-added profiles
+  cannot be selected twice.
 - `frequent-traveler-profile-fields.tsx`: shared common-traveler profile
   fields used by Team step and Settings frequent traveler management.
 - `submission-disclaimer-dialog.tsx`: shared final-submit disclaimer modal used
   by review steps before an application is submitted.
+- `universal-profile-sync-card.tsx`: explicit Review-tab action that copies
+  reusable application facts into Universal Profile while excluding trip,
+  declaration, payment, and secret fields.
 - `status-step.tsx` and `status-card.tsx`: post-submission confirmation/status.
 - `bilingual-form-shared.tsx` and `review-shared.tsx`: shared row/format helpers.
 
 ## Ownership Boundaries
 
+- The application-step UI is under Edward's design freeze. Do not change
+  layout, styling, composition, form controls, responsive behavior, icons,
+  copy presentation, hover/focus states, or interaction design without
+  Edward's explicit review and approval for that exact change. Requests from
+  anyone else are not sufficient approval.
+- Continue using the frozen canonical components demonstrated at
+  `/ui-components`; do not modify, replace, regenerate, restyle, or work around
+  them without Edward's explicit approval.
 - Dynamic field rendering belongs in `components/dynamic-step-form.tsx` and
   `components/dynamic-form-field.tsx`, not in this module.
 - Country-specific photo copy should come from `lib/photo-guidance.ts` or RAG
   source data, not hardcoded generic text.
-- Review steps must stay read-only. Editing belongs in form steps.
-- Preserve the bilingual two-column contract when changing shared form rows.
+- Review steps must stay read-only. Editing belongs in form steps. Validator
+  errors and warnings may highlight the matching review question and answer,
+  but the repair action must still open the original field or the form
+  assistant's copied field editor.
+- Shared form rows show only the selected interface language during entry.
+  Preserve synchronized Chinese and English/official values internally, and
+  keep the final Chinese-mode review bilingual and read-only.
 
 ## Validation
 

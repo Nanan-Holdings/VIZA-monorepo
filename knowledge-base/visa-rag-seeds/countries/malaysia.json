@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-04",
   "country": "malaysia",
   "notes": "Country-level VIZA RAG seed for malaysia. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -107,7 +107,7 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
           "id": "official_field_answer_norms",
@@ -120,6 +120,38 @@
             "malaysia"
           ],
           "content": "Official-source field answer norms for malaysia.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.imi.gov.my/index.php/en/pengumuman/malaysia-digital-arrival-card-mdac/ ; https://imigresen-online.imi.gov.my/mdac/main\n\nPassport and identity fields:\n- Frequently Asked Questions Security &#038; Passport Division\n\nTravel plan and port fields:\n- MALAYSIA DIGITAL ARRIVAL CARD (MDAC) &#8211; Malaysian Immigration Department\n- MyTravelPass – Application For Entry / Exit Malaysia\n- How to register Malaysia Digital Arrival Card (MDAC) - Click for Infographic.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-tourist-evisa-requirements",
+      "country": "malaysia",
+      "visaType": "MY_TOURIST_E_VISA",
+      "documentType": "requirements",
+      "title": "Malaysia Tourist eVISA",
+      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "chunks": [
+        {
+          "id": "malaysia_evisa_separate_route",
+          "title": "Malaysia eVISA is separate from MDAC",
+          "tags": ["malaysia", "evisa", "mdac", "routing"],
+          "content": "Use MY_TOURIST_E_VISA only when a deterministic passport, purpose and stay rule confirms that the traveller needs or is eligible for the tourist eVISA route. MDAC is a separate pre-arrival declaration and must not be presented as a visa."
+        }
+      ]
+    },
+    {
+      "slug": "malaysia-tourist-evisa-form-requirements",
+      "country": "malaysia",
+      "visaType": "MY_TOURIST_E_VISA",
+      "documentType": "form_requirements",
+      "title": "Malaysia Tourist eVISA Form Requirements",
+      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "chunks": [
+        {
+          "id": "malaysia_evisa_form_route",
+          "title": "Malaysia eVISA application preparation",
+          "tags": ["malaysia", "evisa", "form-requirements"],
+          "content": "For travellers deterministically routed to Malaysia tourist eVISA, prepare official portal identity, passport, contact, travel, accommodation, photograph and supporting-document fields. Eligibility and permitted stay must come from current Immigration Malaysia rules. Do not copy MDAC-only fields into this visa workflow."
         }
       ]
     }

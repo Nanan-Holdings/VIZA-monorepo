@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-13",
+  "version": "2026-08-20",
   "country": "japan",
-  "notes": "Country-level VIZA RAG seed for japan. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
+  "notes": "Country-level VIZA RAG seed for japan. Japan visa/eVISA and the separate JP_VISIT_JAPAN_WEB arrival declaration must remain distinct. VJW live automation is a launch-compliance-gated capability pending Digital Agency authorization under the current service terms; do not promise proxy submission before the gate is cleared.",
   "documents": [
     {
       "slug": "japan-mofa-short-term-tourism",
@@ -114,7 +114,7 @@
             "field-guidance",
             "official-source"
           ],
-          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. Place of issue / 签发地点 asks for the location recorded on the passport or required by the official form, such as a city, province, municipality, or a country selected from an official country-only dropdown; copy the passport's Place of issue value when present, and enter a country only when the form explicitly asks for Country of issue / Issuing country or provides a country-only selector. Issuing authority / 签发机关 asks for the organization printed under Authority / Issuing authority. For Chinese ordinary passports, National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers. Do not infer either field from the pickup city, residence city, application country, or travel destination. If the passport prints a different value for the requested field, use that exact field value. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page and the destination's official field wording remain the final sources for the applicant's individual answer."
         },
         {
           "id": "official_field_answer_norms",
@@ -127,6 +127,86 @@
             "japan"
           ],
           "content": "Official-source field answer norms for japan.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.mofa.go.jp/j_info/visit/visa/visaonline.html ; https://www.mofa.go.jp/j_info/visit/visa/index.html\n\nPassport and identity fields:\n- (3) Only ordinary passport holder is eligible to apply through JAPAN eVISA website.\n- (In some countries, applications must be made through travel agencies accredited by Japanese overseas establishment.) (For Taiwan, Taipei / Kaohsiung offices of Japan-Taiwan Exchange Association) In this case, you will have a visa sticker on your passport.\n- Visa Exemptions for Diplomatic and Official Passport Holders\n\nTravel plan and port fields:\n- Single-entry short-term stay visa for the purpose of Tourism (for a period of up to 90 days) (Note).\n- The &ldquo;landing permission\" is granted by an immigration officer at the port of entry when a foreigner meets the requirement for entry into Japan.\n- 【Online application for the visit to Japan with tourism purpose (single-entry)】\n\nAccommodation, host, and address fields:\n- Inviting organization/guarantor must send the required documents to the visa applicant (NOT to the Ministry of Foreign Affairs or the Diplomatic Mission of Japan).\n- We encourage an inviting organization/guarantor to make a copy of them.\n- (Note2) Company/personal seal on Letter of Guarantee and Letter of Invitation is no longer required.\n\nPurpose, occupation, work, and study fields:\n- Foreign nationals/people who wish to travel to Japan for tourism for a short-term period can apply for a visa online and receive an electronic visa (eVISA) through the JAPAN eVISA system.\n- Single-entry short-term stay visa for the purpose of Tourism (for a period of up to 90 days) (Note).\n- Requirements for visa application may vary depending on the local situation/the purpose of your visit.\n\nFunds, insurance, photo, and supporting-document fields:\n- It is highly recommended to purchase international travel medical insurance for your trip to Japan.\n- Overseas travel medical insurance helps you in case of emergency.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
+        },
+        {
+          "id": "japan_vjw_launch_compliance_gate",
+          "title": "Visit Japan Web 代填/自动提交的上线合规门槛",
+          "tags": [
+            "japan",
+            "visit-japan-web",
+            "vjw",
+            "compliance",
+            "automation"
+          ],
+          "content": "Visit Japan Web 是日本数字厅提供的在线入境和海关申报服务。当前上线前必须复核 2026-07-22 版本服务条款：第8条第3款要求用户本人完成注册和信息输入，除非数字厅另行认可。VIZA 可以先收集和校验答案，但在取得官方授权并完成合规审查前，不得向用户承诺由 VIZA 代注册、代填或自动提交。日本海关也提醒 Visit Japan Web 官方服务免费，并警惕收费的第三方 QR 码代办。官方来源：https://www.digital.go.jp/en/policies/visit_japan_web ; https://www.customs.go.jp/english/news/20260528e.html ; https://services.digital.go.jp/en/visit-japan-web/"
+        }
+      ]
+    },
+    {
+      "slug": "japan-visit-japan-web",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentType": "requirements",
+      "title": "Japan Visit Japan Web Arrival Procedures",
+      "sourceUrl": "https://www.digital.go.jp/en/policies/visit_japan_web",
+      "chunks": [
+        {
+          "id": "japan_vjw_online_scope",
+          "title": "Visit Japan Web 在线入境和海关申报范围",
+          "tags": ["japan", "visit-japan-web", "arrival-declaration", "customs", "immigration"],
+          "content": "日本数字厅说明，Visit Japan Web 可在线办理入境（immigration）和海关（customs）相关手续。它是入境申报服务，不是签证，不替代中国普通护照持有人的日本签证或其他入境资格。日本入境审查机构仍要求新入境外国人提交外国人入国记录，日本海关则推荐通过 Visit Japan Web 电子提交；海关纸质 Declaration of Accompanied Articles and Unaccompanied Articles 仍可使用。入境审查和最终准入仍由日本入国审查官在口岸执行。官方来源：https://www.digital.go.jp/en/policies/visit_japan_web ; https://www.moj.go.jp/isa/immigration/procedures/translation.html?hl=en ; https://www.customs.go.jp/english/passenger/declaration/declaration_app.html"
+        },
+        {
+          "id": "japan_vjw_fields_and_qr",
+          "title": "Visit Japan Web 需要收集的字段和二维码",
+          "tags": ["japan", "visit-japan-web", "passport", "itinerary", "accommodation", "qr"],
+          "content": "填写前应从护照和行程材料收集姓名、出生日期、性别、国籍、护照号码和有效期、联系方式、最后出发地、抵达日期、入境机场或港口、航班号、访问目的、计划停留天数以及日本住宿名称、地址和电话。外国人入国记录还应逐项回答：是否曾被日本强制遣返、根据出国命令离境或被日本拒绝入境；是否曾在日本或其他国家的刑事案件中被判有罪；目前是否持有管制药物、枪支、弩、刀剑、爆炸物等物品。海关申报的禁止/限制物品、超过免税额度、商业货物或样品、为他人携带物品、非随身行李及现金/支付工具等问题必须逐项回答，不能用一个未定义的总问题替代。信息变更后需要重新生成二维码；同伴或家庭成员也应逐人录入并生成各自二维码。日本海关指出，所有入境旅客都要申报携带物品，电子申报可通过 Visit Japan Web 完成，纸质表格仍是替代渠道，必要时仍可能接受海关检查。"
+        },
+        {
+          "id": "japan_vjw_free_official_channel",
+          "title": "日本 Visit Japan Web 官方免费渠道",
+          "tags": ["japan", "visit-japan-web", "free", "official-source", "fraud-warning"],
+          "content": "Visit Japan Web 官方服务免费，日本海关不收取电子申报费用。日本海关已提醒旅客注意冒充 Visit Japan Web 的网站，以及声称可以收费代生成 QR 码的第三方服务。VIZA 页面必须明确自己不是日本政府网站；在当前服务条款授权门槛未解除前，不能把 VIZA 代填或自动提交描述为已上线能力。官方来源：https://www.customs.go.jp/english/news/20260528e.html"
+        }
+      ]
+    },
+    {
+      "slug": "japan-visit-japan-web-form-requirements",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentType": "form_requirements",
+      "title": "Japan Visit Japan Web Form Intake Requirements",
+      "sourceUrl": "https://www.moj.go.jp/isa/immigration/procedures/translation.html?hl=en",
+      "chunks": [
+        {
+          "id": "japan_vjw_form_channel_and_scope",
+          "title": "日本 VJW 表单渠道和边界",
+          "tags": ["japan", "visit-japan-web", "form-requirements", "official-source"],
+          "content": "VIZA 的 JP_VISIT_JAPAN_WEB 表单只收集 Visit Japan Web 入境记录和海关申报所需的旅客、行程、住宿、逐项入境风险问题及逐项海关答案。VJW 是推荐的电子渠道，但日本仍提供纸质外国人入国记录/海关申报替代方式；它不是签证。日本签证/eVISA、工作、留学、居留和入境审查决定均不属于该产品。用户最终需在官方服务中确认答案；VIZA 是否可以代注册、代填或自动提交，必须等待日本数字厅授权门槛复核。"
+        },
+        {
+          "id": "japan_vjw_form_fields_to_collect",
+          "title": "日本 VJW 自动化前置答案",
+          "tags": ["japan", "visit-japan-web", "autofill", "field-mapping", "customs"],
+          "content": "字段种子覆盖护照身份、联系方式、最后出发地、抵达日期、机场/港口、航班、访问目的、计划停留天数、住宿地址和电话、三项外国人入国记录风险问题、六项海关逐项问题，以及入境和海关最终确认。`customs_declaration` 和 `final_declaration` 只作为由逐项答案/确认汇总的 runner canonical key，不向用户新增一个笼统的海关问题。机场/港口等闭合选项必须在 live portal 中解析并以官方值提交，不能向官方门户发送中文显示标签。"
+        },
+        {
+          "id": "japan_vjw_immigration_and_customs_questions",
+          "title": "日本外国人入国记录和海关逐项问题",
+          "tags": ["japan", "visit-japan-web", "immigration", "customs", "declaration", "official-source"],
+          "content": "日本出入国在留管理厅《外国人入国記録（Disembarkation Card）》英文样表列出三项 yes/no 问题：Have you ever been deported from Japan, have you ever departed from Japan under a departure order, or have you ever been denied entry to Japan?；Have you ever been found guilty in a criminal case in Japan or in another country?；Do you presently have in your possession narcotics, marijuana, opium, stimulants or other controlled substances, firearms, crossbow, swords, explosives or other such items? VIZA 以 `has_been_deported`、`has_criminal_record`、`has_controlled_substances_or_weapons` 保存这些逐项答案。日本海关 C-5360-B 则要求逐项回答禁止/限制物品、超过免税额度、商业货物或样品、为他人携带物品、非随身行李及现金/支付工具等问题；VIZA 以六个 `has_*` 海关字段保存，不把它们压成用户必须填写的单一 `customs_declaration`。官方来源：https://www.moj.go.jp/isa/content/930002134.pdf ; https://www.customs.go.jp/kaisei/youshiki/form_C/C5360-B.pdf"
+        },
+        {
+          "id": "japan_vjw_supporting_documents_and_review",
+          "title": "日本 VJW 材料和复核边界",
+          "tags": ["japan", "visit-japan-web", "documents", "review-before-submit"],
+          "content": "Visit Japan Web 主要提交结构化入境和海关信息，不应把护照、机票或住宿文件路径写入 answers。VIZA 可在 application_documents 中保存护照、行程和住宿材料用于 OCR/人工核对；官方 portal 是否需要文件上传以当前页面为准。最终提交前必须让用户复核申报答案，并区分 VJW QR 结果与日本签证批准结果。"
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": ["standard-fields", "passport", "issuing-authority", "passport-type", "identity-document", "field-guidance", "official-source"],
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. For Chinese ordinary passports, select Ordinary/Regular/Normal only when the document indicates that type."
         }
       ]
     }

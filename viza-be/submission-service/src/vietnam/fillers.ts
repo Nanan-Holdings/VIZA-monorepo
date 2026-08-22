@@ -8,10 +8,9 @@
  * pattern for each component.
  */
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 import {
-  getVnCountryAlpha3ForOptionText,
   getVnCountryOptionIndex,
   getVnCountrySearchTextForOptionText,
 } from "./field-mappings.js";
@@ -19,13 +18,79 @@ import {
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
-const VN_IDLESS_RADIO_QUESTIONS: Record<string, string> = {
-  basic_ttcnCoQtKhac: "Do you have multiple nationalities?",
-  basic_ttcnDaDungHcKhacVaoVn: "Have you ever used any other passports to enter into Viet Nam?",
-  basic_ttcnViPhamPl: "Violation of the Vietnamese laws/regulations (if any)",
-  basic_ttcdCoCqTcCaNhanLienHe: "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
-  basic_ttcdDaDenVn: "Have you been to Viet Nam in the last 01 year?",
-  basic_ttcdCoThanNhan: "Do you have relatives who currently reside in Viet Nam?",
+const DEFAULT_SELECT_FIELD_TIMEOUT_MS = 45_000;
+const VN_IDLESS_RADIO_QUESTIONS: Record<string, string[]> = {
+  basic_ttcnCoQtKhac: [
+    "Do you have multiple nationalities?",
+    "Người đề nghị cấp thị thực điện tử có mang nhiều quốc tịch hay không?",
+    "Có quốc tịch khác",
+  ],
+  basic_ttcnDaDungHcKhacVaoVn: [
+    "Have you ever used any other passports to enter into Viet Nam?",
+    "Người đề nghị cấp thị thực điện tử đã từng sử dụng hộ chiếu khác để nhập cảnh Việt Nam hay không?",
+    "hộ chiếu khác",
+    "dùng hộ chiếu khác",
+  ],
+  basic_ttcnViPhamPl: ["Violation of the Vietnamese laws/regulations (if any)", "Vi phạm pháp luật Việt Nam"],
+  basic_ttcdCoCqTcCaNhanLienHe: [
+    "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
+    "Cơ quan, tổ chức, cá nhân dự kiến liên hệ khi vào Việt Nam",
+    "Cơ quan, tổ chức, cá nhân dự kiến liên hệ",
+    "Cơ quan/Tổ chức/Cá nhân",
+  ],
+  basic_ttcdDaDenVn: ["Have you been to Viet Nam in the last 01 year?", "đến Việt Nam trong 01 năm"],
+  basic_ttcdCoThanNhan: [
+    "Do you have relatives who currently reside in Viet Nam?",
+    "có người thân đang ở Việt Nam hay không?",
+    "người thân đang ở Việt Nam",
+    "thân nhân hiện đang ở Việt Nam",
+  ],
+};
+
+const VN_PORTAL_OPTION_ALIASES: Record<string, string[]> = {
+  yes: ["Yes", "Có"],
+  no: ["No", "Không"],
+  m: ["M", "Male", "Nam"],
+  f: ["F", "Female", "Nữ"],
+  "ordinary passport": ["Ordinary passport", "Hộ chiếu phổ thông", "Phổ thông"],
+  ordinary: ["Ordinary", "Ordinary passport", "Hộ chiếu phổ thông", "Phổ thông"],
+  "diplomatic passport": ["Diplomatic passport", "Hộ chiếu ngoại giao", "Ngoại giao"],
+  diplomatic: ["Diplomatic", "Diplomatic passport", "Hộ chiếu ngoại giao", "Ngoại giao"],
+  "official passport": ["Official passport", "Hộ chiếu công vụ", "Công vụ"],
+  other: ["Other", "Others", "Khác"],
+  others: ["Others", "Other", "Khác"],
+  "single entry": ["Single-entry", "Single entry", "Một lần", "Nhập cảnh một lần"],
+  "multiple entry": ["Multiple-entry", "Multiple entry", "Nhiều lần", "Nhập cảnh nhiều lần"],
+  tourist: ["Tourist", "Tourism", "Du lịch"],
+  "visiting relatives": ["Visiting relatives", "Thăm thân"],
+  working: ["Working", "Lao động"],
+  business: ["Business", "Công tác", "Thương mại"],
+  businessman: ["Businessman", "Doanh nhân"],
+  employee: ["Employee", "Nhân viên"],
+  official: ["Official", "Công chức"],
+  retired: ["Retired", "Nghỉ hưu"],
+  student: ["Student", "Sinh viên"],
+  unemployed: ["Unemployed", "Không nghề nghiệp"],
+  personal: ["Personal", "Cá nhân"],
+  company: ["Company", "Công ty"],
+  cash: ["Cash", "Tiền mặt"],
+  "credit card": ["Credit card", "Thẻ tín dụng"],
+  "traveller s cheques": ["Traveller's cheques", "Traveler's cheques", "Séc du lịch"],
+  "cat bi int airport hai phong": [
+    "Cat Bi Int Airport (Hai Phong)",
+    "Cửa khẩu Cảng hàng không quốc tế Cát Bi",
+    "Cảng hàng không quốc tế Cát Bi",
+    "Sân bay quốc tế Cát Bi",
+    "SBQT Cát Bi",
+  ],
+  "bo y landport": [
+    "Bo Y Landport",
+    "Cửa khẩu Bờ Y",
+    "Cửa khẩu quốc tế Bờ Y",
+    "CKQT Bờ Y",
+    "CK Bờ Y",
+    "Bờ Y",
+  ],
 };
 
 async function settle(page: Page): Promise<void> {
@@ -53,35 +118,79 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
   const searchTerms = buildAntSelectSearchTerms(optionText);
+  const matchTexts = buildAntSelectMatchTexts(optionText);
   const optionIndex = getVnCountryOptionIndex(optionText);
+  const deadline = Date.now() + getVietnamSelectFieldTimeoutMs();
   await page.evaluate("window.__name = window.__name || ((fn) => fn)");
+  if (optionIndex !== null) {
+    const indexed = await pickKnownCountryByIndex(page, domId, matchTexts, optionIndex, deadline);
+    if (indexed.ok) {
+      await settle(page);
+      return;
+    }
+  } else {
+    const input = page.locator(`#${cssEscape(domId)}`).first();
+    const select = input.locator(
+      "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+    );
+    const selector = select.locator(".ant-select-selector").first();
+    if ((await input.count()) > 0 && (await selector.count()) > 0) {
+      const keyboard = await pickSelectWithKeyboardAliases(
+        page,
+        domId,
+        input,
+        selector,
+        matchTexts,
+        Math.min(deadline, Date.now() + 10_000),
+      );
+      if (keyboard.ok) {
+        await settle(page);
+        return;
+      }
+    }
+    // Wards and border gates are long virtual lists without a stable index.
+    // Scan the localized list before replaying typed searches, because the
+    // Vietnamese portal often returns no results for an English label.
+    await openFullSelectListForIndexedScroll(page, domId);
+    const scanned = await scrollSelectOptionByText(page, matchTexts, deadline);
+    if (scanned.ok && (await selectDisplayMatches(page, domId, matchTexts))) {
+      await settle(page);
+      return;
+    }
+  }
   const result = await page.evaluate(
-    async ({ domId, optionText, searchTerms }) => {
+    async ({ domId, matchTexts, searchTerms, timeoutMs }) => {
+      const operationDeadline = Date.now() + timeoutMs;
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       const normalize = (value: string) =>
         value
           .normalize("NFD")
+          .replace(/[Đđ]/g, "d")
           .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, " ")
           .trim();
       const rank = (texts: string[]) => {
-        const target = normalize(optionText);
-        const targetTokens = target.split(" ").filter((token) => token.length > 1);
         return texts
           .map((text, index) => {
             const candidate = normalize(text);
             let score = -1;
-            if (candidate && target) {
-              if (candidate === target) score = 100;
-              else if (candidate.startsWith(target) || target.startsWith(candidate)) score = 92;
-              else if (candidate.includes(target) || target.includes(candidate)) score = 86;
-              else {
-                const candidateTokens = candidate.split(" ").filter((token) => token.length > 1);
-                const overlap = targetTokens.filter((token) => candidateTokens.includes(token)).length;
-                if (targetTokens.length > 0 && overlap === targetTokens.length) score = 88;
-                else if (overlap >= 2) score = 70 + overlap * 5;
-                else if (overlap === 1 && targetTokens.length === 1) score = 72;
+            for (const matchText of matchTexts) {
+              const target = normalize(matchText);
+              const targetTokens = target.split(" ").filter((token) => token.length > 1);
+              if (candidate && target) {
+                if (candidate === target) score = Math.max(score, 100);
+                else if (target.length > 1 && (candidate.startsWith(target) || target.startsWith(candidate))) {
+                  score = Math.max(score, 92);
+                } else if (target.length > 1 && (candidate.includes(target) || target.includes(candidate))) {
+                  score = Math.max(score, 86);
+                } else {
+                  const candidateTokens = candidate.split(" ").filter((token) => token.length > 1);
+                  const overlap = targetTokens.filter((token) => candidateTokens.includes(token)).length;
+                  if (targetTokens.length > 0 && overlap === targetTokens.length) score = Math.max(score, 88);
+                  else if (overlap >= 2) score = Math.max(score, 70 + overlap * 5);
+                  else if (overlap === 1 && targetTokens.length === 1) score = Math.max(score, 72);
+                }
               }
             }
             return { index, text, score };
@@ -216,23 +325,12 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         }
         await sleep(900);
       };
-      const submitWithKeyboard = async () => {
-        input.focus();
-        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
-        await sleep(100);
-        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
-        await sleep(500);
-        input.blur();
-        input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
-      };
-
       await open();
       let optionList = await waitForOptions(1_800);
       let best = rank(optionList.map((option) => option.text))[0];
       if (!best || best.score < 88) {
         for (const searchTerm of searchTerms) {
+          if (Date.now() >= operationDeadline) break;
           await search(searchTerm);
           optionList = await waitForOptions(900);
           best = rank(optionList.map((option) => option.text))[0];
@@ -240,19 +338,6 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         }
       }
       if (!best || best.score < 88) {
-        for (const searchTerm of searchTerms) {
-          await search(searchTerm);
-          await submitWithKeyboard();
-          const keyboardText = currentSelectText(select);
-          const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
-          if (keyboardScore >= 88) {
-            return {
-              ok: true,
-              reason: undefined,
-              candidates: [keyboardText],
-            };
-          }
-        }
         return {
           ok: false,
           reason: "option_not_found",
@@ -273,10 +358,21 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         candidates: confirmed ? [selected.text] : [selected.text, currentText],
       };
     },
-    { domId, optionText, searchTerms },
+    { domId, matchTexts, searchTerms, timeoutMs: Math.max(1, deadline - Date.now()) },
   );
   if (!result.ok) {
-    const retry = await pickSelectWithPlaywright(page, domId, optionText, searchTerms, optionIndex);
+    // The in-page strategy may consume the normal field deadline while an
+    // async Ant dropdown is still rendering an empty virtual list. Reserve a
+    // short, bounded Playwright recovery window so exact localized aliases can
+    // still be committed with ArrowDown/Enter and verified from the display.
+    const recoveryDeadline = Math.max(deadline, Date.now() + 12_000);
+    const retry = await pickSelectWithPlaywright(
+      page,
+      domId,
+      matchTexts,
+      optionIndex,
+      recoveryDeadline,
+    );
     if (retry.ok) {
       await settle(page);
       return;
@@ -293,12 +389,196 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
   await settle(page);
 }
 
+const VIETNAM_OFFICIAL_SELECT_MODEL_VALUES: Record<string, Record<string, number>> = {
+  basic_kpbhMuaBaoHiem: {
+    yes: 1,
+    bought: 1,
+    no: 2,
+    not_bought: 2,
+    have_not_bought_yet: 2,
+  },
+  basic_kpbhNguoiDamBao: {
+    personal: 1,
+    self: 1,
+    company: 2,
+  },
+  basic_kpbhHinhThuc: {
+    cash: 1,
+    credit_card: 2,
+    creditcard: 2,
+    traveller_s_cheques: 3,
+    travelers_cheques: 3,
+  },
+};
+
+const VIETNAM_OFFICIAL_SELECT_LABELS: Record<string, Record<number, string[]>> = {
+  basic_kpbhMuaBaoHiem: {
+    1: ["Yes", "Bought", "Đã mua"],
+    2: ["No", "Have not bought yet", "Chưa mua"],
+  },
+  basic_kpbhNguoiDamBao: {
+    1: ["Personal", "Cá nhân"],
+    2: ["Company", "Công ty"],
+  },
+  basic_kpbhHinhThuc: {
+    1: ["Cash", "Tiền mặt"],
+    2: ["Credit card", "Thẻ tín dụng"],
+    3: ["Traveller's cheques", "Traveler's cheques", "Séc du lịch"],
+  },
+};
+
+/**
+ * Commit the official numeric model behind the three expense selects.
+ *
+ * The payment-detail SPA can retain a rendered Ant selection while the
+ * active Pinia value is null (notably after the payer onChange callback
+ * clears payment method). Ant Form then rejects the visually selected field.
+ * These codes come from the current official bundle: insurance 1/2, payer
+ * 1/2, payment method 1/2/3. Unknown values are never guessed.
+ */
+export async function commitVietnamOfficialExpenseSelectModel(
+  page: Page,
+  domId: string,
+  rawValue: string,
+): Promise<boolean> {
+  const key = rawValue
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const officialValue = VIETNAM_OFFICIAL_SELECT_MODEL_VALUES[domId]?.[key];
+  if (officialValue === undefined) return false;
+  const expectedId = domId.replace(/^basic_/, "");
+  const visibleInput = page.locator(`#${cssEscape(domId)}:visible`).first();
+  const select = visibleInput.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+  );
+  const selector = select.locator(".ant-select-selector").first();
+  let trustedSelection = false;
+  if ((await visibleInput.count().catch(() => 0)) > 0 && (await selector.count().catch(() => 0)) > 0) {
+    await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await page.waitForTimeout(250);
+    const labels = VIETNAM_OFFICIAL_SELECT_LABELS[domId]?.[officialValue] ?? [];
+    const exact = new RegExp(`^\\s*(?:${labels.map(escapeRegex).join("|")})\\s*$`, "i");
+    const option = page
+      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden):visible .ant-select-item-option")
+      .filter({ hasText: exact })
+      .last();
+    if (await option.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      trustedSelection = await option
+        .click({ timeout: SHORT_TIMEOUT, force: true })
+        .then(() => true)
+        .catch(() => false);
+      await page.waitForTimeout(400);
+    }
+  }
+  // tsx/esbuild annotates nested functions with a browser-global __name
+  // helper. Playwright serializes only this callback, so install the tiny
+  // helper explicitly before evaluating the Pinia patch.
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
+  const result = await page.evaluate(
+    async ({ expectedId: field, officialValue: value }) => {
+      type StoreLike = {
+        $state?: { formForeigners?: Record<string, unknown> };
+        formForeigners?: Record<string, unknown>;
+        $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+      };
+      type PiniaLike = { _s?: { forEach?: (callback: (store: unknown) => void) => void } };
+      type VueAppElement = HTMLElement & {
+        __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } };
+      };
+      const app = document.querySelector<VueAppElement>("#app")?.__vue_app__;
+      const provides = app?._context?.provides ?? {};
+      const matched: Array<{ store: StoreLike; form: Record<string, unknown> }> = [];
+      for (const candidate of Reflect.ownKeys(provides).map((provideKey) => provides[provideKey])) {
+        const stores = (candidate as PiniaLike | null)?._s;
+        if (!stores || typeof stores.forEach !== "function") continue;
+        stores.forEach((rawStore) => {
+          const store = rawStore as StoreLike;
+          const form = store.$state?.formForeigners ?? store.formForeigners;
+          if (!form || !(field in form)) return;
+          matched.push({ store, form });
+        });
+      }
+      const commit = () => {
+        for (const target of matched) {
+          if (typeof target.store.$patch === "function") {
+            target.store.$patch((state) => {
+              if (state.formForeigners) state.formForeigners[field] = value;
+            });
+          } else {
+            target.form[field] = value;
+          }
+        }
+      };
+      commit();
+      await Promise.resolve();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      commit();
+      return {
+        matched: matched.length,
+        stable: matched.filter((target) => target.form[field] === value).length,
+      };
+    },
+    { expectedId, officialValue },
+  ).catch(() => ({ matched: 0, stable: 0 }));
+  console.log(
+    `[vn] expense-select model bridge ${domId} trusted=${trustedSelection}` +
+    ` stores=${result.matched}/${result.stable}`,
+  );
+  return result.matched > 0 && result.matched === result.stable;
+}
+
+export function getVietnamSelectFieldTimeoutMs(
+  rawValue: string | undefined = process.env.VN_SELECT_FIELD_TIMEOUT_MS,
+): number {
+  if (!rawValue) return DEFAULT_SELECT_FIELD_TIMEOUT_MS;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_SELECT_FIELD_TIMEOUT_MS;
+  return Math.max(1_000, Math.min(parsed, 60_000));
+}
+
+async function pickKnownCountryByIndex(
+  page: Page,
+  domId: string,
+  matchTexts: string[],
+  optionIndex: number,
+  deadline: number,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  const input = page.locator(`#${cssEscape(domId)}`).first();
+  const select = input.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+  );
+  const selector = select.locator(".ant-select-selector").first();
+  if ((await input.count()) === 0 || (await select.count()) === 0 || (await selector.count()) === 0) {
+    return { ok: false, candidates: [] };
+  }
+
+  await input.evaluate((element) => {
+    element.closest<HTMLElement>(".ant-select")?.scrollIntoView({ block: "center", inline: "center" });
+  });
+  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await page.waitForTimeout(150);
+  await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  await openFullSelectListForIndexedScroll(page, domId);
+  let candidates = await readVisibleSelectCandidates(page);
+  const indexed = await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
+  if (indexed.candidates.length > candidates.length) {
+    candidates = indexed.candidates;
+  }
+  await page.waitForTimeout(300);
+  return {
+    ok: indexed.ok && (await selectDisplayMatches(page, domId, matchTexts)),
+    candidates,
+  };
+}
+
 async function pickSelectWithPlaywright(
   page: Page,
   domId: string,
-  optionText: string,
-  searchTerms: string[],
+  matchTexts: string[],
   optionIndex: number | null,
+  deadline: number,
 ): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
   const input = page.locator(`#${cssEscape(domId)}`).first();
   const select = input.locator(
@@ -320,25 +600,51 @@ async function pickSelectWithPlaywright(
   await page.waitForTimeout(250);
   await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  // Try the portal's native keyboard commit first. The current production
+  // build can keep its virtual option DOM empty even though typing an exact
+  // Vietnamese alias and pressing Enter commits the value internally.
+  const earlyKeyboardFallback = await pickSelectWithKeyboardAliases(
+    page,
+    domId,
+    input,
+    selector,
+    matchTexts,
+    Math.min(deadline, Date.now() + 10_000),
+  );
+  if (earlyKeyboardFallback.ok) return earlyKeyboardFallback;
   if (optionIndex !== null) {
     await openFullSelectListForIndexedScroll(page, domId);
     let candidates = await readVisibleSelectCandidates(page);
-    const keyboardIndexed = await selectIndexedOptionWithKeyboard(page, domId, optionText, optionIndex);
-    if (keyboardIndexed.candidates.length > candidates.length) {
-      candidates = keyboardIndexed.candidates;
-    }
-    if (keyboardIndexed.ok) return { ok: true, candidates };
-
-    const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
+    const indexed = await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
     if (indexed.candidates.length > candidates.length) {
       candidates = indexed.candidates;
     }
     await page.waitForTimeout(500);
-    if (indexed.ok && (await selectDisplayMatches(page, domId, optionText))) {
+    if (indexed.ok && (await selectDisplayMatches(page, domId, matchTexts))) {
       return { ok: true, candidates };
     }
   }
-  for (const searchTerm of searchTerms) {
+  // The live portal virtualizes long ward and border-gate lists and its
+  // Vietnamese build does not reliably filter on the English schema label.
+  // Walk the rendered list before falling back to typed search. This keeps
+  // the applicant's exact choice while allowing localized aliases to match.
+  await openFullSelectListForIndexedScroll(page, domId);
+  const scanned = await scrollSelectOptionByText(page, matchTexts, deadline);
+  if (scanned.ok) {
+    await page.waitForTimeout(500);
+    if (await selectDisplayMatches(page, domId, matchTexts)) {
+      return { ok: true, candidates: scanned.candidates };
+    }
+  }
+  // Preserve one exact term per localized alias. Taking the first generic
+  // prefixes can fill the whole fallback budget before Vietnamese labels are
+  // ever tried (for example Single-entry -> Một lần).
+  const fallbackSearchTerms = matchTexts.slice(0, 4);
+  const scannedCandidates = scanned.candidates;
+  for (const searchTerm of fallbackSearchTerms) {
+    if (Date.now() >= deadline) {
+      return { ok: false, reason: "select_field_timeout", candidates: scannedCandidates };
+    }
     await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
     await page.waitForTimeout(150);
     await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
@@ -349,25 +655,24 @@ async function pickSelectWithPlaywright(
     await page.waitForTimeout(700);
 
     let candidates = await readVisibleSelectCandidates(page);
+    const exactPattern = new RegExp(
+      `^\\s*(?:${matchTexts.map((text) => escapeRegex(text)).join("|")})\\s*$`,
+      "i",
+    );
     const exactOption = page
       .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option")
-      .filter({ hasText: new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i") })
+      .filter({ hasText: exactPattern })
       .first();
     if ((await exactOption.count()) > 0) {
       await exactOption.click({ timeout: SHORT_TIMEOUT, force: true });
     } else {
-      const indexed = optionIndex === null ? { ok: false, candidates: [] } : await scrollToIndexedSelectOption(page, optionText, optionIndex);
-      const scrolled = indexed.ok ? indexed : await wheelAndClickSelectOption(page, optionText);
-      if (scrolled.candidates.length > candidates.length) {
-        candidates = scrolled.candidates;
-      }
-      if (!scrolled.ok) {
-        await page.keyboard.press("ArrowDown").catch(() => undefined);
-        await page.keyboard.press("Enter").catch(() => undefined);
-      }
+      const indexed = optionIndex === null
+        ? { ok: false, candidates: [] }
+        : await scrollToIndexedSelectOption(page, matchTexts, optionIndex, deadline);
+      if (indexed.candidates.length > candidates.length) candidates = indexed.candidates;
     }
     await page.waitForTimeout(500);
-    const confirmed = await selectDisplayMatches(page, domId, optionText);
+    const confirmed = await selectDisplayMatches(page, domId, matchTexts);
     if (confirmed) return { ok: true, candidates };
 
     if (candidates.length === 0) {
@@ -375,37 +680,143 @@ async function pickSelectWithPlaywright(
       await page.waitForTimeout(300);
       candidates = await readVisibleSelectCandidates(page);
     }
-    if (searchTerm === searchTerms[searchTerms.length - 1]) {
-      return { ok: false, reason: "playwright_selection_not_confirmed", candidates };
+    if (searchTerm === fallbackSearchTerms[fallbackSearchTerms.length - 1]) {
+      for (const candidate of candidates) {
+        if (!scannedCandidates.includes(candidate)) scannedCandidates.push(candidate);
+      }
+      break;
     }
   }
-  return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+  const keyboardFallback = await pickSelectWithKeyboardAliases(
+    page,
+    domId,
+    input,
+    selector,
+    matchTexts,
+    deadline,
+  );
+  if (keyboardFallback.ok) return keyboardFallback;
+  return {
+    ok: false,
+    reason: keyboardFallback.reason ?? "playwright_selection_not_confirmed",
+    candidates: [...scannedCandidates, ...keyboardFallback.candidates].filter(
+      (candidate, index, candidates) => candidate && candidates.indexOf(candidate) === index,
+    ),
+  };
 }
 
-async function selectIndexedOptionWithKeyboard(
+async function pickSelectWithKeyboardAliases(
   page: Page,
   domId: string,
-  optionText: string,
-  optionIndex: number,
+  input: Locator,
+  selector: Locator,
+  matchTexts: string[],
+  deadline: number,
+): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
+  const seen: string[] = [];
+  for (const searchTerm of matchTexts) {
+    if (!searchTerm || Date.now() >= deadline) break;
+    await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await page.waitForTimeout(150);
+    await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await input.fill(searchTerm, { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(domId === "basic_hcLoai" ? 1_500 : 900);
+
+    const ownedCandidates = await readOwnedSelectCandidates(page, domId);
+    for (const candidate of ownedCandidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    await input.press("ArrowDown", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(150);
+    await input.press("Enter", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.waitForTimeout(600);
+    if (await selectDisplayMatches(page, domId, matchTexts)) {
+      return { ok: true, candidates: seen };
+    }
+    await input.press("Escape", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  }
+  return {
+    ok: false,
+    reason: Date.now() >= deadline ? "select_field_timeout" : "keyboard_selection_not_confirmed",
+    candidates: seen,
+  };
+}
+
+async function readOwnedSelectCandidates(page: Page, domId: string): Promise<string[]> {
+  return page.evaluate((id) => {
+    const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
+    if (!input) return [];
+    const roots = [input.getAttribute("aria-controls"), input.getAttribute("aria-owns")]
+      .filter(Boolean)
+      .map((controlId) => document.getElementById(controlId as string))
+      .filter((root): root is HTMLElement => Boolean(root));
+    return roots
+      .flatMap((root) =>
+        Array.from(root.querySelectorAll<HTMLElement>("[role='option'], .ant-select-item-option")),
+      )
+      .map((option) => {
+        const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
+        return (option.getAttribute("title") || content.innerText || content.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim();
+      })
+      .filter((candidate, index, candidates) =>
+        Boolean(candidate) && candidates.indexOf(candidate) === index,
+      )
+      .slice(0, 20);
+  }, domId).catch(() => []);
+}
+
+async function scrollSelectOptionByText(
+  page: Page,
+  matchTexts: string[],
+  deadline: number,
 ): Promise<{ ok: boolean; candidates: string[] }> {
-  await openFullSelectListForIndexedScroll(page, domId);
-  const candidates = await readVisibleSelectCandidates(page);
-  const input = page.locator(`#${cssEscape(domId)}`).first();
-  await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
-  await page.keyboard.press("Home").catch(() => undefined);
-  await page.waitForTimeout(80);
-  for (let step = 0; step <= optionIndex; step += 1) {
-    await page.keyboard.press("ArrowDown").catch(() => undefined);
-    if (step % 20 === 19) {
-      await page.waitForTimeout(20);
+  const seen: string[] = [];
+  let lastScrollTop = -1;
+  for (let attempt = 0; attempt < 160 && Date.now() < deadline; attempt += 1) {
+    const clicked = await clickVisibleSelectOptionIfPresent(page, matchTexts);
+    for (const candidate of clicked.candidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    if (clicked.ok) return { ok: true, candidates: seen };
+
+    const position = await page.evaluate(() => {
+      const visible = (element: HTMLElement) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          !element.classList.contains("ant-select-dropdown-hidden") &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+        .filter(visible)
+        .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+      const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
+      if (!holder) return null;
+      const maximum = Math.max(0, holder.scrollHeight - holder.clientHeight);
+      const next = Math.min(maximum, holder.scrollTop + Math.max(120, Math.floor(holder.clientHeight * 0.75)));
+      holder.scrollTop = next;
+      holder.dispatchEvent(new Event("scroll", { bubbles: true }));
+      return { scrollTop: next, maximum };
+    }).catch(() => null);
+    if (!position || position.scrollTop === lastScrollTop) break;
+    lastScrollTop = position.scrollTop;
+    await page.waitForTimeout(180);
+    if (position.scrollTop >= position.maximum) {
+      const finalClick = await clickVisibleSelectOptionIfPresent(page, matchTexts);
+      for (const candidate of finalClick.candidates) {
+        if (!seen.includes(candidate)) seen.push(candidate);
+      }
+      if (finalClick.ok) return { ok: true, candidates: seen };
+      break;
     }
   }
-  await page.keyboard.press("Enter").catch(() => undefined);
-  await page.waitForTimeout(650);
-  if (await selectDisplayMatches(page, domId, optionText)) {
-    return { ok: true, candidates };
-  }
-  return { ok: false, candidates };
+  return { ok: false, candidates: seen.slice(0, 80) };
 }
 
 async function openFullSelectListForIndexedScroll(page: Page, domId: string): Promise<void> {
@@ -439,12 +850,14 @@ async function openFullSelectListForIndexedScroll(page: Page, domId: string): Pr
 
 async function scrollToIndexedSelectOption(
   page: Page,
-  optionText: string,
+  matchTexts: string[],
   optionIndex: number,
+  deadline: number,
 ): Promise<{ ok: boolean; candidates: string[] }> {
   const seen: string[] = [];
   const itemHeights = [32, 34, 36, 38, 40, 42, 44, 46, 48];
   for (const itemHeight of itemHeights) {
+    if (Date.now() >= deadline) break;
     await page.evaluate(
       ({ index, itemHeight }) => {
         const visible = (element: HTMLElement) => {
@@ -471,97 +884,25 @@ async function scrollToIndexedSelectOption(
       { index: optionIndex, itemHeight },
     ).catch(() => undefined);
     await page.waitForTimeout(260);
-    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
+    const clicked = await clickVisibleSelectOptionIfPresent(page, matchTexts);
     for (const candidate of clicked.candidates) {
       if (!seen.includes(candidate)) seen.push(candidate);
     }
     if (clicked.ok) return { ok: true, candidates: seen };
   }
   return { ok: false, candidates: seen.slice(0, 40) };
-}
-
-async function wheelAndClickSelectOption(
-  page: Page,
-  optionText: string,
-): Promise<{ ok: boolean; candidates: string[] }> {
-  const seen: string[] = [];
-  for (let step = 0; step < 160; step++) {
-    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
-    for (const candidate of clicked.candidates) {
-      if (!seen.includes(candidate)) seen.push(candidate);
-    }
-    if (clicked.ok) return { ok: true, candidates: seen };
-
-    const box = await page.evaluate(() => {
-      const visible = (element: HTMLElement) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          !element.classList.contains("ant-select-dropdown-hidden") &&
-          rect.width > 0 &&
-          rect.height > 0
-        );
-      };
-      const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
-        .filter(visible)
-        .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
-      if (!panel) return null;
-      const target = panel.querySelector<HTMLElement>(".rc-virtual-list-holder") ?? panel;
-      const rect = target.getBoundingClientRect();
-      return {
-        x: Math.max(1, rect.left + rect.width / 2),
-        y: Math.max(1, rect.top + Math.min(rect.height / 2, 120)),
-      };
-    });
-    if (!box) break;
-    await dispatchWheelOnVisibleSelect(page, 480);
-    await page.mouse.move(box.x, box.y).catch(() => undefined);
-    await page.mouse.wheel(0, 360).catch(() => undefined);
-    if (step % 5 === 4) {
-      await page.keyboard.press("PageDown").catch(() => undefined);
-    } else {
-      await page.keyboard.press("ArrowDown").catch(() => undefined);
-    }
-    await page.waitForTimeout(80);
-  }
-  return { ok: false, candidates: seen.slice(0, 40) };
-}
-
-async function dispatchWheelOnVisibleSelect(page: Page, deltaY: number): Promise<void> {
-  await page.evaluate((delta) => {
-    const visible = (element: HTMLElement) => {
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return (
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        !element.classList.contains("ant-select-dropdown-hidden") &&
-        rect.width > 0 &&
-        rect.height > 0
-      );
-    };
-    const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
-      .filter(visible)
-      .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
-    const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
-    if (!holder) return;
-    holder.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: delta }));
-    holder.scrollTop += delta;
-    holder.dispatchEvent(new Event("scroll", { bubbles: true }));
-  }, deltaY).catch(() => undefined);
 }
 
 async function clickVisibleSelectOptionIfPresent(
   page: Page,
-  optionText: string,
+  matchTexts: string[],
 ): Promise<{ ok: boolean; candidates: string[] }> {
-  return page.evaluate(async ({ optionText: expected }) => {
+  return page.evaluate(async ({ matchTexts: expectedTexts }) => {
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const normalize = (value: string) =>
       value
         .normalize("NFD")
+        .replace(/[Đđ]/g, "d")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, " ")
@@ -600,7 +941,7 @@ async function clickVisibleSelectOptionIfPresent(
       .filter((item) => item.text && !item.option.classList.contains("ant-select-item-option-disabled"));
     for (const item of items) {
       if (!candidates.includes(item.text)) candidates.push(item.text);
-      if (normalize(item.text) === normalize(expected)) {
+      if (expectedTexts.some((expected) => normalize(item.text) === normalize(expected))) {
         item.option.scrollIntoView({ block: "nearest" });
         await sleep(80);
         dispatchRealClick(item.content);
@@ -608,15 +949,16 @@ async function clickVisibleSelectOptionIfPresent(
       }
     }
     return { ok: false, candidates };
-  }, { optionText });
+  }, { matchTexts });
 }
 
-async function selectDisplayMatches(page: Page, domId: string, optionText: string): Promise<boolean> {
+async function selectDisplayMatches(page: Page, domId: string, matchTexts: string[]): Promise<boolean> {
   return page.evaluate(
-    ({ domId: id, optionText: expected }) => {
+    ({ domId: id, matchTexts: expectedTexts }) => {
       const normalize = (value: string) =>
         value
           .normalize("NFD")
+          .replace(/[Đđ]/g, "d")
           .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, " ")
@@ -631,9 +973,13 @@ async function selectDisplayMatches(page: Page, domId: string, optionText: strin
       ]
         .filter(Boolean)
         .join(" ");
-      return normalize(text) === normalize(expected) || normalize(text).includes(normalize(expected));
+      return expectedTexts.some((expected) => {
+        const normalizedExpected = normalize(expected);
+        return normalize(text) === normalizedExpected ||
+          (normalizedExpected.length > 1 && normalize(text).includes(normalizedExpected));
+      });
     },
-    { domId, optionText },
+    { domId, matchTexts },
   );
 }
 
@@ -674,11 +1020,11 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   const target = page.locator(`#${cssEscape(domId)}`).first();
   const formItem = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-form-item ')][1]");
   const radioGroup = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-radio-group ')][1]");
-  const questionText = VN_IDLESS_RADIO_QUESTIONS[domId];
-  const idlessQuestionRoot = questionText
+  const questionTexts = VN_IDLESS_RADIO_QUESTIONS[domId];
+  const idlessQuestionRoot = questionTexts
     ? page
         .locator(".pt-5.border-b, .ant-row.ant-form-item, .ant-col.ant-col-24.flex.justify-between.pb-5")
-        .filter({ hasText: new RegExp(escapeRegex(questionText), "i") })
+        .filter({ hasText: new RegExp(questionTexts.map(escapeRegex).join("|"), "i") })
         .first()
     : null;
   const root =
@@ -689,7 +1035,8 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
         : idlessQuestionRoot && (await idlessQuestionRoot.count()) > 0
           ? idlessQuestionRoot
           : page.locator("body");
-  const exactText = new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i");
+  const matchTexts = buildAntSelectMatchTexts(optionText);
+  const exactText = new RegExp(`^\\s*(?:${matchTexts.map(escapeRegex).join("|")})\\s*$`, "i");
   const option = root
     .locator(".ant-radio-wrapper, label.ant-radio-button-wrapper, label")
     .filter({ hasText: exactText })
@@ -738,12 +1085,343 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
  * keyboard entry directly.
  */
 export async function fillDate(page: Page, domId: string, ddmmyyyy: string): Promise<void> {
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const sel = `#${cssEscape(domId)}`;
-  const input = page.locator(sel).first();
+  // The official detail SPA can keep the previous step tree mounted while it
+  // renders a second, visible application form. Duplicate ids are invalid
+  // HTML, but do occur during that transition. Always bind the calendar and
+  // Vue-model bridge to the visible control; mutating the first hidden copy
+  // appears successful until Ant Form validates the active model and restores
+  // the old value.
+  const visibleInput = page.locator(`${sel}:visible`).first();
+  const input = (await visibleInput.count().catch(() => 0)) > 0
+    ? visibleInput
+    : page.locator(sel).first();
+  const initialValue = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (initialValue === ddmmyyyy) {
+    return;
+  }
+  if (initialValue) {
+    const selectedFromCalendar = await selectVietnamAntPickerDate(page, input, ddmmyyyy);
+    if (!selectedFromCalendar) {
+      const directCommit = await commitVietnamDateVueModel(input, domId, ddmmyyyy);
+      if (!directCommit.componentUpdated && !directCommit.formModelUpdated && !directCommit.storeUpdated) {
+        throw new Error(`Ant date option and official Vue date model not found for ${domId}`);
+      }
+      await page.waitForTimeout(1_200);
+      const directlyCommitted = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+      if (directlyCommitted !== ddmmyyyy) {
+        throw new Error(`Ant date value not confirmed for ${domId}`);
+      }
+      return;
+    }
+    // A trusted Ant calendar selection already executes the official
+    // a-date-picker -> wrapper -> Pinia update chain. Do not follow it with a
+    // synthetic input/blur bridge: the live detail page can replay the old
+    // child ref during that second blur and undo a valid user-equivalent pick.
+    await page.waitForTimeout(1_200);
+    const committed = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+    if (committed !== ddmmyyyy) {
+      throw new Error(`Ant date value not confirmed for ${domId}`);
+    }
+    return;
+  }
   await input.click({ timeout: SHORT_TIMEOUT });
-  await input.fill(ddmmyyyy, { timeout: SHORT_TIMEOUT });
+  await input.press(process.platform === "darwin" ? "Meta+A" : "Control+A", { timeout: SHORT_TIMEOUT });
+  await input.press("Backspace", { timeout: SHORT_TIMEOUT });
+  await input.pressSequentially(ddmmyyyy, { delay: 35, timeout: SHORT_TIMEOUT });
+  // Ant Design Vue tracks keyboard events before it parses and commits a date.
+  // A single Playwright `fill()` event can leave the rendered text changed while
+  // Vue retains the previous model value, which then reappears on blur.
+  await page.waitForTimeout(200);
   await input.press("Enter", { timeout: SHORT_TIMEOUT });
-  await settle(page);
+  await input.press("Tab", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  await page.waitForTimeout(900);
+
+  let current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (current === ddmmyyyy) {
+    await page.waitForTimeout(600);
+    return;
+  }
+
+  const selectedFromCalendar = await selectVietnamAntPickerDate(page, input, ddmmyyyy);
+  if (!selectedFromCalendar) {
+    const directCommit = await commitVietnamDateVueModel(input, domId, ddmmyyyy);
+    if (!directCommit.componentUpdated && !directCommit.formModelUpdated && !directCommit.storeUpdated) {
+      throw new Error(`Ant date option and official Vue date model not found for ${domId}`);
+    }
+  }
+  await page.waitForTimeout(900);
+  current = (await input.inputValue({ timeout: SHORT_TIMEOUT })).trim();
+  if (current !== ddmmyyyy) {
+    throw new Error(`Ant date value not confirmed for ${domId}`);
+  }
+}
+
+async function commitVietnamDateVueModel(
+  input: Locator,
+  domId: string,
+  value: string,
+): Promise<{
+  componentUpdated: boolean;
+  formModelUpdated: boolean;
+  storeUpdated: boolean;
+  componentRoots: number;
+  instancesVisited: number;
+  matchingComponents: number;
+  matchingFormModels: number;
+  matchingStores: number;
+  stableFormModels: number;
+  stableStores: number;
+}> {
+  const result = await input.evaluate(async (element, payload) => {
+    type VueComponentInstance = {
+      parent?: VueComponentInstance | null;
+      props?: Record<string, unknown> | null;
+      vnode?: {
+        props?: Record<string, unknown> | null;
+      };
+    };
+    const callHandler = (handler: unknown, ...args: unknown[]) => {
+      const handlers = Array.isArray(handler) ? handler : [handler];
+      for (const candidate of handlers) {
+        if (typeof candidate === "function") candidate(...args);
+      }
+    };
+    const expectedId = payload.domId.replace(/^basic_/, "");
+    const dateInput = element as HTMLInputElement;
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    valueDescriptor?.set?.call(dateInput, payload.value);
+    dateInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: payload.value,
+      inputType: "insertText",
+    }));
+    dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+    dateInput.focus();
+    dateInput.blur();
+    let componentUpdated = false;
+    let formModelUpdated = false;
+    let instancesVisited = 0;
+    let matchingComponents = 0;
+    let matchingFormModels = 0;
+    const matchedFormModels: Record<string, unknown>[] = [];
+    const componentRoots: VueComponentInstance[] = [];
+    let currentElement: (HTMLElement & { __vueParentComponent?: VueComponentInstance }) | null =
+      element as HTMLElement & { __vueParentComponent?: VueComponentInstance };
+    while (currentElement) {
+      if (currentElement.__vueParentComponent) componentRoots.push(currentElement.__vueParentComponent);
+      currentElement = currentElement.parentElement as (HTMLElement & {
+        __vueParentComponent?: VueComponentInstance;
+      }) | null;
+    }
+    const visited = new Set<VueComponentInstance>();
+    for (const root of componentRoots) {
+      let instance: VueComponentInstance | null | undefined = root;
+      while (instance && !visited.has(instance)) {
+        visited.add(instance);
+        instancesVisited += 1;
+        const vnodeProps = instance.vnode?.props ?? {};
+        const normalizedProps = instance.props ?? {};
+        const idDate = String(
+          vnodeProps["id-date"] ?? vnodeProps.idDate ?? normalizedProps["id-date"] ?? normalizedProps.idDate ?? "",
+        );
+        const formModel = (vnodeProps.model ?? normalizedProps.model) as Record<string, unknown> | undefined;
+        if (formModel && expectedId in formModel) {
+          matchingFormModels += 1;
+          matchedFormModels.push(formModel);
+          formModel[expectedId] = payload.value;
+          formModelUpdated = true;
+        }
+        if (idDate === expectedId) {
+          matchingComponents += 1;
+          callHandler(vnodeProps["onUpdate:value"], payload.value);
+          callHandler(vnodeProps.onChange, payload.value);
+          callHandler(vnodeProps.onChangeByBlur);
+          componentUpdated = true;
+          break;
+        }
+        instance = instance.parent;
+      }
+      if (componentUpdated) break;
+    }
+
+    type PiniaLike = {
+      _s?: {
+        forEach?: (callback: (store: unknown) => void) => void;
+      };
+    };
+    type VueAppElement = HTMLElement & {
+      __vue_app__?: {
+        _context?: { provides?: Record<PropertyKey, unknown> };
+      };
+    };
+    const app = document.querySelector<VueAppElement>("#app")?.__vue_app__;
+    const provides = app?._context?.provides ?? {};
+    const candidates = Reflect.ownKeys(provides).map((key) => provides[key]);
+    let storeUpdated = false;
+    let matchingStores = 0;
+    const matchedStores: Array<{
+      rawStore: {
+        $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+      };
+      form: Record<string, unknown>;
+    }> = [];
+    for (const candidate of candidates) {
+      const stores = (candidate as PiniaLike | null)?._s;
+      if (!stores || typeof stores.forEach !== "function") continue;
+      stores.forEach((rawStore) => {
+        const store = rawStore as {
+          $state?: { formForeigners?: Record<string, unknown> };
+          formForeigners?: Record<string, unknown>;
+          $patch?: (patcher: (state: { formForeigners?: Record<string, unknown> }) => void) => void;
+        };
+        const form = store.$state?.formForeigners ?? store.formForeigners;
+        if (!form || !(expectedId in form)) return;
+        matchingStores += 1;
+        matchedStores.push({ rawStore: store, form });
+        if (typeof store.$patch === "function") {
+          store.$patch((state) => {
+            if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+          });
+        } else {
+          form[expectedId] = payload.value;
+        }
+        storeUpdated = true;
+      });
+    }
+
+    // Vue flushes the readonly date component's `value` watcher and Ant's blur
+    // handler after the native event turn. On the detail page that late flush
+    // can replay the old prop after a successful-looking DOM mutation. Wait
+    // through the render cycle, let the component consume the patched prop,
+    // then commit once more and verify the active form/store stayed updated.
+    await Promise.resolve();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    for (const formModel of matchedFormModels) formModel[expectedId] = payload.value;
+    for (const target of matchedStores) {
+      if (typeof target.rawStore.$patch === "function") {
+        target.rawStore.$patch((state) => {
+          if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+        });
+      } else {
+        target.form[expectedId] = payload.value;
+      }
+    }
+    valueDescriptor?.set?.call(dateInput, payload.value);
+    dateInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: payload.value,
+      inputType: "insertText",
+    }));
+    dateInput.focus();
+    dateInput.blur();
+    await Promise.resolve();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    for (const formModel of matchedFormModels) formModel[expectedId] = payload.value;
+    for (const target of matchedStores) {
+      if (typeof target.rawStore.$patch === "function") {
+        target.rawStore.$patch((state) => {
+          if (state.formForeigners) state.formForeigners[expectedId] = payload.value;
+        });
+      } else {
+        target.form[expectedId] = payload.value;
+      }
+    }
+    const stableFormModels = matchedFormModels.filter((model) => model[expectedId] === payload.value).length;
+    const stableStores = matchedStores.filter((target) => target.form[expectedId] === payload.value).length;
+    return {
+      componentUpdated,
+      formModelUpdated,
+      storeUpdated,
+      componentRoots: componentRoots.length,
+      instancesVisited,
+      matchingComponents,
+      matchingFormModels,
+      matchingStores,
+      stableFormModels,
+      stableStores,
+    };
+  }, { domId, value }).catch((error) => {
+    console.warn(
+      `[vn] official Vue date-model bridge failed for ${domId}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return {
+      componentUpdated: false,
+      formModelUpdated: false,
+      storeUpdated: false,
+      componentRoots: 0,
+      instancesVisited: 0,
+      matchingComponents: 0,
+      matchingFormModels: 0,
+      matchingStores: 0,
+      stableFormModels: 0,
+      stableStores: 0,
+    };
+  });
+  console.log(
+    `[vn] date-model bridge ${domId} roots=${result.componentRoots} instances=${result.instancesVisited}` +
+      ` components=${result.matchingComponents} forms=${result.matchingFormModels}/${result.stableFormModels}` +
+      ` stores=${result.matchingStores}/${result.stableStores}`,
+  );
+  return result;
+}
+
+async function selectVietnamAntPickerDate(
+  page: Page,
+  input: Locator,
+  ddmmyyyy: string,
+): Promise<boolean> {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(ddmmyyyy);
+  if (!match) return false;
+  const targetIso = `${match[3]}-${match[2]}-${match[1]}`;
+  const targetMonth = Number(match[3]) * 12 + Number(match[2]) - 1;
+  await input.click({ timeout: SHORT_TIMEOUT, force: true });
+  const dropdown = page.locator(".ant-picker-dropdown:visible").last();
+  if (!(await dropdown.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    console.warn("[vn] Ant date calendar did not become visible");
+    return false;
+  }
+
+  for (let attempt = 0; attempt < 36; attempt += 1) {
+    const targetCell = dropdown
+      .locator(`td[title="${targetIso}"]:not(.ant-picker-cell-disabled)`)
+      .first();
+    if (await targetCell.isVisible({ timeout: 250 }).catch(() => false)) {
+      await targetCell.locator(".ant-picker-cell-inner").click({ timeout: SHORT_TIMEOUT });
+      await dropdown.waitFor({ state: "hidden", timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      console.log(`[vn] Ant date calendar selected target month=${match[2]}/${match[3]}`);
+      return true;
+    }
+
+    const inViewTitles = await dropdown
+      .locator("td.ant-picker-cell-in-view[title]")
+      .evaluateAll((cells) => cells.map((cell) => cell.getAttribute("title") ?? ""))
+      .catch(() => [] as string[]);
+    const representative = inViewTitles.find((title) => /^\d{4}-\d{2}-(?:1[0-9]|20)$/.test(title))
+      ?? inViewTitles[Math.floor(inViewTitles.length / 2)]
+      ?? "";
+    const currentMatch = /^(\d{4})-(\d{2})-\d{2}$/.exec(representative);
+    if (!currentMatch) {
+      console.warn(`[vn] Ant date calendar exposed no ISO month cells count=${inViewTitles.length}`);
+      return false;
+    }
+    const currentMonth = Number(currentMatch[1]) * 12 + Number(currentMatch[2]) - 1;
+    if (currentMonth === targetMonth) {
+      console.warn(`[vn] Ant date calendar target cell missing in target month=${match[2]}/${match[3]}`);
+      return false;
+    }
+    const direction = targetMonth > currentMonth ? "next" : "prev";
+    const button = dropdown.locator(`.ant-picker-header-${direction}-btn`).first();
+    if (!(await button.isVisible({ timeout: 500 }).catch(() => false))) {
+      console.warn(`[vn] Ant date calendar ${direction} navigation control missing`);
+      return false;
+    }
+    await button.click({ timeout: SHORT_TIMEOUT });
+    await page.waitForTimeout(180);
+  }
+  console.warn(`[vn] Ant date calendar navigation exhausted target month=${match[2]}/${match[3]}`);
+  return false;
 }
 
 /**
@@ -787,18 +1465,39 @@ function escapeRegex(value: string): string {
 
 export function buildAntSelectSearchTerms(optionText: string): string[] {
   const terms = new Set<string>();
-  const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
-  addProgressiveAntSelectSearchTerms(terms, optionText);
-  addProgressiveAntSelectSearchTerms(terms, officialSearchText);
+  for (const matchText of buildAntSelectMatchTexts(optionText)) {
+    addBoundedAntSelectSearchTerms(terms, matchText);
+  }
   terms.add("");
   return Array.from(terms);
 }
 
-function addProgressiveAntSelectSearchTerms(terms: Set<string>, value: string | null): void {
+export function buildAntSelectMatchTexts(optionText: string): string[] {
+  const matchTexts = new Set<string>([optionText.trim()]);
+  const aliases = VN_PORTAL_OPTION_ALIASES[normalizeAntSelectText(optionText)];
+  for (const alias of aliases ?? []) matchTexts.add(alias);
+  const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
+  if (officialSearchText) matchTexts.add(officialSearchText);
+  return Array.from(matchTexts).filter(Boolean);
+}
+
+/**
+ * Keep official-select searches deliberately small. The previous strategy
+ * generated every character prefix and replayed the full Ant virtual-list
+ * interaction for each one. Long country names could therefore spend tens
+ * of minutes in a single field on the fallback portal.
+ */
+function addBoundedAntSelectSearchTerms(terms: Set<string>, value: string | null): void {
   const trimmed = value?.trim() ?? "";
-  for (let length = trimmed.length; length >= 1; length -= 1) {
-    const term = trimmed.slice(0, length).replace(/[^A-Za-z0-9]+$/g, "");
-    if (term) terms.add(term);
+  if (!trimmed) return;
+  terms.add(trimmed);
+
+  const firstWord = trimmed.split(/[\s-]+/u).find(Boolean) ?? "";
+  if (firstWord && firstWord !== trimmed) terms.add(firstWord);
+
+  const compactPrefix = trimmed.slice(0, Math.min(4, trimmed.length)).replace(/[^A-Za-z0-9]+$/g, "");
+  if (compactPrefix && compactPrefix !== trimmed && compactPrefix !== firstWord) {
+    terms.add(compactPrefix);
   }
 }
 
@@ -811,6 +1510,7 @@ export function buildAntSelectOptionRegex(optionText: string): RegExp {
 function normalizeAntSelectText(value: string): string {
   return value
     .normalize("NFD")
+    .replace(/[Đđ]/g, "d")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")

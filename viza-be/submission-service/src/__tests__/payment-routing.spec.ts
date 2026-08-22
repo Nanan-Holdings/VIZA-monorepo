@@ -10,7 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GOVT_FEE_ROUTING, routingFor, decisionFor, UnknownPackageError } from "../payment-routing.js";
 
-// PAYP-001 + PAYP-007: the 17 launch packages (country, visaType).
+// PAYP-001 + PAYP-007: the 18 launch packages (country, visaType).
 const LAUNCH: [string, string][] = [
   ["indonesia", "B211A"], ["egypt", "EG_E_VISA"], ["australia", "AU_VISITOR_600"],
   ["saudi_arabia", "SA_E_VISA"], ["united_kingdom", "UK_STANDARD_VISITOR"], ["vietnam", "VN_E_VISA"],
@@ -19,9 +19,10 @@ const LAUNCH: [string, string][] = [
   ["united_arab_emirates", "AE_TOURIST_VISA"], ["france", "EU_SCHENGEN_C_SHORT_STAY"],
   ["italy", "EU_SCHENGEN_C_SHORT_STAY"], ["india", "IN_E_VISA"],
   ["south_korea", "KR_C39_SHORT_TERM_VISIT"],
+  ["kenya", "KE_ETA"],
 ];
 
-test("PAYP-001: decisionFor resolves a typed decision for all 17 launch countries", () => {
+test("PAYP-001: decisionFor resolves a typed decision for all 18 launch packages", () => {
   for (const [country, visaType] of LAUNCH) {
     const d = decisionFor(country, visaType);
     assert.equal(d.country, country);
@@ -56,6 +57,7 @@ const PRICING_PACKAGES: Array<{ country: string; visaType: string }> = [
   { country: "vietnam", visaType: "VN_E_VISA" },
   { country: "australia", visaType: "AU_VISITOR_600" },
   { country: "japan", visaType: "JP_TOURIST" },
+  { country: "kenya", visaType: "KE_ETA" },
   { country: "indonesia", visaType: "ID_C1_TOURIST" },
   { country: "indonesia", visaType: "ID_B1_EVOA" },
   { country: "south_korea", visaType: "KR_C39_SHORT_TERM_VISIT" },
@@ -81,6 +83,7 @@ const PRICING_PACKAGES: Array<{ country: string; visaType: string }> = [
   { country: "saudi_arabia", visaType: "SA_E_VISA" },
   { country: "france", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
   { country: "italy", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
+  { country: "taiwan", visaType: "TW_ENTRY_PERMIT" },
 ];
 
 test("every pricing package has a routing entry", () => {
@@ -105,19 +108,34 @@ test("Vietnam mechanism is runner_escrow_card", () => {
   assert.equal(routingFor("vietnam", "VN_E_VISA").mechanism, "runner_escrow_card");
 });
 
-test("UK mechanism is client_in_portal", () => {
+test("UK mechanism is runner_escrow_card", () => {
   assert.equal(
     routingFor("united_kingdom", "UK_STANDARD_VISITOR").mechanism,
-    "client_in_portal",
+    "runner_escrow_card",
   );
 });
 
-test("Maldives + Hong Kong + Macau + Japan are paper_only_no_fee", () => {
+test("Kenya eTA is bound to the USD 30 managed-card route", () => {
+  const decision = decisionFor("kenya", "KE_ETA");
+  assert.equal(decision.mechanism, "runner_escrow_card");
+  assert.equal(decision.govtFeeCents, 3000);
+  assert.equal(decision.currency, "USD");
+});
+
+test("electronically payable routes never hand payment to the applicant", () => {
+  for (const route of GOVT_FEE_ROUTING) {
+    assert.notEqual(route.mechanism, "client_in_portal", `${route.country}/${route.visaType}`);
+    assert.notEqual(route.mechanism, "applicant_direct_link", `${route.country}/${route.visaType}`);
+  }
+});
+
+test("explicit free/offline routes remain paper_only_no_fee", () => {
   for (const [c, v] of [
     ["maldives", "MV_IMUGA"],
     ["hong_kong", "HK_VISIT_VISA"],
     ["macau", "MO_VISIT_VISA"],
     ["japan", "JP_TOURIST"],
+    ["italy", "EU_SCHENGEN_C_SHORT_STAY"],
   ]) {
     assert.equal(routingFor(c, v).mechanism, "paper_only_no_fee");
   }

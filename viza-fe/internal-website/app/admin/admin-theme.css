@@ -1,0 +1,135 @@
+.admin-theme {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 217 91% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 32% 96%;
+  --secondary-foreground: 222 47% 16%;
+  --muted: 214 32% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 214 95% 93%;
+  --accent-foreground: 218 82% 31%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 24% 90%;
+  --input: 214 24% 88%;
+  --ring: 217 91% 60%;
+  --radius: 0.625rem;
+
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 25% 27%;
+  --sidebar-primary: 217 91% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 95% 96%;
+  --sidebar-accent-foreground: 218 82% 31%;
+  --sidebar-border: 214 24% 90%;
+  --sidebar-ring: 217 91% 60%;
+
+  min-height: 100dvh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+  letter-spacing: normal;
+}
+
+.admin-theme ::selection {
+  background: hsl(var(--primary) / 0.18);
+}
+
+.admin-theme * {
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-width: thin;
+}
+
+.admin-theme :focus-visible {
+  outline-color: hsl(var(--ring));
+}
+
+.admin-theme .admin-page-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+/*
+ * Legacy admin compatibility bridge.
+ *
+ * Older operational pages predate the shadcn composition layer and contain
+ * literal neutral colors. Keep those pages visually coherent inside the
+ * admin-only token boundary while they move to components/admin/**. These
+ * selectors deliberately cannot affect /client because .admin-theme exists
+ * only under app/admin/layout.tsx.
+ */
+.admin-theme [class~="bg-[#fafafa]"],
+.admin-theme [class~="bg-[#fafbfc]"],
+.admin-theme [class~="bg-[#fbfcfe]"] {
+  background-color: hsl(var(--background)) !important;
+}
+
+.admin-theme [class~="text-[#232323]"],
+.admin-theme [class~="text-[#334155]"],
+.admin-theme [class~="text-[#3d3d3d]"],
+.admin-theme [class~="text-[#45556c]"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.admin-theme [class~="text-[#64748b]"],
+.admin-theme [class~="text-[#6b6b6b]"],
+.admin-theme [class~="text-[#7a7a7a]"],
+.admin-theme [class~="text-[#8a8a8a]"],
+.admin-theme [class~="text-[#94a3b8]"],
+.admin-theme [class~="text-[#9ca3af]"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.admin-theme [class~="border-[#efefef]"],
+.admin-theme [class~="border-[#e5e7eb]"],
+.admin-theme [class~="border-[#edf0f4]"],
+.admin-theme [class~="border-[#d7d7d7]"],
+.admin-theme [class~="border-[#d7dce3]"],
+.admin-theme [class~="border-[#d9dee7]"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.admin-theme main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.admin-theme main select,
+.admin-theme main textarea {
+  border-color: hsl(var(--input));
+  border-radius: calc(var(--radius) - 2px);
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.admin-theme main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+.admin-theme main select:focus,
+.admin-theme main textarea:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.14);
+  outline: none;
+}
+
+.admin-theme main table {
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.admin-theme main thead {
+  background-color: hsl(var(--muted) / 0.7);
+}
+
+.admin-theme main tbody tr {
+  border-color: hsl(var(--border));
+}
+
+.admin-theme main tbody tr:hover {
+  background-color: hsl(var(--muted) / 0.45);
+}
+
+@media (min-width: 1280px) {
+  .admin-theme .admin-page-grid {
+    gap: 1.25rem;
+  }
+}

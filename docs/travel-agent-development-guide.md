@@ -14,14 +14,19 @@
 
 ## 2. 高层架构（请求链路）
 
-1. 用户在 `/client/travel-chat` 或聊天页中的 `Travel AI` 标签发起输入  
-2. 前端根据表单状态构造结构化 payload（国家/城市/天数/预算/航班/酒店等）  
-3. 前端 API 路由（`/api/travel/*`）转发到 Python `travel-service`  
-4. `travel-service` 调用：
+1. 用户在 `/client/travel-chat` 发起输入；浏览器只提交
+   `sessionId`、`messageId`、可见文本、语言和预期状态版本
+2. `/api/travel/chat` 是唯一对话协调器：鉴权、幂等检查、加载会话状态与
+   偏好、调用 OpenAI Responses API、验证结构化操作，再原子提交消息和状态
+3. 模型用 `previous_response_id` 维持多轮上下文；状态只接受显式的
+   `set/add/remove/unset/reset` 操作。推荐卡只展示，不改变目的地或进度
+4. 需要生成或修改行程时，客户端依据协调器返回的意图和已提交状态调用
+   `/api/travel/itinerary` 或 `/api/travel/itinerary/revise`，一轮只渲染一条回复
+5. `travel-service` 调用：
    - `itinerary.py`（OpenAI 生成行程，失败时 fallback）
    - `tools/flights.py`（RapidAPI 航班）
    - `tools/hotels.py`（RapidAPI 酒店）
-5. 前端渲染：
+6. 前端渲染：
    - 聊天与选择流程
    - 行程卡片与导出按钮
    - Google Maps 地图与路线/热点标记
@@ -59,6 +64,9 @@
 - `viza-fe/internal-website/lib/travel/planner.ts`  
   Travel 的核心状态机与数据标准化规则（deterministic transform，不依赖 AI 猜测）。
 
+- `viza-fe/internal-website/lib/travel/conversation-state.ts`
+  服务端状态版本的标准化，以及 `set/add/remove/unset/reset` 显式操作验证。
+
 - `viza-fe/internal-website/lib/travel/chat-types.ts`  
   聊天消息类型定义。
 
@@ -72,6 +80,20 @@
   手工维护的常用国家城市映射（中英文、别名）。
 
 #### 前端 API 代理（Next Route Handlers）
+
+- `viza-fe/internal-website/app/api/travel/chat/route.ts`
+  Travel 对话唯一协调器；使用 Structured Outputs、`previous_response_id`、
+  消息幂等和乐观状态版本。`gpt-5.6-luna` 为首选；当 OpenAI 明确返回当前项目
+  无模型权限时，可使用 `TRAVEL_AGENT_OPENAI_FALLBACK_MODEL`。
+
+- `viza-fe/internal-website/app/api/travel/sessions/route.ts`
+  当前聊天、地图和行程版本的跨设备归档。
+
+- `viza-fe/internal-website/app/api/travel/preferences/route.ts`
+  查看、逐项删除和全部清除明确保存的跨会话旅行偏好。
+
+- `viza-fe/internal-website/app/api/travel/health/route.ts`
+  分别报告 OpenAI、Python Travel Service、会话数据库和 Places 状态。
 
 - `viza-fe/internal-website/app/api/travel/itinerary/route.ts`  
   转发行程生成请求（支持候选后端路径 fallback）。
@@ -165,6 +187,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_AGENT_BACKEND_URL=http://localhost:3002
 TRAVEL_BACKEND_URL=http://127.0.0.1:8000
+OPENAI_API_KEY=
+TRAVEL_AGENT_OPENAI_FALLBACK_MODEL=gpt-5.5
 GOOGLE_MAPS_API_KEY=
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
 ```

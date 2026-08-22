@@ -13,7 +13,11 @@ import {
   resolveOptionDisplayLabel,
 } from "../viza-fe/internal-website/lib/bilingual-schema-contract.ts";
 import { getChineseLabel } from "../viza-fe/internal-website/lib/ds160-translations.ts";
-import { getRagVisitorIntakeSteps } from "../viza-fe/internal-website/lib/rag-visitor-intake-form.ts";
+import {
+  getRagVisitorIntakeSteps,
+  shouldUseRagVisitorIntakeFallback,
+} from "../viza-fe/internal-website/lib/rag-visitor-intake-form.ts";
+import { resolveVisaFormSchemaVisaType } from "../viza-fe/internal-website/lib/visa-form-schema-aliases.ts";
 import type { VisaFormFieldOption, VisaFormFieldRow, WizardStep } from "../viza-fe/internal-website/types/visa-form-fields.ts";
 
 type Severity = "blocking" | "warning" | "info";
@@ -45,6 +49,13 @@ interface AdjacentSchemaSource {
   sourceFile: string;
   purpose: string;
   coverage: string;
+}
+
+interface ActiveVisaPackage {
+  country: string;
+  visa_type: string;
+  name: string;
+  is_active: boolean;
 }
 
 interface AuditIssue {
@@ -230,6 +241,10 @@ function preprocessSeedSource(source: string, scriptDir: string): string {
 
 function extractRowsFromSeedScript(filePath: string): SchemaSource | null {
   const source = fs.readFileSync(filePath, "utf8");
+  // Some seed entrypoints only delegate to a shared seeder and do not own a
+  // static FIELDS array. Executing those wrappers in the audit VM would call
+  // imported functions that are intentionally stripped during preprocessing.
+  if (!/\bconst\s+FIELDS\b/.test(source)) return null;
   const scriptDir = path.dirname(filePath);
   const preprocessed = `${preprocessSeedSource(source, scriptDir)}
 const __auditVisaType = typeof VISA_TYPE !== "undefined" ? VISA_TYPE : "DS160";
@@ -282,7 +297,14 @@ globalThis.__auditResult = {
     clearTimeout,
   });
 
-  vm.runInContext(transpiled, context, { filename: filePath, timeout: 5000 });
+  try {
+    vm.runInContext(transpiled, context, { filename: filePath, timeout: 5000 });
+  } catch (error) {
+    console.warn(
+      `[audit:bilingual-schema] Skipping static seed extraction for ${normalizePathForReport(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
   const result = (context.globalThis as { __auditResult?: { visaType?: string; fields?: ExtractedRow[] } }).__auditResult;
   if (!result?.fields?.length) return null;
 
@@ -409,8 +431,92 @@ function loadSchemaSources(): SchemaSource[] {
   return sources;
 }
 
-function isImportantField(field: VisaFormFieldRow): boolean {
-  return field.required || COMPLEX_FIELD_NAME_PATTERN.test(field.fieldName) || COMPLEX_FIELD_NAME_PATTERN.test(field.label);
+async function fetchSupabaseRows<T>(table: string, select: string): Promise<T[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !apiKey) {
+    throw new Error(
+      "Live audit requires NEXT_PUBLIC_SUPABASE_URL and a Supabase API key in the environment.",
+    );
+  }
+
+  const rows: T[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const endpoint = new URL(`${url}/rest/v1/${table}`);
+    endpoint.searchParams.set("select", select);
+    endpoint.searchParams.set("limit", String(pageSize));
+    endpoint.searchParams.set("offset", String(offset));
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase ${table} query failed (${response.status}): ${await response.text()}`);
+    }
+    const page = await response.json() as T[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function loadLiveSchemaSources(): Promise<SchemaSource[]> {
+  const [packages, rows] = await Promise.all([
+    fetchSupabaseRows<ActiveVisaPackage>(
+      "visa_packages",
+      "country,visa_type,name,is_active",
+    ),
+    fetchSupabaseRows<ExtractedRow>(
+      "visa_form_fields",
+      "visa_type,field_name,label,field_type,required,step_number,step_name,display_order,placeholder,validation_rules,options,conditional_logic",
+    ),
+  ]);
+
+  const activePackages = packages.filter((pkg) => pkg.is_active && clean(pkg.country) && clean(pkg.visa_type));
+  const fieldsByVisaType = new Map<string, ExtractedRow[]>();
+  for (const row of rows) {
+    const visaType = clean(row.visa_type);
+    if (!visaType) continue;
+    const group = fieldsByVisaType.get(visaType) ?? [];
+    group.push(row);
+    fieldsByVisaType.set(visaType, group);
+  }
+
+  const sources: SchemaSource[] = [];
+  for (const pkg of activePackages.sort((a, b) =>
+    `${a.country}:${a.visa_type}`.localeCompare(`${b.country}:${b.visa_type}`)
+  )) {
+    const schemaVisaType = resolveVisaFormSchemaVisaType(pkg.visa_type, pkg.country);
+    const dbRows = fieldsByVisaType.get(schemaVisaType) ?? [];
+    const fields = dbRows.length > 0
+      ? dbRows
+          .sort((a, b) =>
+            Number(a.step_number ?? 0) - Number(b.step_number ?? 0)
+            || Number(a.display_order ?? 0) - Number(b.display_order ?? 0)
+          )
+          .map((row, index) => normalizeBilingualFormField(
+            toFieldRow(row, index, schemaVisaType, `production:${pkg.country}:${pkg.visa_type}`),
+          ))
+      : shouldUseRagVisitorIntakeFallback(schemaVisaType)
+        ? getRagVisitorIntakeSteps(schemaVisaType)
+            .flatMap((step) => step.fields)
+            .map((field) => normalizeBilingualFormField(field))
+        : [];
+
+    sources.push({
+      sourceFile: `production visa_packages: ${pkg.name}`,
+      schema: `${pkg.visa_type} -> ${schemaVisaType}`,
+      country: pkg.country,
+      fields,
+    });
+  }
+
+  return sources;
 }
 
 function hasDependentOptions(field: VisaFormFieldRow): boolean {
@@ -430,6 +536,16 @@ function hasDependentOptions(field: VisaFormFieldRow): boolean {
       rules?.options_source ||
       rules?.dataSource,
   );
+}
+
+function optionMayKeepOfficialText(field: VisaFormFieldRow): boolean {
+  return /(?:social_media_(?:platform|provider)|currency|flight_number)$/i.test(field.fieldName);
+}
+
+function optionUsesOfficialChineseWording(option: VisaFormFieldOption, optionEn: string): boolean {
+  if (typeof option === "string") return false;
+  const official = clean(option.official_label);
+  return Boolean(official && official === optionEn && isChineseOnlyText(official));
 }
 
 function auditField(source: SchemaSource, field: VisaFormFieldRow): FieldResult {
@@ -471,7 +587,15 @@ function auditField(source: SchemaSource, field: VisaFormFieldRow): FieldResult 
   if (!labelEn) addIssue("missing_label_en", "blocking");
   if (isEnglishOnlyText(labelZh)) addIssue("label_zh_english_only", "blocking");
   if (isChineseOnlyText(labelEn)) addIssue("label_en_chinese_only", "blocking");
-  if (isImportantField(field) && isVagueChineseLabel(labelZh)) addIssue("vague_required_label_zh", "blocking");
+  if (isVagueChineseLabel(labelZh)) addIssue("vague_label_zh", "blocking");
+  if (/^请填写[:：]\s*[A-Za-z]/.test(labelZh)) addIssue("generated_english_label_zh", "blocking");
+  if (
+    /^(?:Do(?!\s+Not\b)|Does|Did|Are|Is|Was|Were|Have|Has|Will|Would|Can|Could)\b/i.test(labelEn)
+    && ["radio", "checkbox"].includes(field.fieldType)
+    && !/[？?]/.test(labelZh)
+  ) {
+    addIssue("yes_no_question_not_expressed_as_question_zh", "blocking");
+  }
   if (labelEn.length < 2) addIssue("label_en_not_meaningful", "blocking");
 
   const legacyLabelZh = getChineseLabel(field.label, field.fieldName);
@@ -480,7 +604,7 @@ function auditField(source: SchemaSource, field: VisaFormFieldRow): FieldResult 
   }
 
   if (needsDeclarationHelper(field) && !helperZh) {
-    addIssue("complex_field_missing_helper_zh", field.required ? "blocking" : "warning");
+    addIssue("complex_field_missing_helper_zh", "warning");
   }
 
   if (TEXTUAL_FIELD_TYPES.has(field.fieldType) && !placeholderZh) {
@@ -505,8 +629,12 @@ function auditField(source: SchemaSource, field: VisaFormFieldRow): FieldResult 
       const optionEn = resolveOptionDisplayLabel(field.options, value, "en") ?? "";
       if (!optionZh) addIssue("option_label_zh_missing", "blocking");
       if (!optionEn) addIssue("option_label_en_missing", "blocking");
-      if (isEnglishOnlyText(optionZh)) addIssue("option_label_zh_english_only", "blocking", optionZh, optionEn);
-      if (isChineseOnlyText(optionEn)) addIssue("option_label_en_chinese_only", "blocking", optionZh, optionEn);
+      if (isEnglishOnlyText(optionZh) && !optionMayKeepOfficialText(field)) {
+        addIssue("option_label_zh_english_only", "blocking", optionZh, optionEn);
+      }
+      if (isChineseOnlyText(optionEn) && !optionUsesOfficialChineseWording(option, optionEn)) {
+        addIssue("option_label_en_chinese_only", "blocking", optionZh, optionEn);
+      }
     }
   }
 
@@ -659,8 +787,9 @@ function writeReports(
   fs.writeFileSync(REPORT_MD, `${md.join("\n")}\n`, "utf8");
 }
 
-function main() {
-  const sources = loadSchemaSources();
+async function main() {
+  const live = process.argv.includes("--live");
+  const sources = live ? await loadLiveSchemaSources() : loadSchemaSources();
   const adjacentSources = discoverAdjacentSchemaSources();
   const results = sources.flatMap((source) => source.fields.map((field) => auditField(source, field)));
   const issues = results.flatMap((result) => result.issues);
@@ -678,4 +807,7 @@ function main() {
   }
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

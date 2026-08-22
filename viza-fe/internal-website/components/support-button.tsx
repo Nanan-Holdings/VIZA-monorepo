@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LifeBuoy, Loader2, Send } from "lucide-react";
+import { CircleNotch as Loader2, Lifebuoy as LifeBuoy, PaperPlaneTilt as Send } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ClipboardList, FileText, FolderOpen, Headphones, Home, LogOut } from "lucide-react";
+import { ClipboardText as ClipboardList, FileText, FolderOpen, Headphones, House as Home, SignOut as LogOut } from "@phosphor-icons/react";
 import { signOut } from "@/app/actions/auth";
 import { useState } from "react";
 

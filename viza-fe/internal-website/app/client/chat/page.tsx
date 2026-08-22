@@ -2,11 +2,11 @@
 import { ChatClient } from "./chat-client";
 import {
   getSessionMessages,
+  getLatestApplicationSummary,
   getUserSessions,
 } from "@/app/actions/companion-sessions";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -36,14 +36,7 @@ export default async function ChatPage() {
   const initialMessages = activeSession
     ? await getSessionMessages(activeSession.id, userId)
     : [];
-  const adminClient = createAdminClient();
-  const { data: latestApplication } = await adminClient
-    .from("applications")
-    .select("id, status")
-    .eq("applicant_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const latestApplication = await getLatestApplicationSummary(userId);
 
   return (
     <ChatClient
@@ -51,8 +44,8 @@ export default async function ChatPage() {
       initialSessions={sessions}
       initialSessionId={activeSession?.id ?? null}
       initialMessages={initialMessages}
-      travelApplicationId={latestApplication?.id ?? null}
-      travelApplicationStatus={latestApplication?.status ?? null}
+      travelApplicationId={latestApplication.id}
+      travelApplicationStatus={latestApplication.status}
     />
   );
 }

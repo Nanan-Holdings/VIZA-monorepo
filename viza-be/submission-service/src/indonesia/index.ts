@@ -42,6 +42,11 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   managedAccountAvailable: boolean;
   managedAccountEmail?: string | null;
   managedAccountPassword?: string | null;
+  managedAccountReusable?: boolean;
+  accountRecoveryPassword?: string | null;
+  onAccountPasswordReset?: (password: string) => Promise<void>;
+  legacyManagedAccountEmail?: string | null;
+  legacyManagedAccountPassword?: string | null;
   applicantId?: string | null;
   passportImagePath?: string | null;
   photoImagePath?: string | null;
@@ -67,6 +72,15 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   userPaymentHandoff?: {
     enabled?: boolean;
     waitTimeoutMs?: number;
+    oneTimeCard?: import("./card-session").IndonesiaOneTimeCard | null;
+    takeOneTimeCard?: () => import("./card-session").IndonesiaOneTimeCard | null | Promise<import("./card-session").IndonesiaOneTimeCard | null>;
+    expectedAmountCents?: number | null;
+    expectedCurrency?: string | null;
+    beforeCardSubmit?: (snapshot: {
+      url: string;
+      title: string | null;
+      state: IndonesiaPortalProbeResult["state"];
+    }) => Promise<{ allowed: boolean; reason?: string }>;
     onWaitingForUser?: (snapshot: {
       url: string;
       title: string | null;
@@ -253,7 +267,7 @@ export async function runIndonesiaLiveSubmission(
       portalUrl: normalized.portalUrl,
       actionType: "official_fee_payment_required",
       actionInstructions:
-        "VIZA prepared the managed official portal email. Provide an authorized official-fee card session before continuing to the Indonesia portal payment step.",
+        "VIZA paused because this application has no executable managed official-fee intent and allocation. Staff review is required; do not pay the portal directly.",
       implementationStatus: "partial",
       message:
         "Indonesia live submission is ready for official portal execution, but official-fee payment authorization is not attached yet.",
@@ -270,6 +284,12 @@ export async function runIndonesiaLiveSubmission(
       applicantId: input.applicantId,
       accountEmail: managedEmail,
       accountPassword: managedPassword,
+      accountRecoveryEnabled: input.managedAccountReusable,
+      allowFreshAccountRegistration: input.managedAccountReusable === false,
+      accountRecoveryPassword: input.accountRecoveryPassword,
+      onAccountPasswordReset: input.onAccountPasswordReset,
+      legacyAccountEmail: input.legacyManagedAccountEmail,
+      legacyAccountPassword: input.legacyManagedAccountPassword,
       registration: {
         documentTravelType: normalized.documentTravelType,
         fullName: normalized.fullName ?? input.profile?.fullName,
@@ -353,7 +373,9 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       operatorDiagnostics: probe.diagnostics.slice(-30),
-      message: probe.state === "payment_failed" || probe.actionType === "official_step_2_validation_blocked"
+      message: probe.state === "payment_failed" ||
+        probe.actionType === "official_step_2_validation_blocked" ||
+        probe.actionType === "official_step_3_review_incomplete"
         ? probe.instruction
         : `${normalized.provider} reached Indonesia official portal state ${probe.state}.`,
     };

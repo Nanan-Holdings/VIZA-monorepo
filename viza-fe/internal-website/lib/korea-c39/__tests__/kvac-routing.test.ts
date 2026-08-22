@@ -94,7 +94,8 @@ describe("resolveKvacCenter", () => {
     const supported = ["北京", "上海", "广东", "陕西"].map(
       (province) => resolveKvacCenter({ hukouProvince: province }).recommended,
     );
-    const reconOnly = ["湖北", "辽宁", "四川"].map(
+    const directSync = resolveKvacCenter({ hukouProvince: "四川" }).recommended;
+    const reconOnly = ["湖北", "辽宁"].map(
       (province) => resolveKvacCenter({ hukouProvince: province }).recommended,
     );
     const guidanceOnly = resolveKvacCenter({ hukouProvince: "山东" }).recommended;
@@ -107,9 +108,9 @@ describe("resolveKvacCenter", () => {
     ]);
     expect(reconOnly.map((center) => center.liveBookingMode)).toEqual([
       "site_recon_only",
-      "site_recon_only",
-      "site_recon_only",
+      "vfs_account_sync_supported",
     ]);
+    expect(directSync.liveBookingMode).toBe("direct_slot_sync_supported");
     expect(guidanceOnly.liveBookingMode).toBe("official_guidance_only");
     expect(guidanceOnly.liveBookingRuleZh).toContain("不承诺自动预约");
   });

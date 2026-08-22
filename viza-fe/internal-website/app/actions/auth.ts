@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmailAllowed, normalizeAdminEmail } from "@/lib/admin-access";
 import { createClientSession } from "@/lib/client-session";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { revalidatePath } from "next/cache";
@@ -32,6 +33,7 @@ export async function signIn(formData: FormData) {
   const supabase = await createClient();
 
   const locale = normalizeInterfaceLocale(formData.get("locale")?.toString());
+  const portal = formData.get("portal") === "admin" ? "admin" : "client";
   const email = formData.get("email")?.toString().trim() ?? "";
   const password = formData.get("password")?.toString() ?? "";
 
@@ -65,31 +67,62 @@ export async function signIn(formData: FormData) {
     const userRole = userData?.role;
     revalidatePath("/", "layout");
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const adminClient = createAdminClient();
-    const { data: applicant } = userRole === "client"
-      ? { data: null }
-      : await adminClient
-          .from("applicant_profiles")
-          .select("id, email")
-          .or(`auth_user_id.eq.${user.id},email.eq.${normalizedEmail}`)
-          .limit(1)
-          .maybeSingle();
+    const normalizedEmail = normalizeAdminEmail(user.email ?? email);
 
-    if (userRole === "client" || applicant) {
+    if (portal === "admin") {
+      if (userRole !== "admin" || !isAdminEmailAllowed(normalizedEmail)) {
+        await supabase.auth.signOut();
+        return {
+          error:
+            locale === "zh"
+              ? "此账号没有管理后台访问权限。"
+              : "This account does not have admin portal access.",
+        };
+      }
+
+      redirect("/admin");
+    }
+
+    const adminClient = createAdminClient();
+    const { data: applicant, error: applicantError } = await adminClient
+      .from("applicant_profiles")
+      .select("id, email")
+      .or(`auth_user_id.eq.${user.id},email.eq.${normalizedEmail}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (applicantError) {
+      console.error("Applicant profile lookup failed during password login", applicantError);
+      await supabase.auth.signOut();
+      return {
+        error:
+          locale === "zh"
+            ? "暂时无法加载申请人资料，请稍后重试。"
+            : "Unable to load your applicant profile. Please try again later.",
+      };
+    }
+
+    if (applicant) {
       // For client users logging in with password, create the client JWT session
       // This allows bypassing OTP for test accounts that have password auth
 
-      // Look up the applicant by email
-      const applicantId = applicant?.id ?? user.id;
-
       // Create the client JWT session so they can access /client/* routes
-      await createClientSession(applicantId, normalizedEmail);
+      await createClientSession(applicant.id, normalizedEmail, user.id);
 
       redirect("/client/home");
-    } else {
+    }
+
+    if (userRole === "admin" && isAdminEmailAllowed(normalizedEmail)) {
       redirect("/admin");
     }
+
+    await supabase.auth.signOut();
+    return {
+      error:
+        locale === "zh"
+          ? "此账号没有可用的登录入口。"
+          : "This account does not have an available sign-in portal.",
+    };
   }
 
   return {

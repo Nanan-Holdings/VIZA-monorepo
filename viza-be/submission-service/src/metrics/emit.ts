@@ -1,5 +1,72 @@
 import { supabase } from "../supabase.js";
 
+export type ConcurrencyMetricEventType = "claim" | "machine_start";
+
+export interface ConcurrencyMetricInput {
+  eventType: ConcurrencyMetricEventType;
+  outcome: string;
+  durationMs: number;
+  country?: string | null;
+  machineKind?: string | null;
+  count?: number;
+}
+
+export interface ConcurrencyMetricClient {
+  from(table: string): {
+    insert(values: Record<string, unknown>): PromiseLike<{
+      error: { message: string } | null;
+    }>;
+  };
+}
+
+const defaultConcurrencyMetricClient = supabase as unknown as ConcurrencyMetricClient;
+
+function boundedDurationMs(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(7_200_000, Math.round(value)));
+}
+
+function boundedCount(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(10, Math.round(value)));
+}
+
+function boundedDimension(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized.slice(0, 64) : null;
+}
+
+/**
+ * Best-effort operational telemetry for the concurrency dashboard. It is
+ * deliberately separate from runner_metric: it contains no application,
+ * applicant, job, or portal identifiers. A metrics outage must never change
+ * queue or capacity behavior, so both client throws and insert errors are
+ * swallowed after emitting a redacted local diagnostic.
+ */
+export async function emitConcurrencyMetric(
+  input: ConcurrencyMetricInput,
+  client: ConcurrencyMetricClient = defaultConcurrencyMetricClient,
+): Promise<void> {
+  try {
+    const { error } = await client.from("runner_concurrency_metric").insert({
+      event_type: input.eventType,
+      outcome: input.outcome.trim().slice(0, 64),
+      duration_ms: boundedDurationMs(input.durationMs),
+      country: boundedDimension(input.country),
+      machine_kind: boundedDimension(input.machineKind),
+      count: boundedCount(input.count),
+    });
+    if (error) {
+      console.error(`[metrics] concurrency emit failed: ${error.message}`);
+    }
+  } catch (error) {
+    console.error(
+      `[metrics] concurrency emit unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 /**
  * Per-runner-job KPI emission (OPS-005).
  *
@@ -39,7 +106,7 @@ function isoWeekStart(d: Date = new Date()): string {
  * `runner_job_events_total{country,event}` without a schema change. Dimensions
  * + dashboard config: docs/observability/metrics.md + dashboard.json.
  */
-export type RunnerEvent = "started" | "succeeded" | "halted" | "failed" | "dead_lettered";
+export type RunnerEvent = "started" | "succeeded" | "halted" | "failed" | "dead_lettered" | "ownership_lost";
 
 export function emitRunnerEvent(country: string, event: RunnerEvent, jobId?: string): void {
   console.log(

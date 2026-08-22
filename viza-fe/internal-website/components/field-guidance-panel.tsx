@@ -1,30 +1,45 @@
 "use client";
 
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
-  Bot,
-  CheckCircle2,
-  Loader2,
-  RefreshCw,
-  Send,
-  Sparkles,
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  CircleNotch as Loader2,
+  PaperPlaneTilt as Send,
   X,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+} from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { AlertAction } from "@/components/ui/alert";
+import { AiAssistIcon } from "@/components/ui/ai-assist-button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import {
   type FieldGuidanceRequest,
   type FieldGuidanceResponse,
   type FieldGuidanceChatMessage,
-  type FieldGuidanceSeverity,
 } from "@/types/field-guidance";
-import { cn } from "@/lib/utils";
+import {
+  buildFieldExplanation,
+  getFieldDateFormat,
+  isFieldChoiceControl,
+  isFieldMetadataUnverified,
+} from "@/lib/form-assistant/constants";
 
 const MAX_HISTORY_MESSAGES = 8;
-const MAX_VISIBLE_OPTION_EXPLANATIONS = 3;
+const MAX_VISIBLE_OPTION_EXPLANATIONS = 2;
+const MAX_VISIBLE_EXAMPLES = 2;
+const ASK_INPUT_MIN_HEIGHT = 34;
+const ASK_INPUT_MAX_HEIGHT = 78;
+
+/** Splits "source → value" style examples so they can be shown as a worked example. */
+const EXAMPLE_ARROW = /\s*(?:→|⇒|->|=>)\s*/g;
 
 type ChatMessage = FieldGuidanceChatMessage & { id: string };
 
@@ -35,26 +50,73 @@ interface FieldGuidancePanelProps {
   field: VisaFormFieldRow;
   answer: string;
   allAnswers: Record<string, string>;
+  initialConversation?: FieldGuidanceChatMessage[];
+  onConversationChange?: (messages: FieldGuidanceChatMessage[]) => void;
   onClose: () => void;
 }
 
-function severityClasses(severity: FieldGuidanceSeverity): string {
-  if (severity === "error") return "border-red-200 bg-red-50 text-red-700";
-  if (severity === "warning") return "border-[#b8d3f3] bg-[#eef6ff] text-[#03346E]";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700";
-}
+function buildLocalGuidance(
+  field: VisaFormFieldRow,
+  answer: string,
+  isZh: boolean,
+): FieldGuidanceResponse {
+  const isChoice = isFieldChoiceControl(field);
+  const explanation = buildFieldExplanation(field, isZh ? "zh" : "en");
+  const summary = explanation.summary;
+  const dateFormat = getFieldDateFormat(field);
+  const metadataNeedsReview = isFieldMetadataUnverified(field);
 
-function SeverityIcon({ severity }: { severity: FieldGuidanceSeverity }) {
-  if (severity === "ok") return <CheckCircle2 className="h-4 w-4 shrink-0" />;
-  return <AlertCircle className="h-4 w-4 shrink-0" />;
+  const formatHint = isChoice
+    ? isZh
+      ? "请使用页面提供的选项作答，不要自行改写选项名称。"
+      : "Answer with the options provided by the form instead of rewriting their labels."
+    : field.fieldType === "date"
+      ? isZh
+        ? dateFormat
+          ? `请使用页面要求的日期格式：${dateFormat}。`
+          : "请使用页面日期选择器；未明确格式时不要自行猜测日、月、年顺序。"
+        : dateFormat
+          ? `Use the date format required by the form: ${dateFormat}.`
+          : "Use the page date picker; do not guess the day, month, and year order when no format is specified."
+      : null;
+
+  return {
+    guidance: {
+      title: isZh ? `${field.label}填写帮助` : `${field.label} guidance`,
+      summary,
+      examples: isChoice || !explanation.example ? [] : [explanation.example],
+      optionExplanations: [],
+      hints: [explanation.sourceHint],
+      officialWarnings: [
+        metadataNeedsReview
+          ? isZh
+            ? "该字段元数据尚未标记为已核验官方内容，请以当前官方页面和证明材料为准，不要依赖示例推断。"
+            : "This field metadata is not marked as officially verified; follow the current official page and supporting records instead of inferring from examples."
+          : isZh
+          ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
+          : "This local guidance is only a filling aid; follow the official form and documents.",
+      ],
+      formatHints: formatHint ? [formatHint] : [],
+    },
+    validation: {
+      severity: field.required && !answer.trim() ? "warning" : "ok",
+      messages: field.required && !answer.trim()
+        ? [isZh ? "这是必填项，请填写后再继续。" : "This required field still needs an answer."]
+        : [],
+    },
+    sources: [],
+    confidence: "medium",
+    aiUsed: false,
+    cached: true,
+  };
 }
 
 function makeMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalizePlainTextContent(content: string): string {
-  return content
+function normalizePlainTextContent(content: string, keepStrong = false): string {
+  const withoutBlocks = content
     .replace(/```[\s\S]*?```/g, (block) => {
       const code = block.slice(3, -3);
       const firstNewline = code.indexOf("\n");
@@ -73,11 +135,15 @@ function normalizePlainTextContent(content: string): string {
         .map((cell) => cell.trim())
         .filter(Boolean)
         .join(" | "),
-    )
-    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
-    .replace(/__([^_\n]+)__/g, "$1")
-    .replace(/(^|[^\w])\*([^*\n]+)\*([^\w]|$)/g, "$1$2$3")
-    .replace(/(^|[^\w])_([^_\n]+)_([^\w]|$)/g, "$1$2$3")
+    );
+
+  const withoutStrong = keepStrong
+    ? withoutBlocks
+    : withoutBlocks.replace(/\*\*([^*\n]+)\*\*/g, "$1").replace(/__([^_\n]+)__/g, "$1");
+
+  return withoutStrong
+    .replace(/(^|[^\w*])\*([^*\n]+)\*([^\w*]|$)/g, "$1$2$3")
+    .replace(/(^|[^\w_])_([^_\n]+)_([^\w_]|$)/g, "$1$2$3")
     .replace(/^\s*---+\s*$/gm, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -95,111 +161,97 @@ function renderPlainText(content: string) {
   ));
 }
 
-function sourceIdentity(source: FieldGuidanceResponse["sources"][number]): string {
-  return [source.title.trim(), source.url?.trim() ?? "", source.excerpt.trim()].join("|");
+/** Answer copy keeps `**emphasis**` so the key instruction can carry brand weight. */
+function renderAnswer(content: string) {
+  const plainContent = normalizePlainTextContent(content, true);
+
+  return plainContent.split("\n").map((line, lineIndex, lines) => (
+    <span key={lineIndex}>
+      {line.split(/\*\*([^*\n]+)\*\*/g).map((part, partIndex) =>
+        partIndex % 2 === 1 ? (
+          <b key={partIndex} className="font-semibold text-brand-500">
+            {part}
+          </b>
+        ) : (
+          <span key={partIndex}>{part}</span>
+        ),
+      )}
+      {lineIndex < lines.length - 1 && <br />}
+    </span>
+  ));
 }
 
-function localizedSourceTitle(title: string, isZh: boolean): string {
-  if (!isZh) return title;
-  const normalized = title.toLowerCase();
+type ParsedExample = { source: string | null; value: string };
 
-  if (normalized.includes("photo")) return "签证照片官方要求";
-  if (normalized.includes("indonesia")) return "印度尼西亚申请表与材料要求";
-  if (normalized.includes("united states")) return "美国签证申请表与材料要求";
-  if (normalized.includes("local")) return "VIZA 本地字段提示";
-  if (normalized.includes("application form") || normalized.includes("document intake")) {
-    return "官方申请表与材料要求";
-  }
-  return title;
-}
+function parseExample(raw: string): ParsedExample {
+  const text = normalizePlainTextContent(raw);
+  // Split on the last arrow only, so arrows inside the source (SIN→DPS) stay intact.
+  const matches = [...text.matchAll(EXAMPLE_ARROW)];
+  const lastArrow = matches[matches.length - 1];
 
-function sourceCountryLabel(text: string): string | null {
-  const normalized = text.toLowerCase();
-  if (normalized.includes("indonesia")) return "印度尼西亚";
-  if (normalized.includes("united states") || /\bcountry:\s*us\b/.test(normalized)) return "美国";
-  return null;
-}
-
-function sourceVisaTypeLabel(text: string): string | null {
-  const normalized = text.toLowerCase();
-  if (normalized.includes("tourist_b211a")) return "B211A 旅游签证";
-  if (normalized.includes("b1_b2")) return "B1/B2";
-  if (normalized.includes("ds160") || normalized.includes("ds-160")) return "DS-160";
-  return null;
-}
-
-function sourceScopeSummary(source: FieldGuidanceResponse["sources"][number]): string {
-  const haystack = `${source.title} ${source.excerpt}`;
-  const normalized = haystack.toLowerCase();
-  const country = sourceCountryLabel(haystack);
-  const visaType = sourceVisaTypeLabel(haystack);
-  const scopeParts = [
-    country ? `适用国家/地区：${country}` : null,
-    visaType ? `签证类型：${visaType}` : null,
-  ].filter(Boolean);
-
-  let description = "官方资料摘录";
-  if (normalized.includes("photo")) {
-    description = "官方签证照片要求";
-  } else if (normalized.includes("fields to collect before filling the form")) {
-    description = "填表前字段清单";
-  } else if (normalized.includes("application channel and form scope")) {
-    description = "申请渠道和表单范围";
-  } else if (normalized.includes("supporting documents and review checklist")) {
-    description = "支持材料和核对清单";
-  } else if (normalized.includes("local")) {
-    description = "VIZA 本地规则提示";
+  if (lastArrow?.index !== undefined) {
+    const source = text.slice(0, lastArrow.index).trim();
+    const value = text.slice(lastArrow.index + lastArrow[0].length).trim();
+    if (source && value) return { source, value };
   }
 
-  return scopeParts.length > 0 ? `${description}。${scopeParts.join("；")}。` : `${description}。`;
+  return { source: null, value: text };
 }
 
-function localizedSourceExcerpt(source: FieldGuidanceResponse["sources"][number], isZh: boolean): string {
-  if (isZh) return sourceScopeSummary(source);
+/** Underlines the part of the source document the user should copy. */
+function SourceLine({ source, value }: { source: string; value: string }) {
+  const matchIndex = value ? source.toLowerCase().indexOf(value.toLowerCase()) : -1;
 
-  const excerpt = normalizePlainTextContent(source.excerpt)
-    .replace(/^#\s*/, "")
-    .replace(/\s*Source URL:\s*\S+/gi, "")
-    .replace(/\s*Source:\s*[^#]+$/gi, "")
-    .replace(/\s*Document type:\s*[a-z0-9_/-]+/gi, "")
-    .replace(/\s*Visa type:\s*([a-z0-9_/-]+)/gi, " Visa type: $1")
-    .replace(/\s*Country:\s*([a-z0-9_/-]+)/gi, "Country: $1")
-    .trim();
-  return excerpt;
-}
-
-function SectionList({
-  title,
-  items,
-  compact = false,
-}: {
-  title: string;
-  items: string[];
-  compact?: boolean;
-}) {
-  if (items.length === 0) return null;
+  if (matchIndex < 0) return <>{source}</>;
 
   return (
-    <section className="flex flex-col gap-2">
-      <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-        {title}
-      </h4>
-      <div className={compact ? "flex min-w-0 flex-wrap gap-2" : "flex min-w-0 flex-col gap-1.5"}>
-        {items.map((item, index) => {
-          const plainItem = normalizePlainTextContent(item);
-          return (
-            <span
-              key={`${item}-${index}`}
-              className={compact
-                ? "min-w-0 break-words rounded-md border border-[#e8e8e8] bg-white px-2.5 py-1 text-[13px] text-[#24272f]"
-                : "min-w-0 break-words text-[13px] leading-5 text-[#4b5563]"}
-            >
-              {compact ? plainItem : `• ${plainItem}`}
-            </span>
-          );
-        })}
+    <>
+      {source.slice(0, matchIndex)}
+      <mark className="border-b-2 border-brand-500 bg-transparent pb-px font-semibold text-brand-500">
+        {source.slice(matchIndex, matchIndex + value.length)}
+      </mark>
+      {source.slice(matchIndex + value.length)}
+    </>
+  );
+}
+
+function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <span className="block text-[10px] font-medium uppercase tracking-[0.06em] text-black/45">
+      {children}
+    </span>
+  );
+}
+
+function ExampleCard({
+  caption,
+  examples,
+}: {
+  caption: string;
+  examples: ParsedExample[];
+}) {
+  if (examples.length === 0) return null;
+
+  return (
+    <div className="mx-4 mb-4 overflow-hidden rounded-[10px] border border-[#efefef] bg-[#fafafa]">
+      <div className="px-3.5 pb-1.5 pt-2.5">
+        <Eyebrow>{caption}</Eyebrow>
       </div>
-    </section>
+      {examples.map((example, index) => (
+        <div key={`${example.value}-${index}`}>
+          {example.source && (
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap px-3.5 pb-2.5 font-mono text-[11px] tracking-[0.04em] text-black/45">
+              <SourceLine source={example.source} value={example.value} />
+            </div>
+          )}
+          <div className="border-t border-[#efefef] px-3.5 py-2.5">
+            <span className="min-w-0 break-words text-[12px] font-medium text-[#3d3d3d]">
+              {example.value}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -213,25 +265,53 @@ function OptionExplanationList({
   if (items.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-2">
-      <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-        {title}
-      </h4>
-      <div className="flex min-w-0 flex-col gap-2">
-        {items.slice(0, MAX_VISIBLE_OPTION_EXPLANATIONS).map((item) => (
-          <div
-            key={`${item.value}-${item.label}`}
-            className="min-w-0 rounded-lg border border-[#e8e8e8] bg-white p-3 text-[13px]"
-          >
-            <div className="break-words font-medium text-[#1f2937]">
-              {normalizePlainTextContent(item.label)}
-            </div>
-            <p className="mt-1 min-w-0 break-words leading-5 text-[#4b5563]">
-              {renderPlainText(item.description)}
-            </p>
-          </div>
-        ))}
+    <section className="mx-4 mb-4 overflow-hidden rounded-[10px] border border-[#efefef] bg-[#fafafa]">
+      <div className="px-3.5 pb-1.5 pt-2.5">
+        <Eyebrow>{title}</Eyebrow>
       </div>
+      {items.slice(0, MAX_VISIBLE_OPTION_EXPLANATIONS).map((item) => (
+        <div
+          key={`${item.value}-${item.label}`}
+          className="border-t border-[#efefef] px-3.5 py-2.5 text-[11px]"
+        >
+          <div className="break-words text-[12px] font-medium text-[#3d3d3d]">
+            {normalizePlainTextContent(item.label)}
+          </div>
+          <p className="mt-1 min-w-0 break-words leading-4 text-black/55">
+            {renderPlainText(item.description)}
+          </p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function NoteList({
+  notes,
+  warnings,
+}: {
+  notes: string[];
+  warnings: string[];
+}) {
+  if (notes.length === 0 && warnings.length === 0) return null;
+
+  // Same voice as the answer paragraph above the example card — just bulleted.
+  const bulletClass = "flex min-w-0 gap-1.5 text-[13px] leading-[1.5]";
+
+  return (
+    <section className="mb-4 flex flex-col gap-1 px-4">
+      {notes.map((note, index) => (
+        <span key={`note-${index}`} className={`${bulletClass} text-[#3d3d3d]`}>
+          <span aria-hidden="true">•</span>
+          <span className="min-w-0 break-words">{normalizePlainTextContent(note)}</span>
+        </span>
+      ))}
+      {warnings.map((warning, index) => (
+        <span key={`warning-${index}`} className={`${bulletClass} text-[#92400e]`}>
+          <span aria-hidden="true">•</span>
+          <span className="min-w-0 break-words">{normalizePlainTextContent(warning)}</span>
+        </span>
+      ))}
     </section>
   );
 }
@@ -243,68 +323,63 @@ export function FieldGuidancePanel({
   field,
   answer,
   allAnswers,
+  initialConversation = [],
+  onConversationChange,
   onClose,
 }: FieldGuidancePanelProps) {
-  const [data, setData] = useState<FieldGuidanceResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const [data, setData] = useState<FieldGuidanceResponse>(() =>
+    buildLocalGuidance(field, answer, isZh),
+  );
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    initialConversation.map((message) => ({
+      ...message,
+      id: makeMessageId(message.role),
+    })),
+  );
   const [questionLoading, setQuestionLoading] = useState(false);
+  const askInputRef = useRef<HTMLTextAreaElement>(null);
+  const failedRequestRef = useRef<{
+    question: string;
+    history: FieldGuidanceChatMessage[];
+  } | null>(null);
+  const onConversationChangeRef = useRef(onConversationChange);
+  onConversationChangeRef.current = onConversationChange;
 
-  const isZh = locale.toLowerCase().startsWith("zh");
   const labels = useMemo(
     () => ({
+      eyebrow: isZh ? "字段填写帮助" : "Field guidance",
       loading: isZh ? "AI 正在读取题目要求..." : "AI is reading the field requirements...",
       retry: isZh ? "重试" : "Retry",
       examples: isZh ? "示例" : "Examples",
       optionExplanations: isZh ? "选项说明" : "Option explanations",
-      hints: isZh ? "填写提示" : "Hints",
-      warnings: isZh ? "官方注意事项" : "Official warnings",
-      format: isZh ? "格式" : "Format",
-      sources: isZh ? "来源" : "Sources",
-      ask: isZh ? "继续问这个问题" : "Ask about this field",
       askPlaceholder: isZh
         ? "比如：这个必须和护照完全一样吗？"
         : "For example: does this need to match my passport exactly?",
       send: isZh ? "发送" : "Send",
       close: isZh ? "关闭" : "Close",
-      confidence: isZh ? "可信度" : "Confidence",
-      generated: isZh ? "AI 生成" : "AI generated",
-      fallback: isZh ? "规则提示" : "Rule-based",
     }),
     [isZh],
   );
-  const visibleSources = useMemo(() => {
-    if (!data) return [];
-    const seen = new Set<string>();
-    return data.sources.filter((source) => {
-      const key = sourceIdentity(source);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [data]);
+  // The popover re-renders on every scroll/reposition, which hands us fresh
+  // `field`/`allAnswers` object identities. Read them through a ref so a
+  // follow-up always uses the latest field state without recreating callbacks.
+  const requestRef = useRef({ visaType, country, locale, field, answer, allAnswers });
+  requestRef.current = { visaType, country, locale, field, answer, allAnswers };
 
   const fetchGuidance = useCallback(
-    async (nextQuestion?: string, history?: FieldGuidanceChatMessage[]) => {
-      if (nextQuestion) {
-        setQuestionLoading(true);
-        setData((current) => current ? { ...current, reply: undefined } : current);
-      } else {
-        setLoading(true);
-      }
+    async (nextQuestion: string, history: FieldGuidanceChatMessage[]) => {
+      setQuestionLoading(true);
+      setData((current) => ({ ...current, reply: undefined }));
       setError(null);
+      failedRequestRef.current = null;
 
       const requestBody: FieldGuidanceRequest = {
-        visaType,
-        country,
-        locale,
-        field,
-        answer,
-        allAnswers,
+        ...requestRef.current,
         question: nextQuestion,
-        history: history && history.length > 0 ? history : undefined,
+        history: history.length > 0 ? history : undefined,
       };
 
       try {
@@ -317,28 +392,38 @@ export function FieldGuidancePanel({
         if (!res.ok) throw new Error(`Guidance service returned ${res.status}`);
         const nextData = (await res.json()) as FieldGuidanceResponse;
         setData(nextData);
-        if (nextQuestion) {
-          const reply = nextData.reply?.trim();
-          if (reply) {
-            setMessages((current) => [
-              ...current,
-              { id: makeMessageId("assistant"), role: "assistant", content: reply },
-            ]);
-          }
+        const reply = nextData.reply?.trim();
+        if (reply) {
+          setMessages((current) => [
+            ...current,
+            { id: makeMessageId("assistant"), role: "assistant", content: reply },
+          ]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load field guidance");
+        failedRequestRef.current = { question: nextQuestion, history };
       } finally {
-        setLoading(false);
         setQuestionLoading(false);
       }
     },
-    [allAnswers, answer, country, field, locale, visaType],
+    [],
   );
 
   useEffect(() => {
-    void fetchGuidance();
-  }, [fetchGuidance]);
+    onConversationChangeRef.current?.(
+      messages.map(({ role, content }) => ({ role, content })),
+    );
+  }, [messages]);
+
+  useLayoutEffect(() => {
+    const input = askInputRef.current;
+    if (!input) return;
+    input.style.height = "0px";
+    input.style.height = `${Math.min(
+      Math.max(input.scrollHeight, ASK_INPUT_MIN_HEIGHT),
+      ASK_INPUT_MAX_HEIGHT,
+    )}px`;
+  }, [question]);
 
   const handleAsk = useCallback(() => {
     const trimmed = question.trim();
@@ -365,202 +450,144 @@ export function FieldGuidancePanel({
     [handleAsk],
   );
 
+  const examples = useMemo(
+    () => isFieldChoiceControl({ fieldType: field.fieldType })
+      ? []
+      : data.guidance.examples.slice(0, MAX_VISIBLE_EXAMPLES).map(parseExample),
+    [data.guidance.examples, field.fieldType],
+  );
+  const optionExplanations = data.guidance.optionExplanations ?? [];
+  const notes = useMemo(
+    () => [
+      ...data.guidance.formatHints.slice(0, 1),
+      ...data.guidance.hints.slice(0, 1),
+    ],
+    [data.guidance.formatHints, data.guidance.hints],
+  );
+  const warnings = data.guidance.officialWarnings.slice(0, 1);
   const hasChatHistory = messages.length > 0 || questionLoading;
 
   return (
     <div
-      className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-[#dbe7f5] bg-[#f8fbff] p-4 shadow-sm sm:p-5"
+      className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-[#efefef] bg-white shadow-md"
       onClick={(event) => event.stopPropagation()}
       data-field-guidance-panel={field.fieldName}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2">
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#03346E] text-white">
-            <Bot className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-[14px] font-semibold text-[#1f2937]">
-              {data?.guidance.title ?? (isZh ? "字段填写帮助" : "Field guidance")}
-            </h3>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {data && (
-                <>
-                  {data.aiUsed && (
-                    <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
-                      {labels.confidence}: {data.confidence}
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className="border-[#d8e2ef] bg-white text-[10px] text-[#4b5563]">
-                    {data.aiUsed ? labels.generated : labels.fallback}
-                  </Badge>
-                </>
-              )}
-            </div>
-          </div>
+      <div className="flex items-start gap-2.5 border-b border-[#efefef] px-4 pb-3.5 pt-4">
+        <div className="min-w-0 flex-1">
+          <Eyebrow>{labels.eyebrow}</Eyebrow>
+          <h3 className="mt-1 break-words text-[15px] font-medium leading-tight tracking-[-0.4px] text-[#3d3d3d]">
+            {field.label || data.guidance.title}
+          </h3>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md p-1 text-[#697386] transition-colors hover:bg-white hover:text-[#1f2937]"
+          className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#989898] transition-colors hover:bg-[#f6f6f6] hover:text-[#3d3d3d]"
           aria-label={labels.close}
         >
-          <X className="h-4 w-4" />
+          <X className="h-[18px] w-[18px]" />
         </button>
       </div>
 
-      {loading && (
-        <div className="mt-4 flex items-center gap-2 text-[13px] text-[#697386]">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {labels.loading}
-        </div>
-      )}
+      {error ? (
+        <ClientErrorAlert
+          className="mx-4 my-4"
+          message={error}
+          action={(
+            <AlertAction
+              type="button"
+              onClick={() => {
+                const failedRequest = failedRequestRef.current;
+                if (failedRequest) {
+                  void fetchGuidance(failedRequest.question, failedRequest.history);
+                }
+              }}
+            >
+              {labels.retry}
+            </AlertAction>
+          )}
+        />
+      ) : null}
 
-      {error && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
-          <span>{error}</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void fetchGuidance()}
-            className="h-8 shrink-0 bg-white"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {labels.retry}
-          </Button>
-        </div>
-      )}
+      <>
+        <p className="min-w-0 text-pretty break-words px-4 py-4 text-[13px] leading-[1.5] text-[#3d3d3d]">
+          {renderAnswer(data.guidance.summary)}
+        </p>
 
-      {data && !loading && (
-        <div className="mt-4 grid min-w-0 gap-5">
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className={cn("flex items-start gap-2 rounded-lg border p-3 text-[13px]", severityClasses(data.validation.severity))}>
-              <SeverityIcon severity={data.validation.severity} />
-              <div className="flex flex-col gap-1">
-                {data.validation.messages.map((message, index) => (
-                  <span className="min-w-0 break-words" key={`${message}-${index}`}>{message}</span>
-                ))}
+        <ExampleCard caption={labels.examples} examples={examples} />
+
+        <OptionExplanationList
+          title={labels.optionExplanations}
+          items={optionExplanations}
+        />
+
+        <NoteList notes={notes} warnings={warnings} />
+      </>
+
+      {hasChatHistory && (
+        <div className="flex max-h-[224px] flex-col gap-2.5 overflow-y-auto border-t border-[#efefef] px-4 py-3">
+          {messages.map((message) =>
+            message.role === "user" ? (
+              <div className="flex justify-end" key={message.id}>
+                <div className="max-w-[82%] rounded-xl rounded-br-sm bg-brand-500 px-3 py-2 text-[11px] leading-4 text-white">
+                  {renderPlainText(message.content)}
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-start gap-1.5" key={message.id}>
+                <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#f6f6f6] text-brand-500">
+                  <AiAssistIcon className="h-3 w-3" />
+                </span>
+                <div className="min-w-0 max-w-[86%] break-words rounded-xl rounded-tl-sm bg-[#fafafa] px-3 py-2 text-[11px] leading-4 text-[#3d3d3d]">
+                  {renderPlainText(message.content)}
+                </div>
+              </div>
+            ),
+          )}
+          {questionLoading && (
+            <div className="flex min-w-0 items-start gap-1.5">
+              <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#f6f6f6] text-brand-500">
+                <AiAssistIcon className="h-3 w-3" />
+              </span>
+              <div className="min-w-0 rounded-xl rounded-tl-sm bg-[#fafafa] px-3 py-2 text-[11px] leading-4">
+                <span className="inline-flex items-center gap-1.5 text-black/45">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {labels.loading}
+                </span>
               </div>
             </div>
-
-            <p className="min-w-0 break-words text-[13px] leading-5 text-[#3f4652]">
-              {renderPlainText(data.guidance.summary)}
-            </p>
-
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              <SectionList title={labels.examples} items={data.guidance.examples} compact />
-              <OptionExplanationList
-                title={labels.optionExplanations}
-                items={data.guidance.optionExplanations ?? []}
-              />
-              <SectionList title={labels.format} items={data.guidance.formatHints} compact />
-              <SectionList title={labels.hints} items={data.guidance.hints} />
-              <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
-            </div>
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-4">
-            {hasChatHistory && (
-              <section className="rounded-xl border border-[#d8e2ef] bg-white p-3">
-                <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold text-[#03346E]">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">
-                    <Sparkles className="h-3.5 w-3.5" />
-                  </span>
-                  VIZA AI
-                </div>
-                <div className="flex flex-col gap-3">
-                  {messages.map((message) =>
-                    message.role === "user" ? (
-                      <div className="flex justify-end" key={message.id}>
-                        <div className="max-w-[82%] rounded-2xl rounded-br-md bg-[#03346E] px-3.5 py-2.5 text-[13px] leading-5 text-white">
-                          {renderPlainText(message.content)}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex min-w-0 items-start gap-2" key={message.id}>
-                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
-                          <Bot className="h-3.5 w-3.5" />
-                        </span>
-                        <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
-                          {renderPlainText(message.content)}
-                        </div>
-                      </div>
-                    ),
-                  )}
-                  {questionLoading && (
-                    <div className="flex min-w-0 items-start gap-2">
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f1fb] text-[#03346E]">
-                        <Bot className="h-3.5 w-3.5" />
-                      </span>
-                      <div className="min-w-0 max-w-[86%] break-words rounded-2xl rounded-tl-md bg-[#f4f7fb] px-3.5 py-2.5 text-[13px] leading-5 text-[#24272f]">
-                        <span className="inline-flex items-center gap-2 text-[#697386]">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          {isZh ? "正在回答..." : "Replying..."}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            <div className="flex flex-col gap-2">
-              <label className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-                {labels.ask}
-              </label>
-              <Textarea
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                onKeyDown={handleQuestionKeyDown}
-                placeholder={labels.askPlaceholder}
-                aria-keyshortcuts="Enter Control+Enter Meta+Enter"
-                className="min-h-[92px] resize-none rounded-lg border-[#d8e2ef] bg-white text-[13px] focus:border-[#03346E] focus:ring-1 focus:ring-[#03346E]"
-              />
-              <Button
-                type="button"
-                onClick={handleAsk}
-                size="sm"
-                disabled={!question.trim() || questionLoading}
-                className="self-end bg-[#03346E] hover:bg-[#022a5a]"
-              >
-                {questionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                {labels.send}
-              </Button>
-            </div>
-
-            {visibleSources.length > 0 && (
-              <section className="flex flex-col gap-2 border-t border-[#e3edf8] pt-3">
-                <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
-                  {labels.sources}
-                </h4>
-                <div className="flex min-w-0 flex-col gap-2">
-                  {visibleSources.map((source, index) => (
-                    <div key={`${sourceIdentity(source)}-${index}`} className="min-w-0 break-words text-[12px] leading-5 text-[#697386]">
-                      {source.url ? (
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="break-words font-medium text-[#03346E] hover:underline"
-                        >
-                          {localizedSourceTitle(source.title, isZh)}
-                        </a>
-                      ) : (
-                        <span className="break-words font-medium text-[#3f4652]">
-                          {localizedSourceTitle(source.title, isZh)}
-                        </span>
-                      )}
-                      <p className="min-w-0 break-words">
-                        {renderPlainText(localizedSourceExcerpt(source, isZh))}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
+          )}
         </div>
       )}
+
+      <div className="flex items-end gap-2 border-t border-[#efefef] px-4 py-3.5">
+        <Textarea
+          ref={askInputRef}
+          rows={1}
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={handleQuestionKeyDown}
+          placeholder={labels.askPlaceholder}
+          aria-label={labels.eyebrow}
+          aria-keyshortcuts="Enter Control+Enter Meta+Enter"
+          className="min-h-[34px] flex-1 resize-none overflow-y-auto rounded-[17px] border-[#e5e7eb] bg-white px-3.5 py-2 text-[12px] leading-[18px] text-[#3d3d3d] shadow-none placeholder:text-black/40 focus-visible:border-brand-500 focus-visible:ring-1 focus-visible:ring-brand-500 md:text-[12px]"
+        />
+        <button
+          type="button"
+          onClick={handleAsk}
+          disabled={!question.trim() || questionLoading}
+          aria-label={labels.send}
+          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-brand-500 text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {questionLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
+
     </div>
   );
 }

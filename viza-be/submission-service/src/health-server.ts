@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { evaluateDeploymentReadiness } from "./deploy-readiness.js";
 import { registerAndPrepareFranceTlsAccount } from "./france-tls/account-registration.js";
 import {
   bookFranceTlsOfficialAppointment,
@@ -14,16 +15,29 @@ import { loadKoreaOfficialEformDocuments } from "./korea-eform/documents.js";
 import {
   confirmKoreaKvacOfficialCancellation,
   completeKoreaKvacOfficialBooking,
+  hasActiveKoreaKvacOfficialSessions,
   KoreaKvacOfficialSessionError,
   printKoreaKvacOfficialConfirmation,
   startKoreaKvacOfficialCancelQuery,
   startKoreaKvacOfficialSmsSession,
   submitKoreaKvacOfficialSmsCode,
 } from "./korea-kvac/live-session.js";
+import { observeChengduAvailableSlots } from "./korea-kvac/chengdu-slots.js";
+import {
+  bookShenyangVfsSlot,
+  hasActiveShenyangVfsSessions,
+  startShenyangVfsBookingFlow,
+  submitShenyangVfsOtp,
+} from "./korea-vfs-shenyang/runner.js";
 import { supabase } from "./supabase.js";
-import { putVietnamCardSession } from "./vietnam/card-session.js";
+import { discardVietnamCardSession, putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
 import { putJapanVfsPaymentSession } from "./jp-vfs-sg/payment-session.js";
+import {
+  getCachedVnPrearrivalFlightCatalog,
+  pageVnPrearrivalFlightCatalog,
+  refreshVnPrearrivalFlightCatalog,
+} from "./vn-prearrival/flight-catalog.js";
 
 type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
 
@@ -44,6 +58,10 @@ export interface HealthServerOptions {
   isWorkerBusy?: () => boolean;
   hasOneTimeCardSessions?: () => boolean;
   wakeSubmissionQueue?: () => void;
+  wakeRunnerJob?: () => void;
+  onWorkStart?: () => void;
+  onWorkFinish?: () => void;
+  getLifecycle?: () => object;
   port?: number;
 }
 
@@ -137,6 +155,49 @@ async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+async function handleVnPrearrivalFlightCatalog(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<void> {
+  const isLocalEndpoint = req.url === "/local/vn-prearrival/flight-catalog";
+  if (
+    isLocalEndpoint
+      ? !isLocalRequest(req)
+      : !isSubmissionQueueInternalRequest(req)
+  ) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const refresh = body.refresh === true;
+    if (refresh) {
+      const refreshOperation = refreshVnPrearrivalFlightCatalog();
+      sendJson(res, 202, { ok: true, status: "refresh_started" });
+      await refreshOperation.catch(() => {
+        console.warn("[vn-prearrival] official flight catalog refresh failed");
+      });
+      return;
+    }
+    const snapshot = getCachedVnPrearrivalFlightCatalog();
+    if (!snapshot) {
+      sendJson(res, 503, { error: "catalog_not_refreshed" });
+      return;
+    }
+    const page = typeof body.page === "number" ? body.page : 0;
+    const size = typeof body.size === "number" ? body.size : 10;
+    const keyword = typeof body.keyword === "string" ? body.keyword : "";
+    const selectedValue = typeof body.selectedValue === "string" ? body.selectedValue : undefined;
+    sendJson(res, 200, {
+      ok: true,
+      catalogSource: "official_live",
+      ...pageVnPrearrivalFlightCatalog(snapshot, { keyword, page, size, selectedValue }),
+    });
+  } catch {
+    sendJson(res, 502, { error: "official_catalog_refresh_failed" });
+  }
+}
+
 async function handleVietnamCardSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   const internalRequest = req.url === "/internal/vietnam/card-session";
   const enabled = internalRequest
@@ -166,6 +227,29 @@ async function handleVietnamCardSession(req: http.IncomingMessage, res: http.Ser
       },
     });
     sendJson(res, 200, { ok: true, ...session });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleVietnamCardSessionDiscard(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  const internalRequest = req.url === "/internal/vietnam/card-session";
+  const enabled = internalRequest
+    ? envEnabled(process.env.VN_CLOUD_CARD_SESSION_ENABLED)
+    : envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED);
+  if (!enabled) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (internalRequest ? !isVietnamInternalRequest(req) : !isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req)) as Record<string, unknown>;
+    const applicationId = typeof body.applicationId === "string" ? body.applicationId : "";
+    sendJson(res, 200, { ok: true, discarded: discardVietnamCardSession(applicationId) });
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
@@ -240,6 +324,125 @@ async function handleKoreaKvacSmsStart(req: http.IncomingMessage, res: http.Serv
         ? { screenshotPath: error.screenshotPath }
         : {}),
     });
+  }
+}
+
+async function handleKoreaKvacChengduSlots(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1366, height: 1000 } });
+    const response = await page.goto("https://www.koreavisa-cd.com/zh-CN/reservation/apply", {
+      waitUntil: "networkidle",
+      timeout: 90_000,
+    });
+    if (!response?.ok()) throw new Error(`Chengdu official booking page returned HTTP ${response?.status() ?? 0}.`);
+    const slots = await observeChengduAvailableSlots(page);
+    sendJson(res, 200, {
+      ok: true,
+      status: "appointment_slots_observed",
+      observedAt: new Date().toISOString(),
+      centerCode: "chengdu",
+      slots: slots.map((slot) => ({
+        id: `chengdu-${slot.appointmentDate}-${slot.appointmentTime.replace(":", "")}`,
+        appointment_date: slot.appointmentDate,
+        appointment_time: slot.appointmentTime,
+        appointment_location: "Korea Visa Application Center Chengdu",
+        appointment_type: "C-3-9 document intake",
+        source: "official_koreavisa_cd",
+        status: "available",
+        metadata_redacted_json: {
+          appointmentEndTime: slot.appointmentEndTime,
+          bookingSettingNo: slot.bookingSettingNo,
+          remainingCapacity: slot.capacity,
+        },
+      })),
+    });
+  } catch (error) {
+    sendJson(res, 502, { error: error instanceof Error ? error.message : String(error) });
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
+async function handleShenyangVfsStart(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const result = await startShenyangVfsBookingFlow({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      portalTermsAccepted: body.portalTermsAccepted === true,
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS account flow failed." });
+  }
+}
+
+async function handleShenyangVfsOtp(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const result = await submitShenyangVfsOtp(
+      typeof body.jobId === "string" ? body.jobId : "",
+      typeof body.smsCode === "string" ? body.smsCode : "",
+    );
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS verification failed." });
+  }
+}
+
+async function handleShenyangVfsBook(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_LIVE_BOOKING_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isKoreaInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const selectedSlot = body.selectedSlot && typeof body.selectedSlot === "object" && !Array.isArray(body.selectedSlot)
+      ? body.selectedSlot as Record<string, unknown>
+      : {};
+    const result = await bookShenyangVfsSlot({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      selectedSlot: {
+        appointment_date: typeof selectedSlot.appointment_date === "string" ? selectedSlot.appointment_date : null,
+        appointment_time: typeof selectedSlot.appointment_time === "string" ? selectedSlot.appointment_time : null,
+        appointment_location: typeof selectedSlot.appointment_location === "string" ? selectedSlot.appointment_location : null,
+        appointment_type: typeof selectedSlot.appointment_type === "string" ? selectedSlot.appointment_type : null,
+      },
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Shenyang VFS final booking failed." });
   }
 }
 
@@ -593,10 +796,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
   const server = http.createServer((req, res) => {
+    const runTracked = (operation: Promise<void>): void => {
+      opts.onWorkStart?.();
+      void operation.finally(() => opts.onWorkFinish?.());
+    };
     const url = req.url ?? "/";
     if (req.method === "GET" && url === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ status: "ok" }));
+      res.end(JSON.stringify({ status: "ok", ...(opts.getLifecycle?.() ?? {}) }));
       return;
     }
     if (req.method === "GET" && url === "/ready") {
@@ -615,96 +822,156 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       return;
     }
     if (req.method === "GET" && url === "/deploy-ready") {
-      const workerBusy = opts.isWorkerBusy?.() ?? false;
-      const oneTimeCardSessionsPresent = opts.hasOneTimeCardSessions?.() ?? false;
-      const safeToDeploy = !workerBusy && !oneTimeCardSessionsPresent;
-      sendJson(res, safeToDeploy ? 200 : 409, {
-        status: safeToDeploy ? "safe" : "busy",
-        safeToDeploy,
-        workerBusy,
-        oneTimeCardSessionsPresent,
+      const readiness = evaluateDeploymentReadiness({
+        workerBusy: opts.isWorkerBusy?.() ?? false,
+        oneTimeCardSessionsPresent: opts.hasOneTimeCardSessions?.() ?? false,
+        protectedBrowserSessionsPresent: hasActiveKoreaKvacOfficialSessions() || hasActiveShenyangVfsSessions(),
+      });
+      sendJson(res, readiness.safeToDeploy ? 200 : 409, {
+        status: readiness.safeToDeploy ? "safe" : "busy",
+        ...readiness,
+        ...(opts.getLifecycle?.() ?? {}),
       });
       return;
     }
     if (req.method === "POST" && url === "/local/vietnam/card-session") {
-      void handleVietnamCardSession(req, res);
+      runTracked(handleVietnamCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/vietnam/card-session") {
-      void handleVietnamCardSession(req, res);
+      runTracked(handleVietnamCardSession(req, res));
+      return;
+    }
+    if (req.method === "DELETE" && url === "/local/vietnam/card-session") {
+      runTracked(handleVietnamCardSessionDiscard(req, res));
+      return;
+    }
+    if (req.method === "DELETE" && url === "/internal/vietnam/card-session") {
+      runTracked(handleVietnamCardSessionDiscard(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/submission-queue/wake") {
-      if (!opts.wakeSubmissionQueue || !isSubmissionQueueInternalRequest(req)) {
+      if ((!opts.wakeSubmissionQueue && !opts.wakeRunnerJob) || !isSubmissionQueueInternalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }
-      opts.wakeSubmissionQueue();
-      sendJson(res, 202, {
-        ok: true,
-        accepted: true,
-        workerBusy: opts.isWorkerBusy?.() ?? false,
-      });
+      opts.onWorkStart?.();
+      try {
+        // Existing producers use this endpoint for legacy rows. Also wake the
+        // runner_job drain so a shared-pool enqueue remains prompt during the
+        // migration; both callbacks are single-flight in the caller.
+        opts.wakeSubmissionQueue?.();
+        opts.wakeRunnerJob?.();
+        sendJson(res, 202, {
+          ok: true,
+          accepted: true,
+          workerBusy: opts.isWorkerBusy?.() ?? false,
+        });
+      } finally {
+        opts.onWorkFinish?.();
+      }
+      return;
+    }
+    if (req.method === "POST" && url === "/internal/runner-job/wake") {
+      if (!opts.wakeRunnerJob || !isSubmissionQueueInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      opts.onWorkStart?.();
+      try {
+        opts.wakeRunnerJob();
+        sendJson(res, 202, {
+          ok: true,
+          accepted: true,
+          workerBusy: opts.isWorkerBusy?.() ?? false,
+        });
+      } finally {
+        opts.onWorkFinish?.();
+      }
+      return;
+    }
+    if (
+      req.method === "POST" &&
+      (url === "/local/vn-prearrival/flight-catalog" ||
+        url === "/internal/vn-prearrival/flight-catalog")
+    ) {
+      runTracked(handleVnPrearrivalFlightCatalog(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/indonesia/card-session") {
-      void handleIndonesiaCardSession(req, res);
+      runTracked(handleIndonesiaCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/indonesia/card-session") {
-      void handleIndonesiaCardSession(req, res);
+      runTracked(handleIndonesiaCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/start") {
-      void handleKoreaKvacSmsStart(req, res);
+      runTracked(handleKoreaKvacSmsStart(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/chengdu/slots") {
+      runTracked(handleKoreaKvacChengduSlots(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/start") {
+      runTracked(handleShenyangVfsStart(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/otp") {
+      runTracked(handleShenyangVfsOtp(req, res));
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/shenyang/book") {
+      runTracked(handleShenyangVfsBook(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {
-      void handleKoreaKvacSmsSubmit(req, res);
+      runTracked(handleKoreaKvacSmsSubmit(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/complete") {
-      void handleKoreaKvacSmsComplete(req, res);
+      runTracked(handleKoreaKvacSmsComplete(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/cancel/query") {
-      void handleKoreaKvacCancelQuery(req, res);
+      runTracked(handleKoreaKvacCancelQuery(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/confirmation/print") {
-      void handleKoreaKvacPrintConfirmation(req, res);
+      runTracked(handleKoreaKvacPrintConfirmation(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/cancel/confirm") {
-      void handleKoreaKvacCancelConfirm(req, res);
+      runTracked(handleKoreaKvacCancelConfirm(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-eform/generate") {
-      void handleKoreaEformGenerate(req, res);
+      runTracked(handleKoreaEformGenerate(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/france-tls/check-slots") {
-      void handleFranceTlsCheckSlots(req, res);
+      runTracked(handleFranceTlsCheckSlots(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/france-tls/register-account") {
-      void handleFranceTlsRegisterAccount(req, res);
+      runTracked(handleFranceTlsRegisterAccount(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/france-tls/book-selected-slot") {
-      void handleFranceTlsBookSelectedSlot(req, res);
+      runTracked(handleFranceTlsBookSelectedSlot(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
-      void handleJapanVfsSingaporeObserve(req, res);
+      runTracked(handleJapanVfsSingaporeObserve(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/japan-vfs-sg/book-selected-slot") {
-      void handleJapanVfsSingaporeBook(req, res);
+      runTracked(handleJapanVfsSingaporeBook(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/japan-vfs-sg/payment-session") {
-      void handleJapanVfsSingaporePaymentSession(req, res);
+      runTracked(handleJapanVfsSingaporePaymentSession(req, res));
       return;
     }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
@@ -763,6 +1030,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
         return;
       }
       sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
+    if (req.method === "GET" && url === "/local/korea-kvac/shenyang/start") {
+      if (!envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED) || !isKoreaInternalRequest(req)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        finalBookingEnabled: envEnabled(process.env.KR_KVAC_SHENYANG_VFS_LIVE_BOOKING_ENABLED),
+      });
       return;
     }
     if (req.method === "GET" && url === "/local/korea-eform/generate") {
@@ -839,6 +1118,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
     if (envEnabled(process.env.ID_CLOUD_CARD_SESSION_ENABLED)) endpoints.push("/internal/indonesia/card-session");
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
+    if (envEnabled(process.env.KR_KVAC_SHENYANG_VFS_ENABLED)) endpoints.push("/local/korea-kvac/shenyang/start");
     if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
     if (envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) endpoints.push("/internal/france-tls/register-account");
@@ -846,6 +1126,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
     if (opts.wakeSubmissionQueue) endpoints.push("/internal/submission-queue/wake");
+    if (opts.wakeRunnerJob) endpoints.push("/internal/runner-job/wake");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready, /deploy-ready${extra})`);
   });

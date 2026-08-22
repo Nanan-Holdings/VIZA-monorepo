@@ -32,8 +32,8 @@ export async function POST(request: Request) {
       if (response.status !== 404) {
         return Response.json(
           {
-            error: text || "Failed to load flight options.",
-            debug: { path, status: response.status },
+            error: "暂时无法加载航班候选，请稍后再试。",
+            debug: { path, status: response.status, detail: text || undefined },
           },
           { status: response.status }
         );
@@ -42,15 +42,18 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
-        error:
-          "No compatible flight endpoint found on backend. Please verify backend routes.",
+        error: "航班服务暂时不可用，请稍后再试。",
         debug: tried,
       },
       { status: 502 }
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load flight options.";
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(
+      {
+        error: "暂时无法加载航班候选，请稍后再试。",
+        debug: error instanceof Error ? error.message : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

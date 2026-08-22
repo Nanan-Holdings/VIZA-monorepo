@@ -26,7 +26,7 @@ privacy/data-rights controls.
 - `applicant_profiles`
 - `applicant_profiles.dependant_of_user_id` for common/frequent travelers
 - `data_privacy_requests`
-- Existing settings/about-me actions
+- Existing settings and applicant profile actions
 
 ## Local Files
 
@@ -44,6 +44,8 @@ privacy/data-rights controls.
   and payment-method shortcuts.
 - `travelers/page.tsx`: common/frequent traveler management.
 - `privacy/page.tsx`: privacy/data-rights page.
+- `travel-memory/page.tsx`: view, delete, and clear explicitly saved
+  cross-session Travel Agent preferences.
 - `security/password/page.tsx` and `security/email/page.tsx`: account security
   update entry points.
 

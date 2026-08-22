@@ -1,11 +1,29 @@
-import OpenAI from "openai";
+import { createOpenAiClient } from "../utils/openai-client.js";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 
 const logger = new Logger({ serviceName: "VisaAgent" });
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
+function positiveIntegerEnv(name: string, fallback: number, max: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+}
+
+let cachedOpenAIClient: ReturnType<typeof createOpenAiClient> | null = null;
+let cachedOpenAIKey: string | null = null;
+
+function getOpenAIClient(): ReturnType<typeof createOpenAiClient> | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === 'your_openai_api_key_here') return null;
+  if (cachedOpenAIClient && cachedOpenAIKey === apiKey) return cachedOpenAIClient;
+
+  cachedOpenAIKey = apiKey;
+  cachedOpenAIClient = createOpenAiClient(apiKey, {
+    maxRetries: 0,
+    timeout: positiveIntegerEnv('OPENAI_REQUEST_TIMEOUT_MS', 60_000, 120_000),
+  });
+  return cachedOpenAIClient;
+}
 
 export const BASE_SYSTEM_PROMPT = `You are VIZA, a friendly and knowledgeable AI assistant that helps people understand and prepare visa applications for supported destinations. You are not limited to Indonesia.
 
@@ -21,6 +39,8 @@ Guidelines:
 - Be concise and helpful. Use short paragraphs.
 - When the user greets you or sends a very short opener, introduce yourself as VIZA, say you help with visa applications, and ask for destination, nationality/passport, purpose, and stay length.
 - Before recommending a route, identify or ask for the destination country, the traveller's nationality, trip purpose, and intended stay length.
+- Treat the structured conversation state as known facts. Never ask again for a field that already has a value unless the user contradicts it or explicitly asks to change it.
+- A deterministic entry-rule result controls visa eligibility and product routing. RAG may add documents, process, timing, and caveats but must not reverse that result. When the deterministic result is unknown, say it is unconfirmed rather than guessing from general text.
 - Do not default to Indonesia, the United States, the UK, Schengen, or any other destination unless the user or application context clearly indicates it.
 - Do not force a tourist/visitor visa if the user's purpose is work, study, family migration, or long-term residence. Explain the current knowledge scope and ask clarifying questions when needed.
 - Track conversation slots carefully: destination/main destination is where the user wants to travel; nationality/passport is citizenship; residence/current city is where the user lives or applies from; other Schengen countries are additional Schengen destinations besides the main destination.
@@ -54,6 +74,7 @@ Guidelines:
 - Respond primarily in the selected interface language provided in the dynamic prompt, not merely the language of the user's latest message.
 - Do not collect application form fields inside VIZA chat. Do not ask the user to fill dates, selections, uploads, passport fields, or detailed application fields in chat once the visa route is clear.
 - When the user wants to apply, give a rough idea first: likely visa route, key requirements, approximate processing time or uncertainty, fee/timing caveats when known, and official/source caveats. Then tell them to continue on the dedicated application form page.
+- When the system has already provided an application card, never repeat its VIZA URL, route, internal product code, or a generic link label in the assistant text. Tell the user to use the card shown below. This does not prevent citing a genuinely necessary official government source URL.
 - Ask follow-up questions only when needed to choose the visa route or explain requirements; the dedicated form page owns detailed data collection.`;
 
 export type ResponseLocale = "en" | "zh";
@@ -64,7 +85,7 @@ export function normalizeResponseLocale(locale?: string | null): ResponseLocale 
 
 export function buildResponseLanguageInstruction(locale: ResponseLocale): string {
   return locale === "zh"
-    ? "Selected interface language: Simplified Chinese. Respond primarily in Simplified Chinese even if the user writes in English or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in Chinese."
+    ? "Selected interface language: Simplified Chinese. Respond in natural Simplified Chinese even if the user writes in English or another language. Use Chinese product and form names in user-facing prose; do not mix in English names or internal product codes when a clear Chinese name exists. In particular, always call SG Arrival Card / SGAC \"新加坡电子入境卡\". Never expose VIZA internal routes or product codes in prose; application navigation belongs in the separate clickable card. Keep only genuinely necessary official government URLs and identifiers in their original form."
     : "Selected interface language: English. Respond primarily in English even if the user writes in Chinese or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in English.";
 }
 
@@ -92,7 +113,7 @@ export async function buildApplicationContext(
     let { data: profile } = await supabase
       .from("applicant_profiles")
       .select(
-        "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
+        "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
       )
       .eq("id", userId)
       .maybeSingle();
@@ -101,7 +122,7 @@ export async function buildApplicationContext(
       const { data: profileByAuthUserId } = await supabase
         .from("applicant_profiles")
         .select(
-          "id, full_name, date_of_birth, nationality, passport_number, passport_expiry_date, email, phone"
+          "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
         )
         .eq("auth_user_id", userId)
         .maybeSingle();
@@ -125,6 +146,7 @@ export async function buildApplicationContext(
             full_name: profile.full_name ?? null,
             date_of_birth: profile.date_of_birth ?? null,
             nationality: profile.nationality ?? null,
+            passport_issuing_country: profile.passport_issuing_country ?? null,
             passport_number: profile.passport_number ?? null,
             passport_expiry_date: profile.passport_expiry_date ?? null,
             email: profile.email ?? null,
@@ -288,6 +310,11 @@ export interface ApplicationBlockPayload {
   ctaLabel?: string;
   country?: string;
   visaType?: string | null;
+  productCode?: string;
+  productKind?: "visa" | "entry_permit" | "travel_authorization" | "arrival_declaration" | "departure_declaration";
+  provider?: "viza" | "official";
+  requirement?: "required" | "conditional" | "optional";
+  supportLevel?: "form_only" | "assisted_submission" | "automated" | "official_redirect";
 }
 
 // =============================================================================
@@ -308,12 +335,11 @@ interface ChatMessage {
 export async function streamChat(
   messages: ChatMessage[],
   callbacks: StreamCallbacks,
-  systemPrompt?: string
+  systemPrompt?: string,
+  signal?: AbortSignal
 ): Promise<void> {
-  if (
-    !OPENAI_API_KEY ||
-    OPENAI_API_KEY === "your_openai_api_key_here"
-  ) {
+  const client = getOpenAIClient();
+  if (!client) {
     const fallback =
       "I'm sorry, the AI service is not configured yet. Please contact support.";
     callbacks.onToken(fallback);
@@ -321,18 +347,24 @@ export async function streamChat(
     return;
   }
 
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const streamDeadline = setTimeout(
+    () => controller.abort(new Error('OpenAI stream deadline exceeded')),
+    positiveIntegerEnv('OPENAI_STREAM_DEADLINE_MS', 75_000, 180_000)
+  );
 
   try {
     const stream = await client.chat.completions.create({
-      model: OPENAI_CHAT_MODEL,
+      model: process.env.OPENAI_CHAT_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini",
       max_tokens: 1024,
       stream: true,
       messages: [
         { role: "system", content: systemPrompt ?? BASE_SYSTEM_PROMPT },
         ...messages,
       ],
-    });
+    }, { signal: controller.signal });
 
     let fullResponse = "";
     const toolsUsed: string[] = [];
@@ -348,5 +380,8 @@ export async function streamChat(
   } catch (err) {
     logger.error("Streaming error", err as Error);
     callbacks.onError(err as Error);
+  } finally {
+    clearTimeout(streamDeadline);
+    signal?.removeEventListener('abort', abortFromCaller);
   }
 }

@@ -21,11 +21,19 @@ describe("submission status polling", () => {
 
   it("uses bounded exponential backoff after consecutive failures", () => {
     expect(getSubmissionStatusPollDelay(0)).toBe(SUBMISSION_STATUS_POLL_BASE_DELAY_MS);
-    expect(getSubmissionStatusPollDelay(1)).toBe(3_000);
-    expect(getSubmissionStatusPollDelay(2)).toBe(6_000);
-    expect(getSubmissionStatusPollDelay(3)).toBe(12_000);
+    expect(getSubmissionStatusPollDelay(1)).toBe(5_000);
+    expect(getSubmissionStatusPollDelay(2)).toBe(10_000);
+    expect(getSubmissionStatusPollDelay(3)).toBe(20_000);
     expect(getSubmissionStatusPollDelay(4)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
     expect(getSubmissionStatusPollDelay(20)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
+  });
+
+  it("backs off stable successful snapshots while keeping stage changes responsive", () => {
+    expect(getSubmissionStatusPollDelay(0, 0)).toBe(5_000);
+    expect(getSubmissionStatusPollDelay(0, 1)).toBe(10_000);
+    expect(getSubmissionStatusPollDelay(0, 2)).toBe(20_000);
+    expect(getSubmissionStatusPollDelay(0, 3)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
+    expect(getSubmissionStatusPollDelay(0, 20)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
   });
 
   it("keeps polling a stalled queue so a late worker pickup can recover the UI", () => {
@@ -61,6 +69,7 @@ describe("submission status polling", () => {
         durableTerminalPropsAvailable: true,
         localRetryActive: false,
         snapshotIsActive: true,
+        snapshotAvailable: true,
       }),
     ).toBe(false);
     expect(
@@ -68,7 +77,19 @@ describe("submission status polling", () => {
         durableTerminalPropsAvailable: true,
         localRetryActive: false,
         snapshotIsActive: false,
+        snapshotAvailable: false,
       }),
     ).toBe(true);
+  });
+
+  it("lets a newer terminal poll replace a stale terminal server prop", () => {
+    expect(
+      shouldPreferDurableTerminalProps({
+        durableTerminalPropsAvailable: true,
+        localRetryActive: false,
+        snapshotIsActive: false,
+        snapshotAvailable: true,
+      }),
+    ).toBe(false);
   });
 });

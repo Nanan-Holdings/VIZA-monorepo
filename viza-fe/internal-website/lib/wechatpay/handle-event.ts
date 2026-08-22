@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DecryptedResource } from "./client";
+import { isPayableOrderStatus } from "@/lib/checkout/payment-state";
 
 /**
  * Pure handler for a decrypted WeChat Pay v3 callback resource.
@@ -32,6 +33,10 @@ export async function applyWechatEvent(
   if (lookupErr) throw new Error(`order lookup: ${lookupErr.message}`);
   if (!order) {
     return { kind: "ignored", reason: `no order for ${resource.out_trade_no}` };
+  }
+
+  if (!isPayableOrderStatus(order.status as string | null)) {
+    return { kind: "ignored", reason: `order status=${order.status}` };
   }
 
   // Idempotency: if already paid, return the orderId so the caller can

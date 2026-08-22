@@ -1,13 +1,114 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import {
   fillVietnamConditionalRepeatGroups,
   fillVietnamPreviousVisitRows,
 } from "../conditional-fields.js";
-import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
+import {
+  commitVietnamOfficialExpenseSelectModel,
+  fillDate,
+  pickRadio,
+  pickSelect,
+  tickCheckbox,
+} from "../fillers.js";
 import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
+import {
+  acknowledgeVietnamNoteModal,
+  acknowledgeVietnamPostCaptchaInstructionModal,
+  advanceVietnamToReview,
+  collectVietnamReviewActionCandidates,
+  ensureVietnamApplicationDeclarationChecked,
+  ensureVietnamFinalCommitmentChecked,
+  isVietnamUploadResponseAccepted,
+  isSatisfiedDisabledVietnamControl,
+  keepDeclaredVietnamPassportInformation,
+  repairMissingVietnamUploadPreviews,
+  uploadVietnamFile,
+  vietnamMultipartContainsFilename,
+} from "../run.js";
+
+test("vn.note browser: acknowledges hidden Ant declaration inputs on the visible landing page", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <head>
+          <style>
+            .ant-checkbox-wrapper input { position: absolute; opacity: 0; }
+          </style>
+        </head>
+        <body>
+          <main>
+            <h1>NOTE DECLARATION INSTRUCTIONS</h1>
+            <div id="declarations" style="display:none">
+              <label class="ant-checkbox-wrapper">
+                <input id="read-instructions" type="checkbox" data-declaration />
+                <span>Confirmation of reading carefully instructions</span>
+              </label>
+              <label class="ant-checkbox-wrapper">
+                <input id="obey-laws" type="checkbox" data-declaration />
+                <span>Confirm compliance with Vietnamese laws upon entry</span>
+              </label>
+              <label class="ant-checkbox-wrapper">
+                <input id="create-account" type="checkbox" />
+                <span>Agree to create account by email</span>
+              </label>
+              <button id="next" disabled>Next</button>
+            </div>
+          </main>
+          <script>
+            const inputs = Array.from(document.querySelectorAll("input[data-declaration]"));
+            const next = document.getElementById("next");
+            for (const input of inputs) {
+              input.addEventListener("change", () => {
+                window.setTimeout(() => {
+                  next.disabled = !inputs.every((candidate) => candidate.checked);
+                }, 300);
+              });
+            }
+            next.addEventListener("click", () => {
+              document.body.dataset.advanced = "true";
+            });
+            window.setTimeout(() => {
+              document.getElementById("declarations").style.display = "block";
+            }, 700);
+          </script>
+        </body>
+      </html>
+    `);
+
+    assert.equal(await page.locator(".ant-checkbox-wrapper:visible").count(), 0);
+    const acknowledged = await acknowledgeVietnamNoteModal(page);
+    const noteState = {
+      ...(await page.evaluate(() => ({
+        inputs: Array.from(document.querySelectorAll<HTMLInputElement>("input[type='checkbox']")).map(
+          (input) => input.checked,
+        ),
+        nextDisabled: (document.getElementById("next") as HTMLButtonElement | null)?.disabled,
+        advanced: document.body.dataset.advanced,
+        wrapperVisibleCount: Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper")).filter(
+          (element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0,
+        ).length,
+      }))),
+      inputVisibleCount: await page.locator("input[type='checkbox']:visible").count(),
+      wrapperPlaywrightVisibleCount: await page.locator(".ant-checkbox-wrapper:visible").count(),
+    };
+    assert.equal(acknowledged, true, JSON.stringify(noteState));
+    assert.equal(await page.locator("#read-instructions").isChecked(), true);
+    assert.equal(await page.locator("#obey-laws").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+    assert.equal(await page.locator("body").getAttribute("data-advanced"), "true");
+  } finally {
+    await browser.close();
+  }
+});
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -731,12 +832,196 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
     const display = page.locator(".ant-select-selection-item").first();
     assert.equal((await display.innerText()).trim(), "Panama");
     const searchedTerms = await page.evaluate(() => (window as unknown as { searchedTerms?: string[] }).searchedTerms ?? []);
+    const keydownCount = await page.evaluate(() => (window as unknown as { keydownCount?: number }).keydownCount ?? 0);
     assert.equal(searchedTerms.includes("PAN"), false);
-    assert.equal(searchedTerms.includes("Panama"), true);
-    assert.equal(searchedTerms.includes("Panam"), true);
-    assert.equal(searchedTerms.includes("Pana"), true);
-    assert.equal(searchedTerms.includes("Pan"), true);
-    assert.equal(searchedTerms.includes("Pa"), true);
+    assert.equal(
+      searchedTerms.filter(Boolean).length,
+      0,
+      "known countries should use direct indexed scrolling before non-empty search",
+    );
+    assert.ok(keydownCount < 100, `virtual select used ${keydownCount} keydown events`);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.conditional-fields browser: scans a localized virtual list for a saved ward", { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const options = Array.from({ length: 50 }, (_, index) => `Phường thử ${index + 1}`);
+    options[42] = "Đặc khu Kiên Hải";
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderVirtualAntSelect("basic_ttcdPhuongXa", options)}
+        </body>
+      </html>
+    `);
+
+    await pickSelect(page, "basic_ttcdPhuongXa", "DAC KHU KIEN HAI");
+
+    assert.equal((await page.locator(".ant-select-selection-item").innerText()).trim(), "Đặc khu Kiên Hải");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.conditional-fields browser: commits an async Ant select through an exact keyboard alias", { timeout: 60_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div class="ant-select">
+        <div class="ant-select-selector">
+          <span class="ant-select-selection-item" title=""></span>
+          <input id="basic_hcLoai" role="combobox" aria-controls="passport-options" />
+        </div>
+      </div>
+      <div id="passport-options" role="listbox"></div>
+      <script>
+        const input = document.getElementById("basic_hcLoai");
+        const display = document.querySelector(".ant-select-selection-item");
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          const normalized = input.value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+          if (normalized === "ho chieu pho thong") {
+            display.textContent = "Hộ chiếu phổ thông";
+            display.setAttribute("title", "Hộ chiếu phổ thông");
+            input.value = "";
+          }
+        });
+      </script>
+    `);
+
+    await pickSelect(page, "basic_hcLoai", "Ordinary passport");
+
+    assert.equal(
+      (await page.locator(".ant-select-selection-item").innerText()).trim(),
+      "Hộ chiếu phổ thông",
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.conditional-fields browser: selects Vietnamese country and radio labels", { timeout: 15_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderAntSelect("basic_ttcnMaQt", ["Trung Quốc"])}
+          <div class="ant-form-item">
+            <div id="basic_ttcnCoQtKhac" class="ant-radio-group">
+              <label class="ant-radio-wrapper">
+                <span class="ant-radio"><input type="radio" name="other-nationality" value="yes" /></span>
+                <span>Có</span>
+              </label>
+              <label class="ant-radio-wrapper">
+                <span class="ant-radio"><input type="radio" name="other-nationality" value="no" /></span>
+                <span>Không</span>
+              </label>
+            </div>
+          </div>
+          <script>
+            const input = document.getElementById("basic_ttcnMaQt");
+            const select = input.closest(".ant-select");
+            const dropdown = document.getElementById(input.getAttribute("aria-controls")).closest(".ant-select-dropdown");
+            const display = select.querySelector(".ant-select-selection-item");
+            const show = () => dropdown.classList.remove("ant-select-dropdown-hidden");
+            select.querySelector(".ant-select-selector").addEventListener("click", show);
+            select.querySelector(".ant-select-selector").addEventListener("mousedown", show);
+            input.addEventListener("focus", show);
+            dropdown.querySelectorAll(".ant-select-item-option").forEach((option) => {
+              option.addEventListener("click", () => {
+                display.textContent = option.textContent.trim();
+                display.setAttribute("title", option.textContent.trim());
+                dropdown.classList.add("ant-select-dropdown-hidden");
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    await pickSelect(page, "basic_ttcnMaQt", "China");
+    await pickRadio(page, "basic_ttcnCoQtKhac", "No");
+
+    assert.equal((await page.locator(".ant-select-selection-item").innerText()).trim(), "Trung Quốc");
+    assert.equal(await page.locator('input[name="other-nationality"][value="no"]').isChecked(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.conditional-fields browser: scopes an id-less Vietnamese nationality radio", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>Unrelated question</div>
+          <div class="ant-radio-group"><label class="ant-radio-wrapper"><input type="radio" name="unrelated" value="no" /><span>Không</span></label></div>
+        </div>
+      </div>
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>Người đề nghị cấp thị thực điện tử có mang nhiều quốc tịch hay không?</div>
+          <div class="ant-radio-group">
+            <label class="ant-radio-wrapper"><input type="radio" name="nationalities" value="yes" /><span>Có</span></label>
+            <label class="ant-radio-wrapper"><input type="radio" name="nationalities" value="no" /><span>Không</span></label>
+          </div>
+        </div>
+      </div>
+    `);
+
+    await pickRadio(page, "basic_ttcnCoQtKhac", "No");
+
+    assert.equal(await page.locator('input[name="nationalities"][value="no"]').isChecked(), true);
+    assert.equal(await page.locator('input[name="unrelated"]').isChecked(), false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.conditional-fields browser: scopes current id-less Vietnamese question copy", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const cases = [
+    [
+      "basic_ttcnDaDungHcKhacVaoVn",
+      "other-passports",
+      "Người đề nghị cấp thị thực điện tử đã từng sử dụng hộ chiếu khác để nhập cảnh Việt Nam hay không?",
+    ],
+    [
+      "basic_ttcdCoCqTcCaNhanLienHe",
+      "contact",
+      "Cơ quan, tổ chức, cá nhân dự kiến liên hệ khi vào Việt Nam",
+    ],
+    ["basic_ttcdCoThanNhan", "relative", "Người đề nghị cấp thị thực điện tử có người thân đang ở Việt Nam hay không?"],
+  ] as const;
+  try {
+    await page.setContent(cases.map(([, name, question]) => `
+      <div class="pt-5 border-b">
+        <div class="ant-col ant-col-24 flex justify-between pb-5">
+          <div>${question}</div>
+          <div class="ant-radio-group">
+            <label class="ant-radio-wrapper"><input type="radio" name="${name}" value="yes" /><span>Có</span></label>
+            <label class="ant-radio-wrapper"><input type="radio" name="${name}" value="no" /><span>Không</span></label>
+          </div>
+        </div>
+      </div>
+    `).join(""));
+
+    for (const [domId, name] of cases) {
+      await pickRadio(page, domId, "No");
+      assert.equal(await page.locator(`input[name="${name}"][value="no"]`).isChecked(), true, domId);
+    }
   } finally {
     await browser.close();
   }
@@ -968,6 +1253,7 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
         input.addEventListener("focus", show);
         input.addEventListener("input", refreshSearch);
         input.addEventListener("keydown", (event) => {
+          window.keydownCount = (window.keydownCount || 0) + 1;
           if (event.key === "Home") {
             activeIndex = -1;
             holder.scrollTop = 0;
@@ -993,3 +1279,688 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
     </script>
   `;
 }
+
+function syntheticPngFixture(): Buffer {
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2l7sAAAAASUVORK5CYII=",
+    "base64",
+  );
+}
+
+test("vn.upload response: accepts explicit official JSON success and rejects semantic failure", () => {
+  assert.equal(
+    isVietnamUploadResponseAccepted(
+      200,
+      "application/json; charset=utf-8",
+      JSON.stringify({ success: true, data: { fileId: "fixture-id" } }),
+    ),
+    true,
+  );
+  assert.equal(
+    isVietnamUploadResponseAccepted(
+      200,
+      "application/json",
+      JSON.stringify({ success: false, error: "invalid_upload" }),
+    ),
+    false,
+  );
+  assert.equal(isVietnamUploadResponseAccepted(200, "text/html", "ok"), null);
+});
+
+test("vn.upload browser: a verified PNG downloaded as .bin is uploaded with an accepted filename", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-normalized-name-"));
+  const filePath = join(tempDir, "portrait_photo.bin");
+  writeFileSync(filePath, syntheticPngFixture());
+  let multipartBody = "";
+  try {
+    await page.route(uploadUrl, (route) => {
+      multipartBody = route.request().postDataBuffer()?.toString("latin1") ?? "";
+      const isDistractor = multipartBody.includes('filename="unrelated.jpg"');
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: isDistractor
+          ? JSON.stringify({ code: "400", message: "unrelated upload rejected", data: null })
+          : JSON.stringify({ code: "200", message: "Thành công", data: { url: "/fixture.jpg" } }),
+      });
+    });
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <input id="basic_anhMat" type="file" />
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const distractor = new FormData();
+          distractor.append('file', new File(['not-an-image'], 'unrelated.jpg', { type: 'image/jpeg' }));
+          await fetch('${uploadUrl}', { method: 'POST', body: distractor });
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
+    assert.match(multipartBody, /filename="portrait_photo-vietnam-upload\.jpg"/);
+    assert.match(multipartBody, /Content-Type: image\/jpeg/i);
+    assert.equal(
+      vietnamMultipartContainsFilename(
+        Buffer.from(multipartBody, "latin1"),
+        "portrait_photo-vietnam-upload.jpg",
+      ),
+      true,
+    );
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.upload browser: official JSON success is accepted when the portal replaces its preview node", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-api-accepted-"));
+  const filePath = join(tempDir, "portrait.jpg");
+  writeFileSync(filePath, syntheticPngFixture());
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ success: true, data: { fileId: "fixture-id" } }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhMat" type="file" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo");
+    assert.equal(await page.locator(".ant-upload-list-item-done").count(), 0);
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.upload browser: official 4xx is never accepted from local input preview", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-rejected-"));
+  const filePath = join(tempDir, "portrait.jpg");
+  writeFileSync(filePath, syntheticPngFixture());
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ error: "invalid_upload" }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Portrait photography</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhMat" type="file" />
+          <img id="local-preview" src="data:image/png;base64,AA==" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhMat').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        });
+      </script>
+    `);
+
+    await assert.rejects(
+      uploadVietnamFile(page, "basic_anhMat", filePath, "portrait_photo"),
+      /official_document_upload_rejected_http_400/,
+    );
+    assert.equal(
+      await page.locator("#basic_anhMat").evaluate((input) => (input as HTMLInputElement).files?.length),
+      1,
+    );
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.upload browser: official 2xx plus completed preview is accepted", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-accepted-"));
+  const filePath = join(tempDir, "passport.jpg");
+  writeFileSync(filePath, syntheticPngFixture());
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ success: true }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item">
+        <label>Passport data page image</label>
+        <div class="ant-upload-wrapper">
+          <input id="basic_anhHoChieu" type="file" />
+        </div>
+      </div>
+      <script>
+        document.querySelector('#basic_anhHoChieu').addEventListener('change', async (event) => {
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          const response = await fetch('${uploadUrl}', { method: 'POST', body });
+          if (response.ok) {
+            const done = document.createElement('div');
+            done.className = 'ant-upload-list-item-done';
+            event.target.closest('.ant-upload-wrapper').appendChild(done);
+          }
+        });
+      </script>
+    `);
+
+    await uploadVietnamFile(page, "basic_anhHoChieu", filePath, "passport_copy");
+    assert.equal(await page.locator(".ant-upload-list-item-done").count(), 1);
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.review browser: acknowledges the declaration modal opened after a correct CAPTCHA", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <form>
+        <input id="basic_captcha" value="075975" />
+        <button type="button">Next</button>
+      </form>
+      <div class="is-big modal v-modal" style="display:block">
+        <div class="modal-card-body">
+          <label class="ant-checkbox-wrapper">
+            <span class="ant-checkbox"><input type="checkbox" class="ant-checkbox-input" /></span>
+            I confirm that I have read the instructions.
+          </label>
+          <label class="ant-checkbox-wrapper">
+            <span class="ant-checkbox"><input type="checkbox" class="ant-checkbox-input" /></span>
+            I confirm compliance with Vietnamese laws.
+          </label>
+          <button id="modal-next" type="button" disabled>Next</button>
+        </div>
+      </div>
+      <script>
+        const declarations = Array.from(document.querySelectorAll('.v-modal input'));
+        for (const input of declarations) {
+          input.addEventListener('change', () => {
+            document.getElementById('modal-next').disabled = !declarations.every(candidate => candidate.checked);
+          });
+        }
+        document.getElementById('modal-next').addEventListener('click', () => {
+          const checked = declarations.every(input => input.checked);
+          if (checked) document.querySelector('.v-modal').style.display = 'none';
+        });
+      </script>
+    `);
+
+    const result = await acknowledgeVietnamPostCaptchaInstructionModal(page);
+
+    assert.equal(result, "acknowledged");
+    assert.deepEqual(
+      await page.locator(".v-modal input[type='checkbox']").evaluateAll((inputs) =>
+        inputs.map((input) => (input as HTMLInputElement).checked),
+      ),
+      [true, true],
+    );
+    assert.equal(await page.locator(".v-modal").isVisible(), false);
+    assert.equal(await page.locator("#basic_captcha").inputValue(), "075975");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.repair browser: retries only an upload whose preview image failed to decode", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const uploadUrl = "https://api.thithucdientu.gov.vn/client-service/public/upload";
+  const tempDir = mkdtempSync(join(tmpdir(), "vn-upload-broken-preview-"));
+  const portraitPath = join(tempDir, "portrait.png");
+  const passportPath = join(tempDir, "passport.png");
+  writeFileSync(portraitPath, syntheticPngFixture());
+  writeFileSync(passportPath, syntheticPngFixture());
+  try {
+    await page.route(uploadUrl, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ success: true }),
+      }),
+    );
+    await page.setContent(`
+      <div class="ant-form-item" id="portrait-item">
+        <label>Portrait photography</label>
+        <div class="ant-upload-wrapper"><input id="basic_anhMat" type="file" /></div>
+        <img src="https://invalid.invalid/broken-preview.jpg" />
+      </div>
+      <div class="ant-form-item" id="passport-item">
+        <label>Passport data page image</label>
+        <div class="ant-upload-wrapper"><input id="basic_anhHoChieu" type="file" /></div>
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Crect width='120' height='80' fill='navy'/%3E%3C/svg%3E" />
+      </div>
+      <script>
+        window.uploadCounts = { portrait: 1, passport: 1 };
+        const loadedPreview = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="navy"/></svg>');
+        async function upload(event, kind) {
+          window.uploadCounts[kind] += 1;
+          const item = event.target.closest('.ant-form-item');
+          item.querySelector('img')?.remove();
+          const image = document.createElement('img');
+          image.src = kind === 'portrait' && window.uploadCounts[kind] === 1
+            ? 'https://invalid.invalid/broken-preview.jpg'
+            : loadedPreview;
+          item.appendChild(image);
+          const body = new FormData();
+          body.append('file', event.target.files[0]);
+          await fetch('${uploadUrl}', { method: 'POST', body });
+        }
+        document.querySelector('#basic_anhMat').addEventListener('change', (event) => upload(event, 'portrait'));
+        document.querySelector('#basic_anhHoChieu').addEventListener('change', (event) => upload(event, 'passport'));
+      </script>
+    `);
+
+    const validationErrors: Array<{ label: string; domId?: string; message: string }> = [];
+    await repairMissingVietnamUploadPreviews(
+      page,
+      { portrait_photo: portraitPath, passport_copy: passportPath },
+      validationErrors,
+    );
+
+    assert.deepEqual(validationErrors, []);
+    assert.deepEqual(
+      await page.evaluate(() => (window as typeof window & {
+        uploadCounts: { portrait: number; passport: number };
+      }).uploadCounts),
+      { portrait: 2, passport: 1 },
+    );
+  } finally {
+    await browser.close();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("vn.upload browser: passport replacement keeps declared information and never selects update", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div class="ant-modal-wrap e-visa-modal" role="dialog">
+        <div class="ant-modal-content">
+          <h2>YOUR PASSPORT DATA PAGE IMAGE IS CHANGED</h2>
+          <p>Would you like to keep declared information or update it from the new passport?</p>
+          <button id="keep">Keep information</button>
+          <button id="update">Update</button>
+        </div>
+      </div>
+      <script>
+        document.querySelector('#keep').addEventListener('click', () => {
+          document.body.dataset.keepClicked = 'true';
+          document.querySelector('.ant-modal-wrap').style.display = 'none';
+        });
+        document.querySelector('#update').addEventListener('click', () => {
+          document.body.dataset.updateClicked = 'true';
+        });
+      </script>
+    `);
+
+    assert.equal(await keepDeclaredVietnamPassportInformation(page, 1_000), true);
+    assert.equal(await page.locator("body").getAttribute("data-keep-clicked"), "true");
+    assert.equal(await page.locator("body").getAttribute("data-update-clicked"), null);
+    assert.equal(await page.locator(".ant-modal-wrap").isVisible(), false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.repair browser: preserves populated immutable controls", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="basic_ttcnEmail" value="managed-alias@example.invalid" disabled />
+      <input id="basic_empty" value="" disabled />
+      <input id="basic_editable" value="existing" />
+    `);
+    assert.equal(await isSatisfiedDisabledVietnamControl(page, "basic_ttcnEmail"), true);
+    assert.equal(await isSatisfiedDisabledVietnamControl(page, "basic_empty"), false);
+    assert.equal(await isSatisfiedDisabledVietnamControl(page, "basic_editable"), false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.date browser: commits a readonly Ant picker value through the calendar model", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div id="app">
+        <div style="display:none">
+          <input id="basic_ttdnNgayNhapCanh" value="31/07/2026" readonly />
+        </div>
+        <form class="ant-form">
+          <input id="basic_ttdnNgayNhapCanh" value="31/07/2026" readonly />
+          <div class="ant-picker-dropdown" style="display:none">
+            <button type="button" class="ant-picker-header-prev-btn">Previous month</button>
+            <button type="button" class="ant-picker-header-next-btn">Next month</button>
+            <table><tbody><tr><td class="ant-picker-cell ant-picker-cell-in-view" title="2026-07-15"><div class="ant-picker-cell-inner">15</div></td></tr></tbody></table>
+          </div>
+        </form>
+      </div>
+      <script>
+        const input = document.querySelector('#basic_ttdnNgayNhapCanh');
+        const dropdown = document.querySelector('.ant-picker-dropdown');
+        window.testVietnamStore = { $state: { formForeigners: { ttdnNgayNhapCanh: '31/07/2026' } } };
+        window.testVietnamFormModel = { ttdnNgayNhapCanh: '31/07/2026' };
+        Object.defineProperty(document.querySelector('form.ant-form'), '__vueParentComponent', {
+          value: {
+            vnode: { props: { model: window.testVietnamFormModel } },
+            parent: null,
+          },
+        });
+        Object.defineProperty(document.querySelector('#app'), '__vue_app__', {
+          value: { _context: { provides: { pinia: { _s: new Map([['vietnam', window.testVietnamStore]]) } } } },
+        });
+        let month = 7;
+        const render = () => {
+          const padded = String(month).padStart(2, '0');
+          const day = month === 10 ? '14' : '15';
+          const cell = dropdown.querySelector('td');
+          cell.title = '2026-' + padded + '-' + day;
+          cell.querySelector('div').textContent = day;
+          cell.onclick = () => {
+            if (month !== 10) return;
+            input.value = '14/10/2026';
+            window.testVietnamStore.$state.formForeigners.ttdnNgayNhapCanh = '14/10/2026';
+            window.testVietnamFormModel.ttdnNgayNhapCanh = '14/10/2026';
+            dropdown.style.display = 'none';
+          };
+        };
+        input.addEventListener('click', () => { dropdown.style.display = 'block'; });
+        dropdown.querySelector('.ant-picker-header-next-btn').addEventListener('click', () => { month += 1; render(); });
+        dropdown.querySelector('.ant-picker-header-prev-btn').addEventListener('click', () => { month -= 1; render(); });
+        render();
+      </script>
+    `);
+
+    assert.equal(
+      await page.evaluate(() => {
+        const app = document.querySelector("#app") as HTMLElement & {
+          __vue_app__?: { _context?: { provides?: Record<string, { _s?: Map<string, unknown> }> } };
+        };
+        return app.__vue_app__?._context?.provides?.pinia?._s?.size ?? 0;
+      }),
+      1,
+    );
+    await fillDate(page, "basic_ttdnNgayNhapCanh", "14/10/2026");
+    assert.equal(await page.locator("#basic_ttdnNgayNhapCanh:visible").inputValue(), "14/10/2026");
+    assert.equal(
+      await page.evaluate(() => (window as unknown as { testVietnamStore: { $state: { formForeigners: { ttdnNgayNhapCanh: string } } } }).testVietnamStore.$state.formForeigners.ttdnNgayNhapCanh),
+      "14/10/2026",
+    );
+    assert.equal(
+      await page.evaluate(() => (window as unknown as { testVietnamFormModel: { ttdnNgayNhapCanh: string } }).testVietnamFormModel.ttdnNgayNhapCanh),
+      "14/10/2026",
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.expense browser: commits the official numeric payment-method model", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <div id="app"></div>
+      <script>
+        window.testExpenseState = { formForeigners: { kpbhHinhThuc: null } };
+        const store = {
+          $state: window.testExpenseState,
+          $patch(patcher) { patcher(window.testExpenseState); },
+        };
+        Object.defineProperty(document.querySelector('#app'), '__vue_app__', {
+          value: { _context: { provides: { pinia: { _s: new Map([['vietnam', store]]) } } } },
+        });
+      </script>
+    `);
+
+    assert.deepEqual(
+      await page.evaluate(() => {
+        const app = document.querySelector("#app") as HTMLElement & {
+          __vue_app__?: {
+            _context?: {
+              provides?: Record<string, {
+                _s?: Map<string, { $state?: { formForeigners?: Record<string, unknown> } }>;
+              }>;
+            };
+          };
+        };
+        const pinia = app.__vue_app__?._context?.provides?.pinia;
+        const store = pinia?._s?.get("vietnam");
+        return {
+          size: pinia?._s?.size ?? 0,
+          hasField: Boolean(store?.$state?.formForeigners && "kpbhHinhThuc" in store.$state.formForeigners),
+        };
+      }),
+      { size: 1, hasField: true },
+    );
+
+    assert.equal(
+      await commitVietnamOfficialExpenseSelectModel(page, "basic_kpbhHinhThuc", "credit_card"),
+      true,
+    );
+    assert.equal(
+      await page.evaluate(() => (
+        window as unknown as { testExpenseState: { formForeigners: { kpbhHinhThuc: number | null } } }
+      ).testExpenseState.formForeigners.kpbhHinhThuc),
+      2,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: discovers role, anchor, input, suffix, and disabled controls safely", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <button disabled>Next</button>
+      <a role="button" href="#">Continue to review</a>
+      <input type="button" value="Save draft" />
+      <div role="button" aria-disabled="true">Tiếp tục</div>
+      <button class="ant-btn ant-btn-disabled">Review application</button>
+      <button class="ant-btn ant-btn-primary">Pay now</button>
+    `);
+
+    const candidates = await collectVietnamReviewActionCandidates(page);
+    assert.deepEqual(
+      candidates.map((candidate) => ({
+        label: candidate.label,
+        tagName: candidate.tagName,
+        disabled: candidate.disabled,
+      })),
+      [
+        { label: "Next", tagName: "button", disabled: true },
+        { label: "Continue to review", tagName: "a", disabled: false },
+        { label: "Save draft", tagName: "input", disabled: false },
+        { label: "Tiếp tục", tagName: "div", disabled: true },
+        { label: "Review application", tagName: "button", disabled: true },
+      ],
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: checks the exact declaration and waits for Continue to enable", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox">
+          <input id="basic_ttcdCqTcCamDoan" type="checkbox" />
+        </span>
+        <span>Tôi xin cam đoan những thông tin trên là đúng</span>
+      </label>
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox"><input id="create-account" type="checkbox" /></span>
+        <span>Agree to create account by email</span>
+      </label>
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox"><input id="final-commitment" type="checkbox" /></span>
+        <span>I hereby declare that the above statements are true, accurate and I am fully responsible before the Vietnamese laws.</span>
+      </label>
+      <button id="continue" disabled>Tiếp tục</button>
+      <script>
+        document.querySelector('#final-commitment').addEventListener('change', (event) => {
+          setTimeout(() => {
+            document.querySelector('#continue').disabled = !event.target.checked;
+          }, 700);
+        });
+        document.querySelector('#continue').addEventListener('click', () => {
+          window.__reviewClicked = true;
+        });
+      </script>
+    `);
+
+    assert.equal(await ensureVietnamApplicationDeclarationChecked(page), true);
+    assert.equal(await page.locator("#basic_ttcdCqTcCamDoan").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+    assert.equal(await ensureVietnamFinalCommitmentChecked(page), true);
+    assert.equal(await page.locator("#final-commitment").isChecked(), true);
+    assert.equal(await page.locator("#create-account").isChecked(), false);
+
+    const result = await advanceVietnamToReview(page, 1_500);
+    assert.deepEqual(result, {
+      advanced: false,
+      clickedLabel: "Tiếp tục",
+      failureReason: "no_transition",
+    });
+    assert.equal(
+      await page.evaluate(() => Boolean((window as unknown as { __reviewClicked?: boolean }).__reviewClicked)),
+      true,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: ignores the transient navigation shell until review CAPTCHA mounts", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <nav><a href="https://evisa.gov.vn/e-visa/foreigners">Apply now</a></nav>
+      ${Array.from({ length: 12 }, () => '<div class="ant-form-item">field</div>').join("")}
+      <button id="next">Next</button>
+      <script>
+        document.querySelector('#next').addEventListener('click', () => {
+          document.body.innerHTML = '<nav><a href="https://evisa.gov.vn/e-visa/foreigners">Apply now</a></nav>';
+          setTimeout(() => {
+            document.body.innerHTML += '<label>Security code *</label><input placeholder="Enter captcha" /><img src="/captcha/challenge" />';
+          }, 800);
+        });
+      </script>
+    `);
+
+    const result = await advanceVietnamToReview(page, 3_000);
+
+    assert.deepEqual(result, {
+      advanced: true,
+      clickedLabel: "Next",
+      failureReason: null,
+    });
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: checks an unlabelled commitment with sibling copy", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label class="ant-checkbox-wrapper">
+        <span class="ant-checkbox">
+          <input id="basic_ttcdCqTcCamDoan" type="checkbox" />
+        </span>
+        <span>Tôi xin cam đoan những thông tin trên là đúng</span>
+      </label>
+      <div class="official-final-commitment">
+        <span class="ant-checkbox"><input id="final-commitment-sibling" type="checkbox" /></span>
+        <span>I hereby declare that the above statements are true, accurate and I am fully responsible before the Vietnamese laws.</span>
+      </div>
+      <button id="continue" disabled>Tiếp tục</button>
+      <script>
+        document.querySelector('#final-commitment-sibling').addEventListener('change', (event) => {
+          document.querySelector('#continue').disabled = !event.target.checked;
+        });
+      </script>
+    `);
+
+    assert.equal(await ensureVietnamApplicationDeclarationChecked(page), true);
+    assert.equal(await ensureVietnamFinalCommitmentChecked(page), true);
+    assert.equal(await page.locator("#final-commitment-sibling").isChecked(), true);
+    assert.equal(await page.locator("#continue").isEnabled(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("vn.review browser: reports only visible enabled required blockers", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="visible-required" required value="" style="display:block;width:120px;height:24px" />
+      <input id="hidden-required" required value="" style="display:none" />
+      <input id="disabled-required" required value="" disabled />
+      <button disabled>Continue to review</button>
+    `);
+
+    const result = await advanceVietnamToReview(page, 500);
+    assert.equal(result.failureReason, "disabled");
+    assert.deepEqual(result.blockers?.requiredUnfilled, ["visible-required"]);
+  } finally {
+    await browser.close();
+  }
+});

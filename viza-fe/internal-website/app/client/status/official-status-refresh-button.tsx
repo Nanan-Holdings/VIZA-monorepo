@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, RotateCw } from "lucide-react";
+import { CircleNotch as Loader2, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
 export function OfficialStatusRefreshButton({
   applicationId,
@@ -64,7 +65,7 @@ export function OfficialStatusRefreshButton({
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
         {loading ? loadingLabel : label}
       </button>
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error ? <ClientErrorAlert message={error} /> : null}
       {notice && <p className="text-sm text-[#66758a]">{notice}</p>}
     </div>
   );

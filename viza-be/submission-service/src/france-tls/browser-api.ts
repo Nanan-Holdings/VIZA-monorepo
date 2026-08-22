@@ -1,22 +1,39 @@
-import { chromium, type Browser, type CDPSession, type Page } from "@playwright/test";
+import { type Browser, type CDPSession, type Page } from "@playwright/test";
 import {
   browserbaseEnabled,
   connectBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 
-export type FranceTlsBrowserProvider = "browserbase" | "remote-browser-api" | "local-cdp" | "local";
-
-export interface FranceTlsBrowserEndpoint {
-  endpoint: string;
-  provider: Exclude<FranceTlsBrowserProvider, "local">;
-  source: string;
-}
+export type FranceTlsBrowserProvider = "browserbase";
 
 export interface FranceTlsBrowserSession {
   browser: Browser;
   page: Page;
   provider: FranceTlsBrowserProvider;
   source: string;
+}
+
+/**
+ * Close the Browserbase TLS session within a bounded local wait. Browserbase
+ * also enforces the country-scoped session timeout if the CDP close handshake
+ * is interrupted.
+ */
+export async function closeFranceTlsBrowserSession(
+  session: FranceTlsBrowserSession,
+  timeoutMs = 10_000,
+): Promise<void> {
+  // Browser.close owns context teardown. Closing contexts one-by-one can hang
+  // indefinitely on a WAF page before the browser connection is released.
+  const closePromise = session.browser.close().catch(() => undefined);
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  await Promise.race([
+    closePromise.then(() => false),
+    new Promise<true>((resolve) => {
+      timeoutHandle = setTimeout(() => resolve(true), Math.max(1, timeoutMs));
+    }),
+  ]);
+  if (timeoutHandle) clearTimeout(timeoutHandle);
 }
 
 export type FranceTlsBrowserCheckpoint =
@@ -49,63 +66,33 @@ export interface FranceTlsProviderCaptchaSolveResult {
   tokenPresent: boolean;
 }
 
-const REMOTE_ENDPOINT_ENV_NAMES = [
-  "FRANCE_TLS_BROWSER_API_ENDPOINT",
-  "FRANCE_TLS_BRIGHTDATA_BROWSER_API_ENDPOINT",
-  "BRIGHTDATA_BROWSER_WS",
-  "BRIGHTDATA_BROWSER_API_ENDPOINT",
-  "SBR_WS_ENDPOINT",
-] as const;
-
-const LOCAL_CDP_ENV_NAMES = [
-  "FRANCE_TLS_CDP_ENDPOINT",
-  "FRANCE_TLS_CHROME_CDP_ENDPOINT",
-] as const;
-
-function firstConfiguredEndpoint(names: readonly string[]): FranceTlsBrowserEndpoint | null {
-  for (const source of names) {
-    const endpoint = process.env[source]?.trim();
-    if (!endpoint) continue;
-    return {
-      endpoint,
-      provider: source.includes("CDP") || source.includes("CHROME") ? "local-cdp" : "remote-browser-api",
-      source,
-    };
-  }
-  return null;
+export interface FranceTlsBrowserSelection {
+  kind: "browserbase";
+  source: "FRANCE_TLS_BROWSERBASE_ENABLED";
 }
 
-export function resolveFranceTlsBrowserEndpoint(): FranceTlsBrowserEndpoint | null {
-  return firstConfiguredEndpoint(REMOTE_ENDPOINT_ENV_NAMES) ?? firstConfiguredEndpoint(LOCAL_CDP_ENV_NAMES);
+/**
+ * Mainland-China France TLScontact is Browserbase-only. Explicitly disabling
+ * Browserbase fails closed; country/global CDP and local Chromium are ignored.
+ */
+export function resolveFranceTlsBrowserSelection(): FranceTlsBrowserSelection {
+  if (!browserbaseEnabled("FRANCE_TLS", true)) {
+    throw new Error(
+      "France TLScontact requires Browserbase; FRANCE_TLS_BROWSERBASE_ENABLED cannot be false.",
+    );
+  }
+  return { kind: "browserbase", source: "FRANCE_TLS_BROWSERBASE_ENABLED" };
 }
 
 export async function createFranceTlsBrowserSession(): Promise<FranceTlsBrowserSession> {
-  if (browserbaseEnabled("FRANCE_TLS")) {
-    const cloud = await connectBrowserbaseCloudBrowser({ prefix: "FRANCE_TLS" });
-    return {
-      browser: cloud.browser,
-      page: cloud.page,
-      provider: "browserbase",
-      source: "FRANCE_TLS_BROWSERBASE_ENABLED",
-    };
-  }
-  const configured = resolveFranceTlsBrowserEndpoint();
-  if (configured) {
-    const browser = await chromium.connectOverCDP(configured.endpoint, { timeout: 45_000 });
-    const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
-    return {
-      browser,
-      page: await context.newPage(),
-      provider: configured.provider,
-      source: configured.source,
-    };
-  }
-
-  const headless = process.env.FRANCE_TLS_PLAYWRIGHT_HEADLESS?.trim() !== "false";
-  const channel = process.env.FRANCE_TLS_PLAYWRIGHT_CHANNEL?.trim() || undefined;
-  const browser = await chromium.launch({ channel, headless });
-  const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1365, height: 900 } });
-  return { browser, page: await context.newPage(), provider: "local", source: "local" };
+  const selection = resolveFranceTlsBrowserSelection();
+  const cloud = await connectBrowserbaseCloudBrowser({ prefix: "FRANCE_TLS" });
+  return {
+    browser: cloud.browser,
+    page: cloud.page,
+    provider: "browserbase",
+    source: selection.source,
+  };
 }
 
 export function classifyFranceTlsBrowserState(input: FranceTlsBrowserStateInput): FranceTlsBrowserState {
@@ -146,7 +133,7 @@ export function classifyFranceTlsBrowserState(input: FranceTlsBrowserStateInput)
       hasRecaptchaAnchor,
     };
   }
-  if (/just a moment|cloudflare|security verification|verify you are not a bot|checking your browser|cf-chl|ray id|access denied|attention required/.test(haystack)) {
+  if (/just a moment|un\s+instant|cloudflare|security verification|verification de securite|vérification de sécurité|verify you are not a bot|verify you are human|checking your browser|cf-chl|ray\s*id|access denied|attention required/i.test(haystack)) {
     return {
       checkpoint: "waf",
       message: "TLScontact is showing Cloudflare/WAF security verification.",
@@ -154,7 +141,7 @@ export function classifyFranceTlsBrowserState(input: FranceTlsBrowserStateInput)
       hasRecaptchaAnchor,
     };
   }
-  if (input.url.includes("tlscontact.com") && !input.title.trim() && !body) {
+  if (/^https?:\/\//i.test(input.url) && !input.title.trim() && !body) {
     return {
       checkpoint: "waf",
       message: "TLScontact returned a blank page after security verification; continue waiting or use a TLS-specific Browser API session.",
@@ -181,9 +168,20 @@ export function classifyFranceTlsBrowserState(input: FranceTlsBrowserStateInput)
       hasRecaptchaAnchor,
     };
   }
+  const realPageUrl = /(?:tlscontact\.com|i2-auth\.visas-fr\.tlscontact\.com)/i.test(input.url)
+    && /\/(?:en-[a-z]{2}|fr-[a-z]{2})\/(?:login|registration|register|country|workflow|travel-groups|appointment|calendar|account|dashboard)/i.test(input.url);
+  const realPageText = /tlscontact|visa application|application process|book an appointment|rendez-vous|sign in|log in|register|registration|travel group|applicant|calendar|appointment|cr[ée]neau|visa application centre|select your visa application centre/i.test(`${input.title} ${body}`);
+  if (!realPageUrl && !realPageText) {
+    return {
+      checkpoint: "site_policy_review",
+      message: "TLScontact returned a non-empty page that is not a recognized login, account, center, or appointment page.",
+      hasRecaptchaGrid,
+      hasRecaptchaAnchor,
+    };
+  }
   return {
     checkpoint: "ready",
-    message: "TLScontact page content is visible.",
+    message: "TLScontact recognized official page content is visible.",
     hasRecaptchaGrid,
     hasRecaptchaAnchor,
   };
@@ -193,7 +191,7 @@ export function hasFranceTlsCloudflareChallenge(input: FranceTlsBrowserStateInpu
   const haystack = `${input.title} ${input.url} ${input.bodyText}`.toLowerCase();
   return (
     input.frameUrls.some((url) => /challenges\.cloudflare\.com|cf-chl|turnstile/i.test(url)) ||
-    /cf-turnstile-response|请验证您是真人|verify you are human|security verification|checking your browser/i.test(haystack)
+    /cf-turnstile-response|请验证您是真人|verify you are human|security verification|verification de securite|vérification de sécurité|checking your browser|un\s+instant|ray\s*id/i.test(haystack)
   );
 }
 

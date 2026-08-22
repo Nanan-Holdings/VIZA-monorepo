@@ -49,6 +49,8 @@ PLACE_TRANSLATIONS = {
     "里昂": "Lyon",
     "马赛": "Marseille",
     "尼斯": "Nice",
+    "旧金山": "San Francisco",
+    "东京江东区": "Koto-ku",
     "曼谷": "Bangkok",
     "普吉岛": "Phuket",
     "清迈": "Chiang Mai",
@@ -553,7 +555,7 @@ def _build_selected_flight_rows(state):
                     "type": "航班",
                     "date": _format_month_day(flight.get("departure_date")),
                     "route": route,
-                    "name": f"{_as_text(airline)} {flight_number}",
+                    "name": _as_text(airline),
                     "details": "；".join(
                         item for item in detail_items if item and not item.endswith("：-")
                     ),
@@ -638,11 +640,20 @@ def _english_fallback_for_cell(key):
 
 
 def _translate_cell(key, value):
+    source = _as_text(value)
     if key == "type":
-        translated = TYPE_TRANSLATIONS.get(_as_text(value), _translate_text(value))
-    else:
-        translated = _translate_text(value)
-    return translated if translated and not _has_cjk(translated) else _english_fallback_for_cell(key)
+        translated = TYPE_TRANSLATIONS.get(source, _translate_text(source))
+        return translated or source
+
+    # The itinerary rows are user-visible, already edited data. If a place or
+    # supplier name is not in our small translation dictionary, preserving the
+    # concrete source text is strictly better than replacing it with Route TBD
+    # or Travel item. This also keeps mixed Chinese/English supplier data intact.
+    if _has_cjk(source):
+        return source
+
+    translated = _translate_text(source)
+    return translated or source
 
 
 def _localize_chinese_text(value):
@@ -653,6 +664,27 @@ def _localize_chinese_text(value):
         text = text.replace(source, target)
     for source, target in REVERSE_TEXT_TRANSLATIONS:
         text = text.replace(source, target)
+    replacements = (
+        ("VIZA API Flight", "待确认航司"),
+        ("VIZA Economy Flight", "待确认航司"),
+        ("Unknown Airline", "待确认航司"),
+        ("Unknown hotel", "酒店名称待确认"),
+        ("Koto-ku", "东京江东区"),
+        ("Boudin Bakery", "博丁酸面包店"),
+        ("Scoma's Restaurant", "斯科马海鲜餐厅"),
+        ("Scoma's", "斯科马海鲜餐厅"),
+        ("Fisherman's Wharf Restaurant", "渔人码头餐厅"),
+        ("Fisherman's Wharf", "渔人码头"),
+        ("Central Hotel", "市中心酒店"),
+        ("Comfort Stay", "舒适酒店"),
+        ("Central Avenue", "市中心区域"),
+        ("Station Road", "车站附近"),
+        ("ECONOMY", "经济舱"),
+    )
+    for source, target in replacements:
+        text = re.sub(re.escape(source), target, text, flags=re.IGNORECASE)
+    text = re.sub(r"(\d+)\s*h\s*(\d+)\s*m", r"\1小时\2分钟", text, flags=re.IGNORECASE)
+    text = re.sub(r"(待确认航司|[\u3400-\u9fff]+航空)\s+[A-Z]{1,3}\d{2,4}\b", r"\1", text)
     text = text.replace(";", "；").replace(",", "，").replace(":", "：")
     text = re.sub(r"\s+", " ", text).strip()
     return text

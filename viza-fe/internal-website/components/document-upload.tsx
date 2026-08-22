@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
-import { Camera, Loader2, RefreshCcw, Upload, X, CheckCircle2 } from "lucide-react";
+import { ArrowsCounterClockwise as RefreshCcw, Camera, CheckCircle as CheckCircle2, CircleNotch as Loader2, Upload, X } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
@@ -192,9 +192,9 @@ export function DocumentUpload({
         onDrop={handleDrop}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-white px-6 py-8 text-center text-sm text-muted-foreground transition",
-          dragActive ? "border-brand-500 bg-brand-50" : "hover:border-brand-300 hover:bg-brand-50/40",
+          dragActive ? "border-brand-500 bg-white" : "hover:border-brand-300",
           state.status === "failed" ? "border-destructive/50" : "",
-          state.status === "succeeded" ? "border-brand-500/60 bg-brand-50/60" : "",
+          state.status === "succeeded" ? "border-brand-500/60 bg-white" : "",
         )}
       >
         {state.status === "succeeded" && isVisuallyComplete ? (

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
   TDAC_OFFICIAL_BOARDED_COUNTRY_ENTRIES,
   TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE,
@@ -241,7 +242,7 @@ export const TDAC_YELLOW_FEVER_SHOW_IF = [
   `nationality in [${yellowFeverCountryListExpression}]`,
 ].join(" || ");
 
-const TDAC_PROVINCE_TRANSLATION_OPTIONS = [
+export const TDAC_PROVINCE_TRANSLATION_OPTIONS = [
   option("amnat_charoen", "安纳乍能府", "AMNAT CHAROEN"),
   option("ang_thong", "红统府", "ANG THONG"),
   option("bangkok", "曼谷", "BANGKOK"),
@@ -340,6 +341,25 @@ export const TDAC_PROVINCE_OPTIONS = TDAC_OFFICIAL_PROVINCE_LABELS.map((label) =
 const residenceRegion = (labelEn: string, labelZh = labelEn): TdacOption => option(labelEn, labelZh, labelEn, labelEn);
 
 const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption[]> = {
+  // TDAC exposes Anguilla settlements rather than ISO 3166-2 subdivisions.
+  // Use established Chinese geographic names where available and consistent
+  // transliterations for the remaining official TDAC settlement labels.
+  AIA: [
+    residenceRegion("BLOWING POINT", "布洛因角"),
+    residenceRegion("EAST END", "东恩德"),
+    residenceRegion("GEORGE HILL", "乔治希尔"),
+    residenceRegion("ISLAND HARBOUR", "岛港"),
+    residenceRegion("NORTH HILL", "诺斯希尔"),
+    residenceRegion("NORTH SIDE", "北赛德"),
+    residenceRegion("SANDY GROUND", "桑迪格朗德"),
+    residenceRegion("SANDY HILL", "桑迪希尔"),
+    residenceRegion("SOUTH HILL", "南希尔"),
+    residenceRegion("STONEY GROUND", "斯托尼格朗德"),
+    residenceRegion("THE FARRINGTON", "法灵顿"),
+    residenceRegion("THE QUARTER", "夸特"),
+    residenceRegion("THE VALLEY", "瓦利"),
+    residenceRegion("WEST END", "韦斯滕德"),
+  ],
   CHN: [
     residenceRegion("ANHUI", "安徽"),
     residenceRegion("BEIJING", "北京"),
@@ -375,6 +395,27 @@ const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption
     residenceRegion("XINJIANG", "新疆"),
     residenceRegion("YUNNAN", "云南"),
     residenceRegion("ZHEJIANG", "浙江"),
+  ],
+  // Hong Kong SAR Government's official Simplified Chinese district names.
+  HKG: [
+    residenceRegion("CENTRAL AND WESTERN", "中西区"),
+    residenceRegion("EASTERN", "东区"),
+    residenceRegion("ISLANDS", "离岛区"),
+    residenceRegion("KOWLOON CITY", "九龙城区"),
+    residenceRegion("KWAI TSING", "葵青区"),
+    residenceRegion("KWUN TONG", "观塘区"),
+    residenceRegion("NORTH", "北区"),
+    residenceRegion("SAI KUNG", "西贡区"),
+    residenceRegion("SHA TIN", "沙田区"),
+    residenceRegion("SHAM SHUI PO", "深水埗区"),
+    residenceRegion("SOUTHERN", "南区"),
+    residenceRegion("TAI PO", "大埔区"),
+    residenceRegion("TSUEN WAN", "荃湾区"),
+    residenceRegion("TUEN MUN", "屯门区"),
+    residenceRegion("WAN CHAI", "湾仔区"),
+    residenceRegion("WONG TAI SIN", "黄大仙区"),
+    residenceRegion("YAU TSIM MONG", "油尖旺区"),
+    residenceRegion("YUEN LONG", "元朗区"),
   ],
   MYS: [
     residenceRegion("JOHOR", "柔佛"),
@@ -467,6 +508,19 @@ const tdacOptionKey = (value: string): string =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+type TdacResidenceRegionTranslationFile = {
+  translations?: Record<string, Record<string, string>>;
+};
+
+const tdacResidenceRegionGeneratedTranslations = (
+  JSON.parse(
+    readFileSync(
+      new URL("./residence-region-translations.zh.json", import.meta.url),
+      "utf8",
+    ),
+  ) as TdacResidenceRegionTranslationFile
+).translations ?? {};
+
 const tdacResidenceRegionTranslationZh = new Map<string, string>();
 for (const [countryCode, options] of Object.entries(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL)) {
   for (const item of options) {
@@ -480,14 +534,29 @@ export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption
     labels.map((label) =>
       option(
         tdacOptionKey(label),
-        tdacResidenceRegionTranslationZh.get(`${countryCode}:${label.toUpperCase()}`) ?? label,
+        tdacResidenceRegionTranslationZh.get(`${countryCode}:${label.toUpperCase()}`) ??
+          tdacResidenceRegionGeneratedTranslations[countryCode]?.[label] ??
+          label,
         label,
         label,
       )),
   ]),
 );
 
-const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
+type TdacAdministrativeTranslationFile = {
+  provinces?: Record<string, string>;
+  districts?: Record<string, string>;
+  subdistricts?: Record<string, string>;
+};
+
+const tdacAdministrativeTranslations = JSON.parse(
+  readFileSync(
+    new URL("./administrative-translations.zh.json", import.meta.url),
+    "utf8",
+  ),
+) as TdacAdministrativeTranslationFile;
+
+export const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
   amnat_charoen: [option("mueang_amnat_charoen", "安纳乍能府直辖县", "MUEANG AMNAT CHAROEN")],
   bangkok: [
     option("pathum_wan", "巴吞旺区", "PATHUM WAN"),
@@ -502,7 +571,7 @@ const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]
   surat_thani: [option("ko_samui", "苏梅岛县", "KO SAMUI"), option("mueang_surat_thani", "素叻他尼府直辖县", "MUEANG SURAT THANI")],
 };
 
-const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
+export const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
   mueang_amnat_charoen: [option("non_pho", "农坡", "NON PHO")],
   pathum_wan: [option("lumphini", "伦披尼", "LUMPHINI"), option("rong_mueang", "荣孟", "RONG MUEANG")],
   khlong_toei: [option("khlong_toei", "空堤", "KHLONG TOEI")],
@@ -520,17 +589,29 @@ const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOptio
 };
 
 const tdacDistrictTranslationZh = new Map<string, string>();
-for (const options of Object.values(TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE)) {
+for (const [province, options] of Object.entries(TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE)) {
   for (const item of options) {
-    tdacDistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+    tdacDistrictTranslationZh.set(
+      `${tdacOptionKey(province)}::${tdacOptionKey(item.official_label)}`,
+      item.label_zh,
+    );
   }
+}
+for (const [key, label] of Object.entries(tdacAdministrativeTranslations.districts ?? {})) {
+  tdacDistrictTranslationZh.set(key, label);
 }
 
 const tdacSubdistrictTranslationZh = new Map<string, string>();
-for (const options of Object.values(TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT)) {
+for (const [district, options] of Object.entries(TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT)) {
   for (const item of options) {
-    tdacSubdistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+    tdacSubdistrictTranslationZh.set(
+      `${tdacOptionKey(district)}::${tdacOptionKey(item.official_label)}`,
+      item.label_zh,
+    );
   }
+}
+for (const [key, label] of Object.entries(tdacAdministrativeTranslations.subdistricts ?? {})) {
+  tdacSubdistrictTranslationZh.set(key, label);
 }
 
 const tdacDistrictValue = (
@@ -556,14 +637,25 @@ export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = O
     return [
       tdacOptionKey(province),
       districts.map((district) =>
-        option(
-          tdacDistrictValue(province, district, duplicateLabels),
-          tdacDistrictTranslationZh.get(district.label.toUpperCase()) ?? district.label,
-          duplicateLabels.has(district.label.toUpperCase()) && district.postcode
-            ? `${district.label} (${district.postcode})`
-            : district.label,
-          district.label,
-        )),
+        (() => {
+          const duplicateLabel = duplicateLabels.has(district.label.toUpperCase());
+          const cacheKey = [
+            tdacOptionKey(province),
+            tdacOptionKey(district.label),
+            ...(duplicateLabel ? [tdacOptionKey(district.postcode ?? "no_postcode")] : []),
+          ].join("::");
+          const contextManualKey = `${tdacOptionKey(province)}::${tdacOptionKey(district.label)}`;
+          return option(
+            tdacDistrictValue(province, district, duplicateLabels),
+            tdacDistrictTranslationZh.get(cacheKey) ??
+              tdacDistrictTranslationZh.get(contextManualKey) ??
+              district.label,
+            duplicateLabel && district.postcode
+              ? `${district.label} (${district.postcode})`
+              : district.label,
+            district.label,
+          );
+        })()),
     ];
   }),
 );
@@ -578,11 +670,27 @@ for (const [provinceDistrict, subdistricts] of Object.entries(
     tdacOptionKey(district),
     ...(postcode ? [postcode] : []),
   ].join("|");
+  const subdistrictOccurrences = new Map<string, number>();
   TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[districtValue] = subdistricts.map((subdistrict) =>
-    option(
-      `${districtValue}|${tdacOptionKey(subdistrict)}`,
-      tdacSubdistrictTranslationZh.get(subdistrict.toUpperCase()) ?? subdistrict,
-      subdistrict,
-      subdistrict,
-    ));
+    (() => {
+      const normalizedSubdistrict = tdacOptionKey(subdistrict);
+      const occurrence = (subdistrictOccurrences.get(normalizedSubdistrict) ?? 0) + 1;
+      subdistrictOccurrences.set(normalizedSubdistrict, occurrence);
+      const cacheKey = [
+        tdacOptionKey(province),
+        tdacOptionKey(district),
+        ...(postcode ? [tdacOptionKey(postcode)] : []),
+        normalizedSubdistrict,
+        ...(occurrence > 1 ? [String(occurrence)] : []),
+      ].join("::");
+      const contextManualKey = `${tdacOptionKey(district)}::${tdacOptionKey(subdistrict)}`;
+      return option(
+        `${districtValue}|${tdacOptionKey(subdistrict)}`,
+        tdacSubdistrictTranslationZh.get(cacheKey) ??
+          tdacSubdistrictTranslationZh.get(contextManualKey) ??
+          subdistrict,
+        subdistrict,
+        subdistrict,
+      );
+    })());
 }

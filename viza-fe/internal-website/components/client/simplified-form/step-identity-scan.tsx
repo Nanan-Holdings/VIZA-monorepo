@@ -3,18 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  AlertCircle,
-  Ban,
+  Prohibit as Ban,
   Camera,
   Check,
-  CheckCircle2,
+  CheckCircle as CheckCircle2,
   FileImage,
-  Loader2,
+  CircleNotch as Loader2,
   ShieldCheck,
   Sun,
   Upload,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -184,11 +184,11 @@ function ScanProgressPanel({
                 )}
               >
                 {done ? (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 ) : active ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
                 ) : (
-                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <Check className="size-5" weight="bold" />
                 )}
               </span>
               <span
@@ -388,10 +388,7 @@ export function StepIdentityScan({
   if (screen === "error") {
     return (
       <div className="flex flex-col gap-5">
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className="text-sm">{errorMsg ?? t("scanExtractError")}</p>
-        </div>
+        <ClientErrorAlert message={errorMsg ?? t("scanExtractError")} />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={reset}>
             {t("scanRetry")}

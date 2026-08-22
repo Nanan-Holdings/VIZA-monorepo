@@ -3,16 +3,29 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
-import { useRouter } from "next/navigation";
-import { MessageCircle, Plane, Mic } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Airplane as Plane, CaretDown as ChevronDown, ChatCircle as MessageCircle, Check, CircleNotch as Loader2, List, Microphone as Mic } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
 import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
+import { NavDropdown, type NavDropdownItem } from "@/components/client/nav-dropdown";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { svgPaths } from "@/components/client/constants";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  buildApplicationFormHref,
+  getRecentApplicationFormHref,
+  readApplicationFormTarget,
+  RECENT_APPLICATION_FORM_EVENT,
+  RECENT_APPLICATION_FORM_STORAGE_KEY,
+  type ApplicationFormTarget,
+} from "@/lib/client/recent-application-form";
+import {
+  ACTIVE_APPLICATION_SELECTION_EVENT,
+  ACTIVE_APPLICATION_SELECTION_STORAGE_KEY,
+  getActiveApplicationFormHref,
+} from "@/lib/client/active-application-selection";
 
 interface NavBarProps {
   activeTab: string | null;
@@ -53,6 +66,60 @@ const chatAgentOptions = [
   },
 ] as const;
 
+type LiveSaveStatus = "idle" | "saving" | "saved";
+
+const LIVE_SAVE_STATUS_EVENT = "viza:live-save-status";
+function LiveSaveStatusIcon({
+  color,
+  size,
+  status,
+}: {
+  color: string;
+  size: "desktop" | "mobile";
+  status: LiveSaveStatus;
+}) {
+  const t = useTranslations("nav");
+  const isSaving = status === "saving";
+  const label = t(isSaving ? "saving" : "saved");
+
+  return (
+    <div
+      aria-atomic="true"
+      aria-label={label}
+      aria-live="polite"
+      className={cn(
+        "flex shrink-0 items-center justify-center gap-1.5 font-sans font-medium",
+        size === "desktop" ? "h-8 text-[13px]" : "h-7 text-xs",
+        "transition-colors duration-[600ms] ease-in-out",
+      )}
+      role="status"
+      style={{ color }}
+    >
+      {isSaving ? (
+        <Loader2
+          aria-hidden="true"
+          className={cn(
+            "animate-spin motion-reduce:animate-none",
+            size === "desktop" ? "h-5 w-5" : "h-[18px] w-[18px]",
+          )}
+        />
+      ) : (
+        <Check
+          aria-hidden="true"
+          className={cn(
+            size === "desktop" ? "h-5 w-5" : "h-[18px] w-[18px]",
+          )}
+        />
+      )}
+      <span className="whitespace-nowrap">{label}</span>
+    </div>
+  );
+}
+
+function hasApplicationIdentity(target: ApplicationFormTarget | null): target is ApplicationFormTarget {
+  return Boolean(target?.applicationId || (target?.country && target?.visaType));
+}
+
 export function NavBar({
   activeTab,
   setActiveTab,
@@ -61,13 +128,23 @@ export function NavBar({
   menuReady,
 }: NavBarProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations("nav");
   const [navColor, setNavColor] = useState<string>("#000000");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("idle");
+  const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
+  const [activeApplicationHref, setActiveApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
+  const showLiveSaveStatus =
+    pathname === "/client/application" ||
+    pathname.startsWith("/client/application/") ||
+    pathname === "/client/universal-info" ||
+    pathname.startsWith("/client/universal-info/");
 
   const tabLabels: Record<string, string> = {
     Home: t("home"),
@@ -81,6 +158,65 @@ export function NavBar({
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const syncActiveApplicationHref = () => {
+      setActiveApplicationHref(getActiveApplicationFormHref());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === ACTIVE_APPLICATION_SELECTION_STORAGE_KEY) {
+        syncActiveApplicationHref();
+      }
+    };
+
+    syncActiveApplicationHref();
+    window.addEventListener(
+      ACTIVE_APPLICATION_SELECTION_EVENT,
+      syncActiveApplicationHref,
+    );
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(
+        ACTIVE_APPLICATION_SELECTION_EVENT,
+        syncActiveApplicationHref,
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleLiveSaveStatus = (event: Event) => {
+      const nextStatus = (event as CustomEvent<{ status?: LiveSaveStatus }>).detail?.status;
+      if (nextStatus === "idle" || nextStatus === "saving" || nextStatus === "saved") {
+        setLiveSaveStatus(nextStatus);
+      }
+    };
+
+    window.addEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
+    return () => window.removeEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
+  }, []);
+
+  useEffect(() => {
+    const syncRecentApplicationHref = () => {
+      setRecentApplicationHref(getRecentApplicationFormHref());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === RECENT_APPLICATION_FORM_STORAGE_KEY) {
+        syncRecentApplicationHref();
+      }
+    };
+
+    syncRecentApplicationHref();
+
+    window.addEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -118,15 +254,50 @@ export function NavBar({
   const LOGO_DARK_MOBILE   = { w: 117, h: 23 };
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
 
-  const leftTabs = ["Home", "Application", "Status"];
-  const rightTabs = ["Settings", "Support"];
-  const mobileTabs = ["Home", "Application", "Status", "Settings", "Support"];
+  // Status and Help are reached through the account menu, not top-level tabs.
+  const leftTabs = ["Home", "Application"];
+  const rightTabs = ["Settings"];
+  const mobileTabs = ["Home", "Application", "Settings"];
+
+  const currentPageApplicationTarget = useMemo(() => {
+    const currentFormTarget = readApplicationFormTarget(
+      buildApplicationFormHref(pathname, searchParams.toString()),
+    );
+    if (hasApplicationIdentity(currentFormTarget)) return currentFormTarget;
+
+    const applicationPageTarget = readApplicationFormTarget(
+      `/client/application/long-form?${searchParams.toString()}`,
+    );
+    if (pathname.startsWith("/client/application") && hasApplicationIdentity(applicationPageTarget)) {
+      return applicationPageTarget;
+    }
+
+    return null;
+  }, [pathname, searchParams]);
+
+  const recentApplicationTarget = readApplicationFormTarget(recentApplicationHref);
+  const applicationMenuHref =
+    currentPageApplicationTarget?.href ??
+    activeApplicationHref ??
+    (hasApplicationIdentity(recentApplicationTarget)
+      ? recentApplicationTarget.href
+      : "/client/application");
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
+  const liveSaveColor = isDark
+    ? "#FFFFFF"
+    : liveSaveStatus === "saving"
+      ? activeTabColor
+      : "#000000";
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    if (tab === "Application") {
+      router.push(applicationMenuHref);
+      return;
+    }
+
     const path = tabPaths[tab];
     if (path) router.push(path);
   };
@@ -138,34 +309,28 @@ export function NavBar({
     router.push(href);
   };
 
+  const openChatAgentById = (id: string) => {
+    const option = chatAgentOptions.find((item) => item.id === id);
+    if (option) openChatAgent(option.href);
+  };
+
   const toItems = (ids: string[]) =>
     ids.map((id) => ({ id, label: tabLabels[id] ?? id }));
-
-  const renderChatAgentMenu = () => (
-    <div className="w-[210px] rounded-2xl border border-[#dbe4f0] bg-white p-2 shadow-[0_18px_45px_rgba(3,52,110,0.18)]">
-      {chatAgentOptions.map((option) => {
-        const Icon = option.icon;
-        return (
-          <button
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-switzer text-sm font-medium text-[#03346E] transition-colors hover:bg-[#eef5ff]"
-            key={option.id}
-            onClick={() => openChatAgent(option.href)}
-            type="button"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#03346E]/10 text-[#03346E]">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span>{t(option.labelKey)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
 
   const renderStandaloneChatTab = (isMobile: boolean = false) => {
     const isActive = activeTab === "Chat";
     const setOpenDropdown = isMobile ? setMobileChatMenuOpen : setChatMenuOpen;
     const openDropdown = isMobile ? mobileChatMenuOpen : chatMenuOpen;
+    const chatAgentItems: NavDropdownItem[] = chatAgentOptions.map((option) => ({
+      id: option.id,
+      icon: option.icon,
+      label: t(option.labelKey),
+      selected:
+        (option.id === "visa" && pathname === "/client/chat" && searchParams.get("agent") !== "travel") ||
+        (option.id === "travel" && pathname === "/client/chat" && searchParams.get("agent") === "travel") ||
+        (option.id === "interview" && pathname.startsWith("/client/interview-practice")),
+      tone: "default",
+    }));
 
     if (!hasMounted) {
       return (
@@ -189,11 +354,17 @@ export function NavBar({
     }
 
     return (
-      <Popover open={openDropdown} onOpenChange={setOpenDropdown}>
-        <PopoverTrigger asChild>
+      <NavDropdown
+        align={isMobile ? "start" : "center"}
+        items={chatAgentItems}
+        onOpenChange={setOpenDropdown}
+        onSelect={openChatAgentById}
+        open={openDropdown}
+        widthClassName="w-64 max-w-[calc(100vw-2rem)]"
+        trigger={
           <motion.button
             className={cn(
-              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden",
+              "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden inline-flex items-center gap-1.5",
               isMobile
                 ? cn(
                     "px-4 py-1.5 text-base rounded-full border border-solid",
@@ -215,16 +386,13 @@ export function NavBar({
             >
               {t("chat")}
             </motion.span>
+            <ChevronDown
+              className={cn("h-4 w-4 shrink-0 transition-transform duration-200", openDropdown && "rotate-180")}
+              style={isMobile ? undefined : { color: isActive ? activeTabColor : inactiveColor }}
+            />
           </motion.button>
-        </PopoverTrigger>
-        <PopoverContent
-          align={isMobile ? "start" : "center"}
-          className="w-auto border-0 bg-transparent p-0 shadow-none"
-          sideOffset={10}
-        >
-          {renderChatAgentMenu()}
-        </PopoverContent>
-      </Popover>
+        }
+      />
     );
   };
 
@@ -234,7 +402,7 @@ export function NavBar({
       className="client-navbar hidden xl:block backdrop-blur backdrop-filter w-full fixed top-0 left-0 z-50"
     >
       <div className="mx-auto w-full px-4 sm:px-6 md:px-10 xl:px-20 py-4 md:py-7">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Hamburger */}
           <div className="shrink-0">
             {menuReady ? (
@@ -246,14 +414,7 @@ export function NavBar({
                     whileHover={{ scale: 1.1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                      <motion.path
-                        d={svgPaths.p2cedaac0}
-                        style={{ stroke: "var(--nav-stroke-color)" }}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <List className="size-8" style={{ color: "var(--nav-stroke-color)" }} />
                   </motion.button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0 border-0 bg-transparent shadow-none">
@@ -271,9 +432,7 @@ export function NavBar({
                 animate={{ opacity: 1 }}
                 transition={{ duration: transitionDuration, ease: "easeInOut" }}
               >
-                <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <List className="size-8" style={{ color: "var(--nav-stroke-color)" }} />
               </motion.button>
             )}
           </div>
@@ -301,8 +460,11 @@ export function NavBar({
             <AnimatedTabPill tabs={toItems(rightTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
           </motion.div>
 
-          {/* Globe */}
-          <div className="shrink-0">
+          {/* Live save status and language */}
+          <div className="flex shrink-0 items-center justify-self-end gap-2">
+            {showLiveSaveStatus && liveSaveStatus !== "idle" && (
+              <LiveSaveStatusIcon color={liveSaveColor} size="desktop" status={liveSaveStatus} />
+            )}
             <LanguageSelector size="desktop" />
           </div>
         </div>
@@ -330,14 +492,15 @@ export function NavBar({
           </Link>
 
           <div className="flex items-center gap-1">
+            {showLiveSaveStatus && liveSaveStatus !== "idle" && (
+              <LiveSaveStatusIcon color={liveSaveColor} size="mobile" status={liveSaveStatus} />
+            )}
             <LanguageSelector size="mobile" />
             {menuReady ? (
               <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <PopoverTrigger asChild>
                   <motion.button className="w-9 h-9 flex items-center justify-center cursor-pointer" type="button">
-                    <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                      <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                    </svg>
+                    <List className="size-5" style={{ color: "var(--nav-stroke-color)" }} />
                   </motion.button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-auto p-0 border-0 bg-transparent shadow-none">
@@ -351,9 +514,7 @@ export function NavBar({
               </Popover>
             ) : (
               <motion.button className="w-9 h-9 flex items-center justify-center" type="button">
-                <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                  <motion.path d={svgPaths.p2cedaac0} style={{ stroke: "var(--nav-stroke-color)" }} strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <List className="size-5" style={{ color: "var(--nav-stroke-color)" }} />
               </motion.button>
             )}
           </div>

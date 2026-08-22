@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "@phosphor-icons/react/ssr";
 import { PaymentStatusPoller } from "../payment-status-poller";
 import { getPaymentRecordForCurrentUser } from "../data";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -85,9 +86,7 @@ export default async function SubscriptionPayPage({ searchParams }: Subscription
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              未找到可用的微信支付二维码，请返回订阅页重新发起。
-            </div>
+            <ClientErrorAlert message="未找到可用的微信支付二维码，请返回订阅页重新发起。" />
           )}
         </CardContent>
       </Card>

@@ -1945,6 +1945,67 @@ or create another job automatically.
 
 Status: **APPLICANT_HANDOFF_READY_AWAITING_APPLICANT_CONFIRMATION**.
 
+## 2026-08-14 Legacy Taiwan handoff runtime removal
+
+- Removed the Taiwan-only Browserbase applicant-handoff session branch from
+  the formal runner. Taiwan now uses the submission-service-owned Playwright
+  session through final official confirmation and receipt verification.
+- Removed Taiwan Browserbase/handoff variables from the country Fly template
+  and removed `BROWSERBASE_API_KEY` from Taiwan runtime secret requirements.
+  Other countries' Browserbase configuration was not changed.
+- Taiwan focused tests passed: 121/121. Submission-service type-check and build
+  also passed.
+- No runner job was created, no official site was accessed, and no application
+  submission or payment was attempted during this cleanup.
+
+### Production rollout
+
+- Pushed the formal-submit implementation and handoff-runtime cleanup to
+  `main` in commits `143c8850` and `ae0a6e0c`.
+- Vercel production deployment `dpl_3JYh1mmVzC8iHyWTDu7hKpWuuX73` is Ready
+  and owns the `app.viza.it.com` alias. The unauthenticated production retry
+  endpoint returns 401, confirming that the deployed route is reachable and
+  still protected by server authentication.
+- Fly image `deployment-01KZZWV0B8036THHY1RAXY1CBR` is deployed to the
+  existing `viza-runner-taiwan` app. `/health` reports ready and `/ready`
+  reports database reachable with the worker started. Runtime scope is
+  `country=taiwan`, legacy queue disabled, and runner-job consumer enabled.
+- No runner job was created, no official site was accessed, and no application
+  was submitted or paid during this rollout.
+
+Status: **PRODUCTION_FORMAL_SUBMIT_PATH_DEPLOYED; NO_LIVE_APPLICATION_RUN**.
+
+## 2026-08-14 — VIZA-confirmed background formal submission
+
+- Replaced the canonical Taiwan runner's applicant live-handoff mode with the
+  existing formal `submit` path. The worker now completes official validation,
+  solves the final CAPTCHA, clicks the official `確認資料` control, and accepts
+  success only after the official success page yields an application/receipt
+  number. Historical `stopped_at_captcha` and takeover-session rows remain
+  readable but no longer block or drive a new formal run.
+- Added two separate, mandatory VIZA confirmations: authorization to accept an
+  existing official entry prompt, and acceptance of the official terms modal
+  checkbox plus confirm action. The server records a versioned, timestamped,
+  non-PII audit object in `runner_job.metadata`; the worker revalidates it
+  before opening the official flow. Missing either item fails closed.
+- The official DOM sequence remains strict: accept only a matching pre-existing
+  Agree-first alert, check the terms control, verify its real checked state,
+  then click the modal confirm button. Unknown alerts or unchecked controls
+  stop the run.
+- Updated the Taiwan result/status UI to describe background formal submission,
+  remove the live-session open action, require both confirmations for retry,
+  and preserve the distinction that submitted is neither approved nor paid.
+  No automatic payment path was added.
+- Verification passed:
+  - submission-service Taiwan focused tests: 120/120;
+  - submission-service type-check and production build;
+  - internal-website Taiwan retry/result/final-confirmation tests: 30/30;
+  - internal-website type-check and production build.
+- No runner job was created, no official site was accessed, no application was
+  submitted, and no payment was attempted as part of this change.
+
+Status: **LOCAL_IMPLEMENTATION_AND_VERIFICATION_COMPLETE; NOT YET DEPLOYED**.
+
 ## 2026-08-13 Authorized production handoff rerun
 
 - The pre-write production completeness check found exactly one information

@@ -1,11 +1,13 @@
 # PhotonPay Virtual Card Issuing (发卡) — submission-service integration
 
-Status: client + provider implemented and UAT-accepted; runner wiring NOT done
+Status: durable provider wired to Vietnam and Indonesia payment-page seams
 Author: drafted with Claude, July 2026
 Scope: `viza-be/submission-service` escrow-card payment path
 
-PhotonPay (光子易) replaces Airwallex as the card issuer for the
-`runner_escrow_card` payment mechanism — see
+PhotonPay (光子易) is the preferred card issuer for the
+`runner_escrow_card` payment mechanism when an exact currency BIN/account pair
+is configured. Airwallex is the durable fallback for explicitly validated
+currencies — see
 [airwallex-issuing-integration.md](./airwallex-issuing-integration.md) for the
 design this supersedes. Everything below is derived from the vendor's
 「API 对接指南」/「签名⽂档」/「回调通知验签」PDFs and the signed acceptance
@@ -25,10 +27,11 @@ Built, type-checks, tested, gated OFF by `PHOTONPAY_ENABLED`:
 - `scripts/photonpay-uat-*.ts` — the three live UAT scripts.
 - `scripts/photonpay-smoke.mjs` (repo root) — dependency-free connectivity probe.
 
-**Not done — the provider has zero callers.** `ensurePhotonPayEscrowCard` is not
-referenced by any runner. Nothing mints a card in a real submission today; VN and
-ID still pay with either a client-typed one-time card or the shared
-`VN_FIXED_CARD_*` test PAN. See §7 for the two seams where wiring goes.
+**Runtime wiring completed 2026-08-13.** Vietnam and Indonesia now claim a
+durable `issuer_card_attempts` row and open a limited shared card only after the
+official payment page is visible. The client-typed one-time-card path remains a
+fallback. Every other country stays gated until its payment runner can consume
+card material in memory at a proven official payment checkpoint.
 
 **UAT acceptance passed 2026-07-15** against the old host: all 14 interface items
 plus webhook signature verification, the `{"roger": true}` contract, the token
@@ -40,8 +43,11 @@ refresh discipline, and the redacted request/response logging. Evidence is in
 signature enforcement confirmed, card BIN readable. See §2 for what unblocked it
 and §10 for the live values.
 
-**Production is not yet usable for real cards**: every funding account reads
-0.00. A card cannot be loaded until the USD account is funded.
+**Production issuing was validated with one controlled card on 2026-08-13.**
+The API opened a USD 20.01 limited shared card, returned PAN/CVV/expiry in
+memory, recovered it by request id, and cancelled it without a merchant
+payment. Runtime issuance still requires enough USD wallet balance for the
+official fee and PhotonPay's card-application fee.
 
 ## 1. Goal
 
@@ -237,8 +243,12 @@ blocked the Airwallex design is not a problem here. Convert the returned
 callback, which makes it the cleanest seam in the codebase: mint the card at the
 moment the Finpay form renders and cancel it seconds later.
 
-Do Vietnam first. It has a manual fallback and a resume-by-registration-code
-recovery path; Indonesia fails hard with no fallback if no card is available.
+Both seams now use the same durable provider. Vietnam resolves the card lazily
+inside `fillVietnamApplication()` or its registration-code resume flow.
+Indonesia awaits `takeOneTimeCard()` only after its memory preflight passes.
+The database request id is deterministic per allocation attempt, so a duplicate
+job or worker restart recovers the same PhotonPay request rather than minting a
+second card.
 
 The BIN must be a scheme the Vietcombank brand-tile selector recognises
 (VISA / MASTERCARD / JCB / AMEX) and that Finpay accepts.
@@ -298,9 +308,26 @@ PHOTONPAY_PLATFORM_PUBLIC_KEY= | PHOTONPAY_PLATFORM_PUBLIC_KEY_PATH=
 PHOTONPAY_ISSUING_BIN=
 PHOTONPAY_ISSUING_CURRENCY=USD
 PHOTONPAY_ISSUING_ACCOUNT=          # funding accountNo, FA-USD…
+PHOTONPAY_ISSUING_BIN_USD=
+PHOTONPAY_ISSUING_ACCOUNT_USD=
+PHOTONPAY_ISSUING_BIN_EUR=
+PHOTONPAY_ISSUING_ACCOUNT_EUR=
+PHOTONPAY_ISSUING_BIN_GBP=
+PHOTONPAY_ISSUING_ACCOUNT_GBP=
 PHOTONPAY_ISSUING_CARDHOLDER_ID=    # optional; empty = account default holder
+PHOTONPAY_ISSUING_CARDHOLDER_NAME=  # name submitted to official card forms
 PHOTONPAY_ISSUING_FX_BUFFER_PCT=0
 ```
+
+Airwallex fallback additionally requires
+`AIRWALLEX_ISSUING_ENABLED=true`, credentials, a cardholder id, and an explicit
+comma-separated `AIRWALLEX_ISSUING_SUPPORTED_CURRENCIES` allowlist. Currency
+codes outside that validated list fail closed; they are never inferred from
+Airwallex's general network coverage.
+
+The worker has no pending-treasury override. It resolves one exact allocation
+for the consented managed-card intent and requires that allocation to be in an
+issuer-ready state before PhotonPay is called.
 
 Credentials live in `.secrets/` (gitignored), one file per environment —
 `prod.env` and `uat.env`. Neither is committed:

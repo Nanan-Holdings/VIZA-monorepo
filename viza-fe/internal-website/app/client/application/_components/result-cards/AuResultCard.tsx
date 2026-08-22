@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, FileCheck2, AlertTriangle } from "lucide-react";
+import { ArrowSquareOut as ExternalLink, FileText as FileCheck2 } from "@phosphor-icons/react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,10 @@ export function AuResultCard({ applicationId, result }: AuResultCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>You must submit this one yourself</AlertTitle>
+          <AlertDescription>
             <p>
               Australian law requires you, the applicant, to be the one who
               submits a Subclass 600 application. We&apos;ve filled every page
@@ -67,8 +69,8 @@ export function AuResultCard({ applicationId, result }: AuResultCardProps) {
               check the answers, and click <span className="font-medium">Submit application</span>{" "}
               yourself.
             </p>
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
 
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">Transaction Reference Number (TRN)</div>
@@ -93,7 +95,6 @@ export function AuResultCard({ applicationId, result }: AuResultCardProps) {
             {!screenshotLoading && screenshotUrl && (
               // Plain <img> — Next/Image needs domains config that the
               // signed URL host doesn't always satisfy.
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={screenshotUrl}
                 alt="ImmiAccount Review page snapshot"

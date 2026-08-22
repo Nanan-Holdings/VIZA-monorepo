@@ -17,6 +17,9 @@ application workflow.
   packet status, external status, result delivery, and event timeline.
 - Provide customer-service context for chat/support escalation.
 - Allow admin-safe state corrections only when explicitly scoped and audited.
+- Exclude `VIZA_PLACEHOLDER_DRY_RUN` schema-QA records from the normal staff
+  monitoring queue so synthetic applicants and answers cannot be mistaken for
+  customer work.
 
 ## Local Files
 

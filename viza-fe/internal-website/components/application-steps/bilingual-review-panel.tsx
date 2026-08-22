@@ -1,9 +1,12 @@
 "use client";
 
-import { AlertCircle, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ReviewEditButton } from "@/components/ui/review-edit-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { isChineseLocale } from "@/lib/i18n/locale";
 
 export interface ReviewRow {
@@ -18,6 +21,9 @@ export interface ReviewRow {
   warnings: string[];
   editable: boolean;
   editStepIndex?: number;
+  missing?: boolean;
+  issueSeverity?: "error" | "warning";
+  issueMessage?: string;
 }
 
 interface BilingualReviewPanelProps {
@@ -29,21 +35,37 @@ interface BilingualReviewPanelProps {
   onRetry?: () => void;
   onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
-  onEditSection?: (stepIndex: number) => void;
+  onEditSection?: (stepIndex: number, fieldName: string) => void;
 }
 
-function groupRows(rows: ReviewRow[]): Array<{ section: string; rows: ReviewRow[]; editStepIndex?: number }> {
+function groupRows(rows: ReviewRow[]): Array<{
+  id: string;
+  section: string;
+  rows: ReviewRow[];
+  editStepIndex?: number;
+  editFieldName?: string;
+}> {
   const grouped = new Map<string, ReviewRow[]>();
   for (const row of rows) {
-    const existing = grouped.get(row.section) ?? [];
+    // Display labels are not stable identifiers: separate source steps can
+    // legitimately localize to the same section title. Include the edit target
+    // in the grouping key so one section's Edit button can never inherit a
+    // different step's destination.
+    const groupKey = `${row.editStepIndex ?? "read-only"}:${row.section}`;
+    const existing = grouped.get(groupKey) ?? [];
     existing.push(row);
-    grouped.set(row.section, existing);
+    grouped.set(groupKey, existing);
   }
-  return Array.from(grouped.entries()).map(([section, sectionRows]) => ({
-    section,
-    rows: sectionRows,
-    editStepIndex: sectionRows.find((row) => row.editStepIndex !== undefined)?.editStepIndex,
-  }));
+  return Array.from(grouped.entries()).map(([id, sectionRows]) => {
+    const editTarget = sectionRows.find((row) => row.editStepIndex !== undefined);
+    return {
+      id,
+      section: sectionRows[0]?.section ?? "",
+      rows: sectionRows,
+      editStepIndex: editTarget?.editStepIndex,
+      editFieldName: editTarget?.fieldName,
+    };
+  });
 }
 
 function BilingualReviewRow({
@@ -58,34 +80,113 @@ function BilingualReviewRow({
 
   if (!isZh) {
     return (
-      <div className="border-b border-border/50 py-4 last:border-0">
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
-            {row.officialValue}
-          </div>
-        </div>
-      </div>
+      <TableRow
+        className={row.issueSeverity === "error"
+          ? "border-red-200 bg-red-50 hover:bg-red-50"
+          : row.issueSeverity === "warning"
+            ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+            : "hover:bg-transparent"}
+        data-review-issue={row.issueSeverity}
+      >
+        <th
+          scope="row"
+          className="w-[56%] px-0 py-2 text-left align-top text-sm font-medium text-muted-foreground"
+        >
+          <span className={row.issueSeverity === "error"
+            ? "text-red-800"
+            : row.issueSeverity === "warning"
+              ? "text-amber-900"
+              : undefined}
+          >
+            {officialLabel}
+          </span>
+        </th>
+        <TableCell
+          className={row.issueSeverity === "error"
+            ? "px-0 py-2 text-right align-top text-sm font-medium text-red-700"
+            : row.missing
+              ? "px-0 py-2 text-right align-top text-sm font-medium text-red-600"
+            : row.issueSeverity === "warning"
+              ? "px-0 py-2 text-right align-top text-sm font-medium text-amber-900"
+              : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
+        >
+          <span className="whitespace-pre-wrap break-words">{row.officialValue}</span>
+          {row.issueMessage ? (
+            <span className={row.issueSeverity === "error"
+              ? "mt-1 block text-xs leading-5 text-red-700"
+              : "mt-1 block text-xs leading-5 text-amber-800"}
+            >
+              {row.issueMessage}
+            </span>
+          ) : null}
+        </TableCell>
+      </TableRow>
     );
   }
 
   return (
-    <div className="border-b border-border/50 py-4 last:border-0">
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{sourceLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#e8e8e8] bg-white px-3 py-3 text-sm font-medium text-gray-800">
-            {row.sourceValue}
-          </div>
-        </div>
-        <div className="min-w-0">
-          <p className="mb-2 text-sm font-semibold text-[#1f2f46]">{officialLabel}</p>
-          <div className="min-h-12 rounded-lg border border-[#d7e0ee] bg-white px-3 py-3 text-sm font-medium text-[#1f2f46]">
-            {row.officialValue}
-          </div>
-        </div>
-      </div>
-    </div>
+    <TableRow
+      className={row.issueSeverity === "error"
+        ? "border-red-200 bg-red-50 hover:bg-red-50"
+        : row.issueSeverity === "warning"
+          ? "border-amber-200 bg-amber-50 hover:bg-amber-50"
+          : "hover:bg-transparent"}
+      data-review-issue={row.issueSeverity}
+    >
+      <th
+        scope="row"
+        className="w-[56%] px-0 py-2 text-left align-top font-normal"
+      >
+        <span className={row.issueSeverity === "error"
+          ? "block text-sm font-medium text-red-800"
+          : row.issueSeverity === "warning"
+            ? "block text-sm font-medium text-amber-900"
+            : "block text-sm font-medium text-foreground"}
+        >
+          {sourceLabel}
+        </span>
+        <span lang="en" className={row.issueSeverity === "error"
+          ? "mt-0.5 block text-sm leading-5 text-red-700"
+          : row.issueSeverity === "warning"
+            ? "mt-0.5 block text-sm leading-5 text-amber-800"
+            : "mt-0.5 block text-sm leading-5 text-muted-foreground"}
+        >
+          {officialLabel}
+        </span>
+      </th>
+      <TableCell className="px-0 py-2 text-right align-top">
+        <span className={row.issueSeverity === "error"
+          ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-700"
+          : row.missing
+            ? "block whitespace-pre-wrap break-words text-sm font-medium text-red-600"
+          : row.issueSeverity === "warning"
+            ? "block whitespace-pre-wrap break-words text-sm font-medium text-amber-900"
+            : "block whitespace-pre-wrap break-words text-sm font-medium text-foreground"}
+        >
+          {row.sourceValue}
+        </span>
+        <span
+          lang="en"
+          className={row.issueSeverity === "error"
+            ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-700"
+            : row.missing
+              ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-red-600"
+            : row.issueSeverity === "warning"
+              ? "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-amber-800"
+              : "mt-0.5 block whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground"}
+        >
+          {row.officialValue}
+        </span>
+        {row.issueMessage ? (
+          <span className={row.issueSeverity === "error"
+            ? "mt-1 block text-xs leading-5 text-red-700"
+            : "mt-1 block text-xs leading-5 text-amber-800"}
+          >
+            {row.issueMessage}
+          </span>
+        ) : null}
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -106,33 +207,31 @@ export function BilingualReviewPanel({
     return (
       <div className="flex flex-col gap-3">
         <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-          <p className="flex-1 text-sm text-amber-800">{error}</p>
-          {onRetry && (
+    <div className="flex flex-col gap-0">
+      {error ? (
+        <ClientErrorAlert
+          message={error}
+          action={onRetry ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onRetry}
               disabled={retrying}
-              className="shrink-0"
             >
               {retrying ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
               {t("retryTranslation")}
             </Button>
-          )}
-        </div>
-      )}
+          ) : undefined}
+        />
+      ) : null}
 
       {sections.length === 0 ? (
         <p className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
@@ -140,33 +239,29 @@ export function BilingualReviewPanel({
         </p>
       ) : (
         sections.map((section) => (
-          <div key={section.section} className="rounded-lg border border-border p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <section key={section.id}>
+            <div className="flex min-h-8 items-center justify-between gap-3">
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {section.section}
               </h3>
-              {section.editStepIndex !== undefined && onEditSection ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 border-[#c9def6] bg-[#eef6ff] px-3 text-sm font-medium text-[#03346E] hover:bg-[#e2f0ff]"
-                  onClick={() => onEditSection(section.editStepIndex!)}
-                >
-                  <Pencil className="mr-1 h-4 w-4" />
-                  {isZh ? "修改" : "Edit"}
-                </Button>
+              {section.editStepIndex !== undefined && section.editFieldName && onEditSection ? (
+                <ReviewEditButton
+                  onClick={() => onEditSection(section.editStepIndex!, section.editFieldName!)}
+                  label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
+                />
               ) : null}
             </div>
-            <div>
-              {section.rows.map((row) => (
-                <BilingualReviewRow
-                  key={row.fieldName}
-                  row={row}
-                />
-              ))}
-            </div>
-          </div>
+            <Table className="table-fixed">
+              <TableBody>
+                {section.rows.map((row) => (
+                  <BilingualReviewRow
+                    key={row.fieldName}
+                    row={row}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </section>
         ))
       )}
     </div>

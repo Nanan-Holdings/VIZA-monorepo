@@ -63,8 +63,26 @@ function hasValue(value: string | null | undefined): boolean {
   return v.length > 0 && v !== "[]" && v !== "{}";
 }
 
+function isAcceptedCheckboxValue(value: string | null | undefined): boolean {
+  return ["true", "yes", "1", "on"].includes(normalizeAnswer(value));
+}
+
 function normalizeAnswer(value: string | null | undefined): string {
   return text(value).toLowerCase();
+}
+
+function withDerivedTdacTransitAnswer(
+  answers: Record<string, string>,
+  visaType?: string | null,
+): Record<string, string> {
+  if (normalizeAnswer(visaType) !== "th_tdac_arrival_card") return answers;
+  const arrivalDate = text(answers.arrival_date);
+  const departureDate = text(answers.departure_date);
+  if (!arrivalDate || !departureDate) return answers;
+  return {
+    ...answers,
+    is_transit_traveler: arrivalDate === departureDate ? "yes" : "",
+  };
 }
 
 export function isUsDs160(country?: string | null, visaType?: string | null): boolean {
@@ -91,7 +109,7 @@ function getMaxItems(field: VisaFormFieldRow): number | null {
 }
 
 function instanceKey(fieldName: string, index: number): string {
-  return index === 0 ? fieldName : `${fieldName}__${index}`;
+  return index === 0 ? fieldName : `${fieldName}__${index + 1}`;
 }
 
 function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, string>, fields: VisaFormFieldRow[]) {
@@ -100,13 +118,30 @@ function isVisibleRequiredField(field: VisaFormFieldRow, values: Record<string, 
   return evaluateShowIf(field, values, fields);
 }
 
+function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | undefined): boolean {
+  if (!hasValue(value)) return false;
+  if (
+    !field.options?.length ||
+    field.validationRules?.remote_search === true ||
+    typeof field.validationRules?.official_options_source === "string" ||
+    typeof field.validationRules?.dynamic_option_source === "string" ||
+    !["select", "radio", "country"].includes(field.fieldType)
+  ) return true;
+  return field.options.some((option) => (
+    typeof option === "string" ? option : option.value
+  ) === value);
+}
+
 function isFieldComplete(field: VisaFormFieldRow, values: Record<string, string>): boolean {
+  if (field.fieldType === "checkbox" && field.required) {
+    return isAcceptedCheckboxValue(values[field.fieldName]);
+  }
   const group = getRepeatGroup(field);
-  if (!group) return hasValue(values[field.fieldName]);
+  if (!group) return isAllowedChoiceValue(field, values[field.fieldName]);
 
   const count = getMaxItems(field) ?? 1;
   for (let index = 0; index < count; index += 1) {
-    if (hasValue(values[instanceKey(field.fieldName, index)])) return true;
+    if (isAllowedChoiceValue(field, values[instanceKey(field.fieldName, index)])) return true;
   }
   return false;
 }
@@ -125,6 +160,20 @@ function missingForDynamicStep(step: WizardStep, stepId: number, stepName: strin
     });
   }
   return missing;
+}
+
+/**
+ * Deterministic, UI-independent missing-field calculation used by both the
+ * application wizard and the form-filling assistant. Conditional and
+ * required-unless rules are evaluated against the complete answer snapshot.
+ */
+export function getMissingDynamicFormFields(
+  dbSteps: WizardStep[],
+  answers: Record<string, string>,
+): MissingApplicationField[] {
+  return dbSteps.flatMap((step, index) =>
+    missingForDynamicStep(step, index, step.stepName, answers),
+  );
 }
 
 function pushMissing(
@@ -227,17 +276,18 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   const showDocumentStep = input.showDocumentStep ?? true;
   const documentsLoaded = input.documentsLoaded ?? true;
   const documentStepComplete = !showDocumentStep || documentsComplete(input.documentCenterData);
+  const completionAnswers = withDerivedTdacTransitAnswer(input.answers, input.visaType);
 
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
     const stepName = input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ?? step.stepName;
-    const missing = missingForDynamicStep(step, stepId, stepName, input.answers);
+    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers);
     missingFields.push(...missing);
     if (missing.length === 0) completed.add(stepId);
   });
 
   const ds160Missing = isUsDs160(input.country, input.visaType)
-    ? getDs160CeacMissingFields(input.dbSteps, dynamicStepIds, input.answers)
+    ? getDs160CeacMissingFields(input.dbSteps, dynamicStepIds, completionAnswers)
     : [];
   missingFields.push(...ds160Missing);
   for (const item of ds160Missing) completed.delete(item.stepId);

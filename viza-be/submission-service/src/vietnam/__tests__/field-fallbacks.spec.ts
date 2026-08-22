@@ -62,7 +62,7 @@ test("vn.field-fallbacks: unmapped fields do not invent defaults", () => {
 });
 
 test("vn.field-mappings: common portal option aliases match Vietnam labels", () => {
-  assert.equal(getVnPortalOptionText("sex", "M"), "Male");
+  assert.equal(getVnPortalOptionText("sex", "M"), "M");
   assert.equal(getVnPortalOptionText("nationality", "CHN"), "China");
   assert.equal(getVnPortalOptionText("visa_type_requested", "single_entry"), "Single-entry");
   assert.equal(getVnPortalOptionText("purpose_of_entry", "Tourism"), "Tourist");

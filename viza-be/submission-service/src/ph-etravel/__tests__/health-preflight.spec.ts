@@ -64,7 +64,7 @@ test("E23 Health plan preserves five S3 gaps and maps static rendered branches w
   assert.equal(plan.renderedControls.sickness.positiveBranchPresent, true);
   assert.equal(plan.renderedControls.sickness.clientChangeClearsSymptoms, true);
   assert.equal(plan.staticHandlerPayloadMapping, "unknown_do_not_infer");
-  assert.equal(plan.transportPersonaParity.airSeaLiveVerified, true);
+  assert.equal(plan.transportPersonaParity.airSeaLiveVerified, false);
   assert.equal(plan.transportPersonaParity.filipinoForeignerLiveVerified, false);
   assert.doesNotMatch(JSON.stringify(plan), /synthetic-country-value|synthetic-symptom-value/i);
 });

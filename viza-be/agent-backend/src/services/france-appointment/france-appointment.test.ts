@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   FranceAppointmentServiceError,
   createFranceAppointmentService,
+  waitForSubmissionServiceReady,
   type FranceAppointmentApplication,
+  type FranceAppointmentAccount,
   type FranceAppointmentConfirmation,
   type FranceAppointmentJob,
   type FranceAppointmentManualAction,
@@ -16,12 +18,14 @@ function createRepository(
 ): FranceAppointmentRepository & {
   jobs: FranceAppointmentJob[];
   slots: FranceAppointmentSlot[];
+  account: FranceAppointmentAccount | null;
   actions: FranceAppointmentManualAction[];
   confirmations: FranceAppointmentConfirmation[];
 } {
   const repository = {
     jobs: [] as FranceAppointmentJob[],
     slots: [] as FranceAppointmentSlot[],
+    account: null as FranceAppointmentAccount | null,
     actions: [] as FranceAppointmentManualAction[],
     confirmations: [] as FranceAppointmentConfirmation[],
     async getApplication(applicationId: string) {
@@ -34,6 +38,18 @@ function createRepository(
         visaType: "EU_SCHENGEN_C_SHORT_STAY",
         officialReferenceEncrypted: "encrypted-fra-reference",
         appointmentAssistanceStatus: null,
+        profile: {
+          fullName: "Test Applicant",
+          surname: "Applicant",
+          givenNames: "Test",
+          dateOfBirth: "1990-01-02",
+          nationality: "China",
+          passportNumber: "P1234567",
+          passportExpiryDate: "2030-01-02",
+          phone: "+8613800000000",
+          email: "test@example.com",
+          address: "Shanghai",
+        },
         ...applicationPatch,
       };
     },
@@ -50,16 +66,16 @@ function createRepository(
       return action;
     },
     async listManualActions(jobId: string) {
-      return repository.actions.filter((action) => action.jobId === jobId);
+      return repository.actions.filter((action) => action.jobId === jobId).reverse();
     },
     async getLatestJob(applicationId: string) {
-      return repository.jobs.find((job) => job.applicationId === applicationId) ?? null;
+      return [...repository.jobs].reverse().find((job) => job.applicationId === applicationId) ?? null;
     },
     async getJob(jobId: string) {
       return repository.jobs.find((job) => job.id === jobId) ?? null;
     },
     async getAccountForApplication() {
-      return null;
+      return repository.account;
     },
     async insertJob(input: Omit<FranceAppointmentJob, "id" | "createdAt" | "updatedAt">) {
       const job = {
@@ -76,7 +92,7 @@ function createRepository(
       repository.jobs[index] = { ...repository.jobs[index], ...patch, updatedAt: new Date(1).toISOString() };
       return repository.jobs[index];
     },
-    async replaceObservedSlots(jobId: string, slots: Omit<FranceAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt">[]) {
+    async replaceObservedSlots(jobId: string, slots: Omit<FranceAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt" | "expiresAt">[]) {
       const job = repository.jobs.find((item) => item.id === jobId)!;
       repository.slots = repository.slots.filter((slot) => slot.jobId !== jobId);
       const inserted = slots.map((slot, index) => ({
@@ -86,6 +102,7 @@ function createRepository(
         applicationId: job.applicationId,
         status: "observed",
         observedAt: new Date(0).toISOString(),
+        expiresAt: new Date(Date.now() + 600_000).toISOString(),
       }));
       repository.slots.push(...inserted);
       return inserted;
@@ -197,11 +214,49 @@ describe("France appointment service", () => {
     await expect(service.checkSlots(job.id)).rejects.toMatchObject({ code: "slot_check_rate_limited" });
   });
 
-  it("never fabricates a dry-run confirmation for assisted-live booking", async () => {
+  it("returns a server-owned masked review without exposing the encrypted reference", async () => {
     const repository = createRepository();
+    const service = createFranceAppointmentService(repository);
+    const snapshot = await service.getStatusForApplication("app-1");
+    expect(snapshot.review.fullName).toBe("Test Applicant");
+    expect(snapshot.review.franceVisasReferenceMasked).toBe("••••••••");
+    expect(JSON.stringify(snapshot.review)).not.toContain("encrypted-fra-reference");
+    expect(snapshot.review.missingFields).toEqual([]);
+    expect(snapshot.review.complete).toBe(true);
+  });
+
+  it("allows a fresh idempotency key after cancellation while keeping active jobs idempotent", async () => {
+    const repository = createRepository();
+    const service = createFranceAppointmentService(repository);
+    await service.recordConsent({ applicationId: "app-1", userId: "user-1", consentSnapshot: { accepted: true } });
+    const first = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "dry_run", idempotencyKey: "france-key-1" });
+    expect(await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "beijing", mode: "dry_run", idempotencyKey: "france-key-1" })).toBe(first);
+    await service.cancelJob(first.id);
+    const second = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "dry_run", idempotencyKey: "france-key-2" });
+    expect(second.id).not.toBe(first.id);
+  });
+
+  it("keeps assisted-live at observation only and never falls back to dry-run slots", async () => {
+    const repository = createRepository();
+    repository.account = {
+      id: "account-1",
+      applicationId: "app-1",
+      accountEmail: "a•••@viza.test",
+      accountStatus: "appointment_reference_filled",
+      emailVerified: true,
+      lastLoginAt: new Date().toISOString(),
+      referenceReady: true,
+      metadataRedactedJson: { referenceReady: true },
+      updatedAt: new Date().toISOString(),
+    };
     const service = createFranceAppointmentService(repository, {
       submissionServiceUrl: "http://submission.test",
-      accountPreparationEnabled: false,
+      fetchImpl: vi.fn(async (input) => {
+        const pathname = new URL(String(input)).pathname;
+        if (pathname === "/ready") return new Response("{}", { status: 200 });
+        return new Response(JSON.stringify({ ok: true, status: "no_slots_available", slots: [] }), { status: 200, headers: { "content-type": "application/json" } });
+      }),
+      sleep: async () => undefined,
     });
     await service.recordConsent({
       applicationId: "app-1",
@@ -214,38 +269,160 @@ describe("France appointment service", () => {
       centerCode: "shanghai",
       mode: "assisted_live",
     });
+    const result = await service.checkSlots(job.id);
+    expect(result.slots).toHaveLength(0);
+    expect(result.job?.status).toBe("appointment_no_slots_available");
+    await expect(service.selectSlot(job.id, "slot-live-1")).rejects.toMatchObject({ code: "assisted_live_selection_disabled" });
+    await expect(service.recordPaymentAuthorization(job.id, { sessionId: "session", redacted: { last4: "1234" } })).rejects.toMatchObject({ code: "assisted_live_payment_disabled" });
+    await expect(service.bookSelectedSlot(job.id)).rejects.toMatchObject({ code: "assisted_live_booking_disabled" });
+  });
+
+  it("treats an empty slots_observed payload as selector drift, not official no-slots evidence", async () => {
+    const repository = createRepository();
+    repository.account = {
+      id: "account-1",
+      applicationId: "app-1",
+      accountEmail: "a•••@viza.test",
+      accountStatus: "appointment_reference_filled",
+      emailVerified: true,
+      lastLoginAt: new Date().toISOString(),
+      referenceReady: true,
+      metadataRedactedJson: { referenceReady: true },
+      updatedAt: new Date().toISOString(),
+    };
+    const service = createFranceAppointmentService(repository, {
+      submissionServiceUrl: "http://submission.test",
+      fetchImpl: vi.fn(async (input) => {
+        const pathname = new URL(String(input)).pathname;
+        if (pathname === "/ready") return new Response("{}", { status: 200 });
+        return new Response(JSON.stringify({ ok: true, status: "slots_observed", slots: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+      sleep: async () => undefined,
+    });
+    await service.recordConsent({ applicationId: "app-1", userId: "user-1", consentSnapshot: { accepted: true } });
+    const job = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "assisted_live" });
+
+    const result = await service.checkSlots(job.id);
+
+    expect(result.job?.status).toBe("appointment_manual_required");
+    expect(result.pendingManualAction?.actionType).toBe("selector_drift");
+    expect(result.slots).toEqual([]);
+  });
+
+  it("does not wake the worker when assisted-live account readiness is incomplete", async () => {
+    const repository = createRepository();
+    const fetchMock = vi.fn();
+    const service = createFranceAppointmentService(repository, {
+      submissionServiceUrl: "http://submission.test",
+      fetchImpl: fetchMock,
+      sleep: async () => undefined,
+    });
+    await service.recordConsent({ applicationId: "app-1", userId: "user-1", consentSnapshot: { accepted: true } });
+    const job = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "assisted_live" });
+    await expect(service.checkSlots(job.id)).rejects.toMatchObject({ code: "account_not_ready" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("persists the latest redacted account-preparation failure instead of surfacing a stale checkpoint", async () => {
+    const repository = createRepository();
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname === "/ready") return new Response("{}", { status: 200 });
+      return new Response(JSON.stringify({
+        error: "TLS login did not leave the authentication form after one safe refresh at https://visas-fr.tlscontact.com/en-us/login?session=secret user@example.com",
+      }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const service = createFranceAppointmentService(repository, {
+      submissionServiceUrl: "http://submission.test",
+      accountPreparationEnabled: true,
+      fetchImpl: fetchMock,
+      sleep: async () => undefined,
+    });
+    await service.recordConsent({ applicationId: "app-1", userId: "user-1", consentSnapshot: { accepted: true } });
+    const job = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "assisted_live" });
+    await repository.insertManualAction({
+      applicationId: "app-1",
+      userId: "user-1",
+      jobId: job.id,
+      actionType: "account_preparation_failed",
+      status: "pending",
+      instruction: "Old account failure",
+      metadataRedactedJson: {},
+    });
+    await repository.insertManualAction({
+      applicationId: "app-1",
+      userId: "user-1",
+      jobId: job.id,
+      actionType: "selector_drift",
+      status: "pending",
+      instruction: "Old selector drift",
+      metadataRedactedJson: {},
+    });
+    await repository.insertManualAction({
+      applicationId: "app-1",
+      userId: "user-1",
+      jobId: job.id,
+      actionType: "account_preparation_failed",
+      status: "pending",
+      instruction: "Different old account failure",
+      metadataRedactedJson: {},
+    });
+
+    const result = await service.run(job.id);
+
+    expect(result.pendingManualAction?.actionType).toBe("account_preparation_failed");
+    expect(result.pendingManualAction?.instruction).toContain("https://visas-fr.tlscontact.com/en-us/login");
+    expect(result.pendingManualAction?.instruction).not.toContain("session=secret");
+    expect(result.pendingManualAction?.instruction).not.toContain("user@example.com");
+    expect(result.pendingManualAction?.metadataRedactedJson).toMatchObject({
+      httpStatus: 400,
+      workerErrorPresent: true,
+      retryable: true,
+    });
+  });
+
+  it("rejects expired slots before selection", async () => {
+    const repository = createRepository();
+    const service = createFranceAppointmentService(repository, { now: () => Date.parse("2026-08-19T00:00:00Z") });
+    await service.recordConsent({ applicationId: "app-1", userId: "user-1", consentSnapshot: { accepted: true } });
+    const job = await service.createJob({ applicationId: "app-1", userId: "user-1", centerCode: "shanghai", mode: "dry_run" });
     repository.slots.push({
-      id: "slot-live-1",
+      id: "expired-slot",
       jobId: job.id,
       applicationId: job.applicationId,
-      appointmentDate: "2026-10-10",
-      appointmentTime: "09:30",
+      appointmentDate: "2026-09-15",
+      appointmentTime: "09:00",
       appointmentLocation: "TLScontact Shanghai",
       appointmentType: "France Schengen visa application submission",
-      source: "france_tls_live",
+      source: "france_tls_dry_run",
       status: "observed",
-      observedAt: new Date(0).toISOString(),
+      observedAt: "2026-08-18T23:00:00Z",
+      expiresAt: "2026-08-18T23:10:00Z",
       metadataRedactedJson: {},
     });
     await repository.updateJob(job.id, { status: "appointment_slot_selection_required" });
-    await service.selectSlot(job.id, "slot-live-1");
-    await service.approveFinalConfirmation(job.id);
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
-      ok: true,
-      status: "payment_required",
-      checkpoint: {
-        type: "payment",
-        message: "TLScontact secure payment is required.",
-        metadataRedactedJson: { provider: "tlscontact_cn_fr" },
-      },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
-    try {
-      const result = await service.bookSelectedSlot(job.id);
-      expect(result.job.status).toBe("appointment_payment_required");
-      expect(result.confirmation).toBeNull();
-      expect(repository.confirmations).toHaveLength(0);
-    } finally {
-      fetchMock.mockRestore();
-    }
+    await expect(service.selectSlot(job.id, "expired-slot")).rejects.toMatchObject({ code: "slot_expired" });
+  });
+
+  it("polls readiness at the bounded two-second contract", async () => {
+    let now = 0;
+    const sleeps: number[] = [];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 503 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    const result = await waitForSubmissionServiceReady("http://submission.test", {
+      fetchImpl: fetchMock,
+      now: () => now,
+      sleep: async (milliseconds) => { sleeps.push(milliseconds); now += milliseconds; },
+    });
+    expect(result.ready).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleeps).toEqual([2_000]);
   });
 });

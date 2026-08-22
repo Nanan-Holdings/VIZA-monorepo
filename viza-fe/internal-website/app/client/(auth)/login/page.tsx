@@ -4,18 +4,28 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
-import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { ArrowLeft, Eye, EyeSlash as EyeOff, CircleNotch as Loader2 } from '@phosphor-icons/react';
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
+import { ActionButton } from '@/components/ui/action-button'
+import { Alert, AlertDescription, AlertIcon } from '@/components/ui/alert'
+import { ApplicationFormInputGroup } from '@/components/ui/application-form-input'
+import { Button } from '@/components/ui/button'
+import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useTranslations } from 'next-intl'
-import { getSafeClientLoginNext } from '@/lib/client-login-redirect'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-export const AUTH_REQUEST_TIMEOUT_MS = 22_000
+// Keep the browser deadline above the server's Supabase/SMTP deadline so the
+// API can return the real Auth result instead of being misreported as an outage.
+const AUTH_REQUEST_TIMEOUT_MS = 25_000
 const AUTH_RETRY_DELAY_MS = 500
+const LOGIN_INPUT_GROUP_CLASS_NAME =
+  "isolate h-12 border-black [--application-control-border-color:theme(colors.black)] [--application-control-focus-color:theme(colors.black)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-[var(--application-control-border-width)] after:border-black after:content-[''] focus-within:after:border-black"
 
 function getLocalizedAuthError(
   result: { error?: string; code?: string },
@@ -49,8 +59,8 @@ async function requestClientAuth(
   operation: ClientAuthOperation,
   fields: { email: string; password?: string; token?: string },
 ): Promise<ClientAuthResult> {
-  // Retrying a password or code verification is safe. Sending a code is left
-  // to the user so an outage cannot generate duplicate email messages.
+  // Password and code verification are retryable. Sending a code is not, so
+  // an outage cannot generate duplicate email messages.
   const maximumAttempts = operation === 'send_otp' ? 1 : 2
 
   for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
@@ -181,12 +191,12 @@ function ClientLoginContent() {
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [otpCode, setOtpCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
-  const loginDestination = getSafeClientLoginNext(searchParams.get('next')) ?? '/client/home'
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
@@ -225,7 +235,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = loginDestination
+    window.location.href = '/client/home'
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -235,7 +245,11 @@ function ClientLoginContent() {
     setIsSubmitting(true)
     const ok = await sendOtp(email)
     setIsSubmitting(false)
-    if (ok) { setStep('otp'); setResendCooldown(60) }
+    if (ok) {
+      setOtpCode('')
+      setStep('otp')
+      setResendCooldown(60)
+    }
   }
 
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -246,10 +260,18 @@ function ClientLoginContent() {
     const result = await requestClientAuth('password', { email, password })
     if (!result.success) {
       setIsSubmitting(false)
+      if (result.code === 'continuity_otp_sent') {
+        setLoginMethod('otp')
+        setOtpCode('')
+        setStep('otp')
+        setResendCooldown(60)
+        setNotice(t('continuityOtpSent'))
+        return
+      }
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = loginDestination
+    window.location.href = '/client/home'
   }
 
   const handleResend = async () => {
@@ -259,7 +281,10 @@ function ClientLoginContent() {
     try {
       const ok = await sendOtp(email)
       setIsSubmitting(false)
-      if (ok) setResendCooldown(60)
+      if (ok) {
+        setOtpCode('')
+        setResendCooldown(60)
+      }
     } catch {
       setIsSubmitting(false)
       setError(t('failedToResend'))
@@ -309,33 +334,37 @@ function ClientLoginContent() {
               >
                 <div className="grid grid-cols-2 gap-2 rounded-[999px] bg-[#f5f5f5] p-1">
                   {(['password', 'otp'] as const).map((method) => (
-                    <button
+                    <Button
                       key={method}
                       type="button"
+                      variant="ghost"
                       onClick={() => { setLoginMethod(method); setError(null); setNotice(null) }}
-                      className={`h-9 rounded-[999px] text-[13px] font-medium transition-colors ${
+                      className={`h-9 w-full rounded-[999px] px-3 text-[13px] font-medium transition-colors ${
                         loginMethod === method ? 'bg-white text-[#3d3d3d] shadow-sm' : 'text-[rgba(0,0,0,0.55)] hover:text-[#3d3d3d]'
                       }`}
                     >
                       {method === 'password' ? t('passwordLogin') : t('codeLogin')}
-                    </button>
+                    </Button>
                   ))}
                 </div>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                  disabled={isSubmitting}
-                  className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-[10px] font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
-                />
+                <ApplicationFormInputGroup className="h-12" filled={Boolean(email)}>
+                  <InputGroupInput
+                    type="email"
+                    name="email"
+                    placeholder={t('emailPlaceholder')}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    disabled={isSubmitting}
+                    className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
+                  />
+                </ApplicationFormInputGroup>
                 {loginMethod === 'password' && (
                   <div className="space-y-2">
-                    <div className="relative">
-                      <input
+                    <ApplicationFormInputGroup className="h-12" filled={Boolean(password)}>
+                      <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
                         name="password"
                         placeholder={t('passwordPlaceholder')}
@@ -344,48 +373,47 @@ function ClientLoginContent() {
                         required
                         autoComplete="current-password"
                         disabled={isSubmitting}
-                        className="h-[clamp(36px,4.8vh,46px)] w-full rounded-[8px] border border-[#efefef] bg-white pl-[clamp(10px,1.3vw,17px)] pr-12 font-sans text-[clamp(11px,1vw,14px)] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 outline-none focus:border-[#3d3d3d] transition-colors disabled:opacity-50"
+                        className="h-12 font-sans text-[15px] tracking-[-0.21px] text-[#3d3d3d] placeholder:text-[#3d3d3d]/50 disabled:opacity-50"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#737373] hover:bg-[#f5f5f5]"
-                        aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <Link href="/forgot-password" className="block text-right text-[12px] font-medium text-brand-500 underline">
+                      <InputGroupAddon align="inline-end" className="pr-4">
+                        <InputGroupButton
+                          size="icon-sm"
+                          onClick={() => setShowPassword((value) => !value)}
+                          className="rounded-full text-[#737373] hover:bg-[#f5f5f5]"
+                          aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </ApplicationFormInputGroup>
+                    <Link href="/forgot-password" className="block text-right text-[12px] font-medium text-brand-500 underline-offset-2 hover:underline focus-visible:underline">
                       {t('forgotPassword')}
                     </Link>
                   </div>
                 )}
                 {notice && (
-                  <motion.p
-                    className="rounded-[12px] border border-[#cfe8d5] bg-[#f0faf4] px-4 py-2 text-[13px] text-[#276749]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {notice}
-                  </motion.p>
+                  <Alert variant="success">
+                    <AlertIcon variant="success" />
+                    <AlertDescription>{notice}</AlertDescription>
+                  </Alert>
                 )}
                 {error && (
-                  <motion.p
-                    role="alert"
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    {error}
-                  </motion.p>
+                  <Alert variant="destructive">
+                    <AlertIcon variant="destructive" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-                <button
+                <ActionButton
                   type="submit"
+                  size="lg"
+                  variant="primary"
+                  loading={isSubmitting}
+                  loadingText={loginMethod === 'password' ? t('signingIn') : t('sendingCode')}
                   disabled={isSubmitting || (loginMethod === 'password' && !password)}
-                  className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-black font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-white transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-sans tracking-[-0.24px]"
                 >
-                  {isSubmitting
-                    ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{loginMethod === 'password' ? t('signingIn') : t('sendingCode')}</span>
-                    : loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
-                </button>
+                  {loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
+                </ActionButton>
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>
@@ -398,13 +426,16 @@ function ClientLoginContent() {
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.25 }}
             >
-              <button
-                onClick={() => { setStep('email'); setError(null) }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center text-[#3d3d3d] hover:opacity-60 transition-opacity"
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => { setStep('email'); setOtpCode(''); setError(null) }}
+                className="h-11 w-11 shrink-0 rounded-full text-[#3d3d3d] hover:bg-[#f5f5f5]"
                 aria-label="Back"
               >
-                <ArrowLeft className="h-7 w-7" />
-              </button>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
 
               <div className="flex flex-col gap-[clamp(16px,3vh,40px)]">
                 <div className="flex flex-col gap-[4px]">
@@ -418,71 +449,46 @@ function ClientLoginContent() {
                 </div>
 
                 <div className="flex flex-col gap-[clamp(10px,1.5vh,16px)]">
-                  <div className="flex w-full gap-2 sm:gap-3">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                      <input
-                        key={i}
-                        id={`otp-${i}`}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        disabled={isSubmitting}
-                        className="flex-1 h-[clamp(36px,4.8vh,46px)] w-0 min-w-0 rounded-[8px] border border-[#d1d5db] bg-white text-center font-sans text-[clamp(12px,1vw,14px)] text-[#3d3d3d] focus:outline-none focus:border-[#3d3d3d] focus:ring-1 focus:ring-[#3d3d3d]"
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '')
-                          e.target.value = val.slice(-1)
-                          if (val) {
-                            const next = document.getElementById(`otp-${i + 1}`) as HTMLInputElement
-                            if (next) next.focus()
-                          }
-                          const allInputs = Array.from({ length: 8 }, (_, j) => {
-                            const el = document.getElementById(`otp-${j}`) as HTMLInputElement
-                            return el ? el.value : ''
-                          })
-                          const combined = allInputs.join('')
-                          if (combined.length === 8) verifyOtp(combined)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Backspace' && !(e.target as HTMLInputElement).value) {
-                            const prev = document.getElementById(`otp-${i - 1}`) as HTMLInputElement
-                            if (prev) { prev.focus(); prev.value = '' }
-                          }
-                        }}
-                        onPaste={i === 0 ? (e) => {
-                          e.preventDefault()
-                          const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
-                          pasted.split('').forEach((ch, j) => {
-                            const el = document.getElementById(`otp-${j}`) as HTMLInputElement
-                            if (el) el.value = ch
-                          })
-                          if (pasted.length === 8) verifyOtp(pasted)
-                          else {
-                            const next = document.getElementById(`otp-${pasted.length}`) as HTMLInputElement
-                            if (next) next.focus()
-                          }
-                        } : undefined}
-                      />
-                    ))}
-                  </div>
+                  <InputOTP
+                    maxLength={8}
+                    pattern={REGEXP_ONLY_DIGITS}
+                    value={otpCode}
+                    onChange={(value) => {
+                      setOtpCode(value)
+                      if (value.length === 8) void verifyOtp(value)
+                    }}
+                    disabled={isSubmitting}
+                    containerClassName="w-full"
+                    aria-label={t('clickLink')}
+                  >
+                    <InputOTPGroup className="grid w-full grid-cols-8 gap-2 sm:gap-3">
+                      {Array.from({ length: 8 }, (_, index) => (
+                        <InputOTPSlot
+                          key={index}
+                          index={index}
+                          className="h-[clamp(36px,4.8vh,46px)] w-full rounded-md border-[1.5px] border-input first:rounded-md first:border-l last:rounded-md"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
                   {error && (
-                  <motion.p
-                    role="alert"
-                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-3 text-[14px] text-[#a13d2d]"
-                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                    >
-                      {error}
-                    </motion.p>
+                    <Alert variant="destructive">
+                      <AlertIcon variant="destructive" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
                   )}
-                  <button
+                  <ActionButton
                     type="button"
                     onClick={handleResend}
                     disabled={resendCooldown > 0 || isSubmitting}
-                    className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] bg-[#dcdcdc] font-sans text-[clamp(12px,1vw,14px)] font-medium tracking-[-0.24px] text-[#989898] transition-all disabled:cursor-not-allowed enabled:bg-black enabled:text-white enabled:hover:opacity-80"
+                    variant="secondary"
+                    size="lg"
+                    loading={isSubmitting}
+                    loadingText={t('sendingCode')}
+                    className="w-full font-sans tracking-[-0.24px]"
                   >
-                    {isSubmitting
-                      ? <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t('sendingCode')}</span>
-                      : resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
-                  </button>
+                    {resendCooldown > 0 ? t('resendIn', { seconds: resendCooldown }) : t('resendCode')}
+                  </ActionButton>
                 </div>
               </div>
             </motion.div>

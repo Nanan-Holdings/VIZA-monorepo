@@ -10,24 +10,48 @@ import {
   resolveLocalizedFieldLabel,
   resolveLocalizedOptions,
 } from "@/lib/bilingual-schema-contract";
+import {
+  buildFieldClarificationFallback,
+  buildFieldExplanation,
+  fieldClarificationInstruction,
+  getFieldDateFormat,
+  isFieldChoiceControl,
+  isFieldClarificationRequest,
+  isFieldMetadataUnverified,
+  isUsefulFieldClarificationReply,
+} from "@/lib/form-assistant/constants";
 
 const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
 const FIELD_GUIDANCE_TIMEOUT_MS = 12000;
 const DIRECT_OPENAI_TIMEOUT_MS = 16000;
-const MAX_OPTION_EXPLANATIONS = 3;
+const MAX_OPTION_EXPLANATIONS = 2;
+// Any OpenAI-compatible provider (DeepSeek, a gateway, a local proxy) can serve
+// this path; leave OPENAI_BASE_URL unset for api.openai.com.
+const DIRECT_OPENAI_BASE_URL = (
+  process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1"
+).replace(/\/+$/, "");
 const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_FIELD_GUIDANCE_MODEL ??
   process.env.OPENAI_CHAT_MODEL ??
   process.env.OPENAI_MODEL ??
   "gpt-5.5";
+const MAX_GUIDANCE_OPTION_CONTEXT = 120;
+const DEFAULT_GUIDANCE_OPTION_CONTEXT = 30;
+const MAX_GUIDANCE_OPTION_CONTEXT_BYTES = 320_000;
+const OPTION_MATCH_STOP_WORDS = new Set([
+  "and", "the", "city", "country", "district", "province", "state", "ward", "commune",
+  "airport", "port", "select", "option", "with", "from", "地区", "国家", "城市", "省", "区",
+  "坊", "社", "机场", "港口", "选择", "选项",
+]);
 
 const STANDARD_IDENTITY_FIELD_CONTEXT = [
   "Standard identity-field RAG for visa form copilot:",
   "Passport number, name, date of birth, sex, nationality, passport issue date, passport expiry date, issuing country, issuing authority, place of issue, and passport type are standard-answer fields.",
   "For these fields, the answer must come from the passport biodata page, MRZ, official document, or the official dropdown options. Do not infer a value from the application country, pickup city, residence city, travel plan, or translation memory.",
-  "For passport issuing authority / issuing authority / 签发机关 / 签发地点字段: first ask the user to check the exact Authority or Issuing authority text printed on the passport. If the user has a Chinese ordinary passport, newer passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, copy that printed text exactly.",
-  "If the user says they obtained the passport in a city such as Chongqing, do not answer that the issuing authority is Chongqing Public Security Bureau unless the passport itself prints that wording. A pickup or application city may be relevant only to a separate place-of-issue field, and even then the passport text controls.",
+  "Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another.",
+  "For place of issue / 签发地点, copy the location printed for that field on the passport or use the official form's required location option. Enter a country only when the field explicitly asks for Country of issue / Issuing country or provides a country-only selector.",
+  "For passport issuing authority / issuing authority / 签发机关, copy the exact Authority or Issuing authority text printed on the passport. National Immigration Administration, PRC / 中华人民共和国国家移民管理局 and MPS Exit & Entry Administration / 公安部出入境管理局 are issuing-authority examples only and must never be suggested as place-of-issue answers.",
   "For passport type / document type, ordinary personal tourist passports are usually Ordinary / Regular / Normal passport. Diplomatic, official, service, special, travel document, refugee, or other should be selected only when the passport or travel document explicitly says so.",
 ].join("\n");
 
@@ -62,6 +86,115 @@ function normalizeGuidanceRequest(request: FieldGuidanceRequest): FieldGuidanceR
       label: resolveLocalizedFieldLabel(normalizedField, side),
       placeholder: resolveLocalizedPlaceholderForGuidance(normalizedField, side),
       options: resolveLocalizedOptions(normalizedField.options, side),
+    },
+  };
+}
+
+function normalizeOptionSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function optionSearchText(option: FieldOption): string {
+  if (typeof option === "string") return normalizeOptionSearchText(option);
+  return normalizeOptionSearchText([
+    option.value,
+    option.text,
+    option.label_zh,
+    option.label_en,
+    option.official_label,
+  ].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join(" "));
+}
+
+function compactGuidanceRules(
+  rules: FieldGuidanceRequest["field"]["validationRules"],
+): Record<string, unknown> | null {
+  if (!rules) return null;
+  const compact: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rules)) {
+    if (["string", "number", "boolean"].includes(typeof value) || value === null) {
+      compact[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.length <= 40 && value.every((item) =>
+      ["string", "number", "boolean"].includes(typeof item) || item === null)) {
+      compact[key] = value;
+    }
+  }
+  return compact;
+}
+
+function compactGuidanceOptionContext(request: FieldGuidanceRequest): FieldGuidanceRequest {
+  const options = request.field.options;
+  const compactRules = compactGuidanceRules(request.field.validationRules);
+  if (!Array.isArray(options) || options.length <= MAX_GUIDANCE_OPTION_CONTEXT) {
+    return {
+      ...request,
+      field: {
+        ...request.field,
+        validationRules: compactRules,
+      },
+    };
+  }
+
+  const evidence = normalizeOptionSearchText([
+    request.question ?? "",
+    request.answer ?? "",
+    ...Object.values(request.allAnswers ?? {}),
+  ].join(" "));
+  const evidenceTokens = new Set(
+    evidence.split(" ").filter((token) => token.length >= 3 && !OPTION_MATCH_STOP_WORDS.has(token)),
+  );
+  const ranked = (options as FieldOption[])
+    .map((option, index) => {
+      const searchText = optionSearchText(option);
+      const tokens = [...new Set(
+        searchText.split(" ").filter((token) => token.length >= 3 && !OPTION_MATCH_STOP_WORDS.has(token)),
+      )];
+      const overlap = tokens.filter((token) => evidenceTokens.has(token)).length;
+      const exactPhrase = searchText.length >= 4 && evidence.includes(searchText);
+      return { index, score: (exactPhrase ? 1000 : 0) + overlap };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const selectedIndices: number[] = [];
+  const selected = new Set<number>();
+  const addIndex = (index: number) => {
+    if (selected.size >= MAX_GUIDANCE_OPTION_CONTEXT || selected.has(index)) return;
+    selected.add(index);
+    selectedIndices.push(index);
+  };
+  ranked.forEach(({ index }) => addIndex(index));
+  for (let index = 0; index < Math.min(DEFAULT_GUIDANCE_OPTION_CONTEXT, options.length); index += 1) {
+    addIndex(index);
+  }
+  const boundedIndices: number[] = [];
+  let optionBytes = 2;
+  for (const index of selectedIndices) {
+    const option = options[index];
+    if (option === undefined) continue;
+    const nextBytes = JSON.stringify(option).length + 1;
+    if (boundedIndices.length > 0 && optionBytes + nextBytes > MAX_GUIDANCE_OPTION_CONTEXT_BYTES) break;
+    boundedIndices.push(index);
+    optionBytes += nextBytes;
+  }
+
+  return {
+    ...request,
+    field: {
+      ...request.field,
+      options: boundedIndices.map((index) => options[index]!).filter(Boolean),
+      validationRules: {
+        ...(compactRules ?? {}),
+        guidance_option_count: options.length,
+        guidance_option_context_truncated: true,
+      },
     },
   };
 }
@@ -142,8 +275,13 @@ function isPassportIssuingAuthorityField(request: FieldGuidanceRequest): boolean
     "issuing authority",
     "authority",
     "签发机关",
-    "签发地点",
   ].some((needle) => searchText.includes(needle));
+}
+
+function isPassportPlaceOfIssueField(request: FieldGuidanceRequest): boolean {
+  const searchText = fieldSearchText(request);
+  return ["passport_place_of_issue", "place of issue", "签发地点"].some((needle) => searchText.includes(needle)) &&
+    !["passport_issuing_authority", "issuing authority", "签发机关", "authority"].some((needle) => searchText.includes(needle));
 }
 
 function explainKnownOption(
@@ -225,6 +363,7 @@ function explainGenericOption(
 }
 
 function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOptionExplanation[] {
+  if (!request.question?.trim()) return [];
   if (!["select", "radio", "multi_select", "checkbox"].includes(request.field.fieldType)) return [];
   const options = normalizeOptions(request.field.options, getLocale(request));
   if (options.length === 0) return [];
@@ -234,6 +373,42 @@ function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOp
     label: option.text || option.value,
     description: explainKnownOption(request, option) ?? explainGenericOption(request, option),
   }));
+}
+
+function withoutChoiceControlExamples(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  if (!isFieldChoiceControl(request.field)) {
+    return response;
+  }
+
+  return {
+    ...response,
+    guidance: {
+      ...response.guidance,
+      examples: [],
+    },
+  };
+}
+
+function finalizeGuidance(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  const localized = getLocale(request);
+  const safeExample = buildFieldExplanation(request.field, localized).example;
+  const withSafeExamples = {
+    ...response,
+    guidance: {
+      ...response.guidance,
+      // Examples are deterministic field-format aids. Do not allow an LLM or
+      // downstream service to introduce a country, phone prefix, address, or
+      // date format that is not supported by the current field metadata.
+      examples: isFieldChoiceControl(request.field) || !safeExample ? [] : [safeExample],
+    },
+  };
+  return withoutChoiceControlExamples(request, withOptionExplanations(request, withSafeExamples));
 }
 
 function withOptionExplanations(
@@ -343,55 +518,52 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   const label = resolveLocalizedFieldLabel(normalized, locale) || field.fieldName || (locale === "zh" ? "当前字段" : "this field");
   const fieldName = field.fieldName.toLowerCase();
   const fieldType = field.fieldType;
-  const options = normalizeOptions(field.options, locale);
-  const selectedExamples = options.slice(0, 3).map((option) => option.text || option.value);
   const answer = request.answer?.trim() ?? "";
   const isMissingRequired = Boolean(field.required && !answer);
+  const isChoice = isFieldChoiceControl(field);
+  const explanation = buildFieldExplanation(field, locale);
+  const dateFormat = getFieldDateFormat(field);
+  const metadataNeedsReview = isFieldMetadataUnverified(field);
 
-  const examples =
-    selectedExamples.length > 0
-      ? selectedExamples
-      : isPassportIssuingAuthorityField(request)
-        ? locale === "zh"
-          ? [
-              "National Immigration Administration, PRC",
-              "MPS Exit & Entry Administration",
-              "按护照资料页 Authority/签发机关原文填写",
-            ]
-          : [
-              "National Immigration Administration, PRC",
-              "MPS Exit & Entry Administration",
-              "Use the exact Authority wording printed on the passport",
-            ]
-      : fieldType === "date" || fieldName.includes("date")
-        ? locale === "zh"
-          ? ["按页面日期选择器填写，例如 09/03/1996。"]
-          : ["Use the date picker, for example 09/03/1996."]
-        : locale === "zh"
-          ? ["请按护照、身份证明或官方文件上的原文填写。"]
-          : ["Use the wording exactly as shown on your passport or official document."];
+  const examples = isChoice || !explanation.example ? [] : [explanation.example];
 
   const formatHints =
-    fieldType === "select" || fieldType === "radio" || fieldType === "country"
+    fieldType === "checkbox"
       ? [
           locale === "zh"
-            ? "请优先从官方下拉选项中选择，不要自由改写选项名称。"
-            : "Choose from the official options instead of rewriting the option label.",
+            ? "题目陈述符合实际时勾选；不符合时保持未勾选。"
+            : "Select when the statement applies; otherwise leave it clear.",
         ]
-      : fieldType === "date" || fieldName.includes("date")
+      : fieldType === "multi_select"
         ? [
             locale === "zh"
-              ? "日期请核对日、月、年顺序，最终英文侧会按官方格式显示。"
-              : "Check the day, month, and year order. The English side shows the official format.",
+              ? "请选择所有符合实际情况的选项。"
+              : "Choose every option that applies.",
           ]
-        : [
+      : isChoice
+      ? [
+          locale === "zh"
+            ? "请从页面提供的官方选项中选择，不要自由改写选项名称。"
+            : "Choose from the official options instead of rewriting the option label.",
+        ]
+      : dateFormat || fieldType === "date" || fieldName.includes("date")
+        ? [
             locale === "zh"
-              ? "如果证件上已有英文或罗马化拼写，请以证件为准。"
-              : "If your document already has English or romanized spelling, use that version.",
-          ];
+              ? dateFormat
+                ? `请使用页面要求的日期格式：${dateFormat}。`
+                : "请使用页面日期选择器；未明确格式时不要自行猜测日、月、年顺序。"
+              : dateFormat
+                ? `Use the date format required by the form: ${dateFormat}.`
+                : "Use the page date picker; do not guess the day, month, and year order when no format is specified.",
+          ]
+        : [];
 
   const warnings = [
-    locale === "zh"
+    metadataNeedsReview
+      ? locale === "zh"
+        ? "该字段元数据尚未标记为已核验官方内容，请以当前官方页面和证明材料为准，不要依赖示例推断。"
+        : "This field metadata is not marked as officially verified; follow the current official page and supporting records instead of inferring from examples."
+      : locale === "zh"
       ? "本地提示只用于辅助填写；最终请以官方表单和证件信息为准。"
       : "This local hint is only a filling aid. Final answers should match the official form and your documents.",
   ];
@@ -399,14 +571,7 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   return {
     guidance: {
       title: locale === "zh" ? `${label} 填写帮助` : `${label} guidance`,
-      summary:
-        isPassportIssuingAuthorityField(request)
-          ? locale === "zh"
-            ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取城市或办理城市推断。"
-            : "Copy the Authority or issuing authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
-        : locale === "zh"
-          ? "AI 暂时不可用，以下是本地填写规则。请先按当前字段、官方选项和证件信息填写。"
-          : "AI guidance is temporarily unavailable, so VIZA is showing local rule-based guidance for this field.",
+      summary: explanation.summary,
       examples,
       optionExplanations: buildOptionExplanations(request),
       hints: [
@@ -417,9 +582,7 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
                 : "This is a standard identity-document field; copy the passport biodata page, MRZ, or official dropdown option where possible.",
             ]
           : []),
-        locale === "zh"
-          ? "中文侧和英文侧会互相同步；如自动生成结果不符合证件，请直接修改另一侧。"
-          : "The Chinese and English sides sync with each other. Edit the other side if the generated value does not match your document.",
+        explanation.sourceHint,
       ],
       officialWarnings: warnings,
       formatHints,
@@ -431,7 +594,13 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
         : [locale === "zh" ? "当前字段格式可继续核对。" : "This field can be reviewed before continuing."],
     },
     reply: request.question
-      ? isPassportIssuingAuthorityField(request)
+      ? isFieldClarificationRequest(request.question)
+        ? buildFieldClarificationFallback(field, locale)
+      : isPassportPlaceOfIssueField(request)
+        ? locale === "zh"
+          ? "请按护照资料页的 Place of issue/签发地点原文填写。这是地点字段，不要填写国家移民管理局或公安部出入境管理局；只有字段明确要求签发国家或提供国家下拉框时才填国家。"
+          : "Copy the passport's exact Place of issue value. This is a location field, so do not enter National Immigration Administration or MPS Exit & Entry Administration; enter a country only when the form explicitly asks for Country of issue or provides a country-only selector."
+      : isPassportIssuingAuthorityField(request)
         ? locale === "zh"
           ? "这个字段不要按办理城市推断。请看护照资料页上的“签发机关/Authority”原文：如果写的是“中华人民共和国国家移民管理局”或 “National Immigration Administration, PRC”，就照这个填写；如果旧护照写的是“公安部出入境管理局”或 “MPS Exit & Entry Administration”，也照护照原文填写。只有单独问“签发地点/Place of issue”且护照上对应位置写重庆时，才填重庆或 CHONGQING。"
           : "Do not infer this from the city where the passport was collected. Copy the printed Authority or Issuing authority from the passport biodata page. Use Chongqing only for a separate place-of-issue field if the passport itself shows that place."
@@ -534,6 +703,10 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     .slice(0, 12)
     .map(([key, value]) => `${key}: ${value}`)
     .join("\n");
+  const conversationHistory = (request.history ?? [])
+    .slice(-8)
+    .map((message) => `${message.role}: ${message.content.slice(0, 800)}`)
+    .join("\n");
 
   return [
     `Locale: ${locale}`,
@@ -544,6 +717,7 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     `Required: ${request.field.required ? "yes" : "no"}`,
     `Current value: ${currentValue}`,
     relatedAnswers ? `Related filled answers:\n${relatedAnswers}` : "Related filled answers: none",
+    conversationHistory ? `Conversation history:\n${conversationHistory}` : "Conversation history: none",
     options ? `Official options:\n${options}` : "Official options: none",
     `Local rules to consider:\n${JSON.stringify(localRules)}`,
     isStandardIdentityField(request)
@@ -563,7 +737,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
   const timeout = setTimeout(() => controller.abort(), DIRECT_OPENAI_TIMEOUT_MS);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(`${DIRECT_OPENAI_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -571,11 +745,11 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       },
       body: JSON.stringify({
         model: DIRECT_OPENAI_MODEL,
-        max_output_tokens: 900,
+        max_output_tokens: 500,
         instructions:
           locale === "zh"
-            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案、相关已填答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准，不得根据领取城市推断签发机关。选项说明最多返回 3 条，只选择与当前答案或用户追问直接相关的选项；没有足够依据时返回空数组，禁止随意解释下拉列表开头的选项。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
-            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, related filled answers, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document; never infer an issuing authority from a pickup city. Return at most 3 option explanations, limited to options directly relevant to the current answer or follow-up question. Return an empty array when the evidence is insufficient; never explain arbitrary options from the start of a dropdown. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
+            ? `你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案、相关已填答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准。签发国家、签发地点和签发机关是不同字段；绝不能把签发机关名称作为签发地点示例。${fieldClarificationInstruction(locale)}输出是紧凑卡片：summary 只写一句可执行的话（不超过 60 个汉字）；examples 最多 2 个简短值；formatHints、hints、officialWarnings 各最多 1 条且每条不超过 30 个汉字；optionExplanations 最多 2 条、每条说明不超过 30 个汉字。没有必要内容时返回空数组。不要重复字段名称、来源、置信度或免责声明。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。`
+            : `You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, related filled answers, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document. Treat issuing country, place of issue, and issuing authority as distinct fields; never suggest authority names as place-of-issue answers. ${fieldClarificationInstruction(locale)} Produce a compact card: summary is one actionable sentence (max 140 characters); examples has at most 2 short values; formatHints, hints, and officialWarnings have at most 1 item each, no more than 80 characters each; optionExplanations has at most 2 directly relevant items, with descriptions no more than 80 characters. Use empty arrays when a section adds no value. Do not repeat the field name, sources, confidence, or generic disclaimers. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.`,
         input: buildDirectOpenAiPrompt(request, base),
         text: {
           format: {
@@ -626,7 +800,15 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       cache: "no-store",
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      // Silent failures here surface to the user as "AI guidance is temporarily
+      // unavailable", which is indistinguishable from a bad key or a bad model id.
+      const detail = (await response.text().catch(() => "")).slice(0, 200);
+      console.warn(
+        `[field-guidance] direct OpenAI call failed: ${response.status} (model ${DIRECT_OPENAI_MODEL}) ${detail}`,
+      );
+      return null;
+    }
     const payload = (await response.json()) as OpenAiResponsePayload;
     const outputText = extractOpenAiOutputText(payload);
     const parsed = parseJsonObject(outputText);
@@ -644,14 +826,14 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
           : locale === "zh"
             ? "请根据当前字段、官方选项和证件信息核对填写。"
             : "Check this field against the current options and your official documents.",
-        examples: asStringArray(parsed.examples, base.guidance.examples, 4),
+        examples: asStringArray(parsed.examples, base.guidance.examples, 2),
         optionExplanations: parseOptionExplanations(
           parsed.optionExplanations,
           base.guidance.optionExplanations ?? [],
         ),
-        hints: asStringArray(parsed.hints, base.guidance.hints, 5),
-        officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 4),
-        formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 4),
+        hints: asStringArray(parsed.hints, base.guidance.hints, 1),
+        officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 1),
+        formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 1),
       },
       validation: base.validation,
       reply: request.question && !isUnavailableText(reply) ? (reply ?? base.reply) : undefined,
@@ -661,8 +843,11 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       cached: false,
     };
 
-    return sanitizeChineseResponse(request, withOptionExplanations(request, guidance));
-  } catch {
+    return sanitizeChineseResponse(request, finalizeGuidance(request, guidance));
+  } catch (error) {
+    console.warn(
+      `[field-guidance] direct OpenAI call errored: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   } finally {
     clearTimeout(timeout);
@@ -727,10 +912,23 @@ async function forwardToBackend(requestBody: FieldGuidanceRequest): Promise<Fiel
 
     const payload = (await response.json()) as FieldGuidanceResponse;
     if (payload.reply) payload.reply = stripMarkdown(payload.reply);
-    return sanitizeChineseResponse(requestBody, withOptionExplanations(requestBody, payload));
+    return sanitizeChineseResponse(requestBody, finalizeGuidance(requestBody, payload));
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function enforceSharedClarificationPolicy(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  const question = request.question?.trim();
+  if (!question || !isFieldClarificationRequest(question)) return response;
+  if (isUsefulFieldClarificationReply(response.reply, question, request.field)) return response;
+  return {
+    ...response,
+    reply: buildFieldClarificationFallback(request.field, getLocale(request)),
+  };
 }
 
 export async function POST(request: Request) {
@@ -746,27 +944,46 @@ export async function POST(request: Request) {
     return Response.json({ error: "field.fieldName is required." }, { status: 400 });
   }
 
-  requestBody = normalizeGuidanceRequest(requestBody);
+  requestBody = compactGuidanceOptionContext(normalizeGuidanceRequest(requestBody));
+
+  if (!requestBody.question?.trim()) {
+    return Response.json(finalizeGuidance(
+      requestBody,
+      makeFallbackGuidance(requestBody, "local field guidance"),
+    ));
+  }
 
   try {
     const guidance = await forwardToBackend(requestBody);
-    if (guidance.aiUsed) {
-      return Response.json(withOptionExplanations(requestBody, guidance));
+    const clarificationQuestion = isFieldClarificationRequest(requestBody.question ?? "");
+    const usefulBackendReply = !clarificationQuestion || isUsefulFieldClarificationReply(
+      guidance.reply,
+      requestBody.question ?? "",
+      requestBody.field,
+    );
+    if (guidance.aiUsed && usefulBackendReply) {
+      return Response.json(finalizeGuidance(requestBody, guidance));
     }
 
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
     if (directGuidance) {
-      return Response.json(directGuidance);
+      return Response.json(enforceSharedClarificationPolicy(requestBody, directGuidance));
     }
 
-    return Response.json(withOptionExplanations(requestBody, guidance));
+    return Response.json(enforceSharedClarificationPolicy(
+      requestBody,
+      finalizeGuidance(requestBody, guidance),
+    ));
   } catch (error) {
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
     if (directGuidance) {
-      return Response.json(directGuidance);
+      return Response.json(enforceSharedClarificationPolicy(requestBody, directGuidance));
     }
 
     const reason = error instanceof Error ? error.message : "AI guidance service unavailable.";
-    return Response.json(withOptionExplanations(requestBody, makeFallbackGuidance(requestBody, reason)));
+    return Response.json(enforceSharedClarificationPolicy(
+      requestBody,
+      finalizeGuidance(requestBody, makeFallbackGuidance(requestBody, reason)),
+    ));
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { MapPin, ShieldCheck } from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import {
   BilingualCountryControl,

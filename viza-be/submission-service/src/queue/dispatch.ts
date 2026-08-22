@@ -12,13 +12,12 @@
  * (`blocked`, `anti_bot_gate`) throw `RetryableRunnerError`; applicant-blocking
  * conditions throw `NeedsHumanError`.
  */
-import { runOne as runVietnam } from "../vietnam/runner.js";
+import { runLegacy as runVietnamLegacy, runOne as runVietnam } from "../vietnam/runner.js";
 import { runIndia, runSriLanka, runCambodia, runLaos, runSouthAfrica } from "../runners/legacy-prefill-adapters.js";
 import { runOne as runUs } from "../ceac/runner.js";
 import { runOne as runUk } from "../uk/runner.js";
 import { runOne as runAu } from "../au/runner.js";
 import { runOne as runFrance } from "../france-visas/runner.js";
-import { runOne as runIndonesia } from "../id/runner.js";
 import { runOne as runEgypt } from "../egypt/runner.js";
 import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
@@ -31,7 +30,11 @@ import { runOne as runThailand } from "../th/runner.js";
 import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 import { runOne as runTaiwan } from "../tw/runner.js";
+import { runArrivalCardPoolFlow } from "./arrival-card-runners.js";
+import { runAutomatedPortalPoolFlow } from "./automated-portal-runners.js";
+import { runKoreaEformBackground } from "./korea-eform-runner.js";
 import { runOne as runPhilippines } from "../ph-etravel/runner-job.js";
+import { requirePoolExecutionIdentity } from "./execution-context.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -95,8 +98,6 @@ export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
  * QUE-005; `saudi_arabia` and `japan` have no runner yet.
  */
 export const DISPATCH: Record<string, RunOne> = {
-  // RUN-ID-001: dedicated Indonesia flagship runner (replaces the generic t3 scaffold).
-  indonesia: (a, j) => runIndonesia(a, j),
   // RUN-EG-001: dedicated Egypt fill runner (replaces generic t3 scaffold).
   egypt: (a, j) => runEgypt(a, j),
   // RUN-IT-001: dedicated Italy VFS (CN corridor) runner (replaces generic t3 scaffold).
@@ -111,12 +112,12 @@ export const DISPATCH: Record<string, RunOne> = {
   united_arab_emirates: (a, j) => runUae(a, j),
   // RUN-CA-001: dedicated Canada runner (shared core).
   canada: (a, j) => runCanada(a, j),
-  india: runIndia,
-  sri_lanka: runSriLanka,
-  cambodia: runCambodia,
-  laos: runLaos,
-  south_africa: runSouthAfrica,
-  vietnam: (a, j) => runVietnam(a, j),
+  india: (a, j) => runIndia(a, j),
+  sri_lanka: (a, j) => runSriLanka(a, j),
+  cambodia: (a, j) => runCambodia(a, j),
+  laos: (a, j) => runLaos(a, j),
+  south_africa: (a, j) => runSouthAfrica(a, j),
+  vietnam: (a, j) => runVietnamLegacy(a, j),
   // QUE-005: halt-before-gov-pay countries, wired to their orchestrators.
   united_states: (a, j) => runUs(a, j),
   united_kingdom: (a, j) => runUk(a, j),
@@ -130,7 +131,7 @@ export const DISPATCH: Record<string, RunOne> = {
   // single continuous session, solves email/final CAPTCHA through shared
   // providers, clicks official "確認資料", then requires official receipt
   // evidence before reporting submitted. No payment occurs in this session.
-  taiwan: (a, j) => runTaiwan(a, j),
+  taiwan: (a, j, execution) => runTaiwan(a, j, execution),
   // PH eTravel ordinary arrival: canonical runner_job is deliberately
   // preflight/recovery-first and always keeps official final Submit disabled.
   philippines: (a, j) => runPhilippines(a, j),
@@ -138,12 +139,129 @@ export const DISPATCH: Record<string, RunOne> = {
   south_korea: (a, j) => runKorea(a, j),
 };
 
+export const POOL_FLOW_COUNTRIES = {
+  vn_evisa: "vietnam",
+  vn_prearrival: "vietnam",
+  sgac: "singapore",
+  mdac: "malaysia",
+  tdac: "thailand",
+  kr_arrival_card: "south_korea",
+  kr_eform: "south_korea",
+  tw_entry_permit: "taiwan",
+  jp_vjw: "japan",
+  ke_eta: "kenya",
+} as const;
+
+export interface PoolFlowDispatchDependencies {
+  runVietnam: RunOne;
+  runSingapore: RunOne;
+  runTaiwan: RunOne;
+  runArrivalCardPoolFlow: typeof runArrivalCardPoolFlow;
+  runAutomatedPortalPoolFlow?: typeof runAutomatedPortalPoolFlow;
+  runKoreaEformBackground: typeof runKoreaEformBackground;
+}
+
+/**
+ * Build the shared-pool wrappers with injectable leaf runners. Besides
+ * keeping the production table explicit, this gives the queue contract tests
+ * a real execution path to prove that the ownership context reaches every
+ * pool flow without launching a browser or touching Supabase.
+ */
+export function createPoolFlowDispatch(
+  dependencies: PoolFlowDispatchDependencies = {
+    runVietnam,
+    runSingapore,
+    runTaiwan,
+    runArrivalCardPoolFlow,
+    runAutomatedPortalPoolFlow,
+    runKoreaEformBackground,
+  },
+): Record<string, RunOne> {
+  return {
+    vn_evisa: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_evisa pool dispatch");
+      return dependencies.runVietnam(applicationId, identity.jobId, identity.executionContext);
+    },
+    vn_prearrival: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "vn_prearrival pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "vn_prearrival",
+        identity.executionContext,
+      );
+    },
+    sgac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "sgac pool dispatch");
+      return dependencies.runSingapore(applicationId, identity.jobId, identity.executionContext);
+    },
+    mdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "mdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "mdac",
+        identity.executionContext,
+      );
+    },
+    tdac: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tdac pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "tdac",
+        identity.executionContext,
+      );
+    },
+    kr_arrival_card: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "kr_arrival_card pool dispatch");
+      return dependencies.runArrivalCardPoolFlow(
+        applicationId,
+        identity.jobId,
+        "kr_arrival_card",
+        identity.executionContext,
+      );
+    },
+    kr_eform: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "kr_eform pool dispatch");
+      return dependencies.runKoreaEformBackground(
+        applicationId,
+        identity.jobId,
+        identity.executionContext,
+      );
+    },
+    tw_entry_permit: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "tw_entry_permit pool dispatch");
+      return dependencies.runTaiwan(applicationId, identity.jobId, identity.executionContext);
+    },
+    jp_vjw: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "jp_vjw pool dispatch");
+      return (dependencies.runAutomatedPortalPoolFlow ?? runAutomatedPortalPoolFlow)(
+        applicationId,
+        identity.jobId,
+        "jp_vjw",
+        identity.executionContext,
+      );
+    },
+    ke_eta: (applicationId, jobId, execution) => {
+      const identity = requirePoolExecutionIdentity(execution, jobId, "ke_eta pool dispatch");
+      return (dependencies.runAutomatedPortalPoolFlow ?? runAutomatedPortalPoolFlow)(
+        applicationId,
+        identity.jobId,
+        "ke_eta",
+        identity.executionContext,
+      );
+    },
+  };
+}
+
+export const POOL_FLOW_DISPATCH: Record<string, RunOne> = createPoolFlowDispatch();
+
 /**
  * Static routing metadata for tests/observability — which runner backs each
  * country and whether it is live. Kept in sync with DISPATCH by hand.
  */
 export const DISPATCH_META: Record<string, { runner: string; implemented: boolean }> = {
-  indonesia: { runner: "id/runner.runOne", implemented: true },
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
   thailand: { runner: "th/runner.runOne", implemented: true },
@@ -211,8 +329,18 @@ export function normalizeCountry(country: string): string {
 }
 
 /** Resolve a country to its runOne handler. Throws UnsupportedCountryError. */
-export function getRunOne(country: string): RunOne {
+export function getRunOne(country: string, flowKey?: string | null): RunOne {
   const key = normalizeCountry(country);
+  if (flowKey) {
+    const normalizedFlow = flowKey.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const expectedCountry =
+      POOL_FLOW_COUNTRIES[normalizedFlow as keyof typeof POOL_FLOW_COUNTRIES];
+    const poolRunOne = POOL_FLOW_DISPATCH[normalizedFlow];
+    if (!poolRunOne || expectedCountry !== key) {
+      throw new UnsupportedCountryError(`${country}/${flowKey}`);
+    }
+    return poolRunOne;
+  }
   const runOne = DISPATCH[key];
   if (!runOne) throw new UnsupportedCountryError(country);
   return runOne;

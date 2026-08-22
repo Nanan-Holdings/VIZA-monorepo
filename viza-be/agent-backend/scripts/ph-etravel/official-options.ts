@@ -87,30 +87,12 @@ const PURPOSE_ZH: Record<string, string> = {
   POV014: "永久移民或长期居留", POV015: "参加欧洲互惠生项目", POV016: "参加美国交流访问者项目",
   POV017: "会议", POV018: "展会 / 博览会", POV999: "其他",
 };
-const ARRIVAL_PURPOSE_CODES_E49 = new Set([
-  "OFW",
-  "POV001",
-  "POV002",
-  "POV003",
-  "POV004",
-  "POV005",
-  "POV006",
-  "POV007",
-  "POV008",
-  "POV009",
-  "POV010",
-  "POV011",
-  "POV012",
-  "POV017",
-  "POV018",
-  "POV999",
-]);
 export const PH_ETRAVEL_PURPOSE_OPTIONS = mapped(
-  officialSnapshot.arrivalPurposes.filter((item) => ARRIVAL_PURPOSE_CODES_E49.has(item.code)),
+  officialSnapshot.arrivalPurposes,
   PURPOSE_ZH,
   undefined,
   "verified_public",
-  "E49 official UI-shaped public API /api/v1/common/purpose_of_visits?paginate=0&q=&order_by=name&status_by=asc&for_arrival=1 2026-08-18; current 16-row response includes POV999/Others",
+  "E13 official public API /api/v1/common/purpose_of_visits?for_arrival=1 2026-08-04",
 );
 export const PH_ETRAVEL_DEPARTURE_PURPOSE_OPTIONS = mapped(officialSnapshot.departurePurposes, PURPOSE_ZH);
 
@@ -138,33 +120,6 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     evidence_level: "verified_public",
     official_source: "E13 official public API 2026-08-04; 250-row snapshot intentionally not embedded",
   },
-  provinces: {
-    endpoint: "/api/v1/common/provinces",
-    query: ["order_by=name"],
-    response_identity: "code",
-    response_label: "name",
-    response_fields: ["code", "region_code", "name"],
-    evidence_level: "verified_public",
-    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
-  },
-  municipalities: {
-    endpoint: "/api/v1/common/municipalities",
-    query: ["province_code={selected official province code}"],
-    response_identity: "code",
-    response_label: "name",
-    response_fields: ["code", "province_code", "name"],
-    evidence_level: "verified_public",
-    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
-  },
-  barangays: {
-    endpoint: "/api/v1/common/barangays",
-    query: ["municipality_code={selected official municipality code}"],
-    response_identity: "code",
-    response_label: "name",
-    response_fields: ["code", "municipality_code", "name"],
-    evidence_level: "verified_public",
-    official_source: "E21 official public bundle; values intentionally not embedded and runtime-loaded",
-  },
   currencies: {
     endpoint: "/api/v1/common/currencies",
     query: ["paginate=0", "q="],
@@ -172,16 +127,7 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     response_label: "name",
     response_fields: ["id", "name", "shorten_name", "display_name", "country_id", "is_active"],
     evidence_level: "verified_public",
-    official_source: "E13/E45 official public API 2026-08-04/2026-08-16; numeric id is submitted and the 263-row response is intentionally not embedded",
-  },
-  arrival_purpose_of_visits: {
-    endpoint: "/api/v1/common/purpose_of_visits",
-    query: ["paginate=0", "q=", "order_by=name", "status_by=asc", "for_arrival=1"],
-    response_identity: "code",
-    response_label: "name",
-    response_fields: ["id", "code", "name", "for_arrival", "for_departure", "with_oec", "with_cfo", "is_exclusive_for_filipino", "order", "theme"],
-    evidence_level: "verified_public",
-    official_source: "E49 official UI-shaped public API 2026-08-18; dynamic values intentionally not embedded; current response includes POV999/Others",
+    official_source: "E13 official public API 2026-08-04; 263-row snapshot intentionally not embedded",
   },
   sea_destination_ports: {
     endpoint: "/api/v1/common/travel_ports",
@@ -190,7 +136,7 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     response_label: "name",
     response_fields: ["id", "transportation_type", "code", "name", "theme", "with_custom_declaration", "is_active"],
     evidence_level: "verified_public",
-    official_source: "E49 official public API 2026-08-18; 53-row SEA response intentionally not embedded; duplicate labels prove label-only recovery is forbidden; with_custom_declaration is port page-branch metadata",
+    official_source: "E13 official public API 2026-08-04; 53-row SEA snapshot intentionally not embedded",
   },
   sea_disembarking_ports: {
     endpoint: "/api/v1/common/travel_ports",
@@ -206,29 +152,18 @@ export const PH_ETRAVEL_DYNAMIC_OPTION_SOURCES = {
     query: ["transportation_type=AIR"],
     response_identity: "code",
     response_label: "name",
-    response_fields: ["id", "code", "name", "transportation_type", "is_active"],
+    response_fields: ["code", "name", "transportation_type", "is_active"],
     evidence_level: "verified_public",
-    official_source: "E46 official public API 2026-08-17; dynamic values intentionally not embedded and response acceptance remains needs_review",
+    official_source: "E22 official public bundle 2026-08-04; dynamic values intentionally not embedded and response acceptance remains needs_review",
   },
   air_flight_numbers: {
     endpoint: "/api/v1/common/flight_numbers",
     query: ["travel_company_code={selected official code}"],
-    response_identity: "code",
-    response_label: "name",
-    response_fields: [
-      "code",
-      "name",
-      "travel_company_code",
-      "travel_port_code",
-      "travel_port_name",
-      "origin_country_code",
-      "destination_country_code",
-      "flight_type",
-      "transportation_type",
-      "is_active",
-    ],
+    response_identity: "flight_number",
+    response_label: "flight_number",
+    response_fields: ["flight_number", "travel_company_code", "travel_port_code"],
     evidence_level: "verified_public",
-    official_source: "E46 official public API 2026-08-17; dynamic values intentionally not embedded; response has no flight_number property and UI acceptance remains needs_review",
+    official_source: "E22 official public bundle 2026-08-04; dynamic values and flight-to-port metadata completeness intentionally not embedded",
   },
   hotels: {
     endpoint: "/api/v1/common/hotels",
@@ -338,18 +273,7 @@ export const PH_ETRAVEL_AIR_TRANSIT_PORT_OPTIONS = PH_ETRAVEL_AIR_PORT_OPTIONS.f
   ["TP1000", "TP2000", "TP3000", "TP001"].includes(option.value),
 );
 export const PH_ETRAVEL_SEA_PORT_OPTIONS: PhEtravelOption[] = [];
-// The live Health Declaration screenshot renders this 15-item subset. Preserve
-// the official snapshot codes rather than substituting labels as submitted values.
-const HEALTH_DECLARATION_SCREENSHOT_SYMPTOM_CODES = new Set([
-  "SS015", "SS008", "SS002", "SS014", "SS017", "SS022", "SS001", "SS005", "SS023", "SS016", "SS018", "SS006", "SS011", "SS021", "SS007",
-]);
-export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(
-  officialSnapshot.sicknessSymptoms.filter(({ code }) => HEALTH_DECLARATION_SCREENSHOT_SYMPTOM_CODES.has(code)),
-  {},
-  undefined,
-  "verified_public",
-  "official-options.snapshot.json codes + user-provided official Health Declaration screenshot 2026-08-15",
-);
+export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(officialSnapshot.sicknessSymptoms);
 export const PH_ETRAVEL_DECLARATION_CHECKLIST = officialSnapshot.declarationChecklist as OfficialChecklistItem[];
 
 export const PH_ETRAVEL_YES_NO_OPTIONS = [
@@ -398,7 +322,7 @@ export const PH_ETRAVEL_MONETARY_INSTRUMENT_OPTIONS = mapped(
   MONETARY_INSTRUMENT_ZH,
   undefined,
   "verified_public",
-  "E13/E45 official public API /api/v1/common/monetary_instruments?paginate=0&q= 2026-08-04/2026-08-16; numeric id is submitted",
+  "E13 official public API /api/v1/common/monetary_instruments?paginate=0&q= 2026-08-04",
 );
 
 export const PH_ETRAVEL_CURRENCY_SOURCE_OPTIONS = [

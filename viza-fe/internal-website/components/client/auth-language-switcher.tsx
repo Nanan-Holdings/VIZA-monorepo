@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
+import { Check } from "@phosphor-icons/react";
 
 const LOCALE_COOKIE = "NEXT_LOCALE";
 
@@ -58,9 +59,7 @@ export function AuthLanguageSwitcher() {
               >
                 <span>{lang.label}</span>
                 {isSelected && (
-                  <svg className="w-3 h-3 text-[#3d3d3d] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <Check className="size-3 shrink-0 text-[#3d3d3d]" weight="bold" />
                 )}
               </button>
             );

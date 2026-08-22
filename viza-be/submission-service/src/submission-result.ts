@@ -39,6 +39,8 @@ export type SubmissionResult =
   | VnSubmissionResult
   | SgArrivalCardSubmissionResult
   | DigitalArrivalCardSubmissionResult
+  | JpVisitJapanWebSubmissionResult
+  | KeEtaSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
   | TwSubmissionResult
@@ -158,17 +160,29 @@ export interface FrSubmissionResult {
 
 export interface UkSubmissionResult {
   country: "UK";
-  status: "registered" | "stopped_at_pay";
-  portalUrl: string;
-  portalUsername: string;
-  /**
-   * Encrypted at rest. Cipher format: `<saltHex>:<ciphertextHex>`,
-   * scrypt-derived key from SUBMISSION_RESULT_SECRET_KEY env.
-   * Decrypt only via /api/applications/:id/uk-portal-credentials with
-   * the owning user's session.
-   */
-  generatedPasswordCipher: string;
+  status:
+    | "registered"
+    | "stopped_at_pay"
+    | "funding_required"
+    | "payment_pending"
+    | "payment_review_required"
+    | "paid";
+  paymentStatus?: "funding_required" | "pending" | "review_required" | "paid";
+  paymentStateCode?: string;
+  staffReviewCode?: string;
+  officialFeeReceiptId?: string;
   applicationReference?: string;
+  /** @deprecated Legacy rows only; new runners must never write portal handoff data. */
+  portalUrl?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  portalUsername?: string;
+  /** @deprecated Legacy rows only; credentials belong in uk_accounts. */
+  generatedPasswordCipher?: string;
+  prefillProgress?: {
+    pagesFilled: number;
+    pagesSkipped: number;
+    totalPages: number;
+  };
 }
 
 /**
@@ -191,9 +205,16 @@ export interface TwSubmissionResult {
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
-  /** Opaque VIZA handoff id; the live URL is never stored in this payload. */
+  /** Legacy handoff fields remain readable for historical rows only. */
   handoffId?: string;
   handoffExpiresAt?: string;
+  officialTermsConsent?: {
+    version: "tw_official_terms_v1";
+    entryPromptAccepted: true;
+    termsModalAccepted: true;
+    recordedAt: string;
+    source: "viza_final_confirmation";
+  };
   submittedAt?: string;
   officialReceipt?: {
     source: "official_success_page_with_application_number";
@@ -249,6 +270,7 @@ export interface VnSubmissionResult {
       | "captcha_required"
       | "upload_required"
       | "payment_required"
+      | "official_fee_payment_review_required"
       | "final_submit_required"
       | "layout_changed"
       | "official_portal_error"
@@ -300,13 +322,23 @@ export interface SgArrivalCardSubmissionResult {
 }
 
 export interface DigitalArrivalCardSubmissionResult {
-  country: "MY" | "TH" | "PH" | "VN";
-  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION";
-  status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
+  country: "MY" | "TH" | "PH" | "VN" | "KR";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION" | "KR_E_ARRIVAL_CARD";
+  status: "submitted" | "scheduled" | "blocked" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
-  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live" | "korea_e_arrival_card_live";
   applicationId: string;
   submitted: boolean;
+  /** Official Korea e-Arrival Card issue number, when returned. */
+  issueNumber?: string | null;
+  /** Timestamp captured from the official confirmation page. */
+  submittedAt?: string | null;
+  /** Official validity is 72 hours from a successful submission. */
+  validUntil?: string | null;
+  /** Queue/window metadata shared by arrival-card products. */
+  scheduledFor?: string | null;
+  arrivalDate?: string | null;
+  departureDate?: string | null;
   confirmationNumber?: string | null;
   referenceNumber?: string | null;
   portalUrl: string;
@@ -330,6 +362,62 @@ export interface DigitalArrivalCardSubmissionResult {
     modeOfTravel?: string | null;
     transportNumber?: string | null;
     accommodationAddressProvided: boolean;
+  };
+}
+
+/** Japan Visit Japan Web. Success requires an official QR artifact. */
+export interface JpVisitJapanWebSubmissionResult {
+  country: "JP";
+  visaType: "JP_VISIT_JAPAN_WEB";
+  status: "qr_ready" | "blocked" | "validation_failed" | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "jp_visit_japan_web_live";
+  applicationId: string;
+  submitted: boolean;
+  qrReady: boolean;
+  referenceNumber?: string | null;
+  submittedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    qrCodes: string[];
+    logs: string[];
+    traces: string[];
+  };
+}
+
+/** Kenya eTA. Approval is only authoritative with an official PDF artifact. */
+export interface KeEtaSubmissionResult {
+  country: "KE";
+  visaType: "KE_ETA";
+  status: "submitted" | "approved" | "rejected" | "blocked" | "validation_failed" | "official_portal_error";
+  mode: "live_assisted" | "dry_run";
+  provider: "ke_eta_live";
+  applicationId: string;
+  submitted: boolean;
+  officialReference?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  paymentReceipt?: string | null;
+  approvalPdfStoragePath?: string | null;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots: string[];
+    pdfs: string[];
+    logs: string[];
+    traces: string[];
   };
 }
 
@@ -429,6 +517,10 @@ export type SubmissionResultStatus =
   | "completed"
   | "stalled"
   | "submitted"
+  | "qr_ready"
+  | "approved"
+  | "rejected"
+  | "needs_attention"
   | "submitted_mock"
   | "unsupported"
   | "action_required"
@@ -436,6 +528,7 @@ export type SubmissionResultStatus =
   | "stopped_at_pay"
   | "stopped_at_review"
   | "final_review_required"
+  | "blocked"
   | "form_ready_for_agency"
   | "form_ready_for_kvac"
   | "failed";

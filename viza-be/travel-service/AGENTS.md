@@ -15,7 +15,10 @@ options, and exports Word/PDF travel plans.
 - `agent.py`: Travel chat response generation.
 - `itinerary.py`: itinerary generation and revision logic.
 - `tools/flights.py`: RapidAPI flight search with fallback behavior.
+- `tests/test_flights.py`: provider/fallback contract regressions.
+- `tests/test_export_summary.py`: current-itinerary export and no-placeholder regressions.
 - `tools/hotels.py`: RapidAPI hotel search with fallback behavior.
+- `tools/http_client.py`: Shared bounded async HTTP client and provider request semaphore.
 - `export_doc.py`, `export_pdf.py`, `export_summary.py`: document export.
 - `rag/retriever.py`: travel RAG helper.
 - `requirements.txt`: Python dependencies.

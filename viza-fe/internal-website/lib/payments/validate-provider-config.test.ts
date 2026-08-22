@@ -25,7 +25,11 @@ describe("validateProviderConfig", () => {
 
 /** PAYP-006: portal display currency equals the charged amount (both from pricing). */
 describe("display currency = charged amount", () => {
-  for (const [country, visaType] of [["indonesia", "B211A"], ["united_kingdom", "UK_STANDARD_VISITOR"]] as const) {
+  it("does not expose retired Indonesia B211A pricing", () => {
+    expect(pricingFor("indonesia", "B211A")).toBeNull();
+  });
+
+  for (const [country, visaType] of [["indonesia", "ID_C1_TOURIST"], ["united_kingdom", "UK_STANDARD_VISITOR"]] as const) {
     it(`${country}: displayed total == charged total in one currency`, () => {
       const p = pricingFor(country, visaType);
       expect(p).toBeTruthy();

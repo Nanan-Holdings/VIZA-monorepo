@@ -1,6 +1,21 @@
 # Internal Website Agent Guide
 
+`lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
+wake requests; its focused tests live under `lib/__tests__/`.
+
+`lib/runner-cutover-pause.server.ts` owns the server-only controlled-cutover
+guard. `RUNNER_CUTOVER_PAUSED=true` must reject every new durable runner or
+submission enqueue and suppress Queue/Fly wakes before any partial side effect;
+status reads, cancellation, and guarded settlement remain available. Keep the
+flag server-only, exact-value parsed, and default-off in `.env.example`.
+
 Scope: this file applies to `viza-fe/internal-website/**`.
+
+Production Vercel Functions are pinned by `vercel.json` to `bom1` (Mumbai),
+which is the compute region nearest the production Supabase primary in
+`ap-south-1`. Keep database-backed Node.js routes in that region unless the
+primary database is deliberately migrated; static assets remain globally
+served by Vercel's CDN.
 
 ## Purpose
 
@@ -11,12 +26,33 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 ## Key Flows
 
 - Client portal under `app/client/**`.
+- Client dashboard country hero artwork under `public/country-heroes/**`, mapped
+  to application country slugs by `lib/client/country-hero-theme.ts`. Germany's
+  hero uses the transparent Brandenburg Gate artwork at
+  `public/country-heroes/germany.png`.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
   `components/application-steps/**`.
+- The master visa schema is compiled to canonical application controls and one
+  shared conditional-panel owner by `lib/application-schema-ui-contract.ts`.
+  `scripts/audit-application-schema-ui.ts` validates every live country schema;
+  strict errors block a schema launch.
+- The development-only `/edge-cases` route under `app/edge-cases/**` reads that
+  same compiler report and presents every current design edge case as a
+  component study with the complete affected visa-type and field inventory.
+- Ongoing application identity and terminal-state classification live in
+  `lib/applications/ongoing-application.ts`; database migrations enforce one
+  in-flight row per applicant, canonical country, and visa type while allowing
+  completed submission history.
+- Synthetic application QA markers and local-only QA guards live in
+  `lib/applications/qa-safety.ts`. Persistent schema-QA draft creation/filling
+  may run only against local Supabase with a dedicated `@viza.test` applicant;
+  QA drafts must not appear in customer/admin queues or enter live submission.
+  Database enforcement lives in the `prevent_qa_placeholder_submission` and
+  `block_known_qa_account_sentinel` Supabase migrations.
 - Website internal automation client routes under `app/client/status/**`,
   `app/client/documents/**`, `app/client/checkout/**`,
   `app/client/billing/**`, `app/client/consent/**`, and
@@ -32,8 +68,15 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, `app/api/translations/**`,
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
+- Digital arrival-card cancellation at
+  `app/api/applications/[id]/cancel-submission/route.ts` selects the owning
+  queue transport, calls the atomic `cancel_application_submission` RPC, and
+  treats a false/empty result as a claim conflict. Focused route coverage is
+  in the adjacent `route.test.ts`; no direct queue or application settlement
+  update is allowed in the caller.
 - Vietnam Pre-Arrival official dropdown lookup is proxied through
-  `app/api/vn-prearrival/options/**`; this route may read official category
+  `app/api/vn-prearrival/options/**` (with implementation/test helpers in the
+  adjacent non-route `route-handler.ts`); this route may read official category
   options but must not submit declarations or pretend a session-gated official
   list is complete when the portal returns an auth/session error.
   `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
@@ -59,12 +102,25 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
   application document requirements may map their country-specific photo and
   signature aliases to these canonical profile materials.
+- Application-scoped Form Filling Assistant sessions and persisted text turns
+  are stored in `form_assistant_sessions` and `form_assistant_messages` by
+  `supabase/migrations/20260806155039_form_assistant_sessions.sql`; raw voice
+  recordings are ephemeral and never persisted.
+- Expanded reusable applicant facts are stored in the server-only,
+  field-keyed `universal_profile_answers` table created by
+  `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
+  Review-tab sync is explicit, excludes trip/payment/declaration/secret data,
+  and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
   `components/client/companion/**`.
+- Chat application save blocks under `app/api/chat/save-block/**` may update
+  ordinary application details only. Country, visa type, package, and ownership
+  identity are immutable at this boundary and must use canonical lifecycle
+  paths.
 - Customer service support center under `app/client/support/**`; keep it
   separate from `/client/chat`.
 - U.S. B1/B2 appointment assistant under
@@ -88,7 +144,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
-  `lib/client-session.ts`, and `lib/impersonation-session.ts`.
+  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
+  admin email allowlist in `lib/admin-access.ts`.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
@@ -120,6 +177,30 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; keep service-role access server-only and
   expose customer/staff actions through route handlers or server actions.
+- Cloud submission worker wake requests use the authenticated
+  `app/api/submission-worker/wake/route.ts` boundary and the server-only
+  `lib/submission-worker-wake.server.ts` helper. Never expose the internal
+  bearer token to client components. Queue-enabled immediate `runner_job` or
+  `submission_queue` enqueues publish an encrypted wake pointer after the
+  durable database write; direct POST to the retained target's wake endpoint
+  remains the fallback. Starting an already-running Fly Machine is not itself
+  a wake signal.
+- Shared-pool retry submission resolves a typed flow through
+  `lib/queue/flows.ts`, atomically enqueues through `lib/queue/enqueue.ts`, and
+  starts only immediately claimable Fly pool capacity through
+  `lib/fly-machine-wake.server.ts`. Indonesia B1/C1 instead enqueue to their
+  dedicated `submission_queue` states and wake the sticky Indonesia Machine.
+  Scheduled arrival-card work must keep its future `available_at` and must not
+  wake compute early. Legacy, Indonesia and Korea sticky wake requests reserve
+  database Machine slots and may preempt only an idle shared worker.
+  Country wizard review-route coverage lives in
+  `components/client/wizards/shell/__tests__/review-routing.test.ts`; every
+  configured wizard must expose at least one review section and every review
+  Edit target must match a declared wizard step key.
+  Production Fly app names are selected through `FLY_RUNNER_POOL_APP`,
+  `FLY_SUBMISSION_LEGACY_APP`, `FLY_RUNNER_INDONESIA_APP`, and
+  `FLY_RUNNER_SOUTH_KOREA_APP`; unset values retain the original app names for
+  rollback.
 - Local developer recovery for stalled official submission jobs is exposed
   through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
   localhost-only and may only start the repository `viza-be/submission-service`
@@ -137,8 +218,16 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
+- Vietnam and Indonesia official-fee authorize/pay/status routes share
+  `app/api/applications/[id]/official-fee/auth.ts`; keep its accepted session
+  policy aligned with `/client/*` so signed `client_session` users do not see a
+  payment form that then fails a Supabase-only authentication check.
+- Vietnam e-Visa trip-expense coverage is made explicitly required by
+  `supabase/migrations/20260809105541_vn_evisa_require_expense_coverage.sql`;
+  keep the runtime parity patch and submission-service expense preflight in
+  sync so the official review action cannot remain disabled after a cloud run.
 - Production Indonesia official-fee card handoff uses the bearer-protected Fly
-  endpoint configured by `SUBMISSION_SERVICE_CLOUD_URL` and
+  endpoint configured by `INDONESIA_SUBMISSION_SERVICE_URL` and
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
 - Production Vietnam official-fee card handoff uses the bearer-protected Fly
   endpoint configured by `VIETNAM_SUBMISSION_SERVICE_URL` (with
@@ -165,6 +254,65 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260728090000_vn_evisa_strict_validity_range.sql`:
   `visa_valid_to` must be at least one calendar day after `visa_valid_from`,
   matching the official portal rather than allowing a same-day interval.
+- Active application-form Chinese copy is polished by the
+  `20260807224244_polish_active_form_chinese_copy.sql` and
+  `20260807230600_polish_arrival_and_visa_form_chinese_copy.sql` migrations,
+  with the live Schengen sector field repaired by
+  `20260807231500_repair_schengen_health_option_chinese_copy.sql`;
+  it updates Chinese labels and option display text only, while preserving
+  official English wording, stored values, and submission mappings. Keep it
+  aligned with the runtime safety net in `lib/bilingual-schema-contract.ts`.
+- Cross-country Copilot metadata corrections live in
+  `supabase/migrations/20260818044914_correct_country_copilot_field_metadata.sql`;
+  keep date formats and phone placeholders aligned with the country seed
+  definitions, and never introduce a destination-specific calling code as a
+  generic applicant example.
+- The Vietnam pre-arrival visa-information acknowledgement is made
+  self-contained and visibly renders its official notice through
+  `supabase/migrations/20260818121932_show_vn_prearrival_visa_information_notice.sql`;
+  keep its critical bilingual helper aligned with
+  `viza-be/agent-backend/scripts/vn-prearrival/form-fields.ts` and the stale-DB
+  safety net in `lib/bilingual-schema-contract.ts`.
+- Korea e-Arrival Card production routing and free-fee metadata are applied by
+  `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
+  to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
+  exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
+- Japan Visit Japan Web and Kenya eTA package, pricing, fee-rule, and document
+  metadata are applied by
+  `supabase/migrations/20260821000000_japan_vjw_kenya_eta_products.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0154_japan_vjw_kenya_eta_products.sql`.
+- Application-scoped unattended-runner aliases are created by
+  `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0155_application_inbox_aliases.sql`.
+- The approved Japan VJW launch-compliance decision is recorded by
+  `supabase/migrations/20260821002000_jp_vjw_compliance_approval.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0156_jp_vjw_compliance_approval.sql`.
+- The production database access baseline is applied by
+  `supabase/migrations/20260821131006_database_access_baseline.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0158_database_access_baseline.sql`. It makes
+  future objects created by the `postgres` application migration owner private
+  until explicitly granted, audits other owners as a platform boundary, and
+  preserves authenticated own-row access only where the migration declares it.
+- Dedicated arrival-card country/product repair is applied by
+  `supabase/migrations/20260818155521_repair_arrival_card_product_country_identity.sql`;
+  keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0152_repair_arrival_card_product_country_identity.sql`.
+  Product codes are authoritative for these country identities, and colliding
+  in-flight legacy drafts are archived rather than deleted. Its catalog-backed
+  trigger also enforces exact linked-package identity and single-country
+  product alignment while preserving multi-country products such as Schengen.
+- The required U.S. DS-160 China issuing-post selector is applied by
+  `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
+  values are the live CEAC location codes consumed by submission-service.
+- Immediate SG Arrival Card retries use
+  `supabase/migrations/20260730170000_sgac_country_runner_retry.sql` and the
+  country-scoped `runner_job` transport. Keep future-window scheduled SGAC
+  rows in `submission_queue`, preserve the atomic legacy collision check, and
+  route cancellation for either transport through the atomic cancellation RPC.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,
@@ -261,6 +409,8 @@ Smoke URLs:
 
 - `package.json`
 - `proxy.ts`
+- `proxy.test.ts`: verifies rotated Supabase SSR cookies survive client-route
+  responses and authenticated login redirects.
 - `vitest.config.mts`
 - `vitest.server-only.ts`
 - `app/layout.tsx`
@@ -295,6 +445,25 @@ Smoke URLs:
 - `components/field-guidance-panel.tsx`
 - `hooks/use-smooth-progress.ts`
 - `lib/supabase/*`
+- `lib/resilience/*`: server-only HMAC transport, AES-256-GCM envelopes,
+  continuity identity/OTP state, critical read cache, and encrypted outbox
+  client. The signed `/api/resilience/replay` route also handles the
+  allowlisted `runner_job.wakeup.v1` pointer; it re-checks Postgres state and
+  only wakes server-controlled runner targets. Never import these modules into
+  browser bundles or expose their keys.
+- `lib/queue/enqueue.ts`: every durable runner enqueue commits Postgres first;
+  `RESILIENCE_RUNNER_WAKE_ENABLED` is default-off and accepts only exact
+  `true`, `on`, or `1`. An accepted/duplicate Queue wake suppresses direct Fly
+  wake; Queue errors or unusable responses use the bounded direct-wake
+  fallback, and future `availableAt` work is never published early. Shared
+  pool countries must resolve an exact package flow before enqueue/wake. The
+  strict active flows (`vn_prearrival`, `sgac`, `mdac`, `tdac`, `kr_eform`,
+  `kr_arrival_card`, `tw_entry_permit`) always use the atomic pool RPC even
+  when the migration flag is false; no direct `runner_job` rollback insert is
+  permitted. Korea e-Arrival Card remains separate from the C-3 e-Form flow.
+  Vietnam eVisa
+  remains on its explicitly sticky legacy policy.
+- `lib/admin-access.ts`
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
@@ -311,9 +480,33 @@ Smoke URLs:
 - `lib/runtime-abort-retry.ts`
 - `lib/server-action-recovery.ts`
 - `supabase/migrations/*`
+- `supabase/migrations/20260813151857_photonpay_issuer_card_attempts.sql`:
+  durable application/allocation-scoped PhotonPay issuance attempts and guarded
+  service-role state transitions; card secrets are intentionally absent.
+- `supabase/migrations/20260813153500_photonpay_issuer_card_finish_idempotency.sql`:
+  replay-safe terminal issuer-card transitions after worker retries.
+- `supabase/migrations/20260813153754_photonpay_issuer_card_function_privileges.sql`:
+  explicitly removes issuer-card RPC execution from API roles because this
+  Supabase project grants new functions to them through default privileges.
+- `supabase/migrations/20260813160000_photonpay_managed_intent_guard.sql`:
+  prevents legacy client-entered-card intents from creating PhotonPay cards.
+- `supabase/migrations/20260815143000_photonpay_explicit_allocation_claim.sql`:
+  requires every issuer claim to name the exact allocation selected for the
+  consented managed-card intent and removes latest-allocation inference.
+- `supabase/migrations/20260815150000_managed_card_issuer_router.sql`:
+  durably records a preselected PhotonPay or Airwallex issuer while preserving
+  exact allocation binding and retry idempotency.
+- `supabase/migrations/20260815151000_scrub_uk_submission_result_credentials.sql`:
+  strips legacy UK portal URL, username, and password/cipher fields from
+  customer-readable application result JSON; credentials remain in `uk_accounts`.
+- `supabase/migrations/20260815152000_protect_issuer_card_attempt_leases.sql`:
+  prevents a different worker from overwriting an unexpired managed-card lease
+  while preserving same-worker renewal and expired-lease recovery.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
+- `app/account/security/copy.ts`: locale-scoped TOTP setup and recovery copy;
+  factor identifiers and statuses remain language-neutral internally.
 - `lib/frequent-traveler-profile.ts`
 - `lib/universal-profile-prefill.ts`
 - `lib/translation/*`
@@ -327,6 +520,9 @@ Smoke URLs:
 - `lib/travel/*`
 - `messages/en.json`
 - `messages/zh.json`
+- `types/france-appointment.ts` and `types/france-appointment.test.ts`: the
+  persisted France TLS appointment snapshot contract and pure stage-mapping
+  regression coverage.
 - `types/us-appointment.ts`
 - `scripts/sync-supabase-auth-email-templates.mjs`
 - `scripts/audit-travel-card-coverage.mjs`

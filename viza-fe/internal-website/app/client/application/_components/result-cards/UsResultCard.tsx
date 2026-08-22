@@ -3,18 +3,20 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   CalendarCheck,
-  ExternalLink,
+  ArrowSquareOut as ExternalLink,
   Copy,
   Check,
   ShieldCheck,
   Printer,
-  Mail,
-  RotateCcw,
-  Loader2,
-} from "lucide-react";
+  Envelope as Mail,
+  ArrowCounterClockwise as RotateCcw,
+  CircleNotch as Loader2,
+} from "@phosphor-icons/react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ export function UsResultCard({
   applicationId?: string;
   result: UsSubmissionResult;
 }) {
+  const router = useRouter();
   const t = useTranslations("usAppointment.ds160Card");
   const nextT = useTranslations("usAppointment.nextStepCard");
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
@@ -101,23 +104,39 @@ export function UsResultCard({
     setStartingNewApplication(true);
     setNewApplicationError(null);
     try {
-      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+      const endpoint = submitted
+        ? `/api/applications/${applicationId}/new-application`
+        : `/api/applications/${applicationId}/retry-submission`;
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "live_assisted",
-          intent: "new_application",
-        }),
+        ...(submitted
+          ? {}
+          : {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                mode: "live_assisted",
+                intent: "new_application",
+              }),
+            }),
       });
       const payload = (await response.json().catch(() => null)) as {
         error?: unknown;
         jobId?: unknown;
         alreadySubmitted?: unknown;
+        applicationId?: unknown;
+        href?: unknown;
       } | null;
       if (!response.ok) {
         throw new Error(
           typeof payload?.error === "string" ? payload.error : `${t("newApplicationError")} (${response.status})`,
         );
+      }
+      if (submitted) {
+        if (typeof payload?.applicationId !== "string" || typeof payload.href !== "string") {
+          throw new Error(t("newApplicationError"));
+        }
+        router.push(payload.href);
+        return;
       }
       if (payload?.alreadySubmitted === true || typeof payload?.jobId !== "string") {
         throw new Error(t("newApplicationError"));
@@ -290,9 +309,13 @@ export function UsResultCard({
               <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
             )}
             {proofError && (
-              <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {proofError}
-              </div>
+              <Alert variant="destructive" className="mt-3">
+                <AlertIcon variant="destructive" />
+                <AlertTitle>{t("proofFailed")}</AlertTitle>
+                <AlertDescription>
+                  <p>{proofError}</p>
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         )}
@@ -338,29 +361,37 @@ export function UsResultCard({
           </a>
         </Button>
 
-        {submitted && (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={startNewApplication}
-              disabled={!applicationId || startingNewApplication}
-            >
-              {startingNewApplication ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="mr-2 h-4 w-4" />
-              )}
-              {startingNewApplication ? t("startingNewApplication") : t("newApplication")}
-            </Button>
-            {newApplicationError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {newApplicationError}
-              </div>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant={submitted ? "outline" : "default"}
+            className="w-full"
+            onClick={startNewApplication}
+            disabled={!applicationId || startingNewApplication}
+          >
+            {startingNewApplication ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="mr-2 h-4 w-4" />
             )}
-          </div>
-        )}
+            {startingNewApplication
+              ? submitted
+                ? t("startingNewApplication")
+                : t("continuingAutomaticSubmission")
+              : submitted
+                ? t("newApplication")
+                : t("continueAutomaticSubmission")}
+          </Button>
+          {newApplicationError && (
+            <Alert variant="destructive">
+              <AlertIcon variant="destructive" />
+              <AlertTitle>{t("newApplicationError")}</AlertTitle>
+              <AlertDescription>
+                <p>{newApplicationError}</p>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

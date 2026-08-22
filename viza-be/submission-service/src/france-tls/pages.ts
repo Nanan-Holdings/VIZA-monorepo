@@ -16,7 +16,7 @@ export interface FranceTlsPageDetection {
 
 export function detectFranceTlsPageFromText(input: { url: string; text: string }): FranceTlsPageDetection {
   const text = input.text.toLowerCase();
-  if (/captcha|cloudflare|verify you are human|access denied/u.test(text)) {
+  if (/captcha|cloudflare|verify you are human|access denied|un\s+instant|vérification\s+de\s+sécurité|verification\s+de\s+securite|ray\s*id|checking your browser/u.test(text)) {
     return { id: "manual_gate", url: input.url, reason: "captcha_or_waf_text" };
   }
   if (/confirmation|appointment confirmed|rendez-vous confirmé/u.test(text)) {

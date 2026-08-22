@@ -1,6 +1,6 @@
 "use client";
 
-import { BriefcaseBusiness, GraduationCap, Plus, Shield, Trash2, Users, Wrench } from "lucide-react";
+import { Briefcase as BriefcaseBusiness, GraduationCap, Plus, Shield, Trash as Trash2, Users, Wrench } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

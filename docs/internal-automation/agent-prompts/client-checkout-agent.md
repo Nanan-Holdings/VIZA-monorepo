@@ -27,7 +27,10 @@ Do not edit without coordination:
 
 Hard guardrails:
 - Do not collect card details directly in VIZA UI.
-- Do not imply VIZA pays government portal fees automatically.
+- Make clear that VIZA provisions an application-scoped virtual card and pays
+  the official portal on the applicant's behalf when that fee becomes due.
+- Never ask the applicant to enter official-portal card details or pay the
+  portal directly.
 - Do not touch viza-be/submission-service.
 - Do not add official portal payment or submission automation.
 
@@ -36,8 +39,8 @@ Implementation tasks:
    disclosure, and payment CTA.
 2. Create clear success/cancel return states if route params indicate Stripe
    return context.
-3. Show when government fees are separate, estimated, unknown, or handled by an
-   external process.
+3. Show when official fees are estimated or awaiting confirmation, and explain
+   that VIZA will pay them using an application-scoped virtual card.
 4. Call the Stripe API/session boundary through a server action or route
    handler. Do not create client-side secrets.
 5. After successful payment state is available, route users to consent or

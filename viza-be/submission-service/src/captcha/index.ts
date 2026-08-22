@@ -3,6 +3,7 @@ export {
   solveGridCaptcha,
   solveCaptcha,
   reportBadCaptcha,
+  reportGoodCaptcha,
   TwoCaptchaConfigError,
   TwoCaptchaApiError,
   TwoCaptchaZeroBalanceError,

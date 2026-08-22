@@ -1,14 +1,39 @@
 import { supabase } from "../supabase";
 import { sendAlert } from "../alerts/dispatch";
-import { emitRunnerMetric } from "../metrics/emit";
-import { getMaxConcurrent, isPaused } from "./concurrency";
+import {
+  emitConcurrencyMetric,
+  emitRunnerMetric,
+  type ConcurrencyMetricInput,
+} from "../metrics/emit";
+import {
+  RunnerJobOwnershipLostError,
+  type RunnerExecutionContext,
+} from "./execution-context.js";
+
+export { RunnerJobOwnershipLostError } from "./execution-context.js";
+export type { RunnerExecutionContext } from "./execution-context.js";
+
+/**
+ * A non-empty RPC payload that does not match the lifecycle contract is a
+ * schema/protocol failure, not an empty queue or an ownership miss. Keeping
+ * this distinction visible prevents a malformed response from silently
+ * stopping a worker drain.
+ */
+export class RunnerPoolRpcSchemaError extends Error {
+  readonly code = "runner_pool_rpc_schema_error" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "RunnerPoolRpcSchemaError";
+  }
+}
 
 /**
  * runner_job consumer (INFRA-002).
  *
- * Postgres-backed FIFO using `SELECT ... FOR UPDATE SKIP LOCKED`
- * inside a transaction. Each tick:
- *   1. claim oldest queued row (per-country bucket).
+ * Postgres-backed FIFO claimed through one service-role-only RPC using
+ * database locks and `SKIP LOCKED`. Each tick:
+ *   1. recover expired leases and claim the oldest eligible typed flow.
  *   2. mark `status='running'`, set leased_by + leased_until.
  *   3. invoke the per-country `runOne(applicationId)` handler.
  *   4. on success → status='succeeded'; on failure with retries left
@@ -24,6 +49,7 @@ export interface RunnerJob {
   id: string;
   application_id: string;
   country: string;
+  flow_key: string | null;
   attempts: number;
   max_attempts: number;
   correlation_id: string | null;
@@ -37,249 +63,219 @@ export interface ClaimOpts {
   leaseMs?: number;
   /** Restrict to a country bucket. Omit to claim across all countries. */
   country?: string;
-  /** Restrict to one runner_job.id. Requires a country. */
-  jobId?: string;
-  /** Optional guard for single-job runs. */
-  expectedApplicationId?: string;
-  /** Normalize country aliases before comparing a targeted row. */
-  normalizeCountry?: (country: string) => string;
-  /** Test seam; production uses the module Supabase client. */
-  client?: RunnerJobClient;
+  /** Test/runtime I/O boundary override. */
+  client?: RunnerPoolClient;
 }
 
 const DEFAULT_LEASE_MS = 15 * 60 * 1000;
-const RUNNER_JOB_COLUMNS = "id, application_id, country, attempts, max_attempts, correlation_id, metadata";
 
-type QueryResult<T = any> = { data: T | null; error: { message: string } | null; count?: number | null };
-
-interface RunnerJobQuery {
-  select(columns: string, options?: Record<string, unknown>): RunnerJobQuery;
-  eq(column: string, value: unknown): RunnerJobQuery;
-  order(column: string, options?: Record<string, unknown>): RunnerJobQuery;
-  limit(count: number): RunnerJobQuery;
-  update(values: Record<string, unknown>): RunnerJobQuery;
-  maybeSingle(): Promise<QueryResult>;
-  then<TResult1 = QueryResult, TResult2 = never>(
-    onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ): Promise<TResult1 | TResult2>;
-}
-
-export interface RunnerJobClient {
-  from(table: "runner_job" | string): RunnerJobQuery;
-  rpc?(
-    name: string,
-    args: Record<string, unknown>,
-  ): Promise<QueryResult<RunnerJob | RunnerJob[]>>;
-}
-
-export class TargetRunnerJobError extends Error {
-  constructor(
-    message: string,
-    readonly reason:
-      | "target_requires_country"
-      | "target_not_found"
-      | "target_country_mismatch"
-      | "target_application_mismatch"
-      | "target_not_claimable"
-      | "target_claim_raced",
-  ) {
-    super(message);
-    this.name = "TargetRunnerJobError";
-  }
-}
-
-function canonicalizeTargetCountry(value: string, normalizeCountry?: (country: string) => string): string {
-  const trimmed = value.trim().toLowerCase();
-  if (normalizeCountry) return normalizeCountry(trimmed);
-  return trimmed === "ph" ? "philippines" : trimmed;
+export function isRunnerJobOwnershipLost(
+  error: unknown,
+): error is RunnerJobOwnershipLostError {
+  return (
+    error instanceof RunnerJobOwnershipLostError ||
+    (typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "runner_job_ownership_lost")
+  );
 }
 
 /**
- * Country workers claim through a service-role RPC that scopes, locks, and
- * updates one row in a single transaction. The unscoped compatibility path
- * remains unchanged for older workers until they move to the shared pool.
+ * Atomically claim the next queued job through claim_runner_pool_job.
  */
 export async function claimNextJob(opts: ClaimOpts): Promise<RunnerJob | null> {
-  if (opts.jobId) return claimTargetJob(opts);
-
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
-  const client = (opts.client ?? supabase) as RunnerJobClient;
-
-  const country = opts.country
-    ? canonicalizeTargetCountry(opts.country, opts.normalizeCountry)
-    : undefined;
-
-  if (country === "philippines") {
-    if (!client.rpc) {
-      throw new Error("runner_job country claim requires Supabase RPC support");
-    }
-    const { data, error } = await client.rpc("claim_runner_country_job", {
-      p_worker_id: opts.workerId,
-      p_country: country,
-      p_lease_ms: leaseMs,
-    });
-    if (error) {
-      throw new Error(`runner_job country claim RPC: ${error.message}`);
-    }
-    const row = Array.isArray(data) ? data[0] : data;
-    return row ? (row as RunnerJob) : null;
+  if (opts.country) {
+    throw new Error(
+      "Country-scoped claims are disabled for the shared runner pool. " +
+        "Start the retained rollback image instead of mixing claim transports.",
+    );
   }
 
-  const leasedUntil = new Date(Date.now() + leaseMs).toISOString();
-
-  let q = client
-    .from("runner_job")
-    .select(RUNNER_JOB_COLUMNS)
-    .eq("status", "queued")
-    .order("enqueued_at", { ascending: true })
-    .limit(1);
-  if (opts.country) q = q.eq("country", opts.country);
-  const { data: candidates, error } = await q;
+  const client = opts.client ?? defaultClient;
+  const { data, error } = await client.rpc("claim_runner_pool_job", {
+    p_worker_id: opts.workerId,
+    p_lease_ms: leaseMs,
+    p_require_slot: Boolean(process.env.FLY_MACHINE_ID),
+  });
   if (error) {
-    throw new Error(`runner_job claim read: ${error.message}`);
+    throw new Error(`runner pool claim RPC: ${error.message}`);
   }
-  const candidate = candidates?.[0];
-  if (!candidate) return null;
-
-  // QUE-006: per-country concurrency cap + pause, sourced from env config
-  // (src/queue/concurrency.ts). Decline the claim if the country is paused
-  // or already at its in-flight cap.
-  if (isPaused(candidate.country)) return null;
-  const max = getMaxConcurrent(candidate.country);
-  const { count: running, error: countErr } = await client
-    .from("runner_job")
-    .select("id", { count: "exact", head: true })
-    .eq("country", candidate.country)
-    .eq("status", "running");
-  if (countErr) {
-    throw new Error(`runner_job running count: ${countErr.message}`);
-  }
-  if ((running ?? 0) >= max) return null;
-
-  const { data: claimed, error: claimErr } = await client
-    .from("runner_job")
-    .update({
-      status: "running",
-      leased_by: opts.workerId,
-      leased_until: leasedUntil,
-      started_at: new Date().toISOString(),
-    })
-    .eq("id", candidate.id)
-    .eq("status", "queued")
-    .select(RUNNER_JOB_COLUMNS)
-    .maybeSingle();
-  if (claimErr) {
-    throw new Error(`runner_job claim update: ${claimErr.message}`);
-  }
-  if (!claimed) return null; // raced; another worker won
-  return claimed as RunnerJob;
+  return parseClaimedRunnerJob(data);
 }
 
-export async function claimTargetJob(opts: ClaimOpts): Promise<RunnerJob> {
-  if (!opts.jobId) throw new TargetRunnerJobError("runner_job target id is required", "target_not_found");
-  if (!opts.country) {
-    throw new TargetRunnerJobError("runner_job targeted mode requires RUNNER_JOB_COUNTRY", "target_requires_country");
-  }
+export interface RunnerPoolRpcResult {
+  data: unknown;
+  error: { message: string } | null;
+}
 
-  const client = (opts.client ?? supabase) as RunnerJobClient;
-  const expectedCountry = canonicalizeTargetCountry(opts.country, opts.normalizeCountry);
-  const { data: existing, error: readErr } = await client
-    .from("runner_job")
-    .select(`${RUNNER_JOB_COLUMNS}, status`)
-    .eq("id", opts.jobId)
-    .maybeSingle();
-  if (readErr) throw new Error(`runner_job target read: ${readErr.message}`);
-  if (!existing) {
-    throw new TargetRunnerJobError("runner_job target was not found", "target_not_found");
-  }
+export interface RunnerPoolQuery {
+  update(values: Record<string, unknown>): RunnerPoolQuery;
+  eq(column: string, value: unknown): RunnerPoolQuery;
+  gt(column: string, value: unknown): RunnerPoolQuery;
+  select(columns: string): RunnerPoolQuery;
+  maybeSingle(): Promise<RunnerPoolRpcResult>;
+}
 
-  const row = existing as RunnerJob & { status?: string | null };
-  const rowCountry = canonicalizeTargetCountry(row.country, opts.normalizeCountry);
-  if (rowCountry !== expectedCountry) {
-    throw new TargetRunnerJobError("runner_job target country mismatch", "target_country_mismatch");
-  }
-  if (opts.expectedApplicationId && row.application_id !== opts.expectedApplicationId) {
-    throw new TargetRunnerJobError("runner_job target application mismatch", "target_application_mismatch");
-  }
-  if (row.status !== "queued") {
-    throw new TargetRunnerJobError("runner_job target is not queued", "target_not_claimable");
-  }
+export interface RunnerPoolClient {
+  rpc(name: string, args: Record<string, unknown>): Promise<RunnerPoolRpcResult>;
+  /** Retained for compatibility with callers that still inspect the queue. */
+  from?: (table: string) => RunnerPoolQuery;
+}
 
-  if (isPaused(row.country)) {
-    throw new TargetRunnerJobError("runner_job target country is paused", "target_not_claimable");
-  }
-  const max = getMaxConcurrent(row.country);
-  const { count: running, error: countErr } = await client
-    .from("runner_job")
-    .select("id", { count: "exact", head: true })
-    .eq("country", row.country)
-    .eq("status", "running");
-  if (countErr) {
-    throw new Error(`runner_job running count: ${countErr.message}`);
-  }
-  if ((running ?? 0) >= max) {
-    throw new TargetRunnerJobError("runner_job target country is already at concurrency limit", "target_not_claimable");
-  }
+export interface RunnerQueueDependencies {
+  client?: RunnerPoolClient;
+}
 
-  const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
-  const leasedUntil = new Date(Date.now() + leaseMs).toISOString();
-  const { data: claimed, error: claimErr } = await client
-    .from("runner_job")
-    .update({
-      status: "running",
-      leased_by: opts.workerId,
-      leased_until: leasedUntil,
-      started_at: new Date().toISOString(),
-    })
-    .eq("id", opts.jobId)
-    .eq("country", row.country)
-    .eq("status", "queued")
-    .select(RUNNER_JOB_COLUMNS)
-    .maybeSingle();
-  if (claimErr) {
-    throw new Error(`runner_job target claim update: ${claimErr.message}`);
+const defaultClient = supabase as unknown as RunnerPoolClient;
+
+const ACTIVE_POOL_FLOW_COUNTRIES = {
+  vn_prearrival: "vietnam",
+  sgac: "singapore",
+  mdac: "malaysia",
+  tdac: "thailand",
+  kr_arrival_card: "south_korea",
+  kr_eform: "south_korea",
+  tw_entry_permit: "taiwan",
+  jp_vjw: "japan",
+  ke_eta: "kenya",
+} as const;
+
+const ACTIVE_POOL_COUNTRIES = new Set<string>(Object.values(ACTIVE_POOL_FLOW_COUNTRIES));
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isInteger(value: unknown): value is number {
+  return Number.isInteger(value);
+}
+
+function asRpcRow(data: unknown, operation: string): Record<string, unknown> | null {
+  if (data === null || data === undefined) return null;
+  let row: unknown = data;
+  if (Array.isArray(data)) {
+    if (data.length === 0) return null;
+    if (data.length !== 1) {
+      throw new RunnerPoolRpcSchemaError(
+        `${operation} RPC returned ${data.length} rows; expected at most one`,
+      );
+    }
+    row = data[0];
   }
-  if (!claimed) {
-    throw new TargetRunnerJobError("runner_job target could not be claimed", "target_claim_raced");
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    throw new RunnerPoolRpcSchemaError(`${operation} RPC returned a malformed row`);
   }
-  return claimed as RunnerJob;
+  return row as Record<string, unknown>;
+}
+
+function parseClaimedRunnerJob(data: unknown): RunnerJob | null {
+  const row = asRpcRow(data, "claim_runner_pool_job");
+  if (!row) return null;
+  if (
+    !isNonBlankString(row.id)
+    || !isNonBlankString(row.application_id)
+    || !isNonBlankString(row.country)
+    || !isNonBlankString(row.flow_key)
+    || !isInteger(row.attempts)
+    || !isInteger(row.max_attempts)
+  ) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned an invalid job row");
+  }
+  if (row.attempts < 0 || row.max_attempts <= row.attempts) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned invalid attempt bounds");
+  }
+  if (
+    ACTIVE_POOL_FLOW_COUNTRIES[row.flow_key as keyof typeof ACTIVE_POOL_FLOW_COUNTRIES]
+      !== row.country
+  ) {
+    throw new RunnerPoolRpcSchemaError(
+      "claim_runner_pool_job RPC returned an unsupported country/flow tuple",
+    );
+  }
+  if (row.correlation_id !== null && !isNonBlankString(row.correlation_id)) {
+    throw new RunnerPoolRpcSchemaError(
+      "claim_runner_pool_job RPC returned an invalid correlation_id",
+    );
+  }
+  if (
+    row.metadata !== null
+    && (typeof row.metadata !== "object" || Array.isArray(row.metadata))
+  ) {
+    throw new RunnerPoolRpcSchemaError("claim_runner_pool_job RPC returned invalid metadata");
+  }
+  return row as unknown as RunnerJob;
+}
+
+function parseCompletedRunnerJob(data: unknown): {
+  application_id: string;
+  country: string;
+  started_at: string | null;
+} | null {
+  const row = asRpcRow(data, "complete_runner_pool_job");
+  if (
+    !row
+    || !isNonBlankString(row.application_id)
+    || !isNonBlankString(row.country)
+    || !ACTIVE_POOL_COUNTRIES.has(row.country)
+    || (row.started_at !== null && typeof row.started_at !== "string")
+  ) {
+    if (!row) return null;
+    throw new RunnerPoolRpcSchemaError(
+      "complete_runner_pool_job RPC returned an invalid completion row",
+    );
+  }
+  return row as {
+    application_id: string;
+    country: string;
+    started_at: string | null;
+  };
+}
+
+function parseFailedRunnerJob(data: unknown, expectedJobId: string): boolean {
+  const row = asRpcRow(data, "fail_runner_pool_job");
+  if (!row) return false;
+  if (
+    !isNonBlankString(expectedJobId)
+    || !isNonBlankString(row.id)
+    || row.id !== expectedJobId
+    || (row.status !== "queued" && row.status !== "failed")
+    || (row.available_at !== null && typeof row.available_at !== "string")
+  ) {
+    throw new RunnerPoolRpcSchemaError("fail_runner_pool_job RPC returned an invalid failure row");
+  }
+  return true;
 }
 
 export async function markSucceeded(
   jobId: string,
-  client: RunnerJobClient = supabase as unknown as RunnerJobClient,
+  workerId: string,
+  client: RunnerPoolClient = defaultClient,
 ): Promise<void> {
-  const finishedAt = new Date().toISOString();
-  // Capture lifecycle stamps before the update so we can compute time-to-submit.
-  const { data: pre } = await client
-    .from("runner_job")
-    .select("application_id, country, started_at")
-    .eq("id", jobId)
-    .maybeSingle();
-  const { error } = await client
-    .from("runner_job")
-    .update({
-      status: "succeeded",
-      finished_at: finishedAt,
-      leased_by: null,
-      leased_until: null,
-    })
-    .eq("id", jobId);
-  if (error) throw new Error(`runner_job mark succeeded: ${error.message}`);
-  if (client === (supabase as unknown as RunnerJobClient) && pre?.application_id && pre.country) {
-    const ttsSeconds = pre.started_at
+  const finishedAt = new Date();
+  // Deliberately omit p_now in production. PostgreSQL's clock_timestamp()
+  // fences both the live lease predicate and the authoritative finish stamp.
+  const { data, error } = await client.rpc("complete_runner_pool_job", {
+    p_job_id: jobId,
+    p_worker_id: workerId,
+  });
+  if (error) throw new Error(`runner_job complete RPC: ${error.message}`);
+  const row = parseCompletedRunnerJob(data);
+  if (!row) throw new RunnerJobOwnershipLostError();
+  if (row.application_id && row.country) {
+    const ttsSeconds = row.started_at
       ? Math.max(
           0,
           Math.round(
-            (Date.parse(finishedAt) - Date.parse(pre.started_at as string)) / 1000,
+            (finishedAt.getTime() - Date.parse(row.started_at)) / 1000,
           ),
         )
       : null;
     void emitRunnerMetric({
       jobId,
-      applicationId: pre.application_id as string,
-      country: pre.country as string,
+      applicationId: row.application_id,
+      country: row.country,
       success: true,
       timeToSubmitSeconds: ttsSeconds,
     });
@@ -289,25 +285,25 @@ export async function markSucceeded(
 export async function markFailedWithRetry(
   job: RunnerJob,
   error: unknown,
-  client: RunnerJobClient = supabase as unknown as RunnerJobClient,
-): Promise<void> {
+  workerId: string,
+  client: RunnerPoolClient = defaultClient,
+): Promise<number | null> {
   const message = error instanceof Error ? error.message : String(error);
   const newAttempts = job.attempts + 1;
   const exhausted = newAttempts >= job.max_attempts;
-  const { error: updErr } = await client
-    .from("runner_job")
-    .update({
-      status: exhausted ? "failed" : "queued",
-      attempts: newAttempts,
-      last_error: message,
-      finished_at: exhausted ? new Date().toISOString() : null,
-      leased_by: null,
-      leased_until: null,
-    })
-    .eq("id", job.id);
+  const retryAfterSeconds = exhausted ? 0 : Math.min(300, 15 * newAttempts);
+  const { data: updated, error: updErr } = await client.rpc("fail_runner_pool_job", {
+    p_job_id: job.id,
+    p_worker_id: workerId,
+    p_status: exhausted ? "failed" : "queued",
+    p_attempts: newAttempts,
+    p_last_error: message,
+    p_retry_after_seconds: retryAfterSeconds,
+  });
   if (updErr) {
     throw new Error(`runner_job mark failed: ${updErr.message}`);
   }
+  if (!parseFailedRunnerJob(updated, job.id)) throw new RunnerJobOwnershipLostError();
   if (exhausted) {
     // OPS-003: page on-call once retries are exhausted. Per-country
     // throttle absorbs portal-outage storms.
@@ -331,62 +327,280 @@ export async function markFailedWithRetry(
       timeToSubmitSeconds: null,
     });
   }
+  return exhausted ? null : retryAfterSeconds * 1_000;
 }
 
-export type JobHandler = (job: RunnerJob) => Promise<void>;
+export type JobHandler = (
+  job: RunnerJob,
+  execution: RunnerExecutionContext,
+) => Promise<void>;
+
+export interface DrainOpts {
+  /** Stable id for this worker instance — lands in leased_by. */
+  workerId: string;
+  /** Job handler invoked for each atomically claimed row. */
+  handler: JobHandler;
+  /** Stop before the next claim when the process is shutting down. */
+  signal?: AbortSignal;
+  /** Lease duration in ms. Default 15 minutes. */
+  leaseMs?: number;
+  /** Override the heartbeat period for tests; defaults to one minute. */
+  renewEveryMs?: number;
+  /** Runtime I/O overrides for executable worker tests. */
+  dependencies?: RunnerQueueDependencies;
+  onJobStart?: (job: RunnerJob) => void;
+  onJobFinish?: (job: RunnerJob) => void;
+  onClaimHealthy?: () => void;
+  onClaimError?: (error: unknown) => void;
+  /** Best-effort operational claim telemetry override for tests/runtime. */
+  emitClaimMetric?: (metric: ConcurrencyMetricInput) => Promise<void> | void;
+  /** Schedule one local wake for a retry made available in the future. */
+  onRetryScheduled?: (delayMs: number) => void;
+}
+
+export interface DrainResult {
+  jobsProcessed: number;
+  stoppedBecause: "empty" | "aborted" | "claim_error";
+}
+
+function recordClaimMetric(
+  opts: DrainOpts,
+  metric: ConcurrencyMetricInput,
+): void {
+  try {
+    const result = opts.emitClaimMetric
+      ? opts.emitClaimMetric(metric)
+      : emitConcurrencyMetric(metric);
+    void Promise.resolve(result).catch((error: unknown) => {
+      // Telemetry is deliberately non-blocking and cannot affect queue state.
+      console.error(
+        `[metrics] claim metric callback failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+  } catch (error) {
+    console.error(
+      `[metrics] claim metric callback failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+export async function renewJobLease(
+  jobId: string,
+  workerId: string,
+  leaseMs: number,
+  client: RunnerPoolClient = defaultClient,
+): Promise<{ leasedUntil: Date; roundTripMs: number }> {
+  const startedAt = Date.now();
+  const { data, error } = await client.rpc("renew_runner_pool_job", {
+    p_job_id: jobId,
+    p_worker_id: workerId,
+    p_lease_ms: leaseMs,
+  });
+  if (error) throw new Error(`runner_job lease renewal: ${error.message}`);
+  const row = asRpcRow(data, "renew_runner_pool_job");
+  if (!row || typeof row.leased_until !== "string") {
+    throw new RunnerJobOwnershipLostError();
+  }
+  const leasedUntilMs = Date.parse(row.leased_until);
+  if (!Number.isFinite(leasedUntilMs)) {
+    throw new RunnerJobOwnershipLostError("runner job renewal returned an invalid lease timestamp");
+  }
+  return {
+    leasedUntil: new Date(leasedUntilMs),
+    roundTripMs: Math.max(0, Date.now() - startedAt),
+  };
+}
 
 /**
- * Convenience driver: poll for jobs and run `handler` on each. Stops
- * when `signal` is aborted.
+ * Drain the runner_job queue once, claiming until the database reports that
+ * no eligible row remains. This function deliberately has no sleep/retry
+ * loop: a later enqueue (or the startup/wake endpoint) starts another drain.
+ * A single caller owns the coalescing promise in index.ts, so concurrent
+ * endpoint wakes never create duplicate consumers.
  */
-export async function pollAndRun(
-  workerId: string,
-  handler: JobHandler,
-  opts: {
-    country?: string;
-    pollMs?: number;
-    signal?: AbortSignal;
-    targetJobId?: string;
-    expectedApplicationId?: string;
-    normalizeCountry?: (country: string) => string;
-    client?: RunnerJobClient;
-  } = {},
-): Promise<void> {
-  const pollMs = opts.pollMs ?? 5_000;
+export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
+  const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
+  const client = opts.dependencies?.client ?? defaultClient;
+  let jobsProcessed = 0;
+
   for (;;) {
-    if (opts.signal?.aborted) return;
+    if (opts.signal?.aborted) {
+      return { jobsProcessed, stoppedBecause: "aborted" };
+    }
+
     let job: RunnerJob | null;
+    let claimRoundTripMs = 0;
+    const claimStartedAt = Date.now();
     try {
-      job = await claimNextJob({
-        workerId,
-        country: opts.country,
-        jobId: opts.targetJobId,
-        expectedApplicationId: opts.expectedApplicationId,
-        normalizeCountry: opts.normalizeCountry,
-        client: opts.client,
+      job = await claimNextJob({ workerId: opts.workerId, leaseMs, client });
+      claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
+      recordClaimMetric(opts, {
+        eventType: "claim",
+        outcome: job ? "claimed" : "empty",
+        durationMs: claimRoundTripMs,
+        country: job?.country ?? null,
+        machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
       });
-    } catch (err) {
-      if (opts.targetJobId) throw err;
-      console.error("[queue] claim failed", err);
-      await new Promise((r) => setTimeout(r, pollMs));
-      continue;
+      opts.onClaimHealthy?.();
+    } catch (error) {
+      claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
+      recordClaimMetric(opts, {
+        eventType: "claim",
+        outcome: "error",
+        durationMs: claimRoundTripMs,
+        machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
+      });
+      // Do not poll through an outage. The next explicit wake retries the
+      // claim and avoids an idle worker repeatedly reading Supabase.
+      console.error("[queue] runner_job claim failed", error);
+      opts.onClaimError?.(error);
+      return { jobsProcessed, stoppedBecause: "claim_error" };
     }
+
     if (!job) {
-      if (opts.targetJobId) return;
-      await new Promise((r) => setTimeout(r, pollMs));
-      continue;
+      return { jobsProcessed, stoppedBecause: "empty" };
     }
+
+    jobsProcessed += 1;
+    opts.onJobStart?.(job);
+    let ownershipLost = false;
+    let ownershipLostError: RunnerJobOwnershipLostError | null = null;
+    let renewInFlight: Promise<void> | null = null;
+    let renewalStopped = false;
+    let expiryStopped = false;
+    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+    const controller = new AbortController();
+    const markOwnershipLost = (error: unknown): void => {
+      if (ownershipLost) return;
+      ownershipLost = true;
+      ownershipLostError = isRunnerJobOwnershipLost(error)
+        ? error
+        : new RunnerJobOwnershipLostError(
+            error instanceof Error
+              ? `runner job lease renewal failed: ${error.message}`
+              : "runner job lease ownership was lost",
+          );
+      controller.abort(ownershipLostError);
+    };
+    const execution: RunnerExecutionContext = {
+      jobId: job.id,
+      workerId: opts.workerId,
+      signal: controller.signal,
+      assertOwned: () => {
+        if (ownershipLost || controller.signal.aborted) {
+          throw ownershipLostError ?? new RunnerJobOwnershipLostError();
+        }
+      },
+      checkpoint: () => {
+        if (ownershipLost || controller.signal.aborted) {
+          throw ownershipLostError ?? new RunnerJobOwnershipLostError();
+        }
+      },
+    };
+    const expiryLeadMs = Math.min(1_000, Math.floor(leaseMs / 10));
+    const scheduleExpiry = (roundTripMs: number): void => {
+      if (expiryStopped || ownershipLost) return;
+      if (expiryTimer) clearTimeout(expiryTimer);
+      // The DB RPC's lease starts at the server's clock. Subtract the full
+      // observed round-trip plus a bounded safety margin locally so network
+      // delay can only make us stop early, never act after the DB lease.
+      // We intentionally do not subtract against `leased_until` here: the
+      // claim/renew RPC grants exactly `leaseMs`, while a server timestamp
+      // would introduce local-vs-DB wall-clock skew. The elapsed local
+      // round-trip budget is the skew-independent conservative duration.
+      const conservativeDelay =
+        leaseMs - Math.max(0, roundTripMs) - expiryLeadMs;
+      if (conservativeDelay <= 0) {
+        // The observed claim/renewal round trip has already consumed the
+        // conservative lease budget. Fence ownership in this call stack so
+        // the handler cannot observe a live signal for one event-loop turn
+        // (or a queued microtask) before a zero/one-millisecond timer fires.
+        markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
+        return;
+      }
+      expiryTimer = setTimeout(() => {
+        if (expiryStopped) return;
+        markOwnershipLost(new RunnerJobOwnershipLostError("runner job lease expired"));
+      }, conservativeDelay);
+      expiryTimer.unref?.();
+    };
+    const beginRenewal = (): void => {
+      if (renewalStopped || renewInFlight || ownershipLost) return;
+      renewInFlight = renewJobLease(job.id, opts.workerId, leaseMs, client)
+        .then((renewal) => {
+          scheduleExpiry(renewal.roundTripMs);
+          opts.onClaimHealthy?.();
+        })
+        .catch((error) => {
+          console.error(`[queue] job ${job.id} lease renewal failed`, error);
+          opts.onClaimError?.(error);
+          markOwnershipLost(error);
+        })
+        .finally(() => {
+          renewInFlight = null;
+        });
+    };
+    const renewEveryMs = Math.max(1, opts.renewEveryMs ?? 60_000);
+    const leaseTimer = setInterval(beginRenewal, renewEveryMs);
+    // Claim/renew latency is subtracted from the local lease timer. Abort a
+    // small bounded margin early so delayed network responses cannot let the
+    // handler reach an irreversible action after the database lease expires.
+    scheduleExpiry(claimRoundTripMs);
+    leaseTimer.unref?.();
+    let handlerError: unknown = null;
     try {
-      await handler(job);
-      await markSucceeded(job.id, opts.client);
-    } catch (err) {
-      console.error(`[queue] job ${job.id} failed`, err);
+      await opts.handler(job, execution);
+    } catch (error) {
+      handlerError = error;
+    }
+
+    // Stop scheduling new heartbeats as soon as handler execution returns.
+    // Otherwise an interval tick can start a renewal while completion/failure
+    // settlement is already in flight, creating a stale-owner write race.
+    renewalStopped = true;
+    expiryStopped = true;
+    clearInterval(leaseTimer);
+    if (expiryTimer) clearTimeout(expiryTimer);
+    // A renewal may have crossed the handler's completion boundary. Capture
+    // and await that last promise before deciding whether terminal settlement
+    // is safe; `renewalStopped` also guards a callback already queued by the
+    // event loop when clearInterval ran.
+    const finalRenewal = renewInFlight;
+    if (finalRenewal) {
+      await finalRenewal;
+    }
+
+    if (!handlerError && !ownershipLost) {
       try {
-        await markFailedWithRetry(job, err, opts.client);
-      } catch (markErr) {
-        console.error(`[queue] mark failed write failed`, markErr);
+        execution.assertOwned();
+        await markSucceeded(job.id, opts.workerId, client);
+      } catch (error) {
+        handlerError = error;
+        if (isRunnerJobOwnershipLost(error)) markOwnershipLost(error);
       }
     }
-    if (opts.targetJobId) return;
+
+    try {
+      if (handlerError) {
+        console.error(`[queue] job ${job.id} failed`, handlerError);
+        if (ownershipLost || isRunnerJobOwnershipLost(handlerError)) {
+          console.warn(`[queue] job ${job.id} ownership lost; skipping fallback failure write`);
+        } else {
+          try {
+            const retryDelayMs = await markFailedWithRetry(job, handlerError, opts.workerId, client);
+            if (retryDelayMs !== null) opts.onRetryScheduled?.(retryDelayMs);
+          } catch (markError) {
+            if (isRunnerJobOwnershipLost(markError)) {
+              console.warn(`[queue] job ${job.id} ownership lost; skipping alert/metric fallback`);
+            } else {
+              console.error("[queue] mark failed write failed", markError);
+            }
+          }
+        }
+      }
+    } finally {
+      if (expiryTimer) clearTimeout(expiryTimer);
+      opts.onJobFinish?.(job);
+    }
   }
 }

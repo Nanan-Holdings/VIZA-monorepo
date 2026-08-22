@@ -1,0 +1,110 @@
+{
+  "version": "2026-08-20",
+  "sources": [
+    {
+      "id": "japan.digital_agency.visit_japan_web",
+      "country": "japan",
+      "product_code": "JP_VISIT_JAPAN_WEB",
+      "url": "https://www.digital.go.jp/en/policies/visit_japan_web",
+      "expected_status": 200,
+      "expected_sha256": "68ff5ab41bf1359ef640550472a0d4447fcf53edb6c23d3d8c6b080f74ed480d",
+      "required_text": [
+        "Visit Japan Web",
+        "arrival procedures",
+        "customs"
+      ]
+    },
+    {
+      "id": "japan.immigration.foreign_entry_record",
+      "country": "japan",
+      "product_code": "JP_VISIT_JAPAN_WEB",
+      "url": "https://www.moj.go.jp/isa/immigration/procedures/translation.html?hl=en",
+      "expected_status": 200,
+      "expected_sha256": "ddce188ab45276c1272d45c3d4aed6209533d626fc59d6e023a84c4fca5c10fe",
+      "required_text": [
+        "Visit Japan Web",
+        "外国人入国記録"
+      ]
+    },
+    {
+      "id": "japan.customs.declaration",
+      "country": "japan",
+      "product_code": "JP_VISIT_JAPAN_WEB",
+      "url": "https://www.customs.go.jp/english/passenger/declaration/declaration_app.html",
+      "expected_status": 200,
+      "expected_sha256": "0381209590348d06cbcf2ed434240da37bb758fab11606b5484c7d0cb962fc20",
+      "required_text": [
+        "Declaration of Accompanied Articles",
+        "Visit Japan Web",
+        "customs"
+      ]
+    },
+    {
+      "id": "kenya.eta.how_to_apply",
+      "country": "kenya",
+      "product_code": "KE_ETA",
+      "url": "https://etakenya.go.ke/form/apply/how-to-apply?type=tourist",
+      "expected_status": 200,
+      "expected_sha256": "67898935d3c4cdaa4063c8761fd38fb552405194e5c9ece89ff7284a668bbfa4",
+      "required_text": [
+        "approved Electronic Travel Authorisation",
+        "valid for travel within 90 days",
+        "passport",
+        "accommodation"
+      ]
+    },
+    {
+      "id": "kenya.eta.faq",
+      "country": "kenya",
+      "product_code": "KE_ETA",
+      "url": "https://etakenya.go.ke/faqs",
+      "expected_status": 200,
+      "expected_sha256": "6194c95871dd799f9c59a445554dd632ac614a83acc86f5d921601c856baf791",
+      "required_text": [
+        "apply for an eTA",
+        "three (3) business days",
+        "$30",
+        "apply on behalf"
+      ]
+    },
+    {
+      "id": "kenya.eta.eligibility",
+      "country": "kenya",
+      "product_code": "KE_ETA",
+      "url": "https://etakenya.go.ke/eligibility",
+      "expected_status": 200,
+      "expected_sha256": "3cf9680affc0b25e3072730529fe687065a26437d9106d252003c74adc45fa44",
+      "required_text": [
+        "Standard eTA",
+        "$30",
+        "Transit eTA"
+      ]
+    },
+    {
+      "id": "kenya.eta.general_information",
+      "country": "kenya",
+      "product_code": "KE_ETA",
+      "url": "https://etakenya.go.ke/general-information",
+      "expected_status": 200,
+      "expected_sha256": "bd0adef40dd34ae87d9f85cb2486ccdbde2c89d4525f2ea68b409dfe8175e62b",
+      "required_text": [
+        "eligibility questions",
+        "recommended applications be submitted at least 2 weeks prior to travel",
+        "Required Documents"
+      ]
+    },
+    {
+      "id": "kenya.eta.declaration_of_consent",
+      "country": "kenya",
+      "product_code": "KE_ETA",
+      "url": "https://etakenya.go.ke/form/apply/declaration?type=tourist",
+      "expected_status": 200,
+      "expected_sha256": "9a3f9000e5d75830ae19a570285a63065dca75dd64b09fd74124e8980add82ec",
+      "required_text": [
+        "Declaration of Consent",
+        "apply on behalf of someone else",
+        "I have read and agreed"
+      ]
+    }
+  ]
+}

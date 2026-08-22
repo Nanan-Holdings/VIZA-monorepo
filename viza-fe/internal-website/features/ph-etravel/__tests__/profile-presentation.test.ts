@@ -81,20 +81,14 @@ describe("Philippines eTravel E21 profile presentation", () => {
     expect(mobile?.clientKnown).toContain("Philippines preset");
   });
 
-  test("keeps profile save separate from registration final Submit and non-launching", () => {
+  test("keeps public-bundle profile knowledge stop-before-submit and non-launching", () => {
     const presentation = createPhEtravelProfilePresentation({
       passportHolderType: "FILIPINO",
       residenceCountryCode: "PH",
     });
 
     expect(presentation.gate).toMatchObject({
-      authorization: "profile_save_checkpoint",
-      checkpoint: "profile_review_ready",
-      submitAction: "profile_save_submit",
-      successStage: "profile_saved_dashboard",
-      registrationStopBeforeSubmitTarget: "final_submit",
-      requiresOfficialWriteAuthorization: true,
-      isRegistrationFinalSubmit: false,
+      authorization: "stop_before_submit",
       submitted: false,
       noQueue: true,
       noBrowser: true,

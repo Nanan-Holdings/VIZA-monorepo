@@ -9,17 +9,19 @@
     "home": "Home",
     "application": "Application",
     "status": "Status",
-    "chat": "Chat",
+    "chat": "Concierge",
     "documents": "Documents",
     "settings": "Settings",
     "support": "Help",
     "visaConsultant": "Visa Consultant",
     "travelAgent": "Travel Agent",
     "mockInterview": "Mock Interview",
+    "saving": "Saving",
+    "saved": "Saved",
     "inviteFriends": "Invite Friends"
   },
   "menu": {
-    "changeCountry": "Choose application country",
+    "changeCountry": "Switch Application",
     "inviteFriends": "Invite Friends",
     "status": "Status",
     "documents": "Documents",
@@ -31,8 +33,8 @@
   },
   "destinationsPage": {
     "backToHome": "Back to Home",
-    "title": "Application centre",
-    "subtitle": "Choose a country and application type, then start a new application or continue an existing one.",
+    "title": "Change country",
+    "subtitle": "Switch between your visa applications, or start a new destination below.",
     "myApplications": "My applications",
     "ongoingApplications": "Ongoing applications",
     "purchasedApplications": "Purchased applications",
@@ -43,17 +45,6 @@
     "notStarted": "Not started",
     "continue": "Continue",
     "start": "Start",
-    "chooseAction": "Choose an action",
-    "chooseActionTitle": "How would you like to continue?",
-    "chooseActionDescription": "You selected “{application}”. Choose what to do before opening the application form.",
-    "startNewApplication": "Start a new application",
-    "startNewDescription": "Create a separate application without overwriting your existing record.",
-    "startingNew": "Creating a new application...",
-    "continueApplication": "Continue unfinished application",
-    "continueDescription": "Return to your last saved position and continue the existing application.",
-    "viewExistingApplication": "View existing application",
-    "viewExistingDescription": "Review the payment, submission, or result status of this application.",
-    "actionError": "We could not open this application. Please try again.",
     "progressAriaLabel": "Application progress",
     "showAll": "Show all {count} applications",
     "showLess": "Show less"
@@ -85,25 +76,106 @@
     "ofRequired": "of {total} required",
     "percentComplete": "{pct}% complete",
     "quickActions": {
-      "title": "Useful links",
-      "visaAI": "Ask a visa question",
-      "travelAI": "Plan your trip",
-      "viewStatus": "Track applications"
+      "title": "Quick Actions",
+      "visaAI": "Open Visa AI",
+      "travelAI": "Open Travel AI",
+      "viewStatus": "View Application Status"
+    },
+    "activeVisa": {
+      "label": "Active visa",
+      "empty": "No active visa application",
+      "open": "Open application",
+      "choose": "Choose a visa"
+    },
+    "timeline": {
+      "groups": { "todo": "To-dos", "completed": "Completed tasks" },
+      "states": {
+        "complete": "Completed",
+        "current": "Current step",
+        "attention": "Action needed",
+        "blocked": "Waiting on an earlier step",
+        "upcoming": "Not started"
+      },
+      "steps": {
+        "payment": {
+          "title": "Complete service-fee payment",
+          "descriptions": {
+            "pending": "Confirm the service-fee payment so VIZA can start preparing your application.",
+            "completed": "Your service-fee payment was confirmed, and VIZA started preparing your application."
+          }
+        },
+        "consent": {
+          "title": "Confirm consent and authority",
+          "descriptions": {
+            "pending": "Review the service authority and complete the required electronic signature.",
+            "completed": "Your service authority and required electronic signature were completed."
+          }
+        },
+        "form": {
+          "title": "Complete the application form",
+          "descriptions": {
+            "pending": "Continue entering and reviewing your application information. {count} answers saved so far.",
+            "completed": "Your required application information was entered, reviewed, and saved."
+          }
+        },
+        "documents": {
+          "title": "Upload required documents",
+          "descriptions": {
+            "pending": "Upload the required passport, photo, and supporting evidence. {ready}/{total} documents are ready.",
+            "completed": "All required documents were uploaded or validated ({ready}/{total}).",
+            "completedNoRequirements": "No additional document uploads were required for this application."
+          }
+        },
+        "packet": {
+          "title": "Prepare the application packet",
+          "descriptions": {
+            "pending": "Complete the form and document requirements so VIZA can prepare your application packet.",
+            "completed": "VIZA prepared your application packet from the completed information and documents."
+          }
+        },
+        "handoff": {
+          "title": "Submit to the official portal",
+          "descriptions": {
+            "pending": "Complete the earlier tasks so VIZA can submit your application through the official portal.",
+            "completed": "VIZA submitted your application through the official portal.",
+            "completedWithReference": "VIZA submitted your application through the official portal. Official reference: {reference}."
+          }
+        },
+        "result": {
+          "title": "Wait for the application result",
+          "descriptions": {
+            "pending": "After submission, check here for the official result and any available files.",
+            "completed": "The official application result was received, and the latest status or files are available."
+          }
+        }
+      },
+      "relative": {
+        "justNow": "Just now",
+        "minutesAgo": "{count}m ago",
+        "hoursAgo": "{count}h ago",
+        "daysAgo": "{count}d ago"
+      },
+      "empty": {
+        "noApplication": "Choose an ongoing application to see its to-dos and completed tasks here.",
+        "choose": "Choose application",
+        "incomplete": "This application has no to-dos right now.",
+        "completed": "This application has no completed tasks yet."
+      }
     },
     "subscriptionPlan": {
-      "title": "Manage subscription",
-      "subtitle": "Review your plan, billing, and renewal status",
-      "planTitle": "VIZA trial plan",
+      "title": "VIZA Application",
+      "subtitle": "Application plan and subscription status",
+      "planTitle": "VIZA Application",
       "planStatus": "Trial · renewal not enabled yet",
-      "viewPlan": "Plans and pricing",
-      "viewDetails": "Manage subscription"
+      "viewPlan": "View plan",
+      "viewDetails": "View details"
     },
     "universalInfo": {
-      "title": "Complete your profile",
-      "subtitle": "Save once and reuse for future visa applications",
-      "saved": "{completed}/{total} saved",
+      "title": "Profile readiness",
+      "subtitle": "Reusable details for this and future applications",
+      "saved": "{completed} of {total} details ready",
       "fields": "Surname, given names, birthday, birthplace, passport, contact",
-      "edit": "Continue your profile"
+      "edit": "Review profile"
     },
     "emptyApplication": {
       "noActiveApplication": "No active application",
@@ -113,6 +185,7 @@
     "statusLabels": {
       "draft": "Draft",
       "in_progress": "In Progress",
+      "processing": "Processing",
       "submitted": "Submitted",
       "approved": "Approved",
       "rejected": "Rejected"
@@ -431,6 +504,190 @@
       }
     }
   },
+  "koreaAppointment": {
+    "locale": "en",
+    "page": {
+      "title": "Korea visa appointment",
+      "subtitle": "Complete one task at a time as we guide you through review, official verification, and booking.",
+      "backToForm": "Back to application form"
+    },
+    "progress": {
+      "ariaLabel": "Appointment progress",
+      "current": "Step {current} of {total}",
+      "label": "Step {current} of {total} · {name}",
+      "back": "Back"
+    },
+    "steps": {
+      "review": "Details and center",
+      "account": "Official verification",
+      "slots": "Choose a time",
+      "confirm": "Final confirmation",
+      "result": "Appointment result"
+    },
+    "common": {
+      "notProvided": "Not provided",
+      "maskedPhone": "Registered mobile number",
+      "listSeparator": ", "
+    },
+    "loading": {
+      "title": "Loading appointment status",
+      "body": "Preparing your appointment flow…"
+    },
+    "centerLoading": {
+      "title": "Changing filing center",
+      "body": "Preparing the review step for the newly selected center.",
+      "status": "Loading the center's rules and filing method…"
+    },
+    "errors": {
+      "loadFailed": "Appointment status is temporarily unavailable. Refresh the page and try again.",
+      "operationFailed": "The current operation did not complete. Try again shortly. VIZA has not treated this as proof that no official slots are available."
+    },
+    "review": {
+      "title": "Review details and filing center",
+      "body": "Check the details that will be used for the official booking. VIZA connects to the official portal only after you confirm them.",
+      "name": "Applicant name in English",
+      "passport": "Passport number",
+      "phone": "Mobile number for SMS",
+      "recommended": "Recommended filing center",
+      "basisResidence": "Recommended from the provable current residence in {province}",
+      "basisHukou": "Recommended from the hukou in {province}",
+      "basisSelected": "This is the filing center you explicitly selected",
+      "changeCenter": "Change center",
+      "details": "View jurisdiction basis and center details",
+      "ambiguous": "Confirm that this center matches your provable residence or hukou.",
+      "missingTitle": "Appointment details are incomplete",
+      "missingBody": "Add the applicant's English name and mobile number, then confirm an eligible filing center.",
+      "edit": "Edit application details",
+      "confirm": "Confirm details and continue",
+      "confirming": "Saving confirmation…",
+      "shenyang": {
+        "intro": "Add the details required for a Shenyang appointment.",
+        "hint": "Resolved values are shown only in masked form; check each source.",
+        "fields": {
+          "surname": "Passport surname",
+          "givenNames": "Passport given names",
+          "dateOfBirth": "Date of birth",
+          "passportNumber": "Passport number",
+          "passportExpiryDate": "Passport expiry date",
+          "mobilePhone": "Mainland China mobile number"
+        },
+        "sources": {
+          "korea_form": "Korea application form",
+          "universal_profile": "Universal profile",
+          "appointment_supplement": "Appointment-page supplement"
+        },
+        "validation": {
+          "required": "Enter this field",
+          "latin_name_required": "Enter the English name shown on the passport",
+          "invalid_date": "Enter a valid date",
+          "date_in_future": "Date of birth cannot be in the future",
+          "invalid_passport": "Enter a valid passport number",
+          "passport_expired": "Passport expiry must be after today",
+          "invalid_mainland_phone": "Enter a valid mainland China mobile number"
+        },
+        "saveConfirm": "Save and confirm details"
+      }
+    },
+    "centerSheet": {
+      "title": "Change filing center",
+      "description": "Choose a center that matches your provable residence or hukou."
+    },
+    "account": {
+      "title": "Complete official verification",
+      "focus": "Connect to the selected center's official booking page and complete the current verification task.",
+      "body": "Your details are confirmed. VIZA will check the selected center's official booking page; the portal may send an SMS code after it finds an open time.",
+      "restartBody": "The previous official session has ended. Start a fresh session and request a new code.",
+      "start": "Check official times",
+      "viewMethod": "View this center's filing method",
+      "checking": "Checking official times…",
+      "scanProgress": "Reading the official appointment calendar month by month. Keep this page open.",
+      "smsBody": "A code was sent to {phone}. VIZA will use it only in the same official session and will not store it.",
+      "expires": "Code valid until {time}",
+      "codeLabel": "SMS verification code",
+      "codePlaceholder": "Enter verification code",
+      "verify": "Verify and read times",
+      "verifying": "Verifying…",
+      "resend": "Send a new code",
+      "backToCenter": "Back to details and center",
+      "manualBody": "This center follows official guidance or has account and identity steps that the applicant must complete personally.",
+      "openOfficial": "Open official filing page",
+      "workerTitle": "Appointment lookup is temporarily unavailable",
+      "workerBody": "The official lookup did not complete, so availability is unknown. Try again shortly.",
+      "retry": "Retry official lookup"
+      ,"vfsTerms": "I authorize VIZA to use the confirmed application details to create and securely store an encrypted account in the VFS Global Korea appointment system, accept required portal terms, receive the activation email, sign in, and check Shenyang times. OTP, identity, payment, and final submission still require separate approval."
+      ,"vfsStart": "Create account and check times"
+      ,"vfsEmailTitle": "Waiting for official account activation"
+      ,"vfsEmailBody": "VFS reached email verification. VIZA reads only official activation mail sent to the managed alias and never exposes the activation link in the page or logs."
+      ,"vfsEmailRetry": "Continue verification and lookup"
+    },
+    "slots": {
+      "title": "Choose an appointment time",
+      "body": "These times came from the current official session. Final submission still requires a separate approval.",
+      "choose": "Choose this time",
+      "continue": "Continue with this time",
+      "continuing": "Saving selected time…",
+      "back": "Back to official verification",
+      "refresh": "Refresh official times",
+      "emptyTitle": "No appointment times are open yet",
+      "emptyBody": "The official calendar check completed, but this center has not released an available time. Try again later or change center.",
+      "checkedAt": "Officially checked at {time}",
+      "retry": "Check again",
+      "checking": "Checking again…",
+      "changeCenter": "Change center",
+      "viewEvidence": "View official-page screenshot"
+    },
+    "confirm": {
+      "title": "Confirm final booking",
+      "body": "Review only the booking that will be submitted. After saving approval, you will still submit the official booking separately.",
+      "date": "Appointment date",
+      "time": "Appointment time",
+      "location": "Filing location",
+      "applicant": "Applicant",
+      "selected": "Selected official time",
+      "authorization": "I checked the date, time, and location and authorize VIZA to use this time for the final booking.",
+      "approve": "Save final approval",
+      "approving": "Saving approval…",
+      "approvedTitle": "Final approval saved",
+      "approvedBody": "Click submit once more before VIZA completes the booking on the official portal.",
+      "submit": "Submit official booking",
+      "submitting": "Submitting official booking…",
+      "back": "Back to times"
+    },
+    "result": {
+      "title": "Appointment confirmed",
+      "body": "The official confirmation number and booking evidence have been saved. Download the confirmation and arrive on time.",
+      "officialConfirmation": "Official booking confirmation",
+      "number": "Official confirmation: {number}",
+      "print": "Download or print confirmation",
+      "preparingPrint": "Preparing confirmation…",
+      "manage": "Manage appointment",
+      "cancelledTitle": "Appointment cancelled",
+      "cancelledBody": "The official portal confirmed cancellation. The old booking and cancellation evidence were preserved. You can now begin a fresh booking flow.",
+      "bookAgain": "Book again",
+      "restarting": "Starting a new flow…"
+    },
+    "management": {
+      "title": "Manage appointment",
+      "description": "Rescheduling and cancellation always begin by checking the official record.",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel appointment",
+      "history": "View appointment history",
+      "confirmReschedule": "Cancel the old booking before rescheduling",
+      "confirmCancel": "Confirm appointment cancellation",
+      "cancelWarning": "The next step submits cancellation on the official portal and saves evidence. This cannot be undone.",
+      "sessionExpired": "The official session expired. Query the booking again and confirm once more.",
+      "cancelAndReschedule": "Cancel and continue rescheduling",
+      "cancelling": "Submitting cancellation…",
+      "retryQuery": "Query official booking again",
+      "querying": "Querying official booking…",
+      "back": "Back to appointment details",
+      "workerUnavailable": "The official booking query did not complete. Try again shortly.",
+      "rescheduleBody": "VIZA will query the old booking, ask for confirmation again, then cancel it before you choose a new time.",
+      "cancelBody": "VIZA will query the official booking record and ask for confirmation again before cancelling anything.",
+      "continue": "Continue official lookup",
+      "invalidRecord": "This is not a valid booking; restart"
+    }
+  },
   "client": {
     "signing": {
       "loading": "Loading your declaration…",
@@ -457,93 +714,86 @@
       "submitting": "Submitting…"
     }
   },
-  "services": {
-    "title": "Services",
-    "scheduled": "Scheduled",
-    "yourHistory": "Your history",
-    "reschedule": "Reschedule",
-    "cancel": "Cancel",
-    "cancelling": "Cancelling...",
-    "cannotReschedule": "Cannot reschedule within 24 hours",
-    "comingSoon": "Coming Soon",
-    "noScheduledServices": "No scheduled services",
-    "noScheduledDescription": "You don't have any upcoming services. Browse our recommended tests below to get started.",
-    "noServiceHistory": "No service history",
-    "noHistoryDescription": "You haven't completed any services yet. Your history will appear here.",
-    "cancelDialog": {
-      "title": "Cancel scheduled service?",
-      "keep": "Keep"
-    },
-    "recommended": {
-      "heading": "Recommended for you",
-      "subheading": "Our top test recommendations"
-    },
-    "personalized": {
-      "heading": "Personalized recommendations",
-      "subheading": "Tests based on your profile and health data"
-    },
-    "upcoming": {
-      "heading": "Upcoming tests",
-      "subheading": "New tests we're working on"
-    },
-    "marketplace": {
-      "supplement": {
-        "title": "Supplement Marketplace",
-        "description": "Insider prices on 300+ curated longevity products"
-      },
-      "service": {
-        "title": "Service Marketplace",
-        "description": "Access to curated RX's like documents or peptides"
-      }
-    },
-    "cards": {
-      "bloodPanel": {
-        "title": "Blood Panel",
-        "description": "40+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "Included in your plan"
-      },
-      "advancedBloodPanel": {
-        "title": "Advanced Blood Panel",
-        "description": "130+ metrics tested in a fully comprehensive blood panel.",
-        "cta": "Get Started",
-        "badge": "Recommended"
-      },
-      "glp1": {
-        "title": "GLP-1 Treatment",
-        "description": "You may be a candidate for GLP-1 service. See how it could help you.",
-        "cta": "Get Started"
-      },
-      "allergyTesting": {
-        "title": "Food & Environmental Allergy Testing",
-        "description": "Determine your specific food and environmental allergies.",
-        "cta": "Coming Soon"
-      },
-      "cancerTest": {
-        "title": "Grail Galleri Multi Cancer Test",
-        "description": "Get ahead of your cancer risk with this comprehensive test. Detects over 100 types of cancer.",
-        "cta": "Coming Soon"
-      },
-      "dexaScan": {
-        "title": "DEXA Bone Density Scan",
-        "description": "Measure your bone density and risk of osteoporosis.",
-        "cta": "Coming Soon"
-      },
-      "gutMicrobiome": {
-        "title": "Gut Microbiome Testing",
-        "description": "Analyze your gut microbiome to understand your digestive health.",
-        "cta": "Coming Soon"
-      },
-      "toxicology": {
-        "title": "Environmental Toxicology Testing",
-        "description": "Analyze your environmental toxins and exposure.",
-        "cta": "Coming Soon"
-      }
-    }
-  },
   "application": {
     "title": "Indonesia Tourist Visa B211A",
     "saving": "Saving...",
     "edit": "Edit",
+    "postSubmission": {
+      "title": "After submission",
+      "tabs": {
+        "results": "Receipts & results",
+        "updates": "Application updates"
+      },
+      "officialReference": "Official reference",
+      "download": "Download",
+      "resultsEmpty": "Receipts and result files will appear here when VIZA generates or receives them.",
+      "updatesEmpty": "There are no customer-visible application updates yet."
+    },
+    "formAssistant": {
+      "title": "Form filling assistant",
+      "description": "I check what is already complete and ask one question at a time. Answer here by text or voice.",
+      "badge": "AI assistant",
+      "progressLabel": "Application completion",
+      "progress": "{completed} of {total} fields complete",
+      "conversationLabel": "Form filling assistant conversation",
+      "scrollToLatest": "Jump to latest message",
+      "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
+      "thinking": "Checking your application...",
+      "missing": {
+        "title": "Details still needed",
+        "required": "Required",
+        "optional": "Optional"
+      },
+      "filledNotice": {
+        "message": "Filled {label}: {value}",
+        "undo": "Undo",
+        "undoing": "Undoing...",
+        "undoFailed": "This could not be undone because the answer may have changed."
+      },
+      "validation": {
+        "title": "Answer check",
+        "errors": "{count, plural, one {# issue must be fixed} other {# issues must be fixed}}",
+        "warnings": "{count, plural, one {# item to review} other {# items to review}}",
+        "pass": "No required errors were found. Please review the form once more before continuing."
+      },
+      "reviewRepair": {
+        "jumpToOriginal": "Edit in the original form",
+        "reviewWithAssistant": "Review answers with the form assistant"
+      },
+      "composer": {
+        "label": "Message for the form filling assistant",
+        "placeholder": "Answer the current question here...",
+        "hint": "Press Enter to send, or Shift+Enter for a new line. Voice recordings are transcribed for your review before sending.",
+        "startRecording": "Start voice input",
+        "stopRecording": "Stop voice input",
+        "cancelRecording": "Cancel",
+        "recording": "Recording {seconds}s / 60s",
+        "transcribing": "Transcribing your recording...",
+        "send": "Send message"
+      },
+      "errors": {
+        "unsupported": "Voice input is not supported in this browser. You can continue by typing.",
+        "permissionDenied": "Microphone access was not granted. You can continue by typing.",
+        "noDevice": "No microphone was found. You can continue by typing.",
+        "recordingFailed": "The recording could not be started. Please try again or type your answer.",
+        "emptyRecording": "No audio was captured. Please try again or type your answer.",
+        "fileTooLarge": "This recording is larger than the 10 MB limit. Please record a shorter answer.",
+        "emptyTranscript": "No words were detected. Please try again or type your answer.",
+        "transcriptionFailed": "The recording could not be transcribed. Please try again or type your answer.",
+        "sendFailed": "Your message was not sent. Your text has been kept so you can try again.",
+        "providersUnavailable": "The AI service is temporarily unavailable. Your answer was not saved; your text has been kept so you can retry or enter it directly in the form.",
+        "reviewFailed": "We couldn't check your answers or open final review. Please try again."
+      },
+      "actions": {
+        "checkAnswers": "Review answers",
+        "checkAgain": "Review final answers",
+        "checking": "Checking answers...",
+        "acknowledgeWarnings": "Keep these answers and continue",
+        "acknowledgingWarnings": "Saving your confirmation...",
+        "goToReview": "Continue to review",
+        "goToFinalReview": "Go to final review"
+      }
+    },
     "findingRecentApplication": "Opening your most recent application form...",
     "noRecentStartedTitle": "No application selected yet",
     "noRecentStartedBody": "Choose a destination from Home first. After that, Application will reopen your latest active form.",
@@ -692,6 +942,12 @@
       "Personal Information 1": "Personal Information 1",
       "Personal Information 2": "Personal Information 2",
       "Personal Information II": "Personal Information II",
+      "Traveller and Passport": "Traveller and Passport",
+      "Arrival and Stay": "Arrival and Stay",
+      "Immigration Declaration": "Immigration Declaration",
+      "Applicant and Passport": "Applicant and Passport",
+      "Travel and Accommodation": "Travel and Accommodation",
+      "Fee and Declaration": "Fee and Declaration",
       "Travel Information": "Travel Information",
       "Travel Companions": "Travel Companions",
       "Previous US Travel": "Previous U.S. Travel",
@@ -752,14 +1008,26 @@
       "saving": "Saving...",
       "selectFallback": "Select…",
       "addAnother": "Add another",
-      "remove": "Remove"
+      "remove": "Remove",
+      "reviewRepair": {
+        "nextIssue": "Next issue",
+        "returnToAssistant": "Return to the form assistant"
+      }
     },
     "team": {
       "title": "Team",
       "subtitle": "Add travel companions if this application is part of a group. Each companion gets their own application form prefilled with shared trip details and their frequent traveler profile.",
+      "savedProfilesTitle": "Saved traveler profiles",
+      "savedProfilesSubtitle": "Select a frequent traveler saved in Settings to create and review their application.",
+      "manageProfiles": "Manage in Settings",
+      "loadingProfiles": "Loading saved profiles...",
+      "selectProfile": "Select and review",
+      "profileAdded": "Added",
+      "addFirstProfile": "Add a traveler profile",
       "listTitle": "Travel companions",
       "listSubtitle": "Review, edit, or remove companions before the final submission step.",
       "add": "Add companion",
+      "addNew": "Add new traveler",
       "loading": "Loading companions...",
       "loadError": "We could not load companions right now.",
       "createError": "We could not create this companion application.",
@@ -785,8 +1053,8 @@
         "rejected": "Rejected"
       },
       "dialog": {
-        "title": "Add companion",
-        "subtitle": "Choose a frequent traveler or enter a new traveler. Custom travelers are saved for future trips.",
+        "title": "Add a new traveler",
+        "subtitle": "Enter the traveler once. Their profile will be saved in Settings and reused for future trips.",
         "tabs": {
           "frequent": "Frequent travelers",
           "custom": "Custom traveler"
@@ -794,7 +1062,8 @@
         "noFrequent": "No frequent travelers yet.",
         "select": "Select",
         "cancel": "Cancel",
-        "save": "Save and review"
+        "save": "Save and review",
+        "errorTitle": "Could not save"
       },
       "deleteDialog": {
         "title": "Remove companion?",
@@ -806,6 +1075,37 @@
   },
   "clientStatus": {
     "eyebrow": "Automation progress",
+    "index": {
+      "title": "Applications",
+      "subtitle": "Open any application to keep going, or add a new destination below.",
+      "yourApplications": "Your applications",
+      "destinationCount": "{count}",
+      "current": "Current",
+      "currentHandling": "Currently working on",
+      "continue": "Continue",
+      "switchTo": "Switch to this",
+      "selectApplication": "Choose application",
+      "ongoingCount": "{count} ongoing applications",
+      "applicationCount": "{count} application records",
+      "switching": "Switching",
+      "switchError": "We could not switch to that application. Please try again.",
+      "progressAriaLabel": "Application progress",
+      "backToApplications": "All applications",
+      "addDestination": "Add a destination",
+      "addDestinationHint": "Schengen destinations share the Type C short-stay form",
+      "searchLabel": "Search destinations",
+      "searchPlaceholder": "Search country or visa type",
+      "allRegions": "All regions",
+      "noResultsTitle": "No destination found",
+      "noResultsBody": "Try a country name, a visa type, or browse by region.",
+      "added": "Added",
+      "start": "Start",
+      "starting": "Starting",
+      "browse": "Browse",
+      "comingSoon": "Coming soon",
+      "selectError": "We could not open that destination. Please try again.",
+      "governmentFeeNote": "Government visa fees are paid to the authority and billed separately; amounts vary by country."
+    },
     "title": "Status Center",
     "subtitle": "Track payment, consent, form answers, documents, packet preparation, external handoff, and official result delivery in one place.",
     "chooseDestination": "Choose another destination",
@@ -992,7 +1292,7 @@
       "cityOfBirthPlaceholder": "e.g. Beijing",
       "stateOfBirth": "State / province of birth",
       "stateOfBirthPlaceholder": "e.g. Beijing",
-      "countryOfBirth": "Country/Region of birth",
+      "countryOfBirth": "Country of birth",
       "countryOfBirthPlaceholder": "e.g. China",
       "occupation": "Occupation",
       "occupationPlaceholder": "e.g. Software Engineer",
@@ -1094,6 +1394,8 @@
       "accommodation": "Accommodation",
       "accommodationAddress": "Accommodation address",
       "reviewMessage": "Please review your details carefully before submitting.",
+      "missingInformation": "Missing information",
+      "notProvided": "Not provided",
       "confirmAndSubmit": "Confirm & Submit",
       "continueToTeam": "Continue to team",
       "validation": {
@@ -1382,7 +1684,7 @@
         "sex": "Sex",
         "nationality": "Nationality",
         "hasOtherNationalities": "Do you hold any other nationalities?",
-        "countryOfBirth": "Country/Region of birth",
+        "countryOfBirth": "Country of birth",
         "placeOfBirth": "Town/city of birth",
         "placeOfBirthPlaceholder": "e.g. Manchester",
         "maritalStatus": "Marital status",
@@ -1604,7 +1906,7 @@
         "givenNames": "Given name(s)",
         "dob": "Date of birth",
         "placeOfBirth": "Place of birth",
-        "countryOfBirth": "Country/Region of birth",
+        "countryOfBirth": "Country of birth",
         "nationality": "Current nationality",
         "nationalityAtBirth": "Nationality at birth (if different)",
         "nationalIdNumber": "National identity number",
@@ -1826,7 +2128,7 @@
         "sex": "Sex",
         "nationality": "Nationality",
         "nationalityAtBirth": "Nationality at birth",
-        "countryOfBirth": "Country/Region of birth",
+        "countryOfBirth": "Country of birth",
         "placeOfBirth": "Place of birth",
         "nationalIdNumber": "National identity number",
         "religion": "Religion",
@@ -2044,7 +2346,7 @@
         "dob": "Date of birth",
         "sex": "Sex",
         "nationality": "Nationality",
-        "countryOfBirth": "Country/Region of birth",
+        "countryOfBirth": "Country of birth",
         "placeOfBirth": "Town/city of birth",
         "relationshipStatus": "Relationship status",
         "hasNationalId": "Do you have a national identity card?",
@@ -2244,7 +2546,7 @@
         "dob": "Date of birth",
         "sex": "Sex",
         "placeOfBirthCity": "Place of birth city",
-        "placeOfBirthCountry": "Country/Region of birth",
+        "placeOfBirthCountry": "Country of birth",
         "nationality": "Nationality",
         "hasOtherNationalities": "Do you hold any other nationalities?",
         "otherNationality": "Other nationality",
@@ -2279,6 +2581,8 @@
         "employerAddress": "Employer or school address",
         "employerPhone": "Employer or school phone",
         "purposeOfVisit": "Purpose of visit",
+        "arrivalDate": "Arrival date",
+        "departureDate": "Departure date",
         "intendedArrivalDate": "Intended arrival date",
         "intendedLengthOfStay": "Intended length of stay",
         "portOfEntry": "Port of entry",
@@ -2345,7 +2649,9 @@
           "other": "Other"
         },
         "purpose": {
-          "tourism": "Tourism"
+          "tourism": "Tourism",
+          "businessMeeting": "Business meeting",
+          "transit": "Transit"
         },
         "idAccommodation": {
           "hotel": "Hotel",
@@ -2438,7 +2744,7 @@
         "dob": "Date of birth",
         "sex": "Sex",
         "placeOfBirthCity": "Place of birth city",
-        "placeOfBirthCountry": "Country/Region of birth",
+        "placeOfBirthCountry": "Country of birth",
         "nationality": "Nationality",
         "hasOtherNationalities": "Do you hold any other nationalities?",
         "otherNationality": "Other nationality",
@@ -2577,11 +2883,11 @@
       "1": "Contact",
       "2": "Passport",
       "3": "Travel",
-      "usStay": "U.S. stay",
-      "usContact": "U.S. Contact",
       "4": "Family",
       "5": "Background",
-      "6": "Work & education"
+      "6": "Work & education",
+      "usStay": "U.S. stay",
+      "usContact": "U.S. Contact"
     },
     "common": {
       "continue": "Continue",
@@ -2656,13 +2962,13 @@
       "gender": "Gender",
       "male": "Male",
       "female": "Female",
-      "countryOfBirth": "Country/Region of birth",
+      "countryOfBirth": "Country of birth",
       "countryOfBirthPlaceholder": "Select country",
       "cityOfBirth": "City of birth",
       "cityOfBirthPlaceholder": "e.g. Shanghai",
       "stateOfBirth": "State/Province of birth",
       "stateOfBirthPlaceholder": "e.g. Guangdong",
-      "noStateProvince": "My country/region of birth has no states/provinces",
+      "noStateProvince": "My country of birth has no states/provinces",
       "nationality": "Nationality",
       "nationalityPlaceholder": "Select nationality",
       "maritalStatus": "Marital status",
@@ -2699,7 +3005,7 @@
       "spouseDob": "Spouse's date of birth",
       "spouseNationality": "Spouse's nationality",
       "spouseCityOfBirth": "Spouse's city of birth",
-      "spouseCountryOfBirth": "Spouse's country/region of birth"
+      "spouseCountryOfBirth": "Spouse's country of birth"
     },
     "contact": {
       "title": "How can the embassy reach you?",
@@ -3166,7 +3472,7 @@
       "nationality": "Nationality",
       "cityOfBirth": "City of birth",
       "cityOfBirthPlaceholder": "e.g. Beijing",
-      "countryOfBirth": "Country/Region of birth",
+      "countryOfBirth": "Country of birth",
       "countryPlaceholder": "Select",
       "datePlaceholder": "Select date",
       "spouseAddressType": "Spouse address type",
@@ -3581,6 +3887,27 @@
     "searchPlaceholder": "Search chats...",
     "noResults": "No results found",
     "sessionHistory": "Session History",
+    "sessionPanelTitle": "CONCIERGE",
+    "sessionRecent": "Recent",
+    "sessionNew": "New chat",
+    "sessionUntitled": "New conversation",
+    "sessionCollapse": "Collapse conversation list",
+    "sessionExpand": "Open conversation list",
+    "sessionClose": "Close conversation list",
+    "sessionRename": "Rename {title}",
+    "sessionDelete": "Delete {title}",
+    "sessionTitleInput": "Conversation title",
+    "sessionSave": "Save",
+    "sessionCancel": "Cancel",
+    "sessionDeleteConfirm": "Delete this conversation?",
+    "sessionConfirmDelete": "Confirm deletion of {title}",
+    "sessionCancelDelete": "Cancel deletion",
+    "sessionDeleted": "Conversation deleted",
+    "sessionRenameFailed": "Could not rename the conversation",
+    "sessionRenamed": "Conversation renamed",
+    "sessionTitleCleared": "Conversation title cleared",
+    "sessionDeleteFailed": "Could not delete the conversation",
+    "sessionWaitForResponse": "Please wait for the current response to finish",
     "noConversations": "No conversations yet",
     "chatWith": "Chat with",
     "vizaAI": "Visa Consultant",
@@ -3596,9 +3923,40 @@
     "supportDescription": "Complex topics and customer service",
     "supportResponseTime": "<24h on weekdays",
     "newChatGreeting": "Hi there! I'm VIZA, your visa assistant. Tell me your destination, nationality, trip purpose, and how long you plan to stay, and I'll help you find the right visa route.",
+    "emptyPromptTitle": "How can I help with your visa today?",
+    "starterRoute": "Help me find the right visa",
+    "starterDocuments": "Check document requirements",
+    "starterTiming": "Estimate processing time",
     "inputPlaceholder": "Ask about your visa application...",
+    "memoryTitle": "Chat memory",
+    "memoryPassport": "Passport",
+    "memoryResidence": "Residence",
+    "memoryDestination": "Destination",
+    "memoryPurpose": "Purpose",
+    "memoryPurposeTourism": "Tourism",
+    "memoryPurposeBusiness": "Business",
+    "memoryPurposeFamilyVisit": "Family visit",
+    "memoryPurposeVisit": "Visiting friends or relatives",
+    "memoryPurposeTransit": "Transit",
+    "memoryPurposeStudy": "Study",
+    "memoryPurposeWork": "Work",
+    "memoryPurposeMedical": "Medical treatment",
+    "memoryDays": "Days",
+    "memoryEmpty": "No confirmed facts in this chat yet",
+    "memoryEdit": "Edit chat memory",
+    "memoryCancel": "Cancel editing",
+    "memorySave": "Save",
+    "memoryClear": "Clear this chat",
+    "memorySavePassport": "Save passport to profile",
+    "memorySavePassportConfirm": "Save this passport country to your account profile?",
+    "memorySaved": "Chat memory saved",
+    "memoryCleared": "Chat memory cleared",
+    "memoryPassportSaved": "Passport information saved to your profile",
+    "memoryConflict": "Memory changed while you were editing. The latest version is shown.",
+    "memorySaveFailed": "Could not save chat memory",
     "supportComingSoon": "Support team chat coming soon",
-    "connectionReconnecting": "Connection issue - reconnecting...",
+    "connectionReconnecting": "Restoring connection…",
+    "connectionUnavailable": "The visa adviser is temporarily unavailable. Please try again shortly.",
     "connectedSending": "Connected - sending queued messages",
     "agentNotified": "Your visa agent has been notified about this conversation",
     "failedToStart": "Failed to start conversation",
@@ -3686,13 +4044,18 @@
       "fallbackName": "VIZA applicant",
       "editDetails": "Edit details",
       "completion": "Reusable profile completion",
-      "completionHint": "Complete this once so VIZA can prefill repeated visa questions."
+      "completionHint": "Complete this once so VIZA can prefill repeated visa questions.",
+      "universalTitle": "Universal profile",
+      "universalDescription": "Save reusable personal details once so future visa applications are faster to complete.",
+      "complete": "{percent}% complete",
+      "reviewProfile": "Review universal profile"
     },
     "quickSnapshot": {
       "label": "Account snapshot",
-      "passport": "Passport",
+      "email": "Email",
+      "passport": "Passport number",
       "phone": "Phone",
-      "payment": "Payment",
+      "payment": "Payment method",
       "notSet": "Not set"
     },
     "pointsCenter": {
@@ -3712,11 +4075,7 @@
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
           "description": "Redeem 1,000 points for one free arrival card submission for eligible destinations.",
-          "countries": [
-            "Singapore",
-            "Malaysia",
-            "Thailand"
-          ]
+          "countries": ["Singapore", "Malaysia", "Thailand"]
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",
@@ -3923,7 +4282,7 @@
         "surname": "Surname",
         "givenNames": "Given names",
         "dateOfBirth": "Date of birth",
-        "birthCountry": "Country/Region of birth",
+        "birthCountry": "Country of birth",
         "birthProvinceOrState": "State/Province of birth",
         "birthCity": "City of birth",
         "gender": "Gender",
@@ -3946,8 +4305,8 @@
         "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "Select date of birth",
         "dateOfBirthEn": "Select date of birth",
-        "birthCountryZh": "Select country/region of birth...",
-        "birthCountryEn": "Select country/region of birth...",
+        "birthCountryZh": "Select country of birth...",
+        "birthCountryEn": "Select country of birth...",
         "birthProvinceOrStateZh": "For example: Hunan",
         "birthProvinceOrStateEn": "For example: Hunan",
         "birthCityZh": "For example: Changsha",
@@ -4167,8 +4526,8 @@
         "description": "Invite friends and track your rewards."
       },
       "payments": {
-        "title": "Payments & Credits",
-        "description": "View transactions, credits, and receipts."
+        "title": "Payments & Points",
+        "description": "View transactions, points, and receipts."
       }
     },
     "guides": {
@@ -4177,13 +4536,7 @@
         "title": "Getting started",
         "completeProfile": "Complete your profile",
         "addPayment": "Add a payment method",
-        "exploreServices": "Explore services"
-      },
-      "usingCredits": {
-        "title": "Using your credits",
-        "whereApply": "Where credits apply",
-        "expiration": "Expiration rules",
-        "troubleshooting": "Troubleshooting"
+        "exploreServices": "Explore VIZA"
       },
       "privacy": {
         "title": "Privacy & security",
@@ -4201,21 +4554,9 @@
         "question": "How do I reset my password?",
         "answer": "Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
       },
-      "seeCredits": {
-        "question": "Where can I see my credits?",
-        "answer": "Credits appear in the Billing section of your Settings page and are also displayed at checkout before you confirm a purchase."
-      },
       "referrals": {
         "question": "How do referrals work?",
-        "answer": "Share your unique referral link from the Refer Your Friends page. When a friend signs up and completes their first purchase, you both receive ₱9,999 in credits to use on VIZA services."
-      },
-      "bookBloodTest": {
-        "question": "How do I book a blood test?",
-        "answer": "Navigate to the Services tab and select the blood panel that matches your goals. Follow the booking flow to choose a date and time. You can view and manage upcoming bookings in the Scheduled tab."
-      },
-      "labResults": {
-        "question": "When will I receive my results?",
-        "answer": "Results are typically available within 3–5 business days after your blood draw. You'll receive a notification when your report is ready, and you can view it in the Data tab."
+        "answer": "Share your unique referral link from the Refer Your Friends page. Eligible rewards are shown in Points Center after the referral requirements are met."
       },
       "updateInfo": {
         "question": "How do I update my personal information?",
@@ -4225,13 +4566,9 @@
         "question": "How do I add or update a payment method?",
         "answer": "Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
       },
-      "cancelReschedule": {
-        "question": "Can I cancel or reschedule a booked service?",
-        "answer": "Yes. Open the Services tab and go to Scheduled bookings. Select the booking you want to manage and follow the prompts to reschedule or cancel."
-      },
       "dataPrivate": {
-        "question": "Is my health data private?",
-        "answer": "Yes. Your health data is stored securely and is only accessible to you and your assigned visa team. We never sell personal health information to third parties."
+        "question": "Is my application data private?",
+        "answer": "Your application data is protected and is available only to you, authorized VIZA staff, and service providers needed to deliver the requested visa service."
       },
       "contactSupport": {
         "question": "How do I contact support?",
@@ -4265,7 +4602,8 @@
       "invalidCredentials": "Email or password is incorrect. Please try again.",
       "tooManyRequests": "Too many attempts. Please try again later.",
       "requestTimedOut": "The sign-in service is taking longer than expected. Please try again.",
-      "providerUnavailable": "Supabase sign-in is temporarily unavailable. Your details were not submitted. Please try again shortly.",
+      "providerUnavailable": "The sign-in service is temporarily unavailable. Please try again shortly or use email code sign-in.",
+      "continuityOtpSent": "The sign-in service is recovering. We sent an independent VIZA sign-in code to your email.",
       "unexpectedError": "An unexpected error occurred. Please try again.",
       "failedToResend": "Failed to resend code.",
       "checkEmail": "Check your email",
@@ -4282,7 +4620,6 @@
       "subtitle": "Enter your email to begin your VIZA account setup.",
       "emailPlaceholder": "Enter your email",
       "referralCodePlaceholder": "Referral code (optional)",
-      "referralCodeHint": "New users who register with a referral code get 99 points, and the referrer gets 99 points too.",
       "invalidEmail": "Please enter a valid email address.",
       "submitting": "Submitting...",
       "continueToPassword": "Continue",
@@ -4421,146 +4758,6 @@
       "egypt": "Egypt",
       "pisa": "Pisa",
       "singapore": "Singapore"
-    }
-  },
-  "terms": {
-    "title": "Terms of Service",
-    "subtitle": "The rules and guidelines that govern your use of our platform.",
-    "sections": {
-      "acceptance": {
-        "title": "Acceptance of terms",
-        "p1": "By accessing or using the VIZA platform, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.",
-        "p2": "These terms apply to all users of the platform, including users, registered members, and any visitors who access our services."
-      },
-      "services": {
-        "title": "Our services",
-        "intro": "VIZA provides a visa services platform that connects users with licensed visa professionals for consultations, lab bookings, health assessments, and related wellness services.",
-        "item1": "Online visa consultations with licensed consultants.",
-        "item2": "Blood panel bookings and lab result delivery.",
-        "item3": "Supplement and product purchases through the Services marketplace.",
-        "item4": "Personalized action plans and health recommendations.",
-        "item5": "Concierge support for your health journey.",
-        "disclaimer": "Our platform is not a substitute for emergency visa care. If you are experiencing a visa emergency, please contact your local emergency services immediately."
-      },
-      "eligibility": {
-        "title": "Eligibility",
-        "intro": "To use our services, you must:",
-        "item1": "Be at least 18 years of age, or have parental or guardian consent.",
-        "item2": "Provide accurate, current, and complete information when registering.",
-        "item3": "Maintain the security of your account credentials.",
-        "item4": "Reside in a location where our services are available."
-      },
-      "responsibilities": {
-        "title": "User responsibilities",
-        "intro": "When using our platform, you agree to:",
-        "item1": "Provide truthful and complete health information during consultations and questionnaires.",
-        "item2": "Follow visa advice provided by our licensed professionals responsibly.",
-        "item3": "Not share your account credentials with any other person.",
-        "item4": "Not use the platform for any unlawful or unauthorized purpose.",
-        "item5": "Notify us promptly if you suspect any unauthorized access to your account."
-      },
-      "visa": {
-        "title": "Visa disclaimer",
-        "p1": "The visa services on our platform are provided by independently licensed physicians and visa services professionals. VIZA facilitates access to these professionals but does not itself practice medicine.",
-        "p2": "Health information provided through our platform is for informational purposes and does not replace professional visa advice, diagnosis, or service. Always seek the advice of your physician or other qualified health provider with any questions you may have."
-      },
-      "payments": {
-        "title": "Payments and credits",
-        "p1": "By making a purchase on our platform, you authorize us to charge your selected payment method for the applicable fees. All prices are shown in Philippine Pesos (PHP).",
-        "p2": "Credits earned through referrals or promotions have no cash value and cannot be transferred.",
-        "p3": "Refunds are subject to our Refund Policy and applicable Philippine consumer protection laws.",
-        "p4": "Subscription fees (if any) are billed in advance and are non-refundable except as required by law."
-      },
-      "ip": {
-        "title": "Intellectual property",
-        "p1": "All content, features, and functionality on the VIZA platform—including text, graphics, logos, and software—are the exclusive property of VIZA and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission."
-      },
-      "liability": {
-        "title": "Limitation of liability",
-        "p1": "To the fullest extent permitted by law, VIZA shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, our services. Our total liability to you for any claim arising under these terms shall not exceed the amount you paid us in the twelve months prior to the claim."
-      },
-      "termination": {
-        "title": "Termination",
-        "p1": "We reserve the right to suspend or terminate your access to the platform at our discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.",
-        "p2": "You may close your account at any time by contacting our support team. Termination does not affect any rights or obligations that arose prior to the termination date."
-      },
-      "changes": {
-        "title": "Changes to these terms",
-        "p1": "We may update these Terms of Service from time to time. We will notify you of material changes by posting the updated terms on this page. Continued use of our platform after changes take effect constitutes your acceptance of the revised terms."
-      },
-      "law": {
-        "title": "Governing law",
-        "p1": "These Terms of Service are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the courts of the Philippines."
-      },
-      "contact": {
-        "title": "Contact us",
-        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.it.com."
-      }
-    }
-  },
-  "privacy": {
-    "title": "Privacy Policy",
-    "subtitle": "How we collect, use, and protect your personal information.",
-    "sections": {
-      "introduction": {
-        "title": "Introduction",
-        "p1": "VIZA ('we', 'our', or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and related services.",
-        "p2": "By accessing or using our services, you agree to the collection and use of information in accordance with this policy. Please read it carefully before using our platform."
-      },
-      "collect": {
-        "title": "Information we collect",
-        "intro": "We collect information that you provide directly to us and information generated through your use of our services.",
-        "item1": "Personal identifiers such as your name, email address, phone number, and date of birth.",
-        "item2": "Health and visa information including results, profile data, visa history, allergies, and current documents.",
-        "item3": "Payment information processed securely through our payment providers.",
-        "item4": "Communications between you and our visa team, including consultation notes and messages.",
-        "item5": "Device and usage data such as IP address, browser type, and pages visited."
-      },
-      "use": {
-        "title": "How we use your information",
-        "intro": "We use the information we collect to deliver and improve our services, including:",
-        "item1": "Providing visa services consultations, lab bookings, and service services.",
-        "item2": "Communicating with you about your health, appointments, and orders.",
-        "item3": "Processing payments and fulfilling orders through our platform.",
-        "item4": "Improving the accuracy and quality of our health assessments.",
-        "item5": "Complying with applicable laws, regulations, and visa standards.",
-        "noSell": "We never sell your personal or health information to third parties for marketing purposes."
-      },
-      "sharing": {
-        "title": "Sharing your information",
-        "intro": "We may share your information only in the following limited circumstances:",
-        "item1": "With licensed visa professionals involved in your care.",
-        "item2": "With trusted service providers (e.g., labs, pharmacies) necessary to fulfill your orders.",
-        "item3": "With payment processors to complete transactions securely.",
-        "item4": "When required by law, court order, or applicable regulation.",
-        "item5": "With your explicit consent for any other purpose."
-      },
-      "security": {
-        "title": "Data security",
-        "p1": "We implement industry-standard security measures to protect your information from unauthorized access, alteration, disclosure, or destruction. These include encryption in transit and at rest, role-based access controls, and regular security reviews.",
-        "p2": "While we take all reasonable precautions, no method of transmission over the internet is 100% secure. We encourage you to protect your account credentials and notify us immediately if you suspect unauthorized access."
-      },
-      "rights": {
-        "title": "Your rights",
-        "intro": "You have the following rights regarding your personal information:",
-        "access": "Access: Request a copy of the personal information we hold about you.",
-        "correction": "Correction: Request that inaccurate or incomplete information be corrected.",
-        "deletion": "Deletion: Request deletion of your personal information, subject to legal and visa record retention obligations.",
-        "portability": "Portability: Request your data in a machine-readable format where applicable.",
-        "withdrawal": "Withdrawal of consent: Withdraw consent for non-essential data processing at any time."
-      },
-      "retention": {
-        "title": "Data retention",
-        "p1": "We retain your personal and health information for as long as necessary to provide our services and comply with applicable laws. Visa records may be retained for a minimum period as required by Philippine visa regulations."
-      },
-      "changes": {
-        "title": "Changes to this policy",
-        "p1": "We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy on this page and updating the effective date. We encourage you to review this policy periodically."
-      },
-      "contact": {
-        "title": "Contact us",
-        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.it.com."
-      }
     }
   },
   "subscriptionManagement": {
@@ -4769,7 +4966,7 @@
       "steps": {
         "application": {
           "title": "Review the applicant record",
-          "body": "Confirm the passport-matching English given name and surname, date and country/region of birth, nationality, gender, passport number and validity, phone, personal email, residential address, and passport bio-page upload."
+          "body": "Confirm the passport-matching English given name and surname, date and country of birth, nationality, gender, passport number and validity, phone, personal email, residential address, and passport bio-page upload."
         },
         "ds160": {
           "title": "Confirm DS-160 and interview post",
@@ -5008,9 +5205,11 @@
       "sendToAccountEmail": "Send to account email",
       "sendToCustomEmail": "Send to another email",
       "customEmailPlaceholder": "Enter another recipient email",
-      "newApplication": "Submit a new application",
-      "startingNewApplication": "Creating new submission job",
-      "newApplicationError": "Could not create the new submission job",
+      "newApplication": "Start a new application form",
+      "startingNewApplication": "Creating a new application draft",
+      "newApplicationError": "Could not create the new application draft",
+      "continueAutomaticSubmission": "Continue automatic submission",
+      "continuingAutomaticSubmission": "Starting automatic submission",
       "applicationId": "Application ID",
       "surnameFirst5": "Surname (first 5 letters)",
       "yearOfBirth": "Year of birth",
@@ -5061,9 +5260,23 @@
       "phone": "Phone",
       "email": "Personal email",
       "address": "Residential address",
+      "franceVisasReference": "France-Visas reference",
       "center": "TLScontact center",
       "missing": "Not provided",
-      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to continue to the TLScontact account workflow. Slot selection, payment authorization, and final booking remain separate confirmations.",
+      "missingFieldsTitle": "Information still needed",
+      "missingFieldsBody": "Complete these fields in the application before starting the TLScontact flow:",
+      "missingFieldLabels": {
+        "fullName": "Passport name",
+        "dateOfBirth": "Date of birth",
+        "nationality": "Nationality",
+        "passportNumber": "Passport number",
+        "passportExpiryDate": "Passport expiry date",
+        "phone": "Phone",
+        "email": "Personal email",
+        "address": "Residential address",
+        "franceVisasReference": "France-Visas reference"
+      },
+      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to prepare the TLScontact account and observe availability. Slot selection, payment, and booking are disabled in this milestone.",
       "edit": "Edit application",
       "confirmAndContinue": "Confirm details and continue"
     },
@@ -5079,7 +5292,7 @@
       "portal": "Observed TLS calendar",
       "preSubmit": "Ready before submit",
       "stopTitle": "The official final button is protected",
-      "stopBody": "VIZA stops before the official TLS confirmation click until an observed slot is selected, any required payment authorization is present, and final approval is recorded. Opening this page never starts or submits an appointment."
+      "stopBody": "VIZA stops before slot selection, payment, and every official booking action. Those actions remain disabled in this milestone, and opening this page never starts or submits an appointment."
     },
     "requirements": {
       "title": "Complete these steps in order",
@@ -5088,7 +5301,7 @@
       "officialCheckBody": "The official form currently asks for email, password and password confirmation, mandatory legal consent, and reCAPTCHA. Email, phone, SMS, and push marketing consents are optional and are not required for registration.",
       "openApplication": "Review application details",
       "userInputTitle": "What you need to enter in VIZA",
-      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email; you later choose the observed slot and approve any fee and final booking.",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email, then stops after observing availability.",
       "states": {
         "ready": "Ready",
         "review": "Review once",
@@ -5116,11 +5329,11 @@
         },
         "calendar": {
           "title": "Read the calendar and review the service fee",
-          "body": "VIZA reads official availability without choosing for you. You select one observed slot and authorize the required TLS service-fee step; 3DS or bank verification remains yours."
+          "body": "VIZA reads official availability without choosing a slot. This milestone stops after showing a current slot or an official no-availability result."
         },
         "booking": {
           "title": "Approve the final appointment",
-          "body": "Review the centre, date, time, and fee status. VIZA can click the official booking control only after your explicit final approval and records the official confirmation evidence."
+          "body": "Slot selection, fee payment, and the official booking control are intentionally unavailable until a later verified milestone."
         }
       }
     },
@@ -5196,8 +5409,8 @@
     "consent": {
       "title": "Consent and boundaries",
       "body1": "VIZA can assist the mainland China TLScontact flow after the France-Visas application reference has been created.",
-      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, slot observation, service-fee payment handoff, and confirmation checkpoints. You still choose the slot, authorize payment, and approve final booking.",
-      "checkbox": "I authorize VIZA to run France Schengen TLScontact China appointment actions for this application, with explicit slot selection, one-time payment authorization, final approval, and official evidence capture."
+      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, and read-only slot observation. Slot selection, payment, and final booking remain disabled.",
+      "checkbox": "I authorize VIZA to prepare the TLScontact China account and perform read-only availability observation for this France Schengen application."
     },
     "account": {
       "title": "VIZA alias and TLS account",
@@ -5238,7 +5451,10 @@
       "datePending": "Date pending",
       "timePending": "Time pending",
       "locationPending": "Location pending",
-      "slotLine": "{date} at {time}"
+      "slotLine": "{date} at {time}",
+      "observedOnly": "Observed by VIZA",
+      "liveObservationTitle": "Read-only live observation",
+      "liveObservationBody": "These are current, non-expired TLScontact observations. Slot selection, payment, and final booking remain disabled until a later verified milestone."
     },
     "payment": {
       "title": "One-time TLS fee authorization",
@@ -5271,7 +5487,7 @@
     },
     "nextStepCard": {
       "title": "Next: TLS appointment",
-      "body": "Continue to TLScontact China appointment setup with user-triggered slot checks, explicit slot selection, one-time payment authorization, and final approval.",
+      "body": "Continue to TLScontact China account preparation and user-triggered, read-only availability checks. Selection, payment, and booking remain disabled.",
       "button": "Open TLS appointment assistant",
       "badge": "TLScontact China"
     }
@@ -5285,24 +5501,195 @@
     "select": "Select",
     "yes": "Available",
     "no": "Not available",
-    "steps": { "label": "Appointment progress", "review": "Review", "account": "Official site", "slots": "Slots", "confirm": "Confirm", "result": "Result" },
-    "review": { "title": "Review applicant and filing details", "englishName": "Passport English name", "dateOfBirth": "Date of birth", "nationality": "Nationality", "passport": "Passport number", "passportExpiry": "Passport expiry", "phone": "Phone", "email": "Personal email", "address": "Residential address", "center": "Appointment center", "notProvided": "Not provided", "edit": "Edit application" },
-    "account": { "title": "Official website checkpoint", "mobileAlreadyRegisteredTitle": "This mobile number is linked to another VFS account", "mobileAlreadyRegisteredBody": "The official registration form accepted all fields and Turnstile, then reported that this mobile number is already registered. To continue, provide the email address of the existing VFS account for login, or replace the phone number with one that can receive a new VFS OTP." },
-    "free": { "title": "Public-site automation only", "body": "This mode uses one cloud browser session to reach the official public VFS route and preserve redacted evidence. It stops before account creation or login and cannot read protected appointment slots." },
-    "eligibility": { "title": "1. Eligibility", "visaType": "Visa request", "occupation": "Occupation", "passType": "Singapore long-term pass", "passExpiry": "Pass expiry date", "returnDate": "Return to Singapore date", "pass": "Eligible", "incomplete": "Incomplete", "passBody": "The basic Singapore filing eligibility check passed.", "incompleteBody": "Provide a valid long-term pass covering the return date." },
-    "visaTypes": { "single_entry": "Single entry", "double_entry": "Double entry", "multiple_entry": "Multiple entry" },
-    "occupations": { "employed": "Employed", "self_employed": "Self-employed", "student": "Student", "retired": "Retired", "housewife": "Homemaker", "unemployed": "Unemployed" },
-    "passTypes": { "pr": "Permanent Resident", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
-    "documents": { "title": "2. Document preflight", "body": "Select the latest portrait saved in Universal Profile, or replace it for this application.", "manage": "Open Document Center", "passportStored": "Passport stored in VIZA", "photoStored": "Portrait selected", "profilePhotoTitle": "Universal Profile portrait", "profilePhotoSelected": "The saved Universal Profile portrait is selected for this Japan application. Use Replace if you want a different photo.", "profilePhotoLoading": "Selecting the latest reusable portrait…", "profilePhotoMissing": "No reusable portrait was found. Upload one to continue.", "useProfilePhoto": "Use Universal Profile photo", "replaceProfilePhoto": "Replace portrait", "noProfilePhoto": "No portrait is saved in Universal Profile. Upload one below.", "photoUploadFailed": "The portrait could not be uploaded. Use a JPG, PNG, or WebP image and try again.", "profileIncomplete": "Application profile is incomplete", "profileMissing": "Complete these fields in the application before preparing the appointment: {fields}." },
-    "workflow": { "title": "3. Website automation", "consent": "I confirm the information is truthful and authorize VIZA to open and inspect the public Japan VFS Singapore route. This authorization does not create an account, send an SMS or email, log in, read protected slots, pay, or book.", "saving": "Saving…", "saveConsent": "Record consent", "consentRecorded": "Consent recorded", "consentRecordedBody": "The backend has stored your public-site automation authorization for this application.", "creating": "Starting…", "create": "Start website automation", "restart": "Start again", "restartTitle": "Automation cancelled", "restartBody": "You can review the latest details and start a new public-site check when ready.", "checking": "Checking…", "check": "Run public VFS check", "publicOnlyTitle": "Account creation is off", "publicOnlyBody": "The worker may open the public VFS route and save redacted evidence only. It will stop at the login or security boundary.", "aliasReady": "Account creation disabled", "aliasBody": "No VFS alias or account is created in public-site mode.", "openOfficial": "Open official VFS", "cancel": "Cancel automation" },
-    "evidence": { "title": "Cloud evidence", "httpStatus": "HTTP status", "pageTitle": "Official page", "observedAt": "Observed at", "entryClick": "Book now clicked", "replay": "Browserbase replay" },
-    "checkpoints": { "login": "Official login required", "existing_mobile_account": "Existing VFS account details required", "captcha": "CAPTCHA detected", "waf": "WAF checkpoint", "identity_verification": "Identity verification required", "selector_drift": "Portal state requires review", "no_slots": "No slots visible", "slot_selection": "Choose an appointment", "payment": "Official payment required", "site_policy_review": "Official policy checkpoint" },
-    "checkpointBodies": { "login": "The public official route rendered successfully and reached the login boundary. Account creation is disabled, so automation stopped here as intended.", "existing_mobile_account": "VFS confirmed that the supplied mobile number is already registered. Provide the existing VFS account email for login, or a different phone number that can receive a new OTP.", "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without creating an account or claiming an appointment.", "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.", "identity_verification": "The official portal requires applicant identity verification. Public-site automation stops here.", "selector_drift": "The official page did not match a verified public entry state. VIZA has paused for review.", "no_slots": "The official page did not expose an available appointment time during the latest observation.", "slot_selection": "Choose one of the currently observed official VFS appointment times.", "payment": "Continue through the secure VFS-hosted service-fee payment step.", "site_policy_review": "The official portal requires a policy review before automation can continue." },
-    "slots": { "title": "Official appointment slots", "empty": "No official slots have been observed yet. Use Check official portal after the VFS account is ready.", "choose": "Choose", "selected": "Selected" },
-    "payment": { "title": "VFS service-fee payment", "officialTitle": "Complete payment on the official VFS page", "officialBody": "VIZA does not collect full card details in this assistant. Payment remains unavailable while public-only mode is active.", "secureTitle": "One-time secure payment", "secureBody": "Card data is transferred once to the in-memory booking worker, expires within minutes, and is never written to the database or logs. A bank 3-D Secure challenge may still require approval.", "holder": "Name on card", "cardNumber": "Card number", "expiry": "Expiry", "cvv": "CVV", "authorize": "Prepare one-time payment" },
-    "final": { "title": "Final booking confirmation", "consent": "I reviewed the selected official slot and payment terms and authorize VIZA to request the final VFS booking.", "approve": "Approve final booking", "book": "Book selected slot", "confirmed": "Official appointment confirmed", "confirmation": "Confirmation {number} · {date} {time}" },
-    "result": { "openEvidence": "Open official evidence" },
-    "statuses": { "not_started": "Not started", "appointment_account_required": "Public check ready", "appointment_manual_required": "Stopped at official boundary", "appointment_no_slots_available": "No slots", "appointment_slot_selection_required": "Choose a slot", "appointment_payment_required": "Payment required", "appointment_payment_completed": "Payment authorized", "appointment_payment_ready": "Payment ready", "appointment_final_confirmation_approved": "Final approval recorded", "appointment_confirmation_captured": "Confirmed", "appointment_cancelled": "Cancelled" },
-    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed.", "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.", "consentRequired": "Record your consent before preparing the appointment.", "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.", "runnerUnavailable": "The official-portal worker is not available. Please try again later.", "slotRequired": "Choose a currently available VFS slot first.", "paymentRequired": "Complete the secure VFS payment authorization first.", "finalRequired": "Approve the final booking before submission.", "sessionRequired": "Your sign-in session expired. Sign in again to continue." }
+    "steps": {
+      "label": "Appointment progress",
+      "review": "Review",
+      "account": "Official site",
+      "slots": "Slots",
+      "confirm": "Confirm",
+      "result": "Result"
+    },
+    "review": {
+      "title": "Review applicant and filing details",
+      "englishName": "Passport English name",
+      "dateOfBirth": "Date of birth",
+      "nationality": "Nationality",
+      "passport": "Passport number",
+      "passportExpiry": "Passport expiry",
+      "phone": "Phone",
+      "email": "Personal email",
+      "address": "Residential address",
+      "center": "Appointment center",
+      "notProvided": "Not provided",
+      "edit": "Edit application"
+    },
+    "account": {
+      "title": "Official website checkpoint",
+      "mobileAlreadyRegisteredTitle": "This mobile number is linked to another VFS account",
+      "mobileAlreadyRegisteredBody": "The official registration form accepted all fields and Turnstile, then reported that this mobile number is already registered. To continue, provide the email address of the existing VFS account for login, or replace the phone number with one that can receive a new VFS OTP."
+    },
+    "free": {
+      "title": "Public-site automation only",
+      "body": "This mode uses one cloud browser session to reach the official public VFS route and preserve redacted evidence. It stops before account creation or login and cannot read protected appointment slots."
+    },
+    "eligibility": {
+      "title": "1. Eligibility",
+      "visaType": "Visa request",
+      "occupation": "Occupation",
+      "passType": "Singapore long-term pass",
+      "passExpiry": "Pass expiry date",
+      "returnDate": "Return to Singapore date",
+      "pass": "Eligible",
+      "incomplete": "Incomplete",
+      "passBody": "The basic Singapore filing eligibility check passed.",
+      "incompleteBody": "Provide a valid long-term pass covering the return date."
+    },
+    "visaTypes": {
+      "single_entry": "Single entry",
+      "double_entry": "Double entry",
+      "multiple_entry": "Multiple entry"
+    },
+    "occupations": {
+      "employed": "Employed",
+      "self_employed": "Self-employed",
+      "student": "Student",
+      "retired": "Retired",
+      "housewife": "Homemaker",
+      "unemployed": "Unemployed"
+    },
+    "passTypes": {
+      "pr": "Permanent Resident",
+      "employment_pass": "Employment Pass",
+      "s_pass": "S Pass",
+      "work_permit": "Work Permit",
+      "dependent_pass": "Dependent Pass",
+      "long_term_visit_pass": "Long-Term Visit Pass",
+      "student_pass": "Student Pass"
+    },
+    "documents": {
+      "title": "2. Document preflight",
+      "body": "Select the latest portrait saved in Universal Profile, or replace it for this application.",
+      "manage": "Open Document Center",
+      "passportStored": "Passport stored in VIZA",
+      "photoStored": "Portrait selected",
+      "profilePhotoTitle": "Universal Profile portrait",
+      "profilePhotoSelected": "The saved Universal Profile portrait is selected for this Japan application. Use Replace if you want a different photo.",
+      "profilePhotoLoading": "Selecting the latest reusable portrait…",
+      "profilePhotoMissing": "No reusable portrait was found. Upload one to continue.",
+      "useProfilePhoto": "Use Universal Profile photo",
+      "replaceProfilePhoto": "Replace portrait",
+      "noProfilePhoto": "No portrait is saved in Universal Profile. Upload one below.",
+      "photoUploadFailed": "The portrait could not be uploaded. Use a JPG, PNG, or WebP image and try again.",
+      "profileIncomplete": "Application profile is incomplete",
+      "profileMissing": "Complete these fields in the application before preparing the appointment: {fields}."
+    },
+    "workflow": {
+      "title": "3. Website automation",
+      "consent": "I confirm the information is truthful and authorize VIZA to open and inspect the public Japan VFS Singapore route. This authorization does not create an account, send an SMS or email, log in, read protected slots, pay, or book.",
+      "saving": "Saving…",
+      "saveConsent": "Record consent",
+      "consentRecorded": "Consent recorded",
+      "consentRecordedBody": "The backend has stored your public-site automation authorization for this application.",
+      "creating": "Starting…",
+      "create": "Start website automation",
+      "restart": "Start again",
+      "restartTitle": "Automation cancelled",
+      "restartBody": "You can review the latest details and start a new public-site check when ready.",
+      "checking": "Checking…",
+      "check": "Run public VFS check",
+      "publicOnlyTitle": "Account creation is off",
+      "publicOnlyBody": "The worker may open the public VFS route and save redacted evidence only. It will stop at the login or security boundary.",
+      "aliasReady": "Account creation disabled",
+      "aliasBody": "No VFS alias or account is created in public-site mode.",
+      "openOfficial": "Open official VFS",
+      "cancel": "Cancel automation"
+    },
+    "evidence": {
+      "title": "Cloud evidence",
+      "httpStatus": "HTTP status",
+      "pageTitle": "Official page",
+      "observedAt": "Observed at",
+      "entryClick": "Book now clicked",
+      "replay": "Browserbase replay"
+    },
+    "checkpoints": {
+      "login": "Official login required",
+      "existing_mobile_account": "Existing VFS account details required",
+      "captcha": "CAPTCHA detected",
+      "waf": "WAF checkpoint",
+      "identity_verification": "Identity verification required",
+      "selector_drift": "Portal state requires review",
+      "no_slots": "No slots visible",
+      "slot_selection": "Choose an appointment",
+      "payment": "Official payment required",
+      "site_policy_review": "Official policy checkpoint"
+    },
+    "checkpointBodies": {
+      "login": "The public official route rendered successfully and reached the login boundary. Account creation is disabled, so automation stopped here as intended.",
+      "existing_mobile_account": "VFS confirmed that the supplied mobile number is already registered. Provide the existing VFS account email for login, or a different phone number that can receive a new OTP.",
+      "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without creating an account or claiming an appointment.",
+      "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.",
+      "identity_verification": "The official portal requires applicant identity verification. Public-site automation stops here.",
+      "selector_drift": "The official page did not match a verified public entry state. VIZA has paused for review.",
+      "no_slots": "The official page did not expose an available appointment time during the latest observation.",
+      "slot_selection": "Choose one of the currently observed official VFS appointment times.",
+      "payment": "Continue through the secure VFS-hosted service-fee payment step.",
+      "site_policy_review": "The official portal requires a policy review before automation can continue."
+    },
+    "slots": {
+      "title": "Official appointment slots",
+      "empty": "No official slots have been observed yet. Use Check official portal after the VFS account is ready.",
+      "choose": "Choose",
+      "selected": "Selected"
+    },
+    "payment": {
+      "title": "VFS service-fee payment",
+      "officialTitle": "Complete payment on the official VFS page",
+      "officialBody": "VIZA does not collect full card details in this assistant. Payment remains unavailable while public-only mode is active.",
+      "secureTitle": "One-time secure payment",
+      "secureBody": "Card data is transferred once to the in-memory booking worker, expires within minutes, and is never written to the database or logs. A bank 3-D Secure challenge may still require approval.",
+      "holder": "Name on card",
+      "cardNumber": "Card number",
+      "expiry": "Expiry",
+      "cvv": "CVV",
+      "authorize": "Prepare one-time payment"
+    },
+    "final": {
+      "title": "Final booking confirmation",
+      "consent": "I reviewed the selected official slot and payment terms and authorize VIZA to request the final VFS booking.",
+      "approve": "Approve final booking",
+      "book": "Book selected slot",
+      "confirmed": "Official appointment confirmed",
+      "confirmation": "Confirmation {number} · {date} {time}"
+    },
+    "result": {
+      "openEvidence": "Open official evidence"
+    },
+    "statuses": {
+      "not_started": "Not started",
+      "appointment_account_required": "Public check ready",
+      "appointment_manual_required": "Stopped at official boundary",
+      "appointment_no_slots_available": "No slots",
+      "appointment_slot_selection_required": "Choose a slot",
+      "appointment_payment_required": "Payment required",
+      "appointment_payment_completed": "Payment authorized",
+      "appointment_payment_ready": "Payment ready",
+      "appointment_final_confirmation_approved": "Final approval recorded",
+      "appointment_confirmation_captured": "Confirmed",
+      "appointment_cancelled": "Cancelled"
+    },
+    "errors": {
+      "title": "Could not continue",
+      "load": "Japan appointment status could not be loaded.",
+      "action": "Japan appointment action failed.",
+      "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.",
+      "consentRequired": "Record your consent before preparing the appointment.",
+      "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.",
+      "runnerUnavailable": "The official-portal worker is not available. Please try again later.",
+      "slotRequired": "Choose a currently available VFS slot first.",
+      "paymentRequired": "Complete the secure VFS payment authorization first.",
+      "finalRequired": "Approve the final booking before submission.",
+      "sessionRequired": "Your sign-in session expired. Sign in again to continue."
+    }
   }
 }

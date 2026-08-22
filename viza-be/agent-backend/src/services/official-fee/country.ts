@@ -26,6 +26,7 @@ const COUNTRY_CODE_BY_KNOWLEDGE_COUNTRY: Record<SupportedKnowledgeCountry, strin
   indonesia: "ID",
   italy: "IT",
   japan: "JP",
+  kenya: "KE",
   laos: "LA",
   latvia: "LV",
   liechtenstein: "LI",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runPostPaidSideEffects } from "@/lib/checkout/post-paid";
+import { isPayableOrderStatus } from "@/lib/checkout/payment-state";
 import { verifyPhotonPayWebhook } from "@/lib/photonpay/client";
 import { orderIdFromReqId } from "@/lib/photonpay/reqid";
 
@@ -99,37 +100,43 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(ROGER);
       }
 
-      // Idempotent: only the first settling notification advances the order and
-      // fires the side-effects.
-      if (!SETTLED_STATUSES.has(String(order.status))) {
-        const existingMetadata =
-          order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
-            ? (order.metadata as Record<string, unknown>)
-            : {};
-        const { error: updErr } = await admin
-          .from("order")
-          .update({
-            status: "paid",
-            paid_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            // `order` has no PhotonPay columns (unlike WeChat's dedicated ones),
-            // so the settlement ids go in the generic metadata jsonb for
-            // reconciliation against the PhotonPay portal.
-            metadata: {
-              ...existingMetadata,
-              photonpay: {
-                reqId,
-                payId: payload.payId ?? null,
-                transactionId: payload.transactionId ?? payload.tradeNo ?? null,
-                payMethod: payload.payMethod ?? null,
-                notifiedAt: new Date().toISOString(),
+      // Idempotent: only a payable order can advance, while every duplicate
+      // successful notification still re-emits the durable event key.
+      if (isPayableOrderStatus(String(order.status))) {
+        if (!SETTLED_STATUSES.has(String(order.status))) {
+          const existingMetadata =
+            order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
+              ? (order.metadata as Record<string, unknown>)
+              : {};
+          const { error: updErr } = await admin
+            .from("order")
+            .update({
+              status: "paid",
+              paid_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              // `order` has no PhotonPay columns (unlike WeChat's dedicated ones),
+              // so the settlement ids go in the generic metadata jsonb for
+              // reconciliation against the PhotonPay portal.
+              metadata: {
+                ...existingMetadata,
+                photonpay: {
+                  reqId,
+                  payId: payload.payId ?? null,
+                  transactionId: payload.transactionId ?? payload.tradeNo ?? null,
+                  payMethod: payload.payMethod ?? null,
+                  notifiedAt: new Date().toISOString(),
+                },
               },
-            },
-          })
-          .eq("id", orderId);
-        if (updErr) throw new Error(`order paid update: ${updErr.message}`);
+            })
+            .eq("id", orderId);
+          if (updErr) throw new Error(`order paid update: ${updErr.message}`);
+        }
 
-        runPostPaidSideEffects(orderId, "photonpay");
+        await runPostPaidSideEffects(orderId, "photonpay", reqId, {
+          req_id: reqId,
+          pay_id: payload.payId ?? null,
+          transaction_id: payload.transactionId ?? payload.tradeNo ?? null,
+        });
       }
     }
   } catch (err) {

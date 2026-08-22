@@ -1,0 +1,72 @@
+{
+  "source": "https://www.e-arrivalcard.go.kr/portal/apply/agreementPolicy.do",
+  "snapshotVersion": "2026-08-18",
+  "reviewedAt": "2026-08-18",
+  "sourceEndpoints": {
+    "terms": "/portal/apply/agreementPolicy.do",
+    "nationality": "/portal/apply/srchIbmsNatList.do",
+    "airports": "/portal/apply/srchAptList.do",
+    "flightAndShip": "/portal/apply/srchNavInfo.do",
+    "purposeAndOccupation": "/portal/apply/getApplyCd.do",
+    "additionalQuestions": "/portal/apply/srchAddItemList.do",
+    "submit": "/portal/apply/insertEacApply.do"
+  },
+  "staticLists": {
+    "sex": [
+      { "value": "F", "code": "F", "text": "Female", "label_en": "Female", "label_zh": "女", "official_label": "Female" },
+      { "value": "M", "code": "M", "text": "Male", "label_en": "Male", "label_zh": "男", "official_label": "Male" },
+      { "value": "X", "code": "X", "text": "Third gender", "label_en": "Third gender", "label_zh": "第三性别", "official_label": "Third gender" }
+    ],
+    "transport": ["Air", "Sea"],
+    "purpose": [
+      { "value": "01", "code": "01", "text": "Tourism (individual)", "label_en": "Tourism (individual)", "label_zh": "旅游（个人）", "official_label": "Tourism (individual)" },
+      { "value": "02", "code": "02", "text": "Tourism (group)", "label_en": "Tourism (group)", "label_zh": "旅游（团体）", "official_label": "Tourism (group)" },
+      { "value": "03", "code": "03", "text": "Business", "label_en": "Business", "label_zh": "商务", "official_label": "Business" },
+      { "value": "04", "code": "04", "text": "Diplomacy/official duties", "label_en": "Diplomacy/official duties", "label_zh": "外交 / 公务", "official_label": "Diplomacy/official duties" },
+      { "value": "05", "code": "05", "text": "Treatment/Medical care", "label_en": "Treatment/Medical care", "label_zh": "治疗 / 医疗", "official_label": "Treatment/Medical care" },
+      { "value": "06", "code": "06", "text": "Visit (Family/relatives/friends, etc.)", "label_en": "Visit (Family/relatives/friends, etc.)", "label_zh": "探亲 / 探访亲友", "official_label": "Visit (Family/relatives/friends, etc.)" },
+      { "value": "07", "code": "07", "text": "Meeting/event", "label_en": "Meeting/event", "label_zh": "会议 / 活动", "official_label": "Meeting/event" },
+      { "value": "08", "code": "08", "text": "Employment", "label_en": "Employment", "label_zh": "就业", "official_label": "Employment" },
+      { "value": "09", "code": "09", "text": "Studies", "label_en": "Studies", "label_zh": "学习", "official_label": "Studies" },
+      { "value": "10", "code": "10", "text": "Sports game", "label_en": "Sports game", "label_zh": "体育比赛", "official_label": "Sports game" },
+      { "value": "99", "code": "99", "text": "Others", "label_en": "Others", "label_zh": "其他", "official_label": "Others" }
+    ],
+    "occupation": [
+      { "value": "01", "code": "01", "text": "Office worker", "label_en": "Office worker", "label_zh": "办公室职员", "official_label": "Office worker" },
+      { "value": "02", "code": "02", "text": "Self-employed", "label_en": "Self-employed", "label_zh": "个体经营者", "official_label": "Self-employed" },
+      { "value": "03", "code": "03", "text": "Student", "label_en": "Student", "label_zh": "学生", "official_label": "Student" },
+      { "value": "04", "code": "04", "text": "Unemployed", "label_en": "Unemployed", "label_zh": "无业", "official_label": "Unemployed" },
+      { "value": "05", "code": "05", "text": "Household activities", "label_en": "Household activities", "label_zh": "家务", "official_label": "Household activities" },
+      { "value": "06", "code": "06", "text": "Public official", "label_en": "Public official", "label_zh": "公务员", "official_label": "Public official" },
+      { "value": "07", "code": "07", "text": "Agriculture and livestock industry", "label_en": "Agriculture and livestock industry", "label_zh": "农业和畜牧业", "official_label": "Agriculture and livestock industry" },
+      { "value": "99", "code": "99", "text": "Others", "label_en": "Others", "label_zh": "其他", "official_label": "Others" }
+    ]
+  },
+  "additionalQuestions": {
+    "status": "reviewed_empty_clean_snapshot",
+    "identity": "question_code",
+    "items": [],
+    "fail_closed_on_non_empty_or_shape_change": true,
+    "endpoint": "/portal/apply/srchAddItemList.do"
+  },
+  "dynamicLists": {
+    "nationality": {
+      "status": "live_endpoint_required",
+      "identity": "country_code"
+    },
+    "airports": {
+      "status": "live_endpoint_required",
+      "identity": "airport_code"
+    },
+    "flightAndShip": {
+      "status": "live_endpoint_required",
+      "identity": "transport_number"
+    },
+    "additionalQuestions": {
+      "status": "reviewed_empty_clean_snapshot",
+      "identity": "question_code",
+      "fail_closed_on_non_empty_or_shape_change": true
+    }
+  },
+  "policy": "The runner must reject an answer when a live official option is not present in the reviewed snapshot or when the official endpoint shape changes. This snapshot is not a substitute for a live portal check."
+}
