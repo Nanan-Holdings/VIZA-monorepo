@@ -559,7 +559,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId, execution) => {
       officialTermsConsent,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
-    await writeRunnerPoolSubmissionResult(executionContext, twPayload, "completed");
+    await writeRunnerPoolSubmissionResult(executionContext, twPayload, "submitted");
     return HALTED("submitted");
   }
   if (result.status === "failed") {

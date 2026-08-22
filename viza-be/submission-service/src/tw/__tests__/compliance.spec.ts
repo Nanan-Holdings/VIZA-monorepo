@@ -173,6 +173,10 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(haltRunnerSource, /\.eq\("application_id", applicationId\)/);
     assert.match(haltRunnerSource, /\.eq\("country", "taiwan"\)/);
     assert.match(haltRunnerSource, /TW_ACTIVE_RUNNER_JOB_STATUSES/);
+    assert.match(
+      haltRunnerSource,
+      /writeRunnerPoolSubmissionResult\(executionContext, twPayload, "submitted"\)/,
+    );
     assert.match(guardSource, /result\?\.country === "TW" && result\.status === "submitted"/);
     assert.match(guardSource, /job\.id !== snapshot\.currentJobId/);
     assert.doesNotMatch(guardSource, /activeHandoffs|takeover_session|handoff/i);

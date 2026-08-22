@@ -1,1488 +1,205 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import type { InterviewReport } from "@/app/api/interview/report/route";
-import { useLiveTalking, type LiveTalkingStatus } from "./_hooks/use-live-talking";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowCounterClockwise,
+  CheckCircle,
+  CircleNotch,
+  Flag,
+  Microphone,
+  PaperPlaneTilt,
+  Play,
+  Stop,
+  WarningCircle,
+} from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import type { ApplicantProfile, InterviewOfficer } from "@/app/api/interview/types";
+import {
+  DEFAULT_OFFICER,
+  clearInterviewSession,
+  createInterviewSession,
+  readInterviewSession,
+  reportIdempotencyKey,
+  writeInterviewSession,
+  type InterviewSession,
+} from "./session";
+import { useBrowserSpeech } from "./_hooks/use-browser-speech";
 
-const TRANSCRIPT_KEY = "viza_interview_transcript";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type Message = { role: "user" | "assistant"; content: string };
-type PageState = "start" | "checklist" | "officer" | "interview" | "report";
-type ApplicantProfile = {
-  purpose: string;
-  cities: string;
-  travelDates: string;
-  duration: string;
-  funding: string;
-  occupation: string;
-  familyTies: string;
-};
-type InterviewStep = {
-  topic: string;
-  question: string;
-  required: Array<"city" | "time" | "money" | "work" | "ties" | "detail">;
-  followUp: string;
-};
-type OfficerProfile = {
-  id: string;
-  name: string;
-  title: string;
-  style: string;
-  pressure: string;
-  description: string;
-  image: string;
-  avatarId: string;
-  voice: string;
-  voiceGender: "male" | "female";
-  speechRate: number;
-};
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const OFFICER_IMAGE =
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=560&h=800&fit=crop&crop=top";
-
-const OFFICERS: OfficerProfile[] = [
-  {
-    id: "miller", name: "Miller", title: "标准型", pressure: "标准",
-    style: "沉稳、中性、按真实窗口节奏核实核心事实",
-    description: "节奏均衡，适合第一次练习",
-    image: OFFICER_IMAGE, avatarId: "officer_miller", voice: "zh-CN-YunxiNeural", voiceGender: "male", speechRate: 0.88,
-  },
-  {
-    id: "chen", name: "Chen", title: "快速型", pressure: "较高",
-    style: "语速较快、问题极短、回答含糊时立即追问",
-    description: "问题短而快，训练临场反应",
-    image: "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_chen", voice: "zh-CN-XiaoxiaoNeural", voiceGender: "female", speechRate: 1.02,
-  },
-  {
-    id: "williams", name: "Williams", title: "核验型", pressure: "较高",
-    style: "关注时间、金额、工作年限和前后陈述是否一致",
-    description: "重视细节和材料一致性",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_williams", voice: "zh-CN-YunjianNeural", voiceGender: "male", speechRate: 0.93,
-  },
-  {
-    id: "garcia", name: "Garcia", title: "自然型", pressure: "较低",
-    style: "语气自然但保持专业，通过简短对话了解旅行真实性",
-    description: "氛围自然，适合建立信心",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_garcia", voice: "zh-CN-XiaoyiNeural", voiceGender: "female", speechRate: 0.84,
-  },
-  {
-    id: "obama", name: "Obama", title: "总统风格", pressure: "标准",
-    style: "沉着、自信、善于用简短追问核实回答的逻辑和真实性；不模仿政治演讲",
-    description: "特别体验形象，沉着而有逻辑",
-    image: "/images/interview-officers/obama-simulation.png",
-    avatarId: "officer_obama", voice: "zh-CN-YunyangNeural", voiceGender: "male", speechRate: 0.9,
-  },
+const OFFICERS: InterviewOfficer[] = [
+  DEFAULT_OFFICER,
+  { id: "rapid", name: "Chen", style: "快速节奏，回答含糊时直接追问" },
+  { id: "verification", name: "Williams", style: "重点核对日期、预算、工作和回国安排" },
+  { id: "supportive", name: "Garcia", style: "自然、专业，适合建立回答节奏" },
 ];
 
-const QUESTIONS = [
-  "这次去美国主要是什么打算？",
-  "具体去做什么？",
-  "为什么选这个时间去？",
-  "计划去哪些城市？",
-  "打算在美国待多长时间？",
-  "回程机票订了吗？",
-  "住宿安排好了吗？",
-  "这次费用自己出还是有人资助？",
-  "大概预算多少？",
-  "目前在国内做什么工作？",
-  "在哪家公司或机构？",
-  "家里还有什么牵挂，回国后有什么安排？",
+const REQUIRED_FIELDS: Array<keyof ApplicantProfile> = [
+  "purposeDetails", "destinations", "travelDates", "duration", "funding", "occupation", "homeTies",
 ];
 
-const ENDING_MESSAGE = "好的，今天的面试到这里就结束了，感谢您的配合。";
-
-const DEFAULT_PROFILE: ApplicantProfile = {
-  purpose: "",
-  cities: "",
-  travelDates: "",
-  duration: "",
-  funding: "",
-  occupation: "",
-  familyTies: "",
-};
-
-function compact(value: string, fallback: string) {
-  return value.trim() || fallback;
+function updateSession(session: InterviewSession, patch: Partial<InterviewSession>): InterviewSession {
+  return { ...session, ...patch, updatedAt: new Date().toISOString() };
 }
 
-function buildInterviewPlan(profile: ApplicantProfile): InterviewStep[] {
-  const cities = compact(profile.cities, "美国");
-  const duration = compact(profile.duration, "这段时间");
-  const funding = compact(profile.funding, "这次费用");
-  const occupation = compact(profile.occupation, "目前的工作或身份");
-  const ties = compact(profile.familyTies, "国内安排");
-  const purpose = profile.purpose.toLowerCase();
-
-  const opening: InterviewStep = {
-    topic: "赴美目的",
-    question: "你去美国做什么？",
-    required: ["detail"],
-    followUp: "具体做什么？",
-  };
-
-  const purposeQuestions: InterviewStep[] = /探亲|访友|看望|亲戚|家人/.test(purpose)
-    ? [
-        { topic: "邀请关系", question: "你去看谁？", required: ["detail"], followUp: "你们是什么关系？" },
-        { topic: "邀请人情况", question: "他在美国做什么？", required: ["detail"], followUp: "他现在是什么身份？" },
-      ]
-    : /商务|会议|展会|客户|公司|培训/.test(purpose)
-    ? [
-        { topic: "商务事项", question: "你去参加什么商务活动？", required: ["detail"], followUp: "活动或对方公司的名称是什么？" },
-        { topic: "职位关联", question: "为什么必须由你去？", required: ["work", "detail"], followUp: "这和你的职责有什么关系？" },
-      ]
-    : [
-        { topic: "旅行安排", question: `你准备去${cities}哪些地方？`, required: ["city", "detail"], followUp: "最主要去哪个城市？" },
-        { topic: "同行人员", question: "谁和你一起去？", required: ["detail"], followUp: "你是一个人去吗？" },
-      ];
-
-  return [
-    opening,
-    ...purposeQuestions,
-    { topic: "停留时间", question: `你准备在美国待${duration}？`, required: ["time"], followUp: "具体待多少天？" },
-    { topic: "费用来源", question: `${funding}，谁承担费用？`, required: ["money"], followUp: "这次大约准备多少预算？" },
-    { topic: "工作情况", question: `${occupation}，你具体做什么工作？`, required: ["work", "detail"], followUp: "你在那里工作多久了？" },
-    { topic: "回国安排", question: `旅行结束后你回来做什么？`, required: ["ties", "detail"], followUp: `你提到${ties}，具体是什么安排？` },
-    { topic: "出境记录", question: "你以前出过国吗？", required: ["detail"], followUp: "最近一次去了哪里？" },
-  ];
+function fieldLabel(field: keyof ApplicantProfile) {
+  return ({
+    purposeDetails: "赴美目的", destinations: "目的地", travelDates: "出行时间", duration: "停留时长",
+    funding: "资金来源", occupation: "职业或身份", homeTies: "回国安排",
+  } as Partial<Record<keyof ApplicantProfile, string>>)[field] ?? field;
 }
 
-function answerHasRequirement(answer: string, requirement: InterviewStep["required"][number]) {
-  const text = answer.trim();
-  if (requirement === "detail") return text.length >= 14;
-  if (requirement === "city") return /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|city/i.test(text);
-  if (requirement === "time") return /\d|天|周|月|号|日期|时间|行程|回程|机票/.test(text);
-  if (requirement === "money") return /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text);
-  if (requirement === "work") return /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|业务|生意/.test(text);
-  return /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|工作|公司|学校|回国|回来|项目/.test(text);
+function scoreTone(score: number) {
+  return score >= 78 ? "text-emerald-700 bg-emerald-50" : score < 60 ? "text-red-700 bg-red-50" : "text-amber-700 bg-amber-50";
 }
-
-function needsFollowUp(answer: string, step: InterviewStep) {
-  if (answer.trim().length < 8) return true;
-  return step.required.some((requirement) => !answerHasRequirement(answer, requirement));
-}
-
-async function requestOfficerTurn(
-  messages: Message[],
-  profile: ApplicantProfile,
-  officer: OfficerProfile,
-  directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean }
-) {
-  const response = await fetch("/api/interview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages,
-      profile,
-      directive,
-      officer: { name: officer.name, style: officer.style, pressure: officer.pressure },
-    }),
-  });
-  if (!response.ok || !response.body) throw new Error("Interview response unavailable");
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let reply = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      const data = event.split("\n").find((line) => line.startsWith("data:"))?.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
-      try {
-        const payload = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
-        reply += payload.choices?.[0]?.delta?.content ?? "";
-      } catch { /* Ignore malformed upstream chunks. */ }
-    }
-    if (done) break;
-  }
-  return reply.trim() || directive.question;
-}
-
-// ─── Metric Bar ───────────────────────────────────────────────────────────────
-
-function MetricBar({ label, value }: { label: string; value: number }) {
-  const color = value > 70
-    ? { bar: "#639922", text: "#27500A" }
-    : value > 50
-    ? { bar: "#EF9F27", text: "#854F0B" }
-    : value > 0
-    ? { bar: "#E24B4A", text: "#A32D2D" }
-    : { bar: "#E24B4A", text: "#b0b7c3" };
-  return (
-    <div className="mb-[14px]">
-      <div className="flex justify-between items-baseline mb-[5px]">
-        <span className="text-[12px] text-[rgba(0,0,0,0.45)]">{label}</span>
-        <span className="text-[13px] font-medium" style={{ color: value > 0 ? color.text : "#b0b7c3" }}>{value}%</span>
-      </div>
-      <div className="h-[5px] bg-[#efefef] rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color.bar, transition: "width 0.7s ease" }} />
-      </div>
-    </div>
-  );
-}
-
-function getAnswerTags(answer: string): { type: "good" | "warn"; text: string }[] {
-  const tags: { type: "good" | "warn"; text: string }[] = [];
-  if (answer.length >= 20) tags.push({ type: "good", text: "回答完整" });
-  if (answer.length < 8)   tags.push({ type: "warn", text: "回答过于简短" });
-  if (/\d/.test(answer))   tags.push({ type: "good", text: "提及具体数字" });
-  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|城市/.test(answer))
-    tags.push({ type: "good", text: "有明确目的地" });
-  if (/美元|费用|预算|花|存款|银行|资金|钱/.test(answer))
-    tags.push({ type: "good", text: "提及费用安排" });
-  if (/天|周|月|号|日期|时间|行程/.test(answer))
-    tags.push({ type: "good", text: "说明时间安排" });
-  if (/工作|公司|单位|职位|上班/.test(answer))
-    tags.push({ type: "good", text: "说明工作情况" });
-  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭/.test(answer))
-    tags.push({ type: "good", text: "提及家庭牵挂" });
-  return tags.slice(0, 3);
-}
-
-// ─── Start Page ──────────────────────────────────────────────────────────────
-
-function StartPage({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="min-h-screen bg-[#fafafa]">
-      <style>{`
-        @keyframes hud-blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-        @keyframes hud-wave-bar { 0%,100%{transform:scaleY(0.3);opacity:0.4} 50%{transform:scaleY(1);opacity:1} }
-        @keyframes dot-glow { 0%,100%{box-shadow:0 0 4px #4ade80} 50%{box-shadow:0 0 10px #4ade80} }
-      `}</style>
-
-      {/* Nav */}
-      <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
-        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <span className="text-white text-[12px] font-semibold border-b border-white pb-0.5">模拟面试</span>
-      </nav>
-
-      {/* Hero */}
-      <div className="bg-[#03346E] px-8 pt-10 pb-0 grid grid-cols-[1fr_280px] gap-10 items-end overflow-hidden lg:grid-cols-[1fr_300px]">
-        {/* Left */}
-        <div className="pb-10">
-          <div className="inline-flex items-center gap-1.5 bg-white/12 border border-white/20 rounded-full px-3 py-1 mb-5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ animation: "hud-blink 2s infinite" }} />
-            <span className="text-white/85 text-[11px] font-medium">B1/B2 · AI 签证面试仿真</span>
-          </div>
-          <h1 className="text-[32px] font-extrabold text-white leading-[1.18] tracking-tight mb-4">
-            一次模拟，<br /><span className="text-[#93c5fd]">少一份意外</span>
-          </h1>
-          <p className="text-white/60 text-[13px] leading-relaxed mb-7 max-w-[380px]">
-            与 AI 领事官进行仿真对话练习，考察真实签证场景问题，面试结束后给出逐题评分与改进建议。
-          </p>
-          <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full shadow-md hover:bg-blue-50 transition-colors">
-            ▶ 开始模拟面试
-          </button>
-          {/* Stats */}
-          <div className="flex gap-6 mt-8 pt-6 border-t border-white/10">
-            {[
-              { val: "AI", label: "仿真领事官" },
-              { val: "逐题", label: "评估报告" },
-              { val: "免费", label: "无限练习" },
-            ].map((s, i) => (
-              <div key={i} className="flex items-center gap-3">
-                {i > 0 && <div className="w-px h-7 bg-white/15" />}
-                <div>
-                  <div className="text-[20px] font-extrabold text-white leading-none">{s.val}</div>
-                  <div className="text-[10px] text-white/40 mt-0.5">{s.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right — HUD panel */}
-        <div className="self-end">
-          <div className="rounded-t-[14px] overflow-hidden shadow-[0_-8px_40px_rgba(0,0,0,0.3)]"
-            style={{ background: "linear-gradient(160deg,#1a3a6e 0%,#0d2347 100%)" }}>
-            <div className="px-4 pt-4 pb-3">
-              {/* Top badges */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-[4px] px-2 py-1">
-                    <div className="w-[5px] h-[5px] rounded-full bg-red-400" style={{ animation: "hud-blink 1s infinite" }} />
-                    <span className="text-[8px] font-bold text-white/70 tracking-[.07em] font-mono">LIVE · CONSULAR OFFICER</span>
-                  </div>
-                  <div className="flex items-center bg-white/10 border border-white/15 rounded-[4px] px-2 py-1">
-                    <span className="text-[8px] font-bold text-white/60 tracking-[.07em] font-mono">PROTOCOL: B1/B2</span>
-                  </div>
-                </div>
-                {/* Audio wave */}
-                <div className="flex items-center gap-[2px] bg-white/10 border border-white/12 rounded-[5px] px-2 py-[5px] h-[28px]">
-                  {[7, 14, 18, 10, 16, 8, 13].map((h, i) => (
-                    <div key={i} className="w-[2.5px] rounded-sm bg-white"
-                      style={{ height: h, animation: `hud-wave-bar 0.55s ease-in-out ${i * 0.09}s infinite` }} />
-                  ))}
-                </div>
-              </div>
-              {/* Avatar */}
-              <div className="flex flex-col items-center gap-2.5 mb-4">
-                <div className="w-[68px] h-[68px] rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center text-[30px]">
-                  👨‍💼
-                </div>
-                <div className="w-[6px] h-[6px] rounded-full bg-green-400" style={{ animation: "dot-glow 2s infinite" }} />
-              </div>
-              {/* Question card */}
-              <div className="bg-black/25 rounded-[10px] px-3 py-3">
-                <p className="text-[8px] font-bold text-white/40 tracking-[.12em] uppercase font-mono mb-2">Current Question</p>
-                <p className="text-[17px] font-extrabold text-white leading-tight">去美国做什么？</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="px-8 py-8">
-
-        {/* Feature cards */}
-        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">核心功能</p>
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { icon: "👨‍💼", t: "真实口吻提问", d: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
-            { icon: "🎙️", t: "语音双向交互", d: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
-            { icon: "📊", t: "逐题评估报告", d: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
-          ].map((f) => (
-            <div key={f.t} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="w-[40px] h-[40px] rounded-[10px] bg-[#EEF3FA] flex items-center justify-center text-[18px] mb-4">{f.icon}</div>
-              <div className="text-[14px] font-bold text-[#1a1a1a] mb-2">{f.t}</div>
-              <div className="text-[12px] text-[rgba(0,0,0,0.45)] leading-[1.7]">{f.d}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Steps */}
-        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">使用流程</p>
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { n: 1, t: "点击开始", d: "无需注册，直接进入 AI 仿真面试，全程免费使用。" },
-            { n: 2, t: "语音 / 文字作答", d: "AI 按真实节奏逐题提问，支持语音回答。" },
-            { n: 3, t: "查看详细报告", d: "自动生成综合评分报告，逐题分析并给出针对性改进建议。" },
-          ].map((s, i) => (
-            <div key={i} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex gap-4 items-start">
-              <div className="w-[36px] h-[36px] rounded-full bg-[#03346E] text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0">{s.n}</div>
-              <div>
-                <div className="text-[14px] font-bold text-[#1a1a1a] mb-1.5">{s.t}</div>
-                <div className="text-[12px] text-[rgba(0,0,0,0.4)] leading-[1.65]">{s.d}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA */}
-        <div className="bg-[#03346E] rounded-[16px] px-8 py-7 flex items-center justify-between gap-6">
-          <div>
-            <div className="text-white font-bold text-[18px] mb-1.5">准备好了吗？</div>
-            <div className="text-white/50 text-[13px]">面试只有一次机会，练习可以无数次。</div>
-          </div>
-          <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full whitespace-nowrap hover:bg-blue-50 transition-colors shadow-md">
-            立即开始 →
-          </button>
-        </div>
-      </div>
-
-      <footer className="border-t border-[#efefef] bg-white px-6 py-2 flex justify-between items-center">
-        <div className="flex gap-4">
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />系统正常</span>
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
-        </div>
-        <span className="text-[10px] text-[#989898]">B1/B2 旅游签证</span>
-      </footer>
-    </div>
-  );
-}
-
-// ─── Checklist Page ──────────────────────────────────────────────────────────
-
-const CHECKLIST_ITEMS = [
-  { label: "护照（有效期 6 个月以上）", desc: "确保护照在签证有效期内不会过期" },
-  { label: "DS-160 非移民签证申请表", desc: "已在线填写并打印确认页" },
-  { label: "面试预约确认函", desc: "大使馆或领事馆出具的预约确认文件" },
-  { label: "近期白底彩色证件照", desc: "符合美国签证照片要求（5×5cm）" },
-  { label: "银行流水 / 资金证明", desc: "近 3–6 个月的存款或收入证明" },
-  { label: "在职证明 / 营业执照", desc: "证明您在国内有稳定的工作或业务" },
-];
-
-function ChecklistPage({
-  onConfirm,
-  onBack,
-}: {
-  onConfirm: () => void;
-  onBack: () => void;
-}) {
-  const [checked, setChecked] = useState<boolean[]>(CHECKLIST_ITEMS.map(() => false));
-  const allChecked = checked.every(Boolean);
-
-  function toggle(i: number) {
-    setChecked((prev) => prev.map((v, idx) => idx === i ? !v : v));
-  }
-
-  return (
-    <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
-      <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">← 返回</button>
-      </nav>
-
-      <main className="flex-1 px-5 py-10 sm:py-14">
-        <div className="mx-auto w-full max-w-[760px]">
-          <div className="mb-7">
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-[#537295] mb-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">1</span>
-              <span>面试准备</span>
-              <span className="h-px flex-1 bg-[#d8e1ec]" />
-              <span className="text-[#9aa8b8]">2 选择面试官</span>
-            </div>
-            <h1 className="text-[28px] font-bold text-[#10253f]">确认随身材料</h1>
-            <p className="mt-2 text-[13px] text-[#6b7b8f]">勾选你会带去领事馆的文件。这里只做准备确认，不需要填写个人档案。</p>
-          </div>
-
-          <div className="overflow-hidden rounded-lg border border-[#dfe6ef] bg-white shadow-[0_10px_30px_rgba(20,45,75,0.06)]">
-            {CHECKLIST_ITEMS.map((item, i) => (
-              <button
-                key={item.label}
-                onClick={() => toggle(i)}
-                className={`w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left border-b border-[#edf1f5] last:border-0 transition-colors ${checked[i] ? "bg-[#f4faf7]" : "hover:bg-[#f7f9fc]"}`}
-              >
-                <span className={`h-6 w-6 rounded-[5px] border-2 flex items-center justify-center flex-shrink-0 ${checked[i] ? "border-[#16865c] bg-[#16865c]" : "border-[#bec9d6]"}`}>
-                  {checked[i] && <span className="text-[13px] font-bold text-white">✓</span>}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className={`text-[14px] font-semibold ${checked[i] ? "text-[#176b4f]" : "text-[#22364e]"}`}>{item.label}</div>
-                  <div className="mt-1 text-[11px] text-[#8190a1]">{item.desc}</div>
-                </div>
-                <span className={`hidden sm:block text-[11px] font-medium ${checked[i] ? "text-[#16865c]" : "text-[#a4afbc]"}`}>{checked[i] ? "已确认" : "待确认"}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-5 flex items-center justify-between gap-4">
-            <span className="text-[12px] text-[#6f7f91]">已确认 {checked.filter(Boolean).length} / {CHECKLIST_ITEMS.length} 项</span>
-            <button
-              onClick={onConfirm}
-              disabled={!allChecked}
-              className="min-w-[190px] rounded-md bg-[#03346E] px-6 py-3 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#022b5c] disabled:cursor-not-allowed disabled:bg-[#cbd4df]"
-            >
-              下一步：选择面试官
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
-  officer: OfficerProfile;
-  onChange: (officer: OfficerProfile) => void;
-  onConfirm: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
-      <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
-        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <button onClick={onBack} className="text-white/65 text-[12px] hover:text-white">← 返回材料确认</button>
-      </nav>
-      <main className="flex-1 px-5 py-10 sm:py-14">
-        <div className="mx-auto max-w-[1180px]">
-          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[#537295]">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e2e9f2] text-[#537295]">✓</span>
-                <span>材料已确认</span><span className="h-px w-12 bg-[#cfd9e5]" />
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">2</span>
-                <span>选择面试官</span>
-              </div>
-              <h1 className="text-[30px] font-bold text-[#10253f]">你想和谁练习？</h1>
-              <p className="mt-2 text-[13px] text-[#6b7b8f]">每位面试官拥有不同节奏和追问习惯，报告使用同一套标准。</p>
-            </div>
-            <div className="rounded-md border border-[#d7e0ea] bg-white px-4 py-3 text-[12px] text-[#536579]">
-              当前选择：<span className="font-bold text-[#123a68]">{officer.name} · {officer.title}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {OFFICERS.map((item) => {
-              const selected = item.id === officer.id;
-              return (
-                <button key={item.id} onClick={() => onChange(item)} className={`group overflow-hidden rounded-lg border bg-white text-left transition-all ${selected ? "border-[#185FA5] shadow-[0_12px_28px_rgba(24,95,165,0.18)] ring-2 ring-[#185FA5]/20" : "border-[#dfe6ee] shadow-[0_6px_18px_rgba(20,45,75,0.06)] hover:-translate-y-1 hover:border-[#91a9c4]"}`}>
-                  <div className="relative aspect-[4/5] overflow-hidden bg-[#dfe7f0]">
-                    <img src={item.image} alt={`${item.name} 面试官`} className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]" />
-                    <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#071b31]/85 to-transparent" />
-                    <span className="absolute bottom-3 left-3 rounded-[4px] bg-white/92 px-2 py-1 text-[10px] font-bold text-[#143e6c]">{item.title}</span>
-                    {selected && <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#16865c] text-[13px] font-bold text-white">✓</span>}
-                  </div>
-                  <div className="p-4">
-                    <h2 className="text-[17px] font-bold text-[#172b43]">{item.name}</h2>
-                    <p className="mt-1.5 min-h-[36px] text-[11px] leading-[1.6] text-[#718195]">{item.description}</p>
-                    <div className="mt-3 flex items-center justify-between border-t border-[#edf1f5] pt-3 text-[10px]">
-                      <span className="text-[#8b98a7]">压力</span><span className="font-semibold text-[#3c5f83]">{item.pressure}</span>
-                    </div>
-                    {item.id === "obama" && <p className="mt-2 text-[9px] text-[#8a5a13]">AI 模拟形象，非本人或官方内容</p>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-7 flex flex-col items-start justify-between gap-4 rounded-lg border border-[#dce4ed] bg-white px-5 py-4 sm:flex-row sm:items-center">
-            <div>
-              <p className="text-[13px] font-bold text-[#21364e]">{officer.name} · {officer.title}</p>
-              <p className="mt-1 text-[11px] text-[#718195]">{officer.style}</p>
-            </div>
-            <button onClick={onConfirm} className="w-full rounded-md bg-[#03346E] px-7 py-3 text-[13px] font-bold text-white hover:bg-[#022b5c] sm:w-auto">开始模拟面试</button>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-// ─── Interview Page ───────────────────────────────────────────────────────────
-
-function InterviewPage({
-  messages, isStreaming, isSpeaking, isMuted, input, interviewDone,
-  officer, avatarStream, avatarStatus, onInputChange, onSend, onEnd, onAbandon, onToggleMute, onStartListening,
-}: {
-  messages: Message[]; isStreaming: boolean; isSpeaking: boolean; isMuted: boolean;
-  input: string; interviewDone: boolean;
-  officer: OfficerProfile;
-  avatarStream: MediaStream | null; avatarStatus: LiveTalkingStatus;
-  onInputChange: (v: string) => void; onSend: (forceText?: string) => void;
-  onEnd: () => void; onAbandon: () => void; onToggleMute: () => void; onStartListening: () => void;
-}) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const avatarVideoRef = useRef<HTMLVideoElement>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [imgError, setImgError] = useState(false);
-
-  // ── Real-time analysis (based on actual speech signals) ──────────────────────
-  const [metrics, setMetrics] = useState({ confidence: 0, fluency: 0, emotion: 0 });
-  const lastSpeechTimeRef = useRef<number>(0);          // timestamp of last onresult
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const audioContextRef  = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const analyserRef      = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const micStreamRef     = useRef<any>(null);
-
-  async function startAudioAnalysis() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      micStreamRef.current = stream;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx = new (window.AudioContext ?? (window as any).webkitAudioContext)();
-      audioContextRef.current = ctx;
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyserRef.current = analyser;
-      ctx.createMediaStreamSource(stream).connect(analyser);
-    } catch { /* mic permission denied — emotion stays static */ }
-  }
-
-  function stopAudioAnalysis() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    micStreamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
-    analyserRef.current = null;
-    micStreamRef.current = null;
-  }
-
-  // Update metrics — live while recording, history-based when idle
-  useEffect(() => {
-    if (isListening) {
-      // ── Recording: update every 300ms from live signals ──────────────────
-      const id = setInterval(() => {
-        // 表达置信度 — current utterance text length
-        const textLen = accumulatedRef.current.length;
-        const confidence = Math.round(Math.min(95, 20 + Math.min(textLen * 1.6, 75)));
-
-        // 流利程度 — time since last speech fragment
-        const ms = lastSpeechTimeRef.current > 0 ? Date.now() - lastSpeechTimeRef.current : 4000;
-        const fluency = Math.round(
-          ms < 500  ? 85 + Math.random() * 10 :
-          ms < 1500 ? 65 + Math.random() * 12 :
-          ms < 3000 ? 42 + Math.random() * 10 :
-                      22 + Math.random() * 8
-        );
-
-        // 情绪检测 — microphone volume
-        let emotion = metrics.emotion;
-        if (analyserRef.current) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-          const data = new Uint8Array(analyserRef.current.frequencyBinCount as number);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-          analyserRef.current.getByteFrequencyData(data);
-          const avg = data.reduce((a: number, b: number) => a + b, 0) / data.length;
-          emotion = Math.round(Math.min(97, Math.max(15, avg * 2.4)));
-        }
-        setMetrics({ confidence, fluency, emotion });
-      }, 300);
-      return () => clearInterval(id);
-    } else {
-      // ── Idle: derive from past user answers ────────────────────────────────
-      const userMsgs = messages.filter((m) => m.role === "user");
-      if (userMsgs.length === 0) return;
-      const avgLen = userMsgs.reduce((s, m) => s + m.content.length, 0) / userMsgs.length;
-      // 表达置信度 — average answer length across all replies
-      const confidence = Math.round(Math.min(95, 15 + Math.min(avgLen * 1.4, 80)));
-      // 流利程度 — keep last live value (recorded during mic session)
-      // 情绪检测 — keep last live value
-      setMetrics((prev) => ({ ...prev, confidence }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening, messages]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef(false);   // ref mirror so callbacks always see latest value
-  const accumulatedRef = useRef("");      // accumulate finals across auto-restarts
-  const onSendRef = useRef(onSend);       // always-fresh ref to avoid stale closure
-  useEffect(() => { onSendRef.current = onSend; }, [onSend]);
-
-  const lastOfficerMsg = [...messages].reverse().find((m) => m.role === "assistant");
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  useEffect(() => {
-    if (avatarVideoRef.current) avatarVideoRef.current.srcObject = avatarStream;
-  }, [avatarStream]);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!isStreaming && input.trim()) onSend(); }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function startRecognition(SR: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const recognition = new SR();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.lang = "zh-CN";
-    // continuous:true = recognition runs until explicitly stopped; no mid-sentence gaps
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.continuous = true;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.interimResults = true;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    recognition.onresult = (e: any) => {
-      let interim = "";
-      // Only process NEW results starting at e.resultIndex to avoid re-appending
-      // already-accumulated finals on every subsequent continuous-mode event
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      for (let i = (e as any).resultIndex as number; i < (e as any).results.length; i++) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const r = (e as any).results[i];
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if ((r as any).isFinal) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          accumulatedRef.current += (r as any)[0].transcript as string;
-        } else {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          interim += (r as any)[0].transcript as string;
-        }
-      }
-      lastSpeechTimeRef.current = Date.now();   // track for fluency measurement
-      onInputChange(accumulatedRef.current + interim);
-    };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.onend = () => {
-      if (isListeningRef.current) {
-        // Unexpected end (browser timeout etc.) — restart to keep listening
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        try { recognition.start(); } catch { startRecognition(SR); }
-      } else {
-        // User clicked stop — flush accumulated text and send
-        const final = accumulatedRef.current.trim();
-        onInputChange(final);
-        if (final) onSendRef.current(final);
-        setIsListening(false);
-      }
-    };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.onerror = (e: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if ((e as any).error === "no-speech") {
-        // In continuous mode this is informational — recognition keeps going
-        return;
-      }
-      isListeningRef.current = false;
-      setIsListening(false);
-    };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    recognition.start();
-    recognitionRef.current = recognition;
-  }
-
-  function toggleListening() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("您的浏览器不支持语音识别，请使用 Chrome 或 Edge。"); return; }
-    if (isListeningRef.current) {
-      // User clicked again — stop and auto-send
-      isListeningRef.current = false;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
-      stopAudioAnalysis();
-      return;
-    }
-    accumulatedRef.current = "";   // reset for new utterance
-    lastSpeechTimeRef.current = 0;
-    onStartListening();
-    isListeningRef.current = true;
-    setIsListening(true);
-    void startAudioAnalysis();
-    startRecognition(SR);
-  }
-
-  return (
-    <div className="h-screen bg-[#fafafa] flex flex-col overflow-hidden">
-      <style>{`
-        @keyframes speaking-pulse { from { transform: scale(1); filter: brightness(0.94) saturate(1); } to { transform: scale(1.012); filter: brightness(1.04) saturate(1.04); } }
-        @keyframes live-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
-        @keyframes wave-bar { 0%, 100% { transform: scaleY(0.35); opacity: 0.45; } 50% { transform: scaleY(1); opacity: 1; } }
-      `}</style>
-
-      <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <div className="flex items-center gap-1.5 bg-white/12 border border-white/20 rounded-full px-3 py-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_#4ade80]" />
-          <span className="text-white/90 text-[10px] font-medium">B1/B2 旅游签证 · 模拟进行中</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onToggleMute} className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white/80 text-[10px] font-medium hover:bg-white/15 transition-colors">
-            {isMuted ? "🔇 已静音" : "🔊 朗读开启"}
-          </button>
-          <button onClick={onAbandon} className="bg-red-500/20 border border-red-300/30 text-red-300 text-[10px] font-semibold px-3 py-1.5 rounded-full hover:bg-red-500/30 transition-colors">结束面试</button>
-        </div>
-      </nav>
-
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[190px_minmax(0,1fr)_320px] grid-rows-[1fr] gap-3 p-4 bg-[#f5f7fa] overflow-hidden">
-
-        {/* Left */}
-        <div className="hidden xl:flex flex-col gap-3 overflow-y-auto">
-          <div className="bg-white border border-[#efefef] rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-            {/* Header row */}
-            <div className="flex items-center justify-between mb-[14px]">
-              <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898]">实时分析</span>
-              {isListening && (
-                <div className="flex items-center gap-1.5">
-                  <div className="flex gap-[2px] items-end" style={{ height: 14 }}>
-                    {[4, 8, 12, 8, 4].map((h, i) => (
-                      <div key={i} className="w-[3px] rounded-full bg-[#185FA5]"
-                        style={{ height: h, animation: `wave-bar 0.55s ease-in-out ${i * 0.1}s infinite` }} />
-                    ))}
-                  </div>
-                  <span className="text-[11px] font-medium text-[#185FA5] tracking-[.06em]">AI 扫描中</span>
-                </div>
-              )}
-            </div>
-
-            <MetricBar label="表达置信度" value={Math.round(metrics.confidence)} />
-            <MetricBar label="流利程度"   value={Math.round(metrics.fluency)} />
-            <MetricBar label="情绪检测"   value={Math.round(metrics.emotion)} />
-
-            {/* 答题快评 — shown only after answer, not while listening */}
-            {(() => {
-              const lastAnswer = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-              if (!lastAnswer || isListening) return null;
-              const tags = getAnswerTags(lastAnswer);
-              if (tags.length === 0) return null;
-              return (
-                <div className="mt-[14px] pt-[14px] border-t border-[#efefef]">
-                  <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898] block mb-[10px]">答题快评</span>
-                  <div className="flex flex-col gap-[6px]">
-                    {tags.map((tag, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[11px] font-medium px-2 py-[5px] rounded-lg border"
-                        style={tag.type === "good"
-                          ? { background: "#EAF3DE", color: "#27500A", borderColor: "#C0DD97" }
-                          : { background: "#FAEEDA", color: "#633806", borderColor: "#FAC775" }}>
-                        <span>{tag.type === "good" ? "✓" : "⚠"}</span>
-                        <span>{tag.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="bg-white border border-[#efefef] rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898] mb-3">答题小贴士</p>
-            {(() => {
-              const lastMsg = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
-              type Tip = { icon: string; text: string };
-              // ordered from most-specific to least — prevents false matches on common words
-              const tips: Tip[] =
-                /费用|预算|资助|银行流水|资金证明/.test(lastMsg) ? [
-                  { icon: "💰", text: "建议提及具体金额和资金来源" },
-                  { icon: "📄", text: "如有银行流水或存款证明，主动说明" },
-                  { icon: "✅", text: "说清是自费还是家人资助" },
-                ] : /工作|公司|机构|收入|请假/.test(lastMsg) ? [
-                  { icon: "🏢", text: "说出具体公司名称和您的职位" },
-                  { icon: "📅", text: "提一句请假已经获批" },
-                  { icon: "💼", text: "稳定的工作是回国意愿的有力证明" },
-                ] : /家里|配偶|子女|牵挂|回国|回来/.test(lastMsg) ? [
-                  { icon: "👨‍👩‍👧", text: "提及具体家庭成员，越真实越有说服力" },
-                  { icon: "🏠", text: "说明回国后有明确的工作或生活安排" },
-                  { icon: "🔗", text: "具体的责任牵挂比泛泛而谈更有效" },
-                ] : /多长时间|多久|回程|机票|停留/.test(lastMsg) ? [
-                  { icon: "✈️", text: "给出明确天数，例如：打算待三周" },
-                  { icon: "🎫", text: "已订好回程机票的话，主动提出来" },
-                  { icon: "⏱️", text: "停留时间要和旅行目的匹配" },
-                ] : /酒店|朋友家|住宿|预订|住哪/.test(lastMsg) ? [
-                  { icon: "🏨", text: "说出具体住宿区域或酒店名称" },
-                  { icon: "📋", text: "有预订记录会大大增加可信度" },
-                  { icon: "📍", text: "住宿地点最好与行程城市一致" },
-                ] : /城市|跟团|路线|待几天/.test(lastMsg) ? [
-                  { icon: "🗺️", text: "列出具体城市，说明大概路线" },
-                  { icon: "📅", text: "说明每个地方大概待几天" },
-                  { icon: "🎯", text: "有主题的行程更有说服力，例如文化游" },
-                ] : /打算|旅游|旅行|目的|规划|做什么|时间/.test(lastMsg) ? [
-                  { icon: "🎯", text: "说清楚旅行的主要目的，越具体越好" },
-                  { icon: "📋", text: "提前做过规划会显得更有备而来" },
-                  { icon: "💬", text: "避免只说【就是去玩】，给出真实细节" },
-                ] : [
-                  { icon: "💬", text: "回答要简洁直接，不要绕弯子" },
-                  { icon: "👁️", text: "保持自然，不要背稿子" },
-                  { icon: "📌", text: "回答要与您的签证材料保持一致" },
-                ];
-              return tips.map((tip) => (
-                <div key={tip.text} className="flex items-start gap-2.5 mb-2.5">
-                  <span className="text-[14px] flex-shrink-0 mt-0.5">{tip.icon}</span>
-                  <span className="text-[11px] text-[rgba(0,0,0,0.6)] leading-relaxed">{tip.text}</span>
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-
-        {/* Center — Officer */}
-        <div className="flex flex-col gap-3 min-h-0">
-          <div className="bg-white border border-[#efefef] rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex-1 relative min-h-0" style={{ minHeight: 320 }}>
-            {/* Fallback background — always rendered, sits behind the photo */}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, #03346E 0%, #1a5fa8 60%, #2d7cc7 100%)" }}>
-              {!imgLoaded && !imgError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="w-8 h-8 border-[3px] border-white/20 border-t-white/80 rounded-full animate-spin" />
-                  <span className="text-white/60 text-[11px] font-medium">加载中…</span>
-                </div>
-              )}
-              {imgError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  <svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="36" cy="26" rx="18" ry="20" fill="rgba(255,255,255,0.18)" />
-                    <rect x="10" y="52" width="52" height="36" rx="26" fill="rgba(255,255,255,0.14)" />
-                    <ellipse cx="36" cy="26" rx="12" ry="14" fill="rgba(255,255,255,0.28)" />
-                  </svg>
-                  <span className="text-white/40 text-[10px]">CONSULAR OFFICER</span>
-                </div>
-              )}
-            </div>
-            {/* Real photo — absolute so it fills container regardless of height */}
-            {avatarStream ? (
-              <video
-                ref={avatarVideoRef}
-                autoPlay
-                playsInline
-                muted={isMuted}
-                className="absolute inset-0 h-full w-full object-cover object-center bg-[#07182d]"
-              />
-            ) : !imgError && (
-              <img
-                src={officer.image}
-                alt="Consular Officer"
-                className="absolute inset-0 w-full h-full object-contain object-bottom"
-                style={{
-                  opacity: imgLoaded ? 1 : 0,
-                  transition: "opacity 0.4s ease",
-                  animation: isSpeaking ? "speaking-pulse 0.45s ease-in-out infinite alternate" : "none",
-                  filter: isSpeaking ? undefined : "brightness(0.93)",
-                }}
-                onLoad={() => setImgLoaded(true)}
-                onError={() => setImgError(true)}
-              />
-            )}
-            {!avatarStream && isSpeaking && (
-              <div className="absolute bottom-[94px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-[3px] rounded-full bg-black/45 px-3 py-2 backdrop-blur-sm">
-                {[8, 14, 20, 12, 18, 9, 15].map((height, index) => (
-                  <span key={index} className="w-[3px] rounded-full bg-white" style={{ height, animation: `wave-bar .55s ease-in-out ${index * .08}s infinite` }} />
-                ))}
-                <span className="ml-1 text-[9px] font-semibold text-white/85">语音动画</span>
-              </div>
-            )}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(3,52,110,0.9) 100%)" }} />
-            <div className="absolute inset-0 pointer-events-none opacity-[0.025]" style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 3px)" }} />
-
-
-            {/* HUD top-left */}
-            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-              <div className="flex items-center gap-1.5 bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
-                <div className="w-[7px] h-[7px] rounded-full bg-red-500" style={{ boxShadow: "0 0 5px #ef4444", animation: "live-blink 1s infinite" }} />
-                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">
-                  {avatarStatus === "connected" ? `LIVE: OFFICER ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? "CONNECTING OFFICER" : `OFFICER ${officer.name.toUpperCase()}`}
-                </span>
-              </div>
-              <div className="flex items-center bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
-                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">PROTOCOL: B1/B2</span>
-              </div>
-            </div>
-
-            {/* Audio wave */}
-            {isSpeaking && (
-              <div className="absolute top-3 right-3 z-10 flex items-center gap-[2.5px] bg-white/92 border border-[rgba(3,52,110,0.15)] rounded-[5px] px-2.5 py-[5px] h-[28px] shadow-sm">
-                {[6, 14, 19, 11, 17, 8, 13].map((h, i) => (
-                  <div key={i} className="w-[3px] rounded-sm bg-[#03346E]" style={{ height: h, animation: `wave-bar 0.55s ease-in-out ${i * 0.09}s infinite` }} />
-                ))}
-              </div>
-            )}
-
-            {/* Question + progress */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 z-10" style={{ paddingRight: 120 }}>
-              <p className="text-[9px] font-bold text-white/55 tracking-[.12em] uppercase mb-1.5 font-mono">Current Question</p>
-              <p className="text-[18px] font-extrabold text-white leading-[1.35] tracking-tight">
-                {messages.length === 0 ? "面试即将开始…" : (lastOfficerMsg?.content ?? "")}
-              </p>
-            </div>
-
-            {/* Bottom-right action buttons */}
-            {!interviewDone && (
-              <div className="absolute bottom-4 right-4 z-20 flex gap-2.5">
-                {/* Mic button */}
-                <button
-                  onClick={toggleListening}
-                  title={isListening ? "停止录音" : "开始说话"}
-                  style={{
-                    width: 52, height: 52,
-                    borderRadius: 14,
-                    background: isListening ? "rgba(59,130,246,0.82)" : "rgba(22,55,100,0.72)",
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)",
-                    border: isListening ? "1.5px solid rgba(147,197,253,0.6)" : "1.5px solid rgba(255,255,255,0.15)",
-                    boxShadow: isListening ? "0 0 0 3px rgba(59,130,246,0.3), 0 4px 16px rgba(0,0,0,0.35)" : "0 4px 16px rgba(0,0,0,0.35)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s ease", cursor: "pointer",
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <rect x="9" y="2" width="6" height="12" rx="3" fill={isListening ? "#fff" : "#7ec8f8"} />
-                    <path d="M5 11c0 3.866 3.134 7 7 7s7-3.134 7-7" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" fill="none" />
-                    <line x1="12" y1="18" x2="12" y2="22" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" />
-                    <line x1="9" y1="22" x2="15" y2="22" stroke={isListening ? "#fff" : "#7ec8f8"} strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
-                {/* End call button */}
-                <button
-                  onClick={onAbandon}
-                  title="结束面试"
-                  style={{
-                    width: 52, height: 52,
-                    borderRadius: 14,
-                    background: "rgba(90,20,20,0.72)",
-                    backdropFilter: "blur(10px)",
-                    WebkitBackdropFilter: "blur(10px)",
-                    border: "1.5px solid rgba(255,150,150,0.2)",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s ease", cursor: "pointer",
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" fill="#f87171" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {isStreaming && (
-            <div className="bg-[#EEF3FA] border border-[#D4E0F0] rounded-xl px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
-              {[0, 0.15, 0.3].map((d, i) => <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#03346E] animate-bounce" style={{ animationDelay: `${d}s` }} />)}
-              <span className="text-[11px] text-[#03346E] font-medium">官员正在回应…</span>
-            </div>
-          )}
-
-          {interviewDone && (
-            <button onClick={onEnd} className="bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors flex-shrink-0">
-              查看面试报告 →
-            </button>
-          )}
-
-          {/* STT status indicator */}
-          {isListening && (
-            <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 flex-shrink-0">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-[11px] text-blue-600 font-medium">录音中，请说话…点击麦克风停止</span>
-            </div>
-          )}
-        </div>
-
-        {/* Right — transcript and typed answer */}
-        <div className="bg-white border border-[#efefef] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col min-h-0">
-          <div className="px-4 py-3 border-b border-[#efefef] flex items-center justify-between flex-shrink-0">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898]">面试记录</p>
-              <p className="text-[11px] text-[rgba(0,0,0,0.42)] mt-0.5">文字和语音回答都会保留</p>
-            </div>
-            <span className="text-[10px] font-semibold text-[#3D6DAD] bg-[#EEF3FA] rounded-full px-2 py-1">
-              {messages.filter((m) => m.role === "user").length} 答
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
-            {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-center px-5">
-                <p className="text-[12px] text-[rgba(0,0,0,0.38)] leading-relaxed">
-                  面试开始后，问题和你的回答会显示在这里。
-                </p>
-              </div>
-            ) : messages.map((message, i) => (
-              <div
-                key={`${message.role}-${i}`}
-                className={`rounded-xl px-3 py-2.5 text-[12px] leading-relaxed ${
-                  message.role === "assistant"
-                    ? "bg-[#f1f5f9] text-[#24364a]"
-                    : "bg-[#03346E] text-white ml-5"
-                }`}
-              >
-                <div className={`text-[9px] font-semibold uppercase tracking-[.08em] mb-1 ${message.role === "assistant" ? "text-[#718096]" : "text-white/55"}`}>
-                  {message.role === "assistant" ? "Officer" : "You"}
-                </div>
-                {message.content || "…"}
-              </div>
-            ))}
-            <div ref={bottomRef} />
-          </div>
-
-          {!interviewDone ? (
-            <div className="border-t border-[#efefef] p-3 flex-shrink-0">
-              <textarea
-                value={input}
-                onChange={(event) => onInputChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isStreaming || isListening}
-                placeholder={isListening ? "正在听你说话…" : "输入回答，Enter 发送，Shift+Enter 换行"}
-                className="w-full min-h-[96px] resize-none rounded-xl border border-[#dfe7f1] bg-[#fbfcfe] px-3 py-2.5 text-[13px] leading-relaxed text-[#1a1a1a] outline-none transition-colors placeholder:text-[#a8b0bd] focus:border-[#3D6DAD] focus:bg-white disabled:bg-[#f5f7fa]"
-              />
-              <div className="flex items-center justify-between gap-2 mt-2">
-                <button
-                  onClick={toggleListening}
-                  type="button"
-                  className={`text-[11px] font-semibold px-3 py-2 rounded-full border transition-colors ${
-                    isListening
-                      ? "bg-blue-50 border-blue-200 text-blue-700"
-                      : "bg-white border-[#dfe7f1] text-[#3D6DAD] hover:bg-[#EEF3FA]"
-                  }`}
-                >
-                  {isListening ? "停止录音并发送" : "语音回答"}
-                </button>
-                <button
-                  onClick={() => onSend()}
-                  disabled={!input.trim() || isStreaming || isListening}
-                  type="button"
-                  className="bg-[#03346E] text-white text-[12px] font-bold px-4 py-2 rounded-full disabled:bg-[#d4dae4] disabled:text-white/80 hover:bg-[#022B5C] transition-colors"
-                >
-                  发送回答
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="border-t border-[#efefef] p-3 flex-shrink-0">
-              <button onClick={onEnd} className="w-full bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors">
-                查看面试报告 →
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <footer className="border-t border-[#efefef] bg-white px-6 py-2 flex justify-between items-center flex-shrink-0">
-        <div className="flex gap-4">
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full inline-block ${avatarStatus === "connected" ? "bg-green-500" : avatarStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-[#9aa7b8]"}`} />
-            {avatarStatus === "connected" ? "实时数字人已连接" : avatarStatus === "connecting" ? "正在连接数字人" : "语音动画模式"}
-          </span>
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
-        </div>
-        <span className="text-[10px] text-[#989898]">B1/B2 签证模拟</span>
-      </footer>
-    </div>
-  );
-}
-
-// ─── Report Page ──────────────────────────────────────────────────────────────
-
-function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () => void }) {
-  const passLikelihoodColor = report.passLikelihood === "高"
-    ? { dot: "#4ADE80", bg: "#15803D", text: "#BBF7D0" }
-    : report.passLikelihood === "中"
-    ? { dot: "#FCD34D", bg: "#B45309", text: "#FEF3C7" }
-    : { dot: "#F87171", bg: "#B91C1C", text: "#FEE2E2" };
-
-  const scoreCircumference = 2 * Math.PI * 38;
-  const scoreDash = scoreCircumference * (report.overallScore / 100);
-
-  const dims = [
-    { label: "清晰度", value: report.dimensions.clarity },
-    { label: "置信度", value: report.dimensions.confidence },
-    { label: "一致性", value: report.dimensions.consistency, danger: report.dimensions.consistency < 75 },
-    { label: "叙述对齐", value: report.dimensions.narrativeAlignment },
-  ];
-
-  return (
-    <div className="min-h-screen bg-[#f0f2f5]">
-      {/* ── Hero ── */}
-      <div className="bg-[#02213F] px-8 pt-5 pb-7">
-        {/* nav */}
-        <div className="flex items-center justify-between mb-7">
-          <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-4 w-auto" />
-          <span className="text-[rgba(255,255,255,0.45)] text-[12px]">B1/B2 签证模拟面试</span>
-        </div>
-        {/* hero body */}
-        <div className="flex items-center gap-8 flex-wrap">
-          {/* score ring */}
-          <svg width="100" height="100" viewBox="0 0 90 90" className="flex-shrink-0">
-            <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="7" />
-            <circle cx="45" cy="45" r="38" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round"
-              strokeDasharray={scoreCircumference} strokeDashoffset={scoreCircumference - scoreDash}
-              transform="rotate(-90 45 45)" />
-            <text x="45" y="51" textAnchor="middle" fill="white" fontSize="21" fontWeight="500">{report.overallScore}</text>
-          </svg>
-          {/* verdict */}
-          <div className="flex-shrink-0">
-            <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">综合评分</div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-1.5 rounded-full"
-                style={{ background: passLikelihoodColor.bg, color: passLikelihoodColor.text }}>
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: passLikelihoodColor.dot }} />
-                通过概率：{report.passLikelihood}
-              </span>
-            </div>
-            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">共完成 {report.questionAnalysis.length} 道问题 · 7 个模块</div>
-          </div>
-          {/* divider */}
-          <div className="w-px self-stretch bg-[rgba(255,255,255,0.12)] flex-shrink-0 hidden sm:block" style={{ minHeight: 64 }} />
-          {/* 4 mini stats */}
-          <div className="grid grid-cols-2 gap-x-10 gap-y-3 flex-shrink-0">
-            {dims.map((d) => (
-              <div key={d.label}>
-                <div className="text-[rgba(255,255,255,0.4)] text-[11px]">{d.label}</div>
-                <div className={`text-[20px] font-medium ${d.danger ? "text-red-400" : "text-white"}`}>{d.value}%</div>
-              </div>
-            ))}
-          </div>
-          {/* retry */}
-          <div className="ml-auto">
-            <button onClick={onRetry}
-              className="flex items-center gap-1.5 text-[12px] text-white border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] transition-colors px-5 py-2 rounded-full">
-              ↺ 重新模拟
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="px-5 py-5 grid grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4">
-        {/* Left col */}
-        <div className="flex flex-col gap-4">
-          {/* Dimensions */}
-          <div className="bg-white border border-[#e8e8e8] rounded-xl p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">能力维度</p>
-            <div className="flex flex-col gap-3">
-              {dims.map((d) => (
-                <div key={d.label} className="flex items-center gap-3">
-                  <span className="text-[12px] text-[#666] w-[58px] flex-shrink-0">{d.label}</span>
-                  <div className="flex-1 h-[5px] bg-[#f0f0f0] rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${d.danger ? "bg-red-500" : "bg-[#185FA5]"}`} style={{ width: `${d.value}%` }} />
-                  </div>
-                  <span className={`text-[12px] font-medium w-8 text-right ${d.danger ? "text-red-600" : "text-[#3d3d3d]"}`}>{d.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Insights */}
-          <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">AI 洞察</p>
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-green-700 mb-2.5">✓ 关键优势</div>
-              {report.strengths.map((s, i) => (
-                <div key={i} className="border-l-[2.5px] border-green-600 rounded-[0_6px_6px_0] bg-green-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{s}</div>
-              ))}
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold text-red-600 mb-2.5">! 需要改进</div>
-              {report.improvements.map((imp, i) => (
-                <div key={i} className="border-l-[2.5px] border-red-500 rounded-[0_6px_6px_0] bg-red-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{imp}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right col — question analysis */}
-        <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex flex-col min-h-0" style={{ maxHeight: 580 }}>
-          <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">逐题分析</p>
-          <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
-            {report.questionAnalysis.map((qa, i) => {
-              const badgeClass = qa.flag === "strong"
-                ? "bg-green-100 text-green-800"
-                : qa.flag === "weak"
-                ? "bg-red-100 text-red-700"
-                : "bg-[#f0f0f0] text-[#888]";
-              return (
-                <div key={i} className="bg-[#f7f8fa] border border-[#efefef] rounded-xl p-3.5">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[11px] text-[#3D6DAD]">{qa.timestamp} · {qa.topic}</span>
-                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>{qa.flagLabel}</span>
-                  </div>
-                  <p className="text-[12px] text-[#999] italic mb-1.5">「{qa.question}」</p>
-                  <p className="text-[12px] text-[#3d3d3d] leading-relaxed mb-2">{qa.answer}</p>
-                  <div className="bg-white border border-[#efefef] rounded px-2.5 py-2 text-[11px] text-[rgba(0,0,0,0.45)] leading-relaxed italic">
-                    分析：{qa.note}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <footer className="border-t border-[#e8e8e8] bg-white px-6 py-2 flex justify-between items-center">
-        <div className="flex gap-4">
-          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />系统正常</span>
-          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />报告已生成</span>
-        </div>
-        <span className="text-[11px] text-[#989898]">B1/B2 签证模拟</span>
-      </footer>
-    </div>
-  );
-}
-
-// ─── Loading ──────────────────────────────────────────────────────────────────
-
-function LoadingReport() {
-  return (
-    <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center gap-4">
-      <div className="w-12 h-12 border-4 border-[#EEF3FA] border-t-[#03346E] rounded-full animate-spin" />
-      <p className="text-[14px] font-medium text-[#3d3d3d]">正在生成面试报告…</p>
-      <p className="text-[12px] text-[rgba(0,0,0,0.45)]">AI 正在分析您的回答，请稍候</p>
-    </div>
-  );
-}
-
-// ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function InterviewPracticePage() {
-  const [pageState, setPageState] = useState<PageState>("start");
-  const profile = DEFAULT_PROFILE;
-  const [officer, setOfficer] = useState<OfficerProfile>(OFFICERS[0]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [report, setReport] = useState<InterviewReport | null>(null);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [followUpCounts, setFollowUpCounts] = useState<Record<number, number>>({});
-  const [interviewCompleted, setInterviewCompleted] = useState(false);
-  const interviewPlan = buildInterviewPlan(profile);
-  const interviewDone = interviewCompleted;
-  const {
-    status: avatarStatus,
-    stream: avatarStream,
-    isSpeaking: avatarSpeaking,
-    connect: connectAvatar,
-    disconnect: disconnectAvatar,
-    speak: speakThroughAvatar,
-    interrupt: interruptAvatar,
-  } = useLiveTalking(officer.avatarId, officer.voice);
-
-  const isMutedRef = useRef(false);
-
-  const handleToggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      isMutedRef.current = !prev;
-      if (!prev && typeof window !== "undefined") {
-        window.speechSynthesis?.cancel();
-        void interruptAvatar();
-        setIsSpeaking(false);
-      }
-      return !prev;
-    });
-  }, [interruptAvatar]);
-
-  const speakText = useCallback((text: string) => {
-    if (isMutedRef.current || typeof window === "undefined") return;
-    const fallback = () => {
-      if (!window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = "zh-CN"; utt.rate = officer.speechRate; utt.pitch = 0.95;
-      const voices = window.speechSynthesis.getVoices();
-      const matchingVoice = voices.find((voice) => {
-        const chinese = voice.lang.toLowerCase().startsWith("zh");
-        if (!chinese) return false;
-        const likelyFemale = /xiaoxiao|xiaoyi|tingting|meijia|female|女/i.test(voice.name);
-        return officer.voiceGender === "female" ? likelyFemale : !likelyFemale;
-      });
-      if (matchingVoice) utt.voice = matchingVoice;
-      setIsSpeaking(true);
-      utt.onend = () => setIsSpeaking(false);
-      utt.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utt);
-    };
-    if (avatarStatus === "connected") {
-      void speakThroughAvatar(text).then((played) => { if (!played) fallback(); });
-    } else {
-      fallback();
-    }
-  }, [avatarStatus, speakThroughAvatar, officer.speechRate]);
+  const [session, setSession] = useState<InterviewSession>(() => createInterviewSession());
+  const [hydrated, setHydrated] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const speechQuestionRef = useRef<string | null>(null);
+  const requestInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (pageState === "interview") void connectAvatar();
-    else disconnectAvatar();
-  }, [pageState, connectAvatar, disconnectAvatar]);
-
-  const addOfficerMessage = useCallback((text: string) => {
-    setMessages((prev) => {
-      // Guard: don't add duplicate consecutive officer messages
-      if (prev.length > 0 && prev[prev.length - 1].role === "assistant" && prev[prev.length - 1].content === text) return prev;
-      return [...prev, { role: "assistant", content: text }];
-    });
-    speakText(text);
-  }, [speakText]);
-
-  useEffect(() => {
-    if (pageState === "interview" && messages.length === 0) {
-      setQuestionIndex(0);
-      setInterviewCompleted(false);
-      setFollowUpCounts({});
-      setTimeout(() => addOfficerMessage(interviewPlan[0]?.question ?? QUESTIONS[0]), 300);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageState]);
-
-  const isSendingRef = useRef(false);
-  const handleSend = useCallback(async (forceText?: string) => {
-    const trimmed = (forceText ?? input).trim();
-    if (!trimmed || isStreaming || interviewDone || isSendingRef.current) return;
-    isSendingRef.current = true;
-    const activeStep = interviewPlan[questionIndex] ?? interviewPlan[interviewPlan.length - 1];
-    const totalFollowUps = Object.values(followUpCounts).reduce((sum, count) => sum + count, 0);
-    const shouldFollowUp = activeStep
-      && needsFollowUp(trimmed, activeStep)
-      && (followUpCounts[questionIndex] ?? 0) < 1
-      && totalFollowUps < 3;
-    const turnMessages = [...messages, { role: "user" as const, content: trimmed }];
-    setMessages((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1].role === "user") return prev;
-      return [...prev, { role: "user", content: trimmed }];
-    });
-    setInput("");
-    setIsStreaming(true);
-    try {
-      await new Promise((resolve) => window.setTimeout(resolve, 300));
-      let directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean };
-      let nextIndex = questionIndex;
-      isSendingRef.current = false;
-      if (shouldFollowUp && activeStep) {
-        setFollowUpCounts((prev) => ({ ...prev, [questionIndex]: (prev[questionIndex] ?? 0) + 1 }));
-        directive = { question: activeStep.followUp, topic: activeStep.topic, isFollowUp: true };
-      } else if (questionIndex + 1 < interviewPlan.length) {
-        nextIndex = questionIndex + 1;
-        setQuestionIndex(nextIndex);
-        directive = { question: interviewPlan[nextIndex].question, topic: interviewPlan[nextIndex].topic };
-      } else {
-        setQuestionIndex(interviewPlan.length);
-        setInterviewCompleted(true);
-        directive = { question: ENDING_MESSAGE, topic: "结束", shouldEnd: true };
-      }
-      const reply = await requestOfficerTurn(turnMessages, profile, officer, directive).catch(() => directive.question);
-      addOfficerMessage(reply);
-    } finally {
-      isSendingRef.current = false;
-      setIsStreaming(false);
-    }
-  }, [input, isStreaming, interviewDone, interviewPlan, questionIndex, followUpCounts, messages, profile, officer, addOfficerMessage]);
-
-  // Abandon: user manually quits mid-interview → back to start, no report
-  const handleAbandon = useCallback(() => {
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-    disconnectAvatar();
-    setMessages([]); setInput(""); setIsStreaming(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false);
-    setPageState("start");
-  }, [disconnectAvatar]);
-
-  // End: interview naturally completed → generate report
-  const handleEndInterview = useCallback(async () => {
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-    // Need at least one officer question answered, otherwise there is nothing to
-    // score and the report API would 400 ("对话记录不足"). Bail back to start.
-    const answeredCount = messages.filter((m) => m.role === "user").length;
-    if (messages.length < 2 || answeredCount === 0) { setPageState("start"); return; }
-    try { window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages)); } catch { void 0; }
-    setIsGeneratingReport(true); setPageState("report");
-    try {
-      const res = await fetch("/api/interview/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
-      if (!res.ok) throw new Error("Report generation failed");
-      setReport((await res.json()) as InterviewReport);
-    } catch (err) {
-      console.error("Report generation error:", err);
-      setReport({
-        overallScore: 72, passLikelihood: "中",
-        dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
-        strengths: ["回答基本流畅，能够正常沟通", "部分问题回答较为直接清晰"],
-        improvements: ["建议提前准备具体的行程安排细节", "资金来源说明需更加明确具体"],
-        questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== ENDING_MESSAGE).slice(0, 8).map((m, i) => ({
-          question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? "(未回答)",
-          score: 70, flag: "neutral" as const, flagLabel: "中性", note: "回答基本符合要求", timestamp: `0${i + 1}:00`, topic: "综合评估",
-        })),
-      });
-    } finally { setIsGeneratingReport(false); }
-  }, [messages]);
-
-  const handleRetry = useCallback(() => {
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false); setPageState("start");
+    const saved = readInterviewSession(window.localStorage);
+    if (saved) setSession(saved);
+    setHydrated(true);
   }, []);
 
-  if (pageState === "start") return <StartPage onStart={() => setPageState("checklist")} />;
-  if (pageState === "checklist") return (
-    <ChecklistPage
-      onConfirm={() => setPageState("officer")}
-      onBack={() => setPageState("start")}
-    />
+  useEffect(() => {
+    if (hydrated) writeInterviewSession(window.localStorage, session);
+  }, [hydrated, session]);
+
+  const setDraft = useCallback((draftAnswer: string) => {
+    setSession((current) => updateSession(current, { draftAnswer }));
+  }, []);
+  const speech = useBrowserSpeech(setDraft, "zh-CN");
+
+  const missingFields = useMemo(
+    () => REQUIRED_FIELDS.filter((field) => !session.profile[field].trim()),
+    [session.profile],
   );
-  if (pageState === "officer") return (
-    <OfficerSelectionPage
-      officer={officer}
-      onChange={setOfficer}
-      onConfirm={() => setPageState("interview")}
-      onBack={() => setPageState("checklist")}
-    />
+
+  useEffect(() => {
+    const prompt = session.currentQuestion?.prompt;
+    if (!prompt || speechQuestionRef.current === prompt || session.phase !== "interview") return;
+    speechQuestionRef.current = prompt;
+    window.speechSynthesis?.cancel();
+    const utterance = new SpeechSynthesisUtterance(prompt);
+    utterance.lang = "zh-CN";
+    window.speechSynthesis?.speak(utterance);
+  }, [session.currentQuestion?.prompt, session.phase]);
+
+  const updateProfile = (field: keyof ApplicantProfile, value: string) => {
+    setSession((current) => updateSession(current, { profile: { ...current.profile, [field]: value } }));
+  };
+
+  const begin = async () => {
+    if (requestInFlightRef.current) return;
+    if (missingFields.length) {
+      setError(`请先补全：${missingFields.map(fieldLabel).join("、")}`);
+      return;
+    }
+    requestInFlightRef.current = true; setSubmitting(true); setError(null);
+    try {
+      const response = await fetch("/api/interview", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start", profile: session.profile }),
+      });
+      if (!response.ok) throw new Error("无法开始面试");
+      const data = await response.json() as { question: InterviewSession["currentQuestion"]; questionIndex: number };
+      speechQuestionRef.current = null;
+      setSession((current) => updateSession(current, {
+        phase: "interview", currentQuestion: data.question, questionIndex: data.questionIndex,
+        exchanges: [], draftAnswer: "", followUpQuestionIds: [], report: null, reportStatus: "idle",
+      }));
+    } catch { setError("暂时无法开始，请稍后重试。"); } finally { requestInFlightRef.current = false; setSubmitting(false); }
+  };
+
+  const submitAnswer = async () => {
+    const question = session.currentQuestion;
+    const answer = session.draftAnswer.trim();
+    if (!question || !answer || submitting || requestInFlightRef.current) return;
+    requestInFlightRef.current = true; speech.stop(); window.speechSynthesis?.cancel(); setSubmitting(true); setError(null);
+    try {
+      const response = await fetch("/api/interview", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "answer", profile: session.profile, question, answer, questionIndex: session.questionIndex,
+          idempotencyKey: `${session.id}:${question.id}:${session.exchanges.length}`,
+          followUpUsed: session.followUpQuestionIds.includes(question.parentId ?? question.id),
+        }),
+      });
+      if (!response.ok) throw new Error("无法提交回答");
+      const data = await response.json() as {
+        assessment: InterviewSession["exchanges"][number]["assessment"];
+        nextQuestion: InterviewSession["currentQuestion"]; nextQuestionIndex: number; completed: boolean;
+      };
+      speechQuestionRef.current = null;
+      setSession((current) => updateSession(current, {
+        exchanges: [...current.exchanges, { question, answer, assessment: data.assessment, submittedAt: new Date().toISOString() }],
+        currentQuestion: data.nextQuestion, questionIndex: data.nextQuestionIndex, draftAnswer: "",
+        followUpQuestionIds: question.isFollowUp
+          ? current.followUpQuestionIds
+          : [...current.followUpQuestionIds, ...(data.nextQuestion?.isFollowUp ? [question.id] : [])],
+        phase: data.completed ? "complete" : "interview",
+      }));
+    } catch { setError("回答没有保存。请检查网络后再次提交。"); } finally { requestInFlightRef.current = false; setSubmitting(false); }
+  };
+
+  const endEarly = () => {
+    speech.stop(); window.speechSynthesis?.cancel();
+    setSession((current) => updateSession(current, { phase: "complete", currentQuestion: null, draftAnswer: "" }));
+  };
+
+  const generateReport = async () => {
+    if (!session.exchanges.length || submitting || requestInFlightRef.current) return;
+    const key = reportIdempotencyKey(session);
+    requestInFlightRef.current = true; setSubmitting(true); setError(null);
+    setSession((current) => updateSession(current, { reportStatus: "generating" }));
+    try {
+      const response = await fetch("/api/interview/report", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idempotencyKey: key, profile: session.profile, exchanges: session.exchanges }),
+      });
+      if (!response.ok) throw new Error("无法生成报告");
+      const report = await response.json();
+      setSession((current) => updateSession(current, { phase: "report", report, reportStatus: "ready" }));
+    } catch {
+      setError("报告暂时无法生成，已保留本次面试，稍后可再次尝试。");
+      setSession((current) => updateSession(current, { reportStatus: "failed" }));
+    } finally { requestInFlightRef.current = false; setSubmitting(false); }
+  };
+
+  const restart = () => {
+    speech.stop(); window.speechSynthesis?.cancel(); clearInterviewSession(window.localStorage);
+    speechQuestionRef.current = null; setError(null); setSession(createInterviewSession());
+  };
+
+  if (!hydrated) return <main className="py-10 text-center text-muted-foreground">正在恢复面试…</main>;
+  const report = session.report;
+  if (session.phase === "report" && report) return (
+    <main className="mx-auto max-w-4xl space-y-6 py-8">
+      <section className="rounded-xl border bg-white p-6 shadow-sm"><p className="text-sm text-muted-foreground">B1/B2 模拟面试报告</p><div className="mt-2 flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl">{report.readiness}</h1><p className="mt-2 max-w-2xl text-muted-foreground">{report.summary}</p></div><div className="rounded-xl bg-brand-50 px-5 py-3 text-center"><div className="text-3xl font-semibold text-brand-500">{report.overallScore}</div><div className="text-xs text-muted-foreground">准备度评分</div></div></div></section>
+      <section className="grid gap-3 sm:grid-cols-4">{Object.entries(report.dimensions).map(([key, score]) => <div key={key} className="rounded-xl border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">{({ clarity: "清晰度", specificity: "具体性", consistency: "一致性", returnIntent: "回国意图" } as Record<string, string>)[key]}</p><p className="mt-1 text-2xl font-semibold">{score}</p></div>)}</section>
+      <section className="grid gap-6 md:grid-cols-2"><div className="rounded-xl border bg-white p-6 shadow-sm"><h2 className="text-xl">表现优势</h2><div className="mt-4 space-y-4">{report.strengths.map((item) => <div key={item.title}><p className="font-medium">{item.title}</p><p className="mt-1 text-sm text-muted-foreground">{item.evidence}</p></div>)}</div></div><div className="rounded-xl border bg-white p-6 shadow-sm"><h2 className="text-xl">下一轮行动</h2><ol className="mt-4 space-y-4">{report.actions.map((item) => <li key={item.priority}><p className="font-medium">{item.priority}. {item.title}</p><p className="mt-1 text-sm text-muted-foreground">{item.action}</p></li>)}</ol></div></section>
+      {report.riskFlags.length > 0 && <section className="rounded-xl border border-amber-200 bg-amber-50 p-5"><h2 className="flex items-center gap-2 font-medium text-amber-900"><WarningCircle size={20} />需要留意</h2><ul className="mt-2 list-inside list-disc space-y-1 text-sm text-amber-900">{report.riskFlags.map((item) => <li key={item}>{item}</li>)}</ul></section>}
+      <section className="rounded-xl border bg-white p-6 shadow-sm"><h2 className="text-xl">逐题回顾</h2><div className="mt-4 space-y-4">{report.questionAnalysis.map((item, index) => <article key={`${item.question}-${index}`} className="border-b pb-4 last:border-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{index + 1}. {item.question}</p><span className={`rounded-full px-2 py-1 text-xs font-medium ${scoreTone(item.score)}`}>{item.score} 分</span></div><p className="mt-2 text-sm">{item.answer}</p><p className="mt-2 text-sm text-muted-foreground">{item.note} · {item.responseFramework}</p></article>)}</div></section>
+      <Button onClick={restart} className="h-11 rounded-full px-6"><ArrowCounterClockwise />重新练习</Button>
+    </main>
   );
-  if (pageState === "interview") return (
-    <InterviewPage messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking || avatarSpeaking} isMuted={isMuted}
-      officer={officer}
-      input={input} interviewDone={interviewDone} avatarStream={avatarStream} avatarStatus={avatarStatus}
-      onInputChange={setInput} onSend={handleSend} onEnd={handleEndInterview} onAbandon={handleAbandon}
-      onToggleMute={handleToggleMute} onStartListening={() => { void interruptAvatar(); }} />
-  );
-  if (isGeneratingReport || !report) return <LoadingReport />;
-  return <ReportPage report={report} onRetry={handleRetry} />;
+
+  if (session.phase === "complete") return <main className="mx-auto max-w-2xl py-12"><section className="rounded-xl border bg-white p-8 text-center shadow-sm"><CheckCircle size={40} className="mx-auto text-emerald-600" weight="fill"/><h1 className="mt-4 text-2xl">本轮面试已结束</h1><p className="mt-2 text-muted-foreground">已保存 {session.exchanges.length} 次回答。生成报告前，刷新页面也不会丢失进度。</p>{error && <p className="mt-4 text-sm text-destructive">{error}</p>}<div className="mt-6 flex justify-center gap-3"><Button variant="outline" onClick={restart}><ArrowCounterClockwise />重新开始</Button><Button onClick={generateReport} disabled={submitting || !session.exchanges.length}>{submitting ? <CircleNotch className="animate-spin" /> : <Flag />}{session.reportStatus === "failed" ? "重试生成报告" : "生成个性化报告"}</Button></div></section></main>;
+
+  if (session.phase === "interview" && session.currentQuestion) {
+    const answeredMain = session.exchanges.filter((item) => !item.question.isFollowUp).length;
+    return <main className="mx-auto max-w-3xl space-y-6 py-8"><header className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">B1/B2 模拟窗口 · {session.officer.name}</p><h1 className="text-2xl">第 {Math.min(answeredMain + 1, 7)} / 7 个核心主题</h1></div><Button variant="outline" onClick={endEarly} disabled={submitting}>结束本轮</Button></header><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-brand-500 transition-transform" style={{ width: `${Math.min(answeredMain / 7 * 100, 100)}%` }} /></div><section className="rounded-xl border bg-white p-6 shadow-sm"><p className="text-sm font-medium text-brand-500">{session.currentQuestion.topic}{session.currentQuestion.isFollowUp ? " · 追问" : ""}</p><h2 className="mt-3 text-2xl leading-relaxed">{session.currentQuestion.prompt}</h2><p className="mt-3 text-sm text-muted-foreground">请如实回答。系统会根据具体性和已确认资料决定是否追问。</p></section><section className="rounded-xl border bg-white p-6 shadow-sm"><label htmlFor="interview-answer" className="font-medium">你的回答</label><Textarea id="interview-answer" value={session.draftAnswer} onChange={(event) => setDraft(event.target.value)} placeholder="可直接输入，或使用浏览器语音输入。" className="mt-3 min-h-36" disabled={submitting}/><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div>{speech.error === "unsupported" ? <span className="text-sm text-muted-foreground">当前浏览器不支持语音输入，可继续文字回答。</span> : speech.error ? <span className="text-sm text-destructive">语音输入出现问题，请改用文字。</span> : null}</div><div className="flex gap-2">{speech.isListening ? <Button variant="outline" onClick={speech.stop}><Stop />停止语音</Button> : <Button variant="outline" onClick={() => speech.start(session.draftAnswer)} disabled={!speech.supported || submitting}><Microphone />语音输入</Button>}<Button onClick={submitAnswer} disabled={!session.draftAnswer.trim() || submitting}>{submitting ? <CircleNotch className="animate-spin" /> : <PaperPlaneTilt />}提交回答</Button></div></div>{error && <p className="mt-3 text-sm text-destructive">{error}</p>}</section></main>;
+  }
+
+  return <main className="mx-auto max-w-4xl space-y-6 py-8"><header><p className="text-sm text-muted-foreground">美国 B1/B2</p><h1 className="text-3xl">模拟面试练习</h1><p className="mt-2 max-w-2xl text-muted-foreground">先确认真实资料，再以文字或浏览器语音完成面试。系统会追问缺少的关键信息，并在结束后给出个性化复盘。</p></header><section className="rounded-xl border bg-white p-6 shadow-sm"><h2 className="text-xl">资料确认</h2><p className="mt-1 text-sm text-muted-foreground">仅用于本浏览器的本次练习，请只填写真实、可核验的信息。</p><div className="mt-5 grid gap-4 md:grid-cols-2"><label className="text-sm font-medium">访问目的<select value={session.profile.purpose} onChange={(event) => updateProfile("purpose", event.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3"><option value="tourism">旅游</option><option value="business">商务</option><option value="family_visit">探亲访友</option><option value="medical">就医</option><option value="other">其他短期访问</option></select></label><Field label="赴美目的与具体活动 *" value={session.profile.purposeDetails} onChange={(value) => updateProfile("purposeDetails", value)} placeholder="例如：参加某展会并拜访客户"/><Field label="目的城市 *" value={session.profile.destinations} onChange={(value) => updateProfile("destinations", value)} placeholder="例如：旧金山、洛杉矶"/><Field label="出行时间 *" value={session.profile.travelDates} onChange={(value) => updateProfile("travelDates", value)} placeholder="例如：2026 年 10 月"/><Field label="预计停留时长 *" value={session.profile.duration} onChange={(value) => updateProfile("duration", value)} placeholder="例如：12 天"/><Field label="谁承担费用 *" value={session.profile.funding} onChange={(value) => updateProfile("funding", value)} placeholder="例如：本人承担"/><Field label="预计预算（可选）" value={session.profile.budget} onChange={(value) => updateProfile("budget", value)} placeholder="例如：3 万元人民币"/><Field label="职业或当前身份 *" value={session.profile.occupation} onChange={(value) => updateProfile("occupation", value)} placeholder="例如：产品经理"/><Field label="单位/学校（可选）" value={session.profile.employer} onChange={(value) => updateProfile("employer", value)} placeholder="例如：VIZA 科技"/><Field label="回国后的具体安排 *" value={session.profile.homeTies} onChange={(value) => updateProfile("homeTies", value)} placeholder="例如：项目交接后继续负责上线"/><Field label="既往出境记录（可选）" value={session.profile.previousTravel} onChange={(value) => updateProfile("previousTravel", value)} placeholder="例如：2024 年去过日本；或第一次出境"/></div></section><section className="rounded-xl border bg-white p-6 shadow-sm"><h2 className="text-xl">选择面试官节奏</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{OFFICERS.map((officer) => <button type="button" key={officer.id} onClick={() => setSession((current) => updateSession(current, { officer }))} className={`rounded-lg border p-4 text-left transition-colors ${session.officer.id === officer.id ? "border-brand-500 bg-brand-50" : "hover:bg-muted"}`}><p className="font-medium">{officer.name}</p><p className="mt-1 text-sm text-muted-foreground">{officer.style}</p></button>)}</div></section>{error && <p className="text-sm text-destructive">{error}</p>}<Button onClick={begin} disabled={submitting} className="h-11 rounded-full px-6">{submitting ? <CircleNotch className="animate-spin" /> : <Play />}开始模拟面试</Button></main>;
+}
+
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return <label className="text-sm font-medium">{label}<Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1" /></label>;
 }

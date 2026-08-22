@@ -16,6 +16,7 @@ export type PhEtravelApplicantLocale = "en" | "zh";
 
 export type PhEtravelRuntimeState =
   | "scheduled"
+  | "queued"
   | "processing"
   | "action_required"
   | "failed"
@@ -101,6 +102,7 @@ function statusMessage(
     PhEtravelUserState
   > = {
     scheduled: "scheduled",
+    queued: "queued",
     processing: "processing",
     action_required: "action_required",
     failed: "failed",
@@ -122,6 +124,7 @@ function titleForState(
   > = {
     incomplete: { en: "Complete your eTravel form", zh: "请完成 eTravel 表单" },
     scheduled: { en: "eTravel scheduled", zh: "eTravel 已安排" },
+    queued: { en: "eTravel queued", zh: "eTravel 已排队" },
     processing: { en: "eTravel in progress", zh: "eTravel 正在处理" },
     action_required: { en: "eTravel needs attention", zh: "eTravel 需要处理" },
     failed: { en: "eTravel was not completed", zh: "eTravel 未完成" },
@@ -249,6 +252,7 @@ export function createPhEtravelApplicantExperience(input: {
   const state: Exclude<PhEtravelRuntimeState, "submitted"> = isAmbiguousResult
     ? "recovery_required"
     : input.runtimeState === "scheduled" ||
+        input.runtimeState === "queued" ||
         input.runtimeState === "processing" ||
         input.runtimeState === "action_required" ||
         input.runtimeState === "failed"
@@ -257,7 +261,7 @@ export function createPhEtravelApplicantExperience(input: {
   const actions: PhEtravelApplicantAction[] =
     state === "recovery_required"
       ? [{ id: "reread_official_result", readOnly: true }]
-      : state === "scheduled" || state === "processing"
+      : state === "scheduled" || state === "queued" || state === "processing"
         ? [{ id: "refresh_status", readOnly: true }]
         : [];
 
@@ -296,7 +300,10 @@ export function resolvePhEtravelRuntimeState(
     return "failed";
   }
   if (statuses.some((value) => value.includes("scheduled"))) return "scheduled";
-  if (statuses.some((value) => /(?:queued|pending|processing|running|waiting)/.test(value))) {
+  if (statuses.some((value) => /(?:queued|pending|waiting)/.test(value))) {
+    return "queued";
+  }
+  if (statuses.some((value) => /(?:processing|running)/.test(value))) {
     return "processing";
   }
 
