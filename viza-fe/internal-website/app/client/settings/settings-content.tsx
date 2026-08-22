@@ -31,7 +31,6 @@ import {
   TicketPercent,
   Trophy,
   Trash2,
-  UserRound,
   UsersRound,
   WalletCards,
   type LucideIcon,
@@ -1477,12 +1476,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               description={t("rows.universalInfo.description")}
               href="/client/universal-info"
               badge={t("rows.universalInfo.badge")}
-            />
-            <SettingsRow
-              icon={UserRound}
-              title={t("rows.account.title")}
-              description={t("rows.account.description")}
-              href="/client/universal-info"
             />
             <SettingsRow
               icon={UsersRound}
