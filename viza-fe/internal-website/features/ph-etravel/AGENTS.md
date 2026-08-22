@@ -97,6 +97,11 @@ Scope: Philippines eTravel-specific frontend helpers.
   pages. It renders a QR only from the same authoritative reference, falls
   back to read-only recovery if browser QR rendering fails, and never exposes
   retry-submit controls or raw runner diagnostics.
+- `synthetic-fixture.ts` owns the production-test-only PH draft creation
+  boundary. It must remain fail-closed unless explicitly enabled, create only
+  new `country=philippines` / `PH_ETRAVEL_ARRIVAL_CARD` drafts, mark them as
+  synthetic fixtures without PII, and never reuse, overwrite, delete, submit,
+  or route through Taiwan applications.
 - `option-labels.ts` localizes the official country, airline, and Philippine
   arrival-port codes for the Chinese form column. It must preserve the official
   option value and keep every official arrival-port code one-to-one and unique.
