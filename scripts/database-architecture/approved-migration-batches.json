@@ -1184,7 +1184,7 @@
     },
     {
       "batch_id": "consent-event-rls-initplan-v1",
-      "source_ref": "391edff16e234f27b283143f35ab9aa72d655357",
+      "source_ref": "4227627f49ff631650e999d550c7967f20cecec0",
       "mode": "transactional",
       "migrations": [
         {
