@@ -113,6 +113,11 @@ smoke-test helpers for the VIZA monorepo.
   scalar init-plan rewrite. The batch deliberately does not change the broad
   legacy table ACL or service-role quarantine behavior; harden those only in
   separately reviewed changes.
+  `inbound-email-acl-v1` follows the deployed legacy-session server ownership
+  boundary and removes anonymous access plus authenticated mutations. It pins
+  the unchanged inbox policy/RLS/purge-function contracts, exact direct
+  grantees, absence of non-owner grant options, authenticated SELECT-only
+  access, and the existing seven service-role table privileges.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
