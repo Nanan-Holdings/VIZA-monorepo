@@ -17,6 +17,14 @@ const officialFieldContractMigrationSource = readFileSync(
   new URL("../../drizzle/0161_kr_e_arrival_official_field_contract.sql", import.meta.url),
   "utf8",
 );
+const runnerNeedsHumanMigrationSource = readFileSync(
+  new URL("../../drizzle/0165_runner_needs_human_settlement.sql", import.meta.url),
+  "utf8",
+);
+const transportVisibilityMigrationSource = readFileSync(
+  new URL("../../drizzle/0166_kr_e_arrival_transport_visibility.sql", import.meta.url),
+  "utf8",
+);
 const ragSource = readFileSync(
   new URL("../../../../knowledge-base/visa-rag-seeds/countries/south_korea.json", import.meta.url),
   "utf8",
@@ -71,9 +79,13 @@ describe("Korea e-Arrival Card backend schema", () => {
     expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "departure_mode"))
       .toMatchObject({ field_type: "radio", required: true });
     expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_flight_number")?.conditional_logic)
-      .toEqual({ showIf: 'arrival_mode === "A"' });
+      .toEqual({ showIf: "arrival_mode === A" });
     expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "arrival_ship_name")?.conditional_logic)
-      .toEqual({ showIf: 'arrival_mode === "S"' });
+      .toEqual({ showIf: "arrival_mode === S" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "departure_flight_number")?.conditional_logic)
+      .toEqual({ showIf: "departure_mode === A" });
+    expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "departure_ship_name")?.conditional_logic)
+      .toEqual({ showIf: "departure_mode === S" });
     expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "date_of_birth")?.validation_rules)
       .toMatchObject({ official_control: "date_parts" });
     expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === "passport_expiry_date")?.validation_rules)
@@ -94,6 +106,18 @@ describe("Korea e-Arrival Card backend schema", () => {
       expect(KR_E_ARRIVAL_FORM_FIELDS.find((field) => field.field_name === fieldName)?.validation_rules)
         .toMatchObject({ read_only: true, derived_from: "stay_address_search" });
     }
+  });
+
+  it("repairs the installed transport visibility and needs-human settlement contracts", () => {
+    expect(transportVisibilityMigrationSource).toContain("arrival_mode === A");
+    expect(transportVisibilityMigrationSource).toContain("arrival_mode === S");
+    expect(transportVisibilityMigrationSource).toContain("departure_mode === A");
+    expect(transportVisibilityMigrationSource).toContain("departure_mode === S");
+    expect(transportVisibilityMigrationSource).not.toContain('=== \\"');
+
+    expect(runnerNeedsHumanMigrationSource).toContain("('queued', 'failed', 'needs_human')");
+    expect(runnerNeedsHumanMigrationSource).toContain("p_attempts <> v_old_row.attempts");
+    expect(runnerNeedsHumanMigrationSource).toContain("p_status IN ('failed', 'needs_human')");
   });
 
   it("keeps official English values and Chinese labels separate", () => {
