@@ -46,6 +46,18 @@ export interface SgacPortalPayload {
   accommodation: SgacAccommodationPayload;
 }
 
+/** ICA's resident SG Arrival Card route for Long-Term Pass holders. */
+export interface SgacLongTermPassPortalPayload {
+  applicationId: string;
+  fin: string;
+  fullName: string;
+  dateOfBirth: string;
+  email: string;
+  arrivalDate: string;
+  hasHealthSymptoms: boolean;
+  hasRelevantTravelHistory: boolean;
+}
+
 export type SgacTransportPayload =
   | {
       mode: "air";
@@ -212,6 +224,10 @@ function text(value: unknown): string | null {
 
 function read(payload: SubmissionPayload, key: string): string | null {
   return text(payload.countrySpecific[key]);
+}
+
+function isAcceptedDeclaration(value: string | null): boolean {
+  return ["true", "yes", "1", "on"].includes((value ?? "").trim().toLowerCase());
 }
 
 function required(value: string | null | undefined, field: string, label: string, missing: string[]): string {
@@ -529,6 +545,33 @@ export function normalizeSgacPortalPayload(
     );
   }
 
+  const applicantType = normalizeKey(read(payload, "sgac_applicant_type") ?? "");
+  if (!isAcceptedDeclaration(read(payload, "ica_declaration_accepted"))) {
+    throw new SgacPortalValidationError(
+      "Confirm that you have read and agreed to the ICA declaration before submission.",
+      ["ica_declaration_accepted"],
+    );
+  }
+  if (applicantType === "long_term_pass_holder") {
+    const fin = read(payload, "singapore_fin");
+    if (!fin) {
+      throw new SgacPortalValidationError(
+        "Enter the FIN required by ICA's Long-Term Pass holder SG Arrival Card service.",
+        ["singapore_fin"],
+      );
+    }
+    throw new SgacPortalValidationError(
+      "Singapore Long-Term Pass holders use ICA's separate resident SG Arrival Card service. Do not submit this application through the foreign-visitor runner; use https://eservices.ica.gov.sg/sgarrivalcard/ltp.",
+      ["sgac_applicant_type"],
+    );
+  }
+  if (applicantType !== "foreign_visitor") {
+    throw new SgacPortalValidationError(
+      "Choose the SG Arrival Card applicant type before submission.",
+      ["sgac_applicant_type"],
+    );
+  }
+
   const arrivalIso = required(payload.trip.arrivalDate, "arrival_date", "Arrival date", missing);
   if (arrivalIso) assertArrivalInIcaWindow(arrivalIso, now);
   const departure = required(payload.trip.departureDate, "departure_date", "Departure date", missing);
@@ -623,5 +666,69 @@ export function normalizeSgacPortalPayload(
     );
   }
 
+  return normalized;
+}
+
+/**
+ * Maps only the fields ICA asks from Long-Term Pass holders. This must remain
+ * separate from the foreign-visitor mapper: the resident page does not accept
+ * passport, transport, accommodation, or onward-travel values.
+ */
+export function normalizeSgacLongTermPassPortalPayload(
+  payload: SubmissionPayload,
+  options: NormalizeSgacOptions = {},
+): SgacLongTermPassPortalPayload {
+  const missing: string[] = [];
+  const now = options.now ?? new Date();
+  if (payload.countryCode !== "SG" || payload.visaType !== "SG_ARRIVAL_CARD") {
+    throw new SgacPortalValidationError(
+      `SGAC resident portal runner only accepts SG_ARRIVAL_CARD payloads; got ${payload.countryCode}/${payload.visaType}.`,
+      ["visa_type"],
+    );
+  }
+  if (normalizeKey(read(payload, "sgac_applicant_type") ?? "") !== "long_term_pass_holder") {
+    throw new SgacPortalValidationError(
+      "Choose Long-Term Pass Holder to submit through ICA's resident SG Arrival Card service.",
+      ["sgac_applicant_type"],
+    );
+  }
+  if (!isAcceptedDeclaration(read(payload, "ica_declaration_accepted"))) {
+    throw new SgacPortalValidationError(
+      "Confirm that you have read and agreed to the ICA declaration before submission.",
+      ["ica_declaration_accepted"],
+    );
+  }
+
+  const arrivalIso = required(payload.trip.arrivalDate, "arrival_date", "Arrival date", missing);
+  if (arrivalIso) assertArrivalInIcaWindow(arrivalIso, now);
+  const hasHealthSymptoms = boolYes(read(payload, "has_health_symptoms"));
+  const healthAnswer = read(payload, "has_health_symptoms");
+  if (!healthAnswer) missing.push("has_health_symptoms");
+  const travelHistoryField = hasHealthSymptoms
+    ? "recent_high_risk_region_visit_history"
+    : "recent_country_visit_history";
+  const travelHistory = read(payload, travelHistoryField);
+  if (!travelHistory) missing.push(travelHistoryField);
+
+  const normalized: SgacLongTermPassPortalPayload = {
+    applicationId: payload.applicationId,
+    fin: required(read(payload, "singapore_fin"), "singapore_fin", "FIN", missing).toUpperCase(),
+    fullName: required(payload.personal.fullName, "full_name", "Full name", missing),
+    dateOfBirth: formatDate(required(payload.personal.dateOfBirth, "date_of_birth", "Date of birth", missing)),
+    email: required(payload.personal.email, "email_address", "Email address", missing),
+    arrivalDate: formatDate(arrivalIso),
+    hasHealthSymptoms,
+    hasRelevantTravelHistory: boolYes(travelHistory),
+  };
+  if (normalized.fin && !/^[A-Z][0-9]{7}[A-Z]$/i.test(normalized.fin)) {
+    missing.push("singapore_fin");
+  }
+  const uniqueMissing = [...new Set(missing)];
+  if (uniqueMissing.length > 0) {
+    throw new SgacPortalValidationError(
+      `SG Arrival Card resident payload is missing or invalid: ${uniqueMissing.join(", ")}.`,
+      uniqueMissing,
+    );
+  }
   return normalized;
 }

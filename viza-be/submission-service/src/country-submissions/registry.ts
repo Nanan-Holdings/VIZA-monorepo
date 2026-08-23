@@ -251,6 +251,7 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   { key: "profile.phone", label: "Phone", category: "contact", required: true },
   { key: "trip.arrivalDate", label: "Arrival date", category: "trip", required: true },
   { key: "trip.departureDate", label: "Departure date", category: "trip", required: true },
+  sgacField("ica_declaration_accepted", "ICA declaration acceptance", "security"),
   sgacField("place_of_birth_country", "Country/place of birth", "personal"),
   sgacField("place_of_residence", "Place of residence", "personal"),
   sgacField("mobile_country_code", "Country/region code", "contact"),

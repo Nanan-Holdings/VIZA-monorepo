@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
-import type { SgacPortalPayload } from "./normalize";
+import type { SgacLongTermPassPortalPayload, SgacPortalPayload } from "./normalize";
 import {
   reportBadCaptcha,
   solveImageCaptcha,
@@ -19,6 +19,7 @@ import {
 import { launchAbortableResource } from "../queue/portal-safety.js";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
+export const SGAC_LONG_TERM_PASS_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/ltp";
 
 const SGAC_CAPTCHA_MAX_ATTEMPTS = readPositiveIntegerEnv("SGAC_CAPTCHA_MAX_ATTEMPTS", 10);
 const SGAC_CAPTCHA_SOLVE_TIMEOUT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SOLVE_TIMEOUT_MS", 150_000);
@@ -785,6 +786,130 @@ function extractReferenceNumbers(body: string): { confirmationNumber: string | n
     /(?:Reference\s*(?:No\.?|Number)|Acknowledgement\s*(?:No\.?|Number))\s*[:：]?\s*([A-Z0-9-]{6,})/i.exec(body)?.[1] ??
     confirmation;
   return { confirmationNumber: confirmation, referenceNumber: reference };
+}
+
+async function fillLongTermPassTravellerStep(
+  page: Page,
+  payload: SgacLongTermPassPortalPayload,
+): Promise<void> {
+  const finInput = page.locator("#nricFin_ehcGroup_0");
+  await finInput.waitFor({ state: "visible", timeout: 40_000 });
+  await page.getByRole("button", { name: new RegExp(escapeRegex(payload.arrivalDate)) }).first().click({ timeout: 20_000 });
+  await finInput.fill(payload.fin);
+  await page.locator("#residentName_0").fill(payload.fullName);
+  await page.locator("#dob_ehcGroup_0").fill(payload.dateOfBirth);
+  await page.locator("#email_0").fill(payload.email);
+  await page.locator(`#ehcGroup_sq8_${payload.hasHealthSymptoms ? "Y" : "N"}_0`).click();
+  await page.waitForTimeout(400);
+  const travelQuestion = payload.hasHealthSymptoms ? "sq10" : "sq9";
+  await page.locator(`#ehcGroup_${travelQuestion}_${payload.hasRelevantTravelHistory ? "Y" : "N"}_0`).click();
+  await clickVisibleRoleButton(page, /^Next$/i);
+}
+
+/** Runs ICA's separate resident SG Arrival Card route for Long-Term Pass holders. */
+export async function runSgacLongTermPassPortalSubmission(
+  payload: SgacLongTermPassPortalPayload,
+  options: RunSgacPortalOptions = {},
+): Promise<SgacPortalRunResult> {
+  options.executionContext?.assertOwned();
+  const artifactDir =
+    options.artifactDir ?? fs.mkdtempSync(path.join(os.tmpdir(), `viza-sgac-ltp-${payload.applicationId}-`));
+  const screenshots: string[] = [];
+  const logs: string[] = [];
+  const headless = options.headless ?? process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false";
+  const handles = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => launch(headless),
+    async (resource) => {
+      await resource.context.close().catch(() => undefined);
+      await resource.browser.close().catch(() => undefined);
+    },
+  );
+  const abortListener = (): void => {
+    void handles.browser.close().catch(() => undefined);
+  };
+
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+    const { page } = handles;
+    await page.goto(SGAC_LONG_TERM_PASS_OFFICIAL_PORTAL_URL, {
+      waitUntil: "domcontentloaded",
+      timeout: options.timeoutMs ?? 60_000,
+    });
+    await fillLongTermPassTravellerStep(page, payload);
+    await waitForReviewStep(page, artifactDir);
+    await assertNoVisiblePortalErrors(page, artifactDir, "ltp-review");
+    screenshots.push(await screenshot(page, artifactDir, "sgac-ltp-review"));
+
+    if (options.stopBeforeSubmit) {
+      return {
+        submitted: false,
+        status: "stopped_before_submit",
+        confirmationNumber: null,
+        referenceNumber: null,
+        portalUrl: page.url(),
+        portalResponseSummary: "ICA Long-Term Pass holder SG Arrival Card reached the Review page; final submit was intentionally skipped.",
+        screenshots,
+        pdfs: [],
+        logs,
+      };
+    }
+
+    options.executionContext?.assertOwned();
+    await checkReviewDeclaration(page, artifactDir);
+    options.executionContext?.assertOwned();
+    await clickVisibleRoleButton(page, /^Next$/i);
+    await solveSecurityVerificationIfPresent(
+      page,
+      artifactDir,
+      logs,
+      options.executionContext?.assertOwned,
+    );
+    await Promise.race([
+      page.waitForFunction(
+        () => /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
+          !/Security Verification|Enter text here|Try another text/i.test(document.body.innerText),
+        null,
+        { timeout: 90_000 },
+      ),
+      sleep(90_000),
+    ]);
+    const body = await visibleBodySummary(page, 4000);
+    screenshots.push(await screenshot(page, artifactDir, "sgac-ltp-confirmation"));
+    const finalPortalError = await collectVisiblePortalErrors(page);
+    if (finalPortalError) {
+      throw new SgacPortalError(`ICA Long-Term Pass SGAC returned an error after final submit: ${finalPortalError}`, {
+        code: classifyPortalErrorCode(finalPortalError),
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
+    if (!isConfirmationBody(body)) {
+      throw new SgacPortalError("ICA Long-Term Pass SGAC did not show an official confirmation after final submit.", {
+        code: "sgac_ltp_confirmation_not_detected",
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
+    const pdf = await captureConfirmationPdf(page, artifactDir, logs);
+    const numbers = extractReferenceNumbers(body);
+    return {
+      submitted: true,
+      status: "submitted",
+      confirmationNumber: numbers.confirmationNumber,
+      referenceNumber: numbers.referenceNumber,
+      portalUrl: page.url(),
+      portalResponseSummary: body,
+      screenshots,
+      pdfs: pdf ? [pdf] : [],
+      logs,
+    };
+  } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await handles.context.close().catch(() => undefined);
+    await handles.browser.close().catch(() => undefined);
+  }
 }
 
 export async function runSgacPortalSubmission(
