@@ -546,6 +546,10 @@ Smoke URLs:
 - `supabase/migrations/20260818140000_application_document_review_integrity.sql`:
   mirrors the backend applicant-document review trigger and resets legacy
   reviewed statuses so only a fresh authorized staff review can approve them.
+- `supabase/migrations/20260823035450_uae_tourist_document_contract.sql`:
+  mirrors the backend UAE transaction-783 document checklist reconciliation;
+  keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
