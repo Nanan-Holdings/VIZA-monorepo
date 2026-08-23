@@ -493,6 +493,20 @@ function leadingAddressNumber(value: string): string | null {
   return /^\s*(\d+(?:-\d+)?)\b/u.exec(value)?.[1] ?? null;
 }
 
+function officialAddressSearchKeyword(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+  // The official widget documents road-name searches in the form
+  // `151 Mokdongdong-ro`; it does not reliably accept the comma-delimited
+  // full English address returned by the Korean address API. The API's first
+  // segment is the official building-number + road-name search key.
+  const firstEnglishSegment = normalized.split(",", 1)[0]?.trim() ?? "";
+  if (/^\d+(?:-\d+)?\s+[\p{L}\p{N}][\p{L}\p{N}\s.'-]*$/u.test(firstEnglishSegment)) {
+    return firstEnglishSegment;
+  }
+  return normalized;
+}
+
 async function acknowledgeOfficialAddressNoResultsPrompt(
   page: Page,
   executionContext?: RunnerExecutionContext,
@@ -536,7 +550,7 @@ async function selectOfficialStayAddress(
 ): Promise<void> {
   const addressQuery = payload.addressEnglish || payload.addressKorean;
   const postalQuery = payload.postalCode;
-  const query = addressQuery || postalQuery;
+  const query = addressQuery ? officialAddressSearchKeyword(addressQuery) : postalQuery;
   if (!query) {
     throw new KrEArrivalPortalError(
       "Korea e-Arrival Card requires a stay address for the official address lookup.",
@@ -614,6 +628,10 @@ async function selectOfficialStayAddress(
     allowUniquePostalFallback = false,
   ): Promise<Locator | null> => {
     await resultLinks.first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
+    // Results become visible just before the official AJAX loading mask is
+    // removed. Give the result collection one short settle interval so a
+    // previous search/page is never parsed as the new response.
+    if (await resultLinks.first().isVisible().catch(() => false)) await page.waitForTimeout(750);
     const count = await resultLinks.count();
     const postalCandidates: Locator[] = [];
     let parsedCount = 0;
