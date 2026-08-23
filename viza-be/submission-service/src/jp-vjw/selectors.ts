@@ -29,6 +29,9 @@ export const JP_VJW_ACCOUNT_CREATED_NAME =
 export const JP_VJW_GO_TO_LOGIN_NAME =
   /前往登录画面|前往登入畫面|Go To Login Screen|ログイン画面へ/i;
 
+export const JP_VJW_YOUR_DETAILS_NAME =
+  /您的资料|您的資料|Your details|本人の情報/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success

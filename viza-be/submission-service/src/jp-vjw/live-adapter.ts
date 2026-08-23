@@ -14,6 +14,7 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_YOUR_DETAILS_NAME,
 } from "./selectors.js";
 
 const OFFICIAL_ROOT = "https://www.vjw.digital.go.jp/";
@@ -430,8 +431,25 @@ async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<vo
   context.logs.push("jpvjw_authenticated");
 }
 
+async function openProfileRegistration(context: JpVjwLiveAdapterContext): Promise<void> {
+  const profileControl = context.page.locator("[formcontrolname='hasJapanesePassport']").first();
+  if (await profileControl.isVisible().catch(() => false)) return;
+
+  let action = context.page.getByRole("button", { name: JP_VJW_YOUR_DETAILS_NAME }).first();
+  if (!(await action.isVisible().catch(() => false))) {
+    action = context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first();
+  }
+  if (!(await action.isVisible().catch(() => false))) {
+    return await fail(context, "jp_vjw_profile_entry_missing", "Visit Japan Web user-details action was not visible.");
+  }
+  await action.click();
+  await profileControl.waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS }).catch(async () => {
+    await fail(context, "jp_vjw_profile_form_missing", "Visit Japan Web did not open the user-details form.");
+  });
+}
+
 async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> {
-  await navigateRoute(context, "vjwppr001");
+  await openProfileRegistration(context);
   await setRadio(context, "hasJapanesePassport", "no");
   await setRadio(context, "hasReentryPermission", "no");
   await setRadio(context, "isTaxExemptionEnabled", "no");
