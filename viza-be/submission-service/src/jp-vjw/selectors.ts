@@ -52,6 +52,9 @@ export const JP_VJW_TAX_FREE_QR_QUESTION =
 export const JP_VJW_MANUAL_PASSPORT_NAME =
   /自行输入|自行輸入|手动输入|手動輸入|Enter information yourself|Enter manually|自分で入力/i;
 
+export const JP_VJW_PROFILE_COMPLETE_NAME =
+  /登记完成|登記完成|Registration complete|登録完了/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success
