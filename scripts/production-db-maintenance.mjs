@@ -1461,6 +1461,13 @@ function validateCatalogAssertion(assertion) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid policy contract`);
     }
   }
+  if (assertion.kind === "policy_count") {
+    if (!APPROVED_RELATION_IDENTITY.test(assertion.identity ?? "") ||
+        !Number.isSafeInteger(assertion.count) || assertion.count < 0 || assertion.count > 100) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid policy count`);
+    }
+    return;
+  }
   if (assertion.kind === "table_absent_or_columns_match") {
     if (!Array.isArray(assertion.columns) || assertion.columns.length === 0 ||
         assertion.columns.some((column) =>
@@ -2652,6 +2659,16 @@ function approvedCatalogAssertionExpression(assertion) {
     }
     case "policy_contract":
       return approvedPolicyContractExpression(assertion);
+    case "policy_count": {
+      const [schemaName, tableName] = assertion.identity.split(".");
+      return `(SELECT pg_catalog.count(*)
+    FROM pg_catalog.pg_policy counted_policy
+    JOIN pg_catalog.pg_class policy_relation ON policy_relation.oid = counted_policy.polrelid
+    JOIN pg_catalog.pg_namespace policy_schema ON policy_schema.oid = policy_relation.relnamespace
+    WHERE policy_schema.nspname = ${sqlLiteral(schemaName)}
+      AND policy_relation.relname = ${sqlLiteral(tableName)}
+  ) = ${assertion.count}`;
+    }
     case "default_acl_denied":
       return approvedDefaultAclExpression(assertion);
     case "migration_record":
