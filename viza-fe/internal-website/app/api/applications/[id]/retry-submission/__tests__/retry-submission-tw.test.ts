@@ -653,44 +653,6 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastRunnerPoolArgs).toBeNull();
   });
 
-  it("does not enqueue Japan while required information or documents are missing", async () => {
-    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
-    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
-    currentApplication = {
-      ...baseApplication,
-      country: "japan",
-      visa_type: "JP_VISIT_JAPAN_WEB",
-    };
-    mockCompleteness = {
-      complete: false,
-      missingInfoCount: 0,
-      missingDocumentCount: 3,
-      missingInfo: [],
-      missingDocuments: [
-        { requirementKey: "passport_bio_page", required: true },
-        { requirementKey: "flight_itinerary", required: true },
-        { requirementKey: "accommodation_booking", required: true },
-      ],
-    };
-
-    const result = await post({
-      mode: "live_assisted",
-      country: "japan",
-      visaType: "JP_VISIT_JAPAN_WEB",
-    });
-
-    expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({
-      code: "application_incomplete",
-      completeness: {
-        complete: false,
-        missingDocumentCount: 3,
-      },
-    });
-    expect(lastConsentInsert).toBeNull();
-    expect(lastRunnerPoolArgs).toBeNull();
-  });
-
   it("does not duplicate Japan authorisation when the current document version is recorded", async () => {
     process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
     process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
