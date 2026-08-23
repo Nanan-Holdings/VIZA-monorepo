@@ -1507,15 +1507,19 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   if (!dialog) return;
   const text = await dialog.innerText().catch(() => "");
   if (!/correct|confirm|확인|입력한 정보/i.test(text)) return;
-  const button = await findVisible(page, [
-    "#popupConfirm #confirm",
-    "#popupConfirm .pop-btn2",
-    "#popupAlert #confirm",
-    "#popupAlert .pop-btn2",
-    ".popBox button:has-text('확인')",
-    ".popBox button:has-text('OK')",
-    "[role='dialog'] button",
-  ]);
+  const actionCandidates = dialog.locator(
+    "#confirm, .pop-btn2, button, input[type='button'], input[type='submit'], a, [role='button']",
+  );
+  let button: Locator | null = null;
+  const actionCount = await actionCandidates.count().catch(() => 0);
+  for (let index = 0; index < actionCount; index += 1) {
+    const candidate = actionCandidates.nth(index);
+    const label = `${await candidate.innerText().catch(() => "")} ${await candidate.getAttribute("value").catch(() => "")}`.trim();
+    if (/^(?:confirm|ok|확인)$/iu.test(label) && await candidate.isVisible().catch(() => false)) {
+      button = candidate;
+      break;
+    }
+  }
   if (!button) throw new KrEArrivalPortalError("Official Korea e-Arrival Card review confirmation control was not observable.", { code: "kr_eac_review_selector_drift" });
   executionContext?.assertOwned();
   await button.click({ timeout: 15_000 });
