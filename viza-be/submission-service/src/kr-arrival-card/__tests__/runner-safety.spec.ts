@@ -179,11 +179,14 @@ test("Korea review confirmation matches the current official popup markup", () =
   assert.match(runnerSource, /getAttribute\("value"\)\.catch\(\(\) => null\) \?\? ""/);
   assert.match(runnerSource, /\^\(\?:confirm\|ok\|확인\)\$/);
   assert.match(runnerSource, /const reviewPromptPattern =/);
+  assert.match(runnerSource, /if \(await findVisibleVerificationCodeDialog\(page\)\) return/);
   assert.match(runnerSource, /reviewPromptPattern\.test\(remainingText\)/);
   assert.match(runnerSource, /kr_eac_review_confirmation_not_closed/);
 });
 
 test("Korea verification-code CAPTCHA is not misclassified as a review prompt", () => {
+  assert.match(runnerSource, /async function findVisibleVerificationCodeDialog/);
+  assert.match(runnerSource, /const captchaDialog = await findVisibleVerificationCodeDialog\(page\)/);
   assert.match(runnerSource, /verification\\s\+code\|verification code for security/);
   assert.match(runnerSource, /captchaDialog\.locator\("img, canvas"\)/);
   assert.match(runnerSource, /bounds\.width >= 60 && bounds\.height >= 20/);

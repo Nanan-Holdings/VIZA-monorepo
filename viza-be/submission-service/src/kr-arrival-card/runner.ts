@@ -1455,19 +1455,22 @@ async function handleEmailVerification(
   return true;
 }
 
-async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?: RunnerExecutionContext): Promise<boolean> {
+async function findVisibleVerificationCodeDialog(page: Page): Promise<Locator | null> {
   const dialogCandidates = page.locator(".popup-wrap, [role='dialog'], .modal, .popBox, .popup");
-  let captchaDialog: Locator | null = null;
   const dialogCount = await dialogCandidates.count().catch(() => 0);
   for (let index = 0; index < dialogCount; index += 1) {
     const candidate = dialogCandidates.nth(index);
     if (!(await candidate.isVisible().catch(() => false))) continue;
     const text = await candidate.innerText().catch(() => "");
     if (/verification\s+code|verification code for security|보안.*(?:문자|코드)|자동입력/i.test(text)) {
-      captchaDialog = candidate;
-      break;
+      return candidate;
     }
   }
+  return null;
+}
+
+async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?: RunnerExecutionContext): Promise<boolean> {
+  const captchaDialog = await findVisibleVerificationCodeDialog(page);
 
   let image = await findVisible(page, ["img[src*='captcha' i]", ".captcha img", "[class*='captcha' i] img"]);
   if (!image && captchaDialog) {
@@ -1588,6 +1591,7 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   // The official portal reuses the same `.popup` shell and can replace the
   // review text with a verification-code CAPTCHA immediately. Treat that as
   // forward progress; only fail when the original review prompt remains.
+  if (await findVisibleVerificationCodeDialog(page)) return;
   const remainingText = await dialog.innerText().catch(() => "");
   if (await dialog.isVisible().catch(() => false) && reviewPromptPattern.test(remainingText)) {
     throw new KrEArrivalPortalError("Official Korea e-Arrival Card review confirmation prompt remained open after confirmation.", {
