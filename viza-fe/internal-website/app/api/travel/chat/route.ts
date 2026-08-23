@@ -11,6 +11,7 @@ import {
   toTravelDestinationChatCard,
 } from "@/lib/travel/destination-resolver";
 import { findDropdownDestinationContract } from "@/lib/travel/destination-contracts";
+import { getCuratedCityLabel } from "@/lib/travel/locations";
 import type {
   TravelDestinationCard,
   TravelQuickReply,
@@ -1112,8 +1113,11 @@ function directDestinationOperations(text: string): TravelStateOperation[] {
   return splitPlannerDestinationValues(candidate).map((value) => {
     const resolution = resolveLocalDestinationText(value);
     const isCity =
-      resolution.status === "resolved" &&
-      resolution.destinations.some((destination) => Boolean(destination.city));
+      (resolution.status === "resolved" &&
+        resolution.destinations.some((destination) =>
+          Boolean(destination.city)
+        )) ||
+      Boolean(getCuratedCityLabel(value, "en"));
     return {
       op: "add",
       path: isCity ? "cities" : "countries",
@@ -1199,7 +1203,7 @@ function stabilizeExplicitPlannerOperations(
   };
 
   const days = text.match(
-    /(?:出行天数是|天数先灵活，?\s*暂按)\s*(\d+)\s*天/u
+    /(?:出行天数是|天数先灵活，?\s*暂按)?\s*(\d+)\s*(?:天|日|days?)(?:左右|上下)?/iu
   );
   if (days) setNumber("travel_days", days[1], days[0]);
   const travelers = text.match(
@@ -1280,12 +1284,6 @@ function resolveDestinationOperation(
       : null;
   }
 
-  if (operation.path === "cities" && allowUnverifiedCity) {
-    return operation.valueText?.trim()
-      ? { ...operation, valueText: operation.valueText.trim() }
-      : null;
-  }
-
   if (
     operation.path !== "cities" ||
     !operation.valueText
@@ -1294,6 +1292,13 @@ function resolveDestinationOperation(
   }
   const resolution = resolveLocalDestinationText(operation.valueText);
   if (resolution.status !== "resolved" || !resolution.destinations.length) {
+    const curatedLabel = getCuratedCityLabel(operation.valueText, locale);
+    if (curatedLabel) {
+      return { ...operation, valueText: curatedLabel };
+    }
+    if (allowUnverifiedCity) {
+      return { ...operation, valueText: operation.valueText.trim() };
+    }
     return null;
   }
   const destination = resolution.destinations[0];

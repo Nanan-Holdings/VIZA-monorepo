@@ -154,6 +154,10 @@ export const CURATED_CITIES_BY_COUNTRY: Record<string, CuratedCity[]> = {
     { en: "Faro", zh: "法鲁" },
     { en: "Madeira", zh: "马德拉" },
   ],
+  Poland: [
+    { en: "Warsaw", zh: "华沙" },
+    { en: "Krakow", zh: "克拉科夫", aliases: ["Kraków"] },
+  ],
   Egypt: [
     { en: "Cairo", zh: "开罗" },
     { en: "Luxor", zh: "卢克索" },
