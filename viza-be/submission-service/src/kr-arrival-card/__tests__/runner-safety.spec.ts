@@ -172,6 +172,13 @@ test("Korea runner waits for official travel prompts to close", () => {
   assert.match(runnerSource, /kr_eac_control_click_failed/);
 });
 
+test("Korea review confirmation matches the current official popup markup", () => {
+  assert.match(runnerSource, /"#popupConfirm", "#popupAlert"/);
+  assert.match(runnerSource, /"#popupConfirm #confirm"/);
+  assert.match(runnerSource, /"#popupConfirm \.pop-btn2"/);
+  assert.match(runnerSource, /kr_eac_review_confirmation_not_closed/);
+});
+
 test("Korea address search observes results without waiting on a phantom navigation", () => {
   assert.match(runnerSource, /search\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
   assert.match(runnerSource, /zipSearch\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
