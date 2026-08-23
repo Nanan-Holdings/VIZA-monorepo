@@ -103,6 +103,10 @@ explicitly reintroduces another provider.
   `src/tests/applicant-single-path-rls-initplan-*.test.ts` proves the applicant
   secret, notification preference, and staff chat thread InitPlan rewrite keeps
   policy identity, ACL/RLS contracts, cross-user denial, and service visibility.
+  `src/tests/supporting-doc-submission-rls-initplan-*.test.ts` proves the
+  supporting-document SELECT-policy InitPlan rewrite preserves its two-hop
+  applicant ownership, policy/relation identity, ACL/RLS state, anonymous
+  denial, and service-role visibility.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for

@@ -143,6 +143,10 @@ smoke-test helpers for the VIZA monorepo.
   ownership policies on `applicant_secret`, `notification_preferences`, and
   `staff_chat_thread`, including unchanged PUBLIC roles, exact direct ACLs,
   RLS/policy counts, OIDs, and pre/post expression hashes.
+  `supporting-doc-submission-rls-initplan-v1` pins the sole two-hop applicant
+  ownership SELECT policy on `supporting_doc_submission`, including its
+  unchanged PUBLIC role, exact direct ACL, RLS/policy count, policy/relation
+  OIDs, and production-confirmed pre/post expression hashes.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
