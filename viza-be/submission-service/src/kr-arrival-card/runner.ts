@@ -896,9 +896,14 @@ async function acknowledgeOfficialTravelLookupPrompt(
   waitForPromptMs = 0,
 ): Promise<void> {
   const travelPromptPattern = /(?:flight|ship|airport|port|not found|unknown|unable|조회|항공|선박|공항|항구|없)/iu;
+  // The current individual-declaration page renders alerts in the static
+  // `#popupAlert` wrapper with a `<span id="confirm">` action. Older portal
+  // pages used `.popBox`, so keep that observed fallback without treating an
+  // arbitrary page overlay as an official prompt.
+  const dialogSelector = "#popupAlert, #popupConfirm, .popBox, [role='dialog'], .ui-dialog";
   let acknowledged = false;
   for (let pass = 0; pass < 3; pass += 1) {
-    const dialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+    const dialogs = page.locator(dialogSelector);
     if (pass === 0 && waitForPromptMs > 0) {
       await dialogs
         .filter({ hasText: travelPromptPattern })
@@ -914,7 +919,7 @@ async function acknowledgeOfficialTravelLookupPrompt(
       const body = await dialog.innerText().catch(() => "");
       if (!travelPromptPattern.test(body)) continue;
       const confirmation = dialog
-        .locator("button, input[type='button'], input[type='submit'], a, [role='button']")
+        .locator("#confirm, .pop-btn2, button, input[type='button'], input[type='submit'], a, [role='button']")
         .filter({ hasText: /^(?:ok|confirm|close|확인|닫기)$/iu })
         .first();
       if (await confirmation.count().catch(() => 0) === 0 || !(await confirmation.isVisible().catch(() => false))) {
@@ -940,7 +945,7 @@ async function acknowledgeOfficialTravelLookupPrompt(
   }
   if (!acknowledged) return;
 
-  const remainingDialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+  const remainingDialogs = page.locator(dialogSelector);
   const remainingCount = await remainingDialogs.count().catch(() => 0);
   const visibleBodies: string[] = [];
   for (let index = 0; index < remainingCount; index += 1) {

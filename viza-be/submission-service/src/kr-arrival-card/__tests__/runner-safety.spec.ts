@@ -163,6 +163,8 @@ test("Korea runner waits for official travel prompts to close", () => {
   assert.match(runnerSource, /arrival-flight-validation/);
   assert.match(runnerSource, /departure-flight-validation/);
   assert.match(runnerSource, /waitForPromptMs > 0/);
+  assert.match(runnerSource, /#popupAlert, #popupConfirm/);
+  assert.match(runnerSource, /#confirm, \.pop-btn2/);
   assert.match(runnerSource, /waitFor\(\{ state: "hidden", timeout: 10_000 \}\)/);
   assert.match(runnerSource, /lookup prompt did not close/);
   assert.match(runnerSource, /lookup left an unexpected modal open/);
