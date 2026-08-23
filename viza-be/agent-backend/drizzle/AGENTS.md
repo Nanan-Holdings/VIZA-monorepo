@@ -146,6 +146,11 @@ The current internal automation migrations are:
   sessions moved behind an explicit active-alias ownership check. Authenticated
   callers retain policy-scoped SELECT and service-role workers retain full
   access; rows, policies, and RLS state are unchanged.
+- `0177_audit_log_rls_initplan.sql`: preserves the four applicant-owned SELECT
+  policies on credential, PII, account-action, and consent audit logs while
+  evaluating the authenticated user identity once per statement. It changes no
+  rows, relation privileges, policy identities, or service-role behavior; keep
+  its Supabase migration mirror byte-identical.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
