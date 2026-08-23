@@ -600,6 +600,10 @@ Smoke URLs:
   init-plan optimization and its same-transaction policy-OID/relation-ACL
   preservation checks; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0180_consent_event_rls_initplan.sql`.
+- `supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql`:
+  mirrors the backend single-path applicant secret, notification preference,
+  and staff chat thread policy optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0181_applicant_single_path_rls_initplan.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
