@@ -105,6 +105,9 @@ smoke-test helpers for the VIZA monorepo.
 - `database-architecture/approved-migration-batches.json`: reviewed batch ids,
   exact migration paths/versions/SHA-256 values, execution modes, and migration
   ledger pre/postconditions used by `apply-approved-batch`.
+  `notification-signature-rls-initplan-v1` pins the two public SELECT-policy
+  contracts for `notification_event_log` and `signature_event` before and
+  after the scalar init-plan rewrite.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
