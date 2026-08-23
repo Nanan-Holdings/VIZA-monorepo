@@ -1514,7 +1514,9 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   const actionCount = await actionCandidates.count().catch(() => 0);
   for (let index = 0; index < actionCount; index += 1) {
     const candidate = actionCandidates.nth(index);
-    const label = `${await candidate.innerText().catch(() => "")} ${await candidate.getAttribute("value").catch(() => "")}`.trim();
+    const textLabel = await candidate.innerText().catch(() => "");
+    const valueLabel = await candidate.getAttribute("value").catch(() => null) ?? "";
+    const label = `${textLabel} ${valueLabel}`.trim();
     if (/^(?:confirm|ok|확인)$/iu.test(label) && await candidate.isVisible().catch(() => false)) {
       button = candidate;
       break;
