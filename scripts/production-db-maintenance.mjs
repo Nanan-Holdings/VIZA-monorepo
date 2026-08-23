@@ -657,7 +657,8 @@ SELECT jsonb_build_object(
     FROM pg_catalog.pg_stat_user_tables stats
     WHERE stats.schemaname = 'public'
   ),
-  'pg_stat_statements_available', pg_catalog.to_regclass('pg_stat_statements') IS NOT NULL
+  'pg_stat_statements_available',
+    pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
 ) AS architecture_audit;
 `;
 
@@ -691,7 +692,7 @@ SELECT jsonb_build_object(
         shared_blks_hit,
         shared_blks_read,
         temp_blks_written
-      FROM pg_stat_statements
+      FROM extensions.pg_stat_statements
       WHERE dbid = (
         SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()
       )
@@ -700,7 +701,7 @@ SELECT jsonb_build_object(
     ) ranked
   ), '[]'::jsonb)
 ) AS pg_stat_statements
-FROM pg_stat_statements_info statement_info;
+FROM extensions.pg_stat_statements_info statement_info;
 `;
 
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
