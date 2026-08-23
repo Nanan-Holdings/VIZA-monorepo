@@ -154,6 +154,8 @@ The current internal automation migrations are:
 - `0178_account_action_log_rls_initplan.sql`: preserves both the direct user-id
   and applicant-profile ownership paths of the account-action audit-log SELECT
   policy while evaluating each authenticated-user lookup once per statement.
+  The migration captures and rechecks the policy OID and raw relation ACL in
+  the same transaction so identity or privilege drift aborts the batch.
   Keep its Supabase migration mirror byte-identical; `consent_event` is not part
   of this migration.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
