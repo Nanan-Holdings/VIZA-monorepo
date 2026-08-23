@@ -106,9 +106,14 @@ smoke-test helpers for the VIZA monorepo.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
-snapshot, and `apply-approved-batch`, which accepts only a full commit SHA and
-an exact manifest entry. Architecture audit must never emit statement text,
-SQL parameters, table rows, applicant data, or advisor detail/remediation text.
+snapshot. Each architecture-audit read may retry once, after 500 ms, only for
+rate limits, 5xx responses, connection resets, or timeouts; authorization,
+identity, payload-shape, and project-marker failures never retry, and the error
+names the failed read phase. The retry path must remain read-only and must not
+be shared by pause/apply/resume actions. `apply-approved-batch` accepts only a
+full commit SHA and an exact manifest entry. Architecture audit must never emit
+statement text, SQL parameters, table rows, applicant data, or advisor
+detail/remediation text.
 Approved batches use structured catalog assertions only; concurrent-index
 batches pin exact index definitions and may retry only an invalid/not-ready
 index. Temporary Management API login roles must not exceed ten minutes and
