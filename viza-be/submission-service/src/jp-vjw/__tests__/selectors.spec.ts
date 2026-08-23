@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
-import { fillJpVjwVerificationCode } from "../live-adapter";
+import { fillJpVjwVerificationCode, resolveJpVjwNativeOptionValue } from "../live-adapter";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
@@ -48,6 +48,13 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Will you enter Japan with re-entry permission?", JP_VJW_REENTRY_PERMISSION_QUESTION);
   assert.match("Will you use the Tax-free QR Code?", JP_VJW_TAX_FREE_QR_QUESTION);
   assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
+});
+
+test("Visit Japan Web native option matching skips the empty placeholder", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "-", value: "" },
+    { label: "CHINA (PEOPLE'S REP.)", value: "156" },
+  ], ["CHN", "China", "中国"]), "156");
 });
 
 test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {
