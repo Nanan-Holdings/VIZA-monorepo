@@ -124,6 +124,10 @@ smoke-test helpers for the VIZA monorepo.
   `account_action_log` requires a separately reviewed two-path batch, while
   `consent_event` remains excluded until its historical schema ownership is
   reconciled.
+  `account-action-log-rls-initplan-v1` independently pins the direct user-id OR
+  applicant-profile ownership policy, including exact RLS state, policy count,
+  public SELECT role, and normalized pre/post expression hashes. It must not
+  include `consent_event`.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
