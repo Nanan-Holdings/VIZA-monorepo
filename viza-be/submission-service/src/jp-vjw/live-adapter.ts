@@ -365,13 +365,30 @@ function sexAliases(value: string): string[] {
   return /^m(?:ale)?$/iu.test(value) ? ["男", "Male", "M"] : /^f(?:emale)?$/iu.test(value) ? ["女", "Female", "F"] : ["其他", "Other"];
 }
 
-async function chooseAutocomplete(
+type AutocompleteOutcome = "selected" | "advanced";
+
+export async function chooseJpVjwAutocomplete(
   context: JpVjwLiveAdapterContext,
   input: Locator,
   wanted: string,
   label: string,
-): Promise<void> {
+): Promise<AutocompleteOutcome> {
+  const routeBeforeInput = currentRoute(context.page);
   await input.fill(wanted);
+  await context.page.waitForTimeout(250);
+  const wantedNormalized = normalizeOptionText(wanted);
+  const initialValue = normalizeOptionText(await input.inputValue().catch(() => ""));
+  const initialNext = await primaryButton(context.page);
+  // The current planned-entry form also accepts a free-text embarkation point.
+  // Treat that as accepted only when the official form enables its own Next
+  // action; pressing Enter here would submit the page rather than choose an
+  // autocomplete candidate.
+  if (
+    initialValue &&
+    (initialValue.includes(wantedNormalized) || wantedNormalized.includes(initialValue)) &&
+    !(await initialNext.isDisabled().catch(() => true))
+  ) return "selected";
+
   const options = context.page.locator([
     "mat-option",
     "[role='option']",
@@ -382,19 +399,18 @@ async function chooseAutocomplete(
     ".cdk-overlay-container li",
   ].join(", ")).filter({ visible: true });
   await options.first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
-  const wantedNormalized = normalizeOptionText(wanted);
   const count = await options.count();
   for (let index = 0; index < count; index += 1) {
     const option = options.nth(index);
     const text = normalizeOptionText(await option.innerText().catch(() => ""));
     if (text && (text.includes(wantedNormalized) || wantedNormalized.includes(text))) {
       await option.click();
-      return;
+      return "selected";
     }
   }
   if (count === 1) {
     await options.first().click();
-    return;
+    return "selected";
   }
   // The current VJW autocomplete exposes its candidates to keyboard users
   // even when the popup no longer carries role=option. Select the official
@@ -402,14 +418,18 @@ async function chooseAutocomplete(
   await input.press("ArrowDown");
   await input.press("Enter");
   await context.page.waitForTimeout(250);
+  if (
+    currentRoute(context.page) !== routeBeforeInput ||
+    !(await input.isVisible().catch(() => false))
+  ) return "advanced";
   const selectedValue = normalizeOptionText(await input.inputValue().catch(() => ""));
   const next = await primaryButton(context.page);
   if (
     selectedValue &&
     (selectedValue.includes(wantedNormalized) || wantedNormalized.includes(selectedValue)) &&
     !(await next.isDisabled().catch(() => true))
-  ) return;
-  await fail(context, "jp_vjw_autocomplete_option_missing", `Visit Japan Web ${label} option could not be resolved.`);
+  ) return "selected";
+  return fail(context, "jp_vjw_autocomplete_option_missing", `Visit Japan Web ${label} option could not be resolved.`);
 }
 
 async function registerAccount(context: JpVjwLiveAdapterContext): Promise<void> {
@@ -783,8 +803,13 @@ async function registerTrip(context: JpVjwLiveAdapterContext, title: string): Pr
   await fillControl(context, "flightNumber", context.payload.flightNumber);
   const departure = context.page.locator("#textboxDeparture").first();
   if (!(await departure.count())) await fail(context, "jp_vjw_departure_autocomplete_missing", "Departure-point autocomplete was not found.");
-  await chooseAutocomplete(context, departure, context.payload.departureCityOrPort.toUpperCase(), "departure point");
-  await clickPrimary(context);
+  const departureOutcome = await chooseJpVjwAutocomplete(
+    context,
+    departure,
+    context.payload.departureCityOrPort.toUpperCase(),
+    "departure point",
+  );
+  if (departureOutcome === "selected") await clickPrimary(context);
   await waitForRoute(context, ["vjwpti002"]);
   await fillJapanAddress(context, "vjwpti002");
   await clickPrimary(context);
@@ -833,8 +858,13 @@ async function completeImmigrationAndCustoms(context: JpVjwLiveAdapterContext): 
   await fillControl(context, "immigrationDate", context.payload.arrivalDate);
   await fillControl(context, "flightNo", `${context.payload.arrivalAirline}${context.payload.flightNumber}`.replace(/\s+/gu, ""));
   const departure = context.page.locator("#textboxDeparture").first();
-  await chooseAutocomplete(context, departure, context.payload.departureCityOrPort.toUpperCase(), "departure point");
-  await clickPrimary(context);
+  const departureOutcome = await chooseJpVjwAutocomplete(
+    context,
+    departure,
+    context.payload.departureCityOrPort.toUpperCase(),
+    "departure point",
+  );
+  if (departureOutcome === "selected") await clickPrimary(context);
   const afterBasic = await waitForRoute(context, ["vjwpic021", "vjwpic043"]);
   if (afterBasic.includes("vjwpic043")) {
     await setRadio(context, "answer", "no");

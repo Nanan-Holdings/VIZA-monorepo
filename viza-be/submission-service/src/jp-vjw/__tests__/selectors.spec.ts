@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
-import { fillJpVjwVerificationCode, resolveJpVjwNativeOptionValue } from "../live-adapter";
+import {
+  chooseJpVjwAutocomplete,
+  fillJpVjwVerificationCode,
+  resolveJpVjwNativeOptionValue,
+  type JpVjwLiveAdapterContext,
+} from "../live-adapter";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
@@ -63,6 +68,27 @@ test("Visit Japan Web native option matching skips the empty placeholder", () =>
     { label: "-", value: "" },
     { label: "CHINA (PEOPLE'S REP.)", value: "156" },
   ], ["CHN", "China", "中国"]), "156");
+});
+
+test("Visit Japan Web accepts a free-text embarkation point when the official form enables Next", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="textboxDeparture">
+      <button class="button-primary" type="button">Next</button>
+    `);
+    const outcome = await chooseJpVjwAutocomplete(
+      { page } as unknown as JpVjwLiveAdapterContext,
+      page.locator("#textboxDeparture"),
+      "SINGAPORE",
+      "departure point",
+    );
+    assert.equal(outcome, "selected");
+    assert.equal(await page.locator("#textboxDeparture").inputValue(), "SINGAPORE");
+  } finally {
+    await browser.close();
+  }
 });
 
 test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {
