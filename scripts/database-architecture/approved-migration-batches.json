@@ -981,6 +981,43 @@
           { "id": "post_user_packages_select", "kind": "policy_contract", "identity": "public.user_packages", "policy": "user_packages_select", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "2be57c38df7ccb57585e26e8063a9915959f6814c740ec2f581dd7830759c312", "check_sha256": null }
         ]
       }
+    },
+    {
+      "batch_id": "notification-signature-rls-initplan-v1",
+      "source_ref": "438fc9edb67e5bc8c133ac8c34139233f27ce25e",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260823154730",
+          "name": "notification_signature_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260823154730_notification_signature_rls_initplan.sql",
+          "sha256": "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260823152021"],
+        "absent_migration_versions": ["20260823154730"],
+        "catalog_assertions": [
+          { "id": "pre_notification_event_log_rls", "kind": "rls_enabled", "identity": "public.notification_event_log" },
+          { "id": "pre_signature_event_rls", "kind": "rls_enabled", "identity": "public.signature_event" },
+          { "id": "pre_notification_event_log_policy_count", "kind": "policy_count", "identity": "public.notification_event_log", "count": 1 },
+          { "id": "pre_signature_event_policy_count", "kind": "policy_count", "identity": "public.signature_event", "count": 1 },
+          { "id": "pre_notification_event_log_select_own", "kind": "policy_contract", "identity": "public.notification_event_log", "policy": "notification_event_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_signature_event_select_own", "kind": "policy_contract", "identity": "public.signature_event", "policy": "signature_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260823154730"],
+        "catalog_assertions": [
+          { "id": "notification_signature_rls_initplan_migration_record", "kind": "migration_record", "version": "20260823154730", "name": "notification_signature_rls_initplan", "sha256": "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af" },
+          { "id": "post_notification_event_log_rls", "kind": "rls_enabled", "identity": "public.notification_event_log" },
+          { "id": "post_signature_event_rls", "kind": "rls_enabled", "identity": "public.signature_event" },
+          { "id": "post_notification_event_log_policy_count", "kind": "policy_count", "identity": "public.notification_event_log", "count": 1 },
+          { "id": "post_signature_event_policy_count", "kind": "policy_count", "identity": "public.signature_event", "count": 1 },
+          { "id": "post_notification_event_log_select_own", "kind": "policy_contract", "identity": "public.notification_event_log", "policy": "notification_event_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_signature_event_select_own", "kind": "policy_contract", "identity": "public.signature_event", "policy": "signature_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null }
+        ]
+      }
     }
   ]
 }

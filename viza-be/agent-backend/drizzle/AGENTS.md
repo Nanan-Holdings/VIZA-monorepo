@@ -365,6 +365,10 @@ The current internal automation migrations are:
 - `0171_user_packages_rls_initplan.sql`: preserves the single authenticated
   user-package SELECT policy while evaluating the caller identity once per
   statement. Keep its Supabase migration mirror byte-identical.
+- `0173_notification_signature_rls_initplan.sql`: preserves the two audited
+  applicant-owned notification/signature SELECT policies while evaluating the
+  caller identity once per statement. Keep its Supabase migration mirror
+  byte-identical.
 
 ## Guardrails
 
