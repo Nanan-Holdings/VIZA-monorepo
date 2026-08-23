@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const canonicalPath = fileURLToPath(
-	new URL("../../drizzle/0172_notification_signature_rls_initplan.sql", import.meta.url),
+	new URL("../../drizzle/0173_notification_signature_rls_initplan.sql", import.meta.url),
 );
 const mirrorDirectory = fileURLToPath(
 	new URL("../../../../viza-fe/internal-website/supabase/migrations/", import.meta.url),
