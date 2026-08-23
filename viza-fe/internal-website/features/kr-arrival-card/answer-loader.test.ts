@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { extractKoreaEArrivalAnswers } from "./answer-loader";
+import {
+  extractKoreaEArrivalAnswers,
+  KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS,
+} from "./answer-loader";
 
 describe("Korea e-Arrival Card answer routing", () => {
+  it("loads every answer required by the retry-time address validator", () => {
+    expect(KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS).toEqual([
+      "arrival_date",
+      "departure_date",
+      "arrival_mode",
+      "stay_address_search",
+      "stay_address_ko",
+      "stay_address_en",
+      "stay_postal_code",
+    ]);
+  });
+
   it("uses only canonical Korea fields and does not consume SGAC transport keys", () => {
     const snapshot = extractKoreaEArrivalAnswers([
       { field_name: "transport_type", value_text: "AIR" },

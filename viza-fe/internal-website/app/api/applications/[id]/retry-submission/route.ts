@@ -25,7 +25,10 @@ import {
 import { koreaSeoulMidnightIso } from "@/features/kr-arrival-card/date-window";
 import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 import { decideKoreaEArrivalCardLiveSchedule } from "@/features/kr-arrival-card/retry-schedule";
-import { extractKoreaEArrivalAnswers } from "@/features/kr-arrival-card/answer-loader";
+import {
+  extractKoreaEArrivalAnswers,
+  KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS,
+} from "@/features/kr-arrival-card/answer-loader";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
   KOREA_E_ARRIVAL_PREFLIGHT_ANSWER_KEYS,
@@ -1205,7 +1208,7 @@ async function readKoreaEArrivalAnswers(
     .from("visa_application_answers")
     .select("field_name, value_text, value_json")
     .eq("application_id", applicationId)
-    .in("field_name", ["arrival_date", "departure_date", "arrival_mode", "stay_address_ko", "stay_address_en"]);
+    .in("field_name", [...KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS]);
 
   if (error) {
     return {
