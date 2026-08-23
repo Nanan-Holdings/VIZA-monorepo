@@ -1305,6 +1305,49 @@
           { "id": "post_staff_chat_thread_select_own", "kind": "policy_contract", "identity": "public.staff_chat_thread", "policy": "staff_chat_thread_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null }
         ]
       }
+    },
+    {
+      "batch_id": "supporting-doc-submission-rls-initplan-v1",
+      "source_ref": "f65b84631a776b8ed3f5bb41f08657b5b69d2f5f",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260824055000",
+          "name": "supporting_doc_submission_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql",
+          "sha256": "9a260359fb706176565f8e6b30d29e7a8ad484ef1f12f670337481228bab067f"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260824051000"],
+        "absent_migration_versions": ["20260824055000"],
+        "catalog_assertions": [
+          { "id": "pre_supporting_doc_submission_rls", "kind": "rls_enabled", "identity": "public.supporting_doc_submission" },
+          { "id": "pre_supporting_doc_submission_policy_count", "kind": "policy_count", "identity": "public.supporting_doc_submission", "count": 1 },
+          { "id": "pre_supporting_doc_submission_acl", "kind": "relation_acl", "identity": "public.supporting_doc_submission", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "pre_supporting_doc_submission_select_own", "kind": "policy_contract", "identity": "public.supporting_doc_submission", "policy": "supporting_doc_submission_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "0c1f144a5f4ed2d63e7cbe75cbdee0a425444763f84353d8dde8fb9a7a3ad6d4", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260824055000"],
+        "catalog_assertions": [
+          { "id": "supporting_doc_submission_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824055000", "name": "supporting_doc_submission_rls_initplan", "sha256": "9a260359fb706176565f8e6b30d29e7a8ad484ef1f12f670337481228bab067f" },
+          { "id": "post_supporting_doc_submission_rls", "kind": "rls_enabled", "identity": "public.supporting_doc_submission" },
+          { "id": "post_supporting_doc_submission_policy_count", "kind": "policy_count", "identity": "public.supporting_doc_submission", "count": 1 },
+          { "id": "post_supporting_doc_submission_acl", "kind": "relation_acl", "identity": "public.supporting_doc_submission", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "post_supporting_doc_submission_select_own", "kind": "policy_contract", "identity": "public.supporting_doc_submission", "policy": "supporting_doc_submission_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "8c0df2ed0556d31617abbdee9ca003d8346949fafa4e18a3a49f94fa98f4e7f5", "check_sha256": null }
+        ]
+      }
     }
   ]
 }
