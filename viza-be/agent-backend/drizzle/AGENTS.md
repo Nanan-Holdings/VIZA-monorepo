@@ -179,6 +179,11 @@ The current internal automation migrations are:
   applicant ownership path while evaluating `auth.uid()` once per statement.
   It keeps policy/relation OIDs, the PUBLIC role, command, policy count, RLS
   state, and relation ACL unchanged; keep its Supabase mirror byte-identical.
+- `0183_notification_preferences_policy_dedupe.sql`: removes only the
+  redundant permissive SELECT policy after proving its predicate is identical
+  to the surviving ALL policy. It pins both pre-policy contracts and preserves
+  the surviving policy OID, PUBLIC role, relation identity, ACL, and RLS state;
+  keep its Supabase mirror byte-identical.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

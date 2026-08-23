@@ -107,6 +107,10 @@ explicitly reintroduces another provider.
   supporting-document SELECT-policy InitPlan rewrite preserves its two-hop
   applicant ownership, policy/relation identity, ACL/RLS state, anonymous
   denial, and service-role visibility.
+  `src/tests/notification-preferences-policy-dedupe-*.test.ts` proves the
+  redundant notification-preferences SELECT policy can be removed while the
+  identical ALL-policy identity, ACL/RLS state, applicant isolation, own-row
+  writes, anonymous denial, and service-role visibility remain unchanged.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for
