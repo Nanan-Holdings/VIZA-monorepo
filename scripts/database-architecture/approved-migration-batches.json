@@ -883,6 +883,73 @@
           }
         ]
       }
+    },
+    {
+      "batch_id": "chat-rls-initplan-v1",
+      "source_ref": "51142975b1df522d750b743392a721d723795cd8",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260823143810",
+          "name": "chat_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260823143810_chat_rls_initplan.sql",
+          "sha256": "f184696b540b8003fe9a0748882982cf481cfce8ace19a213ff993b562e280f2"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260823140456"],
+        "absent_migration_versions": ["20260823143810"],
+        "catalog_assertions": [
+          { "id": "pre_travel_agent_messages_rls", "kind": "rls_enabled", "identity": "public.travel_agent_messages" },
+          { "id": "pre_travel_agent_sessions_rls", "kind": "rls_enabled", "identity": "public.travel_agent_sessions" },
+          { "id": "pre_travel_user_preferences_rls", "kind": "rls_enabled", "identity": "public.travel_user_preferences" },
+          { "id": "pre_user_chat_sessions_rls", "kind": "rls_enabled", "identity": "public.user_chat_sessions" },
+          { "id": "pre_visa_chat_messages_rls", "kind": "rls_enabled", "identity": "public.visa_chat_messages" },
+          { "id": "pre_visa_chat_sessions_rls", "kind": "rls_enabled", "identity": "public.visa_chat_sessions" },
+          { "id": "pre_travel_agent_messages_policy_count", "kind": "policy_count", "identity": "public.travel_agent_messages", "count": 1 },
+          { "id": "pre_travel_agent_sessions_policy_count", "kind": "policy_count", "identity": "public.travel_agent_sessions", "count": 1 },
+          { "id": "pre_travel_user_preferences_policy_count", "kind": "policy_count", "identity": "public.travel_user_preferences", "count": 1 },
+          { "id": "pre_user_chat_sessions_policy_count", "kind": "policy_count", "identity": "public.user_chat_sessions", "count": 2 },
+          { "id": "pre_visa_chat_messages_policy_count", "kind": "policy_count", "identity": "public.visa_chat_messages", "count": 2 },
+          { "id": "pre_visa_chat_sessions_policy_count", "kind": "policy_count", "identity": "public.visa_chat_sessions", "count": 3 },
+          { "id": "pre_travel_agent_messages_owner_all", "kind": "policy_contract", "identity": "public.travel_agent_messages", "policy": "travel_agent_messages_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "88343edb2dcb676910bbb308c3db6ec72642830f5146274958532e4354593857", "check_sha256": "88343edb2dcb676910bbb308c3db6ec72642830f5146274958532e4354593857" },
+          { "id": "pre_travel_agent_sessions_owner_all", "kind": "policy_contract", "identity": "public.travel_agent_sessions", "policy": "travel_agent_sessions_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "43fd27a3cca9202fbc1f761a075d27ef47d326d48787f799a16f12939ea46a4e", "check_sha256": "43fd27a3cca9202fbc1f761a075d27ef47d326d48787f799a16f12939ea46a4e" },
+          { "id": "pre_travel_user_preferences_owner_all", "kind": "policy_contract", "identity": "public.travel_user_preferences", "policy": "travel_user_preferences_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "3c7eb9db1ed26fbf6f71fdbfaf7994cde9f4beed23510737074fc750e47f919f", "check_sha256": "3c7eb9db1ed26fbf6f71fdbfaf7994cde9f4beed23510737074fc750e47f919f" },
+          { "id": "pre_user_chat_sessions_select", "kind": "policy_contract", "identity": "public.user_chat_sessions", "policy": "user_chat_sessions_select", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "ce62525c186c42a375e07249cdd9461522f496b27a3d8789df71b39ac5e77d58", "check_sha256": null },
+          { "id": "pre_visa_chat_messages_insert_own", "kind": "policy_contract", "identity": "public.visa_chat_messages", "policy": "visa_chat_messages_insert_own", "command": "INSERT", "roles": ["authenticated"], "permissive": true, "using_sha256": null, "check_sha256": "795cc81c691fa00af552b35db6b73f6e43ff7c8b762fca1138c3128f9a467b0b" },
+          { "id": "pre_visa_chat_messages_select_own", "kind": "policy_contract", "identity": "public.visa_chat_messages", "policy": "visa_chat_messages_select_own", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "795cc81c691fa00af552b35db6b73f6e43ff7c8b762fca1138c3128f9a467b0b", "check_sha256": null },
+          { "id": "pre_visa_chat_sessions_insert_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_insert_own", "command": "INSERT", "roles": ["authenticated"], "permissive": true, "using_sha256": null, "check_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad" },
+          { "id": "pre_visa_chat_sessions_select_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_select_own", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_visa_chat_sessions_update_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_update_own", "command": "UPDATE", "roles": ["authenticated"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad" }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260823143810"],
+        "catalog_assertions": [
+          { "id": "chat_rls_initplan_migration_record", "kind": "migration_record", "version": "20260823143810", "name": "chat_rls_initplan", "sha256": "f184696b540b8003fe9a0748882982cf481cfce8ace19a213ff993b562e280f2" },
+          { "id": "post_travel_agent_messages_rls", "kind": "rls_enabled", "identity": "public.travel_agent_messages" },
+          { "id": "post_travel_agent_sessions_rls", "kind": "rls_enabled", "identity": "public.travel_agent_sessions" },
+          { "id": "post_travel_user_preferences_rls", "kind": "rls_enabled", "identity": "public.travel_user_preferences" },
+          { "id": "post_user_chat_sessions_rls", "kind": "rls_enabled", "identity": "public.user_chat_sessions" },
+          { "id": "post_visa_chat_messages_rls", "kind": "rls_enabled", "identity": "public.visa_chat_messages" },
+          { "id": "post_visa_chat_sessions_rls", "kind": "rls_enabled", "identity": "public.visa_chat_sessions" },
+          { "id": "post_travel_agent_messages_policy_count", "kind": "policy_count", "identity": "public.travel_agent_messages", "count": 1 },
+          { "id": "post_travel_agent_sessions_policy_count", "kind": "policy_count", "identity": "public.travel_agent_sessions", "count": 1 },
+          { "id": "post_travel_user_preferences_policy_count", "kind": "policy_count", "identity": "public.travel_user_preferences", "count": 1 },
+          { "id": "post_user_chat_sessions_policy_count", "kind": "policy_count", "identity": "public.user_chat_sessions", "count": 2 },
+          { "id": "post_visa_chat_messages_policy_count", "kind": "policy_count", "identity": "public.visa_chat_messages", "count": 2 },
+          { "id": "post_visa_chat_sessions_policy_count", "kind": "policy_count", "identity": "public.visa_chat_sessions", "count": 3 },
+          { "id": "post_travel_agent_messages_owner_all", "kind": "policy_contract", "identity": "public.travel_agent_messages", "policy": "travel_agent_messages_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "067f2b9c489a616b20dba2a5a889efaf0c73212fd91d16a91767f32a164c6ef3", "check_sha256": "067f2b9c489a616b20dba2a5a889efaf0c73212fd91d16a91767f32a164c6ef3" },
+          { "id": "post_travel_agent_sessions_owner_all", "kind": "policy_contract", "identity": "public.travel_agent_sessions", "policy": "travel_agent_sessions_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "2606e408bcb49adc658d735a3e8ffc44dbe639cc0e1976217b3ce768832e7e05", "check_sha256": "2606e408bcb49adc658d735a3e8ffc44dbe639cc0e1976217b3ce768832e7e05" },
+          { "id": "post_travel_user_preferences_owner_all", "kind": "policy_contract", "identity": "public.travel_user_preferences", "policy": "travel_user_preferences_owner_all", "command": "ALL", "roles": ["authenticated"], "permissive": true, "using_sha256": "f9f3c147a6d0b8944a388095875c6bb0636aff04869517aaf7bb9efc0dbf8ec1", "check_sha256": "f9f3c147a6d0b8944a388095875c6bb0636aff04869517aaf7bb9efc0dbf8ec1" },
+          { "id": "post_user_chat_sessions_select", "kind": "policy_contract", "identity": "public.user_chat_sessions", "policy": "user_chat_sessions_select", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "2be57c38df7ccb57585e26e8063a9915959f6814c740ec2f581dd7830759c312", "check_sha256": null },
+          { "id": "post_visa_chat_messages_insert_own", "kind": "policy_contract", "identity": "public.visa_chat_messages", "policy": "visa_chat_messages_insert_own", "command": "INSERT", "roles": ["authenticated"], "permissive": true, "using_sha256": null, "check_sha256": "7d4586bde32e08a4267f4282fe7a0bd3e2971beee3b8809298df68955de27b03" },
+          { "id": "post_visa_chat_messages_select_own", "kind": "policy_contract", "identity": "public.visa_chat_messages", "policy": "visa_chat_messages_select_own", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "7d4586bde32e08a4267f4282fe7a0bd3e2971beee3b8809298df68955de27b03", "check_sha256": null },
+          { "id": "post_visa_chat_sessions_insert_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_insert_own", "command": "INSERT", "roles": ["authenticated"], "permissive": true, "using_sha256": null, "check_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86" },
+          { "id": "post_visa_chat_sessions_select_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_select_own", "command": "SELECT", "roles": ["authenticated"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_visa_chat_sessions_update_own", "kind": "policy_contract", "identity": "public.visa_chat_sessions", "policy": "visa_chat_sessions_update_own", "command": "UPDATE", "roles": ["authenticated"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86" }
+        ]
+      }
     }
   ]
 }
