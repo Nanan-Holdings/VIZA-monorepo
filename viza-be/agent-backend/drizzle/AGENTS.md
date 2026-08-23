@@ -348,6 +348,10 @@ The current internal automation migrations are:
   `match_visa_chunks` remains available only to authenticated and service-role
   callers, while the harmless ISO-week helper retains its existing execution
   policy. Keep its Supabase migration mirror byte-identical.
+- `0168_core_rls_initplan.sql`: preserves the identities and ownership
+  semantics of the eleven audited applicant/application/document/queue RLS
+  policies while evaluating the authenticated user identity once per statement.
+  Keep its Supabase migration mirror byte-identical.
 
 ## Guardrails
 

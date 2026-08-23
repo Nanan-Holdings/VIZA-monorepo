@@ -562,6 +562,9 @@ Smoke URLs:
   mirrors the backend legacy-function namespace and execution-privilege
   baseline; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0167_database_function_execution_baseline.sql`.
+- `supabase/migrations/20260823140456_core_rls_initplan.sql`: mirrors the
+  backend core ownership-policy init-plan optimization; keep it byte-identical
+  to `viza-be/agent-backend/drizzle/0168_core_rls_initplan.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
