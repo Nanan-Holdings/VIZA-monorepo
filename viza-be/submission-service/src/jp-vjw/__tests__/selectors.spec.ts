@@ -6,6 +6,8 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_MFA_NO_NAME,
+  JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_YOUR_DETAILS_NAME,
   hasOfficialJpVjwQrEvidence,
   isJpVjwCloudfrontAccessGate,
@@ -26,6 +28,12 @@ test("Visit Japan Web account-success selectors accept the observed production d
 
 test("Visit Japan Web profile-entry selector accepts the observed production dashboard", () => {
   assert.match("Your details", JP_VJW_YOUR_DETAILS_NAME);
+});
+
+test("Visit Japan Web optional MFA selectors accept the observed production onboarding", () => {
+  assert.match("Setting up Multi-Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
+  assert.match("No", JP_VJW_MFA_NO_NAME);
+  assert.doesNotMatch("Not registered", JP_VJW_MFA_NO_NAME);
 });
 
 test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {
