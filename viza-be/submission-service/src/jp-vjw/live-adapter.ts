@@ -10,7 +10,11 @@ import {
 } from "./account.js";
 import { JpVjwPortalError } from "./errors.js";
 import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
-import { JP_VJW_CREATE_ACCOUNT_NAME } from "./selectors.js";
+import {
+  JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_CREATE_ACCOUNT_NAME,
+  JP_VJW_GO_TO_LOGIN_NAME,
+} from "./selectors.js";
 
 const OFFICIAL_ROOT = "https://www.vjw.digital.go.jp/";
 const ROUTE_TIMEOUT_MS = 30_000;
@@ -372,11 +376,14 @@ async function registerAccount(context: JpVjwLiveAdapterContext): Promise<void> 
     return await fail(context, "jp_vjw_verification_input_rejected", "Visit Japan Web did not accept the six-digit verification code input.");
   }
   await clickPrimary(context, true);
-  const completedDialog = page.locator("app-vjwplo005").first();
-  await completedDialog.waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS }).catch(async () => {
+  const completedMessage = page.getByText(JP_VJW_ACCOUNT_CREATED_NAME).first();
+  await completedMessage.waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS }).catch(async () => {
     await fail(context, "jp_vjw_account_verification_failed", "Visit Japan Web did not confirm account creation.");
   });
-  const loginScreenButton = completedDialog.locator(".button-primary, input[type='button']").first();
+  const loginScreenButton = page.getByRole("button", { name: JP_VJW_GO_TO_LOGIN_NAME }).first();
+  if (!(await loginScreenButton.isVisible().catch(() => false))) {
+    return await fail(context, "jp_vjw_login_screen_action_missing", "Visit Japan Web account creation succeeded, but the login-screen action was not visible.");
+  }
   await loginScreenButton.click();
   await waitForRoute(context, ["vjwplo001"]);
   await markJpVjwAccountRegistered({
