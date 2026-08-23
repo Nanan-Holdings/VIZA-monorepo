@@ -466,6 +466,34 @@ test("agent-backend timeout batch pins the role defaults and exact postflight", 
   );
 });
 
+test("function execution batch pins the reviewed source, namespace, and ACL contracts", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "database-function-execution-baseline-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "4ed17ad114011da171356b66fd0a7f71aa993059");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260821181514"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823134811"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823134811",
+    name: "database_function_execution_baseline",
+    path: "viza-fe/internal-website/supabase/migrations/20260823134811_database_function_execution_baseline.sql",
+    sha256: "43ee2f78b60782b7a1a56399df8beda1ab8d36472d2cbaa9bc6e581f22470ed8",
+  });
+  const postconditions = batch.postconditions.catalog_assertions;
+  assert.equal(postconditions.filter(({ kind }) => kind === "function_search_path").length, 9);
+  assert.equal(postconditions.filter(({ kind }) => kind === "function_execute_acl").length, 8);
+  for (const contract of postconditions.filter(({ kind }) => kind === "function_search_path")) {
+    assert.deepEqual(contract.search_path, ["pg_catalog", "public"]);
+    assert.equal(contract.security_definer, false);
+  }
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(postflightSql, /public\.match_visa_chunks\(public\.vector,integer,text,text,text\[\],real\)/u);
+  assert.match(postflightSql, /search_path=pg_catalog, public/u);
+  assert.match(postflightSql, /configured_function\.prosecdef IS FALSE/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
@@ -520,6 +548,13 @@ test("approved batch state SQL supports only structured exact catalog guards", (
           identity: "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)",
         },
         {
+          id: "match_chunks_fixed_path",
+          kind: "function_search_path",
+          identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+          search_path: ["pg_catalog", "public"],
+          security_definer: false,
+        },
+        {
           id: "future_objects_private",
           kind: "default_acl_denied",
           owner_roles: ["postgres"],
@@ -548,6 +583,9 @@ test("approved batch state SQL supports only structured exact catalog guards", (
   assert.match(sql, /has_table_privilege\('authenticated',[\s\S]*?'INSERT'\), FALSE/u);
   assert.match(sql, /information_schema\.columns/u);
   assert.match(sql, /commit_travel_agent_turn/u);
+  assert.match(sql, /match_visa_chunks/u);
+  assert.match(sql, /search_path=pg_catalog, public/u);
+  assert.match(sql, /configured_function\.prosecdef IS FALSE/u);
   assert.match(sql, /default_scope\.namespace_oid/u);
   assert.match(sql, /VALUES \(0::oid, TRUE\)/u);
   assert.match(sql, /pg_catalog\.pg_roles/u);
@@ -591,6 +629,31 @@ test("approved batch state SQL supports only structured exact catalog guards", (
         preconditions: { catalog_assertions: [unsafeAssertion] },
       }, "preconditions"),
       /invalid role settings/u,
+    );
+  }
+
+  for (const unsafeAssertion of [
+    {
+      id: "unsafe_path_order",
+      kind: "function_search_path",
+      identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+      search_path: ["public", "pg_catalog"],
+      security_definer: false,
+    },
+    {
+      id: "unsafe_path_schema",
+      kind: "function_search_path",
+      identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+      search_path: ["pg_catalog", "public;drop schema public"],
+      security_definer: false,
+    },
+  ]) {
+    assert.throws(
+      () => buildApprovedBatchStateSql({
+        ...batch,
+        preconditions: { catalog_assertions: [unsafeAssertion] },
+      }, "preconditions"),
+      /invalid function search path/u,
     );
   }
 });
