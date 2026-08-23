@@ -40,6 +40,18 @@ export const JP_VJW_OPTIONAL_MFA_QUESTION =
 
 export const JP_VJW_MFA_NO_NAME = /^(?:否|No|いいえ)$/i;
 
+export const JP_VJW_JAPANESE_PASSPORT_QUESTION =
+  /日本政府签发的护照|日本政府簽發的護照|passport issued by the Japanese government|日本国政府発行の旅券/i;
+
+export const JP_VJW_REENTRY_PERMISSION_QUESTION =
+  /再入境许可|再入境許可|re[-‐‑‒–—―\s]*entry permission|再入国許可/i;
+
+export const JP_VJW_TAX_FREE_QR_QUESTION =
+  /免税二维码|免稅二維碼|tax[-‐‑‒–—―\s]*free QR|免税QR/i;
+
+export const JP_VJW_MANUAL_PASSPORT_NAME =
+  /自行输入|自行輸入|手动输入|手動輸入|Enter information yourself|Enter manually|自分で入力/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success

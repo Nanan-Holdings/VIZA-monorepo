@@ -6,9 +6,13 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_JAPANESE_PASSPORT_QUESTION,
+  JP_VJW_MANUAL_PASSPORT_NAME,
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_REENTRY_PERMISSION_QUESTION,
+  JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
   hasOfficialJpVjwQrEvidence,
   isJpVjwCloudfrontAccessGate,
@@ -37,6 +41,13 @@ test("Visit Japan Web optional MFA selectors accept the observed production onbo
   assert.match("Do you want to set up multi-factor authentication?", JP_VJW_OPTIONAL_MFA_QUESTION);
   assert.match("No", JP_VJW_MFA_NO_NAME);
   assert.doesNotMatch("Not registered", JP_VJW_MFA_NO_NAME);
+});
+
+test("Visit Japan Web profile selectors accept the observed production wizard", () => {
+  assert.match("Do you have a passport issued by the Japanese government?", JP_VJW_JAPANESE_PASSPORT_QUESTION);
+  assert.match("Will you enter Japan with re-entry permission?", JP_VJW_REENTRY_PERMISSION_QUESTION);
+  assert.match("Will you use the Tax-free QR Code?", JP_VJW_TAX_FREE_QR_QUESTION);
+  assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
 });
 
 test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {

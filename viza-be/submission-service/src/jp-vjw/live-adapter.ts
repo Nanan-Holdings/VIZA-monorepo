@@ -14,9 +14,13 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_JAPANESE_PASSPORT_QUESTION,
+  JP_VJW_MANUAL_PASSPORT_NAME,
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_REENTRY_PERMISSION_QUESTION,
+  JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
 } from "./selectors.js";
 
@@ -489,7 +493,11 @@ async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<vo
 
 async function openProfileRegistration(context: JpVjwLiveAdapterContext): Promise<void> {
   const profileControl = context.page.locator("[formcontrolname='hasJapanesePassport']").first();
-  if (await profileControl.isVisible().catch(() => false)) return;
+  const profileQuestion = context.page.getByText(JP_VJW_JAPANESE_PASSPORT_QUESTION).first();
+  if (
+    await profileControl.isVisible().catch(() => false) ||
+    await profileQuestion.isVisible().catch(() => false)
+  ) return;
 
   let action = context.page.getByRole("button", { name: JP_VJW_YOUR_DETAILS_NAME }).first();
   if (!(await action.isVisible().catch(() => false))) {
@@ -499,23 +507,114 @@ async function openProfileRegistration(context: JpVjwLiveAdapterContext): Promis
     return await fail(context, "jp_vjw_profile_entry_missing", "Visit Japan Web user-details action was not visible.");
   }
   await action.click();
-  await profileControl.waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS }).catch(async () => {
+  await context.page.waitForFunction(
+    (pattern) => new RegExp(pattern, "i").test(document.body.innerText),
+    JP_VJW_JAPANESE_PASSPORT_QUESTION.source,
+    { timeout: ROUTE_TIMEOUT_MS },
+  ).catch(async () => {
     await fail(context, "jp_vjw_profile_form_missing", "Visit Japan Web did not open the user-details form.");
   });
 }
 
+async function visibleRadios(page: Page): Promise<Locator[]> {
+  const radios = page.locator("input[type='radio']");
+  const visible: Locator[] = [];
+  for (let index = 0; index < await radios.count(); index += 1) {
+    const radio = radios.nth(index);
+    if (await radio.isVisible().catch(() => false)) visible.push(radio);
+  }
+  return visible;
+}
+
+async function selectRadioInput(context: JpVjwLiveAdapterContext, input: Locator): Promise<void> {
+  const id = await input.getAttribute("id");
+  const label = id ? context.page.locator(`label[for='${id}']`).first() : null;
+  if (label && await label.isVisible().catch(() => false)) await label.click();
+  else await input.click({ force: true });
+  if (!(await input.isChecked().catch(() => false))) {
+    await fail(context, "jp_vjw_profile_radio_unchecked", "Visit Japan Web did not retain the selected profile answer.");
+  }
+}
+
+async function answerProfileBooleanPage(
+  context: JpVjwLiveAdapterContext,
+  controlName: string,
+  question: RegExp,
+): Promise<boolean> {
+  const bodyText = await context.page.locator("body").innerText().catch(() => "");
+  if (!question.test(bodyText)) return false;
+
+  let radios = context.page.locator(`[formname='${controlName}'] input[type='radio']`);
+  if ((await radios.count()) < 2) {
+    radios = context.page.locator(`input[type='radio'][formcontrolname='${controlName}']`);
+  }
+  if ((await radios.count()) >= 2) {
+    await selectRadioInput(context, radios.nth(1));
+    return true;
+  }
+
+  const unnamedRadios = await visibleRadios(context.page);
+  if (unnamedRadios.length !== 2) {
+    await fail(
+      context,
+      "jp_vjw_profile_radio_missing",
+      `Visit Japan Web profile question ${controlName} did not expose one unambiguous yes/no group.`,
+    );
+  }
+  await selectRadioInput(context, unnamedRadios[1]);
+  return true;
+}
+
+async function completeProfileCategoryPages(context: JpVjwLiveAdapterContext): Promise<void> {
+  const questions = [
+    { controlName: "hasJapanesePassport", question: JP_VJW_JAPANESE_PASSPORT_QUESTION },
+    { controlName: "hasReentryPermission", question: JP_VJW_REENTRY_PERMISSION_QUESTION },
+    { controlName: "isTaxExemptionEnabled", question: JP_VJW_TAX_FREE_QR_QUESTION },
+  ];
+  for (let pageNumber = 0; pageNumber < questions.length; pageNumber += 1) {
+    const before = await context.page.locator("body").innerText().catch(() => "");
+    let answered = false;
+    for (const item of questions) {
+      answered = await answerProfileBooleanPage(context, item.controlName, item.question) || answered;
+    }
+    if (!answered) return;
+    await clickPrimary(context);
+    await context.page.waitForFunction(
+      (previous) => document.body.innerText !== previous,
+      before,
+      { timeout: ROUTE_TIMEOUT_MS },
+    ).catch(async () => {
+      await fail(context, "jp_vjw_profile_page_not_advanced", "Visit Japan Web did not advance the profile category page.");
+    });
+  }
+}
+
+async function selectManualPassportEntry(context: JpVjwLiveAdapterContext): Promise<void> {
+  let manual = context.page.getByRole("radio", { name: JP_VJW_MANUAL_PASSPORT_NAME }).first();
+  if (!(await manual.isVisible().catch(() => false))) {
+    const methods = context.page.locator("input[type='radio'][formcontrolname='regType']");
+    if ((await methods.count()) >= 2) manual = methods.nth(1);
+  }
+  if (!(await manual.isVisible().catch(() => false))) {
+    const methods = await visibleRadios(context.page);
+    if (methods.length === 2) manual = methods[1];
+  }
+  if (!(await manual.isVisible().catch(() => false))) {
+    await fail(context, "jp_vjw_manual_passport_option_missing", "Manual passport entry option was not found.");
+  }
+  await selectRadioInput(context, manual);
+  await clickPrimary(context);
+  await context.page.locator("[formcontrolname='passportNumber']").first()
+    .waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS })
+    .catch(async () => {
+      await fail(context, "jp_vjw_passport_details_form_missing", "Visit Japan Web did not open the passport details form.");
+    });
+}
+
 async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> {
   await openProfileRegistration(context);
-  await setRadio(context, "hasJapanesePassport", "no");
-  await setRadio(context, "hasReentryPermission", "no");
-  await setRadio(context, "isTaxExemptionEnabled", "no");
-  await clickPrimary(context);
-  await waitForRoute(context, ["vjwppr002"]);
-  const methods = context.page.locator("input[type='radio'][formcontrolname='regType']");
-  if ((await methods.count()) < 2) await fail(context, "jp_vjw_manual_passport_option_missing", "Manual passport entry option was not found.");
-  await methods.nth(1).click({ force: true });
-  await clickPrimary(context);
-  await waitForRoute(context, ["vjwppr005"]);
+  await completeProfileCategoryPages(context);
+  await selectManualPassportEntry(context);
   await fillControl(context, "passportNumber", context.payload.passportNumber.toUpperCase());
   await fillControl(context, "familyName", context.payload.surname.toUpperCase());
   await fillControl(context, "givenName", context.payload.givenNames.toUpperCase());
