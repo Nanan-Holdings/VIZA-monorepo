@@ -369,6 +369,11 @@ The current internal automation migrations are:
   applicant-owned notification/signature SELECT policies while evaluating the
   caller identity once per statement. Keep its Supabase migration mirror
   byte-identical.
+- `0174_inbound_email_rls_initplan.sql`: preserves the applicant inbox SELECT
+  policy, including quarantine and retired-alias filtering, while evaluating
+  the caller identity once per statement. Service-role mailbox consumers and
+  the table ACL remain unchanged; keep its Supabase migration mirror
+  byte-identical.
 
 ## Guardrails
 

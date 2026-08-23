@@ -1018,6 +1018,47 @@
           { "id": "post_signature_event_select_own", "kind": "policy_contract", "identity": "public.signature_event", "policy": "signature_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null }
         ]
       }
+    },
+    {
+      "batch_id": "inbound-email-rls-initplan-v1",
+      "source_ref": "1d29e1ca931d3e66162467f4e4d6a5fd798038ac",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260823163045",
+          "name": "inbound_email_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260823163045_inbound_email_rls_initplan.sql",
+          "sha256": "a91b09072241084a259757978051f66ed2ba1afd80d950c9a94f8030640a9f35"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260823154730"],
+        "absent_migration_versions": ["20260823163045"],
+        "catalog_assertions": [
+          { "id": "pre_inbound_email_rls", "kind": "rls_enabled", "identity": "public.inbound_email" },
+          { "id": "pre_inbound_email_policy_count", "kind": "policy_count", "identity": "public.inbound_email", "count": 1 },
+          { "id": "pre_inbound_email_acl", "kind": "relation_acl", "identity": "public.inbound_email", "relation_kind": "table", "required": [
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+          ], "forbidden_roles": ["PUBLIC"] },
+          { "id": "pre_inbound_email_select_owning_applicant", "kind": "policy_contract", "identity": "public.inbound_email", "policy": "inbound_email_select_owning_applicant", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "53620884b11312437e65785cdc5445b1ed50036f0fcdb2b096db2502288786c6", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260823163045"],
+        "catalog_assertions": [
+          { "id": "inbound_email_rls_initplan_migration_record", "kind": "migration_record", "version": "20260823163045", "name": "inbound_email_rls_initplan", "sha256": "a91b09072241084a259757978051f66ed2ba1afd80d950c9a94f8030640a9f35" },
+          { "id": "post_inbound_email_rls", "kind": "rls_enabled", "identity": "public.inbound_email" },
+          { "id": "post_inbound_email_policy_count", "kind": "policy_count", "identity": "public.inbound_email", "count": 1 },
+          { "id": "post_inbound_email_acl", "kind": "relation_acl", "identity": "public.inbound_email", "relation_kind": "table", "required": [
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+          ], "forbidden_roles": ["PUBLIC"] },
+          { "id": "post_inbound_email_select_owning_applicant", "kind": "policy_contract", "identity": "public.inbound_email", "policy": "inbound_email_select_owning_applicant", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8", "check_sha256": null }
+        ]
+      }
     }
   ]
 }
