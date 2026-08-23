@@ -17,3 +17,14 @@ visa/paper-form runner.
   the official page exposes a site key; WAF/Cloudflare clearance is not faked.
 - Selector recon is intentionally fail-closed until a controlled live smoke
   confirms the current official form steps.
+- `account.ts` owns the application-scoped VJW email/password vault contract.
+  Persist only the managed alias, generated password, and registration state;
+  never log those values or substitute environment-wide credentials.
+- `errors.ts` owns the runner error type so browser state-machine helpers can
+  fail closed without introducing import cycles.
+- `live-adapter.ts` owns the current official Angular route/control state
+  machine, including hCaptcha callback delivery, email-code verification,
+  profile/trip registration, final ownership check, and QR element capture.
+- `verification.ts` owns redaction-safe parsing of the six-digit official
+  registration email code. Callers may return it to the browser adapter but
+  must never log it.

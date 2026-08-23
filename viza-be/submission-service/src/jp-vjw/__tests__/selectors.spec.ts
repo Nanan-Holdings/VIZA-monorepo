@@ -21,3 +21,12 @@ test("Visit Japan Web QR gate requires official host, visible QR and artifact", 
   assert.equal(isJpVjwCloudfrontAccessGate(200, "Visit Japan Web QR Code"), false);
   assert.match(resolveJpVjwUserAgent({}), /Windows NT 10\.0/);
 });
+
+test("Visit Japan Web QR gate accepts the official simplified-Chinese QR heading", () => {
+  assert.equal(hasOfficialJpVjwQrEvidence({
+    portalUrl: "https://www.vjw.digital.go.jp/main/#/vjwpic026",
+    bodyText: "入境审查及海关申报的QR码",
+    qrElementVisible: true,
+    qrArtifactPath: "C:/evidence/official-qr.png",
+  }), true);
+});
