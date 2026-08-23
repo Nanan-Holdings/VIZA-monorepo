@@ -914,6 +914,55 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
   assert.match(postflightSql, /acl_entry\.is_grantable/u);
 });
 
+test("applicant single-path RLS batch pins all four policy contracts", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "applicant-single-path-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "25ad988389edd4efe0ed0e383b0e7a6c1cd673d6");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824032000"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824051000"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824051000",
+    name: "applicant_single_path_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql",
+    sha256: "90d15e9994d544360c536a486da8d8685ed95e7c7adce0bd9f2946f771f0af43",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 4);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [
+        ["public.applicant_secret", 1],
+        ["public.notification_preferences", 2],
+        ["public.staff_chat_thread", 1],
+      ],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 3);
+    const acls = assertions.filter(({ kind }) => kind === "relation_acl");
+    assert.equal(acls.length, 3);
+    for (const acl of acls) {
+      assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+      assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+      assert.equal(acl.grant_options_forbidden, true);
+      assert.equal(acl.required.length, 4);
+      assert.ok(acl.required.every(({ privileges, exact, exact_direct: exactDirect }) =>
+        exact === true && exactDirect === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+    }
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.equal((preflightSql.match(/25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/gu) ?? []).length, 5);
+  assert.equal((postflightSql.match(/f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/gu) ?? []).length, 5);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],

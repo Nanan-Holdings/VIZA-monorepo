@@ -1224,6 +1224,87 @@
           { "id": "post_consent_event_select_own", "kind": "policy_contract", "identity": "public.consent_event", "policy": "consent_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975", "check_sha256": null }
         ]
       }
+    },
+    {
+      "batch_id": "applicant-single-path-rls-initplan-v1",
+      "source_ref": "25ad988389edd4efe0ed0e383b0e7a6c1cd673d6",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260824051000",
+          "name": "applicant_single_path_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql",
+          "sha256": "90d15e9994d544360c536a486da8d8685ed95e7c7adce0bd9f2946f771f0af43"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260824032000"],
+        "absent_migration_versions": ["20260824051000"],
+        "catalog_assertions": [
+          { "id": "pre_applicant_secret_rls", "kind": "rls_enabled", "identity": "public.applicant_secret" },
+          { "id": "pre_notification_preferences_rls", "kind": "rls_enabled", "identity": "public.notification_preferences" },
+          { "id": "pre_staff_chat_thread_rls", "kind": "rls_enabled", "identity": "public.staff_chat_thread" },
+          { "id": "pre_applicant_secret_policy_count", "kind": "policy_count", "identity": "public.applicant_secret", "count": 1 },
+          { "id": "pre_notification_preferences_policy_count", "kind": "policy_count", "identity": "public.notification_preferences", "count": 2 },
+          { "id": "pre_staff_chat_thread_policy_count", "kind": "policy_count", "identity": "public.staff_chat_thread", "count": 1 },
+          { "id": "pre_applicant_secret_acl", "kind": "relation_acl", "identity": "public.applicant_secret", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "pre_notification_preferences_acl", "kind": "relation_acl", "identity": "public.notification_preferences", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "pre_staff_chat_thread_acl", "kind": "relation_acl", "identity": "public.staff_chat_thread", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "pre_applicant_secret_select_own", "kind": "policy_contract", "identity": "public.applicant_secret", "policy": "applicant_secret_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_notification_preferences_select_own", "kind": "policy_contract", "identity": "public.notification_preferences", "policy": "notification_preferences_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_notification_preferences_upsert_own", "kind": "policy_contract", "identity": "public.notification_preferences", "policy": "notification_preferences_upsert_own", "command": "ALL", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad" },
+          { "id": "pre_staff_chat_thread_select_own", "kind": "policy_contract", "identity": "public.staff_chat_thread", "policy": "staff_chat_thread_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260824051000"],
+        "catalog_assertions": [
+          { "id": "applicant_single_path_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824051000", "name": "applicant_single_path_rls_initplan", "sha256": "90d15e9994d544360c536a486da8d8685ed95e7c7adce0bd9f2946f771f0af43" },
+          { "id": "post_applicant_secret_rls", "kind": "rls_enabled", "identity": "public.applicant_secret" },
+          { "id": "post_notification_preferences_rls", "kind": "rls_enabled", "identity": "public.notification_preferences" },
+          { "id": "post_staff_chat_thread_rls", "kind": "rls_enabled", "identity": "public.staff_chat_thread" },
+          { "id": "post_applicant_secret_policy_count", "kind": "policy_count", "identity": "public.applicant_secret", "count": 1 },
+          { "id": "post_notification_preferences_policy_count", "kind": "policy_count", "identity": "public.notification_preferences", "count": 2 },
+          { "id": "post_staff_chat_thread_policy_count", "kind": "policy_count", "identity": "public.staff_chat_thread", "count": 1 },
+          { "id": "post_applicant_secret_acl", "kind": "relation_acl", "identity": "public.applicant_secret", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "post_notification_preferences_acl", "kind": "relation_acl", "identity": "public.notification_preferences", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "post_staff_chat_thread_acl", "kind": "relation_acl", "identity": "public.staff_chat_thread", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
+          { "id": "post_applicant_secret_select_own", "kind": "policy_contract", "identity": "public.applicant_secret", "policy": "applicant_secret_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_notification_preferences_select_own", "kind": "policy_contract", "identity": "public.notification_preferences", "policy": "notification_preferences_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_notification_preferences_upsert_own", "kind": "policy_contract", "identity": "public.notification_preferences", "policy": "notification_preferences_upsert_own", "command": "ALL", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86" },
+          { "id": "post_staff_chat_thread_select_own", "kind": "policy_contract", "identity": "public.staff_chat_thread", "policy": "staff_chat_thread_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null }
+        ]
+      }
     }
   ]
 }
