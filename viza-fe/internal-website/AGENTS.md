@@ -318,6 +318,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260821000000_japan_vjw_kenya_eta_products.sql`; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0154_japan_vjw_kenya_eta_products.sql`.
+- Japan VJW's obsolete preparation-only upload checklist is removed by
+  `supabase/migrations/20260823143500_jp_vjw_no_document_uploads.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0169_jp_vjw_no_document_uploads.sql`. Kenya
+  eTA document requirements remain unchanged.
 - Application-scoped unattended-runner aliases are created by
   `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
   byte-identical to
