@@ -55,6 +55,9 @@ export const JP_VJW_MANUAL_PASSPORT_NAME =
 export const JP_VJW_PROFILE_COMPLETE_NAME =
   /登记完成|登記完成|Registration complete|登録完了/i;
 
+export const JP_VJW_CONFIRM_ENTERED_DETAILS_NAME =
+  /确认输入的详细信息|確認輸入的詳細資訊|Confirm entered details|入力内容の確認/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success

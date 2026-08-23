@@ -12,6 +12,7 @@ import { JpVjwPortalError } from "./errors.js";
 import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
@@ -89,7 +90,10 @@ async function capturePage(context: JpVjwLiveAdapterContext, name: string): Prom
     fullPage: true,
     mask: [
       context.page.locator("input, select, textarea"),
-      ...privateValues.map((value) => context.page.getByText(value, { exact: true })),
+      context.page.getByText(/\b\d{4}\/\d{2}\/\d{2}\b/u),
+      ...privateValues.map((value) => context.page.getByText(
+        new RegExp(value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "iu"),
+      )),
     ],
     maskColor: "#6b7280",
   });
@@ -651,6 +655,15 @@ async function selectManualPassportEntry(context: JpVjwLiveAdapterContext): Prom
 
 async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> {
   await openProfileRegistration(context);
+  const existingProfileText = await context.page.locator("body").innerText().catch(() => "");
+  if (
+    JP_VJW_CONFIRM_ENTERED_DETAILS_NAME.test(existingProfileText) &&
+    JP_VJW_JAPANESE_PASSPORT_QUESTION.test(existingProfileText) &&
+    (await visibleRadios(context.page)).length === 0
+  ) {
+    context.logs.push("jpvjw_profile_registered_reused");
+    return;
+  }
   await completeProfileCategoryPages(context);
   await selectManualPassportEntry(context);
   await fillControl(context, "passportNumber", context.payload.passportNumber.toUpperCase());
