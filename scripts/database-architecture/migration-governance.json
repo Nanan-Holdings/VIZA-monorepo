@@ -147,7 +147,7 @@
       "sha256": "81a7e178c00d647afda7c00c1ad99b506965c5f4542fc7e31da9c46c9e4a6ecf"
     },
     {
-      "drizzle": "viza-be/agent-backend/drizzle/0172_notification_signature_rls_initplan.sql",
+      "drizzle": "viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260823154730_notification_signature_rls_initplan.sql",
       "sha256": "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af"
     }

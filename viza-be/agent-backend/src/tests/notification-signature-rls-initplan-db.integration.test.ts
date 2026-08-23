@@ -21,7 +21,7 @@ const localHost = (() => {
 const liveGateEnabled = Boolean(databaseUrl) && confirm && localHost && allowedMarkers.has(marker);
 const migrationSql = readFileSync(
 	fileURLToPath(
-		new URL("../../drizzle/0172_notification_signature_rls_initplan.sql", import.meta.url),
+		new URL("../../drizzle/0173_notification_signature_rls_initplan.sql", import.meta.url),
 	),
 	"utf8",
 );

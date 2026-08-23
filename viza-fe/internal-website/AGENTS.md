@@ -580,7 +580,7 @@ Smoke URLs:
 - `supabase/migrations/20260823154730_notification_signature_rls_initplan.sql`:
   mirrors the backend notification/signature ownership-policy init-plan
   optimization; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0172_notification_signature_rls_initplan.sql`.
+  `viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
