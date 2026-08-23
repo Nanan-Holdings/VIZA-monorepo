@@ -534,6 +534,48 @@ test("core RLS init-plan batch pins every policy before and after the rewrite", 
   assert.match(postflightSql, /bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a/u);
 });
 
+test("chat RLS init-plan batch pins every policy before and after the rewrite", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "chat-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "51142975b1df522d750b743392a721d723795cd8");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823140456"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823143810"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823143810",
+    name: "chat_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823143810_chat_rls_initplan.sql",
+    sha256: "f184696b540b8003fe9a0748882982cf481cfce8ace19a213ff993b562e280f2",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 9);
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 6);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count])
+        .sort(),
+      [
+        ["public.travel_agent_messages", 1],
+        ["public.travel_agent_sessions", 1],
+        ["public.travel_user_preferences", 1],
+        ["public.user_chat_sessions", 2],
+        ["public.visa_chat_messages", 2],
+        ["public.visa_chat_sessions", 3],
+      ],
+    );
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /88343edb2dcb676910bbb308c3db6ec72642830f5146274958532e4354593857/u);
+  assert.match(preflightSql, /795cc81c691fa00af552b35db6b73f6e43ff7c8b762fca1138c3128f9a467b0b/u);
+  assert.match(postflightSql, /067f2b9c489a616b20dba2a5a889efaf0c73212fd91d16a91767f32a164c6ef3/u);
+  assert.match(postflightSql, /7d4586bde32e08a4267f4282fe7a0bd3e2971beee3b8809298df68955de27b03/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
