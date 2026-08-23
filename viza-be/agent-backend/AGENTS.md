@@ -97,6 +97,9 @@ explicitly reintroduces another provider.
   783 aliases and audited bank-statement/insurance/conditional-document
   metadata without turning runner-only content review into form questions.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
+  `src/tests/notification-signature-rls-initplan-*.test.ts` proves the audited
+  notification/signature SELECT-policy optimization preserves policy identity
+  and cross-user/service-role visibility in a gated local PostgreSQL transaction.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for

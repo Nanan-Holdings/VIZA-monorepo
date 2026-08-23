@@ -607,6 +607,40 @@ test("user packages RLS init-plan batch pins the sole policy contract", () => {
   assert.match(postflightSql, /2be57c38df7ccb57585e26e8063a9915959f6814c740ec2f581dd7830759c312/u);
 });
 
+test("notification/signature RLS init-plan batch pins both public SELECT policies", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "notification-signature-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "438fc9edb67e5bc8c133ac8c34139233f27ce25e");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823152021"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823154730"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823154730",
+    name: "notification_signature_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823154730_notification_signature_rls_initplan.sql",
+    sha256: "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 2);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [
+        ["public.notification_event_log", 1],
+        ["public.signature_event", 1],
+      ],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 2);
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
