@@ -118,6 +118,12 @@ smoke-test helpers for the VIZA monorepo.
   the unchanged inbox policy/RLS/purge-function contracts, exact direct
   grantees, absence of non-owner grant options, authenticated SELECT-only
   access, and the existing seven service-role table privileges.
+  `audit-log-rls-initplan-v1` pins the two single-path applicant-owned SELECT
+  policies on `secret_access_log` and `pii_access_log`, including exact policy
+  identities, counts, RLS state, and normalized pre/post expression hashes.
+  `account_action_log` requires a separately reviewed two-path batch, while
+  `consent_event` remains excluded until its historical schema ownership is
+  reconciled.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
