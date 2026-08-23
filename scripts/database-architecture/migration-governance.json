@@ -173,7 +173,7 @@
     },
     {
       "drizzle": "viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql",
-      "supabase": "viza-fe/internal-website/supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql",
       "sha256": "91c9c5711e08ed66419fe23955595eaa081c18f6e4be0cc738514f625f7ff169"
     },
     {
@@ -213,6 +213,22 @@
       "production_ledger_versions_absent": [
         "20260818140000"
       ]
+    }
+  ],
+  "applied_migration_renames": [
+    {
+      "from": "viza-fe/internal-website/supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql",
+      "to": "viza-fe/internal-website/supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql",
+      "sha256": "91c9c5711e08ed66419fe23955595eaa081c18f6e4be0cc738514f625f7ff169",
+      "reason": "Match the repository mirror filename to the exact production ledger version without replaying the already-applied data migration.",
+      "verified_applied_at": "2026-08-23T20:14:31Z",
+      "project_ref": "oyjxdzsoejraedqghndi",
+      "production_ledger_version_present": "20260823193517",
+      "production_ledger_name": "jp_vjw_official_accommodation_fields",
+      "production_ledger_versions_absent": [
+        "20260824033000"
+      ],
+      "evidence_run_id": 32663790378
     }
   ]
 }
