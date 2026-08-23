@@ -14,6 +14,8 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_MFA_NO_NAME,
+  JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_YOUR_DETAILS_NAME,
 } from "./selectors.js";
 
@@ -406,6 +408,24 @@ async function tryLogin(context: JpVjwLiveAdapterContext): Promise<boolean> {
   return !currentRoute(context.page).includes("vjwplo001");
 }
 
+async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> {
+  const heading = context.page.getByText(JP_VJW_OPTIONAL_MFA_HEADING).first();
+  if (!(await heading.isVisible().catch(() => false))) return;
+
+  const no = context.page.getByRole("radio", { name: JP_VJW_MFA_NO_NAME }).first();
+  if (!(await no.isVisible().catch(() => false))) {
+    return await fail(context, "jp_vjw_optional_mfa_no_missing", "Visit Japan Web optional MFA opt-out was not visible.");
+  }
+  await no.check({ force: true });
+  await clickPrimary(context, true);
+  await context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first()
+    .waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS })
+    .catch(async () => {
+      await fail(context, "jp_vjw_optional_mfa_exit_failed", "Visit Japan Web did not leave the optional MFA setup page.");
+    });
+  context.logs.push("jpvjw_optional_mfa_skipped");
+}
+
 async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<void> {
   await installHcaptchaCallbackCapture(context.page);
   await context.page.goto(OFFICIAL_ROOT, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -418,6 +438,7 @@ async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<vo
         correlationId: context.payload.applicationId,
       });
     }
+    await skipOptionalMfa(context);
     context.logs.push("jpvjw_account_login_reused");
     return;
   }
@@ -428,6 +449,7 @@ async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<vo
   if (currentRoute(context.page).includes("vjwplo001") && !(await tryLogin(context))) {
     await fail(context, "jp_vjw_login_failed", "Visit Japan Web rejected the managed account login.");
   }
+  await skipOptionalMfa(context);
   context.logs.push("jpvjw_authenticated");
 }
 
