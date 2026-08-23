@@ -415,8 +415,12 @@ async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> 
   const dashboard = context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first();
   let landing: "mfa" | "dashboard" | null = null;
   for (let attempt = 0; attempt < 40; attempt += 1) {
+    const bodyText = await context.page.locator("body").innerText().catch(() => "");
     const questionVisible = await question.isVisible().catch(() => false);
-    if (questionVisible && await heading.isVisible().catch(() => false)) {
+    const hasVisibleMfaCopy = questionVisible && await heading.isVisible().catch(() => false);
+    const hasCurrentMfaCopy =
+      JP_VJW_OPTIONAL_MFA_HEADING.test(bodyText) && JP_VJW_OPTIONAL_MFA_QUESTION.test(bodyText);
+    if (hasVisibleMfaCopy || hasCurrentMfaCopy) {
       landing = "mfa";
       break;
     }
@@ -430,7 +434,11 @@ async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> 
 
   // The MFA page can finish an asynchronous transition after its heading was
   // observed. Never let a stale MFA decision select a later profile radio.
-  if (!(await question.isVisible().catch(() => false))) return;
+  const currentBodyText = await context.page.locator("body").innerText().catch(() => "");
+  const stillOnMfa =
+    JP_VJW_OPTIONAL_MFA_HEADING.test(currentBodyText) &&
+    JP_VJW_OPTIONAL_MFA_QUESTION.test(currentBodyText);
+  if (!stillOnMfa) return;
 
   const no = context.page.getByRole("radio", { name: JP_VJW_MFA_NO_NAME }).first();
   if (!(await no.isVisible().catch(() => false))) {
