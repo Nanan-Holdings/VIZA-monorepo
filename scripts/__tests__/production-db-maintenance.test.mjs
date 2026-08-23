@@ -612,7 +612,7 @@ test("notification/signature RLS init-plan batch pins both public SELECT policie
   const batch = manifest.batches.find(({ batch_id: batchId }) =>
     batchId === "notification-signature-rls-initplan-v1");
   assert.ok(batch);
-  assert.equal(batch.source_ref, "2ddf7f19ce76c3aabe9717697e2c76928b97368b");
+  assert.equal(batch.source_ref, "438fc9edb67e5bc8c133ac8c34139233f27ce25e");
   assert.equal(batch.mode, "transactional");
   assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823152021"]);
   assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823154730"]);

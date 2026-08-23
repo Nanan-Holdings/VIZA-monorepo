@@ -984,7 +984,7 @@
     },
     {
       "batch_id": "notification-signature-rls-initplan-v1",
-      "source_ref": "2ddf7f19ce76c3aabe9717697e2c76928b97368b",
+      "source_ref": "438fc9edb67e5bc8c133ac8c34139233f27ce25e",
       "mode": "transactional",
       "migrations": [
         {
