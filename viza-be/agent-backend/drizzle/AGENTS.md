@@ -374,6 +374,10 @@ The current internal automation migrations are:
   the caller identity once per statement. Service-role mailbox consumers and
   the table ACL remain unchanged; keep its Supabase migration mirror
   byte-identical.
+- `0175_expand_runner_result_statuses.sql`: expands the exact-owner shared-pool
+  result writer to accept the canonical Japan QR, Kenya approval/rejection,
+  and needs-attention/blocked statuses. Keep its Supabase migration mirror
+  byte-identical.
 
 ## Guardrails
 
