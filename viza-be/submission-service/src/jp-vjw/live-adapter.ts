@@ -10,6 +10,7 @@ import {
 } from "./account.js";
 import { JpVjwPortalError } from "./errors.js";
 import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
+import { JP_VJW_CREATE_ACCOUNT_NAME } from "./selectors.js";
 
 const OFFICIAL_ROOT = "https://www.vjw.digital.go.jp/";
 const ROUTE_TIMEOUT_MS = 30_000;
@@ -304,7 +305,7 @@ async function chooseAutocomplete(
 
 async function registerAccount(context: JpVjwLiveAdapterContext): Promise<void> {
   const page = context.page;
-  const create = page.getByRole("button", { name: /创建新账号|Create new account/i }).first();
+  const create = page.getByRole("button", { name: JP_VJW_CREATE_ACCOUNT_NAME }).first();
   if (!(await create.isVisible().catch(() => false))) {
     await fail(context, "jp_vjw_create_account_missing", "Visit Japan Web create-account action was not visible.");
   }
