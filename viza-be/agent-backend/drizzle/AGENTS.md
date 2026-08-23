@@ -146,8 +146,8 @@ The current internal automation migrations are:
   sessions moved behind an explicit active-alias ownership check. Authenticated
   callers retain policy-scoped SELECT and service-role workers retain full
   access; rows, policies, and RLS state are unchanged.
-- `0177_audit_log_rls_initplan.sql`: preserves the four applicant-owned SELECT
-  policies on credential, PII, account-action, and consent audit logs while
+- `0177_audit_log_rls_initplan.sql`: preserves the two applicant-owned SELECT
+  policies on credential and PII audit logs while
   evaluating the authenticated user identity once per statement. It changes no
   rows, relation privileges, policy identities, or service-role behavior; keep
   its Supabase migration mirror byte-identical.
