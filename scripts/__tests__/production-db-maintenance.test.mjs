@@ -208,8 +208,14 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
   assert.match(ARCHITECTURE_AUDIT_SQL, /'policy_contracts'/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.pg_policy/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.sha256/u);
+  assert.match(
+    ARCHITECTURE_AUDIT_SQL,
+    /pg_catalog\.to_regclass\('extensions\.pg_stat_statements'\)/u,
+  );
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /stats_reset/u);
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /observation_window_seconds/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /FROM extensions\.pg_stat_statements\b/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /FROM extensions\.pg_stat_statements_info\b/u);
 });
 
 test("architecture audit skips statement metrics when the extension is unavailable", async () => {
