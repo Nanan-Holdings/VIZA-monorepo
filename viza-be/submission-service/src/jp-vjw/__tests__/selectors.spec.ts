@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import { fillJpVjwVerificationCode, resolveJpVjwNativeOptionValue } from "../live-adapter";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
@@ -50,6 +51,7 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Will you use the Tax-free QR Code?", JP_VJW_TAX_FREE_QR_QUESTION);
   assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
   assert.match("Registration complete", JP_VJW_PROFILE_COMPLETE_NAME);
+  assert.match("Confirm entered details", JP_VJW_CONFIRM_ENTERED_DETAILS_NAME);
 });
 
 test("Visit Japan Web native option matching skips the empty placeholder", () => {
