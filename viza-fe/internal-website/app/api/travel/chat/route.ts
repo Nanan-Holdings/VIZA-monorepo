@@ -1028,11 +1028,158 @@ function replaceExplicitOperation(
   ];
 }
 
+function splitPlannerDestinationValues(value: string): string[] {
+  return value
+    .replace(/[。.!！？?]+$/u, "")
+    .split(/\s*(?:、|,|，|和|\band\b)\s*/iu)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function explicitPlannerDestinationOperations(
+  text: string
+): TravelStateOperation[] {
+  const normalized = text.trim();
+  const result: TravelStateOperation[] = [];
+  const add = (
+    path: "countries" | "cities",
+    valueText: string,
+    evidence: string
+  ) => {
+    for (const value of splitPlannerDestinationValues(valueText)) {
+      result.push({
+        op: "add",
+        path,
+        valueText: value,
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence,
+      });
+    }
+  };
+
+  const updated = normalized.match(
+    /^(?:我更新了目的地|destination updated|I updated the destination)[：:]\s*(?:城市|cities?)\s*(.+?)\s*[；;]\s*(?:国家|countries?)\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  if (updated) {
+    add("cities", updated[1], updated[0]);
+    add("countries", updated[2], updated[0]);
+    return result;
+  }
+
+  const countrySelection = normalized.match(
+    /^(?:我选择了国家|我选了国家|已选择国家|(?:I\s+)?selected\s+countries?)[：:]\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  if (countrySelection) {
+    add("countries", countrySelection[1], countrySelection[0]);
+    return result;
+  }
+
+  const citySelection = normalized.match(
+    /^(?:我选择了城市|我选了城市|已选择城市|(?:I\s+)?selected\s+cities?)[：:]\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  if (citySelection) {
+    add("cities", citySelection[1], citySelection[0]);
+    return result;
+  }
+
+  return result;
+}
+
+function directDestinationOperations(text: string): TravelStateOperation[] {
+  const normalized = text.trim();
+  const match =
+    normalized.match(
+      /^(?:我想去|我要去|想去|就去|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
+    ) ??
+    normalized.match(
+      /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*(.+?)(?:[。.!！？?])?$/iu
+    );
+  if (!match) return [];
+
+  const candidate = match[1]
+    .replace(/(?:去)?(?:旅游|旅行|玩|travel|tour)$/iu, "")
+    .trim();
+  if (
+    !candidate ||
+    /^(?:哪里|哪儿|anywhere|somewhere)$/iu.test(candidate) ||
+    /\d|天|人|预算|budget|day|traveler|people/iu.test(candidate)
+  ) {
+    return [];
+  }
+
+  return splitPlannerDestinationValues(candidate).map((value) => {
+    const resolution = resolveLocalDestinationText(value);
+    const isCity =
+      resolution.status === "resolved" &&
+      resolution.destinations.some((destination) => Boolean(destination.city));
+    return {
+      op: "add",
+      path: isCity ? "cities" : "countries",
+      valueText: value,
+      valueNumber: null,
+      valueBoolean: null,
+      explicit: true,
+      evidence: match[0],
+    };
+  });
+}
+
+function appendExplicitDestinationOperations(
+  operations: TravelStateOperation[],
+  additions: TravelStateOperation[]
+): TravelStateOperation[] {
+  const existing = new Set(
+    operations
+      .filter(
+        (operation) =>
+          (operation.path === "countries" || operation.path === "cities") &&
+          operation.op === "add" &&
+          operation.valueText
+      )
+      .map(
+        (operation) =>
+          `${operation.path}:${operation.valueText?.trim().toLocaleLowerCase()}`
+      )
+  );
+  return [
+    ...operations,
+    ...additions.filter((operation) => {
+      const key = `${operation.path}:${operation.valueText
+        ?.trim()
+        .toLocaleLowerCase()}`;
+      if (existing.has(key)) return false;
+      existing.add(key);
+      return true;
+    }),
+  ];
+}
+
+function isExplicitPlannerDestinationForm(text: string): boolean {
+  return explicitPlannerDestinationOperations(text).length > 0;
+}
+
 function stabilizeExplicitPlannerOperations(
   text: string,
   operations: TravelStateOperation[]
 ): TravelStateOperation[] {
   let next = operations;
+  const formDestinations = explicitPlannerDestinationOperations(text);
+  next = appendExplicitDestinationOperations(next, formDestinations);
+  if (!formDestinations.length) {
+    const directDestinations = directDestinationOperations(text);
+    if (
+      directDestinations.length &&
+      !next.some(
+        (operation) =>
+          (operation.path === "countries" || operation.path === "cities") &&
+          (operation.op === "add" || operation.op === "remove")
+      )
+    ) {
+      next = appendExplicitDestinationOperations(next, directDestinations);
+    }
+  }
   const setNumber = (
     path: "travel_days" | "travelers" | "budget",
     value: string,
@@ -1119,10 +1266,28 @@ function stabilizeExplicitPlannerOperations(
 
 function resolveDestinationOperation(
   operation: TravelStateOperation,
-  locale: InterfaceLocale
+  locale: InterfaceLocale,
+  allowUnverifiedCity = false
 ): TravelStateOperation | null {
+  // A country is a planner state value, not a destination card. The local
+  // destination resolver intentionally rejects country-only text because it
+  // cannot create a useful city card without a city. Applying that same card
+  // gate to `countries` drops valid dropdown/custom selections and makes the
+  // planner ask for the country again on the next turn.
+  if (operation.path === "countries") {
+    return operation.valueText?.trim()
+      ? { ...operation, valueText: operation.valueText.trim() }
+      : null;
+  }
+
+  if (operation.path === "cities" && allowUnverifiedCity) {
+    return operation.valueText?.trim()
+      ? { ...operation, valueText: operation.valueText.trim() }
+      : null;
+  }
+
   if (
-    (operation.path !== "cities" && operation.path !== "countries") ||
+    operation.path !== "cities" ||
     !operation.valueText
   ) {
     return operation;
@@ -1132,10 +1297,7 @@ function resolveDestinationOperation(
     return null;
   }
   const destination = resolution.destinations[0];
-  const value =
-    operation.path === "countries"
-      ? destination.countryName
-      : destination.city || destination.displayName;
+  const value = destination.city || destination.displayName;
   if (!value) return null;
   return {
     ...operation,
@@ -1534,8 +1696,13 @@ export async function POST(request: Request) {
         )
       )
     );
+    const allowUnverifiedCity = isExplicitPlannerDestinationForm(input.text);
     const resolved = validated.flatMap((operation) => {
-      const item = resolveDestinationOperation(operation, input.locale);
+      const item = resolveDestinationOperation(
+        operation,
+        input.locale,
+        allowUnverifiedCity && operation.evidence.trim() === input.text
+      );
       return item ? [item] : [];
     });
     for (const operation of [...resolved]) {

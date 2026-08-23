@@ -1,8 +1,10 @@
 import { getSupabaseClient } from '../db/supabase-client.js';
 import { Logger } from '../utils/logger.js';
 import {
+  ADDITIONAL_REVIEWED_VISA_ENTRY_RULE_MAP,
   REVIEWED_VISA_ENTRY_RULE_MAP,
   reviewedVisaEntryRuleKey,
+  type AdditionalReviewedVisaEntryRuleSeed,
   type ReviewedVisaEntryRuleSeed,
 } from '../config/reviewed-visa-entry-rules.js';
 import {
@@ -47,6 +49,10 @@ export interface VisaEntryRuleQuery {
   tripPurpose: string | null;
   stayLengthDays: number | null;
 }
+
+type ReviewedVisaEntryRuleSeedLike =
+  | ReviewedVisaEntryRuleSeed
+  | AdditionalReviewedVisaEntryRuleSeed;
 
 const SINGAPORE_CHINA_ORDINARY_RULE: VisaEntryRule = {
   ruleKey: 'singapore:CHN:ordinary:tourism:2024-02-09',
@@ -94,30 +100,46 @@ export function resolveReviewedVisaEntryRule(
   if (!query.destinationCountry || !query.passportCountryIso3 || !query.passportType) {
     return null;
   }
+
+  const tripPurpose = query.tripPurpose ?? 'tourism';
+  const ruleKey = reviewedVisaEntryRuleKey(
+    query.destinationCountry,
+    query.passportCountryIso3,
+    query.passportType,
+    tripPurpose
+  );
+  const reviewed =
+    REVIEWED_VISA_ENTRY_RULE_MAP.get(ruleKey) ??
+    ADDITIONAL_REVIEWED_VISA_ENTRY_RULE_MAP.get(ruleKey);
+
+  // A route-specific exemption must not be inferred when the traveller has
+  // not stated the trip purpose.  Return a conditional policy note so the
+  // model cannot apply the tourism rule to work, study, or another purpose.
+  if (reviewed && !query.tripPurpose) {
+    const mapped = mapReviewedSeed(reviewed);
+    return {
+      ...mapped,
+      outcome: 'conditional',
+      visaType: null,
+      arrivalCardTypes: [],
+      requiredInputs: Array.from(new Set([...mapped.requiredInputs, 'tripPurpose'])),
+      productRecommendations: [],
+      conditions: {
+        ...mapped.conditions,
+        reason:
+          'The reviewed row is for tourism; confirm the traveller’s actual trip purpose before applying the short-stay exemption.',
+      },
+    };
+  }
+
   if (isSingaporeChinaOrdinaryExemption(query)) {
-    const reviewed = REVIEWED_VISA_ENTRY_RULE_MAP.get(
-      reviewedVisaEntryRuleKey(
-        query.destinationCountry,
-        query.passportCountryIso3,
-        query.passportType,
-        query.tripPurpose ?? 'tourism'
-      )
-    );
     return reviewed ? mapReviewedSeed(reviewed) : SINGAPORE_CHINA_ORDINARY_RULE;
   }
 
-  const reviewed = REVIEWED_VISA_ENTRY_RULE_MAP.get(
-    reviewedVisaEntryRuleKey(
-      query.destinationCountry,
-      query.passportCountryIso3,
-      query.passportType,
-      query.tripPurpose ?? 'tourism'
-    )
-  );
   return reviewed ? applyStayLength(reviewed, query.stayLengthDays) : null;
 }
 
-function mapReviewedSeed(seed: ReviewedVisaEntryRuleSeed): VisaEntryRule {
+function mapReviewedSeed(seed: ReviewedVisaEntryRuleSeedLike): VisaEntryRule {
   return {
     ...seed,
     reviewStatus: 'reviewed',
@@ -125,7 +147,7 @@ function mapReviewedSeed(seed: ReviewedVisaEntryRuleSeed): VisaEntryRule {
 }
 
 function applyStayLength(
-  seed: ReviewedVisaEntryRuleSeed,
+  seed: ReviewedVisaEntryRuleSeedLike,
   stayLengthDays: number | null
 ): VisaEntryRule {
   const rule = mapReviewedSeed(seed);
@@ -333,6 +355,28 @@ export function buildVisaEntryRulePrompt(
       policyLead,
       `Official source: ${rule.sourceUrl}`,
       'Never route this traveller to SG_VISITOR_VISA.',
+    ].join('\n');
+  }
+
+  if (
+    rule.destinationCountry === 'poland' &&
+    rule.passportCountryIso3 === 'HKG' &&
+    rule.passportType === 'ordinary'
+  ) {
+    const policyLead =
+      locale === 'zh'
+        ? rule.outcome === 'visa_exempt'
+          ? '持香港特别行政区护照短期赴波兰，如果整个申根区停留在任意180天内累计不超过90天且不涉及有偿活动，按当前规则免签，不需申请申根C类短期签证。'
+          : '香港特别行政区护照的波兰短期免签规则覆盖任意180天内累计不超过90天、且不涉及有偿活动的短期访问；你还需确认出行目的，工作、学习、居留或超过90天不能直接套用该免签结论。'
+        : rule.outcome === 'visa_exempt'
+          ? 'Hong Kong Special Administrative Region passport holders do not need a Schengen C short-stay visa for Poland when the total Schengen stay is no more than 90 days in any 180-day period and does not involve paid activity.'
+          : 'The Poland short-stay visa exemption for Hong Kong Special Administrative Region passports covers visits of no more than 90 days in any 180-day period that do not involve paid activity. Confirm the purpose because work, study, residence, or a stay over 90 days cannot use this conclusion automatically.';
+    return [
+      'MANDATORY POLICY LEAD (use this conclusion as the first paragraph):',
+      policyLead,
+      `Official source: ${rule.sourceUrl}`,
+      'Do not recommend a Schengen C visa unless the traveller later gives facts outside this reviewed exemption.',
+      `Still required before a final route conclusion: ${rule.requiredInputs.join(', ') || 'none'}`,
     ].join('\n');
   }
 

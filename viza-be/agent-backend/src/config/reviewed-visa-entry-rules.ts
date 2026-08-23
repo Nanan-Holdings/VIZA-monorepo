@@ -59,6 +59,20 @@ export interface ReviewedVisaEntryRuleSeed {
   productRecommendations: VisaProductRecommendation[];
 }
 
+/**
+ * Additional reviewed rows that are intentionally kept outside the initial
+ * 11-destination x 7-passport release gate.  These rules are still used by
+ * the deterministic runtime fallback and must carry the same source/review
+ * metadata as the initial matrix.
+ */
+export type AdditionalReviewedVisaEntryRuleSeed = Omit<
+  ReviewedVisaEntryRuleSeed,
+  'destinationCountry' | 'passportCountryIso3'
+> & {
+  destinationCountry: string;
+  passportCountryIso3: string;
+};
+
 const VERIFIED_AT = '2026-08-04T00:00:00.000Z';
 const DEFAULT_REVIEW_DUE_AT = '2026-10-31';
 
@@ -456,6 +470,46 @@ export const REVIEWED_VISA_ENTRY_RULES = buildReviewedMatrix();
 
 export const REVIEWED_VISA_ENTRY_RULE_MAP = new Map(
   REVIEWED_VISA_ENTRY_RULES.map((entry) => [
+    `${entry.destinationCountry}:${entry.passportCountryIso3}:${entry.passportType}:${entry.tripPurpose}`,
+    entry,
+  ])
+);
+
+/**
+ * Hong Kong SAR passport holders are listed by Poland and by EU Regulation
+ * 2018/1806 Annex II as visa-exempt for short Schengen stays.  Keep this
+ * targeted row separate from the original 77-row matrix so the release gate
+ * remains compatible with its existing staged schema while the runtime can
+ * still answer this audited route deterministically.
+ */
+export const ADDITIONAL_REVIEWED_VISA_ENTRY_RULES: AdditionalReviewedVisaEntryRuleSeed[] = [
+  {
+    ruleKey: 'poland:HKG:ordinary:tourism:reviewed-2026-08-22',
+    destinationCountry: 'poland',
+    passportCountryIso3: 'HKG',
+    passportType: 'ordinary',
+    tripPurpose: 'tourism',
+    maxStayDays: 90,
+    outcome: 'visa_exempt',
+    visaType: null,
+    arrivalCardTypes: [],
+    requiredInputs: [],
+    conditions: {
+      schengen_rule: '90 days in any 180-day period',
+      passport_scope: 'Hong Kong Special Administrative Region passport only',
+      paid_activity_not_covered: true,
+    },
+    sourceUrl: 'https://www.gov.pl/web/unitedkingdom/c-type-schengen-visa',
+    effectiveFrom: null,
+    effectiveTo: null,
+    verifiedAt: '2026-08-22T00:00:00.000Z',
+    reviewDueAt: '2026-10-31',
+    productRecommendations: [],
+  },
+];
+
+export const ADDITIONAL_REVIEWED_VISA_ENTRY_RULE_MAP = new Map(
+  ADDITIONAL_REVIEWED_VISA_ENTRY_RULES.map((entry) => [
     `${entry.destinationCountry}:${entry.passportCountryIso3}:${entry.passportType}:${entry.tripPurpose}`,
     entry,
   ])

@@ -262,6 +262,42 @@ function modelTurn(text: string) {
       ],
     };
   }
+  if (text === "我想去波兰") {
+    return {
+      ...base,
+      intent: "select_destination",
+      reply: "好的，波兰已经加入这次旅行。",
+      // Reproduce a model acknowledgement that omitted the state operation.
+      operations: [],
+    };
+  }
+  if (text === "我选择了国家：波兰。") {
+    return {
+      ...base,
+      intent: "select_destination",
+      reply: "好的，已记录你的目的地国家：波兰。",
+      // Form messages are visible natural language. The coordinator must
+      // still commit the explicit selection when the model only acknowledges
+      // it instead of returning an operation.
+      operations: [],
+    };
+  }
+  if (text === "我选择了国家：波兰、德国。") {
+    return {
+      ...base,
+      intent: "select_destination",
+      reply: "好的，已记录你选择的国家：波兰和德国。",
+      operations: [],
+    };
+  }
+  if (text === "我选择了城市：华沙、克拉科夫。") {
+    return {
+      ...base,
+      intent: "select_destination",
+      reply: "好的，已记录你选择的城市：华沙和克拉科夫。",
+      operations: [],
+    };
+  }
   if (text === "我想去罗马") {
     return {
       ...base,
@@ -576,6 +612,77 @@ describe("Travel Agent server coordinator", () => {
     ).json();
     expect(removed.state.cities).not.toContain("东京");
     expect(removed.state.destination_confirmed).toBe(false);
+  });
+
+  it("keeps an explicit country selection instead of reopening the country step", async () => {
+    const body = await (
+      await postTravelChat(request("我选择了国家：波兰。", "country-planner"))
+    ).json();
+
+    expect(body.state.countries).toEqual(["波兰"]);
+    expect(body.state.country).toBe("波兰");
+    expect(body.next_missing_field).toBe("cities");
+    expect(body.ui_action).toBe("collect_field");
+  });
+
+  it("advances after a natural-language country when the model omits its operation", async () => {
+    const body = await (
+      await postTravelChat(request("我想去波兰", "natural-language-country"))
+    ).json();
+
+    expect(body.state.countries).toEqual(["波兰"]);
+    expect(body.state.country).toBe("波兰");
+    expect(body.next_missing_field).toBe("cities");
+  });
+
+  it("keeps Poland and records Warsaw, Krakow, and five days from the reported sequence", async () => {
+    const selected = await (
+      await postTravelChat(request("我选择了国家：波兰。", "reported-country"))
+    ).json();
+    expect(selected.state.countries).toEqual(["波兰"]);
+
+    const planned = await (
+      await postTravelChat(
+        request(
+          "给我计划，5天左右，去华沙和krakow",
+          "reported-plan-after-country"
+        )
+      )
+    ).json();
+
+    expect(planned.state.countries).toEqual(["波兰"]);
+    expect(planned.state.cities).toEqual(["华沙", "克拉科夫"]);
+    expect(planned.state.travel_days).toBe(5);
+    expect(planned.next_missing_field).toBe("destination_confirmation");
+  });
+
+  it("preserves multiple explicit country selections in order", async () => {
+    const body = await (
+      await postTravelChat(
+        request("我选择了国家：波兰、德国。", "multi-country-planner")
+      )
+    ).json();
+
+    expect(body.state.countries).toEqual(["波兰", "德国"]);
+    expect(body.state.country).toBe("波兰、德国");
+    expect(body.next_missing_field).toBe("cities");
+  });
+
+  it("commits multiple form-selected cities even when they are not destination cards", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["波兰"],
+      country: "波兰",
+    };
+
+    const body = await (
+      await postTravelChat(
+        request("我选择了城市：华沙、克拉科夫。", "city-planner")
+      )
+    ).json();
+
+    expect(body.state.cities).toEqual(["华沙", "克拉科夫"]);
+    expect(body.next_missing_field).toBe("destination_confirmation");
   });
 
   it("removes the selected city when the model only acknowledges the command", async () => {

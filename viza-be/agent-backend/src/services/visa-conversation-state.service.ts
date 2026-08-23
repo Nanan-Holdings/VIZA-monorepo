@@ -92,6 +92,13 @@ function normalizeFreeTextCountry(value: string): string {
   const trimmed = value.trim().replace(/^在/, '').replace(/的$/, '').trim();
   if (!trimmed) return trimmed;
   if (/^(中国|china|chinese|中国大陆|大陆)$/i.test(trimmed)) return 'China';
+  if (
+    /^(香港|香港特区|香港特别行政区|中国香港|中国香港特别行政区|hong kong|hong kong sar|hong kong special administrative region|hksar)$/i.test(
+      trimmed
+    )
+  ) {
+    return 'Hong Kong';
+  }
   if (/^(新加坡|singapore)$/i.test(trimmed)) return 'Singapore';
   if (/^(美国|usa|us|united states)$/i.test(trimmed)) return 'United States';
   if (/^(英国|uk|united kingdom)$/i.test(trimmed)) return 'United Kingdom';
@@ -123,6 +130,15 @@ const PASSPORT_COUNTRY_ISO3: Record<string, string> = {
   'new zealand': 'NZL',
   nzl: 'NZL',
   新西兰: 'NZL',
+  'hong kong': 'HKG',
+  'hong kong sar': 'HKG',
+  'hong kong special administrative region': 'HKG',
+  hksar: 'HKG',
+  香港: 'HKG',
+  香港特区: 'HKG',
+  香港特别行政区: 'HKG',
+  中国香港: 'HKG',
+  中国香港特别行政区: 'HKG',
 };
 
 export function normalizePassportCountryIso3(value?: string | null): string | null {
@@ -188,6 +204,17 @@ function inferTripPurpose(message: string): TripPurpose | null {
   if (/(旅游|旅行|观光|度假|演唱会|concert|touris|holiday|vacation|visit)/i.test(normalized)) {
     return 'tourism';
   }
+  // Do not silently turn the HKSAR passport/Poland eligibility question into
+  // a tourism case: the reviewed exemption is purpose-sensitive and the
+  // user still needs to state whether this is tourism, work, study, etc.
+  if (
+    /(?:波兰|poland)/iu.test(normalized) &&
+    /(?:香港(?:特别行政区|特区)?|中国香港|hong kong(?: sar)?|hksar).{0,20}(?:护照|passport)/iu.test(
+      normalized
+    )
+  ) {
+    return null;
+  }
   if (/(?:去|前往|计划去|想去|到|visit).{0,40}(?:签证|visa|停留|\d+(?:[.．]\d+)?\s*(?:天|日|days?))/i.test(normalized)) {
     return 'tourism';
   }
@@ -206,6 +233,13 @@ function inferPassportType(message: string): PassportType | null {
     return 'service';
   }
   if (/(旅行证|travel document)/i.test(message)) return 'travel_document';
+  // A Hong Kong SAR passport is the travel document covered by the reviewed
+  // HKG route.  Treat the ordinary passport wording as explicit enough while
+  // retaining the existing requirement to distinguish diplomatic/service/
+  // travel-document cases above.
+  if (/(香港(?:特别行政区|特区)?|中国香港|hong kong(?: sar)?|hksar).{0,20}(?:护照|passport)/iu.test(message)) {
+    return 'ordinary';
+  }
   return null;
 }
 
@@ -232,6 +266,13 @@ function extractNationality(message: string): string | null {
   }
 
   return null;
+}
+
+function stripPassportCountryMentions(message: string): string {
+  return message.replace(
+    /(?:持有|持|拿|用)?\s*(?:中国香港特别行政区|香港特别行政区|中国香港|香港特区|香港|hong kong special administrative region|hong kong sar|hong kong|hksar)\s*(?:的)?\s*(?:普通|ordinary|regular)?\s*(?:护照|passport)/giu,
+    ' '
+  );
 }
 
 function isTravelActionResidenceSegment(value: string): boolean {
@@ -489,7 +530,9 @@ function buildCompactPatch(
 
 function buildDirectPatch(message: string): VisaConversationStatePatch {
   const patch: VisaConversationStatePatch = {};
-  const mentionedCountries = detectKnowledgeCountriesInOrder(message);
+  const mentionedCountries = detectKnowledgeCountriesInOrder(
+    stripPassportCountryMentions(message)
+  );
   const residenceCountries = extractResidenceCountries(message);
   const contextOnlyCountries = extractContextOnlyCountries(message);
   const destinationCountries = mentionedCountries.filter(
@@ -624,6 +667,14 @@ function shouldUseVisitorRoute(state: VisaConversationState): boolean {
   );
 }
 
+function shouldSuppressDefaultVisitorVisa(state: VisaConversationState): boolean {
+  return (
+    state.passportCountryIso3 === 'HKG' &&
+    state.mainDestination === 'poland' &&
+    (!state.tripPurpose || state.tripPurpose === 'tourism')
+  );
+}
+
 export function createEmptyVisaConversationState(): VisaConversationState {
   return {
     ...EMPTY_STATE,
@@ -667,6 +718,9 @@ export function normalizeVisaConversationState(
   state.recommendedVisaType =
     state.recommendedVisaType ??
     (shouldUseVisitorRoute(state) ? getDefaultVisitorVisaType(state.mainDestination) : null);
+  if (shouldSuppressDefaultVisitorVisa(state)) {
+    state.recommendedVisaType = null;
+  }
   state.missingSlots = computeMissingSlots(state);
   state.confidence = computeConfidence(state);
   return state;
@@ -752,6 +806,9 @@ export function updateVisaConversationState(
   merged.recommendedVisaType = shouldUseVisitorRoute(merged)
     ? getDefaultVisitorVisaType(merged.mainDestination)
     : null;
+  if (shouldSuppressDefaultVisitorVisa(merged)) {
+    merged.recommendedVisaType = null;
+  }
   merged.missingSlots = computeMissingSlots(merged);
   merged.confidence = computeConfidence(merged);
   return merged;
