@@ -1101,6 +1101,55 @@
           { "id": "post_inbound_email_purge_acl", "kind": "function_execute_acl", "identity": "public.purge_old_inbound_email(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] }
         ]
       }
+    },
+    {
+      "batch_id": "audit-log-rls-initplan-v1",
+      "source_ref": "33a10e3588de01103d155deb87926b39c3604413",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260824020344",
+          "name": "audit_log_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260824020344_audit_log_rls_initplan.sql",
+          "sha256": "1366ba5d630fe3eff786920ae10bce19315af13891eecb20d62603934384cb02"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260824012700"],
+        "absent_migration_versions": ["20260824020344"],
+        "catalog_assertions": [
+          { "id": "pre_secret_access_log_rls", "kind": "rls_enabled", "identity": "public.secret_access_log" },
+          { "id": "pre_pii_access_log_rls", "kind": "rls_enabled", "identity": "public.pii_access_log" },
+          { "id": "pre_account_action_log_rls", "kind": "rls_enabled", "identity": "public.account_action_log" },
+          { "id": "pre_consent_event_rls", "kind": "rls_enabled", "identity": "public.consent_event" },
+          { "id": "pre_secret_access_log_policy_count", "kind": "policy_count", "identity": "public.secret_access_log", "count": 1 },
+          { "id": "pre_pii_access_log_policy_count", "kind": "policy_count", "identity": "public.pii_access_log", "count": 1 },
+          { "id": "pre_account_action_log_policy_count", "kind": "policy_count", "identity": "public.account_action_log", "count": 1 },
+          { "id": "pre_consent_event_policy_count", "kind": "policy_count", "identity": "public.consent_event", "count": 1 },
+          { "id": "pre_secret_access_log_select_own", "kind": "policy_contract", "identity": "public.secret_access_log", "policy": "secret_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_pii_access_log_select_own", "kind": "policy_contract", "identity": "public.pii_access_log", "policy": "pii_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_account_action_log_select_own", "kind": "policy_contract", "identity": "public.account_action_log", "policy": "account_action_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8", "check_sha256": null },
+          { "id": "pre_consent_event_select_own", "kind": "policy_contract", "identity": "public.consent_event", "policy": "consent_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260824020344"],
+        "catalog_assertions": [
+          { "id": "audit_log_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824020344", "name": "audit_log_rls_initplan", "sha256": "1366ba5d630fe3eff786920ae10bce19315af13891eecb20d62603934384cb02" },
+          { "id": "post_secret_access_log_rls", "kind": "rls_enabled", "identity": "public.secret_access_log" },
+          { "id": "post_pii_access_log_rls", "kind": "rls_enabled", "identity": "public.pii_access_log" },
+          { "id": "post_account_action_log_rls", "kind": "rls_enabled", "identity": "public.account_action_log" },
+          { "id": "post_consent_event_rls", "kind": "rls_enabled", "identity": "public.consent_event" },
+          { "id": "post_secret_access_log_policy_count", "kind": "policy_count", "identity": "public.secret_access_log", "count": 1 },
+          { "id": "post_pii_access_log_policy_count", "kind": "policy_count", "identity": "public.pii_access_log", "count": 1 },
+          { "id": "post_account_action_log_policy_count", "kind": "policy_count", "identity": "public.account_action_log", "count": 1 },
+          { "id": "post_consent_event_policy_count", "kind": "policy_count", "identity": "public.consent_event", "count": 1 },
+          { "id": "post_secret_access_log_select_own", "kind": "policy_contract", "identity": "public.secret_access_log", "policy": "secret_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_pii_access_log_select_own", "kind": "policy_contract", "identity": "public.pii_access_log", "policy": "pii_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_account_action_log_select_own", "kind": "policy_contract", "identity": "public.account_action_log", "policy": "account_action_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975", "check_sha256": null },
+          { "id": "post_consent_event_select_own", "kind": "policy_contract", "identity": "public.consent_event", "policy": "consent_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975", "check_sha256": null }
+        ]
+      }
     }
   ]
 }
