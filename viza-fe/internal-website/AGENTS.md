@@ -604,6 +604,10 @@ Smoke URLs:
   mirrors the backend single-path applicant secret, notification preference,
   and staff chat thread policy optimization; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0181_applicant_single_path_rls_initplan.sql`.
+- `supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql`:
+  mirrors the backend two-hop supporting-document ownership SELECT-policy
+  optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0182_supporting_doc_submission_rls_initplan.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
