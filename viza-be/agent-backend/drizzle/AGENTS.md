@@ -359,6 +359,9 @@ The current internal automation migrations are:
   ownership policies while evaluating the caller identity once per statement;
   the separate service-role chat policy remains untouched. Keep its Supabase
   migration mirror byte-identical.
+- `0171_user_packages_rls_initplan.sql`: preserves the single authenticated
+  user-package SELECT policy while evaluating the caller identity once per
+  statement. Keep its Supabase migration mirror byte-identical.
 
 ## Guardrails
 

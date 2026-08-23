@@ -573,6 +573,10 @@ Smoke URLs:
 - `supabase/migrations/20260823143810_chat_rls_initplan.sql`: mirrors the
   backend chat and Travel AI ownership-policy init-plan optimization; keep it
   byte-identical to `viza-be/agent-backend/drizzle/0170_chat_rls_initplan.sql`.
+- `supabase/migrations/20260823152021_user_packages_rls_initplan.sql`: mirrors
+  the backend user-package ownership-policy init-plan optimization; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0171_user_packages_rls_initplan.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
