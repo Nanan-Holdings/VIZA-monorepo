@@ -3262,7 +3262,7 @@ export function DynamicStepForm({
     // Re-resolve that same official address once so the shared C-3-9/EAC
     // selector can display and persist the newer Chinese-only label without
     // changing any official submission value.
-    const keyword = valuesRef.current.stay_address_ko?.trim() || selectedValue;
+    const keyword = selectedValue.replace(/,/g, " ").replace(/\s+/g, " ").trim();
     const controller = new AbortController();
     void (async () => {
       try {
