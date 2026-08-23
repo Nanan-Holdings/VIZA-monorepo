@@ -1493,7 +1493,8 @@ function validateCatalogAssertion(assertion) {
       if (!APPROVED_ROLES.has(grant.role) || !Array.isArray(grant.privileges) ||
           grant.privileges.length === 0 ||
           grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege)) ||
-          (grant.exact !== undefined && typeof grant.exact !== "boolean")) {
+          (grant.exact !== undefined && typeof grant.exact !== "boolean") ||
+          (grant.exact_direct !== undefined && typeof grant.exact_direct !== "boolean")) {
         throw new Error(`Approved batch assertion ${assertion.id} has invalid required ACL`);
       }
     }
@@ -2444,12 +2445,17 @@ function approvedRelationAclExpression(assertion) {
     : "pg_catalog.has_table_privilege";
   const objectPrivileges = assertion.relation_kind === "sequence"
     ? ["USAGE", "SELECT", "UPDATE"]
-    : ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"];
+    : ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"];
   const required = assertion.required.flatMap((grant) => [
     ...grant.privileges.map((privilege) =>
       `COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
       `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`),
     ...(grant.exact
+      ? objectPrivileges.filter((privilege) => !grant.privileges.includes(privilege)).map((privilege) =>
+        `NOT COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
+        `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`)
+      : []),
+    ...(grant.exact_direct
       ? [
           `NOT EXISTS (\n` +
           `      SELECT 1\n` +
