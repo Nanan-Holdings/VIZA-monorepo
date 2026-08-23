@@ -17,7 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { ApplicantProfile, InterviewOfficer } from "@/app/api/interview/types";
+import type {
+  ApplicantProfile,
+  InterviewContextSummary,
+  InterviewOfficer,
+} from "@/app/api/interview/types";
 import {
   DEFAULT_OFFICER,
   applyInterviewSessionIdentity,
@@ -61,12 +65,17 @@ function fieldLabel(field: keyof ApplicantProfile) {
     duration: "停留时长",
     funding: "资金来源",
     occupation: "职业或身份",
+    employer: "单位/学校",
     homeTies: "回国安排",
+    previousTravel: "既往出境记录",
+    companions: "同行人",
+    usContact: "美国联系人",
+    refusalHistory: "拒签或入境记录",
   } as Partial<Record<keyof ApplicantProfile, string>>)[field] ?? field;
 }
 
 function profileValue(profile: ApplicantProfile, field: keyof ApplicantProfile) {
-  return profile[field].trim() || "待补充";
+  return (profile[field] ?? "").trim() || "待补充";
 }
 
 function scoreTone(score: number) {
@@ -89,12 +98,24 @@ function ErrorNotice({ message }: { message: string | null }) {
   );
 }
 
+function contextStatusLabel(status: InterviewContextSummary["consistencyStatus"]) {
+  return ({
+    unverified: "未关联可核验资料",
+    verifiable: "资料可核验",
+    partially_verifiable: "部分资料待补充",
+  } satisfies Record<InterviewContextSummary["consistencyStatus"], string>)[status];
+}
+
 function LinkedApplicationSummary({
   applicationId,
   missingFields,
+  verifiedFields,
+  consistencyStatus,
 }: {
   applicationId: string | null;
   missingFields: Array<keyof ApplicantProfile>;
+  verifiedFields: Array<keyof ApplicantProfile>;
+  consistencyStatus?: InterviewContextSummary["consistencyStatus"] | null;
 }) {
   if (!applicationId) {
     return (
@@ -113,8 +134,20 @@ function LinkedApplicationSummary({
       <p className="mt-1 break-all text-[13px] leading-5 text-[#526173]">
         已从链接读取申请编号：{applicationId}
       </p>
+      {consistencyStatus ? (
+        <p className="mt-2 text-[13px] leading-5 text-[#526173]">
+          核验状态：{contextStatusLabel(consistencyStatus)}
+        </p>
+      ) : null}
+      {verifiedFields.length ? (
+        <p className="mt-2 text-[13px] leading-5 text-[#526173]">
+          已核验：{verifiedFields.map(fieldLabel).join("、")}
+        </p>
+      ) : null}
       <p className="mt-2 text-[13px] leading-5 text-[#526173]">
-        {missingFields.length
+        {!consistencyStatus
+          ? "开始后会读取申请资料并标出缺失与已核验字段。"
+          : missingFields.length
           ? `开始前仍需确认：${missingFields.map(fieldLabel).join("、")}`
           : "练习资料已完整，请确认后开始。"}
       </p>
@@ -175,9 +208,13 @@ export default function InterviewPracticePage() {
   const speech = useBrowserSpeech(setDraft, "zh-CN");
 
   const missingFields = useMemo(
-    () => REQUIRED_FIELDS.filter((field) => !session.profile[field].trim()),
+    () => REQUIRED_FIELDS.filter((field) => !(session.profile[field] ?? "").trim()),
     [session.profile],
   );
+  const blockingMissingFields = applicationId ? [] : missingFields;
+  const contextMissingFields = session.applicationContext?.missingFields ?? [];
+  const contextVerifiedFields = session.applicationContext?.verifiedFields ?? [];
+  const requestApplicationId = session.applicationId ?? applicationId ?? undefined;
 
   useEffect(() => {
     const prompt = session.currentQuestion?.prompt;
@@ -195,8 +232,8 @@ export default function InterviewPracticePage() {
 
   const begin = async () => {
     if (requestInFlightRef.current) return;
-    if (missingFields.length) {
-      setError(`请先补全：${missingFields.map(fieldLabel).join("、")}`);
+    if (blockingMissingFields.length) {
+      setError(`请先补全：${blockingMissingFields.map(fieldLabel).join("、")}`);
       return;
     }
     requestInFlightRef.current = true;
@@ -206,13 +243,22 @@ export default function InterviewPracticePage() {
       const response = await fetch("/api/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "start", profile: session.profile }),
+        body: JSON.stringify({
+          action: "start",
+          applicationId: requestApplicationId,
+          profile: session.profile,
+        }),
       });
       if (!response.ok) throw new Error("start_failed");
-      const data = await response.json() as { question: InterviewSession["currentQuestion"]; questionIndex: number };
+      const data = await response.json() as {
+        question: InterviewSession["currentQuestion"];
+        questionIndex: number;
+        context: InterviewContextSummary;
+      };
       speechQuestionRef.current = null;
       setSession((current) => updateSession(current, {
         phase: "interview",
+        applicationContext: data.context,
         currentQuestion: data.question,
         questionIndex: data.questionIndex,
         exchanges: [],
@@ -244,6 +290,7 @@ export default function InterviewPracticePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "answer",
+          applicationId: requestApplicationId,
           profile: session.profile,
           question,
           answer,
@@ -258,10 +305,12 @@ export default function InterviewPracticePage() {
         nextQuestion: InterviewSession["currentQuestion"];
         nextQuestionIndex: number;
         completed: boolean;
+        context: InterviewContextSummary;
       };
       speechQuestionRef.current = null;
       setSession((current) => updateSession(current, {
         exchanges: [...current.exchanges, { question, answer, assessment: data.assessment, submittedAt: new Date().toISOString() }],
+        applicationContext: data.context,
         currentQuestion: data.nextQuestion,
         questionIndex: data.nextQuestionIndex,
         draftAnswer: "",
@@ -295,11 +344,21 @@ export default function InterviewPracticePage() {
       const response = await fetch("/api/interview/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idempotencyKey: key, profile: session.profile, exchanges: session.exchanges }),
+        body: JSON.stringify({
+          idempotencyKey: key,
+          applicationId: requestApplicationId,
+          profile: session.profile,
+          exchanges: session.exchanges,
+        }),
       });
       if (!response.ok) throw new Error("report_failed");
-      const report = await response.json();
-      setSession((current) => updateSession(current, { phase: "report", report, reportStatus: "ready" }));
+      const report = await response.json() as InterviewSession["report"] & { context?: InterviewContextSummary };
+      setSession((current) => updateSession(current, {
+        phase: "report",
+        applicationContext: report.context ?? current.applicationContext,
+        report,
+        reportStatus: "ready",
+      }));
     } catch {
       setError("报告暂时无法生成。本轮回答已保留，稍后可再次尝试。");
       setSession((current) => updateSession(current, { reportStatus: "failed" }));
@@ -365,12 +424,16 @@ export default function InterviewPracticePage() {
         </section>
 
         <section className="grid gap-3 sm:grid-cols-4">
-          {Object.entries(report.dimensions).map(([key, score]) => (
+          {Object.entries(report.dimensions)
+            .filter(([key]) => key !== "consistencyStatus")
+            .map(([key, score]) => (
             <div key={key} className="rounded-lg border border-[#e5eaf2] bg-white p-4">
               <p className="text-sm text-[#66758a]">
-                {({ clarity: "清晰度", specificity: "具体性", consistency: "一致性", returnIntent: "回国意图" } as Record<string, string>)[key]}
+                {({ clarity: "清晰度", completeness: "完整度", specificity: "具体性", consistency: "一致性", returnIntent: "回国意图" } as Record<string, string>)[key]}
               </p>
-              <p className="mt-1 text-2xl font-semibold text-[#26364a]">{score}</p>
+              <p className="mt-1 text-2xl font-semibold text-[#26364a]">
+                {score === null ? "未核验" : score}
+              </p>
             </div>
           ))}
         </section>
@@ -658,7 +721,12 @@ export default function InterviewPracticePage() {
         </div>
 
         <aside className="space-y-4">
-          <LinkedApplicationSummary applicationId={applicationId} missingFields={missingFields} />
+          <LinkedApplicationSummary
+            applicationId={applicationId}
+            missingFields={applicationId ? contextMissingFields : missingFields}
+            verifiedFields={contextVerifiedFields}
+            consistencyStatus={session.applicationContext?.consistencyStatus}
+          />
           <section className="rounded-lg border border-[#e5eaf2] bg-white p-4">
             <h2 className="text-sm font-semibold text-[#26364a]">开始前确认</h2>
             <ul className="mt-3 space-y-2 text-sm leading-5 text-[#66758a]">

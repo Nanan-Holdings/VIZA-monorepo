@@ -2,72 +2,118 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getQuestion, processAnswer } from "./engine";
 import type { InterviewTurnResponse } from "./types";
+import {
+  applicationIdSchema,
+  contextErrorResponse,
+  contextResponse,
+  errorResponse,
+  profileSchema,
+  questionSchema,
+  readIdempotent,
+  requestFingerprint,
+  resolveInterviewContext,
+  type IdempotentEntry,
+} from "./contract";
 
-const profileSchema = z.object({
-  purpose: z.enum(["tourism", "business", "family_visit", "medical", "other"]),
-  purposeDetails: z.string().trim().min(2).max(300),
-  destinations: z.string().trim().min(2).max(200),
-  travelDates: z.string().trim().min(2).max(100),
-  duration: z.string().trim().min(1).max(100),
-  funding: z.string().trim().min(2).max(200),
-  budget: z.string().trim().max(100),
-  occupation: z.string().trim().min(2).max(200),
-  employer: z.string().trim().max(200),
-  homeTies: z.string().trim().min(2).max(300),
-  previousTravel: z.string().trim().max(300),
-});
-
-const questionSchema = z.object({
-  id: z.string().min(1).max(80),
-  topic: z.string().min(1).max(40),
-  prompt: z.string().min(1).max(300),
-  isFollowUp: z.boolean(),
-  parentId: z.string().max(80).optional(),
-});
+type TurnPayload = InterviewTurnResponse & { context: ReturnType<typeof contextResponse> };
 
 const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start"), profile: profileSchema }),
+  z.object({
+    action: z.literal("start"),
+    applicationId: applicationIdSchema.optional(),
+    profile: profileSchema.optional(),
+  }).strict(),
   z.object({
     action: z.literal("answer"),
     idempotencyKey: z.string().min(8).max(240),
-    profile: profileSchema,
+    applicationId: applicationIdSchema.optional(),
+    profile: profileSchema.optional(),
     question: questionSchema,
     answer: z.string().trim().min(1).max(1500),
     questionIndex: z.number().int().min(0).max(20),
     followUpUsed: z.boolean(),
-  }),
+  }).strict(),
 ]);
 
 const globalTurnCache = globalThis as typeof globalThis & {
-  __vizaInterviewTurnCache?: Map<string, InterviewTurnResponse>;
+  __vizaInterviewTurnCacheV1?: Map<string, IdempotentEntry<TurnPayload>>;
 };
-const turnCache = globalTurnCache.__vizaInterviewTurnCache ?? new Map<string, InterviewTurnResponse>();
-globalTurnCache.__vizaInterviewTurnCache = turnCache;
+const turnCache = globalTurnCache.__vizaInterviewTurnCacheV1 ?? new Map<string, IdempotentEntry<TurnPayload>>();
+globalTurnCache.__vizaInterviewTurnCacheV1 = turnCache;
+
+function isExpectedQuestion(profile: Parameters<typeof getQuestion>[0], index: number, received: z.infer<typeof questionSchema>) {
+  const expected = getQuestion(profile, index);
+  if (!expected) return false;
+  if (!received.isFollowUp) {
+    return received.id === expected.id && received.topic === expected.topic && received.prompt === expected.prompt && !received.parentId;
+  }
+  return received.id === `${expected.id}-follow-up` && received.parentId === expected.id && received.topic === expected.topic;
+}
 
 export async function POST(request: NextRequest) {
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
+    return errorResponse("INVALID_JSON", "请求内容不是有效的 JSON。", 400);
   }
 
   const parsed = requestSchema.safeParse(payload);
   if (!parsed.success) {
-    return Response.json(
-      { error: "面试资料不完整，请返回资料确认页检查必填项。" },
-      { status: 400 },
-    );
+    return errorResponse("INVALID_REQUEST", "面试请求资料不完整或格式不正确。", 400);
   }
 
+  let resolved;
+  try {
+    resolved = await resolveInterviewContext({
+      applicationId: parsed.data.applicationId,
+      profile: parsed.data.profile,
+    });
+  } catch (error) {
+    return contextErrorResponse(error);
+  }
+
+  const responseContext = contextResponse(resolved.context);
   if (parsed.data.action === "start") {
-    return Response.json({ question: getQuestion(parsed.data.profile, 0), questionIndex: 0 });
+    return Response.json({
+      question: getQuestion(resolved.profile, 0),
+      questionIndex: 0,
+      context: responseContext,
+    });
   }
 
-  const cached = turnCache.get(parsed.data.idempotencyKey);
-  if (cached) return Response.json(cached, { headers: { "X-Interview-Turn-Cache": "HIT" } });
+  if (!isExpectedQuestion(resolved.profile, parsed.data.questionIndex, parsed.data.question)) {
+    return errorResponse("QUESTION_CONTEXT_MISMATCH", "题目与当前面试进度不一致，请重新开始本轮练习。", 409);
+  }
 
-  const result = processAnswer(parsed.data);
-  turnCache.set(parsed.data.idempotencyKey, result);
+  const cacheKey = `${resolved.cacheScope}:turn:${parsed.data.idempotencyKey}`;
+  const fingerprint = requestFingerprint({
+    applicationId: parsed.data.applicationId,
+    profile: parsed.data.applicationId ? undefined : resolved.profile,
+    question: parsed.data.question,
+    answer: parsed.data.answer,
+    questionIndex: parsed.data.questionIndex,
+    followUpUsed: parsed.data.followUpUsed,
+  });
+  const cached = readIdempotent(turnCache, cacheKey, fingerprint);
+  if (cached.kind === "conflict") {
+    return errorResponse("IDEMPOTENCY_CONFLICT", "同一个幂等键不能用于不同的面试回答。", 409);
+  }
+  if (cached.kind === "hit") {
+    return Response.json(cached.response, { headers: { "X-Interview-Turn-Cache": "HIT" } });
+  }
+
+  const result: TurnPayload = {
+    ...processAnswer({
+      profile: resolved.profile,
+      context: resolved.context,
+      question: parsed.data.question,
+      answer: parsed.data.answer,
+      questionIndex: parsed.data.questionIndex,
+      followUpUsed: parsed.data.followUpUsed,
+    }),
+    context: responseContext,
+  };
+  turnCache.set(cacheKey, { fingerprint, response: result });
   return Response.json(result, { headers: { "X-Interview-Turn-Cache": "MISS" } });
 }

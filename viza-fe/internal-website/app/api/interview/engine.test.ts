@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInterviewReport, getQuestion, processAnswer } from "./engine";
 import type { ApplicantProfile, InterviewExchange } from "./types";
 
-const profile: ApplicantProfile = { purpose: "tourism", purposeDetails: "与家人去美国旅游", destinations: "旧金山和洛杉矶", travelDates: "2026年10月", duration: "12天", funding: "本人用工资和存款承担", budget: "3万元人民币", occupation: "产品经理", employer: "VIZA", homeTies: "假期结束后要回公司负责项目上线", previousTravel: "2024年去过日本" };
+const profile: ApplicantProfile = { purpose: "tourism", purposeDetails: "与家人去美国旅游", destinations: "旧金山和洛杉矶", travelDates: "2026年10月", duration: "12天", funding: "本人用工资和存款承担", budget: "3万元人民币", occupation: "产品经理", employer: "VIZA", homeTies: "假期结束后要回公司负责项目上线", previousTravel: "2024年去过日本", companions: "与家人同行", usContact: "酒店", refusalHistory: "从未拒签" };
 
 describe("interview engine", () => {
   it("asks one adaptive follow-up only when core facts are missing", () => {
@@ -19,7 +19,50 @@ describe("interview engine", () => {
     const assessment = processAnswer({ profile, question, answer: "我和家人去美国旅游，计划参观博物馆和国家公园。", questionIndex: 0, followUpUsed: true }).assessment;
     const exchanges: InterviewExchange[] = [{ question, answer: "我和家人去美国旅游，计划参观博物馆和国家公园。", assessment, submittedAt: "2026-08-22T00:00:00.000Z" }];
     const report = createInterviewReport({ profile, exchanges, idempotencyKey: "session-12345678", generatedAt: "2026-08-22T00:00:00.000Z" });
-    expect(report.riskFlags).toContain("提前结束：仅完成 1/7 个核心主题");
-    expect(report.questionAnalysis[0].responseFramework).toContain("与家人去美国旅游");
+    expect(report.riskFlags).toContain("提前结束：仅完成 1/8 个核心主题");
+    expect(report.dimensions.consistency).toBeNull();
+    expect(report.dimensions.consistencyStatus).toBe("unverified");
+    expect(report.disclaimer).toContain("不预测");
+    expect(report.questionAnalysis[0].responseFramework).toContain("真实访问目的");
+  });
+
+  it("covers all V1 topics without predicting an outcome", () => {
+    const topics = Array.from({ length: 8 }, (_, index) => getQuestion(profile, index)?.topic);
+    expect(topics).toEqual([
+      "赴美目的",
+      "行程安排",
+      "停留时间",
+      "费用来源",
+      "职业或学业",
+      "同行人与美国联系人",
+      "旅行与拒签记录",
+      "回国约束",
+    ]);
+    expect(getQuestion(profile, 8)).toBeNull();
+  });
+
+  it("only verifies consistency when a saved application anchor matches", () => {
+    const question = getQuestion(profile, 0)!;
+    const linked = processAnswer({
+      profile,
+      context: { source: "application", applicationId: "application-id", missingFields: [], verifiedFields: ["purposeDetails"] },
+      question,
+      answer: "我会与家人去美国旅游，并参观博物馆。",
+      questionIndex: 0,
+      followUpUsed: true,
+    });
+    expect(linked.assessment.dimensions!.consistencyStatus).toBe("verified");
+    expect(linked.assessment.dimensions!.consistency).not.toBeNull();
+
+    const unverifiable = processAnswer({
+      profile,
+      context: { source: "application", applicationId: "application-id", missingFields: [], verifiedFields: ["purposeDetails"] },
+      question,
+      answer: "这是一次已有明确安排的短期访问。",
+      questionIndex: 0,
+      followUpUsed: true,
+    });
+    expect(unverifiable.assessment.dimensions!.consistencyStatus).toBe("unverified");
+    expect(unverifiable.assessment.note).toContain("未核验");
   });
 });

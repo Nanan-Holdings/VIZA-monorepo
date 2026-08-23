@@ -19,6 +19,36 @@ export interface ApplicantProfile {
   employer: string;
   homeTies: string;
   previousTravel: string;
+  companions?: string;
+  usContact?: string;
+  refusalHistory?: string;
+}
+
+export type InterviewProfileField = keyof ApplicantProfile;
+
+export interface InterviewApplicationContext {
+  source: "standalone" | "application";
+  applicationId?: string;
+  missingFields: InterviewProfileField[];
+  verifiedFields: InterviewProfileField[];
+}
+
+export type InterviewContextConsistencyStatus =
+  | "unverified"
+  | "verifiable"
+  | "partially_verifiable";
+
+export interface InterviewContextSummary extends InterviewApplicationContext {
+  consistencyStatus: InterviewContextConsistencyStatus;
+}
+
+export type ConsistencyStatus = "verified" | "unverified";
+
+export interface InterviewScoreDimensions {
+  completeness: number;
+  specificity: number;
+  consistency: number | null;
+  consistencyStatus: ConsistencyStatus;
 }
 
 export interface InterviewOfficer {
@@ -34,7 +64,10 @@ export type AnswerRequirement =
   | "money"
   | "work"
   | "ties"
-  | "history";
+  | "history"
+  | "companions"
+  | "contact"
+  | "refusal";
 
 export interface InterviewQuestion {
   id: string;
@@ -49,6 +82,7 @@ export interface AnswerAssessment {
   status: "strong" | "developing" | "weak";
   note: string;
   missingRequirements: AnswerRequirement[];
+  dimensions?: InterviewScoreDimensions;
 }
 
 export interface InterviewExchange {
@@ -93,8 +127,10 @@ export interface InterviewReport {
   summary: string;
   dimensions: {
     clarity: number;
+    completeness: number;
     specificity: number;
-    consistency: number;
+    consistency: number | null;
+    consistencyStatus: ConsistencyStatus;
     returnIntent: number;
   };
   strengths: ReportStrength[];
@@ -103,4 +139,5 @@ export interface InterviewReport {
   questionAnalysis: InterviewQuestionAnalysis[];
   generatedAt: string;
   idempotencyKey: string;
+  disclaimer: string;
 }

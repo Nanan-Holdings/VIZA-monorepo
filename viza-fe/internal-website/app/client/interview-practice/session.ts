@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   ApplicantProfile,
   InterviewExchange,
+  InterviewContextSummary,
   InterviewOfficer,
   InterviewQuestion,
   InterviewReport,
@@ -47,6 +48,7 @@ export interface InterviewSession {
   pendingRequestKey: string | null;
   lastAnswerIdempotencyKey: string | null;
   errorRecovery: InterviewErrorRecovery;
+  applicationContext: InterviewContextSummary | null;
   reportStatus: ReportStatus;
   report: InterviewReport | null;
   updatedAt: string;
@@ -64,6 +66,9 @@ export const DEFAULT_PROFILE: ApplicantProfile = {
   employer: "",
   homeTies: "",
   previousTravel: "",
+  companions: "",
+  usContact: "",
+  refusalHistory: "",
 };
 
 export const DEFAULT_OFFICER: InterviewOfficer = {
@@ -80,6 +85,13 @@ const questionSchema = z.object({
   parentId: z.string().optional(),
 });
 
+const scoreDimensionsSchema = z.object({
+  completeness: z.number(),
+  specificity: z.number(),
+  consistency: z.number().nullable(),
+  consistencyStatus: z.enum(["verified", "unverified"]),
+});
+
 const exchangeSchema = z.object({
   question: questionSchema,
   answer: z.string(),
@@ -87,7 +99,19 @@ const exchangeSchema = z.object({
     score: z.number(),
     status: z.enum(["strong", "developing", "weak"]),
     note: z.string(),
-    missingRequirements: z.array(z.enum(["detail", "destination", "time", "money", "work", "ties", "history"])),
+    missingRequirements: z.array(z.enum([
+      "detail",
+      "destination",
+      "time",
+      "money",
+      "work",
+      "ties",
+      "history",
+      "companions",
+      "contact",
+      "refusal",
+    ])),
+    dimensions: scoreDimensionsSchema.optional(),
   }),
   submittedAt: z.string(),
 });
@@ -104,12 +128,23 @@ const profileSchema = z.object({
   employer: z.string(),
   homeTies: z.string(),
   previousTravel: z.string(),
+  companions: z.string().optional().default(""),
+  usContact: z.string().optional().default(""),
+  refusalHistory: z.string().optional().default(""),
 });
 
 const officerSchema = z.object({
   id: z.enum(["standard", "rapid", "verification", "supportive"]),
   name: z.string(),
   style: z.string(),
+});
+
+const applicationContextSchema = z.object({
+  source: z.enum(["standalone", "application"]),
+  applicationId: z.string().optional(),
+  missingFields: z.array(z.string()),
+  verifiedFields: z.array(z.string()),
+  consistencyStatus: z.enum(["unverified", "verifiable", "partially_verifiable"]),
 });
 
 const storedSessionSchema = z.object({
@@ -136,6 +171,7 @@ const storedSessionSchema = z.object({
     lastFailedAction: z.enum(["start", "answer", "report", "speech"]).nullable(),
     recoveredAt: z.string().nullable(),
   }),
+  applicationContext: applicationContextSchema.nullable().optional().default(null),
   reportStatus: z.enum(["idle", "generating", "failed", "ready"]),
   report: z.unknown().nullable(),
   updatedAt: z.string(),
@@ -204,6 +240,7 @@ export function createInterviewSession(now = new Date().toISOString()): Intervie
       lastFailedAction: null,
       recoveredAt: null,
     },
+    applicationContext: null,
     reportStatus: "idle",
     report: null,
     updatedAt: now,
@@ -257,6 +294,7 @@ export function migrateLegacyInterviewSession(
       lastFailedAction: null,
       recoveredAt: null,
     },
+    applicationContext: null,
     report: legacy.report as InterviewReport | null,
   };
 }
@@ -276,7 +314,11 @@ export function normalizeStoredInterviewSession(
   if (result.success) {
     const session = result.data as Omit<InterviewSession, "report"> & { report: unknown };
     return applyInterviewSessionIdentity(
-      { ...session, report: session.report as InterviewReport | null },
+      {
+        ...session,
+        applicationContext: session.applicationContext as InterviewContextSummary | null,
+        report: session.report as InterviewReport | null,
+      },
       identity ?? { applicationId: session.applicationId, visaType: session.visaType },
     );
   }

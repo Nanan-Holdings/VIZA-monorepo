@@ -70,12 +70,26 @@ describe("InterviewPracticePage", () => {
 
   it("shows linked application context and missing practice fields", async () => {
     searchParams = new URLSearchParams("applicationId=app-123");
+    seedSession({
+      ...createInterviewSession(),
+      applicationId: "app-123",
+      visaType: "US_B1_B2",
+      applicationContext: {
+        source: "application",
+        applicationId: "app-123",
+        missingFields: ["purposeDetails"],
+        verifiedFields: ["destinations"],
+        consistencyStatus: "partially_verifiable",
+      },
+    });
 
     render(<InterviewPracticePage />);
 
     expect(await screen.findByText("已关联申请资料")).toBeInTheDocument();
     expect(screen.getByText(/app-123/u)).toBeInTheDocument();
     expect(screen.getByText(/开始前仍需确认/u)).toHaveTextContent("赴美目的");
+    expect(screen.getByText(/已核验/u)).toHaveTextContent("目的地");
+    expect(screen.getByText(/核验状态/u)).toHaveTextContent("部分资料待补充");
     expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId: "app-123", visaType: "US_B1_B2" }))).toBeTruthy();
   });
 
@@ -116,7 +130,14 @@ describe("InterviewPracticePage", () => {
         overallScore: 72,
         readiness: "接近准备",
         summary: "整体回答可用，但仍需增加细节。",
-        dimensions: { clarity: 72, specificity: 68, consistency: 75, returnIntent: 70 },
+        dimensions: {
+          clarity: 72,
+          completeness: 74,
+          specificity: 68,
+          consistency: 75,
+          consistencyStatus: "verified",
+          returnIntent: 70,
+        },
         strengths: [{ title: "目的清楚", evidence: "能说明会议安排。" }],
         actions: [{ priority: 1, title: "补充资金说明", action: "准备预算和流水解释。" }],
         riskFlags: [],
@@ -131,6 +152,7 @@ describe("InterviewPracticePage", () => {
         }],
         generatedAt: "2026-08-23T00:00:00.000Z",
         idempotencyKey: "report-key",
+        disclaimer: "这是练习准备度评估，不代表签证结果。",
       },
     };
     seedSession(reportSession);
