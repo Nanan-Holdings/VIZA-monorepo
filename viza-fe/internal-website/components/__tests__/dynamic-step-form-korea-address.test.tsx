@@ -171,6 +171,10 @@ describe("DynamicStepForm Korea official address lookup", () => {
     );
 
     expect(await screen.findByText("首尔特别市 江南区 彦州路 864 (06017)")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/korea-addresses?keyword=864%20Eonju-ro%20Gangnam-gu%20Seoul&limit=20",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({
       stay_address_search: "864 Eonju-ro, Gangnam-gu, Seoul",
       stay_address_search_zh: "首尔特别市 江南区 彦州路 864 (06017)",
