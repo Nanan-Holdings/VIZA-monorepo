@@ -44,7 +44,7 @@ function assertHistoricalManifestImmutable(manifest, baseManifest) {
     throw new Error("Historical Supabase version allowlist is immutable");
   }
 
-  for (const key of ["migration_pairs", "no_mirror"]) {
+  for (const key of ["migration_pairs", "no_mirror", "unapplied_migration_renames"]) {
     const current = new Set((manifest[key] ?? []).map(stableJson));
     const missing = (baseManifest[key] ?? []).find((entry) => !current.has(stableJson(entry)));
     if (missing) {
@@ -285,15 +285,85 @@ export function validateMigrationGovernance({
   );
 
   const migrationChanges = changes
-    .map((change) => ({ ...change, path: normalizePath(change.path) }))
+    .map((change) => ({
+      ...change,
+      path: normalizePath(change.path),
+      ...(change.renamedFrom ? { renamedFrom: normalizePath(change.renamedFrom) } : {}),
+      ...(change.renamedTo ? { renamedTo: normalizePath(change.renamedTo) } : {}),
+    }))
     .filter((change) => isMigrationPath(change.path));
-  const immutableChange = migrationChanges.find((change) => change.status !== "A");
+
+  const approvedRenames = manifest.unapplied_migration_renames ?? [];
+  const baseApprovedRenames = new Set(
+    (baseManifest?.unapplied_migration_renames ?? []).map(stableJson),
+  );
+  const approvedRenamesByFrom = new Map();
+  const approvedRenamesByTo = new Map();
+  for (const rawEntry of approvedRenames) {
+    const entry = {
+      ...rawEntry,
+      from: normalizePath(rawEntry.from),
+      to: normalizePath(rawEntry.to),
+    };
+    if (!isMigrationPath(entry.from) || !isMigrationPath(entry.to) ||
+        entry.from === entry.to ||
+        path.posix.dirname(entry.from) !== path.posix.dirname(entry.to)) {
+      throw new Error("Unapplied migration renames must stay inside one migration root");
+    }
+    if (typeof entry.reason !== "string" || entry.reason.trim().length < 12 ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(
+          String(entry.verified_unapplied_at ?? ""),
+        ) ||
+        !Array.isArray(entry.production_ledger_versions_absent) ||
+        entry.production_ledger_versions_absent.length === 0 ||
+        entry.production_ledger_versions_absent.some((version) => !/^\d{14}$/u.test(version))) {
+      throw new Error(`Unapplied migration rename requires exact ledger evidence: ${entry.from}`);
+    }
+    if (approvedRenamesByFrom.has(entry.from) || approvedRenamesByTo.has(entry.to)) {
+      throw new Error(`Duplicate unapplied migration rename contract: ${entry.from}`);
+    }
+    if (currentFileSet.has(entry.from) || !currentFileSet.has(entry.to)) {
+      throw new Error(`Unapplied migration rename paths do not match the current tree: ${entry.from}`);
+    }
+    assertPinnedEntry({ path: entry.to, sha256: entry.sha256 }, currentFileSet, readFile, hash);
+    approvedRenamesByFrom.set(entry.from, entry);
+    approvedRenamesByTo.set(entry.to, entry);
+
+    if (!baseApprovedRenames.has(stableJson(rawEntry))) {
+      const removed = migrationChanges.find((change) =>
+        change.status === "R" && change.path === entry.from && change.renamedTo === entry.to);
+      const addedTarget = migrationChanges.find((change) =>
+        change.status === "A" && change.path === entry.to && change.renamedFrom === entry.from);
+      if (!removed || !addedTarget) {
+        throw new Error(`New unapplied migration rename must be visible as an exact Git rename: ${entry.from}`);
+      }
+    }
+  }
+
+  const immutableChange = migrationChanges.find((change) => {
+    if (change.status === "A") return false;
+    const approved = approvedRenamesByFrom.get(change.path);
+    if (!approved || change.status !== "R" || change.renamedTo !== approved.to) return true;
+    if (change.renameScore !== 100) {
+      throw new Error(`Unapplied migration rename must be 100% byte-preserving: ${change.path}`);
+    }
+    return false;
+  });
   if (immutableChange) {
     throw new Error(
       `Existing migration files are immutable (${immutableChange.status} ${immutableChange.path})`,
     );
   }
   const added = migrationChanges.filter((change) => change.status === "A").map((change) => change.path);
+  for (const change of migrationChanges.filter((candidate) => candidate.status === "A" && candidate.renamedFrom)) {
+    const approved = approvedRenamesByTo.get(change.path);
+    if (!approved || approved.from !== change.renamedFrom) {
+      throw new Error(`Existing migration files are immutable (unapproved rename to ${change.path})`);
+    }
+    if (change.renameScore !== 100) {
+      throw new Error(`Unapplied migration rename must be 100% byte-preserving: ${change.path}`);
+    }
+  }
   for (const filePath of added) {
     if (filePath.startsWith(`${SUPABASE_MIGRATION_ROOT}/`) &&
         !/^\d{14}_[a-zA-Z0-9][a-zA-Z0-9_.-]*\.sql$/u.test(path.posix.basename(filePath))) {
@@ -314,7 +384,8 @@ export function validateMigrationGovernance({
     assertPinnedEntry({ path: supabase, sha256: pair.sha256 }, currentFileSet, readFile, hash);
     if (classifications.has(drizzle)) classifications.set(drizzle, classifications.get(drizzle) + 1);
     if (classifications.has(supabase)) classifications.set(supabase, classifications.get(supabase) + 1);
-    if (classifications.has(drizzle) !== classifications.has(supabase)) {
+    if (classifications.has(drizzle) !== classifications.has(supabase) &&
+        !approvedRenamesByTo.has(classifications.has(drizzle) ? drizzle : supabase)) {
       throw new Error("A new migration mirror pair must add both files together");
     }
   }
@@ -344,6 +415,7 @@ export function validateMigrationGovernance({
     added_migrations: added.length,
     migration_pairs: pairs.length,
     no_mirror: noMirror.length,
+    unapplied_migration_renames: approvedRenames.length,
   };
 }
 
@@ -374,12 +446,14 @@ function gitMigrationChanges(rootDir, baseRef) {
   return result.stdout.split(/\r?\n/u).filter(Boolean).flatMap((line) => {
     const parts = line.split("\t");
     const status = parts[0][0];
-    if (status === "R" || status === "C") {
+    if (status === "R") {
+      const renameScore = Number(parts[0].slice(1));
       return [
-        { status, path: parts[1] },
-        { status, path: parts[2] },
+        { status: "R", path: parts[1], renamedTo: parts[2], renameScore },
+        { status: "A", path: parts[2], renamedFrom: parts[1], renameScore },
       ];
     }
+    if (status === "C") return [{ status, path: parts[2] }];
     return [{ status, path: parts[1] }];
   });
 }

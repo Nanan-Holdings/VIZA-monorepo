@@ -110,7 +110,54 @@
       "drizzle": "viza-be/agent-backend/drizzle/0160_agent_backend_role_timeouts.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
       "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823035450_uae_tourist_document_contract.sql",
+      "sha256": "465319cf00a14a9b28689cbed8af444588cd1fa9ad7146fdf5453c5bb6654124"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0163_enable_five_tourist_runner_claims.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260818130000_enable_five_tourist_runner_claims.sql",
+      "sha256": "2c1e5038933909b0cb171112287a9868d9e9cfaeda4e8d5f1ac5a37ab134e5c3"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0164_application_document_review_integrity.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260818140000_application_document_review_integrity.sql",
+      "sha256": "7eda50893b380ef2f6e80a83eee8aa118e2d6f1f92d2b4fbe77a67283a36e344"
     }
   ],
-  "no_mirror": []
+  "no_mirror": [],
+  "unapplied_migration_renames": [
+    {
+      "from": "viza-be/agent-backend/drizzle/0149_uae_tourist_document_contract.sql",
+      "to": "viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql",
+      "sha256": "465319cf00a14a9b28689cbed8af444588cd1fa9ad7146fdf5453c5bb6654124",
+      "reason": "Repair the UAE migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260823035450"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0152_enable_five_tourist_runner_claims.sql",
+      "to": "viza-be/agent-backend/drizzle/0163_enable_five_tourist_runner_claims.sql",
+      "sha256": "2c1e5038933909b0cb171112287a9868d9e9cfaeda4e8d5f1ac5a37ab134e5c3",
+      "reason": "Repair the five-tourist runner migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260818130000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0153_application_document_review_integrity.sql",
+      "to": "viza-be/agent-backend/drizzle/0164_application_document_review_integrity.sql",
+      "sha256": "7eda50893b380ef2f6e80a83eee8aa118e2d6f1f92d2b4fbe77a67283a36e344",
+      "reason": "Repair the document-review migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260818140000"
+      ]
+    }
+  ]
 }

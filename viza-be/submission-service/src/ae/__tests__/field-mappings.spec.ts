@@ -47,7 +47,7 @@ const ADMIN_DOCUMENT_ACTIONS_SOURCE = readFileSync(
   "utf8",
 );
 const REVIEW_INTEGRITY_MIGRATION_SOURCE = readFileSync(
-  path.join(process.cwd(), "../agent-backend/drizzle/0153_application_document_review_integrity.sql"),
+  path.join(process.cwd(), "../agent-backend/drizzle/0164_application_document_review_integrity.sql"),
   "utf8",
 );
 

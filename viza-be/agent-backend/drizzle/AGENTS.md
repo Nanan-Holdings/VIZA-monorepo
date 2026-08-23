@@ -320,18 +320,18 @@ The current internal automation migrations are:
   Türkiye, India, Saudi Arabia, and UAE tourist-product catalog boundaries and
   installs their audited Document Center requirements outside the answer
   schema.
-- `0149_uae_tourist_document_contract.sql`: corrects the installed ICP
+- `0162_uae_tourist_document_contract.sql`: corrects the installed ICP
   transaction-783 checklist after live service-card verification: exact bank
   and UAE insurance review traits, optional identity evidence, and
   accommodation evidence requested only by the authenticated form.
 - `0150_public_status_tracking.sql`: turns the latest-only portal canary row
   into an evidence-backed public status model with append-only observations,
   incidents, bilingual labels, and service-only RPCs.
-- `0152_enable_five_tourist_runner_claims.sql`: routes Canada, Turkiye, India,
+- `0163_enable_five_tourist_runner_claims.sql`: routes Canada, Turkiye, India,
   Saudi Arabia, and UAE jobs through the retained on-demand shared pool while
   preserving per-country limits, slot-bound claims, lease recovery, and
   scale-to-zero depth accounting.
-- `0153_application_document_review_integrity.sql`: prevents applicants from
+- `0164_application_document_review_integrity.sql`: prevents applicants from
   manufacturing privileged document-review fields or reviewed statuses.
   Applicant writes may only use clear `uploaded`/`missing` owner states, and
   legacy `validated`, `accepted`, `approved`, `verified`, or `ready` rows are

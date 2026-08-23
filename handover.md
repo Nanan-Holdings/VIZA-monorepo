@@ -164,8 +164,8 @@ yet deployable:
 3. **Migration number collision.** Production already has
    `0151_kr_e_arrival_card.sql` applied, which is not in this checkout. The two
    local pending files were renumbered to avoid the clash:
-   - `0152_enable_five_tourist_runner_claims.sql`
-   - `0153_application_document_review_integrity.sql`
+   - `0163_enable_five_tourist_runner_claims.sql`
+   - `0164_application_document_review_integrity.sql`
 4. **Saudi jobs can never be claimed until 0152 is applied.**
    `runner_concurrency_cap` has no `saudi_arabia` row, and
    `claim_runner_pool_job` joins that table, so SA `runner_job` rows stay
