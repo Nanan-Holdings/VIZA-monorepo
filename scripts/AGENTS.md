@@ -139,6 +139,10 @@ smoke-test helpers for the VIZA monorepo.
   independently pins production's direct user-id OR applicant-profile policy,
   exact RLS/ACL/role/count contracts, immutable source/hash, and the
   migration's same-transaction policy-OID/raw-ACL preservation checks.
+  `applicant-single-path-rls-initplan-v1` pins the four single-path applicant
+  ownership policies on `applicant_secret`, `notification_preferences`, and
+  `staff_chat_thread`, including unchanged PUBLIC roles, exact direct ACLs,
+  RLS/policy counts, OIDs, and pre/post expression hashes.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
