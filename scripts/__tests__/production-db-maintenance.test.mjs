@@ -843,7 +843,7 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
   const batch = manifest.batches.find(({ batch_id: batchId }) =>
     batchId === "consent-event-rls-initplan-v1");
   assert.ok(batch);
-  assert.equal(batch.source_ref, "95d03774b558816ce48a95265b8a71b55ce29c25");
+  assert.equal(batch.source_ref, "391edff16e234f27b283143f35ab9aa72d655357");
   assert.equal(batch.mode, "transactional");
   assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824023800"]);
   assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824032000"]);
@@ -851,7 +851,7 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
     version: "20260824032000",
     name: "consent_event_rls_initplan",
     path: "viza-fe/internal-website/supabase/migrations/20260824032000_consent_event_rls_initplan.sql",
-    sha256: "8dad5e2efac73fe6fd58318a9fd50604f631320ecaad50b499b8d25db8275da3",
+    sha256: "ad8b0e93f158e51ca79694dc6abf80c77781280a1e8d3bbd623dd62d208b27f8",
   });
 
   for (const phase of [batch.preconditions, batch.postconditions]) {
@@ -870,7 +870,7 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
     assert.equal(acl.grant_options_forbidden, true);
     assert.equal(acl.required.length, 4);
     assert.ok(acl.required.every(({ privileges, exact }) =>
-      exact === true && privileges.length === 7));
+      exact === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
   }
 
   const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
@@ -879,6 +879,9 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
   assert.match(postflightSql, /71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975/u);
   assert.doesNotMatch(`${preflightSql}\n${postflightSql}`, /account_action_log/u);
   assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(preflightSql, /exact_acl_entry\.privilege_type NOT IN/u);
+  assert.match(preflightSql, /exact_acl_entry\.privilege_type = expected_acl\.privilege_type/u);
+  assert.match(preflightSql, /'MAINTAIN'/u);
   assert.match(postflightSql, /acl_entry\.is_grantable/u);
 });
 
