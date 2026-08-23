@@ -410,7 +410,20 @@ async function tryLogin(context: JpVjwLiveAdapterContext): Promise<boolean> {
 
 async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> {
   const heading = context.page.getByText(JP_VJW_OPTIONAL_MFA_HEADING).first();
-  if (!(await heading.isVisible().catch(() => false))) return;
+  const dashboard = context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first();
+  let landing: "mfa" | "dashboard" | null = null;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await heading.isVisible().catch(() => false)) {
+      landing = "mfa";
+      break;
+    }
+    if (await dashboard.isVisible().catch(() => false)) {
+      landing = "dashboard";
+      break;
+    }
+    await context.page.waitForTimeout(250);
+  }
+  if (landing !== "mfa") return;
 
   const no = context.page.getByRole("radio", { name: JP_VJW_MFA_NO_NAME }).first();
   if (!(await no.isVisible().catch(() => false))) {
@@ -418,7 +431,7 @@ async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> 
   }
   await no.check({ force: true });
   await clickPrimary(context, true);
-  await context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first()
+  await dashboard
     .waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS })
     .catch(async () => {
       await fail(context, "jp_vjw_optional_mfa_exit_failed", "Visit Japan Web did not leave the optional MFA setup page.");
