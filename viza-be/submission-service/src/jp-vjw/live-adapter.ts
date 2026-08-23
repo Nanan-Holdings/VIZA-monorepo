@@ -19,6 +19,7 @@ import {
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
@@ -71,10 +72,25 @@ function normalizeOptionText(value: string): string {
 async function capturePage(context: JpVjwLiveAdapterContext, name: string): Promise<string> {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "viza-jp-vjw-live-"));
   const filePath = path.join(directory, `${name}-${Date.now()}.png`);
+  const dateVariants = [context.payload.dateOfBirth, context.payload.passportExpiryDate]
+    .flatMap((value) => [value, value.replace(/-/gu, "/")]);
+  const privateValues = [
+    context.payload.passportNumber,
+    context.payload.surname,
+    context.payload.givenNames,
+    context.payload.residenceCity,
+    context.payload.accommodationName,
+    context.payload.accommodationAddress,
+    context.payload.accommodationPhone,
+    ...dateVariants,
+  ].map((value) => value.trim()).filter((value) => value.length >= 2);
   await context.page.screenshot({
     path: filePath,
     fullPage: true,
-    mask: [context.page.locator("input, select, textarea")],
+    mask: [
+      context.page.locator("input, select, textarea"),
+      ...privateValues.map((value) => context.page.getByText(value, { exact: true })),
+    ],
     maskColor: "#6b7280",
   });
   context.screenshots.push(filePath);
@@ -660,10 +676,11 @@ async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> 
     await waitForRoute(context, ["vjwppr009"]);
   }
   await clickPrimary(context, true);
-  await context.page.locator("app-vjwppr010").first().waitFor({
-    state: "visible",
-    timeout: ROUTE_TIMEOUT_MS,
-  }).catch(async () => {
+  await context.page.waitForFunction(
+    (pattern) => Boolean(document.querySelector("app-vjwppr010")) || new RegExp(pattern, "i").test(document.body.innerText),
+    JP_VJW_PROFILE_COMPLETE_NAME.source,
+    { timeout: ROUTE_TIMEOUT_MS },
+  ).catch(async () => {
     await fail(context, "jp_vjw_profile_save_unconfirmed", "Visit Japan Web did not confirm the traveller profile save.");
   });
   context.logs.push("jpvjw_profile_registered");

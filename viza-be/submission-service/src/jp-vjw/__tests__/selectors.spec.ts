@@ -11,6 +11,7 @@ import {
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
@@ -48,6 +49,7 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Will you enter Japan with re-entry permission?", JP_VJW_REENTRY_PERMISSION_QUESTION);
   assert.match("Will you use the Tax-free QR Code?", JP_VJW_TAX_FREE_QR_QUESTION);
   assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
+  assert.match("Registration complete", JP_VJW_PROFILE_COMPLETE_NAME);
 });
 
 test("Visit Japan Web native option matching skips the empty placeholder", () => {
