@@ -323,6 +323,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   byte-identical to
   `viza-be/agent-backend/drizzle/0169_jp_vjw_no_document_uploads.sql`. Kenya
   eTA document requirements remain unchanged.
+- Japan VJW's current official accommodation controls and phone validation are
+  applied by
+  `supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql`;
+  keep it byte-identical to backend migration
+  `viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql`.
 - Application-scoped unattended-runner aliases are created by
   `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
   byte-identical to
@@ -590,11 +595,11 @@ Smoke URLs:
   optimization and its same-transaction policy-OID/relation-ACL preservation
   checks; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0178_account_action_log_rls_initplan.sql`.
-- `supabase/migrations/20260824032000_consent_event_rls_initplan.sql`:
+- `supabase/migrations/20260824034500_consent_event_rls_initplan.sql`:
   mirrors the production-catalog-reconciled two-path legal-consent policy
   init-plan optimization and its same-transaction policy-OID/relation-ACL
   preservation checks; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0179_consent_event_rls_initplan.sql`.
+  `viza-be/agent-backend/drizzle/0180_consent_event_rls_initplan.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
