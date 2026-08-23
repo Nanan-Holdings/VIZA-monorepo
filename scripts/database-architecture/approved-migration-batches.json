@@ -472,6 +472,417 @@
           { "id": "match_visa_chunks_authenticated_service_only", "kind": "function_execute_acl", "identity": "public.match_visa_chunks(public.vector,integer,text,text,text[],real)", "required_roles": ["authenticated", "service_role"], "forbidden_roles": ["PUBLIC", "anon"] }
         ]
       }
+    },
+    {
+      "batch_id": "core-rls-initplan-v1",
+      "source_ref": "4819df5080775c4cb3f8115949c66165d984984e",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260823140456",
+          "name": "core_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260823140456_core_rls_initplan.sql",
+          "sha256": "e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260823134811"
+        ],
+        "absent_migration_versions": [
+          "20260823140456"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "pre_applicant_profiles_rls",
+            "kind": "rls_enabled",
+            "identity": "public.applicant_profiles"
+          },
+          {
+            "id": "pre_applications_rls",
+            "kind": "rls_enabled",
+            "identity": "public.applications"
+          },
+          {
+            "id": "pre_application_documents_rls",
+            "kind": "rls_enabled",
+            "identity": "public.application_documents"
+          },
+          {
+            "id": "pre_submission_queue_rls",
+            "kind": "rls_enabled",
+            "identity": "public.submission_queue"
+          },
+          {
+            "id": "pre_applicant_profiles_policy_count",
+            "kind": "policy_count",
+            "identity": "public.applicant_profiles",
+            "count": 3
+          },
+          {
+            "id": "pre_applications_policy_count",
+            "kind": "policy_count",
+            "identity": "public.applications",
+            "count": 3
+          },
+          {
+            "id": "pre_application_documents_policy_count",
+            "kind": "policy_count",
+            "identity": "public.application_documents",
+            "count": 4
+          },
+          {
+            "id": "pre_submission_queue_policy_count",
+            "kind": "policy_count",
+            "identity": "public.submission_queue",
+            "count": 1
+          },
+          {
+            "id": "pre_applicant_profiles_select_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f",
+            "check_sha256": null
+          },
+          {
+            "id": "pre_applicant_profiles_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f"
+          },
+          {
+            "id": "pre_applicant_profiles_update_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f",
+            "check_sha256": "7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f"
+          },
+          {
+            "id": "pre_applications_select_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad",
+            "check_sha256": null
+          },
+          {
+            "id": "pre_applications_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad"
+          },
+          {
+            "id": "pre_applications_update_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad",
+            "check_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad"
+          },
+          {
+            "id": "pre_application_documents_select_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00",
+            "check_sha256": null
+          },
+          {
+            "id": "pre_application_documents_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00"
+          },
+          {
+            "id": "pre_application_documents_update_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00",
+            "check_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00"
+          },
+          {
+            "id": "pre_application_documents_delete_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_delete_own",
+            "command": "DELETE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00",
+            "check_sha256": null
+          },
+          {
+            "id": "pre_submission_queue_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.submission_queue",
+            "policy": "submission_queue_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00"
+          }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260823140456"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "core_rls_initplan_migration_record",
+            "kind": "migration_record",
+            "version": "20260823140456",
+            "name": "core_rls_initplan",
+            "sha256": "e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40"
+          },
+          {
+            "id": "post_applicant_profiles_rls",
+            "kind": "rls_enabled",
+            "identity": "public.applicant_profiles"
+          },
+          {
+            "id": "post_applications_rls",
+            "kind": "rls_enabled",
+            "identity": "public.applications"
+          },
+          {
+            "id": "post_application_documents_rls",
+            "kind": "rls_enabled",
+            "identity": "public.application_documents"
+          },
+          {
+            "id": "post_submission_queue_rls",
+            "kind": "rls_enabled",
+            "identity": "public.submission_queue"
+          },
+          {
+            "id": "post_applicant_profiles_policy_count",
+            "kind": "policy_count",
+            "identity": "public.applicant_profiles",
+            "count": 3
+          },
+          {
+            "id": "post_applications_policy_count",
+            "kind": "policy_count",
+            "identity": "public.applications",
+            "count": 3
+          },
+          {
+            "id": "post_application_documents_policy_count",
+            "kind": "policy_count",
+            "identity": "public.application_documents",
+            "count": 4
+          },
+          {
+            "id": "post_submission_queue_policy_count",
+            "kind": "policy_count",
+            "identity": "public.submission_queue",
+            "count": 1
+          },
+          {
+            "id": "post_applicant_profiles_select_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b",
+            "check_sha256": null
+          },
+          {
+            "id": "post_applicant_profiles_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b"
+          },
+          {
+            "id": "post_applicant_profiles_update_own",
+            "kind": "policy_contract",
+            "identity": "public.applicant_profiles",
+            "policy": "applicant_profiles_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b",
+            "check_sha256": "395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b"
+          },
+          {
+            "id": "post_applications_select_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86",
+            "check_sha256": null
+          },
+          {
+            "id": "post_applications_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86"
+          },
+          {
+            "id": "post_applications_update_own",
+            "kind": "policy_contract",
+            "identity": "public.applications",
+            "policy": "applications_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86",
+            "check_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86"
+          },
+          {
+            "id": "post_application_documents_select_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_select_own",
+            "command": "SELECT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a",
+            "check_sha256": null
+          },
+          {
+            "id": "post_application_documents_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a"
+          },
+          {
+            "id": "post_application_documents_update_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_update_own",
+            "command": "UPDATE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a",
+            "check_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a"
+          },
+          {
+            "id": "post_application_documents_delete_own",
+            "kind": "policy_contract",
+            "identity": "public.application_documents",
+            "policy": "application_documents_delete_own",
+            "command": "DELETE",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a",
+            "check_sha256": null
+          },
+          {
+            "id": "post_submission_queue_insert_own",
+            "kind": "policy_contract",
+            "identity": "public.submission_queue",
+            "policy": "submission_queue_insert_own",
+            "command": "INSERT",
+            "roles": [
+              "authenticated"
+            ],
+            "permissive": true,
+            "using_sha256": null,
+            "check_sha256": "bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a"
+          }
+        ]
+      }
     }
   ]
 }
