@@ -868,18 +868,7 @@ async function fillOfficialAirFlightNumber(
   }
   await fillInput(page, `${scope} ${inputSelector}`, normalized, "flight number");
   await page.locator(`${scope} ${inputSelector}`).first().press("Tab");
-  // The official portal validates a flight asynchronously after the input
-  // loses focus and can show a "double-check your flight number" prompt
-  // several seconds later.  If we only inspect the page after clicking the
-  // travel-search control, that delayed modal can cover the next departure
-  // control and make Playwright report a misleading click failure.
-  await acknowledgeOfficialTravelLookupPrompt(
-    page,
-    segment === "E" ? "arrival-flight-validation" : "departure-flight-validation",
-    logs,
-    executionContext,
-    8_000,
-  );
+  logs.push(`kr_eac_${segment === "E" ? "arrival" : "departure"}_flight_entered`);
 }
 
 /**
@@ -997,8 +986,11 @@ async function lookupOfficialTravelLocation(
   }
   executionContext?.assertOwned();
   await lookup.click({ timeout: 20_000 });
-  await page.waitForTimeout(750);
-  await acknowledgeOfficialTravelLookupPrompt(page, label, logs, executionContext);
+  // The current portal opens its double-check prompt from the asynchronous
+  // travel-lookup callback (not from the flight input's blur event). Wait for
+  // that official callback after clicking Search so the modal cannot appear
+  // later and cover the departure controls.
+  await acknowledgeOfficialTravelLookupPrompt(page, label, logs, executionContext, 15_000);
 
   const countrySelector = segment === "E"
     ? [`${scope} .ent_strp_nat_nm`]

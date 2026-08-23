@@ -160,9 +160,9 @@ test("Korea navigation failures preserve a structured provider error", () => {
 test("Korea runner waits for official travel prompts to close", () => {
   assert.match(runnerSource, /for \(let pass = 0; pass < 3; pass \+= 1\)/);
   assert.match(runnerSource, /waitForPromptMs = 0/);
-  assert.match(runnerSource, /arrival-flight-validation/);
-  assert.match(runnerSource, /departure-flight-validation/);
+  assert.match(runnerSource, /"arrival" : "departure"}_flight_entered/);
   assert.match(runnerSource, /waitForPromptMs > 0/);
+  assert.match(runnerSource, /acknowledgeOfficialTravelLookupPrompt\(page, label, logs, executionContext, 15_000\)/);
   assert.match(runnerSource, /#popupAlert, #popupConfirm/);
   assert.match(runnerSource, /#confirm, \.pop-btn2/);
   assert.match(runnerSource, /waitFor\(\{ state: "hidden", timeout: 10_000 \}\)/);
