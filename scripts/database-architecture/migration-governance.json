@@ -174,7 +174,7 @@
     {
       "drizzle": "viza-be/agent-backend/drizzle/0179_consent_event_rls_initplan.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260824032000_consent_event_rls_initplan.sql",
-      "sha256": "8dad5e2efac73fe6fd58318a9fd50604f631320ecaad50b499b8d25db8275da3"
+      "sha256": "ad8b0e93f158e51ca79694dc6abf80c77781280a1e8d3bbd623dd62d208b27f8"
     }
   ],
   "no_mirror": [],
