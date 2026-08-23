@@ -12,19 +12,50 @@ describe("Japan Visit Japan Web form seed", () => {
       "passport_number",
       "arrival_date",
       "arrival_airport",
+      "arrival_airline",
       "flight_number",
+      "occupation",
+      "residence_city",
       "last_embarkation_country",
       "accommodation_address",
       "has_been_deported",
       "has_criminal_record",
       "has_controlled_substances_or_weapons",
-      "has_prohibited_or_restricted_goods",
+      "has_prohibited_goods",
+      "has_restricted_goods",
+      "has_gold_or_gold_products",
       "customs_declaration",
       "customs_declaration_confirmed",
       "immigration_declaration",
       "final_declaration",
     ]) {
       expect(names.has(field)).toBe(true);
+    }
+  });
+
+  it("keeps current Visit Japan Web airline and customs controls separate", () => {
+    const legacyCombined = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find(
+      (field) => field.field_name === "has_prohibited_or_restricted_goods",
+    );
+    expect(legacyCombined).toMatchObject({ field_type: "computed", required: false });
+    expect(legacyCombined?.conditional_logic).toEqual({ showIf: "false" });
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "arrival_airline")).toMatchObject({
+      field_type: "text",
+      required: true,
+    });
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "occupation")).toMatchObject({
+      field_type: "select",
+      required: true,
+      options: expect.arrayContaining([
+        expect.objectContaining({ value: "0800", label_zh: "学生", label_en: "Student" }),
+        expect.objectContaining({ value: "0990", label_zh: "其他", label_en: "Other" }),
+      ]),
+    });
+    for (const fieldName of ["has_prohibited_goods", "has_restricted_goods", "has_gold_or_gold_products"]) {
+      expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === fieldName)).toMatchObject({
+        field_type: "radio",
+        required: true,
+      });
     }
   });
 

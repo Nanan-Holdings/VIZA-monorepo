@@ -54,7 +54,7 @@ export interface JpVjwQrEvidenceInput {
 export function hasOfficialJpVjwQrEvidence(input: JpVjwQrEvidenceInput): boolean {
   if (!isOfficialJpVjwUrl(input.portalUrl) || !input.qrElementVisible) return false;
   if (!input.qrArtifactPath?.trim()) return false;
-  return /visit\s+japan\s+web|入国(?:・|＆|&)税関申告|qr\s*(?:code|コード)/iu.test(input.bodyText);
+  return /visit\s+japan\s+web|入国(?:・|＆|&)税関申告|入境审查.*海关申报|入境審查.*海關申報|qr\s*(?:code|コード|码|碼)/iu.test(input.bodyText);
 }
 
 export function normalizeJpVjwBodyText(value: string): string {

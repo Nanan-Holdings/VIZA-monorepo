@@ -1,9 +1,5 @@
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser.js";
-import { solveCaptcha } from "../captcha/index.js";
 import type { SubmissionPayload } from "../country-submissions/types.js";
 import {
   closeResourceBestEffort,
@@ -16,12 +12,11 @@ import {
   normalizeJpVjwPortalPayload,
   type JpVjwPortalPayload,
 } from "./normalize.js";
+import { JpVjwPortalError } from "./errors.js";
+import { prepareJpVjwManagedAccount } from "./account.js";
+import { submitJpVjwLive, type JpVjwManagedInbox } from "./live-adapter.js";
 import {
   hasOfficialJpVjwQrEvidence,
-  isJpVjwCloudfrontAccessGate,
-  isOfficialJpVjwUrl,
-  JP_VJW_SELECTORS,
-  normalizeJpVjwBodyText,
   resolveJpVjwUserAgent,
 } from "./selectors.js";
 
@@ -42,19 +37,7 @@ export interface JpVjwPortalSubmissionResult {
   artifacts?: { screenshots: string[]; qrCodes: string[]; logs: string[]; traces: string[] };
 }
 
-export class JpVjwPortalError extends Error {
-  readonly code: string;
-  readonly screenshotPaths: string[];
-  readonly logs: string[];
-
-  constructor(message: string, options: { code: string; screenshotPaths?: string[]; logs?: string[] } ) {
-    super(message);
-    this.name = "JpVjwPortalError";
-    this.code = options.code;
-    this.screenshotPaths = options.screenshotPaths ?? [];
-    this.logs = options.logs ?? [];
-  }
-}
+export { JpVjwPortalError } from "./errors.js";
 
 export interface JpVjwStatusLookup {
   getExistingResult: (applicationId: string, idempotencyKey: string) => Promise<JpVjwPortalSubmissionResult | null>;
@@ -82,9 +65,7 @@ export interface JpVjwPortalAdapter {
   }>;
 }
 
-export interface ManagedAliasInbox {
-  waitForVerification: (options: { applicantId: string; alias: string; since: string }) => Promise<{ url?: string; code?: string }>;
-}
+export type ManagedAliasInbox = JpVjwManagedInbox;
 
 export interface JpVjwPortalRunnerOptions {
   headless?: boolean;
@@ -118,111 +99,6 @@ function blockedResult(payload: JpVjwPortalPayload, code: string, message: strin
   };
 }
 
-async function saveScreenshot(page: Page, name: string): Promise<string> {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "viza-jp-vjw-"));
-  const filePath = path.join(directory, `${name}-${Date.now()}.png`);
-  await page.screenshot({ path: filePath, fullPage: true });
-  return filePath;
-}
-
-async function inspectDefaultPortal(context: JpVjwPortalAdapterContext): Promise<{
-  portalUrl: string;
-  referenceNumber: string | null;
-  submittedAt: string | null;
-  qrArtifactPath: string | null;
-  bodyText: string;
-}> {
-  const { page, payload, logs, screenshots, qrCodes, executionContext } = context;
-  executionContext?.assertOwned();
-  const response = await page.goto(JP_VJW_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  const portalUrl = page.url();
-  const bodyText = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
-  screenshots.push(await saveScreenshot(page, "landing"));
-  logs.push(`jpvjw_portal_url=${isOfficialJpVjwUrl(portalUrl) ? "official" : "unexpected"}`);
-  if (isJpVjwCloudfrontAccessGate(response?.status(), bodyText)) {
-    throw new JpVjwPortalError("Visit Japan Web returned the CloudFront 404 access gate for this browser identity.", {
-      code: "jp_vjw_cloudfront_404_user_agent_gate",
-      screenshotPaths: screenshots,
-      logs,
-    });
-  }
-  if (!isOfficialJpVjwUrl(portalUrl)) {
-    throw new JpVjwPortalError("Visit Japan Web redirected away from the official host.", {
-      code: "jp_vjw_unexpected_host",
-      screenshotPaths: screenshots,
-      logs,
-    });
-  }
-  if (/access\s+denied|web\s+page\s+blocked|captcha|cloudflare/i.test(bodyText)) {
-    throw new JpVjwPortalError("Visit Japan Web is blocked or requires an unresolved portal challenge.", {
-      code: /captcha|cloudflare/i.test(bodyText) ? "jp_vjw_captcha_or_waf" : "jp_vjw_portal_blocked",
-      screenshotPaths: screenshots,
-      logs,
-    });
-  }
-
-  const email = page.locator(JP_VJW_SELECTORS.email.join(",")).first();
-  const loginVisible = await page.locator(JP_VJW_SELECTORS.login.join(",")).first().isVisible().catch(() => false);
-  const createAccountVisible = await page.locator(JP_VJW_SELECTORS.createAccount.join(",")).first().isVisible().catch(() => false);
-  if (loginVisible || createAccountVisible) {
-    logs.push(`jpvjw_login_surface=${createAccountVisible ? "create_account" : "login"}`);
-    if (!context.applicantId || !context.aliasEmail || !context.inbox) {
-      throw new JpVjwPortalError("Visit Japan Web account surface requires an application-scoped alias/OTP adapter.", {
-        code: "jp_vjw_alias_otp_adapter_missing",
-        screenshotPaths: screenshots,
-        logs,
-      });
-    }
-    throw new JpVjwPortalError("Visit Japan Web account creation and verification selectors have not been reconfirmed; refusing to wait for an email that was not requested.", {
-      code: "jp_vjw_account_flow_recon_required",
-      screenshotPaths: screenshots,
-      logs,
-    });
-  }
-  if ((await email.count().catch(() => 0)) > 0 && payload.emailAddress) {
-    await email.fill(payload.emailAddress);
-    logs.push("jpvjw_alias_email_filled");
-  }
-  const captcha = page.locator("[data-sitekey]").first();
-  if ((await captcha.count().catch(() => 0)) > 0) {
-    const siteKey = await captcha.getAttribute("data-sitekey");
-    if (!siteKey) {
-      throw new JpVjwPortalError("Visit Japan Web CAPTCHA site key was not readable.", {
-        code: "jp_vjw_captcha_sitekey_missing",
-        screenshotPaths: screenshots,
-        logs,
-      });
-    }
-    const solve = await solveCaptcha({ type: "recaptcha-v2", siteKey, pageUrl: portalUrl });
-    await page.evaluate((token) => {
-      for (const element of Array.from(document.querySelectorAll("textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']"))) {
-        const input = element as HTMLInputElement | HTMLTextAreaElement;
-        input.value = token;
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    }, solve.text);
-    logs.push(`jpvjw_captcha_solved solve_id=${solve.solveId}`);
-  }
-
-  const qr = page.locator(JP_VJW_SELECTORS.qr.join(",")).first();
-  const qrVisible = await qr.isVisible().catch(() => false);
-  let qrArtifactPath: string | null = null;
-  if (qrVisible) {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), "viza-jp-vjw-qr-"));
-    qrArtifactPath = path.join(directory, `qr-${Date.now()}.png`);
-    await qr.screenshot({ path: qrArtifactPath });
-    qrCodes.push(qrArtifactPath);
-  }
-  return {
-    portalUrl,
-    referenceNumber: null,
-    submittedAt: new Date().toISOString(),
-    qrArtifactPath,
-    bodyText: normalizeJpVjwBodyText(bodyText),
-  };
-}
-
 function isQrReady(payload: JpVjwPortalPayload, response: Awaited<ReturnType<JpVjwPortalAdapter["submit"]>>): boolean {
   return hasOfficialJpVjwQrEvidence({
     portalUrl: response.portalUrl,
@@ -248,7 +124,7 @@ export async function runJpVjwPortalSubmission(
     const existing = await options.statusLookup.getExistingResult(payload.applicationId, payload.idempotencyKey);
     if (existing?.status === "qr_ready" && existing.qrReady && existing.submitted) return existing;
   }
-  if (!options.adapter && !options.applicantId && !options.aliasEmail) {
+  if (!options.adapter && (!options.applicantId || !options.aliasEmail || !options.inbox)) {
     return blockedResult(payload, "jp_vjw_alias_context_missing", "A managed alias/applicant context is required before creating a Visit Japan Web session.");
   }
 
@@ -311,7 +187,22 @@ export async function runJpVjwPortalSubmission(
       userAgent: resolveJpVjwUserAgent(),
     });
     logs.push("jpvjw_user_agent_override=windows_chrome");
-    const response = await inspectDefaultPortal(adapterContext);
+    const account = await prepareJpVjwManagedAccount({
+      applicantId: options.applicantId!,
+      aliasEmail: options.aliasEmail!,
+      correlationId: payload.applicationId,
+    });
+    const response = await submitJpVjwLive({
+      page: adapterContext.page,
+      payload,
+      account,
+      applicantId: options.applicantId!,
+      inbox: options.inbox!,
+      logs,
+      screenshots,
+      qrCodes,
+      executionContext: options.executionContext,
+    });
     options.executionContext?.assertOwned();
     if (!isQrReady(payload, response)) {
       throw new JpVjwPortalError("Official Visit Japan Web QR page was not reached; refusing qr_ready.", {
@@ -365,8 +256,11 @@ export async function normalizeAndRunJpVjwPortalSubmission(
           passportIssuingCountry: "",
           phoneNumber: "",
           residenceCountry: "",
+          occupation: "",
+          residenceCity: "",
           arrivalDate: "",
           portOfEntry: "",
+          arrivalAirline: "",
           flightNumber: "",
           lastEmbarkationCountry: "",
           departureCityOrPort: "",
@@ -383,7 +277,9 @@ export async function normalizeAndRunJpVjwPortalSubmission(
             declarationConfirmed: "yes",
           },
           customsAnswers: {
-            hasProhibitedOrRestrictedGoods: "no",
+            hasProhibitedGoods: "no",
+            hasRestrictedGoods: "no",
+            hasGoldOrGoldProducts: "no",
             hasDutiableGoods: "no",
             hasCommercialGoods: "no",
             hasGoodsForOtherPerson: "no",

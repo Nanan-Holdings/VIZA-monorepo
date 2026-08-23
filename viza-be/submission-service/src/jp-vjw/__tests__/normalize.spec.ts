@@ -37,8 +37,11 @@ function payload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload 
       email_address: "appl-test@viza.it.com",
       phone_number: "+8613800000000",
       residence_country: "China",
+      occupation: "Engineer",
+      residence_city: "Shanghai",
       arrival_date: "2026-09-10",
       arrival_airport: "NARITA",
+      arrival_airline: "NH",
       flight_number: "NH900",
       last_embarkation_country: "China",
       departure_city_or_port: "Shanghai",
@@ -51,7 +54,9 @@ function payload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload 
       has_been_deported: "no",
       has_criminal_record: "no",
       has_controlled_substances_or_weapons: "no",
-      has_prohibited_or_restricted_goods: "no",
+      has_prohibited_goods: "no",
+      has_restricted_goods: "no",
+      has_gold_or_gold_products: "no",
       has_dutiable_goods: "no",
       has_commercial_goods: "no",
       has_goods_for_other_person: "no",
@@ -71,9 +76,36 @@ test("normalizes Visit Japan Web payload and preserves official answers", () => 
   assert.equal(result.customsDeclaration, "no");
   assert.equal(result.finalDeclaration, "yes");
   assert.equal(result.portOfEntry, "NARITA");
+  assert.equal(result.arrivalAirline, "NH");
+  assert.equal(result.flightNumber, "900");
+  assert.equal(result.residenceCity, "Shanghai");
   assert.equal(result.customsAnswers.hasDutiableGoods, "no");
   assert.equal(result.immigrationAnswers.hasCriminalRecord, "no");
   assert.equal(result.departureCityOrPort, "Shanghai");
+});
+
+test("maps only a legacy combined no to both current customs answers", () => {
+  const input = payload();
+  delete input.countrySpecific.has_prohibited_goods;
+  delete input.countrySpecific.has_restricted_goods;
+  input.countrySpecific.has_prohibited_or_restricted_goods = "no";
+
+  const result = normalizeJpVjwPortalPayload(input);
+
+  assert.equal(result.customsAnswers.hasProhibitedGoods, "no");
+  assert.equal(result.customsAnswers.hasRestrictedGoods, "no");
+});
+
+test("does not guess how to split a legacy combined yes", () => {
+  const input = payload();
+  delete input.countrySpecific.has_prohibited_goods;
+  delete input.countrySpecific.has_restricted_goods;
+  input.countrySpecific.has_prohibited_or_restricted_goods = "yes";
+
+  assert.throws(
+    () => normalizeJpVjwPortalPayload(input),
+    /has_prohibited_goods, has_restricted_goods/,
+  );
 });
 
 test("accepts planned stay days without an optional departure date", () => {
