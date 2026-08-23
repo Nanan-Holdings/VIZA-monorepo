@@ -642,7 +642,10 @@ async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> 
   await fillControl(context, "givenName", context.payload.givenNames.toUpperCase());
   await selectNative(context, "nationality", context.payload.nationality, ["CHN", "China", "中国"]);
   await fillDateParts(context, "dateOfBirth", context.payload.dateOfBirth);
-  await selectNative(context, "sex", context.payload.sex, sexAliases(context.payload.sex));
+  const optionalProfileSex = context.page.locator("select[formcontrolname='sex']").first();
+  if (await optionalProfileSex.count()) {
+    await selectNative(context, "sex", context.payload.sex, sexAliases(context.payload.sex));
+  }
   await fillDateParts(context, "dateOfExpiry", context.payload.passportExpiryDate);
   const optionalOccupation = context.page.locator("select[formcontrolname='occupation']").first();
   if (await optionalOccupation.count()) await selectNative(context, "occupation", occupationCode(context.payload.occupation));
