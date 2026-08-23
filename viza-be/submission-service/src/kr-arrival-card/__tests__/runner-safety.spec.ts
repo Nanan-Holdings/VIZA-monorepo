@@ -191,6 +191,8 @@ test("Korea verification-code CAPTCHA is not misclassified as a review prompt", 
   assert.match(runnerSource, /captchaDialog\.locator\("img, canvas"\)/);
   assert.match(runnerSource, /bounds\.width >= 60 && bounds\.height >= 20/);
   assert.match(runnerSource, /captchaDialog\.locator\("input:not\(\[type='hidden'\]\)/);
+  assert.match(runnerSource, /"button, a, span, \[onclick\]/);
+  assert.match(runnerSource, /captchaDialog\.getByText\(\/\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$\/iu\)/);
   assert.match(runnerSource, /\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$/);
   assert.match(runnerSource, /check that all the information\|information you entered is correct/);
   assert.doesNotMatch(runnerSource, /if \(!\/correct\|confirm/);
