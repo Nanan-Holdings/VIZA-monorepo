@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeSgacPortalPayload, SgacPortalValidationError } from "../normalize";
+import {
+  normalizeSgacLongTermPassPortalPayload,
+  normalizeSgacPortalPayload,
+  SgacPortalValidationError,
+} from "../normalize";
 import { SGAC_HOTEL_OPTIONS, SGAC_NATIONALITY_OPTIONS } from "../official-options";
 import type { SubmissionPayload } from "../../country-submissions/types";
 
@@ -30,6 +34,8 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       accommodationAddress: "Transit",
     },
     countrySpecific: {
+      sgac_applicant_type: "foreign_visitor",
+      ica_declaration_accepted: "true",
       purpose_of_travel: "holiday",
       mode_of_travel: "air",
       transport_number: "SQ317",
@@ -48,6 +54,77 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
     ...overrides,
   };
 }
+
+test("Long-Term Pass holders use the separate resident payload instead of the foreign-visitor payload", () => {
+  const input: SubmissionPayload = {
+    payloadVersion: "test",
+    countryCode: "SG",
+    visaType: "SG_ARRIVAL_CARD",
+    applicationId: "app_sgac_test",
+    dryRun: false,
+    idempotencyKey: "sgac-ltp-test",
+    personal: {
+      fullName: "TEST USER",
+      dateOfBirth: "1990-01-01",
+      email: "test@example.com",
+    },
+    trip: {
+      destinationCountry: "Singapore",
+      arrivalDate: "2026-06-13",
+    },
+    countrySpecific: {
+      sgac_applicant_type: "long_term_pass_holder",
+      singapore_fin: "G1234567N",
+      ica_declaration_accepted: "true",
+      has_health_symptoms: "no",
+      recent_country_visit_history: "no",
+    },
+    metadata: {},
+  };
+
+  assert.throws(
+    () => normalizeSgacPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.deepEqual(error.missingFields, ["sgac_applicant_type"]);
+      assert.match(error.message, /Long-Term Pass holders/);
+      assert.match(error.message, /sgarrivalcard\/ltp/);
+      return true;
+    },
+  );
+
+  const residentPayload = normalizeSgacLongTermPassPortalPayload(input, {
+    now: new Date("2026-06-12T08:00:00+08:00"),
+  });
+  assert.deepEqual(residentPayload, {
+    applicationId: "app_sgac_test",
+    fin: "G1234567N",
+    fullName: "TEST USER",
+    dateOfBirth: "01/01/1990",
+    email: "test@example.com",
+    arrivalDate: "13/06/2026",
+    hasHealthSymptoms: false,
+    hasRelevantTravelHistory: false,
+  });
+});
+
+test("normalizeSgacPortalPayload requires ICA declaration acceptance", () => {
+  const input = basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      ica_declaration_accepted: "",
+    },
+  });
+
+  assert.throws(
+    () => normalizeSgacPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.deepEqual(error.missingFields, ["ica_declaration_accepted"]);
+      return true;
+    },
+  );
+});
 
 test("SGAC hotel snapshot preserves every current ICA record", () => {
   assert.equal(SGAC_HOTEL_OPTIONS.length, 472);
