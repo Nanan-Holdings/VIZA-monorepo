@@ -1,0 +1,144 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import InterviewPracticePage from "./page";
+import {
+  createInterviewSession,
+  getInterviewSessionKey,
+  writeInterviewSession,
+  type InterviewSession,
+} from "./session";
+
+let searchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParams,
+}));
+
+const speechStop = vi.fn();
+const speechStart = vi.fn();
+vi.mock("./_hooks/use-browser-speech", () => ({
+  useBrowserSpeech: () => ({
+    isListening: false,
+    error: null,
+    errorRecoverable: false,
+    status: "idle",
+    supported: true,
+    language: "zh-CN",
+    start: speechStart,
+    stop: speechStop,
+  }),
+}));
+
+function completeProfile(session: InterviewSession): InterviewSession {
+  return {
+    ...session,
+    profile: {
+      ...session.profile,
+      purposeDetails: "去美国参加行业会议并短期旅游",
+      destinations: "旧金山、洛杉矶",
+      travelDates: "2026 年 10 月",
+      duration: "12 天",
+      funding: "本人承担",
+      budget: "30000 元人民币",
+      occupation: "产品经理",
+      employer: "VIZA",
+      homeTies: "回国后继续负责上线项目",
+      previousTravel: "去过日本",
+    },
+  };
+}
+
+function seedSession(session: InterviewSession) {
+  writeInterviewSession(window.localStorage, session, {
+    applicationId: session.applicationId,
+    visaType: session.visaType,
+  });
+}
+
+describe("InterviewPracticePage", () => {
+  beforeEach(() => {
+    searchParams = new URLSearchParams();
+    window.localStorage.clear();
+    speechStart.mockReset();
+    speechStop.mockReset();
+    vi.stubGlobal("speechSynthesis", { cancel: vi.fn(), speak: vi.fn() });
+    vi.stubGlobal("SpeechSynthesisUtterance", vi.fn(function SpeechSynthesisUtterance(this: { lang?: string; text?: string }, text: string) {
+      this.text = text;
+    }));
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("shows linked application context and missing practice fields", async () => {
+    searchParams = new URLSearchParams("applicationId=app-123");
+
+    render(<InterviewPracticePage />);
+
+    expect(await screen.findByText("已关联申请资料")).toBeInTheDocument();
+    expect(screen.getByText(/app-123/u)).toBeInTheDocument();
+    expect(screen.getByText(/开始前仍需确认/u)).toHaveTextContent("赴美目的");
+    expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId: "app-123", visaType: "US_B1_B2" }))).toBeTruthy();
+  });
+
+  it("keeps setup recoverable when required fields are missing", async () => {
+    render(<InterviewPracticePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "开始模拟面试" }));
+
+    expect(await screen.findByText(/请先补全/u)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("starts the interview with complete profile data", async () => {
+    const session = completeProfile(createInterviewSession());
+    seedSession(session);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        question: { id: "q1", topic: "赴美目的", prompt: "你为什么去美国？", isFollowUp: false },
+        questionIndex: 0,
+      }), { status: 200 }),
+    );
+
+    render(<InterviewPracticePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "开始模拟面试" }));
+
+    expect(await screen.findByText("你为什么去美国？")).toBeInTheDocument();
+    expect(screen.getByText(/第 1 \/ 7 个核心主题/u)).toBeInTheDocument();
+  });
+
+  it("shows report disclaimer and retry options", async () => {
+    const session = completeProfile(createInterviewSession());
+    const reportSession: InterviewSession = {
+      ...session,
+      phase: "report",
+      reportStatus: "ready",
+      report: {
+        overallScore: 72,
+        readiness: "接近准备",
+        summary: "整体回答可用，但仍需增加细节。",
+        dimensions: { clarity: 72, specificity: 68, consistency: 75, returnIntent: 70 },
+        strengths: [{ title: "目的清楚", evidence: "能说明会议安排。" }],
+        actions: [{ priority: 1, title: "补充资金说明", action: "准备预算和流水解释。" }],
+        riskFlags: [],
+        questionAnalysis: [{
+          question: "你为什么去美国？",
+          answer: "参加会议。",
+          topic: "赴美目的",
+          score: 68,
+          status: "developing",
+          note: "细节不足",
+          responseFramework: "目的-行程-回国",
+        }],
+        generatedAt: "2026-08-23T00:00:00.000Z",
+        idempotencyKey: "report-key",
+      },
+    };
+    seedSession(reportSession);
+
+    render(<InterviewPracticePage />);
+
+    expect(await screen.findByText(/这是练习准备度评估，不代表签证结果/u)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "只重练弱项" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "完整重练" })).toBeInTheDocument();
+  });
+});
