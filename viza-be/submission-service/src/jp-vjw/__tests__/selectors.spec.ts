@@ -8,6 +8,7 @@ import {
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
+  JP_VJW_OPTIONAL_MFA_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
   hasOfficialJpVjwQrEvidence,
   isJpVjwCloudfrontAccessGate,
@@ -33,6 +34,7 @@ test("Visit Japan Web profile-entry selector accepts the observed production das
 test("Visit Japan Web optional MFA selectors accept the observed production onboarding", () => {
   assert.match("Setting up Multi-Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
   assert.match("Setting up Multi‑Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
+  assert.match("Do you want to set up multi-factor authentication?", JP_VJW_OPTIONAL_MFA_QUESTION);
   assert.match("No", JP_VJW_MFA_NO_NAME);
   assert.doesNotMatch("Not registered", JP_VJW_MFA_NO_NAME);
 });
