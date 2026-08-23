@@ -3,13 +3,25 @@ export const JP_VJW_SELECTORS = {
   email: ["input[type='email']", "input[name*='email' i]"],
   password: ["input[type='password']"],
   login: ["button:has-text('登入')", "a:has-text('登入')", "button:has-text('Login')", "a:has-text('Login')"],
-  createAccount: ["button:has-text('创建新账号')", "a:has-text('创建新账号')", "button:has-text('Create new account')", "a:has-text('Create new account')"],
+  createAccount: [
+    "button:has-text('创建新账号')",
+    "a:has-text('创建新账号')",
+    "button:has-text('Create new account')",
+    "a:has-text('Create new account')",
+    "button:has-text('Create an account')",
+    "a:has-text('Create an account')",
+    "button:has-text('新規アカウント作成')",
+    "a:has-text('新規アカウント作成')",
+  ],
   fullName: ["input[name*='name' i]", "input[id*='name' i]"],
   passportNumber: ["input[name*='passport' i]", "input[id*='passport' i]"],
   dateOfBirth: ["input[type='date']", "input[name*='birth' i]", "input[id*='birth' i]"],
   arrivalDate: ["input[name*='arrival' i]", "input[id*='arrival' i]"],
   qr: ["canvas", "img[alt*='QR' i]", "img[src*='qr' i]", "[data-testid*='qr' i]"],
 } as const;
+
+export const JP_VJW_CREATE_ACCOUNT_NAME =
+  /创建新账号|创建账号|Create (?:new|an) account|新規アカウント作成|アカウントを作成/i;
 
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with

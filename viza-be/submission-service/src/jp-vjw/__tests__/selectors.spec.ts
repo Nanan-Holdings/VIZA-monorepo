@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasOfficialJpVjwQrEvidence, isJpVjwCloudfrontAccessGate, isOfficialJpVjwUrl, resolveJpVjwUserAgent } from "../selectors";
+import { JP_VJW_CREATE_ACCOUNT_NAME, hasOfficialJpVjwQrEvidence, isJpVjwCloudfrontAccessGate, isOfficialJpVjwUrl, resolveJpVjwUserAgent } from "../selectors";
+
+test("Visit Japan Web account selector accepts the observed production label", () => {
+  assert.match("Create an account", JP_VJW_CREATE_ACCOUNT_NAME);
+  assert.match("Create new account", JP_VJW_CREATE_ACCOUNT_NAME);
+  assert.match("新規アカウント作成", JP_VJW_CREATE_ACCOUNT_NAME);
+});
 
 test("Visit Japan Web QR gate requires official host, visible QR and artifact", () => {
   assert.equal(isOfficialJpVjwUrl("https://www.vjw.digital.go.jp/"), true);

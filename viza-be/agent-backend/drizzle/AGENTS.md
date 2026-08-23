@@ -138,6 +138,9 @@ The current internal automation migrations are:
 - `0169_jp_vjw_no_document_uploads.sql`: removes the legacy Japan VJW
   preparation-only document checklist. VIZA collects VJW traveller, trip,
   immigration, and customs answers directly; Kenya eTA uploads are unchanged.
+- `0172_enable_jp_ke_shared_runner_flows.sql`: adds the exact `japan/jp_vjw`
+  and `kenya/ke_eta` tuples to the on-demand shared runner enqueue, claim,
+  recovery, requeue, concurrency-cap, and scale-to-zero database fences.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
