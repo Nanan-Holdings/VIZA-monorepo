@@ -1525,6 +1525,73 @@ function evaluateBranchTests(): BranchResult[] {
         expectEqual('English rule keeps the official English product name', englishPrompt.includes('SG Arrival Card'), true),
       ];
     }),
+    branch('ENTRY-RULE-HKG-POLAND-001', 'entry_rule_branch', () => {
+      const state = updateVisaConversationState(
+        null,
+        [],
+        '香港特别行政区护照去波兰需要什么签证'
+      );
+      const reorderedState = updateVisaConversationState(
+        null,
+        [],
+        '去波兰的香港特别行政区护照持有人需要什么签证'
+      );
+      const tourismState = updateVisaConversationState(
+        null,
+        [],
+        '香港特别行政区护照去波兰旅游7天需要什么签证'
+      );
+      const rule = resolveReviewedVisaEntryRule({
+        destinationCountry: 'poland',
+        passportCountryIso3: state.passportCountryIso3,
+        passportType: state.passportType,
+        tripPurpose: state.tripPurpose,
+        stayLengthDays: state.stayLengthDays,
+      });
+      const tourismRule = resolveReviewedVisaEntryRule({
+        destinationCountry: 'poland',
+        passportCountryIso3: 'HKG',
+        passportType: 'ordinary',
+        tripPurpose: 'tourism',
+        stayLengthDays: 10,
+      });
+      const missingPurposeRule = resolveReviewedVisaEntryRule({
+        destinationCountry: 'poland',
+        passportCountryIso3: 'HKG',
+        passportType: 'ordinary',
+        tripPurpose: null,
+        stayLengthDays: null,
+      });
+      const workRule = resolveReviewedVisaEntryRule({
+        destinationCountry: 'poland',
+        passportCountryIso3: 'HKG',
+        passportType: 'ordinary',
+        tripPurpose: 'work',
+        stayLengthDays: 10,
+      });
+      const prompt = buildVisaEntryRulePrompt(tourismRule, 'zh');
+      const conditionalPrompt = buildVisaEntryRulePrompt(missingPurposeRule, 'zh');
+      return [
+        expectEqual('Hong Kong SAR passport resolves to HKG', state.passportCountryIso3, 'HKG'),
+        expectEqual('Hong Kong SAR passport is treated as ordinary', state.passportType, 'ordinary'),
+        expectEqual('Poland is the resolved destination', state.mainDestination, 'poland'),
+        expectEqual('Destination before passport wording stays Poland', reorderedState.mainDestination, 'poland'),
+        expectEqual('Missing purpose is not inferred as tourism', state.tripPurpose, null),
+        expectEqual('Missing purpose does not recommend Schengen C', state.recommendedVisaType, null),
+        expectEqual('Short tourism does not recommend Schengen C', tourismState.recommendedVisaType, null),
+        expectEqual('Missing purpose keeps the direct route conditional', rule?.outcome, 'conditional'),
+        expectEqual('HKG passport short tourism is visa exempt', tourismRule?.outcome, 'visa_exempt'),
+        expectEqual('HKG passport short tourism is capped at 90 days', tourismRule?.maxStayDays, 90),
+        expectEqual('HKG rule has no Schengen visa product', tourismRule?.visaType, null),
+        expectEqual('HKG rule cites Poland official guidance', tourismRule?.sourceUrl, 'https://www.gov.pl/web/unitedkingdom/c-type-schengen-visa'),
+        expectEqual('中文政策提示明确说明免签', prompt.includes('不需申请申根C类短期签证'), true),
+        expectEqual('Missing purpose remains conditional', missingPurposeRule?.outcome, 'conditional'),
+        expectEqual('Missing purpose is explicitly required', missingPurposeRule?.requiredInputs.includes('tripPurpose'), true),
+        expectEqual('未说明目的时仍告知短期免签边界', conditionalPrompt.includes('波兰短期免签规则'), true),
+        expectEqual('未说明目的时要求确认行程目的', conditionalPrompt.includes('tripPurpose'), true),
+        expectEqual('Work purpose does not inherit tourism exemption', workRule, null),
+      ];
+    }),
     branch('SGAC-MEMORY-REDIRECT-001', 'entry_rule_branch', () => {
       const prior = updateVisaConversationState(null, [], '我是中国普通护照');
       const state = updateVisaConversationState(

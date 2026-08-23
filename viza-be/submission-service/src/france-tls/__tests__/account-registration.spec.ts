@@ -95,4 +95,16 @@ describe("France TLS account registration", () => {
       accountIdsToAbandon: ["legacy-1", "legacy-2"],
     });
   });
+
+  it("keeps Browserbase lifecycle and Cloudflare failures retryable", () => {
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("page.waitForTimeout: Target page, context or browser has been closed"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("TLS Cloudflare security verification did not clear within the Browserbase wait window"),
+    ), true);
+    assert.equal(accountRegistration.isRetryableFranceTlsBrowserSessionError(
+      new Error("TLS login rejected the stored credentials"),
+    ), false);
+  });
 });
