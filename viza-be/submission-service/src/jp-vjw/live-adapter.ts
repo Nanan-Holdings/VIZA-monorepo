@@ -291,7 +291,10 @@ async function selectNative(
   if (!optionValue) {
     await fail(context, "jp_vjw_option_not_found", `Visit Japan Web option for ${name} could not be resolved.`);
   }
-  await select.selectOption(optionValue);
+  // VJW visually replaces several native selects while retaining the hidden
+  // select as the Angular form control. selectOption still dispatches the
+  // native input/change events when forced against that official control.
+  await select.selectOption(optionValue, { force: true });
 }
 
 export function resolveJpVjwNativeOptionValue(
