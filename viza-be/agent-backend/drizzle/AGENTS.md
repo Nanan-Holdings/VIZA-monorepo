@@ -355,7 +355,7 @@ The current internal automation migrations are:
   semantics of the eleven audited applicant/application/document/queue RLS
   policies while evaluating the authenticated user identity once per statement.
   Keep its Supabase migration mirror byte-identical.
-- `0169_chat_rls_initplan.sql`: preserves nine authenticated chat and Travel AI
+- `0170_chat_rls_initplan.sql`: preserves nine authenticated chat and Travel AI
   ownership policies while evaluating the caller identity once per statement;
   the separate service-role chat policy remains untouched. Keep its Supabase
   migration mirror byte-identical.

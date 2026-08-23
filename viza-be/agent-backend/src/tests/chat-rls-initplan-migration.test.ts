@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const canonicalPath = fileURLToPath(
-	new URL("../../drizzle/0169_chat_rls_initplan.sql", import.meta.url),
+	new URL("../../drizzle/0170_chat_rls_initplan.sql", import.meta.url),
 );
 const mirrorDirectory = fileURLToPath(
 	new URL("../../../../viza-fe/internal-website/supabase/migrations/", import.meta.url),
@@ -55,4 +55,3 @@ describe("chat RLS init-plan migration", () => {
 		expect(canonicalSql).not.toMatch(/\b(?:GRANT|REVOKE|ALTER TABLE)\b/i);
 	});
 });
-
