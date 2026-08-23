@@ -413,7 +413,9 @@ async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> 
   const dashboard = context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first();
   let landing: "mfa" | "dashboard" | null = null;
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (await heading.isVisible().catch(() => false)) {
+    const bodyText = await context.page.locator("body").innerText().catch(() => "");
+    const hasMfaRadios = (await context.page.getByRole("radio").count().catch(() => 0)) >= 2;
+    if ((await heading.isVisible().catch(() => false)) || (JP_VJW_OPTIONAL_MFA_HEADING.test(bodyText) && hasMfaRadios)) {
       landing = "mfa";
       break;
     }
