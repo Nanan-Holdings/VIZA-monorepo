@@ -58,6 +58,12 @@ export const JP_VJW_PROFILE_COMPLETE_NAME =
 export const JP_VJW_CONFIRM_ENTERED_DETAILS_NAME =
   /确认输入的详细信息|確認輸入的詳細資訊|Confirm entered details|入力内容の確認/i;
 
+export const JP_VJW_NEW_TRIP_NAME =
+  /登记新的入境.*回国计划|登記新的入境.*回國計劃|Register new planned entry.*return|New registration|新規登録/i;
+
+export const JP_VJW_NO_COPY_TRIP_NAME =
+  /不复制.*继续登记|不複製.*繼續登記|Proceed to registration without copying details|引き継がずに登録を進める/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success
