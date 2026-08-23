@@ -1531,7 +1531,12 @@ async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?
   await input.fill(solved.text);
   let verify = await findVisible(page, ["#captchaConfirm", ".captcha button", "[role='dialog'] button"]);
   if (!verify && captchaDialog) {
-    const actions = captchaDialog.locator("button, #confirm, .pop-btn2, input[type='button'], input[type='submit'], [role='button']");
+    // The official verification popup currently renders its actions as
+    // text-backed non-button elements. Match their observable label inside the
+    // CAPTCHA dialog instead of assuming the review popup's `#confirm` markup.
+    const actions = captchaDialog.locator(
+      "button, a, span, [onclick], #confirm, .pop-btn2, input[type='button'], input[type='submit'], [role='button']",
+    );
     const actionCount = await actions.count().catch(() => 0);
     for (let index = 0; index < actionCount; index += 1) {
       const candidate = actions.nth(index);
@@ -1540,6 +1545,17 @@ async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?
       if (/^(?:confirm|verify|ok|확인|인증)$/iu.test(`${textLabel} ${valueLabel}`.trim()) && await candidate.isVisible().catch(() => false)) {
         verify = candidate;
         break;
+      }
+    }
+    if (!verify) {
+      const exactTextActions = captchaDialog.getByText(/^(?:confirm|verify|ok|확인|인증)$/iu);
+      const exactTextActionCount = await exactTextActions.count().catch(() => 0);
+      for (let index = 0; index < exactTextActionCount; index += 1) {
+        const candidate = exactTextActions.nth(index);
+        if (await candidate.isVisible().catch(() => false)) {
+          verify = candidate;
+          break;
+        }
       }
     }
   }
