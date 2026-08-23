@@ -181,6 +181,16 @@ test("Korea review confirmation matches the current official popup markup", () =
   assert.match(runnerSource, /kr_eac_review_confirmation_not_closed/);
 });
 
+test("Korea verification-code CAPTCHA is not misclassified as a review prompt", () => {
+  assert.match(runnerSource, /verification\\s\+code\|verification code for security/);
+  assert.match(runnerSource, /captchaDialog\.locator\("img, canvas"\)/);
+  assert.match(runnerSource, /bounds\.width >= 60 && bounds\.height >= 20/);
+  assert.match(runnerSource, /captchaDialog\.locator\("input:not\(\[type='hidden'\]\)/);
+  assert.match(runnerSource, /\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$/);
+  assert.match(runnerSource, /check that all the information\|information you entered is correct/);
+  assert.doesNotMatch(runnerSource, /if \(!\/correct\|confirm/);
+});
+
 test("Korea address search observes results without waiting on a phantom navigation", () => {
   assert.match(runnerSource, /search\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
   assert.match(runnerSource, /zipSearch\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
