@@ -749,6 +749,51 @@ test("inbound-email ACL batch removes anonymous access and client mutations", ()
   assert.match(postflightSql, /pg_catalog\.pg_get_userbyid/u);
 });
 
+test("audit-log RLS init-plan batch pins only the two single-path ownership policies", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "audit-log-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "90db48360245d758adc89daa1983d9b70948f220");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824012700"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824020344"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824020344",
+    name: "audit_log_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824020344_audit_log_rls_initplan.sql",
+    sha256: "5b79d4d4e0eb0e6c341c7f6aa21631093f1a5688b9a7677212df169eb9e7153d",
+  });
+
+  const expectedRelations = [
+    ["public.secret_access_log", 1],
+    ["public.pii_access_log", 1],
+  ];
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    const policies = assertions.filter(({ kind }) => kind === "policy_contract");
+    assert.equal(policies.length, 2);
+    assert.ok(policies.every(({ command, roles, permissive, check_sha256: checkHash }) =>
+      command === "SELECT" && permissive === true && checkHash === null &&
+      JSON.stringify(roles) === JSON.stringify(["PUBLIC"])));
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      expectedRelations,
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 2);
+    assert.ok(assertions.every(({ identity }) =>
+      identity !== "public.account_action_log" && identity !== "public.consent_event"));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.doesNotMatch(preflightSql, /91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+  assert.doesNotMatch(postflightSql, /71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],

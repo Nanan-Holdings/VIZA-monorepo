@@ -1101,6 +1101,43 @@
           { "id": "post_inbound_email_purge_acl", "kind": "function_execute_acl", "identity": "public.purge_old_inbound_email(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] }
         ]
       }
+    },
+    {
+      "batch_id": "audit-log-rls-initplan-v1",
+      "source_ref": "90db48360245d758adc89daa1983d9b70948f220",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260824020344",
+          "name": "audit_log_rls_initplan",
+          "path": "viza-fe/internal-website/supabase/migrations/20260824020344_audit_log_rls_initplan.sql",
+          "sha256": "5b79d4d4e0eb0e6c341c7f6aa21631093f1a5688b9a7677212df169eb9e7153d"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": ["20260824012700"],
+        "absent_migration_versions": ["20260824020344"],
+        "catalog_assertions": [
+          { "id": "pre_secret_access_log_rls", "kind": "rls_enabled", "identity": "public.secret_access_log" },
+          { "id": "pre_pii_access_log_rls", "kind": "rls_enabled", "identity": "public.pii_access_log" },
+          { "id": "pre_secret_access_log_policy_count", "kind": "policy_count", "identity": "public.secret_access_log", "count": 1 },
+          { "id": "pre_pii_access_log_policy_count", "kind": "policy_count", "identity": "public.pii_access_log", "count": 1 },
+          { "id": "pre_secret_access_log_select_own", "kind": "policy_contract", "identity": "public.secret_access_log", "policy": "secret_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null },
+          { "id": "pre_pii_access_log_select_own", "kind": "policy_contract", "identity": "public.pii_access_log", "policy": "pii_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad", "check_sha256": null }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": ["20260824020344"],
+        "catalog_assertions": [
+          { "id": "audit_log_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824020344", "name": "audit_log_rls_initplan", "sha256": "5b79d4d4e0eb0e6c341c7f6aa21631093f1a5688b9a7677212df169eb9e7153d" },
+          { "id": "post_secret_access_log_rls", "kind": "rls_enabled", "identity": "public.secret_access_log" },
+          { "id": "post_pii_access_log_rls", "kind": "rls_enabled", "identity": "public.pii_access_log" },
+          { "id": "post_secret_access_log_policy_count", "kind": "policy_count", "identity": "public.secret_access_log", "count": 1 },
+          { "id": "post_pii_access_log_policy_count", "kind": "policy_count", "identity": "public.pii_access_log", "count": 1 },
+          { "id": "post_secret_access_log_select_own", "kind": "policy_contract", "identity": "public.secret_access_log", "policy": "secret_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null },
+          { "id": "post_pii_access_log_select_own", "kind": "policy_contract", "identity": "public.pii_access_log", "policy": "pii_access_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86", "check_sha256": null }
+        ]
+      }
     }
   ]
 }
