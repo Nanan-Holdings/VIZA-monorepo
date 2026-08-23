@@ -255,7 +255,7 @@ export const ARCHITECTURE_AUDIT_SQL = `
 SELECT jsonb_build_object(
   'schema_version', 1,
   'source', 'supabase-management-api-read-only',
-  'sanitization_schema', 'viza-architecture-audit-metadata-only-v1',
+  'sanitization_schema', 'viza-architecture-audit-metadata-only-v2',
   'database', current_database(),
   'database_user', current_user,
   'environment_marker', current_setting('app.viza_environment', true),
@@ -656,6 +656,77 @@ SELECT jsonb_build_object(
     )
     FROM pg_catalog.pg_stat_user_tables stats
     WHERE stats.schemaname = 'public'
+  ),
+  'migration_reconciliation_evidence', jsonb_build_object(
+    'jp_vjw_official_accommodation_fields', jsonb_build_object(
+      'ledger', (
+        SELECT COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'version', migration.version,
+              'name', migration.name,
+              'statement_count', pg_catalog.cardinality(migration.statements),
+              'statements_sha256', CASE
+                WHEN migration.statements IS NULL THEN NULL
+                ELSE pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+                  pg_catalog.array_to_string(migration.statements, E'\\n'),
+                  'UTF8'
+                )), 'hex')
+              END
+            ) ORDER BY migration.version
+          ),
+          '[]'::jsonb
+        )
+        FROM supabase_migrations.schema_migrations migration
+        WHERE migration.version IN ('20260823193517', '20260824033000')
+      ),
+      'field_count', (
+        SELECT COUNT(*)::INTEGER
+        FROM public.visa_form_fields field
+        WHERE field.visa_type = 'JP_VISIT_JAPAN_WEB'
+          AND field.field_name IN (
+            'accommodation_postal_code',
+            'accommodation_prefecture',
+            'accommodation_city',
+            'accommodation_address',
+            'accommodation_name',
+            'accommodation_phone'
+          )
+      ),
+      'field_contract_sha256', (
+        SELECT pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'field_name', field.field_name,
+                'label', field.label,
+                'field_type', field.field_type,
+                'required', field.required,
+                'step_number', field.step_number,
+                'step_name', field.step_name,
+                'display_order', field.display_order,
+                'placeholder', field.placeholder,
+                'validation_rules', field.validation_rules,
+                'options', field.options,
+                'conditional_logic', field.conditional_logic
+              ) ORDER BY field.field_name
+            )::text,
+            '[]'
+          ),
+          'UTF8'
+        )), 'hex')
+        FROM public.visa_form_fields field
+        WHERE field.visa_type = 'JP_VISIT_JAPAN_WEB'
+          AND field.field_name IN (
+            'accommodation_postal_code',
+            'accommodation_prefecture',
+            'accommodation_city',
+            'accommodation_address',
+            'accommodation_name',
+            'accommodation_phone'
+          )
+      )
+    )
   ),
   'pg_stat_statements_available',
     pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
@@ -2214,7 +2285,7 @@ export async function runArchitectureAudit({
       catalog_endpoint: "database/query/read-only",
     },
     project_ref: projectRef,
-    sanitization_schema: "viza-architecture-audit-metadata-only-v1",
+    sanitization_schema: "viza-architecture-audit-metadata-only-v2",
     advisors: { security, performance },
     catalog,
     pg_stat_statements: statementMetrics,
