@@ -8,6 +8,7 @@ export const DRIZZLE_MIGRATION_ROOT = "viza-be/agent-backend/drizzle";
 export const SUPABASE_MIGRATION_ROOT = "viza-fe/internal-website/supabase/migrations";
 export const DEFAULT_GOVERNANCE_MANIFEST =
   "scripts/database-architecture/migration-governance.json";
+const VERIFIED_PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 
 function normalizePath(value) {
   return String(value).replaceAll("\\", "/").replace(/^\.\//u, "");
@@ -379,10 +380,18 @@ export function validateMigrationGovernance({
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(
         String(entry.verified_applied_at ?? ""),
       ) &&
-      /^[a-z0-9]{20}$/u.test(String(entry.project_ref ?? "")) &&
+      entry.project_ref === VERIFIED_PRODUCTION_PROJECT_REF &&
       Array.isArray(absentVersions) && absentVersions.length > 0 &&
       absentVersions.every((version) => /^\d{14}$/u.test(version)) &&
       Number.isSafeInteger(entry.evidence_run_id) && entry.evidence_run_id > 0 &&
+      entry.production_ledger_statement_count === 1 &&
+      /^[a-f0-9]{64}$/u.test(String(entry.production_ledger_statements_sha256)) &&
+      entry.production_ledger_normalization ===
+        "single_statement_lf_without_final_newline" &&
+      entry.production_state_contract?.kind ===
+        "jp_vjw_official_accommodation_fields_v1" &&
+      entry.production_state_contract?.row_count === 6 &&
+      /^[a-f0-9]{64}$/u.test(String(entry.production_state_contract?.sha256 ?? "")) &&
       fromMatch && toMatch && fromMatch[2] === toMatch[2] &&
       entry.production_ledger_version_present === toMatch[1] &&
       entry.production_ledger_name === toMatch[2] &&
@@ -400,6 +409,15 @@ export function validateMigrationGovernance({
       throw new Error(`Applied migration rename paths do not match the current tree: ${entry.from}`);
     }
     assertPinnedEntry({ path: entry.to, sha256: entry.sha256 }, currentFileSet, readFile, hash);
+    const normalizedStatement = Buffer.from(readFile(entry.to)).toString("utf8")
+      .replaceAll("\r\n", "\n")
+      .replace(/\n$/u, "");
+    if (hash(Buffer.from(normalizedStatement, "utf8")) !==
+        entry.production_ledger_statements_sha256) {
+      throw new Error(
+        `Applied migration ledger statement hash does not match the governed file: ${entry.to}`,
+      );
+    }
     approvedRenamesByFrom.set(entry.from, entry);
     approvedRenamesByTo.set(entry.to, entry);
 

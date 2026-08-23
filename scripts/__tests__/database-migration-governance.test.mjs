@@ -175,6 +175,14 @@ test("accepts an exact Supabase filename reconciliation for a verified applied l
     production_ledger_name: "database_access_baseline",
     production_ledger_versions_absent: ["20260822000000"],
     evidence_run_id: 32663790378,
+    production_ledger_statement_count: 1,
+    production_ledger_statements_sha256: sameHash,
+    production_ledger_normalization: "single_statement_lf_without_final_newline",
+    production_state_contract: {
+      kind: "jp_vjw_official_accommodation_fields_v1",
+      row_count: 6,
+      sha256: "b".repeat(64),
+    },
   });
 
   const result = validateMigrationGovernance(input);
@@ -205,8 +213,24 @@ test("rejects applied-ledger renames without exact version, name, hash, and Git 
     production_ledger_name: "database_access_baseline",
     production_ledger_versions_absent: ["20260822000000"],
     evidence_run_id: 32663790378,
+    production_ledger_statement_count: 1,
+    production_ledger_statements_sha256: sameHash,
+    production_ledger_normalization: "single_statement_lf_without_final_newline",
+    production_state_contract: {
+      kind: "jp_vjw_official_accommodation_fields_v1",
+      row_count: 6,
+      sha256: "b".repeat(64),
+    },
   });
 
+  assert.throws(
+    () => validateMigrationGovernance(input),
+    /Applied migration rename requires exact production-ledger evidence/u,
+  );
+
+  input.manifest.applied_migration_renames[0].production_ledger_version_present =
+    "20260821125959";
+  input.manifest.applied_migration_renames[0].project_ref = "aaaaaaaaaaaaaaaaaaaa";
   assert.throws(
     () => validateMigrationGovernance(input),
     /Applied migration rename requires exact production-ledger evidence/u,
