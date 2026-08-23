@@ -255,32 +255,41 @@ async function selectNative(
   if (!(await select.count())) {
     await fail(context, "jp_vjw_select_missing", `Visit Japan Web select ${name} was not found.`);
   }
-  // VJW renders the select before its reference-data request has populated
-  // the options. Resolving against the initial placeholder would make a valid
-  // nationality or occupation look unsupported.
-  await select.locator("option").nth(1)
-    .waitFor({ state: "attached", timeout: ROUTE_TIMEOUT_MS })
-    .catch(async () => {
-      await fail(context, "jp_vjw_select_options_missing", `Visit Japan Web select ${name} did not load its options.`);
-    });
-  const candidates = [wanted, ...aliases].map(normalizeOptionText).filter(Boolean);
-  const optionValue = await select.evaluate((element, normalizedCandidates) => {
-    const htmlSelect = element as HTMLSelectElement;
-    const options = Array.from(htmlSelect.options);
-    const normalize = (value: string) => value.normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, "").toUpperCase();
-    const match = options.find((option) => {
-      const label = normalize(option.textContent ?? "");
-      const value = normalize(option.value);
-      return normalizedCandidates.some((candidate) =>
-        candidate === value || candidate === label || label.includes(candidate) || candidate.includes(label),
-      );
-    });
-    return match?.value ?? null;
-  }, candidates);
+  let optionValue: string | null = null;
+  for (let attempt = 0; attempt < 40 && optionValue === null; attempt += 1) {
+    const options = await select.locator("option").evaluateAll((elements) =>
+      elements.map((element) => ({
+        label: element.textContent ?? "",
+        value: (element as HTMLOptionElement).value,
+      })),
+    );
+    optionValue = resolveJpVjwNativeOptionValue(options, [wanted, ...aliases]);
+    if (optionValue === null) await context.page.waitForTimeout(250);
+  }
   if (!optionValue) {
     await fail(context, "jp_vjw_option_not_found", `Visit Japan Web option for ${name} could not be resolved.`);
   }
   await select.selectOption(optionValue);
+}
+
+export function resolveJpVjwNativeOptionValue(
+  options: Array<{ label: string; value: string }>,
+  candidates: string[],
+): string | null {
+  const normalizedCandidates = candidates.map(normalizeOptionText).filter(Boolean);
+  const match = options.find((option) => {
+    const label = normalizeOptionText(option.label);
+    const value = normalizeOptionText(option.value);
+    // The VJW placeholder is rendered as "-" with an empty value. Without
+    // this guard candidate.includes("") would make it shadow every real item.
+    if (!label && !value) return false;
+    return normalizedCandidates.some((candidate) =>
+      candidate === value || candidate === label ||
+      (label.length > 0 && label.includes(candidate)) ||
+      (label.length > 0 && candidate.includes(label)),
+    );
+  });
+  return match?.value ?? null;
 }
 
 async function setRadio(
