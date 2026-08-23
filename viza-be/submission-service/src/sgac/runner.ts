@@ -2,7 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { pipeline } from "node:stream/promises";
+import { type Browser, type BrowserContext, type Locator, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import type { SgacLongTermPassPortalPayload, SgacPortalPayload } from "./normalize";
 import {
@@ -113,36 +114,90 @@ async function captureConfirmationPdf(
   fs.mkdirSync(artifactDir, { recursive: true });
   await closeFeedbackPopupIfPresent(page, logs);
 
-  const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
-  const downloadLink = page.getByRole("link", { name: /Download PDF/i }).last();
-  const downloadControl = await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)
-    ? downloadButton
-    : downloadLink;
-  if (await downloadControl.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    try {
-      const [download] = await Promise.all([
-        page.waitForEvent("download", { timeout: 20_000 }),
-        downloadControl.click({ timeout: 10_000 }),
-      ]);
-      const filename = download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`;
-      const filePath = path.join(artifactDir, filename.toLowerCase().endsWith(".pdf")
-        ? filename
-        : `sgac-confirmation-official-${Date.now()}.pdf`);
-      await download.saveAs(filePath);
-      if (!looksLikeNonEmptyPdf(filePath)) {
-        logs.push(`sgac_confirmation_pdf_download_rejected path=${filePath}`);
-        return null;
-      }
-      logs.push("sgac_confirmation_pdf_downloaded official=true");
-      return filePath;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logs.push(`sgac_confirmation_pdf_download_failed ${message}`);
+  let officialPdfResponse: Promise<Buffer | null> | null = null;
+  const responseListener = (response: Response): void => {
+    if (officialPdfResponse) return;
+    const headers = response.headers();
+    const contentType = headers["content-type"] ?? "";
+    const contentDisposition = headers["content-disposition"] ?? "";
+    if (
+      /application\/pdf/i.test(contentType) ||
+      /\.pdf(?:$|[?&#])/i.test(response.url()) ||
+      /filename[^;]*\.pdf/i.test(contentDisposition)
+    ) {
+      officialPdfResponse = response.body().catch(() => null);
     }
-  }
+  };
+  page.on("response", responseListener);
 
-  logs.push("sgac_confirmation_pdf_not_captured official_download_unavailable");
-  return null;
+  try {
+    const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
+    const downloadLink = page.getByRole("link", { name: /Download PDF/i }).last();
+    const downloadControl = await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)
+      ? downloadButton
+      : downloadLink;
+    if (await downloadControl.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      try {
+        const [download] = await Promise.all([
+          page.waitForEvent("download", { timeout: 20_000 }),
+          downloadControl.click({ timeout: 10_000 }),
+        ]);
+        const suggested = path.basename(
+          download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`,
+        );
+        const filename = suggested.toLowerCase().endsWith(".pdf")
+          ? suggested
+          : `sgac-confirmation-official-${Date.now()}.pdf`;
+        const filePath = path.join(artifactDir, filename);
+        try {
+          const stream = await download.createReadStream();
+          if (!stream) throw new Error("official PDF download stream was unavailable");
+          await pipeline(stream, fs.createWriteStream(filePath));
+        } catch (streamError) {
+          logs.push(`sgac_confirmation_pdf_stream_failed ${streamError instanceof Error ? streamError.message : String(streamError)}`);
+          await download.saveAs(filePath);
+        }
+        if (looksLikeNonEmptyPdf(filePath)) {
+          logs.push("sgac_confirmation_pdf_downloaded official=true");
+          return filePath;
+        }
+        logs.push("sgac_confirmation_pdf_download_rejected invalid_pdf");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logs.push(`sgac_confirmation_pdf_download_failed ${message}`);
+      }
+    }
+
+    const responseBytes = officialPdfResponse ? await officialPdfResponse : null;
+    if (responseBytes) {
+      const responsePath = path.join(artifactDir, `sgac-confirmation-official-${Date.now()}.pdf`);
+      fs.writeFileSync(responsePath, responseBytes);
+      if (looksLikeNonEmptyPdf(responsePath)) {
+        logs.push("sgac_confirmation_pdf_downloaded official=true source=response");
+        return responsePath;
+      }
+      fs.rmSync(responsePath, { force: true });
+      logs.push("sgac_confirmation_pdf_response_rejected invalid_pdf");
+    }
+
+    const renderedPath = path.join(artifactDir, `sgac-confirmation-page-${Date.now()}.pdf`);
+    try {
+      await page.pdf({ path: renderedPath, format: "A4", printBackground: true });
+      if (looksLikeNonEmptyPdf(renderedPath)) {
+        logs.push("sgac_confirmation_pdf_rendered official_page=true");
+        return renderedPath;
+      }
+      fs.rmSync(renderedPath, { force: true });
+      logs.push("sgac_confirmation_page_pdf_rejected invalid_pdf");
+    } catch (error) {
+      logs.push(`sgac_confirmation_page_pdf_failed ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    logs.push("sgac_confirmation_pdf_not_captured official_download_unavailable");
+    return null;
+  } finally {
+    page.off("response", responseListener);
+  }
 }
 
 async function visibleBodySummary(page: Page, limit = 1600): Promise<string> {
