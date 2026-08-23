@@ -1493,7 +1493,8 @@ function validateCatalogAssertion(assertion) {
       if (!APPROVED_ROLES.has(grant.role) || !Array.isArray(grant.privileges) ||
           grant.privileges.length === 0 ||
           grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege)) ||
-          (grant.exact !== undefined && typeof grant.exact !== "boolean")) {
+          (grant.exact !== undefined && typeof grant.exact !== "boolean") ||
+          (grant.exact_direct !== undefined && typeof grant.exact_direct !== "boolean")) {
         throw new Error(`Approved batch assertion ${assertion.id} has invalid required ACL`);
       }
     }
@@ -2453,6 +2454,46 @@ function approvedRelationAclExpression(assertion) {
       ? objectPrivileges.filter((privilege) => !grant.privileges.includes(privilege)).map((privilege) =>
         `NOT COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
         `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`)
+      : []),
+    ...(grant.exact_direct
+      ? [
+          `NOT EXISTS (\n` +
+          `      SELECT 1\n` +
+          `      FROM pg_catalog.pg_class exact_acl_relation\n` +
+          `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+          `        COALESCE(exact_acl_relation.relacl, ` +
+          `pg_catalog.acldefault(${sqlLiteral(assertion.relation_kind === "sequence" ? "S" : "r")}, ` +
+          `exact_acl_relation.relowner))\n` +
+          `      ) exact_acl_entry\n` +
+          `      WHERE exact_acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+          `        AND exact_acl_entry.grantee = ${grant.role === "PUBLIC"
+            ? "0::oid"
+            : `(SELECT exact_acl_role.oid FROM pg_catalog.pg_roles exact_acl_role ` +
+              `WHERE exact_acl_role.rolname = ${sqlLiteral(grant.role)})`}\n` +
+          `        AND exact_acl_entry.privilege_type NOT IN (` +
+          `${grant.privileges.map(sqlLiteral).join(", ")})\n` +
+          `    )`,
+          `NOT EXISTS (\n` +
+          `      SELECT 1\n` +
+          `      FROM (VALUES ${grant.privileges.map((privilege) =>
+            `(${sqlLiteral(privilege)})`).join(", ")}) expected_acl(privilege_type)\n` +
+          `      WHERE NOT EXISTS (\n` +
+          `        SELECT 1\n` +
+          `        FROM pg_catalog.pg_class exact_acl_relation\n` +
+          `        CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+          `          COALESCE(exact_acl_relation.relacl, ` +
+          `pg_catalog.acldefault(${sqlLiteral(assertion.relation_kind === "sequence" ? "S" : "r")}, ` +
+          `exact_acl_relation.relowner))\n` +
+          `        ) exact_acl_entry\n` +
+          `        WHERE exact_acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+          `          AND exact_acl_entry.grantee = ${grant.role === "PUBLIC"
+            ? "0::oid"
+            : `(SELECT exact_acl_role.oid FROM pg_catalog.pg_roles exact_acl_role ` +
+              `WHERE exact_acl_role.rolname = ${sqlLiteral(grant.role)})`}\n` +
+          `          AND exact_acl_entry.privilege_type = expected_acl.privilege_type\n` +
+          `      )\n` +
+          `    )`,
+        ]
       : []),
   ]);
   const forbidden = assertion.forbidden_roles.map((role) => {
