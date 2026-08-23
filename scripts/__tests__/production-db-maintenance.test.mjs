@@ -494,6 +494,46 @@ test("function execution batch pins the reviewed source, namespace, and ACL cont
   assert.match(postflightSql, /configured_function\.prosecdef IS FALSE/u);
 });
 
+test("core RLS init-plan batch pins every policy before and after the rewrite", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "core-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "4819df5080775c4cb3f8115949c66165d984984e");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823134811"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823140456"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823140456",
+    name: "core_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823140456_core_rls_initplan.sql",
+    sha256: "e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 11);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count])
+        .sort(),
+      [
+        ["public.applicant_profiles", 3],
+        ["public.application_documents", 4],
+        ["public.applications", 3],
+        ["public.submission_queue", 1],
+      ],
+    );
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f/u);
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.match(preflightSql, /ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00/u);
+  assert.match(postflightSql, /395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+  assert.match(postflightSql, /bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
@@ -531,6 +571,12 @@ test("approved batch state SQL supports only structured exact catalog guards", (
           permissive: true,
           using_sha256: "7".repeat(64),
           check_sha256: null,
+        },
+        {
+          id: "users_policy_count",
+          kind: "policy_count",
+          identity: "public.users",
+          count: 1,
         },
         {
           id: "users_acl_exact",
@@ -579,6 +625,7 @@ test("approved batch state SQL supports only structured exact catalog guards", (
   assert.match(sql, /to_regclass\('public\.application_translations'\) IS NULL/u);
   assert.match(sql, /Users can view all users/u);
   assert.match(sql, /users_select_own/u);
+  assert.match(sql, /pg_catalog\.count\(\*\)[\s\S]*?\) = 1/u);
   assert.match(sql, /pg_catalog\.sha256/u);
   assert.match(sql, /has_table_privilege\('authenticated',[\s\S]*?'INSERT'\), FALSE/u);
   assert.match(sql, /information_schema\.columns/u);
