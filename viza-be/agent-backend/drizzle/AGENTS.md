@@ -336,6 +336,12 @@ The current internal automation migrations are:
   Applicant writes may only use clear `uploaded`/`missing` owner states, and
   legacy `validated`, `accepted`, `approved`, `verified`, or `ready` rows are
   reset for staff re-review without resurrecting rejected or deleted files.
+- `0165_runner_needs_human_settlement.sql`: extends the exact live-owner
+  failure RPC so applicant/operator checkpoints settle as terminal
+  `needs_human` without consuming a retry or weakening the worker lease fence.
+- `0166_kr_e_arrival_transport_visibility.sql`: repairs the installed Korea
+  e-Arrival Card flight/ship visibility expressions to use the bare official
+  A/S option codes understood by the DB-driven form evaluator.
 
 ## Guardrails
 

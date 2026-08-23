@@ -550,6 +550,14 @@ Smoke URLs:
   mirrors the backend UAE transaction-783 document checklist reconciliation;
   keep it byte-identical to
   `viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql`.
+- `supabase/migrations/20260823134500_runner_needs_human_settlement.sql`:
+  mirrors the backend exact-owner runner settlement repair; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0165_runner_needs_human_settlement.sql`.
+- `supabase/migrations/20260823134600_kr_e_arrival_transport_visibility.sql`:
+  mirrors the backend Korea transport-field visibility repair; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0166_kr_e_arrival_transport_visibility.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
