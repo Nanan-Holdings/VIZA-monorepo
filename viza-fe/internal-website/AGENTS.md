@@ -325,7 +325,7 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   eTA document requirements remain unchanged.
 - Japan VJW's current official accommodation controls and phone validation are
   applied by
-  `supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql`;
+  `supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql`;
   keep it byte-identical to backend migration
   `viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql`.
 - Application-scoped unattended-runner aliases are created by
