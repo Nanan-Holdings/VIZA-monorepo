@@ -581,6 +581,10 @@ Smoke URLs:
   mirrors the backend notification/signature ownership-policy init-plan
   optimization; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql`.
+- `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
+  mirrors the backend shared-pool result-status expansion; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0175_expand_runner_result_statuses.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
