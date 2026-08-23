@@ -372,14 +372,22 @@ async function chooseAutocomplete(
   label: string,
 ): Promise<void> {
   await input.fill(wanted);
-  const options = context.page.locator("mat-option, [role='option']").filter({ visible: true });
+  const options = context.page.locator([
+    "mat-option",
+    "[role='option']",
+    "ngb-typeahead-window .dropdown-item",
+    ".autocomplete-items > *",
+    ".autocomplete-list > *",
+    "ul[role='listbox'] li",
+    ".cdk-overlay-container li",
+  ].join(", ")).filter({ visible: true });
   await options.first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   const wantedNormalized = normalizeOptionText(wanted);
   const count = await options.count();
   for (let index = 0; index < count; index += 1) {
     const option = options.nth(index);
     const text = normalizeOptionText(await option.innerText().catch(() => ""));
-    if (text.includes(wantedNormalized) || wantedNormalized.includes(text)) {
+    if (text && (text.includes(wantedNormalized) || wantedNormalized.includes(text))) {
       await option.click();
       return;
     }
@@ -388,6 +396,19 @@ async function chooseAutocomplete(
     await options.first().click();
     return;
   }
+  // The current VJW autocomplete exposes its candidates to keyboard users
+  // even when the popup no longer carries role=option. Select the official
+  // highlighted candidate, then require the completed form to accept it.
+  await input.press("ArrowDown");
+  await input.press("Enter");
+  await context.page.waitForTimeout(250);
+  const selectedValue = normalizeOptionText(await input.inputValue().catch(() => ""));
+  const next = await primaryButton(context.page);
+  if (
+    selectedValue &&
+    (selectedValue.includes(wantedNormalized) || wantedNormalized.includes(selectedValue)) &&
+    !(await next.isDisabled().catch(() => true))
+  ) return;
   await fail(context, "jp_vjw_autocomplete_option_missing", `Visit Japan Web ${label} option could not be resolved.`);
 }
 
