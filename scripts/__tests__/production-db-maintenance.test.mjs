@@ -871,6 +871,7 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
     assert.equal(acl.required.length, 4);
     assert.ok(acl.required.every(({ privileges, exact }) =>
       exact === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+    assert.ok(acl.required.every(({ exact_direct: exactDirect }) => exactDirect === true));
   }
 
   const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");

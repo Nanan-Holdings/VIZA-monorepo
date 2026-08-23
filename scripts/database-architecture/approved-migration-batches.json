@@ -1201,10 +1201,10 @@
           { "id": "pre_consent_event_rls", "kind": "rls_enabled", "identity": "public.consent_event" },
           { "id": "pre_consent_event_policy_count", "kind": "policy_count", "identity": "public.consent_event", "count": 1 },
           { "id": "pre_consent_event_acl", "kind": "relation_acl", "identity": "public.consent_event", "relation_kind": "table", "required": [
-            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true }
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
           ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
           { "id": "pre_consent_event_select_own", "kind": "policy_contract", "identity": "public.consent_event", "policy": "consent_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8", "check_sha256": null }
         ]
@@ -1216,10 +1216,10 @@
           { "id": "post_consent_event_rls", "kind": "rls_enabled", "identity": "public.consent_event" },
           { "id": "post_consent_event_policy_count", "kind": "policy_count", "identity": "public.consent_event", "count": 1 },
           { "id": "post_consent_event_acl", "kind": "relation_acl", "identity": "public.consent_event", "relation_kind": "table", "required": [
-            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true },
-            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true }
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"], "exact": true, "exact_direct": true }
           ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
           { "id": "post_consent_event_select_own", "kind": "policy_contract", "identity": "public.consent_event", "policy": "consent_event_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975", "check_sha256": null }
         ]
