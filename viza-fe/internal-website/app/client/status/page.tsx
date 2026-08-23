@@ -2,24 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, FileText } from "@phosphor-icons/react/ssr";
 import { getLocale, getTranslations } from "next-intl/server";
-import { AddDestinationSection } from "./add-destination-section";
 import {
   ApplicationsList,
-  type ApplicationListItem,
-  type ApplicationListRecord,
-  type ApplicationListTone,
 } from "./applications-list";
 import {
   getClientStatusData,
   type ClientStatusData,
-  type ClientStatusState,
-  type StatusApplication,
 } from "./status-data";
 import {
-  getPopularVisaDestinationByPackage,
-  getVisaDestinationKey,
-} from "@/lib/visa-destinations";
-import { isOngoingApplicationState } from "@/lib/client/active-application-selection";
+  normalizeCountryParam,
+  toApplicationListItem,
+} from "./application-list-items";
+import { StatusGuide } from "./status-guide";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 
 type SearchParams = Promise<{
@@ -31,97 +25,9 @@ type SearchParams = Promise<{
 
 export const dynamic = "force-dynamic";
 
-const LIST_TONE: Record<ClientStatusState, ApplicationListTone> = {
-  not_started: "brand",
-  needs_payment: "alert",
-  needs_consent: "warn",
-  in_progress: "brand",
-  needs_documents: "warn",
-  packet_pending: "brand",
-  external_pending: "brand",
-  submitted: "brand",
-  needs_attention: "warn",
-  approved: "success",
-  rejected: "alert",
-};
-
 function getParam(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
-}
-
-function normalizeCountryParam(value: string | null): string | null {
-  if (!value) return null;
-  const decoded = decodeURIComponent(value).trim().toLowerCase();
-  if (!decoded) return null;
-  const aliases: Record<string, string> = {
-    malaysia: "马来西亚",
-    my: "马来西亚",
-    马来西亚: "马来西亚",
-    thailand: "泰国",
-    th: "泰国",
-    泰国: "泰国",
-    singapore: "新加坡",
-    sg: "新加坡",
-    新加坡: "新加坡",
-  };
-  return aliases[decoded] ?? decoded;
-}
-
-function statusLabel(
-  state: ClientStatusState,
-  t: Awaited<ReturnType<typeof getTranslations>>
-): string {
-  return t(`states.${state}`);
-}
-
-function toApplicationListItem(
-  application: StatusApplication,
-  locale: string,
-  t: Awaited<ReturnType<typeof getTranslations>>
-): ApplicationListItem {
-  const isZh = locale.startsWith("zh");
-  const catalogueDestination = getPopularVisaDestinationByPackage(
-    application.country,
-    application.visaType
-  );
-  const records: ApplicationListRecord[] = application.applicationRecords.map(
-    (record) => ({
-      selectionKey: record.id,
-      applicationId: record.applicationId,
-      packageId: record.packageId,
-      visaLabel: isZh ? record.visaTypeLabelZh : record.visaTypeLabel,
-      stateLabel: statusLabel(record.state, t),
-      tone: LIST_TONE[record.state],
-      progressPercent: record.progressPercent,
-      country: record.country,
-      visaType: record.visaType,
-      continueHref: record.continueHref,
-      detailHref: record.detailHref,
-      ongoing: isOngoingApplicationState(record.state),
-    })
-  );
-  const primaryRecord =
-    records.find((record) => record.ongoing) ?? records[0] ?? null;
-
-  return {
-    key: application.key,
-    countryKey: application.countryKey,
-    flag: application.countryFlag,
-    countryLabel: isZh ? application.countryNameZh : application.countryName,
-    visaLabel:
-      primaryRecord?.visaLabel ??
-      (isZh ? application.visaTypeLabelZh : application.visaTypeLabel),
-    stateLabel: primaryRecord?.stateLabel ?? statusLabel(application.state, t),
-    tone: primaryRecord?.tone ?? LIST_TONE[application.state],
-    progressPercent:
-      primaryRecord?.progressPercent ?? application.progressPercent,
-    continueHref: primaryRecord?.continueHref ?? "/client/application",
-    country: application.country,
-    visaType: application.visaType,
-    destinationId: catalogueDestination?.id ?? null,
-    records,
-  };
 }
 
 function EmptyState({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
@@ -137,7 +43,7 @@ function EmptyState({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
         {t("empty.description")}
       </p>
       <Link
-        href="#add-destination"
+        href="/client/application"
         className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-2 text-[14px] font-semibold text-white transition hover:bg-brand-600"
       >
         {t("empty.cta")}
@@ -196,13 +102,7 @@ function ApplicationsIndex({
         )}
       </section>
 
-      <div id="add-destination">
-        <AddDestinationSection
-          startedKeys={items.map((item) =>
-            getVisaDestinationKey(item.country, item.visaType)
-          )}
-        />
-      </div>
+      <StatusGuide t={t} className="mt-8" />
     </div>
   );
 }

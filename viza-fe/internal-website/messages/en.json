@@ -8,7 +8,7 @@
   "nav": {
     "home": "Home",
     "application": "Application",
-    "status": "Status",
+    "status": "My applications",
     "chat": "Concierge",
     "documents": "Documents",
     "settings": "Settings",
@@ -53,6 +53,28 @@
     "invalidatedTitle": "Session No Longer Active",
     "invalidatedBody": "Another applicant view was opened in a different tab. This session has stopped displaying for security.",
     "invalidatedHint": "Please close this tab and use the new applicant view tab."
+  },
+  "applicationCenter": {
+    "back": "Back",
+    "title": "Application center",
+    "subtitle": "Manage saved applications, check status, and start a new application from one place.",
+    "sectionNavLabel": "Application center sections",
+    "sectionNav": {
+      "myApplications": "My applications",
+      "statusGuide": "Status guide",
+      "startNew": "Start new application"
+    },
+    "primaryCta": {
+      "continue": "Continue latest application",
+      "view": "View latest application",
+      "start": "Start new application"
+    },
+    "myApplicationsTitle": "My applications",
+    "myApplicationsDescription": "Open any saved application. Status shows the current stage; completion shows how much is ready.",
+    "emptyApplications": {
+      "title": "No applications yet",
+      "description": "Start a new application from the catalogue below. Existing applications will appear here after they are created."
+    }
   },
   "home": {
     "welcomeBack": "Welcome back, {name}.",
@@ -1087,12 +1109,16 @@
       "selectApplication": "Choose application",
       "ongoingCount": "{count} ongoing applications",
       "applicationCount": "{count} application records",
+      "viewAllApplications": "View all {count}",
+      "collapseApplications": "Collapse",
+      "statusLabel": "Status",
+      "completionLabel": "Completion",
       "switching": "Switching",
       "switchError": "We could not switch to that application. Please try again.",
       "progressAriaLabel": "Application progress",
       "backToApplications": "All applications",
-      "addDestination": "Add a destination",
-      "addDestinationHint": "Schengen destinations share the Type C short-stay form",
+      "addDestination": "Start new application",
+      "addDestinationHint": "Choose a destination and product from the catalogue",
       "searchLabel": "Search destinations",
       "searchPlaceholder": "Search country or visa type",
       "allRegions": "All regions",
@@ -1102,6 +1128,7 @@
       "start": "Start",
       "starting": "Starting",
       "browse": "Browse",
+      "collapse": "Collapse",
       "comingSoon": "Coming soon",
       "selectError": "We could not open that destination. Please try again.",
       "governmentFeeNote": "Government visa fees are paid to the authority and billed separately; amounts vary by country."
@@ -1144,8 +1171,46 @@
     },
     "empty": {
       "title": "No active applications yet",
-      "description": "Choose a destination from Home to start a visa workflow. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",
-      "cta": "Choose destination"
+      "description": "Start from the Application center. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",
+      "cta": "Start an application"
+    },
+    "statusGuide": {
+      "title": "Status guide",
+      "description": "These labels describe what VIZA has actually recorded. An application is not treated as submitted until an official receipt, official reference, or official result evidence exists.",
+      "items": {
+        "draft": {
+          "title": "Draft",
+          "description": "The application exists, but required form answers or earlier setup steps are still incomplete."
+        },
+        "missingInfo": {
+          "title": "Missing information",
+          "description": "Required answers or documents are missing or need correction before VIZA can continue."
+        },
+        "review": {
+          "title": "Awaiting confirmation",
+          "description": "The application is ready for you or operations to review and confirm the next controlled step."
+        },
+        "queued": {
+          "title": "Queued",
+          "description": "VIZA has scheduled work, but official-site filing has not necessarily started."
+        },
+        "officialFilling": {
+          "title": "Official site filling",
+          "description": "Automation is filling or uploading on the official portal. This is still not submitted."
+        },
+        "userAction": {
+          "title": "Waiting for user action",
+          "description": "A code, CAPTCHA, payment, signature, or other user-controlled step is required before VIZA can continue."
+        },
+        "submitted": {
+          "title": "Submitted",
+          "description": "Shown only when VIZA has an official receipt, official reference, or official result evidence."
+        },
+        "recoverableFailed": {
+          "title": "Recoverable failure",
+          "description": "Something stopped safely. Review the requested fix or contact support before retrying."
+        }
+      }
     },
     "stats": {
       "applications": "Applications",
@@ -4094,7 +4159,7 @@
     },
     "rows": {
       "universalInfo": {
-        "title": "Universal profile",
+        "title": "Universal application profile",
         "description": "Edit reusable identity, passport, contact, and address details.",
         "badge": "Recommended"
       },

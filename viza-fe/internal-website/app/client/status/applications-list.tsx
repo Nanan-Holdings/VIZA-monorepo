@@ -7,8 +7,9 @@ import {
   ArrowRight,
   CaretDown as ChevronDown,
   CircleNotch as Loader2,
+  Microphone,
 } from "@phosphor-icons/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
@@ -40,6 +41,13 @@ export interface ApplicationListRecord {
   continueHref: string;
   detailHref: string;
   ongoing: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  submittedAt?: string | null;
+  secondaryAction?: {
+    href: string;
+    label: string;
+  } | null;
 }
 
 export interface ApplicationListItem {
@@ -89,6 +97,7 @@ const APPLICATION_ROW_CLASS =
   "grid w-full grid-cols-[36px_minmax(0,1fr)] items-center gap-x-4 gap-y-4 p-5 text-left lg:grid-cols-[44px_minmax(0,1fr)_220px_auto] lg:gap-6 lg:px-6";
 const APPLICATION_ROW_INTERACTIVE_CLASS =
   "transition-colors hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500";
+const MANAGE_VISIBLE_LIMIT = 5;
 
 function ApplicationRowContent({
   flag,
@@ -98,6 +107,7 @@ function ApplicationRowContent({
   tone,
   progressPercent,
   progressAriaLabel,
+  metadataLabel,
 }: {
   flag: string;
   countryLabel: string;
@@ -106,6 +116,7 @@ function ApplicationRowContent({
   tone: ApplicationListTone;
   progressPercent: number;
   progressAriaLabel: string;
+  metadataLabel?: string | null;
 }) {
   return (
     <>
@@ -117,6 +128,11 @@ function ApplicationRowContent({
         <p className="mt-1 truncate text-[14px] text-[#66758a]">
           {secondaryLabel}
         </p>
+        {metadataLabel ? (
+          <p className="mt-1 truncate text-[12px] text-[#8a94a6]">
+            {metadataLabel}
+          </p>
+        ) : null}
       </div>
       <div className="col-span-2 flex flex-col gap-2 lg:col-span-1">
         <div className="flex items-center gap-2 text-[13px] text-[#66758a]">
@@ -151,14 +167,88 @@ function recordSelection(record: ApplicationListRecord) {
   };
 }
 
+function formatRecordMetadata(record: ApplicationListRecord, locale: string): string | null {
+  const dateValue = record.updatedAt ?? record.submittedAt ?? record.createdAt;
+  const formattedDate = dateValue
+    ? new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }).format(new Date(dateValue))
+    : null;
+  const shortId = record.applicationId?.slice(0, 8) ?? record.packageId?.slice(0, 8) ?? null;
+  return [formattedDate, shortId ? `ID ${shortId}` : null].filter(Boolean).join(" · ") || null;
+}
+
+function recordTimestamp(record: ApplicationListRecord): number {
+  const value = record.updatedAt ?? record.submittedAt ?? record.createdAt;
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function ManageApplicationRowContent({
+  item,
+  record,
+  locale,
+  statusLabel,
+  completionLabel,
+}: {
+  item: ApplicationListItem;
+  record: ApplicationListRecord;
+  locale: string;
+  statusLabel: string;
+  completionLabel: string;
+}) {
+  return (
+    <>
+      <DestinationFlag flag={item.flag} size={30} />
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+          <p className="truncate font-heading text-[15px] font-medium text-[#26364a]">
+            {item.countryLabel}
+          </p>
+          <p className="truncate text-[13px] text-[#66758a]">
+            {record.visaLabel}
+          </p>
+        </div>
+        <p className="mt-1 truncate text-[12px] text-[#8a94a6]">
+          {formatRecordMetadata(record, locale)}
+        </p>
+      </div>
+      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-1 text-[12px] text-[#66758a] sm:grid-cols-2 lg:col-span-1">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", TONE_DOT[record.tone])}
+          />
+          <span className="shrink-0 text-[#8a94a6]">{statusLabel}</span>
+          <span className={cn("min-w-0 truncate font-medium", TONE_TEXT[record.tone])}>
+            {record.stateLabel}
+          </span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="shrink-0 text-[#8a94a6]">{completionLabel}</span>
+          <span className="font-medium tabular-nums text-[#26364a]">
+            {Math.round(record.progressPercent)}%
+          </span>
+        </span>
+      </div>
+    </>
+  );
+}
+
 export function ApplicationsList({
   items,
   initialExpandedCountry,
+  mode = "switch",
 }: {
   items: ApplicationListItem[];
   initialExpandedCountry?: string | null;
+  mode?: "switch" | "manage";
 }) {
   const t = useTranslations("clientStatus.index");
+  const locale = useLocale();
   const router = useRouter();
   const [currentApplicationId, setCurrentApplicationId] = useState<
     string | null
@@ -167,6 +257,7 @@ export function ApplicationsList({
   const [expandedCountry, setExpandedCountry] = useState<string | null>(
     initialExpandedCountry ?? null
   );
+  const [showAllManaged, setShowAllManaged] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -175,7 +266,9 @@ export function ApplicationsList({
   const progressItems = useMemo(
     () =>
       items.flatMap((item) => {
-        const records = item.records.filter(hasVisibleProgress);
+        const records = mode === "manage"
+          ? item.records
+          : item.records.filter(hasVisibleProgress);
         if (records.length === 0) return [];
 
         const primaryRecord =
@@ -192,7 +285,7 @@ export function ApplicationsList({
           },
         ];
       }),
-    [items]
+    [items, mode]
   );
 
   const ongoingRecords = useMemo(
@@ -204,6 +297,8 @@ export function ApplicationsList({
   );
 
   useEffect(() => {
+    if (mode !== "switch") return;
+
     const synchronizeSelection = () => {
       // Keep the status-page panels stable while the selected application is
       // persisted and Home is loading. The destination page reads the new
@@ -238,12 +333,17 @@ export function ApplicationsList({
         ACTIVE_APPLICATION_SELECTION_EVENT,
         synchronizeSelection
       );
-  }, [ongoingRecords]);
+  }, [mode, ongoingRecords]);
 
   function selectRecord(
     record: ApplicationListRecord,
     destinationId: string | null
   ) {
+    if (mode === "manage") {
+      router.push(record.continueHref || record.detailHref);
+      return;
+    }
+
     setSwitchError(null);
     setSwitchingId(record.selectionKey);
 
@@ -281,7 +381,7 @@ export function ApplicationsList({
       ) ?? null)
     : null;
   const selectableItems = progressItems.flatMap((item) => {
-    const records = currentRecord
+    const records = mode === "switch" && currentRecord
       ? item.records.filter(
           (record) => record.selectionKey !== currentRecord.selectionKey
         )
@@ -305,9 +405,102 @@ export function ApplicationsList({
 
   if (progressItems.length === 0) return null;
 
+  if (mode === "manage") {
+    const manageRecords = items
+      .flatMap((item) =>
+        item.records.map((record) => ({
+          item,
+          record,
+        }))
+      )
+      .sort((left, right) => {
+        const timestampDelta = recordTimestamp(right.record) - recordTimestamp(left.record);
+        if (timestampDelta !== 0) return timestampDelta;
+        return right.record.selectionKey.localeCompare(left.record.selectionKey);
+      });
+    const visibleManageRecords = showAllManaged
+      ? manageRecords
+      : manageRecords.slice(0, MANAGE_VISIBLE_LIMIT);
+
+    return (
+      <>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+            {t("yourApplications")}
+          </h2>
+          <p className="text-[14px] text-[#8a94a6]">
+            {t("destinationCount", { count: manageRecords.length })}
+          </p>
+        </div>
+
+        {manageRecords.length > 0 ? (
+          <ul className={APPLICATION_PANEL_CLASS}>
+            {visibleManageRecords.map(({ item, record }) => (
+              <li
+                key={`${record.selectionKey}:${record.applicationId ?? record.packageId ?? record.continueHref}`}
+                className="border-t border-[#efefef] first:border-t-0"
+              >
+                <div className="px-4 py-3 transition-colors hover:bg-[#f7f9fc] focus-within:bg-[#f7f9fc]">
+                  <button
+                    type="button"
+                    onClick={() => router.push(record.continueHref || record.detailHref)}
+                    className={cn(
+                      "grid w-full grid-cols-[34px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-left sm:grid-cols-[34px_minmax(0,1fr)_minmax(210px,0.8fr)_28px] sm:gap-x-4",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+                    )}
+                  >
+                    <ManageApplicationRowContent
+                      item={item}
+                      record={record}
+                      locale={locale}
+                      statusLabel={t("statusLabel")}
+                      completionLabel={t("completionLabel")}
+                    />
+                    <span className="col-span-2 flex h-8 w-8 items-center justify-center justify-self-end text-[#8a94a6] sm:col-span-1">
+                      <ArrowRight
+                        className="h-4 w-4"
+                        data-testid="manage-application-arrow"
+                      />
+                    </span>
+                  </button>
+                  {record.secondaryAction ? (
+                    <div className="mt-2 flex pl-[46px] sm:pl-[46px]">
+                      <Link
+                        href={record.secondaryAction.href}
+                        className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-[12px] font-semibold text-brand-700 transition hover:border-brand-200 hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                      >
+                        <Microphone className="h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {record.secondaryAction.label}
+                        </span>
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+            {manageRecords.length > MANAGE_VISIBLE_LIMIT ? (
+              <li className="border-t border-[#efefef]">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-center px-4 py-3 text-[13px] font-medium text-brand-600 transition-colors hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+                  onClick={() => setShowAllManaged((current) => !current)}
+                >
+                  {showAllManaged
+                    ? t("collapseApplications")
+                    : t("viewAllApplications", { count: manageRecords.length })}
+                </button>
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <>
-      {currentRecord && currentItem ? (
+      {mode === "switch" && currentRecord && currentItem ? (
         <section className="mb-8">
           <h2 className="mb-4 font-heading text-[22px] font-medium text-[#26364a]">
             {t("currentHandling")}
@@ -329,6 +522,7 @@ export function ApplicationsList({
                   tone={currentRecord.tone}
                   progressPercent={currentRecord.progressPercent}
                   progressAriaLabel={t("progressAriaLabel")}
+                  metadataLabel={formatRecordMetadata(currentRecord, locale)}
                 />
                 <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
                   <ArrowRight
@@ -378,6 +572,7 @@ export function ApplicationsList({
                 tone={item.tone}
                 progressPercent={item.progressPercent}
                 progressAriaLabel={t("progressAriaLabel")}
+                metadataLabel={singleRecord ? formatRecordMetadata(singleRecord, locale) : null}
               />
             );
 
@@ -473,6 +668,9 @@ export function ApplicationsList({
                                 <span className="mt-1 block text-[12px] text-[#66758a]">
                                   {record.stateLabel} ·{" "}
                                   {Math.round(record.progressPercent)}%
+                                  {formatRecordMetadata(record, locale)
+                                    ? ` · ${formatRecordMetadata(record, locale)}`
+                                    : ""}
                                 </span>
                               </span>
                             </button>

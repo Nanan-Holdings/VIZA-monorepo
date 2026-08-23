@@ -15,6 +15,7 @@ import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { selectUserVisaDestination } from "@/app/actions/user-package";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import {
+  SCHENGEN_VISA_DESTINATIONS,
   VISA_DESTINATION_COUNTRY_GROUPS,
   VISA_DESTINATION_COUNTRY_REGIONS,
   getVisaDestinationDescription,
@@ -68,7 +69,7 @@ function isGroupStarted(
   group: VisaDestinationCountryGroup,
   started: Set<string>
 ): boolean {
-  return group.destinations.some(
+  return selectableDestinationsForGroup(group).some(
     (destinationItem) =>
       destinationItem.kind !== "group" &&
       started.has(
@@ -83,6 +84,26 @@ function isBrowseGroup(group: VisaDestinationCountryGroup): boolean {
   );
 }
 
+function selectableDestinationsForGroup(
+  group: VisaDestinationCountryGroup
+): PopularVisaDestination[] {
+  return group.destinations.flatMap((destinationItem) => {
+    if (
+      destinationItem.kind === "group" &&
+      destinationItem.id === "schengen-area"
+    ) {
+      return SCHENGEN_VISA_DESTINATIONS;
+    }
+    return [destinationItem];
+  });
+}
+
+function groupHasMultipleChoices(group: VisaDestinationCountryGroup): boolean {
+  return (
+    selectableDestinationsForGroup(group).length > 1 || isBrowseGroup(group)
+  );
+}
+
 export function getGroupSortRank(
   group: VisaDestinationCountryGroup,
   started: Set<string>
@@ -94,8 +115,12 @@ export function getGroupSortRank(
 }
 
 export function AddDestinationSection({
+  id,
+  className,
   startedKeys,
 }: {
+  id?: string;
+  className?: string;
   startedKeys: string[];
 }) {
   const t = useTranslations("clientStatus.index");
@@ -109,6 +134,9 @@ export function AddDestinationSection({
     string | null
   >(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const started = useMemo(() => new Set(startedKeys), [startedKeys]);
 
@@ -124,13 +152,20 @@ export function AddDestinationSection({
     );
   }, [query, region, started]);
 
+  function toggleGroup(groupKey: string) {
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  }
+
   function handleSelect(destinationItem: PopularVisaDestination) {
     if (pendingDestinationId) return;
     setSelectionError(null);
 
-    // Group entries (Schengen) drill into their own picker before a form exists.
-    if (destinationItem.kind === "group" && destinationItem.href) {
-      router.push(destinationItem.href);
+    if (destinationItem.kind === "group") {
       return;
     }
 
@@ -155,7 +190,10 @@ export function AddDestinationSection({
   }
 
   return (
-    <section className="mt-12">
+    <section
+      id={id}
+      className={cn("mt-12 scroll-mt-36 xl:scroll-mt-40", className)}
+    >
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
         <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
           {t("addDestination")}
@@ -200,7 +238,9 @@ export function AddDestinationSection({
         })}
       </div>
 
-      {selectionError ? <ClientErrorAlert className="mb-4" message={selectionError} /> : null}
+      {selectionError ? (
+        <ClientErrorAlert className="mb-4" message={selectionError} />
+      ) : null}
 
       {visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-[#efefef] bg-white p-10 text-center">
@@ -212,17 +252,17 @@ export function AddDestinationSection({
           </p>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {visibleGroups.map((group) => {
             const groupAvailable = isGroupAvailable(group);
             const groupStarted = isGroupStarted(group, started);
             const countryName = isZh ? group.countryNameZh : group.countryName;
-            const groupBrowses = group.destinations.some(
-              (destinationItem) => destinationItem.kind === "group"
-            );
-            const primaryDestination = group.destinations.find(
+            const selectableDestinations = selectableDestinationsForGroup(group);
+            const groupBrowses = isBrowseGroup(group);
+            const multipleChoices = groupHasMultipleChoices(group);
+            const expanded = expandedGroups.has(group.key);
+            const primaryDestination = selectableDestinations.find(
               (destinationItem) =>
-                destinationItem.kind === "group" ||
                 isCountryLaunched(destinationItem.country)
             );
             const groupStatus = !groupAvailable
@@ -245,16 +285,20 @@ export function AddDestinationSection({
                 <button
                   type="button"
                   aria-label={
-                    primaryDestination
-                      ? `${countryName}: ${getVisaDestinationVisaName(primaryDestination, locale)}`
-                      : countryName
+                    multipleChoices
+                      ? `${countryName}: ${expanded ? t("collapse") : t("browse")}`
+                      : primaryDestination
+                        ? `${countryName}: ${getVisaDestinationVisaName(primaryDestination, locale)}`
+                        : countryName
                   }
                   data-testid="destination-card-hit-area"
                   disabled={
-                    !primaryDestination || Boolean(pendingDestinationId)
+                    (!multipleChoices && !primaryDestination) ||
+                    Boolean(pendingDestinationId)
                   }
                   onClick={() => {
-                    if (primaryDestination) handleSelect(primaryDestination);
+                    if (multipleChoices) toggleGroup(group.key);
+                    else if (primaryDestination) handleSelect(primaryDestination);
                   }}
                   className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
                 />
@@ -284,7 +328,39 @@ export function AddDestinationSection({
                 </div>
 
                 <div className="pointer-events-none relative z-10 flex flex-col">
-                  {group.destinations.map((destinationItem) => {
+                  {multipleChoices ? (
+                    <button
+                      type="button"
+                      className="pointer-events-auto flex min-h-11 items-center justify-between border-t border-[#efefef] py-3 text-left text-[13px] font-medium text-brand-500 transition hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                      aria-expanded={expanded}
+                      onClick={() => toggleGroup(group.key)}
+                    >
+                      <span>{expanded ? t("collapse") : t("browse")}</span>
+                      <span className="text-[#8a94a6]">
+                        {selectableDestinations.length}
+                      </span>
+                    </button>
+                  ) : null}
+                  {(multipleChoices && !expanded
+                    ? []
+                    : selectableDestinations
+                  ).map((destinationItem) => {
+                    const destinationKey = getVisaDestinationKey(
+                      destinationItem.country,
+                      destinationItem.visaType
+                    );
+                    const destinationCountryName = isZh
+                      ? destinationItem.countryNameZh
+                      : destinationItem.countryName;
+                    const destinationVisaName = getVisaDestinationVisaName(
+                      destinationItem,
+                      locale
+                    );
+                    const destinationTitle =
+                      multipleChoices && destinationItem.country !== group.key
+                        ? `${destinationCountryName} ${destinationVisaName}`
+                        : destinationVisaName;
+                    const isStarted = started.has(destinationKey);
                     const isGroup = destinationItem.kind === "group";
                     const launched =
                       isGroup || isCountryLaunched(destinationItem.country);
@@ -315,10 +391,7 @@ export function AddDestinationSection({
                       >
                         <span className="min-w-0">
                           <span className="block text-[14px] font-medium text-[#26364a] transition group-hover:text-brand-500">
-                            {getVisaDestinationVisaName(
-                              destinationItem,
-                              locale
-                            )}
+                            {destinationTitle}
                           </span>
                           <span className="mt-0.5 block line-clamp-2 text-[12px] leading-4 text-[#66758a]">
                             {getVisaDestinationDescription(
@@ -326,6 +399,11 @@ export function AddDestinationSection({
                               locale
                             )}
                           </span>
+                          {isStarted ? (
+                            <span className="mt-1 inline-flex text-[11px] font-medium text-[#8a94a6]">
+                              {t("added")}
+                            </span>
+                          ) : null}
                         </span>
                         {action ? (
                           <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] font-medium text-[#66758a] transition group-hover:text-brand-500">
