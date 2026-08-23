@@ -147,6 +147,10 @@ smoke-test helpers for the VIZA monorepo.
   ownership SELECT policy on `supporting_doc_submission`, including its
   unchanged PUBLIC role, exact direct ACL, RLS/policy count, policy/relation
   OIDs, and production-confirmed pre/post expression hashes.
+  `notification-preferences-policy-dedupe-v1` proves the notification
+  preference SELECT and ALL policies share the same ownership predicate, then
+  removes only the redundant SELECT policy while pinning the surviving policy,
+  exact ACL, RLS state, policy count, immutable source, and migration hash.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
