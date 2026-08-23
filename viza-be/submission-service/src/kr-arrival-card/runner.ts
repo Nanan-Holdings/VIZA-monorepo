@@ -1456,9 +1456,40 @@ async function handleEmailVerification(
 }
 
 async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?: RunnerExecutionContext): Promise<boolean> {
-  const image = await findVisible(page, ["img[src*='captcha' i]", ".captcha img", "[class*='captcha' i] img"]);
+  const dialogCandidates = page.locator(".popup-wrap, [role='dialog'], .modal, .popBox, .popup");
+  let captchaDialog: Locator | null = null;
+  const dialogCount = await dialogCandidates.count().catch(() => 0);
+  for (let index = 0; index < dialogCount; index += 1) {
+    const candidate = dialogCandidates.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    const text = await candidate.innerText().catch(() => "");
+    if (/verification\s+code|verification code for security|보안.*(?:문자|코드)|자동입력/i.test(text)) {
+      captchaDialog = candidate;
+      break;
+    }
+  }
+
+  let image = await findVisible(page, ["img[src*='captcha' i]", ".captcha img", "[class*='captcha' i] img"]);
+  if (!image && captchaDialog) {
+    const visualCandidates = captchaDialog.locator("img, canvas");
+    const visualCount = await visualCandidates.count().catch(() => 0);
+    for (let index = 0; index < visualCount; index += 1) {
+      const candidate = visualCandidates.nth(index);
+      const bounds = await candidate.boundingBox().catch(() => null);
+      if (bounds && bounds.width >= 60 && bounds.height >= 20 && await candidate.isVisible().catch(() => false)) {
+        image = candidate;
+        break;
+      }
+    }
+  }
   const recaptchaFrame = await findVisible(page, ["iframe[src*='recaptcha' i]", "iframe[src*='turnstile' i]"]);
-  if (!image && !recaptchaFrame) return false;
+  if (!image && !recaptchaFrame && !captchaDialog) return false;
+  if (!image && !recaptchaFrame && captchaDialog) {
+    throw new KrEArrivalPortalError("Official Korea e-Arrival Card verification-code CAPTCHA image was not observable.", {
+      code: "kr_eac_captcha_selector_drift",
+      blocked: true,
+    });
+  }
   if (recaptchaFrame) {
     const frameSrc = await recaptchaFrame.getAttribute("src").catch(() => "");
     const siteKey = await recaptchaFrame.getAttribute("data-sitekey").catch(() => null)
@@ -1481,16 +1512,43 @@ async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?
   const screenshot = await image!.screenshot();
   executionContext?.assertOwned();
   const solved = await solveImageCaptcha(screenshot, Number.parseInt(process.env.KR_EAC_CAPTCHA_TIMEOUT_MS ?? "120000", 10), { case: true });
-  const input = await findVisible(page, ["input[name*='captcha' i]", "#captchaInput", ".captcha input:not([type='hidden'])"]);
+  let input = await findVisible(page, ["input[name*='captcha' i]", "#captchaInput", ".captcha input:not([type='hidden'])"]);
+  if (!input && captchaDialog) {
+    const inputs = captchaDialog.locator("input:not([type='hidden']):not([type='button']):not([type='submit'])");
+    const inputCount = await inputs.count().catch(() => 0);
+    for (let index = 0; index < inputCount; index += 1) {
+      const candidate = inputs.nth(index);
+      if (await candidate.isVisible().catch(() => false) && await candidate.isEditable().catch(() => false)) {
+        input = candidate;
+        break;
+      }
+    }
+  }
   if (!input) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA input was not observable.", { code: "kr_eac_captcha_selector_drift" });
   await input.fill(solved.text);
-  const verify = await findVisible(page, ["#captchaConfirm", ".captcha button", "[role='dialog'] button"]);
+  let verify = await findVisible(page, ["#captchaConfirm", ".captcha button", "[role='dialog'] button"]);
+  if (!verify && captchaDialog) {
+    const actions = captchaDialog.locator("button, #confirm, .pop-btn2, input[type='button'], input[type='submit'], [role='button']");
+    const actionCount = await actions.count().catch(() => 0);
+    for (let index = 0; index < actionCount; index += 1) {
+      const candidate = actions.nth(index);
+      const textLabel = await candidate.innerText().catch(() => "");
+      const valueLabel = await candidate.getAttribute("value").catch(() => null) ?? "";
+      if (/^(?:confirm|verify|ok|확인|인증)$/iu.test(`${textLabel} ${valueLabel}`.trim()) && await candidate.isVisible().catch(() => false)) {
+        verify = candidate;
+        break;
+      }
+    }
+  }
   if (!verify) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA confirmation control was not observable.", { code: "kr_eac_captcha_selector_drift" });
   executionContext?.assertOwned();
   await verify.click({ timeout: 15_000 });
   await page.waitForTimeout(1_000);
   const result = await page.locator("#captchaResult").inputValue().catch(() => "");
-  if (result !== "Y" && await findVisible(page, ["img[src*='captcha' i]", ".captcha img"])) {
+  const captchaStillVisible = captchaDialog
+    ? await captchaDialog.isVisible().catch(() => false)
+    : Boolean(await findVisible(page, ["img[src*='captcha' i]", ".captcha img"]));
+  if (result !== "Y" && captchaStillVisible) {
     executionContext?.assertOwned();
     await reportBadCaptcha(solved.solveId).catch(() => undefined);
     throw new KrEArrivalPortalError("Official Korea e-Arrival Card rejected the CAPTCHA solution.", { code: "kr_eac_captcha_rejected", retryable: true });
@@ -1506,7 +1564,7 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   const dialog = await findVisible(page, ["#popupConfirm", "#popupAlert", ".popBox", "[role='dialog']", ".popup"]);
   if (!dialog) return;
   const text = await dialog.innerText().catch(() => "");
-  if (!/correct|confirm|확인|입력한 정보/i.test(text)) return;
+  if (!/check that all the information|information you entered is correct|입력한 정보.*(?:정확|확인)/i.test(text)) return;
   const actionCandidates = dialog.locator(
     "#confirm, .pop-btn2, button, input[type='button'], input[type='submit'], a, [role='button']",
   );
