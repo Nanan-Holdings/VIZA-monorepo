@@ -409,6 +409,69 @@
           }
         ]
       }
+    },
+    {
+      "batch_id": "database-function-execution-baseline-v1",
+      "source_ref": "4ed17ad114011da171356b66fd0a7f71aa993059",
+      "mode": "transactional",
+      "migrations": [
+        {
+          "version": "20260823134811",
+          "name": "database_function_execution_baseline",
+          "path": "viza-fe/internal-website/supabase/migrations/20260823134811_database_function_execution_baseline.sql",
+          "sha256": "43ee2f78b60782b7a1a56399df8beda1ab8d36472d2cbaa9bc6e581f22470ed8"
+        }
+      ],
+      "preconditions": {
+        "required_migration_versions": [
+          "20260821181514"
+        ],
+        "absent_migration_versions": [
+          "20260823134811"
+        ],
+        "catalog_assertions": [
+          { "id": "purge_inbound_email_exists", "kind": "function_exists", "identity": "public.purge_old_inbound_email(integer)" },
+          { "id": "purge_application_answers_exists", "kind": "function_exists", "identity": "public.purge_old_application_answers(integer)" },
+          { "id": "purge_application_documents_exists", "kind": "function_exists", "identity": "public.purge_old_application_documents(integer)" },
+          { "id": "purge_submission_artifacts_exists", "kind": "function_exists", "identity": "public.purge_old_submission_artifacts(integer)" },
+          { "id": "purge_recon_artifacts_exists", "kind": "function_exists", "identity": "public.purge_old_recon_artifacts(integer)" },
+          { "id": "purge_audit_logs_exists", "kind": "function_exists", "identity": "public.purge_old_audit_logs(integer)" },
+          { "id": "purge_post_delivery_documents_exists", "kind": "function_exists", "identity": "public.purge_post_delivery_documents(integer,integer,integer)" },
+          { "id": "iso_week_start_exists", "kind": "function_exists", "identity": "public.iso_week_start(timestamp with time zone)" },
+          { "id": "match_visa_chunks_exists", "kind": "function_exists", "identity": "public.match_visa_chunks(public.vector,integer,text,text,text[],real)" }
+        ]
+      },
+      "postconditions": {
+        "required_migration_versions": [
+          "20260823134811"
+        ],
+        "catalog_assertions": [
+          {
+            "id": "function_baseline_migration_record_exact",
+            "kind": "migration_record",
+            "version": "20260823134811",
+            "name": "database_function_execution_baseline",
+            "sha256": "43ee2f78b60782b7a1a56399df8beda1ab8d36472d2cbaa9bc6e581f22470ed8"
+          },
+          { "id": "purge_inbound_email_path", "kind": "function_search_path", "identity": "public.purge_old_inbound_email(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_application_answers_path", "kind": "function_search_path", "identity": "public.purge_old_application_answers(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_application_documents_path", "kind": "function_search_path", "identity": "public.purge_old_application_documents(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_submission_artifacts_path", "kind": "function_search_path", "identity": "public.purge_old_submission_artifacts(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_recon_artifacts_path", "kind": "function_search_path", "identity": "public.purge_old_recon_artifacts(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_audit_logs_path", "kind": "function_search_path", "identity": "public.purge_old_audit_logs(integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_post_delivery_documents_path", "kind": "function_search_path", "identity": "public.purge_post_delivery_documents(integer,integer,integer)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "iso_week_start_path", "kind": "function_search_path", "identity": "public.iso_week_start(timestamp with time zone)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "match_visa_chunks_path", "kind": "function_search_path", "identity": "public.match_visa_chunks(public.vector,integer,text,text,text[],real)", "search_path": ["pg_catalog", "public"], "security_definer": false },
+          { "id": "purge_inbound_email_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_inbound_email(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_application_answers_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_application_answers(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_application_documents_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_application_documents(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_submission_artifacts_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_submission_artifacts(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_recon_artifacts_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_recon_artifacts(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_audit_logs_service_only", "kind": "function_execute_acl", "identity": "public.purge_old_audit_logs(integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "purge_post_delivery_documents_service_only", "kind": "function_execute_acl", "identity": "public.purge_post_delivery_documents(integer,integer,integer)", "required_roles": ["service_role"], "forbidden_roles": ["PUBLIC", "anon", "authenticated"] },
+          { "id": "match_visa_chunks_authenticated_service_only", "kind": "function_execute_acl", "identity": "public.match_visa_chunks(public.vector,integer,text,text,text[],real)", "required_roles": ["authenticated", "service_role"], "forbidden_roles": ["PUBLIC", "anon"] }
+        ]
+      }
     }
   ]
 }
