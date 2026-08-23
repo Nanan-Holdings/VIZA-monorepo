@@ -108,6 +108,11 @@ smoke-test helpers for the VIZA monorepo.
   `notification-signature-rls-initplan-v1` pins the two public SELECT-policy
   contracts for `notification_event_log` and `signature_event` before and
   after the scalar init-plan rewrite.
+  `inbound-email-rls-initplan-v1` pins the applicant inbox policy hash, RLS
+  state, policy count, and the existing relation ACL before and after its
+  scalar init-plan rewrite. The batch deliberately does not change the broad
+  legacy table ACL or service-role quarantine behavior; harden those only in
+  separately reviewed changes.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
