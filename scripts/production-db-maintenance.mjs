@@ -1409,7 +1409,7 @@ function validateApprovedBatchManifest(manifest) {
 
 const APPROVED_RELATION_IDENTITY = /^(?:public|runner_private)\.[a-z_][a-z0-9_]*$/u;
 const APPROVED_FUNCTION_IDENTITY =
-  /^(?:public|runner_private)\.[a-z_][a-z0-9_]*\([a-z0-9_, \[\]]*\)$/u;
+  /^(?:public|runner_private)\.[a-z_][a-z0-9_]*\([a-z0-9_., \[\]]*\)$/u;
 const APPROVED_ROLES = new Set([
   "PUBLIC",
   "anon",
@@ -1435,6 +1435,7 @@ function validateCatalogAssertion(assertion) {
     "function_exists",
     "function_execute_acl",
     "function_empty_search_path",
+    "function_search_path",
   ]);
   const policyKinds = new Set(["policy_absent", "policy_contract"]);
   if (relationKinds.has(assertion.kind) &&
@@ -1493,6 +1494,16 @@ function validateCatalogAssertion(assertion) {
         [...assertion.required_roles, ...assertion.forbidden_roles].some((role) =>
           !APPROVED_ROLES.has(role))) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid function ACL`);
+    }
+    return;
+  }
+  if (assertion.kind === "function_search_path") {
+    if (!Array.isArray(assertion.search_path) || assertion.search_path.length === 0 ||
+        assertion.search_path.length > 8 || assertion.search_path[0] !== "pg_catalog" ||
+        new Set(assertion.search_path).size !== assertion.search_path.length ||
+        assertion.search_path.some((schema) => !/^[a-z_][a-z0-9_]*$/u.test(schema)) ||
+        typeof assertion.security_definer !== "boolean") {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid function search path`);
     }
     return;
   }
@@ -2475,6 +2486,25 @@ function approvedFunctionAclExpression(assertion) {
     [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
 }
 
+function approvedFunctionSearchPathExpression(assertion) {
+  const identity = sqlLiteral(assertion.identity);
+  const expected = sqlLiteral(`search_path=${assertion.search_path.join(", ")}`);
+  return `EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM pg_catalog.pg_proc configured_function\n` +
+    `    WHERE configured_function.oid = pg_catalog.to_regprocedure(${identity})\n` +
+    `      AND configured_function.prosecdef IS ${assertion.security_definer ? "TRUE" : "FALSE"}\n` +
+    `      AND ARRAY(\n` +
+    `        SELECT configured_setting\n` +
+    `        FROM pg_catalog.unnest(\n` +
+    `          COALESCE(configured_function.proconfig, ARRAY[]::text[])\n` +
+    `        ) configured_setting\n` +
+    `        WHERE pg_catalog.split_part(configured_setting, '=', 1) = 'search_path'\n` +
+    `        ORDER BY configured_setting\n` +
+    `      ) = ARRAY[${expected}]::text[]\n` +
+    `  )`;
+}
+
 function approvedDefaultAclExpression(assertion) {
   const ownerValues = assertion.owner_roles.map((role) => `(${sqlLiteral(role)})`).join(", ");
   const typeValues = assertion.object_types.map((type) =>
@@ -2591,6 +2621,8 @@ function approvedCatalogAssertionExpression(assertion) {
       return approvedRelationAclExpression(assertion);
     case "function_execute_acl":
       return approvedFunctionAclExpression(assertion);
+    case "function_search_path":
+      return approvedFunctionSearchPathExpression(assertion);
     case "view_security_invoker":
       return `EXISTS (\n` +
         `    SELECT 1 FROM pg_catalog.pg_class invoker_view\n` +
