@@ -129,6 +129,11 @@ smoke-test helpers for the VIZA monorepo.
   public SELECT role, exact direct relation ACL roles, normalized pre/post
   expression hashes, and the migration's same-transaction policy-OID/ACL
   preservation checks. It must not include `consent_event`.
+  `consent-event-rls-initplan-v1` resolves the historical Drizzle/website-only
+  policy split using the metadata-only production catalog as authority. It
+  independently pins production's direct user-id OR applicant-profile policy,
+  exact RLS/ACL/role/count contracts, immutable source/hash, and the
+  migration's same-transaction policy-OID/raw-ACL preservation checks.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
