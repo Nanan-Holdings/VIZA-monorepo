@@ -1480,7 +1480,13 @@ function validateCatalogAssertion(assertion) {
   }
   if (assertion.kind === "relation_acl") {
     if (!['table', 'sequence', 'view'].includes(assertion.relation_kind) ||
-        !Array.isArray(assertion.required) || !Array.isArray(assertion.forbidden_roles)) {
+        !Array.isArray(assertion.required) || !Array.isArray(assertion.forbidden_roles) ||
+        (assertion.allowed_direct_roles !== undefined &&
+          (!Array.isArray(assertion.allowed_direct_roles) ||
+           assertion.allowed_direct_roles.length === 0 ||
+           assertion.allowed_direct_roles.some((role) => !APPROVED_ROLES.has(role)))) ||
+        (assertion.grant_options_forbidden !== undefined &&
+          typeof assertion.grant_options_forbidden !== "boolean")) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid ACL metadata`);
     }
     for (const grant of assertion.required) {
@@ -2467,8 +2473,42 @@ function approvedRelationAclExpression(assertion) {
       `NOT COALESCE(${privilegeFunction}(${sqlLiteral(role)}, ` +
       `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`).join(" AND ");
   });
+  const aclDefaultType = assertion.relation_kind === "sequence" ? "S" : "r";
+  const allowedDirectRoles = assertion.allowed_direct_roles === undefined
+    ? []
+    : [
+        `NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM pg_catalog.pg_class acl_relation\n` +
+        `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+        `        COALESCE(acl_relation.relacl, ` +
+        `pg_catalog.acldefault(${sqlLiteral(aclDefaultType)}, acl_relation.relowner))\n` +
+        `      ) acl_entry\n` +
+        `      WHERE acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `        AND acl_entry.grantee <> acl_relation.relowner\n` +
+        `        AND (CASE WHEN acl_entry.grantee = 0 THEN 'PUBLIC'\n` +
+        `          ELSE pg_catalog.pg_get_userbyid(acl_entry.grantee) END) NOT IN (` +
+        `${assertion.allowed_direct_roles.map(sqlLiteral).join(", ")})\n` +
+        `    )`,
+      ];
+  const forbiddenGrantOptions = assertion.grant_options_forbidden
+    ? [
+        `NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM pg_catalog.pg_class acl_relation\n` +
+        `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+        `        COALESCE(acl_relation.relacl, ` +
+        `pg_catalog.acldefault(${sqlLiteral(aclDefaultType)}, acl_relation.relowner))\n` +
+        `      ) acl_entry\n` +
+        `      WHERE acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `        AND acl_entry.grantee <> acl_relation.relowner\n` +
+        `        AND acl_entry.is_grantable\n` +
+        `    )`,
+      ]
+    : [];
   return `(pg_catalog.to_regclass(${identity}) IS NOT NULL` +
-    [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
+    [...required, ...forbidden, ...allowedDirectRoles, ...forbiddenGrantOptions]
+      .map((check) => `\n    AND (${check})`).join("") + `)`;
 }
 
 function approvedFunctionAclExpression(assertion) {
