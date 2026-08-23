@@ -23,24 +23,22 @@ describe("audit-log RLS init-plan migration", () => {
 		expect(mirrorSql).toBe(canonicalSql);
 	});
 
-	it("alters only the four reviewed applicant-owned SELECT policies", () => {
+	it("alters only the two reviewed applicant-owned SELECT policies", () => {
 		for (const policy of [
 			"secret_access_log_select_own",
 			"pii_access_log_select_own",
-			"account_action_log_select_own",
-			"consent_event_select_own",
 		]) {
 			expect(canonicalSql.match(new RegExp(`ALTER POLICY\\s+"${policy}"`, "gi"))).toHaveLength(1);
 		}
-		expect(canonicalSql.match(/ALTER POLICY/gi)).toHaveLength(4);
+		expect(canonicalSql.match(/ALTER POLICY/gi)).toHaveLength(2);
 
-		expect(canonicalSql.match(/applicant_id\s+IN\s*\(\s*SELECT\s+id\s+FROM\s+public\.applicant_profiles\s+WHERE\s+auth_user_id\s*=\s*\(select auth\.uid\(\)\)\s*\)/gi)).toHaveLength(4);
-		expect(canonicalSql.match(/\buser_id\s*=\s*\(select auth\.uid\(\)\)/gi)).toHaveLength(2);
+		expect(canonicalSql.match(/applicant_id\s+IN\s*\(\s*SELECT\s+id\s+FROM\s+public\.applicant_profiles\s+WHERE\s+auth_user_id\s*=\s*\(select auth\.uid\(\)\)\s*\)/gi)).toHaveLength(2);
+		expect(canonicalSql).not.toMatch(/\buser_id\b/i);
 		expect(canonicalSql).not.toMatch(/\b(?:CREATE|DROP)\s+POLICY\b/i);
 	});
 
 	it("changes no data, ACL, tables, or functions", () => {
-		expect(canonicalSql.match(/auth\.uid\(\)/gi)).toHaveLength(6);
+		expect(canonicalSql.match(/auth\.uid\(\)/gi)).toHaveLength(2);
 		expect(canonicalSql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\b/i);
 		expect(canonicalSql).not.toMatch(/\b(?:GRANT|REVOKE|ALTER TABLE|CREATE FUNCTION)\b/i);
 	});

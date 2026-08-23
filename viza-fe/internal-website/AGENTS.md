@@ -582,7 +582,7 @@ Smoke URLs:
   optimization; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql`.
 - `supabase/migrations/20260824020344_audit_log_rls_initplan.sql`: mirrors the
-  backend credential, PII, account-action, and consent audit-log ownership
+  backend credential and PII audit-log ownership
   policy init-plan optimization; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0177_audit_log_rls_initplan.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:

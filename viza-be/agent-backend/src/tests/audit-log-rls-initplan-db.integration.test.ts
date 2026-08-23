@@ -28,8 +28,6 @@ const ownProfile = "31111111-1111-4111-8111-111111111111";
 const otherProfile = "32222222-2222-4222-8222-222222222222";
 const ownerPolicyPreHash = "25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad";
 const ownerPolicyPostHash = "f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86";
-const directOrOwnerPolicyPreHash = "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8";
-const directOrOwnerPolicyPostHash = "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975";
 
 let pool: Pool | undefined;
 let client: PoolClient | undefined;
@@ -65,8 +63,7 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 		const collisions = await client.query<{ relation: string; present: string | null }>(`
 			SELECT relation, pg_catalog.to_regclass('public.' || relation)::text AS present
 			FROM pg_catalog.unnest(ARRAY[
-				'applicant_profiles', 'secret_access_log', 'pii_access_log',
-				'account_action_log', 'consent_event'
+				'applicant_profiles', 'secret_access_log', 'pii_access_log'
 			]) relation
 		`);
 		const present = collisions.rows.filter((row) => row.present).map((row) => row.relation);
@@ -89,25 +86,11 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 				applicant_id uuid NOT NULL REFERENCES public.applicant_profiles(id),
 				label text NOT NULL
 			);
-			CREATE TABLE public.account_action_log (
-				id uuid PRIMARY KEY,
-				user_id uuid,
-				applicant_id uuid REFERENCES public.applicant_profiles(id),
-				label text NOT NULL
-			);
-			CREATE TABLE public.consent_event (
-				id uuid PRIMARY KEY,
-				user_id uuid,
-				applicant_id uuid REFERENCES public.applicant_profiles(id),
-				label text NOT NULL
-			);
 			ALTER TABLE public.applicant_profiles ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE public.secret_access_log ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE public.pii_access_log ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE public.account_action_log ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE public.consent_event ENABLE ROW LEVEL SECURITY;
-			GRANT SELECT ON public.applicant_profiles, public.secret_access_log, public.pii_access_log,
-				public.account_action_log, public.consent_event TO anon, authenticated, service_role;
+			GRANT SELECT ON public.applicant_profiles, public.secret_access_log, public.pii_access_log
+				TO anon, authenticated, service_role;
 			CREATE POLICY applicant_profiles_select_own ON public.applicant_profiles
 				FOR SELECT TO authenticated USING (auth_user_id = (select auth.uid()));
 			CREATE POLICY secret_access_log_select_own ON public.secret_access_log
@@ -118,20 +101,6 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 				FOR SELECT USING (applicant_id IN (
 					SELECT id FROM applicant_profiles WHERE auth_user_id = auth.uid()
 				));
-			CREATE POLICY account_action_log_select_own ON public.account_action_log
-				FOR SELECT USING (
-					user_id = auth.uid()
-					OR applicant_id IN (
-						SELECT id FROM applicant_profiles WHERE auth_user_id = auth.uid()
-					)
-				);
-			CREATE POLICY consent_event_select_own ON public.consent_event
-				FOR SELECT USING (
-					user_id = auth.uid()
-					OR applicant_id IN (
-						SELECT id FROM applicant_profiles WHERE auth_user_id = auth.uid()
-					)
-				);
 			INSERT INTO public.applicant_profiles(id, auth_user_id) VALUES
 				('${ownProfile}', '${ownUser}'),
 				('${otherProfile}', '${otherUser}');
@@ -141,14 +110,6 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 			INSERT INTO public.pii_access_log(id, applicant_id, label) VALUES
 				('51111111-1111-4111-8111-111111111111', '${ownProfile}', 'own-pii'),
 				('52222222-2222-4222-8222-222222222222', '${otherProfile}', 'other-pii');
-			INSERT INTO public.account_action_log(id, user_id, applicant_id, label) VALUES
-				('61111111-1111-4111-8111-111111111111', '${ownUser}', NULL, 'own-action-user'),
-				('61222222-2222-4222-8222-222222222222', NULL, '${ownProfile}', 'own-action-profile'),
-				('62222222-2222-4222-8222-222222222222', '${otherUser}', '${otherProfile}', 'other-action');
-			INSERT INTO public.consent_event(id, user_id, applicant_id, label) VALUES
-				('71111111-1111-4111-8111-111111111111', '${ownUser}', NULL, 'own-consent-user'),
-				('71222222-2222-4222-8222-222222222222', NULL, '${ownProfile}', 'own-consent-profile'),
-				('72222222-2222-4222-8222-222222222222', '${otherUser}', '${otherProfile}', 'other-consent');
 		`);
 
 		const before = await client.query<{
@@ -171,27 +132,22 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 			JOIN pg_catalog.pg_class relation ON relation.oid = policy.polrelid
 			WHERE policy.polrelid IN (
 				'public.secret_access_log'::regclass,
-				'public.pii_access_log'::regclass,
-				'public.account_action_log'::regclass,
-				'public.consent_event'::regclass
+				'public.pii_access_log'::regclass
 			)
 			ORDER BY relation.relname
 		`);
-		expect(before.rows).toHaveLength(4);
+		expect(before.rows).toHaveLength(2);
 		for (const row of before.rows) {
 			originalPolicyOids.set(row.policy, row.oid);
 			originalAcls.set(row.tableName, row.acl);
 			preHashes.set(row.policy, row.usingSha256);
-			const expectedHash = row.policy === "secret_access_log_select_own" || row.policy === "pii_access_log_select_own"
-				? ownerPolicyPreHash
-				: directOrOwnerPolicyPreHash;
-			expect(row.usingSha256).toBe(expectedHash);
+			expect(row.usingSha256).toBe(ownerPolicyPreHash);
 		}
-		expect(new Set(preHashes.values()).size).toBe(2);
+		expect(new Set(preHashes.values())).toEqual(new Set([ownerPolicyPreHash]));
 		await client.query(migrationSql);
 	});
 
-	it("preserves all four policy identities and exact optimized contracts", async () => {
+	it("preserves both policy identities and exact optimized contracts", async () => {
 		const contracts = await query<{
 			tableName: string;
 			policy: string;
@@ -228,18 +184,13 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 			JOIN pg_catalog.pg_class relation ON relation.oid = policy.polrelid
 			WHERE policy.polrelid IN (
 				'public.secret_access_log'::regclass,
-				'public.pii_access_log'::regclass,
-				'public.account_action_log'::regclass,
-				'public.consent_event'::regclass
+				'public.pii_access_log'::regclass
 			)
 			ORDER BY relation.relname
 		`);
 
-		expect(contracts.rows).toHaveLength(4);
+		expect(contracts.rows).toHaveLength(2);
 		for (const row of contracts.rows) {
-			const expectedHash = row.policy === "secret_access_log_select_own" || row.policy === "pii_access_log_select_own"
-				? ownerPolicyPostHash
-				: directOrOwnerPolicyPostHash;
 			expect(row).toMatchObject({
 				oid: originalPolicyOids.get(row.policy),
 				command: "SELECT",
@@ -248,12 +199,12 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 				policyCount: 1,
 				rlsEnabled: true,
 				acl: originalAcls.get(row.tableName),
-				usingSha256: expectedHash,
+				usingSha256: ownerPolicyPostHash,
 			});
 			postHashes.set(row.policy, row.usingSha256);
 			expect(row.usingSha256).not.toBe(preHashes.get(row.policy));
 		}
-		expect(new Set(postHashes.values()).size).toBe(2);
+		expect(new Set(postHashes.values())).toEqual(new Set([ownerPolicyPostHash]));
 	});
 
 	it("keeps authenticated ownership, anon denial, and service-role visibility unchanged", async () => {
@@ -261,17 +212,13 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 		await query("SELECT set_config('request.jwt.claim.sub', $1, true)", [ownUser]);
 		const ownSecret = await query<{ label: string }>("SELECT label FROM public.secret_access_log ORDER BY id");
 		const ownPii = await query<{ label: string }>("SELECT label FROM public.pii_access_log ORDER BY id");
-		const ownActions = await query<{ label: string }>("SELECT label FROM public.account_action_log ORDER BY id");
-		const ownConsents = await query<{ label: string }>("SELECT label FROM public.consent_event ORDER BY id");
 		expect(ownSecret.rows).toEqual([{ label: "own-secret" }]);
 		expect(ownPii.rows).toEqual([{ label: "own-pii" }]);
-		expect(ownActions.rows.map((row) => row.label)).toEqual(["own-action-user", "own-action-profile"]);
-		expect(ownConsents.rows.map((row) => row.label)).toEqual(["own-consent-user", "own-consent-profile"]);
 
 		await query("RESET ROLE");
 		await query("SELECT set_config('request.jwt.claim.sub', '', true)");
 		await query("SET ROLE anon");
-		for (const table of ["secret_access_log", "pii_access_log", "account_action_log", "consent_event"]) {
+		for (const table of ["secret_access_log", "pii_access_log"]) {
 			const rows = await query(`SELECT id FROM public.${table}`);
 			expect(rows.rows).toEqual([]);
 		}
@@ -281,8 +228,6 @@ describe.skipIf(!liveGateEnabled)("audit-log RLS init-plan database integration"
 		for (const [table, count] of [
 			["secret_access_log", 2],
 			["pii_access_log", 2],
-			["account_action_log", 3],
-			["consent_event", 3],
 		] as const) {
 			const rows = await query<{ count: string }>(`SELECT count(*)::text AS count FROM public.${table}`);
 			expect(rows.rows[0]?.count).toBe(String(count));
