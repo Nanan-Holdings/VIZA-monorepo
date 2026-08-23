@@ -33,7 +33,7 @@ export const JP_VJW_YOUR_DETAILS_NAME =
   /您的资料|您的資料|Your details|本人の情報/i;
 
 export const JP_VJW_OPTIONAL_MFA_HEADING =
-  /设置多因素认证|設定多因素驗證|Setting up Multi-Factor Authentication|多要素認証の設定/i;
+  /设置多因素认证|設定多因素驗證|Setting up Multi[-‐‑‒–—―\s]*Factor Authentication|多要素認証の設定/i;
 
 export const JP_VJW_MFA_NO_NAME = /^(?:否|No|いいえ)$/i;
 

@@ -32,6 +32,7 @@ test("Visit Japan Web profile-entry selector accepts the observed production das
 
 test("Visit Japan Web optional MFA selectors accept the observed production onboarding", () => {
   assert.match("Setting up Multi-Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
+  assert.match("Setting up Multi‑Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
   assert.match("No", JP_VJW_MFA_NO_NAME);
   assert.doesNotMatch("Not registered", JP_VJW_MFA_NO_NAME);
 });
