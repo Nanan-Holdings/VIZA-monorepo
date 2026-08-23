@@ -843,7 +843,7 @@ test("consent-event RLS batch pins the production-reconciled two-path policy", (
   const batch = manifest.batches.find(({ batch_id: batchId }) =>
     batchId === "consent-event-rls-initplan-v1");
   assert.ok(batch);
-  assert.equal(batch.source_ref, "391edff16e234f27b283143f35ab9aa72d655357");
+  assert.equal(batch.source_ref, "4227627f49ff631650e999d550c7967f20cecec0");
   assert.equal(batch.mode, "transactional");
   assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824023800"]);
   assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824032000"]);
