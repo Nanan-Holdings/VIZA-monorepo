@@ -816,6 +816,7 @@ async function fillOfficialAirFlightNumber(
   scope: string,
   segment: "E" | "D",
   flightNumber: string,
+  logs: string[],
   executionContext?: RunnerExecutionContext,
 ): Promise<void> {
   const normalized = flightNumber.trim().toUpperCase().replace(/\s+/gu, "");
@@ -867,6 +868,18 @@ async function fillOfficialAirFlightNumber(
   }
   await fillInput(page, `${scope} ${inputSelector}`, normalized, "flight number");
   await page.locator(`${scope} ${inputSelector}`).first().press("Tab");
+  // The official portal validates a flight asynchronously after the input
+  // loses focus and can show a "double-check your flight number" prompt
+  // several seconds later.  If we only inspect the page after clicking the
+  // travel-search control, that delayed modal can cover the next departure
+  // control and make Playwright report a misleading click failure.
+  await acknowledgeOfficialTravelLookupPrompt(
+    page,
+    segment === "E" ? "arrival-flight-validation" : "departure-flight-validation",
+    logs,
+    executionContext,
+    8_000,
+  );
 }
 
 /**
@@ -880,11 +893,19 @@ async function acknowledgeOfficialTravelLookupPrompt(
   label: string,
   logs: string[],
   executionContext?: RunnerExecutionContext,
+  waitForPromptMs = 0,
 ): Promise<void> {
   const travelPromptPattern = /(?:flight|ship|airport|port|not found|unknown|unable|조회|항공|선박|공항|항구|없)/iu;
   let acknowledged = false;
   for (let pass = 0; pass < 3; pass += 1) {
     const dialogs = page.locator(".popBox, [role='dialog'], .ui-dialog");
+    if (pass === 0 && waitForPromptMs > 0) {
+      await dialogs
+        .filter({ hasText: travelPromptPattern })
+        .first()
+        .waitFor({ state: "visible", timeout: waitForPromptMs })
+        .catch(() => undefined);
+    }
     const count = await dialogs.count().catch(() => 0);
     let handledThisPass = false;
     for (let index = 0; index < count; index += 1) {
@@ -904,7 +925,13 @@ async function acknowledgeOfficialTravelLookupPrompt(
       }
       executionContext?.assertOwned();
       await confirmation.click({ timeout: 15_000 });
-      await page.waitForTimeout(300);
+      await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
+      if (await dialog.isVisible().catch(() => false)) {
+        throw new KrEArrivalPortalError(
+          `Official Korea e-Arrival Card ${label} lookup prompt did not close.`,
+          { code: "kr_eac_travel_lookup_prompt_drift", blocked: true },
+        );
+      }
       acknowledged = true;
       handledThisPass = true;
       break;
@@ -1194,6 +1221,7 @@ async function fillOfficialForm(
       scope,
       "E",
       payload.arrivalFlightNumber ?? "",
+      logs,
       executionContext,
     );
   } else {
@@ -1225,6 +1253,7 @@ async function fillOfficialForm(
       scope,
       "D",
       payload.departureFlightNumber,
+      logs,
       executionContext,
     );
   }
