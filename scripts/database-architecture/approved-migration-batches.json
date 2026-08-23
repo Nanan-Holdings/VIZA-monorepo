@@ -1141,14 +1141,14 @@
     },
     {
       "batch_id": "account-action-log-rls-initplan-v1",
-      "source_ref": "58c8e6fc3d6ad2d32fbd84722a4c61aa622a08c1",
+      "source_ref": "d32d817c39a138881d1d6d4233e5e498cec6f482",
       "mode": "transactional",
       "migrations": [
         {
           "version": "20260824023800",
           "name": "account_action_log_rls_initplan",
           "path": "viza-fe/internal-website/supabase/migrations/20260824023800_account_action_log_rls_initplan.sql",
-          "sha256": "2a591880379f431dd205ea67c7383f3ceacbae3c90d6bb504f8f2de0fd8d0938"
+          "sha256": "726114d60c513f65e8d755f400a7f6778e70a05a49212351578e7e8b83fd5596"
         }
       ],
       "preconditions": {
@@ -1157,15 +1157,27 @@
         "catalog_assertions": [
           { "id": "pre_account_action_log_rls", "kind": "rls_enabled", "identity": "public.account_action_log" },
           { "id": "pre_account_action_log_policy_count", "kind": "policy_count", "identity": "public.account_action_log", "count": 1 },
+          { "id": "pre_account_action_log_acl", "kind": "relation_acl", "identity": "public.account_action_log", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
           { "id": "pre_account_action_log_select_own", "kind": "policy_contract", "identity": "public.account_action_log", "policy": "account_action_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8", "check_sha256": null }
         ]
       },
       "postconditions": {
         "required_migration_versions": ["20260824023800"],
         "catalog_assertions": [
-          { "id": "account_action_log_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824023800", "name": "account_action_log_rls_initplan", "sha256": "2a591880379f431dd205ea67c7383f3ceacbae3c90d6bb504f8f2de0fd8d0938" },
+          { "id": "account_action_log_rls_initplan_migration_record", "kind": "migration_record", "version": "20260824023800", "name": "account_action_log_rls_initplan", "sha256": "726114d60c513f65e8d755f400a7f6778e70a05a49212351578e7e8b83fd5596" },
           { "id": "post_account_action_log_rls", "kind": "rls_enabled", "identity": "public.account_action_log" },
           { "id": "post_account_action_log_policy_count", "kind": "policy_count", "identity": "public.account_action_log", "count": 1 },
+          { "id": "post_account_action_log_acl", "kind": "relation_acl", "identity": "public.account_action_log", "relation_kind": "table", "required": [
+            { "role": "postgres", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true },
+            { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"], "exact": true }
+          ], "forbidden_roles": ["PUBLIC"], "allowed_direct_roles": ["postgres", "anon", "authenticated", "service_role"], "grant_options_forbidden": true },
           { "id": "post_account_action_log_select_own", "kind": "policy_contract", "identity": "public.account_action_log", "policy": "account_action_log_select_own", "command": "SELECT", "roles": ["PUBLIC"], "permissive": true, "using_sha256": "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975", "check_sha256": null }
         ]
       }
