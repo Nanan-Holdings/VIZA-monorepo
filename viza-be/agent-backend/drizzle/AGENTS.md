@@ -342,6 +342,12 @@ The current internal automation migrations are:
 - `0166_kr_e_arrival_transport_visibility.sql`: repairs the installed Korea
   e-Arrival Card flight/ship visibility expressions to use the bare official
   A/S option codes understood by the DB-driven form evaluator.
+- `0167_database_function_execution_baseline.sql`: fixes the namespace lookup
+  path for nine legacy SECURITY INVOKER helpers without replacing their bodies
+  or identities. Retention/purge helpers become service-role-only;
+  `match_visa_chunks` remains available only to authenticated and service-role
+  callers, while the harmless ISO-week helper retains its existing execution
+  policy. Keep its Supabase migration mirror byte-identical.
 
 ## Guardrails
 

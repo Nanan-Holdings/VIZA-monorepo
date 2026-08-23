@@ -558,6 +558,10 @@ Smoke URLs:
   mirrors the backend Korea transport-field visibility repair; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0166_kr_e_arrival_transport_visibility.sql`.
+- `supabase/migrations/20260823134811_database_function_execution_baseline.sql`:
+  mirrors the backend legacy-function namespace and execution-privilege
+  baseline; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0167_database_function_execution_baseline.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`
