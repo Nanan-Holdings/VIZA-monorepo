@@ -178,6 +178,8 @@ test("Korea review confirmation matches the current official popup markup", () =
   assert.match(runnerSource, /#confirm, \.pop-btn2, button/);
   assert.match(runnerSource, /getAttribute\("value"\)\.catch\(\(\) => null\) \?\? ""/);
   assert.match(runnerSource, /\^\(\?:confirm\|ok\|확인\)\$/);
+  assert.match(runnerSource, /const reviewPromptPattern =/);
+  assert.match(runnerSource, /reviewPromptPattern\.test\(remainingText\)/);
   assert.match(runnerSource, /kr_eac_review_confirmation_not_closed/);
 });
 

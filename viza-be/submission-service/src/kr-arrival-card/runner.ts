@@ -1563,8 +1563,9 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   // Retain the older selectors for portal-version compatibility.
   const dialog = await findVisible(page, ["#popupConfirm", "#popupAlert", ".popBox", "[role='dialog']", ".popup"]);
   if (!dialog) return;
+  const reviewPromptPattern = /check that all the information|information you entered is correct|입력한 정보.*(?:정확|확인)/i;
   const text = await dialog.innerText().catch(() => "");
-  if (!/check that all the information|information you entered is correct|입력한 정보.*(?:정확|확인)/i.test(text)) return;
+  if (!reviewPromptPattern.test(text)) return;
   const actionCandidates = dialog.locator(
     "#confirm, .pop-btn2, button, input[type='button'], input[type='submit'], a, [role='button']",
   );
@@ -1584,7 +1585,11 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   executionContext?.assertOwned();
   await button.click({ timeout: 15_000 });
   await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
-  if (await dialog.isVisible().catch(() => false)) {
+  // The official portal reuses the same `.popup` shell and can replace the
+  // review text with a verification-code CAPTCHA immediately. Treat that as
+  // forward progress; only fail when the original review prompt remains.
+  const remainingText = await dialog.innerText().catch(() => "");
+  if (await dialog.isVisible().catch(() => false) && reviewPromptPattern.test(remainingText)) {
     throw new KrEArrivalPortalError("Official Korea e-Arrival Card review confirmation prompt remained open after confirmation.", {
       code: "kr_eac_review_confirmation_not_closed",
     });
