@@ -141,6 +141,11 @@ The current internal automation migrations are:
 - `0172_enable_jp_ke_shared_runner_flows.sql`: adds the exact `japan/jp_vjw`
   and `kenya/ke_eta` tuples to the on-demand shared runner enqueue, claim,
   recovery, requeue, concurrency-cap, and scale-to-zero database fences.
+- `0176_inbound_email_acl.sql`: removes anonymous and signed-in mutation
+  privileges from `inbound_email` after the website's Supabase and legacy VIZA
+  sessions moved behind an explicit active-alias ownership check. Authenticated
+  callers retain policy-scoped SELECT and service-role workers retain full
+  access; rows, policies, and RLS state are unchanged.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
