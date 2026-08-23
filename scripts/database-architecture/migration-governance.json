@@ -170,6 +170,16 @@
       "drizzle": "viza-be/agent-backend/drizzle/0178_account_action_log_rls_initplan.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260824023800_account_action_log_rls_initplan.sql",
       "sha256": "726114d60c513f65e8d755f400a7f6778e70a05a49212351578e7e8b83fd5596"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql",
+      "sha256": "91c9c5711e08ed66419fe23955595eaa081c18f6e4be0cc738514f625f7ff169"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0180_consent_event_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824032000_consent_event_rls_initplan.sql",
+      "sha256": "ad8b0e93f158e51ca79694dc6abf80c77781280a1e8d3bbd623dd62d208b27f8"
     }
   ],
   "no_mirror": [],
