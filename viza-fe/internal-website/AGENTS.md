@@ -595,7 +595,7 @@ Smoke URLs:
   optimization and its same-transaction policy-OID/relation-ACL preservation
   checks; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0178_account_action_log_rls_initplan.sql`.
-- `supabase/migrations/20260824034500_consent_event_rls_initplan.sql`:
+- `supabase/migrations/20260824032000_consent_event_rls_initplan.sql`:
   mirrors the production-catalog-reconciled two-path legal-consent policy
   init-plan optimization and its same-transaction policy-OID/relation-ACL
   preservation checks; keep it byte-identical to
