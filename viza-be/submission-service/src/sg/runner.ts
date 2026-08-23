@@ -8,13 +8,14 @@ import {
 } from "../queue/execution-context.js";
 import { writeRunnerPoolSubmissionResult } from "../result-writer.js";
 import {
+  normalizeSgacLongTermPassPortalPayload,
   normalizeSgacPortalPayload,
+  runSgacLongTermPassPortalSubmission,
   runSgacPortalSubmission,
-  SGAC_OFFICIAL_PORTAL_URL,
   SgacPortalError,
   SgacPortalValidationError,
 } from "../sgac/index.js";
-import type { CountrySubmissionApplication } from "../country-submissions/types.js";
+import type { CountrySubmissionApplication, SubmissionPayload } from "../country-submissions/types.js";
 import type { SgArrivalCardSubmissionResult } from "../submission-result.js";
 
 function fullName(answers: Record<string, string>): string | null {
@@ -51,6 +52,40 @@ function toSgacApplication(applicationId: string, answers: Record<string, string
   };
 }
 
+/**
+ * ICA serves Long-Term Pass holders on a distinct SG Arrival Card route. Keep
+ * this payload deliberately independent of the foreign-visitor registry: that
+ * registry requires travel, passport, and contact fields that the resident
+ * route neither asks for nor accepts.
+ */
+function toSgacLongTermPassPayload(
+  applicationId: string,
+  answers: Record<string, string>,
+  idempotencyKey: string,
+): SubmissionPayload {
+  return {
+    payloadVersion: "sgac-long-term-pass-v1",
+    countryCode: "SG",
+    visaType: "SG_ARRIVAL_CARD",
+    applicationId,
+    dryRun: false,
+    idempotencyKey,
+    personal: {
+      fullName: fullName(answers),
+      dateOfBirth: answers.date_of_birth ?? null,
+      email: answers.email ?? answers.email_address ?? null,
+    },
+    trip: {
+      destinationCountry: "Singapore",
+      arrivalDate: answers.arrival_date ?? null,
+    },
+    countrySpecific: { ...answers },
+    metadata: {
+      applicantType: "long_term_pass_holder",
+    },
+  };
+}
+
 /** Cloud runner_job adapter for ICA SG Arrival Card. */
 export async function runOne(
   applicationId: string,
@@ -64,25 +99,35 @@ export async function runOne(
   );
   const poolExecutionContext = identity.executionContext;
   const answers = await loadCanonicalAnswers(applicationId);
-  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
-  if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
-
-  const sgacApplication = toSgacApplication(applicationId, answers);
-  const validation = provider.validate(sgacApplication);
-  if (!validation.ok) {
-    throw new NeedsHumanError(`sgac: missing required answers: ${validation.missingRequiredFields.join(", ")}`);
-  }
-
-  const payload = provider.mapToSubmissionPayload(sgacApplication, {
-    dryRun: false,
-    idempotencyKey: `runner-job:${identity.jobId}`,
-  });
+  const isLongTermPassHolder = answers.sgac_applicant_type?.trim().toLowerCase() === "long_term_pass_holder";
+  const payload = isLongTermPassHolder
+    ? toSgacLongTermPassPayload(applicationId, answers, `runner-job:${identity.jobId}`)
+    : (() => {
+      const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+      if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
+      const sgacApplication = toSgacApplication(applicationId, answers);
+      // The registry's SGAC requirements describe ICA's foreign-visitor form.
+      const validation = provider.validate(sgacApplication);
+      if (!validation.ok) {
+        throw new NeedsHumanError(`sgac: missing required answers: ${validation.missingRequiredFields.join(", ")}`);
+      }
+      return provider.mapToSubmissionPayload(sgacApplication, {
+        dryRun: false,
+        idempotencyKey: `runner-job:${identity.jobId}`,
+      });
+    })();
   try {
-    const portal = await runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
-      headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
-      stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
-      executionContext: poolExecutionContext,
-    });
+    const portal = await (isLongTermPassHolder
+      ? runSgacLongTermPassPortalSubmission(normalizeSgacLongTermPassPortalPayload(payload), {
+          headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+          executionContext: poolExecutionContext,
+        })
+      : runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
+          headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+          executionContext: poolExecutionContext,
+        }));
     poolExecutionContext.assertOwned();
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
