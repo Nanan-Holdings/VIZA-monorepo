@@ -54,6 +54,14 @@ let lastRpcArgs: Record<string, unknown> | null = null;
 let lastApplicationUpdate: Record<string, unknown> | null = null;
 let enqueueRunnerJobResult = { id: "runner_tw_live_001", created: true };
 let lastRunnerJobArgs: { applicationId: string; country: string; opts: Record<string, unknown> } | null = null;
+let lastRunnerPoolArgs: {
+  applicationId: string;
+  country: string;
+  flowKey: string;
+  opts: Record<string, unknown>;
+} | null = null;
+let existingApplicationAuthorisation: Record<string, unknown> | null = null;
+let lastConsentInsert: Record<string, unknown> | null = null;
 let activeRunnerJob: Record<string, unknown> | null = null;
 let activeHandoff: Record<string, unknown> | null = null;
 let runnerJobQueryError: { message: string } | null = null;
@@ -89,6 +97,20 @@ vi.mock("@/lib/queue/enqueue", () => ({
     lastRunnerJobArgs = { applicationId, country, opts };
     return enqueueRunnerJobResult;
   }),
+  enqueueRunnerPoolJob: vi.fn(async (
+    applicationId: string,
+    country: string,
+    flowKey: string,
+    opts: Record<string, unknown>,
+  ) => {
+    lastRunnerPoolArgs = { applicationId, country, flowKey, opts };
+    return {
+      transport: "runner_job" as const,
+      id: "runner_jp_live_001",
+      created: true,
+      workerTriggered: true,
+    };
+  }),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -119,6 +141,22 @@ function createRowsQuery(rows: unknown[], error: { message: string } | null = nu
   return query;
 }
 
+function createConsentQuery() {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    limit: () => query,
+    maybeSingle: async () => ({ data: existingApplicationAuthorisation, error: null }),
+  };
+  return {
+    ...query,
+    insert: async (payload: Record<string, unknown>) => {
+      lastConsentInsert = payload;
+      return { error: null };
+    },
+  };
+}
+
 function createAdminMock() {
   return {
     from(table: string) {
@@ -135,6 +173,7 @@ function createAdminMock() {
         };
       }
       if (table === "visa_application_answers") return createRowsQuery(normalApplicationAnswers);
+      if (table === "consent_event") return createConsentQuery();
       if (table === "runner_job") return createMaybeSingleQuery(activeRunnerJob, runnerJobQueryError);
       if (table === "takeover_session") return createMaybeSingleQuery(activeHandoff, handoffQueryError);
       throw new Error(`Unexpected table: ${table}`);
@@ -194,6 +233,9 @@ describe("Taiwan entry permit retry submission API", () => {
     lastRpcArgs = null;
     lastApplicationUpdate = null;
     lastRunnerJobArgs = null;
+    lastRunnerPoolArgs = null;
+    existingApplicationAuthorisation = null;
+    lastConsentInsert = null;
     activeRunnerJob = null;
     activeHandoff = null;
     runnerJobQueryError = null;
@@ -207,6 +249,10 @@ describe("Taiwan entry permit retry submission API", () => {
     };
     enqueueRunnerJobResult = { id: "runner_tw_live_001", created: true };
     delete process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED;
+    delete process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED;
+    delete process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED;
+    delete process.env.NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED;
+    delete process.env.NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED;
   });
 
   it("creates a live Taiwan runner_job instead of a submission_queue row", async () => {
@@ -546,5 +592,85 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastRpcArgs).toBeNull();
     expect(lastRunnerJobArgs).toBeNull();
     expect(lastApplicationUpdate).toBeNull();
+  });
+
+  it("records Japan final authorisation and enqueues the shared runner exactly once", async () => {
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      applicationId,
+      jobId: "runner_jp_live_001",
+      queueStatus: "jp_vjw_live_assisted_pending",
+      provider: "jp_visit_japan_web_live",
+      queueTransport: "runner_job",
+    });
+    expect(lastConsentInsert).toMatchObject({
+      user_id: profile.auth_user_id,
+      applicant_id: profile.id,
+      application_id: applicationId,
+      doc_kind: "application_authorisation",
+    });
+    expect(lastRunnerPoolArgs).toMatchObject({
+      applicationId,
+      country: "japan",
+      flowKey: "jp_vjw",
+      opts: {
+        metadata: { retryIntent: "retry" },
+      },
+    });
+  });
+
+  it("fails Japan submission closed unless both live and compliance flags are enabled", async () => {
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    });
+
+    expect(result.status).toBe(403);
+    expect(lastConsentInsert).toBeNull();
+    expect(lastRunnerPoolArgs).toBeNull();
+  });
+
+  it("does not duplicate Japan authorisation when the current document version is recorded", async () => {
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+    existingApplicationAuthorisation = { id: "consent_existing" };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    });
+
+    expect(result.status).toBe(200);
+    expect(lastConsentInsert).toBeNull();
+    expect(lastRunnerPoolArgs).not.toBeNull();
   });
 });
