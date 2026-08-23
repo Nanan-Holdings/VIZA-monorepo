@@ -145,6 +145,11 @@ be shared by pause/apply/resume actions. `apply-approved-batch` accepts only a
 full commit SHA and an exact manifest entry. Architecture audit must never emit
 statement text, SQL parameters, table rows, applicant data, or advisor
 detail/remediation text.
+The metadata-only v2 audit may include a one-way SHA-256 of an explicitly
+allowlisted product-configuration row set plus migration-ledger version/name,
+statement count, and statement hash. It must never emit the source rows or SQL
+statement text; this evidence exists only to reconcile an already-applied
+migration filename without replaying the migration.
 Approved batches use structured catalog assertions only; concurrent-index
 batches pin exact index definitions and may retry only an invalid/not-ready
 index. Temporary Management API login roles must not exceed ten minutes and

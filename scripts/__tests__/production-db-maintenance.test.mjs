@@ -144,6 +144,18 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
                   using_sha256: "a".repeat(64),
                   check_sha256: null,
                 }],
+                migration_reconciliation_evidence: {
+                  jp_vjw_official_accommodation_fields: {
+                    ledger: [{
+                      version: "20260823193517",
+                      name: "jp_vjw_official_accommodation_fields",
+                      statement_count: null,
+                      statements_sha256: null,
+                    }],
+                    field_count: 6,
+                    field_contract_sha256: "b".repeat(64),
+                  },
+                },
                 tables: { total: 10 },
               } }]
             : [{ pg_stat_statements: {
@@ -172,7 +184,7 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     object: { schema: "public", name: "runner_job", entity: "runner_job", type: "table" },
   }]);
   assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
-  assert.equal(result.sanitization_schema, "viza-architecture-audit-metadata-only-v1");
+  assert.equal(result.sanitization_schema, "viza-architecture-audit-metadata-only-v2");
   assert.deepEqual(result.source.advisor_endpoints, [
     "advisors/security",
     "advisors/performance",
@@ -194,6 +206,19 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     using_sha256: "a".repeat(64),
     check_sha256: null,
   }]);
+  assert.deepEqual(
+    result.catalog.migration_reconciliation_evidence.jp_vjw_official_accommodation_fields,
+    {
+      ledger: [{
+        version: "20260823193517",
+        name: "jp_vjw_official_accommodation_fields",
+        statement_count: null,
+        statements_sha256: null,
+      }],
+      field_count: 6,
+      field_contract_sha256: "b".repeat(64),
+    },
+  );
   assert.doesNotMatch(ARCHITECTURE_AUDIT_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
   assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
   assert.match(ARCHITECTURE_AUDIT_SQL, /relation_acl/u);
@@ -206,6 +231,9 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
   assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indexprs IS NULL/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /generate_subscripts\(con\.conkey/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /'policy_contracts'/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /'migration_reconciliation_evidence'/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /supabase_migrations\.schema_migrations/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /public\.visa_form_fields/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.pg_policy/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.sha256/u);
   assert.match(
