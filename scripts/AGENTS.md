@@ -102,6 +102,11 @@ smoke-test helpers for the VIZA monorepo.
   allowlist plus hash-pinned mirror/no-mirror decisions for new migrations.
   A one-time unapplied rename must be 100% byte-identical, hash-pinned, backed
   by an exact production-ledger absence check, and still paired to its mirror.
+  An applied Supabase filename reconciliation is separately allowlisted only
+  when it is a 100% byte-preserving rename to the exact production ledger
+  version/name, the superseded local version is confirmed absent, and the
+  project ref plus durable read-only evidence run are pinned. Never replay the
+  migration merely to manufacture the repository's former version number.
 - `database-architecture/approved-migration-batches.json`: reviewed batch ids,
   exact migration paths/versions/SHA-256 values, execution modes, and migration
   ledger pre/postconditions used by `apply-approved-batch`.

@@ -8,6 +8,7 @@ export const DRIZZLE_MIGRATION_ROOT = "viza-be/agent-backend/drizzle";
 export const SUPABASE_MIGRATION_ROOT = "viza-fe/internal-website/supabase/migrations";
 export const DEFAULT_GOVERNANCE_MANIFEST =
   "scripts/database-architecture/migration-governance.json";
+const VERIFIED_PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 
 function normalizePath(value) {
   return String(value).replaceAll("\\", "/").replace(/^\.\//u, "");
@@ -44,9 +45,24 @@ function assertHistoricalManifestImmutable(manifest, baseManifest) {
     throw new Error("Historical Supabase version allowlist is immutable");
   }
 
-  for (const key of ["migration_pairs", "no_mirror", "unapplied_migration_renames"]) {
+  for (const key of [
+    "migration_pairs",
+    "no_mirror",
+    "unapplied_migration_renames",
+    "applied_migration_renames",
+  ]) {
     const current = new Set((manifest[key] ?? []).map(stableJson));
-    const missing = (baseManifest[key] ?? []).find((entry) => !current.has(stableJson(entry)));
+    const missing = (baseManifest[key] ?? []).find((entry) => {
+      if (current.has(stableJson(entry))) return false;
+      if (key !== "migration_pairs") return true;
+      const approvedRename = (manifest.applied_migration_renames ?? []).find((candidate) =>
+        normalizePath(candidate.from) === normalizePath(entry.supabase));
+      if (!approvedRename) return true;
+      return !(manifest.migration_pairs ?? []).some((candidate) =>
+        normalizePath(candidate.drizzle) === normalizePath(entry.drizzle) &&
+        normalizePath(candidate.supabase) === normalizePath(approvedRename.to) &&
+        candidate.sha256 === entry.sha256);
+    });
     if (missing) {
       throw new Error(`Previously approved ${key} entries are immutable`);
     }
@@ -340,12 +356,90 @@ export function validateMigrationGovernance({
     }
   }
 
+  const appliedRenames = manifest.applied_migration_renames ?? [];
+  const baseAppliedRenames = new Set(
+    (baseManifest?.applied_migration_renames ?? []).map(stableJson),
+  );
+  for (const rawEntry of appliedRenames) {
+    const entry = {
+      ...rawEntry,
+      from: normalizePath(rawEntry.from),
+      to: normalizePath(rawEntry.to),
+    };
+    const fromName = path.posix.basename(entry.from);
+    const toName = path.posix.basename(entry.to);
+    const fromMatch = /^(\d{14})_([a-zA-Z0-9][a-zA-Z0-9_.-]*)\.sql$/u.exec(fromName);
+    const toMatch = /^(\d{14})_([a-zA-Z0-9][a-zA-Z0-9_.-]*)\.sql$/u.exec(toName);
+    const absentVersions = entry.production_ledger_versions_absent;
+    const hasExactEvidence =
+      entry.from.startsWith(`${SUPABASE_MIGRATION_ROOT}/`) &&
+      entry.to.startsWith(`${SUPABASE_MIGRATION_ROOT}/`) &&
+      entry.from !== entry.to &&
+      path.posix.dirname(entry.from) === path.posix.dirname(entry.to) &&
+      typeof entry.reason === "string" && entry.reason.trim().length >= 12 &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/u.test(
+        String(entry.verified_applied_at ?? ""),
+      ) &&
+      entry.project_ref === VERIFIED_PRODUCTION_PROJECT_REF &&
+      Array.isArray(absentVersions) && absentVersions.length > 0 &&
+      absentVersions.every((version) => /^\d{14}$/u.test(version)) &&
+      Number.isSafeInteger(entry.evidence_run_id) && entry.evidence_run_id > 0 &&
+      entry.production_ledger_statement_count === 1 &&
+      /^[a-f0-9]{64}$/u.test(String(entry.production_ledger_statements_sha256)) &&
+      entry.production_ledger_normalization ===
+        "single_statement_lf_without_final_newline" &&
+      entry.production_state_contract?.kind ===
+        "jp_vjw_official_accommodation_fields_v1" &&
+      entry.production_state_contract?.row_count === 6 &&
+      /^[a-f0-9]{64}$/u.test(String(entry.production_state_contract?.sha256 ?? "")) &&
+      fromMatch && toMatch && fromMatch[2] === toMatch[2] &&
+      entry.production_ledger_version_present === toMatch[1] &&
+      entry.production_ledger_name === toMatch[2] &&
+      absentVersions.includes(fromMatch[1]) &&
+      !absentVersions.includes(toMatch[1]);
+    if (!hasExactEvidence) {
+      throw new Error(
+        `Applied migration rename requires exact production-ledger evidence: ${entry.from}`,
+      );
+    }
+    if (approvedRenamesByFrom.has(entry.from) || approvedRenamesByTo.has(entry.to)) {
+      throw new Error(`Duplicate migration rename contract: ${entry.from}`);
+    }
+    if (currentFileSet.has(entry.from) || !currentFileSet.has(entry.to)) {
+      throw new Error(`Applied migration rename paths do not match the current tree: ${entry.from}`);
+    }
+    assertPinnedEntry({ path: entry.to, sha256: entry.sha256 }, currentFileSet, readFile, hash);
+    const normalizedStatement = Buffer.from(readFile(entry.to)).toString("utf8")
+      .replaceAll("\r\n", "\n")
+      .replace(/\n$/u, "");
+    if (hash(Buffer.from(normalizedStatement, "utf8")) !==
+        entry.production_ledger_statements_sha256) {
+      throw new Error(
+        `Applied migration ledger statement hash does not match the governed file: ${entry.to}`,
+      );
+    }
+    approvedRenamesByFrom.set(entry.from, entry);
+    approvedRenamesByTo.set(entry.to, entry);
+
+    if (!baseAppliedRenames.has(stableJson(rawEntry))) {
+      const removed = migrationChanges.find((change) =>
+        change.status === "R" && change.path === entry.from && change.renamedTo === entry.to);
+      const addedTarget = migrationChanges.find((change) =>
+        change.status === "A" && change.path === entry.to && change.renamedFrom === entry.from);
+      if (!removed || !addedTarget) {
+        throw new Error(
+          `New applied migration rename must be visible as an exact Git rename: ${entry.from}`,
+        );
+      }
+    }
+  }
+
   const immutableChange = migrationChanges.find((change) => {
     if (change.status === "A") return false;
     const approved = approvedRenamesByFrom.get(change.path);
     if (!approved || change.status !== "R" || change.renamedTo !== approved.to) return true;
     if (change.renameScore !== 100) {
-      throw new Error(`Unapplied migration rename must be 100% byte-preserving: ${change.path}`);
+      throw new Error(`Migration rename must be 100% byte-preserving: ${change.path}`);
     }
     return false;
   });
@@ -361,7 +455,7 @@ export function validateMigrationGovernance({
       throw new Error(`Existing migration files are immutable (unapproved rename to ${change.path})`);
     }
     if (change.renameScore !== 100) {
-      throw new Error(`Unapplied migration rename must be 100% byte-preserving: ${change.path}`);
+      throw new Error(`Migration rename must be 100% byte-preserving: ${change.path}`);
     }
   }
   for (const filePath of added) {
@@ -416,6 +510,7 @@ export function validateMigrationGovernance({
     migration_pairs: pairs.length,
     no_mirror: noMirror.length,
     unapplied_migration_renames: approvedRenames.length,
+    applied_migration_renames: appliedRenames.length,
   };
 }
 
