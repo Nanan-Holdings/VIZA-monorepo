@@ -7,6 +7,7 @@ import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
+import { documentVersion } from "@/lib/legal/document-versions";
 import {
   enqueueRunnerJob,
   enqueueRunnerPoolJob,
@@ -40,6 +41,7 @@ import {
   isFreshDs160SubmissionIntent,
   isFranceVisasVisaType,
   isIndonesiaEVisaApplication,
+  isJapanVisitJapanWebApplication,
   isKoreaEArrivalCardApplication,
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
@@ -421,6 +423,18 @@ function isUkLiveRetryApplication(country: string | null, visaType: string | nul
 }
 
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
+  if (isJapanVisitJapanWebApplication(country, visaType)) {
+    return (
+      envEnabled(
+        "JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED",
+        "NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED",
+      ) &&
+      envEnabled(
+        "JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED",
+        "NEXT_PUBLIC_JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED",
+      )
+    );
+  }
   if (isVietnamPrearrivalApplication(country, visaType)) {
     return (
       process.env.VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false" &&
@@ -482,6 +496,47 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
+}
+
+async function ensureApplicationAuthorisationConsent(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  applicantId: string;
+  userId: string | null;
+  request: NextRequest;
+}): Promise<{ error: string | null }> {
+  const docVersion = documentVersion("application_authorisation");
+  const { data: existing, error: lookupError } = await input.admin
+    .from("consent_event")
+    .select("id")
+    .eq("application_id", input.applicationId)
+    .eq("doc_kind", "application_authorisation")
+    .eq("doc_version", docVersion)
+    .limit(1)
+    .maybeSingle();
+  if (lookupError) return { error: lookupError.message };
+  if (existing) return { error: null };
+
+  const forwardedFor = input.request.headers.get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
+  const { error: insertError } = await input.admin
+    .from("consent_event")
+    .insert({
+      user_id: input.userId,
+      applicant_id: input.applicantId,
+      application_id: input.applicationId,
+      email: null,
+      doc_kind: "application_authorisation",
+      doc_version: docVersion,
+      ip:
+        input.request.headers.get("cf-connecting-ip") ??
+        forwardedFor ??
+        input.request.headers.get("x-real-ip") ??
+        null,
+      ua: input.request.headers.get("user-agent"),
+    });
+  return { error: insertError?.message ?? null };
 }
 
 async function getActiveTaiwanRunnerJob(
@@ -1976,6 +2031,28 @@ export async function POST(
     !scheduledResult &&
     isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) &&
     process.env.SGAC_RUNNER_JOB_MIGRATION_ENABLED !== "false";
+
+  if (
+    mode === "live_assisted" &&
+    isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type)
+  ) {
+    const consent = await ensureApplicationAuthorisationConsent({
+      admin,
+      applicationId,
+      applicantId: ownedProfile.id,
+      userId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      request,
+    });
+    if (consent.error) {
+      return NextResponse.json(
+        {
+          error: "Unable to record the final application authorisation.",
+          code: "application_authorisation_record_failed",
+        },
+        { status: 500 },
+      );
+    }
+  }
 
   if (useSgacCountryRunner) {
     try {
