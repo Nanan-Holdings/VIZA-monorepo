@@ -57,7 +57,7 @@ const touristRunnerClaimMigrationPath = path.join(
   "viza-be",
   "agent-backend",
   "drizzle",
-  "0152_enable_five_tourist_runner_claims.sql",
+  "0163_enable_five_tourist_runner_claims.sql",
 );
 const touristRunnerClaimSupabaseMigrationPath = path.join(
   repoRoot,

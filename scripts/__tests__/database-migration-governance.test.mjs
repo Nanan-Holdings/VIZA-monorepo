@@ -51,6 +51,7 @@ function fixture(overrides = {}) {
         sha256: sameHash,
       }],
       no_mirror: [],
+      unapplied_migration_renames: [],
     },
     baseManifest: {
       schema_version: 1,
@@ -63,6 +64,7 @@ function fixture(overrides = {}) {
       historical_duplicate_supabase_versions: {},
       migration_pairs: [],
       no_mirror: [],
+      unapplied_migration_renames: [],
     },
     baseFiles: [
       `${drizzleRoot}/0012_match_visa_chunks.sql`,
@@ -95,6 +97,7 @@ test("accepts an exact new mirror pair with secure public objects", () => {
     added_migrations: 2,
     migration_pairs: 1,
     no_mirror: 0,
+    unapplied_migration_renames: 0,
   });
 });
 
@@ -118,6 +121,68 @@ test("rejects changes, renames, or deletes of an existing migration", () => {
       changes: [{ status: "M", path: `${drizzleRoot}/0012_match_visa_chunks.sql` }],
     })),
     /Existing migration files are immutable/u,
+  );
+});
+
+test("accepts an exact byte-preserving rename only for a verified unapplied migration", () => {
+  const input = fixture();
+  const oldPath = input.manifest.migration_pairs[0].drizzle;
+  const newPath = `${drizzleRoot}/0162_database_access_baseline.sql`;
+  input.currentFiles = input.currentFiles.map((filePath) =>
+    filePath === oldPath ? newPath : filePath);
+  input.changes = [
+    { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+    { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+  ];
+  input.manifest.migration_pairs[0].drizzle = newPath;
+  input.manifest.unapplied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Repair a numbering collision before production apply",
+    verified_unapplied_at: "2026-08-23T04:00:00Z",
+    production_ledger_versions_absent: ["20260822000000"],
+  });
+
+  const result = validateMigrationGovernance(input);
+  assert.equal(result.added_migrations, 1);
+  assert.equal(result.unapplied_migration_renames, 1);
+});
+
+test("rejects unapproved or content-changing migration renames", () => {
+  const oldPath = `${drizzleRoot}/0158_database_access_baseline.sql`;
+  const newPath = `${drizzleRoot}/0162_database_access_baseline.sql`;
+  const renamed = fixture({
+    currentFiles: [
+      `${drizzleRoot}/0012_match_visa_chunks.sql`,
+      `${drizzleRoot}/0012_vn_e_visa_package.sql`,
+      newPath,
+      `${supabaseRoot}/20260822000000_database_access_baseline.sql`,
+    ],
+    changes: [
+      { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+      { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+    ],
+  });
+  renamed.manifest.migration_pairs[0].drizzle = newPath;
+  assert.throws(
+    () => validateMigrationGovernance(renamed),
+    /Existing migration files are immutable/u,
+  );
+
+  renamed.manifest.unapplied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Repair a numbering collision before production apply",
+    verified_unapplied_at: "2026-08-23T04:00:00Z",
+    production_ledger_versions_absent: ["20260822000000"],
+  });
+  renamed.changes[0].renameScore = 99;
+  renamed.changes[1].renameScore = 99;
+  assert.throws(
+    () => validateMigrationGovernance(renamed),
+    /100% byte-preserving/u,
   );
 });
 
