@@ -963,6 +963,50 @@ test("applicant single-path RLS batch pins all four policy contracts", () => {
   assert.match(postflightSql, /acl_entry\.is_grantable/u);
 });
 
+test("supporting-document RLS batch pins the sole two-hop ownership policy", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "supporting-doc-submission-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "f65b84631a776b8ed3f5bb41f08657b5b69d2f5f");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824051000"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824055000"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824055000",
+    name: "supporting_doc_submission_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql",
+    sha256: "9a260359fb706176565f8e6b30d29e7a8ad484ef1f12f670337481228bab067f",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.supporting_doc_submission", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    const acls = assertions.filter(({ kind }) => kind === "relation_acl");
+    assert.equal(acls.length, 1);
+    const [acl] = acls;
+    assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+    assert.equal(acl.grant_options_forbidden, true);
+    assert.equal(acl.required.length, 4);
+    assert.ok(acl.required.every(({ privileges, exact, exact_direct: exactDirect }) =>
+      exact === true && exactDirect === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.equal((preflightSql.match(/0c1f144a5f4ed2d63e7cbe75cbdee0a425444763f84353d8dde8fb9a7a3ad6d4/gu) ?? []).length, 1);
+  assert.equal((postflightSql.match(/8c0df2ed0556d31617abbdee9ca003d8346949fafa4e18a3a49f94fa98f4e7f5/gu) ?? []).length, 1);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
