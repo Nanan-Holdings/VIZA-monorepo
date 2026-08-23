@@ -95,9 +95,10 @@ describe.skipIf(!liveGateEnabled)("consent-event RLS init-plan database integrat
 				('${ownProfile}', '${ownUser}'),
 				('${otherProfile}', '${otherUser}');
 			INSERT INTO public.consent_event(id, user_id, applicant_id, label) VALUES
-				('41111111-1111-4111-8111-111111111111', '${ownUser}', '${otherProfile}', 'own-by-user'),
-				('41222222-2222-4222-8222-222222222222', '${otherUser}', '${ownProfile}', 'own-by-profile'),
-				('42222222-2222-4222-8222-222222222222', '${otherUser}', '${otherProfile}', 'other'),
+				('41111111-1111-4111-8111-111111111111', '${ownUser}', NULL, 'own-by-user'),
+				('41222222-2222-4222-8222-222222222222', NULL, '${ownProfile}', 'own-by-profile'),
+				('42111111-1111-4111-8111-111111111111', '${otherUser}', NULL, 'other-by-user'),
+				('42222222-2222-4222-8222-222222222222', NULL, '${otherProfile}', 'other-by-profile'),
 				('43333333-3333-4333-8333-333333333333', NULL, NULL, 'unowned');
 		`);
 
@@ -175,6 +176,15 @@ describe.skipIf(!liveGateEnabled)("consent-event RLS init-plan database integrat
 		const owned = await query<{ label: string }>("SELECT label FROM public.consent_event ORDER BY id");
 		expect(owned.rows.map((row) => row.label)).toEqual(["own-by-user", "own-by-profile"]);
 
+		await query("SELECT set_config('request.jwt.claim.sub', $1, true)", [otherUser]);
+		const otherOwned = await query<{ label: string }>(
+			"SELECT label FROM public.consent_event ORDER BY id",
+		);
+		expect(otherOwned.rows.map((row) => row.label)).toEqual([
+			"other-by-user",
+			"other-by-profile",
+		]);
+
 		await query("RESET ROLE");
 		await query("SELECT set_config('request.jwt.claim.sub', '', true)");
 		await query("SET ROLE anon");
@@ -185,7 +195,7 @@ describe.skipIf(!liveGateEnabled)("consent-event RLS init-plan database integrat
 		const serviceCount = await query<{ count: string }>(
 			"SELECT count(*)::text AS count FROM public.consent_event",
 		);
-		expect(serviceCount.rows[0]?.count).toBe("4");
+		expect(serviceCount.rows[0]?.count).toBe("5");
 	});
 
 	afterAll(async () => {

@@ -24,6 +24,8 @@ const canonicalSql = existsSync(canonicalPath) ? readFileSync(canonicalPath, "ut
 const mirrorSql = existsSync(mirrorPath) ? readFileSync(mirrorPath, "utf8") : "";
 const drizzleHistorySql = readFileSync(drizzleHistoryPath, "utf8");
 const websiteHistorySql = readFileSync(websiteHistoryPath, "utf8");
+const preHash = "91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8";
+const postHash = "71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975";
 
 describe("consent-event RLS init-plan migration", () => {
 	it("ships a byte-identical canonical and Supabase mirror", () => {
@@ -51,9 +53,13 @@ describe("consent-event RLS init-plan migration", () => {
 		expect(canonicalSql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\b/i);
 		expect(canonicalSql).not.toMatch(/\b(?:GRANT|REVOKE|ALTER TABLE|CREATE FUNCTION)\b/i);
 		expect(canonicalSql).toMatch(/v_policy_oid\s+oid/i);
+		expect(canonicalSql).toMatch(/v_policy_using_sha256\s+text/i);
+		expect(canonicalSql).toMatch(/policy drifted before optimization/i);
+		expect(canonicalSql).toMatch(new RegExp(preHash, "i"));
+		expect(canonicalSql).toMatch(new RegExp(postHash, "i"));
 		expect(canonicalSql).toMatch(/policy\.oid\s*=\s*v_policy_oid/i);
 		expect(canonicalSql).toMatch(/relation\.relacl[\s\S]+IS DISTINCT FROM v_relation_acl/i);
-		expect(canonicalSql).toMatch(/RAISE EXCEPTION 'consent_event_select_own policy identity changed/i);
+		expect(canonicalSql).toMatch(/RAISE EXCEPTION 'consent_event_select_own policy identity or contract changed/i);
 		expect(canonicalSql).toMatch(/RAISE EXCEPTION 'consent_event ACL changed/i);
 	});
 });
