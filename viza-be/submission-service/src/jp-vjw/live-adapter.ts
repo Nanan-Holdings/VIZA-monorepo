@@ -71,7 +71,12 @@ function normalizeOptionText(value: string): string {
 async function capturePage(context: JpVjwLiveAdapterContext, name: string): Promise<string> {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "viza-jp-vjw-live-"));
   const filePath = path.join(directory, `${name}-${Date.now()}.png`);
-  await context.page.screenshot({ path: filePath, fullPage: true });
+  await context.page.screenshot({
+    path: filePath,
+    fullPage: true,
+    mask: [context.page.locator("input, select, textarea")],
+    maskColor: "#6b7280",
+  });
   context.screenshots.push(filePath);
   return filePath;
 }
@@ -250,6 +255,14 @@ async function selectNative(
   if (!(await select.count())) {
     await fail(context, "jp_vjw_select_missing", `Visit Japan Web select ${name} was not found.`);
   }
+  // VJW renders the select before its reference-data request has populated
+  // the options. Resolving against the initial placeholder would make a valid
+  // nationality or occupation look unsupported.
+  await select.locator("option").nth(1)
+    .waitFor({ state: "attached", timeout: ROUTE_TIMEOUT_MS })
+    .catch(async () => {
+      await fail(context, "jp_vjw_select_options_missing", `Visit Japan Web select ${name} did not load its options.`);
+    });
   const candidates = [wanted, ...aliases].map(normalizeOptionText).filter(Boolean);
   const optionValue = await select.evaluate((element, normalizedCandidates) => {
     const htmlSelect = element as HTMLSelectElement;
