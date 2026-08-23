@@ -199,6 +199,9 @@ test("Korea verification-code CAPTCHA is not misclassified as a review prompt", 
 });
 
 test("Korea address search observes results without waiting on a phantom navigation", () => {
+  assert.match(runnerSource, /function officialAddressSearchKeyword/);
+  assert.match(runnerSource, /normalized\.split\(",", 1\)/);
+  assert.match(runnerSource, /officialAddressSearchKeyword\(addressQuery\)/);
   assert.match(runnerSource, /search\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
   assert.match(runnerSource, /zipSearch\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
 });
