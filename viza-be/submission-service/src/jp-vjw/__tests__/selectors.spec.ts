@@ -9,6 +9,8 @@ import {
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
   JP_VJW_MANUAL_PASSPORT_NAME,
+  JP_VJW_NEW_TRIP_NAME,
+  JP_VJW_NO_COPY_TRIP_NAME,
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
@@ -52,6 +54,8 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
   assert.match("Registration complete", JP_VJW_PROFILE_COMPLETE_NAME);
   assert.match("Confirm entered details", JP_VJW_CONFIRM_ENTERED_DETAILS_NAME);
+  assert.match("Register new planned entry/return", JP_VJW_NEW_TRIP_NAME);
+  assert.match("Proceed to registration without copying details", JP_VJW_NO_COPY_TRIP_NAME);
 });
 
 test("Visit Japan Web native option matching skips the empty placeholder", () => {

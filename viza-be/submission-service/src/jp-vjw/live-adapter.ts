@@ -21,6 +21,8 @@ import {
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
   JP_VJW_PROFILE_COMPLETE_NAME,
+  JP_VJW_NEW_TRIP_NAME,
+  JP_VJW_NO_COPY_TRIP_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
@@ -723,8 +725,32 @@ async function openExistingTrip(context: JpVjwLiveAdapterContext, title: string)
   return true;
 }
 
+async function openNewTripRegistration(context: JpVjwLiveAdapterContext): Promise<void> {
+  const titleControl = context.page.locator("[formcontrolname='travelTitle']").first();
+  if (await titleControl.isVisible().catch(() => false)) return;
+
+  let action = context.page.getByRole("button", { name: JP_VJW_NEW_TRIP_NAME }).first();
+  if (!(await action.isVisible().catch(() => false))) {
+    action = context.page.getByText(JP_VJW_NEW_TRIP_NAME).first();
+  }
+  if (!(await action.isVisible().catch(() => false))) {
+    await fail(context, "jp_vjw_new_trip_action_missing", "Visit Japan Web new planned entry/return action was not visible.");
+  }
+  await action.click();
+  await context.page.waitForTimeout(500);
+
+  const noCopy = context.page.getByRole("radio", { name: JP_VJW_NO_COPY_TRIP_NAME }).first();
+  if (await noCopy.isVisible().catch(() => false)) {
+    await selectRadioInput(context, noCopy);
+    await clickPrimary(context);
+  }
+  await titleControl.waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS }).catch(async () => {
+    await fail(context, "jp_vjw_trip_form_missing", "Visit Japan Web did not open the planned entry/return form.");
+  });
+}
+
 async function registerTrip(context: JpVjwLiveAdapterContext, title: string): Promise<void> {
-  await navigateRoute(context, "vjwpti001");
+  await openNewTripRegistration(context);
   await fillControl(context, "travelTitle", title);
   await fillControl(context, "arrivalSheduleDate", context.payload.arrivalDate);
   const airlineCode = context.payload.arrivalAirline.trim().toUpperCase().match(/^[A-Z0-9]{2}/u)?.[0]
