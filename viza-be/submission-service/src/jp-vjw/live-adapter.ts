@@ -753,6 +753,8 @@ async function fillJapanAddress(context: JpVjwLiveAdapterContext, route: "vjwpti
     await autoButton.click();
     await context.page.waitForTimeout(600);
   }
+  await selectNative(context, "prefecture", context.payload.accommodationPrefecture);
+  await selectNative(context, "city", context.payload.accommodationCity);
   await fillControl(context, "address", context.payload.accommodationAddress.toUpperCase());
   const nameControl = route === "vjwpti002" ? "placeOfStay" : "optionalAddress";
   await fillControl(context, nameControl, context.payload.accommodationName.toUpperCase());

@@ -48,6 +48,8 @@ function payload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload 
       purpose_of_visit: "Tourism",
       planned_stay_days: "11",
       accommodation_name: "Tokyo Hotel",
+      accommodation_prefecture: "TOKYO",
+      accommodation_city: "CHIYODA KU",
       accommodation_address: "1 Tokyo Street",
       accommodation_postal_code: "100-0001",
       accommodation_phone: "+81312345678",
@@ -82,6 +84,8 @@ test("normalizes Visit Japan Web payload and preserves official answers", () => 
   assert.equal(result.customsAnswers.hasDutiableGoods, "no");
   assert.equal(result.immigrationAnswers.hasCriminalRecord, "no");
   assert.equal(result.departureCityOrPort, "Shanghai");
+  assert.equal(result.accommodationPrefecture, "TOKYO");
+  assert.equal(result.accommodationCity, "CHIYODA KU");
 });
 
 test("maps only a legacy combined no to both current customs answers", () => {
@@ -128,5 +132,17 @@ test("rejects wrong country/visa type and missing canonical immigration confirma
   assert.throws(
     () => normalizeJpVjwPortalPayload(invalid),
     /immigration_declaration/,
+  );
+});
+
+test("rejects missing official address subdivisions and an invalid Japan contact phone", () => {
+  const invalid = payload();
+  delete invalid.countrySpecific.accommodation_prefecture;
+  delete invalid.countrySpecific.accommodation_city;
+  invalid.countrySpecific.accommodation_phone = "12345678";
+
+  assert.throws(
+    () => normalizeJpVjwPortalPayload(invalid),
+    /accommodation_prefecture, accommodation_city, accommodation_phone/,
   );
 });

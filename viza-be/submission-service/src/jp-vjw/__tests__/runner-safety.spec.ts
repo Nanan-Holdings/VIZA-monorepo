@@ -30,6 +30,8 @@ const payload: JpVjwPortalPayload = {
   purposeOfVisit: "Tourism",
   plannedStayDays: 11,
   accommodationName: "Tokyo Hotel",
+  accommodationPrefecture: "TOKYO",
+  accommodationCity: "CHIYODA KU",
   accommodationAddress: "1 Tokyo Street",
   accommodationPostalCode: "100-0001",
   accommodationPhone: "+81312345678",

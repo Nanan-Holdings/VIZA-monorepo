@@ -28,6 +28,8 @@ export const JP_VJW_REQUIRED_ANSWER_KEYS = [
   "purpose_of_visit",
   "planned_stay_days",
   "accommodation_name",
+  "accommodation_prefecture",
+  "accommodation_city",
   "accommodation_address",
   "accommodation_postal_code",
   "accommodation_phone",
@@ -104,6 +106,8 @@ export interface JpVjwPortalPayload {
   purposeOfVisit: string;
   plannedStayDays: number;
   accommodationName: string;
+  accommodationPrefecture: string;
+  accommodationCity: string;
   accommodationAddress: string;
   accommodationPostalCode: string;
   accommodationPhone: string;
@@ -273,6 +277,8 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     purposeOfVisit: required(firstText([answers.purpose_of_visit, trip.purpose]), "purpose_of_visit", missing),
     plannedStayDays,
     accommodationName: required(firstText([answers.accommodation_name, trip.accommodationName]), "accommodation_name", missing),
+    accommodationPrefecture: required(firstText([answers.accommodation_prefecture]), "accommodation_prefecture", missing),
+    accommodationCity: required(firstText([answers.accommodation_city]), "accommodation_city", missing),
     accommodationAddress: required(firstText([answers.accommodation_address, trip.accommodationAddress]), "accommodation_address", missing),
     accommodationPostalCode: required(firstText([answers.accommodation_postal_code]), "accommodation_postal_code", missing),
     accommodationPhone: required(firstText([answers.accommodation_phone]), "accommodation_phone", missing),
@@ -301,6 +307,9 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
   if (!/^\S+@\S+\.\S+$/u.test(result.emailAddress)) missing.push("email_address");
   if (result.accommodationPostalCode && !/^\d{3}-?\d{4}$/u.test(result.accommodationPostalCode)) {
     missing.push("accommodation_postal_code");
+  }
+  if (!/^\d{10,15}$/u.test(result.accommodationPhone.replace(/[^0-9]/gu, ""))) {
+    missing.push("accommodation_phone");
   }
   if (result.flightNumber && !/^\d{1,8}$/u.test(result.flightNumber)) missing.push("flight_number");
 
