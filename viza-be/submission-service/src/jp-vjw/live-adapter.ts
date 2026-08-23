@@ -16,6 +16,7 @@ import {
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
+  JP_VJW_OPTIONAL_MFA_QUESTION,
   JP_VJW_YOUR_DETAILS_NAME,
 } from "./selectors.js";
 
@@ -410,12 +411,12 @@ async function tryLogin(context: JpVjwLiveAdapterContext): Promise<boolean> {
 
 async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> {
   const heading = context.page.getByText(JP_VJW_OPTIONAL_MFA_HEADING).first();
+  const question = context.page.getByText(JP_VJW_OPTIONAL_MFA_QUESTION).first();
   const dashboard = context.page.getByText(JP_VJW_YOUR_DETAILS_NAME).first();
   let landing: "mfa" | "dashboard" | null = null;
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const bodyText = await context.page.locator("body").innerText().catch(() => "");
-    const hasMfaRadios = (await context.page.getByRole("radio").count().catch(() => 0)) >= 2;
-    if ((await heading.isVisible().catch(() => false)) || (JP_VJW_OPTIONAL_MFA_HEADING.test(bodyText) && hasMfaRadios)) {
+    const questionVisible = await question.isVisible().catch(() => false);
+    if (questionVisible && await heading.isVisible().catch(() => false)) {
       landing = "mfa";
       break;
     }
@@ -427,11 +428,21 @@ async function skipOptionalMfa(context: JpVjwLiveAdapterContext): Promise<void> 
   }
   if (landing !== "mfa") return;
 
+  // The MFA page can finish an asynchronous transition after its heading was
+  // observed. Never let a stale MFA decision select a later profile radio.
+  if (!(await question.isVisible().catch(() => false))) return;
+
   const no = context.page.getByRole("radio", { name: JP_VJW_MFA_NO_NAME }).first();
   if (!(await no.isVisible().catch(() => false))) {
     return await fail(context, "jp_vjw_optional_mfa_no_missing", "Visit Japan Web optional MFA opt-out was not visible.");
   }
-  await no.check({ force: true });
+  const noId = await no.getAttribute("id");
+  const noLabel = noId ? context.page.locator(`label[for='${noId}']`).first() : null;
+  if (noLabel && await noLabel.isVisible().catch(() => false)) await noLabel.click();
+  else await no.check({ force: true });
+  if (!(await no.isChecked().catch(() => false))) {
+    return await fail(context, "jp_vjw_optional_mfa_no_unchecked", "Visit Japan Web optional MFA opt-out did not remain selected.");
+  }
   await clickPrimary(context, true);
   await dashboard
     .waitFor({ state: "visible", timeout: ROUTE_TIMEOUT_MS })

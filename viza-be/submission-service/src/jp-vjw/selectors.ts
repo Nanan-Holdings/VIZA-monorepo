@@ -35,6 +35,9 @@ export const JP_VJW_YOUR_DETAILS_NAME =
 export const JP_VJW_OPTIONAL_MFA_HEADING =
   /设置多因素认证|設定多因素驗證|Setting up Multi[-‐‑‒–—―\s]*Factor Authentication|多要素認証の設定/i;
 
+export const JP_VJW_OPTIONAL_MFA_QUESTION =
+  /是否设置多因素认证|是否設定多因素驗證|Do you want to set up multi[-‐‑‒–—―\s]*factor authentication\??|多要素認証を設定しますか/i;
+
 export const JP_VJW_MFA_NO_NAME = /^(?:否|No|いいえ)$/i;
 
 /**
