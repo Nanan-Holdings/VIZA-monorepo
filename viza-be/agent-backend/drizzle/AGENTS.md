@@ -158,6 +158,9 @@ The current internal automation migrations are:
   the same transaction so identity or privilege drift aborts the batch.
   Keep its Supabase migration mirror byte-identical; `consent_event` is not part
   of this migration.
+- `0179_jp_vjw_official_accommodation_fields.sql`: adds the official VJW
+  prefecture and city/ward/town inputs and enforces the observed 10-15 digit
+  Japan accommodation contact-number contract in the DB-driven form schema.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

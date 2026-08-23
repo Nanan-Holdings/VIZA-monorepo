@@ -17,6 +17,8 @@ describe("Japan Visit Japan Web form seed", () => {
       "occupation",
       "residence_city",
       "last_embarkation_country",
+      "accommodation_prefecture",
+      "accommodation_city",
       "accommodation_address",
       "has_been_deported",
       "has_criminal_record",
@@ -63,6 +65,23 @@ describe("Japan Visit Japan Web form seed", () => {
     expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.some((field) => field.field_type === "file")).toBe(false);
     const nationality = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "nationality");
     expect(nationality?.options?.[0]).toMatchObject({ value: "China", label_zh: "中国", label_en: "China" });
+  });
+
+  it("collects the current official Japan address controls and phone shape", () => {
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_prefecture")).toMatchObject({
+      field_type: "text",
+      required: true,
+      validation_rules: expect.objectContaining({ official_control: "prefecture" }),
+    });
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_city")).toMatchObject({
+      field_type: "text",
+      required: true,
+      validation_rules: expect.objectContaining({ official_control: "city", maxLength: 45 }),
+    });
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_phone")?.validation_rules).toMatchObject({
+      pattern: "^[0-9]{10,15}$",
+      official_control: "telephoneNumberInJapan",
+    });
   });
 
   it("publishes the versioned Japan Customs airport options with official values", () => {

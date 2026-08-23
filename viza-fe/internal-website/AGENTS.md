@@ -323,6 +323,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   byte-identical to
   `viza-be/agent-backend/drizzle/0169_jp_vjw_no_document_uploads.sql`. Kenya
   eTA document requirements remain unchanged.
+- Japan VJW's current official accommodation controls and phone validation are
+  applied by
+  `supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql`;
+  keep it byte-identical to backend migration
+  `viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql`.
 - Application-scoped unattended-runner aliases are created by
   `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
   byte-identical to

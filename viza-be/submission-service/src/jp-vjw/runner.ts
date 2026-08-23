@@ -267,6 +267,8 @@ export async function normalizeAndRunJpVjwPortalSubmission(
           purposeOfVisit: "",
           plannedStayDays: 0,
           accommodationName: "",
+          accommodationPrefecture: "",
+          accommodationCity: "",
           accommodationAddress: "",
           accommodationPostalCode: "",
           accommodationPhone: "",
