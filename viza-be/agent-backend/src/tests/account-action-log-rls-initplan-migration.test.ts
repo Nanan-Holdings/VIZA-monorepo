@@ -33,5 +33,10 @@ describe("account-action-log RLS init-plan migration", () => {
 	it("changes no data, ACL, table, or function contract", () => {
 		expect(canonicalSql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE|TRUNCATE)\b/i);
 		expect(canonicalSql).not.toMatch(/\b(?:GRANT|REVOKE|ALTER TABLE|CREATE FUNCTION)\b/i);
+		expect(canonicalSql).toMatch(/v_policy_oid\s+oid/i);
+		expect(canonicalSql).toMatch(/policy\.oid\s*=\s*v_policy_oid/i);
+		expect(canonicalSql).toMatch(/relation\.relacl[\s\S]+IS DISTINCT FROM v_relation_acl/i);
+		expect(canonicalSql).toMatch(/RAISE EXCEPTION 'account_action_log_select_own policy identity changed/i);
+		expect(canonicalSql).toMatch(/RAISE EXCEPTION 'account_action_log ACL changed/i);
 	});
 });
