@@ -174,6 +174,11 @@ The current internal automation migrations are:
   authenticated user identity once per statement. It keeps policy OIDs,
   commands, PUBLIC roles, policy counts, RLS state, and relation ACLs unchanged;
   keep its Supabase mirror byte-identical.
+- `0182_supporting_doc_submission_rls_initplan.sql`: preserves the sole
+  supporting-document submission SELECT policy and its two-hop application to
+  applicant ownership path while evaluating `auth.uid()` once per statement.
+  It keeps policy/relation OIDs, the PUBLIC role, command, policy count, RLS
+  state, and relation ACL unchanged; keep its Supabase mirror byte-identical.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
