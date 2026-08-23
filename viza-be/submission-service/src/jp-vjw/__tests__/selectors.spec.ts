@@ -1,11 +1,44 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { chromium } from "playwright";
+import { fillJpVjwVerificationCode } from "../live-adapter";
 import { JP_VJW_CREATE_ACCOUNT_NAME, hasOfficialJpVjwQrEvidence, isJpVjwCloudfrontAccessGate, isOfficialJpVjwUrl, resolveJpVjwUserAgent } from "../selectors";
 
 test("Visit Japan Web account selector accepts the observed production label", () => {
   assert.match("Create an account", JP_VJW_CREATE_ACCOUNT_NAME);
   assert.match("Create new account", JP_VJW_CREATE_ACCOUNT_NAME);
   assert.match("新規アカウント作成", JP_VJW_CREATE_ACCOUNT_NAME);
+});
+
+test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <ng-otp-input>
+        ${Array.from({ length: 6 }, (_, index) => `<input maxlength="1" data-index="${index}">`).join("")}
+      </ng-otp-input>
+      <script>
+        const inputs = [...document.querySelectorAll('ng-otp-input input')];
+        window.keyboardEvents = 0;
+        inputs.forEach((input, index) => {
+          input.addEventListener('keydown', () => { window.keyboardEvents += 1; });
+          input.addEventListener('input', () => {
+            if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+          });
+        });
+      </script>
+    `);
+    assert.equal(await fillJpVjwVerificationCode(page, "671508"), true);
+    assert.deepEqual(await page.locator("ng-otp-input input").evaluateAll((inputs) =>
+      inputs.map((input) => (input as HTMLInputElement).value),
+    ), ["6", "7", "1", "5", "0", "8"]);
+    assert.equal(await page.evaluate(() =>
+      (window as unknown as Window & { keyboardEvents: number }).keyboardEvents >= 6,
+    ), true);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("Visit Japan Web QR gate requires official host, visible QR and artifact", () => {

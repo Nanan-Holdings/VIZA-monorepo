@@ -199,6 +199,35 @@ async function fillControl(context: JpVjwLiveAdapterContext, name: string, value
   await control.fill(value);
 }
 
+export async function fillJpVjwVerificationCode(page: Page, code: string): Promise<boolean> {
+  if (!/^\d{6}$/u.test(code)) return false;
+  const otpInputs = page.locator("ng-otp-input input");
+  if ((await otpInputs.count()) !== 6) return false;
+
+  // ng-otp-input keeps its own Angular state and advances focus from one box
+  // to the next on keyboard events. locator.fill() updates the visible DOM
+  // value, but the production widget can still report every box as required.
+  await otpInputs.first().click();
+  await page.keyboard.type(code, { delay: 75 });
+
+  let entered = await otpInputs.evaluateAll((inputs) =>
+    inputs.map((input) => (input as HTMLInputElement).value).join(""),
+  );
+  if (entered !== code) {
+    for (let index = 0; index < 6; index += 1) {
+      const input = otpInputs.nth(index);
+      await input.click();
+      await input.press("ControlOrMeta+A");
+      await input.press(code[index]);
+    }
+    entered = await otpInputs.evaluateAll((inputs) =>
+      inputs.map((input) => (input as HTMLInputElement).value).join(""),
+    );
+  }
+  await otpInputs.last().press("Tab");
+  return entered === code;
+}
+
 async function selectNative(
   context: JpVjwLiveAdapterContext,
   name: string,
@@ -339,8 +368,8 @@ async function registerAccount(context: JpVjwLiveAdapterContext): Promise<void> 
   if ((await otpInputs.count()) !== 6) {
     return await fail(context, "jp_vjw_verification_inputs_missing", "Visit Japan Web six-digit verification inputs were not found.");
   }
-  for (let index = 0; index < 6; index += 1) {
-    await otpInputs.nth(index).fill(verification.code[index]);
+  if (!(await fillJpVjwVerificationCode(page, verification.code))) {
+    return await fail(context, "jp_vjw_verification_input_rejected", "Visit Japan Web did not accept the six-digit verification code input.");
   }
   await clickPrimary(context, true);
   const completedDialog = page.locator("app-vjwplo005").first();
