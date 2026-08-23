@@ -608,6 +608,11 @@ Smoke URLs:
   mirrors the backend two-hop supporting-document ownership SELECT-policy
   optimization; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0182_supporting_doc_submission_rls_initplan.sql`.
+- `supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql`:
+  mirrors the backend notification-preferences duplicate-policy removal and
+  its same-transaction surviving-policy/ACL/RLS preservation checks; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
