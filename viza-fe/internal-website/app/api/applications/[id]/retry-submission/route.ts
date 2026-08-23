@@ -1791,6 +1791,22 @@ export async function POST(
         );
       }
     }
+    if (isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const completeness = await loadApplicationCompleteness({
+        admin,
+        application: ownedApplication,
+      });
+      if (!completeness.complete) {
+        return NextResponse.json(
+          {
+            error: "请先补齐日本入境申报的必填信息和材料。",
+            code: "application_incomplete",
+            completeness,
+          },
+          { status: 422 },
+        );
+      }
+    }
     if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
       try {
         ownedProfile.inbox_alias = await rotateLegacyManagedInboxAlias(
