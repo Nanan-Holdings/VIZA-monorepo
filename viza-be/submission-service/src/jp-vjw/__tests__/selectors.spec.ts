@@ -2,12 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 import { fillJpVjwVerificationCode } from "../live-adapter";
-import { JP_VJW_CREATE_ACCOUNT_NAME, hasOfficialJpVjwQrEvidence, isJpVjwCloudfrontAccessGate, isOfficialJpVjwUrl, resolveJpVjwUserAgent } from "../selectors";
+import {
+  JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_CREATE_ACCOUNT_NAME,
+  JP_VJW_GO_TO_LOGIN_NAME,
+  hasOfficialJpVjwQrEvidence,
+  isJpVjwCloudfrontAccessGate,
+  isOfficialJpVjwUrl,
+  resolveJpVjwUserAgent,
+} from "../selectors";
 
 test("Visit Japan Web account selector accepts the observed production label", () => {
   assert.match("Create an account", JP_VJW_CREATE_ACCOUNT_NAME);
   assert.match("Create new account", JP_VJW_CREATE_ACCOUNT_NAME);
   assert.match("新規アカウント作成", JP_VJW_CREATE_ACCOUNT_NAME);
+});
+
+test("Visit Japan Web account-success selectors accept the observed production dialog", () => {
+  assert.match("Your account has been successfully created", JP_VJW_ACCOUNT_CREATED_NAME);
+  assert.match("Go To Login Screen", JP_VJW_GO_TO_LOGIN_NAME);
 });
 
 test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {

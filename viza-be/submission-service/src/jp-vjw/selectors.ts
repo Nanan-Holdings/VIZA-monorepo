@@ -23,6 +23,12 @@ export const JP_VJW_SELECTORS = {
 export const JP_VJW_CREATE_ACCOUNT_NAME =
   /创建新账号|创建账号|Create (?:new|an) account|新規アカウント作成|アカウントを作成/i;
 
+export const JP_VJW_ACCOUNT_CREATED_NAME =
+  /账号已成功创建|帳號已成功建立|Your account has been successfully created|アカウントの作成が完了/i;
+
+export const JP_VJW_GO_TO_LOGIN_NAME =
+  /前往登录画面|前往登入畫面|Go To Login Screen|ログイン画面へ/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success
