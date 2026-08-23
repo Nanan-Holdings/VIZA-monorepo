@@ -576,6 +576,37 @@ test("chat RLS init-plan batch pins every policy before and after the rewrite", 
   assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
 });
 
+test("user packages RLS init-plan batch pins the sole policy contract", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "user-packages-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "40814de368ec2030c850bf906ade4b5d6a64e6f6");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823143810"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823152021"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823152021",
+    name: "user_packages_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823152021_user_packages_rls_initplan.sql",
+    sha256: "81a7e178c00d647afda7c00c1ad99b506965c5f4542fc7e31da9c46c9e4a6ecf",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.user_packages", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /ce62525c186c42a375e07249cdd9461522f496b27a3d8789df71b39ac5e77d58/u);
+  assert.match(postflightSql, /2be57c38df7ccb57585e26e8063a9915959f6814c740ec2f581dd7830759c312/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
