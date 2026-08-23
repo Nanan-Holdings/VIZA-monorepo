@@ -680,6 +680,75 @@ test("inbound-email RLS init-plan batch pins policy and unchanged broad ACL", ()
   assert.match(postflightSql, /has_table_privilege/u);
 });
 
+test("inbound-email ACL batch removes anonymous access and client mutations", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "inbound-email-acl-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "e42a9ea6a093b20ef8f1458e7982bce7ee8706c1");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823163045"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824012700"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824012700",
+    name: "inbound_email_acl",
+    path: "viza-fe/internal-website/supabase/migrations/20260824012700_inbound_email_acl.sql",
+    sha256: "56e0894fa8659daf404dabb99cd536de370653c69f84f3cd6bd6cf1a8062117c",
+  });
+
+  const preAssertions = batch.preconditions.catalog_assertions;
+  const postAssertions = batch.postconditions.catalog_assertions;
+  const preAcl = preAssertions.find(({ kind }) => kind === "relation_acl");
+  const postAcl = postAssertions.find(({ kind }) => kind === "relation_acl");
+  assert.deepEqual(preAcl.required.map(({ role }) => role), [
+    "anon",
+    "authenticated",
+    "service_role",
+  ]);
+  assert.ok(preAcl.required.every(({ exact, privileges }) =>
+    exact === true && privileges.length === 7));
+  assert.deepEqual(preAcl.forbidden_roles, ["PUBLIC"]);
+  assert.deepEqual(preAcl.allowed_direct_roles, ["anon", "authenticated", "service_role"]);
+  assert.equal(preAcl.grant_options_forbidden, true);
+  assert.deepEqual(postAcl.required, [
+    { role: "authenticated", privileges: ["SELECT"], exact: true },
+    {
+      role: "service_role",
+      privileges: [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+      ],
+      exact: true,
+    },
+  ]);
+  assert.deepEqual(postAcl.forbidden_roles, ["PUBLIC", "anon"]);
+  assert.deepEqual(postAcl.allowed_direct_roles, ["authenticated", "service_role"]);
+  assert.equal(postAcl.grant_options_forbidden, true);
+
+  for (const assertions of [preAssertions, postAssertions]) {
+    const policy = assertions.find(({ kind }) => kind === "policy_contract");
+    assert.equal(policy.using_sha256, "ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8");
+    assert.deepEqual(policy.roles, ["PUBLIC"]);
+    assert.equal(assertions.find(({ kind }) => kind === "policy_count").count, 1);
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /20260823163045/u);
+  assert.match(postflightSql, /20260824012700/u);
+  assert.match(preflightSql, /ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8/u);
+  assert.match(postflightSql, /ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8/u);
+  assert.match(postflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+  assert.match(postflightSql, /pg_catalog\.pg_get_userbyid/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
