@@ -39,6 +39,17 @@ type RunnerJobState = {
   available_at?: string | null;
 };
 
+type SubmissionEvidence = {
+  entitlement?: {
+    decision_status: string;
+    agency_fee_status: string;
+    official_fee_status: string;
+  } | null;
+  order?: { status: string } | null;
+  payment?: { status: string } | null;
+  allocation?: { state: string } | null;
+};
+
 function configureAdmin(
   row: Partial<RpcRow> = {},
   depthRows = [{
@@ -54,6 +65,16 @@ function configureAdmin(
   },
   authorityError: { message: string } | null = null,
   applicationVisaType: string | null = null,
+  submissionEvidence: SubmissionEvidence = {
+    entitlement: {
+      decision_status: "ready",
+      agency_fee_status: "paid",
+      official_fee_status: "not_required",
+    },
+    order: { status: "paid" },
+    payment: { status: "paid" },
+    allocation: null,
+  },
 ) {
   const rpc = vi.fn().mockResolvedValue({
     data: {
@@ -97,6 +118,20 @@ function configureAdmin(
     select: vi.fn(() => qaAnswersQuery),
     eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
   };
+  const makeSubmissionEvidenceQuery = (data: unknown) => {
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      order: vi.fn(() => query),
+      limit: vi.fn(() => query),
+      maybeSingle: vi.fn().mockResolvedValue({ data, error: null }),
+    };
+    return query;
+  };
+  const entitlementQuery = makeSubmissionEvidenceQuery(submissionEvidence.entitlement ?? null);
+  const orderEvidenceQuery = makeSubmissionEvidenceQuery(submissionEvidence.order ?? null);
+  const paymentEvidenceQuery = makeSubmissionEvidenceQuery(submissionEvidence.payment ?? null);
+  const allocationEvidenceQuery = makeSubmissionEvidenceQuery(submissionEvidence.allocation ?? null);
   const insertedRunnerJobs: unknown[] = [];
   const rollbackQuery = {
     select: vi.fn(() => rollbackQuery),
@@ -124,6 +159,17 @@ function configureAdmin(
           if (table === "applications") return qaApplicationQuery;
           if (table === "visa_application_answers") return qaAnswersQuery;
           throw new Error(`unexpected QA-safety table: ${table}`);
+        }),
+      });
+    }
+    if (actor === "lib/queue:submission-entitlement") {
+      return fn({
+        from: vi.fn((table: string) => {
+          if (table === "application_submission_entitlements") return entitlementQuery;
+          if (table === "order") return orderEvidenceQuery;
+          if (table === "payment_records") return paymentEvidenceQuery;
+          if (table === "government_fee_allocations") return allocationEvidenceQuery;
+          throw new Error(`unexpected submission-entitlement table: ${table}`);
         }),
       });
     }
@@ -190,6 +236,43 @@ describe("runner pool enqueue wake transport", () => {
     expect(enqueueRunnerJobWakeMock).toHaveBeenCalledWith({ jobId: "job-1", target: "pool" });
     expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
     expect(result.workerTriggered).toBe(true);
+  });
+
+  it("blocks enqueue when the exact application has no ready payment entitlement", async () => {
+    configureAdmin({}, undefined, undefined, null, null, {
+      entitlement: {
+        decision_status: "payment_required",
+        agency_fee_status: "due",
+        official_fee_status: "not_required",
+      },
+      order: null,
+      payment: null,
+      allocation: null,
+    });
+
+    await expect(
+      enqueueRunnerPoolJob("app-unpaid", "vietnam", "vn_prearrival"),
+    ).rejects.toThrow("application_payment_required");
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
+    expect(wakeCloudSubmissionWorkerMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks enqueue when a ready entitlement has lost its paid evidence", async () => {
+    configureAdmin({}, undefined, undefined, null, null, {
+      entitlement: {
+        decision_status: "ready",
+        agency_fee_status: "paid",
+        official_fee_status: "not_required",
+      },
+      order: { status: "refunded" },
+      payment: { status: "refunded" },
+      allocation: null,
+    });
+
+    await expect(
+      enqueueRunnerPoolJob("app-refunded", "vietnam", "vn_prearrival"),
+    ).rejects.toThrow("application_payment_review_required");
+    expect(enqueueRunnerJobWakeMock).not.toHaveBeenCalled();
   });
 
   it("reuses the bounded runner_pool_depth capacity policy", async () => {
@@ -416,7 +499,7 @@ describe("runner pool enqueue wake transport", () => {
     const { rpc, insertedRunnerJobs } = configureAdmin({}, undefined, undefined, null, null);
 
     await expect(enqueueRunnerJob("app-unsupported-generic", "japan")).rejects.toThrow(
-      "unsupported or ambiguous runner flow",
+      /unsupported or ambiguous .*flow/,
     );
     expect(rpc).not.toHaveBeenCalled();
     expect(insertedRunnerJobs).toHaveLength(0);

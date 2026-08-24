@@ -1,6 +1,8 @@
 const TERMINAL_NON_PAYABLE_ORDER_STATUSES = new Set([
   "refunded",
+  "partially_refunded",
   "disputed",
+  "chargeback",
   "cancelled",
   "canceled",
 ]);

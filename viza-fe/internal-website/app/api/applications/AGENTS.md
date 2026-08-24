@@ -39,6 +39,12 @@ ports directly.
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/submission-access/route.ts`
+  performs the final-review payment preflight and returns a stable `402`
+  `application_payment_required` response with an application-scoped quote.
+- `viza-fe/internal-website/app/api/applications/[id]/submission-checkout/route.ts`
+  creates or reuses the exact outstanding order and redirects to the verified
+  payment provider. Its return target is restricted to the application flow.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and
@@ -123,4 +129,5 @@ ports directly.
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
 - `viza-fe/internal-website/lib/submission-queue.ts`
+- `viza-fe/internal-website/lib/payments/submission-access.ts`
 - `viza-be/agent-backend/src/routes/translation.routes.ts`

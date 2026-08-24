@@ -10,6 +10,9 @@ single existing provider directory.
 PhotonPay funding/issuing evidence is handled by
 `photonpay/funding/route.ts`. It uses the same raw-body signature verification
 as the acquiring callback and stores only redacted, idempotent evidence.
+The signed PhotonPay acquiring callback must settle application orders through
+`confirm_submission_order_payment`; direct paid-order updates are forbidden
+because entitlement and exact government-fee allocation creation are atomic.
 
 Airwallex Issuing remote authorization is handled by
 `airwallex/remote-authorization/route.ts`. It verifies the Airwallex nonce HMAC

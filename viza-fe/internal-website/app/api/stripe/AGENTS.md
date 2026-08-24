@@ -14,6 +14,11 @@ ingestion.
 - Verify Stripe webhook signatures before trusting event payloads.
 - Upsert `payment_records` idempotently by Stripe session/payment id.
 - Trigger internal lifecycle advancement after successful payment.
+- Final-submission Checkout uses the canonical `order`/`order_line` ledger and
+  the atomic `confirm_submission_order_payment` RPC. It creates or verifies the
+  exact government allocation and entitlement evidence, but it must never
+  enqueue an official submission; the applicant returns to Review and
+  explicitly submits again.
 
 ## Route Handlers
 

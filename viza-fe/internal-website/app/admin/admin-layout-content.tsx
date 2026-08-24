@@ -5,40 +5,40 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 import {
-  Activity,
-  BarChart3,
+  Pulse as Activity,
+  ChartBar as BarChart3,
   Bell,
-  Bot,
+  Robot as Bot,
   Calendar,
-  ChevronRight,
-  CircleDollarSign,
-  ClipboardList,
+  CaretRight as ChevronRight,
+  CurrencyCircleDollar as CircleDollarSign,
+  ClipboardText as ClipboardList,
   CreditCard,
-  DatabaseBackup,
-  Globe2,
+  Database as DatabaseBackup,
+  Globe as Globe2,
   Headphones,
-  Languages,
-  LayoutDashboard,
-  LifeBuoy,
-  ListTodo,
-  LogOut,
-  Map,
-  Menu,
-  MessageSquare,
+  Translate as Languages,
+  SquaresFour as LayoutDashboard,
+  Lifebuoy as LifeBuoy,
+  List as ListTodo,
+  SignOut as LogOut,
+  MapTrifold as Map,
+  List as Menu,
+  Chat as MessageSquare,
   Package,
-  ReceiptText,
-  ScrollText,
-  ServerCog,
-  Settings,
+  Receipt as ReceiptText,
+  Scroll as ScrollText,
+  GearSix as ServerCog,
+  Gear as Settings,
   ShieldCheck,
   ShoppingCart,
-  Tags,
-  Undo2,
+  Tag as Tags,
+  ArrowCounterClockwise as Undo2,
   UserPlus,
   Users,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { adminSignOut } from "@/app/actions/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +51,7 @@ import { cn } from "@/lib/utils";
 
 interface Route {
   labelKey: AdminNavKey;
-  icon: LucideIcon;
+  icon: Icon;
   href: string;
 }
 

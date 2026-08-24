@@ -249,6 +249,107 @@ async function assertApplicationHasNoSyntheticQaData(
   });
 }
 
+async function assertApplicationSubmissionEntitled(
+  applicationId: string,
+): Promise<void> {
+  await withAdmin("system", "lib/queue:submission-entitlement", async (admin) => {
+    const [entitlementResult, orderResult, paymentResult, allocationResult] = await Promise.all([
+      admin
+        .from("application_submission_entitlements")
+        .select("decision_status, agency_fee_status, official_fee_status")
+        .eq("application_id", applicationId)
+        .maybeSingle(),
+      admin
+        .from("order")
+        .select("status")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("payment_records")
+        .select("status")
+        .eq("application_id", applicationId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("government_fee_allocations")
+        .select("state")
+        .eq("application_id", applicationId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (
+      entitlementResult.error
+      || orderResult.error
+      || paymentResult.error
+      || allocationResult.error
+    ) {
+      throw new Error(
+        `submission entitlement lookup: ${entitlementResult.error?.message
+          ?? orderResult.error?.message
+          ?? paymentResult.error?.message
+          ?? allocationResult.error?.message
+          ?? "unknown error"}`,
+      );
+    }
+    const data = entitlementResult.data;
+    const paidOrderStates = new Set(["paid", "submitted", "completed"]);
+    const paidRecordStates = new Set([
+      "paid",
+      "succeeded",
+      "success",
+      "complete",
+      "completed",
+    ]);
+    const reviewStates = new Set([
+      "refunded",
+      "partially_refunded",
+      "disputed",
+      "chargeback",
+    ]);
+    if (
+      reviewStates.has(orderResult.data?.status ?? "")
+      || reviewStates.has(paymentResult.data?.status ?? "")
+    ) {
+      throw new Error("application_payment_review_required");
+    }
+    if (!data || data.decision_status !== "ready") {
+      throw new Error("application_payment_required");
+    }
+    if (
+      !["paid", "waived", "not_required"].includes(data.agency_fee_status)
+      || !["paid", "not_required", "offline"].includes(data.official_fee_status)
+    ) {
+      throw new Error("application_payment_required");
+    }
+    const requiresPaidEvidence =
+      data.agency_fee_status === "paid" || data.official_fee_status === "paid";
+    if (
+      requiresPaidEvidence
+      && !paidOrderStates.has(orderResult.data?.status ?? "")
+      && !paidRecordStates.has(paymentResult.data?.status ?? "")
+    ) {
+      throw new Error("application_payment_required");
+    }
+    if (
+      data.official_fee_status === "paid"
+      && ![
+        "reserved_pending_treasury",
+        "reserved",
+        "issuable",
+        "card_issued",
+        "portal_processing",
+        "consumed",
+      ].includes(allocationResult.data?.state ?? "")
+    ) {
+      throw new Error("application_payment_review_required");
+    }
+  });
+}
+
 export async function desiredRunnerPoolCapacity(): Promise<number> {
   return withAdmin("system", "lib/queue:pool-depth", async (admin) => {
     const { data, error } = await admin
@@ -276,6 +377,7 @@ export async function enqueueRunnerPoolJob(
 ): Promise<EnqueueRunnerPoolResult> {
   assertRunnerCutoverActive();
   await assertApplicationHasNoSyntheticQaData(applicationId);
+  await assertApplicationSubmissionEntitled(applicationId);
   const normalizedCountry = assertKnownCountry(country);
   assertExactSharedRunnerPoolTuple(normalizedCountry, flowKey);
   const row = await withAdmin("system", "lib/queue:enqueue-pool", async (admin) => {
@@ -464,6 +566,7 @@ export async function enqueueSgacRunnerRetry(
 ): Promise<EnqueueSgacRetryResult> {
   assertRunnerCutoverActive();
   await assertApplicationHasNoSyntheticQaData(applicationId);
+  await assertApplicationSubmissionEntitled(applicationId);
   const result = await withAdmin("system", "lib/queue:enqueue-sgac-retry", async (admin) => {
     const { data, error } = await admin.rpc("enqueue_sgac_country_runner_retry", {
       p_application_id: applicationId,
@@ -555,6 +658,7 @@ export async function enqueueRunnerJob(
 ): Promise<{ id: string; created: boolean }> {
   assertRunnerCutoverActive();
   await assertApplicationHasNoSyntheticQaData(applicationId);
+  await assertApplicationSubmissionEntitled(applicationId);
   const normalizedCountry = assertKnownCountry(country);
   const visaType = await withAdmin("system", "lib/queue:application-flow", async (admin) => {
     const { data, error } = await admin

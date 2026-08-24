@@ -66,6 +66,10 @@ import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
 } from "@/lib/applications/qa-safety";
+import {
+  evaluateSubmissionAccess,
+  submissionAccessHttpBody,
+} from "@/lib/payments/submission-access";
 
 type ApplicationForRetry = {
   id: string;
@@ -1759,6 +1763,47 @@ export async function POST(
       alreadySubmitted: true,
       result: ownedApplication.submission_result,
     });
+  }
+
+  try {
+    const returnTo = `/client/application/long-form?applicationId=${encodeURIComponent(applicationId)}&step=review`;
+    const access = await evaluateSubmissionAccess(admin, applicationId, {
+      payerAuthUserId: legacySession?.authUserId ?? authUserId ?? ownedProfile.auth_user_id,
+      lockHighAccess: true,
+      returnTo,
+    });
+    if (access.status !== "ready") {
+      const checkoutUrl = new URL(
+        `/api/applications/${encodeURIComponent(applicationId)}/submission-checkout`,
+        request.nextUrl.origin,
+      );
+      checkoutUrl.searchParams.set("returnTo", returnTo);
+      const responseDecision = {
+        ...access,
+        checkoutUrl: access.status === "payment_required" ? checkoutUrl.toString() : null,
+      };
+      return NextResponse.json(
+        {
+          ...submissionAccessHttpBody(responseDecision),
+          code: access.status === "review_required"
+            ? "application_payment_review_required"
+            : "application_payment_required",
+        },
+        { status: access.status === "review_required" ? 409 : 402 },
+      );
+    }
+  } catch (error) {
+    console.error("[retry-submission] payment eligibility unavailable", {
+      applicationId: applicationId.slice(0, 8),
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(
+      {
+        error: "Submission payment eligibility is temporarily unavailable.",
+        code: "submission_access_unavailable",
+      },
+      { status: 503 },
+    );
   }
 
   if (isRunnerCutoverPaused()) {

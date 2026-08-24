@@ -1,31 +1,32 @@
 .admin-theme {
-  --background: 210 20% 98%;
+  /* VIZA internal portal surface: #fafafa shell, #03346E primary. */
+  --background: 0 0% 98%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 217 91% 50%;
+  --primary: 212 94% 22%;
   --primary-foreground: 0 0% 100%;
   --secondary: 214 32% 96%;
   --secondary-foreground: 222 47% 16%;
   --muted: 214 32% 96%;
   --muted-foreground: 215 16% 47%;
-  --accent: 214 95% 93%;
-  --accent-foreground: 218 82% 31%;
+  --accent: 214 52% 94%;
+  --accent-foreground: 212 94% 22%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --border: 214 24% 90%;
   --input: 214 24% 88%;
-  --ring: 217 91% 60%;
-  --radius: 0.625rem;
+  --ring: 212 94% 32%;
+  --radius: 0.75rem;
 
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 215 25% 27%;
-  --sidebar-primary: 217 91% 50%;
+  --sidebar-primary: 212 94% 22%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 214 95% 96%;
-  --sidebar-accent-foreground: 218 82% 31%;
+  --sidebar-accent: 214 52% 94%;
+  --sidebar-accent-foreground: 212 94% 22%;
   --sidebar-border: 214 24% 90%;
   --sidebar-ring: 217 91% 60%;
 
@@ -34,6 +35,20 @@
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
   letter-spacing: normal;
+}
+
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h4,
+.admin-theme h5,
+.admin-theme h6 {
+  font-family: var(--font-switzer), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.admin-theme .rounded-lg,
+.admin-theme .rounded-xl {
+  border-radius: 0.75rem;
 }
 
 .admin-theme ::selection {

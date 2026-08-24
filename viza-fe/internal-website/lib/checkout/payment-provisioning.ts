@@ -3,7 +3,6 @@ import { ensureAccountAndMagicLinkWithAdmin, type ProvisionedAccount } from "@/a
 import { assignApplicantInboxAlias } from "@/app/actions/applicant-inbox";
 import { officialFeeCatalogFor, officialFeeCatalogKey } from "@/lib/payments/official-fee-catalog";
 import { pricingFor } from "@/lib/pricing";
-import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 
 export type CommercialPaymentProvider = "stripe" | "photonpay" | "wechat" | "free";
 
@@ -35,7 +34,6 @@ export interface ProvisioningStepRunner {
   ensureAccount(orderId: string): Promise<ProvisionedAccount>;
   ensureAllocation(orderId: string): Promise<void>;
   ensureInbox(applicantId: string): Promise<void>;
-  enqueueRunner(account: ProvisionedAccount, orderId: string, provider: CommercialPaymentProvider): Promise<void>;
   markStep(patch: Partial<Pick<PaymentProvisioningJob, "user_status" | "profile_status" | "application_status" | "inbox_status" | "runner_status" | "allocation_status">>): Promise<void>;
 }
 
@@ -155,7 +153,9 @@ export async function executePaymentProvisioningSteps(
   }
 
   if (job.runner_status !== "completed") {
-    await runner.enqueueRunner(account, job.order_id, job.provider);
+    // A verified payment prepares the account and official-fee allocation but
+    // never starts an official submission. The applicant must return to Review
+    // and explicitly submit through the entitlement-gated route.
     await runner.markStep({ runner_status: "completed" });
   }
 }
@@ -297,11 +297,6 @@ async function processClaimedJob(admin: SupabaseClient, job: PaymentProvisioning
     ensureAllocation: (orderId) => ensureGovernmentFeeAllocation(admin, orderId),
     ensureInbox: async (applicantId) => {
       await assignApplicantInboxAlias(applicantId);
-    },
-    enqueueRunner: async (account, orderId, provider) => {
-      await enqueueRunnerJob(account.applicationId, account.country, {
-        correlationId: `${provider}:${orderId}`,
-      });
     },
     markStep: (patch) => updateJobStep(admin, job.id, patch),
   };

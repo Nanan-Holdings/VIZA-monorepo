@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdminEmailAllowed, normalizeAdminEmail } from "@/lib/admin-access";
+import { normalizeAdminEmail } from "@/lib/admin-access";
+import { hasActiveAdminMembership } from "@/lib/admin-membership";
 import { createClientSession } from "@/lib/client-session";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { revalidatePath } from "next/cache";
@@ -68,9 +69,11 @@ export async function signIn(formData: FormData) {
     revalidatePath("/", "layout");
 
     const normalizedEmail = normalizeAdminEmail(user.email ?? email);
+    const hasAdminMembership =
+      userRole === "admin" && (await hasActiveAdminMembership(supabase, user.id));
 
     if (portal === "admin") {
-      if (userRole !== "admin" || !isAdminEmailAllowed(normalizedEmail)) {
+      if (userRole !== "admin" || !hasAdminMembership) {
         await supabase.auth.signOut();
         return {
           error:
@@ -112,7 +115,7 @@ export async function signIn(formData: FormData) {
       redirect("/client/home");
     }
 
-    if (userRole === "admin" && isAdminEmailAllowed(normalizedEmail)) {
+    if (userRole === "admin" && hasAdminMembership) {
       redirect("/admin");
     }
 

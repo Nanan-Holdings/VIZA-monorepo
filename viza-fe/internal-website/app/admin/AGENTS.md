@@ -13,9 +13,14 @@ website automation monitoring, coverage, and billing support.
 - `login/page.tsx`: centered admin login form using `app/actions/auth.ts` and
   the shared auth form primitives. Keep it visually distinct from the client
   portal login; do not add the client travel globe to this route.
+- `register/**`: token-gated, public invitation acceptance. The route may be
+  reached without an existing admin session, but all claim/accept mutations
+  must go through the hashed-token server actions and verified Supabase Auth
+  session.
 - Admin login is portal-aware and requires both a `users.role = 'admin'`
-  record and an email accepted by `lib/admin-access.ts`; production access is
-  limited to the explicit staff allowlist.
+  record and an active `admin_memberships` row. The historical email list in
+  `lib/admin-access.ts` is bootstrap/recovery data only and is never a runtime
+  authorization decision.
 - `(dashboard)/layout.tsx`: server-side role gate through `lib/rbac.ts`.
 - `admin-layout-content.tsx`: fixed desktop admin shell and sidebar.
 - `(dashboard)/page.tsx`: live operations control tower across work items,
@@ -32,8 +37,8 @@ website automation monitoring, coverage, and billing support.
   legal hold, two-admin/2FA erasure execution, evidence, and decisions.
 - `(dashboard)/refunds/**`: request decision, line-based Stripe refunds, and
   Stripe dispute synchronization/evidence submission.
-- `(dashboard)/team/**`, `(dashboard)/audit/**`: staff workload visibility and
-  redacted operational command history.
+- `(dashboard)/team/**`, `(dashboard)/audit/**`: staff workload visibility,
+  admin registration invitations, and redacted operational command history.
 - `(dashboard)/users/**`: user list/detail and package assignment.
 - `(dashboard)/applications/**`: staff monitoring queue and application watch
   detail for website-owned automation.
@@ -57,6 +62,8 @@ website automation monitoring, coverage, and billing support.
 - `admin-theme.css` scopes shadcn semantic tokens and legacy compatibility
   styles to `/admin` only. Client portal tokens and frozen client primitives
   must not be changed as part of admin restyling.
+- `admin-layout-content.tsx`: retains the dense sidebar/sheet shell but uses
+  Phosphor icons and the VIZA navy/white portal palette.
 - `components/admin/**` composes the existing shadcn primitives into reusable
   admin page headers, metric cards, status badges, empty states, and sections.
 - `(dashboard)/patients/**`: compatibility redirects from the retired medical
@@ -93,6 +100,7 @@ dashboard routes redirect to `/admin/login`.
 ## Related Files
 
 - `viza-fe/internal-website/app/admin/login/page.tsx`
+- `viza-fe/internal-website/app/admin/register/**`
 - `viza-fe/internal-website/app/admin/(dashboard)/layout.tsx`
 - `viza-fe/internal-website/app/admin/admin-layout-content.tsx`
 - `viza-fe/internal-website/app/admin/admin-theme.css`
@@ -103,5 +111,6 @@ dashboard routes redirect to `/admin/login`.
 - `viza-fe/internal-website/app/admin/(dashboard)/support/page.tsx`
 - `viza-fe/internal-website/lib/rbac.ts`
 - `viza-fe/internal-website/lib/admin-access.ts`
+- `viza-fe/internal-website/lib/admin-membership.ts`
 - `viza-fe/internal-website/app/actions/auth.ts`
 - `viza-fe/internal-website/lib/supabase/admin.ts`

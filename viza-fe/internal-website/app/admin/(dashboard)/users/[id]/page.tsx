@@ -4,6 +4,10 @@ import { auditPiiRead } from "@/lib/legal/audit-pii";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AssignPackageForm } from "./assign-package-form";
+import HighAccessControls from "./high-access-controls";
+import { listHighAccessGrants } from "@/app/actions/admin-access";
+import { getLocale } from "next-intl/server";
+import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -77,6 +81,8 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   const applications = applicationsRes.data ?? [];
   const answers = answersRes.data ?? [];
   const visaPackages = visaPackagesRes.data ?? [];
+  const highAccessGrants = profile.auth_user_id ? await listHighAccessGrants(profile.auth_user_id) : [];
+  const locale = normalizeInterfaceLocale(await getLocale());
 
   await auditPiiRead(
     "app/admin/users/[id]:detail",
@@ -118,6 +124,10 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
           <Field label="WeChat" value={profile.wechat} />
         </div>
       </div>
+
+      {profile.auth_user_id ? (
+        <HighAccessControls locale={locale} userId={profile.auth_user_id} grants={highAccessGrants} />
+      ) : null}
 
       {/* Package History + Assign */}
       <div className="bg-white rounded-lg border border-[#efefef] shadow-sm p-6">

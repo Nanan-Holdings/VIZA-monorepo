@@ -333,6 +333,70 @@ describe("DigitalArrivalCardResultCard", () => {
     );
   });
 
+  it("uses Chinese Korea success copy and an authoritative issue number", () => {
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "KR",
+      visaType: "KR_E_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "korea_e_arrival_card_live",
+      applicationId: "application-id",
+      submitted: true,
+      issueNumber: "KR-12345",
+      referenceNumber: "country",
+      portalUrl: "https://www.e-arrivalcard.go.kr/portal/main.do",
+      portalResponseSummary: "Korea e-Arrival Card official confirmation page returned an issue number.",
+      confirmationPdfStoragePath: "user/application-id/KR/kr-confirmation.pdf",
+      artifacts: {
+        screenshots: [],
+        qrCodes: [],
+        pdfs: ["user/application-id/KR/kr-confirmation.pdf"],
+        logs: [],
+        traces: [],
+      },
+    };
+
+    render(<DigitalArrivalCardResultCard result={result} />);
+
+    expect(screen.getByText("韩国电子入境卡 提交成功")).toBeInTheDocument();
+    expect(screen.getByText("韩国电子入境卡已在官网成功提交，官方确认页和申请编号已保存。"))
+      .toBeInTheDocument();
+    expect(screen.getByText("KR-12345")).toBeInTheDocument();
+    expect(screen.queryByText(/Korea e-Arrival Card/)).not.toBeInTheDocument();
+    expect(screen.queryByText("country")).not.toBeInTheDocument();
+  });
+
+  it("does not present a copied Korea result-table label as the issue number", () => {
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "KR",
+      visaType: "KR_E_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "korea_e_arrival_card_live",
+      applicationId: "application-id",
+      submitted: true,
+      issueNumber: "country",
+      portalUrl: "https://www.e-arrivalcard.go.kr/portal/main.do",
+      portalResponseSummary: "Korea e-Arrival Card official confirmation page returned an issue number.",
+      confirmationPdfStoragePath: "user/application-id/KR/kr-confirmation.pdf",
+      artifacts: {
+        screenshots: [],
+        qrCodes: [],
+        pdfs: ["user/application-id/KR/kr-confirmation.pdf"],
+        logs: [],
+        traces: [],
+      },
+    };
+
+    render(<DigitalArrivalCardResultCard result={result} />);
+
+    expect(screen.getByText("韩国电子入境卡 未完成")).toBeInTheDocument();
+    expect(screen.getByText("官网确认信息未完整返回，不能视为提交成功")).toBeInTheDocument();
+    expect(screen.queryByText("country")).not.toBeInTheDocument();
+    expect(screen.queryByText("韩国电子入境卡 提交成功")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "下载确认文件" })).not.toBeInTheDocument();
+  });
+
   it("keeps a Philippines screenshot and local reference in recovery until authoritative registration and QR evidence exist", () => {
     const result: DigitalArrivalCardSubmissionResult = {
       country: "PH",
