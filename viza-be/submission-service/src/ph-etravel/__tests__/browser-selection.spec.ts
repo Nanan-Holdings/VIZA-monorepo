@@ -11,6 +11,7 @@ import {
 } from "../../arrival-card-browser";
 import {
   PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS,
+  isPhEtravelComboboxSelectionCommitted,
   isPhEtravelRegistrationResponseRejected,
   shouldRetryMissingPhEtravelResponse,
   isPhEtravelMpinRejectedText,
@@ -59,6 +60,12 @@ test("PH eTravel retries rejected registration API responses instead of waiting 
   assert.equal(isPhEtravelRegistrationResponseRejected(422), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(429), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(200), false);
+});
+
+test("PH eTravel accepts official code values committed by eGovPH comboboxes", () => {
+  assert.equal(isPhEtravelComboboxSelectionCommitted("SG"), true);
+  assert.equal(isPhEtravelComboboxSelectionCommitted("Singapore"), true);
+  assert.equal(isPhEtravelComboboxSelectionCommitted("  "), false);
 });
 
 test("PH eTravel retries Continue when Turnstile appears before the registration POST", () => {

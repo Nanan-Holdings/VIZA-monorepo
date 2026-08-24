@@ -54,6 +54,9 @@ kill_timeout = "5m"
   PH_ETRAVEL_BROWSERBASE_COUNTRY = "PH"
   PH_ETRAVEL_BROWSERBASE_REGION = "ap-southeast-1"
   PH_ETRAVEL_PLAYWRIGHT_HEADLESS = "true"
+  # The applicant-facing live queue is an explicit final-submit action. Local
+  # smoke scripts remain safe by default and still require --submit.
+  PH_ETRAVEL_STOP_BEFORE_SUBMIT = "false"
   # France TLS flags remain explicit production gates. Browserbase and the
   # shared internal token are Fly Secrets, never TOML values.
   FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"

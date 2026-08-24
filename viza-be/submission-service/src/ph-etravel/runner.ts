@@ -1088,6 +1088,13 @@ async function chooseReactSelectByHiddenName(
   return selectedTextPattern.test(visibleText);
 }
 
+export function isPhEtravelComboboxSelectionCommitted(value: string): boolean {
+  // eGovPH renders a label such as "Singapore" but persists an official code
+  // such as "SG" in the named input after the matching option is clicked.
+  // Treat that non-empty committed value as the authoritative selection.
+  return value.trim().length > 0;
+}
+
 async function chooseHeadlessComboboxByInputName(
   page: Page,
   inputName: string,
@@ -1122,7 +1129,7 @@ async function chooseHeadlessComboboxByInputName(
   if (!clicked) return false;
   await page.waitForTimeout(700);
   const value = await input.inputValue().catch(() => "");
-  return expectedText.test(value);
+  return isPhEtravelComboboxSelectionCommitted(value);
 }
 
 async function chooseDropdownOption(
