@@ -390,6 +390,13 @@ function countryOptionPattern(value: string): RegExp {
   return new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 }
 
+export function phEtravelCountryOptionText(value: string): string {
+  const normalized = value.trim();
+  if (/china|chinese|cn|chn/i.test(normalized)) return "China";
+  if (/singapore|sg|sgp/i.test(normalized)) return "Singapore";
+  return normalized;
+}
+
 function sexOptionPattern(value: string): RegExp {
   if (/^m|male/i.test(value)) return /^male$/i;
   if (/^f|female/i.test(value)) return /^female$/i;
@@ -1219,7 +1226,7 @@ async function completeEgovPermanentResidenceOnboarding(
   }
 
   logs.push("ph_etravel_egov_onboarding_residence_detected");
-  const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
+  const countryText = phEtravelCountryOptionText(payload.countryOfResidence);
   const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
   let choseCountry = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
