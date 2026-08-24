@@ -2392,7 +2392,8 @@ function validatePassiveCapacitySample(sample) {
   if (
     sample.schema_version !== 1 ||
     !validTimestamp(sample.sample_at) ||
-    sample.project_ref_marker !== PRODUCTION_PROJECT_REF ||
+    (sample.project_ref_marker !== null &&
+      sample.project_ref_marker !== PRODUCTION_PROJECT_REF) ||
     typeof sample.pg_stat_statements_available !== "boolean"
   ) {
     throw new Error("Passive capacity sample contract is invalid");
@@ -2527,6 +2528,11 @@ export function assessPassiveCapacity({ samples, statementMetrics }) {
 
   if (!statementsAvailable) {
     warnings.push("pg_stat_statements was unavailable; query optimization evidence is incomplete");
+  }
+  if (some((sample) => sample.project_ref_marker === null)) {
+    warnings.push(
+      "database project marker was unavailable; Management API identity remains authoritative",
+    );
   }
   if (new Set(validated.map((sample) => sample.pg_stat_statements_available)).size !== 1) {
     warnings.push("pg_stat_statements availability changed during the observation window");

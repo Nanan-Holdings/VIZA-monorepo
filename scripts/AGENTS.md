@@ -182,6 +182,8 @@ transactions, or an increasing deadlock counter is a blocker. Never add SQL
 text, parameter values, application/session identifiers, or automatic index
 DDL to this action. Missing `pg_stat_statements` is an explicit warning and
 invalid statement/sample metadata fails closed.
+The Management API project identity is authoritative; a missing database GUC
+marker is a warning, while any non-null marker mismatch is rejected.
 Function-hardening batches use the structured `function_search_path` assertion
 to pin an exact `pg_catalog`-first namespace path and SECURITY
 DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions

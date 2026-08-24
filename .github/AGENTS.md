@@ -76,3 +76,6 @@ scheduled recovery workflows.
   later reviewed optimization rather than permission to create an index. An
   unavailable `pg_stat_statements` extension must make the report incomplete
   and warning-level; it must never be presented as green capacity evidence.
+  The optional database project marker follows the same warning behavior when
+  absent, while any non-null mismatch remains a hard failure after the exact
+  Management API project check.
