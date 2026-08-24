@@ -66,7 +66,10 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Unknown document types and field names are denied by default.
 - Product document requirements must come from reviewed product configuration;
   the assistant must never invent requirements from a model response.
-- `SG_ARRIVAL_CARD` intentionally has no document requirements.
+- `SG_ARRIVAL_CARD` and `JP_VISIT_JAPAN_WEB` intentionally have no applicant
+  document requirements. VJW must bypass Document Center's conservative
+  generic fallback so the assistant never invents passport/photo/itinerary/
+  funds uploads for this arrival declaration.
 - `review-issues.ts` maps validator output to schema-ordered field repair
   navigation. Keep it country-agnostic, preserve repeat-instance keys, and let
   hard errors take precedence over warnings for the same answer.
