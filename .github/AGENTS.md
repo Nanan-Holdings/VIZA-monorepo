@@ -85,7 +85,9 @@ scheduled recovery workflows.
   incomplete until at least five distinct observations span 22 hours; manual
   bursts cannot satisfy it. Each report must also be contemporaneous with its
   exact GitHub workflow run and Artifact timestamp; replayed or future-dated
-  sample times fail closed. Any red constituent observation makes the trend
-  red. Only query IDs that recur
+  sample times fail closed. Failed historical runs whose artifact does not
+  contain a valid sanitized report are excluded as missing evidence and leave
+  the trend incomplete; they must not poison every later observer run. Any red
+  constituent observation makes the trend red. Only query IDs that recur
   in at least half the complete window (and at least three observations) are
   retained as review candidates; the trend never authorizes DDL automatically.

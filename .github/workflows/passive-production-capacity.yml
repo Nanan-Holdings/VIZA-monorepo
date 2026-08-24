@@ -122,10 +122,12 @@ jobs:
             }
             gh run download "$run_id" -n "$artifact_name" -D "$history/$run_id"
             historical_report="$history/$run_id/passive-capacity.json"
-            test -s "$historical_report" || {
-              echo "Passive capacity artifact does not contain its report"
-              exit 1
-            }
+            if ! node scripts/passive-capacity-trend.mjs \
+              --validate-report "$historical_report"; then
+              echo "Skipping unusable historical capacity artifact for run ${run_id}"
+              rm -rf -- "$history/$run_id"
+              continue
+            fi
             jq -cn \
               --arg path "$historical_report" \
               --arg run_id "$run_id" \
