@@ -92,6 +92,43 @@ function normalizeAnswer(value: string | null | undefined): string {
   return text(value).toLowerCase();
 }
 
+function isJapanVisitJapanWebApplication(
+  country?: string | null,
+  visaType?: string | null,
+): boolean {
+  const normalizedCountry = normalizeAnswer(country).replace(/[\s-]+/g, "_");
+  const normalizedVisaType = normalizeAnswer(visaType).replace(/[\s-]+/g, "_");
+  return (
+    (normalizedCountry === "japan" || normalizedCountry === "jp") &&
+    normalizedVisaType === "jp_visit_japan_web"
+  );
+}
+
+const JP_VJW_MINIMUM_TEXT_LENGTHS = {
+  residence_country: 2,
+  accommodation_name: 2,
+  accommodation_prefecture: 2,
+  accommodation_city: 2,
+  accommodation_address: 3,
+} as const;
+
+function getInvalidJapanVisitJapanWebFields(
+  dbSteps: WizardStep[],
+  answers: Record<string, string>,
+): Array<{ stepIndex: number; field: VisaFormFieldRow }> {
+  const fields = dbSteps.flatMap((step, stepIndex) =>
+    step.fields.map((field) => ({ stepIndex, field })),
+  );
+  return fields.filter(({ field }) => {
+    const minimum = JP_VJW_MINIMUM_TEXT_LENGTHS[
+      field.fieldName as keyof typeof JP_VJW_MINIMUM_TEXT_LENGTHS
+    ];
+    if (minimum === undefined) return false;
+    const value = text(answers[field.fieldName]);
+    return value.length > 0 && value.length < minimum;
+  });
+}
+
 function withDerivedTdacTransitAnswer(
   answers: Record<string, string>,
   visaType?: string | null,
@@ -321,6 +358,15 @@ export function getMissingDynamicFormFields(
       reason: "invalid" as const,
     })));
   }
+  if (isJapanVisitJapanWebApplication(options.country, options.visaType)) {
+    missing.push(...getInvalidJapanVisitJapanWebFields(dbSteps, answers).map(({ stepIndex, field }) => ({
+      stepId: stepIndex,
+      stepName: dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
+      fieldName: field.fieldName,
+      label: field.label || field.fieldName,
+      reason: "invalid" as const,
+    })));
+  }
   return missing;
 }
 
@@ -487,6 +533,23 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
       label: gateLabels[fieldName],
       reason: "external_gate" as const,
     })));
+  }
+
+  if (isJapanVisitJapanWebApplication(input.country, input.visaType)) {
+    const invalidFields = getInvalidJapanVisitJapanWebFields(input.dbSteps, completionAnswers)
+      .map(({ stepIndex, field }) => {
+        const stepId = dynamicStepIds[stepIndex] ?? stepIndex;
+        return {
+          stepId,
+          stepName: input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ??
+            input.dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
+          fieldName: field.fieldName,
+          label: field.label || field.fieldName,
+          reason: "invalid" as const,
+        };
+      });
+    missingFields.push(...invalidFields);
+    for (const item of invalidFields) completed.delete(item.stepId);
   }
 
   const ds160Missing = isUsDs160(input.country, input.visaType)

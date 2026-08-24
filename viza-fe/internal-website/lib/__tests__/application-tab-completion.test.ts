@@ -173,6 +173,56 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("keeps Japan VJW placeholder text fields incomplete before enqueue", () => {
+    const japanSteps: WizardStep[] = [
+      {
+        stepNumber: 1,
+        stepName: "Traveller and Passport",
+        fields: [field("residence_country", { label: "Residence country" })],
+      },
+      {
+        stepNumber: 2,
+        stepName: "Arrival and Stay",
+        fields: [
+          field("accommodation_name", { label: "Accommodation name" }),
+          field("accommodation_prefecture", { label: "Accommodation prefecture" }),
+          field("accommodation_city", { label: "Accommodation city" }),
+          field("accommodation_address", { label: "Accommodation address" }),
+        ],
+      },
+    ];
+    const result = computeAllTabCompletion({
+      dbSteps: japanSteps,
+      effectiveSteps: [{ id: 0, name: "Traveller" }, { id: 1, name: "Stay" }],
+      answers: {
+        residence_country: "x",
+        accommodation_name: "x",
+        accommodation_prefecture: "x",
+        accommodation_city: "TK",
+        accommodation_address: "x",
+      },
+      documentCenterData: null,
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      documentStepId: 2,
+      reviewStepId: 2,
+      teamStepId: 3,
+      confirmationStepId: 3,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields.map((item) => item.fieldName)).toEqual([
+      "residence_country",
+      "accommodation_name",
+      "accommodation_prefecture",
+      "accommodation_address",
+    ]);
+    expect(result.missingFields.every((item) => item.reason === "invalid")).toBe(true);
+    expect(result.completedStepIds).not.toContain(0);
+    expect(result.completedStepIds).not.toContain(1);
+  });
+
   test("counts required document uploads in application readiness", () => {
     const documentData = vietnamDocsWithRequiredUploads();
     expect(getRequiredDocumentProgress(documentData)).toEqual({ completed: 2, total: 2 });
