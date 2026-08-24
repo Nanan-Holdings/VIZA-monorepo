@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createAdminClient, createClient, isDigitalArrivalCardApplication, resolveRunnerPoolFlow } =
+const {
+  createAdminClient,
+  createClient,
+  isAutomatedOnlineApplication,
+  isDigitalArrivalCardApplication,
+  resolveRunnerPoolFlow,
+} =
   vi.hoisted(() => ({
     createAdminClient: vi.fn(),
     createClient: vi.fn(),
+    isAutomatedOnlineApplication: vi.fn(),
     isDigitalArrivalCardApplication: vi.fn(),
     resolveRunnerPoolFlow: vi.fn(),
   }));
@@ -11,6 +18,7 @@ const { createAdminClient, createClient, isDigitalArrivalCardApplication, resolv
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/submission-queue", () => ({
+  isAutomatedOnlineApplication,
   isDigitalArrivalCardApplication,
 }));
 vi.mock("@/lib/queue/flows", () => ({ resolveRunnerPoolFlow }));
@@ -88,6 +96,7 @@ describe("cancel-submission route", () => {
   beforeEach(() => {
     createAdminClient.mockReset();
     createClient.mockReset();
+    isAutomatedOnlineApplication.mockReset().mockReturnValue(false);
     isDigitalArrivalCardApplication.mockReset().mockReturnValue(true);
     resolveRunnerPoolFlow.mockReset().mockReturnValue("sgac");
     setupAuth();
@@ -190,6 +199,76 @@ describe("cancel-submission route", () => {
       p_application_id: "application-id",
       p_queue_id: "runner-job-id",
       p_transport: "runner_job",
+    });
+  });
+
+  it("cancels a pending Japan Visit Japan Web legacy collision", async () => {
+    resolveRunnerPoolFlow.mockReturnValue("jp_vjw");
+    const { queueQuery, rpc } = setupAdmin(
+      {
+        data: [{
+          cancelled: true,
+          queue_id: "jp-queue-id",
+          queue_transport: "submission_queue",
+          cancelled_at: "2026-08-24T06:50:00.000Z",
+        }],
+        error: null,
+      },
+      {
+        id: "jp-queue-id",
+        status: "jp_vjw_live_assisted_pending",
+        provider: "jp_visit_japan_web_live",
+        mode: "dry_run",
+      },
+      null,
+      { country: "japan", visa_type: "JP_VISIT_JAPAN_WEB" },
+    );
+
+    const response = await POST(request(), { params: Promise.resolve({ id: "application-id" }) });
+
+    expect(response.status).toBe(200);
+    expect(queueQuery.in).toHaveBeenCalledWith(
+      "status",
+      expect.arrayContaining(["jp_vjw_live_assisted_pending"]),
+    );
+    expect(rpc).toHaveBeenCalledWith("cancel_application_submission", {
+      p_application_id: "application-id",
+      p_queue_id: "jp-queue-id",
+      p_transport: "submission_queue",
+    });
+  });
+
+  it("allows Kenya eTA cancellation through the automated-online product guard", async () => {
+    isDigitalArrivalCardApplication.mockReturnValue(false);
+    isAutomatedOnlineApplication.mockReturnValue(true);
+    resolveRunnerPoolFlow.mockReturnValue("ke_eta");
+    const { rpc } = setupAdmin(
+      {
+        data: [{
+          cancelled: true,
+          queue_id: "ke-queue-id",
+          queue_transport: "submission_queue",
+          cancelled_at: "2026-08-24T06:50:00.000Z",
+        }],
+        error: null,
+      },
+      {
+        id: "ke-queue-id",
+        status: "ke_eta_live_assisted_pending",
+        provider: "kenya_eta_live",
+        mode: "live_assisted",
+      },
+      null,
+      { country: "kenya", visa_type: "KE_ETA" },
+    );
+
+    const response = await POST(request(), { params: Promise.resolve({ id: "application-id" }) });
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("cancel_application_submission", {
+      p_application_id: "application-id",
+      p_queue_id: "ke-queue-id",
+      p_transport: "submission_queue",
     });
   });
 

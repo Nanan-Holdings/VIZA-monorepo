@@ -601,6 +601,32 @@ describe("cloud submission retry routing", () => {
     expect(onResubmit).not.toHaveBeenCalled();
   });
 
+  it("retries Japan Visit Japan Web through the live runner", async () => {
+    const onResubmit = vi.fn().mockResolvedValue(undefined);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="jp-application-id"
+        country="japan"
+        visaType="JP_VISIT_JAPAN_WEB"
+        status="failed"
+        result={null}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(onResubmit).toHaveBeenCalledWith("live_assisted", undefined);
+    });
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/retry-submission")),
+    ).toBe(false);
+  });
+
   it("queues a failed Vietnam arrival card directly from its saved answers", async () => {
     const onResubmit = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({

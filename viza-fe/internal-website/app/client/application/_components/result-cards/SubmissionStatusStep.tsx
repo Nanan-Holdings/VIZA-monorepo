@@ -67,6 +67,7 @@ import {
   isVietnamPrearrivalApplication,
   isVietnamEVisaApplication,
   isIndonesiaEVisaApplication,
+  isAutomatedOnlineApplication,
   type SubmissionMode,
   type TaiwanOfficialTermsConsentInput,
 } from "@/lib/submission-queue";
@@ -733,7 +734,8 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType) ||
     isVietnamPrearrivalApplication(country, visaType) ||
-    isTaiwanEntryPermitApplication(country, visaType)
+    isTaiwanEntryPermitApplication(country, visaType) ||
+    isAutomatedOnlineApplication(country, visaType)
   );
 }
 
