@@ -13,6 +13,7 @@ import { test } from "node:test";
 import {
   assessPassiveCapacityTrend,
   loadPassiveCapacityHistory,
+  validatePassiveCapacityReportFile,
 } from "../passive-capacity-trend.mjs";
 
 const PROJECT_REF = "oyjxdzsoejraedqghndi";
@@ -233,6 +234,17 @@ test("trend rejects conflicting artifacts for the same observation window", () =
   );
 });
 
+test("standalone report validation rejects failed-run artifact output", () => {
+  const root = mkdtempSync(join(tmpdir(), "viza-passive-trend-invalid-"));
+  const invalidPath = join(root, "passive-capacity.json");
+  writeFileSync(invalidPath, "Production passive capacity observation failed\n");
+  assert.throws(
+    () => validatePassiveCapacityReportFile(invalidPath),
+    /not valid JSON/u,
+  );
+  rmSync(root, { recursive: true, force: true });
+});
+
 test("scheduled workflow downloads only main passive artifacts and uploads the trend", () => {
   const workflow = new URL(
     "../../.github/workflows/passive-production-capacity.yml",
@@ -245,6 +257,8 @@ test("scheduled workflow downloads only main passive artifacts and uploads the t
   assert.match(source, /actions\/runs\/\$run_id\/artifacts\?per_page=100/u);
   assert.match(source, /gh run download/u);
   assert.match(source, /passive-capacity-evidence\.jsonl/u);
+  assert.match(source, /--validate-report/u);
+  assert.match(source, /Skipping unusable historical capacity artifact/u);
   assert.match(source, /actions\/runs\/\$\{GITHUB_RUN_ID\}/u);
   assert.match(source, /\.head_branch == "main" and \.path ==/u);
   assert.match(source, /passive-capacity-trend\.mjs/u);
