@@ -14,6 +14,7 @@ export type OnlineCapacityScenarioName =
 	| "client_login"
 	| "application_auth_redirect"
 	| "agent_readiness"
+	| "agent_database_read"
 	| "client_home"
 	| "client_status";
 
@@ -37,6 +38,28 @@ export interface OnlineCapacityRunInput {
 	rampUpMs: number;
 	completedUsers: number;
 	scenarios: readonly OnlineCapacityScenarioResult[];
+	databaseTelemetry?: OnlineCapacityDatabaseTelemetry;
+}
+
+export interface OnlineCapacityDatabaseTelemetry {
+	sampleCount: number;
+	requiredSamples: number;
+	allPoolStatesOpen: boolean;
+	singleInstance: boolean;
+	maxConnections: number;
+	peakActiveConnections: number;
+	peakWaitingRequests: number;
+	peakUtilizationPercent: number;
+	baselineTotalQueries: number;
+	finalTotalQueries: number;
+	failedQueryDelta: number;
+	slowQueryDelta: number;
+	metricResetDetected: boolean;
+	topSlowFingerprints: Array<{
+		fingerprint: string;
+		count: number;
+		p95DurationMs: number;
+	}>;
 }
 
 export interface OnlineCapacityRunEvaluation extends OnlineCapacityRunInput {
@@ -62,6 +85,7 @@ const AUTHENTICATED_SCENARIOS: typeof PUBLIC_EDGE_SCENARIOS = [
 	{ name: "client_home", maximumP95Ms: 1_500 },
 	{ name: "client_status", maximumP95Ms: 1_500 },
 	{ name: "agent_readiness", maximumP95Ms: 500 },
+	{ name: "agent_database_read", maximumP95Ms: 500 },
 ];
 
 function isNonNegativeInteger(value: number): boolean {
@@ -89,6 +113,37 @@ function hasValidScenarioMetrics(scenario: OnlineCapacityScenarioResult): boolea
 		scenario.p50Ms <= scenario.p95Ms &&
 		scenario.p95Ms <= scenario.p99Ms &&
 		scenario.p99Ms <= scenario.maxMs
+	);
+}
+
+function hasValidDatabaseTelemetry(value: OnlineCapacityDatabaseTelemetry): boolean {
+	return (
+		isNonNegativeInteger(value.sampleCount) &&
+		isNonNegativeInteger(value.requiredSamples) &&
+		value.requiredSamples >= 2 &&
+		typeof value.allPoolStatesOpen === "boolean" &&
+		typeof value.singleInstance === "boolean" &&
+		Number.isInteger(value.maxConnections) &&
+		value.maxConnections >= 1 &&
+		isNonNegativeInteger(value.peakActiveConnections) &&
+		value.peakActiveConnections <= value.maxConnections &&
+		isNonNegativeInteger(value.peakWaitingRequests) &&
+		isNonNegativeFinite(value.peakUtilizationPercent) &&
+		value.peakUtilizationPercent <= 100 &&
+		isNonNegativeInteger(value.baselineTotalQueries) &&
+		isNonNegativeInteger(value.finalTotalQueries) &&
+		value.finalTotalQueries >= value.baselineTotalQueries &&
+		isNonNegativeInteger(value.failedQueryDelta) &&
+		isNonNegativeInteger(value.slowQueryDelta) &&
+		typeof value.metricResetDetected === "boolean" &&
+		Array.isArray(value.topSlowFingerprints) &&
+		value.topSlowFingerprints.length <= 10 &&
+		value.topSlowFingerprints.every(
+			(entry) =>
+				/^[a-f0-9]{64}$/u.test(entry.fingerprint) &&
+				isNonNegativeInteger(entry.count) &&
+				isNonNegativeFinite(entry.p95DurationMs),
+		)
 	);
 }
 
@@ -129,6 +184,34 @@ export function evaluateOnlineCapacityRun(
 	}
 	if (!releaseMatrixComplete) {
 		failures.push("release_matrix_incomplete");
+	}
+	if (authenticated) {
+		const telemetry = input.databaseTelemetry;
+		if (!telemetry) {
+			failures.push("database_telemetry_missing");
+		} else if (!hasValidDatabaseTelemetry(telemetry)) {
+			failures.push("database_telemetry_invalid");
+		} else {
+			const expectedRequiredSamples = releaseMatrixComplete
+				? Math.ceil(
+					((ONLINE_CAPACITY_RELEASE_RAMP_MS + ONLINE_CAPACITY_RELEASE_DURATION_MS) /
+						1_000) * 0.8,
+				) + 2
+				: 2;
+			if (telemetry.requiredSamples !== expectedRequiredSamples) {
+				failures.push("database_telemetry_invalid");
+			}
+			if (telemetry.sampleCount < telemetry.requiredSamples) {
+				failures.push("database_telemetry_incomplete");
+			}
+			if (!telemetry.allPoolStatesOpen) failures.push("database_pool_not_open");
+			if (!telemetry.singleInstance) failures.push("database_instance_changed");
+			if (telemetry.peakWaitingRequests !== 0) failures.push("database_pool_waiting");
+			if (telemetry.peakUtilizationPercent >= 80) failures.push("database_pool_utilization");
+			if (telemetry.metricResetDetected) failures.push("database_query_metric_reset");
+			if (telemetry.failedQueryDelta !== 0) failures.push("database_query_errors");
+			if (telemetry.slowQueryDelta !== 0) failures.push("database_slow_queries");
+		}
 	}
 
 	const requiredScenarios = authenticated

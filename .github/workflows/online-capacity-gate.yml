@@ -87,6 +87,7 @@ jobs:
         if: inputs.scope == 'authenticated_sustained_read_only'
         env:
           ONLINE_CAPACITY_SESSION_COOKIE: ${{ secrets.ONLINE_CAPACITY_SESSION_COOKIE }}
+          ONLINE_CAPACITY_STATUS_SECRET: ${{ secrets.ONLINE_CAPACITY_STATUS_SECRET }}
         run: npm run load:online-capacity
       - name: Upload metadata-only capacity result
         if: always()

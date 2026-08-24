@@ -292,7 +292,11 @@ describe("redacted query telemetry", () => {
 	it("observes promise queries without exposing SQL or parameters", async () => {
 		const emitter = new EventEmitter();
 		const events: unknown[] = [];
+		let dispatched = 0;
 		emitter.on("db_query", (event) => events.push(event));
+		emitter.on("db_query_dispatched", () => {
+			dispatched += 1;
+		});
 		const query = vi.fn().mockResolvedValue({ rows: [] });
 		const pool = { query };
 		observePoolQueries(pool, emitter);
@@ -302,6 +306,7 @@ describe("redacted query telemetry", () => {
 		]);
 
 		expect(events).toHaveLength(1);
+		expect(dispatched).toBe(1);
 		expect(JSON.stringify(events[0])).not.toMatch(/applicants|E99990000/i);
 		expect(events[0]).toMatchObject({
 			parameterCount: 1,

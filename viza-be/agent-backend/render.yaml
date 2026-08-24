@@ -43,6 +43,8 @@ services:
       # separate from Supabase credentials and may only trigger synthetic GETs.
       - key: STATUS_CRON_SECRET
         sync: false
+      - key: CAPACITY_STATUS_SECRET
+        sync: false
       # The always-on backend performs the primary five-minute checks without
       # needing another machine. Set false only when an external scheduler owns
       # the probe cadence.
