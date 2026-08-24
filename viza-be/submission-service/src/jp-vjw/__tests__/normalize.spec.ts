@@ -28,27 +28,20 @@ function payload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload 
       accommodationAddress: "1 Tokyo Street",
     },
     countrySpecific: {
-      passport_type: "Ordinary passport",
       surname: "ZHANG",
       given_names: "SAN",
-      nationality: "China",
-      sex: "Male",
-      passport_issuing_country: "China",
-      email_address: "appl-test@viza.it.com",
-      phone_number: "+8613800000000",
+      nationality: "CHN",
       residence_country: "China",
       occupation: "Engineer",
       residence_city: "Shanghai",
       arrival_date: "2026-09-10",
-      arrival_airport: "NARITA",
       arrival_airline: "NH",
       flight_number: "NH900",
-      last_embarkation_country: "China",
       departure_city_or_port: "Shanghai",
-      purpose_of_visit: "Tourism",
+      purpose_of_visit: "0",
       planned_stay_days: "11",
       accommodation_name: "Tokyo Hotel",
-      accommodation_prefecture: "TOKYO",
+      accommodation_prefecture: "13",
       accommodation_city: "CHIYODA KU",
       accommodation_address: "1 Tokyo Street",
       accommodation_postal_code: "100-0001",
@@ -65,7 +58,6 @@ function payload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload 
       has_unaccompanied_baggage: "no",
       has_cash_or_valuables_over_threshold: "no",
       customs_declaration_confirmed: "yes",
-      immigration_declaration: "yes",
     },
     metadata: {},
     ...overrides,
@@ -77,14 +69,13 @@ test("normalizes Visit Japan Web payload and preserves official answers", () => 
   assert.equal(result.emailAddress, "appl-test@viza.it.com");
   assert.equal(result.customsDeclaration, "no");
   assert.equal(result.finalDeclaration, "yes");
-  assert.equal(result.portOfEntry, "NARITA");
   assert.equal(result.arrivalAirline, "NH");
   assert.equal(result.flightNumber, "900");
   assert.equal(result.residenceCity, "Shanghai");
   assert.equal(result.customsAnswers.hasDutiableGoods, "no");
   assert.equal(result.immigrationAnswers.hasCriminalRecord, "no");
   assert.equal(result.departureCityOrPort, "Shanghai");
-  assert.equal(result.accommodationPrefecture, "TOKYO");
+  assert.equal(result.accommodationPrefecture, "13");
   assert.equal(result.accommodationCity, "CHIYODA KU");
 });
 
@@ -122,17 +113,30 @@ test("accepts planned stay days without an optional departure date", () => {
   assert.equal(result.plannedStayDays, 11);
 });
 
-test("rejects wrong country/visa type and missing canonical immigration confirmation", () => {
+test("rejects wrong country/visa type and a missing official final confirmation", () => {
   assert.throws(
     () => normalizeJpVjwPortalPayload(payload({ countryCode: "KE" })),
     JpVjwPortalValidationError,
   );
   const invalid = payload();
-  delete invalid.countrySpecific.immigration_declaration;
+  delete invalid.countrySpecific.customs_declaration_confirmed;
   assert.throws(
     () => normalizeJpVjwPortalPayload(invalid),
-    /immigration_declaration/,
+    /customs_declaration_confirmed/,
   );
+});
+
+test("accepts the official optional postal code and normalizes legacy China/tourism labels", () => {
+  const input = payload();
+  delete input.countrySpecific.accommodation_postal_code;
+  input.countrySpecific.nationality = "China";
+  input.countrySpecific.purpose_of_visit = "Tourism";
+
+  const result = normalizeJpVjwPortalPayload(input);
+
+  assert.equal(result.accommodationPostalCode, undefined);
+  assert.equal(result.nationality, "CHN");
+  assert.equal(result.purposeOfVisit, "0");
 });
 
 test("rejects missing official address subdivisions and an invalid Japan contact phone", () => {

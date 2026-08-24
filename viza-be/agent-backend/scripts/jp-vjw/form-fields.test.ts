@@ -3,139 +3,144 @@ import {
   JP_VISIT_JAPAN_WEB_FORM_FIELDS,
   JP_VISIT_JAPAN_WEB_OFFICIAL_FIELD_NAMES,
 } from "./form-fields";
-import { JP_CUSTOMS_AIRPORT_OPTIONS, JP_CUSTOMS_AIRPORT_SOURCE } from "./official-airports";
+import {
+  JP_VJW_AIRLINE_OPTIONS,
+  JP_VJW_CITIES_BY_PREFECTURE,
+  JP_VJW_EMBARKATION_POINT_OPTIONS,
+  JP_VJW_OFFICIAL_MASTER_SOURCE,
+  JP_VJW_PREFECTURE_OPTIONS,
+} from "./official-master";
+
+function field(name: string) {
+  const result = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((entry) => entry.field_name === name);
+  expect(result, `missing ${name}`).toBeDefined();
+  return result!;
+}
 
 describe("Japan Visit Japan Web form seed", () => {
-  it("covers passport, arrival, accommodation, immigration, and customs answers", () => {
-    const names = new Set(JP_VISIT_JAPAN_WEB_OFFICIAL_FIELD_NAMES);
-    for (const field of [
-      "passport_number",
-      "arrival_date",
-      "arrival_airport",
-      "arrival_airline",
-      "flight_number",
-      "occupation",
-      "residence_city",
-      "last_embarkation_country",
-      "accommodation_prefecture",
-      "accommodation_city",
-      "accommodation_address",
-      "has_been_deported",
-      "has_criminal_record",
-      "has_controlled_substances_or_weapons",
-      "has_prohibited_goods",
-      "has_restricted_goods",
-      "has_gold_or_gold_products",
-      "customs_declaration",
-      "customs_declaration_confirmed",
-      "immigration_declaration",
-      "final_declaration",
-    ]) {
-      expect(names.has(field)).toBe(true);
+  it("matches every visible current VJW control type", () => {
+    const expectedTypes: Record<string, string> = {
+      surname: "text",
+      given_names: "text",
+      date_of_birth: "date",
+      nationality: "select",
+      passport_number: "text",
+      passport_expiry_date: "date",
+      residence_country: "text",
+      occupation: "select",
+      residence_city: "text",
+      arrival_date: "date",
+      arrival_airline: "select",
+      flight_number: "text",
+      departure_city_or_port: "text",
+      purpose_of_visit: "select",
+      planned_stay_days: "number",
+      accommodation_postal_code: "text",
+      accommodation_prefecture: "select",
+      accommodation_city: "select",
+      accommodation_address: "text",
+      accommodation_name: "text",
+      accommodation_phone: "text",
+      has_been_deported: "radio",
+      has_criminal_record: "radio",
+      has_controlled_substances_or_weapons: "radio",
+      has_prohibited_goods: "radio",
+      has_restricted_goods: "radio",
+      has_gold_or_gold_products: "radio",
+      has_dutiable_goods: "radio",
+      has_commercial_goods: "radio",
+      has_goods_for_other_person: "radio",
+      has_unaccompanied_baggage: "radio",
+      has_cash_or_valuables_over_threshold: "radio",
+      customs_declaration_confirmed: "checkbox",
+    };
+
+    for (const [name, type] of Object.entries(expectedTypes)) {
+      expect(field(name).field_type, name).toBe(type);
     }
   });
 
-  it("keeps current Visit Japan Web airline and customs controls separate", () => {
-    const legacyCombined = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find(
-      (field) => field.field_name === "has_prohibited_or_restricted_goods",
-    );
-    expect(legacyCombined).toMatchObject({ field_type: "computed", required: false });
-    expect(legacyCombined?.conditional_logic).toEqual({ showIf: "false" });
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "arrival_airline")).toMatchObject({
-      field_type: "text",
-      required: true,
-    });
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "occupation")).toMatchObject({
-      field_type: "select",
-      required: true,
-      options: expect.arrayContaining([
-        expect.objectContaining({ value: "0800", label_zh: "学生", label_en: "Student" }),
-        expect.objectContaining({ value: "0990", label_zh: "其他", label_en: "Other" }),
-      ]),
-    });
-    for (const fieldName of ["has_prohibited_goods", "has_restricted_goods", "has_gold_or_gold_products"]) {
-      expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === fieldName)).toMatchObject({
-        field_type: "radio",
-        required: true,
+  it("hides legacy intake fields that the current official flow does not ask", () => {
+    for (const name of [
+      "passport_type",
+      "sex",
+      "passport_issuing_country",
+      "email_address",
+      "phone_number",
+      "arrival_airport",
+      "last_embarkation_country",
+      "immigration_declaration",
+    ]) {
+      expect(field(name)).toMatchObject({
+        field_type: "computed",
+        required: false,
+        conditional_logic: { showIf: "false" },
       });
     }
   });
 
-  it("keeps files out of answers and preserves Chinese-only display labels", () => {
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.some((field) => field.field_type === "file")).toBe(false);
-    const nationality = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "nationality");
-    expect(nationality?.options?.[0]).toMatchObject({ value: "China", label_zh: "中国", label_en: "China" });
+  it("publishes the reviewed VJW 3.16 dropdown and autocomplete masters", () => {
+    expect(JP_VJW_OFFICIAL_MASTER_SOURCE).toMatchObject({
+      schemaVersion: "VJW-3.16",
+      sourceUrl: "https://www.vjw.digital.go.jp/main/main.1dcb51ecdb7a1ed7.js",
+      sha256: "64d37b919f3a2ecfe9b6ceee2ec58c31239965ca3e7c1c51e063e0dfe93bb3cc",
+      publicationPolicy: "manual-review-required-before-production-update",
+    });
+    expect(JP_VJW_AIRLINE_OPTIONS).toHaveLength(174);
+    expect(JP_VJW_PREFECTURE_OPTIONS).toHaveLength(47);
+    expect(JP_VJW_EMBARKATION_POINT_OPTIONS).toHaveLength(187);
+    expect(Object.values(JP_VJW_CITIES_BY_PREFECTURE).flat()).toHaveLength(1892);
+    expect(new Set(JP_VJW_AIRLINE_OPTIONS.map((entry) => entry.value))).toHaveLength(174);
+    expect(field("arrival_airline").options).toEqual(JP_VJW_AIRLINE_OPTIONS);
+    expect(field("accommodation_prefecture").options).toEqual(JP_VJW_PREFECTURE_OPTIONS);
+    expect(field("accommodation_city").validation_rules).toMatchObject({
+      dependent_on: "accommodation_prefecture",
+      dependent_options: JP_VJW_CITIES_BY_PREFECTURE,
+    });
+    expect(field("departure_city_or_port").validation_rules).toMatchObject({
+      official_control_type: "text_autocomplete_with_free_entry",
+      allow_custom_value: true,
+    });
   });
 
-  it("collects the current official Japan address controls and phone shape", () => {
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_prefecture")).toMatchObject({
-      field_type: "text",
-      required: true,
-      validation_rules: expect.objectContaining({ official_control: "prefecture" }),
+  it("uses official stored codes while keeping the applicant-facing labels Chinese", () => {
+    expect(field("nationality").options?.[0]).toMatchObject({
+      value: "CHN",
+      label_zh: "中国",
+      label_en: "China",
     });
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_city")).toMatchObject({
-      field_type: "text",
-      required: true,
-      validation_rules: expect.objectContaining({ official_control: "city", maxLength: 45 }),
+    expect(field("purpose_of_visit").options?.[0]).toMatchObject({
+      value: "0",
+      label_zh: "旅游",
+      label_en: "Tourism",
     });
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "accommodation_phone")?.validation_rules).toMatchObject({
-      pattern: "^[0-9]{10,15}$",
-      official_control: "telephoneNumberInJapan",
-    });
-  });
-
-  it("publishes the versioned Japan Customs airport options with official values", () => {
-    const airportField = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "arrival_airport");
-    const values = JP_CUSTOMS_AIRPORT_OPTIONS.map((entry) => entry.value);
-
-    expect(JP_CUSTOMS_AIRPORT_OPTIONS).toHaveLength(33);
-    expect(new Set(values)).toHaveLength(values.length);
-    expect(airportField?.options).toEqual(JP_CUSTOMS_AIRPORT_OPTIONS);
-    expect(airportField?.validation_rules).toMatchObject({
-      label_zh: "计划入境机场",
-      official_options_source: JP_CUSTOMS_AIRPORT_SOURCE.url,
-      official_options_effective_date: "2025-07-01",
-      option_identity: "official_english_name",
-    });
-    expect(JP_CUSTOMS_AIRPORT_OPTIONS).toEqual(expect.arrayContaining([
-      expect.objectContaining({ value: "Narita international Airport", label_zh: "成田国际机场" }),
-      expect.objectContaining({ value: "Tokyo international Airport", label_zh: "东京国际机场（羽田机场）" }),
-      expect.objectContaining({ value: "Kansai international Airport", label_zh: "关西国际机场" }),
+    expect(field("occupation").options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "0800", label_zh: "学生", label_en: "Student" }),
+      expect.objectContaining({ value: "0990", label_zh: "其他", label_en: "Other" }),
     ]));
-    for (const entry of JP_CUSTOMS_AIRPORT_OPTIONS) {
-      expect(entry.label_en).toBe(entry.value);
-      expect(entry.official_label).toBe(entry.value);
-      expect(entry.label_zh.trim()).not.toBe("");
-    }
   });
 
-  it("requires the final immigration and customs confirmations", () => {
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "customs_declaration_confirmed")?.required).toBe(true);
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "immigration_declaration")?.required).toBe(true);
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "customs_declaration")?.required).toBe(false);
-    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "customs_declaration")?.validation_rules).toMatchObject({
-      do_not_ask_as_single_customs_question: true,
+  it("matches the official optional postal code and single final confirmation", () => {
+    expect(field("accommodation_postal_code")).toMatchObject({ field_type: "text", required: false });
+    expect(field("accommodation_address")).toMatchObject({ field_type: "text", required: true });
+    expect(field("customs_declaration_confirmed")).toMatchObject({
+      label: "The above entry is true and correct.",
+      field_type: "checkbox",
+      required: true,
+      validation_rules: expect.objectContaining({
+        label_zh: "我确认上述填写内容真实且正确",
+        official_control: "confirmChk",
+      }),
     });
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.filter((entry) =>
+      entry.field_type === "checkbox" && entry.required
+    )).toHaveLength(1);
   });
 
-  it("places the immigration confirmation after every immigration question and explains the acknowledgement", () => {
-    const immigrationQuestions = JP_VISIT_JAPAN_WEB_FORM_FIELDS.filter((field) =>
-      field.step_number === 3 && field.validation_rules?.immigration_question === true
+  it("keeps files out of answers and preserves every compatibility key", () => {
+    expect(JP_VISIT_JAPAN_WEB_FORM_FIELDS.some((entry) => entry.field_type === "file")).toBe(false);
+    expect(new Set(JP_VISIT_JAPAN_WEB_OFFICIAL_FIELD_NAMES)).toEqual(
+      new Set(JP_VISIT_JAPAN_WEB_FORM_FIELDS.map((entry) => entry.field_name)),
     );
-    const confirmation = JP_VISIT_JAPAN_WEB_FORM_FIELDS.find((field) => field.field_name === "immigration_declaration");
-
-    expect(immigrationQuestions).toHaveLength(3);
-    expect(confirmation).toMatchObject({
-      step_number: 3,
-      step_name: "Immigration Declaration",
-      display_order: 4,
-    });
-    expect(confirmation?.display_order).toBeGreaterThan(
-      Math.max(...immigrationQuestions.map((field) => field.display_order)),
-    );
-    expect(confirmation?.validation_rules).toMatchObject({
-      label_zh: "我已核对上述入境申报信息，并确认完整且真实",
-      helper_priority: "critical",
-    });
   });
 });

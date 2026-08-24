@@ -30,6 +30,42 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("DynamicFormField localization", () => {
+  it("renders an official text autocomplete while preserving free entry", () => {
+    const onChange = vi.fn();
+    const departureField = field({
+      id: "jp-departure",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      fieldName: "departure_city_or_port",
+      label: "City/Port of Embarkation",
+      fieldType: "text",
+      options: [
+        { value: "BEIJING", label_zh: "北京（BEIJING）", label_en: "BEIJING" },
+        { value: "SHANGHAI", label_zh: "上海（SHANGHAI）", label_en: "SHANGHAI" },
+      ],
+      validationRules: {
+        official_control_type: "text_autocomplete_with_free_entry",
+        allow_custom_value: true,
+      },
+    });
+
+    const { container } = render(
+      <DynamicFormField
+        field={departureField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    const listId = input.getAttribute("list");
+    expect(listId).toBeTruthy();
+    expect(container.querySelector(`datalist#${listId} option[value='SHANGHAI']`)).not.toBeNull();
+
+    fireEvent.change(input, { target: { value: "SUZHOU" } });
+    expect(onChange).toHaveBeenCalledWith("SUZHOU");
+  });
+
   it("renders localized radio labels while preserving official stored values", async () => {
     const onChange = vi.fn();
     const purposeField = field({
