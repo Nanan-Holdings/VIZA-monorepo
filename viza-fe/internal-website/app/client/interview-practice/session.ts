@@ -368,6 +368,28 @@ export function answerIdempotencyKey(
   return `${session.id}:${questionId}:${session.exchanges.length}`;
 }
 
+export function interviewStageForPhase(
+  phase: InterviewPhase,
+  reportStatus: ReportStatus = "idle",
+): InterviewStage {
+  if (phase === "report") return "report_ready";
+  if (phase === "complete") return reportStatus === "generating" ? "reporting" : "complete";
+  if (phase === "interview") return "question";
+  return "profile";
+}
+
+export function recoverableInterviewError(
+  lastFailedAction: InterviewErrorRecovery["lastFailedAction"],
+  lastError: string,
+): InterviewErrorRecovery {
+  return {
+    lastError,
+    retryable: true,
+    lastFailedAction,
+    recoveredAt: null,
+  };
+}
+
 export function resetInterviewSession(
   session: InterviewSession,
   now = new Date().toISOString(),

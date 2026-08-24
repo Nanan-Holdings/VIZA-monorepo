@@ -69,11 +69,11 @@ describe("InterviewPracticePage", () => {
   });
 
   it("shows linked application context and missing practice fields", async () => {
-    searchParams = new URLSearchParams("applicationId=app-123");
+    searchParams = new URLSearchParams("applicationId=app-123&visaType=DS160_B1B2");
     seedSession({
       ...createInterviewSession(),
       applicationId: "app-123",
-      visaType: "US_B1_B2",
+      visaType: "DS160_B1B2",
       applicationContext: {
         source: "application",
         applicationId: "app-123",
@@ -90,7 +90,8 @@ describe("InterviewPracticePage", () => {
     expect(screen.getByText(/开始前仍需确认/u)).toHaveTextContent("赴美目的");
     expect(screen.getByText(/已核验/u)).toHaveTextContent("目的地");
     expect(screen.getByText(/核验状态/u)).toHaveTextContent("部分资料待补充");
-    expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId: "app-123", visaType: "US_B1_B2" }))).toBeTruthy();
+    expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId: "app-123", visaType: "DS160_B1B2" }))).toBeTruthy();
+    expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId: "app-123", visaType: "US_B1_B2" }))).toBeNull();
   });
 
   it("keeps setup recoverable when required fields are missing", async () => {
@@ -185,5 +186,80 @@ describe("InterviewPracticePage", () => {
     expect(await screen.findByText(/这是练习准备度评估，不代表签证结果/u)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "只重练弱项" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完整重练" })).toBeInTheDocument();
+  });
+
+  it("persists answer idempotency and completed topic state after submitting", async () => {
+    const session: InterviewSession = {
+      ...completeProfile(createInterviewSession()),
+      id: "session-answer",
+      phase: "interview",
+      stage: "question",
+      currentQuestion: { id: "purpose", topic: "赴美目的", prompt: "你为什么去美国？", isFollowUp: false },
+      questionIndex: 0,
+      draftAnswer: "我去美国参加行业会议，并在会后短期旅游。",
+    };
+    seedSession(session);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        assessment: { score: 82, status: "strong", note: "回答具体", missingRequirements: [] },
+        nextQuestion: { id: "itinerary", topic: "行程安排", prompt: "你怎么安排行程？", isFollowUp: false },
+        nextQuestionIndex: 1,
+        completed: false,
+        context: { source: "standalone", missingFields: [], verifiedFields: [], consistencyStatus: "unverified" },
+      }), { status: 200 }),
+    );
+
+    render(<InterviewPracticePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "提交回答" }));
+
+    expect(await screen.findByText("你怎么安排行程？")).toBeInTheDocument();
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toMatchObject({
+      action: "answer",
+      idempotencyKey: "session-answer:purpose:0",
+    });
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem(getInterviewSessionKey()) ?? "{}")).toMatchObject({
+        phase: "interview",
+        stage: "question",
+        completedTopics: ["purpose"],
+        lastAnswerIdempotencyKey: "session-answer:purpose:0",
+        pendingRequestKey: null,
+      });
+    });
+  });
+
+  it("does not request another report after a ready report is restored", async () => {
+    seedSession({
+      ...completeProfile(createInterviewSession()),
+      phase: "report",
+      stage: "report_ready",
+      reportStatus: "ready",
+      report: {
+        overallScore: 72,
+        readiness: "接近准备",
+        summary: "整体回答可用。",
+        dimensions: {
+          clarity: 72,
+          completeness: 74,
+          specificity: 68,
+          consistency: null,
+          consistencyStatus: "unverified",
+          returnIntent: 70,
+        },
+        strengths: [{ title: "目的清楚", evidence: "能说明会议安排。" }],
+        actions: [{ priority: 1, title: "补充资金说明", action: "准备预算解释。" }],
+        riskFlags: [],
+        questionAnalysis: [],
+        generatedAt: "2026-08-23T00:00:00.000Z",
+        idempotencyKey: "report-key",
+        disclaimer: "本报告仅用于面试练习，不预测、保证或代表任何签证结果。",
+      },
+    });
+
+    render(<InterviewPracticePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "完整重练" }));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await screen.findByText("模拟面试练习")).toBeInTheDocument();
   });
 });

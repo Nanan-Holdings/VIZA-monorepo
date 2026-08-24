@@ -24,9 +24,12 @@ import type {
 } from "@/app/api/interview/types";
 import {
   DEFAULT_OFFICER,
+  answerIdempotencyKey,
   applyInterviewSessionIdentity,
   clearInterviewSession,
   createInterviewSession,
+  interviewStageForPhase,
+  recoverableInterviewError,
   readInterviewSession,
   reportIdempotencyKey,
   writeInterviewSession,
@@ -54,7 +57,12 @@ const REQUIRED_FIELDS: Array<keyof ApplicantProfile> = [
 const TOPICS = ["目的", "行程", "停留", "资金", "工作/学习", "同行/联系人", "过往记录", "回国约束"];
 
 function updateSession(session: InterviewSession, patch: Partial<InterviewSession>): InterviewSession {
-  return { ...session, ...patch, updatedAt: new Date().toISOString() };
+  const next = { ...session, ...patch };
+  return {
+    ...next,
+    stage: patch.stage ?? interviewStageForPhase(next.phase, next.reportStatus),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function fieldLabel(field: keyof ApplicantProfile) {
@@ -96,6 +104,19 @@ function ErrorNotice({ message }: { message: string | null }) {
       </div>
     </div>
   );
+}
+
+function speechErrorMessage(error: ReturnType<typeof useBrowserSpeech>["error"]) {
+  if (!error) return null;
+  return ({
+    unsupported: "当前浏览器不支持语音输入，可继续文字回答。",
+    permission_denied: "浏览器拒绝了麦克风权限。你可以重新授权，或继续文字回答。",
+    no_speech: "没有识别到语音。可以再试一次，或继续文字回答。",
+    audio_capture: "没有可用麦克风或麦克风被占用。文字回答仍可使用。",
+    network: "语音服务网络异常。请稍后重试，或继续文字回答。",
+    aborted: "语音输入已停止。文字回答仍可使用。",
+    unknown: "语音输入出现问题。请再试一次，或继续文字回答。",
+  } satisfies Record<NonNullable<ReturnType<typeof useBrowserSpeech>["error"]>, string>)[error];
 }
 
 function contextStatusLabel(status: InterviewContextSummary["consistencyStatus"]) {
@@ -182,7 +203,8 @@ function SetupField({
 export default function InterviewPracticePage() {
   const searchParams = useSearchParams();
   const applicationId = searchParams.get("applicationId")?.trim() || null;
-  const sessionIdentity = useMemo(() => ({ applicationId, visaType: "US_B1_B2" }), [applicationId]);
+  const visaType = searchParams.get("visaType")?.trim() || "US_B1_B2";
+  const sessionIdentity = useMemo(() => ({ applicationId, visaType }), [applicationId, visaType]);
   const [session, setSession] = useState<InterviewSession>(() =>
     applyInterviewSessionIdentity(createInterviewSession(), sessionIdentity)
   );
@@ -259,17 +281,31 @@ export default function InterviewPracticePage() {
       speechQuestionRef.current = null;
       setSession((current) => updateSession(current, {
         phase: "interview",
+        stage: "question",
         applicationContext: data.context,
         currentQuestion: data.question,
         questionIndex: data.questionIndex,
         exchanges: [],
         draftAnswer: "",
+        completedTopics: [],
         followUpQuestionIds: [],
+        pendingRequestKey: null,
+        lastAnswerIdempotencyKey: null,
+        errorRecovery: {
+          lastError: null,
+          retryable: false,
+          lastFailedAction: null,
+          recoveredAt: null,
+        },
         report: null,
         reportStatus: "idle",
       }));
     } catch {
       setError("暂时无法开始，请稍后重试。你的资料已保留。");
+      setSession((current) => updateSession(current, {
+        errorRecovery: recoverableInterviewError("start", "start_failed"),
+        pendingRequestKey: null,
+      }));
     } finally {
       requestInFlightRef.current = false;
       setSubmitting(false);
@@ -280,11 +316,16 @@ export default function InterviewPracticePage() {
     const question = session.currentQuestion;
     const answer = session.draftAnswer.trim();
     if (!question || !answer || submitting || requestInFlightRef.current) return;
+    const idempotencyKey = answerIdempotencyKey(session);
     requestInFlightRef.current = true;
     speech.stop();
     window.speechSynthesis?.cancel();
     setSubmitting(true);
     setError(null);
+    setSession((current) => updateSession(current, {
+      stage: "answering",
+      pendingRequestKey: idempotencyKey,
+    }));
     try {
       const response = await fetch("/api/interview", {
         method: "POST",
@@ -297,7 +338,7 @@ export default function InterviewPracticePage() {
           question,
           answer,
           questionIndex: session.questionIndex,
-          idempotencyKey: `${session.id}:${question.id}:${session.exchanges.length}`,
+          idempotencyKey,
           followUpUsed: session.followUpQuestionIds.includes(question.parentId ?? question.id),
         }),
       });
@@ -316,13 +357,27 @@ export default function InterviewPracticePage() {
         currentQuestion: data.nextQuestion,
         questionIndex: data.nextQuestionIndex,
         draftAnswer: "",
+        completedTopics: Array.from(new Set([...current.completedTopics, question.parentId ?? question.id])),
         followUpQuestionIds: question.isFollowUp
           ? current.followUpQuestionIds
           : [...current.followUpQuestionIds, ...(data.nextQuestion?.isFollowUp ? [question.id] : [])],
+        pendingRequestKey: null,
+        lastAnswerIdempotencyKey: idempotencyKey,
+        errorRecovery: {
+          lastError: null,
+          retryable: false,
+          lastFailedAction: null,
+          recoveredAt: null,
+        },
         phase: data.completed ? "complete" : "interview",
       }));
     } catch {
       setError("回答没有保存。请检查网络后再次提交；当前文字回答不会丢失。");
+      setSession((current) => updateSession(current, {
+        stage: "question",
+        errorRecovery: recoverableInterviewError("answer", "answer_failed"),
+        pendingRequestKey: null,
+      }));
     } finally {
       requestInFlightRef.current = false;
       setSubmitting(false);
@@ -332,16 +387,26 @@ export default function InterviewPracticePage() {
   const endEarly = () => {
     speech.stop();
     window.speechSynthesis?.cancel();
-    setSession((current) => updateSession(current, { phase: "complete", currentQuestion: null, draftAnswer: "" }));
+    setSession((current) => updateSession(current, { phase: "complete", stage: "complete", currentQuestion: null, draftAnswer: "" }));
   };
 
   const generateReport = async () => {
-    if (!session.exchanges.length || submitting || requestInFlightRef.current) return;
+    if (
+      !session.exchanges.length ||
+      submitting ||
+      requestInFlightRef.current ||
+      session.reportStatus === "generating" ||
+      (session.reportStatus === "ready" && session.report)
+    ) return;
     const key = reportIdempotencyKey(session);
     requestInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
-    setSession((current) => updateSession(current, { reportStatus: "generating" }));
+    setSession((current) => updateSession(current, {
+      stage: "reporting",
+      reportStatus: "generating",
+      pendingRequestKey: key,
+    }));
     try {
       const response = await fetch("/api/interview/report", {
         method: "POST",
@@ -357,13 +422,26 @@ export default function InterviewPracticePage() {
       const report = await response.json() as InterviewSession["report"] & { context?: InterviewContextSummary };
       setSession((current) => updateSession(current, {
         phase: "report",
+        stage: "report_ready",
         applicationContext: report.context ?? current.applicationContext,
         report,
         reportStatus: "ready",
+        pendingRequestKey: null,
+        errorRecovery: {
+          lastError: null,
+          retryable: false,
+          lastFailedAction: null,
+          recoveredAt: null,
+        },
       }));
     } catch {
       setError("报告暂时无法生成。本轮回答已保留，稍后可再次尝试。");
-      setSession((current) => updateSession(current, { reportStatus: "failed" }));
+      setSession((current) => updateSession(current, {
+        stage: "complete",
+        reportStatus: "failed",
+        pendingRequestKey: null,
+        errorRecovery: recoverableInterviewError("report", "report_failed"),
+      }));
     } finally {
       requestInFlightRef.current = false;
       setSubmitting(false);
@@ -386,11 +464,21 @@ export default function InterviewPracticePage() {
     setError("已保留你的资料。下一轮请优先练习报告中分数较低的主题。");
     setSession((current) => updateSession(current, {
       phase: "setup",
+      stage: "profile",
       exchanges: [],
       currentQuestion: null,
       draftAnswer: "",
+      completedTopics: [],
       questionIndex: 0,
       followUpQuestionIds: [],
+      pendingRequestKey: null,
+      lastAnswerIdempotencyKey: null,
+      errorRecovery: {
+        lastError: null,
+        retryable: false,
+        lastFailedAction: null,
+        recoveredAt: null,
+      },
       reportStatus: "idle",
       report: null,
       officer: OFFICERS.find((officer) => officer.id === "verification") ?? current.officer,
@@ -593,9 +681,9 @@ export default function InterviewPracticePage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   {speech.error === "unsupported" ? (
-                    <span className="text-sm text-[#66758a]">当前浏览器不支持语音输入，可继续文字回答。</span>
+                    <span className="text-sm text-[#66758a]">{speechErrorMessage(speech.error)}</span>
                   ) : speech.error ? (
-                    <span className="text-sm text-destructive">语音输入出现问题，请改用文字。</span>
+                    <span className="text-sm text-destructive">{speechErrorMessage(speech.error)}</span>
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -754,6 +842,7 @@ export default function InterviewPracticePage() {
             <ul className="mt-3 space-y-2 text-sm leading-5 text-[#66758a]">
               <li>语言：{session.language === "en-US" ? "英文模拟面签" : "中文熟悉题型"}。</li>
               <li>题目：围绕 8 个核心主题，必要时追问。</li>
+              <li>资料隔离：{applicationId ? "按当前申请单独保存。" : "作为独立练习保存。"}</li>
               <li>报告：评估练习准备度，不预测签证结果。</li>
             </ul>
           </section>
