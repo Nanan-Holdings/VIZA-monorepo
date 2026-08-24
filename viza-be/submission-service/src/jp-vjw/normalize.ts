@@ -176,6 +176,15 @@ function assertIsoDate(value: string, key: string, missing: string[]): void {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) missing.push(key);
 }
 
+function assertMinimumLength(
+  value: string,
+  key: string,
+  minimum: number,
+  missing: string[],
+): void {
+  if (value.trim().length < minimum) missing.push(key);
+}
+
 function derivedStayDays(arrivalDate: string, departureDate: string): string {
   if (!arrivalDate || !departureDate) return "";
   const arrival = Date.parse(`${arrivalDate}T12:00:00.000Z`);
@@ -312,6 +321,15 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     missing.push("accommodation_phone");
   }
   if (result.flightNumber && !/^\d{1,8}$/u.test(result.flightNumber)) missing.push("flight_number");
+  assertMinimumLength(result.residenceCountry, "residence_country", 2, missing);
+  assertMinimumLength(result.residenceCity, "residence_city", 2, missing);
+  assertMinimumLength(result.arrivalAirline, "arrival_airline", 2, missing);
+  assertMinimumLength(result.lastEmbarkationCountry, "last_embarkation_country", 2, missing);
+  assertMinimumLength(result.departureCityOrPort, "departure_city_or_port", 2, missing);
+  assertMinimumLength(result.accommodationName, "accommodation_name", 2, missing);
+  assertMinimumLength(result.accommodationPrefecture, "accommodation_prefecture", 2, missing);
+  assertMinimumLength(result.accommodationCity, "accommodation_city", 2, missing);
+  assertMinimumLength(result.accommodationAddress, "accommodation_address", 3, missing);
 
   if (missing.length > 0) {
     const uniqueMissing = [...new Set(missing)];
