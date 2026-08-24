@@ -39,6 +39,7 @@ import {
   testActiveKnowledgeRelease,
   testSupabaseConnection,
 } from './db/supabase-client.js';
+import { readOnlineCapacityTargetMarker } from './online-capacity-target.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -84,6 +85,21 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // dependency so an outage cannot make the process look dead.
 app.get('/live', (_req, res) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// Default-off, non-sensitive binding proof used before isolated capacity runs.
+app.get('/api/health/online-capacity-target', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    const marker = readOnlineCapacityTargetMarker();
+    if (!marker) {
+      res.status(404).json({ enabled: false });
+      return;
+    }
+    res.status(200).json(marker);
+  } catch {
+    res.status(503).json({ enabled: false });
+  }
 });
 
 // Dependency readiness probe. A failed or timed-out Supabase check is a real

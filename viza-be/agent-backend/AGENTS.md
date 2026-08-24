@@ -142,6 +142,47 @@ explicitly reintroduces another provider.
   `load-test-results/concurrency/<runId>/summary.json`; never commit result
   files or credentials. Run only against an isolated staging database:
   `npm run load:concurrency`.
+- Read-only edge-capacity gate: `scripts/online-capacity-load.ts` runs exactly
+  100 synthetic users against the client login page, unauthenticated
+  application redirect, and dependency-aware agent readiness endpoint. It
+  accepts only explicit
+  `local-test` or `staging-only` confirmation, binds the target to an exact
+  non-production Supabase ref, and rejects `viza.it.com`, `viza-prod-*`, and
+  the production project ref before issuing requests. It never sends cookies,
+  authorization headers, payments, application writes, or official-portal
+  submissions. Diagnostic user counts below 100 always fail the release
+  decision. Results are written to ignored
+  `load-test-results/online-capacity/<runId>/summary.json`. Run with
+  `npm run load:online-capacity` only against local or isolated staging targets.
+  Passing this gate proves only the public edge/auth-redirect/readiness surfaces;
+  it does not certify authenticated database reads, AI chat, Runner throughput,
+  official submission, or payment capacity. Those require separate isolated
+  staging gates.
+- The `authenticated_sustained_read_only` scope additionally requires a
+  dedicated `@viza.test` account plus an ephemeral session Cookie supplied only
+  through the protected workflow. Before load,
+  `/api/health/online-capacity-session` must prove
+  that Cookie belongs to the exact configured synthetic user UUID and is not an
+  impersonation session. It ramps 100 sessions for 30 seconds and then
+  holds read-only `/client/home`, `/client/status`, and `/ready` traffic for at
+  least five minutes; the Cookie must never be logged or written to artifacts.
+- The harness also samples `/api/internal/status/capacity` once per second using
+  a step-scoped telemetry secret and fails closed on incomplete/malformed
+  samples, non-open pool state, a cumulative wait peak above one, any wait that
+  persists into a one-second sample, peak DB pool utilization at or above 80%,
+  counter reset, or new failed/slow query. Results retain only
+  aggregates and SHA-256 query fingerprints. The status route uses its own
+  `CAPACITY_STATUS_SECRET`, never the broader portal-probe secret. The protected
+  synthetic `/api/internal/status/capacity/database-read` route is enabled only
+  with the default-off capacity target marker and executes `SELECT 1`; the
+  authenticated release matrix includes it so the agent DB pool is exercised.
+  `src/tests/online-capacity-db.integration.test.ts` is an explicit local-only
+  PostgreSQL gate for the matching paced load shape. It requires a loopback URL,
+  `ONLINE_CAPACITY_DB_CONFIRM=local-test`, a non-production marker, and the DB
+  GUC `app.viza_environment=local-test`; without all four it must skip safely.
+- `src/online-capacity-target.ts` owns the default-off target marker returned at
+  `/api/health/online-capacity-target`. It derives the project ref from the
+  service's actual Supabase URL and must never return keys or connection URLs.
 
 ## Ownership Boundaries
 

@@ -49,3 +49,18 @@ scheduled recovery workflows.
   `apply-approved-batch` action. The latter requires `batch_id` plus a full
   40-character reviewed commit SHA and checks out that SHA only as migration
   input; the current default-branch script and manifest remain the trust root.
+- `online-capacity-gate.yml` is a manual, single-flight, read-only staging gate.
+  It checks out one full reviewed SHA, requires exact project confirmation, and
+  may run only through the `staging-online-capacity` Environment. The deployed
+  frontend and agent must both expose the default-off target marker bound to
+  the same non-production Supabase ref before any 100-user request wave starts.
+  Its authenticated scope accepts only a dedicated `@viza.test` account and an
+  ephemeral session Cookie from the protected Environment secret, ramps for 30
+  seconds, and sustains read-only home/status/readiness requests for 5 minutes.
+  The session preflight must match the configured synthetic user UUID exactly.
+  Only the authenticated execution step receives the ephemeral session Cookie
+  and status telemetry bearer secret. During ramp and steady load, the gate
+  samples aggregate DB pool/query telemetry and fails on a wait peak above one,
+  any wait persisting into a one-second sample, >=80% utilization,
+  query-error/slow-query increase, metric reset, or incomplete
+  sampling; neither secret may reach setup, checkout, logs, or artifacts.

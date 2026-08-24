@@ -129,6 +129,7 @@ __pycache__/
 # Generated output files
 knowledge-base/visa-news.json
 load-test-results/concurrency/
+load-test-results/online-capacity/
 
 # Local temporary directories (at any workspace depth)
 **/.tmp/

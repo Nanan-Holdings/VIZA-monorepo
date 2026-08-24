@@ -1,14 +1,22 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { Router, type NextFunction, type Request, type Response } from "express";
+import {
+  getDatabasePoolMetrics,
+  getDatabaseQueryMetrics,
+  db,
+} from "../db/index.js";
 import {
   getPublicPortalStatus,
   runPortalHealthProbes,
 } from "../services/portal-health.service.js";
 import { Logger } from "../utils/logger.js";
+import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
 const logger = new Logger({ serviceName: "PublicStatusRoutes" });
+const capacityInstanceId = randomUUID();
 
 function safeSecretMatch(provided: string | undefined, expected: string): boolean {
   if (!provided) return false;
@@ -22,6 +30,20 @@ function requireStatusCronSecret(req: Request, res: Response, next: NextFunction
   const expected = process.env.STATUS_CRON_SECRET?.trim();
   if (!expected) {
     res.status(503).json({ ok: false, error: "status_probe_not_configured" });
+    return;
+  }
+  const provided = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (!safeSecretMatch(provided, expected)) {
+    res.status(401).json({ ok: false, error: "unauthorized" });
+    return;
+  }
+  next();
+}
+
+function requireCapacityStatusSecret(req: Request, res: Response, next: NextFunction): void {
+  const expected = process.env.CAPACITY_STATUS_SECRET?.trim();
+  if (!expected) {
+    res.status(503).json({ ok: false, error: "capacity_probe_not_configured" });
     return;
   }
   const provided = req.headers.authorization?.replace(/^Bearer\s+/i, "");
@@ -69,3 +91,39 @@ statusOperationsRouter.post("/probe", requireStatusCronSecret, async (_req, res)
     res.status(503).json({ ok: false, error: "status_probe_failed" });
   }
 });
+
+statusOperationsRouter.get("/capacity", requireCapacityStatusSecret, (_req, res) => {
+  res
+    .set("Cache-Control", "no-store")
+    .status(200)
+    .json({
+      ok: true,
+      instanceId: capacityInstanceId,
+      chat: getLatestChatCapacityStats(),
+      database: {
+        pool: getDatabasePoolMetrics(),
+        queries: getDatabaseQueryMetrics(),
+      },
+    });
+});
+
+statusOperationsRouter.get(
+  "/capacity/database-read",
+  requireCapacityStatusSecret,
+  async (_req, res) => {
+    if (process.env.ONLINE_CAPACITY_TARGET_ENABLED?.trim() !== "true") {
+      res.status(404).json({ ok: false, error: "capacity_target_disabled" });
+      return;
+    }
+    try {
+      await db.execute(sql`SELECT 1`);
+      res.set("Cache-Control", "no-store").status(200).json({ ok: true });
+    } catch (error) {
+      logger.error(
+        "capacity_database_read_failed",
+        error instanceof Error ? error : new Error("Unknown capacity database read error"),
+      );
+      res.status(503).json({ ok: false, error: "capacity_database_read_failed" });
+    }
+  },
+);

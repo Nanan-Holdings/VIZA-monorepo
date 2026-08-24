@@ -529,6 +529,7 @@ export function observePoolQueries<T extends QueryTarget>(
 
 		try {
 			const result = originalQuery(...args);
+			emitter.emit("db_query_dispatched");
 			if (!isPromiseLike(result)) return result;
 			return Promise.resolve(result).then(
 				(value) => {
