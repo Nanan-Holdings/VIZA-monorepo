@@ -146,3 +146,15 @@ test("rejects missing official address subdivisions and an invalid Japan contact
     /accommodation_prefecture, accommodation_city, accommodation_phone/,
   );
 });
+
+test("rejects placeholder-like location and accommodation values before opening the official portal", () => {
+  const invalid = payload();
+  invalid.countrySpecific.residence_country = "S";
+  invalid.countrySpecific.accommodation_name = "A";
+  invalid.countrySpecific.accommodation_address = "A";
+
+  assert.throws(
+    () => normalizeJpVjwPortalPayload(invalid),
+    /residence_country, accommodation_name, accommodation_address/,
+  );
+});
