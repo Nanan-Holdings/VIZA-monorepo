@@ -13,6 +13,10 @@ Scope: `scripts/jp-vjw/**`.
   official bundle, review the diff, then publish a migration.
 - `official-master.ts` converts the reviewed snapshot to bilingual schema
   options without changing official stored codes/values.
+- `option-translations.zh.json` is the reviewed Simplified Chinese display
+  layer for official airlines, prefectures, municipalities, and embarkation
+  points. Its keys must remain exact VJW codes/English values; changing a
+  Chinese label must never change the value sent to the official portal.
 - Applicant documents belong in package requirements and
   `application_documents`, never as file-path answers.
 - `official-airports.ts` is retained as a Japan Customs reference snapshot,

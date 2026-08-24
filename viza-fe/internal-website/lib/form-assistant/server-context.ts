@@ -19,6 +19,7 @@ import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { canonicalizeSchemaOptionValue } from "@/lib/universal-profile-prefill";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import { isJapanVisitJapanWebApplication } from "@/lib/submission-queue";
 import type { FormAssistantDocumentReadiness } from "@/types/form-assistant";
 
 export interface OwnedApplicationContext {
@@ -239,6 +240,17 @@ export async function loadAssistantDocumentReadiness(input: {
   country: string;
   visaType: string;
 }): Promise<FormAssistantDocumentReadiness | null> {
+  // Visit Japan Web collects structured answers directly and has no applicant
+  // upload checklist. Do not let Document Center's conservative generic
+  // fallback invent passport/photo/itinerary/funds requirements for VJW.
+  if (isJapanVisitJapanWebApplication(input.country, input.visaType)) {
+    return {
+      documentCollectionComplete: true,
+      missingDocumentCount: 0,
+      missingDocuments: [],
+    };
+  }
+
   const result = await loadDocumentCenterData({
     applicationId: input.applicationId,
     country: input.country,

@@ -118,6 +118,36 @@ describe("Japan Visit Japan Web form seed", () => {
       expect.objectContaining({ value: "0800", label_zh: "学生", label_en: "Student" }),
       expect.objectContaining({ value: "0990", label_zh: "其他", label_en: "Other" }),
     ]));
+    expect(JP_VJW_AIRLINE_OPTIONS.find((entry) => entry.value === "5J")).toMatchObject({
+      value: "5J",
+      label_zh: "宿务太平洋航空（5J）",
+      official_label: "5J：CEBU PACIFIC AIR(CEB)",
+    });
+    expect(JP_VJW_PREFECTURE_OPTIONS.find((entry) => entry.value === "13")).toMatchObject({
+      value: "13",
+      label_zh: "东京都",
+      official_label: "TOKYO TO",
+    });
+    expect(JP_VJW_CITIES_BY_PREFECTURE["13"]?.find((entry) => entry.value === "KODAIRA SHI")).toMatchObject({
+      value: "KODAIRA SHI",
+      label_zh: "小平市",
+      official_label: "KODAIRA SHI",
+    });
+    expect(JP_VJW_EMBARKATION_POINT_OPTIONS.find((entry) => entry.value === "BEIJING")).toMatchObject({
+      value: "BEIJING",
+      label_zh: "北京",
+      official_label: "BEIJING",
+    });
+
+    for (const optionEntry of [
+      ...JP_VJW_AIRLINE_OPTIONS,
+      ...JP_VJW_PREFECTURE_OPTIONS,
+      ...Object.values(JP_VJW_CITIES_BY_PREFECTURE).flat(),
+      ...JP_VJW_EMBARKATION_POINT_OPTIONS,
+    ]) {
+      expect(optionEntry.label_zh, optionEntry.official_label).toMatch(/[\u3400-\u9fff]/);
+      expect(optionEntry.label_zh, optionEntry.official_label).not.toMatch(/[\u3040-\u30ff]/);
+    }
   });
 
   it("matches the official optional postal code and single final confirmation", () => {

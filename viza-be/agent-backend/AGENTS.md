@@ -122,9 +122,11 @@ explicitly reintroduces another provider.
   `scripts/seed-*-form-fields.ts` files as command entries and keep country
   packages separate from visa flows.
 - The Japan VJW package owns the reviewed VJW 3.16 official option snapshot,
-  field/control parity tests, and the byte-identical `0185` schema migration
-  under `scripts/jp-vjw/**`. Official master changes require manual review;
-  the generator must never publish directly to production.
+  its Simplified Chinese display-label snapshot, field/control parity tests,
+  and the byte-identical `0185`-`0187` schema migrations under
+  `scripts/jp-vjw/**`. Chinese labels are display-only; official stored values
+  and runner payloads remain unchanged. Official master changes require manual
+  review; the generator must never publish directly to production.
 - Taiwan entry-permit seed: `scripts/seed-tw-entry-permit-form-fields.ts` owns
   `TW_ENTRY_PERMIT` for mainland Chinese nationals residing abroad or in
   Hong Kong/Macau. It is an entry permit, not an arrival card. Migrations

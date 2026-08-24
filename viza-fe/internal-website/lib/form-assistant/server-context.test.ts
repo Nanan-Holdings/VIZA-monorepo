@@ -4,16 +4,22 @@ import { SEARCHABLE_VISA_DESTINATIONS } from "@/lib/visa-destinations";
 import { shouldUseRagVisitorIntakeFallback } from "@/lib/rag-visitor-intake-form";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 
-const { createAdminClient, getClientSessionWithFallback } = vi.hoisted(() => ({
+const { createAdminClient, getClientSessionWithFallback, loadDocumentCenterData } = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
   getClientSessionWithFallback: vi.fn(),
+  loadDocumentCenterData: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
 vi.mock("@/lib/client-session", () => ({ getClientSessionWithFallback }));
+vi.mock("@/app/client/documents/actions", () => ({ loadDocumentCenterData }));
 
-import { loadAssistantSchema, requireOwnedApplication } from "./server-context";
+import {
+  loadAssistantDocumentReadiness,
+  loadAssistantSchema,
+  requireOwnedApplication,
+} from "./server-context";
 
 function adminWithFormRows(rows: Array<Record<string, unknown>>): SupabaseClient {
   const result = { data: rows, error: null };
@@ -148,5 +154,24 @@ describe("loadAssistantSchema", () => {
       fieldName: "full_name",
       visaType: "SG_ARRIVAL_CARD",
     });
+  });
+});
+
+describe("loadAssistantDocumentReadiness", () => {
+  beforeEach(() => {
+    loadDocumentCenterData.mockReset();
+  });
+
+  it("does not invent generic uploads for Visit Japan Web", async () => {
+    await expect(loadAssistantDocumentReadiness({
+      applicationId: "jp-application-id",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    })).resolves.toEqual({
+      documentCollectionComplete: true,
+      missingDocumentCount: 0,
+      missingDocuments: [],
+    });
+    expect(loadDocumentCenterData).not.toHaveBeenCalled();
   });
 });
