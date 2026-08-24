@@ -117,7 +117,30 @@ describe("InterviewPracticePage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "开始模拟面试" }));
 
     expect(await screen.findByText("你为什么去美国？")).toBeInTheDocument();
-    expect(screen.getByText(/第 1 \/ 7 个核心主题/u)).toBeInTheDocument();
+    expect(screen.getByText(/第 1 \/ 8 个核心主题/u)).toBeInTheDocument();
+  });
+
+  it("starts a persisted English practice session", async () => {
+    const session = completeProfile(createInterviewSession());
+    seedSession(session);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        question: { id: "purpose", topic: "Purpose of travel", prompt: "Why are you traveling to the United States?", isFollowUp: false },
+        questionIndex: 0,
+        context: { source: "standalone", missingFields: [], verifiedFields: [], consistencyStatus: "unverified" },
+      }), { status: 200 }),
+    );
+
+    render(<InterviewPracticePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "英文模拟面签" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始模拟面试" }));
+
+    expect(await screen.findByText("Why are you traveling to the United States?")).toBeInTheDocument();
+    const request = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(JSON.parse(String(request?.body))).toMatchObject({ action: "start", language: "en-US" });
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem(getInterviewSessionKey()) ?? "{}")).toMatchObject({ language: "en-US" });
+    });
   });
 
   it("shows report disclaimer and retry options", async () => {

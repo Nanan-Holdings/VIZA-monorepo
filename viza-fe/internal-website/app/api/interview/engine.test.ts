@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInterviewReport, getQuestion, processAnswer } from "./engine";
+import { buildFollowUp, createInterviewReport, getQuestion, processAnswer } from "./engine";
 import type { ApplicantProfile, InterviewExchange } from "./types";
 
 const profile: ApplicantProfile = { purpose: "tourism", purposeDetails: "与家人去美国旅游", destinations: "旧金山和洛杉矶", travelDates: "2026年10月", duration: "12天", funding: "本人用工资和存款承担", budget: "3万元人民币", occupation: "产品经理", employer: "VIZA", homeTies: "假期结束后要回公司负责项目上线", previousTravel: "2024年去过日本", companions: "与家人同行", usContact: "酒店", refusalHistory: "从未拒签" };
@@ -39,6 +39,31 @@ describe("interview engine", () => {
       "回国约束",
     ]);
     expect(getQuestion(profile, 8)).toBeNull();
+  });
+
+  it("runs English questions and follow-ups without falling back to Chinese", () => {
+    const question = getQuestion(profile, 1, "en-US")!;
+    expect(question).toMatchObject({ topic: "Itinerary" });
+    expect(question.prompt).toContain("Which cities");
+
+    const followUp = buildFollowUp(profile, question, {
+      score: 40,
+      status: "weak",
+      note: "missing destination",
+      missingRequirements: ["destination"],
+    }, "en-US");
+    expect(followUp?.prompt).toContain("Which city");
+    expect(followUp?.prompt).not.toMatch(/[\u3400-\u9fff]/u);
+
+    const next = processAnswer({
+      profile,
+      question,
+      answer: "San Francisco and Los Angeles, with hotels and museums planned in both cities.",
+      questionIndex: 1,
+      followUpUsed: true,
+      language: "en-US",
+    });
+    expect(next.nextQuestion).toMatchObject({ id: "duration", topic: "Length of stay" });
   });
 
   it("only verifies consistency when a saved application anchor matches", () => {

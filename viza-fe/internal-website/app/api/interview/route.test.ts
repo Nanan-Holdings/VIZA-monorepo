@@ -59,6 +59,28 @@ describe("POST /api/interview", () => {
     expect(loadInterviewApplicationContext).not.toHaveBeenCalled();
   });
 
+  it("returns and validates questions in the selected practice language", async () => {
+    const start = await json(await POST(request({
+      action: "start",
+      language: "en-US",
+      profile: standaloneProfile,
+    })));
+    expect(start.question.prompt).toContain("Why are you traveling");
+
+    const answer = await POST(request({
+      action: "answer",
+      language: "en-US",
+      idempotencyKey: "english-route-answer-0001",
+      profile: standaloneProfile,
+      question: start.question,
+      answer: "I am taking a short tourism trip to visit museums in Seattle.",
+      questionIndex: 0,
+      followUpUsed: true,
+    }));
+    expect(answer.status).toBe(200);
+    expect((await json(answer)).nextQuestion).toMatchObject({ topic: "Itinerary" });
+  });
+
   it("uses the owned application context and ignores a client-supplied profile", async () => {
     loadInterviewApplicationContext.mockResolvedValue({
       profile: { ...standaloneProfile, destinations: "Boston", companions: "alone", usContact: "hotel", refusalHistory: "no refusal" },

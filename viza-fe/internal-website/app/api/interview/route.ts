@@ -20,11 +20,13 @@ type TurnPayload = InterviewTurnResponse & { context: ReturnType<typeof contextR
 const requestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("start"),
+    language: z.enum(["zh-CN", "en-US"]).default("zh-CN"),
     applicationId: applicationIdSchema.optional(),
     profile: profileSchema.optional(),
   }).strict(),
   z.object({
     action: z.literal("answer"),
+    language: z.enum(["zh-CN", "en-US"]).default("zh-CN"),
     idempotencyKey: z.string().min(8).max(240),
     applicationId: applicationIdSchema.optional(),
     profile: profileSchema.optional(),
@@ -41,8 +43,8 @@ const globalTurnCache = globalThis as typeof globalThis & {
 const turnCache = globalTurnCache.__vizaInterviewTurnCacheV1 ?? new Map<string, IdempotentEntry<TurnPayload>>();
 globalTurnCache.__vizaInterviewTurnCacheV1 = turnCache;
 
-function isExpectedQuestion(profile: Parameters<typeof getQuestion>[0], index: number, received: z.infer<typeof questionSchema>) {
-  const expected = getQuestion(profile, index);
+function isExpectedQuestion(profile: Parameters<typeof getQuestion>[0], index: number, received: z.infer<typeof questionSchema>, language: "zh-CN" | "en-US") {
+  const expected = getQuestion(profile, index, language);
   if (!expected) return false;
   if (!received.isFollowUp) {
     return received.id === expected.id && received.topic === expected.topic && received.prompt === expected.prompt && !received.parentId;
@@ -76,19 +78,20 @@ export async function POST(request: NextRequest) {
   const responseContext = contextResponse(resolved.context);
   if (parsed.data.action === "start") {
     return Response.json({
-      question: getQuestion(resolved.profile, 0),
+      question: getQuestion(resolved.profile, 0, parsed.data.language),
       questionIndex: 0,
       context: responseContext,
     });
   }
 
-  if (!isExpectedQuestion(resolved.profile, parsed.data.questionIndex, parsed.data.question)) {
+  if (!isExpectedQuestion(resolved.profile, parsed.data.questionIndex, parsed.data.question, parsed.data.language)) {
     return errorResponse("QUESTION_CONTEXT_MISMATCH", "题目与当前面试进度不一致，请重新开始本轮练习。", 409);
   }
 
   const cacheKey = `${resolved.cacheScope}:turn:${parsed.data.idempotencyKey}`;
   const fingerprint = requestFingerprint({
     applicationId: parsed.data.applicationId,
+    language: parsed.data.language,
     profile: parsed.data.applicationId ? undefined : resolved.profile,
     question: parsed.data.question,
     answer: parsed.data.answer,
@@ -107,6 +110,7 @@ export async function POST(request: NextRequest) {
     ...processAnswer({
       profile: resolved.profile,
       context: resolved.context,
+      language: parsed.data.language,
       question: parsed.data.question,
       answer: parsed.data.answer,
       questionIndex: parsed.data.questionIndex,

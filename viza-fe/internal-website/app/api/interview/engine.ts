@@ -6,6 +6,7 @@ import type {
   InterviewExchange,
   InterviewQuestion,
   InterviewReport,
+  InterviewPracticeLanguage,
   InterviewPurpose,
 } from "./types";
 
@@ -22,6 +23,14 @@ const PURPOSE_LABELS: Record<InterviewPurpose, string> = {
   family_visit: "探亲访友",
   medical: "就医",
   other: "短期访问",
+};
+
+const PURPOSE_LABELS_EN: Record<InterviewPurpose, string> = {
+  tourism: "tourism",
+  business: "business",
+  family_visit: "visiting family or friends",
+  medical: "medical treatment",
+  other: "a short visit",
 };
 
 const REQUIREMENT_LABELS: Record<AnswerRequirement, string> = {
@@ -55,7 +64,13 @@ function compact(value: string, fallback: string) {
   return value.trim() || fallback;
 }
 
-function purposeQuestion(profile: ApplicantProfile) {
+function purposeQuestion(profile: ApplicantProfile, language: InterviewPracticeLanguage) {
+  if (language === "en-US") {
+    if (profile.purpose === "business") return "What business activities will you attend in the United States?";
+    if (profile.purpose === "family_visit") return "Who are you visiting in the United States?";
+    if (profile.purpose === "medical") return "What medical treatment will you receive in the United States?";
+    return `Why are you traveling to the United States for ${PURPOSE_LABELS_EN[profile.purpose]}?`;
+  }
   const purpose = PURPOSE_LABELS[profile.purpose];
   if (profile.purpose === "business") return `你去美国参加什么${purpose}？`;
   if (profile.purpose === "family_visit") return "你去美国看谁？";
@@ -63,23 +78,31 @@ function purposeQuestion(profile: ApplicantProfile) {
   return `你这次去美国做什么${purpose === "旅游" ? "" : `，为什么是${purpose}`}？`;
 }
 
-export function buildInterviewPlan(profile: ApplicantProfile): QuestionDefinition[] {
-  const destinations = compact(profile.destinations, "计划中的城市");
-  const occupation = compact(profile.occupation, "目前的职业或学业身份");
+export function buildInterviewPlan(
+  profile: ApplicantProfile,
+  language: InterviewPracticeLanguage = "zh-CN",
+): QuestionDefinition[] {
+  const english = language === "en-US";
+  const destinations = compact(profile.destinations, english ? "your planned destinations" : "计划中的城市");
+  const occupation = compact(profile.occupation, english ? "your current occupation or student status" : "目前的职业或学业身份");
   return [
-    { id: "purpose", topic: "赴美目的", requirements: ["detail"], prompt: purposeQuestion },
-    { id: "itinerary", topic: "行程安排", requirements: ["destination", "detail"], prompt: () => `你在${destinations}具体怎么安排？` },
-    { id: "duration", topic: "停留时间", requirements: ["time"], prompt: () => "你准备在美国待多久？" },
-    { id: "funding", topic: "费用来源", requirements: ["money"], prompt: () => "谁承担这次旅行费用，预算如何安排？" },
-    { id: "employment_education", topic: "职业或学业", requirements: ["work", "detail"], prompt: () => `${occupation}，你具体的工作或学业安排是什么？` },
-    { id: "companions_contact", topic: "同行人与美国联系人", requirements: ["companions", "contact"], prompt: () => "这次是否有人同行，你在美国的联系人是谁或是什么机构？" },
-    { id: "travel_refusal_history", topic: "旅行与拒签记录", requirements: ["history", "refusal"], prompt: () => "请如实说明既往出境、赴美和拒签或被拒绝入境的情况。" },
-    { id: "return_ties", topic: "回国约束", requirements: ["ties", "detail"], prompt: () => "旅行结束后，哪些具体工作、学业或家庭安排要求你按时回国？" },
+    { id: "purpose", topic: english ? "Purpose of travel" : "赴美目的", requirements: ["detail"], prompt: (value) => purposeQuestion(value, language) },
+    { id: "itinerary", topic: english ? "Itinerary" : "行程安排", requirements: ["destination", "detail"], prompt: () => english ? "Which cities will you visit, and what exactly do you plan to do in each one?" : `你在${destinations}具体怎么安排？` },
+    { id: "duration", topic: english ? "Length of stay" : "停留时间", requirements: ["time"], prompt: () => english ? "How long do you plan to stay in the United States?" : "你准备在美国待多久？" },
+    { id: "funding", topic: english ? "Trip funding" : "费用来源", requirements: ["money"], prompt: () => english ? "Who will pay for this trip, and what is your planned budget?" : "谁承担这次旅行费用，预算如何安排？" },
+    { id: "employment_education", topic: english ? "Employment or education" : "职业或学业", requirements: ["work", "detail"], prompt: () => english ? "What is your current job or course of study, and what are your leave or vacation arrangements?" : `${occupation}，你具体的工作或学业安排是什么？` },
+    { id: "companions_contact", topic: english ? "Travel companions and U.S. contact" : "同行人与美国联系人", requirements: ["companions", "contact"], prompt: () => english ? "Who is traveling with you, and who or which organization is your contact in the United States?" : "这次是否有人同行，你在美国的联系人是谁或是什么机构？" },
+    { id: "travel_refusal_history", topic: english ? "Travel and refusal history" : "旅行与拒签记录", requirements: ["history", "refusal"], prompt: () => english ? "Please describe your previous international travel and any U.S. visa refusals or denied entries." : "请如实说明既往出境、赴美和拒签或被拒绝入境的情况。" },
+    { id: "return_ties", topic: english ? "Reasons to return" : "回国约束", requirements: ["ties", "detail"], prompt: () => english ? "What specific work, study, or family responsibilities require you to return home after this trip?" : "旅行结束后，哪些具体工作、学业或家庭安排要求你按时回国？" },
   ];
 }
 
-export function getQuestion(profile: ApplicantProfile, index: number): InterviewQuestion | null {
-  const definition = buildInterviewPlan(profile)[index];
+export function getQuestion(
+  profile: ApplicantProfile,
+  index: number,
+  language: InterviewPracticeLanguage = "zh-CN",
+): InterviewQuestion | null {
+  const definition = buildInterviewPlan(profile, language)[index];
   if (!definition) return null;
   return { id: definition.id, topic: definition.topic, prompt: definition.prompt(profile), isFollowUp: false };
 }
@@ -141,9 +164,29 @@ export function assessAnswer(
   return { score, status, note, missingRequirements, dimensions: { completeness, specificity, consistency, consistencyStatus } };
 }
 
-export function buildFollowUp(profile: ApplicantProfile, question: InterviewQuestion, assessment: AnswerAssessment): InterviewQuestion | null {
+export function buildFollowUp(
+  profile: ApplicantProfile,
+  question: InterviewQuestion,
+  assessment: AnswerAssessment,
+  language: InterviewPracticeLanguage = "zh-CN",
+): InterviewQuestion | null {
   const missing = assessment.missingRequirements[0];
   if (!missing) return null;
+  if (language === "en-US") {
+    const prompts: Record<AnswerRequirement, string> = {
+      detail: question.id === "purpose" ? "Please explain your purpose of travel and one specific planned activity." : "Please state the most important specific fact in one sentence.",
+      destination: "Which city is your main destination, and what will you do there?",
+      time: "Exactly how many days will you stay, and when will you return?",
+      money: "What is your approximate budget, and where will the money come from?",
+      work: "What is your job or course of study, where do you work or study, and what leave arrangements have you made?",
+      ties: "Which specific work, study, or family responsibility must you return to?",
+      history: "Where did you travel most recently? If you have no international travel history, please say so directly.",
+      companions: "Are you traveling alone or with someone? Please state your relationship to each companion.",
+      contact: "What is your relationship to your U.S. contact, or what type of organization is it? If you have no personal contact, please say so.",
+      refusal: "Have you ever been refused a visa, denied entry, or withdrawn an application for admission? If yes, state when and why.",
+    };
+    return { id: `${question.parentId ?? question.id}-follow-up`, parentId: question.parentId ?? question.id, topic: question.topic, prompt: prompts[missing], isFollowUp: true };
+  }
   const prompts: Record<AnswerRequirement, string> = {
     detail: question.id === "purpose" ? "请用真实事实说明访问目的和一项具体安排。" : "请用一句话说清最关键的具体事实。",
     destination: `最主要去哪个城市？练习资料中记录的是“${compact(profile.destinations, "尚未填写")}”。`,
@@ -166,14 +209,15 @@ export function processAnswer(input: {
   questionIndex: number;
   followUpUsed: boolean;
   context?: InterviewApplicationContext;
+  language?: InterviewPracticeLanguage;
 }) {
   const assessment = assessAnswer(input.profile, input.question, input.answer, input.context);
   if (!input.followUpUsed && !input.question.isFollowUp) {
-    const followUp = buildFollowUp(input.profile, input.question, assessment);
+    const followUp = buildFollowUp(input.profile, input.question, assessment, input.language);
     if (followUp) return { assessment, nextQuestion: followUp, nextQuestionIndex: input.questionIndex, completed: false };
   }
   const nextQuestionIndex = input.questionIndex + 1;
-  const nextQuestion = getQuestion(input.profile, nextQuestionIndex);
+  const nextQuestion = getQuestion(input.profile, nextQuestionIndex, input.language);
   return { assessment, nextQuestion, nextQuestionIndex, completed: nextQuestion === null };
 }
 

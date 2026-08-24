@@ -1,4 +1,5 @@
 export type InterviewRole = "assistant" | "user";
+export type InterviewPracticeLanguage = "zh-CN" | "en-US";
 
 export type InterviewPurpose =
   | "tourism"

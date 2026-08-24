@@ -51,7 +51,7 @@ const REQUIRED_FIELDS: Array<keyof ApplicantProfile> = [
   "homeTies",
 ];
 
-const TOPICS = ["目的", "行程", "资金", "工作/学习", "回国约束", "过往记录", "一致性"];
+const TOPICS = ["目的", "行程", "停留", "资金", "工作/学习", "同行/联系人", "过往记录", "回国约束"];
 
 function updateSession(session: InterviewSession, patch: Partial<InterviewSession>): InterviewSession {
   return { ...session, ...patch, updatedAt: new Date().toISOString() };
@@ -205,7 +205,7 @@ export default function InterviewPracticePage() {
   const setDraft = useCallback((draftAnswer: string) => {
     setSession((current) => updateSession(current, { draftAnswer }));
   }, []);
-  const speech = useBrowserSpeech(setDraft, "zh-CN");
+  const speech = useBrowserSpeech(setDraft, session.language);
 
   const missingFields = useMemo(
     () => REQUIRED_FIELDS.filter((field) => !(session.profile[field] ?? "").trim()),
@@ -222,9 +222,9 @@ export default function InterviewPracticePage() {
     speechQuestionRef.current = prompt;
     window.speechSynthesis?.cancel();
     const utterance = new SpeechSynthesisUtterance(prompt);
-    utterance.lang = "zh-CN";
+    utterance.lang = session.language;
     window.speechSynthesis?.speak(utterance);
-  }, [session.currentQuestion?.prompt, session.phase]);
+  }, [session.currentQuestion?.prompt, session.language, session.phase]);
 
   const updateProfile = (field: keyof ApplicantProfile, value: string) => {
     setSession((current) => updateSession(current, { profile: { ...current.profile, [field]: value } }));
@@ -245,6 +245,7 @@ export default function InterviewPracticePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "start",
+          language: session.language,
           applicationId: requestApplicationId,
           profile: session.profile,
         }),
@@ -290,6 +291,7 @@ export default function InterviewPracticePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "answer",
+          language: session.language,
           applicationId: requestApplicationId,
           profile: session.profile,
           question,
@@ -667,7 +669,7 @@ export default function InterviewPracticePage() {
                 </p>
               </div>
               <span className="w-fit rounded-full bg-[#f2f5f8] px-3 py-1 text-xs font-medium text-[#526173]">
-                中文练习
+                {session.language === "en-US" ? "英文模拟" : "中文练习"}
               </span>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -695,6 +697,26 @@ export default function InterviewPracticePage() {
               <SetupField label="单位/学校（可选）" value={session.profile.employer} onChange={(value) => updateProfile("employer", value)} placeholder="例如：公司或学校全称" />
               <SetupField label="回国后的具体安排 *" value={session.profile.homeTies} onChange={(value) => updateProfile("homeTies", value)} placeholder="例如：项目交接后继续负责上线" />
               <SetupField label="既往出境记录（可选）" value={session.profile.previousTravel} onChange={(value) => updateProfile("previousTravel", value)} placeholder="例如：2024 年去过日本；或第一次出境" />
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-[#e5eaf2] bg-white p-5">
+            <h2 className="text-xl font-semibold text-[#26364a]">练习语言</h2>
+            <p className="mt-1 text-sm leading-6 text-[#66758a]">
+              中文用于熟悉题型；英文会以面签语言提问、追问、识别和播报。
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-[#f2f5f8] p-1" role="group" aria-label="练习语言">
+              {([['zh-CN', '中文熟悉题型'], ['en-US', '英文模拟面签']] as const).map(([language, label]) => (
+                <button
+                  key={language}
+                  type="button"
+                  aria-pressed={session.language === language}
+                  onClick={() => setSession((current) => updateSession(current, { language }))}
+                  className={`min-h-10 rounded-md px-3 text-sm font-medium transition-colors ${session.language === language ? "bg-white text-brand-700 shadow-sm" : "text-[#66758a] hover:text-[#26364a]"}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </section>
 
@@ -730,8 +752,8 @@ export default function InterviewPracticePage() {
           <section className="rounded-lg border border-[#e5eaf2] bg-white p-4">
             <h2 className="text-sm font-semibold text-[#26364a]">开始前确认</h2>
             <ul className="mt-3 space-y-2 text-sm leading-5 text-[#66758a]">
-              <li>语言：中文练习，后续可切换英文练习。</li>
-              <li>题目：围绕 7 个核心主题，必要时追问。</li>
+              <li>语言：{session.language === "en-US" ? "英文模拟面签" : "中文熟悉题型"}。</li>
+              <li>题目：围绕 8 个核心主题，必要时追问。</li>
               <li>报告：评估练习准备度，不预测签证结果。</li>
             </ul>
           </section>
