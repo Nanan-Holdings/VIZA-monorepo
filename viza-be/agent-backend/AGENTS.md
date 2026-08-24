@@ -168,13 +168,18 @@ explicitly reintroduces another provider.
   least five minutes; the Cookie must never be logged or written to artifacts.
 - The harness also samples `/api/internal/status/capacity` once per second using
   a step-scoped telemetry secret and fails closed on incomplete/malformed
-  samples, non-open pool state, any waiting request, peak DB pool utilization
-  at or above 80%, counter reset, or new failed/slow query. Results retain only
+  samples, non-open pool state, a cumulative wait peak above one, any wait that
+  persists into a one-second sample, peak DB pool utilization at or above 80%,
+  counter reset, or new failed/slow query. Results retain only
   aggregates and SHA-256 query fingerprints. The status route uses its own
   `CAPACITY_STATUS_SECRET`, never the broader portal-probe secret. The protected
   synthetic `/api/internal/status/capacity/database-read` route is enabled only
   with the default-off capacity target marker and executes `SELECT 1`; the
   authenticated release matrix includes it so the agent DB pool is exercised.
+  `src/tests/online-capacity-db.integration.test.ts` is an explicit local-only
+  PostgreSQL gate for the matching paced load shape. It requires a loopback URL,
+  `ONLINE_CAPACITY_DB_CONFIRM=local-test`, a non-production marker, and the DB
+  GUC `app.viza_environment=local-test`; without all four it must skip safely.
 - `src/online-capacity-target.ts` owns the default-off target marker returned at
   `/api/health/online-capacity-target`. It derives the project ref from the
   service's actual Supabase URL and must never return keys or connection URLs.

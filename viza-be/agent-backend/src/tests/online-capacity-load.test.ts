@@ -321,6 +321,7 @@ describe("online capacity release gate", () => {
 		expect(JSON.stringify(summary)).not.toContain("capacity-status-secret");
 		expect(summary.databaseTelemetry).toMatchObject({
 			peakWaitingRequests: 0,
+			samplesWithWaitingRequests: 0,
 			peakUtilizationPercent: 33.33,
 			failedQueryDelta: 0,
 		});
@@ -430,6 +431,7 @@ describe("online capacity release gate", () => {
 					maxConnections: 3,
 					peakActiveConnections: 2,
 					peakWaitingRequests: 0,
+					samplesWithWaitingRequests: 0,
 					peakUtilizationPercent: 66.67,
 					baselineTotalQueries: 10,
 					finalTotalQueries: 610,
@@ -488,6 +490,7 @@ describe("online capacity release gate", () => {
 				maxConnections: 3,
 				peakActiveConnections: 2,
 				peakWaitingRequests: 0,
+				samplesWithWaitingRequests: 0,
 				peakUtilizationPercent: 66.67,
 				baselineTotalQueries: 100,
 				finalTotalQueries: 1,

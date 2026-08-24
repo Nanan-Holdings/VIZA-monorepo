@@ -60,6 +60,7 @@ scheduled recovery workflows.
   The session preflight must match the configured synthetic user UUID exactly.
   Only the authenticated execution step receives the ephemeral session Cookie
   and status telemetry bearer secret. During ramp and steady load, the gate
-  samples aggregate DB pool/query telemetry and fails on any pool wait, >=80%
-  utilization, query-error/slow-query increase, metric reset, or incomplete
+  samples aggregate DB pool/query telemetry and fails on a wait peak above one,
+  any wait persisting into a one-second sample, >=80% utilization,
+  query-error/slow-query increase, metric reset, or incomplete
   sampling; neither secret may reach setup, checkout, logs, or artifacts.
