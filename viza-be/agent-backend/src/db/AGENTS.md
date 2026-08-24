@@ -103,6 +103,9 @@ Supabase service-role client setup for the agent backend.
 - Database telemetry may contain only query fingerprints, parameter counts and
   types, durations, result status, and aggregate pool counts. Never emit SQL
   text, parameter values, connection strings, or applicant data.
+- Query-capacity telemetry keeps only a bounded duration window and bounded
+  SHA-256 fingerprint groups; expose it only through the status-secret-protected
+  internal capacity route.
 - Shutdown must actively disconnect Socket.IO upgraded transports, close its
   HTTP server, and then await `closeDatabase()` through the shared bounded
   shutdown coordinator so deploys cannot hang indefinitely.
