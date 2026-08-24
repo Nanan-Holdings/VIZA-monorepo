@@ -608,7 +608,10 @@ async function clickTurnstileProtectedContinue(
   let lastText = await bodyText(page);
   let lastResponseStatus: number | undefined;
   let lastResponseSummary: string | undefined;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = phEtravelTurnstileAttemptLimit(
+    process.env.PH_ETRAVEL_TURNSTILE_MAX_ATTEMPTS,
+  );
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const hasChallenge = await page
       .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
       .first()
@@ -653,7 +656,7 @@ async function clickTurnstileProtectedContinue(
       );
       if (isPhEtravelRegistrationResponseRejected(lastResponseStatus)) {
         lastText = await bodyText(page);
-        if (attempt < 3) {
+        if (attempt < maxAttempts) {
           logs.push(`ph_etravel_continue_response_retry attempt=${attempt}`);
           await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
           await page.waitForTimeout(2_000);
@@ -670,7 +673,7 @@ async function clickTurnstileProtectedContinue(
       options.responseUrlPattern &&
       response === null &&
       shouldRetryMissingPhEtravelResponse(lastText) &&
-      attempt < 3
+      attempt < maxAttempts
     ) {
       // eTravel renders Turnstile only after the first Continue click. In that
       // state no registration POST is sent. Let Browserbase/2Captcha finish,
@@ -689,6 +692,12 @@ async function clickTurnstileProtectedContinue(
     lastText = await bodyText(page);
   }
   return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
+}
+
+export function phEtravelTurnstileAttemptLimit(value?: string): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed)) return 5;
+  return Math.min(5, Math.max(1, parsed));
 }
 
 export function isPhEtravelRegistrationResponseRejected(status: number): boolean {

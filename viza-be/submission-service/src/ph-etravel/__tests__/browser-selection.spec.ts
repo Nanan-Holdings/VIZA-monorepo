@@ -17,6 +17,7 @@ import {
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
   phEtravelCountryOptionText,
+  phEtravelTurnstileAttemptLimit,
 } from "../runner";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -74,6 +75,13 @@ test("PH eTravel searches country comboboxes with official display labels", () =
   assert.equal(phEtravelCountryOptionText("SGP"), "Singapore");
   assert.equal(phEtravelCountryOptionText("CHN"), "China");
   assert.equal(phEtravelCountryOptionText("Malaysia"), "Malaysia");
+});
+
+test("PH eTravel bounds fresh Turnstile attempts while tolerating transient rejects", () => {
+  assert.equal(phEtravelTurnstileAttemptLimit(), 5);
+  assert.equal(phEtravelTurnstileAttemptLimit("3"), 3);
+  assert.equal(phEtravelTurnstileAttemptLimit("0"), 1);
+  assert.equal(phEtravelTurnstileAttemptLimit("12"), 5);
 });
 
 test("PH eTravel retries Continue when Turnstile appears before the registration POST", () => {
