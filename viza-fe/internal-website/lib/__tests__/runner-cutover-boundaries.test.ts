@@ -62,6 +62,7 @@ describe("runner cutover guarded boundary source contract", () => {
     expect(enqueueIndex).toBeGreaterThanOrEqual(0);
     expect(persistIndex).toBeLessThan(enqueueIndex);
     expect(handler).toContain("getCurrentSubmitMissingFields(submissionAnswerSnapshot)");
+    expect(handler).toContain("answerSnapshot: isJapanVjwApplication");
   });
 
   it("guards direct Korea and local submission-service routes before worker side effects", () => {

@@ -1325,6 +1325,7 @@ interface SubmissionQueueJobInput {
   mode: SubmissionMode;
   createdAt: string;
   locale: string;
+  answerSnapshot?: Record<string, string>;
   taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput;
 }
 
@@ -1429,6 +1430,7 @@ async function insertSubmissionQueueJob(
       // VIZA application already has an older successful submission. This
       // helper is also used by the result card's onResubmit path.
       intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
+      answerSnapshot: input.answerSnapshot,
       taiwanOfficialTermsConsent: input.taiwanOfficialTermsConsent,
     }),
   });
@@ -4144,6 +4146,13 @@ export default function ApplicationPage() {
                 mode,
                 createdAt: new Date().toISOString(),
                 locale,
+                // Japan must validate and enqueue the exact snapshot visible
+                // on final review. The API durably writes this snapshot before
+                // it reads answers or creates a runner job, eliminating the
+                // autosave/outbox race at the submission boundary.
+                answerSnapshot: isJapanVjwApplication
+                  ? submissionAnswerSnapshot
+                  : undefined,
                 taiwanOfficialTermsConsent,
               });
             })();
