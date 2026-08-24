@@ -131,6 +131,15 @@ vi.mock("@/lib/application-completeness", () => ({
   loadApplicationCompleteness: vi.fn(async () => mockCompleteness),
 }));
 
+vi.mock("@/lib/payments/submission-access", () => ({
+  evaluateSubmissionAccess: vi.fn(async () => ({
+    status: "ready",
+    accessLevel: "standard",
+    decisionReason: "ready",
+  })),
+  submissionAccessHttpBody: vi.fn((decision: Record<string, unknown>) => decision),
+}));
+
 function createMaybeSingleQuery(row: unknown, error: { message: string } | null = null) {
   const query = {
     select: () => query,

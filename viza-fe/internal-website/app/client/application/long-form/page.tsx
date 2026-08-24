@@ -72,6 +72,13 @@ import type {
 type FormAssistantRequestError = Error & {
   code?: string;
 };
+type SubmissionQueueRequestError = Error & {
+  code?: string;
+  missingFields?: Array<{
+    field: string;
+    labelZh?: string;
+  }>;
+};
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import { canUseFormAssistant, isFormAssistantConfirmationField } from "@/lib/form-assistant/constants";
 import {
@@ -1430,6 +1437,7 @@ async function insertSubmissionQueueJob(
       error?: unknown;
       code?: unknown;
       checkoutUrl?: unknown;
+      missingFields?: unknown;
     } | null;
     if (
       response.status === 402
@@ -1467,9 +1475,20 @@ async function insertSubmissionQueueJob(
             ? "韩国 e-Arrival Card 真实提交功能暂未启用。"
             : "韩国 e-Arrival Card 提交请求未被接受，请稍后重试；你的表单内容已保存。")
       : rawError;
-    throw new Error(
-      localizedError,
-    );
+    const requestError = new Error(localizedError) as SubmissionQueueRequestError;
+    requestError.code = typeof payload?.code === "string" ? payload.code : undefined;
+    requestError.missingFields = Array.isArray(payload?.missingFields)
+      ? payload.missingFields.flatMap((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+          const candidate = item as Record<string, unknown>;
+          if (typeof candidate.field !== "string" || !candidate.field.trim()) return [];
+          return [{
+            field: candidate.field,
+            labelZh: typeof candidate.labelZh === "string" ? candidate.labelZh : undefined,
+          }];
+        })
+      : undefined;
+    throw requestError;
   }
   const payload = (await response.json().catch(() => null)) as {
     scheduled?: boolean;
@@ -3987,6 +4006,21 @@ export default function ApplicationPage() {
     ],
   );
 
+  const persistCurrentDynamicAnswersForSubmission = useCallback(async (
+    applicationId: string,
+  ): Promise<Record<string, string>> => {
+    // A step can update the in-memory answer state before its autosave has
+    // durably committed. The retry API validates persisted answers, so always
+    // serialize the exact snapshot that passed the client-side final check.
+    await autosaveQueueRef.current;
+    const snapshot = buildCurrentAnswerSnapshot();
+    if (Object.keys(snapshot).length === 0) return snapshot;
+    const saveResult = await saveDynamicAnswers(applicationId, snapshot);
+    if (saveResult.error) throw new Error(saveResult.error);
+    setDynamicAnswers((current) => ({ ...current, ...snapshot }));
+    return snapshot;
+  }, [buildCurrentAnswerSnapshot]);
+
   const handleTeamConfirm = useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -4085,7 +4119,8 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
-      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
+      const submissionAnswerSnapshot = await persistCurrentDynamicAnswersForSubmission(applicationId);
+      const missing = getCurrentSubmitMissingFields(submissionAnswerSnapshot).filter(
         (item) => !forceDryRun || item.stepId !== documentStepIndex,
       );
       setSubmitMissingFields(missing);
@@ -4446,6 +4481,27 @@ export default function ApplicationPage() {
       await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
     } catch (submitAccessError) {
       setSubmitCheckState("invalid");
+      const requestError = submitAccessError as SubmissionQueueRequestError;
+      if (Array.isArray(requestError.missingFields) && requestError.missingFields.length > 0) {
+        const serverMissingFields = requestError.missingFields.map((missingField) => {
+          const stepIndex = dbSteps.findIndex((step) =>
+            step.fields.some((field) => field.fieldName === missingField.field));
+          const field = stepIndex >= 0
+            ? dbSteps[stepIndex]?.fields.find((candidate) => candidate.fieldName === missingField.field)
+            : undefined;
+          return {
+            stepId: stepIndex >= 0 ? stepIndex : reviewStepIndex,
+            stepName: stepIndex >= 0
+              ? dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`
+              : "Review Application",
+            fieldName: missingField.field,
+            label: field?.label ?? missingField.labelZh ?? missingField.field,
+            reason: "invalid" as const,
+          };
+        });
+        setSubmitMissingFields(serverMissingFields);
+        focusFirstMissingField(serverMissingFields);
+      }
       setError(
         submitAccessError instanceof Error
           ? submitAccessError.message
