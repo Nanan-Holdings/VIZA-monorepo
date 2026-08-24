@@ -60,6 +60,7 @@ type TestApplication = Omit<typeof baseApplication, "submission_result" | "submi
 
 let currentApplication: TestApplication = { ...baseApplication };
 let currentApplicationAnswers = [...normalApplicationAnswers];
+let lastAnswerUpsert: Array<Record<string, unknown>> | null = null;
 let lastRpcArgs: Record<string, unknown> | null = null;
 let lastApplicationUpdate: Record<string, unknown> | null = null;
 let enqueueRunnerJobResult = { id: "runner_tw_live_001", created: true };
@@ -152,10 +153,26 @@ function createMaybeSingleQuery(row: unknown, error: { message: string } | null 
   return query;
 }
 
-function createRowsQuery(rows: unknown[], error: { message: string } | null = null) {
+function createApplicationAnswersQuery() {
   const query = {
     select: () => query,
-    eq: async () => ({ data: error ? null : rows, error }),
+    eq: async () => ({ data: currentApplicationAnswers, error: null }),
+    upsert: async (rows: Array<Record<string, unknown>>) => {
+      lastAnswerUpsert = rows;
+      const byFieldName = new Map(
+        currentApplicationAnswers.map((row) => [row.field_name, row]),
+      );
+      for (const row of rows) {
+        const fieldName = String(row.field_name ?? "");
+        byFieldName.set(fieldName, {
+          field_name: fieldName,
+          value_text: String(row.value_text ?? ""),
+          value_json: null,
+        });
+      }
+      currentApplicationAnswers = [...byFieldName.values()];
+      return { error: null };
+    },
   };
   return query;
 }
@@ -191,7 +208,7 @@ function createAdminMock() {
           },
         };
       }
-      if (table === "visa_application_answers") return createRowsQuery(currentApplicationAnswers);
+      if (table === "visa_application_answers") return createApplicationAnswersQuery();
       if (table === "consent_event") return createConsentQuery();
       if (table === "runner_job") return createMaybeSingleQuery(activeRunnerJob, runnerJobQueryError);
       if (table === "takeover_session") return createMaybeSingleQuery(activeHandoff, handoffQueryError);
@@ -250,6 +267,7 @@ describe("Taiwan entry permit retry submission API", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     currentApplication = { ...baseApplication };
     currentApplicationAnswers = [...normalApplicationAnswers];
+    lastAnswerUpsert = null;
     lastRpcArgs = null;
     lastApplicationUpdate = null;
     lastRunnerJobArgs = null;
@@ -652,6 +670,45 @@ describe("Taiwan entry permit retry submission API", () => {
       opts: {
         metadata: { retryIntent: "retry" },
       },
+    });
+  });
+
+  it("persists and validates the submitted Japan snapshot before enqueueing", async () => {
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+    currentApplicationAnswers = validJapanAnswers.map((answer) =>
+      answer.field_name === "accommodation_address"
+        ? { ...answer, value_text: "aa" }
+        : answer,
+    );
+    const answerSnapshot = Object.fromEntries(
+      validJapanAnswers.map((answer) => [answer.field_name, answer.value_text]),
+    );
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      answerSnapshot,
+    });
+
+    expect(result.status).toBe(200);
+    expect(lastAnswerUpsert).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field_name: "accommodation_address",
+        value_text: "1-2-3 NISHISHINJUKU",
+        source: "user_form",
+      }),
+    ]));
+    expect(lastRunnerPoolArgs).toMatchObject({
+      applicationId,
+      country: "japan",
+      flowKey: "jp_vjw",
     });
   });
 

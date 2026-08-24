@@ -107,6 +107,8 @@ type RetrySubmissionRequest = {
   intent: SubmissionRetryIntent;
   country: string | null;
   visaType: string | null;
+  answerSnapshot: Record<string, string> | null;
+  answerSnapshotError: string | null;
   taiwanOfficialTermsConsent: TaiwanOfficialTermsConsentInput | null;
 };
 
@@ -167,6 +169,59 @@ const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
 const LEGACY_MANAGED_INBOX_DOMAINS = new Set(["haggstorm.com"]);
+const MAX_SUBMISSION_ANSWER_FIELDS = 200;
+const MAX_SUBMISSION_ANSWER_VALUE_LENGTH = 20_000;
+const MAX_SUBMISSION_ANSWER_TOTAL_LENGTH = 500_000;
+
+function parseSubmissionAnswerSnapshot(value: unknown): {
+  answerSnapshot: Record<string, string> | null;
+  answerSnapshotError: string | null;
+} {
+  if (value === undefined) {
+    return { answerSnapshot: null, answerSnapshotError: null };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      answerSnapshot: null,
+      answerSnapshotError: "最终答案快照格式无效。",
+    };
+  }
+
+  const entries = Object.entries(value);
+  if (entries.length > MAX_SUBMISSION_ANSWER_FIELDS) {
+    return {
+      answerSnapshot: null,
+      answerSnapshotError: "最终答案字段数量超出限制。",
+    };
+  }
+
+  const answerSnapshot: Record<string, string> = {};
+  let totalLength = 0;
+  for (const [fieldName, fieldValue] of entries) {
+    if (!fieldName.trim() || fieldName.length > 160 || typeof fieldValue !== "string") {
+      return {
+        answerSnapshot: null,
+        answerSnapshotError: "最终答案包含无效字段。",
+      };
+    }
+    if (fieldValue.length > MAX_SUBMISSION_ANSWER_VALUE_LENGTH) {
+      return {
+        answerSnapshot: null,
+        answerSnapshotError: "最终答案中的单项内容过长。",
+      };
+    }
+    totalLength += fieldName.length + fieldValue.length;
+    if (totalLength > MAX_SUBMISSION_ANSWER_TOTAL_LENGTH) {
+      return {
+        answerSnapshot: null,
+        answerSnapshotError: "最终答案数据量超出限制。",
+      };
+    }
+    answerSnapshot[fieldName] = fieldValue;
+  }
+
+  return { answerSnapshot, answerSnapshotError: null };
+}
 
 function activeManagedInboxDomain(): string {
   const configured =
@@ -295,8 +350,10 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent?: unknown;
       country?: unknown;
       visaType?: unknown;
+      answerSnapshot?: unknown;
       taiwanOfficialTermsConsent?: unknown;
     };
+    const parsedAnswerSnapshot = parseSubmissionAnswerSnapshot(body.answerSnapshot);
     const rawTaiwanConsent =
       body.taiwanOfficialTermsConsent &&
       typeof body.taiwanOfficialTermsConsent === "object" &&
@@ -308,6 +365,7 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent: parseSubmissionRetryIntent(body.intent),
       country: typeof body.country === "string" && body.country.trim() ? body.country : null,
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
+      ...parsedAnswerSnapshot,
       taiwanOfficialTermsConsent: rawTaiwanConsent
         ? {
             entryPromptAccepted: rawTaiwanConsent.entryPromptAccepted === true,
@@ -321,9 +379,35 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       intent: "retry",
       country: null,
       visaType: null,
+      answerSnapshot: null,
+      answerSnapshotError: "无法读取最终答案快照。",
       taiwanOfficialTermsConsent: null,
     };
   }
+}
+
+async function persistSubmissionAnswerSnapshot(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  answerSnapshot: Record<string, string>;
+  now: string;
+}): Promise<string | null> {
+  const rows = Object.entries(input.answerSnapshot).map(([fieldName, value]) => ({
+    application_id: input.applicationId,
+    field_name: fieldName,
+    value_text: value,
+    value_json: null,
+    source: "user_form",
+    source_profile_updated_at: null,
+    source_metadata: null,
+    updated_at: input.now,
+  }));
+  if (rows.length === 0) return null;
+
+  const { error } = await input.admin
+    .from("visa_application_answers")
+    .upsert(rows, { onConflict: "application_id,field_name" });
+  return error?.message ?? null;
 }
 
 function envEnabled(...keys: string[]): boolean {
@@ -1670,6 +1754,15 @@ export async function POST(
 
   const now = new Date().toISOString();
   const requestedSubmission = await readRetrySubmissionRequest(request);
+  if (requestedSubmission.answerSnapshotError) {
+    return NextResponse.json(
+      {
+        error: requestedSubmission.answerSnapshotError,
+        code: "invalid_submission_answer_snapshot",
+      },
+      { status: 400 },
+    );
+  }
   const requestedMode = requestedSubmission.mode;
   if (!requestedMode) {
     return NextResponse.json(
@@ -1699,6 +1792,52 @@ export async function POST(
     );
   }
 
+  if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
+    return NextResponse.json(
+      { error: "Requested country does not match the application country." },
+      { status: 400 },
+    );
+  }
+  if (!visaTypesReferToSameApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
+    return NextResponse.json(
+      { error: "Requested visa type does not match the application visa type." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type) &&
+    requestedSubmission.answerSnapshot
+  ) {
+    const unsafeSnapshotField = Object.entries(requestedSubmission.answerSnapshot).find(
+      ([, value]) => isSyntheticQaValue(value),
+    );
+    if (unsafeSnapshotField) {
+      return NextResponse.json(
+        {
+          error: `Application contains synthetic QA data in ${unsafeSnapshotField[0]}. Clear it and enter the applicant's real information before submission.`,
+          code: "synthetic_submission_answer",
+        },
+        { status: 409 },
+      );
+    }
+    const persistError = await persistSubmissionAnswerSnapshot({
+      admin,
+      applicationId,
+      answerSnapshot: requestedSubmission.answerSnapshot,
+      now,
+    });
+    if (persistError) {
+      return NextResponse.json(
+        {
+          error: "最终答案暂时无法保存，请稍后重试；系统尚未创建官网提交任务。",
+          code: "submission_answer_snapshot_save_failed",
+        },
+        { status: 503 },
+      );
+    }
+  }
+
   let persistedAnswerRows: ApplicationAnswerForRetry[] = [];
   if (!isQaDryRunPurpose(ownedApplication.purpose)) {
     const { data: answerRows, error: answerError } = await admin
@@ -1722,19 +1861,6 @@ export async function POST(
         { status: 409 },
       );
     }
-  }
-
-  if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
-    return NextResponse.json(
-      { error: "Requested country does not match the application country." },
-      { status: 400 },
-    );
-  }
-  if (!visaTypesReferToSameApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
-    return NextResponse.json(
-      { error: "Requested visa type does not match the application visa type." },
-      { status: 400 },
-    );
   }
 
   const freshDs160Submission = isFreshDs160SubmissionIntent(
