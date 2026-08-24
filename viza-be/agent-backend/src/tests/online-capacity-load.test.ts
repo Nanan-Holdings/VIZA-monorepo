@@ -37,11 +37,18 @@ interface FixtureServer {
 }
 
 async function startFixtureServer(
-	options: { failHealth?: boolean; markerProjectRef?: string; sessionUserId?: string } = {},
+	options: {
+		failHealth?: boolean;
+		markerProjectRef?: string;
+		sessionUserId?: string;
+		capacityWaitingRequests?: number;
+		capacityFailedQueriesAfterFirst?: boolean;
+	} = {},
 ): Promise<FixtureServer> {
 	let inFlight = 0;
 	let maxInFlight = 0;
 	let sessionRequestCount = 0;
+	let capacityRequestCount = 0;
 	const server = createServer((request, response) => {
 		inFlight += 1;
 		maxInFlight = Math.max(maxInFlight, inFlight);
@@ -66,6 +73,48 @@ async function startFixtureServer(
 					sessionKind: "supabase",
 					syntheticAccount: true,
 				}));
+			} else if (request.url === "/api/internal/status/capacity/database-read") {
+				if (request.headers.authorization !== "Bearer capacity-status-secret") {
+					response.writeHead(401, { "content-type": "application/json" });
+					response.end(JSON.stringify({ ok: false }));
+				} else {
+					response.writeHead(200, { "content-type": "application/json" });
+					response.end(JSON.stringify({ ok: true }));
+				}
+			} else if (request.url === "/api/internal/status/capacity") {
+				capacityRequestCount += 1;
+				if (request.headers.authorization !== "Bearer capacity-status-secret") {
+					response.writeHead(401, { "content-type": "application/json" });
+					response.end(JSON.stringify({ ok: false }));
+				} else {
+					const failedQueries =
+						options.capacityFailedQueriesAfterFirst && capacityRequestCount > 1 ? 1 : 0;
+					response.writeHead(200, { "content-type": "application/json" });
+					response.end(JSON.stringify({
+						ok: true,
+						instanceId: "33333333-3333-4333-8333-333333333333",
+						database: {
+							pool: {
+								state: "open",
+								maxConnections: 3,
+								totalConnections: 2,
+								activeConnections: 1,
+								idleConnections: 1,
+								waitingRequests: options.capacityWaitingRequests ?? 0,
+								utilizationPercent: 33.33,
+								peakActiveConnections: 1,
+								peakWaitingRequests: options.capacityWaitingRequests ?? 0,
+								peakUtilizationPercent: 33.33,
+							},
+							queries: {
+								totalQueries: 10 + capacityRequestCount,
+								failedQueries,
+								slowQueries: 0,
+								topSlowFingerprints: [],
+							},
+						},
+					}));
+				}
 			} else if (request.url === "/client/home" || request.url === "/client/status") {
 				if (request.headers.cookie === "viza_test_session=fixture") {
 					sessionRequestCount += 1;
@@ -121,6 +170,7 @@ function authenticatedLocalEnvironment(baseUrl: string): NodeJS.ProcessEnv {
 		ONLINE_CAPACITY_SYNTHETIC_ACCOUNT: "capacity@viza.test",
 		ONLINE_CAPACITY_SESSION_COOKIE: "viza_test_session=fixture",
 		ONLINE_CAPACITY_SYNTHETIC_USER_ID: "11111111-1111-4111-8111-111111111111",
+		ONLINE_CAPACITY_STATUS_SECRET: "capacity-status-secret",
 		ONLINE_CAPACITY_DURATION_MS: "0",
 		ONLINE_CAPACITY_RAMP_MS: "0",
 		ONLINE_CAPACITY_PACING_MS: "0",
@@ -268,6 +318,12 @@ describe("online capacity release gate", () => {
 		expect(summary.scenarios.every(({ attempts }) => attempts === 200)).toBe(true);
 		expect(fixture.getSessionRequestCount()).toBeGreaterThanOrEqual(400);
 		expect(JSON.stringify(summary)).not.toContain("viza_test_session");
+		expect(JSON.stringify(summary)).not.toContain("capacity-status-secret");
+		expect(summary.databaseTelemetry).toMatchObject({
+			peakWaitingRequests: 0,
+			peakUtilizationPercent: 33.33,
+			failedQueryDelta: 0,
+		});
 	});
 
 	it("refuses a valid cookie belonging to a different user before the wave", async () => {
@@ -339,7 +395,12 @@ describe("online capacity release gate", () => {
 	});
 
 	it("requires the full authenticated duration, ramp, and completed user count", () => {
-		const scenarios = (["client_home", "client_status", "agent_readiness"] as const).map(
+		const scenarios = ([
+			"client_home",
+			"client_status",
+			"agent_readiness",
+			"agent_database_read",
+		] as const).map(
 			(name) => ({
 				name,
 				attempts: 100,
@@ -361,8 +422,83 @@ describe("online capacity release gate", () => {
 				rampUpMs: 30_000,
 				completedUsers: 100,
 				scenarios,
+				databaseTelemetry: {
+					sampleCount: 266,
+					requiredSamples: 266,
+					allPoolStatesOpen: true,
+					singleInstance: true,
+					maxConnections: 3,
+					peakActiveConnections: 2,
+					peakWaitingRequests: 0,
+					peakUtilizationPercent: 66.67,
+					baselineTotalQueries: 10,
+					finalTotalQueries: 610,
+					failedQueryDelta: 0,
+					slowQueryDelta: 0,
+					metricResetDetected: false,
+					topSlowFingerprints: [],
+				},
 			}).passed,
 		).toBe(true);
+	});
+
+	it("fails authenticated diagnostics on pool waiting or new query errors", async () => {
+		const fixture = await startFixtureServer({
+			capacityWaitingRequests: 1,
+			capacityFailedQueriesAfterFirst: true,
+		});
+		const summary = await executeOnlineCapacityRun(
+			validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+		);
+		expect(summary.passed).toBe(false);
+		expect(summary.failures).toContain("database_pool_waiting");
+		expect(summary.failures).toContain("database_query_errors");
+	});
+
+	it("rejects a database query counter rollback even when reset is falsely marked clear", () => {
+		const scenarios = ([
+			"client_home",
+			"client_status",
+			"agent_readiness",
+			"agent_database_read",
+		] as const).map((name) => ({
+			name,
+			attempts: 100,
+			succeeded: 100,
+			failed: 0,
+			serverErrors: 0,
+			timedOut: 0,
+			p50Ms: 20,
+			p95Ms: 40,
+			p99Ms: 50,
+			maxMs: 60,
+		}));
+		const result = evaluateOnlineCapacityRun({
+			scope: "authenticated_sustained_read_only",
+			users: 100,
+			sustainedForMs: 300_000,
+			rampUpMs: 30_000,
+			completedUsers: 100,
+			scenarios,
+			databaseTelemetry: {
+				sampleCount: 266,
+				requiredSamples: 266,
+				allPoolStatesOpen: true,
+				singleInstance: true,
+				maxConnections: 3,
+				peakActiveConnections: 2,
+				peakWaitingRequests: 0,
+				peakUtilizationPercent: 66.67,
+				baselineTotalQueries: 100,
+				finalTotalQueries: 1,
+				failedQueryDelta: 0,
+				slowQueryDelta: 0,
+				metricResetDetected: false,
+				topSlowFingerprints: [],
+			},
+		});
+		expect(result.passed).toBe(false);
+		expect(result.failures).toContain("database_telemetry_invalid");
 	});
 
 	it("rejects negative and non-finite scenario metrics", () => {
@@ -417,7 +553,9 @@ describe("online capacity release gate", () => {
 		expect(harnessSource).toContain('redirect: "manual"');
 		expect(harnessSource).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
 		expect(harnessSource).toMatch(/scenario\.requiresSession[\s\S]*cookie: sessionCookie/i);
-		expect(harnessSource).not.toMatch(/\bauthorization\s*:/i);
+		expect(harnessSource.match(/\bauthorization\s*:/giu)).toHaveLength(2);
+		expect(harnessSource).toContain("/api/internal/status/capacity");
+		expect(harnessSource).toContain('authorization: `Bearer ${config.statusSecret ?? ""}`');
 		expect(harnessSource).not.toMatch(/service[_-]?role|payment|official[_-]?submit/i);
 		expect(harnessSource.indexOf("validateOnlineCapacityGuards()")).toBeLessThan(
 			harnessSource.indexOf("executeOnlineCapacityRun(config)"),
@@ -428,16 +566,21 @@ describe("online capacity release gate", () => {
 		expect(workflowSource).toContain("source_ref must be the current protected main HEAD");
 		expect(workflowSource).toContain("git fetch --no-tags --depth=1 origin refs/heads/main");
 		expect(workflowSource.match(/secrets\.ONLINE_CAPACITY_SESSION_COOKIE/gu)).toHaveLength(1);
+		expect(workflowSource.match(/secrets\.ONLINE_CAPACITY_STATUS_SECRET/gu)).toHaveLength(1);
 		const jobEnvironment = workflowSource.slice(
 			workflowSource.indexOf("    env:"),
 			workflowSource.indexOf("    defaults:"),
 		);
 		expect(jobEnvironment).not.toContain("ONLINE_CAPACITY_SESSION_COOKIE");
+		expect(jobEnvironment).not.toContain("ONLINE_CAPACITY_STATUS_SECRET");
 		expect(workflowSource.indexOf("ONLINE_CAPACITY_SESSION_COOKIE")).toBeGreaterThan(
 			workflowSource.indexOf("Run authenticated capacity gate"),
 		);
 		expect(workflowSource.indexOf("ONLINE_CAPACITY_SESSION_COOKIE")).toBeGreaterThan(
 			workflowSource.indexOf("npm ci"),
+		);
+		expect(workflowSource.indexOf("ONLINE_CAPACITY_STATUS_SECRET")).toBeGreaterThan(
+			workflowSource.indexOf("Run authenticated capacity gate"),
 		);
 	});
 });

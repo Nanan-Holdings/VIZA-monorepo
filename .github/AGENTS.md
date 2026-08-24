@@ -58,3 +58,8 @@ scheduled recovery workflows.
   ephemeral session Cookie from the protected Environment secret, ramps for 30
   seconds, and sustains read-only home/status/readiness requests for 5 minutes.
   The session preflight must match the configured synthetic user UUID exactly.
+  Only the authenticated execution step receives the ephemeral session Cookie
+  and status telemetry bearer secret. During ramp and steady load, the gate
+  samples aggregate DB pool/query telemetry and fails on any pool wait, >=80%
+  utilization, query-error/slow-query increase, metric reset, or incomplete
+  sampling; neither secret may reach setup, checkout, logs, or artifacts.

@@ -10,6 +10,7 @@ import {
 	ONLINE_CAPACITY_RELEASE_USERS,
 	percentile,
 	type OnlineCapacityRunEvaluation,
+	type OnlineCapacityDatabaseTelemetry,
 	type OnlineCapacityScenarioName,
 	type OnlineCapacityScenarioResult,
 	type OnlineCapacityScope,
@@ -35,6 +36,7 @@ export interface OnlineCapacityConfig {
 	pacingMs: number;
 	sessionCookie?: string;
 	syntheticUserId?: string;
+	statusSecret?: string;
 }
 
 interface ScenarioDefinition {
@@ -43,6 +45,7 @@ interface ScenarioDefinition {
 	expectedStatus: number;
 	expectedLocationPath?: string;
 	requiresSession?: boolean;
+	requiresStatusSecret?: boolean;
 }
 
 interface RequestObservation {
@@ -57,6 +60,32 @@ interface CapacityTargetMarker {
 	enabled: true;
 	mode: OnlineCapacityConfig["mode"];
 	projectRef: string;
+}
+
+interface DatabaseCapacitySnapshot {
+	instanceId: string;
+	pool: {
+		state: "open" | "closing" | "closed" | "error";
+		maxConnections: number;
+		totalConnections: number;
+		activeConnections: number;
+		idleConnections: number;
+		waitingRequests: number;
+		utilizationPercent: number;
+		peakActiveConnections: number;
+		peakWaitingRequests: number;
+		peakUtilizationPercent: number;
+	};
+	queries: {
+		totalQueries: number;
+		failedQueries: number;
+		slowQueries: number;
+		topSlowFingerprints: Array<{
+			fingerprint: string;
+			count: number;
+			p95DurationMs: number;
+		}>;
+	};
 }
 
 export interface OnlineCapacitySummary extends OnlineCapacityRunEvaluation {
@@ -214,6 +243,7 @@ export function validateOnlineCapacityGuards(
 	);
 	const sessionCookie = envValue(env, "ONLINE_CAPACITY_SESSION_COOKIE");
 	const syntheticUserId = envValue(env, "ONLINE_CAPACITY_SYNTHETIC_USER_ID");
+	const statusSecret = envValue(env, "ONLINE_CAPACITY_STATUS_SECRET");
 	if (authenticated) {
 		const account = envValue(env, "ONLINE_CAPACITY_SYNTHETIC_ACCOUNT");
 		if (!account?.toLowerCase().endsWith("@viza.test")) {
@@ -224,6 +254,9 @@ export function validateOnlineCapacityGuards(
 		}
 		if (!syntheticUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(syntheticUserId)) {
 			throw new Error("Authenticated capacity requires the exact synthetic user UUID");
+		}
+		if (!statusSecret || statusSecret.length > 8_192 || /[\r\n]/u.test(statusSecret)) {
+			throw new Error("Authenticated capacity requires one bounded status telemetry secret");
 		}
 	}
 	return {
@@ -240,6 +273,7 @@ export function validateOnlineCapacityGuards(
 		pacingMs,
 		...(sessionCookie ? { sessionCookie } : {}),
 		...(syntheticUserId ? { syntheticUserId } : {}),
+		...(statusSecret ? { statusSecret } : {}),
 	};
 }
 
@@ -270,6 +304,12 @@ function buildScenarios(config: OnlineCapacityConfig): ScenarioDefinition[] {
 				name: "agent_readiness",
 				url: routeUrl(config.agentUrl, "/ready"),
 				expectedStatus: 200,
+			},
+			{
+				name: "agent_database_read",
+				url: routeUrl(config.agentUrl, "/api/internal/status/capacity/database-read"),
+				expectedStatus: 200,
+				requiresStatusSecret: true,
 			},
 		];
 	}
@@ -403,6 +443,218 @@ async function verifyAuthenticatedSession(
 	}
 }
 
+function recordValue(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? value as Record<string, unknown>
+		: null;
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+	return typeof value === "number" && Number.isInteger(value) && value >= 0
+		? value
+		: null;
+}
+
+function nonNegativeFinite(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) && value >= 0
+		? value
+		: null;
+}
+
+async function readDatabaseCapacitySnapshot(
+	config: OnlineCapacityConfig,
+	fetchImpl: typeof fetch,
+): Promise<DatabaseCapacitySnapshot> {
+	const response = await fetchImpl(
+		routeUrl(config.agentUrl, "/api/internal/status/capacity"),
+		{
+			method: "GET",
+			redirect: "error",
+			cache: "no-store",
+			headers: {
+				accept: "application/json",
+				"user-agent": "VIZA-online-capacity-gate/1.0",
+				authorization: `Bearer ${config.statusSecret ?? ""}`,
+			},
+			signal: AbortSignal.timeout(config.requestTimeoutMs),
+		},
+	);
+	if (response.status !== 200) {
+		await drainBody(response);
+		throw new Error("Database capacity telemetry is unavailable");
+	}
+
+	let value: unknown;
+	try {
+		value = JSON.parse(await readBoundedText(response));
+	} catch {
+		throw new Error("Database capacity telemetry response is malformed");
+	}
+	const root = recordValue(value);
+	const database = recordValue(root?.database);
+	const pool = recordValue(database?.pool);
+	const queries = recordValue(database?.queries);
+	const state = pool?.state;
+	const maxConnections = nonNegativeInteger(pool?.maxConnections);
+	const totalConnections = nonNegativeInteger(pool?.totalConnections);
+	const activeConnections = nonNegativeInteger(pool?.activeConnections);
+	const idleConnections = nonNegativeInteger(pool?.idleConnections);
+	const waitingRequests = nonNegativeInteger(pool?.waitingRequests);
+	const utilizationPercent = nonNegativeFinite(pool?.utilizationPercent);
+	const peakActiveConnections = nonNegativeInteger(pool?.peakActiveConnections);
+	const peakWaitingRequests = nonNegativeInteger(pool?.peakWaitingRequests);
+	const peakUtilizationPercent = nonNegativeFinite(pool?.peakUtilizationPercent);
+	const totalQueries = nonNegativeInteger(queries?.totalQueries);
+	const failedQueries = nonNegativeInteger(queries?.failedQueries);
+	const slowQueries = nonNegativeInteger(queries?.slowQueries);
+	const rawFingerprints = queries?.topSlowFingerprints;
+	if (
+		root?.ok !== true ||
+		typeof root.instanceId !== "string" ||
+		!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(root.instanceId) ||
+		!(["open", "closing", "closed", "error"] as const).includes(
+			state as "open" | "closing" | "closed" | "error",
+		) ||
+		maxConnections === null || maxConnections < 1 ||
+		totalConnections === null || totalConnections > maxConnections ||
+		activeConnections === null || idleConnections === null ||
+		activeConnections + idleConnections !== totalConnections ||
+		waitingRequests === null || utilizationPercent === null || utilizationPercent > 100 ||
+		Math.abs(utilizationPercent - Math.round((activeConnections / maxConnections) * 10_000) / 100) > 0.01 ||
+		peakActiveConnections === null || peakActiveConnections < activeConnections || peakActiveConnections > maxConnections ||
+		peakWaitingRequests === null || peakWaitingRequests < waitingRequests ||
+		peakUtilizationPercent === null || peakUtilizationPercent > 100 ||
+		Math.abs(peakUtilizationPercent - Math.round((peakActiveConnections / maxConnections) * 10_000) / 100) > 0.01 ||
+		totalQueries === null || failedQueries === null || slowQueries === null ||
+		failedQueries > totalQueries || slowQueries > totalQueries ||
+		!Array.isArray(rawFingerprints) || rawFingerprints.length > 10
+	) {
+		throw new Error("Database capacity telemetry response is malformed");
+	}
+
+	const topSlowFingerprints = rawFingerprints.map((entry) => {
+		const item = recordValue(entry);
+		const count = nonNegativeInteger(item?.count);
+		const p95DurationMs = nonNegativeFinite(item?.p95DurationMs);
+		if (
+			!item ||
+			typeof item.fingerprint !== "string" ||
+			!/^[a-f0-9]{64}$/u.test(item.fingerprint) ||
+			count === null ||
+			p95DurationMs === null
+		) {
+			throw new Error("Database capacity telemetry response is malformed");
+		}
+		return { fingerprint: item.fingerprint, count, p95DurationMs };
+	});
+
+	return {
+		instanceId: root.instanceId,
+		pool: {
+			state: state as DatabaseCapacitySnapshot["pool"]["state"],
+			maxConnections,
+			totalConnections,
+			activeConnections,
+			idleConnections,
+			waitingRequests,
+			utilizationPercent,
+			peakActiveConnections,
+			peakWaitingRequests,
+			peakUtilizationPercent,
+		},
+		queries: {
+			totalQueries,
+			failedQueries,
+			slowQueries,
+			topSlowFingerprints,
+		},
+	};
+}
+
+function summarizeDatabaseCapacity(
+	samples: readonly DatabaseCapacitySnapshot[],
+	config: OnlineCapacityConfig,
+): OnlineCapacityDatabaseTelemetry {
+	const baseline = samples[0];
+	const final = samples.at(-1);
+	if (!baseline || !final) throw new Error("Database capacity telemetry is incomplete");
+	let metricResetDetected = false;
+	for (let index = 1; index < samples.length; index += 1) {
+		const previous = samples[index - 1];
+		const current = samples[index];
+		if (
+			!previous || !current ||
+			current.pool.maxConnections !== previous.pool.maxConnections ||
+			current.queries.totalQueries < previous.queries.totalQueries ||
+			current.queries.failedQueries < previous.queries.failedQueries ||
+			current.queries.slowQueries < previous.queries.slowQueries
+		) {
+			metricResetDetected = true;
+		}
+	}
+	return {
+		sampleCount: samples.length,
+		requiredSamples: Math.max(
+			2,
+			Math.ceil(((config.rampUpMs + config.durationMs) / 1_000) * 0.8) + 2,
+		),
+		allPoolStatesOpen: samples.every(({ pool }) => pool.state === "open"),
+		singleInstance: samples.every(({ instanceId }) => instanceId === baseline.instanceId),
+		maxConnections: baseline.pool.maxConnections,
+		peakActiveConnections: Math.max(...samples.map(({ pool }) => pool.peakActiveConnections)),
+		peakWaitingRequests: Math.max(...samples.map(({ pool }) => pool.peakWaitingRequests)),
+		peakUtilizationPercent: Math.max(...samples.map(({ pool }) => pool.peakUtilizationPercent)),
+		baselineTotalQueries: baseline.queries.totalQueries,
+		finalTotalQueries: final.queries.totalQueries,
+		failedQueryDelta: Math.max(0, final.queries.failedQueries - baseline.queries.failedQueries),
+		slowQueryDelta: Math.max(0, final.queries.slowQueries - baseline.queries.slowQueries),
+		metricResetDetected,
+		topSlowFingerprints: final.queries.topSlowFingerprints,
+	};
+}
+
+async function startDatabaseCapacityMonitor(
+	config: OnlineCapacityConfig,
+	fetchImpl: typeof fetch,
+): Promise<{
+	hasFailed(): boolean;
+	stop(): Promise<OnlineCapacityDatabaseTelemetry>;
+}> {
+	const samples = [await readDatabaseCapacitySnapshot(config, fetchImpl)];
+	let monitorError: unknown;
+	let stopMonitor: (() => void) | undefined;
+	const stopSignal = new Promise<void>((resolve) => {
+		stopMonitor = resolve;
+	});
+	const monitorPromise = (async () => {
+		while (true) {
+			const stopped = await Promise.race([
+				delay(1_000).then(() => false),
+				stopSignal.then(() => true),
+			]);
+			if (stopped) return;
+			try {
+				samples.push(await readDatabaseCapacitySnapshot(config, fetchImpl));
+			} catch (error) {
+				monitorError = error;
+				return;
+			}
+		}
+	})();
+
+	return {
+		hasFailed: () => monitorError !== undefined,
+		stop: async () => {
+			stopMonitor?.();
+			await monitorPromise;
+			if (monitorError !== undefined) throw monitorError;
+			if (config.durationMs > 0) await delay(2_000);
+			samples.push(await readDatabaseCapacitySnapshot(config, fetchImpl));
+			return summarizeDatabaseCapacity(samples, config);
+		},
+	};
+}
+
 function isTimeoutError(error: unknown): boolean {
 	return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
@@ -412,6 +664,7 @@ async function executeRequest(
 	timeoutMs: number,
 	fetchImpl: typeof fetch,
 	sessionCookie?: string,
+	statusSecret?: string,
 ): Promise<RequestObservation> {
 	const startedAt = performance.now();
 	try {
@@ -424,6 +677,9 @@ async function executeRequest(
 				"user-agent": "VIZA-online-capacity-gate/1.0",
 				...(scenario.requiresSession && sessionCookie
 					? { cookie: sessionCookie }
+					: {}),
+				...(scenario.requiresStatusSecret && statusSecret
+					? { authorization: `Bearer ${statusSecret}` }
 					: {}),
 			},
 			signal: AbortSignal.timeout(timeoutMs),
@@ -487,8 +743,11 @@ export async function executeOnlineCapacityRun(
 	const wallStartedAt = performance.now();
 	let sustainedForMs = 0;
 	let completedUsers = 0;
+	let databaseTelemetry: OnlineCapacityDatabaseTelemetry | undefined;
 
 	if (config.scope === "authenticated_sustained_read_only") {
+		const telemetryMonitor = await startDatabaseCapacityMonitor(config, fetchImpl);
+		try {
 		let startSteadyWave: (() => void) | undefined;
 		const steadyWave = new Promise<void>((resolve) => {
 			startSteadyWave = resolve;
@@ -505,20 +764,7 @@ export async function executeOnlineCapacityRun(
 						? 0
 						: Math.floor((config.rampUpMs * index) / (config.users - 1));
 				await delay(rampDelay);
-				for (const scenario of scenarios) {
-					observations.push(
-						await executeRequest(
-							scenario,
-							config.requestTimeoutMs,
-							fetchImpl,
-							config.sessionCookie,
-						),
-					);
-				}
-				readyResolvers[index]?.();
-				await steadyWave;
-				const finishAt = performance.now() + config.durationMs;
-				do {
+				if (!telemetryMonitor.hasFailed()) {
 					for (const scenario of scenarios) {
 						observations.push(
 							await executeRequest(
@@ -526,6 +772,24 @@ export async function executeOnlineCapacityRun(
 								config.requestTimeoutMs,
 								fetchImpl,
 								config.sessionCookie,
+								config.statusSecret,
+							),
+						);
+					}
+				}
+				readyResolvers[index]?.();
+				await steadyWave;
+				const finishAt = performance.now() + config.durationMs;
+				do {
+					if (telemetryMonitor.hasFailed()) break;
+					for (const scenario of scenarios) {
+						observations.push(
+							await executeRequest(
+								scenario,
+								config.requestTimeoutMs,
+								fetchImpl,
+								config.sessionCookie,
+								config.statusSecret,
 							),
 						);
 					}
@@ -539,6 +803,9 @@ export async function executeOnlineCapacityRun(
 		startSteadyWave?.();
 		await Promise.all(users);
 		sustainedForMs = performance.now() - steadyStartedAt;
+		} finally {
+			databaseTelemetry = await telemetryMonitor.stop();
+		}
 	} else {
 		let startWave: (() => void) | undefined;
 		const wave = new Promise<void>((resolve) => {
@@ -564,6 +831,7 @@ export async function executeOnlineCapacityRun(
 		rampUpMs: config.rampUpMs,
 		completedUsers,
 		scenarios: scenarios.map(({ name }) => summarizeScenario(name, observations)),
+		...(databaseTelemetry ? { databaseTelemetry } : {}),
 	});
 	return {
 		...evaluation,

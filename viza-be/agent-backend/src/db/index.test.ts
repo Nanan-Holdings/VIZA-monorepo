@@ -76,6 +76,9 @@ describe("database pool lifecycle", () => {
 			idleConnections: 1,
 			waitingRequests: 2,
 			utilizationPercent: 66.67,
+			peakActiveConnections: 2,
+			peakWaitingRequests: 2,
+			peakUtilizationPercent: 66.67,
 		});
 
 		const firstClose = database.closeDatabase();

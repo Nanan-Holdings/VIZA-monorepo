@@ -29,6 +29,9 @@ export interface DatabasePoolMetrics {
 	idleConnections: number;
 	waitingRequests: number;
 	utilizationPercent: number;
+	peakActiveConnections: number;
+	peakWaitingRequests: number;
+	peakUtilizationPercent: number;
 }
 
 export interface DatabaseQueryMetrics {
@@ -137,8 +140,19 @@ const poolConfig = buildDatabasePoolConfig(process.env);
 const pool = observePoolQueries(new Pool(poolConfig), dbLogEmitter);
 let poolState: DatabasePoolState = "open";
 let closePromise: Promise<void> | null = null;
+let peakActiveConnections = 0;
+let peakWaitingRequests = 0;
+
+function sampleDatabasePoolPeaks(): void {
+	const activeConnections = Math.max(0, pool.totalCount - pool.idleCount);
+	peakActiveConnections = Math.max(peakActiveConnections, activeConnections);
+	peakWaitingRequests = Math.max(peakWaitingRequests, pool.waitingCount);
+}
+
+dbLogEmitter.on("db_query_dispatched", sampleDatabasePoolPeaks);
 
 export function getDatabasePoolMetrics(): DatabasePoolMetrics {
+	sampleDatabasePoolPeaks();
 	const activeConnections = Math.max(0, pool.totalCount - pool.idleCount);
 	return {
 		state: poolState,
@@ -149,6 +163,10 @@ export function getDatabasePoolMetrics(): DatabasePoolMetrics {
 		waitingRequests: pool.waitingCount,
 		utilizationPercent:
 			Math.round((activeConnections / poolConfig.max) * 10_000) / 100,
+		peakActiveConnections,
+		peakWaitingRequests,
+		peakUtilizationPercent:
+			Math.round((peakActiveConnections / poolConfig.max) * 10_000) / 100,
 	};
 }
 

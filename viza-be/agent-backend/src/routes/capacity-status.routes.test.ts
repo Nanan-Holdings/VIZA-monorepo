@@ -3,6 +3,7 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/index.js", () => ({
+  db: { execute: vi.fn(async () => ({ rows: [{ "?column?": 1 }] })) },
   getDatabasePoolMetrics: () => ({
     state: "open",
     maxConnections: 3,
@@ -11,6 +12,9 @@ vi.mock("../db/index.js", () => ({
     idleConnections: 1,
     waitingRequests: 0,
     utilizationPercent: 33.33,
+    peakActiveConnections: 2,
+    peakWaitingRequests: 0,
+    peakUtilizationPercent: 66.67,
   }),
   getDatabaseQueryMetrics: () => ({
     totalQueries: 4,
@@ -54,14 +58,22 @@ vi.mock("../services/portal-health.service.js", () => ({
 
 describe("capacity status route", () => {
   const originalSecret = process.env.STATUS_CRON_SECRET;
+  const originalCapacitySecret = process.env.CAPACITY_STATUS_SECRET;
+  const originalTargetEnabled = process.env.ONLINE_CAPACITY_TARGET_ENABLED;
 
   beforeEach(() => {
     process.env.STATUS_CRON_SECRET = "capacity-test-secret";
+    process.env.CAPACITY_STATUS_SECRET = "capacity-metrics-secret";
+    process.env.ONLINE_CAPACITY_TARGET_ENABLED = "true";
   });
 
   afterEach(() => {
     if (originalSecret === undefined) delete process.env.STATUS_CRON_SECRET;
     else process.env.STATUS_CRON_SECRET = originalSecret;
+    if (originalCapacitySecret === undefined) delete process.env.CAPACITY_STATUS_SECRET;
+    else process.env.CAPACITY_STATUS_SECRET = originalCapacitySecret;
+    if (originalTargetEnabled === undefined) delete process.env.ONLINE_CAPACITY_TARGET_ENABLED;
+    else process.env.ONLINE_CAPACITY_TARGET_ENABLED = originalTargetEnabled;
   });
 
   it("requires the status bearer secret", async () => {
@@ -75,14 +87,28 @@ describe("capacity status route", () => {
     const app = express().use(statusOperationsRouter);
     const response = await request(app)
       .get("/capacity")
-      .set("Authorization", "Bearer capacity-test-secret")
+      .set("Authorization", "Bearer capacity-metrics-secret")
       .expect(200);
 
     expect(response.body).toMatchObject({
       ok: true,
+      instanceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       chat: { active: 2, queued: 3 },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });
     expect(JSON.stringify(response.body)).not.toMatch(/userId|sessionId|queryText|parameters/i);
+  });
+
+  it("uses a dedicated secret and runs only a synthetic read while enabled", async () => {
+    const { statusOperationsRouter } = await import("./public-status.routes.js");
+    const app = express().use(statusOperationsRouter);
+    await request(app)
+      .get("/capacity")
+      .set("Authorization", "Bearer capacity-test-secret")
+      .expect(401);
+    await request(app)
+      .get("/capacity/database-read")
+      .set("Authorization", "Bearer capacity-metrics-secret")
+      .expect(200, { ok: true });
   });
 });

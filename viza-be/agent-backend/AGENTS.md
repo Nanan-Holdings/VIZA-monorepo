@@ -160,11 +160,21 @@ explicitly reintroduces another provider.
   staging gates.
 - The `authenticated_sustained_read_only` scope additionally requires a
   dedicated `@viza.test` account plus an ephemeral session Cookie supplied only
-  through the protected workflow. Before load, `/api/client/session` must prove
+  through the protected workflow. Before load,
+  `/api/health/online-capacity-session` must prove
   that Cookie belongs to the exact configured synthetic user UUID and is not an
   impersonation session. It ramps 100 sessions for 30 seconds and then
   holds read-only `/client/home`, `/client/status`, and `/ready` traffic for at
   least five minutes; the Cookie must never be logged or written to artifacts.
+- The harness also samples `/api/internal/status/capacity` once per second using
+  a step-scoped telemetry secret and fails closed on incomplete/malformed
+  samples, non-open pool state, any waiting request, peak DB pool utilization
+  at or above 80%, counter reset, or new failed/slow query. Results retain only
+  aggregates and SHA-256 query fingerprints. The status route uses its own
+  `CAPACITY_STATUS_SECRET`, never the broader portal-probe secret. The protected
+  synthetic `/api/internal/status/capacity/database-read` route is enabled only
+  with the default-off capacity target marker and executes `SELECT 1`; the
+  authenticated release matrix includes it so the agent DB pool is exercised.
 - `src/online-capacity-target.ts` owns the default-off target marker returned at
   `/api/health/online-capacity-target`. It derives the project ref from the
   service's actual Supabase URL and must never return keys or connection URLs.
