@@ -1731,11 +1731,12 @@ export async function fillPhEtravelOfficialDeclaration(
     }
     const postSignatureSemantic = classifyPhEtravelPostSignatureSemantic(portalText);
     const wizardRoute = resolvePhEtravelWizardRoute(page.url());
-    const canContinueObservedAirWizard = wizardRoute === "regular_me" &&
-      !isSeaArrival &&
+    const hasApprovedAirSignaturePath = !isSeaArrival &&
       hasNoAccompaniedFamily &&
       Boolean(options.signatureImageDataUrl);
-    if (postSignatureSemantic === "signature" && canContinueObservedAirWizard) {
+    const canApplyObservedAirSignature = wizardRoute !== "unknown" && hasApprovedAirSignaturePath;
+    const canContinueObservedAirWizard = wizardRoute === "regular_me" && hasApprovedAirSignaturePath;
+    if (postSignatureSemantic === "signature" && canApplyObservedAirSignature) {
       if (!await applyPhEtravelSignatureCanvas(page, options.signatureImageDataUrl as string)) {
         throw new PhEtravelFormFillError(
           "Philippines eTravel declaration signature could not be applied to the official canvas.",
