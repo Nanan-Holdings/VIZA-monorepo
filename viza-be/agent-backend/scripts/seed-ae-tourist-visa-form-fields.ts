@@ -66,9 +66,6 @@ const GENDER_OPTIONS = [
   { value: "female", text: "Female" },
 ];
 
-const NATIONALITY_REQUIRES_ID =
-  "current_nationality === Afghanistan || current_nationality === Iran || current_nationality === Iraq";
-
 const qaRules = (
   note: string,
   rules: Record<string, unknown> = {},
@@ -113,11 +110,41 @@ const FIELDS: FieldDef[] = [
       document_slots: [
         { key: "passport_bio_page", storage: "application_documents", required: true },
         { key: "personal_photo", storage: "application_documents", required: true },
-        { key: "six_month_bank_statement", storage: "application_documents", required: true, minimum_balance_usd_equivalent: 4000 },
-        { key: "uae_health_coverage_evidence", storage: "application_documents", required: true, minimum_validity_days: 180 },
+        {
+          key: "six_month_bank_statement",
+          storage: "application_documents",
+          required: true,
+          statement_months: 6,
+          minimum_monthly_balance_usd_equivalent: 4000,
+          must_be_official: true,
+          must_be_stamped: true,
+          must_be_signed: true,
+          must_be_colored: true,
+          content_review_required: true,
+        },
+        {
+          key: "uae_health_coverage_evidence",
+          storage: "application_documents",
+          required: true,
+          issuer_country: "United Arab Emirates",
+          minimum_validity_days: 180,
+          content_review_required: true,
+        },
         { key: "return_or_onward_ticket", storage: "application_documents", required: true },
-        { key: "uae_accommodation_evidence", storage: "application_documents", required: true },
-        { key: "national_identity_copy", storage: "application_documents", required_if: NATIONALITY_REQUIRES_ID },
+        {
+          key: "uae_accommodation_evidence",
+          storage: "application_documents",
+          required: false,
+          live_portal_conditional: true,
+          note: "Not listed in the public transaction-783 service-card requirements; require only if the authenticated form requests it for the entered data.",
+        },
+        {
+          key: "national_identity_copy",
+          storage: "application_documents",
+          required: false,
+          live_portal_conditional: true,
+          note: "The public service card lists nationality identity documents as optional; require only if the authenticated form requests one for the entered data.",
+        },
       ],
       note: "Country values and conditional expressions use stored country names, not ISO codes.",
     },

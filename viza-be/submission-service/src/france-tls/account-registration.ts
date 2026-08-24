@@ -102,6 +102,12 @@ export interface FranceTlsApplicantProfile {
   schengenVisaWithinFiveYears: boolean | null;
 }
 
+export function isRetryableFranceTlsBrowserSessionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /target page, context or browser has been closed|browserbase.{0,40}(?:timed out|timeout)|browser session.{0,20}(?:timed out|closed)|cloudflare (?:waiting room|security verification)|checkpoint:\s*waf/i
+    .test(message);
+}
+
 interface FranceTlsReplacementAccountRow {
   id: string;
   account_email: string | null;
@@ -1487,7 +1493,9 @@ export async function recoverAndPrepareFranceTlsAccount(
       shouldFillReference,
     });
   } catch (error) {
-    if (context.accountStatus !== "password_reset_email_requested") {
+    if (isRetryableFranceTlsBrowserSessionError(error)) {
+      await updateAccountStatus(context, "browser_session_retryable_error", true).catch(() => undefined);
+    } else if (context.accountStatus !== "password_reset_email_requested") {
       await updateAccountStatus(context, "manual_required", true).catch(() => undefined);
     }
     throw error;
@@ -1578,7 +1586,13 @@ export async function registerAndPrepareFranceTlsAccount(
       shouldFillReference,
     });
   } catch (error) {
-    if (!["registration_submitting", "activation_email_pending"].includes(context.accountStatus)) {
+    if (isRetryableFranceTlsBrowserSessionError(error)) {
+      await updateAccountStatus(
+        context,
+        "browser_session_retryable_error",
+        context.emailVerified,
+      ).catch(() => undefined);
+    } else if (!["registration_submitting", "activation_email_pending"].includes(context.accountStatus)) {
       await updateAccountStatus(context, "manual_required", context.emailVerified).catch(() => undefined);
     }
     throw error;

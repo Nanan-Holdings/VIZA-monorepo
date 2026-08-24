@@ -249,6 +249,7 @@ interface DynamicFormFieldProps {
   forceWhiteBackground?: boolean;
   disabled?: boolean;
   displayLocale?: "zh" | "en";
+  labelMeta?: ReactNode;
   labelAction?: ReactNode;
   onSearchQuery?: (query: string) => void;
   onLoadMore?: () => void;
@@ -444,6 +445,7 @@ export function DynamicFormField({
   forceWhiteBackground = false,
   disabled = false,
   displayLocale,
+  labelMeta,
   labelAction,
   onSearchQuery,
   onLoadMore,
@@ -572,7 +574,7 @@ export function DynamicFormField({
       ) : null;
 
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
             <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
               <ApplicationRadio
@@ -617,7 +619,7 @@ export function DynamicFormField({
       const isUsState = source === "US_STATES";
       if (isCountry) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
@@ -631,7 +633,7 @@ export function DynamicFormField({
       }
       if (isUsState) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <RegionSelect
               countryCode="US"
               placeholder={localizedPlaceholder ?? selectFallback}
@@ -663,7 +665,7 @@ export function DynamicFormField({
             ? `Select “${parentLabel}” first, then choose this field.`
             : "Select the parent field first, then choose this field.";
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationFormControlDisplay
               className={cn(
                 "min-h-12 bg-white text-[#71717a]",
@@ -678,7 +680,7 @@ export function DynamicFormField({
       }
       if (usesRemoteSearch || includeCountryFlags || opts.length >= APPLICATION_SEARCHABLE_OPTION_MIN) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationSearchableSelect
               value={optimisticSelectionValue}
               onValueChange={commitSelection}
@@ -703,7 +705,7 @@ export function DynamicFormField({
         );
       }
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <Select value={optimisticSelectionValue} onValueChange={commitSelection} disabled={disabled}>
             <ApplicationFormSelectTrigger
               className={`h-12 text-[15px] data-[placeholder]:text-muted-foreground ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}
@@ -728,7 +730,7 @@ export function DynamicFormField({
       const opts = normaliseOptions(options, sideLocale, usesCountryOptionFlags(field));
       const rules = field.validationRules as { exclusive_option?: string } | null;
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <ApplicationSearchableMultiSelect
             value={optimisticSelectionValue}
             onValueChange={commitSelection}
@@ -745,7 +747,7 @@ export function DynamicFormField({
 
     case "textarea":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <div className="relative">
             <ApplicationFormTextarea
               value={value}
@@ -783,7 +785,12 @@ export function DynamicFormField({
               checked={isChecked}
               disabled={disabled}
               required={required}
-              label={label}
+              label={labelMeta ? (
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <span>{label}</span>
+                  {labelMeta}
+                </span>
+              ) : label}
               description={helperText}
               className={cn("application-form-question-label", labelAction && "pr-10")}
               onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
@@ -798,7 +805,7 @@ export function DynamicFormField({
 
     case "file":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           <ApplicationFormControlDisplay className={`h-12 justify-center border-dashed text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
             {t("upload")}: {label}
           </ApplicationFormControlDisplay>
@@ -811,7 +818,7 @@ export function DynamicFormField({
         const isSchengenMemberState = usesSchengenMemberStateList(field);
         if (opts.length > 0) {
           return (
-            <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+            <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
               <ApplicationSearchableSelect
                 value={optimisticSelectionValue}
                 onValueChange={commitSelection}
@@ -825,7 +832,7 @@ export function DynamicFormField({
           );
         }
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
@@ -842,7 +849,7 @@ export function DynamicFormField({
       const opts = normaliseOptions(options, sideLocale, usesCountryOptionFlags(field));
       const isSelectionToggle = opts.length === 2;
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+        <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
           {isSelectionToggle ? (
             <ApplicationYesNoControl
               name={field.fieldName}
@@ -884,7 +891,7 @@ export function DynamicFormField({
     default: // text, number, email, tel, etc.
       if (isSsnField(field)) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <SsnSegmentedInput
               value={value}
               onChange={onChange}
@@ -957,7 +964,7 @@ export function DynamicFormField({
         ) : null;
 
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
+          <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             {hasSideCheckbox ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">{inputNode}</div>

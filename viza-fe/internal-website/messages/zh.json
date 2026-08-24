@@ -752,8 +752,8 @@
       "title": "表单填写助手",
       "description": "我会检查已有内容，每次只问一个问题。你可以直接在这里用文字或语音回答。",
       "badge": "AI 助手",
-      "progressLabel": "申请填写进度",
-      "progress": "已完成 {completed} / {total} 个项目",
+      "progressLabel": "申请准备进度",
+      "progress": "已完成 {completed} / {total} 个必需项目",
       "conversationLabel": "表单填写助手对话",
       "scrollToLatest": "跳到最新消息",
       "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
@@ -762,12 +762,6 @@
         "title": "仍需补充的信息",
         "required": "必填",
         "optional": "选填"
-      },
-      "filledNotice": {
-        "message": "已填入{label}：{value}",
-        "undo": "撤回",
-        "undoing": "正在撤回...",
-        "undoFailed": "无法撤回，因为该内容可能已经被修改。"
       },
       "validation": {
         "title": "答案检查",
@@ -800,6 +794,7 @@
         "emptyTranscript": "没有识别到文字，请重试或输入答案。",
         "transcriptionFailed": "录音转写失败，请重试或输入答案。",
         "sendFailed": "消息未发送，输入内容已保留，请重试。",
+        "confirmationFailed": "此确认尚未保存，请重新勾选复选框。",
         "providersUnavailable": "AI 服务暂时不可用。答案尚未保存，输入内容已保留；你可以稍后重试，或直接在表单中填写。",
         "reviewFailed": "暂时无法检查答案或打开最终审核页面，请重试。"
       },
@@ -1552,6 +1547,7 @@
       "accommodationAddress": "住宿地址",
       "reviewMessage": "提交前请仔细检查您的信息。",
       "missingInformation": "缺失信息",
+      "optionalInformation": "选填信息未填写",
       "notProvided": "未填写",
       "confirmAndSubmit": "确认并提交",
       "continueToTeam": "继续到团队",

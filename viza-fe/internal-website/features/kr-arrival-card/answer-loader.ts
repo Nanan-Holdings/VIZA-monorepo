@@ -4,6 +4,16 @@ export type KoreaEArrivalAnswerRow = {
   value_json?: unknown;
 };
 
+export const KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS = [
+  "arrival_date",
+  "departure_date",
+  "arrival_mode",
+  "stay_address_search",
+  "stay_address_ko",
+  "stay_address_en",
+  "stay_postal_code",
+] as const;
+
 export type KoreaEArrivalApplicationFallback = {
   arrival_date?: string | null;
   departure_date?: string | null;
@@ -50,11 +60,10 @@ export function extractKoreaEArrivalAnswers(
     departureDate: firstText([answers.departure_date, fallback.departure_date]),
     arrivalMode: firstText([answers.arrival_mode]),
     stayAddressProvided: Boolean(
-      firstText([
-        answers.stay_address_ko,
-        answers.stay_address_en,
-        fallback.accommodation_address,
-      ]),
+      firstText([answers.stay_address_search])
+      && firstText([answers.stay_address_ko])
+      && firstText([answers.stay_address_en])
+      && /^\d{5}$/u.test(firstText([answers.stay_postal_code]) ?? ""),
     ),
   };
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-08-23",
   "country": "poland",
   "notes": "Country-level VIZA RAG seed for poland. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -23,7 +23,7 @@
             "short-stay",
             "type-c"
           ],
-          "content": "Chinese ordinary passport holders planning a short tourism trip to Poland should normally use the Poland/Schengen short-stay Type C tourism route when Poland is the only destination, the longest-stay destination, or the main purpose destination. VIZA AI should first confirm nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, purpose, passport validity, travel medical insurance, accommodation, itinerary, funds, return ties and biometrics. Do not route this trip to US, UK, Vietnam, Indonesia or another non-Schengen visa."
+          "content": "This route note applies to Chinese mainland ordinary passport holders. They should normally use the Poland/Schengen short-stay Type C tourism route when Poland is the only destination, the longest-stay destination, or the main purpose destination. It must not be applied to Hong Kong Special Administrative Region passport holders: Poland's official C-type guidance lists Hong Kong SAR passports as visa-exempt for stays in Poland or the Schengen area of no more than 90 days in any 180-day period, and EU Regulation 2018/1806 Annex II limits that exemption to holders of a Hong Kong Special Administrative Region passport. VIZA AI should first confirm the passport document, nationality, legal residence, destination set, stay length, day split across Schengen countries, first entry if stays are equal, and purpose. For the HKSAR exemption, do not infer eligibility for paid work, study, residence, or stays over 90 days. Official sources: https://www.gov.pl/web/unitedkingdom/c-type-schengen-visa ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018R1806."
         },
         {
           "id": "pol_schengen_where_apply_documents",

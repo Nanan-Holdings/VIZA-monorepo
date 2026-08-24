@@ -13,6 +13,7 @@ import {
   normalizeAndRunJpVjwPortalSubmission,
   type JpVjwPortalSubmissionResult,
 } from "../jp-vjw/runner.js";
+import { extractJpVjwVerificationMessage } from "../jp-vjw/verification.js";
 import {
   KeEtaPortalError,
   normalizeAndRunKeEtaPortalSubmission,
@@ -51,8 +52,21 @@ async function preparePayload(
   applicationId: string,
   jobId: string,
   flow: AutomatedPortalPoolFlow,
-): Promise<{ payload: SubmissionPayload; applicantId: string }> {
+): Promise<{ payload: SubmissionPayload; applicantId: string; cleanupDocuments: () => Promise<void> }> {
   const context = await loadCountrySubmissionContext(applicationId);
+  const { data: submissionAuthorization, error: submissionAuthorizationError } = await supabase
+    .from("consent_event")
+    .select("id")
+    .eq("application_id", applicationId)
+    .eq("doc_kind", "application_authorisation")
+    .limit(1)
+    .maybeSingle();
+  if (submissionAuthorizationError) {
+    throw new Error(`Application submission authorization lookup failed: ${submissionAuthorizationError.message}`);
+  }
+  if (!submissionAuthorization?.id) {
+    throw new NeedsHumanError(`${flow} final application submission authorization is required.`);
+  }
   const managedAlias = await ensureApplicationInboxAlias(applicationId, context.profile.id);
   await assertInboxAliasDomainRoutable(managedAlias.alias);
   if (!(await hasAliasEmailForwardingConsent(context.profile.id))) {
@@ -63,9 +77,11 @@ async function preparePayload(
     alias_email_address: managedAlias.alias,
     email_address: managedAlias.alias,
   };
-  const applicationDocumentPaths = flow === "ke_eta"
+  const documentLease = flow === "ke_eta"
     ? await resolveApplicationDocumentPaths(applicationId)
-    : new Map<string, string>();
+    : null;
+  const applicationDocumentPaths = documentLease?.paths ?? new Map<string, string>();
+  try {
   const attachments = {
     passportBioPage: applicationDocumentPaths.get("passport_copy")
       ?? applicationDocumentPaths.get("passport_bio_page")
@@ -113,7 +129,12 @@ async function preparePayload(
   return {
     payload: mappedPayload,
     applicantId: context.profile.id,
+    cleanupDocuments: documentLease?.cleanup ?? (async () => {}),
   };
+  } catch (error) {
+    await documentLease?.cleanup();
+    throw error;
+  }
 }
 
 async function persistFiles(
@@ -203,8 +224,7 @@ async function executePortal(
             Number(process.env.JP_VJW_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000"),
             { since },
           );
-          const source = `${message.text ?? ""} ${message.html ?? ""}`;
-          return { url: source.match(/https?:\/\/[^\s"'<>]+/i)?.[0] };
+          return extractJpVjwVerificationMessage(message);
         },
       },
     });
@@ -304,8 +324,11 @@ export async function runAutomatedPortalPoolFlow(
   const poolIdentity = requirePoolExecutionIdentity(executionContext, jobId, "Automated portal pool execution");
   const owned = poolIdentity.executionContext;
   const identity = flowIdentity(flow);
+  let cleanupDocuments = async (): Promise<void> => {};
   try {
-    const { payload, applicantId } = await preparePayload(applicationId, jobId, flow);
+    const prepared = await preparePayload(applicationId, jobId, flow);
+    cleanupDocuments = prepared.cleanupDocuments;
+    const { payload, applicantId } = prepared;
     owned.assertOwned();
     const portal = await executePortal(flow, payload, owned, applicantId);
     owned.assertOwned();
@@ -366,5 +389,7 @@ export async function runAutomatedPortalPoolFlow(
     await writeRunnerPoolSubmissionResult(owned, failure, "failed");
     if (detail.retryable) throw new RetryableRunnerError(detail.message);
     throw new NeedsHumanError(detail.message);
+  } finally {
+    await cleanupDocuments();
   }
 }

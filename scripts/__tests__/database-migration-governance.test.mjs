@@ -51,6 +51,8 @@ function fixture(overrides = {}) {
         sha256: sameHash,
       }],
       no_mirror: [],
+      unapplied_migration_renames: [],
+      applied_migration_renames: [],
     },
     baseManifest: {
       schema_version: 1,
@@ -63,6 +65,8 @@ function fixture(overrides = {}) {
       historical_duplicate_supabase_versions: {},
       migration_pairs: [],
       no_mirror: [],
+      unapplied_migration_renames: [],
+      applied_migration_renames: [],
     },
     baseFiles: [
       `${drizzleRoot}/0012_match_visa_chunks.sql`,
@@ -95,6 +99,8 @@ test("accepts an exact new mirror pair with secure public objects", () => {
     added_migrations: 2,
     migration_pairs: 1,
     no_mirror: 0,
+    unapplied_migration_renames: 0,
+    applied_migration_renames: 0,
   });
 });
 
@@ -118,6 +124,153 @@ test("rejects changes, renames, or deletes of an existing migration", () => {
       changes: [{ status: "M", path: `${drizzleRoot}/0012_match_visa_chunks.sql` }],
     })),
     /Existing migration files are immutable/u,
+  );
+});
+
+test("accepts an exact byte-preserving rename only for a verified unapplied migration", () => {
+  const input = fixture();
+  const oldPath = input.manifest.migration_pairs[0].drizzle;
+  const newPath = `${drizzleRoot}/0162_database_access_baseline.sql`;
+  input.currentFiles = input.currentFiles.map((filePath) =>
+    filePath === oldPath ? newPath : filePath);
+  input.changes = [
+    { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+    { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+  ];
+  input.manifest.migration_pairs[0].drizzle = newPath;
+  input.manifest.unapplied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Repair a numbering collision before production apply",
+    verified_unapplied_at: "2026-08-23T04:00:00Z",
+    production_ledger_versions_absent: ["20260822000000"],
+  });
+
+  const result = validateMigrationGovernance(input);
+  assert.equal(result.added_migrations, 1);
+  assert.equal(result.unapplied_migration_renames, 1);
+});
+
+test("accepts an exact Supabase filename reconciliation for a verified applied ledger entry", () => {
+  const input = fixture();
+  const oldPath = input.manifest.migration_pairs[0].supabase;
+  const newPath = `${supabaseRoot}/20260821125959_database_access_baseline.sql`;
+  input.baseManifest.migration_pairs = [{ ...input.manifest.migration_pairs[0] }];
+  input.currentFiles = input.currentFiles.map((filePath) =>
+    filePath === oldPath ? newPath : filePath);
+  input.changes = [
+    { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+    { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+  ];
+  input.manifest.migration_pairs[0].supabase = newPath;
+  input.manifest.applied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Match the repository filename to the exact production ledger version",
+    verified_applied_at: "2026-08-23T20:14:31Z",
+    project_ref: "oyjxdzsoejraedqghndi",
+    production_ledger_version_present: "20260821125959",
+    production_ledger_name: "database_access_baseline",
+    production_ledger_versions_absent: ["20260822000000"],
+    evidence_run_id: 32663790378,
+    production_ledger_statement_count: 1,
+    production_ledger_statements_sha256: sameHash,
+    production_ledger_normalization: "single_statement_lf_without_final_newline",
+    production_state_contract: {
+      kind: "jp_vjw_official_accommodation_fields_v1",
+      row_count: 6,
+      sha256: "b".repeat(64),
+    },
+  });
+
+  const result = validateMigrationGovernance(input);
+  assert.equal(result.added_migrations, 1);
+  assert.equal(result.applied_migration_renames, 1);
+});
+
+test("rejects applied-ledger renames without exact version, name, hash, and Git evidence", () => {
+  const input = fixture();
+  const oldPath = input.manifest.migration_pairs[0].supabase;
+  const newPath = `${supabaseRoot}/20260821125959_database_access_baseline.sql`;
+  input.baseManifest.migration_pairs = [{ ...input.manifest.migration_pairs[0] }];
+  input.currentFiles = input.currentFiles.map((filePath) =>
+    filePath === oldPath ? newPath : filePath);
+  input.changes = [
+    { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+    { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+  ];
+  input.manifest.migration_pairs[0].supabase = newPath;
+  input.manifest.applied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Match the repository filename to the exact production ledger version",
+    verified_applied_at: "2026-08-23T20:14:31Z",
+    project_ref: "oyjxdzsoejraedqghndi",
+    production_ledger_version_present: "20260822000000",
+    production_ledger_name: "database_access_baseline",
+    production_ledger_versions_absent: ["20260822000000"],
+    evidence_run_id: 32663790378,
+    production_ledger_statement_count: 1,
+    production_ledger_statements_sha256: sameHash,
+    production_ledger_normalization: "single_statement_lf_without_final_newline",
+    production_state_contract: {
+      kind: "jp_vjw_official_accommodation_fields_v1",
+      row_count: 6,
+      sha256: "b".repeat(64),
+    },
+  });
+
+  assert.throws(
+    () => validateMigrationGovernance(input),
+    /Applied migration rename requires exact production-ledger evidence/u,
+  );
+
+  input.manifest.applied_migration_renames[0].production_ledger_version_present =
+    "20260821125959";
+  input.manifest.applied_migration_renames[0].project_ref = "aaaaaaaaaaaaaaaaaaaa";
+  assert.throws(
+    () => validateMigrationGovernance(input),
+    /Applied migration rename requires exact production-ledger evidence/u,
+  );
+});
+
+test("rejects unapproved or content-changing migration renames", () => {
+  const oldPath = `${drizzleRoot}/0158_database_access_baseline.sql`;
+  const newPath = `${drizzleRoot}/0162_database_access_baseline.sql`;
+  const renamed = fixture({
+    currentFiles: [
+      `${drizzleRoot}/0012_match_visa_chunks.sql`,
+      `${drizzleRoot}/0012_vn_e_visa_package.sql`,
+      newPath,
+      `${supabaseRoot}/20260822000000_database_access_baseline.sql`,
+    ],
+    changes: [
+      { status: "R", path: oldPath, renamedTo: newPath, renameScore: 100 },
+      { status: "A", path: newPath, renamedFrom: oldPath, renameScore: 100 },
+    ],
+  });
+  renamed.manifest.migration_pairs[0].drizzle = newPath;
+  assert.throws(
+    () => validateMigrationGovernance(renamed),
+    /Existing migration files are immutable/u,
+  );
+
+  renamed.manifest.unapplied_migration_renames.push({
+    from: oldPath,
+    to: newPath,
+    sha256: sameHash,
+    reason: "Repair a numbering collision before production apply",
+    verified_unapplied_at: "2026-08-23T04:00:00Z",
+    production_ledger_versions_absent: ["20260822000000"],
+  });
+  renamed.changes[0].renameScore = 99;
+  renamed.changes[1].renameScore = 99;
+  assert.throws(
+    () => validateMigrationGovernance(renamed),
+    /100% byte-preserving/u,
   );
 });
 

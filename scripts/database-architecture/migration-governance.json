@@ -110,7 +110,148 @@
       "drizzle": "viza-be/agent-backend/drizzle/0160_agent_backend_role_timeouts.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260821181514_agent_backend_role_timeouts.sql",
       "sha256": "126ec3bfa2165be75996d53865a28ddd81f3b402107c68f4532ac714d7df4d6d"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823035450_uae_tourist_document_contract.sql",
+      "sha256": "465319cf00a14a9b28689cbed8af444588cd1fa9ad7146fdf5453c5bb6654124"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0163_enable_five_tourist_runner_claims.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260818130000_enable_five_tourist_runner_claims.sql",
+      "sha256": "2c1e5038933909b0cb171112287a9868d9e9cfaeda4e8d5f1ac5a37ab134e5c3"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0164_application_document_review_integrity.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260818140000_application_document_review_integrity.sql",
+      "sha256": "7eda50893b380ef2f6e80a83eee8aa118e2d6f1f92d2b4fbe77a67283a36e344"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0167_database_function_execution_baseline.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823134811_database_function_execution_baseline.sql",
+      "sha256": "43ee2f78b60782b7a1a56399df8beda1ab8d36472d2cbaa9bc6e581f22470ed8"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0168_core_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823140456_core_rls_initplan.sql",
+      "sha256": "e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0170_chat_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823143810_chat_rls_initplan.sql",
+      "sha256": "f184696b540b8003fe9a0748882982cf481cfce8ace19a213ff993b562e280f2"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0171_user_packages_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823152021_user_packages_rls_initplan.sql",
+      "sha256": "81a7e178c00d647afda7c00c1ad99b506965c5f4542fc7e31da9c46c9e4a6ecf"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823154730_notification_signature_rls_initplan.sql",
+      "sha256": "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0174_inbound_email_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823163045_inbound_email_rls_initplan.sql",
+      "sha256": "a91b09072241084a259757978051f66ed2ba1afd80d950c9a94f8030640a9f35"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0176_inbound_email_acl.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824012700_inbound_email_acl.sql",
+      "sha256": "56e0894fa8659daf404dabb99cd536de370653c69f84f3cd6bd6cf1a8062117c"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0177_audit_log_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824020344_audit_log_rls_initplan.sql",
+      "sha256": "5b79d4d4e0eb0e6c341c7f6aa21631093f1a5688b9a7677212df169eb9e7153d"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0178_account_action_log_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824023800_account_action_log_rls_initplan.sql",
+      "sha256": "726114d60c513f65e8d755f400a7f6778e70a05a49212351578e7e8b83fd5596"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql",
+      "sha256": "91c9c5711e08ed66419fe23955595eaa081c18f6e4be0cc738514f625f7ff169"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0180_consent_event_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824032000_consent_event_rls_initplan.sql",
+      "sha256": "ad8b0e93f158e51ca79694dc6abf80c77781280a1e8d3bbd623dd62d208b27f8"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0181_applicant_single_path_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql",
+      "sha256": "90d15e9994d544360c536a486da8d8685ed95e7c7adce0bd9f2946f771f0af43"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0182_supporting_doc_submission_rls_initplan.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql",
+      "sha256": "9a260359fb706176565f8e6b30d29e7a8ad484ef1f12f670337481228bab067f"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql",
+      "sha256": "fbbaa13c9cde71289d4b22103bd33e11c87e61620e9d65f78d17c41d63968cde"
     }
   ],
-  "no_mirror": []
+  "no_mirror": [],
+  "unapplied_migration_renames": [
+    {
+      "from": "viza-be/agent-backend/drizzle/0149_uae_tourist_document_contract.sql",
+      "to": "viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql",
+      "sha256": "465319cf00a14a9b28689cbed8af444588cd1fa9ad7146fdf5453c5bb6654124",
+      "reason": "Repair the UAE migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260823035450"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0152_enable_five_tourist_runner_claims.sql",
+      "to": "viza-be/agent-backend/drizzle/0163_enable_five_tourist_runner_claims.sql",
+      "sha256": "2c1e5038933909b0cb171112287a9868d9e9cfaeda4e8d5f1ac5a37ab134e5c3",
+      "reason": "Repair the five-tourist runner migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260818130000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0153_application_document_review_integrity.sql",
+      "to": "viza-be/agent-backend/drizzle/0164_application_document_review_integrity.sql",
+      "sha256": "7eda50893b380ef2f6e80a83eee8aa118e2d6f1f92d2b4fbe77a67283a36e344",
+      "reason": "Repair the document-review migration numbering collision before its first production apply.",
+      "verified_unapplied_at": "2026-08-23T03:57:56Z",
+      "production_ledger_versions_absent": [
+        "20260818140000"
+      ]
+    }
+  ],
+  "applied_migration_renames": [
+    {
+      "from": "viza-fe/internal-website/supabase/migrations/20260824033000_jp_vjw_official_accommodation_fields.sql",
+      "to": "viza-fe/internal-website/supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql",
+      "sha256": "91c9c5711e08ed66419fe23955595eaa081c18f6e4be0cc738514f625f7ff169",
+      "reason": "Match the repository mirror filename to the exact production ledger version without replaying the already-applied data migration.",
+      "verified_applied_at": "2026-08-23T20:14:31Z",
+      "project_ref": "oyjxdzsoejraedqghndi",
+      "production_ledger_version_present": "20260823193517",
+      "production_ledger_name": "jp_vjw_official_accommodation_fields",
+      "production_ledger_versions_absent": [
+        "20260824033000"
+      ],
+      "evidence_run_id": 32665153707,
+      "production_ledger_statement_count": 1,
+      "production_ledger_statements_sha256": "c4dc3ec714b71a4a021c35a0266adf7c78acd4a8d9b3ddf50dfba51576a8d129",
+      "production_ledger_normalization": "single_statement_lf_without_final_newline",
+      "production_state_contract": {
+        "kind": "jp_vjw_official_accommodation_fields_v1",
+        "row_count": 6,
+        "sha256": "e3c78d800da5fa82bdb9f4c342bdea808b42ee08a30b9925fcf312974b1c9f55"
+      }
+    }
+  ]
 }

@@ -33,6 +33,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
   dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
+- Admin visual tokens are isolated by `app/admin/admin-theme.css`; reusable
+  admin patterns compose shadcn primitives under `components/admin/**` so
+  client portal styling remains independent.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
   `components/application-steps/**`.
@@ -43,6 +46,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - The development-only `/edge-cases` route under `app/edge-cases/**` reads that
   same compiler report and presents every current design edge case as a
   component study with the complete affected visa-type and field inventory.
+- The development-only `/schema-qa` route under `app/schema-qa/**` renders one
+  live master schema with deterministic fictional answers entirely in browser
+  memory. It must never load applicant data or call save/submission APIs.
 - Ongoing application identity and terminal-state classification live in
   `lib/applications/ongoing-application.ts`; database migrations enforce one
   in-flight row per applicant, canonical country, and visa type while allowing
@@ -89,6 +95,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Philippines eTravel airline-dependent flight numbers are proxied read-only
   through `app/api/ph-etravel/options/**`; the form stores the exact official
   flight code and reloads options whenever the official airline code changes.
+- Korea e-Arrival Card and Korea C-3-9 share the official address lookup in
+  `lib/korea-address-search.ts`, `app/api/korea-addresses/**`, and
+  `components/dynamic-step-form.tsx`. Chinese UI labels may be translated, but
+  the selected official Korean/English values and ZIP must remain unchanged.
+  Focused coverage in `lib/korea-address-search.test.ts` and
+  `components/__tests__/dynamic-step-form-korea-address.test.tsx` verifies one
+  selected result atomically derives the Korean address, English address, and
+  five-digit ZIP.
 - Indonesia eVisa postal-code preflight is proxied through
   `app/api/indonesia/postal-code/**`. It may only validate and derive the
   province/city/district/village display values; the official eVisa portal
@@ -97,15 +111,25 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
-- Reusable passport, portrait, and electronic-signature metadata is stored in
+- Application uploads remain application-scoped unless the applicant
+  explicitly selects `universal_profile`; reusable-type aliases alone must not
+  promote a file. Reuse accepts only the explicit usable-status allowlist, and
+  every replacement returns to `uploaded` with privileged review fields clear.
+- Reusable passport, portrait, electronic-signature, recent-bank-statement,
+  and genuine travel/medical-insurance metadata is stored in
   the server-only `universal_profile_documents` table created by
   `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
-  application document requirements may map their country-specific photo and
-  signature aliases to these canonical profile materials.
+  application document requirements may map their country-specific aliases to
+  these canonical profile materials. Bank statements and insurance remain
+  time-sensitive and must be revalidated against each destination before use.
 - Application-scoped Form Filling Assistant sessions and persisted text turns
   are stored in `form_assistant_sessions` and `form_assistant_messages` by
   `supabase/migrations/20260806155039_form_assistant_sessions.sql`; raw voice
   recordings are ephemeral and never persisted.
+- Form-assistant checkbox confirmations use the `confirmation` input mode added
+  by `supabase/migrations/20260822043857_allow_form_assistant_confirmation_input_mode.sql`;
+  the application retains a narrow compatibility retry for databases that have
+  not applied that migration yet.
 - Expanded reusable applicant facts are stored in the server-only,
   field-keyed `universal_profile_answers` table created by
   `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
@@ -146,6 +170,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
   admin email allowlist in `lib/admin-access.ts`.
+- Admin login uses the shared auth form controls but intentionally keeps a
+  centered, globe-free layout distinct from the client login; authentication
+  logic and portal authorization remain separate.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
@@ -175,8 +202,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Targeted VIZA-only Supabase migration through
   `scripts/migrate-viza-required.ts`.
 - Live-assisted official submission status summaries are loaded through
-  `lib/submission-live-status.ts`; keep service-role access server-only and
-  expose customer/staff actions through route handlers or server actions.
+  `lib/submission-live-status.ts`; exact runner-job product visibility and its
+  conservative terminal mapping live in `lib/status/runner-job-visibility.ts`.
+  Focused coverage lives beside both modules in their `.test.ts` files.
+  Keep service-role access server-only and expose customer/staff actions
+  through route handlers or server actions.
 - Cloud submission worker wake requests use the authenticated
   `app/api/submission-worker/wake/route.ts` boundary and the server-only
   `lib/submission-worker-wake.server.ts` helper. Never expose the internal
@@ -277,11 +307,27 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260818063311_kr_e_arrival_card.sql`; keep it byte-identical
   to `viza-be/agent-backend/drizzle/0151_kr_e_arrival_card.sql` and preserve the
   exact `KR_E_ARRIVAL_CARD` / `kr_arrival_card` isolation from Korea C-3 e-Form.
+- Korea e-Arrival Card official field/control parity is applied by
+  `supabase/migrations/20260822020959_kr_e_arrival_official_field_contract.sql`;
+  keep it byte-identical to backend migration
+  `0161_kr_e_arrival_official_field_contract.sql`. The address lookup must
+  persist the official Korean address, English address, and five-digit ZIP as
+  one selected record instead of accepting independent free-text values.
 - Japan Visit Japan Web and Kenya eTA package, pricing, fee-rule, and document
   metadata are applied by
   `supabase/migrations/20260821000000_japan_vjw_kenya_eta_products.sql`; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0154_japan_vjw_kenya_eta_products.sql`.
+- Japan VJW's obsolete preparation-only upload checklist is removed by
+  `supabase/migrations/20260823143500_jp_vjw_no_document_uploads.sql`; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0169_jp_vjw_no_document_uploads.sql`. Kenya
+  eTA document requirements remain unchanged.
+- Japan VJW's current official accommodation controls and phone validation are
+  applied by
+  `supabase/migrations/20260823193517_jp_vjw_official_accommodation_fields.sql`;
+  keep it byte-identical to backend migration
+  `viza-be/agent-backend/drizzle/0179_jp_vjw_official_accommodation_fields.sql`.
 - Application-scoped unattended-runner aliases are created by
   `supabase/migrations/20260821001000_application_inbox_aliases.sql`; keep it
   byte-identical to
@@ -467,6 +513,8 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
+- `lib/canada-trv-completion.ts`: fail-closed CA_TRV value validation and
+  versioned consent/signature/IRCC-terms completion gates shared by the wizard.
 - `lib/application-step-sections.ts`
 - `lib/birthplace-options.ts`
 - `lib/vietnam-administrative-units.ts`
@@ -502,6 +550,73 @@ Smoke URLs:
 - `supabase/migrations/20260815152000_protect_issuer_card_attempt_leases.sql`:
   prevents a different worker from overwriting an unexpired managed-card lease
   while preserving same-worker renewal and expired-lease recovery.
+- `supabase/migrations/20260818130000_enable_five_tourist_runner_claims.sql`:
+  mirrors the backend shared-pool claim expansion for the five tourist
+  submission products while preserving per-country and global limits.
+- `supabase/migrations/20260818140000_application_document_review_integrity.sql`:
+  mirrors the backend applicant-document review trigger and resets legacy
+  reviewed statuses so only a fresh authorized staff review can approve them.
+- `supabase/migrations/20260823035450_uae_tourist_document_contract.sql`:
+  mirrors the backend UAE transaction-783 document checklist reconciliation;
+  keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0162_uae_tourist_document_contract.sql`.
+- `supabase/migrations/20260823134500_runner_needs_human_settlement.sql`:
+  mirrors the backend exact-owner runner settlement repair; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0165_runner_needs_human_settlement.sql`.
+- `supabase/migrations/20260823134600_kr_e_arrival_transport_visibility.sql`:
+  mirrors the backend Korea transport-field visibility repair; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0166_kr_e_arrival_transport_visibility.sql`.
+- `supabase/migrations/20260823134811_database_function_execution_baseline.sql`:
+  mirrors the backend legacy-function namespace and execution-privilege
+  baseline; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0167_database_function_execution_baseline.sql`.
+- `supabase/migrations/20260823140456_core_rls_initplan.sql`: mirrors the
+  backend core ownership-policy init-plan optimization; keep it byte-identical
+  to `viza-be/agent-backend/drizzle/0168_core_rls_initplan.sql`.
+- `supabase/migrations/20260823143810_chat_rls_initplan.sql`: mirrors the
+  backend chat and Travel AI ownership-policy init-plan optimization; keep it
+  byte-identical to `viza-be/agent-backend/drizzle/0170_chat_rls_initplan.sql`.
+- `supabase/migrations/20260823152021_user_packages_rls_initplan.sql`: mirrors
+  the backend user-package ownership-policy init-plan optimization; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0171_user_packages_rls_initplan.sql`.
+- `supabase/migrations/20260823154730_notification_signature_rls_initplan.sql`:
+  mirrors the backend notification/signature ownership-policy init-plan
+  optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0173_notification_signature_rls_initplan.sql`.
+- `supabase/migrations/20260824020344_audit_log_rls_initplan.sql`: mirrors the
+  backend credential and PII audit-log ownership
+  policy init-plan optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0177_audit_log_rls_initplan.sql`.
+- `supabase/migrations/20260824023800_account_action_log_rls_initplan.sql`:
+  mirrors the backend two-path account-action audit-log policy init-plan
+  optimization and its same-transaction policy-OID/relation-ACL preservation
+  checks; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0178_account_action_log_rls_initplan.sql`.
+- `supabase/migrations/20260824032000_consent_event_rls_initplan.sql`:
+  mirrors the production-catalog-reconciled two-path legal-consent policy
+  init-plan optimization and its same-transaction policy-OID/relation-ACL
+  preservation checks; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0180_consent_event_rls_initplan.sql`.
+- `supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql`:
+  mirrors the backend single-path applicant secret, notification preference,
+  and staff chat thread policy optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0181_applicant_single_path_rls_initplan.sql`.
+- `supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql`:
+  mirrors the backend two-hop supporting-document ownership SELECT-policy
+  optimization; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0182_supporting_doc_submission_rls_initplan.sql`.
+- `supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql`:
+  mirrors the backend notification-preferences duplicate-policy removal and
+  its same-transaction surviving-policy/ACL/RLS preservation checks; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql`.
+- `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
+  mirrors the backend shared-pool result-status expansion; keep it
+  byte-identical to
+  `viza-be/agent-backend/drizzle/0175_expand_runner_result_statuses.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`

@@ -2,6 +2,7 @@ import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { buildReusableAnswerPatch, type UniversalProfileAnswerRecord } from "@/lib/universal-profile-fields";
 import { omitSyntheticQaValues } from "@/lib/applications/qa-safety";
+import type { VisaFormFieldOption, VisaFormFieldRow } from "@/types/visa-form-fields";
 
 interface CountryRecord {
   alpha2: string;
@@ -156,6 +157,82 @@ function normalizeCountryAlpha3(value: string | null | undefined) {
   return match?.alpha3 ?? normalized;
 }
 
+function normalizedOptionToken(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLocaleLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
+}
+
+function optionAliases(option: VisaFormFieldOption): string[] {
+  if (typeof option === "string") return [option];
+  return [
+    option.value,
+    option.text,
+    option.label_zh,
+    option.label_en,
+    option.official_label,
+    option.code,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+function isCountryOptionField(field: VisaFormFieldRow): boolean {
+  return /country|nationality|citizenship/i.test(field.fieldName);
+}
+
+function countryOptionTokens(value: string): Set<string> {
+  const normalized = normalizedOptionToken(value);
+  const country = (countries.all as CountryRecord[]).find((candidate) => {
+    if (candidate.status === "deleted") return false;
+    return [candidate.alpha2, candidate.alpha3, candidate.name]
+      .some((alias) => normalizedOptionToken(alias) === normalized);
+  });
+  return new Set(country
+    ? [country.alpha2, country.alpha3, country.name].map(normalizedOptionToken)
+    : [normalized]);
+}
+
+export function canonicalizeSchemaOptionValue(
+  field: VisaFormFieldRow,
+  rawValue: string | null | undefined,
+): string | null {
+  const value = clean(rawValue);
+  if (!value || !field.options?.length) return null;
+  const normalized = normalizedOptionToken(value);
+  const countryTokens = isCountryOptionField(field) ? countryOptionTokens(value) : null;
+  const matches = field.options.filter((option) => {
+    const aliases = optionAliases(option);
+    if (aliases.some((alias) => normalizedOptionToken(alias) === normalized)) return true;
+    if (!countryTokens) return false;
+    return aliases.some((alias) => {
+      const aliasTokens = countryOptionTokens(alias);
+      return [...countryTokens].some((token) => aliasTokens.has(token));
+    });
+  });
+  if (matches.length !== 1) return null;
+  return typeof matches[0] === "string" ? matches[0] : matches[0].value;
+}
+
+export function normalizeUniversalProfilePatchForSchema(
+  patch: Record<string, string>,
+  fields: VisaFormFieldRow[],
+): Record<string, string> {
+  const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
+  const normalized: Record<string, string> = {};
+  for (const [fieldName, value] of Object.entries(patch)) {
+    const field = fieldsByName.get(fieldName);
+    if (!field?.options?.length) {
+      normalized[fieldName] = value;
+      continue;
+    }
+    const canonical = canonicalizeSchemaOptionValue(field, value);
+    if (canonical) normalized[fieldName] = canonical;
+  }
+  return normalized;
+}
+
 function profileBirthCountry(profile: UniversalProfileSnapshot) {
   const legacyBirthplace = splitLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
   return profile.birth_country || legacyBirthplace.country;
@@ -286,7 +363,14 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   setAnswer(out, ["date_of_birth", "dob", "birth_date", "birthday"], profile.date_of_birth);
   setBilingualAnswerFromParts(
     out,
-    ["place_of_birth", "city_of_birth", "birth_city", "place_of_birth_city", "birth_place"],
+    [
+      "place_of_birth",
+      "city_of_birth",
+      "birth_city",
+      "birth_town_city",
+      "place_of_birth_city",
+      "birth_place",
+    ],
     profile.birth_city || legacyBirthplace.city || profile.place_of_birth,
     profile.birth_city_zh || legacyBirthplaceZh.city || profile.place_of_birth_zh,
     profile.birth_city_en || legacyBirthplace.city || profile.place_of_birth_en,
@@ -308,19 +392,28 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       "nationality_country",
       "country_of_nationality",
       "current_nationality",
+      "country_of_citizenship",
     ],
     profile.nationality,
   );
   setBilingualAnswerFromParts(
     out,
-    ["occupation", "current_occupation", "primary_occupation", "current_profession"],
+    ["occupation", "profession", "current_occupation", "primary_occupation", "current_profession"],
     profile.occupation,
     profile.occupation_zh,
     profile.occupation_en,
   );
   setBilingualAnswerFromParts(
     out,
-    ["address", "home_address", "residential_address", "home_address_line1"],
+    [
+      "address",
+      "home_address",
+      "residence_address",
+      "residential_address",
+      "residential_address_outside_uae",
+      "home_address_line1",
+      "present_house_street",
+    ],
     profile.address,
     profile.address_zh,
     profile.address_en,
@@ -334,6 +427,9 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       "home_country",
       "home_address_country",
       "residential_address_country",
+      "present_country",
+      "current_residence_country",
+      "mailing_country",
     ],
     profile.residence_country || profile.country_of_residence || profile.home_country,
   );
@@ -342,12 +438,6 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
     [
       "city_state_of_residence",
       "residence_city_state",
-      "residence_state",
-      "residence_province",
-      "home_address_state",
-      "home_address_city",
-      "residential_address_state",
-      "residential_address_city",
     ],
     profile.residence_state ||
       profile.residence_province_or_state ||
@@ -365,9 +455,47 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       profile.home_address_state_en ||
       profile.home_address_city_en,
   );
+  setBilingualAnswerFromParts(
+    out,
+    [
+      "residence_state",
+      "residence_province",
+      "home_address_state",
+      "residential_address_state",
+      "present_state_province_district",
+    ],
+    profile.residence_state ||
+      profile.residence_province_or_state ||
+      profile.home_address_state,
+    profile.residence_state_zh ||
+      profile.residence_province_or_state_zh ||
+      profile.home_address_state_zh,
+    profile.residence_state_en ||
+      profile.residence_province_or_state_en ||
+      profile.home_address_state_en,
+  );
+  setBilingualAnswerFromParts(
+    out,
+    [
+      "home_address_city",
+      "residential_address_city",
+      "present_village_town_city",
+      "mailing_city",
+    ],
+    profile.residence_city || profile.home_address_city,
+    profile.residence_city_zh || profile.home_address_city_zh,
+    profile.residence_city_en || profile.home_address_city_en,
+  );
   setAnswer(
     out,
-    ["postcode", "post_code", "postal_code", "home_address_postcode", "residential_address_postcode"],
+    [
+      "postcode",
+      "post_code",
+      "postal_code",
+      "home_address_postcode",
+      "residential_address_postcode",
+      "present_postal_code",
+    ],
     profile.postcode || profile.postal_code || profile.home_address_postcode,
   );
   setAnswer(out, ["passport_number", "passportNumber", "travel_document_number"], profile.passport_number);
@@ -402,12 +530,13 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
       "passport_country_of_issue",
       "issued_by_country",
       "travel_document_issuing_country",
+      "travel_document_country",
     ],
     profile.passport_issuing_country,
   );
   setAnswer(
     out,
-    ["passport_place_of_issue", "passport_issuance_city", "place_of_issue"],
+    ["passport_place_of_issue", "passport_issuance_city", "passport_issue_place", "place_of_issue"],
     profile.passport_place_of_issue || profile.passport_issuance_city,
   );
   setAnswer(out, ["passport_issuing_authority"], profile.passport_issuing_authority);
@@ -423,10 +552,18 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
     ],
     profile.national_identity_number,
   );
-  setAnswer(out, ["email", "email_address"], profile.email);
+  setAnswer(out, ["email", "email_address", "visa_email"], profile.email);
   setAnswer(
     out,
-    ["phone", "phone_number", "primary_phone", "primary_phone_number", "mobile_phone", "telephone_number"],
+    [
+      "phone",
+      "phone_number",
+      "primary_phone",
+      "primary_phone_number",
+      "mobile_phone",
+      "telephone_number",
+      "phone_outside_uae",
+    ],
     profile.phone,
   );
   setAnswer(out, ["wechat", "wechat_id"], profile.wechat);

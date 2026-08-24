@@ -8,8 +8,16 @@ import {
   type ApplicationSchemaUiIssue,
 } from "@/lib/application-schema-ui-contract";
 import {
+  hasFieldSpecificExplanation,
+  isFormAssistantConfirmationField,
+} from "@/lib/form-assistant/constants";
+import { shouldUseRagVisitorIntakeFallback } from "@/lib/rag-visitor-intake-form";
+import { SEARCHABLE_VISA_DESTINATIONS } from "@/lib/visa-destinations";
+import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
+import {
   dbRowToFormField,
   type VisaFormFieldDbRow,
+  type VisaFormFieldRow,
   type WizardStep,
 } from "@/types/visa-form-fields";
 import {
@@ -80,11 +88,27 @@ function formatIssue(issue: ApplicationSchemaUiIssue) {
   ].join("\n");
 }
 
+function assistantCoverage(steps: WizardStep[]) {
+  const fields = steps.flatMap((step) => step.fields);
+  const hasHelper = (field: VisaFormFieldRow) => [
+    field.validationRules?.helper_en,
+    field.validationRules?.helper_zh,
+  ].some((value) => typeof value === "string" && value.trim());
+  return {
+    fields: fields.length,
+    confirmations: fields.filter(isFormAssistantConfirmationField).length,
+    uploads: fields.filter((field) => field.fieldType === "file").length,
+    semanticExplanations: fields.filter(hasFieldSpecificExplanation).length,
+    schemaHelpers: fields.filter(hasHelper).length,
+  };
+}
+
 async function main() {
   const visaTypeFilter = readArgument("visa-type");
   const strict = process.argv.includes("--strict");
   const json = process.argv.includes("--json");
   const summaryOnly = process.argv.includes("--summary");
+  const assistantSummary = process.argv.includes("--assistant");
   const env = readLocalEnv();
   const url = env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
@@ -114,11 +138,30 @@ async function main() {
   for (const row of rows) {
     rowsByVisaType.set(row.visa_type, [...(rowsByVisaType.get(row.visa_type) ?? []), row]);
   }
-  const reports = [...rowsByVisaType.entries()]
-    .map(([visaType, visaRows]) =>
-      compileApplicationSchemaForUi(applyRuntimeSchemaPatches(buildSteps(visaRows), visaType)).report
-    )
+  const compiledByVisaType = [...rowsByVisaType.entries()]
+    .map(([visaType, visaRows]) => {
+      const steps = applyRuntimeSchemaPatches(buildSteps(visaRows), visaType);
+      return {
+        visaType,
+        report: compileApplicationSchemaForUi(steps).report,
+        assistant: assistantCoverage(steps),
+      };
+    })
     .sort((a, b) => a.visaType.localeCompare(b.visaType));
+  const reports = compiledByVisaType.map((item) => item.report);
+  const selectableProducts = SEARCHABLE_VISA_DESTINATIONS.filter((destination) => destination.kind !== "group");
+  const catalogueCoverage = selectableProducts.map((destination) => {
+    const schemaVisaType = resolveVisaFormSchemaVisaType(destination.visaType, destination.country);
+    return {
+      ...destination,
+      schemaVisaType,
+      source: rowsByVisaType.has(schemaVisaType)
+        ? "database"
+        : shouldUseRagVisitorIntakeFallback(schemaVisaType)
+          ? "reviewed-fallback"
+          : "missing",
+    };
+  });
 
   if (json) {
     process.stdout.write(`${JSON.stringify(reports, null, 2)}\n`);
@@ -144,6 +187,22 @@ async function main() {
       `Errors: ${totals.errors}; warnings: ${totals.warnings}; guidance: ${totals.guidance}; design edge cases: ${totals.designEdgeCases}\n` +
       `Issue counts: ${Object.entries(issueCounts).sort(([a], [b]) => a.localeCompare(b)).map(([code, count]) => `${code}=${count}`).join(", ")}\n\n`,
     );
+    if (assistantSummary) {
+      const databaseProducts = catalogueCoverage.filter((product) => product.source === "database").length;
+      const fallbackProducts = catalogueCoverage.filter((product) => product.source === "reviewed-fallback").length;
+      const missingProducts = catalogueCoverage.filter((product) => product.source === "missing");
+      process.stdout.write(
+        `Assistant catalogue coverage: ${catalogueCoverage.length} selectable products across ` +
+        `${new Set(catalogueCoverage.map((product) => product.country)).size} countries; ` +
+        `database=${databaseProducts}, reviewed fallback=${fallbackProducts}, missing=${missingProducts.length}\n`,
+      );
+      if (missingProducts.length > 0) {
+        process.stdout.write(
+          `  Missing assistant schemas: ${missingProducts.map((product) => `${product.country}/${product.visaType}`).join(", ")}\n`,
+        );
+      }
+      process.stdout.write("\n");
+    }
 
     for (const report of reports) {
       const usedComponents = APPLICATION_SCHEMA_UI_COMPONENTS
@@ -155,6 +214,13 @@ async function main() {
         `${report.summary.errors} errors, ${report.summary.warnings} warnings, ` +
         `${report.summary.guidance} guidance\n  Components: ${usedComponents}\n`,
       );
+      if (assistantSummary) {
+        const coverage = compiledByVisaType.find((item) => item.visaType === report.visaType)!.assistant;
+        process.stdout.write(
+          `  Assistant: confirmations=${coverage.confirmations}, uploads=${coverage.uploads}, ` +
+          `semantic explanations=${coverage.semanticExplanations}, schema helpers=${coverage.schemaHelpers}\n`,
+        );
+      }
       if (!summaryOnly) {
         for (const issue of report.issues) process.stdout.write(`${formatIssue(issue)}\n`);
       }

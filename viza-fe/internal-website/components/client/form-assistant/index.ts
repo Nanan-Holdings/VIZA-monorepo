@@ -1,7 +1,5 @@
 export {
   FormFillingAssistant,
-  type FormAssistantFillNotice,
-  type FormAssistantFillNoticeItem,
   type FormAssistantMessage,
   type FormAssistantMissingField,
   type FormAssistantTranscription,

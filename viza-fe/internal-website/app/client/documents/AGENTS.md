@@ -73,6 +73,12 @@ application flow.
   `document_requirements`.
 - Do not mark a document approved automatically unless the rule is explicitly
   deterministic. The default upload state is `uploaded`.
+- Keep ordinary application uploads application-scoped. Promote a file to
+  Universal Profile only when the applicant explicitly selects that scope;
+  never infer promotion from a reusable document type.
+- Reuse only explicitly usable source statuses. Any application replacement or
+  reuse returns the row to `uploaded` and clears prior review, rejection,
+  reviewer, hash, and evidence metadata so stale approval cannot carry over.
 - Do not put full application status timelines here; keep the embedded form
   experience focused on document completion.
 - Do not touch `viza-be/submission-service` or official portal automation.

@@ -60,7 +60,11 @@ export type ApplicationCompletenessMissingDocument = {
 };
 
 export type ApplicationCompletenessResult = {
+  /** This result covers applicant answers and collected files only, not legal consent, official identity sessions, CAPTCHA, or payment readiness. */
+  completionScope: "applicant_intake";
   complete: boolean;
+  questionnaireComplete: boolean;
+  documentCollectionComplete: boolean;
   missingInfoCount: number;
   missingDocumentCount: number;
   missingInfo: ApplicationCompletenessMissingField[];
@@ -103,6 +107,23 @@ function hasAnswerValue(value: unknown): boolean {
   return text.length > 0 && text !== "[]" && text !== "{}";
 }
 
+function hasCompleteFieldAnswer(field: VisaFormFieldRow, answers: Record<string, string>): boolean {
+  const value = answers[field.fieldName];
+  const rules = field.validationRules as {
+    must_equal?: unknown;
+    mustEqual?: unknown;
+    mustBeTrue?: unknown;
+  } | null;
+  if (field.fieldType === "checkbox" && (field.required || rules?.mustBeTrue === true)) {
+    return ["true", "yes", "1", "on"].includes(normalizeBoolean(value));
+  }
+  const expected = rules?.must_equal ?? rules?.mustEqual;
+  if (typeof expected === "string" && expected.trim()) {
+    return normalizeBoolean(value) === expected.trim().toLowerCase();
+  }
+  return hasAnswerValue(value);
+}
+
 function hasCjk(value: unknown): boolean {
   return /\p{Script=Han}/u.test(normalizeText(value));
 }
@@ -123,7 +144,17 @@ function fieldRequiredForAnswers(
   answers: Record<string, string>,
 ): boolean {
   if (isRequiredUnlessSatisfied(field, answers)) return false;
-  return Boolean(field.required || isRequiredWhenSatisfied(field, answers));
+  const rules = field.validationRules as {
+    must_equal?: unknown;
+    mustEqual?: unknown;
+    mustBeTrue?: unknown;
+  } | null;
+  return Boolean(
+    field.required ||
+    isRequiredWhenSatisfied(field, answers) ||
+    rules?.mustBeTrue === true ||
+    typeof (rules?.must_equal ?? rules?.mustEqual) === "string"
+  );
 }
 
 function stepLabelZh(stepName: string | null | undefined): string {
@@ -167,9 +198,12 @@ function normalizeRequirement(
   row: ApplicationCompletenessDocumentRequirement,
 ): Required<Pick<ApplicationCompletenessMissingDocument, "requirementKey" | "documentType" | "labelZh" | "labelEn" | "description" | "required">> & {
   sortOrder: number;
+  metadata: Record<string, unknown> | null;
 } {
   const requirementKey = normalizeText(row.requirement_key ?? row.key);
-  const documentType = normalizeText(row.document_type ?? row.documentType);
+  const documentType = normalizeText(
+    row.document_type ?? row.documentType ?? row.metadata?.document_type,
+  );
   const labelZh = normalizeText(row.label_zh ?? row.labelZh) || requirementKey || documentType;
   const labelEn = normalizeText(row.label_en ?? row.labelEn) || labelZh;
   return {
@@ -180,6 +214,7 @@ function normalizeRequirement(
     description: normalizeText(row.description) || null,
     required: Boolean(row.required),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    metadata: row.metadata ?? null,
   };
 }
 
@@ -247,6 +282,15 @@ function requirementRequiredForAnswers(
   visaType?: string | null,
 ): boolean {
   if (requirement.required) return true;
+  const conditionField = normalizeText(requirement.metadata?.condition_field);
+  const conditionValues = Array.isArray(requirement.metadata?.condition_values)
+    ? requirement.metadata.condition_values
+        .map((value) => normalizeBoolean(value))
+        .filter(Boolean)
+    : [];
+  if (conditionField && conditionValues.length > 0) {
+    return conditionValues.includes(normalizeBoolean(answers[conditionField]));
+  }
   if (!isTaiwanEntryPermit(country, visaType)) return false;
 
   const key = requirement.requirementKey;
@@ -371,11 +415,31 @@ function hasReadyDocument(
     const status = normalizeBoolean(document.status);
     const matches =
       requirementKey === requirement.requirementKey ||
-      documentType === requirement.documentType;
+      documentType === requirement.documentType ||
+      documentFamiliesOverlap(documentType, requirement.documentType);
     if (!matches) return false;
     if (INCOMPLETE_DOCUMENT_STATUSES.has(status)) return false;
     return READY_DOCUMENT_STATUSES.has(status) || status.length > 0;
   });
+}
+
+const DOCUMENT_TYPE_FAMILIES: ReadonlyArray<ReadonlySet<string>> = [
+  new Set(["passport", "passport_copy", "passport_bio_page", "passport_scan"]),
+  new Set(["photo", "personal_photo", "applicant_photo", "portrait_photo"]),
+  new Set(["bank_statement", "six_month_bank_statement", "proof_of_funds"]),
+  new Set([
+    "travel_insurance",
+    "health_insurance",
+    "uae_health_insurance",
+    "uae_health_coverage_evidence",
+  ]),
+  new Set(["return_ticket", "return_or_onward_ticket", "flight_booking"]),
+  new Set(["national_identity_card", "national_identity_copy", "identity_card", "id_card"]),
+];
+
+function documentFamiliesOverlap(left: string, right: string): boolean {
+  if (!left || !right) return false;
+  return DOCUMENT_TYPE_FAMILIES.some((family) => family.has(left) && family.has(right));
 }
 
 export function computeApplicationCompleteness(input: {
@@ -393,7 +457,7 @@ export function computeApplicationCompleteness(input: {
       if (!evaluateShowIf(field, input.answers, step.fields)) continue;
       if (shouldSkipTaiwanStudentJobTitle(field, input.answers, input.country, input.visaType)) continue;
       if (!fieldRequiredForAnswers(field, input.answers)) continue;
-      if (hasAnswerValue(input.answers[field.fieldName])) continue;
+      if (hasCompleteFieldAnswer(field, input.answers)) continue;
 
       missingInfo.push({
         fieldName: field.fieldName,
@@ -431,10 +495,15 @@ export function computeApplicationCompleteness(input: {
   const missingDocuments = normalizedRequirements
     .filter((requirement) => requirementRequiredForAnswers(requirement, input.answers, input.country, input.visaType))
     .filter((requirement) => !hasReadyDocument(requirement, input.documents))
-    .map(({ sortOrder: _sortOrder, ...requirement }) => requirement);
+    .map(({ sortOrder: _sortOrder, metadata: _metadata, ...requirement }) => requirement);
 
+  const questionnaireComplete = missingInfo.length === 0;
+  const documentCollectionComplete = missingDocuments.length === 0;
   return {
-    complete: missingInfo.length === 0 && missingDocuments.length === 0,
+    completionScope: "applicant_intake",
+    complete: questionnaireComplete && documentCollectionComplete,
+    questionnaireComplete,
+    documentCollectionComplete,
     missingInfoCount: missingInfo.length,
     missingDocumentCount: missingDocuments.length,
     missingInfo,
@@ -452,7 +521,12 @@ export async function loadApplicationCompleteness(input: {
     application.country,
   );
 
-  const [{ data: fieldRows }, { data: answerRows }, { data: documentRows }] = await Promise.all([
+  const [
+    { data: fieldRows, error: fieldRowsError },
+    { data: answerRows, error: answerRowsError },
+    { data: documentRows, error: documentRowsError },
+    { data: universalDocumentRows, error: universalDocumentRowsError },
+  ] = await Promise.all([
     admin
       .from("visa_form_fields")
       .select("*")
@@ -467,13 +541,29 @@ export async function loadApplicationCompleteness(input: {
       .from("application_documents")
       .select("requirement_key, document_type, status")
       .eq("application_id", application.id),
+    application.applicant_id
+      ? admin
+          .from("universal_profile_documents")
+          .select("document_type, status")
+          .eq("applicant_id", application.applicant_id)
+          .neq("status", "missing")
+      : Promise.resolve({ data: [], error: null }),
   ]);
+  if (fieldRowsError) throw new Error(`Visa form schema lookup failed: ${fieldRowsError.message}`);
+  if (!fieldRows || fieldRows.length === 0) {
+    throw new Error(`Visa form schema is unavailable for ${schemaVisaType}`);
+  }
+  if (answerRowsError) throw new Error(`Application answer lookup failed: ${answerRowsError.message}`);
+  if (documentRowsError) throw new Error(`Application document lookup failed: ${documentRowsError.message}`);
+  if (universalDocumentRowsError) {
+    throw new Error(`Universal document lookup failed: ${universalDocumentRowsError.message}`);
+  }
 
   let requirements: ApplicationCompletenessDocumentRequirement[] = [];
   if (application.visa_package_id) {
     const { data } = await admin
       .from("document_requirements")
-      .select("requirement_key, document_type, label_en, label_zh, description, required, sort_order, metadata")
+      .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
       .eq("visa_package_id", application.visa_package_id)
       .order("sort_order", { ascending: true });
     requirements = (data ?? []) as ApplicationCompletenessDocumentRequirement[];
@@ -481,7 +571,7 @@ export async function loadApplicationCompleteness(input: {
   if (requirements.length === 0) {
     const { data } = await admin
       .from("document_requirements")
-      .select("requirement_key, document_type, label_en, label_zh, description, required, sort_order, metadata")
+      .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
       .eq("country", application.country)
       .eq("visa_type", schemaVisaType)
       .order("sort_order", { ascending: true });
@@ -510,7 +600,10 @@ export async function loadApplicationCompleteness(input: {
     steps: Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber),
     answers,
     requirements,
-    documents: (documentRows ?? []) as ApplicationCompletenessDocument[],
+    documents: [
+      ...(documentRows ?? []),
+      ...(universalDocumentRows ?? []),
+    ] as ApplicationCompletenessDocument[],
     country: application.country,
     visaType: schemaVisaType,
   });

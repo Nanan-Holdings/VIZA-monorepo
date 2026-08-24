@@ -755,8 +755,8 @@
       "title": "Form filling assistant",
       "description": "I check what is already complete and ask one question at a time. Answer here by text or voice.",
       "badge": "AI assistant",
-      "progressLabel": "Application completion",
-      "progress": "{completed} of {total} fields complete",
+      "progressLabel": "Application readiness",
+      "progress": "{completed} of {total} required items complete",
       "conversationLabel": "Form filling assistant conversation",
       "scrollToLatest": "Jump to latest message",
       "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
@@ -765,12 +765,6 @@
         "title": "Details still needed",
         "required": "Required",
         "optional": "Optional"
-      },
-      "filledNotice": {
-        "message": "Filled {label}: {value}",
-        "undo": "Undo",
-        "undoing": "Undoing...",
-        "undoFailed": "This could not be undone because the answer may have changed."
       },
       "validation": {
         "title": "Answer check",
@@ -803,6 +797,7 @@
         "emptyTranscript": "No words were detected. Please try again or type your answer.",
         "transcriptionFailed": "The recording could not be transcribed. Please try again or type your answer.",
         "sendFailed": "Your message was not sent. Your text has been kept so you can try again.",
+        "confirmationFailed": "This confirmation was not saved. Please try the checkbox again.",
         "providersUnavailable": "The AI service is temporarily unavailable. Your answer was not saved; your text has been kept so you can retry or enter it directly in the form.",
         "reviewFailed": "We couldn't check your answers or open final review. Please try again."
       },
@@ -1460,6 +1455,7 @@
       "accommodationAddress": "Accommodation address",
       "reviewMessage": "Please review your details carefully before submitting.",
       "missingInformation": "Missing information",
+      "optionalInformation": "Optional information not provided",
       "notProvided": "Not provided",
       "confirmAndSubmit": "Confirm & Submit",
       "continueToTeam": "Continue to team",

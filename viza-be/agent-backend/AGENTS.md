@@ -91,7 +91,26 @@ explicitly reintroduces another provider.
   `scripts/seed-ae-tourist-visa-form-fields.ts`. Their canonical products are
   intentionally narrower than legacy generic route aliases; uploads belong in
   `application_documents`, never file-path answers.
+- `drizzle/0148_five_tourist_country_packages_and_documents.sql` registers the
+  five tourist packages and their Document Center slots;
+  `drizzle/0162_uae_tourist_document_contract.sql` reconciles UAE transaction
+  783 aliases and audited bank-statement/insurance/conditional-document
+  metadata without turning runner-only content review into form questions.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
+  `src/tests/notification-signature-rls-initplan-*.test.ts` proves the audited
+  notification/signature SELECT-policy optimization preserves policy identity
+  and cross-user/service-role visibility in a gated local PostgreSQL transaction.
+  `src/tests/applicant-single-path-rls-initplan-*.test.ts` proves the applicant
+  secret, notification preference, and staff chat thread InitPlan rewrite keeps
+  policy identity, ACL/RLS contracts, cross-user denial, and service visibility.
+  `src/tests/supporting-doc-submission-rls-initplan-*.test.ts` proves the
+  supporting-document SELECT-policy InitPlan rewrite preserves its two-hop
+  applicant ownership, policy/relation identity, ACL/RLS state, anonymous
+  denial, and service-role visibility.
+  `src/tests/notification-preferences-policy-dedupe-*.test.ts` proves the
+  redundant notification-preferences SELECT policy can be removed while the
+  identical ALL-policy identity, ACL/RLS state, applicant isolation, own-row
+  writes, anonymous denial, and service-role visibility remain unchanged.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for

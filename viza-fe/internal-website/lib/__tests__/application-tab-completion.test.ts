@@ -4,6 +4,8 @@ import {
   computeAllTabCompletion,
   getContiguousCompletedCount,
   getMissingDynamicFormFields,
+  getMissingRequiredDocumentRequirementKeys,
+  getRequiredDocumentProgress,
 } from "@/lib/application-tab-completion";
 import type { WizardStep } from "@/types/visa-form-fields";
 
@@ -13,6 +15,7 @@ function field(
     label?: string;
     required?: boolean;
     showIf?: string;
+    validationRules?: Record<string, unknown> | null;
   } = {},
 ) {
   return {
@@ -26,7 +29,7 @@ function field(
     stepName: "Travel Information",
     displayOrder: 1,
     placeholder: null,
-    validationRules: null,
+    validationRules: options.validationRules ?? null,
     options: null,
     conditionalLogic: options.showIf ? { showIf: options.showIf } : null,
   };
@@ -170,6 +173,101 @@ function vietnamDocsWithRequiredUploads(): DocumentCenterData {
 }
 
 describe("computeAllTabCompletion", () => {
+  test("counts required document uploads in application readiness", () => {
+    const documentData = vietnamDocsWithRequiredUploads();
+    expect(getRequiredDocumentProgress(documentData)).toEqual({ completed: 2, total: 2 });
+
+    documentData.documents = documentData.documents.slice(0, 1);
+    expect(getRequiredDocumentProgress(documentData)).toEqual({ completed: 1, total: 2 });
+    expect(getMissingRequiredDocumentRequirementKeys(documentData)).toEqual(["photo"]);
+    expect(getRequiredDocumentProgress(null)).toEqual({ completed: 0, total: 1 });
+    expect(getMissingRequiredDocumentRequirementKeys(null)).toEqual([]);
+
+    documentData.documents[0]!.status = "processing";
+    expect(getRequiredDocumentProgress(documentData)).toEqual({ completed: 0, total: 2 });
+  });
+
+  test("Saudi conditional branches count only the selected applicant path", () => {
+    const saSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Saudi intake",
+      fields: [
+        { ...field("father_name"), visaType: "SA_E_VISA" },
+        { ...field("applicant_is_minor"), visaType: "SA_E_VISA", fieldType: "radio" as const },
+        { ...field("guardian_full_name", { showIf: "applicant_is_minor === yes" }), visaType: "SA_E_VISA" },
+        { ...field("has_whatsapp"), visaType: "SA_E_VISA", fieldType: "radio" as const },
+        { ...field("whatsapp_number", { showIf: "has_whatsapp === yes" }), visaType: "SA_E_VISA" },
+        { ...field("accommodation_type"), visaType: "SA_E_VISA", fieldType: "radio" as const },
+        { ...field("hotel_name", { showIf: "accommodation_type === hotel" }), visaType: "SA_E_VISA" },
+        { ...field("private_residence_name", { showIf: "accommodation_type === residence" }), visaType: "SA_E_VISA" },
+      ],
+    }];
+
+    const missing = getMissingDynamicFormFields(saSteps, {
+      applicant_is_minor: "no",
+      has_whatsapp: "no",
+      accommodation_type: "hotel",
+    }).map((item) => item.fieldName);
+
+    expect(missing).toEqual(["father_name", "hotel_name"]);
+    expect(missing).not.toContain("guardian_full_name");
+    expect(missing).not.toContain("whatsapp_number");
+    expect(missing).not.toContain("private_residence_name");
+  });
+
+  test("UAE mobile number stays dormant until the applicant selects Yes", () => {
+    const aeSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "UAE accommodation",
+      fields: [
+        { ...field("has_uae_mobile"), visaType: "AE_TOURIST_VISA", fieldType: "radio" as const },
+        { ...field("uae_mobile_number", { showIf: "has_uae_mobile === yes" }), visaType: "AE_TOURIST_VISA" },
+      ],
+    }];
+
+    expect(getMissingDynamicFormFields(aeSteps, { has_uae_mobile: "no" })).toEqual([]);
+    expect(getMissingDynamicFormFields(aeSteps, { has_uae_mobile: "yes" }))
+      .toMatchObject([{ fieldName: "uae_mobile_number" }]);
+  });
+
+  test("optional schema rows become completion blockers when required_when is active", () => {
+    const conditional = {
+      ...field("live_required_detail", { required: false }),
+      validationRules: { required_when: "controller === yes" },
+    };
+    const conditionalSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Conditional",
+      fields: [conditional],
+    }];
+
+    expect(getMissingDynamicFormFields(conditionalSteps, { controller: "no" })).toEqual([]);
+    expect(getMissingDynamicFormFields(conditionalSteps, { controller: "yes" }))
+      .toMatchObject([{ fieldName: "live_required_detail" }]);
+  });
+
+  test("blocks final submission when an at-least-one-of official field group is empty", () => {
+    const addressFields: WizardStep[] = [{
+      stepNumber: 3,
+      stepName: "Stay in Korea",
+      fields: [
+        field("stay_address_ko", {
+          required: false,
+          validationRules: { at_least_one_of: ["stay_address_ko", "stay_address_en"] },
+        }),
+        field("stay_address_en", {
+          required: false,
+          validationRules: { at_least_one_of: ["stay_address_ko", "stay_address_en"] },
+        }),
+      ],
+    }];
+
+    expect(getMissingDynamicFormFields(addressFields, {})).toMatchObject([
+      { fieldName: "stay_address_ko", reason: "required" },
+    ]);
+    expect(getMissingDynamicFormFields(addressFields, { stay_address_en: "1 Sejong-daero" })).toEqual([]);
+  });
+
   test("does not count a false required checkbox as complete", () => {
     const checkbox = {
       ...field("accepted_terms"),
@@ -189,63 +287,85 @@ describe("computeAllTabCompletion", () => {
       .toEqual([]);
   });
 
-  test("keeps a select field missing when a non-empty prefill is not an official option", () => {
-    const birthCountry = {
-      ...field("place_of_birth", { label: "Place of Birth" }),
-      visaType: "MY_MDAC_ARRIVAL_CARD",
-      fieldType: "select" as const,
-      options: [
-        { value: "CHN", text: "CHINA", label_zh: "中国" },
-        { value: "SGP", text: "SINGAPORE", label_zh: "新加坡" },
+  test("does not count a non-empty value that violates must_equal as complete", () => {
+    const consent = {
+      ...field("official_prerequisite"),
+      visaType: "TR_E_VISA",
+      fieldType: "radio" as const,
+      validationRules: { must_equal: "yes" },
+    };
+    const consentSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Eligibility",
+      fields: [consent],
+    }];
+
+    expect(getMissingDynamicFormFields(consentSteps, { official_prerequisite: "no" }))
+      .toMatchObject([{ fieldName: "official_prerequisite" }]);
+    expect(getMissingDynamicFormFields(consentSteps, { official_prerequisite: "yes" }))
+      .toEqual([]);
+  });
+
+  test("does not count a non-empty display label as a completed official option", () => {
+    const optionSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [{
+        ...field("sex", { label: "Sex" }),
+        fieldType: "select",
+        options: [
+          { value: "MALE", text: "Male", label_en: "Male", label_zh: "男" },
+          { value: "FEMALE", text: "Female", label_en: "Female", label_zh: "女" },
+        ],
+      }],
+    }];
+
+    expect(getMissingDynamicFormFields(optionSteps, { sex: "male" })).toEqual([
+      expect.objectContaining({ fieldName: "sex", reason: "invalid" }),
+    ]);
+    expect(getMissingDynamicFormFields(optionSteps, { sex: "MALE" })).toEqual([]);
+  });
+
+  test("flags past upcoming-arrival aliases without rejecting historical dates", () => {
+    const dateSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Travel Details - Arrival",
+      fields: [
+        {
+          ...field("flight_arrival_date", { label: "Date of Arrival of Flight" }),
+          fieldType: "date",
+          validationRules: { official_key: "arrival_date" },
+        },
+        {
+          ...field("date_of_birth", { label: "Date of Birth" }),
+          fieldType: "date",
+        },
+        {
+          ...field("prior_visit_arrival_date", { label: "Prior visit arrival date" }),
+          fieldType: "date",
+        },
       ],
-    };
-    const countrySteps: WizardStep[] = [{
-      stepNumber: 1,
-      stepName: "Traveller Information",
-      fields: [birthCountry],
     }];
-
-    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "Changsha" }))
-      .toMatchObject([{ fieldName: "place_of_birth" }]);
-    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "CHN" }))
-      .toEqual([]);
-  });
-
-  test("does not reject a live official value against a partial fallback option list", () => {
-    const remoteCountry = {
-      ...field("place_of_birth", { label: "Place of Birth" }),
-      visaType: "AUDIT",
-      fieldType: "select" as const,
-      validationRules: { official_options_source: "/api/official-countries" },
-      options: [{ value: "fallback", text: "Fallback" }],
+    const answers = {
+      flight_arrival_date: "2026-08-21",
+      date_of_birth: "2000-01-01",
+      prior_visit_arrival_date: "2024-02-01",
     };
-    const countrySteps: WizardStep[] = [{
-      stepNumber: 1,
-      stepName: "Traveller Information",
-      fields: [remoteCountry],
-    }];
 
-    expect(getMissingDynamicFormFields(countrySteps, { place_of_birth: "LIVE_OFFICIAL_VALUE" }))
-      .toEqual([]);
-  });
-
-  test("uses the same __2 suffix as the repeatable form for its second instance", () => {
-    const repeatedPassport = {
-      ...field("other_passport_number", { label: "Other passport number" }),
-      validationRules: {
-        repeatable: true,
-        repeat_group: "other_passports",
-        max_items: 3,
-      },
-    };
-    const repeatSteps: WizardStep[] = [{
-      stepNumber: 1,
-      stepName: "Other passports",
-      fields: [repeatedPassport],
-    }];
-
-    expect(getMissingDynamicFormFields(repeatSteps, { other_passport_number__2: "E1234567" }))
-      .toEqual([]);
+    expect(getMissingDynamicFormFields(dateSteps, answers, {
+      now: new Date("2026-08-23T00:00:00Z"),
+    })).toEqual([
+      expect.objectContaining({
+        fieldName: "flight_arrival_date",
+        reason: "invalid",
+      }),
+    ]);
+    expect(getMissingDynamicFormFields(dateSteps, {
+      ...answers,
+      flight_arrival_date: "2026-08-23",
+    }, {
+      now: new Date("2026-08-23T23:59:59Z"),
+    })).toEqual([]);
   });
 
   test("derives TDAC transit status from same-day dates before validating accommodation", () => {

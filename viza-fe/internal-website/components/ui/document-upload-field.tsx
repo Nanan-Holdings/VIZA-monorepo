@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
-import { FileText, ImageIcon, CircleNotch as Loader2, Trash as Trash2, CloudArrowUp as UploadCloud } from "@phosphor-icons/react";
+import { ImageIcon, CircleNotch as Loader2, Trash as Trash2, CloudArrowUp as UploadCloud } from "@phosphor-icons/react";
 
 import { ActionButton } from "@/components/ui/action-button";
 import { cn } from "@/lib/utils";
@@ -150,10 +150,7 @@ export interface DocumentUploadFieldProps {
   action?: { label: ReactNode; onClick: () => void };
   /** Accessible label for the destructive remove control in the file bar. */
   removeLabel: string;
-  /**
-   * Invoked by the remove (bin) control. When omitted the control re-opens the
-   * file picker so the attached file can be replaced.
-   */
+  /** Invoked by the remove (bin) control. The control is hidden when omitted. */
   onRemove?: () => void;
   accept?: string;
   disabled?: boolean;
@@ -350,7 +347,6 @@ export function DocumentUploadField({
     mimeType,
     kind: file?.kind,
   });
-  const iconKind = previewKind === "image" ? "image" : "document";
   const fileMeta = file?.meta ?? (previewSource ? formatFileSize(previewSource.size) : null);
 
   const selectFile = (selected: File) => {
@@ -406,7 +402,7 @@ export function DocumentUploadField({
             onClick={openPicker}
             onKeyDown={handleKeyDown}
             className={cn(
-              "flex flex-1 items-center justify-center bg-[#f6f6f6] p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-100",
+              "flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#f6f6f6] p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-100",
               interactive ? "cursor-pointer hover:bg-[#f0f0f0]" : "cursor-default"
             )}
           >
@@ -416,45 +412,33 @@ export function DocumentUploadField({
               previewUrl={previewUrl}
             />
           </div>
-          <div className="flex items-center gap-2 border-t border-[#e5e7eb] bg-white px-3 py-2.5">
-            {iconKind === "image" ? (
-              <ImageIcon
-                className="h-[15px] w-[15px] shrink-0 text-[#71717a]"
-                aria-hidden="true"
-              />
-            ) : (
-              <FileText
-                className="h-[15px] w-[15px] shrink-0 text-[#71717a]"
-                aria-hidden="true"
-              />
-            )}
+          <div className="flex shrink-0 items-center gap-2 border-t border-[#e5e7eb] bg-white px-3 py-2.5">
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-[#3d3d3d]">
               {displayName}
             </span>
             {fileMeta ? (
               <span className="shrink-0 text-xs text-black/40">{fileMeta}</span>
             ) : null}
-            <button
-              type="button"
-              onClick={
-                onRemove
-                  ? () => {
-                      setSelectedFile(null);
-                      onRemove();
-                    }
-                  : openPicker
-              }
-              disabled={!interactive}
-              aria-label={removeLabel}
-              title={removeLabel}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#EF4444] transition-colors hover:text-[#DC2626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-            </button>
+            {onRemove ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedFile(null);
+                  onRemove();
+                }}
+                disabled={!interactive}
+                aria-label={removeLabel}
+                title={removeLabel}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#EF4444] transition-colors hover:text-[#DC2626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {busy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </button>
+            ) : null}
           </div>
         </div>
       ) : (

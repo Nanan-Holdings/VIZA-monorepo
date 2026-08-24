@@ -1,3 +1,6 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { artifact } from "../artifact.js";
 import { getCountrySubmissionProvider } from "../country-submissions/index.js";
 import { loadCanonicalAnswers } from "../queue/answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "../queue/types.js";
@@ -8,14 +11,43 @@ import {
 } from "../queue/execution-context.js";
 import { writeRunnerPoolSubmissionResult } from "../result-writer.js";
 import {
+  normalizeSgacLongTermPassPortalPayload,
   normalizeSgacPortalPayload,
+  runSgacLongTermPassPortalSubmission,
   runSgacPortalSubmission,
-  SGAC_OFFICIAL_PORTAL_URL,
   SgacPortalError,
   SgacPortalValidationError,
 } from "../sgac/index.js";
-import type { CountrySubmissionApplication } from "../country-submissions/types.js";
+import type { CountrySubmissionApplication, SubmissionPayload } from "../country-submissions/types.js";
 import type { SgArrivalCardSubmissionResult } from "../submission-result.js";
+
+async function persistFiles(
+  jobId: string,
+  prefix: "screenshots" | "pdfs",
+  paths: string[],
+  contentType: "image/png" | "application/pdf",
+): Promise<string[]> {
+  const stored: string[] = [];
+  for (let index = 0; index < paths.length; index += 1) {
+    const filePath = paths[index];
+    try {
+      const bytes = await fs.readFile(filePath);
+      const extension = contentType === "image/png" ? "png" : "pdf";
+      const safeBase = path.basename(filePath).replace(/[^a-zA-Z0-9._-]+/gu, "-");
+      const ref = await artifact.put(
+        jobId,
+        `sgac/${prefix}/${String(index + 1).padStart(2, "0")}-${safeBase || `artifact.${extension}`}`,
+        bytes,
+        { contentType, upsert: true },
+      );
+      stored.push(ref.path);
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      console.warn(`[runner-pool] sgac/${prefix} artifact persistence failed: ${message}`);
+    }
+  }
+  return stored;
+}
 
 function fullName(answers: Record<string, string>): string | null {
   const value = answers.full_name ?? [answers.given_names, answers.surname].filter(Boolean).join(" ");
@@ -51,6 +83,40 @@ function toSgacApplication(applicationId: string, answers: Record<string, string
   };
 }
 
+/**
+ * ICA serves Long-Term Pass holders on a distinct SG Arrival Card route. Keep
+ * this payload deliberately independent of the foreign-visitor registry: that
+ * registry requires travel, passport, and contact fields that the resident
+ * route neither asks for nor accepts.
+ */
+function toSgacLongTermPassPayload(
+  applicationId: string,
+  answers: Record<string, string>,
+  idempotencyKey: string,
+): SubmissionPayload {
+  return {
+    payloadVersion: "sgac-long-term-pass-v1",
+    countryCode: "SG",
+    visaType: "SG_ARRIVAL_CARD",
+    applicationId,
+    dryRun: false,
+    idempotencyKey,
+    personal: {
+      fullName: fullName(answers),
+      dateOfBirth: answers.date_of_birth ?? null,
+      email: answers.email ?? answers.email_address ?? null,
+    },
+    trip: {
+      destinationCountry: "Singapore",
+      arrivalDate: answers.arrival_date ?? null,
+    },
+    countrySpecific: { ...answers },
+    metadata: {
+      applicantType: "long_term_pass_holder",
+    },
+  };
+}
+
 /** Cloud runner_job adapter for ICA SG Arrival Card. */
 export async function runOne(
   applicationId: string,
@@ -64,26 +130,38 @@ export async function runOne(
   );
   const poolExecutionContext = identity.executionContext;
   const answers = await loadCanonicalAnswers(applicationId);
-  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
-  if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
-
-  const sgacApplication = toSgacApplication(applicationId, answers);
-  const validation = provider.validate(sgacApplication);
-  if (!validation.ok) {
-    throw new NeedsHumanError(`sgac: missing required answers: ${validation.missingRequiredFields.join(", ")}`);
-  }
-
-  const payload = provider.mapToSubmissionPayload(sgacApplication, {
-    dryRun: false,
-    idempotencyKey: `runner-job:${identity.jobId}`,
-  });
+  const isLongTermPassHolder = answers.sgac_applicant_type?.trim().toLowerCase() === "long_term_pass_holder";
+  const payload = isLongTermPassHolder
+    ? toSgacLongTermPassPayload(applicationId, answers, `runner-job:${identity.jobId}`)
+    : (() => {
+      const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+      if (!provider) throw new NeedsHumanError("SGAC provider is not registered");
+      const sgacApplication = toSgacApplication(applicationId, answers);
+      // The registry's SGAC requirements describe ICA's foreign-visitor form.
+      const validation = provider.validate(sgacApplication);
+      if (!validation.ok) {
+        throw new NeedsHumanError(`sgac: missing required answers: ${validation.missingRequiredFields.join(", ")}`);
+      }
+      return provider.mapToSubmissionPayload(sgacApplication, {
+        dryRun: false,
+        idempotencyKey: `runner-job:${identity.jobId}`,
+      });
+    })();
   try {
-    const portal = await runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
-      headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
-      stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
-      executionContext: poolExecutionContext,
-    });
+    const portal = await (isLongTermPassHolder
+      ? runSgacLongTermPassPortalSubmission(normalizeSgacLongTermPassPortalPayload(payload), {
+          headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+          executionContext: poolExecutionContext,
+        })
+      : runSgacPortalSubmission(normalizeSgacPortalPayload(payload), {
+          headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+          executionContext: poolExecutionContext,
+        }));
     poolExecutionContext.assertOwned();
+    const screenshots = await persistFiles(identity.jobId, "screenshots", portal.screenshots, "image/png");
+    const pdfs = await persistFiles(identity.jobId, "pdfs", portal.pdfs, "application/pdf");
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
       visaType: "SG_ARRIVAL_CARD",
@@ -96,7 +174,8 @@ export async function runOne(
       referenceNumber: portal.referenceNumber ?? null,
       portalUrl: portal.portalUrl,
       portalResponseSummary: portal.portalResponseSummary,
-      artifacts: { screenshots: portal.screenshots, pdfs: portal.pdfs, logs: portal.logs },
+      confirmationPdfStoragePath: pdfs[0] ?? null,
+      artifacts: { screenshots, pdfs, logs: portal.logs, traces: [] },
     };
     poolExecutionContext.assertOwned();
     const resultStatus = portal.submitted ? "submitted" : "failed";
@@ -104,7 +183,7 @@ export async function runOne(
     if (!portal.submitted) {
       throw new NeedsHumanError("sgac: ICA runner stopped before official confirmation");
     }
-    return { outcome: "submitted_pending_pay", reachedStep: "official_confirmation", artefacts: portal.pdfs };
+    return { outcome: "submitted_pending_pay", reachedStep: "official_confirmation", artefacts: pdfs };
   } catch (error) {
     const isAbortError = error instanceof Error && error.name === "AbortError";
     if (error instanceof RunnerJobOwnershipLostError || isAbortError || poolExecutionContext.signal.aborted) {

@@ -12,6 +12,401 @@ export interface FieldExplanation {
   example: string | null;
 }
 
+export function isFormAssistantConfirmationField(field: Pick<
+  VisaFormFieldRow,
+  "fieldName" | "label" | "fieldType" | "required" | "validationRules"
+>): boolean {
+  if (field.fieldType !== "checkbox") return false;
+  if (field.validationRules?.mustBeTrue === true) return true;
+  if (!field.required) return false;
+  return /(?:acknowledg|certif|consent|declaration|privacy|signature|terms|undertaking)/i.test(field.fieldName) ||
+    /^(?:I\s+(?:acknowledge|am aware|certify|confirm|consent|declare|have read|understand)|By clicking\b)/i.test(field.label.trim());
+}
+
+type LocalizedFieldExplanation = {
+  en: FieldExplanation;
+  zh: FieldExplanation;
+};
+
+const SEMANTIC_FIELD_EXPLANATIONS: Record<string, LocalizedFieldExplanation> = {
+  origin_country: {
+    en: {
+      summary: "“Country of Origin” means the country where the journey segment you are reporting departs.",
+      sourceHint: "Use the country shown with your Airport or Seaport of Origin on your itinerary or ticket. It is not your nationality, country of birth, or permanent residence.",
+      example: "If this flight departs from Singapore, answer Singapore",
+    },
+    zh: {
+      summary: "“出发国家 / 地区”是指你本次申报的行程航段从哪个国家或地区出发。",
+      sourceHint: "请以机票或行程单上与出发机场 / 海港对应的国家为准；这不是国籍、出生国家或永久居住国家。",
+      example: "如果本次申报的航班从新加坡起飞，请回答“新加坡”",
+    },
+  },
+  transit_country: {
+    en: {
+      summary: "“Country of Transit” means the country where you will make a connection before reaching the destination for this journey segment.",
+      sourceHint: "Use the connection shown on your itinerary. Do not enter the departure or destination country unless it is genuinely the transit location.",
+      example: "A Singapore–Bangkok–Tokyo itinerary has Thailand as the transit country",
+    },
+    zh: {
+      summary: "“中转国家 / 地区”是指抵达本段行程目的地前换乘所在的国家或地区。",
+      sourceHint: "请按行程单上的中转地点填写；除非确实在那里中转，否则不要填写出发国家或目的国家。",
+      example: "新加坡—曼谷—东京的行程，中转国家是泰国",
+    },
+  },
+  destination_country: {
+    en: {
+      summary: "“Country of Destination” means the onward or final country for the journey segment being reported.",
+      sourceHint: "Use the final onward destination shown on the ticket for the transit itinerary, not your nationality or residence.",
+      example: "For Singapore–Seoul–Japan with Seoul as transit, answer Japan",
+    },
+    zh: {
+      summary: "“最终目的国家 / 地区”是指本次申报行程继续前往或最终抵达的国家或地区。",
+      sourceHint: "请按中转行程的后续机票填写，不是你的国籍或居住国家。",
+      example: "新加坡—首尔—日本且首尔为中转时，请回答“日本”",
+    },
+  },
+  visited_country_30d: {
+    en: {
+      summary: "This asks for every country where you worked, visited, or transited during the 30 days before this trip.",
+      sourceHint: "Check passport stamps and your recent itinerary. Include connection countries even when you did not leave the airport.",
+      example: "Singapore, Thailand",
+    },
+    zh: {
+      summary: "这是询问本次旅行前 30 天内你工作、访问或中转过的所有国家或地区。",
+      sourceHint: "请核对护照盖章和近期行程；即使没有离开机场，也要包括中转国家。",
+      example: "新加坡、泰国",
+    },
+  },
+  nationality: {
+    en: {
+      summary: "“Citizenship” means the nationality shown on the passport you will use for this trip.",
+      sourceHint: "Copy the nationality or citizenship from the passport biodata page; do not use your country of residence unless it is also your nationality.",
+      example: "China",
+    },
+    zh: {
+      summary: "“公民身份”是指本次旅行所用护照上显示的国籍。",
+      sourceHint: "请按护照资料页的国籍 / 公民身份填写；除非两者相同，否则不要填写居住国家。",
+      example: "中国",
+    },
+  },
+  country_of_birth: {
+    en: {
+      summary: "“Country of Birth” means the country or territory where you were born.",
+      sourceHint: "Use your passport or birth record. This is separate from your current citizenship and residence.",
+      example: "China",
+    },
+    zh: {
+      summary: "“出生国家 / 地区”是指你出生时所在的国家或地区。",
+      sourceHint: "请以护照或出生记录为准；这与当前国籍和居住国家是不同信息。",
+      example: "中国",
+    },
+  },
+  country_of_residence: {
+    en: {
+      summary: "“Permanent Country of Residence” means the country where you normally live outside this trip.",
+      sourceHint: "Use your usual home address or residence record, not your temporary accommodation at the destination.",
+      example: "Singapore",
+    },
+    zh: {
+      summary: "“永久居住国家 / 地区”是指你在本次行程之外通常生活的国家或地区。",
+      sourceHint: "请按日常住址或居住记录填写，不要填写目的地的临时住宿地址。",
+      example: "新加坡",
+    },
+  },
+  occupation: {
+    en: {
+      summary: "“Occupation” means your current main job or employment status.",
+      sourceHint: "Reply with what you currently do, such as student, software engineer, retired, or unemployed. It is not asking for your employer's name.",
+      example: "Student",
+    },
+    zh: {
+      summary: "“职业”是指你目前的主要工作或就业状态。",
+      sourceHint: "请回答你现在从事什么，例如学生、软件工程师、退休或无业；这里不是询问雇主名称。",
+      example: "学生",
+    },
+  },
+  accompanied_under_18_count: {
+    en: {
+      summary: "This asks how many family members under age 18 are travelling with you.",
+      sourceHint: "Count accompanying family members only, not yourself. Enter 0 if none are travelling with you.",
+      example: "0",
+    },
+    zh: {
+      summary: "这是询问有多少名 18 岁以下的家人与你同行。",
+      sourceHint: "只计算同行家人，不包括你本人；如果没有，请填写 0。",
+      example: "0",
+    },
+  },
+  accompanied_18_plus_count: {
+    en: {
+      summary: "This asks how many family members aged 18 or older are travelling with you.",
+      sourceHint: "Count accompanying family members only, not yourself. Enter 0 if none are travelling with you.",
+      example: "0",
+    },
+    zh: {
+      summary: "这是询问有多少名 18 岁及以上的家人与你同行。",
+      sourceHint: "只计算同行家人，不包括你本人；如果没有，请填写 0。",
+      example: "0",
+    },
+  },
+  checked_baggage_count: {
+    en: {
+      summary: "This asks for the number of checked baggage pieces you are bringing.",
+      sourceHint: "Count bags checked into the aircraft or vessel hold. Enter 0 if you have no checked baggage.",
+      example: "1",
+    },
+    zh: {
+      summary: "这是询问你携带的托运行李件数。",
+      sourceHint: "请计算托运到飞机或船舶货舱的行李；如果没有托运行李，请填写 0。",
+      example: "1",
+    },
+  },
+  handcarry_baggage_count: {
+    en: {
+      summary: "This asks for the number of hand-carried baggage pieces you are bringing.",
+      sourceHint: "Count cabin or carry-on bags that remain with you. Enter 0 if you have none.",
+      example: "1",
+    },
+    zh: {
+      summary: "这是询问你携带的手提行李件数。",
+      sourceHint: "请计算随身携带进入客舱的行李；如果没有，请填写 0。",
+      example: "1",
+    },
+  },
+  has_baggage_or_currency_to_declare: {
+    en: {
+      summary: "This asks whether anything you are carrying requires a Philippine customs or currency declaration—not how many bags you have.",
+      sourceHint: "Having checked or carry-on baggage alone does not make the answer Yes. Tell me whether you are carrying declarable goods, regulated items, or currency above the applicable declaration limits; if you are unsure, describe the contents or amount and I will help you determine the answer from the official rules.",
+      example: null,
+    },
+    zh: {
+      summary: "这是询问你携带的物品或货币是否需要向菲律宾海关申报，不是在询问行李件数。",
+      sourceHint: "仅有托运行李或手提行李并不代表应回答“是”。请说明你是否携带需要申报的物品、受管制物品或超过申报限额的货币；如果不确定，可以告诉我物品内容或金额，我会依据官方规则协助判断。",
+      example: null,
+    },
+  },
+  purpose_of_travel: {
+    en: {
+      summary: "“Purpose of Travel” means the main real reason for this trip.",
+      sourceHint: "Answer from your actual plans, such as holiday, work, business, study, transit, or visiting family.",
+      example: "Holiday",
+    },
+    zh: {
+      summary: "“旅行目的”是指本次行程最主要的真实原因。",
+      sourceHint: "请按实际行程回答，例如度假、工作、商务、学习、过境或探亲访友。",
+      example: "度假",
+    },
+  },
+  traveller_type: {
+    en: {
+      summary: "“Traveller Type” asks whether you are travelling as an aircraft passenger or a vessel passenger.",
+      sourceHint: "Reply with how you are entering the destination country. For a normal commercial flight, reply aircraft passenger or simply aircraft.",
+      example: "Aircraft passenger",
+    },
+    zh: {
+      summary: "“旅客类型”是询问你属于航空旅客还是船舶旅客。",
+      sourceHint: "请按进入目的国家的交通方式回答；普通民航旅客可以回答“航空旅客”或“飞机”。",
+      example: "航空旅客",
+    },
+  },
+  passport_holder_type: {
+    en: {
+      summary: "This asks which passport type you will use to enter the Philippines: a Philippine passport or a foreign passport.",
+      sourceHint: "Answer from the passport you will present for this trip, not from where you live.",
+      example: "Foreign passport",
+    },
+    zh: {
+      summary: "这是询问你将使用菲律宾护照还是外国护照入境菲律宾。",
+      sourceHint: "请按本次旅行实际出示的护照回答，不要按居住国家判断。",
+      example: "外国护照",
+    },
+  },
+  destination_type: {
+    en: {
+      summary: "“Destination upon arrival” asks what kind of place or onward arrangement you have immediately after entering the Philippines.",
+      sourceHint: "Reply with the real arrangement: a residence, hotel/resort, airport transit, or seaport connection, as applicable.",
+      example: "Residence",
+    },
+    zh: {
+      summary: "“抵达后的目的地类型”是询问入境菲律宾后立即前往哪一类地点或后续安排。",
+      sourceHint: "请按实际情况回答：住所、酒店 / 度假村、机场中转或海港衔接。",
+      example: "住所",
+    },
+  },
+  airline_name: {
+    en: {
+      summary: "“Name of Airline” means the airline operating the flight that brings you to the Philippines.",
+      sourceHint: "Use the operating carrier shown on the booking or boarding pass, especially if the ticket was sold by a different airline.",
+      example: "Cebu Pacific",
+    },
+    zh: {
+      summary: "“航空公司名称”是指实际承运你抵达菲律宾航班的航空公司。",
+      sourceHint: "请以预订单或登机牌上的实际承运航空公司为准；代码共享时可能与售票公司不同。",
+      example: "宿务太平洋航空",
+    },
+  },
+  flight_number: {
+    en: {
+      summary: "“Flight Number” means the number of the flight arriving in the Philippines.",
+      sourceHint: "Copy it from the itinerary or boarding pass, including the airline prefix.",
+      example: "5J 806",
+    },
+    zh: {
+      summary: "“航班号”是指抵达菲律宾的航班编号。",
+      sourceHint: "请从行程单或登机牌照抄，并保留航空公司前缀。",
+      example: "5J 806",
+    },
+  },
+  port_of_entry: {
+    en: {
+      summary: "“Airport of Destination” or “Port of Entry” means the airport where the arriving flight lands in the destination country.",
+      sourceHint: "Use the arrival airport on your itinerary, including the correct terminal when the official entry distinguishes terminals.",
+      example: "Ninoy Aquino International Airport Terminal 3",
+    },
+    zh: {
+      summary: "“目的机场 / 入境口岸”是指本次抵达航班在目的国家降落的机场。",
+      sourceHint: "请按行程单填写；如果官方选项区分航站楼，还要对应正确航站楼。",
+      example: "尼诺伊·阿基诺国际机场 3 号航站楼",
+    },
+  },
+  sea_port_of_entry: {
+    en: {
+      summary: "“Seaport of Destination in the Philippines” means the Philippine port where your vessel arrives.",
+      sourceHint: "Use the arrival port shown on the voyage booking or vessel itinerary.",
+      example: "Manila South Harbor",
+    },
+    zh: {
+      summary: "“菲律宾目的海港”是指船舶抵达菲律宾时停靠的港口。",
+      sourceHint: "请按船票或航程单上的抵达港填写。",
+      example: "马尼拉南港",
+    },
+  },
+  airport_of_origin: {
+    en: {
+      summary: "“Airport of Origin” means the airport where the flight segment you are reporting to the Philippines departs.",
+      sourceHint: "Copy the departure airport from the same itinerary segment used for Country of Origin.",
+      example: "Singapore Changi Airport",
+    },
+    zh: {
+      summary: "“出发机场”是指本次申报的赴菲律宾航段从哪个机场起飞。",
+      sourceHint: "请按与出发国家对应的同一段行程填写出发机场。",
+      example: "新加坡樟宜机场",
+    },
+  },
+  seaport_of_origin: {
+    en: {
+      summary: "“Seaport of Origin” means the port where the vessel journey you are reporting to the Philippines departs.",
+      sourceHint: "Copy the departure port from the voyage booking or vessel itinerary.",
+      example: "Singapore",
+    },
+    zh: {
+      summary: "“出发海港”是指本次申报的赴菲律宾船舶航程从哪个港口出发。",
+      sourceHint: "请按船票或船舶航程单上的出发港填写。",
+      example: "新加坡",
+    },
+  },
+  transit_airport: {
+    en: {
+      summary: "“Airport of Transit” means the airport where you change flights before reaching the Philippines.",
+      sourceHint: "Use the connecting airport shown between your origin and Philippine arrival flights.",
+      example: "Suvarnabhumi Airport, Bangkok",
+    },
+    zh: {
+      summary: "“中转机场”是指抵达菲律宾前换乘航班的机场。",
+      sourceHint: "请填写行程单上位于出发航班和抵达菲律宾航班之间的衔接机场。",
+      example: "曼谷素万那普机场",
+    },
+  },
+  transit_seaport: {
+    en: {
+      summary: "“Seaport of Transit” means the port where you connect to another vessel before reaching the Philippines.",
+      sourceHint: "Use the connecting port shown on the voyage itinerary.",
+      example: "Port Klang",
+    },
+    zh: {
+      summary: "“中转海港”是指抵达菲律宾前换乘另一艘船舶的港口。",
+      sourceHint: "请按船舶航程单上的中转港填写。",
+      example: "巴生港",
+    },
+  },
+  destination_transit_airport: {
+    en: {
+      summary: "This asks which Philippine airport you will use for an onward transit connection.",
+      sourceHint: "Use the Philippine connection airport shown on the onward ticket, including its terminal when listed separately.",
+      example: "Ninoy Aquino International Airport Terminal 3",
+    },
+    zh: {
+      summary: "这是询问你在菲律宾中转前往下一目的地时使用哪个机场。",
+      sourceHint: "请按后续机票上的菲律宾中转机场填写；官方选项区分航站楼时也要对应正确航站楼。",
+      example: "尼诺伊·阿基诺国际机场 3 号航站楼",
+    },
+  },
+  disembarking_port_code: {
+    en: {
+      summary: "“Port of Disembarkation” means the Philippine port where you will actually leave the vessel.",
+      sourceHint: "Use the disembarkation port on the vessel itinerary; it may differ from a port where the vessel only stops or connects.",
+      example: "Manila South Harbor",
+    },
+    zh: {
+      summary: "“下船港口”是指你实际离开船舶并上岸的菲律宾港口。",
+      sourceHint: "请按航程单上的下船港填写；它可能不同于船舶仅停靠或中转的港口。",
+      example: "马尼拉南港",
+    },
+  },
+  currency_transport_method: {
+    en: {
+      summary: "“Currency Transport Method” asks whether the currency or monetary instruments are carried physically by a person or sent separately by courier/shipment.",
+      sourceHint: "Answer according to how the declared funds are actually being transported.",
+      example: "Physically carried",
+    },
+    zh: {
+      summary: "“货币运输方式”是询问货币或金融票据由人员随身携带，还是通过快递 / 货运另行运输。",
+      sourceHint: "请按申报资金的实际运输方式回答。",
+      example: "人员随身携带",
+    },
+  },
+};
+
+const SEMANTIC_FIELD_ALIASES: Record<string, string> = {
+  arrival_airport: "port_of_entry",
+  airport_of_destination: "port_of_entry",
+  birth_country: "country_of_birth",
+  citizenship: "nationality",
+  country_boarded: "origin_country",
+  country_of_citizenship: "nationality",
+  country_of_current_residence: "country_of_residence",
+  country_of_nationality: "nationality",
+  country_of_origin: "origin_country",
+  current_nationality: "nationality",
+  current_occupation: "occupation",
+  departure_country: "origin_country",
+  employment_status: "occupation",
+  intended_port_of_entry: "port_of_entry",
+  main_purpose_of_journey: "purpose_of_travel",
+  nationality_country: "nationality",
+  passport_nationality: "nationality",
+  permanent_country_of_residence: "country_of_residence",
+  place_of_birth_country: "country_of_birth",
+  port_of_arrival: "port_of_entry",
+  purpose_of_journey: "purpose_of_travel",
+  purpose_of_visit: "purpose_of_travel",
+  residence_country: "country_of_residence",
+  travel_purpose: "purpose_of_travel",
+  visit_purpose: "purpose_of_travel",
+};
+
+function semanticFieldExplanation(fieldName: string, locale: string): FieldExplanation | null {
+  const canonicalName = SEMANTIC_FIELD_ALIASES[fieldName] ?? fieldName;
+  const explanation = SEMANTIC_FIELD_EXPLANATIONS[canonicalName];
+  return explanation ? (locale.startsWith("zh") ? explanation.zh : explanation.en) : null;
+}
+
+export function hasFieldSpecificExplanation(field: FieldExplanationTarget): boolean {
+  if (semanticFieldExplanation(field.fieldName, "en")) return true;
+  const searchText = `${field.fieldName} ${field.label}`.toLocaleLowerCase();
+  return /address|street|issuing.?authority|place.?of.?issue|passport.*number|document.*number|surname|family.?name|given.?name|first.?name|full.?name|date|地址|签发机关|签发地点|护照号码|证件号码|姓氏|名字|姓名|日期/.test(searchText);
+}
+
 function explanationOptionLabel(option: VisaFormFieldOption, locale: string): string {
   if (typeof option === "string") return option;
   return locale.startsWith("zh")
@@ -45,7 +440,7 @@ function localizedRuleText(
 }
 
 export function isFieldChoiceControl(field: Pick<VisaFormFieldRow, "fieldType">): boolean {
-  return ["select", "multi_select", "country", "radio", "checkbox"].includes(field.fieldType);
+  return ["select", "multi_select", "country", "radio", "checkbox", "address_lookup"].includes(field.fieldType);
 }
 
 export function isFieldMetadataUnverified(field: FieldExplanationTarget): boolean {
@@ -76,8 +471,8 @@ export function isFieldClarificationRequest(text: string): boolean {
 
 export function fieldClarificationInstruction(locale: string): string {
   return locale.startsWith("zh")
-    ? "如果用户询问当前字段是什么意思、应该填写什么或如何填写，不得把问题当作字段答案。必须直接解释该字段要收集什么以及通常应从哪里获取。只有字段元数据明确支持时才给格式示例；选择、勾选、声明、同意项不得给文字填写示例，不确定时不得猜测。不得只是改写或重复当前问题，也不得使用固定套话。"
-    : "If the user asks what the current field means, what belongs there, or how to answer it, never treat the question as a field answer. Directly explain what the field collects and where the applicant would normally find it. Give a format example only when the field metadata supports it; never give text-entry examples for choices, acknowledgements, declarations, or consents, and never guess when uncertain. Do not merely paraphrase or repeat the current question, and do not use canned filler.";
+    ? "如果用户询问当前字段是什么意思、应该填写什么或如何填写，不得把问题当作字段答案。必须直接解释该字段要收集什么以及通常应从哪里获取。只有字段元数据明确支持时才给格式示例；选择、勾选、声明、同意项不得给文字填写示例，不确定时不得猜测。这是聊天界面：请让用户直接回复答案，不得要求用户选择、点击或查找页面选项。不得只是改写或重复当前问题，也不得使用固定套话。"
+    : "If the user asks what the current field means, what belongs there, or how to answer it, never treat the question as a field answer. Directly explain what the field collects and where the applicant would normally find it. Give a format example only when the field metadata supports it; never give text-entry examples for choices, acknowledgements, declarations, or consents, and never guess when uncertain. This is a chat interface: ask the user to reply directly, never to select, click, or find a page option. Do not merely paraphrase or repeat the current question, and do not use canned filler.";
 }
 
 export function buildFieldExplanation(
@@ -88,6 +483,12 @@ export function buildFieldExplanation(
   const label = field.label.trim() || (zh ? "当前字段" : "this field");
   const searchText = `${field.fieldName} ${field.label}`.toLocaleLowerCase();
   const configuredHelper = localizedRuleText(field, locale, "helper");
+  const semanticExplanation = semanticFieldExplanation(field.fieldName, locale);
+  if (semanticExplanation) {
+    return configuredHelper
+      ? { ...semanticExplanation, sourceHint: `${semanticExplanation.sourceHint} ${configuredHelper}` }
+      : semanticExplanation;
+  }
   const isAddressLineOne = /address.*(?:line_?1|street1)|(?:line_?1|street1).*address/.test(searchText) ||
     /地址.*(?:第?一行|第1行)/.test(searchText);
   const isAccommodationAddress = /accommodation|hotel|host|住宿|酒店|接待方/.test(searchText);
@@ -190,8 +591,8 @@ export function buildFieldExplanation(
           ? `“${label}”要求从官方选项中选择最符合你实际情况的一项。`
           : `“${label}” asks you to choose the official option that best matches your actual situation.`,
       sourceHint: configuredHelper ?? (zh
-        ? "请根据题目语义、真实情况和相关材料选择，不确定时不要随便选默认项。"
-        : "Choose from the question's meaning, your actual circumstances, and relevant records; do not pick a default when unsure."),
+        ? "请用自己的话直接回答真实情况；我会将答案对应到官方选项。不确定时不要猜。"
+        : "Reply in your own words with the facts that apply; I will map the answer to the official options. Do not guess when unsure."),
       example: null,
     };
   }
@@ -354,6 +755,8 @@ export function isUsefulFieldClarificationReply(
   field: FieldExplanationTarget,
 ): boolean {
   if (!reply?.trim()) return false;
+  if (/\b(?:choose|select|click|find)\b.{0,50}\b(?:option|dropdown|button|control)\b/i.test(reply)) return false;
+  if (/identifies which official category matches your situation/i.test(reply)) return false;
   const normalizedReply = normalizeClarificationText(reply);
   const normalizedQuestion = normalizeClarificationText(question);
   const normalizedLabel = normalizeClarificationText(field.label);

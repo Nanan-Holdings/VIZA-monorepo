@@ -18,6 +18,12 @@ import {
   type FrequentTravelerProfileRow,
 } from "@/lib/frequent-traveler-profile";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
+import { CANADA_IRCC_PORTAL_TERMS_CONSENT, isCanadaTrvApplication } from "@/lib/canada-trv-completion";
+import {
+  AGENCY_AUTHORISATION_DOCUMENT,
+  AGENCY_SIGNATURE_TYPE,
+  CONSENT_DOCUMENTS,
+} from "@/app/client/consent/consent-config";
 
 /**
  * Family / multi-applicant application group (PRODUCT-002).
@@ -100,6 +106,8 @@ export interface TeamApplicationContextResult {
   application?: {
     id: string;
     status: string | null;
+    application_consent_present: boolean;
+    application_signature_present: boolean;
     country: string | null;
     visa_type: string | null;
     confirmation_number: string | null;
@@ -112,6 +120,7 @@ export interface TeamApplicationContextResult {
     purpose: string | null;
     accommodation_name: string | null;
     accommodation_address: string | null;
+    canada_ircc_portal_terms_consent_present: boolean;
   };
   profile?: UniversalProfileSnapshot & { id: string };
   reason?: string;
@@ -147,7 +156,7 @@ async function getAuthorizedApplication(
   let { data: app, error: appError } = await adminClient
     .from("applications")
     .select(
-      "id, applicant_id, group_id, country, visa_type, visa_package_id, status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
+      "id, applicant_id, group_id, country, visa_type, visa_package_id, status, consent_status, signature_status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -156,7 +165,7 @@ async function getAuthorizedApplication(
     const fallbackResult = await adminClient
       .from("applications")
       .select(
-        "id, applicant_id, country, visa_type, visa_package_id, status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
+        "id, applicant_id, country, visa_type, visa_package_id, status, consent_status, signature_status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address"
       )
       .eq("id", applicationId)
       .maybeSingle();
@@ -479,11 +488,57 @@ export async function getTeamApplicationContext(applicationId: string): Promise<
 
   if (error || !profile) return { ok: false, reason: error?.message ?? "Profile not found" };
 
+  let applicationConsentPresent = false;
+  let applicationSignaturePresent = false;
+  let canadaPortalTermsConsentPresent = false;
+  if (isCanadaTrvApplication(
+    resolved.app.country as string | null,
+    resolved.app.visa_type as string | null,
+  )) {
+    const [consentResult, signatureResult, portalTermsResult] = await Promise.all([
+      adminClient
+        .from("consent_events")
+        .select("consent_type, version, document_hash")
+        .eq("application_id", resolved.app.id)
+        .eq("accepted", true)
+        .is("revoked_at", null),
+      adminClient
+        .from("application_signatures")
+        .select("id")
+        .eq("application_id", resolved.app.id)
+        .eq("signature_type", AGENCY_SIGNATURE_TYPE)
+        .eq("document_hash", AGENCY_AUTHORISATION_DOCUMENT.documentHash)
+        .limit(1),
+      adminClient
+        .from("consent_events")
+        .select("id")
+        .eq("application_id", resolved.app.id)
+        .eq("consent_type", CANADA_IRCC_PORTAL_TERMS_CONSENT.type)
+        .eq("version", CANADA_IRCC_PORTAL_TERMS_CONSENT.version)
+        .eq("accepted", true)
+        .is("revoked_at", null)
+        .limit(1),
+    ]);
+    const legalError = consentResult.error ?? signatureResult.error ?? portalTermsResult.error;
+    if (legalError) return { ok: false, reason: legalError.message };
+    applicationConsentPresent = CONSENT_DOCUMENTS.every((document) =>
+      (consentResult.data ?? []).some((row) =>
+        row.consent_type === document.consentType &&
+        row.version === document.version &&
+        row.document_hash === document.documentHash
+      )
+    );
+    applicationSignaturePresent = Boolean(signatureResult.data?.[0]?.id);
+    canadaPortalTermsConsentPresent = Boolean(portalTermsResult.data?.[0]?.id);
+  }
+
   return {
     ok: true,
     application: {
       id: resolved.app.id as string,
       status: (resolved.app.status as string | null) ?? null,
+      application_consent_present: applicationConsentPresent,
+      application_signature_present: applicationSignaturePresent,
       country: (resolved.app.country as string | null) ?? null,
       visa_type: (resolved.app.visa_type as string | null) ?? null,
       confirmation_number: (resolved.app.confirmation_number as string | null) ?? null,
@@ -498,6 +553,7 @@ export async function getTeamApplicationContext(applicationId: string): Promise<
       purpose: (resolved.app.purpose as string | null) ?? null,
       accommodation_name: (resolved.app.accommodation_name as string | null) ?? null,
       accommodation_address: (resolved.app.accommodation_address as string | null) ?? null,
+      canada_ircc_portal_terms_consent_present: canadaPortalTermsConsentPresent,
     },
     profile: profile as TeamApplicationContextResult["profile"],
   };

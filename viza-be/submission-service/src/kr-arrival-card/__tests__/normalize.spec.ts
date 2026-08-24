@@ -41,6 +41,7 @@ function payload(overrides: Record<string, string> = {}): SubmissionPayload {
       purpose_code: "01",
       address_korean: "서울특별시 중구 세종대로 1",
       address_english: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_address_search: "1 Sejong-daero, Jung-gu, Seoul",
       address_detail: "Hotel room",
       postal_code: "04524",
       korea_contact_number: "0212345678",
@@ -99,14 +100,16 @@ test("normalizes the saved canonical form keys end to end", () => {
       date_of_birth: "1995-02-03",
       arrival_mode: "air",
       arrival_date: "2026-09-01",
-      arrival_flight_or_ship: "KE123",
+      arrival_flight_number: "KE123",
       departure_mode: "air",
       departure_date: "2026-09-05",
-      departure_flight_or_ship: "KE124",
-      next_destination: "TOKYO",
+      departure_flight_number: "KE124",
+      next_destination_city: "TOKYO",
       purpose_of_entry: "Tourism (individual)",
       occupation: "Student",
       stay_address_en: "1 Sejong-daero, Jung-gu, Seoul",
+      stay_address_ko: "서울특별시 중구 세종대로 1",
+      stay_address_search: "1 Sejong-daero, Jung-gu, Seoul",
       stay_postal_code: "04524",
       stay_contact_phone: "0212345678",
       alias_email_address: "appl-test@viza.it.com",
@@ -133,7 +136,7 @@ test("normalizes the saved canonical form keys end to end", () => {
       departureFlightNumber: "KE124",
       nextDestinationCity: "TOKYO",
       addressEnglish: "1 Sejong-daero, Jung-gu, Seoul",
-      addressKorean: "1 Sejong-daero, Jung-gu, Seoul",
+      addressKorean: "서울특별시 중구 세종대로 1",
       postalCode: "04524",
       koreaContactNumber: "0212345678",
       purposeCode: "01",
@@ -169,6 +172,19 @@ test("requires passport expiry after arrival and complete stay address", () => {
   assert.throws(
     () => normalizeKrEArrivalPortalPayload(payload({ address_english: "", address_korean: "" })),
     KrEArrivalPortalValidationError,
+  );
+});
+
+test("requires an official address lookup selection matching the derived English address", () => {
+  assert.throws(
+    () => normalizeKrEArrivalPortalPayload(payload({ stay_address_search: "" })),
+    (error: unknown) => error instanceof KrEArrivalPortalValidationError
+      && error.missingFields.includes("answers.stay_address_search"),
+  );
+  assert.throws(
+    () => normalizeKrEArrivalPortalPayload(payload({ stay_address_search: "Different address" })),
+    (error: unknown) => error instanceof KrEArrivalPortalValidationError
+      && error.missingFields.includes("answers.stay_address_search(matches_official_english_address)"),
   );
 });
 

@@ -9,6 +9,7 @@ import {
   RunnerJobOwnershipLostError,
   type RunnerExecutionContext,
 } from "./execution-context.js";
+import { NeedsHumanError, sanitizeRunnerError } from "./types.js";
 
 export { RunnerJobOwnershipLostError } from "./execution-context.js";
 export type { RunnerExecutionContext } from "./execution-context.js";
@@ -54,6 +55,21 @@ export interface RunnerJob {
   max_attempts: number;
   correlation_id: string | null;
   metadata: Record<string, unknown> | null;
+}
+
+export interface RunnerJobFailureTransition {
+  update: {
+    status: "queued" | "failed" | "needs_human";
+    attempts: number;
+    last_error: string;
+    finished_at: string | null;
+    leased_by: null;
+    leased_until: null;
+    available_at?: string;
+  };
+  retryDelayMs: number | null;
+  exhausted: boolean;
+  needsHuman: boolean;
 }
 
 export interface ClaimOpts {
@@ -240,7 +256,7 @@ function parseFailedRunnerJob(data: unknown, expectedJobId: string): boolean {
     !isNonBlankString(expectedJobId)
     || !isNonBlankString(row.id)
     || row.id !== expectedJobId
-    || (row.status !== "queued" && row.status !== "failed")
+    || (row.status !== "queued" && row.status !== "failed" && row.status !== "needs_human")
     || (row.available_at !== null && typeof row.available_at !== "string")
   ) {
     throw new RunnerPoolRpcSchemaError("fail_runner_pool_job RPC returned an invalid failure row");
@@ -288,23 +304,23 @@ export async function markFailedWithRetry(
   workerId: string,
   client: RunnerPoolClient = defaultClient,
 ): Promise<number | null> {
-  const message = error instanceof Error ? error.message : String(error);
-  const newAttempts = job.attempts + 1;
-  const exhausted = newAttempts >= job.max_attempts;
-  const retryAfterSeconds = exhausted ? 0 : Math.min(300, 15 * newAttempts);
+  const transition = planRunnerJobFailure(job, error);
+  const retryAfterSeconds = transition.retryDelayMs === null
+    ? 0
+    : Math.ceil(transition.retryDelayMs / 1_000);
   const { data: updated, error: updErr } = await client.rpc("fail_runner_pool_job", {
     p_job_id: job.id,
     p_worker_id: workerId,
-    p_status: exhausted ? "failed" : "queued",
-    p_attempts: newAttempts,
-    p_last_error: message,
+    p_status: transition.update.status,
+    p_attempts: transition.update.attempts,
+    p_last_error: transition.update.last_error,
     p_retry_after_seconds: retryAfterSeconds,
   });
   if (updErr) {
     throw new Error(`runner_job mark failed: ${updErr.message}`);
   }
   if (!parseFailedRunnerJob(updated, job.id)) throw new RunnerJobOwnershipLostError();
-  if (exhausted) {
+  if (transition.exhausted) {
     // OPS-003: page on-call once retries are exhausted. Per-country
     // throttle absorbs portal-outage storms.
     void sendAlert({
@@ -313,7 +329,7 @@ export async function markFailedWithRetry(
       title: `Runner job failed (${job.country})`,
       body:
         `Job ${job.id.slice(0, 8)} hit max_attempts=${job.max_attempts}.\n` +
-        `Last error: ${message}`,
+        `Last error: ${transition.update.last_error}`,
       jobId: job.id,
       applicationId: job.application_id,
     });
@@ -327,7 +343,54 @@ export async function markFailedWithRetry(
       timeToSubmitSeconds: null,
     });
   }
-  return exhausted ? null : retryAfterSeconds * 1_000;
+  return transition.retryDelayMs;
+}
+
+/**
+ * Produce the durable transition for a handler failure without weakening the
+ * ownership-fenced RPC used to persist it. Applicant/operator checkpoints are
+ * terminal and do not consume a retry; transient failures use bounded backoff.
+ */
+export function planRunnerJobFailure(
+  job: RunnerJob,
+  error: unknown,
+  nowMs = Date.now(),
+): RunnerJobFailureTransition {
+  const message = sanitizeRunnerError(error).message;
+  if (error instanceof NeedsHumanError) {
+    return {
+      update: {
+        status: "needs_human",
+        attempts: job.attempts,
+        last_error: message,
+        finished_at: new Date(nowMs).toISOString(),
+        leased_by: null,
+        leased_until: null,
+      },
+      retryDelayMs: null,
+      exhausted: false,
+      needsHuman: true,
+    };
+  }
+
+  const attempts = job.attempts + 1;
+  const exhausted = attempts >= job.max_attempts;
+  const retryDelayMs = Math.min(300, 15 * attempts) * 1_000;
+  const update: RunnerJobFailureTransition["update"] = {
+    status: exhausted ? "failed" : "queued",
+    attempts,
+    last_error: message,
+    finished_at: exhausted ? new Date(nowMs).toISOString() : null,
+    leased_by: null,
+    leased_until: null,
+  };
+  if (!exhausted) update.available_at = new Date(nowMs + retryDelayMs).toISOString();
+  return {
+    update,
+    retryDelayMs: exhausted ? null : retryDelayMs,
+    exhausted,
+    needsHuman: false,
+  };
 }
 
 export type JobHandler = (

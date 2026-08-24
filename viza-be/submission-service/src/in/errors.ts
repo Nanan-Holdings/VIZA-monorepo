@@ -20,6 +20,20 @@ export interface InRunnerError {
   disposition: "retry" | "human" | "fail";
 }
 
+const IN_OFFICIAL_HOSTS = new Set([
+  "indianvisaonline.gov.in",
+  "www.indianvisaonline.gov.in",
+]);
+
+export function isTrustedInOfficialUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && IN_OFFICIAL_HOSTS.has(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 const CATALOG: Record<InErrorCode, { disposition: InRunnerError["disposition"] }> = {
   "in.anti_bot.cloudflare": { disposition: "human" },
   "in.anti_bot.ratelimit": { disposition: "retry" },

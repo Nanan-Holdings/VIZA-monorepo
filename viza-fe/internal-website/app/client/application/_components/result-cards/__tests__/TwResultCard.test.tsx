@@ -109,7 +109,10 @@ describe("TwResultCard", () => {
         onRetry={vi.fn()}
         retryError="申请资料尚未完整，不能开始官网自动填写。请先补齐缺失信息和材料。"
         retryCompleteness={{
+          completionScope: "applicant_intake",
           complete: false,
+          questionnaireComplete: false,
+          documentCollectionComplete: false,
           missingInfoCount: 1,
           missingDocumentCount: 1,
           missingInfo: [

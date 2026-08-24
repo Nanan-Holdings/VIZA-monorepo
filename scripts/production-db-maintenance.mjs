@@ -255,7 +255,7 @@ export const ARCHITECTURE_AUDIT_SQL = `
 SELECT jsonb_build_object(
   'schema_version', 1,
   'source', 'supabase-management-api-read-only',
-  'sanitization_schema', 'viza-architecture-audit-metadata-only-v1',
+  'sanitization_schema', 'viza-architecture-audit-metadata-only-v2',
   'database', current_database(),
   'database_user', current_user,
   'environment_marker', current_setting('app.viza_environment', true),
@@ -657,7 +657,79 @@ SELECT jsonb_build_object(
     FROM pg_catalog.pg_stat_user_tables stats
     WHERE stats.schemaname = 'public'
   ),
-  'pg_stat_statements_available', pg_catalog.to_regclass('pg_stat_statements') IS NOT NULL
+  'migration_reconciliation_evidence', jsonb_build_object(
+    'jp_vjw_official_accommodation_fields', jsonb_build_object(
+      'ledger', (
+        SELECT COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'version', migration.version,
+              'name', migration.name,
+              'statement_count', pg_catalog.cardinality(migration.statements),
+              'statements_sha256', CASE
+                WHEN migration.statements IS NULL THEN NULL
+                ELSE pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+                  pg_catalog.array_to_string(migration.statements, E'\\n'),
+                  'UTF8'
+                )), 'hex')
+              END
+            ) ORDER BY migration.version
+          ),
+          '[]'::jsonb
+        )
+        FROM supabase_migrations.schema_migrations migration
+        WHERE migration.version IN ('20260823193517', '20260824033000')
+      ),
+      'field_count', (
+        SELECT COUNT(*)::INTEGER
+        FROM public.visa_form_fields field
+        WHERE field.visa_type = 'JP_VISIT_JAPAN_WEB'
+          AND field.field_name IN (
+            'accommodation_postal_code',
+            'accommodation_prefecture',
+            'accommodation_city',
+            'accommodation_address',
+            'accommodation_name',
+            'accommodation_phone'
+          )
+      ),
+      'field_contract_sha256', (
+        SELECT pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'field_name', field.field_name,
+                'label', field.label,
+                'field_type', field.field_type,
+                'required', field.required,
+                'step_number', field.step_number,
+                'step_name', field.step_name,
+                'display_order', field.display_order,
+                'placeholder', field.placeholder,
+                'validation_rules', field.validation_rules,
+                'options', field.options,
+                'conditional_logic', field.conditional_logic
+              ) ORDER BY field.field_name
+            )::text,
+            '[]'
+          ),
+          'UTF8'
+        )), 'hex')
+        FROM public.visa_form_fields field
+        WHERE field.visa_type = 'JP_VISIT_JAPAN_WEB'
+          AND field.field_name IN (
+            'accommodation_postal_code',
+            'accommodation_prefecture',
+            'accommodation_city',
+            'accommodation_address',
+            'accommodation_name',
+            'accommodation_phone'
+          )
+      )
+    )
+  ),
+  'pg_stat_statements_available',
+    pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
 ) AS architecture_audit;
 `;
 
@@ -691,7 +763,7 @@ SELECT jsonb_build_object(
         shared_blks_hit,
         shared_blks_read,
         temp_blks_written
-      FROM pg_stat_statements
+      FROM extensions.pg_stat_statements
       WHERE dbid = (
         SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()
       )
@@ -700,7 +772,7 @@ SELECT jsonb_build_object(
     ) ranked
   ), '[]'::jsonb)
 ) AS pg_stat_statements
-FROM pg_stat_statements_info statement_info;
+FROM extensions.pg_stat_statements_info statement_info;
 `;
 
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
@@ -1408,7 +1480,7 @@ function validateApprovedBatchManifest(manifest) {
 
 const APPROVED_RELATION_IDENTITY = /^(?:public|runner_private)\.[a-z_][a-z0-9_]*$/u;
 const APPROVED_FUNCTION_IDENTITY =
-  /^(?:public|runner_private)\.[a-z_][a-z0-9_]*\([a-z0-9_, \[\]]*\)$/u;
+  /^(?:public|runner_private)\.[a-z_][a-z0-9_]*\([a-z0-9_., \[\]]*\)$/u;
 const APPROVED_ROLES = new Set([
   "PUBLIC",
   "anon",
@@ -1434,6 +1506,7 @@ function validateCatalogAssertion(assertion) {
     "function_exists",
     "function_execute_acl",
     "function_empty_search_path",
+    "function_search_path",
   ]);
   const policyKinds = new Set(["policy_absent", "policy_contract"]);
   if (relationKinds.has(assertion.kind) &&
@@ -1459,6 +1532,13 @@ function validateCatalogAssertion(assertion) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid policy contract`);
     }
   }
+  if (assertion.kind === "policy_count") {
+    if (!APPROVED_RELATION_IDENTITY.test(assertion.identity ?? "") ||
+        !Number.isSafeInteger(assertion.count) || assertion.count < 0 || assertion.count > 100) {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid policy count`);
+    }
+    return;
+  }
   if (assertion.kind === "table_absent_or_columns_match") {
     if (!Array.isArray(assertion.columns) || assertion.columns.length === 0 ||
         assertion.columns.some((column) =>
@@ -1471,14 +1551,21 @@ function validateCatalogAssertion(assertion) {
   }
   if (assertion.kind === "relation_acl") {
     if (!['table', 'sequence', 'view'].includes(assertion.relation_kind) ||
-        !Array.isArray(assertion.required) || !Array.isArray(assertion.forbidden_roles)) {
+        !Array.isArray(assertion.required) || !Array.isArray(assertion.forbidden_roles) ||
+        (assertion.allowed_direct_roles !== undefined &&
+          (!Array.isArray(assertion.allowed_direct_roles) ||
+           assertion.allowed_direct_roles.length === 0 ||
+           assertion.allowed_direct_roles.some((role) => !APPROVED_ROLES.has(role)))) ||
+        (assertion.grant_options_forbidden !== undefined &&
+          typeof assertion.grant_options_forbidden !== "boolean")) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid ACL metadata`);
     }
     for (const grant of assertion.required) {
       if (!APPROVED_ROLES.has(grant.role) || !Array.isArray(grant.privileges) ||
           grant.privileges.length === 0 ||
           grant.privileges.some((privilege) => !/^[A-Z ]+$/u.test(privilege)) ||
-          (grant.exact !== undefined && typeof grant.exact !== "boolean")) {
+          (grant.exact !== undefined && typeof grant.exact !== "boolean") ||
+          (grant.exact_direct !== undefined && typeof grant.exact_direct !== "boolean")) {
         throw new Error(`Approved batch assertion ${assertion.id} has invalid required ACL`);
       }
     }
@@ -1492,6 +1579,16 @@ function validateCatalogAssertion(assertion) {
         [...assertion.required_roles, ...assertion.forbidden_roles].some((role) =>
           !APPROVED_ROLES.has(role))) {
       throw new Error(`Approved batch assertion ${assertion.id} has invalid function ACL`);
+    }
+    return;
+  }
+  if (assertion.kind === "function_search_path") {
+    if (!Array.isArray(assertion.search_path) || assertion.search_path.length === 0 ||
+        assertion.search_path.length > 8 || assertion.search_path[0] !== "pg_catalog" ||
+        new Set(assertion.search_path).size !== assertion.search_path.length ||
+        assertion.search_path.some((schema) => !/^[a-z_][a-z0-9_]*$/u.test(schema)) ||
+        typeof assertion.security_definer !== "boolean") {
+      throw new Error(`Approved batch assertion ${assertion.id} has invalid function search path`);
     }
     return;
   }
@@ -1730,6 +1827,7 @@ async function managementJsonRequest({
     const requestError = new Error(
       `Supabase temporary database access failed (${response.status}): ${message}`,
     );
+    requestError.statusCode = response.status;
     if (suffix === "/cli/login-role" && method === "POST") {
       try {
         await revokeTemporaryRole({ token, projectRef, fetchImpl });
@@ -1979,7 +2077,9 @@ async function managementQuery({
       payload && typeof payload === "object" && typeof payload.message === "string"
         ? payload.message
         : "Management API request failed";
-    throw new Error(`Supabase ${action} failed (${response.status}): ${message}`);
+    const requestError = new Error(`Supabase ${action} failed (${response.status}): ${message}`);
+    requestError.statusCode = response.status;
+    throw requestError;
   }
 
   return payload;
@@ -2036,7 +2136,41 @@ function assertManagementProjectIdentity(payload, projectRef) {
   }
 }
 
-export async function runArchitectureAudit({ env = process.env, fetchImpl = fetch } = {}) {
+function isTransientReadOnlyManagementError(error) {
+  const statusCode = Number(error?.statusCode);
+  if (statusCode === 429 || (statusCode >= 500 && statusCode <= 599)) return true;
+  if (error?.name === "AbortError" || error?.name === "TimeoutError") return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /\b(?:ECONNRESET|ETIMEDOUT|fetch failed|connection timeout)\b/iu.test(message);
+}
+
+async function retryArchitectureAuditRead({ phase, run, wait }) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientReadOnlyManagementError(error) || attempt === 2) {
+        const suffix = attempt === 2 ? " after two attempts" : "";
+        throw new Error(
+          `Production architecture audit ${phase} failed${suffix}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+      await new Promise((resolve) => wait(resolve, 500));
+    }
+  }
+  throw lastError;
+}
+
+export async function runArchitectureAudit({
+  env = process.env,
+  fetchImpl = fetch,
+  wait = setTimeout,
+} = {}) {
   const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
   const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
   const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
@@ -2047,33 +2181,50 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize architecture-audit");
   }
 
-  assertManagementProjectIdentity(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "",
-    method: "GET",
-    fetchImpl,
-  }), projectRef);
-  const security = sanitizeAdvisorPayload(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "/advisors/security",
-    method: "GET",
-    fetchImpl,
+  const projectIdentity = await retryArchitectureAuditRead({
+    phase: "project identity",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "",
+      method: "GET",
+      fetchImpl,
+    }),
+  });
+  assertManagementProjectIdentity(projectIdentity, projectRef);
+  const security = sanitizeAdvisorPayload(await retryArchitectureAuditRead({
+    phase: "security advisor",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/advisors/security",
+      method: "GET",
+      fetchImpl,
+    }),
   }));
-  const performance = sanitizeAdvisorPayload(await managementJsonRequest({
-    token,
-    projectRef,
-    suffix: "/advisors/performance",
-    method: "GET",
-    fetchImpl,
+  const performance = sanitizeAdvisorPayload(await retryArchitectureAuditRead({
+    phase: "performance advisor",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/advisors/performance",
+      method: "GET",
+      fetchImpl,
+    }),
   }));
-  const catalogPayload = await managementQuery({
-    env,
-    fetchImpl,
-    action: "architecture-audit",
-    query: ARCHITECTURE_AUDIT_SQL,
-    readOnly: true,
+  const catalogPayload = await retryArchitectureAuditRead({
+    phase: "catalog query",
+    wait,
+    run: () => managementQuery({
+      env,
+      fetchImpl,
+      action: "architecture-audit",
+      query: ARCHITECTURE_AUDIT_SQL,
+      readOnly: true,
+    }),
   });
   const catalog = metadataRow(
     catalogPayload,
@@ -2091,12 +2242,16 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
     statements: [],
   };
   if (catalog.pg_stat_statements_available === true) {
-    const statementPayload = await managementQuery({
-      env,
-      fetchImpl,
-      action: "architecture-audit",
-      query: PG_STAT_STATEMENTS_AUDIT_SQL,
-      readOnly: true,
+    const statementPayload = await retryArchitectureAuditRead({
+      phase: "statement metrics query",
+      wait,
+      run: () => managementQuery({
+        env,
+        fetchImpl,
+        action: "architecture-audit",
+        query: PG_STAT_STATEMENTS_AUDIT_SQL,
+        readOnly: true,
+      }),
     });
     const rawMetrics = metadataRow(
       statementPayload,
@@ -2130,7 +2285,7 @@ export async function runArchitectureAudit({ env = process.env, fetchImpl = fetc
       catalog_endpoint: "database/query/read-only",
     },
     project_ref: projectRef,
-    sanitization_schema: "viza-architecture-audit-metadata-only-v1",
+    sanitization_schema: "viza-architecture-audit-metadata-only-v2",
     advisors: { security, performance },
     catalog,
     pg_stat_statements: statementMetrics,
@@ -2371,6 +2526,46 @@ function approvedRelationAclExpression(assertion) {
         `NOT COALESCE(${privilegeFunction}(${sqlLiteral(grant.role)}, ` +
         `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`)
       : []),
+    ...(grant.exact_direct
+      ? [
+          `NOT EXISTS (\n` +
+          `      SELECT 1\n` +
+          `      FROM pg_catalog.pg_class exact_acl_relation\n` +
+          `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+          `        COALESCE(exact_acl_relation.relacl, ` +
+          `pg_catalog.acldefault(${sqlLiteral(assertion.relation_kind === "sequence" ? "S" : "r")}, ` +
+          `exact_acl_relation.relowner))\n` +
+          `      ) exact_acl_entry\n` +
+          `      WHERE exact_acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+          `        AND exact_acl_entry.grantee = ${grant.role === "PUBLIC"
+            ? "0::oid"
+            : `(SELECT exact_acl_role.oid FROM pg_catalog.pg_roles exact_acl_role ` +
+              `WHERE exact_acl_role.rolname = ${sqlLiteral(grant.role)})`}\n` +
+          `        AND exact_acl_entry.privilege_type NOT IN (` +
+          `${grant.privileges.map(sqlLiteral).join(", ")})\n` +
+          `    )`,
+          `NOT EXISTS (\n` +
+          `      SELECT 1\n` +
+          `      FROM (VALUES ${grant.privileges.map((privilege) =>
+            `(${sqlLiteral(privilege)})`).join(", ")}) expected_acl(privilege_type)\n` +
+          `      WHERE NOT EXISTS (\n` +
+          `        SELECT 1\n` +
+          `        FROM pg_catalog.pg_class exact_acl_relation\n` +
+          `        CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+          `          COALESCE(exact_acl_relation.relacl, ` +
+          `pg_catalog.acldefault(${sqlLiteral(assertion.relation_kind === "sequence" ? "S" : "r")}, ` +
+          `exact_acl_relation.relowner))\n` +
+          `        ) exact_acl_entry\n` +
+          `        WHERE exact_acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+          `          AND exact_acl_entry.grantee = ${grant.role === "PUBLIC"
+            ? "0::oid"
+            : `(SELECT exact_acl_role.oid FROM pg_catalog.pg_roles exact_acl_role ` +
+              `WHERE exact_acl_role.rolname = ${sqlLiteral(grant.role)})`}\n` +
+          `          AND exact_acl_entry.privilege_type = expected_acl.privilege_type\n` +
+          `      )\n` +
+          `    )`,
+        ]
+      : []),
   ]);
   const forbidden = assertion.forbidden_roles.map((role) => {
     if (role === "PUBLIC") {
@@ -2390,8 +2585,42 @@ function approvedRelationAclExpression(assertion) {
       `NOT COALESCE(${privilegeFunction}(${sqlLiteral(role)}, ` +
       `pg_catalog.to_regclass(${identity}), ${sqlLiteral(privilege)}), FALSE)`).join(" AND ");
   });
+  const aclDefaultType = assertion.relation_kind === "sequence" ? "S" : "r";
+  const allowedDirectRoles = assertion.allowed_direct_roles === undefined
+    ? []
+    : [
+        `NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM pg_catalog.pg_class acl_relation\n` +
+        `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+        `        COALESCE(acl_relation.relacl, ` +
+        `pg_catalog.acldefault(${sqlLiteral(aclDefaultType)}, acl_relation.relowner))\n` +
+        `      ) acl_entry\n` +
+        `      WHERE acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `        AND acl_entry.grantee <> acl_relation.relowner\n` +
+        `        AND (CASE WHEN acl_entry.grantee = 0 THEN 'PUBLIC'\n` +
+        `          ELSE pg_catalog.pg_get_userbyid(acl_entry.grantee) END) NOT IN (` +
+        `${assertion.allowed_direct_roles.map(sqlLiteral).join(", ")})\n` +
+        `    )`,
+      ];
+  const forbiddenGrantOptions = assertion.grant_options_forbidden
+    ? [
+        `NOT EXISTS (\n` +
+        `      SELECT 1\n` +
+        `      FROM pg_catalog.pg_class acl_relation\n` +
+        `      CROSS JOIN LATERAL pg_catalog.aclexplode(\n` +
+        `        COALESCE(acl_relation.relacl, ` +
+        `pg_catalog.acldefault(${sqlLiteral(aclDefaultType)}, acl_relation.relowner))\n` +
+        `      ) acl_entry\n` +
+        `      WHERE acl_relation.oid = pg_catalog.to_regclass(${identity})\n` +
+        `        AND acl_entry.grantee <> acl_relation.relowner\n` +
+        `        AND acl_entry.is_grantable\n` +
+        `    )`,
+      ]
+    : [];
   return `(pg_catalog.to_regclass(${identity}) IS NOT NULL` +
-    [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
+    [...required, ...forbidden, ...allowedDirectRoles, ...forbiddenGrantOptions]
+      .map((check) => `\n    AND (${check})`).join("") + `)`;
 }
 
 function approvedFunctionAclExpression(assertion) {
@@ -2414,6 +2643,25 @@ function approvedFunctionAclExpression(assertion) {
       `pg_catalog.to_regprocedure(${identity}), 'EXECUTE'), FALSE)`);
   return `(pg_catalog.to_regprocedure(${identity}) IS NOT NULL` +
     [...required, ...forbidden].map((check) => `\n    AND (${check})`).join("") + `)`;
+}
+
+function approvedFunctionSearchPathExpression(assertion) {
+  const identity = sqlLiteral(assertion.identity);
+  const expected = sqlLiteral(`search_path=${assertion.search_path.join(", ")}`);
+  return `EXISTS (\n` +
+    `    SELECT 1\n` +
+    `    FROM pg_catalog.pg_proc configured_function\n` +
+    `    WHERE configured_function.oid = pg_catalog.to_regprocedure(${identity})\n` +
+    `      AND configured_function.prosecdef IS ${assertion.security_definer ? "TRUE" : "FALSE"}\n` +
+    `      AND ARRAY(\n` +
+    `        SELECT configured_setting\n` +
+    `        FROM pg_catalog.unnest(\n` +
+    `          COALESCE(configured_function.proconfig, ARRAY[]::text[])\n` +
+    `        ) configured_setting\n` +
+    `        WHERE pg_catalog.split_part(configured_setting, '=', 1) = 'search_path'\n` +
+    `        ORDER BY configured_setting\n` +
+    `      ) = ARRAY[${expected}]::text[]\n` +
+    `  )`;
 }
 
 function approvedDefaultAclExpression(assertion) {
@@ -2532,6 +2780,8 @@ function approvedCatalogAssertionExpression(assertion) {
       return approvedRelationAclExpression(assertion);
     case "function_execute_acl":
       return approvedFunctionAclExpression(assertion);
+    case "function_search_path":
+      return approvedFunctionSearchPathExpression(assertion);
     case "view_security_invoker":
       return `EXISTS (\n` +
         `    SELECT 1 FROM pg_catalog.pg_class invoker_view\n` +
@@ -2561,6 +2811,16 @@ function approvedCatalogAssertionExpression(assertion) {
     }
     case "policy_contract":
       return approvedPolicyContractExpression(assertion);
+    case "policy_count": {
+      const [schemaName, tableName] = assertion.identity.split(".");
+      return `(SELECT pg_catalog.count(*)
+    FROM pg_catalog.pg_policy counted_policy
+    JOIN pg_catalog.pg_class policy_relation ON policy_relation.oid = counted_policy.polrelid
+    JOIN pg_catalog.pg_namespace policy_schema ON policy_schema.oid = policy_relation.relnamespace
+    WHERE policy_schema.nspname = ${sqlLiteral(schemaName)}
+      AND policy_relation.relname = ${sqlLiteral(tableName)}
+  ) = ${assertion.count}`;
+    }
     case "default_acl_denied":
       return approvedDefaultAclExpression(assertion);
     case "migration_record":

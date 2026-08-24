@@ -19,14 +19,19 @@ const payload: JpVjwPortalPayload = {
   passportIssuingCountry: "China",
   phoneNumber: "+8613800000000",
   residenceCountry: "China",
+  occupation: "Engineer",
+  residenceCity: "Shanghai",
   arrivalDate: "2026-09-10",
   portOfEntry: "NARITA",
-  flightNumber: "NH900",
+  arrivalAirline: "NH",
+  flightNumber: "900",
   lastEmbarkationCountry: "CHN",
   departureCityOrPort: "Shanghai",
   purposeOfVisit: "Tourism",
   plannedStayDays: 11,
   accommodationName: "Tokyo Hotel",
+  accommodationPrefecture: "TOKYO",
+  accommodationCity: "CHIYODA KU",
   accommodationAddress: "1 Tokyo Street",
   accommodationPostalCode: "100-0001",
   accommodationPhone: "+81312345678",
@@ -37,7 +42,9 @@ const payload: JpVjwPortalPayload = {
     declarationConfirmed: "yes",
   },
   customsAnswers: {
-    hasProhibitedOrRestrictedGoods: "no",
+    hasProhibitedGoods: "no",
+    hasRestrictedGoods: "no",
+    hasGoldOrGoldProducts: "no",
     hasDutiableGoods: "no",
     hasCommercialGoods: "no",
     hasGoodsForOtherPerson: "no",
@@ -75,4 +82,25 @@ test("VJW compliance gate blocks live operation before adapter/browser/CAPTCHA",
     if (previousApproval === undefined) delete process.env.JP_VJW_DELEGATED_OPERATION_APPROVED;
     else process.env.JP_VJW_DELEGATED_OPERATION_APPROVED = previousApproval;
   }
+});
+
+test("VJW adapter path reaches qr_ready only with official QR element evidence", async () => {
+  const result = await runJpVjwPortalSubmission(payload, {
+    liveEnabled: true,
+    delegatedOperationApproved: true,
+    adapter: {
+      submit: async () => ({
+        portalUrl: "https://www.vjw.digital.go.jp/main/#/vjwpic026",
+        referenceNumber: null,
+        submittedAt: "2026-08-23T00:00:00.000Z",
+        qrArtifactPath: "C:/evidence/vjw-official-qr.png",
+        bodyText: "入境审查及海关申报的QR码",
+      }),
+    },
+  });
+
+  assert.equal(result.status, "qr_ready");
+  assert.equal(result.submitted, true);
+  assert.equal(result.qrReady, true);
+  assert.equal(result.artifacts?.qrCodes[0], "C:/evidence/vjw-official-qr.png");
 });

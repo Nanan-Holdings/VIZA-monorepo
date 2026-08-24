@@ -1,6 +1,126 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasOfficialJpVjwQrEvidence, isJpVjwCloudfrontAccessGate, isOfficialJpVjwUrl, resolveJpVjwUserAgent } from "../selectors";
+import { chromium } from "playwright";
+import {
+  chooseJpVjwAutocomplete,
+  fillJpVjwVerificationCode,
+  resolveJpVjwNativeOptionValue,
+  type JpVjwLiveAdapterContext,
+} from "../live-adapter";
+import {
+  JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
+  JP_VJW_CREATE_ACCOUNT_NAME,
+  JP_VJW_GO_TO_LOGIN_NAME,
+  JP_VJW_JAPANESE_PASSPORT_QUESTION,
+  JP_VJW_MANUAL_PASSPORT_NAME,
+  JP_VJW_NEW_TRIP_NAME,
+  JP_VJW_NO_COPY_TRIP_NAME,
+  JP_VJW_MFA_NO_NAME,
+  JP_VJW_OPTIONAL_MFA_HEADING,
+  JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_PROFILE_COMPLETE_NAME,
+  JP_VJW_REENTRY_PERMISSION_QUESTION,
+  JP_VJW_TAX_FREE_QR_QUESTION,
+  JP_VJW_YOUR_DETAILS_NAME,
+  hasOfficialJpVjwQrEvidence,
+  isJpVjwCloudfrontAccessGate,
+  isOfficialJpVjwUrl,
+  resolveJpVjwUserAgent,
+} from "../selectors";
+
+test("Visit Japan Web account selector accepts the observed production label", () => {
+  assert.match("Create an account", JP_VJW_CREATE_ACCOUNT_NAME);
+  assert.match("Create new account", JP_VJW_CREATE_ACCOUNT_NAME);
+  assert.match("新規アカウント作成", JP_VJW_CREATE_ACCOUNT_NAME);
+});
+
+test("Visit Japan Web account-success selectors accept the observed production dialog", () => {
+  assert.match("Your account has been successfully created", JP_VJW_ACCOUNT_CREATED_NAME);
+  assert.match("Go To Login Screen", JP_VJW_GO_TO_LOGIN_NAME);
+});
+
+test("Visit Japan Web profile-entry selector accepts the observed production dashboard", () => {
+  assert.match("Your details", JP_VJW_YOUR_DETAILS_NAME);
+});
+
+test("Visit Japan Web optional MFA selectors accept the observed production onboarding", () => {
+  assert.match("Setting up Multi-Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
+  assert.match("Setting up Multi‑Factor Authentication", JP_VJW_OPTIONAL_MFA_HEADING);
+  assert.match("Do you want to set up multi-factor authentication?", JP_VJW_OPTIONAL_MFA_QUESTION);
+  assert.match("No", JP_VJW_MFA_NO_NAME);
+  assert.doesNotMatch("Not registered", JP_VJW_MFA_NO_NAME);
+});
+
+test("Visit Japan Web profile selectors accept the observed production wizard", () => {
+  assert.match("Do you have a passport issued by the Japanese government?", JP_VJW_JAPANESE_PASSPORT_QUESTION);
+  assert.match("Will you enter Japan with re-entry permission?", JP_VJW_REENTRY_PERMISSION_QUESTION);
+  assert.match("Will you use the Tax-free QR Code?", JP_VJW_TAX_FREE_QR_QUESTION);
+  assert.match("Enter information yourself", JP_VJW_MANUAL_PASSPORT_NAME);
+  assert.match("Registration complete", JP_VJW_PROFILE_COMPLETE_NAME);
+  assert.match("Confirm entered details", JP_VJW_CONFIRM_ENTERED_DETAILS_NAME);
+  assert.match("Register new planned entry/return", JP_VJW_NEW_TRIP_NAME);
+  assert.match("Proceed to registration without copying details", JP_VJW_NO_COPY_TRIP_NAME);
+});
+
+test("Visit Japan Web native option matching skips the empty placeholder", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "-", value: "" },
+    { label: "CHINA (PEOPLE'S REP.)", value: "156" },
+  ], ["CHN", "China", "中国"]), "156");
+});
+
+test("Visit Japan Web accepts a free-text embarkation point when the official form enables Next", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="textboxDeparture">
+      <button class="button-primary" type="button">Next</button>
+    `);
+    const outcome = await chooseJpVjwAutocomplete(
+      { page } as unknown as JpVjwLiveAdapterContext,
+      page.locator("#textboxDeparture"),
+      "SINGAPORE",
+      "departure point",
+    );
+    assert.equal(outcome, "selected");
+    assert.equal(await page.locator("#textboxDeparture").inputValue(), "SINGAPORE");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web verification code uses keyboard events required by the production OTP widget", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <ng-otp-input>
+        ${Array.from({ length: 6 }, (_, index) => `<input maxlength="1" data-index="${index}">`).join("")}
+      </ng-otp-input>
+      <script>
+        const inputs = [...document.querySelectorAll('ng-otp-input input')];
+        window.keyboardEvents = 0;
+        inputs.forEach((input, index) => {
+          input.addEventListener('keydown', () => { window.keyboardEvents += 1; });
+          input.addEventListener('input', () => {
+            if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+          });
+        });
+      </script>
+    `);
+    assert.equal(await fillJpVjwVerificationCode(page, "671508"), true);
+    assert.deepEqual(await page.locator("ng-otp-input input").evaluateAll((inputs) =>
+      inputs.map((input) => (input as HTMLInputElement).value),
+    ), ["6", "7", "1", "5", "0", "8"]);
+    assert.equal(await page.evaluate(() =>
+      (window as unknown as Window & { keyboardEvents: number }).keyboardEvents >= 6,
+    ), true);
+  } finally {
+    await browser.close();
+  }
+});
 
 test("Visit Japan Web QR gate requires official host, visible QR and artifact", () => {
   assert.equal(isOfficialJpVjwUrl("https://www.vjw.digital.go.jp/"), true);
@@ -20,4 +140,13 @@ test("Visit Japan Web QR gate requires official host, visible QR and artifact", 
   assert.equal(isJpVjwCloudfrontAccessGate(404, "The request could not be satisfied. CloudFront"), true);
   assert.equal(isJpVjwCloudfrontAccessGate(200, "Visit Japan Web QR Code"), false);
   assert.match(resolveJpVjwUserAgent({}), /Windows NT 10\.0/);
+});
+
+test("Visit Japan Web QR gate accepts the official simplified-Chinese QR heading", () => {
+  assert.equal(hasOfficialJpVjwQrEvidence({
+    portalUrl: "https://www.vjw.digital.go.jp/main/#/vjwpic026",
+    bodyText: "入境审查及海关申报的QR码",
+    qrElementVisible: true,
+    qrArtifactPath: "C:/evidence/official-qr.png",
+  }), true);
 });

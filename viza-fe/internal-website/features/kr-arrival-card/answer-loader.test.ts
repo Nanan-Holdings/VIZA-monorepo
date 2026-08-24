@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { extractKoreaEArrivalAnswers } from "./answer-loader";
+import {
+  extractKoreaEArrivalAnswers,
+  KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS,
+} from "./answer-loader";
 
 describe("Korea e-Arrival Card answer routing", () => {
+  it("loads every answer required by the retry-time address validator", () => {
+    expect(KOREA_E_ARRIVAL_RETRY_ANSWER_KEYS).toEqual([
+      "arrival_date",
+      "departure_date",
+      "arrival_mode",
+      "stay_address_search",
+      "stay_address_ko",
+      "stay_address_en",
+      "stay_postal_code",
+    ]);
+  });
+
   it("uses only canonical Korea fields and does not consume SGAC transport keys", () => {
     const snapshot = extractKoreaEArrivalAnswers([
       { field_name: "transport_type", value_text: "AIR" },
@@ -23,7 +38,10 @@ describe("Korea e-Arrival Card answer routing", () => {
       { field_name: "arrival_mode", value_json: "AIR" },
       { field_name: "arrival_date", value_text: "2030-01-02" },
       { field_name: "departure_date", value_text: "2030-01-05" },
+      { field_name: "stay_address_search", value_text: "1 Sejong-daero, Jung-gu, Seoul" },
       { field_name: "stay_address_en", value_text: "Seoul" },
+      { field_name: "stay_address_ko", value_text: "서울" },
+      { field_name: "stay_postal_code", value_text: "04524" },
     ]);
 
     expect(snapshot).toEqual({
@@ -32,5 +50,14 @@ describe("Korea e-Arrival Card answer routing", () => {
       arrivalMode: "AIR",
       stayAddressProvided: true,
     });
+  });
+
+  it("does not accept a free-text or one-language address as an official selection", () => {
+    const snapshot = extractKoreaEArrivalAnswers([
+      { field_name: "stay_address_en", value_text: "Seoul" },
+      { field_name: "stay_postal_code", value_text: "04524" },
+    ]);
+
+    expect(snapshot.stayAddressProvided).toBe(false);
   });
 });

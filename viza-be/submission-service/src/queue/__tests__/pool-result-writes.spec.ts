@@ -23,6 +23,9 @@ test("pool SG, arrival-card, and Korea e-Form paths use the fenced result writer
   assert.match(sg, /requirePoolExecutionIdentity/);
   assert.match(sg, /writeRunnerPoolSubmissionResult\(poolExecutionContext/);
   assert.match(sg, /idempotencyKey:\s*`runner-job:\$\{identity\.jobId\}`/);
+  assert.match(sg, /artifact\.put/);
+  assert.match(sg, /confirmationPdfStoragePath:\s*pdfs\[0\]\s*\?\?\s*null/);
+  assert.doesNotMatch(sg, /artifacts:\s*\{\s*screenshots:\s*portal\.screenshots/);
   assert.doesNotMatch(sg, /\.from\(["']applications["']\)/);
 
   assert.match(arrivalCards, /writeRunnerPoolSubmissionResult/);

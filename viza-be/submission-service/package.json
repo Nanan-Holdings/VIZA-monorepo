@@ -64,6 +64,7 @@
     "audit:country-submissions": "ts-node src/country-submissions/audit.ts",
     "qa:active-schema-dry-runs": "tsx scripts/run-active-schema-dry-run-qa.ts",
     "qa:arrival-card-pre-submit": "tsx scripts/run-arrival-card-pre-submit-qa.ts",
+    "qa:tourist-live-pre-submit": "tsx scripts/run-tourist-live-pre-submit-qa.ts",
     "test:country-submissions": "node --test -r ts-node/register src/country-submissions/__tests__/registry.spec.ts",
     "queue:list-stuck": "ts-node scripts/queue/list-stuck-jobs.ts",
     "queue:requeue": "ts-node scripts/queue/requeue-jobs.ts",

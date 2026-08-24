@@ -3,13 +3,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { chromium } from "@playwright/test";
 import { discoverFields, withRetry } from "../runners/standard-evisa.js";
+import { TOURIST_LIVE_CHECKPOINTS } from "../tourist-live-checkpoints.js";
 
 /**
  * Canada eTA/TRV form recon (RUN-CA-001 / RUN-CA-002 / DATA-001).
  *   npx ts-node src/ca/form-recon.ts
  * Field discovery with shared retry/backoff. Read-only. CA_RECON_HEADFUL=1 to watch.
  */
-const BASE_URL = process.env.CA_PORTAL_URL ?? "https://onlineservices-servicesenligne.cic.gc.ca/eta";
+const BASE_URL = process.env.CA_PORTAL_URL ?? TOURIST_LIVE_CHECKPOINTS.canada.url;
 const OUT_DIR = path.join(process.cwd(), "recon-out", "ca");
 
 async function main(): Promise<void> {

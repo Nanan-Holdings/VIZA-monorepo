@@ -65,7 +65,13 @@ export interface DocumentCenterData {
   packageSummary: DocumentPackageSummary | null;
   requirements: DocumentRequirement[];
   documents: ApplicationDocument[];
+  reusableProfileDocuments?: ReusableProfileDocument[];
   ocrExtractions: PassportOcrExtraction[];
+}
+
+export interface ReusableProfileDocument {
+  documentType: string;
+  filename: string | null;
 }
 
 export interface DocumentApplication {
@@ -121,6 +127,7 @@ export interface ApplicationDocument {
   createdAt: string | null;
   updatedAt: string | null;
   source: "application_documents" | "application_answer";
+  previewUrl?: string | null;
 }
 
 export interface PassportOcrExtraction {
@@ -154,7 +161,10 @@ export interface UniversalProfileReusableDocumentStatus {
 export type UniversalProfileReusableDocumentsResult =
   | {
       ok: true;
-      documents: Record<"identityCard" | "photo" | "signature", UniversalProfileReusableDocumentStatus>;
+      documents: Record<
+        "identityCard" | "photo" | "signature" | "bankStatement" | "travelInsurance",
+        UniversalProfileReusableDocumentStatus
+      >;
     }
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
 
@@ -213,6 +223,7 @@ interface ApplicationDocumentRow {
   id: string;
   application_id: string;
   document_type: string;
+  storage_path?: string | null;
   requirement_key?: string | null;
   filename: string | null;
   status: string;
@@ -503,6 +514,61 @@ const PHOTO_DOCUMENT_TYPES = [
   "portrait_photo",
 ] as const;
 const SIGNATURE_DOCUMENT_TYPES = ["electronic_signature", "customs_signature_file", "signature", "signature_image"] as const;
+const BANK_STATEMENT_DOCUMENT_TYPES = ["bank_statement", "six_month_bank_statement", "proof_of_funds"] as const;
+const TRAVEL_INSURANCE_DOCUMENT_TYPES = [
+  "travel_insurance",
+  "uae_health_insurance",
+  "health_insurance",
+  "uae_health_coverage_evidence",
+] as const;
+const REUSABLE_DOCUMENT_STATUSES = ["uploaded", "validated", "accepted", "approved"] as const;
+
+function isReusableDocumentStatus(status: string | null | undefined): boolean {
+  return REUSABLE_DOCUMENT_STATUSES.includes(
+    status?.trim().toLowerCase() as (typeof REUSABLE_DOCUMENT_STATUSES)[number],
+  );
+}
+
+function reusableDocumentTypesFor(documentType: string): readonly string[] {
+  if (PASSPORT_DOCUMENT_TYPES.includes(documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])) {
+    return PASSPORT_DOCUMENT_TYPES;
+  }
+  if (PHOTO_DOCUMENT_TYPES.includes(documentType as (typeof PHOTO_DOCUMENT_TYPES)[number])) {
+    return PHOTO_DOCUMENT_TYPES;
+  }
+  if (SIGNATURE_DOCUMENT_TYPES.includes(documentType as (typeof SIGNATURE_DOCUMENT_TYPES)[number])) {
+    return SIGNATURE_DOCUMENT_TYPES;
+  }
+  if (BANK_STATEMENT_DOCUMENT_TYPES.includes(documentType as (typeof BANK_STATEMENT_DOCUMENT_TYPES)[number])) {
+    return BANK_STATEMENT_DOCUMENT_TYPES;
+  }
+  if (TRAVEL_INSURANCE_DOCUMENT_TYPES.includes(documentType as (typeof TRAVEL_INSURANCE_DOCUMENT_TYPES)[number])) {
+    return TRAVEL_INSURANCE_DOCUMENT_TYPES;
+  }
+  return [documentType];
+}
+
+function canonicalUniversalProfileDocumentType(documentType: string): string | null {
+  if (PASSPORT_DOCUMENT_TYPES.includes(documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])) {
+    return "passport_bio_page";
+  }
+  if (IDENTITY_CARD_DOCUMENT_TYPES.includes(documentType as (typeof IDENTITY_CARD_DOCUMENT_TYPES)[number])) {
+    return "national_identity_card";
+  }
+  if (PHOTO_DOCUMENT_TYPES.includes(documentType as (typeof PHOTO_DOCUMENT_TYPES)[number])) {
+    return "photo";
+  }
+  if (SIGNATURE_DOCUMENT_TYPES.includes(documentType as (typeof SIGNATURE_DOCUMENT_TYPES)[number])) {
+    return "electronic_signature";
+  }
+  if (BANK_STATEMENT_DOCUMENT_TYPES.includes(documentType as (typeof BANK_STATEMENT_DOCUMENT_TYPES)[number])) {
+    return "bank_statement";
+  }
+  if (TRAVEL_INSURANCE_DOCUMENT_TYPES.includes(documentType as (typeof TRAVEL_INSURANCE_DOCUMENT_TYPES)[number])) {
+    return "travel_insurance";
+  }
+  return null;
+}
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -623,6 +689,51 @@ async function applyTwDocumentRequirementRules(
         (!requirement.key.startsWith("eligibility_supporting_document_") || requirement.key === matchingKey),
     )
     .map((requirement) => normalizeTwRequirementForAnswers(requirement, answers));
+}
+
+async function applyConditionalDocumentRequirementRules(
+  application: ApplicationRow,
+  requirements: DocumentRequirement[],
+): Promise<DocumentRequirement[]> {
+  const conditionFields = Array.from(new Set(requirements.flatMap((requirement) => {
+    const field = getString(requirement.metadata ?? {}, ["condition_field", "conditionField"]);
+    return field ? [field] : [];
+  })));
+  if (conditionFields.length === 0) return requirements;
+
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("visa_application_answers")
+    .select("field_name, value_text")
+    .eq("application_id", application.id)
+    .in("field_name", conditionFields);
+  if (error) return requirements;
+
+  const answers = Object.fromEntries(
+    (data ?? []).map((row) => [String(row.field_name), String(row.value_text ?? "").trim().toLowerCase()]),
+  );
+  return requirements.map((requirement) => {
+    if (requirement.required) return requirement;
+    const metadata = requirement.metadata ?? {};
+    const field = getString(metadata, ["condition_field", "conditionField"]);
+    const values = getStringArray(metadata, ["condition_values", "conditionValues"])
+      .map((value) => value.trim().toLowerCase());
+    if (!field || values.length === 0) return requirement;
+    const active = values.includes(answers[field] ?? "");
+    return {
+      ...requirement,
+      required: active,
+      applicability: active ? "required" : "conditional",
+    };
+  });
+}
+
+async function applyDocumentRequirementRules(
+  application: ApplicationRow,
+  requirements: DocumentRequirement[],
+): Promise<DocumentRequirement[]> {
+  const taiwanNormalized = await applyTwDocumentRequirementRules(application, requirements);
+  return applyConditionalDocumentRequirementRules(application, taiwanNormalized);
 }
 
 async function loadTwDocumentConditionAnswers(applicationId: string): Promise<Record<string, string>> {
@@ -955,7 +1066,10 @@ function sortRequirements(a: DocumentRequirement, b: DocumentRequirement): numbe
   return a.sortOrder - b.sortOrder || a.labelEn.localeCompare(b.labelEn);
 }
 
-function normalizeDocument(row: ApplicationDocumentRow): ApplicationDocument {
+function normalizeDocument(
+  row: ApplicationDocumentRow,
+  previewUrl: string | null = null,
+): ApplicationDocument {
   return {
     id: row.id,
     applicationId: row.application_id,
@@ -970,6 +1084,7 @@ function normalizeDocument(row: ApplicationDocumentRow): ApplicationDocument {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     source: "application_documents",
+    previewUrl,
   };
 }
 
@@ -1295,7 +1410,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
       const normalized = normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements));
       return {
         source: "document_requirements" as const,
-        requirements: await applyTwDocumentRequirementRules(application, normalized),
+        requirements: await applyDocumentRequirementRules(application, normalized),
       };
     }
   }
@@ -1311,7 +1426,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     const normalized = normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements));
     return {
       source: "document_requirements" as const,
-      requirements: await applyTwDocumentRequirementRules(application, normalized),
+      requirements: await applyDocumentRequirementRules(application, normalized),
     };
   }
 
@@ -1342,8 +1457,19 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
 async function loadDocuments(applicationId: string): Promise<ApplicationDocument[]> {
   const adminClient = createAdminClient();
   const extendedSelect =
-    "id, application_id, document_type, requirement_key, filename, status, rejection_reason, required, review_notes, reviewed_at, created_at, updated_at";
-  const baseSelect = "id, application_id, document_type, filename, status, rejection_reason, created_at, updated_at";
+    "id, application_id, document_type, requirement_key, storage_path, filename, status, rejection_reason, required, review_notes, reviewed_at, created_at, updated_at";
+  const baseSelect = "id, application_id, document_type, storage_path, filename, status, rejection_reason, created_at, updated_at";
+
+  const attachPreviewUrls = async (rows: ApplicationDocumentRow[]) => Promise.all(
+    rows.map(async (row) => {
+      const storagePath = row.storage_path?.trim();
+      if (!storagePath) return normalizeDocument(row);
+      const { data, error: previewError } = await adminClient.storage
+        .from(APPLICATION_DOCUMENTS_BUCKET)
+        .createSignedUrl(storagePath, 60 * 60);
+      return normalizeDocument(row, previewError ? null : data?.signedUrl ?? null);
+    }),
+  );
 
   const { data, error } = await adminClient
     .from("application_documents")
@@ -1351,7 +1477,7 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false });
 
-  if (!error && data) return (data as ApplicationDocumentRow[]).map(normalizeDocument);
+  if (!error && data) return attachPreviewUrls(data as ApplicationDocumentRow[]);
 
   const { data: baseData } = await adminClient
     .from("application_documents")
@@ -1359,7 +1485,7 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false });
 
-  return ((baseData ?? []) as ApplicationDocumentRow[]).map(normalizeDocument);
+  return attachPreviewUrls((baseData ?? []) as ApplicationDocumentRow[]);
 }
 
 async function loadLatestReusablePassportDocument(applicantId: string): Promise<ApplicationDocument | null> {
@@ -1379,7 +1505,7 @@ async function loadLatestReusablePassportDocument(applicantId: string): Promise<
     .select("id, application_id, document_type, filename, status, rejection_reason, created_at, updated_at")
     .in("application_id", applicationIds)
     .in("document_type", [...PASSPORT_DOCUMENT_TYPES])
-    .neq("status", "missing")
+    .in("status", [...REUSABLE_DOCUMENT_STATUSES])
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
@@ -1397,7 +1523,7 @@ async function loadLatestUniversalProfilePassportDocument(
     .select("id, applicant_id, auth_user_id, document_type, storage_path, filename, status, source_application_id, metadata, created_at, updated_at")
     .eq("applicant_id", applicantId)
     .in("document_type", [...PASSPORT_DOCUMENT_TYPES])
-    .neq("status", "missing")
+    .in("status", [...REUSABLE_DOCUMENT_STATUSES])
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
@@ -1416,7 +1542,7 @@ function toPassportUploadStatus(passportDocument: ApplicationDocument | Universa
 
   return {
     ok: true,
-    uploaded: status !== "missing",
+    uploaded: isReusableDocumentStatus(status),
     fileName: filename,
     status,
     updatedAt,
@@ -1444,9 +1570,11 @@ export async function loadUniversalProfilePassportUploadStatus(
     const passportDocuments = documents.filter((document) =>
       PASSPORT_DOCUMENT_TYPES.includes(document.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number]),
     );
-    const passportDocument = passportDocuments.find((document) => document.status !== "missing") ?? passportDocuments[0];
+    const passportDocument = passportDocuments.find((document) =>
+      isReusableDocumentStatus(document.status),
+    ) ?? passportDocuments[0];
 
-    if (!passportDocument || passportDocument.status === "missing") {
+    if (!passportDocument || !isReusableDocumentStatus(passportDocument.status)) {
       const reusablePassportDocument = await loadLatestReusablePassportDocument(contextResult.context.applicantId);
       return reusablePassportDocument
         ? toPassportUploadStatus(reusablePassportDocument)
@@ -1480,13 +1608,28 @@ export async function loadUniversalProfileReusableDocumentStatuses(): Promise<Un
       .from("universal_profile_documents")
       .select("document_type, filename, status, created_at, updated_at")
       .eq("applicant_id", contextResult.context.applicantId)
-      .in("document_type", [...IDENTITY_CARD_DOCUMENT_TYPES, ...PHOTO_DOCUMENT_TYPES, ...SIGNATURE_DOCUMENT_TYPES])
-      .neq("status", "missing")
+      .in("document_type", [
+        ...IDENTITY_CARD_DOCUMENT_TYPES,
+        ...PHOTO_DOCUMENT_TYPES,
+        ...SIGNATURE_DOCUMENT_TYPES,
+        ...BANK_STATEMENT_DOCUMENT_TYPES,
+        ...TRAVEL_INSURANCE_DOCUMENT_TYPES,
+      ])
+      .in("status", [...REUSABLE_DOCUMENT_STATUSES])
       .order("updated_at", { ascending: false, nullsFirst: false });
 
     if (error) {
       if (isMissingUniversalProfileDocumentsError(error)) {
-        return { ok: true, documents: { identityCard: emptyStatus, photo: emptyStatus, signature: emptyStatus } };
+        return {
+          ok: true,
+          documents: {
+            identityCard: emptyStatus,
+            photo: emptyStatus,
+            signature: emptyStatus,
+            bankStatement: emptyStatus,
+            travelInsurance: emptyStatus,
+          },
+        };
       }
       return { ok: false, code: "server_error", error: error.message };
     }
@@ -1496,7 +1639,7 @@ export async function loadUniversalProfileReusableDocumentStatuses(): Promise<Un
       const row = rows.find((candidate) => documentTypes.includes(candidate.document_type));
       if (!row) return { ...emptyStatus };
       return {
-        uploaded: true,
+        uploaded: isReusableDocumentStatus(row.status),
         fileName: row.filename,
         status: row.status,
         updatedAt: row.updated_at ?? row.created_at,
@@ -1509,6 +1652,8 @@ export async function loadUniversalProfileReusableDocumentStatuses(): Promise<Un
         identityCard: toStatus(IDENTITY_CARD_DOCUMENT_TYPES),
         photo: toStatus(PHOTO_DOCUMENT_TYPES),
         signature: toStatus(SIGNATURE_DOCUMENT_TYPES),
+        bankStatement: toStatus(BANK_STATEMENT_DOCUMENT_TYPES),
+        travelInsurance: toStatus(TRAVEL_INSURANCE_DOCUMENT_TYPES),
       },
     };
   } catch (error) {
@@ -1562,6 +1707,40 @@ async function loadOcrExtractions(applicationId: string): Promise<PassportOcrExt
   return (data as OcrExtractionRow[]).map(normalizeOcrExtraction);
 }
 
+async function loadReusableProfileDocuments(applicantId: string): Promise<ReusableProfileDocument[]> {
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
+    .from("universal_profile_documents")
+    .select("document_type, storage_path, filename, status")
+    .eq("applicant_id", applicantId)
+    .in("status", [...REUSABLE_DOCUMENT_STATUSES])
+    .order("updated_at", { ascending: false, nullsFirst: false });
+
+  if (error) {
+    if (isMissingUniversalProfileDocumentsError(error)) return [];
+    throw new Error(error.message);
+  }
+
+  const candidates = (data ?? []) as Array<
+    Pick<UniversalProfileDocumentRow, "document_type" | "storage_path" | "filename" | "status">
+  >;
+  const verified = await Promise.all(
+    candidates.map(async (candidate) => {
+      if (!candidate.storage_path || !isReusableDocumentStatus(candidate.status)) return null;
+      const { data: exists, error: storageError } = await adminClient.storage
+        .from(APPLICATION_DOCUMENTS_BUCKET)
+        .exists(candidate.storage_path);
+      if (storageError || !exists) return null;
+      return {
+        documentType: candidate.document_type,
+        filename: candidate.filename,
+      } satisfies ReusableProfileDocument;
+    }),
+  );
+
+  return verified.filter((document): document is ReusableProfileDocument => document !== null);
+}
+
 function mergeVirtualDocuments(documents: ApplicationDocument[], virtualDocuments: ApplicationDocument[]) {
   const documentTypes = new Set(documents.map((document) => document.documentType));
   return [...documents, ...virtualDocuments.filter((document) => !documentTypes.has(document.documentType))];
@@ -1597,6 +1776,7 @@ export async function loadDocumentCenterData(params: LoadDocumentCenterParams = 
           packageSummary: null,
           requirements: [],
           documents: [],
+          reusableProfileDocuments: [],
           ocrExtractions: [],
         },
       };
@@ -1609,9 +1789,10 @@ export async function loadDocumentCenterData(params: LoadDocumentCenterParams = 
 
     const packageRow = await resolvePackage(selectedApplicationRow);
     const requirementResult = await loadDocumentRequirements(selectedApplicationRow, packageRow);
-    const [storedDocuments, virtualDocuments, ocrExtractions] = await Promise.all([
+    const [storedDocuments, virtualDocuments, reusableProfileDocuments, ocrExtractions] = await Promise.all([
       loadDocuments(selectedApplication.id),
       loadVirtualAnswerDocuments(selectedApplication.id),
+      loadReusableProfileDocuments(applicantId),
       loadOcrExtractions(selectedApplication.id),
     ]);
 
@@ -1634,6 +1815,7 @@ export async function loadDocumentCenterData(params: LoadDocumentCenterParams = 
         },
         requirements: requirementResult.requirements,
         documents: mergeVirtualDocuments(storedDocuments, virtualDocuments),
+        reusableProfileDocuments,
         ocrExtractions,
       },
     };
@@ -1670,58 +1852,34 @@ export async function reuseUniversalProfileDocument(input: {
     const application = await getOwnedApplication(input.applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
 
-    const types = PASSPORT_DOCUMENT_TYPES.includes(input.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])
-      ? [...PASSPORT_DOCUMENT_TYPES]
-      : PHOTO_DOCUMENT_TYPES.includes(input.documentType as (typeof PHOTO_DOCUMENT_TYPES)[number])
-        ? [...PHOTO_DOCUMENT_TYPES]
-        : SIGNATURE_DOCUMENT_TYPES.includes(input.documentType as (typeof SIGNATURE_DOCUMENT_TYPES)[number])
-          ? [...SIGNATURE_DOCUMENT_TYPES]
-          : [input.documentType];
+    const types = reusableDocumentTypesFor(input.documentType);
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("universal_profile_documents")
       .select("storage_path, filename, document_type, status")
       .eq("applicant_id", contextResult.context.applicantId)
-      .in("document_type", types)
-      .neq("status", "missing")
+      .in("document_type", [...types])
+      .in("status", [...REUSABLE_DOCUMENT_STATUSES])
       .order("updated_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
 
-    // Older databases may not have the universal document table yet. The
-    // application-document fallback below remains a valid reusable source.
     if (error && !isMissingUniversalProfileDocumentsError(error)) {
       return { ok: false, code: "server_error", error: error.message };
     }
 
-    let reusableDocument = error ? null : data;
-    if (!reusableDocument?.storage_path) {
-      const { data: ownedApplications, error: ownedApplicationsError } = await adminClient
-        .from("applications")
-        .select("id")
-        .eq("applicant_id", contextResult.context.applicantId);
-      if (ownedApplicationsError) {
-        return { ok: false, code: "server_error", error: ownedApplicationsError.message };
-      }
-      const applicationIds = (ownedApplications ?? []).map((row: { id: string }) => row.id).filter(Boolean);
-      if (applicationIds.length > 0) {
-        const { data: applicationDocument, error: applicationDocumentError } = await adminClient
-          .from("application_documents")
-          .select("storage_path, filename, document_type, status")
-          .in("application_id", applicationIds)
-          .in("document_type", types)
-          .neq("status", "missing")
-          .order("updated_at", { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-        if (applicationDocumentError) {
-          return { ok: false, code: "server_error", error: applicationDocumentError.message };
-        }
-        reusableDocument = applicationDocument;
-      }
-    }
+    const reusableDocument = error || !isReusableDocumentStatus(data?.status) ? null : data;
     if (!reusableDocument?.storage_path) {
       return { ok: false, code: "not_found", error: "No saved profile document is available" };
+    }
+    const { data: storageObjectExists, error: storageError } = await adminClient.storage
+      .from(APPLICATION_DOCUMENTS_BUCKET)
+      .exists(reusableDocument.storage_path);
+    if (storageError) {
+      return { ok: false, code: "server_error", error: storageError.message };
+    }
+    if (!storageObjectExists) {
+      return { ok: false, code: "not_found", error: "The saved profile file is no longer available" };
     }
 
     return recordDocumentUpload({
@@ -1738,6 +1896,74 @@ export async function reuseUniversalProfileDocument(input: {
       ok: false,
       code: "server_error",
       error: error instanceof Error ? error.message : "Failed to reuse profile document",
+    };
+  }
+}
+
+export async function removeApplicationDocument(input: {
+  applicationId: string;
+  documentType: string;
+}): Promise<DocumentMutationResult> {
+  try {
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const application = await getOwnedApplication(input.applicationId, contextResult.context.applicantId);
+    if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    const adminClient = createAdminClient();
+    const { data: document, error: lookupError } = await adminClient
+      .from("application_documents")
+      .select("id, storage_path")
+      .eq("application_id", input.applicationId)
+      .eq("document_type", input.documentType)
+      .maybeSingle();
+    if (lookupError) return { ok: false, code: "server_error", error: lookupError.message };
+    if (!document?.id) return { ok: false, code: "not_found", error: "Document not found" };
+
+    const { error: deleteError } = await adminClient
+      .from("application_documents")
+      .delete()
+      .eq("id", document.id);
+    if (deleteError) return { ok: false, code: "server_error", error: deleteError.message };
+
+    if (document.storage_path) {
+      const [
+        { data: profileReference, error: profileReferenceError },
+        { data: applicationReference, error: applicationReferenceError },
+      ] = await Promise.all([
+        adminClient
+          .from("universal_profile_documents")
+          .select("id")
+          .eq("storage_path", document.storage_path)
+          .limit(1)
+          .maybeSingle(),
+        adminClient
+          .from("application_documents")
+          .select("id")
+          .eq("storage_path", document.storage_path)
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (
+        !profileReferenceError &&
+        !applicationReferenceError &&
+        !profileReference?.id &&
+        !applicationReference?.id
+      ) {
+        await adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).remove([document.storage_path]);
+      }
+    }
+
+    revalidatePath("/client/documents");
+    revalidatePath("/client/application");
+    revalidatePath("/client/status");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to remove document",
     };
   }
 }
@@ -2113,10 +2339,6 @@ async function saveApplicationDocumentRecord(
   input: RecordDocumentUploadInput,
 ): Promise<string | null> {
   const now = new Date().toISOString();
-  const reviewNotes =
-    input.source === "travel_ai"
-      ? "Saved from Travel AI itinerary output. Awaiting VIZA review."
-      : "Uploaded by applicant. Awaiting VIZA review.";
 
   const { error } = await adminClient.from("application_documents").upsert(
     {
@@ -2128,9 +2350,11 @@ async function saveApplicationDocumentRecord(
       status: "uploaded",
       rejection_reason: null,
       required: input.required,
-      review_notes: reviewNotes,
+      review_notes: null,
       reviewed_at: null,
       reviewed_by: null,
+      document_hash: null,
+      metadata: null,
       updated_at: now,
     },
     { onConflict: "application_id,document_type" },
@@ -2176,11 +2400,12 @@ async function saveUniversalProfileDocumentRecord(
   input: RecordDocumentUploadInput,
 ): Promise<string | null> {
   const now = new Date().toISOString();
+  const canonicalDocumentType = canonicalUniversalProfileDocumentType(input.documentType) ?? input.documentType;
   const { error } = await adminClient.from("universal_profile_documents").upsert(
     {
       applicant_id: context.applicantId,
       auth_user_id: context.authUserId,
-      document_type: input.documentType,
+      document_type: canonicalDocumentType,
       storage_path: input.storagePath,
       filename: input.filename,
       status: "uploaded",
@@ -2188,6 +2413,7 @@ async function saveUniversalProfileDocumentRecord(
       metadata: {
         requirementKey: input.requirementKey,
         source: input.source ?? "manual_upload",
+        originalDocumentType: input.documentType,
       },
       updated_at: now,
     },

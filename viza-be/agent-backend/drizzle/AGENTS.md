@@ -131,6 +131,59 @@ The current internal automation migrations are:
   postflight must verify the exact `pg_roles.rolconfig` entries and three new
   connections after the application/pooler connection lifecycle is recycled.
   The migration never terminates sessions or restarts PostgreSQL.
+- `0161_kr_e_arrival_official_field_contract.sql`: replaces Korea e-Arrival
+  combined/free-text transport and address controls with official A/S mode
+  codes, mode-specific flight/ship fields, and one address-lookup record that
+  derives the Korean address, English address, and five-digit ZIP together.
+- `0169_jp_vjw_no_document_uploads.sql`: removes the legacy Japan VJW
+  preparation-only document checklist. VIZA collects VJW traveller, trip,
+  immigration, and customs answers directly; Kenya eTA uploads are unchanged.
+- `0172_enable_jp_ke_shared_runner_flows.sql`: adds the exact `japan/jp_vjw`
+  and `kenya/ke_eta` tuples to the on-demand shared runner enqueue, claim,
+  recovery, requeue, concurrency-cap, and scale-to-zero database fences.
+- `0176_inbound_email_acl.sql`: removes anonymous and signed-in mutation
+  privileges from `inbound_email` after the website's Supabase and legacy VIZA
+  sessions moved behind an explicit active-alias ownership check. Authenticated
+  callers retain policy-scoped SELECT and service-role workers retain full
+  access; rows, policies, and RLS state are unchanged.
+- `0177_audit_log_rls_initplan.sql`: preserves the two applicant-owned SELECT
+  policies on credential and PII audit logs while
+  evaluating the authenticated user identity once per statement. It changes no
+  rows, relation privileges, policy identities, or service-role behavior; keep
+  its Supabase migration mirror byte-identical.
+- `0178_account_action_log_rls_initplan.sql`: preserves both the direct user-id
+  and applicant-profile ownership paths of the account-action audit-log SELECT
+  policy while evaluating each authenticated-user lookup once per statement.
+  The migration captures and rechecks the policy OID and raw relation ACL in
+  the same transaction so identity or privilege drift aborts the batch.
+  Keep its Supabase migration mirror byte-identical; `consent_event` is not part
+  of this migration.
+- `0179_jp_vjw_official_accommodation_fields.sql`: adds the official VJW
+  prefecture and city/ward/town inputs and enforces the observed 10-15 digit
+  Japan accommodation contact-number contract in the DB-driven form schema.
+- `0180_consent_event_rls_initplan.sql`: reconciles the historical Drizzle and
+  website-only consent policy definitions against the metadata-only production
+  catalog, preserves production's direct user-id plus applicant-profile
+  ownership paths, and evaluates each authenticated-user lookup once per
+  statement. It captures and rechecks the policy OID, normalized policy hashes,
+  and raw relation ACL in the same transaction; keep its Supabase mirror
+  byte-identical.
+- `0181_applicant_single_path_rls_initplan.sql`: preserves the four
+  production-confirmed single-path ownership policies on `applicant_secret`,
+  `notification_preferences`, and `staff_chat_thread` while evaluating the
+  authenticated user identity once per statement. It keeps policy OIDs,
+  commands, PUBLIC roles, policy counts, RLS state, and relation ACLs unchanged;
+  keep its Supabase mirror byte-identical.
+- `0182_supporting_doc_submission_rls_initplan.sql`: preserves the sole
+  supporting-document submission SELECT policy and its two-hop application to
+  applicant ownership path while evaluating `auth.uid()` once per statement.
+  It keeps policy/relation OIDs, the PUBLIC role, command, policy count, RLS
+  state, and relation ACL unchanged; keep its Supabase mirror byte-identical.
+- `0183_notification_preferences_policy_dedupe.sql`: removes only the
+  redundant permissive SELECT policy after proving its predicate is identical
+  to the surviving ALL policy. It pins both pre-policy contracts and preserves
+  the surviving policy OID, PUBLIC role, relation identity, ACL, and RLS state;
+  keep its Supabase mirror byte-identical.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
@@ -316,6 +369,58 @@ The current internal automation migrations are:
   Türkiye, India, Saudi Arabia, and UAE tourist-product catalog boundaries and
   installs their audited Document Center requirements outside the answer
   schema.
+- `0162_uae_tourist_document_contract.sql`: corrects the installed ICP
+  transaction-783 checklist after live service-card verification: exact bank
+  and UAE insurance review traits, optional identity evidence, and
+  accommodation evidence requested only by the authenticated form.
+- `0150_public_status_tracking.sql`: turns the latest-only portal canary row
+  into an evidence-backed public status model with append-only observations,
+  incidents, bilingual labels, and service-only RPCs.
+- `0163_enable_five_tourist_runner_claims.sql`: routes Canada, Turkiye, India,
+  Saudi Arabia, and UAE jobs through the retained on-demand shared pool while
+  preserving per-country limits, slot-bound claims, lease recovery, and
+  scale-to-zero depth accounting.
+- `0164_application_document_review_integrity.sql`: prevents applicants from
+  manufacturing privileged document-review fields or reviewed statuses.
+  Applicant writes may only use clear `uploaded`/`missing` owner states, and
+  legacy `validated`, `accepted`, `approved`, `verified`, or `ready` rows are
+  reset for staff re-review without resurrecting rejected or deleted files.
+- `0165_runner_needs_human_settlement.sql`: extends the exact live-owner
+  failure RPC so applicant/operator checkpoints settle as terminal
+  `needs_human` without consuming a retry or weakening the worker lease fence.
+- `0166_kr_e_arrival_transport_visibility.sql`: repairs the installed Korea
+  e-Arrival Card flight/ship visibility expressions to use the bare official
+  A/S option codes understood by the DB-driven form evaluator.
+- `0167_database_function_execution_baseline.sql`: fixes the namespace lookup
+  path for nine legacy SECURITY INVOKER helpers without replacing their bodies
+  or identities. Retention/purge helpers become service-role-only;
+  `match_visa_chunks` remains available only to authenticated and service-role
+  callers, while the harmless ISO-week helper retains its existing execution
+  policy. Keep its Supabase migration mirror byte-identical.
+- `0168_core_rls_initplan.sql`: preserves the identities and ownership
+  semantics of the eleven audited applicant/application/document/queue RLS
+  policies while evaluating the authenticated user identity once per statement.
+  Keep its Supabase migration mirror byte-identical.
+- `0170_chat_rls_initplan.sql`: preserves nine authenticated chat and Travel AI
+  ownership policies while evaluating the caller identity once per statement;
+  the separate service-role chat policy remains untouched. Keep its Supabase
+  migration mirror byte-identical.
+- `0171_user_packages_rls_initplan.sql`: preserves the single authenticated
+  user-package SELECT policy while evaluating the caller identity once per
+  statement. Keep its Supabase migration mirror byte-identical.
+- `0173_notification_signature_rls_initplan.sql`: preserves the two audited
+  applicant-owned notification/signature SELECT policies while evaluating the
+  caller identity once per statement. Keep its Supabase migration mirror
+  byte-identical.
+- `0174_inbound_email_rls_initplan.sql`: preserves the applicant inbox SELECT
+  policy, including quarantine and retired-alias filtering, while evaluating
+  the caller identity once per statement. Service-role mailbox consumers and
+  the table ACL remain unchanged; keep its Supabase migration mirror
+  byte-identical.
+- `0175_expand_runner_result_statuses.sql`: expands the exact-owner shared-pool
+  result writer to accept the canonical Japan QR, Kenya approval/rejection,
+  and needs-attention/blocked statuses. Keep its Supabase migration mirror
+  byte-identical.
 
 ## Guardrails
 

@@ -2,9 +2,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { pipeline } from "node:stream/promises";
+import { type Browser, type BrowserContext, type Locator, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
-import type { SgacPortalPayload } from "./normalize";
+import type { SgacLongTermPassPortalPayload, SgacPortalPayload } from "./normalize";
 import {
   reportBadCaptcha,
   solveImageCaptcha,
@@ -19,6 +20,7 @@ import {
 import { launchAbortableResource } from "../queue/portal-safety.js";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
+export const SGAC_LONG_TERM_PASS_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/ltp";
 
 const SGAC_CAPTCHA_MAX_ATTEMPTS = readPositiveIntegerEnv("SGAC_CAPTCHA_MAX_ATTEMPTS", 10);
 const SGAC_CAPTCHA_SOLVE_TIMEOUT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SOLVE_TIMEOUT_MS", 150_000);
@@ -112,36 +114,90 @@ async function captureConfirmationPdf(
   fs.mkdirSync(artifactDir, { recursive: true });
   await closeFeedbackPopupIfPresent(page, logs);
 
-  const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
-  const downloadLink = page.getByRole("link", { name: /Download PDF/i }).last();
-  const downloadControl = await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)
-    ? downloadButton
-    : downloadLink;
-  if (await downloadControl.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    try {
-      const [download] = await Promise.all([
-        page.waitForEvent("download", { timeout: 20_000 }),
-        downloadControl.click({ timeout: 10_000 }),
-      ]);
-      const filename = download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`;
-      const filePath = path.join(artifactDir, filename.toLowerCase().endsWith(".pdf")
-        ? filename
-        : `sgac-confirmation-official-${Date.now()}.pdf`);
-      await download.saveAs(filePath);
-      if (!looksLikeNonEmptyPdf(filePath)) {
-        logs.push(`sgac_confirmation_pdf_download_rejected path=${filePath}`);
-        return null;
-      }
-      logs.push("sgac_confirmation_pdf_downloaded official=true");
-      return filePath;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logs.push(`sgac_confirmation_pdf_download_failed ${message}`);
+  let officialPdfResponse: Promise<Buffer | null> | null = null;
+  const responseListener = (response: Response): void => {
+    if (officialPdfResponse) return;
+    const headers = response.headers();
+    const contentType = headers["content-type"] ?? "";
+    const contentDisposition = headers["content-disposition"] ?? "";
+    if (
+      /application\/pdf/i.test(contentType) ||
+      /\.pdf(?:$|[?&#])/i.test(response.url()) ||
+      /filename[^;]*\.pdf/i.test(contentDisposition)
+    ) {
+      officialPdfResponse = response.body().catch(() => null);
     }
-  }
+  };
+  page.on("response", responseListener);
 
-  logs.push("sgac_confirmation_pdf_not_captured official_download_unavailable");
-  return null;
+  try {
+    const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
+    const downloadLink = page.getByRole("link", { name: /Download PDF/i }).last();
+    const downloadControl = await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)
+      ? downloadButton
+      : downloadLink;
+    if (await downloadControl.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      try {
+        const [download] = await Promise.all([
+          page.waitForEvent("download", { timeout: 20_000 }),
+          downloadControl.click({ timeout: 10_000 }),
+        ]);
+        const suggested = path.basename(
+          download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`,
+        );
+        const filename = suggested.toLowerCase().endsWith(".pdf")
+          ? suggested
+          : `sgac-confirmation-official-${Date.now()}.pdf`;
+        const filePath = path.join(artifactDir, filename);
+        try {
+          const stream = await download.createReadStream();
+          if (!stream) throw new Error("official PDF download stream was unavailable");
+          await pipeline(stream, fs.createWriteStream(filePath));
+        } catch (streamError) {
+          logs.push(`sgac_confirmation_pdf_stream_failed ${streamError instanceof Error ? streamError.message : String(streamError)}`);
+          await download.saveAs(filePath);
+        }
+        if (looksLikeNonEmptyPdf(filePath)) {
+          logs.push("sgac_confirmation_pdf_downloaded official=true");
+          return filePath;
+        }
+        logs.push("sgac_confirmation_pdf_download_rejected invalid_pdf");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logs.push(`sgac_confirmation_pdf_download_failed ${message}`);
+      }
+    }
+
+    const responseBytes = officialPdfResponse ? await officialPdfResponse : null;
+    if (responseBytes) {
+      const responsePath = path.join(artifactDir, `sgac-confirmation-official-${Date.now()}.pdf`);
+      fs.writeFileSync(responsePath, responseBytes);
+      if (looksLikeNonEmptyPdf(responsePath)) {
+        logs.push("sgac_confirmation_pdf_downloaded official=true source=response");
+        return responsePath;
+      }
+      fs.rmSync(responsePath, { force: true });
+      logs.push("sgac_confirmation_pdf_response_rejected invalid_pdf");
+    }
+
+    const renderedPath = path.join(artifactDir, `sgac-confirmation-page-${Date.now()}.pdf`);
+    try {
+      await page.pdf({ path: renderedPath, format: "A4", printBackground: true });
+      if (looksLikeNonEmptyPdf(renderedPath)) {
+        logs.push("sgac_confirmation_pdf_rendered official_page=true");
+        return renderedPath;
+      }
+      fs.rmSync(renderedPath, { force: true });
+      logs.push("sgac_confirmation_page_pdf_rejected invalid_pdf");
+    } catch (error) {
+      logs.push(`sgac_confirmation_page_pdf_failed ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    logs.push("sgac_confirmation_pdf_not_captured official_download_unavailable");
+    return null;
+  } finally {
+    page.off("response", responseListener);
+  }
 }
 
 async function visibleBodySummary(page: Page, limit = 1600): Promise<string> {
@@ -785,6 +841,130 @@ function extractReferenceNumbers(body: string): { confirmationNumber: string | n
     /(?:Reference\s*(?:No\.?|Number)|Acknowledgement\s*(?:No\.?|Number))\s*[:：]?\s*([A-Z0-9-]{6,})/i.exec(body)?.[1] ??
     confirmation;
   return { confirmationNumber: confirmation, referenceNumber: reference };
+}
+
+async function fillLongTermPassTravellerStep(
+  page: Page,
+  payload: SgacLongTermPassPortalPayload,
+): Promise<void> {
+  const finInput = page.locator("#nricFin_ehcGroup_0");
+  await finInput.waitFor({ state: "visible", timeout: 40_000 });
+  await page.getByRole("button", { name: new RegExp(escapeRegex(payload.arrivalDate)) }).first().click({ timeout: 20_000 });
+  await finInput.fill(payload.fin);
+  await page.locator("#residentName_0").fill(payload.fullName);
+  await page.locator("#dob_ehcGroup_0").fill(payload.dateOfBirth);
+  await page.locator("#email_0").fill(payload.email);
+  await page.locator(`#ehcGroup_sq8_${payload.hasHealthSymptoms ? "Y" : "N"}_0`).click();
+  await page.waitForTimeout(400);
+  const travelQuestion = payload.hasHealthSymptoms ? "sq10" : "sq9";
+  await page.locator(`#ehcGroup_${travelQuestion}_${payload.hasRelevantTravelHistory ? "Y" : "N"}_0`).click();
+  await clickVisibleRoleButton(page, /^Next$/i);
+}
+
+/** Runs ICA's separate resident SG Arrival Card route for Long-Term Pass holders. */
+export async function runSgacLongTermPassPortalSubmission(
+  payload: SgacLongTermPassPortalPayload,
+  options: RunSgacPortalOptions = {},
+): Promise<SgacPortalRunResult> {
+  options.executionContext?.assertOwned();
+  const artifactDir =
+    options.artifactDir ?? fs.mkdtempSync(path.join(os.tmpdir(), `viza-sgac-ltp-${payload.applicationId}-`));
+  const screenshots: string[] = [];
+  const logs: string[] = [];
+  const headless = options.headless ?? process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false";
+  const handles = await launchAbortableResource(
+    options.executionContext?.signal,
+    () => launch(headless),
+    async (resource) => {
+      await resource.context.close().catch(() => undefined);
+      await resource.browser.close().catch(() => undefined);
+    },
+  );
+  const abortListener = (): void => {
+    void handles.browser.close().catch(() => undefined);
+  };
+
+  try {
+    options.executionContext?.signal.addEventListener("abort", abortListener, { once: true });
+    options.executionContext?.assertOwned();
+    const { page } = handles;
+    await page.goto(SGAC_LONG_TERM_PASS_OFFICIAL_PORTAL_URL, {
+      waitUntil: "domcontentloaded",
+      timeout: options.timeoutMs ?? 60_000,
+    });
+    await fillLongTermPassTravellerStep(page, payload);
+    await waitForReviewStep(page, artifactDir);
+    await assertNoVisiblePortalErrors(page, artifactDir, "ltp-review");
+    screenshots.push(await screenshot(page, artifactDir, "sgac-ltp-review"));
+
+    if (options.stopBeforeSubmit) {
+      return {
+        submitted: false,
+        status: "stopped_before_submit",
+        confirmationNumber: null,
+        referenceNumber: null,
+        portalUrl: page.url(),
+        portalResponseSummary: "ICA Long-Term Pass holder SG Arrival Card reached the Review page; final submit was intentionally skipped.",
+        screenshots,
+        pdfs: [],
+        logs,
+      };
+    }
+
+    options.executionContext?.assertOwned();
+    await checkReviewDeclaration(page, artifactDir);
+    options.executionContext?.assertOwned();
+    await clickVisibleRoleButton(page, /^Next$/i);
+    await solveSecurityVerificationIfPresent(
+      page,
+      artifactDir,
+      logs,
+      options.executionContext?.assertOwned,
+    );
+    await Promise.race([
+      page.waitForFunction(
+        () => /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
+          !/Security Verification|Enter text here|Try another text/i.test(document.body.innerText),
+        null,
+        { timeout: 90_000 },
+      ),
+      sleep(90_000),
+    ]);
+    const body = await visibleBodySummary(page, 4000);
+    screenshots.push(await screenshot(page, artifactDir, "sgac-ltp-confirmation"));
+    const finalPortalError = await collectVisiblePortalErrors(page);
+    if (finalPortalError) {
+      throw new SgacPortalError(`ICA Long-Term Pass SGAC returned an error after final submit: ${finalPortalError}`, {
+        code: classifyPortalErrorCode(finalPortalError),
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
+    if (!isConfirmationBody(body)) {
+      throw new SgacPortalError("ICA Long-Term Pass SGAC did not show an official confirmation after final submit.", {
+        code: "sgac_ltp_confirmation_not_detected",
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
+    const pdf = await captureConfirmationPdf(page, artifactDir, logs);
+    const numbers = extractReferenceNumbers(body);
+    return {
+      submitted: true,
+      status: "submitted",
+      confirmationNumber: numbers.confirmationNumber,
+      referenceNumber: numbers.referenceNumber,
+      portalUrl: page.url(),
+      portalResponseSummary: body,
+      screenshots,
+      pdfs: pdf ? [pdf] : [],
+      logs,
+    };
+  } finally {
+    options.executionContext?.signal.removeEventListener("abort", abortListener);
+    await handles.context.close().catch(() => undefined);
+    await handles.browser.close().catch(() => undefined);
+  }
 }
 
 export async function runSgacPortalSubmission(

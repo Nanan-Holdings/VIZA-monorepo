@@ -5,9 +5,9 @@
  * This is a public-source reconstruction of IRCC IMM 5257 and the family form
  * currently selected by Canada's country packages, IMM 5707. Chinese-citizen
  * applicants also receive the answer fields from IMM 0104. The authenticated
- * IRCC Portal/Secure Account journey still requires a live-portal QA pass, so
- * selectors, portal page order, and personalized checklist variations are not
- * asserted here.
+ * The authenticated IRCC Portal purpose page was verified on 2026-08-18. Its
+ * exact selectors are recorded only for fields seen there; later pages and
+ * personalized checklist variations still require live-portal QA.
  *
  * Product boundaries:
  * - Tourism is fixed by the package; it is not an applicant choice.
@@ -204,7 +204,7 @@ function familyPersonFields(
 
 const FIELDS: FieldDef[] = [
   ...defineStep(1, "Application & Personal Details", "IMM 5257", [
-    { field_name: "uci", label: "Unique client identifier (UCI), if known", field_type: "text", required: false, validation_rules: { maxLength: 10 } },
+    { field_name: "uci", label: "Unique client identifier (UCI), if known", field_type: "text", required: false, validation_rules: { maxLength: 10, official_page: "purpose", live_dom_id: "uciNumber_input", live_selector: "#uciNumber_input", live_checked: "2026-08-18" } },
     { field_name: "service_language", label: "Language in which you want service", field_type: "radio", required: true, options: [{ value: "english", text: "English" }, { value: "french", text: "French" }] },
     { field_name: "family_name", label: "Family name", field_type: "text", required: true, validation_rules: { maxLength: 50 } },
     { field_name: "given_names", label: "Given name(s)", field_type: "text", required: false, placeholder: "Leave blank only if your travel document has no given name", validation_rules: { maxLength: 80 } },
@@ -290,9 +290,9 @@ const FIELDS: FieldDef[] = [
   ]),
 
   ...defineStep(5, "Details of Visit to Canada", "IMM 5257", [
-    { field_name: "visit_details", label: "Describe what you plan to do in Canada", field_type: "textarea", required: true, placeholder: "Tourism is fixed by this visa package", validation_rules: { maxLength: 500 } },
-    { field_name: "intended_stay_from", label: "Intended stay — From", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates" }) },
-    { field_name: "intended_stay_to", label: "Intended stay — To", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates" }) },
+    { field_name: "visit_details", label: "Tell us more about what you'll do in Canada. Include dates.", field_type: "textarea", required: true, placeholder: "Describe the tourism itinerary and include the intended dates", validation_rules: { maxLength: 475, official_page: "purpose", live_dom_id: "visitDetails_txtArea", live_selector: "#visitDetails_txtArea", live_checked: "2026-08-18", fixed_official_context: { applying_for: { value: "464", selector: "#applyingFor_radio-button-464-input" }, visa_purpose: { value: "470", selector: "#visaPurpose_radio-button-470-input" } } } },
+    { field_name: "intended_stay_from", label: "Intended stay — From", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates", official_page: "purpose", live_selectors: { year: "#dateComingToCanadaYear_sltDateYear", month: "#dateComingToCanadaMonth_sltDateMonth", day: "#dateComingToCanadaDay_sltDateDay" }, live_checked: "2026-08-18" }) },
+    { field_name: "intended_stay_to", label: "Intended stay — To", field_type: "date", required: true, validation_rules: dateRules({ inline_group: "intended_stay_dates", official_page: "purpose", live_selectors: { year: "#dateComingToCanadaToYear_sltDateYear", month: "#dateComingToCanadaToMonth_sltDateMonth", day: "#dateComingToCanadaToDay_sltDateDay" }, live_checked: "2026-08-18" }) },
     { field_name: "available_funds_cad", label: "Funds available for your stay (CAD)", field_type: "text", required: true, validation_rules: { pattern: "^\\d+(?:\\.\\d{1,2})?$", maxLength: 12 } },
     { field_name: "canada_contact_name", label: "Person or institution you will visit — Name", field_type: "text", required: false, validation_rules: { maxLength: 120, block_group: "canada_contacts", ...repeat("canada_contacts", 20) } },
     { field_name: "canada_contact_relationship", label: "Relationship to you", field_type: "text", required: false, validation_rules: { maxLength: 80, block_group: "canada_contacts", ...repeat("canada_contacts", 20) } },

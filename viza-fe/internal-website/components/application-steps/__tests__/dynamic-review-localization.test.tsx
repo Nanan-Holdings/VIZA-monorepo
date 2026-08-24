@@ -18,6 +18,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const translate = (key: string) => ({
       "review.missingInformation": "缺失信息",
+      "review.optionalInformation": "选填信息未填写",
       "review.notProvided": "未填写",
     })[key] ?? key;
     translate.has = () => false;
@@ -119,7 +120,8 @@ describe("dynamic review localization", () => {
     );
 
     const issueRow = container.querySelector("[data-review-issue='error']");
-    expect(issueRow).toHaveClass("bg-red-50");
+    expect(issueRow).toHaveClass("border-border", "bg-red-50");
+    expect(issueRow).not.toHaveClass("border-red-200");
     expect(screen.getByText("酒店名称")).toHaveClass("text-red-800");
     expect(screen.getByText("示例酒店")).toHaveClass("text-red-700");
     expect(screen.getByText("酒店名称需要修改。")).toBeInTheDocument();
@@ -151,7 +153,8 @@ describe("dynamic review localization", () => {
       />,
     );
 
-    expect(container.querySelector("[data-review-issue='warning']")).toHaveClass("bg-amber-50");
+    expect(container.querySelector("[data-review-issue='warning']"))
+      .toHaveClass("border-border", "bg-amber-50");
     expect(screen.getByText("Please verify the official hotel name.")).toBeInTheDocument();
   });
 
@@ -184,10 +187,7 @@ describe("dynamic review localization", () => {
 
     fireEvent.click(editButtons[0]);
     fireEvent.click(editButtons[1]);
-    expect(onEditSection.mock.calls).toEqual([
-      [2, "arrival"],
-      [7, "insurance"],
-    ]);
+    expect(onEditSection.mock.calls).toEqual([[2, "arrival"], [7, "insurance"]]);
   });
 
   test("keeps empty fields at the end of the merged review", () => {
@@ -233,6 +233,38 @@ describe("dynamic review localization", () => {
     expect(screen.getByText("Not provided")).toHaveClass("text-red-600");
     expect(screen.queryByRole("button", { name: "review.continueToTeam" }))
       .not.toBeInTheDocument();
+  });
+
+  test("separates optional blanks from required missing information", () => {
+    const step: WizardStep = {
+      stepNumber: 1,
+      stepName: "Personal Information",
+      fields: [
+        baseField({ fieldName: "surname", label: "Surname" }),
+        baseField({ fieldName: "middle_name", label: "Middle name", required: false }),
+      ],
+    };
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ surname: "Edward" }}
+        dbSteps={[step]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        mode="continue"
+        showAction={false}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "个人信息 · 选填信息未填写" }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "个人信息 · 缺失信息" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("未填写")).toHaveClass("text-muted-foreground");
+    expect(screen.getByText("Not provided")).toHaveClass("text-muted-foreground");
   });
 
   test("routes completed and missing sections from the same step to their own first field", () => {

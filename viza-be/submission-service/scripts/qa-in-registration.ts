@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     ),
   ]);
   console.log(JSON.stringify(result, null, 2));
-  process.exit(result.status === "stopped_before_pay" ? 0 : 1);
+  process.exit(result.status === "stopped_before_official_record" ? 0 : 1);
 }
 
 main().catch((err) => {

@@ -20,6 +20,11 @@ application lifecycle state.
   initializes applicant inbox aliases, and records explicit forwarding consent.
   Keep its client-facing failures typed and covered by
   `applicant-inbox.test.ts`.
+- `inbox.ts`: lists and downloads applicant email only after resolving the
+  signed Supabase or legacy VIZA session to its exact active inbox alias. Its
+  service-role reads must retain the alias, non-quarantine, and non-retired
+  ownership predicates covered by `inbox.test.ts`; do not rely on anonymous
+  table grants for legacy-session compatibility.
 - `client-application-status.ts`: customer-safe application timeline, file,
   and update reads shared by the home dashboard and the submitted application
   view.
@@ -63,6 +68,9 @@ application lifecycle state.
   approved line-based refund execution commands.
 - `admin-documents.ts`, `admin-privacy.ts`, `admin-leads.ts`: auditable admin
   decisions for document review, data rights, and marketing lead handling.
+  UAE transaction-783 bank/insurance approval is a distinct immutable staff
+  command bound to the current application, Storage object bytes, locator,
+  evidence state, reviewer, and timestamp; a generic review is insufficient.
 - `admin-submission.ts`: audited, state-checked runner retry commands that refuse
   to race an active operator takeover.
 - `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,

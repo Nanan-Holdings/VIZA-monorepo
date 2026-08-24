@@ -344,7 +344,12 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
 function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
   // Postal codes are structured identifiers. Translating them can replace a
   // valid numeric value with a place name and breaks the official lookup.
-  return isTextLikeField(field) && field.fieldName !== "postal_code";
+  const rules = field.validationRules as { derived_from?: unknown; read_only?: unknown } | null;
+  const isOfficialAddressDerivedValue = rules?.derived_from === "stay_address_search"
+    && rules.read_only === true;
+  return isTextLikeField(field)
+    && !/(?:^|_)postal_code$/u.test(field.fieldName)
+    && !isOfficialAddressDerivedValue;
 }
 
 function hasChineseText(value: string): boolean {
@@ -1158,6 +1163,14 @@ function getPhEtravelOfficialOptionSource(field: VisaFormFieldRow): string | nul
     : null;
 }
 
+function isKoreaOfficialAddressSearchField(field: VisaFormFieldRow): boolean {
+  const source = (field.validationRules as { source?: unknown } | null)?.source;
+  return (
+    (field.fieldName === "address_in_korea" && source === "korea_visa_portal_address_search")
+    || (field.fieldName === "stay_address_search" && source === "korea_e_arrival_card_address_search")
+  );
+}
+
 function getPhEtravelDependsOn(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
   const dependsOn = rules?.depends_on ?? rules?.dependsOn;
@@ -1543,6 +1556,10 @@ function buildCurrentStepAnswerPatch(
   const answers = filterCurrentStepValues(fields, values, groupCounts);
 
   for (const field of fields) {
+    if (isKoreaOfficialAddressSearchField(field)) {
+      answers[`${field.fieldName}_zh`] = values[`${field.fieldName}_zh`] ?? "";
+      answers[`${field.fieldName}_en`] = values[`${field.fieldName}_en`] ?? values[field.fieldName] ?? "";
+    }
     if (!usesBilingualTextPair(field)) continue;
     const group = getRepeatGroup(field);
     const keys = group
@@ -1591,6 +1608,8 @@ function getLocalFieldIssue(
       equals?: string;
       length?: number;
     };
+    specific_error_zh?: string;
+    specific_error_en?: string;
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -1652,13 +1671,14 @@ function getLocalFieldIssue(
           ?? rules.pattern.match(/^\^\\d\{(\d+)\}\$$/u)?.[1];
         return issue(
           "error",
-          exactDigitLength
+          (isZh ? rules.specific_error_zh : rules.specific_error_en)
+            ?? (exactDigitLength
             ? isZh
               ? `请输入 ${exactDigitLength} 位数字`
               : `Enter exactly ${exactDigitLength} digits`
             : isZh
               ? "格式不符合要求"
-              : "Format does not match the requirement",
+              : "Format does not match the requirement"),
         );
       }
     } catch {
@@ -3187,12 +3207,8 @@ export function DynamicStepForm({
 
   const hasKoreaAddressSearchField = useMemo(
     () =>
-      visaType === "KR_C39_SHORT_TERM_VISIT" &&
-      step.fields.some(
-        (field) =>
-          field.fieldName === "address_in_korea" &&
-          (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search",
-      ),
+      (visaType === "KR_C39_SHORT_TERM_VISIT" || visaType === "KR_E_ARRIVAL_CARD") &&
+      step.fields.some(isKoreaOfficialAddressSearchField),
     [step.fields, visaType],
   );
 
@@ -3231,6 +3247,75 @@ export function DynamicStepForm({
       window.clearTimeout(timer);
     };
   }, [hasKoreaAddressSearchField, koreaAddressSearchQuery]);
+
+  useEffect(() => {
+    if (!hasKoreaAddressSearchField) return;
+    const addressField = step.fields.find(isKoreaOfficialAddressSearchField);
+    if (!addressField) return;
+
+    const fieldName = addressField.fieldName;
+    const selectedValue = valuesRef.current[fieldName]?.trim() ?? "";
+    const savedChineseLabel = valuesRef.current[`${fieldName}_zh`]?.trim() ?? "";
+    if (!selectedValue || savedChineseLabel) return;
+
+    // Older Korea applications saved only the official English/Korean values.
+    // Re-resolve that same official address once so the shared C-3-9/EAC
+    // selector can display and persist the newer Chinese-only label without
+    // changing any official submission value.
+    const keyword = selectedValue.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(`/api/korea-addresses?keyword=${encodeURIComponent(keyword)}&limit=20`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const selected = options.find((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue
+            || option.englishAddress === selectedValue
+            || option.koreanAddress === valuesRef.current.stay_address_ko;
+        });
+        if (!selected || typeof selected === "string") return;
+        const chineseLabel = selected.label_zh?.trim();
+        if (!chineseLabel) return;
+
+        setKoreaAddressOptions((current) => {
+          const withoutDuplicate = current.filter((option) =>
+            typeof option === "string" ? option !== selected.value : option.value !== selected.value,
+          );
+          return [selected, ...withoutDuplicate];
+        });
+        const next = {
+          ...valuesRef.current,
+          [`${fieldName}_zh`]: chineseLabel,
+          [`${fieldName}_en`]: selected.label_en ?? selected.englishAddress ?? selectedValue,
+        };
+        valuesRef.current = next;
+        setValues(next);
+        onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+          step.fields,
+          next,
+          groupCountsRef.current,
+          textPairsRef.current,
+        ));
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          // The saved official value remains usable even if label enrichment is unavailable.
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    hasKoreaAddressSearchField,
+    step.fields,
+    values.address_in_korea,
+    values.stay_address_ko,
+    values.stay_address_search,
+  ]);
 
   const vnPrearrivalRemoteFields = useMemo(
     () =>
@@ -3990,6 +4075,62 @@ export function DynamicStepForm({
     setValues(normalizedNext);
   };
 
+  const handleKoreaOfficialAddressSelection = (fieldName: string, value: string) => {
+    if (!value) {
+      onUserChange?.();
+      pushUndoSnapshot();
+      const next = {
+        ...valuesRef.current,
+        [fieldName]: "",
+        [`${fieldName}_zh`]: "",
+        [`${fieldName}_en`]: "",
+        stay_address_ko: "",
+        stay_address_en: "",
+        stay_postal_code: "",
+      };
+      valuesRef.current = next;
+      setValues(next);
+      onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+        step.fields,
+        next,
+        groupCountsRef.current,
+        textPairsRef.current,
+      ));
+      return;
+    }
+    const selected = koreaAddressOptions.find((option) =>
+      typeof option === "string" ? option === value : option.value === value,
+    );
+    if (typeof selected === "string" || !selected) {
+      handleChange(fieldName, value);
+      return;
+    }
+
+    onUserChange?.();
+    pushUndoSnapshot();
+    const next = {
+      ...valuesRef.current,
+      [fieldName]: value,
+      [`${fieldName}_zh`]: selected.label_zh ?? selected.text ?? value,
+      [`${fieldName}_en`]: selected.label_en ?? selected.englishAddress ?? value,
+      stay_address_ko: selected.koreanAddress ?? selected.official_label ?? "",
+      stay_address_en: selected.englishAddress ?? selected.value,
+      stay_postal_code: selected.postalCode ?? "",
+    };
+    valuesRef.current = next;
+    setValues(next);
+    // Publish the derived official values synchronously. Waiting for React's
+    // values effect creates a small race where an immediate click on the
+    // page-level Submit button can enqueue before the Korean/English address
+    // and postal code have reached the parent draft buffer.
+    onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+      step.fields,
+      next,
+      groupCountsRef.current,
+      textPairsRef.current,
+    ));
+  };
+
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
@@ -4265,10 +4406,7 @@ export function DynamicStepForm({
         ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
         : remoteOptions;
     }
-    if (
-      field.fieldName === "address_in_korea" &&
-      (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search"
-    ) {
+    if (isKoreaOfficialAddressSearchField(field)) {
       const selectedValue = values[valueKey]?.trim();
       const hasSelectedValue =
         selectedValue &&
@@ -4277,7 +4415,12 @@ export function DynamicStepForm({
           return option.value === selectedValue;
         });
       fieldOptions = selectedValue && !hasSelectedValue
-        ? [{ value: selectedValue, text: selectedValue }, ...koreaAddressOptions]
+        ? [{
+            value: selectedValue,
+            text: values[`${valueKey}_zh`] || selectedValue,
+            label_zh: values[`${valueKey}_zh`] || selectedValue,
+            label_en: values[`${valueKey}_en`] || selectedValue,
+          }, ...koreaAddressOptions]
         : koreaAddressOptions;
     }
     const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
@@ -4354,13 +4497,18 @@ export function DynamicStepForm({
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
+    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
+    const aiFilledBadge = isAiFilled ? (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        {isChineseInterface ? "AI 已填写" : "AI filled"}
+      </span>
+    ) : null;
     let guidancePopover: ReactNode = null;
 
     const renderSide = (side: BilingualSide) => {
       const isTaiwanEntryPermit = (visaType ?? field.visaType) === "TW_ENTRY_PERMIT";
-      const isKoreaAddressSearchSelect =
-        field.fieldName === "address_in_korea" &&
-        (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
+      const isKoreaAddressSearchSelect = isKoreaOfficialAddressSearchField(field);
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
       const remoteDependsOn = phEtravelSource
         ? getPhEtravelDependsOn(field)
@@ -4380,14 +4528,15 @@ export function DynamicStepForm({
       const isVnPrearrivalEditableOverride = Boolean(
         editableWhenValue && lockedByValue === editableWhenValue,
       );
-      const isVnPrearrivalReadOnly =
-        isVnPrearrivalField &&
+      const isFieldReadOnly =
         !isVnPrearrivalEditableOverride &&
         Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: isTaiwanEntryPermit ? field.fieldName : `${valueKey}-${side}`,
-        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+        fieldType: isKoreaAddressSearchSelect
+          ? "select"
+          : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: isTaiwanEntryPermit && field.fieldName === "name_english"
           ? "英文姓名（依护照大写拼写）"
           : isTaiwanEntryPermit && field.fieldName === "name_chinese"
@@ -4425,11 +4574,16 @@ export function DynamicStepForm({
                 handleBilingualTextChange(valueKey, side, nextValue);
                 return;
               }
+              if (isKoreaAddressSearchSelect && field.fieldName === "stay_address_search") {
+                handleKoreaOfficialAddressSelection(valueKey, nextValue);
+                return;
+              }
               handleChange(valueKey, nextValue);
             }}
             forceWhiteBackground={forceWhiteBackground}
-            disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
+            disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}
             displayLocale={side}
+            labelMeta={side === (isChineseInterface ? "zh" : "en") ? aiFilledBadge : undefined}
             labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
             onSearchQuery={
               isKoreaAddressSearchSelect
@@ -4482,7 +4636,9 @@ export function DynamicStepForm({
     const guidanceField: VisaFormFieldRow = {
       ...field,
       required: isRequiredField(field),
-      fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+      fieldType: isKoreaOfficialAddressSearchField(field)
+        ? "select"
+        : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
@@ -4502,13 +4658,6 @@ export function DynamicStepForm({
           }
       : null;
     const issue = postalLookupIssue ?? requiredIssue ?? localIssue;
-    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
-    const aiFilledBadge = isAiFilled ? (
-      <span className="mb-1 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
-        <Sparkles className="h-3 w-3" aria-hidden="true" />
-        {isChineseInterface ? "AI 已填写" : "AI filled"}
-      </span>
-    ) : null;
     // Requiredness is already communicated by the canonical red asterisk on
     // the field label. Do not repeat a bare "Required"/"必填项" tag below the
     // control for any country; submit-time invalid styling remains separate.
@@ -4582,14 +4731,13 @@ export function DynamicStepForm({
             "application-form-field group/field relative transition-colors",
             forceWhiteBackground && "py-1.5",
             panelOpen ? "bg-[#fbfdff]" : "",
-            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
             highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
             reviewIssue && "-mx-3 px-3 py-3",
             reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
             reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
           )}
         >
-          {aiFilledBadge}
           <div className="min-w-0">
             {renderSide("en")}
           </div>
@@ -4647,7 +4795,7 @@ export function DynamicStepForm({
           "application-form-field group/field relative transition-colors",
           forceWhiteBackground && "py-1.5",
           panelOpen ? "bg-[#fbfdff]" : "",
-          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2",
+          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
           highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
           reviewIssue && "-mx-3 px-3 py-3",
           reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
@@ -4655,7 +4803,6 @@ export function DynamicStepForm({
           highlightedFieldName === valueKey && "rounded-lg ring-2 ring-amber-300 ring-offset-2",
         )}
       >
-        {aiFilledBadge}
         <div className="min-w-0">
           {renderSide("zh")}
         </div>

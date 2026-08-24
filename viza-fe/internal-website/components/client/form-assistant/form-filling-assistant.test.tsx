@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
@@ -19,15 +19,10 @@ function renderAssistant(
     progress: { completed: 2, total: 5 },
     messages: [{ id: "assistant-1", role: "assistant", content: "What is your passport number?" }],
     missingFields: [{ fieldName: "passport_number", label: "Passport number", required: true }],
-    fillNotice: {
-      id: "notice-1",
-      items: [{ fieldName: "given_name", label: "Given name", value: "Chen", displayValue: "Chen" }],
-    },
     onSend: vi.fn(),
+    onConfirm: vi.fn(),
     onTranscribe: vi.fn().mockResolvedValue("A1234567"),
     onAcknowledgeWarnings: vi.fn(),
-    onUndoFill: vi.fn(),
-    onDismissFillNotice: vi.fn(),
     onValidate: vi.fn(),
     onGoToReview: vi.fn(),
     ...overrides,
@@ -60,7 +55,6 @@ describe("FormFillingAssistant", () => {
     });
     vi.restoreAllMocks();
     vi.useRealTimers();
-    window.localStorage.clear();
   });
 
   it("keeps missing fields inside the conversation instead of rendering a jump list", () => {
@@ -69,9 +63,11 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByRole("region", { name: "Form filling assistant" })).toBeInTheDocument();
     expect(screen.getByText("Form filling assistant")).toBeInTheDocument();
     expect(screen.queryByText("Details still needed")).not.toBeInTheDocument();
-    expect(screen.getByText("Filled Given name: Chen")).toBeInTheDocument();
+    expect(screen.queryByText(/Filled Given name/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
     expect(screen.queryByText("given_name")).not.toBeInTheDocument();
-    expect(screen.getByText("2 of 5 fields complete")).toBeInTheDocument();
+    expect(screen.getByText("2 of 5 required items complete")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Application readiness" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Passport number/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Press Enter to send/)).not.toBeInTheDocument();
@@ -82,27 +78,24 @@ describe("FormFillingAssistant", () => {
       loading: true,
       progress: { completed: 0, total: 0 },
       missingFields: [],
-      fillNotice: null,
     });
 
     expect(screen.queryByRole("button", { name: "Checking answers..." })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
   });
 
-  it("updates the displayed progress when the parent form draft changes", () => {
-    const { props, rerender } = renderAssistant({
-      progress: { completed: 7, total: 21 },
+  it("renders the required document uploader inside the conversation", () => {
+    renderAssistant({
+      progress: { completed: 4, total: 5 },
+      missingFields: [],
+      showReviewAction: false,
+      requiredDocumentUploader: <button type="button">Upload profile photo</button>,
     });
-    expect(screen.getByText("7 of 21 fields complete")).toBeInTheDocument();
-    expect(screen.getByText("33%")).toBeInTheDocument();
 
-    rerender(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <FormFillingAssistant {...props} progress={{ completed: 9, total: 21 }} />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.getByText("9 of 21 fields complete")).toBeInTheDocument();
-    expect(screen.getByText("43%")).toBeInTheDocument();
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+    expect(within(conversation).getByTestId("form-assistant-required-document-uploader")).toBeInTheDocument();
+    expect(within(conversation).getByRole("button", { name: "Upload profile photo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
   });
 
   it("keeps the full conversation history available", () => {
@@ -152,7 +145,7 @@ describe("FormFillingAssistant", () => {
   });
 
   it("uses a flat robot-branded panel without the assistant badge and centers the composer controls", () => {
-    renderAssistant({ fillNotice: null });
+    renderAssistant();
 
     const panel = screen.getByRole("region", { name: "Form filling assistant" });
     const composer = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
@@ -178,63 +171,129 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByText("Current answer").parentElement).toHaveClass("bg-brand-500");
   });
 
-  it("offers a real undo action for a recent fill", async () => {
-    const { props } = renderAssistant();
+  it("renders only the canonical checkbox and saves immediately when a declaration is checked", async () => {
+    const { props } = renderAssistant({
+      onConfirm: vi.fn(() => new Promise<void>(() => undefined)),
+      messages: [{
+        id: "assistant-consent",
+        role: "assistant",
+        content: "Please review and confirm the complete declaration shown below.",
+      }],
+      missingFields: [{
+        fieldName: "data_privacy_agreement",
+        fieldType: "checkbox",
+        requiresConfirmation: true,
+        label: "By continuing, I agree to the Data Privacy notice and Affidavit of Undertaking.",
+        required: true,
+      }],
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.getByText(/Data Privacy notice and Affidavit of Undertaking/)).toBeInTheDocument();
+    expect(screen.queryByText("Confirm this declaration")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Select the checkbox/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
 
-    await waitFor(() => expect(props.onUndoFill).toHaveBeenCalledWith([
-      { fieldName: "given_name", label: "Given name", value: "Chen", displayValue: "Chen" },
-    ]));
-    expect(props.onDismissFillNotice).toHaveBeenCalledWith("notice-1");
+    const confirmationCheckbox = screen.getByRole("checkbox");
+    expect(confirmationCheckbox.closest("label")).toHaveClass("relative");
+    confirmationCheckbox.focus();
+    expect(confirmationCheckbox).toHaveFocus();
+    fireEvent.click(confirmationCheckbox);
+
+    await waitFor(() => expect(props.onConfirm).toHaveBeenCalledWith({
+      fieldName: "data_privacy_agreement",
+      fieldType: "checkbox",
+      requiresConfirmation: true,
+      label: "By continuing, I agree to the Data Privacy notice and Affidavit of Undertaking.",
+      required: true,
+    }));
+    expect(props.onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(confirmationCheckbox).not.toHaveFocus();
   });
 
-  it("shows the recent fill as a viewport-level notice", () => {
-    renderAssistant();
+  it("shows a checkbox-specific retry message when a declaration cannot be saved", async () => {
+    renderAssistant({
+      onConfirm: vi.fn().mockRejectedValue(new Error("Confirmation failed")),
+      messages: [{
+        id: "assistant-consent",
+        role: "assistant",
+        content: "Please review and confirm the complete declaration shown below.",
+      }],
+      missingFields: [{
+        fieldName: "customs_information_acknowledgement",
+        fieldType: "checkbox",
+        requiresConfirmation: true,
+        label: "I confirm that I have read and understood the customs declaration.",
+        required: true,
+      }],
+    });
 
-    const notice = screen.getByTestId("form-assistant-fill-notice");
-    expect(notice).toHaveClass("fixed", "z-[80]");
-    expect(notice).toHaveAttribute("aria-atomic", "true");
-    expect(notice).toHaveTextContent("Filled Given name: Chen");
-    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    expect(await screen.findByText("This confirmation was not saved. Please try the checkbox again."))
+      .toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("checkbox")).toBeEnabled();
+    expect(screen.queryByText(/Your text has been kept/)).not.toBeInTheDocument();
   });
 
-  it("keeps undo available for ten seconds", () => {
-    vi.useFakeTimers();
-    const { props } = renderAssistant();
+  it("keeps a persisted confirmation as a checked checkbox beneath its prompt", () => {
+    renderAssistant({
+      messages: [
+        {
+          id: "assistant-consent",
+          role: "assistant",
+          inputMode: "system",
+          content: "Please review and confirm the complete declaration shown below.",
+        },
+        {
+          id: "user-consent",
+          role: "user",
+          inputMode: "confirmation",
+          content: "By continuing, I agree to the Data Privacy notice and Affidavit of Undertaking.",
+        },
+        {
+          id: "assistant-next",
+          role: "assistant",
+          inputMode: "system",
+          content: "What is your flight number?",
+        },
+      ],
+      missingFields: [{ fieldName: "flight_number", label: "Flight number", required: true }],
+    });
 
-    act(() => vi.advanceTimersByTime(9_999));
-    expect(props.onDismissFillNotice).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1));
-    expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-1");
+    const prompt = screen.getByText("Please review and confirm the complete declaration shown below.");
+    const checkbox = screen.getByRole("checkbox");
+
+    const confirmationGroup = prompt.closest(".space-y-2");
+    expect(confirmationGroup).toContainElement(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(checkbox).toBeDisabled();
+    expect(screen.queryByText(/^I have read and agree to/)).not.toBeInTheDocument();
+    expect(screen.getByText("What is your flight number?")).toBeInTheDocument();
+    expect(screen.queryByTestId("form-assistant-fill-notice")).not.toBeInTheDocument();
   });
 
-  it("starts a fresh ten-second window for a newer fill notice", () => {
-    vi.useFakeTimers();
-    const { props, rerender } = renderAssistant();
+  it("keeps an ordinary boolean field as a direct chat question", () => {
+    renderAssistant({
+      messages: [{
+        id: "assistant-transit",
+        role: "assistant",
+        content: "Will you have a connecting flight?",
+      }],
+      missingFields: [{
+        fieldName: "with_transit",
+        fieldType: "checkbox",
+        requiresConfirmation: false,
+        label: "Will you have a connecting flight?",
+        required: true,
+      }],
+    });
 
-    act(() => vi.advanceTimersByTime(9_999));
-    rerender(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <FormFillingAssistant
-          {...props}
-          fillNotice={{
-            id: "notice-2",
-            items: [{
-              fieldName: "surname",
-              label: "Surname",
-              value: "Tan",
-              displayValue: "Tan",
-            }],
-          }}
-        />
-      </NextIntlClientProvider>,
-    );
-
-    act(() => vi.advanceTimersByTime(1));
-    expect(props.onDismissFillNotice).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(9_999));
-    expect(props.onDismissFillNotice).toHaveBeenCalledExactlyOnceWith("notice-2");
+    expect(screen.getByText("Will you have a connecting flight?")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Message for the form filling assistant" })).toBeInTheDocument();
   });
 
   it("reviews answers before offering final review", async () => {
@@ -302,42 +361,6 @@ describe("FormFillingAssistant", () => {
     expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
     expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
     expect(within(conversation).getByRole("button", { name: "Review final answers" })).toBeInTheDocument();
-  });
-
-  it("replaces stale validation copy when the latest answer scan returns a different issue", () => {
-    const { props, rerender } = renderAssistant({
-      missingFields: [],
-      validationResult: {
-        errors: [{ id: "arrival-past", message: "Arrival date cannot be before today." }],
-        warnings: [],
-      },
-    });
-
-    expect(screen.getByText("Arrival date cannot be before today.")).toBeInTheDocument();
-
-    rerender(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <FormFillingAssistant {...props} validationResult={null} />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.queryByText("Arrival date cannot be before today.")).not.toBeInTheDocument();
-
-    rerender(
-      <NextIntlClientProvider locale="en" messages={messages}>
-        <FormFillingAssistant
-          {...props}
-          validationResult={{
-            errors: [{
-              id: "departure-before-arrival",
-              message: "Departure date cannot be before arrival date.",
-            }],
-            warnings: [],
-          }}
-        />
-      </NextIntlClientProvider>,
-    );
-    expect(screen.queryByText("Arrival date cannot be before today.")).not.toBeInTheDocument();
-    expect(screen.getByText("Departure date cannot be before arrival date.")).toBeInTheDocument();
   });
 
   it("offers inline editing and an original-form jump for every field issue", () => {

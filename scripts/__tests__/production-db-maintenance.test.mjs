@@ -144,6 +144,18 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
                   using_sha256: "a".repeat(64),
                   check_sha256: null,
                 }],
+                migration_reconciliation_evidence: {
+                  jp_vjw_official_accommodation_fields: {
+                    ledger: [{
+                      version: "20260823193517",
+                      name: "jp_vjw_official_accommodation_fields",
+                      statement_count: null,
+                      statements_sha256: null,
+                    }],
+                    field_count: 6,
+                    field_contract_sha256: "b".repeat(64),
+                  },
+                },
                 tables: { total: 10 },
               } }]
             : [{ pg_stat_statements: {
@@ -172,7 +184,7 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     object: { schema: "public", name: "runner_job", entity: "runner_job", type: "table" },
   }]);
   assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
-  assert.equal(result.sanitization_schema, "viza-architecture-audit-metadata-only-v1");
+  assert.equal(result.sanitization_schema, "viza-architecture-audit-metadata-only-v2");
   assert.deepEqual(result.source.advisor_endpoints, [
     "advisors/security",
     "advisors/performance",
@@ -194,6 +206,19 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
     using_sha256: "a".repeat(64),
     check_sha256: null,
   }]);
+  assert.deepEqual(
+    result.catalog.migration_reconciliation_evidence.jp_vjw_official_accommodation_fields,
+    {
+      ledger: [{
+        version: "20260823193517",
+        name: "jp_vjw_official_accommodation_fields",
+        statement_count: null,
+        statements_sha256: null,
+      }],
+      field_count: 6,
+      field_contract_sha256: "b".repeat(64),
+    },
+  );
   assert.doesNotMatch(ARCHITECTURE_AUDIT_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
   assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
   assert.match(ARCHITECTURE_AUDIT_SQL, /relation_acl/u);
@@ -206,10 +231,19 @@ test("architecture audit combines sanitized advisors and read-only catalog metad
   assert.match(ARCHITECTURE_AUDIT_SQL, /idx\.indexprs IS NULL/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /generate_subscripts\(con\.conkey/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /'policy_contracts'/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /'migration_reconciliation_evidence'/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /supabase_migrations\.schema_migrations/u);
+  assert.match(ARCHITECTURE_AUDIT_SQL, /public\.visa_form_fields/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.pg_policy/u);
   assert.match(ARCHITECTURE_AUDIT_SQL, /pg_catalog\.sha256/u);
+  assert.match(
+    ARCHITECTURE_AUDIT_SQL,
+    /pg_catalog\.to_regclass\('extensions\.pg_stat_statements'\)/u,
+  );
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /stats_reset/u);
   assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /observation_window_seconds/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /FROM extensions\.pg_stat_statements\b/u);
+  assert.match(PG_STAT_STATEMENTS_AUDIT_SQL, /FROM extensions\.pg_stat_statements_info\b/u);
 });
 
 test("architecture audit skips statement metrics when the extension is unavailable", async () => {
@@ -239,6 +273,88 @@ test("architecture audit skips statement metrics when the extension is unavailab
     observation_window_seconds: null,
     statements: [],
   });
+});
+
+test("architecture audit retries one transient read-only Management API failure", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+  };
+  let securityAttempts = 0;
+  const waits = [];
+  const result = await runArchitectureAudit({
+    env,
+    wait: (resolve, delayMs) => {
+      waits.push(delayMs);
+      resolve();
+    },
+    fetchImpl: async (url, init) => {
+      if (url.endsWith(`/projects/${PRODUCTION_PROJECT_REF}`)) {
+        return new Response(JSON.stringify({ id: PRODUCTION_PROJECT_REF }), { status: 200 });
+      }
+      if (url.endsWith("/advisors/security")) {
+        securityAttempts += 1;
+        if (securityAttempts === 1) {
+          return new Response(JSON.stringify({
+            message: "Failed to run sql query: Connection terminated due to connection timeout",
+          }), { status: 544 });
+        }
+        return new Response(JSON.stringify({ lints: [] }), { status: 200 });
+      }
+      if (url.endsWith("/advisors/performance")) {
+        return new Response(JSON.stringify({ lints: [] }), { status: 200 });
+      }
+      const query = JSON.parse(init.body).query;
+      assert.equal(query, ARCHITECTURE_AUDIT_SQL);
+      return new Response(JSON.stringify([{ architecture_audit: {
+        project_ref_marker: PRODUCTION_PROJECT_REF,
+        pg_stat_statements_available: false,
+      } }]), { status: 200 });
+    },
+  });
+
+  assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
+  assert.equal(securityAttempts, 2);
+  assert.deepEqual(waits, [500]);
+});
+
+test("architecture audit never retries authorization failures and names exhausted phases", async () => {
+  const env = {
+    SUPABASE_ACCESS_TOKEN: "test-token",
+    SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+    PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:architecture-audit`,
+  };
+  let calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      wait: (resolve) => resolve(),
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ message: "forbidden" }), { status: 403 });
+      },
+    }),
+    /project identity failed: .*\(403\): forbidden/u,
+  );
+  assert.equal(calls, 1);
+
+  calls = 0;
+  await assert.rejects(
+    runArchitectureAudit({
+      env,
+      wait: (resolve) => resolve(),
+      fetchImpl: async (url) => {
+        calls += 1;
+        if (url.endsWith(`/projects/${PRODUCTION_PROJECT_REF}`)) {
+          return new Response(JSON.stringify({ id: PRODUCTION_PROJECT_REF }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ message: "connection timeout" }), { status: 544 });
+      },
+    }),
+    /security advisor failed after two attempts: .*\(544\): connection timeout/u,
+  );
+  assert.equal(calls, 3);
 });
 
 test("architecture audit rejects Management API and optional database identity mismatches", async () => {
@@ -378,6 +494,573 @@ test("agent-backend timeout batch pins the role defaults and exact postflight", 
   );
 });
 
+test("function execution batch pins the reviewed source, namespace, and ACL contracts", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "database-function-execution-baseline-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "4ed17ad114011da171356b66fd0a7f71aa993059");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260821181514"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823134811"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823134811",
+    name: "database_function_execution_baseline",
+    path: "viza-fe/internal-website/supabase/migrations/20260823134811_database_function_execution_baseline.sql",
+    sha256: "43ee2f78b60782b7a1a56399df8beda1ab8d36472d2cbaa9bc6e581f22470ed8",
+  });
+  const postconditions = batch.postconditions.catalog_assertions;
+  assert.equal(postconditions.filter(({ kind }) => kind === "function_search_path").length, 9);
+  assert.equal(postconditions.filter(({ kind }) => kind === "function_execute_acl").length, 8);
+  for (const contract of postconditions.filter(({ kind }) => kind === "function_search_path")) {
+    assert.deepEqual(contract.search_path, ["pg_catalog", "public"]);
+    assert.equal(contract.security_definer, false);
+  }
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(postflightSql, /public\.match_visa_chunks\(public\.vector,integer,text,text,text\[\],real\)/u);
+  assert.match(postflightSql, /search_path=pg_catalog, public/u);
+  assert.match(postflightSql, /configured_function\.prosecdef IS FALSE/u);
+});
+
+test("core RLS init-plan batch pins every policy before and after the rewrite", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "core-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "4819df5080775c4cb3f8115949c66165d984984e");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823134811"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823140456"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823140456",
+    name: "core_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823140456_core_rls_initplan.sql",
+    sha256: "e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 11);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count])
+        .sort(),
+      [
+        ["public.applicant_profiles", 3],
+        ["public.application_documents", 4],
+        ["public.applications", 3],
+        ["public.submission_queue", 1],
+      ],
+    );
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /7483a7130e3798bb9db96d7a70ad5323e96852d5bf23dc90e501a937eab7451f/u);
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.match(preflightSql, /ce1b4a6b77c56198e78ac673b893027882840bb094b82834e68602fd650e7e00/u);
+  assert.match(postflightSql, /395001fc5fa67b0b0a69cf3aecfd369149ddef1a8c00eb6268fd895330eb2b6b/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+  assert.match(postflightSql, /bf2366686b415d0aed45d3f473b698f5323e1c4be0c548f5365c4d495ea86a2a/u);
+});
+
+test("chat RLS init-plan batch pins every policy before and after the rewrite", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "chat-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "51142975b1df522d750b743392a721d723795cd8");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823140456"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823143810"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823143810",
+    name: "chat_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823143810_chat_rls_initplan.sql",
+    sha256: "f184696b540b8003fe9a0748882982cf481cfce8ace19a213ff993b562e280f2",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 9);
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 6);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count])
+        .sort(),
+      [
+        ["public.travel_agent_messages", 1],
+        ["public.travel_agent_sessions", 1],
+        ["public.travel_user_preferences", 1],
+        ["public.user_chat_sessions", 2],
+        ["public.visa_chat_messages", 2],
+        ["public.visa_chat_sessions", 3],
+      ],
+    );
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /88343edb2dcb676910bbb308c3db6ec72642830f5146274958532e4354593857/u);
+  assert.match(preflightSql, /795cc81c691fa00af552b35db6b73f6e43ff7c8b762fca1138c3128f9a467b0b/u);
+  assert.match(postflightSql, /067f2b9c489a616b20dba2a5a889efaf0c73212fd91d16a91767f32a164c6ef3/u);
+  assert.match(postflightSql, /7d4586bde32e08a4267f4282fe7a0bd3e2971beee3b8809298df68955de27b03/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+});
+
+test("user packages RLS init-plan batch pins the sole policy contract", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "user-packages-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "40814de368ec2030c850bf906ade4b5d6a64e6f6");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823143810"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823152021"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823152021",
+    name: "user_packages_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823152021_user_packages_rls_initplan.sql",
+    sha256: "81a7e178c00d647afda7c00c1ad99b506965c5f4542fc7e31da9c46c9e4a6ecf",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.user_packages", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /ce62525c186c42a375e07249cdd9461522f496b27a3d8789df71b39ac5e77d58/u);
+  assert.match(postflightSql, /2be57c38df7ccb57585e26e8063a9915959f6814c740ec2f581dd7830759c312/u);
+});
+
+test("notification/signature RLS init-plan batch pins both public SELECT policies", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "notification-signature-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "438fc9edb67e5bc8c133ac8c34139233f27ce25e");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823152021"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823154730"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823154730",
+    name: "notification_signature_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823154730_notification_signature_rls_initplan.sql",
+    sha256: "e6f9b05feacda137d8709b1de1c96b0461ada7ce65ec46e7d685d3c42cf4e3af",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 2);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [
+        ["public.notification_event_log", 1],
+        ["public.signature_event", 1],
+      ],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 2);
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+});
+
+test("inbound-email RLS init-plan batch pins policy and unchanged broad ACL", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "inbound-email-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "1d29e1ca931d3e66162467f4e4d6a5fd798038ac");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823154730"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260823163045"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260823163045",
+    name: "inbound_email_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260823163045_inbound_email_rls_initplan.sql",
+    sha256: "a91b09072241084a259757978051f66ed2ba1afd80d950c9a94f8030640a9f35",
+  });
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.inbound_email", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    const acl = assertions.find(({ kind }) => kind === "relation_acl");
+    assert.ok(acl);
+    assert.equal(acl.identity, "public.inbound_email");
+    assert.deepEqual(acl.required.map(({ role }) => role), ["anon", "authenticated", "service_role"]);
+    assert.ok(acl.required.every(({ exact, privileges }) => exact === true && privileges.length === 7));
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+  }
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /53620884b11312437e65785cdc5445b1ed50036f0fcdb2b096db2502288786c6/u);
+  assert.match(postflightSql, /ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8/u);
+  assert.match(preflightSql, /has_table_privilege/u);
+  assert.match(postflightSql, /has_table_privilege/u);
+});
+
+test("inbound-email ACL batch removes anonymous access and client mutations", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "inbound-email-acl-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "e42a9ea6a093b20ef8f1458e7982bce7ee8706c1");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260823163045"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824012700"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824012700",
+    name: "inbound_email_acl",
+    path: "viza-fe/internal-website/supabase/migrations/20260824012700_inbound_email_acl.sql",
+    sha256: "56e0894fa8659daf404dabb99cd536de370653c69f84f3cd6bd6cf1a8062117c",
+  });
+
+  const preAssertions = batch.preconditions.catalog_assertions;
+  const postAssertions = batch.postconditions.catalog_assertions;
+  const preAcl = preAssertions.find(({ kind }) => kind === "relation_acl");
+  const postAcl = postAssertions.find(({ kind }) => kind === "relation_acl");
+  assert.deepEqual(preAcl.required.map(({ role }) => role), [
+    "anon",
+    "authenticated",
+    "service_role",
+  ]);
+  assert.ok(preAcl.required.every(({ exact, privileges }) =>
+    exact === true && privileges.length === 7));
+  assert.deepEqual(preAcl.forbidden_roles, ["PUBLIC"]);
+  assert.deepEqual(preAcl.allowed_direct_roles, ["anon", "authenticated", "service_role"]);
+  assert.equal(preAcl.grant_options_forbidden, true);
+  assert.deepEqual(postAcl.required, [
+    { role: "authenticated", privileges: ["SELECT"], exact: true },
+    {
+      role: "service_role",
+      privileges: [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+      ],
+      exact: true,
+    },
+  ]);
+  assert.deepEqual(postAcl.forbidden_roles, ["PUBLIC", "anon"]);
+  assert.deepEqual(postAcl.allowed_direct_roles, ["authenticated", "service_role"]);
+  assert.equal(postAcl.grant_options_forbidden, true);
+
+  for (const assertions of [preAssertions, postAssertions]) {
+    const policy = assertions.find(({ kind }) => kind === "policy_contract");
+    assert.equal(policy.using_sha256, "ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8");
+    assert.deepEqual(policy.roles, ["PUBLIC"]);
+    assert.equal(assertions.find(({ kind }) => kind === "policy_count").count, 1);
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /20260823163045/u);
+  assert.match(postflightSql, /20260824012700/u);
+  assert.match(preflightSql, /ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8/u);
+  assert.match(postflightSql, /ecb33803f6cb8934051ad83203bedb9a0d5421a5f7114329c219f0d2093460c8/u);
+  assert.match(postflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+  assert.match(postflightSql, /pg_catalog\.pg_get_userbyid/u);
+});
+
+test("audit-log RLS init-plan batch pins only the two single-path ownership policies", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "audit-log-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "90db48360245d758adc89daa1983d9b70948f220");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824012700"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824020344"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824020344",
+    name: "audit_log_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824020344_audit_log_rls_initplan.sql",
+    sha256: "5b79d4d4e0eb0e6c341c7f6aa21631093f1a5688b9a7677212df169eb9e7153d",
+  });
+
+  const expectedRelations = [
+    ["public.secret_access_log", 1],
+    ["public.pii_access_log", 1],
+  ];
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    const policies = assertions.filter(({ kind }) => kind === "policy_contract");
+    assert.equal(policies.length, 2);
+    assert.ok(policies.every(({ command, roles, permissive, check_sha256: checkHash }) =>
+      command === "SELECT" && permissive === true && checkHash === null &&
+      JSON.stringify(roles) === JSON.stringify(["PUBLIC"])));
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      expectedRelations,
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 2);
+    assert.ok(assertions.every(({ identity }) =>
+      identity !== "public.account_action_log" && identity !== "public.consent_event"));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/u);
+  assert.doesNotMatch(preflightSql, /91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8/u);
+  assert.match(postflightSql, /f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/u);
+  assert.doesNotMatch(postflightSql, /71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975/u);
+});
+
+test("account-action-log RLS init-plan batch pins the reviewed two-path policy", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "account-action-log-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "d32d817c39a138881d1d6d4233e5e498cec6f482");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824020344"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824023800"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824023800",
+    name: "account_action_log_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824023800_account_action_log_rls_initplan.sql",
+    sha256: "726114d60c513f65e8d755f400a7f6778e70a05a49212351578e7e8b83fd5596",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.account_action_log", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    assert.ok(assertions.every(({ identity }) => identity !== "public.consent_event"));
+    const acl = assertions.find(({ kind }) => kind === "relation_acl");
+    assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+    assert.equal(acl.grant_options_forbidden, true);
+    assert.equal(acl.required.length, 4);
+    assert.ok(acl.required.every(({ privileges, exact }) =>
+      exact === true && privileges.length === 7));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8/u);
+  assert.match(postflightSql, /71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975/u);
+  assert.doesNotMatch(`${preflightSql}\n${postflightSql}`, /consent_event/u);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
+test("consent-event RLS batch pins the production-reconciled two-path policy", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "consent-event-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "4227627f49ff631650e999d550c7967f20cecec0");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824023800"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824032000"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824032000",
+    name: "consent_event_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824032000_consent_event_rls_initplan.sql",
+    sha256: "ad8b0e93f158e51ca79694dc6abf80c77781280a1e8d3bbd623dd62d208b27f8",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.consent_event", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    assert.ok(assertions.every(({ identity }) => identity !== "public.account_action_log"));
+    const acl = assertions.find(({ kind }) => kind === "relation_acl");
+    assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+    assert.equal(acl.grant_options_forbidden, true);
+    assert.equal(acl.required.length, 4);
+    assert.ok(acl.required.every(({ privileges, exact }) =>
+      exact === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+    assert.ok(acl.required.every(({ exact_direct: exactDirect }) => exactDirect === true));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.match(preflightSql, /91d4d5f1bd65562b9581892c345fa0b60d0dc1aa398f0b271e86338385060ac8/u);
+  assert.match(postflightSql, /71f1513bd40970f7d84c85ec82450b575df8915148b67210085a056186962975/u);
+  assert.doesNotMatch(`${preflightSql}\n${postflightSql}`, /account_action_log/u);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(preflightSql, /exact_acl_entry\.privilege_type NOT IN/u);
+  assert.match(preflightSql, /exact_acl_entry\.privilege_type = expected_acl\.privilege_type/u);
+  assert.match(preflightSql, /'MAINTAIN'/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
+test("applicant single-path RLS batch pins all four policy contracts", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "applicant-single-path-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "25ad988389edd4efe0ed0e383b0e7a6c1cd673d6");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824032000"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824051000"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824051000",
+    name: "applicant_single_path_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824051000_applicant_single_path_rls_initplan.sql",
+    sha256: "90d15e9994d544360c536a486da8d8685ed95e7c7adce0bd9f2946f771f0af43",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 4);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [
+        ["public.applicant_secret", 1],
+        ["public.notification_preferences", 2],
+        ["public.staff_chat_thread", 1],
+      ],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 3);
+    const acls = assertions.filter(({ kind }) => kind === "relation_acl");
+    assert.equal(acls.length, 3);
+    for (const acl of acls) {
+      assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+      assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+      assert.equal(acl.grant_options_forbidden, true);
+      assert.equal(acl.required.length, 4);
+      assert.ok(acl.required.every(({ privileges, exact, exact_direct: exactDirect }) =>
+        exact === true && exactDirect === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+    }
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.equal((preflightSql.match(/25b1a1fe79d4578daaa9ce3a895db3195c732290aa4290acac2e212ea1967fad/gu) ?? []).length, 5);
+  assert.equal((postflightSql.match(/f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/gu) ?? []).length, 5);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
+test("supporting-document RLS batch pins the sole two-hop ownership policy", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "supporting-doc-submission-rls-initplan-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "f65b84631a776b8ed3f5bb41f08657b5b69d2f5f");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824051000"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824055000"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824055000",
+    name: "supporting_doc_submission_rls_initplan",
+    path: "viza-fe/internal-website/supabase/migrations/20260824055000_supporting_doc_submission_rls_initplan.sql",
+    sha256: "9a260359fb706176565f8e6b30d29e7a8ad484ef1f12f670337481228bab067f",
+  });
+
+  for (const phase of [batch.preconditions, batch.postconditions]) {
+    const assertions = phase.catalog_assertions;
+    assert.equal(assertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+    assert.deepEqual(
+      assertions.filter(({ kind }) => kind === "policy_count")
+        .map(({ identity, count }) => [identity, count]),
+      [["public.supporting_doc_submission", 1]],
+    );
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    const acls = assertions.filter(({ kind }) => kind === "relation_acl");
+    assert.equal(acls.length, 1);
+    const [acl] = acls;
+    assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+    assert.equal(acl.grant_options_forbidden, true);
+    assert.equal(acl.required.length, 4);
+    assert.ok(acl.required.every(({ privileges, exact, exact_direct: exactDirect }) =>
+      exact === true && exactDirect === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.equal((preflightSql.match(/0c1f144a5f4ed2d63e7cbe75cbdee0a425444763f84353d8dde8fb9a7a3ad6d4/gu) ?? []).length, 1);
+  assert.equal((postflightSql.match(/8c0df2ed0556d31617abbdee9ca003d8346949fafa4e18a3a49f94fa98f4e7f5/gu) ?? []).length, 1);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
+test("notification-preferences policy dedupe batch removes only the redundant SELECT policy", () => {
+  const manifest = loadApprovedBatchManifest();
+  const batch = manifest.batches.find(({ batch_id: batchId }) =>
+    batchId === "notification-preferences-policy-dedupe-v1");
+  assert.ok(batch);
+  assert.equal(batch.source_ref, "da821d7ef775086fcf44583860fb0e5dc6dc74b0");
+  assert.equal(batch.mode, "transactional");
+  assert.deepEqual(batch.preconditions.required_migration_versions, ["20260824055000"]);
+  assert.deepEqual(batch.preconditions.absent_migration_versions, ["20260824061117"]);
+  assert.deepEqual(batch.migrations[0], {
+    version: "20260824061117",
+    name: "notification_preferences_policy_dedupe",
+    path: "viza-fe/internal-website/supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql",
+    sha256: "fbbaa13c9cde71289d4b22103bd33e11c87e61620e9d65f78d17c41d63968cde",
+  });
+
+  const preAssertions = batch.preconditions.catalog_assertions;
+  const postAssertions = batch.postconditions.catalog_assertions;
+  assert.equal(preAssertions.filter(({ kind }) => kind === "policy_contract").length, 2);
+  assert.equal(postAssertions.filter(({ kind }) => kind === "policy_contract").length, 1);
+  assert.deepEqual(
+    preAssertions.filter(({ kind }) => kind === "policy_count").map(({ identity, count }) => [identity, count]),
+    [["public.notification_preferences", 2]],
+  );
+  assert.deepEqual(
+    postAssertions.filter(({ kind }) => kind === "policy_count").map(({ identity, count }) => [identity, count]),
+    [["public.notification_preferences", 1]],
+  );
+  assert.deepEqual(
+    postAssertions.filter(({ kind }) => kind === "policy_absent").map(({ identity, policy }) => [identity, policy]),
+    [["public.notification_preferences", "notification_preferences_select_own"]],
+  );
+
+  for (const assertions of [preAssertions, postAssertions]) {
+    assert.equal(assertions.filter(({ kind }) => kind === "rls_enabled").length, 1);
+    const [acl] = assertions.filter(({ kind }) => kind === "relation_acl");
+    assert.ok(acl);
+    assert.deepEqual(acl.allowed_direct_roles, ["postgres", "anon", "authenticated", "service_role"]);
+    assert.deepEqual(acl.forbidden_roles, ["PUBLIC"]);
+    assert.equal(acl.grant_options_forbidden, true);
+    assert.equal(acl.required.length, 4);
+    assert.ok(acl.required.every(({ privileges, exact, exact_direct: exactDirect }) =>
+      exact === true && exactDirect === true && privileges.length === 8 && privileges.includes("MAINTAIN")));
+  }
+
+  const preflightSql = buildApprovedBatchStateSql(batch, "preconditions");
+  const postflightSql = buildApprovedBatchStateSql(batch, "postconditions");
+  assert.equal((preflightSql.match(/f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/gu) ?? []).length, 3);
+  assert.equal((postflightSql.match(/f4e3e33d2585cbb579e477f7f118f0b5b80ac10bea6a0dbb5fa875089f38aa86/gu) ?? []).length, 2);
+  assert.match(postflightSql, /notification_preferences_select_own/u);
+  assert.match(preflightSql, /pg_catalog\.aclexplode/u);
+  assert.match(postflightSql, /acl_entry\.is_grantable/u);
+});
+
 test("approved batch state SQL supports only structured exact catalog guards", () => {
   const batch = {
     ...genericBatchManifest.batches[0],
@@ -417,6 +1100,12 @@ test("approved batch state SQL supports only structured exact catalog guards", (
           check_sha256: null,
         },
         {
+          id: "users_policy_count",
+          kind: "policy_count",
+          identity: "public.users",
+          count: 1,
+        },
+        {
           id: "users_acl_exact",
           kind: "relation_acl",
           identity: "public.users",
@@ -430,6 +1119,13 @@ test("approved batch state SQL supports only structured exact catalog guards", (
           id: "commit_rpc_signature",
           kind: "function_exists",
           identity: "public.commit_travel_agent_turn(text,uuid,text,bigint,text,text,jsonb,text,text,jsonb,jsonb)",
+        },
+        {
+          id: "match_chunks_fixed_path",
+          kind: "function_search_path",
+          identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+          search_path: ["pg_catalog", "public"],
+          security_definer: false,
         },
         {
           id: "future_objects_private",
@@ -456,10 +1152,14 @@ test("approved batch state SQL supports only structured exact catalog guards", (
   assert.match(sql, /to_regclass\('public\.application_translations'\) IS NULL/u);
   assert.match(sql, /Users can view all users/u);
   assert.match(sql, /users_select_own/u);
+  assert.match(sql, /pg_catalog\.count\(\*\)[\s\S]*?\) = 1/u);
   assert.match(sql, /pg_catalog\.sha256/u);
   assert.match(sql, /has_table_privilege\('authenticated',[\s\S]*?'INSERT'\), FALSE/u);
   assert.match(sql, /information_schema\.columns/u);
   assert.match(sql, /commit_travel_agent_turn/u);
+  assert.match(sql, /match_visa_chunks/u);
+  assert.match(sql, /search_path=pg_catalog, public/u);
+  assert.match(sql, /configured_function\.prosecdef IS FALSE/u);
   assert.match(sql, /default_scope\.namespace_oid/u);
   assert.match(sql, /VALUES \(0::oid, TRUE\)/u);
   assert.match(sql, /pg_catalog\.pg_roles/u);
@@ -503,6 +1203,31 @@ test("approved batch state SQL supports only structured exact catalog guards", (
         preconditions: { catalog_assertions: [unsafeAssertion] },
       }, "preconditions"),
       /invalid role settings/u,
+    );
+  }
+
+  for (const unsafeAssertion of [
+    {
+      id: "unsafe_path_order",
+      kind: "function_search_path",
+      identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+      search_path: ["public", "pg_catalog"],
+      security_definer: false,
+    },
+    {
+      id: "unsafe_path_schema",
+      kind: "function_search_path",
+      identity: "public.match_visa_chunks(public.vector,integer,text,text,text[],real)",
+      search_path: ["pg_catalog", "public;drop schema public"],
+      security_definer: false,
+    },
+  ]) {
+    assert.throws(
+      () => buildApprovedBatchStateSql({
+        ...batch,
+        preconditions: { catalog_assertions: [unsafeAssertion] },
+      }, "preconditions"),
+      /invalid function search path/u,
     );
   }
 });

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
+import { DocumentUploadField } from "@/components/ui/document-upload-field";
 import type { DocumentCenterData, DocumentRequirement } from "../actions";
 import { DocumentCenterClient } from "../document-center-client";
 
@@ -100,6 +101,27 @@ describe("embedded document upload step", () => {
     expect(container.querySelector(".border-t")).not.toBeInTheDocument();
   });
 
+  test("omits the optional supporting documents section when no optional items are configured", () => {
+    render(
+      <DocumentCenterClient
+        initialData={{
+          ...initialData,
+          requirements: initialData.requirements.filter((item) => item.required),
+        }}
+        initialError={null}
+        applicationId={application.id}
+        embedded
+      />
+    );
+
+    expect(screen.queryByRole("heading", { name: "Optional supporting documents" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByText("0 items")).not.toBeInTheDocument();
+    expect(screen.queryByText(
+      "No optional supporting documents are configured for this visa package yet."
+    )).not.toBeInTheDocument();
+  });
+
   test("omits redundant document overview UI and renders direct upload controls", () => {
     const onContinue = vi.fn();
     const { container } = render(
@@ -122,7 +144,7 @@ describe("embedded document upload step", () => {
     expect(screen.queryByText("Application status: Draft")).not.toBeInTheDocument();
     expect(screen.queryByText("Checklist source: Default checklist")).not.toBeInTheDocument();
     expect(screen.queryByText("Missing or replacement documents")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Use saved profile file").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Use saved profile file")).not.toBeInTheDocument();
 
     const requiredSection = screen
       .getByRole("heading", { name: "Required documents" })
@@ -176,6 +198,91 @@ describe("embedded document upload step", () => {
     expect(screen.queryByText("Required")).not.toBeInTheDocument();
     expect(container.querySelectorAll("article.rounded-xl.border.bg-white.p-5")).toHaveLength(2);
     expect(container.querySelectorAll(".min-h-\\[40px\\]")).toHaveLength(2);
+  });
+
+  test("offers reuse only when a verified saved profile document is available", () => {
+    render(
+      <DocumentCenterClient
+        initialData={{
+          ...initialData,
+          requirements: [
+            requirement("applicant_photo", "Portrait photo", true, 1),
+            requirement("customs_signature_file", "Declaration signature", true, 2),
+          ],
+          reusableProfileDocuments: [
+            { documentType: "photo", filename: "portrait.jpg" },
+          ],
+        }}
+        initialError={null}
+        applicationId={application.id}
+        embedded
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Use saved portrait.jpg" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /saved.*signature/i })).not.toBeInTheDocument();
+  });
+
+  test("the trash control removes the attachment instead of opening the picker", () => {
+    const onRemove = vi.fn();
+    const onFileSelected = vi.fn();
+
+    render(
+      <DocumentUploadField
+        status="in_review"
+        statusLabel="Uploaded"
+        file={{ name: "portrait.jpg", kind: "image" }}
+        dropLabel="Drop file or browse"
+        removeLabel="Remove file"
+        onRemove={onRemove}
+        inputAriaLabel="Replace portrait"
+        onFileSelected={onFileSelected}
+      />
+    );
+
+    const fileFooter = screen.getByText("portrait.jpg").parentElement;
+    expect(fileFooter).toHaveClass("shrink-0");
+    expect(fileFooter?.previousElementSibling).toHaveClass("min-h-0", "overflow-hidden");
+    expect(fileFooter?.children).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove file" }));
+
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(onFileSelected).not.toHaveBeenCalled();
+  });
+
+  test("restores an uploaded image preview from its persisted signed URL", () => {
+    const previewUrl = "https://project.supabase.co/storage/v1/object/sign/application-documents/portrait.jpg?token=signed";
+    render(
+      <DocumentCenterClient
+        initialData={{
+          ...initialData,
+          requirements: [requirement("photo", "Portrait photo", true, 1)],
+          documents: [{
+            id: "document-photo",
+            applicationId: application.id,
+            documentType: "photo",
+            requirementKey: "photo",
+            filename: "portrait.jpg",
+            status: "uploaded",
+            rejectionReason: null,
+            required: true,
+            reviewNotes: null,
+            reviewedAt: null,
+            createdAt: null,
+            updatedAt: null,
+            source: "application_documents",
+            previewUrl,
+          }],
+        }}
+        initialError={null}
+        applicationId={application.id}
+        embedded
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "Preview of portrait.jpg" }))
+      .toHaveAttribute("src", previewUrl);
   });
 
   test("renders the canonical two-column upload-card grids and continues when ready", () => {

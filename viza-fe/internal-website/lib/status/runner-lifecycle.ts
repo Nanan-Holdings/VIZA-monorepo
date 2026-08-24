@@ -20,6 +20,7 @@ export type RunnerJobStatus =
   | "succeeded"
   | "failed"
   | "dead_letter"
+  | "needs_human"
   | "paused";
 
 export type LifecyclePhase =
@@ -53,11 +54,13 @@ export function mapRunnerJobStatus(
       return { status: "running", phase: "in_progress", label: "Submitting your application", actionable: false, supportNeeded: false };
     case "paused":
       return { status: "paused", phase: "paused", label: "Temporarily paused", actionable: false, supportNeeded: false };
+    case "needs_human":
+      return { status: "needs_human", phase: "action_required", label: "Action required to continue", actionable: true, supportNeeded: false };
     case "succeeded":
       if (outcome === "halted_before_pay") {
         return { status: "succeeded", phase: "in_progress", label: "VIZA is preparing your secure official-fee payment", actionable: false, supportNeeded: false };
       }
-      return { status: "succeeded", phase: "done", label: "Submitted — awaiting decision", actionable: false, supportNeeded: false };
+      return { status: "succeeded", phase: "in_progress", label: "Safe checkpoint reached — confirming the next step", actionable: false, supportNeeded: false };
     case "failed":
       return { status: "failed", phase: "support", label: "Submission failed — we're on it", actionable: false, supportNeeded: true };
     case "dead_letter":

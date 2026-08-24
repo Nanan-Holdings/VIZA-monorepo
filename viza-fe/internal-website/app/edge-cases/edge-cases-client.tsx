@@ -279,6 +279,12 @@ export function EdgeCasesClient({ catalog }: { catalog: ApplicationSchemaEdgeCas
           <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
             Live inventory from the master visa schema. Every design-edge-case issue is shown below with a representative component, the current safe fallback, and all affected fields.
           </p>
+          <a
+            href="/schema-qa?visaType=TR_E_VISA"
+            className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand-500 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+          >
+            Open filled schema QA preview
+          </a>
         </header>
 
         <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Schema audit summary">

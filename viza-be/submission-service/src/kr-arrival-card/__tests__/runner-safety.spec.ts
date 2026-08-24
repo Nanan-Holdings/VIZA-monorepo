@@ -35,6 +35,10 @@ test("Korea runner uses official widgets for controlled fields", () => {
   assert.match(runnerSource, /\[onclick\*='addrSet\('\]/);
   assert.match(runnerSource, /searchDiagnostics/);
   assert.match(runnerSource, /kr_eac_address_result_click_failed/);
+  assert.match(runnerSource, /input\.soj_prrpl_rnm_bs_han_addr/);
+  assert.match(runnerSource, /input\.soj_prrpl_rnm_bs_eng_addr/);
+  assert.match(runnerSource, /input\.zip/);
+  assert.match(runnerSource, /kr_eac_address_commit_failed/);
   assert.match(runnerSource, /acknowledgeOfficialAddressNoResultsPrompt/);
   assert.match(runnerSource, /kr_eac_address_prompt_drift/);
   assert.match(runnerSource, /KR_EARRIVAL_ADDITIONAL_QUESTION_KEYS\.length === 0/);
@@ -155,12 +159,49 @@ test("Korea navigation failures preserve a structured provider error", () => {
 
 test("Korea runner waits for official travel prompts to close", () => {
   assert.match(runnerSource, /for \(let pass = 0; pass < 3; pass \+= 1\)/);
+  assert.match(runnerSource, /waitForPromptMs = 0/);
+  assert.match(runnerSource, /"arrival" : "departure"}_flight_entered/);
+  assert.match(runnerSource, /waitForPromptMs > 0/);
+  assert.match(runnerSource, /acknowledgeOfficialTravelLookupPrompt\(page, label, logs, executionContext, 15_000\)/);
+  assert.match(runnerSource, /#popupAlert, #popupConfirm/);
+  assert.match(runnerSource, /#confirm, \.pop-btn2/);
+  assert.match(runnerSource, /waitFor\(\{ state: "hidden", timeout: 10_000 \}\)/);
+  assert.match(runnerSource, /lookup prompt did not close/);
   assert.match(runnerSource, /lookup left an unexpected modal open/);
   assert.match(runnerSource, /visibleBodies\.length > 0/);
   assert.match(runnerSource, /kr_eac_control_click_failed/);
 });
 
+test("Korea review confirmation matches the current official popup markup", () => {
+  assert.match(runnerSource, /"#popupConfirm", "#popupAlert"/);
+  assert.match(runnerSource, /dialog\.locator\(/);
+  assert.match(runnerSource, /#confirm, \.pop-btn2, button/);
+  assert.match(runnerSource, /getAttribute\("value"\)\.catch\(\(\) => null\) \?\? ""/);
+  assert.match(runnerSource, /\^\(\?:confirm\|ok\|확인\)\$/);
+  assert.match(runnerSource, /const reviewPromptPattern =/);
+  assert.match(runnerSource, /if \(await findVisibleVerificationCodeDialog\(page\)\) return/);
+  assert.match(runnerSource, /reviewPromptPattern\.test\(remainingText\)/);
+  assert.match(runnerSource, /kr_eac_review_confirmation_not_closed/);
+});
+
+test("Korea verification-code CAPTCHA is not misclassified as a review prompt", () => {
+  assert.match(runnerSource, /async function findVisibleVerificationCodeDialog/);
+  assert.match(runnerSource, /const captchaDialog = await findVisibleVerificationCodeDialog\(page\)/);
+  assert.match(runnerSource, /verification\\s\+code\|verification code for security/);
+  assert.match(runnerSource, /captchaDialog\.locator\("img, canvas"\)/);
+  assert.match(runnerSource, /bounds\.width >= 60 && bounds\.height >= 20/);
+  assert.match(runnerSource, /captchaDialog\.locator\("input:not\(\[type='hidden'\]\)/);
+  assert.match(runnerSource, /"button, a, span, \[onclick\]/);
+  assert.match(runnerSource, /captchaDialog\.getByText\(\/\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$\/iu\)/);
+  assert.match(runnerSource, /\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$/);
+  assert.match(runnerSource, /check that all the information\|information you entered is correct/);
+  assert.doesNotMatch(runnerSource, /if \(!\/correct\|confirm/);
+});
+
 test("Korea address search observes results without waiting on a phantom navigation", () => {
+  assert.match(runnerSource, /function officialAddressSearchKeyword/);
+  assert.match(runnerSource, /normalized\.split\(",", 1\)/);
+  assert.match(runnerSource, /officialAddressSearchKeyword\(addressQuery\)/);
   assert.match(runnerSource, /search\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
   assert.match(runnerSource, /zipSearch\.click\(\{ timeout: 20_000, noWaitAfter: true \}\)/);
 });

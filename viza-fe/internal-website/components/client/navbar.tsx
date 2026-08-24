@@ -8,7 +8,10 @@ import { Airplane as Plane, CaretDown as ChevronDown, ChatCircle as MessageCircl
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
-import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
+import {
+  AnimatedTabPill,
+  getTabPillStateClasses,
+} from "@/components/ui/animated-tab-pill";
 import { NavDropdown, type NavDropdownItem } from "@/components/client/nav-dropdown";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
@@ -246,17 +249,23 @@ export function NavBar({
       return (
         <motion.button
           onClick={() => openChatAgent(tabPaths.Chat)}
+          aria-current={isActive ? "page" : undefined}
           className={cn(
             "font-switzer font-medium whitespace-nowrap transition-colors duration-300",
-            isMobile 
-              ? "px-4 py-1.5 text-base rounded-full border border-solid bg-white border-[#ececec] text-black" 
+            isMobile
+              ? cn(
+                  "px-4 py-1.5 text-base rounded-full border border-solid",
+                  getTabPillStateClasses(isActive, isDark),
+                )
               : "px-5 py-1.5 text-lg"
           )}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           type="button"
         >
-          <motion.span style={{ color: isActive ? activeTabColor : inactiveColor }}>
+          <motion.span
+            style={isMobile ? undefined : { color: isActive ? activeTabColor : inactiveColor }}
+          >
             {t("chat")}
           </motion.span>
         </motion.button>
@@ -273,16 +282,13 @@ export function NavBar({
         widthClassName="w-64 max-w-[calc(100vw-2rem)]"
         trigger={
           <motion.button
+            aria-current={isActive ? "page" : undefined}
             className={cn(
               "font-switzer font-medium whitespace-nowrap transition-all duration-300 cursor-pointer text-ellipsis overflow-hidden inline-flex items-center gap-1.5",
               isMobile
                 ? cn(
                     "px-4 py-1.5 text-base rounded-full border border-solid",
-                    isActive
-                      ? "bg-transparent border-transparent text-[#03346E]"
-                      : isDark
-                        ? "bg-transparent border-[rgba(255,255,255,0.3)] text-[rgba(255,255,255,0.6)]"
-                        : "bg-white border-[#ececec] text-black"
+                    getTabPillStateClasses(isActive, isDark),
                   )
                 : "px-5 py-1.5 text-lg"
             )}

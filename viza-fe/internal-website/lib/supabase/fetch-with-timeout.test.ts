@@ -129,6 +129,41 @@ describe("createFetchWithTransientRetry", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
+
+  it("returns a retryable 503 instead of throwing a terminal browser network error", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createFetchWithTransientRetry({
+      retryDelaysMs: [],
+      circuitBreakerScope: null,
+      returnUnavailableResponse: true,
+    })("https://example.test/auth/v1/token", { method: "POST" });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "VIZA_SUPABASE_UNAVAILABLE",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("can disable the shared circuit for browser auth's own retry loop", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const resilientFetch = createFetchWithTransientRetry({
+      retryDelaysMs: [],
+      circuitBreakerScope: null,
+      returnUnavailableResponse: true,
+    });
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await expect(
+        resilientFetch("https://example.test/auth/v1/token", { method: "POST" }),
+      ).resolves.toMatchObject({ status: 503 });
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
 });
 
 describe("retryTransientSupabaseResult", () => {

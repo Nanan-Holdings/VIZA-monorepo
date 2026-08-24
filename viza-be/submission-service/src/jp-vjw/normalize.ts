@@ -17,21 +17,28 @@ export const JP_VJW_REQUIRED_ANSWER_KEYS = [
   "email_address",
   "phone_number",
   "residence_country",
+  "occupation",
+  "residence_city",
   "arrival_date",
   "arrival_airport",
+  "arrival_airline",
   "flight_number",
   "last_embarkation_country",
   "departure_city_or_port",
   "purpose_of_visit",
   "planned_stay_days",
   "accommodation_name",
+  "accommodation_prefecture",
+  "accommodation_city",
   "accommodation_address",
   "accommodation_postal_code",
   "accommodation_phone",
   "has_been_deported",
   "has_criminal_record",
   "has_controlled_substances_or_weapons",
-  "has_prohibited_or_restricted_goods",
+  "has_prohibited_goods",
+  "has_restricted_goods",
+  "has_gold_or_gold_products",
   "has_dutiable_goods",
   "has_commercial_goods",
   "has_goods_for_other_person",
@@ -44,7 +51,9 @@ export const JP_VJW_REQUIRED_ANSWER_KEYS = [
 export type JpVjwYesNo = "yes" | "no";
 
 export interface JpVjwCustomsAnswers {
-  hasProhibitedOrRestrictedGoods: JpVjwYesNo;
+  hasProhibitedGoods: JpVjwYesNo;
+  hasRestrictedGoods: JpVjwYesNo;
+  hasGoldOrGoldProducts: JpVjwYesNo;
   hasDutiableGoods: JpVjwYesNo;
   hasCommercialGoods: JpVjwYesNo;
   hasGoodsForOtherPerson: JpVjwYesNo;
@@ -85,15 +94,20 @@ export interface JpVjwPortalPayload {
   passportIssuingCountry: string;
   phoneNumber: string;
   residenceCountry: string;
+  occupation: string;
+  residenceCity: string;
   arrivalDate: string;
   departureDate?: string;
   portOfEntry: string;
+  arrivalAirline: string;
   flightNumber: string;
   lastEmbarkationCountry: string;
   departureCityOrPort: string;
   purposeOfVisit: string;
   plannedStayDays: number;
   accommodationName: string;
+  accommodationPrefecture: string;
+  accommodationCity: string;
   accommodationAddress: string;
   accommodationPostalCode: string;
   accommodationPhone: string;
@@ -131,6 +145,26 @@ function normalizeYesNo(value: unknown, key: string, missing: string[]): JpVjwYe
   if (["no", "false", "0", "n", "off"].includes(normalized)) return "no";
   missing.push(key);
   return "no";
+}
+
+function normalizeSplitLegacyNo(
+  currentValue: unknown,
+  legacyCombinedValue: unknown,
+  key: string,
+  missing: string[],
+): JpVjwYesNo {
+  if (text(currentValue)) return normalizeYesNo(currentValue, key, missing);
+  const legacy = text(legacyCombinedValue).toLowerCase();
+  if (["no", "false", "0", "n", "off"].includes(legacy)) return "no";
+  missing.push(key);
+  return "no";
+}
+
+function splitFlightNumber(value: string): { airlineHint: string; number: string } {
+  const compact = value.replace(/\s+/gu, "").toUpperCase();
+  const match = compact.match(/^([A-Z0-9]{2})[- ]?([0-9]{1,8})$/u);
+  if (match) return { airlineHint: match[1], number: match[2] };
+  return { airlineHint: "", number: compact };
 }
 
 function requireConfirmed(value: unknown, key: string, missing: string[]): "yes" {
@@ -182,8 +216,21 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     missing.push("planned_stay_days");
   }
 
+  const flight = splitFlightNumber(firstText([answers.flight_number]));
   const customsAnswers: JpVjwCustomsAnswers = {
-    hasProhibitedOrRestrictedGoods: normalizeYesNo(answers.has_prohibited_or_restricted_goods, "has_prohibited_or_restricted_goods", missing),
+    hasProhibitedGoods: normalizeSplitLegacyNo(
+      answers.has_prohibited_goods,
+      answers.has_prohibited_or_restricted_goods,
+      "has_prohibited_goods",
+      missing,
+    ),
+    hasRestrictedGoods: normalizeSplitLegacyNo(
+      answers.has_restricted_goods,
+      answers.has_prohibited_or_restricted_goods,
+      "has_restricted_goods",
+      missing,
+    ),
+    hasGoldOrGoldProducts: normalizeYesNo(answers.has_gold_or_gold_products, "has_gold_or_gold_products", missing),
     hasDutiableGoods: normalizeYesNo(answers.has_dutiable_goods, "has_dutiable_goods", missing),
     hasCommercialGoods: normalizeYesNo(answers.has_commercial_goods, "has_commercial_goods", missing),
     hasGoodsForOtherPerson: normalizeYesNo(answers.has_goods_for_other_person, "has_goods_for_other_person", missing),
@@ -218,22 +265,29 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     passportIssuingCountry: required(firstText([answers.passport_issuing_country, personal.passportIssuingCountry]), "passport_issuing_country", missing),
     phoneNumber: required(firstText([answers.phone_number, personal.phone]), "phone_number", missing),
     residenceCountry: required(firstText([answers.residence_country, personal.nationality]), "residence_country", missing),
+    occupation: required(firstText([answers.occupation]), "occupation", missing),
+    residenceCity: required(firstText([answers.residence_city]), "residence_city", missing),
     arrivalDate,
     departureDate,
     portOfEntry: required(firstText([answers.arrival_airport]), "arrival_airport", missing),
-    flightNumber: required(firstText([answers.flight_number]), "flight_number", missing),
+    arrivalAirline: required(firstText([answers.arrival_airline, flight.airlineHint]), "arrival_airline", missing),
+    flightNumber: required(flight.number, "flight_number", missing),
     lastEmbarkationCountry: required(firstText([answers.last_embarkation_country]), "last_embarkation_country", missing),
     departureCityOrPort: required(firstText([answers.departure_city_or_port]), "departure_city_or_port", missing),
     purposeOfVisit: required(firstText([answers.purpose_of_visit, trip.purpose]), "purpose_of_visit", missing),
     plannedStayDays,
     accommodationName: required(firstText([answers.accommodation_name, trip.accommodationName]), "accommodation_name", missing),
+    accommodationPrefecture: required(firstText([answers.accommodation_prefecture]), "accommodation_prefecture", missing),
+    accommodationCity: required(firstText([answers.accommodation_city]), "accommodation_city", missing),
     accommodationAddress: required(firstText([answers.accommodation_address, trip.accommodationAddress]), "accommodation_address", missing),
     accommodationPostalCode: required(firstText([answers.accommodation_postal_code]), "accommodation_postal_code", missing),
     accommodationPhone: required(firstText([answers.accommodation_phone]), "accommodation_phone", missing),
     immigrationAnswers,
     customsAnswers,
     customsDeclaration: [
-      customsAnswers.hasProhibitedOrRestrictedGoods,
+      customsAnswers.hasProhibitedGoods,
+      customsAnswers.hasRestrictedGoods,
+      customsAnswers.hasGoldOrGoldProducts,
       customsAnswers.hasDutiableGoods,
       customsAnswers.hasCommercialGoods,
       customsAnswers.hasGoodsForOtherPerson,
@@ -254,6 +308,10 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
   if (result.accommodationPostalCode && !/^\d{3}-?\d{4}$/u.test(result.accommodationPostalCode)) {
     missing.push("accommodation_postal_code");
   }
+  if (!/^\d{10,15}$/u.test(result.accommodationPhone.replace(/[^0-9]/gu, ""))) {
+    missing.push("accommodation_phone");
+  }
+  if (result.flightNumber && !/^\d{1,8}$/u.test(result.flightNumber)) missing.push("flight_number");
 
   if (missing.length > 0) {
     const uniqueMissing = [...new Set(missing)];

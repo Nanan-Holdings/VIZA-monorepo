@@ -66,10 +66,42 @@ export interface PhEtravelRunnerOptions {
   mailbox?: PhEtravelMailboxProvider;
   onOfficialAccountPassword?: (password: string) => Promise<void>;
   emailVerificationTimeoutMs?: number;
+  recoverReferenceNumber?: string;
 }
 
 /** E16: no browser final-submit path is enabled until controlled live evidence closes. */
 export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
+
+function safeOfficialReference(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return /^[a-z0-9][a-z0-9._-]*$/i.test(normalized) && normalized.length <= 160
+    ? normalized
+    : null;
+}
+
+/** Extract only the documented official reference field from a registration response. */
+export function extractPhEtravelRegistrationReference(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const direct = safeOfficialReference(record.reference_number ?? record.referenceNumber);
+  if (direct) return direct;
+  for (const key of ["data", "registration", "result"] as const) {
+    const nested = extractPhEtravelRegistrationReference(record[key]);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+export function extractPhEtravelRegistrationId(portalUrl: string): string | null {
+  try {
+    const url = new URL(portalUrl);
+    const id = url.searchParams.get("id")?.trim();
+    return id && /^[a-z0-9-]{6,160}$/i.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
 
 export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
   return /bright\s*data|proxy_error|classified\s+as\s+government|residential.*policy/i.test(message) &&
@@ -101,6 +133,132 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   await page.screenshot({ path: filePath, fullPage: true });
   logs.push(`ph_etravel_screenshot ${filePath}`);
   return filePath;
+}
+
+async function readOfficialRegistration(page: Page, registrationId: string): Promise<unknown | null> {
+  return page.evaluate(async (id) => {
+    const response = await fetch(`/api/v2/traveller/registrations/${encodeURIComponent(id)}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    return response.json().catch(() => null);
+  }, registrationId).catch(() => null);
+}
+
+async function saveReferenceQr(page: Page, referenceNumber: string, logs: string[]): Promise<string | null> {
+  const candidates = page.locator(
+    "[class*='qr' i] svg, [class*='qr' i] canvas, [class*='qr' i] img, " +
+    "svg[height][width], canvas, img[alt*='qr' i], img[src*='qr' i]",
+  );
+  const count = await candidates.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!await candidate.isVisible().catch(() => false)) continue;
+    const box = await candidate.boundingBox().catch(() => null);
+    if (!box || box.width < 120 || box.height < 120) continue;
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-qr-"));
+    const filePath = path.join(directory, `reference-${Date.now()}.png`);
+    await candidate.screenshot({ path: filePath });
+    logs.push(`ph_etravel_official_qr_captured reference=${referenceNumber} ${filePath}`);
+    return filePath;
+  }
+  return null;
+}
+
+async function capturePhEtravelAuthoritativeResult(
+  page: Page,
+  logs: string[],
+  screenshots: string[],
+): Promise<{
+  portalText: string;
+  portalUrl: string;
+  qrCodes: string[];
+  authoritativeRead: PhEtravelAuthoritativeRegistrationRead;
+  qrRender: PhEtravelDerivedQrRenderMetadata;
+}> {
+  await page.waitForTimeout(2_000);
+  let registrationId = extractPhEtravelRegistrationId(page.url());
+  if (!registrationId) {
+    await page.waitForURL(/\/(?:preparing-qr-code|qr-code|registration-slips|wizard\/)/i, {
+      timeout: 20_000,
+    }).catch(() => undefined);
+    registrationId = extractPhEtravelRegistrationId(page.url());
+  }
+  if (!registrationId) {
+    throw new PhEtravelPortalError(
+      "Philippines eTravel final POST completed without an observable registration identifier for safe result recovery.",
+      {
+        code: "ph_etravel_final_post_ambiguous_recovery_required",
+        screenshotPaths: screenshots,
+        portalSummary: "ph_etravel_registration_id_missing_after_submit",
+      },
+    );
+  }
+
+  let registration: unknown | null = null;
+  let referenceNumber: string | null = null;
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
+    registration = await readOfficialRegistration(page, registrationId);
+    referenceNumber = extractPhEtravelRegistrationReference(registration);
+    logs.push(`ph_etravel_authoritative_result_read attempt=${attempt} reference=${referenceNumber ? "present" : "missing"}`);
+    if (referenceNumber) break;
+    await page.waitForTimeout(Math.min(1_000 * attempt, 4_000));
+  }
+  if (!referenceNumber) {
+    throw new PhEtravelPortalError(
+      "Philippines eTravel did not expose a stable official reference after final submission.",
+      {
+        code: "ph_etravel_authoritative_result_read_required",
+        screenshotPaths: screenshots,
+        portalSummary: "ph_etravel_authoritative_reference_missing",
+      },
+    );
+  }
+
+  const qrUrl = new URL("/qr-code", page.url());
+  qrUrl.searchParams.set("id", registrationId);
+  await page.goto(qrUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.waitForFunction(
+    (reference) => (document.body?.innerText ?? "").includes(reference),
+    referenceNumber,
+    { timeout: 30_000 },
+  ).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+  const portalText = await bodyText(page);
+  const referenceVisible = portalText.includes(referenceNumber);
+  const qrPath = referenceVisible ? await saveReferenceQr(page, referenceNumber, logs) : null;
+  screenshots.push(await saveScreenshot(page, "official-result", logs));
+  if (!referenceVisible || !qrPath) {
+    throw new PhEtravelPortalError(
+      "Philippines eTravel official reference was read, but the matching QR render could not be validated.",
+      {
+        code: "ph_etravel_authoritative_result_read_required",
+        screenshotPaths: screenshots,
+        portalSummary: referenceVisible
+          ? "ph_etravel_reference_qr_render_missing"
+          : "ph_etravel_reference_value_not_visible_on_qr_route",
+      },
+    );
+  }
+
+  return {
+    portalText,
+    portalUrl: page.url(),
+    qrCodes: [qrPath],
+    authoritativeRead: {
+      source: "official_registration_result_read",
+      postSubmitRead: true,
+      referenceNumber,
+      stableReference: true,
+    },
+    qrRender: {
+      renderer: "official_client_reference_qr",
+      renderedForReference: referenceNumber,
+      rendered: true,
+      referenceValueValidated: true,
+    },
+  };
 }
 
 async function dismissDutyFreeAdvertisement(page: Page, logs: string[]): Promise<boolean> {
@@ -2205,9 +2363,34 @@ async function runPhEtravelPortalSubmissionWithBrowser(
     let formResult;
     try {
       formResult = await fillPhEtravelOfficialDeclaration(page, payload, {
-        stopBeforeSubmit: !PH_ETRAVEL_FINAL_SUBMIT_ENABLED,
+        // Safe by default. Only an explicit caller option such as the smoke
+        // runner's --submit flag or the live queue's operator gate may turn
+        // off the Review stop.
+        stopBeforeSubmit: options.stopBeforeSubmit ?? true,
         onStep: async (name) => {
           screenshots.push(await saveScreenshot(page, name, logs));
+        },
+        beforeSubmit: async () => {
+          screenshots.push(await saveScreenshot(page, "before-final-submit", logs));
+          const challenge = await page
+            .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
+            .first()
+            .count()
+            .catch(() => 0);
+          if (challenge > 0) {
+            const solved = await solveTurnstileIfPresent(
+              page,
+              logs,
+              browserSession.nativeCloudflareUnblock,
+            );
+            if (!solved) {
+              throw new PhEtravelFormFillError(
+                "Official eTravel final Review requires a Turnstile token before submission.",
+                "ph_etravel_registration_turnstile_blocked",
+                "ph_etravel_final_review_turnstile_unsolved",
+              );
+            }
+          }
         },
       });
     } catch (error) {
@@ -2235,13 +2418,33 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         },
       );
     }
+    if (!formResult.submitted) {
+      throw new PhEtravelPortalError(
+        "Philippines eTravel stopped without an official final-submit attempt.",
+        {
+          code: "ph_etravel_stopped_before_submit",
+          screenshotPaths: screenshots,
+          portalSummary: formResult.portalText.slice(0, 700),
+        },
+      );
+    }
 
-    throw new PhEtravelPortalError(
-      "Philippines eTravel submission remains disabled until a controlled authoritative result-read flow is implemented.",
+    // The final POST itself is never sufficient success evidence. Re-read the
+    // authenticated official registration, then capture the QR rendered from
+    // that exact stable reference before returning submitted=true.
+    const evidence = await capturePhEtravelAuthoritativeResult(page, logs, screenshots);
+    return buildPhEtravelSuccessFromPortalText(
+      payload,
+      evidence.portalText,
+      evidence.portalUrl,
+      screenshots,
+      evidence.qrCodes,
+      [],
+      logs,
+      undefined,
       {
-        code: "ph_etravel_authoritative_result_read_required",
-        screenshotPaths: screenshots,
-        portalSummary: "ph_etravel_authoritative_result_read_required",
+        authoritativeRead: evidence.authoritativeRead,
+        qrRender: evidence.qrRender,
       },
     );
   } catch (error) {

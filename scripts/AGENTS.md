@@ -100,19 +100,81 @@ smoke-test helpers for the VIZA monorepo.
   requires new Supabase files to use unique 14-digit timestamps.
 - `database-architecture/migration-governance.json`: immutable duplicate-prefix
   allowlist plus hash-pinned mirror/no-mirror decisions for new migrations.
+  A one-time unapplied rename must be 100% byte-identical, hash-pinned, backed
+  by an exact production-ledger absence check, and still paired to its mirror.
+  An applied Supabase filename reconciliation is separately allowlisted only
+  when it is a 100% byte-preserving rename to the exact production ledger
+  version/name, the superseded local version is confirmed absent, and the
+  project ref plus durable read-only evidence run are pinned. Never replay the
+  migration merely to manufacture the repository's former version number.
 - `database-architecture/approved-migration-batches.json`: reviewed batch ids,
   exact migration paths/versions/SHA-256 values, execution modes, and migration
   ledger pre/postconditions used by `apply-approved-batch`.
+  `notification-signature-rls-initplan-v1` pins the two public SELECT-policy
+  contracts for `notification_event_log` and `signature_event` before and
+  after the scalar init-plan rewrite.
+  `inbound-email-rls-initplan-v1` pins the applicant inbox policy hash, RLS
+  state, policy count, and the existing relation ACL before and after its
+  scalar init-plan rewrite. The batch deliberately does not change the broad
+  legacy table ACL or service-role quarantine behavior; harden those only in
+  separately reviewed changes.
+  `inbound-email-acl-v1` follows the deployed legacy-session server ownership
+  boundary and removes anonymous access plus authenticated mutations. It pins
+  the unchanged inbox policy/RLS/purge-function contracts, exact direct
+  grantees, absence of non-owner grant options, authenticated SELECT-only
+  access, and the existing seven service-role table privileges.
+  `audit-log-rls-initplan-v1` pins the two single-path applicant-owned SELECT
+  policies on `secret_access_log` and `pii_access_log`, including exact policy
+  identities, counts, RLS state, and normalized pre/post expression hashes.
+  `account_action_log` requires a separately reviewed two-path batch, while
+  `consent_event` remains excluded until its historical schema ownership is
+  reconciled.
+  `account-action-log-rls-initplan-v1` independently pins the direct user-id OR
+  applicant-profile ownership policy, including exact RLS state, policy count,
+  public SELECT role, exact direct relation ACL roles, normalized pre/post
+  expression hashes, and the migration's same-transaction policy-OID/ACL
+  preservation checks. It must not include `consent_event`.
+  `consent-event-rls-initplan-v1` resolves the historical Drizzle/website-only
+  policy split using the metadata-only production catalog as authority. It
+  independently pins production's direct user-id OR applicant-profile policy,
+  exact RLS/ACL/role/count contracts, immutable source/hash, and the
+  migration's same-transaction policy-OID/raw-ACL preservation checks.
+  `applicant-single-path-rls-initplan-v1` pins the four single-path applicant
+  ownership policies on `applicant_secret`, `notification_preferences`, and
+  `staff_chat_thread`, including unchanged PUBLIC roles, exact direct ACLs,
+  RLS/policy counts, OIDs, and pre/post expression hashes.
+  `supporting-doc-submission-rls-initplan-v1` pins the sole two-hop applicant
+  ownership SELECT policy on `supporting_doc_submission`, including its
+  unchanged PUBLIC role, exact direct ACL, RLS/policy count, policy/relation
+  OIDs, and production-confirmed pre/post expression hashes.
+  `notification-preferences-policy-dedupe-v1` proves the notification
+  preference SELECT and ALL policies share the same ownership predicate, then
+  removes only the redundant SELECT policy while pinning the surviving policy,
+  exact ACL, RLS state, policy count, immutable source, and migration hash.
 
 `production-db-maintenance.mjs` also exposes `architecture-audit`, which joins
 sanitized Security/Performance Advisor metadata with a read-only catalog/stat
-snapshot, and `apply-approved-batch`, which accepts only a full commit SHA and
-an exact manifest entry. Architecture audit must never emit statement text,
-SQL parameters, table rows, applicant data, or advisor detail/remediation text.
+snapshot. Each architecture-audit read may retry once, after 500 ms, only for
+rate limits, 5xx responses, connection resets, or timeouts; authorization,
+identity, payload-shape, and project-marker failures never retry, and the error
+names the failed read phase. The retry path must remain read-only and must not
+be shared by pause/apply/resume actions. `apply-approved-batch` accepts only a
+full commit SHA and an exact manifest entry. Architecture audit must never emit
+statement text, SQL parameters, table rows, applicant data, or advisor
+detail/remediation text.
+The metadata-only v2 audit may include a one-way SHA-256 of an explicitly
+allowlisted product-configuration row set plus migration-ledger version/name,
+statement count, and statement hash. It must never emit the source rows or SQL
+statement text; this evidence exists only to reconcile an already-applied
+migration filename without replaying the migration.
 Approved batches use structured catalog assertions only; concurrent-index
 batches pin exact index definitions and may retry only an invalid/not-ready
 index. Temporary Management API login roles must not exceed ten minutes and
 must be revoked after successful, failed, or ambiguous creation attempts.
+Function-hardening batches use the structured `function_search_path` assertion
+to pin an exact `pg_catalog`-first namespace path and SECURITY
+DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions
+instead of accepting raw catalog SQL.
 When a transactional migration committed but a later metadata postflight was
 stricter than the target PostgreSQL catalog representation, use the read-only
 `verify-approved-batch` action after correcting and reviewing the exact
