@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: supabase-production-database-maintenance
@@ -60,11 +61,119 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "$status" != "red"
 
+      - name: Download recent main-branch capacity evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$RUNNER_TEMP/passive-capacity.json"
+          test -s "$current" || { echo "Current passive capacity report is missing"; exit 1; }
+          history="$RUNNER_TEMP/passive-capacity-history"
+          run_list="$RUNNER_TEMP/passive-capacity-runs.tsv"
+          evidence_manifest="$RUNNER_TEMP/passive-capacity-evidence.jsonl"
+          mkdir -p "$history"
+          : > "$evidence_manifest"
+          current_run="$(gh api \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          jq -e \
+            '.head_branch == "main" and .path == ".github/workflows/passive-production-capacity.yml"' \
+            <<< "$current_run" > /dev/null
+          current_run_created_at="$(jq -r '.created_at' <<< "$current_run")"
+          [[ "$current_run_created_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]] || {
+            echo "Unexpected current capacity run timestamp"
+            exit 1
+          }
+          jq -cn \
+            --arg path "$current" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_created_at "$current_run_created_at" \
+            --arg evidence_created_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{path:$path,run_id:$run_id,source:"current",run_created_at:$run_created_at,evidence_created_at:$evidence_created_at}' \
+            >> "$evidence_manifest"
+          gh api \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/passive-production-capacity.yml/runs?branch=main&status=completed&per_page=20" \
+            --jq '.workflow_runs[] | [.id, .created_at] | @tsv' \
+            > "$run_list"
+          while IFS=$'\t' read -r run_id created_at; do
+            test -n "$run_id" || continue
+            [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Unexpected artifact run id"; exit 1; }
+            [[ "$created_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]] || {
+              echo "Unexpected passive capacity artifact timestamp"
+              exit 1
+            }
+            artifact_record="$(gh api \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id/artifacts?per_page=100" \
+              --jq ".artifacts[] | select(.expired == false and .name == \"passive-production-capacity-${run_id}\") | [.name, .created_at] | @tsv" \
+              | sed -n '1p')"
+            test -n "$artifact_record" || continue
+            IFS=$'\t' read -r artifact_name artifact_created_at <<< "$artifact_record"
+            test "$artifact_name" = "passive-production-capacity-${run_id}" || {
+              echo "Unexpected passive capacity artifact name"
+              exit 1
+            }
+            [[ "$artifact_created_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]] || {
+              echo "Unexpected passive capacity artifact timestamp"
+              exit 1
+            }
+            gh run download "$run_id" -n "$artifact_name" -D "$history/$run_id"
+            historical_report="$history/$run_id/passive-capacity.json"
+            test -s "$historical_report" || {
+              echo "Passive capacity artifact does not contain its report"
+              exit 1
+            }
+            jq -cn \
+              --arg path "$historical_report" \
+              --arg run_id "$run_id" \
+              --arg run_created_at "$created_at" \
+              --arg evidence_created_at "$artifact_created_at" \
+              '{path:$path,run_id:$run_id,source:"artifact",run_created_at:$run_created_at,evidence_created_at:$evidence_created_at}' \
+              >> "$evidence_manifest"
+          done < "$run_list"
+
+      - name: Build and enforce the metadata-only 24-hour trend
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/passive-capacity.json"
+          history="$RUNNER_TEMP/passive-capacity-history"
+          evidence_manifest="$RUNNER_TEMP/passive-capacity-evidence.jsonl"
+          trend="$RUNNER_TEMP/passive-capacity-trend.json"
+          node scripts/passive-capacity-trend.mjs \
+            "$report" "$history" "$evidence_manifest" > "$trend"
+          trend_status="$(jq -r '.assessment.status' "$trend")"
+          complete="$(jq -r '.window.complete_24h' "$trend")"
+          observations="$(jq -r '.window.observation_count' "$trend")"
+          span="$(jq -r '.window.span_hours' "$trend")"
+          peak="$(jq -r '.assessment.summary.peak_connection_utilization_percent' "$trend")"
+          median="$(jq -r '.assessment.summary.median_connection_utilization_percent' "$trend")"
+          candidates="$(jq -r '.review_candidates | length' "$trend")"
+          {
+            echo ""
+            echo "## Passive production capacity — 24-hour trend"
+            echo ""
+            echo "- Status: **${trend_status}**"
+            echo "- Evidence complete: ${complete}"
+            echo "- Observations: ${observations}"
+            echo "- Span: ${span} hours"
+            echo "- Peak connection utilization: ${peak}%"
+            echo "- Median connection utilization: ${median}%"
+            echo "- Persistent redacted query IDs eligible for review: ${candidates}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$trend_status" != "red"
+
       - name: Upload metadata-only capacity report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: passive-production-capacity-${{ github.run_id }}
-          path: ${{ runner.temp }}/passive-capacity.json
+          path: |
+            ${{ runner.temp }}/passive-capacity.json
+            ${{ runner.temp }}/passive-capacity-trend.json
           if-no-files-found: warn
           retention-days: 7
