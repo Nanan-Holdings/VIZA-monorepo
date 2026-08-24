@@ -78,4 +78,14 @@ scheduled recovery workflows.
   and warning-level; it must never be presented as green capacity evidence.
   The optional database project marker follows the same warning behavior when
   absent, while any non-null mismatch remains a hard failure after the exact
-  Management API project check.
+  Management API project check. Each run also downloads only exact-name,
+  non-expired `main` artifacts from prior observer runs and builds a
+  metadata-only 24-hour trend. This is a sparse trend of the existing
+  10-second samples, not continuous transaction accounting. The trend is
+  incomplete until at least five distinct observations span 22 hours; manual
+  bursts cannot satisfy it. Each report must also be contemporaneous with its
+  exact GitHub workflow run and Artifact timestamp; replayed or future-dated
+  sample times fail closed. Any red constituent observation makes the trend
+  red. Only query IDs that recur
+  in at least half the complete window (and at least three observations) are
+  retained as review candidates; the trend never authorizes DDL automatically.

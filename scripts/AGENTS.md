@@ -184,6 +184,17 @@ DDL to this action. Missing `pg_stat_statements` is an explicit warning and
 invalid statement/sample metadata fails closed.
 The Management API project identity is authoritative; a missing database GUC
 marker is a warning, while any non-null marker mismatch is rejected.
+`passive-capacity-trend.mjs` combines only the sanitized reports emitted by
+`capacity-observe`. It validates the exact production ref and report schema,
+rejects sensitive metadata keys, de-duplicates observation windows, and
+requires five observations spanning at least 22 hours before treating the
+24-hour sparse evidence as complete. It does not extrapolate the sampled
+transaction deltas into full-day totals. In scheduled use, a non-uploaded JSONL
+manifest binds every report to a unique GitHub run creation time and current or
+Artifact evidence time; stale, replayed, or future-dated samples fail closed.
+It emits only aggregate capacity counters, Advisor lint counts, and persistent
+redacted query IDs; it never reads the database or turns a candidate into an
+automatic migration.
 Function-hardening batches use the structured `function_search_path` assertion
 to pin an exact `pg_catalog`-first namespace path and SECURITY
 DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions
