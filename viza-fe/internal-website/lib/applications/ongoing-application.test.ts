@@ -16,6 +16,29 @@ describe("ongoing application identity", () => {
     ).toBe(true);
   });
 
+  it.each(["needs_attention", "action_required", "blocked"])(
+    "keeps a submitted row with %s recoverable until authoritative evidence exists",
+    (submissionResultStatus) => {
+      expect(
+        isOngoingApplicationRecord({
+          status: "submitted",
+          submission_result_status: submissionResultStatus,
+          submission_result: { submitted: false },
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it("does not reopen a submitted row when its payload contains authoritative submission evidence", () => {
+    expect(
+      isOngoingApplicationRecord({
+        status: "submitted",
+        submission_result_status: "needs_attention",
+        submission_result: { submitted: true },
+      }),
+    ).toBe(false);
+  });
+
   it("never treats isolated QA drafts as a customer's ongoing application", () => {
     expect(
       isOngoingApplicationRecord({
