@@ -92,6 +92,7 @@ function baseTables(overrides: Tables = {}): Tables {
     payment_records: [],
     government_fee_allocations: [],
     visa_packages: [],
+    package_pricing: [],
     ...overrides,
   };
 }
@@ -170,6 +171,46 @@ describe("submission access evaluator", () => {
     expect(decision.status).toBe("ready");
     expect(decision.agencyFee.status).toBe("waived");
     expect(decision.officialFee.status).toBe("not_required");
+  });
+
+  it("allows a standard account to submit an explicitly zero-priced Japan VJW package", async () => {
+    const admin = fakeAdmin(baseTables({
+      applications: [{
+        id: "app-1",
+        applicant_id: "profile-1",
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        purpose: null,
+        visa_package_id: "package-jp-vjw",
+        group_id: null,
+        government_fee_cents: null,
+        government_fee_currency: "USD",
+      }],
+      visa_packages: [{
+        id: "package-jp-vjw",
+        price_cents: null,
+        currency: "USD",
+      }],
+      package_pricing: [{
+        visa_package_id: "package-jp-vjw",
+        currency: "USD",
+        government_fee_cents: 0,
+        agency_fee_cents: 0,
+        updated_at: "2026-08-24T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+
+    expect(decision.status).toBe("ready");
+    expect(decision.accessLevel).toBe("standard");
+    expect(decision.agencyFee).toMatchObject({ status: "waived", amountDueCents: 0 });
+    expect(decision.officialFee).toMatchObject({ status: "not_required", amountDueCents: 0 });
+    expect(admin.tables.application_submission_entitlements[0]).toMatchObject({
+      decision_status: "ready",
+      agency_fee_status: "waived",
+      official_fee_status: "not_required",
+    });
   });
 
   it("preserves a high-access waiver already locked to the application", async () => {
