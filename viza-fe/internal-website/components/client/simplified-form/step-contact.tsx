@@ -10,6 +10,7 @@ import { CountryDropdown } from "@/components/ui/country-dropdown";
 import { cn } from "@/lib/utils";
 import { TabChoice } from "./tab-choice";
 import type { AdditionalPhone, SimplifiedContact, SocialPlatform } from "./types";
+import { useManagedApplicationEmail } from "@/components/client/wizards/shell/managed-application-email-context";
 
 interface StepContactProps {
   value: SimplifiedContact;
@@ -53,6 +54,7 @@ const DIAL_CODES: Array<{ label: string; value: string }> = [
 ];
 
 export function StepContact({ value, onChange, onContinue }: StepContactProps) {
+  const managedApplicationEmail = useManagedApplicationEmail();
   const t = useTranslations("simplifiedForm.contact");
   const tCommon = useTranslations("simplifiedForm.common");
   const [hasOtherPhone, setHasOtherPhone] = useState(
@@ -163,11 +165,12 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
             <InputGroupInput
               id="email"
               type="email"
-              value={value.email}
+              value={managedApplicationEmail ?? value.email}
               onChange={(e) => set("email", e.target.value)}
               placeholder={t("emailPlaceholder")}
               autoComplete="email"
               required
+              disabled={Boolean(managedApplicationEmail)}
               className="h-12 text-[15px]"
             />
           </InputGroup>

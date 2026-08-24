@@ -52,6 +52,10 @@ import {
   getCompiledConditionalPanelController,
   getCompiledConditionalPanelMode,
 } from "@/lib/application-schema-ui-contract";
+import {
+  applyManagedApplicationEmailToAnswers,
+  isManagedApplicationEmailFieldName,
+} from "@/lib/managed-application-email";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -63,6 +67,8 @@ interface DynamicStepFormProps {
   showContinueButton?: boolean;
   country?: string | null;
   visaType?: string;
+  /** Application-scoped VIZA inbox used for the applicant's correspondence fields. */
+  managedApplicationEmail?: string | null;
   focusFieldName?: string | null;
   /**
    * Field names whose input is provided by an external control (e.g. the
@@ -348,6 +354,7 @@ function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
   const isOfficialAddressDerivedValue = rules?.derived_from === "stay_address_search"
     && rules.read_only === true;
   return isTextLikeField(field)
+    && !isManagedApplicationEmailFieldName(field.fieldName)
     && !/(?:^|_)postal_code$/u.test(field.fieldName)
     && !isOfficialAddressDerivedValue;
 }
@@ -2803,6 +2810,7 @@ export function DynamicStepForm({
   showContinueButton = true,
   country,
   visaType,
+  managedApplicationEmail,
   focusFieldName,
   externallyHandledFieldNames,
   invalidFieldNames,
@@ -2935,7 +2943,13 @@ export function DynamicStepForm({
   const [values, setValues] = useState<Record<string, string>>(() => {
     // Seed with the full prefill so cross-step conditionals (e.g. a later step
     // gated on purpose_of_visit from an earlier step) can be evaluated.
-    const init: Record<string, string> = { ...prefill };
+    const init: Record<string, string> = managedApplicationEmail
+      ? applyManagedApplicationEmailToAnswers(
+          { ...prefill },
+          managedApplicationEmail,
+          step.fields.map((field) => field.fieldName),
+        )
+      : { ...prefill };
     for (const field of step.fields) {
       const group = getRepeatGroup(field);
       if (group) {
@@ -3036,6 +3050,21 @@ export function DynamicStepForm({
   manualEnglishValueKeysRef.current = manualEnglishValueKeys;
   groupCountsRef.current = groupCounts;
   vnPrearrivalQueriesRef.current = vnPrearrivalQueries;
+
+  useEffect(() => {
+    if (!managedApplicationEmail) return;
+    const fieldNames = step.fields.map((field) => field.fieldName);
+    const nextValues = applyManagedApplicationEmailToAnswers(
+      valuesRef.current,
+      managedApplicationEmail,
+      fieldNames,
+    );
+    if (fieldNames.every((fieldName) => nextValues[fieldName] === valuesRef.current[fieldName])) {
+      return;
+    }
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [managedApplicationEmail, step.fields]);
 
   // Saved answers can arrive just after the form component mounts. Hydrate
   // visibility controllers in a layout effect so their dependent panels are
@@ -4017,6 +4046,7 @@ export function DynamicStepForm({
   }, [dependentFieldsByParent]);
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
+    if (managedApplicationEmail && isManagedApplicationEmailFieldName(fieldName)) return;
     const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
       ? normalizeIndonesiaMobileNumber(value)
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
@@ -4494,6 +4524,9 @@ export function DynamicStepForm({
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const tdacTransitCheckboxLocked =
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
+    const managedEmailLocked = Boolean(
+      managedApplicationEmail && isManagedApplicationEmailFieldName(valueKey),
+    );
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
@@ -4575,7 +4608,7 @@ export function DynamicStepForm({
               handleChange(valueKey, nextValue);
             }}
             forceWhiteBackground={forceWhiteBackground}
-            disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}
+            disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly || managedEmailLocked}
             displayLocale={side}
             labelMeta={side === (isChineseInterface ? "zh" : "en") ? aiFilledBadge : undefined}
             labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}

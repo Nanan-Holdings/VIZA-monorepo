@@ -43,8 +43,8 @@ export interface WizardConfig<TForm> {
   /** Translates the form into the canonical DS-160 / UK / Schengen / VN / AU answer keys. */
   buildAnswerPayload: (form: TForm) => Record<string, string>;
   /**
-   * Optional contact-email seeding hook. The shell passes the user's auth
-   * email to `seedAuthEmail` whenever it can — keeps the per-country form
+   * Optional contact-email seeding hook. The shell passes the application-scoped
+   * VIZA email to `seedAuthEmail` whenever it can — keeps the per-country form
    * shape opaque to the shell.
    */
   seedAuthEmail?: (form: TForm, email: string) => TForm;

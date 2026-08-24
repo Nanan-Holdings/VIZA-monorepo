@@ -63,6 +63,11 @@ import {
   AGENCY_SIGNATURE_TYPE,
   CONSENT_DOCUMENTS,
 } from "@/app/client/consent/consent-config";
+import { ensureApplicationManagedEmailForOwner } from "@/lib/application-managed-email.server";
+import {
+  applyManagedApplicationEmailToAnswers,
+  containsManagedApplicationEmailField,
+} from "@/lib/managed-application-email";
 
 type ApplicationOwnerProfile = {
   id?: string | null;
@@ -690,15 +695,11 @@ async function saveDynamicAnswersOnce(
 
     const normalized = normalizeDynamicAnswers(data);
     if (!normalized.ok) return { error: normalized.error };
-    const answers = normalized.data;
+    let answers = normalized.data;
+    const includesManagedEmail = containsManagedApplicationEmailField(
+      Object.keys(answers)
+    );
     const savedAt = new Date().toISOString();
-    const resilienceEvent: ApplicationAnswersEvent = {
-      version: 1,
-      applicantId: session.userId,
-      applicationId,
-      answers,
-      savedAt,
-    };
 
     // Verify the user owns this application
     const adminClient = createAdminClient({
@@ -712,8 +713,19 @@ async function saveDynamicAnswersOnce(
       .single();
 
     if (appError) {
+      if (includesManagedEmail) {
+        return {
+          error: "The VIZA email for this application could not be verified. Please retry.",
+        };
+      }
       if (isResilienceEligibleError(appError.message)) {
-        await queueApplicationAnswers(resilienceEvent);
+        await queueApplicationAnswers({
+          version: 1,
+          applicantId: session.userId,
+          applicationId,
+          answers,
+          savedAt,
+        });
         return { queued: true };
       }
       return { error: appError.message };
@@ -729,6 +741,27 @@ async function saveDynamicAnswersOnce(
     if (!ownsApplicationSession(profile, session)) {
       return { error: "Unauthorized" };
     }
+
+    if (includesManagedEmail) {
+      const managedEmail = await ensureApplicationManagedEmailForOwner(
+        adminClient,
+        applicationId,
+        String(app.applicant_id)
+      );
+      answers = applyManagedApplicationEmailToAnswers(
+        answers,
+        managedEmail,
+        Object.keys(answers)
+      );
+    }
+
+    const resilienceEvent: ApplicationAnswersEvent = {
+      version: 1,
+      applicantId: session.userId,
+      applicationId,
+      answers,
+      savedAt,
+    };
 
     const now = savedAt;
     const emptyFieldNames = Object.entries(answers)
@@ -820,7 +853,11 @@ async function saveDynamicAnswersOnce(
     if (isResilienceEligibleError(err)) {
       const session = await getClientSessionWithFallback();
       const normalized = normalizeDynamicAnswers(data);
-      if (session && normalized.ok) {
+      if (
+        session &&
+        normalized.ok &&
+        !containsManagedApplicationEmailField(Object.keys(normalized.data))
+      ) {
         try {
           await queueApplicationAnswers({
             version: 1,

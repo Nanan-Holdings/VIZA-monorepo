@@ -330,7 +330,7 @@ export const idConfig: WizardConfig<IdForm> = {
   emptyForm: () => ({}),
   buildAnswerPayload: buildPayload,
   i18nNamespace: NAMESPACE,
-  seedAuthEmail: (form, email) => ({ ...form, email_address: form.email_address || email }),
+  seedAuthEmail: (form, email) => ({ ...form, email_address: email }),
   reviewSections,
   steps: [
     genericStep("personal", "personal"),
@@ -364,7 +364,7 @@ export const idB1EvoaConfig: WizardConfig<IdForm> = {
   emptyForm: () => ({}),
   buildAnswerPayload: buildPayload,
   i18nNamespace: NAMESPACE,
-  seedAuthEmail: (form, email) => ({ ...form, email_address: form.email_address || email }),
+  seedAuthEmail: (form, email) => ({ ...form, email_address: email }),
   reviewSections: b1ReviewSections,
   steps: [
     b1GenericStep("personal", "personal"),

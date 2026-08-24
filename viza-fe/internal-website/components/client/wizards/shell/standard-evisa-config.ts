@@ -106,7 +106,7 @@ export function makeStandardEvisaWizard(opts: StandardWizardOpts): WizardConfig<
     defaultVisaType: opts.visaType,
     emptyForm: () => ({}),
     i18nNamespace: NAMESPACE,
-    seedAuthEmail: (form, email) => ({ ...form, email: form.email || email }),
+    seedAuthEmail: (form, email) => ({ ...form, email }),
     buildAnswerPayload: (form) => {
       const out: Record<string, string> = {};
       for (const [k, v] of Object.entries(form)) if (typeof v === "string" && v.trim() !== "") out[k] = v.trim();

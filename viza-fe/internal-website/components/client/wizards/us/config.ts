@@ -126,7 +126,7 @@ export const usConfig: WizardConfig<SimplifiedFormData> = {
   onSubmitRedirect: "/client/application/long-form?step=review",
   seedAuthEmail: (form, email) => ({
     ...form,
-    contact: { ...form.contact, email: form.contact.email || email },
+    contact: { ...form.contact, email },
   }),
   reviewSections,
   steps: [

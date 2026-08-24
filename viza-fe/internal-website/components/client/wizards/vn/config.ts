@@ -235,7 +235,7 @@ export const vnConfig: WizardConfig<VnForm> = {
   emptyForm: () => ({}),
   buildAnswerPayload: buildPayload,
   i18nNamespace: NAMESPACE,
-  seedAuthEmail: (form, email) => ({ ...form, email_address: form.email_address || email }),
+  seedAuthEmail: (form, email) => ({ ...form, email_address: email }),
   reviewSections,
   steps: [
     {

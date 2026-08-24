@@ -44,6 +44,11 @@ application lifecycle state.
 - `visa-form-fields.ts`: loads DB-driven visa form fields, then runs the shared
   schema/UI compiler so component mapping and conditional-panel ownership are
   deterministic across countries.
+- `application-managed-email.ts`: authenticates application ownership and
+  provisions or reuses the application-scoped `appl-…@viza.it.com` inbox. Form
+  saves in `visa-application-answers.ts` re-apply that address to applicant
+  correspondence fields server-side and fail closed rather than queueing an
+  unverified personal-email value.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
 - `user-package.ts`: package/destination assignment and active package reads.

@@ -52,6 +52,12 @@ import {
   loadApplicationFormContext,
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
+import { ensureApplicationManagedEmail } from "@/app/actions/application-managed-email";
+import {
+  applyManagedApplicationEmailToAnswers,
+  containsManagedApplicationEmailField,
+  isManagedApplicationEmailFieldName,
+} from "@/lib/managed-application-email";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
 import {
   getCanonicalApplicationProductCountry,
@@ -1807,6 +1813,7 @@ export default function ApplicationPage() {
   const [koreaPreflightTrusted, setKoreaPreflightTrusted] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
+  const [managedApplicationEmail, setManagedApplicationEmail] = useState<string | null>(null);
   const [externalAnswerRevision, setExternalAnswerRevision] = useState(0);
   const [formAssistantState, setFormAssistantState] = useState<FormAssistantState | null>(null);
   const [formAssistantBusy, setFormAssistantBusy] = useState(false);
@@ -2265,8 +2272,20 @@ export default function ApplicationPage() {
     [draftVersion],
   );
   const dynamicAnswerSnapshot = useMemo(
-    () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
-    [dynamicAnswers, pendingDynamicDrafts],
+    () => {
+      const snapshot = { ...dynamicAnswers, ...pendingDynamicDrafts };
+      return managedApplicationEmail
+        ? applyManagedApplicationEmailToAnswers(
+            snapshot,
+            managedApplicationEmail,
+            [
+              ...dbSteps.flatMap((step) => step.fields.map((field) => field.fieldName)),
+              ...Object.keys(snapshot),
+            ],
+          )
+        : snapshot;
+    },
+    [dbSteps, dynamicAnswers, managedApplicationEmail, pendingDynamicDrafts],
   );
   const visibleDynamicSteps = useMemo(
     () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
@@ -2601,6 +2620,7 @@ export default function ApplicationPage() {
     setCurrentStep(0);
     setCompletedUpTo(0);
     setDynamicAnswers({});
+    setManagedApplicationEmail(null);
     setKoreaPreflightTrusted(!isKoreaEArrivalCard);
     setSubmitCheckState("idle");
     setSubmitMissingFields([]);
@@ -2631,6 +2651,10 @@ export default function ApplicationPage() {
     try {
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
+      const schemaFieldNames = dbSteps.flatMap((step) =>
+        step.fields.map((field) => field.fieldName)
+      );
+      const schemaNeedsManagedEmail = containsManagedApplicationEmailField(schemaFieldNames);
 
       if (explicitApplicationId) {
         const context = await getTeamApplicationContext(explicitApplicationId);
@@ -2655,18 +2679,19 @@ export default function ApplicationPage() {
       }
 
       if (
+        !application?.id &&
         !koreaSchemaUnavailable &&
         canCreateKoreaArrivalCardDraft({
           isKoreaArrivalCard: isKoreaEArrivalCard,
           preflightTrusted: koreaPreflightTrusted,
           explicitApplicationId: Boolean(explicitApplicationId),
         }) &&
-        shouldBootstrapFormAssistantDraft({
+        (schemaNeedsManagedEmail || shouldBootstrapFormAssistantDraft({
           applicationId: application?.id,
           country: resolvedCountry,
           visaType: resolvedVisaType,
           hasFormSchema: dbSteps.some((step) => step.fields.length > 0),
-        })
+        }))
       ) {
         const bootstrapKey = `${resolvedCountry}:${resolvedVisaType}`;
         if (formAssistantDraftBootstrapRef.current?.key !== bootstrapKey) {
@@ -2707,6 +2732,31 @@ export default function ApplicationPage() {
       if (!isLatestRequest()) return;
       setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
+      let applicationEmail: string | null = null;
+      if (application?.id && schemaNeedsManagedEmail) {
+        const emailResult = await ensureApplicationManagedEmail(application.id);
+        if (!emailResult.ok) {
+          throw new Error(
+            isZhInterface
+              ? "暂时无法准备此申请的 VIZA 专用邮箱。为避免使用个人邮箱，表格已停止加载，请稍后重试。"
+              : "The VIZA email for this application could not be prepared. The form was stopped to prevent use of a personal email. Please try again.",
+          );
+        }
+        applicationEmail = emailResult.email;
+        const managedEmailAnswerPatch = Object.fromEntries(
+          schemaFieldNames
+            .filter(isManagedApplicationEmailFieldName)
+            .map((fieldName) => [fieldName, emailResult.email]),
+        );
+        const saveEmailResult = await saveDynamicAnswers(
+          application.id,
+          managedEmailAnswerPatch,
+        );
+        if (saveEmailResult.error) throw new Error(saveEmailResult.error);
+      }
+      if (!isLatestRequest()) return;
+      setManagedApplicationEmail(applicationEmail);
+
       if (profile) {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
         let ds160Answers: Record<string, string> = {};
@@ -2728,7 +2778,14 @@ export default function ApplicationPage() {
           country: resolvedCountry,
           visaType: resolvedVisaType,
         });
-        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
+        const normalizedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
+        const mergedDynamicAnswers = applicationEmail
+          ? applyManagedApplicationEmailToAnswers(
+              normalizedDynamicAnswers,
+              applicationEmail,
+              [...schemaFieldNames, ...Object.keys(normalizedDynamicAnswers)],
+            )
+          : normalizedDynamicAnswers;
         const profileFallback = profile;
 
         if (!isLatestRequest()) return;
@@ -3423,6 +3480,7 @@ export default function ApplicationPage() {
           showContinueButton={false}
           country={resolvedCountry}
           visaType={resolvedVisaType}
+          managedApplicationEmail={managedApplicationEmail}
           invalidFieldNames={issue.severity === "error" ? new Set([issue.fieldName]) : undefined}
           aiFilledFieldNames={new Set(aiFilledFieldNames)}
         />
@@ -3435,6 +3493,7 @@ export default function ApplicationPage() {
     formAssistantValidation?.validationId,
     handleDynamicDraftChange,
     markLiveSaveActivity,
+    managedApplicationEmail,
     resolvedCountry,
     resolvedVisaType,
     saving,
@@ -4886,6 +4945,7 @@ export default function ApplicationPage() {
                               showContinueButton={false}
                               country={activeCountry}
                               visaType={activeVisaType}
+                              managedApplicationEmail={managedApplicationEmail}
                               externallyHandledFieldNames={passportUploadHandledFields}
                               invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
                               aiFilledFieldNames={new Set(aiFilledFieldNames)}

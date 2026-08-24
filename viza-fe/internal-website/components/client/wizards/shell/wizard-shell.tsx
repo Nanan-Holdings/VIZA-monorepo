@@ -20,6 +20,7 @@ import {
   saveDynamicAnswers,
   saveSimplifiedFormState,
 } from "@/app/actions/visa-application-answers";
+import { ensureApplicationManagedEmail } from "@/app/actions/application-managed-email";
 import { getUserVisaPackage } from "@/app/actions/user-package";
 import { setRecentApplicationFormHref } from "@/lib/client/recent-application-form";
 import { getFormVisaType } from "@/lib/visa-destinations";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/universal-profile-prefill";
 import { WizardReview } from "./wizard-review";
 import type { WizardConfig } from "./types";
+import { ManagedApplicationEmailProvider } from "./managed-application-email-context";
 
 interface WizardShellProps<TForm> {
   config: WizardConfig<TForm>;
@@ -108,6 +110,7 @@ export function WizardShell<TForm>({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [managedApplicationEmail, setManagedApplicationEmail] = useState<string | null>(null);
   const [applicationCountry, setApplicationCountry] = useState(config.defaultCountry);
   const [applicationVisaType, setApplicationVisaType] = useState(config.defaultVisaType);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
@@ -134,7 +137,6 @@ export function WizardShell<TForm>({
           data: { user },
         } = await supabase.auth.getUser();
         if (cancelled) return;
-        const userEmail = user?.email ?? "";
         const { data: profile } = user
           ? await supabase
               .from("applicant_profiles")
@@ -153,26 +155,29 @@ export function WizardShell<TForm>({
           country,
           visaType,
         );
-        if (cancelled || !draftId) {
-          if (userEmail && config.seedAuthEmail) {
-            setForm((prev) => config.seedAuthEmail!(prev, userEmail));
-          }
-          setLoading(false);
-          return;
-        }
+        if (cancelled) return;
+        if (!draftId) throw new Error("Could not create the application draft");
         setApplicationId(draftId);
+
+        const emailResult = await ensureApplicationManagedEmail(draftId);
+        if (!emailResult.ok) {
+          throw new Error("Could not prepare the VIZA email for this application");
+        }
+        if (cancelled) return;
+        const applicationEmail = emailResult.email;
+        setManagedApplicationEmail(applicationEmail);
 
         const { state } = await loadSimplifiedFormState(draftId);
         if (cancelled) return;
         if (state?.form && typeof state.form === "object") {
           const restored = state.form as TForm;
           const withEmail = config.seedAuthEmail
-            ? config.seedAuthEmail(restored, userEmail)
+            ? config.seedAuthEmail(restored, applicationEmail)
             : restored;
           setForm(withEmail);
-        } else if (userEmail && config.seedAuthEmail) {
+        } else if (config.seedAuthEmail) {
           setForm((prev) => {
-            const withEmail = config.seedAuthEmail!(prev, userEmail);
+            const withEmail = config.seedAuthEmail!(prev, applicationEmail);
             return created
               ? mergeUniversalProfileIntoWizardForm(withEmail, profile as UniversalProfileSnapshot | null)
               : withEmail;
@@ -180,8 +185,10 @@ export function WizardShell<TForm>({
         } else if (created && profile) {
           setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, profile as UniversalProfileSnapshot));
         }
-      } catch {
-        /* non-fatal — wizard still renders empty */
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load the application");
+        }
       }
       setLoading(false);
     })();
@@ -291,6 +298,7 @@ export function WizardShell<TForm>({
     setError(null);
     try {
       let appId = applicationId;
+      let submissionForm = form;
       if (!appId) {
         const { applicationId: ensuredId, error: ensureErr } = await ensureDraftApplication(
           applicationCountry,
@@ -302,7 +310,16 @@ export function WizardShell<TForm>({
         appId = ensuredId;
         setApplicationId(appId);
       }
-      const payload = config.buildAnswerPayload(form);
+      const emailResult = await ensureApplicationManagedEmail(appId);
+      if (!emailResult.ok) {
+        throw new Error("Could not prepare the VIZA email for this application");
+      }
+      setManagedApplicationEmail(emailResult.email);
+      if (config.seedAuthEmail) {
+        submissionForm = config.seedAuthEmail(submissionForm, emailResult.email);
+        setForm(submissionForm);
+      }
+      const payload = config.buildAnswerPayload(submissionForm);
       const { error: saveErr } = await saveDynamicAnswers(appId, payload);
       if (saveErr) throw new Error(saveErr);
       router.push(buildApplicationRedirect(config.onSubmitRedirect ?? "/client/application/long-form"));
@@ -390,8 +407,9 @@ export function WizardShell<TForm>({
           />
         ) : null}
 
-        <AnimatePresence mode="wait">
-          <motion.div
+        <ManagedApplicationEmailProvider email={managedApplicationEmail}>
+          <AnimatePresence mode="wait">
+            <motion.div
             key={onDocuments ? DOCUMENT_STEP_KEY : onReview ? REVIEW_STEP_KEY : currentStep?.key ?? "_"}
             {...motionProps}
           >
@@ -435,8 +453,9 @@ export function WizardShell<TForm>({
                 goToStep,
               })
             ) : null}
-          </motion.div>
-        </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+        </ManagedApplicationEmailProvider>
       </div>
 
       {error ? <ClientErrorAlert message={error} /> : null}

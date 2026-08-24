@@ -53,6 +53,9 @@ review, bilingual review helpers, and status confirmation.
 - Shared form rows show only the selected interface language during entry.
   Preserve synchronized Chinese and English/official values internally, and
   keep the final Chinese-mode review bilingual and read-only.
+- Applicant-managed VIZA email values are identifiers, not bilingual prose.
+  Review must display the current application alias directly and must not let
+  a historical `_zh`/`_en` personal-email answer override it.
 
 ## Validation
 

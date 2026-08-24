@@ -24,6 +24,7 @@ import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { isManagedApplicationEmailFieldName } from "@/lib/managed-application-email";
 
 function formatDateOfficial(value: string): string | null {
   const trimmed = value.trim();
@@ -105,6 +106,7 @@ export function getBilingualReviewValue(
   side: "zh" | "en",
 ): string {
   if (!isTextLikeReviewField(field)) return value;
+  if (isManagedApplicationEmailFieldName(answerKey)) return value;
 
   const explicit = dynamicAnswers[`${answerKey}_${side}`]?.trim();
   if (explicit) return explicit;

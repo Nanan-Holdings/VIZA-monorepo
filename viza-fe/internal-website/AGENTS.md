@@ -631,6 +631,11 @@ Smoke URLs:
 - `lib/ds160-proof.ts`
 - `lib/__tests__/ds160-proof.spec.ts`
 - `lib/__tests__/form-utils.test.ts`
+- `lib/managed-application-email.ts` and
+  `lib/application-managed-email.server.ts`: shared applicant-email field
+  classification plus service-role-only provisioning of one VIZA inbox per
+  application. The DB-driven and simplified form renderers must lock only the
+  applicant's correspondence field; third-party contact emails stay editable.
 - `lib/legal/*`
 - `lib/travel/*`
 - `messages/en.json`

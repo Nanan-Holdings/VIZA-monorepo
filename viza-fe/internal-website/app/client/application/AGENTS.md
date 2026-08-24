@@ -119,6 +119,12 @@ Before changing this route, read:
     reader. For a dedicated country product, the product code is authoritative
     for country resolution; never combine its schema with an unrelated route,
     active-package, or default country.
+23. Applicant-owned correspondence email fields are application-scoped system
+    values. Provision the `appl-…@viza.it.com` inbox when the draft is created,
+    display it read-only, and never prefill those fields from the auth or
+    Universal Profile email. Sponsor, host, employer, agent, accommodation,
+    payer, and historical/additional email fields remain ordinary editable
+    answers.
 
 ## Validation Checklist
 

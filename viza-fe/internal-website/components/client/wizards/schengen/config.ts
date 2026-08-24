@@ -252,7 +252,7 @@ export const schengenConfig: WizardConfig<SchengenForm> = {
   emptyForm: () => ({}),
   buildAnswerPayload: buildPayload,
   i18nNamespace: NAMESPACE,
-  seedAuthEmail: (form, email) => ({ ...form, applicants_email: form.applicants_email || email }),
+  seedAuthEmail: (form, email) => ({ ...form, applicants_email: email }),
   reviewSections,
   steps: [
     {

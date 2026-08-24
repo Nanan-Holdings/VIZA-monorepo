@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TabChoice } from "@/components/client/simplified-form/tab-choice";
+import { isManagedApplicationEmailFieldName } from "@/lib/managed-application-email";
+import { useManagedApplicationEmail } from "../managed-application-email-context";
 
 export type GenericField =
   | { kind: "text"; key: string; labelKey: string; placeholderKey?: string; required?: boolean }
@@ -61,6 +63,7 @@ export function StepGenericFields({
   submitLabelKey,
   submitting,
 }: StepGenericFieldsProps) {
+  const managedApplicationEmail = useManagedApplicationEmail();
   const t = useTranslations(i18nNamespace);
   const tShared = useTranslations("simplifiedForm.shared");
   const tr = (key: string | undefined): string => {
@@ -95,14 +98,20 @@ export function StepGenericFields({
       <div className="flex flex-col gap-4">
         {fields.map((field) => {
           const value = values[field.key] ?? "";
+          const managedEmailLocked = Boolean(
+            field.kind === "email" &&
+            managedApplicationEmail &&
+            isManagedApplicationEmailFieldName(field.key),
+          );
           if (field.kind === "text" || field.kind === "email" || field.kind === "phone") {
             return (
               <BrandField key={field.key} label={tr(field.labelKey)} required={field.kind === "text" && (field as { required?: boolean }).required}>
                 <BrandInput
                   type={field.kind === "email" ? "email" : "text"}
-                  value={value}
+                  value={managedEmailLocked ? managedApplicationEmail ?? "" : value}
                   onChange={(e) => set(field.key, e.target.value)}
                   placeholder={tr(field.placeholderKey)}
+                  disabled={managedEmailLocked}
                 />
               </BrandField>
             );

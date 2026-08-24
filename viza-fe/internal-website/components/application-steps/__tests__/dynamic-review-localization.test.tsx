@@ -313,6 +313,25 @@ describe("dynamic review localization", () => {
     expect(getBilingualReviewValue(answers, "purpose_of_entry", "Tourism", field, "en")).toBe("Tourism");
   });
 
+  test("does not let historical bilingual values override the managed VIZA email", () => {
+    const field = baseField({ fieldName: "email_address", label: "Email Address" });
+    const answers = {
+      email_address: "appl-test@viza.it.com",
+      email_address_zh: "personal@example.com",
+      email_address_en: "personal@example.com",
+    };
+
+    expect(
+      getBilingualReviewValue(
+        answers,
+        "email_address",
+        "appl-test@viza.it.com",
+        field,
+        "en",
+      ),
+    ).toBe("appl-test@viza.it.com");
+  });
+
   test("resolves the selected Vietnam visa issue-place code on both review sides", () => {
     const field = baseField({
       fieldName: "visa_issued_place",
