@@ -45,6 +45,12 @@ const TERMINAL_RESULT_STATUSES = new Set([
   "denied",
 ]);
 
+const RECOVERABLE_SUBMISSION_RESULT_STATUSES = new Set([
+  "action_required",
+  "blocked",
+  "needs_attention",
+]);
+
 function normalize(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -59,21 +65,29 @@ export function isOngoingApplicationRecord(
   application: ApplicationLifecycleRecord
 ): boolean {
   const submissionResult = asRecord(application.submission_result);
+  const applicationStatus = normalize(application.status || "draft");
+  const submissionResultStatus = normalize(application.submission_result_status);
+  const resultStatus = normalize(application.result_status);
+  const payloadStatus = normalize(
+    typeof submissionResult?.status === "string"
+      ? submissionResult.status
+      : null
+  );
+  const hasAuthoritativeTerminalResult =
+    TERMINAL_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) ||
+    TERMINAL_RESULT_STATUSES.has(resultStatus) ||
+    submissionResult?.submitted === true ||
+    payloadStatus === "submitted";
+  const isRecoverableSubmittedAttempt =
+    applicationStatus === "submitted" &&
+    RECOVERABLE_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) &&
+    !hasAuthoritativeTerminalResult;
+
   return (
     application.purpose !== "VIZA_PLACEHOLDER_DRY_RUN" &&
-    !TERMINAL_APPLICATION_STATUSES.has(
-      normalize(application.status || "draft")
-    ) &&
-    !TERMINAL_SUBMISSION_RESULT_STATUSES.has(
-      normalize(application.submission_result_status)
-    ) &&
-    !TERMINAL_RESULT_STATUSES.has(normalize(application.result_status)) &&
-    submissionResult?.submitted !== true &&
-    normalize(
-      typeof submissionResult?.status === "string"
-        ? submissionResult.status
-        : null
-    ) !== "submitted"
+    (!TERMINAL_APPLICATION_STATUSES.has(applicationStatus) ||
+      isRecoverableSubmittedAttempt) &&
+    !hasAuthoritativeTerminalResult
   );
 }
 
