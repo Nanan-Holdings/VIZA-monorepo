@@ -140,6 +140,17 @@ type VietnamMissingField = {
   labelEn: string;
 };
 
+type ApplicationAnswerForRetry = {
+  field_name: string;
+  value_text: string | null;
+  value_json: unknown;
+};
+
+type JapanMissingField = {
+  field: string;
+  labelZh: string;
+};
+
 type VietnamDocumentValidationResult =
   | { ok: true; faceScore: number }
   | { ok: false; status: number; code: string; message: string; missingFields?: VietnamMissingField[] };
@@ -714,6 +725,54 @@ function answerValueToText(row: { value_text?: unknown; value_json?: unknown }):
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return null;
+}
+
+function validateJapanLiveAnswers(input: {
+  rows: ApplicationAnswerForRetry[];
+  application: ApplicationForRetry;
+  profile: ProfileForRetry;
+}): JapanMissingField[] {
+  const answers = new Map(
+    input.rows.map((row) => [row.field_name, answerValueToText(row)]),
+  );
+  const valueFor = (field: string, fallbacks: Array<string | null> = []): string =>
+    firstText([answers.get(field) ?? null, ...fallbacks]) ?? "";
+  const requirements = [
+    {
+      field: "residence_country",
+      labelZh: "居住国家/地区",
+      value: valueFor("residence_country", [input.profile.nationality]),
+      minimum: 2,
+    },
+    {
+      field: "accommodation_name",
+      labelZh: "日本住宿设施名称",
+      value: valueFor("accommodation_name", [input.application.accommodation_name]),
+      minimum: 2,
+    },
+    {
+      field: "accommodation_prefecture",
+      labelZh: "日本住宿所在都道府县",
+      value: valueFor("accommodation_prefecture"),
+      minimum: 2,
+    },
+    {
+      field: "accommodation_city",
+      labelZh: "日本住宿所在市区町村",
+      value: valueFor("accommodation_city"),
+      minimum: 2,
+    },
+    {
+      field: "accommodation_address",
+      labelZh: "日本住宿完整地址",
+      value: valueFor("accommodation_address", [input.application.accommodation_address]),
+      minimum: 3,
+    },
+  ] as const;
+
+  return requirements
+    .filter((requirement) => requirement.value.trim().length < requirement.minimum)
+    .map(({ field, labelZh }) => ({ field, labelZh }));
 }
 
 function setAnswerIfMissing(
@@ -1621,6 +1680,7 @@ export async function POST(
       ? "dry_run"
       : requestedMode;
 
+  let persistedAnswerRows: ApplicationAnswerForRetry[] = [];
   if (!isQaDryRunPurpose(ownedApplication.purpose)) {
     const { data: answerRows, error: answerError } = await admin
       .from("visa_application_answers")
@@ -1629,7 +1689,8 @@ export async function POST(
     if (answerError) {
       return NextResponse.json({ error: answerError.message }, { status: 500 });
     }
-    const unsafeAnswer = (answerRows ?? []).find(
+    persistedAnswerRows = (answerRows ?? []) as ApplicationAnswerForRetry[];
+    const unsafeAnswer = persistedAnswerRows.find(
       (answer) =>
         isSyntheticQaValue(answer.value_text) ||
         isSyntheticQaValue(JSON.stringify(answer.value_json ?? null)),
@@ -1742,6 +1803,23 @@ export async function POST(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (isJapanVisitJapanWebApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const missingFields = validateJapanLiveAnswers({
+        rows: persistedAnswerRows,
+        application: ownedApplication,
+        profile: ownedProfile,
+      });
+      if (missingFields.length > 0) {
+        return NextResponse.json(
+          {
+            error: `请先补充或修正以下真实信息：${missingFields.map((field) => field.labelZh).join("、")}。请使用 Visit Japan Web 官网可接受的英文名称或选项。`,
+            code: "jp_vjw_validation_failed",
+            missingFields,
+          },
+          { status: 422 },
+        );
+      }
     }
     if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const consent = requestedSubmission.taiwanOfficialTermsConsent;

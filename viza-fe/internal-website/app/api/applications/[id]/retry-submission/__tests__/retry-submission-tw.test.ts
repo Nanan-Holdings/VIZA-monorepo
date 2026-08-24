@@ -44,12 +44,22 @@ const normalApplicationAnswers = [
   },
 ];
 
+const validJapanAnswers = [
+  ...normalApplicationAnswers,
+  { field_name: "residence_country", value_text: "CHINA", value_json: null },
+  { field_name: "accommodation_name", value_text: "TEST HOTEL", value_json: null },
+  { field_name: "accommodation_prefecture", value_text: "TOKYO", value_json: null },
+  { field_name: "accommodation_city", value_text: "SHINJUKU KU", value_json: null },
+  { field_name: "accommodation_address", value_text: "1-2-3 NISHISHINJUKU", value_json: null },
+];
+
 type TestApplication = Omit<typeof baseApplication, "submission_result" | "submission_result_status"> & {
   submission_result: Record<string, unknown> | null;
   submission_result_status: string | null;
 };
 
 let currentApplication: TestApplication = { ...baseApplication };
+let currentApplicationAnswers = [...normalApplicationAnswers];
 let lastRpcArgs: Record<string, unknown> | null = null;
 let lastApplicationUpdate: Record<string, unknown> | null = null;
 let enqueueRunnerJobResult = { id: "runner_tw_live_001", created: true };
@@ -172,7 +182,7 @@ function createAdminMock() {
           },
         };
       }
-      if (table === "visa_application_answers") return createRowsQuery(normalApplicationAnswers);
+      if (table === "visa_application_answers") return createRowsQuery(currentApplicationAnswers);
       if (table === "consent_event") return createConsentQuery();
       if (table === "runner_job") return createMaybeSingleQuery(activeRunnerJob, runnerJobQueryError);
       if (table === "takeover_session") return createMaybeSingleQuery(activeHandoff, handoffQueryError);
@@ -230,6 +240,7 @@ describe("Taiwan entry permit retry submission API", () => {
   beforeEach(() => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     currentApplication = { ...baseApplication };
+    currentApplicationAnswers = [...normalApplicationAnswers];
     lastRpcArgs = null;
     lastApplicationUpdate = null;
     lastRunnerJobArgs = null;
@@ -602,6 +613,7 @@ describe("Taiwan entry permit retry submission API", () => {
       country: "japan",
       visa_type: "JP_VISIT_JAPAN_WEB",
     };
+    currentApplicationAnswers = [...validJapanAnswers];
 
     const result = await post({
       mode: "live_assisted",
@@ -634,12 +646,49 @@ describe("Taiwan entry permit retry submission API", () => {
     });
   });
 
+  it("rejects Japan live submission before enqueue when official text fields are placeholders", async () => {
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+    currentApplicationAnswers = validJapanAnswers.map((answer) => {
+      if (["residence_country", "accommodation_name", "accommodation_prefecture", "accommodation_address"].includes(answer.field_name)) {
+        return { ...answer, value_text: "x" };
+      }
+      return answer;
+    });
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    });
+
+    expect(result.status).toBe(422);
+    expect(result.body).toMatchObject({
+      code: "jp_vjw_validation_failed",
+      missingFields: [
+        { field: "residence_country", labelZh: "居住国家/地区" },
+        { field: "accommodation_name", labelZh: "日本住宿设施名称" },
+        { field: "accommodation_prefecture", labelZh: "日本住宿所在都道府县" },
+        { field: "accommodation_address", labelZh: "日本住宿完整地址" },
+      ],
+    });
+    expect(lastConsentInsert).toBeNull();
+    expect(lastRunnerPoolArgs).toBeNull();
+    expect(lastApplicationUpdate).toBeNull();
+  });
+
   it("fails Japan submission closed unless both live and compliance flags are enabled", async () => {
     currentApplication = {
       ...baseApplication,
       country: "japan",
       visa_type: "JP_VISIT_JAPAN_WEB",
     };
+    currentApplicationAnswers = [...validJapanAnswers];
     process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
 
     const result = await post({
@@ -661,6 +710,7 @@ describe("Taiwan entry permit retry submission API", () => {
       country: "japan",
       visa_type: "JP_VISIT_JAPAN_WEB",
     };
+    currentApplicationAnswers = [...validJapanAnswers];
     existingApplicationAuthorisation = { id: "consent_existing" };
 
     const result = await post({
