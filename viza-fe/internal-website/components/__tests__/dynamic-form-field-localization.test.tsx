@@ -179,7 +179,68 @@ describe("DynamicFormField localization", () => {
     );
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByText("请先选择上级选项，或联系 VIZA 检查官方下拉列表。")).toBeInTheDocument();
+    expect(screen.getByText("请先选择“Intended Province City”，再选择此项。")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("shows an actionable retry message when a remote dropdown has no loaded options", () => {
+    const onChange = vi.fn();
+    const flightField = field({
+      id: "flight",
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "select",
+      placeholder: "Select flight",
+      options: [],
+      validationRules: {
+        dependsOn: "airline_name",
+        dynamic_option_source: "ph_etravel:flight_numbers",
+      },
+    });
+
+    render(
+      <DynamicFormField
+        field={flightField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+
+    expect(screen.getByText("选项加载失败，请重试")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not treat a remote dependent dropdown with no parent value as a loading failure", () => {
+    const onChange = vi.fn();
+    const flightField = field({
+      id: "flight",
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "select",
+      placeholder: "Select flight",
+      options: [],
+      validationRules: {
+        dependsOn: "airline_name",
+        dynamic_option_source: "ph_etravel:flight_numbers",
+      },
+    });
+
+    render(
+      <DynamicFormField
+        field={flightField}
+        value=""
+        onChange={onChange}
+        displayLocale="en"
+        dependentParentReady={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Select/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Select “Airline Name” first, then choose this field.")).toBeInTheDocument();
+    expect(screen.queryByText("Options failed to load. Please try again.")).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -233,7 +294,7 @@ describe("DynamicFormField localization", () => {
 
       expect(firstSearch).not.toHaveBeenCalledWith("UO566");
       expect(latestSearch).toHaveBeenCalledWith("UO566");
-      expect(screen.queryByText("请先选择上级选项，或联系 VIZA 检查官方下拉列表。")).not.toBeInTheDocument();
+      expect(screen.queryByText("请先选择“Expected Arrival Date”，再选择此项。")).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

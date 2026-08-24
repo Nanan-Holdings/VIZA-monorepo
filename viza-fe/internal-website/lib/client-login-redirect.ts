@@ -38,3 +38,28 @@ export function buildClientLoginUrlWithNext(requestUrl: string): URL {
   if (next) login.searchParams.set("next", next);
   return login;
 }
+
+export function buildClientLoginPathWithNext(
+  destination: string | null | undefined
+): string {
+  const login = new URL("/client/login", "https://app.viza.it.com");
+  const next = getSafeClientLoginNext(destination);
+  if (next) login.searchParams.set("next", next);
+  return `${login.pathname}${login.search}`;
+}
+
+export function resolveClientPostLoginDestination(
+  searchParams: Pick<URLSearchParams, "get">,
+  retainedHash = ""
+): string {
+  const candidate =
+    getSafeClientLoginNext(searchParams.get("next")) ??
+    getSafeClientLoginNext(searchParams.get("returnTo"));
+
+  if (!candidate) return "/client/home";
+  if (!retainedHash) return candidate;
+
+  const destination = new URL(candidate, "https://app.viza.it.com");
+  if (!destination.hash) destination.hash = retainedHash;
+  return `${destination.pathname}${destination.search}${destination.hash}`;
+}

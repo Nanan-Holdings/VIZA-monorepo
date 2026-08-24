@@ -97,6 +97,12 @@ type ProposedPatch = {
   modelSource?: string;
 };
 
+type AssistantCurrentStepContext = {
+  stepName?: string;
+  fieldNames?: string[];
+  isDocumentStep?: boolean;
+};
+
 const PRODUCT_TIME_ZONES: Record<string, string> = {
   SG_ARRIVAL_CARD: "Asia/Singapore",
   MY_MDAC_ARRIVAL_CARD: "Asia/Kuala_Lumpur",
@@ -1093,6 +1099,21 @@ function localizeMissingFields(
   }));
 }
 
+export function prioritizeAssistantMissingFields(
+  missing: MissingApplicationField[],
+  currentStep: AssistantCurrentStepContext | undefined,
+): MissingApplicationField[] {
+  if (!currentStep || currentStep.isDocumentStep) return missing;
+  const currentFieldNames = new Set(
+    (currentStep.fieldNames ?? []).map((fieldName) => fieldName.trim()).filter(Boolean),
+  );
+  if (currentFieldNames.size === 0) return missing;
+  const currentStepMissing = missing.filter((item) => currentFieldNames.has(item.fieldName));
+  if (currentStepMissing.length === 0) return missing;
+  const laterMissing = missing.filter((item) => !currentFieldNames.has(item.fieldName));
+  return [...currentStepMissing, ...laterMissing];
+}
+
 export function fingerprintSchema(steps: WizardStep[]): string {
   const manifest = steps.flatMap((step) => step.fields.map((field) => ({
     fieldName: field.fieldName,
@@ -1243,11 +1264,15 @@ export function buildAssistantState(params: {
   answers: Record<string, { value: string; source: string | null }>;
   messages: FormAssistantMessage[];
   locale: string;
+  currentStep?: AssistantCurrentStepContext;
 }): FormAssistantState {
   const { values } = canonicalizeAssistantAnswerRows(params.steps, params.answers);
   const rawMissingFields = getMissingDynamicFormFields(params.steps, values);
   const fieldByName = new Map(params.steps.flatMap((step) => step.fields).map((field) => [field.fieldName, field]));
-  const missingFields = localizeMissingFields(rawMissingFields, fieldByName, params.locale);
+  const missingFields = prioritizeAssistantMissingFields(
+    localizeMissingFields(rawMissingFields, fieldByName, params.locale),
+    params.currentStep,
+  );
   const nextFields = missingFields.slice(0, 1).map((item) => fieldByName.get(item.fieldName)).filter(Boolean) as VisaFormFieldRow[];
   const optionalFields = params.steps.flatMap((step) => step.fields.filter((field) =>
     !field.required && !values[field.fieldName]?.trim() && evaluateShowIf(field, values, step.fields),
@@ -1556,6 +1581,7 @@ export async function runAssistantTurn(params: {
   idempotencyKey: string;
   country: string;
   visaType: string;
+  currentStep?: AssistantCurrentStepContext;
   reloadAnswers?: () => Promise<AssistantAnswerRows>;
 }): Promise<FormAssistantTurnResponse> {
   const message = params.text.trim().slice(0, MAX_MESSAGE_LENGTH);
@@ -1573,7 +1599,10 @@ export async function runAssistantTurn(params: {
   const canonicalInitial = canonicalizeAssistantAnswerRows(params.steps, params.answers);
   params.answers = canonicalInitial.rows;
   const existingValues = canonicalInitial.values;
-  const missing = getMissingDynamicFormFields(params.steps, existingValues);
+  const missing = prioritizeAssistantMissingFields(
+    getMissingDynamicFormFields(params.steps, existingValues),
+    params.currentStep,
+  );
   const allFields = params.steps.flatMap((step) => step.fields);
   const fieldByName = new Map(allFields.map((field) => [field.fieldName, field]));
   const missingNames = new Set(missing.map((item) => item.fieldName));
@@ -1824,7 +1853,10 @@ export async function runAssistantTurn(params: {
   }
   const { values: nextValues } = canonicalizeAssistantAnswerRows(params.steps, latestAnswerRows);
   const nextMissing = localizeMissingFields(
-    getMissingDynamicFormFields(params.steps, nextValues),
+    prioritizeAssistantMissingFields(
+      getMissingDynamicFormFields(params.steps, nextValues),
+      params.currentStep,
+    ),
     fieldByName,
     params.locale,
   );

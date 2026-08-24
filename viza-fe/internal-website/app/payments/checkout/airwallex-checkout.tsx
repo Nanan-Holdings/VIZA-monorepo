@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import {
-  ArrowLeft,
   Check,
   CreditCard,
   Loader2,
@@ -14,6 +13,7 @@ import {
   Smartphone,
   WalletCards,
 } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
 
@@ -393,13 +393,7 @@ export function AirwallexCheckout({
       />
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        <Link
-          href={backHref}
-          className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium text-brand-500 shadow-sm transition hover:border-brand-500"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          返回订阅页面
-        </Link>
+        <BackButton fallbackHref={backHref} label="返回" />
 
         <section className="rounded-xl border bg-white p-5 shadow-sm sm:p-7">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">

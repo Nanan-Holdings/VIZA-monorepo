@@ -534,8 +534,8 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     countryName: "Philippines",
     countryNameZh: "菲律宾",
     visaType: "PH_ETRAVEL_ARRIVAL_CARD",
-    visaName: "Philippines eTravel Arrival Card",
-    visaNameZh: "电子入境卡",
+    visaName: "Philippines eTravel Arrival Declaration",
+    visaNameZh: "菲律宾 eTravel 入境申报",
     description: "Philippines eTravel arrival declaration intake for border, health, and customs information.",
     descriptionZh: "适合菲律宾 eTravel 入境申报，采集边检、健康和海关资料。",
     flag: "🇵🇭",
@@ -547,8 +547,8 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     countryName: "Philippines",
     countryNameZh: "菲律宾",
     visaType: "PH_ETRAVEL_DEPARTURE_CARD",
-    visaName: "Philippines eTravel Departure Card",
-    visaNameZh: "电子出境卡",
+    visaName: "Philippines eTravel Departure Declaration",
+    visaNameZh: "菲律宾 eTravel 离境申报",
     description: "Departure registration for Filipino travellers; foreign travellers can use supported customs and currency declaration branches without implying universal registration.",
     descriptionZh: "菲律宾籍旅客办理出境登记；外国旅客可按官网适用分支办理海关及货币申报，不代表所有外国旅客均须登记。",
     flag: "🇵🇭",
@@ -1183,8 +1183,8 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   SG_ARRIVAL_CARD: "SG Arrival Card",
   MY_MDAC_ARRIVAL_CARD: "Malaysia Digital Arrival Card",
   TH_TDAC_ARRIVAL_CARD: "Thailand Digital Arrival Card",
-  PH_ETRAVEL_ARRIVAL_CARD: "Philippines eTravel Arrival Card",
-  PH_ETRAVEL_DEPARTURE_CARD: "Philippines eTravel Departure Card",
+  PH_ETRAVEL_ARRIVAL_CARD: "Philippines eTravel Arrival Declaration",
+  PH_ETRAVEL_DEPARTURE_CARD: "Philippines eTravel Departure Declaration",
   VN_PREARRIVAL_DECLARATION: "Vietnam Pre-Arrival Information Declaration",
   KR_C39_SHORT_TERM_VISIT: "C-3 Visa / K-ETA",
   KR_E_ARRIVAL_CARD: "Korea e-Arrival Card",
@@ -1243,8 +1243,8 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   SG_ARRIVAL_CARD: "入境卡",
   MY_MDAC_ARRIVAL_CARD: "数字入境卡",
   TH_TDAC_ARRIVAL_CARD: "数字入境卡",
-  PH_ETRAVEL_ARRIVAL_CARD: "电子入境卡",
-  PH_ETRAVEL_DEPARTURE_CARD: "电子出境卡",
+  PH_ETRAVEL_ARRIVAL_CARD: "菲律宾 eTravel 入境申报",
+  PH_ETRAVEL_DEPARTURE_CARD: "菲律宾 eTravel 离境申报",
   VN_PREARRIVAL_DECLARATION: "越南入境前申报",
   KR_C39_SHORT_TERM_VISIT: "C-3 签证 / 电子旅行授权",
   KR_E_ARRIVAL_CARD: "韩国电子入境卡",
@@ -1513,6 +1513,12 @@ export function getVisaPackageTitle(country: string, visaType: string, locale?: 
 
   const destinationItem = getPopularVisaDestinationByPackage(country, visaType);
   if (destinationItem) {
+    if (
+      destinationItem.country === "philippines" &&
+      getFormVisaType(visaType).startsWith("PH_ETRAVEL_")
+    ) {
+      return destinationItem.visaName;
+    }
     if (
       destinationItem.country === "south_korea" &&
       getFormVisaType(visaType) === "KR_E_ARRIVAL_CARD"

@@ -2,6 +2,7 @@
 
 import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
@@ -36,9 +37,11 @@ interface BilingualReviewPanelProps {
   onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
   onEditSection?: (stepIndex: number, fieldName: string) => void;
+  editMode?: "section" | "row";
+  defaultCollapsedSections?: string[];
 }
 
-function groupRows(rows: ReviewRow[]): Array<{
+function groupRows(rows: ReviewRow[], editMode: "section" | "row"): Array<{
   id: string;
   section: string;
   rows: ReviewRow[];
@@ -51,7 +54,9 @@ function groupRows(rows: ReviewRow[]): Array<{
     // legitimately localize to the same section title. Include the edit target
     // in the grouping key so one section's Edit button can never inherit a
     // different step's destination.
-    const groupKey = `${row.editStepIndex ?? "read-only"}:${row.section}`;
+    const groupKey = editMode === "row"
+      ? row.section
+      : `${row.editStepIndex ?? "read-only"}:${row.section}`;
     const existing = grouped.get(groupKey) ?? [];
     existing.push(row);
     grouped.set(groupKey, existing);
@@ -70,13 +75,23 @@ function groupRows(rows: ReviewRow[]): Array<{
 
 function BilingualReviewRow({
   row,
+  editMode,
+  onEditSection,
 }: {
   row: ReviewRow;
+  editMode: "section" | "row";
+  onEditSection?: (stepIndex: number, fieldName: string) => void;
 }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const sourceLabel = row.sourceLabel ?? row.label;
   const officialLabel = row.officialLabel ?? row.label;
+  const rowEditButton = editMode === "row" && row.editable && row.editStepIndex !== undefined && onEditSection ? (
+    <ReviewEditButton
+      onClick={() => onEditSection(row.editStepIndex!, row.fieldName)}
+      label={isZh ? `修改${sourceLabel}` : `Edit ${officialLabel}`}
+    />
+  ) : null;
 
   if (!isZh) {
     return (
@@ -111,6 +126,7 @@ function BilingualReviewRow({
               : "px-0 py-2 text-right align-top text-sm font-medium text-foreground"}
         >
           <span className="whitespace-pre-wrap break-words">{row.officialValue}</span>
+          {rowEditButton ? <span className="mt-1 flex justify-end">{rowEditButton}</span> : null}
           {row.issueMessage ? (
             <span className={row.issueSeverity === "error"
               ? "mt-1 block text-xs leading-5 text-red-700"
@@ -177,6 +193,7 @@ function BilingualReviewRow({
         >
           {row.officialValue}
         </span>
+        {rowEditButton ? <span className="mt-1 flex justify-end">{rowEditButton}</span> : null}
         {row.issueMessage ? (
           <span className={row.issueSeverity === "error"
             ? "mt-1 block text-xs leading-5 text-red-700"
@@ -197,11 +214,14 @@ export function BilingualReviewPanel({
   retrying,
   onRetry,
   onEditSection,
+  editMode = "section",
+  defaultCollapsedSections = [],
 }: BilingualReviewPanelProps) {
   const t = useTranslations("applicationSteps.translation");
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
-  const sections = groupRows(rows);
+  const sections = groupRows(rows, editMode);
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set(defaultCollapsedSections));
 
   if (loading) {
     return (
@@ -238,31 +258,58 @@ export function BilingualReviewPanel({
           {t("noReviewRows")}
         </p>
       ) : (
-        sections.map((section) => (
+        sections.map((section) => {
+          const isCollapsed = collapsedSections.has(section.section);
+          return (
           <section key={section.id}>
             <div className="flex min-h-8 items-center justify-between gap-3">
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {section.section}
               </h3>
-              {section.editStepIndex !== undefined && section.editFieldName && onEditSection ? (
+              <div className="flex items-center gap-2">
+              {defaultCollapsedSections.includes(section.section) ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-muted-foreground"
+                  onClick={() => setCollapsedSections((current) => {
+                    const next = new Set(current);
+                    if (next.has(section.section)) next.delete(section.section);
+                    else next.add(section.section);
+                    return next;
+                  })}
+                >
+                  {isCollapsed
+                    ? isZh ? "展开" : "Show"
+                    : isZh ? "折叠" : "Hide"}
+                </Button>
+              ) : null}
+              {editMode === "section" && section.editStepIndex !== undefined && section.editFieldName && onEditSection ? (
                 <ReviewEditButton
                   onClick={() => onEditSection(section.editStepIndex!, section.editFieldName!)}
                   label={isZh ? `修改${section.section}` : `Edit ${section.section}`}
                 />
               ) : null}
+              </div>
             </div>
+            {!isCollapsed ? (
             <Table className="table-fixed">
               <TableBody>
                 {section.rows.map((row) => (
                   <BilingualReviewRow
                     key={row.fieldName}
                     row={row}
+                    editMode={editMode}
+                    onEditSection={onEditSection}
                   />
                 ))}
               </TableBody>
             </Table>
+            ) : null}
           </section>
-        ))
+        );
+        })
       )}
     </div>
   );

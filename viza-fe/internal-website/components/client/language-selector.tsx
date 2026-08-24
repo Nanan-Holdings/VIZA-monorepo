@@ -35,11 +35,11 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
     router.refresh();
   };
 
-  const iconSize = size === "mobile" ? "w-[21px] h-[21px]" : "w-[26px] h-[26px]";
+  const iconSize = size === "mobile" ? "w-[19px] h-[19px]" : "w-[24px] h-[24px]";
   const buttonClass =
     size === "mobile"
-      ? "w-9 h-9 flex items-center justify-center cursor-pointer"
-      : "p-2.5 cursor-pointer rounded-md";
+      ? "h-9 max-w-[104px] px-2 flex items-center justify-center gap-1 cursor-pointer"
+      : "p-2.5 cursor-pointer rounded-md inline-flex items-center gap-2";
 
   const triggerButton = (
     <motion.button
@@ -54,6 +54,12 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
         style={{ color: "var(--nav-stroke-color)" }}
         weight="regular"
       />
+      <span
+        className="min-w-0 truncate whitespace-nowrap text-[11px] font-medium sm:text-[12px]"
+        style={{ color: "var(--nav-text-color)" }}
+      >
+        Language/语言
+      </span>
     </motion.button>
   );
 

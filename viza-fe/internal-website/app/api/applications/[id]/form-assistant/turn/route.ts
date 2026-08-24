@@ -16,7 +16,31 @@ type TurnBody = {
   locale?: unknown;
   inputMode?: unknown;
   idempotencyKey?: unknown;
+  currentStep?: unknown;
 };
+
+function parseCurrentStepContext(value: unknown): {
+  stepName?: string;
+  fieldNames?: string[];
+  isDocumentStep?: boolean;
+} | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as {
+    stepName?: unknown;
+    fieldNames?: unknown;
+    isDocumentStep?: unknown;
+  };
+  return {
+    stepName: typeof raw.stepName === "string" ? raw.stepName.slice(0, 120) : undefined,
+    fieldNames: Array.isArray(raw.fieldNames)
+      ? raw.fieldNames
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => item.trim())
+          .slice(0, 80)
+      : undefined,
+    isDocumentStep: raw.isDocumentStep === true,
+  };
+}
 
 export async function POST(
   request: Request,
@@ -78,6 +102,7 @@ export async function POST(
         : randomUUID(),
       country: owned.application.country,
       visaType: owned.application.visa_type,
+      currentStep: parseCurrentStepContext(body.currentStep),
       reloadAnswers: () => loadAssistantAnswers(owned.admin, id, {
         applicantId: owned.application.applicant_id,
         authUserId: owned.user.id,

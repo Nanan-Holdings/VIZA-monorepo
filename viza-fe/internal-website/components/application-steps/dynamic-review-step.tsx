@@ -173,6 +173,7 @@ export interface DynamicReviewStepProps {
   continueLabel?: string;
   showAction?: boolean;
   reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
+  completionGrouping?: boolean;
 }
 
 export function DynamicReviewStep({
@@ -187,6 +188,7 @@ export function DynamicReviewStep({
   continueLabel,
   showAction = true,
   reviewIssues,
+  completionGrouping = false,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
   const tDyn = useTranslations("application.dynamicSteps");
@@ -240,6 +242,12 @@ export function DynamicReviewStep({
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const completedRows: ReviewRow[] = [];
     const missingRows: ReviewRow[] = [];
+    const optionalMissingRows: ReviewRow[] = [];
+    const groupedSectionNames = {
+      required: isZh ? "必须补充" : "Required to complete",
+      completed: isZh ? "已填写" : "Completed",
+      optional: isZh ? "可选未填写" : "Optional not filled",
+    };
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
@@ -266,6 +274,8 @@ export function DynamicReviewStep({
         for (const answerKey of answerKeys) {
           const value = dynamicAnswers[answerKey] ?? "";
           const isMissing = !value.trim();
+          const isRequiredMissing = isMissing && field.required;
+          const isOptionalMissing = isMissing && !field.required;
 
           const sourceLabel = getReviewSourceLabel(field);
           const officialLabel = getReviewOfficialLabel(field);
@@ -304,9 +314,15 @@ export function DynamicReviewStep({
           }
 
           const row: ReviewRow = {
-            section: isMissing
-              ? `${sectionTitle} · ${t("review.missingInformation")}`
-              : sectionTitle,
+            section: completionGrouping
+              ? isRequiredMissing
+                ? groupedSectionNames.required
+                : isOptionalMissing
+                  ? groupedSectionNames.optional
+                  : groupedSectionNames.completed
+              : isMissing
+                ? `${sectionTitle} · ${t("review.missingInformation")}`
+                : sectionTitle,
             fieldName: answerKey,
             label: displayLabel,
             sourceLabel: answerKey === field.fieldName
@@ -321,19 +337,22 @@ export function DynamicReviewStep({
             warnings,
             editable: true,
             editStepIndex: sourceIndex,
-            missing: isMissing,
+            missing: isRequiredMissing || (isMissing && !completionGrouping),
             issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
             issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
           };
 
-          if (isMissing) missingRows.push(row);
+          if (isRequiredMissing || (isMissing && !completionGrouping)) missingRows.push(row);
+          else if (isOptionalMissing) optionalMissingRows.push(row);
           else completedRows.push(row);
         }
       }
     });
 
-    return [...completedRows, ...missingRows];
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
+    return completionGrouping
+      ? [...missingRows, ...completedRows, ...optionalMissingRows]
+      : [...completedRows, ...missingRows];
+  }, [completionGrouping, dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -342,6 +361,8 @@ export function DynamicReviewStep({
           applicationId={applicationId}
           rows={bilingualRows}
           onEditSection={onEdit}
+          editMode={completionGrouping ? "row" : "section"}
+          defaultCollapsedSections={completionGrouping ? [isZh ? "可选未填写" : "Optional not filled"] : []}
         />
 
         {photoPath ? (

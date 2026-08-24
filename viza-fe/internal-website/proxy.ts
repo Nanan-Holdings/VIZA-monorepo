@@ -9,6 +9,10 @@ import {
   getAboutMeRedirectTarget,
   isRetiredAboutMeRoute,
 } from "@/app/client/about-me-form/redirect-target";
+import {
+  buildClientLoginUrlWithNext,
+  getSafeClientLoginNext,
+} from "@/lib/client-login-redirect";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -38,14 +42,14 @@ export async function proxy(request: NextRequest) {
     // existing local sessions usable while Supabase Auth has a transient outage.
     const jwtSession = await getClientSessionFromRequest(request);
     if (jwtSession) {
-      return NextResponse.redirect(new URL("/client/home", request.url));
+      return NextResponse.redirect(getClientLoginRedirectTarget(request));
     }
 
     const supabaseAuth = await getSupabaseUserSession(request);
     if (supabaseAuth.session) {
       return copyResponseCookies(
         supabaseAuth.response,
-        NextResponse.redirect(new URL("/client/home", request.url)),
+        NextResponse.redirect(getClientLoginRedirectTarget(request)),
       );
     }
 
@@ -116,8 +120,14 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
   // No valid session - redirect to new client login portal
   return copyResponseCookies(
     supabaseAuth.response,
-    NextResponse.redirect(new URL("/client/login", request.url)),
+    NextResponse.redirect(buildClientLoginUrlWithNext(request.url)),
   );
+}
+
+function getClientLoginRedirectTarget(request: NextRequest): URL {
+  const next = getSafeClientLoginNext(request.nextUrl.searchParams.get("next"));
+  const returnTo = getSafeClientLoginNext(request.nextUrl.searchParams.get("returnTo"));
+  return new URL(next ?? returnTo ?? "/client/home", request.url);
 }
 
 function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {

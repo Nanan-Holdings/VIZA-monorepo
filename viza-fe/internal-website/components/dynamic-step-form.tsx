@@ -4362,6 +4362,12 @@ export function DynamicStepForm({
         field.fieldName === "address_in_korea" &&
         (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
+      const remoteDependsOn = phEtravelSource
+        ? getPhEtravelDependsOn(field)
+        : isVnPrearrivalRemoteSelect
+          ? getVnPrearrivalDependsOn(field)
+          : null;
+      const remoteDependentParentReady = !remoteDependsOn || Boolean(values[remoteDependsOn]?.trim());
       const vnReadOnlyRules = field.validationRules as {
         read_only?: boolean;
         locked_by?: string;
@@ -4458,6 +4464,7 @@ export function DynamicStepForm({
                   ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
                   : false
             }
+            dependentParentReady={remoteDependentParentReady}
             loadingText={
               isKoreaAddressSearchSelect
                 ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."

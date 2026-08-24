@@ -276,6 +276,60 @@ describe("dynamic review localization", () => {
     ]);
   });
 
+  test("organizes Philippines review rows by required missing, completed, and collapsed optional rows", () => {
+    const onEdit = vi.fn();
+    const step: WizardStep = {
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      fields: [
+        baseField({
+          fieldName: "first_name",
+          label: "First Name",
+          validationRules: { label_zh: "名", label_en: "First Name" },
+        }),
+        baseField({
+          fieldName: "middle_name",
+          label: "Middle Name",
+          required: false,
+          validationRules: { label_zh: "中间名", label_en: "Middle Name" },
+        }),
+        baseField({
+          fieldName: "surname",
+          label: "Surname",
+          validationRules: { label_zh: "姓氏", label_en: "Surname" },
+        }),
+      ],
+    };
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ surname: "Reyes" }}
+        dbSteps={[step]}
+        photoPath={null}
+        onEdit={onEdit}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        mode="continue"
+        showAction={false}
+        completionGrouping
+      />,
+    );
+
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(headings).toEqual(["必须补充", "已填写", "可选未填写"]);
+    expect(screen.getByText("未填写")).toHaveClass("text-red-600");
+    expect(screen.getAllByText("Reyes")).toHaveLength(2);
+    expect(screen.queryByText("中间名")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "修改名" }));
+    expect(onEdit).toHaveBeenCalledWith(0, "first_name");
+
+    fireEvent.click(screen.getByRole("button", { name: "展开" }));
+    expect(screen.getByText("中间名")).toBeInTheDocument();
+    expect(screen.getAllByText("Not provided")).toHaveLength(2);
+  });
+
   test("routes legacy completed and missing sections to distinct field anchors", () => {
     const onEdit = vi.fn();
     render(

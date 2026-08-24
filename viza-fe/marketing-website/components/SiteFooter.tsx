@@ -3,11 +3,20 @@
 import { useTranslations } from "next-intl";
 import "./site-footer.css";
 
+const productLinks = [
+  { labelKey: "prodMockInterview", href: "/visa/united-states" },
+  { labelKey: "prodVisaReq", href: "/" },
+  { labelKey: "prodSchengen", href: "/visa/france" },
+  { labelKey: "prodPhoto", comingSoon: true },
+  { labelKey: "prodHelpline", href: "/contact" },
+  { labelKey: "prodStudent", comingSoon: true },
+] as const;
+
 /**
  * Shared marketing-site footer (ported 1:1 from the design `explore.html` footer).
  * All user-facing copy comes from the `footer` message namespace; office addresses
- * are intentionally left untranslated (proper nouns). Brand/route adaptations match
- * the existing site (real internal routes, image app-store badges).
+ * are intentionally left untranslated (proper nouns). Footer product links only point
+ * to routes that exist in this marketing app; unavailable products are marked pending.
  */
 export default function SiteFooter() {
   const t = useTranslations("footer");
@@ -64,12 +73,18 @@ export default function SiteFooter() {
         <div className="col-products">
           <h4 className="col-head">{t("product")}</h4>
           <ul className="col-list">
-            <li><a href="/apply">{t("prodMockInterview")}</a></li>
-            <li><a href="/">{t("prodVisaReq")}</a></li>
-            <li><a href="/visa/france">{t("prodSchengen")}</a></li>
-            <li><a href="/apply">{t("prodPhoto")}</a></li>
-            <li><a href="/contact">{t("prodHelpline")}</a></li>
-            <li><a href="/apply">{t("prodStudent")}</a></li>
+            {productLinks.map((item) => (
+              <li key={item.labelKey}>
+                {"href" in item ? (
+                  <a href={item.href}>{t(item.labelKey)}</a>
+                ) : (
+                  <span className="footer-pending">
+                    {t(item.labelKey)}
+                    <span className="footer-pending-pill">{t("comingSoon")}</span>
+                  </span>
+                )}
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -86,15 +101,9 @@ export default function SiteFooter() {
           </ul>
         </div>
 
-        {/* App buttons span the brand column area */}
+        {/* Native apps are not yet live in stores, so do not render fake download links. */}
         <div className="foot-apps">
-          {/* Native apps pre-launch (MKT-013 intentional): badges link to the web app for now. */}
-          <a className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
-            <img src="/assets/app-store-badge.png" alt="Download on the App Store" />
-          </a>
-          <a className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
-            <img src="/assets/google-play-badge.png" alt="Get it on Google Play" />
-          </a>
+          <p className="foot-apps-note">{t("appsComingSoon")}</p>
         </div>
       </div>
 

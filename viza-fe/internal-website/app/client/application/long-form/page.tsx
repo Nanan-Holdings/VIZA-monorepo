@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
+import { BackButton } from "@/components/ui/back-button";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
 import { countries } from "country-data-list";
@@ -1184,6 +1185,7 @@ function FinalConfirmationPanel({
   const taiwanTermsReady =
     !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
   const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
+    (isPhEtravel && hasMissing) ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (hasLiveAssistedTarget && !liveAssistedEnabled);
   const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
@@ -1292,7 +1294,11 @@ function FinalConfirmationPanel({
         ) : (
           <>
             <ShieldCheck className="mr-2 h-4 w-4" />
-            {isZh ? "提交" : "Submit"}
+            {isPhEtravel && hasMissing
+              ? isZh
+                ? `还缺 ${missingFields.length} 个必填项`
+                : `${missingFields.length} required ${missingFields.length === 1 ? "item" : "items"} missing`
+              : isZh ? "提交" : "Submit"}
           </>
         )}
       </button>
@@ -3042,6 +3048,9 @@ export default function ApplicationPage() {
     formAssistantRetryRef.current = { applicationId, text, idempotencyKey };
     const optimisticMessageId = `user-pending-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const currentDynamicStep = isPhilippinesEtravel
+      ? visibleDynamicSteps.find(({ sourceIndex }) => sourceIndex === currentStep)?.step
+      : undefined;
     setFormAssistantBusy(true);
     setFormAssistantState((current) => current ? {
       ...current,
@@ -3060,6 +3069,18 @@ export default function ApplicationPage() {
           locale,
           inputMode: "text",
           idempotencyKey,
+          currentStep: currentDynamicStep
+            ? {
+                stepName: currentDynamicStep.stepName,
+                fieldNames: currentDynamicStep.fields.map((field) => field.fieldName),
+              }
+            : isPhilippinesEtravel && currentStep === documentStepIndex
+              ? {
+                  stepName: "Supporting Documents",
+                  fieldNames: [],
+                  isDocumentStep: true,
+                }
+              : undefined,
         }),
       });
       const payload = await response.json() as FormAssistantTurnResponse & {
@@ -3160,7 +3181,19 @@ export default function ApplicationPage() {
     } finally {
       setFormAssistantBusy(false);
     }
-  }, [appState.applicationId, dbSteps, isZhInterface, locale, markFormAssistantAnswersChanged, saveAllDynamicDrafts, t]);
+  }, [
+    appState.applicationId,
+    currentStep,
+    dbSteps,
+    documentStepIndex,
+    isPhilippinesEtravel,
+    isZhInterface,
+    locale,
+    markFormAssistantAnswersChanged,
+    saveAllDynamicDrafts,
+    t,
+    visibleDynamicSteps,
+  ]);
 
   const handleFormAssistantUndoFill = useCallback(async (items: FormAssistantFillNoticeItem[]) => {
     const applicationId = appState.applicationId;
@@ -4611,7 +4644,15 @@ export default function ApplicationPage() {
   }
 
   const hasResolvedPackage = Boolean(explicitCountry || explicitVisaType || visaPackage);
-  const pageTitle = hasResolvedPackage
+  const pageTitle = isPhilippinesEtravel
+    ? isZhInterface
+      ? resolvedVisaType === "PH_ETRAVEL_DEPARTURE_CARD"
+        ? "菲律宾 eTravel 离境申报"
+        : "菲律宾 eTravel 入境申报"
+      : resolvedVisaType === "PH_ETRAVEL_DEPARTURE_CARD"
+        ? "Philippines eTravel Departure Declaration"
+        : "Philippines eTravel Arrival Declaration"
+    : hasResolvedPackage
     ? getVisaPackageTitle(resolvedCountry, resolvedVisaType, locale)
     : t("title");
   const taiwanEntryPermitRequiredDocumentKeys = isTaiwanEntryPermit
@@ -4651,7 +4692,8 @@ export default function ApplicationPage() {
           className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl"
           style={{ marginLeft: `${contentAlignment}px` }}
         >
-          <header className="mb-4 w-full sm:mb-5">
+          <header className="mb-4 w-full space-y-3 sm:mb-5">
+            <BackButton fallbackHref="/client/application" />
             <h1 className="font-heading text-[28px] font-medium leading-[1.15] tracking-[-1px] text-[#3d3d3d] sm:text-[34px] sm:tracking-[-1.2px]">
               {pageTitle}
             </h1>
@@ -4859,6 +4901,7 @@ export default function ApplicationPage() {
                                   mode="continue"
                                   showAction={false}
                                   reviewIssues={formAssistantFieldReviewIssueMap}
+                                  completionGrouping={isPhilippinesEtravel}
                                 />
                               ) : null}
                               <SubmissionStatusStep
@@ -4888,6 +4931,7 @@ export default function ApplicationPage() {
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
                                 showAction={isCompanionFlow}
                                 reviewIssues={formAssistantFieldReviewIssueMap}
+                                completionGrouping={isPhilippinesEtravel}
                               />
                               {!isCompanionFlow ? (
                                 <UniversalProfileSyncCard applicationId={appState.applicationId} />

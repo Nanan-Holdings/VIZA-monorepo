@@ -15,6 +15,7 @@ import { ApplicationFormInputGroup } from '@/components/ui/application-form-inpu
 import { Button } from '@/components/ui/button'
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { resolveClientPostLoginDestination } from '@/lib/client-login-redirect'
 import { useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
@@ -197,6 +198,10 @@ function ClientLoginContent() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const postLoginDestination = resolveClientPostLoginDestination(
+    searchParams,
+    typeof window === 'undefined' ? '' : window.location.hash,
+  )
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
@@ -235,7 +240,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = postLoginDestination
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -271,7 +276,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = postLoginDestination
   }
 
   const handleResend = async () => {
@@ -292,12 +297,11 @@ function ClientLoginContent() {
   }
 
   return (
-    <div style={{ height: '100vh', background: 'linear-gradient(to bottom, #03346E, #3D6DAD)', display: 'flex', alignItems: 'stretch', overflow: 'hidden', position: 'relative', padding: 'clamp(32px, 4vh, 64px) 0 clamp(32px, 4vh, 64px) clamp(36px, 4.4vh, 68px)' }}>
+    <div className="relative flex min-h-[100svh] w-full items-stretch overflow-x-hidden bg-gradient-to-b from-[#03346E] to-[#3D6DAD] px-4 py-6 sm:px-8 sm:py-8 lg:h-screen lg:overflow-hidden lg:py-[clamp(32px,4vh,64px)] lg:pl-[clamp(36px,4.4vh,68px)] lg:pr-0">
 
       {/* ── Login Panel (left) ── */}
       <motion.section
-        className="relative flex flex-col justify-between bg-white px-4 py-[clamp(20px,3vh,36px)] lg:px-[clamp(20px,2.5vw,40px)] lg:py-[clamp(20px,3vh,60px)] rounded-[16px]"
-        style={{ width: '45%', maxWidth: 545, zIndex: 10, flexShrink: 0 }}
+        className="relative z-10 mx-auto flex w-full max-w-[545px] shrink-0 flex-col justify-between rounded-[16px] bg-white px-4 py-[clamp(20px,3vh,36px)] lg:mx-0 lg:w-[45%] lg:px-[clamp(20px,2.5vw,40px)] lg:py-[clamp(20px,3vh,60px)]"
         initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -505,14 +509,7 @@ function ClientLoginContent() {
       </motion.section>
 
       {/* ── Globe (right) ── */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'visible',
-        position: 'relative',
-      }}>
+      <div className="relative hidden flex-1 items-center justify-center overflow-visible lg:flex">
       <div style={{
         width: 1222,
         height: 1222,

@@ -12,6 +12,7 @@ import {
 } from "./data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { cn } from "@/lib/utils";
@@ -334,6 +335,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   return (
     <div className="mx-auto max-w-[1090px] space-y-8 pb-16">
       <header className="space-y-3">
+        <BackButton fallbackHref="/client/home" />
         <div className="max-w-3xl space-y-3">
           <h1 className="text-3xl font-semibold text-foreground md:text-4xl">Checkout</h1>
           <p className="text-base leading-7 text-muted-foreground">

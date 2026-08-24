@@ -88,6 +88,23 @@
   transition: color .12s;
 }
 .site-foot .col-list a:hover { color: var(--brand-500); }
+.site-foot .footer-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-2);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.site-foot .footer-pending-pill {
+  border: 1px solid var(--border-hairline);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--fg-3);
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 
 .site-foot .col-offices .col-list {
   gap: 16px;
@@ -108,15 +125,11 @@
   display: flex; gap: 12px;
   margin-top: 8px;
 }
-.site-foot .app-badge {
-  display: inline-flex;
-  text-decoration: none;
-  transition: transform .15s;
-}
-.site-foot .app-badge:hover { transform: translateY(-1px); }
-.site-foot .app-badge img {
-  height: 48px; width: auto; display: block;
-  border-radius: 10px;
+.site-foot .foot-apps-note {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .site-foot .foot-bottom {

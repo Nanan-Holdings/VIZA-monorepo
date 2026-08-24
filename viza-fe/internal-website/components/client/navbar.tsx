@@ -13,19 +13,6 @@ import { NavDropdown, type NavDropdownItem } from "@/components/client/nav-dropd
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  buildApplicationFormHref,
-  getRecentApplicationFormHref,
-  readApplicationFormTarget,
-  RECENT_APPLICATION_FORM_EVENT,
-  RECENT_APPLICATION_FORM_STORAGE_KEY,
-  type ApplicationFormTarget,
-} from "@/lib/client/recent-application-form";
-import {
-  ACTIVE_APPLICATION_SELECTION_EVENT,
-  ACTIVE_APPLICATION_SELECTION_STORAGE_KEY,
-  getActiveApplicationFormHref,
-} from "@/lib/client/active-application-selection";
 
 interface NavBarProps {
   activeTab: string | null;
@@ -116,10 +103,6 @@ function LiveSaveStatusIcon({
   );
 }
 
-function hasApplicationIdentity(target: ApplicationFormTarget | null): target is ApplicationFormTarget {
-  return Boolean(target?.applicationId || (target?.country && target?.visaType));
-}
-
 export function NavBar({
   activeTab,
   setActiveTab,
@@ -137,8 +120,6 @@ export function NavBar({
   const [mobileChatMenuOpen, setMobileChatMenuOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [liveSaveStatus, setLiveSaveStatus] = useState<LiveSaveStatus>("idle");
-  const [recentApplicationHref, setRecentApplicationHref] = useState<string | null>(null);
-  const [activeApplicationHref, setActiveApplicationHref] = useState<string | null>(null);
   const transitionDuration = 0.6;
   const showLiveSaveStatus =
     pathname === "/client/application" ||
@@ -161,32 +142,6 @@ export function NavBar({
   }, []);
 
   useEffect(() => {
-    const syncActiveApplicationHref = () => {
-      setActiveApplicationHref(getActiveApplicationFormHref());
-    };
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === ACTIVE_APPLICATION_SELECTION_STORAGE_KEY) {
-        syncActiveApplicationHref();
-      }
-    };
-
-    syncActiveApplicationHref();
-    window.addEventListener(
-      ACTIVE_APPLICATION_SELECTION_EVENT,
-      syncActiveApplicationHref,
-    );
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener(
-        ACTIVE_APPLICATION_SELECTION_EVENT,
-        syncActiveApplicationHref,
-      );
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, []);
-
-  useEffect(() => {
     const handleLiveSaveStatus = (event: Event) => {
       const nextStatus = (event as CustomEvent<{ status?: LiveSaveStatus }>).detail?.status;
       if (nextStatus === "idle" || nextStatus === "saving" || nextStatus === "saved") {
@@ -196,27 +151,6 @@ export function NavBar({
 
     window.addEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
     return () => window.removeEventListener(LIVE_SAVE_STATUS_EVENT, handleLiveSaveStatus);
-  }, []);
-
-  useEffect(() => {
-    const syncRecentApplicationHref = () => {
-      setRecentApplicationHref(getRecentApplicationFormHref());
-    };
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === RECENT_APPLICATION_FORM_STORAGE_KEY) {
-        syncRecentApplicationHref();
-      }
-    };
-
-    syncRecentApplicationHref();
-
-    window.addEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener(RECENT_APPLICATION_FORM_EVENT, syncRecentApplicationHref);
-      window.removeEventListener("storage", handleStorage);
-    };
   }, []);
 
   useEffect(() => {
@@ -254,34 +188,10 @@ export function NavBar({
   const LOGO_DARK_MOBILE   = { w: 117, h: 23 };
   const LOGO_WHITE_MOBILE  = { w: 117, h: 23 };
 
-  // Status and Help are reached through the account menu, not top-level tabs.
+  // Status remains reachable from application cards and the account menu, not the top-level nav.
   const leftTabs = ["Home", "Application"];
   const rightTabs = ["Settings"];
   const mobileTabs = ["Home", "Application", "Settings"];
-
-  const currentPageApplicationTarget = useMemo(() => {
-    const currentFormTarget = readApplicationFormTarget(
-      buildApplicationFormHref(pathname, searchParams.toString()),
-    );
-    if (hasApplicationIdentity(currentFormTarget)) return currentFormTarget;
-
-    const applicationPageTarget = readApplicationFormTarget(
-      `/client/application/long-form?${searchParams.toString()}`,
-    );
-    if (pathname.startsWith("/client/application") && hasApplicationIdentity(applicationPageTarget)) {
-      return applicationPageTarget;
-    }
-
-    return null;
-  }, [pathname, searchParams]);
-
-  const recentApplicationTarget = readApplicationFormTarget(recentApplicationHref);
-  const applicationMenuHref =
-    currentPageApplicationTarget?.href ??
-    activeApplicationHref ??
-    (hasApplicationIdentity(recentApplicationTarget)
-      ? recentApplicationTarget.href
-      : "/client/application");
 
   const activeTabColor = isDark ? "#FFFFFF" : "#03346E";
   const inactiveColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
@@ -294,7 +204,7 @@ export function NavBar({
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     if (tab === "Application") {
-      router.push(applicationMenuHref);
+      router.push("/client/application");
       return;
     }
 

@@ -78,4 +78,32 @@ describe("application submit navigation", () => {
       pageSource.match(/submissionStarting=\{saving && submittingMode !== null\}/g),
     ).toHaveLength(2);
   });
+
+  it("keeps the Philippines eTravel final action blocked and named until required fields are complete", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const finalConfirmation = sourceBetween(
+      pageSource,
+      "function FinalConfirmationPanel({",
+      "// ---------------------------------------------------------------------------",
+    );
+
+    expect(finalConfirmation).toContain("(isPhEtravel && hasMissing)");
+    expect(finalConfirmation).toContain("还缺 ${missingFields.length} 个必填项");
+    expect(finalConfirmation).toContain("required ${missingFields.length === 1 ? \"item\" : \"items\"} missing");
+  });
+
+  it("uses distinct Philippines eTravel Arrival and Departure Declaration product names on the long form", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+
+    expect(pageSource).toContain("菲律宾 eTravel 入境申报");
+    expect(pageSource).toContain("菲律宾 eTravel 离境申报");
+    expect(pageSource).toContain("Philippines eTravel Arrival Declaration");
+    expect(pageSource).toContain("Philippines eTravel Departure Declaration");
+  });
 });

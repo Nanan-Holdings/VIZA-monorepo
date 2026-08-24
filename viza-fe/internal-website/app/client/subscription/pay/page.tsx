@@ -1,11 +1,10 @@
 import Image from "next/image";
-import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, ShieldCheck } from "@phosphor-icons/react/ssr";
+import { ShieldCheck } from "@phosphor-icons/react/ssr";
 import { PaymentStatusPoller } from "../payment-status-poller";
 import { getPaymentRecordForCurrentUser } from "../data";
+import { BackButton } from "@/components/ui/back-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type PaySearchParams = {
@@ -48,12 +47,7 @@ export default async function SubscriptionPayPage({ searchParams }: Subscription
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
-      <Button asChild variant="outline" className="h-11 w-fit rounded-full">
-        <Link href="/client/subscription">
-          <ArrowLeft className="h-4 w-4" />
-          返回订阅方案
-        </Link>
-      </Button>
+      <BackButton fallbackHref="/client/subscription" />
 
       <Card>
         <CardHeader>

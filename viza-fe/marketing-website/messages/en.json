@@ -39,7 +39,9 @@
     "prodSchengen": "Schengen Appointment Checker",
     "prodPhoto": "Visa Photo Creator",
     "prodHelpline": "VIZA Emergency Helpline",
-    "prodStudent": "Student Visa"
+    "prodStudent": "Student Visa",
+    "comingSoon": "Coming soon",
+    "appsComingSoon": "VIZA mobile apps are coming soon."
   },
   "pages": {
     "home": {

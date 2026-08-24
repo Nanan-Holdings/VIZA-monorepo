@@ -14,7 +14,6 @@ import {
   CreditCard,
   Database,
   Gift,
-  GlobeHemisphereWest as Globe2,
   Headphones,
   IdentificationCard as IdCard,
   Key as KeyRound,
@@ -46,6 +45,7 @@ import { Button } from "@/components/ui/button";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
+import { maskSensitiveText } from "@/lib/client/mask-sensitive-text";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { FrequentTravelersTab } from "./components/frequent-travelers-tab";
@@ -1123,7 +1123,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   {t("quickSnapshot.phone")}
                 </dt>
                 <dd className="mt-2 break-words text-sm font-semibold text-foreground">
-                  {profile?.phone || t("quickSnapshot.notSet")}
+                  {maskSensitiveText(profile?.phone) || t("quickSnapshot.notSet")}
                 </dd>
               </div>
               <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
@@ -1132,7 +1132,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   {t("quickSnapshot.passport")}
                 </dt>
                 <dd className="mt-2 break-all text-sm font-semibold text-foreground">
-                  {profile?.passport_number || t("quickSnapshot.notSet")}
+                  {maskSensitiveText(profile?.passport_number) || t("quickSnapshot.notSet")}
                 </dd>
               </div>
               <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
@@ -1469,12 +1469,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               badge={t("rows.universalInfo.badge")}
             />
             <SettingsRow
-              icon={UserRound}
-              title={t("rows.account.title")}
-              description={t("rows.account.description")}
-              href="/client/universal-info"
-            />
-            <SettingsRow
               icon={UsersRound}
               title={t("rows.travelers.title")}
               description={t("rows.travelers.description")}
@@ -1487,12 +1481,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               description={t("rows.pointsCenter.description")}
               href="/client/settings/points"
               badge={t("rows.pointsCenter.badge")}
-            />
-            <SettingsRow
-              icon={Globe2}
-              title={t("rows.language.title")}
-              description={t("rows.language.description")}
-              href="/client/help/getting-started/complete-your-profile"
             />
             <SettingsRow
               icon={MessageCircle}

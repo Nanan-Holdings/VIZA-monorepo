@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 import { SmoothProgressMeter } from "@/components/smooth-progress";
 
 interface PaymentResultProps {
@@ -59,13 +60,7 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
   return (
     <main className="min-h-screen bg-[#fafafa] px-4 py-6">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-        <Link
-          href="/client/subscription"
-          className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium text-brand-500 shadow-sm transition hover:border-brand-500"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          返回订阅页面
-        </Link>
+        <BackButton fallbackHref="/client/subscription" label="返回" />
 
         <section className="rounded-xl border bg-white p-8 text-center shadow-sm">
           <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 text-brand-500">

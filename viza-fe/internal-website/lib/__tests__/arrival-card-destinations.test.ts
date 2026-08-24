@@ -103,12 +103,12 @@ describe("arrival card destination labels", () => {
   });
 
   test("Philippines search collapses arrival and departure into one category entry", () => {
-    expect(getVisaTypeDisplayName("PH_ETRAVEL_ARRIVAL_CARD")).toBe("Philippines eTravel Arrival Card");
-    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("电子入境卡");
+    expect(getVisaTypeDisplayName("PH_ETRAVEL_ARRIVAL_CARD")).toBe("Philippines eTravel Arrival Declaration");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾 eTravel 入境申报");
     expect(getVisaPackageTitle("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe(
-      "Philippines Philippines eTravel Arrival Card",
+      "Philippines eTravel Arrival Declaration",
     );
-    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾电子入境卡");
+    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾 eTravel 入境申报");
 
     const philippines = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "philippines");
     expect(philippines?.kind).toBe("group");
@@ -119,8 +119,12 @@ describe("arrival card destination labels", () => {
     expect(matchesVisaDestinationSearch(philippines!, "eTravel")).toBe(true);
     expect(SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
       matchesVisaDestinationSearch(destination, "eTravel"))).toEqual([philippines]);
-    expect(getVisaTypeDisplayName("PH_ETRAVEL_DEPARTURE_CARD")).toBe("Philippines eTravel Departure Card");
-    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_DEPARTURE_CARD")).toBe("电子出境卡");
+    expect(getVisaTypeDisplayName("PH_ETRAVEL_DEPARTURE_CARD")).toBe("Philippines eTravel Departure Declaration");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_DEPARTURE_CARD")).toBe("菲律宾 eTravel 离境申报");
+    expect(getVisaPackageTitle("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe(
+      "Philippines eTravel Departure Declaration",
+    );
+    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe("菲律宾 eTravel 离境申报");
     expect(isCountryLaunched("philippines")).toBe(true);
     expect(isCountryLaunched("ph")).toBe(true);
   });

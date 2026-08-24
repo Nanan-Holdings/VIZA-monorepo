@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle as CheckCircle2,
   WarningCircle as CircleAlert,
@@ -25,6 +24,7 @@ import {
 } from "@/app/actions/application-lifecycle";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { BackButton } from "@/components/ui/back-button";
 import { cn } from "@/lib/utils";
 import { buildApplicationLongFormHref } from "@/lib/client/recent-application-form";
 import { getFormVisaType } from "@/lib/visa-destinations";
@@ -467,13 +467,7 @@ function DetailView({
     const canStart = Boolean(missingRequest.country && missingRequest.visaType);
     return (
       <div className="mx-auto w-full max-w-[960px] pb-14 pt-5 sm:pt-8">
-        <Link
-          href={basePath}
-          className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#03346E]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("backToOverview")}
-        </Link>
+        <BackButton fallbackHref={basePath} label={t("backToOverview")} />
         <div className="mt-6 rounded-[8px] border border-dashed border-[#cbd8ea] bg-white px-6 py-12 text-center">
           <h1 className="font-heading text-[26px] font-medium text-[#26364a]">{t("detailMissingTitle")}</h1>
           <p className="mx-auto mt-2 max-w-md text-[14px] leading-6 text-[#66758a]">{t("detailMissingBody")}</p>
@@ -536,13 +530,7 @@ function DetailView({
 
   return (
     <div className="mx-auto w-full max-w-[1040px] pb-14 pt-5 sm:pt-8">
-      <Link
-        href={basePath}
-        className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#03346E]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("backToOverview")}
-      </Link>
+      <BackButton fallbackHref={basePath} label={t("backToOverview")} />
 
       <section className="mt-6 rounded-[8px] border border-[#e7edf5] bg-white p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

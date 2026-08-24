@@ -13,6 +13,7 @@ import {
 } from "./session-check-errors";
 import { AliasForwardingConsentGate } from "./_components/alias-forwarding-consent-gate";
 import { Warning } from "@phosphor-icons/react";
+import { buildClientLoginPathWithNext } from "@/lib/client-login-redirect";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -132,6 +133,12 @@ function ClientLayoutContent({
   const tabIdRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const buildLoginPathForCurrentLocation = useCallback(() => {
+    if (typeof window === "undefined") return "/client/login";
+    return buildClientLoginPathWithNext(
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
+  }, []);
 
   // Ensure nav colors are black on all non-home/invite pages
   // Fixes issue where navigating from Home (white nav) to another page keeps white colors
@@ -158,7 +165,7 @@ function ClientLayoutContent({
     };
   }, [isReportPage]);
   const isApplicationFlow =
-    pathname === "/client/application" || pathname.startsWith("/client/application/");
+    pathname.startsWith("/client/application/");
 
   // Check session validity.
   // A per-tab id prevents new target=_blank tabs from inheriting another tab's
@@ -203,7 +210,7 @@ function ClientLayoutContent({
         // No valid session — redirect to login instead of showing invalidated state.
         // "Invalidated" is reserved for the impersonation-mismatch case only.
         isCheckingRef.current = false;
-        router.replace("/client/login");
+        router.replace(buildLoginPathForCurrentLocation());
         return;
       }
 
@@ -213,7 +220,7 @@ function ClientLayoutContent({
 
       if (!currentUserId || !currentSessionKind || !currentSessionId) {
         isCheckingRef.current = false;
-        router.replace("/client/login");
+        router.replace(buildLoginPathForCurrentLocation());
         return;
       }
 
@@ -256,7 +263,7 @@ function ClientLayoutContent({
       window.clearTimeout(timeoutId);
       isCheckingRef.current = false;
     }
-  }, [pathname, router]);
+  }, [buildLoginPathForCurrentLocation, pathname, router]);
 
   // Run a single session validity check on mount; skip focus/visibility re-checks to avoid remounts
   useEffect(() => {

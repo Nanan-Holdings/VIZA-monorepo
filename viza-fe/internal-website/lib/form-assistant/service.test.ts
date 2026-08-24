@@ -24,6 +24,7 @@ import {
   parseExplicitMultiFieldAnswers,
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
+  prioritizeAssistantMissingFields,
   runAssistantTurn,
 } from "./service";
 import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
@@ -774,6 +775,69 @@ describe("buildAssistantState", () => {
     expect(state.assistantMessage).toContain("计划哪一天抵达新加坡");
     expect(state.assistantMessage).not.toContain("离开新加坡");
     expect(state.missingFields).toHaveLength(2);
+  });
+
+  it("prioritizes the user's current Philippines step before later missing fields", () => {
+    const state = buildAssistantState({
+      sessionId: "session-id",
+      country: "philippines",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      steps: [
+        {
+          stepNumber: 8,
+          stepName: "Declaration Signature",
+          fields: [field("electronic_signature", "Electronic Signature", "电子签名")],
+        },
+        {
+          stepNumber: 1,
+          stepName: "Traveller Information",
+          fields: [field("first_name", "First Name", "名")],
+        },
+      ],
+      answers: {},
+      messages: [],
+      locale: "zh",
+      currentStep: {
+        stepName: "Traveller Information",
+        fieldNames: ["first_name"],
+      },
+    });
+
+    expect(state.assistantMessage).toContain("名");
+    expect(state.assistantMessage).not.toContain("电子签名");
+    expect(state.missingFields.map((item) => item.fieldName)).toEqual([
+      "first_name",
+      "electronic_signature",
+    ]);
+  });
+
+  it("keeps normal missing-field order on the documents step", () => {
+    expect(prioritizeAssistantMissingFields(
+      [
+        {
+          fieldName: "electronic_signature",
+          label: "Electronic Signature",
+          stepId: 8,
+          stepName: "Declaration Signature",
+          reason: "required",
+        },
+        {
+          fieldName: "first_name",
+          label: "First Name",
+          stepId: 1,
+          stepName: "Traveller Information",
+          reason: "required",
+        },
+      ],
+      {
+        stepName: "Supporting Documents",
+        fieldNames: ["first_name"],
+        isDocumentStep: true,
+      },
+    ).map((item) => item.fieldName)).toEqual([
+      "electronic_signature",
+      "first_name",
+    ]);
   });
 
   it("replaces a legacy multi-question prompt with the current single question", () => {

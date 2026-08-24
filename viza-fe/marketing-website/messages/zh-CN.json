@@ -39,7 +39,9 @@
     "prodSchengen": "申根预约查询",
     "prodPhoto": "签证照片生成",
     "prodHelpline": "VIZA 紧急热线",
-    "prodStudent": "学生签证"
+    "prodStudent": "学生签证",
+    "comingSoon": "即将开放",
+    "appsComingSoon": "VIZA 手机 App 即将上线。"
   },
   "pages": {
     "home": {

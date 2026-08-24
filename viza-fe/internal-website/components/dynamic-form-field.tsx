@@ -256,6 +256,7 @@ interface DynamicFormFieldProps {
   loadingMore?: boolean;
   searching?: boolean;
   loadingText?: string;
+  dependentParentReady?: boolean;
 }
 
 function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
@@ -366,6 +367,23 @@ function isEmptyDependentSelect(field: VisaFormFieldRow, options: Array<{ value:
   return Boolean(rules?.dependent_on || rules?.depends_on || rules?.dependsOn || rules?.live_dom_id);
 }
 
+function getDependentParentFieldName(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as {
+    dependent_on?: unknown;
+    depends_on?: unknown;
+    dependsOn?: unknown;
+  } | null;
+  const parent = rules?.dependent_on ?? rules?.depends_on ?? rules?.dependsOn;
+  return typeof parent === "string" && parent.trim() ? parent.trim() : null;
+}
+
+function humanizeFieldName(fieldName: string): string {
+  return fieldName
+    .replace(/__\d+$/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function SsnSegmentedInput({
   value,
   onChange,
@@ -433,6 +451,7 @@ export function DynamicFormField({
   loadingMore = false,
   searching = false,
   loadingText,
+  dependentParentReady = true,
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const locale = useLocale();
@@ -625,17 +644,30 @@ export function DynamicFormField({
         );
       }
       const opts = normalizedSelectOptions;
-      const rules = field.validationRules as { remote_search?: unknown } | null;
-      const usesRemoteSearch = rules?.remote_search === true;
-      if (isEmptyDependentSelect(field, opts) && !usesRemoteSearch && !onSearchQuery) {
+      const rules = field.validationRules as {
+        remote_search?: unknown;
+        official_options_source?: unknown;
+        dynamic_option_source?: unknown;
+      } | null;
+      const usesRemoteSearch = rules?.remote_search === true ||
+        typeof rules?.official_options_source === "string" ||
+        typeof rules?.dynamic_option_source === "string";
+      if (isEmptyDependentSelect(field, opts) && (!usesRemoteSearch || !dependentParentReady) && !onSearchQuery) {
+        const parentFieldName = getDependentParentFieldName(field);
+        const parentLabel = parentFieldName ? humanizeFieldName(parentFieldName) : null;
         const dependentMessage = sideLocale === "zh"
-          ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
-          : "Select the parent option first, or contact VIZA to check the official dropdown list.";
+          ? parentLabel
+            ? `请先选择“${parentLabel}”，再选择此项。`
+            : "请先选择上级字段，再选择此项。"
+          : parentLabel
+            ? `Select “${parentLabel}” first, then choose this field.`
+            : "Select the parent field first, then choose this field.";
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <ApplicationFormControlDisplay
               className={cn(
                 "min-h-12 bg-white text-[#71717a]",
+                usesRemoteSearch && !dependentParentReady && "cursor-not-allowed opacity-70",
               )}
               role="alert"
             >
@@ -661,6 +693,11 @@ export function DynamicFormField({
               loadingMore={loadingMore}
               searching={searching}
               loadingText={loadingText}
+              emptyText={usesRemoteSearch && dependentParentReady && opts.length === 0
+                ? sideLocale === "zh"
+                  ? "选项加载失败，请重试"
+                  : "Options failed to load. Please try again."
+                : undefined}
             />
           </FieldWrapper>
         );
