@@ -122,6 +122,13 @@ interface VisaPackageRow {
   currency: string | null;
 }
 
+interface PackagePricingRow {
+  visa_package_id: string;
+  currency: string;
+  government_fee_cents: number;
+  agency_fee_cents: number;
+}
+
 export interface EvaluateSubmissionAccessOptions {
   payerAuthUserId?: string | null;
   /** Final-review evaluation locks a currently valid high-access grant. */
@@ -399,8 +406,29 @@ export async function evaluateSubmissionAccess(
     if (packageError) throw new Error(`submission package lookup: ${packageError.message}`);
     packageRow = (packageData as VisaPackageRow | null) ?? null;
   }
-  const currency = normalizeCurrency(
+  let packagePricingRows: PackagePricingRow[] = [];
+  if (application.visa_package_id) {
+    const { data: packagePricingData, error: packagePricingError } = await admin
+      .from("package_pricing")
+      .select("visa_package_id, currency, government_fee_cents, agency_fee_cents")
+      .eq("visa_package_id", application.visa_package_id)
+      .order("updated_at", { ascending: false });
+    if (packagePricingError) {
+      throw new Error(`submission package pricing lookup: ${packagePricingError.message}`);
+    }
+    packagePricingRows = (packagePricingData as PackagePricingRow[] | null) ?? [];
+  }
+  const preferredPackageCurrency = normalizeCurrency(
     pricing?.currency ?? application.government_fee_currency ?? packageRow?.currency,
+  );
+  const packagePricing = packagePricingRows.find(
+    (row) => normalizeCurrency(row.currency) === preferredPackageCurrency,
+  ) ?? packagePricingRows[0] ?? null;
+  const currency = normalizeCurrency(
+    pricing?.currency
+      ?? application.government_fee_currency
+      ?? packagePricing?.currency
+      ?? packageRow?.currency,
   );
   const now = new Date();
 
@@ -430,10 +458,12 @@ export async function evaluateSubmissionAccess(
       && normalizeCurrency(payment.currency) === currency,
   ) ?? null;
 
-  const agencyAmount = Math.max(
-    0,
-    pricing?.agencyFeeCents ?? packageRow?.price_cents ?? 0,
-  );
+  const configuredAgencyAmount = pricing?.agencyFeeCents
+    ?? packagePricing?.agency_fee_cents
+    ?? packageRow?.price_cents;
+  const agencyPricingConfigured = configuredAgencyAmount !== null
+    && configuredAgencyAmount !== undefined;
+  const agencyAmount = Math.max(0, configuredAgencyAmount ?? 0);
   const paidAgencyOrder = paidOrders.find(
     (order) => Number(order.agency_fee_cents) >= agencyAmount,
   ) ?? null;
@@ -442,12 +472,16 @@ export async function evaluateSubmissionAccess(
     agency = fee("review_required", agencyAmount, currency);
   } else if (accessLevel === "high") {
     agency = fee("waived", agencyAmount, currency);
+  } else if (agencyPricingConfigured && agencyAmount === 0) {
+    // A published zero-price package is intentionally free. Do not turn its
+    // explicit package_pricing row into a manual-review/payment blocker.
+    agency = fee("waived", 0, currency);
   } else if (
     paidAgencyOrder
     || (paidAgencyRecord && Number(paidAgencyRecord.amount_cents) >= agencyAmount)
   ) {
     agency = fee("paid", agencyAmount, currency);
-  } else if ((!pricing && !packageRow) || agencyAmount <= 0) {
+  } else if (!agencyPricingConfigured) {
     agency = fee("review_required", agencyAmount, currency);
   } else {
     agency = fee("required", agencyAmount, currency);
@@ -456,7 +490,10 @@ export async function evaluateSubmissionAccess(
   let allocations = await applicationAllocations(admin, applicationId);
   const officialAmount = Math.max(
     0,
-    application.government_fee_cents ?? pricing?.govtFeeCents ?? 0,
+    application.government_fee_cents
+      ?? pricing?.govtFeeCents
+      ?? packagePricing?.government_fee_cents
+      ?? 0,
   );
   const paidOfficialOrder = paidOrders.find(
     (order) => Number(order.govt_fee_cents) === officialAmount,
