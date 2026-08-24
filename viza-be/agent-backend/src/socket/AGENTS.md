@@ -18,7 +18,9 @@ namespace `/visa` and sends/receives streaming events.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
 6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
-   replica so an upstream slowdown cannot exhaust every socket worker.
+   replica so an upstream slowdown cannot exhaust every socket worker. Its
+   bounded aggregate counters and wait-time samples contain no request identity
+   or message content and feed the secret-protected capacity snapshot.
 
 ## Ownership Boundaries
 

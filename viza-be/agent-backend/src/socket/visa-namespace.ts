@@ -45,23 +45,23 @@ import {
   type VisaEntryRule,
 } from '../services/visa-entry-rule.service.js';
 import type { VisaProductRecommendation } from '../config/visa-product-registry.js';
-import { ChatCapacityError, ChatConcurrencyGate } from './chat-concurrency.js';
+import {
+  ChatCapacityError,
+  ChatConcurrencyGate,
+  readChatCapacityLimits,
+} from './chat-concurrency.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
-
-function boundedPositiveInteger(name: string, fallback: number, max: number): number {
-  const parsed = Number.parseInt(process.env[name] ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
-}
 
 let chatConcurrencyGate: ChatConcurrencyGate | null = null;
 
 function getChatConcurrencyGate(): ChatConcurrencyGate {
   if (!chatConcurrencyGate) {
+    const limits = readChatCapacityLimits();
     chatConcurrencyGate = new ChatConcurrencyGate(
-      boundedPositiveInteger('VISA_CHAT_MAX_CONCURRENCY', 16, 100),
-      boundedPositiveInteger('VISA_CHAT_MAX_QUEUE', 64, 1_000),
-      boundedPositiveInteger('VISA_CHAT_QUEUE_TIMEOUT_MS', 8_000, 60_000)
+      limits.maxActive,
+      limits.maxQueued,
+      limits.queueTimeoutMs,
     );
   }
   return chatConcurrencyGate;
