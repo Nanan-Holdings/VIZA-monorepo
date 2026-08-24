@@ -171,6 +171,17 @@ Approved batches use structured catalog assertions only; concurrent-index
 batches pin exact index definitions and may retry only an invalid/not-ready
 index. Temporary Management API login roles must not exceed ten minutes and
 must be revoked after successful, failed, or ambiguous creation attempts.
+The same script's `capacity-observe` action is strictly read-only and is the
+implementation behind `.github/workflows/passive-production-capacity.yml`.
+It verifies the exact production project, takes three aggregate catalog samples
+five seconds apart, and reports only connection/lock/transaction/queue counts,
+large-table maintenance candidates, sanitized Performance Advisor objects, and
+`pg_stat_statements` query IDs with numeric counters. A single transient sample
+is a warning; only persistent saturation, waiting locks, long or idle
+transactions, or an increasing deadlock counter is a blocker. Never add SQL
+text, parameter values, application/session identifiers, or automatic index
+DDL to this action. Missing `pg_stat_statements` is an explicit warning and
+invalid statement/sample metadata fails closed.
 Function-hardening batches use the structured `function_search_path` assertion
 to pin an exact `pg_catalog`-first namespace path and SECURITY
 DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions

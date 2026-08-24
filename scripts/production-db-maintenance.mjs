@@ -775,6 +775,174 @@ SELECT jsonb_build_object(
 FROM extensions.pg_stat_statements_info statement_info;
 `;
 
+export const PASSIVE_CAPACITY_SQL = `
+WITH
+settings AS (
+  SELECT
+    current_setting('max_connections')::INTEGER AS max_connections,
+    current_setting('superuser_reserved_connections')::INTEGER AS superuser_reserved,
+    COALESCE(NULLIF(current_setting('reserved_connections', true), '')::INTEGER, 0)
+      AS reserved_connections
+),
+activity AS (
+  SELECT
+    COUNT(*)::INTEGER AS total,
+    COUNT(*) FILTER (WHERE datname = current_database())::INTEGER AS current_database,
+    COUNT(*) FILTER (
+      WHERE datname = current_database() AND state = 'active'
+    )::INTEGER AS active,
+    COUNT(*) FILTER (
+      WHERE datname = current_database() AND state = 'idle'
+    )::INTEGER AS idle,
+    COUNT(*) FILTER (
+      WHERE datname = current_database() AND state = 'idle in transaction'
+    )::INTEGER AS idle_in_transaction,
+    COUNT(*) FILTER (
+      WHERE datname = current_database()
+        AND state = 'idle in transaction'
+        AND state_change < pg_catalog.clock_timestamp() - INTERVAL '30 seconds'
+    )::INTEGER AS idle_in_transaction_over_30s,
+    COUNT(*) FILTER (
+      WHERE datname = current_database()
+        AND xact_start IS NOT NULL
+        AND xact_start < pg_catalog.clock_timestamp() - INTERVAL '30 seconds'
+    )::INTEGER AS long_transactions_over_30s,
+    COUNT(*) FILTER (
+      WHERE datname = current_database() AND wait_event_type = 'Lock'
+    )::INTEGER AS lock_waiting,
+    COALESCE(MAX(EXTRACT(EPOCH FROM (
+      pg_catalog.clock_timestamp() - xact_start
+    ))) FILTER (
+      WHERE datname = current_database() AND xact_start IS NOT NULL
+    ), 0)::NUMERIC AS max_transaction_age_seconds,
+    COALESCE(MAX(EXTRACT(EPOCH FROM (
+      pg_catalog.clock_timestamp() - state_change
+    ))) FILTER (
+      WHERE datname = current_database() AND state = 'idle in transaction'
+    ), 0)::NUMERIC AS max_idle_in_transaction_seconds
+  FROM pg_catalog.pg_stat_activity
+  WHERE backend_type = 'client backend'
+),
+lock_summary AS (
+  SELECT COUNT(*) FILTER (WHERE NOT granted)::INTEGER AS ungranted
+  FROM pg_catalog.pg_locks
+  WHERE database IS NULL
+     OR database = (
+       SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()
+     )
+),
+database_stats AS (
+  SELECT
+    stats_reset,
+    deadlocks,
+    xact_commit,
+    xact_rollback,
+    temp_files,
+    temp_bytes
+  FROM pg_catalog.pg_stat_database
+  WHERE datname = current_database()
+),
+work_counts AS (
+  SELECT
+    (SELECT COUNT(*)::INTEGER FROM public.runner_job WHERE status = 'running')
+      AS runner_running,
+    (SELECT COUNT(*)::INTEGER FROM public.runner_job WHERE status = 'queued')
+      AS runner_queued,
+    (SELECT COUNT(*)::INTEGER FROM public.submission_queue
+      WHERE status = 'processing'
+         OR status LIKE '%_processing'
+         OR locked_until > pg_catalog.clock_timestamp())
+      AS legacy_processing_or_live_locked,
+    (SELECT COUNT(*)::INTEGER FROM public.official_status_checks
+      WHERE country_code = 'VN' AND status = 'running')
+      AS vn_status_running,
+    (SELECT COUNT(*)::INTEGER FROM public.runner_machine_slot
+      WHERE owner_machine_id IS NOT NULL
+        AND lease_until > pg_catalog.clock_timestamp())
+      AS live_machine_slots
+),
+maintenance_candidates AS (
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'table', stats.relname,
+        'size_bytes', measured.size_bytes,
+        'live_tuples', stats.n_live_tup,
+        'dead_tuples', stats.n_dead_tup,
+        'dead_tuple_ratio', CASE
+          WHEN stats.n_live_tup + stats.n_dead_tup = 0 THEN 0
+          ELSE ROUND(
+            stats.n_dead_tup::NUMERIC / (stats.n_live_tup + stats.n_dead_tup),
+            4
+          )
+        END,
+        'last_analyze', stats.last_analyze,
+        'last_autoanalyze', stats.last_autoanalyze
+      ) ORDER BY measured.size_bytes DESC, stats.relname
+    ),
+    '[]'::jsonb
+  ) AS value
+  FROM pg_catalog.pg_stat_user_tables stats
+  CROSS JOIN LATERAL (
+    SELECT pg_catalog.pg_total_relation_size(stats.relid) AS size_bytes
+  ) measured
+  WHERE stats.schemaname = 'public'
+    AND measured.size_bytes >= 104857600
+    AND (
+      (stats.n_live_tup + stats.n_dead_tup > 0
+       AND stats.n_dead_tup::NUMERIC / (stats.n_live_tup + stats.n_dead_tup) >= 0.10)
+      OR GREATEST(
+        COALESCE(stats.last_analyze, '-infinity'::TIMESTAMPTZ),
+        COALESCE(stats.last_autoanalyze, '-infinity'::TIMESTAMPTZ)
+      ) < pg_catalog.clock_timestamp() - INTERVAL '24 hours'
+    )
+)
+SELECT jsonb_build_object(
+  'schema_version', 1,
+  'project_ref_marker', current_setting('app.viza_project_ref', true),
+  'sample_at', pg_catalog.clock_timestamp(),
+  'max_connections', settings.max_connections,
+  'effective_connection_limit', GREATEST(
+    1,
+    settings.max_connections - settings.superuser_reserved - settings.reserved_connections
+  ),
+  'connections', jsonb_build_object(
+    'total', activity.total,
+    'current_database', activity.current_database,
+    'active', activity.active,
+    'idle', activity.idle,
+    'idle_in_transaction', activity.idle_in_transaction,
+    'idle_in_transaction_over_30s', activity.idle_in_transaction_over_30s,
+    'long_transactions_over_30s', activity.long_transactions_over_30s,
+    'lock_waiting', activity.lock_waiting,
+    'max_transaction_age_seconds', ROUND(activity.max_transaction_age_seconds, 3),
+    'max_idle_in_transaction_seconds', ROUND(
+      activity.max_idle_in_transaction_seconds, 3
+    )
+  ),
+  'locks', jsonb_build_object('ungranted', lock_summary.ungranted),
+  'database_stats', jsonb_build_object(
+    'stats_reset', database_stats.stats_reset,
+    'deadlocks', database_stats.deadlocks,
+    'xact_commit', database_stats.xact_commit,
+    'xact_rollback', database_stats.xact_rollback,
+    'temp_files', database_stats.temp_files,
+    'temp_bytes', database_stats.temp_bytes
+  ),
+  'work', jsonb_build_object(
+    'runner_running', work_counts.runner_running,
+    'runner_queued', work_counts.runner_queued,
+    'legacy_processing_or_live_locked', work_counts.legacy_processing_or_live_locked,
+    'vn_status_running', work_counts.vn_status_running,
+    'live_machine_slots', work_counts.live_machine_slots
+  ),
+  'maintenance_candidates', maintenance_candidates.value,
+  'pg_stat_statements_available',
+    pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
+) AS passive_capacity
+FROM settings, activity, lock_summary, database_stats, work_counts, maintenance_candidates;
+`;
+
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
 const expectedPausedResumeCapSnapshotSql = JSON.stringify(
   [
@@ -2166,6 +2334,381 @@ async function retryArchitectureAuditRead({ phase, run, wait }) {
   throw lastError;
 }
 
+function finiteMetric(value, name) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`Passive capacity metric ${name} is invalid`);
+  }
+  return value;
+}
+
+function validTimestamp(value) {
+  return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
+}
+
+function validateCapacityStatementMetrics(statementMetrics, { required }) {
+  if (
+    !statementMetrics || typeof statementMetrics !== "object" ||
+    Array.isArray(statementMetrics) ||
+    (statementMetrics.stats_reset !== null &&
+      typeof statementMetrics.stats_reset !== "string") ||
+    (statementMetrics.observation_window_seconds !== null &&
+      (typeof statementMetrics.observation_window_seconds !== "number" ||
+        !Number.isFinite(statementMetrics.observation_window_seconds) ||
+        statementMetrics.observation_window_seconds < 0)) ||
+    !Array.isArray(statementMetrics.statements)
+  ) {
+    throw new Error("Passive capacity statement metadata is invalid");
+  }
+  if (required && (
+    !validTimestamp(statementMetrics.stats_reset) ||
+    statementMetrics.observation_window_seconds <= 0
+  )) {
+    throw new Error("Passive capacity statement metadata is incomplete");
+  }
+  for (const [index, statement] of statementMetrics.statements.entries()) {
+    if (!statement || typeof statement !== "object" || Array.isArray(statement) ||
+        typeof statement.queryid !== "string" || statement.queryid.length === 0) {
+      throw new Error(`Passive capacity statement ${index} is invalid`);
+    }
+    for (const key of [
+      "calls",
+      "rows",
+      "total_exec_time_ms",
+      "mean_exec_time_ms",
+      "shared_blks_hit",
+      "shared_blks_read",
+      "temp_blks_written",
+    ]) {
+      finiteMetric(statement[key], `statement.${key}`);
+    }
+  }
+  return statementMetrics;
+}
+
+function validatePassiveCapacitySample(sample) {
+  if (!sample || typeof sample !== "object" || Array.isArray(sample)) {
+    throw new Error("Passive capacity sample is invalid");
+  }
+  if (
+    sample.schema_version !== 1 ||
+    !validTimestamp(sample.sample_at) ||
+    sample.project_ref_marker !== PRODUCTION_PROJECT_REF ||
+    typeof sample.pg_stat_statements_available !== "boolean"
+  ) {
+    throw new Error("Passive capacity sample contract is invalid");
+  }
+  const connections = sample.connections;
+  const locks = sample.locks;
+  const databaseStats = sample.database_stats;
+  const work = sample.work;
+  if (!connections || !locks || !databaseStats || !work) {
+    throw new Error("Passive capacity sample is incomplete");
+  }
+  finiteMetric(sample.max_connections, "max_connections");
+  const effectiveLimit = finiteMetric(
+    sample.effective_connection_limit,
+    "effective_connection_limit",
+  );
+  if (effectiveLimit < 1) throw new Error("Passive capacity effective limit is invalid");
+  if (effectiveLimit > sample.max_connections) {
+    throw new Error("Passive capacity effective limit exceeds max connections");
+  }
+  for (const key of [
+    "total",
+    "current_database",
+    "active",
+    "idle",
+    "idle_in_transaction",
+    "idle_in_transaction_over_30s",
+    "long_transactions_over_30s",
+    "lock_waiting",
+    "max_transaction_age_seconds",
+    "max_idle_in_transaction_seconds",
+  ]) {
+    finiteMetric(connections[key], `connections.${key}`);
+  }
+  if (
+    connections.total > sample.max_connections ||
+    connections.current_database > connections.total ||
+    connections.active + connections.idle + connections.idle_in_transaction >
+      connections.current_database ||
+    connections.idle_in_transaction_over_30s > connections.idle_in_transaction ||
+    connections.long_transactions_over_30s > connections.current_database ||
+    connections.lock_waiting > connections.current_database
+  ) {
+    throw new Error("Passive capacity connection counts are inconsistent");
+  }
+  finiteMetric(locks.ungranted, "locks.ungranted");
+  if (databaseStats.stats_reset !== null && typeof databaseStats.stats_reset !== "string") {
+    throw new Error("Passive capacity database stats reset marker is invalid");
+  }
+  for (const key of ["deadlocks", "xact_commit", "xact_rollback", "temp_files", "temp_bytes"]) {
+    finiteMetric(databaseStats[key], `database_stats.${key}`);
+  }
+  for (const key of [
+    "runner_running",
+    "runner_queued",
+    "legacy_processing_or_live_locked",
+    "vn_status_running",
+    "live_machine_slots",
+  ]) {
+    finiteMetric(work[key], `work.${key}`);
+  }
+  if (!Array.isArray(sample.maintenance_candidates)) {
+    throw new Error("Passive capacity maintenance candidates are invalid");
+  }
+  return sample;
+}
+
+function optimizationCandidates(statementMetrics) {
+  validateCapacityStatementMetrics(statementMetrics, { required: false });
+  const windowSeconds = statementMetrics.observation_window_seconds;
+  if (typeof windowSeconds !== "number" || !Number.isFinite(windowSeconds) || windowSeconds <= 0) {
+    return [];
+  }
+  if (!Array.isArray(statementMetrics.statements)) return [];
+  return statementMetrics.statements
+    .map((statement) => {
+      if (!statement || typeof statement !== "object" || typeof statement.queryid !== "string") {
+        return null;
+      }
+      const calls = finiteMetric(statement.calls, "statement.calls");
+      const rows = finiteMetric(statement.rows, "statement.rows");
+      const totalExecTimeMs = finiteMetric(
+        statement.total_exec_time_ms,
+        "statement.total_exec_time_ms",
+      );
+      const meanExecTimeMs = finiteMetric(
+        statement.mean_exec_time_ms,
+        "statement.mean_exec_time_ms",
+      );
+      const callsPerDay = Math.round((calls * 86_400) / windowSeconds);
+      if (callsPerDay < 100 || (meanExecTimeMs < 50 && totalExecTimeMs < 5_000)) {
+        return null;
+      }
+      return {
+        queryid: statement.queryid,
+        calls,
+        calls_per_day: callsPerDay,
+        rows,
+        total_exec_time_ms: totalExecTimeMs,
+        mean_exec_time_ms: meanExecTimeMs,
+        shared_blks_hit: finiteMetric(statement.shared_blks_hit, "statement.shared_blks_hit"),
+        shared_blks_read: finiteMetric(statement.shared_blks_read, "statement.shared_blks_read"),
+        temp_blks_written: finiteMetric(
+          statement.temp_blks_written,
+          "statement.temp_blks_written",
+        ),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.total_exec_time_ms - left.total_exec_time_ms)
+    .slice(0, 20);
+}
+
+export function assessPassiveCapacity({ samples, statementMetrics }) {
+  if (!Array.isArray(samples) || samples.length !== 3) {
+    throw new Error("Passive capacity assessment requires exactly three samples");
+  }
+  const validated = samples.map(validatePassiveCapacitySample);
+  const statementsAvailable = validated.every((sample) =>
+    sample.pg_stat_statements_available === true);
+  const validatedStatementMetrics = validateCapacityStatementMetrics(
+    statementMetrics,
+    { required: statementsAvailable },
+  );
+  const blockers = [];
+  const warnings = [];
+  const utilization = validated.map((sample) =>
+    Math.round((sample.connections.total / sample.effective_connection_limit) * 10_000) / 100,
+  );
+  const every = (predicate) => validated.every(predicate);
+  const some = (predicate) => validated.some(predicate);
+
+  if (!statementsAvailable) {
+    warnings.push("pg_stat_statements was unavailable; query optimization evidence is incomplete");
+  }
+  if (new Set(validated.map((sample) => sample.pg_stat_statements_available)).size !== 1) {
+    warnings.push("pg_stat_statements availability changed during the observation window");
+  }
+
+  if (utilization.every((value) => value >= 80)) {
+    blockers.push("connection utilization stayed at or above 80% across all samples");
+  } else if (utilization.some((value) => value >= 70)) {
+    warnings.push("connection utilization reached 70% in at least one sample");
+  }
+  if (every((sample) => sample.locks.ungranted > 0 || sample.connections.lock_waiting > 0)) {
+    blockers.push("ungranted locks persisted across all samples");
+  } else if (some((sample) => sample.locks.ungranted > 0 || sample.connections.lock_waiting > 0)) {
+    warnings.push("a transient ungranted lock was observed");
+  }
+  if (every((sample) => sample.connections.idle_in_transaction_over_30s > 0)) {
+    blockers.push("idle in transaction sessions older than 30 seconds persisted");
+  } else if (some((sample) => sample.connections.idle_in_transaction_over_30s > 0)) {
+    warnings.push("a transient idle in transaction session older than 30 seconds was observed");
+  }
+  if (every((sample) => sample.connections.long_transactions_over_30s > 0)) {
+    blockers.push("long transactions older than 30 seconds persisted");
+  } else if (some((sample) => sample.connections.long_transactions_over_30s > 0)) {
+    warnings.push("a transient transaction older than 30 seconds was observed");
+  }
+  const firstStats = validated[0].database_stats;
+  const lastStats = validated.at(-1).database_stats;
+  const resetMarkers = new Set(validated.map((sample) => sample.database_stats.stats_reset));
+  if (resetMarkers.size !== 1) {
+    blockers.push("database statistics reset during the observation window");
+  }
+  for (const key of ["deadlocks", "xact_commit", "xact_rollback"]) {
+    if (lastStats[key] < firstStats[key]) {
+      blockers.push(`database ${key} counter moved backwards during the observation window`);
+    }
+  }
+  if (lastStats.deadlocks > firstStats.deadlocks) {
+    blockers.push("database deadlocks increased during the observation window");
+  }
+  const commitDelta = Math.max(0, lastStats.xact_commit - firstStats.xact_commit);
+  const rollbackDelta = Math.max(0, lastStats.xact_rollback - firstStats.xact_rollback);
+  if (rollbackDelta >= 5 && rollbackDelta / Math.max(1, commitDelta + rollbackDelta) >= 0.2) {
+    warnings.push("transaction rollback ratio was at least 20% during the observation window");
+  }
+
+  const maintenanceTables = [...new Set(validated.flatMap((sample) =>
+    sample.maintenance_candidates
+      .map((candidate) => candidate?.table)
+      .filter((table) => typeof table === "string" && table.length > 0),
+  ))].sort();
+  if (maintenanceTables.length > 0) {
+    warnings.push("large-table vacuum or analyze maintenance candidates were observed");
+  }
+
+  return {
+    status: blockers.length > 0 ? "red" : warnings.length > 0 ? "warn" : "green",
+    blockers,
+    warnings,
+    summary: {
+      sample_count: validated.length,
+      max_connection_utilization_percent: Math.max(...utilization),
+      max_total_connections: Math.max(...validated.map((sample) => sample.connections.total)),
+      max_active_connections: Math.max(...validated.map((sample) => sample.connections.active)),
+      max_ungranted_locks: Math.max(...validated.map((sample) => sample.locks.ungranted)),
+      max_idle_in_transaction_over_30s: Math.max(...validated.map((sample) =>
+        sample.connections.idle_in_transaction_over_30s)),
+      max_long_transactions_over_30s: Math.max(...validated.map((sample) =>
+        sample.connections.long_transactions_over_30s)),
+      deadlock_delta: Math.max(0, lastStats.deadlocks - firstStats.deadlocks),
+      commit_delta: commitDelta,
+      rollback_delta: rollbackDelta,
+      maintenance_tables: maintenanceTables,
+    },
+    optimization_candidates: optimizationCandidates(validatedStatementMetrics),
+  };
+}
+
+export async function runPassiveCapacityObservation({
+  env = process.env,
+  fetchImpl = fetch,
+  wait = setTimeout,
+} = {}) {
+  const token = requiredEnv(env, "SUPABASE_ACCESS_TOKEN");
+  const projectRef = requiredEnv(env, "SUPABASE_PROJECT_REF");
+  const confirm = requiredEnv(env, "PRODUCTION_DB_MAINTENANCE_CONFIRM");
+  if (projectRef !== PRODUCTION_PROJECT_REF) {
+    throw new Error("SUPABASE_PROJECT_REF is not the approved production project");
+  }
+  if (confirm !== `${PRODUCTION_PROJECT_REF}:capacity-observe`) {
+    throw new Error("PRODUCTION_DB_MAINTENANCE_CONFIRM does not authorize capacity-observe");
+  }
+
+  const projectIdentity = await retryArchitectureAuditRead({
+    phase: "capacity project identity",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "",
+      method: "GET",
+      fetchImpl,
+    }),
+  });
+  assertManagementProjectIdentity(projectIdentity, projectRef);
+  const performanceAdvisor = sanitizeAdvisorPayload(await retryArchitectureAuditRead({
+    phase: "capacity performance advisor",
+    wait,
+    run: () => managementJsonRequest({
+      token,
+      projectRef,
+      suffix: "/advisors/performance",
+      method: "GET",
+      fetchImpl,
+    }),
+  }));
+
+  const samples = [];
+  for (let index = 0; index < 3; index += 1) {
+    if (index > 0) await new Promise((resolve) => wait(resolve, 5_000));
+    const payload = await retryArchitectureAuditRead({
+      phase: `capacity sample ${index + 1}`,
+      wait,
+      run: () => managementQuery({
+        env,
+        fetchImpl,
+        action: "capacity-observe",
+        query: PASSIVE_CAPACITY_SQL,
+        readOnly: true,
+      }),
+    });
+    const sample = validatePassiveCapacitySample(metadataRow(
+      payload,
+      "passive_capacity",
+      "Production passive capacity observation returned an unexpected sample",
+    ));
+    if (sample.project_ref_marker != null && sample.project_ref_marker !== projectRef) {
+      throw new Error("Production passive capacity database project marker is mismatched");
+    }
+    samples.push(sample);
+  }
+
+  let statementMetrics = {
+    stats_reset: null,
+    observation_window_seconds: null,
+    statements: [],
+  };
+  if (samples.at(-1).pg_stat_statements_available === true) {
+    const statementPayload = await retryArchitectureAuditRead({
+      phase: "capacity statement metrics",
+      wait,
+      run: () => managementQuery({
+        env,
+        fetchImpl,
+        action: "capacity-observe",
+        query: PG_STAT_STATEMENTS_AUDIT_SQL,
+        readOnly: true,
+      }),
+    });
+    statementMetrics = validateCapacityStatementMetrics(metadataRow(
+      statementPayload,
+      "pg_stat_statements",
+      "Production passive capacity observation returned unexpected statement metadata",
+    ), { required: true });
+  }
+
+  return {
+    schema_version: 1,
+    source: {
+      management_api: "https://api.supabase.com/v1",
+      project_endpoint: `projects/${projectRef}`,
+      performance_advisor_endpoint: "advisors/performance",
+      catalog_endpoint: "database/query/read-only",
+    },
+    project_ref: projectRef,
+    sanitization_schema: "viza-passive-capacity-metadata-only-v1",
+    performance_advisor: performanceAdvisor,
+    samples,
+    pg_stat_statements: statementMetrics,
+    assessment: assessPassiveCapacity({ samples, statementMetrics }),
+  };
+}
+
 export async function runArchitectureAudit({
   env = process.env,
   fetchImpl = fetch,
@@ -3135,21 +3678,25 @@ async function main() {
       ? await runPreflight()
       : action === "architecture-audit"
         ? await runArchitectureAudit()
-      : action === "pause"
-        ? await runPause()
-        : action === "resume"
-          ? await runResume()
-        : action === "apply"
-          ? await runApply()
-         : action === "apply-stable-speed"
-           ? await runStableSpeedApply()
-          : action === "apply-approved-batch"
-            ? await runApprovedBatchApply()
-            : action === "verify-approved-batch"
-              ? await runApprovedBatchVerify()
-        : (() => {
-            throw new Error(`Unsupported production database maintenance action: ${action}`);
-          })();
+        : action === "capacity-observe"
+          ? await runPassiveCapacityObservation()
+          : action === "pause"
+            ? await runPause()
+            : action === "resume"
+              ? await runResume()
+              : action === "apply"
+                ? await runApply()
+                : action === "apply-stable-speed"
+                  ? await runStableSpeedApply()
+                  : action === "apply-approved-batch"
+                    ? await runApprovedBatchApply()
+                    : action === "verify-approved-batch"
+                      ? await runApprovedBatchVerify()
+                      : (() => {
+                          throw new Error(
+                            `Unsupported production database maintenance action: ${action}`,
+                          );
+                        })();
   console.log(JSON.stringify(payload, null, 2));
 }
 
