@@ -72,6 +72,22 @@ export interface PhEtravelRunnerOptions {
 /** E16: no browser final-submit path is enabled until controlled live evidence closes. */
 export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
 
+function phEtravelSignatureImageDataUrl(filePath: string | null): string | null {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  const extension = path.extname(filePath).toLowerCase();
+  const mimeType = extension === ".png"
+    ? "image/png"
+    : extension === ".jpg" || extension === ".jpeg"
+      ? "image/jpeg"
+      : extension === ".webp"
+        ? "image/webp"
+        : null;
+  if (!mimeType) return null;
+  const bytes = fs.readFileSync(filePath);
+  if (bytes.length === 0 || bytes.length > 5 * 1024 * 1024) return null;
+  return `data:${mimeType};base64,${bytes.toString("base64")}`;
+}
+
 function safeOfficialReference(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -2390,6 +2406,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         // runner's --submit flag or the live queue's operator gate may turn
         // off the Review stop.
         stopBeforeSubmit: options.stopBeforeSubmit ?? true,
+        signatureImageDataUrl: phEtravelSignatureImageDataUrl(payload.customs.customsSignatureFile),
         onStep: async (name) => {
           screenshots.push(await saveScreenshot(page, name, logs));
         },

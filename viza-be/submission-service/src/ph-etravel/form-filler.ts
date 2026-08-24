@@ -1614,11 +1614,57 @@ async function checkReviewDeclarations(page: Page): Promise<void> {
   }
 }
 
+async function applyPhEtravelSignatureCanvas(page: Page, imageDataUrl: string): Promise<boolean> {
+  const canvas = await firstVisible([
+    page.locator("canvas:visible"),
+    page.locator("[class*='signature' i] canvas:visible"),
+  ]);
+  if (!canvas) return false;
+  const painted = await canvas.evaluate((element, source) => new Promise<boolean>((resolve) => {
+    const target = element as HTMLCanvasElement;
+    const context = target.getContext("2d");
+    if (!context) return resolve(false);
+    const image = new Image();
+    image.onload = () => {
+      const inset = Math.max(4, Math.round(Math.min(target.width, target.height) * 0.04));
+      const scale = Math.min(
+        (target.width - inset * 2) / image.naturalWidth,
+        (target.height - inset * 2) / image.naturalHeight,
+      );
+      const width = Math.max(1, image.naturalWidth * scale);
+      const height = Math.max(1, image.naturalHeight * scale);
+      context.clearRect(0, 0, target.width, target.height);
+      context.drawImage(image, (target.width - width) / 2, (target.height - height) / 2, width, height);
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      target.dispatchEvent(new Event("change", { bubbles: true }));
+      resolve(true);
+    };
+    image.onerror = () => resolve(false);
+    image.src = source;
+  }), imageDataUrl).catch(() => false);
+  if (!painted) return false;
+
+  // The official React signature control commits its data URL from the
+  // signature-pad end event. A tiny real pointer stroke fires that callback
+  // after the uploaded signature image has been painted into the canvas.
+  const box = await canvas.boundingBox().catch(() => null);
+  if (!box) return false;
+  const x = box.x + Math.max(8, Math.min(box.width - 8, box.width * 0.1));
+  const y = box.y + Math.max(8, Math.min(box.height - 8, box.height * 0.85));
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 2, y + 1, { steps: 2 });
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  return true;
+}
+
 export async function fillPhEtravelOfficialDeclaration(
   page: Page,
   payload: PhEtravelPortalPayload,
   options: {
     stopBeforeSubmit: boolean;
+    signatureImageDataUrl?: string | null;
     onStep?: (name: string) => Promise<void>;
     beforeSubmit?: () => Promise<void>;
   },
@@ -1648,6 +1694,8 @@ export async function fillPhEtravelOfficialDeclaration(
   let portalText = await page.locator("body").innerText().catch(() => "");
   const postSignatureEvidencePath = phEtravelPostSignatureEvidencePath({ payload, seaPortFlow });
   const postSignatureSemantics: PhEtravelPostSignatureSemantic[] = [];
+  const hasNoAccompaniedFamily = payload.accompaniedUnder18Count === "0" &&
+    payload.accompanied18PlusCount === "0";
 
   if (/dashboard|etravel registration|travel declaration|my travel/i.test(portalText)) {
     const opened = await clickVisibleButton(page, /new travel declaration|new declaration|register travel|travel declaration|new registration/i);
@@ -1682,22 +1730,78 @@ export async function fillPhEtravelOfficialDeclaration(
       }
     }
     const postSignatureSemantic = classifyPhEtravelPostSignatureSemantic(portalText);
+    const wizardRoute = resolvePhEtravelWizardRoute(page.url());
+    const canContinueObservedAirWizard = wizardRoute === "regular_me" &&
+      !isSeaArrival &&
+      hasNoAccompaniedFamily &&
+      Boolean(options.signatureImageDataUrl);
+    if (postSignatureSemantic === "signature" && canContinueObservedAirWizard) {
+      if (!await applyPhEtravelSignatureCanvas(page, options.signatureImageDataUrl as string)) {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel declaration signature could not be applied to the official canvas.",
+          "ph_etravel_signature_required",
+          "signature_canvas_commit_failed",
+        );
+      }
+      postSignatureSemantics.push("signature");
+      await options.onStep?.("signature-applied");
+      if (!await clickVisibleButton(page, /^next$|^continue$/i)) {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel signature page did not expose an enabled Next control.",
+          "ph_etravel_signature_required",
+          "signature_next_control_missing",
+        );
+      }
+      await page.waitForTimeout(1_500);
+      continue;
+    }
+    if (postSignatureSemantic === "family" && canContinueObservedAirWizard &&
+      postSignatureSemantics.length === 1 && postSignatureSemantics[0] === "signature") {
+      postSignatureSemantics.push("family");
+      await options.onStep?.("family-none-selected");
+      if (!await clickVisibleButton(page, /^next$|^continue$/i)) {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel Family Member(s) page did not expose an enabled Next control.",
+          "ph_etravel_family_member_action_required",
+          "family_next_control_missing",
+        );
+      }
+      await page.waitForTimeout(1_000);
+      continue;
+    }
+    if (postSignatureSemantic === "no_companion_confirmation" && canContinueObservedAirWizard &&
+      postSignatureSemantics.length === 2 && postSignatureSemantics[0] === "signature" &&
+      postSignatureSemantics[1] === "family") {
+      postSignatureSemantics.push("no_companion_confirmation");
+      if (!await clickVisibleButton(page, /^yes$|^confirm$|^continue$|proceed|not traveling with a companion/i)) {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel companion confirmation did not expose a confirmation control.",
+          "ph_etravel_family_companion_confirmation",
+          "family_confirmation_control_missing",
+        );
+      }
+      await options.onStep?.("family-none-confirmed");
+      await page.waitForTimeout(1_500);
+      continue;
+    }
+    const isObservedAirSummary = postSignatureSemantic === "summary" && canContinueObservedAirWizard &&
+      postSignatureSemantics.join(",") === "signature,family,no_companion_confirmation";
     const postSignatureGuard = postSignatureSemantic
       ? guardPhEtravelPostSignatureWizardStep({
-          route: resolvePhEtravelWizardRoute(page.url()),
+          route: wizardRoute,
           evidencePath: postSignatureEvidencePath,
           semantic: postSignatureSemantic,
           previous: postSignatureSemantics,
         })
       : null;
-    if (postSignatureSemantic && postSignatureGuard?.status === "action_required") {
+    if (postSignatureSemantic && !isObservedAirSummary && postSignatureGuard?.status === "action_required") {
       throw new PhEtravelFormFillError(
         "Philippines eTravel post-signature wizard step needs operator review before continuation.",
         postSignatureGuard.code,
         postSignatureGuard.code,
       );
     }
-    if (postSignatureSemantic) postSignatureSemantics.push(postSignatureSemantic);
+    if (postSignatureSemantic && !isObservedAirSummary) postSignatureSemantics.push(postSignatureSemantic);
     const preReviewGate = classifyPhEtravelPreReviewGate(portalText);
     if (preReviewGate) {
       throw new PhEtravelFormFillError(
