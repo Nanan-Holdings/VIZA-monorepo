@@ -5,6 +5,7 @@ import {
   APPROVED_MIGRATION_SOURCE_REF,
   APPROVED_MIGRATIONS,
   ARCHITECTURE_AUDIT_SQL,
+  PASSIVE_CAPACITY_SQL,
   PG_STAT_STATEMENTS_AUDIT_SQL,
   STABLE_SPEED_MIGRATION_SOURCE_REF,
   STABLE_SPEED_MIGRATION,
@@ -22,6 +23,8 @@ import {
   loadApprovedMigrationBatch,
   loadGenericApprovedBatch,
   runArchitectureAudit,
+  assessPassiveCapacity,
+  runPassiveCapacityObservation,
   runApprovedBatchApply,
   runApprovedBatchVerify,
   loadStableSpeedMigrationBatch,
@@ -31,6 +34,47 @@ import {
   runResume,
   runStableSpeedApply,
 } from "../production-db-maintenance.mjs";
+
+function passiveCapacitySample(overrides = {}) {
+  return {
+    schema_version: 1,
+    project_ref_marker: PRODUCTION_PROJECT_REF,
+    sample_at: "2026-08-24T06:00:00Z",
+    max_connections: 200,
+    effective_connection_limit: 197,
+    connections: {
+      total: 30,
+      current_database: 25,
+      active: 2,
+      idle: 23,
+      idle_in_transaction: 0,
+      idle_in_transaction_over_30s: 0,
+      long_transactions_over_30s: 0,
+      lock_waiting: 0,
+      max_transaction_age_seconds: 0,
+      max_idle_in_transaction_seconds: 0,
+    },
+    locks: { ungranted: 0 },
+    database_stats: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      deadlocks: 0,
+      xact_commit: 1000,
+      xact_rollback: 5,
+      temp_files: 0,
+      temp_bytes: 0,
+    },
+    work: {
+      runner_running: 0,
+      runner_queued: 0,
+      legacy_processing_or_live_locked: 0,
+      vn_status_running: 0,
+      live_machine_slots: 0,
+    },
+    maintenance_candidates: [],
+    pg_stat_statements_available: true,
+    ...overrides,
+  };
+}
 
 test("pins the reviewed runner PL/pgSQL repairs", () => {
   assert.equal(APPROVED_MIGRATION_SOURCE_REF, "c4fbff410b958b2ff7e8b2e3f945061a9c33bd4e");
@@ -273,6 +317,261 @@ test("architecture audit skips statement metrics when the extension is unavailab
     observation_window_seconds: null,
     statements: [],
   });
+});
+
+test("passive capacity assessment distinguishes transient warnings from persistent blockers", () => {
+  const transient = passiveCapacitySample({
+    connections: {
+      ...passiveCapacitySample().connections,
+      idle: 22,
+      idle_in_transaction: 1,
+      idle_in_transaction_over_30s: 1,
+      max_idle_in_transaction_seconds: 42,
+    },
+  });
+  const result = assessPassiveCapacity({
+    samples: [transient, passiveCapacitySample(), passiveCapacitySample()],
+    statementMetrics: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      observation_window_seconds: 172800,
+      statements: [{
+        queryid: "42",
+        calls: 400,
+        rows: 400,
+        total_exec_time_ms: 8000,
+        mean_exec_time_ms: 20,
+        shared_blks_hit: 1000,
+        shared_blks_read: 10,
+        temp_blks_written: 0,
+      }],
+    },
+  });
+
+  assert.equal(result.status, "warn");
+  assert.deepEqual(result.blockers, []);
+  assert.match(result.warnings.join("\n"), /idle in transaction/u);
+  assert.deepEqual(result.optimization_candidates, [{
+    queryid: "42",
+    calls: 400,
+    calls_per_day: 200,
+    rows: 400,
+    total_exec_time_ms: 8000,
+    mean_exec_time_ms: 20,
+    shared_blks_hit: 1000,
+    shared_blks_read: 10,
+    temp_blks_written: 0,
+  }]);
+
+  const blockedSamples = [0, 1, 2].map((offset) => passiveCapacitySample({
+    connections: {
+      ...passiveCapacitySample().connections,
+      total: 175,
+      idle: 22,
+      idle_in_transaction: 1,
+      idle_in_transaction_over_30s: 1,
+      long_transactions_over_30s: 1,
+      lock_waiting: 1,
+      max_transaction_age_seconds: 50 + offset,
+      max_idle_in_transaction_seconds: 50 + offset,
+    },
+    locks: { ungranted: 1 },
+    database_stats: {
+      ...passiveCapacitySample().database_stats,
+      deadlocks: offset,
+    },
+  }));
+  const blocked = assessPassiveCapacity({
+    samples: blockedSamples,
+    statementMetrics: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      observation_window_seconds: 3600,
+      statements: [],
+    },
+  });
+  assert.equal(blocked.status, "red");
+  assert.match(blocked.blockers.join("\n"), /connection utilization/u);
+  assert.match(blocked.blockers.join("\n"), /ungranted locks/u);
+  assert.match(blocked.blockers.join("\n"), /idle in transaction/u);
+  assert.match(blocked.blockers.join("\n"), /long transactions/u);
+  assert.match(blocked.blockers.join("\n"), /deadlocks increased/u);
+});
+
+test("passive capacity assessment rejects malformed statement metadata", () => {
+  assert.throws(
+    () => assessPassiveCapacity({
+      samples: [passiveCapacitySample(), passiveCapacitySample(), passiveCapacitySample()],
+      statementMetrics: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 3600,
+        statements: [{ queryid: "42", calls: "100" }],
+      },
+    }),
+    /statement\.calls is invalid/u,
+  );
+});
+
+test("passive capacity assessment rejects malformed samples and warns without statement metrics", () => {
+  assert.throws(
+    () => assessPassiveCapacity({
+      samples: [
+        passiveCapacitySample(),
+        passiveCapacitySample({ sample_at: "not-a-timestamp" }),
+        passiveCapacitySample(),
+      ],
+      statementMetrics: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 3600,
+        statements: [],
+      },
+    }),
+    /sample contract is invalid/u,
+  );
+
+  const unavailable = passiveCapacitySample({ pg_stat_statements_available: false });
+  const result = assessPassiveCapacity({
+    samples: [unavailable, unavailable, unavailable],
+    statementMetrics: {
+      stats_reset: null,
+      observation_window_seconds: null,
+      statements: [],
+    },
+  });
+  assert.equal(result.status, "warn");
+  assert.match(result.warnings.join("\n"), /evidence is incomplete/u);
+});
+
+test("passive capacity assessment fails closed when database counters reset", () => {
+  const samples = [
+    passiveCapacitySample(),
+    passiveCapacitySample({
+      database_stats: {
+        ...passiveCapacitySample().database_stats,
+        stats_reset: "2026-08-24T06:00:05Z",
+        xact_commit: 1,
+      },
+    }),
+    passiveCapacitySample({
+      database_stats: {
+        ...passiveCapacitySample().database_stats,
+        stats_reset: "2026-08-24T06:00:05Z",
+        xact_commit: 2,
+      },
+    }),
+  ];
+  const result = assessPassiveCapacity({
+    samples,
+    statementMetrics: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      observation_window_seconds: 3600,
+      statements: [],
+    },
+  });
+
+  assert.equal(result.status, "red");
+  assert.match(result.blockers.join("\n"), /statistics reset/u);
+  assert.match(result.blockers.join("\n"), /xact_commit counter moved backwards/u);
+});
+
+test("passive capacity observation takes three read-only samples and emits no statement text", async () => {
+  const requests = [];
+  const waits = [];
+  let sampleNumber = 0;
+  const result = await runPassiveCapacityObservation({
+    env: {
+      SUPABASE_ACCESS_TOKEN: "test-token",
+      SUPABASE_PROJECT_REF: PRODUCTION_PROJECT_REF,
+      PRODUCTION_DB_MAINTENANCE_CONFIRM: `${PRODUCTION_PROJECT_REF}:capacity-observe`,
+    },
+    wait: (resolve, delayMs) => {
+      waits.push(delayMs);
+      resolve();
+    },
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      if (url.endsWith(`/projects/${PRODUCTION_PROJECT_REF}`)) {
+        return new Response(JSON.stringify({ id: PRODUCTION_PROJECT_REF }), { status: 200 });
+      }
+      if (url.endsWith("/advisors/performance")) {
+        return new Response(JSON.stringify({
+          lints: [{
+            name: "unindexed_foreign_keys",
+            level: "INFO",
+            detail: "must not be emitted",
+            metadata: {
+              schema: "public",
+              name: "submission_queue",
+              type: "table",
+              fkey_name: "submission_queue_application_id_fkey",
+              fkey_columns: [2],
+            },
+          }],
+        }), { status: 200 });
+      }
+      const query = JSON.parse(init.body).query;
+      if (query === PASSIVE_CAPACITY_SQL) {
+        sampleNumber += 1;
+        return new Response(JSON.stringify([{
+          passive_capacity: passiveCapacitySample({
+            sample_at: `2026-08-24T06:00:0${sampleNumber}Z`,
+          }),
+        }]), { status: 200 });
+      }
+      assert.equal(query, PG_STAT_STATEMENTS_AUDIT_SQL);
+      return new Response(JSON.stringify([{ pg_stat_statements: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 172800,
+        statements: [{
+          queryid: "42",
+          calls: 400,
+          rows: 400,
+          total_exec_time_ms: 8000,
+          mean_exec_time_ms: 20,
+          shared_blks_hit: 1000,
+          shared_blks_read: 10,
+          temp_blks_written: 0,
+        }],
+      } }]), { status: 200 });
+    },
+  });
+
+  assert.equal(sampleNumber, 3);
+  assert.deepEqual(waits, [5000, 5000]);
+  assert.equal(requests.filter(({ url }) => url.endsWith("/database/query/read-only")).length, 4);
+  assert.equal(requests.some(({ url }) => /\/database\/query$/u.test(url)), false);
+  assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
+  assert.equal(result.sanitization_schema, "viza-passive-capacity-metadata-only-v1");
+  assert.equal(result.samples.length, 3);
+  assert.equal(result.assessment.status, "green");
+  assert.equal(JSON.stringify(result).includes("must not be emitted"), false);
+  assert.deepEqual(result.performance_advisor.lints[0].object, {
+    schema: "public",
+    name: "submission_queue",
+    type: "table",
+    fkey_name: "submission_queue_application_id_fkey",
+    fkey_columns: [2],
+  });
+  assert.doesNotMatch(PASSIVE_CAPACITY_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
+  assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
+});
+
+test("scheduled passive capacity workflow is read-only, single-flight, and retains only metadata", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/passive-production-capacity.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /schedule:/u);
+  assert.match(workflow, /workflow_dispatch:/u);
+  assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/u);
+  assert.match(workflow, /group: supabase-production-database-maintenance/u);
+  assert.match(workflow, /environment: supabase-production-recovery/u);
+  assert.match(workflow, /PRODUCTION_DB_MAINTENANCE_ACTION: capacity-observe/u);
+  assert.match(workflow, /oyjxdzsoejraedqghndi:capacity-observe/u);
+  assert.match(workflow, /actions\/upload-artifact@v4/u);
+  assert.match(workflow, /retention-days: 7/u);
+  assert.match(workflow, /ref: refs\/heads\/main/u);
+  assert.match(workflow, /persist-credentials: false/u);
+  assert.doesNotMatch(workflow, /database\/query[^\n]*read_only:\s*false/iu);
+  assert.doesNotMatch(workflow, /psql|supabase db push|apply-approved-batch|PRODUCTION_DB_MAINTENANCE_ACTION: apply/u);
 });
 
 test("architecture audit retries one transient read-only Management API failure", async () => {
