@@ -366,6 +366,11 @@ function readReport(path) {
   return parsed;
 }
 
+export function validatePassiveCapacityReportFile(path) {
+  readReport(resolve(path));
+  return true;
+}
+
 function readEvidenceManifest(evidenceManifestPath) {
   const source = readFileSync(evidenceManifestPath, "utf8");
   const lines = source.split(/\r?\n/u).filter((line) => line.trim().length > 0);
@@ -477,6 +482,10 @@ export function loadPassiveCapacityHistory({
 }
 
 async function main() {
+  if (process.argv[2] === "--validate-report" && process.argv[3] && process.argv.length === 4) {
+    validatePassiveCapacityReportFile(process.argv[3]);
+    return;
+  }
   const [currentReportPath, historyRoot, evidenceManifestPath] = process.argv.slice(2);
   if (!currentReportPath || !historyRoot || !evidenceManifestPath || process.argv.length !== 5) {
     throw new Error(
