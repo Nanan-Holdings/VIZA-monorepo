@@ -682,6 +682,29 @@ describe("Taiwan entry permit retry submission API", () => {
     expect(lastApplicationUpdate).toBeNull();
   });
 
+  it("rejects stale Japan clients that request a dry-run queue", async () => {
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+
+    const result = await post({
+      mode: "dry_run",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    });
+
+    expect(result.status).toBe(409);
+    expect(result.body).toMatchObject({
+      code: "official_live_mode_required",
+    });
+    expect(lastRpcArgs).toBeNull();
+    expect(lastConsentInsert).toBeNull();
+    expect(lastRunnerPoolArgs).toBeNull();
+    expect(lastApplicationUpdate).toBeNull();
+  });
+
   it("fails Japan submission closed unless both live and compliance flags are enabled", async () => {
     currentApplication = {
       ...baseApplication,
