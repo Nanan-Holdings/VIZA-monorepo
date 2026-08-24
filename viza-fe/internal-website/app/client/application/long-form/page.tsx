@@ -1049,6 +1049,7 @@ function FinalConfirmationPanel({
   requirementsLoading,
   submittingMode,
   submitCheckState,
+  submissionError,
   onSubmit,
 }: {
   isZh: boolean;
@@ -1060,6 +1061,7 @@ function FinalConfirmationPanel({
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
   submitCheckState: SubmitCheckState;
+  submissionError: string | null;
   onSubmit: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
@@ -1224,6 +1226,16 @@ function FinalConfirmationPanel({
           />
         </div>
       )}
+
+      {submissionError ? (
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>{isZh ? "提交未完成" : "Submission not completed"}</AlertTitle>
+          <AlertDescription>
+            <p>{submissionError}</p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <button
         type="button"
@@ -5012,6 +5024,7 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
+                                  submissionError={error}
                                   onSubmit={(mode, paymentCard, taiwanConsent) =>
                                     checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
@@ -5152,6 +5165,7 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
+                                  submissionError={error}
                                   onSubmit={(mode, paymentCard, taiwanConsent) =>
                                     checkAndSubmit(handleReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
