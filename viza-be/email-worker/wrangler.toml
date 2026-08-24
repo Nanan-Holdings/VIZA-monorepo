@@ -30,11 +30,11 @@ INBOX_FORWARD_FROM = "VIZA <noreply@viza.app>"
 [triggers]
 crons = ["*/1 * * * *"]
 
-# Add this binding after R2 is enabled for the Cloudflare account:
-# [[r2_buckets]]
-# binding = "INBOX_BODIES"
-# bucket_name = "viza-inbox-bodies"
-# preview_bucket_name = "viza-inbox-bodies-preview"
+# Production forwarding retries must retain the original RFC 822 message so
+# official PDF/QR attachments are never lost after a transient delivery error.
+[[r2_buckets]]
+binding = "INBOX_BODIES"
+bucket_name = "viza-inbox-bodies"
 
 [env.preview]
 name = "viza-email-worker-preview"

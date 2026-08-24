@@ -3,6 +3,8 @@
 Scope: SG Arrival Card-specific UI and server helpers.
 
 - Keep result UI applicant-focused: status, DE/reference number, PDF, submit-another action, official link.
+- `__tests__/result-card.test.tsx` guards the successful status, arrival date,
+  and authenticated ICA confirmation-PDF download shown on `/application`.
 - Do not expose portal dumps, payloads, storage paths, logs, or internal queue status to applicants.
 - A new submission creates a new application and preserves previous confirmation evidence.
 - `date-window.ts` owns the ICA three-day submission-window calculation for website/API scheduling decisions.

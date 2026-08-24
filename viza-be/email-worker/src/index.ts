@@ -8,9 +8,8 @@
  *      message-id) and the spam score Cloudflare exposes via the headers.
  *   3. Split out a text/plain and a text/html body when the mime structure
  *      is simple (single part or top-level multipart/alternative).
- *   4. If an R2 binding is configured, archive the complete raw message for
- *      retry/recovery. Forwarding still works when the account has not enabled
- *      R2 yet.
+ *   4. Archive the complete raw message to R2 for retry/recovery. Immediate
+ *      forwarding also uses the in-memory bytes if native forwarding fails.
  *   5. Insert one row into Supabase `inbound_email` via the service-role
  *      REST API.
  *
@@ -630,8 +629,8 @@ export default {
     let inlineText: string | null = parsed.text;
     let inlineHtml: string | null = parsed.html;
 
-    // R2 is optional because a new Cloudflare account may not have the product
-    // enabled. The immediate forward still attaches these same raw bytes.
+    // Production binds R2 so delayed retries retain the complete MIME message.
+    // Keeping this guard also makes local parser/worker tests straightforward.
     if (env.INBOX_BODIES) {
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       r2Key =
@@ -672,10 +671,24 @@ export default {
     if (!quarantined) {
       try {
         await forwardOriginalEmail(env, inserted, message);
-      } catch (error) {
-        // Keep SMTP delivery successful. The scheduled handler retries when
-        // raw-message archival is available.
-        await recordForwardFailure(env, inserted, error);
+      } catch (nativeError) {
+        try {
+          // A destination can lose Cloudflare verification independently of
+          // the applicant's VIZA consent. Use the already-buffered original
+          // message immediately so the applicant still receives the complete
+          // official MIME message while it is available in this invocation.
+          await sendForwardedEmail(env, inserted, rawBytes);
+        } catch (fallbackError) {
+          const nativeMessage = nativeError instanceof Error ? nativeError.message : String(nativeError);
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          // Keep SMTP delivery successful. The scheduled handler retries from
+          // R2 (or the safely stored inline body for legacy rows).
+          await recordForwardFailure(
+            env,
+            inserted,
+            new Error(`native forward failed: ${nativeMessage}; resend fallback failed: ${fallbackMessage}`),
+          );
+        }
       }
     }
   },

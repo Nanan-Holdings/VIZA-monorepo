@@ -3,10 +3,10 @@
 Cloudflare Email Worker that ingests every message at `*@viza.it.com`
 into the Supabase `inbound_email` table (INBOX-002). Cloudflare's native
 forwarding sends the original RFC 822 message to the applicant's verified
-destination address, so official QR/PDF attachments remain intact. When the
-account has R2 enabled, the same raw message is archived in
-`viza-inbox-bodies` and a one-minute scheduled handler can retry transient
-failures through the configured outbound provider.
+destination address, so official QR/PDF attachments remain intact. A buffered
+Resend fallback handles an immediate native-forward failure. Production also
+archives the same raw message in `viza-inbox-bodies`, allowing the one-minute
+scheduled handler to retry transient failures with the complete message.
 
 Forwarding is fail-closed: the Worker only resolves a destination after the
 applicant has accepted the current `alias_email_forwarding` consent document.
@@ -42,9 +42,8 @@ Then bind the deployed worker as the catch-all in
 `Cloudflare → viza.it.com → Email → Email Routing → Routes →
 Catch-all → Send to a Worker`.
 
-R2 is optional. After enabling it for the account, create
-`viza-inbox-bodies` and `viza-inbox-bodies-preview`, then uncomment the
-`r2_buckets` binding in `wrangler.toml` to enable durable retries.
+Before production deployment, create the `viza-inbox-bodies` R2 bucket. The
+checked-in `INBOX_BODIES` binding is required for durable retries.
 
 ## Schema
 
