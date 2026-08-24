@@ -54,3 +54,7 @@ scheduled recovery workflows.
   may run only through the `staging-online-capacity` Environment. The deployed
   frontend and agent must both expose the default-off target marker bound to
   the same non-production Supabase ref before any 100-user request wave starts.
+  Its authenticated scope accepts only a dedicated `@viza.test` account and an
+  ephemeral session Cookie from the protected Environment secret, ramps for 30
+  seconds, and sustains read-only home/status/readiness requests for 5 minutes.
+  The session preflight must match the configured synthetic user UUID exactly.

@@ -5,11 +5,14 @@ import { fileURLToPath } from "node:url";
 
 import {
 	evaluateOnlineCapacityRun,
+	ONLINE_CAPACITY_RELEASE_DURATION_MS,
+	ONLINE_CAPACITY_RELEASE_RAMP_MS,
 	ONLINE_CAPACITY_RELEASE_USERS,
 	percentile,
 	type OnlineCapacityRunEvaluation,
 	type OnlineCapacityScenarioName,
 	type OnlineCapacityScenarioResult,
+	type OnlineCapacityScope,
 } from "./online-capacity-load-lib.js";
 
 export const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
@@ -19,6 +22,7 @@ const MAX_DIAGNOSTIC_USERS = ONLINE_CAPACITY_RELEASE_USERS;
 const RUN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,63}$/u;
 
 export interface OnlineCapacityConfig {
+	scope: OnlineCapacityScope;
 	mode: "local-test" | "staging-only";
 	baseUrl: string;
 	agentUrl: string;
@@ -26,6 +30,11 @@ export interface OnlineCapacityConfig {
 	projectRef: string;
 	users: number;
 	requestTimeoutMs: number;
+	durationMs: number;
+	rampUpMs: number;
+	pacingMs: number;
+	sessionCookie?: string;
+	syntheticUserId?: string;
 }
 
 interface ScenarioDefinition {
@@ -33,6 +42,7 @@ interface ScenarioDefinition {
 	url: string;
 	expectedStatus: number;
 	expectedLocationPath?: string;
+	requiresSession?: boolean;
 }
 
 interface RequestObservation {
@@ -51,11 +61,15 @@ interface CapacityTargetMarker {
 
 export interface OnlineCapacitySummary extends OnlineCapacityRunEvaluation {
 	runId: string;
-	scope: "public_edge_read_only";
 	mode: OnlineCapacityConfig["mode"];
 	startedAt: string;
 	finishedAt: string;
 	wallTimeMs: number;
+}
+
+function delay(durationMs: number): Promise<void> {
+	if (durationMs <= 0) return Promise.resolve();
+	return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
 
 function envValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
@@ -106,6 +120,21 @@ function parseUserCount(raw: string | undefined): number {
 	return parsed;
 }
 
+function parseBoundedInteger(
+	raw: string | undefined,
+	name: string,
+	fallback: number,
+	minimum: number,
+	maximum: number,
+): number {
+	if (!raw) return fallback;
+	const parsed = Number(raw);
+	if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+		throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+	}
+	return parsed;
+}
+
 /** Validate all safety guards before starting requests or creating artifacts. */
 export function validateOnlineCapacityGuards(
 	env: NodeJS.ProcessEnv = process.env,
@@ -123,6 +152,14 @@ export function validateOnlineCapacityGuards(
 	);
 	const projectRef = envValue(env, "ONLINE_CAPACITY_PROJECT_REF");
 	if (!projectRef) throw new Error("ONLINE_CAPACITY_PROJECT_REF is required");
+	const scopeValue = envValue(env, "ONLINE_CAPACITY_SCOPE") ?? "public_edge_read_only";
+	if (
+		scopeValue !== "public_edge_read_only" &&
+		scopeValue !== "authenticated_sustained_read_only"
+	) {
+		throw new Error("ONLINE_CAPACITY_SCOPE is invalid");
+	}
+	const scope: OnlineCapacityScope = scopeValue;
 
 	assertNotProductionUrl(baseUrl, "ONLINE_CAPACITY_BASE_URL");
 	assertNotProductionUrl(agentUrl, "ONLINE_CAPACITY_AGENT_URL");
@@ -153,7 +190,44 @@ export function validateOnlineCapacityGuards(
 	}
 
 	const users = parseUserCount(envValue(env, "ONLINE_CAPACITY_USERS"));
+	const authenticated = scope === "authenticated_sustained_read_only";
+	const durationMs = parseBoundedInteger(
+		envValue(env, "ONLINE_CAPACITY_DURATION_MS"),
+		"ONLINE_CAPACITY_DURATION_MS",
+		authenticated ? ONLINE_CAPACITY_RELEASE_DURATION_MS : 0,
+		0,
+		ONLINE_CAPACITY_RELEASE_DURATION_MS,
+	);
+	const rampUpMs = parseBoundedInteger(
+		envValue(env, "ONLINE_CAPACITY_RAMP_MS"),
+		"ONLINE_CAPACITY_RAMP_MS",
+		authenticated ? ONLINE_CAPACITY_RELEASE_RAMP_MS : 0,
+		0,
+		ONLINE_CAPACITY_RELEASE_RAMP_MS,
+	);
+	const pacingMs = parseBoundedInteger(
+		envValue(env, "ONLINE_CAPACITY_PACING_MS"),
+		"ONLINE_CAPACITY_PACING_MS",
+		authenticated ? 5_000 : 0,
+		0,
+		10_000,
+	);
+	const sessionCookie = envValue(env, "ONLINE_CAPACITY_SESSION_COOKIE");
+	const syntheticUserId = envValue(env, "ONLINE_CAPACITY_SYNTHETIC_USER_ID");
+	if (authenticated) {
+		const account = envValue(env, "ONLINE_CAPACITY_SYNTHETIC_ACCOUNT");
+		if (!account?.toLowerCase().endsWith("@viza.test")) {
+			throw new Error("Authenticated capacity requires a dedicated @viza.test account");
+		}
+		if (!sessionCookie || sessionCookie.length > 8_192 || /[\r\n]/u.test(sessionCookie)) {
+			throw new Error("Authenticated capacity requires one bounded session cookie secret");
+		}
+		if (!syntheticUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(syntheticUserId)) {
+			throw new Error("Authenticated capacity requires the exact synthetic user UUID");
+		}
+	}
 	return {
+		scope,
 		mode: confirm,
 		baseUrl: baseUrl.toString(),
 		agentUrl: agentUrl.toString(),
@@ -161,6 +235,11 @@ export function validateOnlineCapacityGuards(
 		projectRef,
 		users,
 		requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
+		durationMs,
+		rampUpMs,
+		pacingMs,
+		...(sessionCookie ? { sessionCookie } : {}),
+		...(syntheticUserId ? { syntheticUserId } : {}),
 	};
 }
 
@@ -173,6 +252,27 @@ function routeUrl(base: string, route: string): string {
 }
 
 function buildScenarios(config: OnlineCapacityConfig): ScenarioDefinition[] {
+	if (config.scope === "authenticated_sustained_read_only") {
+		return [
+			{
+				name: "client_home",
+				url: routeUrl(config.baseUrl, "/client/home"),
+				expectedStatus: 200,
+				requiresSession: true,
+			},
+			{
+				name: "client_status",
+				url: routeUrl(config.baseUrl, "/client/status"),
+				expectedStatus: 200,
+				requiresSession: true,
+			},
+			{
+				name: "agent_readiness",
+				url: routeUrl(config.agentUrl, "/ready"),
+				expectedStatus: 200,
+			},
+		];
+	}
 	return [
 		{
 			name: "client_login",
@@ -266,6 +366,43 @@ async function verifyCapacityTarget(
 	}
 }
 
+async function verifyAuthenticatedSession(
+	config: OnlineCapacityConfig,
+	fetchImpl: typeof fetch,
+): Promise<void> {
+	if (config.scope !== "authenticated_sustained_read_only") return;
+	const response = await fetchImpl(routeUrl(config.baseUrl, "/api/health/online-capacity-session"), {
+		method: "GET",
+		redirect: "error",
+		cache: "no-store",
+		headers: {
+			accept: "application/json",
+			"user-agent": "VIZA-online-capacity-gate/1.0",
+			cookie: config.sessionCookie ?? "",
+		},
+		signal: AbortSignal.timeout(config.requestTimeoutMs),
+	});
+	if (response.status !== 200) {
+		await drainBody(response);
+		throw new Error("Synthetic capacity session is unavailable");
+	}
+	let value: unknown;
+	try {
+		value = JSON.parse(await readBoundedText(response));
+	} catch {
+		throw new Error("Synthetic capacity session response is malformed");
+	}
+	const session = value && typeof value === "object" ? value as Record<string, unknown> : null;
+	if (
+		session?.valid !== true ||
+		session.sessionKind !== "supabase" ||
+		session.userId !== config.syntheticUserId ||
+		session.syntheticAccount !== true
+	) {
+		throw new Error("Capacity session does not belong to the exact synthetic user");
+	}
+}
+
 function isTimeoutError(error: unknown): boolean {
 	return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
@@ -274,6 +411,7 @@ async function executeRequest(
 	scenario: ScenarioDefinition,
 	timeoutMs: number,
 	fetchImpl: typeof fetch,
+	sessionCookie?: string,
 ): Promise<RequestObservation> {
 	const startedAt = performance.now();
 	try {
@@ -284,6 +422,9 @@ async function executeRequest(
 			headers: {
 				accept: "text/html,application/json;q=0.9,*/*;q=0.8",
 				"user-agent": "VIZA-online-capacity-gate/1.0",
+				...(scenario.requiresSession && sessionCookie
+					? { cookie: sessionCookie }
+					: {}),
 			},
 			signal: AbortSignal.timeout(timeoutMs),
 		});
@@ -339,34 +480,94 @@ export async function executeOnlineCapacityRun(
 ): Promise<OnlineCapacitySummary> {
 	await verifyCapacityTarget(config.baseUrl, config, fetchImpl);
 	await verifyCapacityTarget(config.agentUrl, config, fetchImpl);
+	await verifyAuthenticatedSession(config, fetchImpl);
 	const scenarios = buildScenarios(config);
 	const observations: RequestObservation[] = [];
 	const startedAt = new Date();
 	const wallStartedAt = performance.now();
-	let startWave: (() => void) | undefined;
-	const wave = new Promise<void>((resolve) => {
-		startWave = resolve;
-	});
+	let sustainedForMs = 0;
+	let completedUsers = 0;
 
-	const users = Array.from({ length: config.users }, async () => {
-		await wave;
-		for (const scenario of scenarios) {
-			observations.push(
-				await executeRequest(scenario, config.requestTimeoutMs, fetchImpl),
-			);
-		}
-	});
-	startWave?.();
-	await Promise.all(users);
+	if (config.scope === "authenticated_sustained_read_only") {
+		let startSteadyWave: (() => void) | undefined;
+		const steadyWave = new Promise<void>((resolve) => {
+			startSteadyWave = resolve;
+		});
+		const readyResolvers: Array<() => void> = [];
+		const readyUsers = Array.from(
+			{ length: config.users },
+			() => new Promise<void>((resolve) => readyResolvers.push(resolve)),
+		);
+		const users = Array.from({ length: config.users }, (_, index) =>
+			(async () => {
+				const rampDelay =
+					config.users <= 1
+						? 0
+						: Math.floor((config.rampUpMs * index) / (config.users - 1));
+				await delay(rampDelay);
+				for (const scenario of scenarios) {
+					observations.push(
+						await executeRequest(
+							scenario,
+							config.requestTimeoutMs,
+							fetchImpl,
+							config.sessionCookie,
+						),
+					);
+				}
+				readyResolvers[index]?.();
+				await steadyWave;
+				const finishAt = performance.now() + config.durationMs;
+				do {
+					for (const scenario of scenarios) {
+						observations.push(
+							await executeRequest(
+								scenario,
+								config.requestTimeoutMs,
+								fetchImpl,
+								config.sessionCookie,
+							),
+						);
+					}
+					if (performance.now() < finishAt) await delay(config.pacingMs);
+				} while (performance.now() < finishAt);
+				completedUsers += 1;
+			})(),
+		);
+		await Promise.all(readyUsers);
+		const steadyStartedAt = performance.now();
+		startSteadyWave?.();
+		await Promise.all(users);
+		sustainedForMs = performance.now() - steadyStartedAt;
+	} else {
+		let startWave: (() => void) | undefined;
+		const wave = new Promise<void>((resolve) => {
+			startWave = resolve;
+		});
+		const users = Array.from({ length: config.users }, async () => {
+			await wave;
+			for (const scenario of scenarios) {
+				observations.push(
+					await executeRequest(scenario, config.requestTimeoutMs, fetchImpl),
+				);
+			}
+			completedUsers += 1;
+		});
+		startWave?.();
+		await Promise.all(users);
+	}
 
 	const evaluation = evaluateOnlineCapacityRun({
+		scope: config.scope,
 		users: config.users,
+		sustainedForMs,
+		rampUpMs: config.rampUpMs,
+		completedUsers,
 		scenarios: scenarios.map(({ name }) => summarizeScenario(name, observations)),
 	});
 	return {
 		...evaluation,
 		runId,
-		scope: "public_edge_read_only",
 		mode: config.mode,
 		startedAt: startedAt.toISOString(),
 		finishedAt: new Date().toISOString(),

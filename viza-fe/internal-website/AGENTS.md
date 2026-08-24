@@ -171,6 +171,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   non-sensitive project ref from the deployment's actual Supabase URL so the
   read-only capacity harness can reject misbound production targets. It must
   never return keys, cookies, connection URLs, or applicant data.
+- The companion default-off `/api/health/online-capacity-session` endpoint may
+  call only Supabase Auth `getUser()` and returns an exact synthetic user ID plus
+  an `@viza.test` boolean. It must not call client-session continuity/profile
+  helpers or expose the email/cookie, so capacity preflight remains read-only.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
   admin email allowlist in `lib/admin-access.ts`.

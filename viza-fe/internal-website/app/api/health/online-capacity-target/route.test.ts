@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { GET, readCapacityTargetMarker } from "./route";
+import { readCapacityTargetMarker } from "./marker";
+import { GET } from "./route";
 
 describe("online capacity target marker", () => {
   it("is disabled unless explicitly enabled", () => {
