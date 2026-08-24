@@ -49,3 +49,8 @@ scheduled recovery workflows.
   `apply-approved-batch` action. The latter requires `batch_id` plus a full
   40-character reviewed commit SHA and checks out that SHA only as migration
   input; the current default-branch script and manifest remain the trust root.
+- `online-capacity-gate.yml` is a manual, single-flight, read-only staging gate.
+  It checks out one full reviewed SHA, requires exact project confirmation, and
+  may run only through the `staging-online-capacity` Environment. The deployed
+  frontend and agent must both expose the default-off target marker bound to
+  the same non-production Supabase ref before any 100-user request wave starts.

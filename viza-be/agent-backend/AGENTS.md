@@ -142,6 +142,25 @@ explicitly reintroduces another provider.
   `load-test-results/concurrency/<runId>/summary.json`; never commit result
   files or credentials. Run only against an isolated staging database:
   `npm run load:concurrency`.
+- Read-only edge-capacity gate: `scripts/online-capacity-load.ts` runs exactly
+  100 synthetic users against the client login page, unauthenticated
+  application redirect, and dependency-aware agent readiness endpoint. It
+  accepts only explicit
+  `local-test` or `staging-only` confirmation, binds the target to an exact
+  non-production Supabase ref, and rejects `viza.it.com`, `viza-prod-*`, and
+  the production project ref before issuing requests. It never sends cookies,
+  authorization headers, payments, application writes, or official-portal
+  submissions. Diagnostic user counts below 100 always fail the release
+  decision. Results are written to ignored
+  `load-test-results/online-capacity/<runId>/summary.json`. Run with
+  `npm run load:online-capacity` only against local or isolated staging targets.
+  Passing this gate proves only the public edge/auth-redirect/readiness surfaces;
+  it does not certify authenticated database reads, AI chat, Runner throughput,
+  official submission, or payment capacity. Those require separate isolated
+  staging gates.
+- `src/online-capacity-target.ts` owns the default-off target marker returned at
+  `/api/health/online-capacity-target`. It derives the project ref from the
+  service's actual Supabase URL and must never return keys or connection URLs.
 
 ## Ownership Boundaries
 
