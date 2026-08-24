@@ -37,6 +37,7 @@ import {
 } from "@/features/kr-arrival-card/preflight";
 import {
   isDs160VisaType,
+  isAutomatedOnlineApplication,
   isDigitalArrivalCardApplication,
   isFreshDs160SubmissionIntent,
   isFranceVisasVisaType,
@@ -1679,6 +1680,20 @@ export async function POST(
     isQaDryRunPurpose(ownedApplication.purpose)
       ? "dry_run"
       : requestedMode;
+
+  if (
+    !isQaDryRunPurpose(ownedApplication.purpose) &&
+    isAutomatedOnlineApplication(ownedApplication.country, ownedApplication.visa_type) &&
+    mode !== "live_assisted"
+  ) {
+    return NextResponse.json(
+      {
+        error: "当前页面版本已过期。请刷新页面后重新点击提交；日本入境申报和肯尼亚 eTA 只能创建真实官网提交任务。",
+        code: "official_live_mode_required",
+      },
+      { status: 409 },
+    );
+  }
 
   let persistedAnswerRows: ApplicationAnswerForRetry[] = [];
   if (!isQaDryRunPurpose(ownedApplication.purpose)) {
