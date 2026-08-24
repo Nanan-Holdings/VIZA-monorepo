@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isAutomatedOnlineApplication,
   isDigitalArrivalCardApplication,
 } from "@/lib/submission-queue";
 import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
@@ -22,7 +23,7 @@ type QueueForCancel = {
   mode: string | null;
 };
 
-const CANCELABLE_SGAC_QUEUE_STATUSES = [
+const CANCELABLE_SUBMISSION_QUEUE_STATUSES = [
   "sgac_live_assisted_scheduled",
   "sgac_live_assisted_pending",
   "sgac_dry_run_pending",
@@ -41,6 +42,10 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "kr_eac_live_assisted_scheduled",
   "kr_eac_live_assisted_pending",
   "kr_eac_dry_run_pending",
+  "jp_vjw_live_assisted_scheduled",
+  "jp_vjw_live_assisted_pending",
+  "ke_eta_live_assisted_scheduled",
+  "ke_eta_live_assisted_pending",
 ] as const;
 
 const RUNNER_POOL_COUNTRY_BY_FLOW: Record<string, string> = {
@@ -50,6 +55,8 @@ const RUNNER_POOL_COUNTRY_BY_FLOW: Record<string, string> = {
   tdac: "thailand",
   kr_eform: "south_korea",
   kr_arrival_card: "south_korea",
+  jp_vjw: "japan",
+  ke_eta: "kenya",
 };
 
 export async function POST(
@@ -100,7 +107,10 @@ export async function POST(
   if (application.applicant_id !== (profile as { id: string }).id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!isDigitalArrivalCardApplication(application.country, application.visa_type)) {
+  if (
+    !isDigitalArrivalCardApplication(application.country, application.visa_type) &&
+    !isAutomatedOnlineApplication(application.country, application.visa_type)
+  ) {
     return NextResponse.json(
       { error: "Cancellation is only available for digital arrival card submissions." },
       { status: 400 },
@@ -111,7 +121,7 @@ export async function POST(
     .from("submission_queue")
     .select("id, status, provider, mode")
     .eq("application_id", applicationId)
-    .in("status", [...CANCELABLE_SGAC_QUEUE_STATUSES])
+    .in("status", [...CANCELABLE_SUBMISSION_QUEUE_STATUSES])
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1)

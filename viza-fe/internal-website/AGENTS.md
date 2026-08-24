@@ -621,6 +621,10 @@ Smoke URLs:
   its same-transaction surviving-policy/ACL/RLS preservation checks; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql`.
+- `supabase/migrations/20260824065000_jp_ke_cancel_pending_submission.sql`:
+  extends the existing application-first, null-lease cancellation RPC to Japan
+  VJW and Kenya eTA pending/scheduled queue states; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0184_jp_ke_cancel_pending_submission.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to

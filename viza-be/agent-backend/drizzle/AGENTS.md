@@ -184,6 +184,9 @@ The current internal automation migrations are:
   to the surviving ALL policy. It pins both pre-policy contracts and preserves
   the surviving policy OID, PUBLIC role, relation identity, ACL, and RLS state;
   keep its Supabase mirror byte-identical.
+- `0184_jp_ke_cancel_pending_submission.sql`: extends the application-first,
+  null-lease cancellation RPC to Japan VJW and Kenya eTA pending/scheduled
+  legacy queue states. Keep its Supabase migration mirror byte-identical.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.
