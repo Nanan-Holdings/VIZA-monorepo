@@ -483,6 +483,23 @@ describe("applications selector", () => {
     expect(push).toHaveBeenCalledWith("/latest-zero-draft");
   });
 
+  it("manage mode can hide its internal heading when the application center owns the section title", () => {
+    render(
+      <ApplicationsList
+        items={[usInterviewItem]}
+        mode="manage"
+        showManageHeader={false}
+      />
+    );
+
+    expect(
+      screen.queryByRole("heading", { name: "Your applications" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("DS-160 Visitor Visa")).toBeInTheDocument();
+    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getByText("Completion")).toBeInTheDocument();
+  });
+
   it("manage mode defaults to five records and can expand or collapse the full list", () => {
     const records = Array.from({ length: 6 }, (_, index) => ({
       ...item.records[0],

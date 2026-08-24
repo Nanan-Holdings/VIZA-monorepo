@@ -242,10 +242,12 @@ export function ApplicationsList({
   items,
   initialExpandedCountry,
   mode = "switch",
+  showManageHeader = true,
 }: {
   items: ApplicationListItem[];
   initialExpandedCountry?: string | null;
   mode?: "switch" | "manage";
+  showManageHeader?: boolean;
 }) {
   const t = useTranslations("clientStatus.index");
   const locale = useLocale();
@@ -424,14 +426,16 @@ export function ApplicationsList({
 
     return (
       <>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
-            {t("yourApplications")}
-          </h2>
-          <p className="text-[14px] text-[#8a94a6]">
-            {t("destinationCount", { count: manageRecords.length })}
-          </p>
-        </div>
+        {showManageHeader ? (
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+              {t("yourApplications")}
+            </h2>
+            <p className="text-[14px] text-[#8a94a6]">
+              {t("destinationCount", { count: manageRecords.length })}
+            </p>
+          </div>
+        ) : null}
 
         {manageRecords.length > 0 ? (
           <ul className={APPLICATION_PANEL_CLASS}>

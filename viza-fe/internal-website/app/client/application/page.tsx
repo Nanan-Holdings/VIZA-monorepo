@@ -124,6 +124,7 @@ function ApplicationCenter({
             items={items}
             initialExpandedCountry={null}
             mode="manage"
+            showManageHeader={false}
           />
         )}
       </section>
