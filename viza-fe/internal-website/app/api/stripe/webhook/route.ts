@@ -1,7 +1,6 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { mailReceiptOnPaid } from "@/app/actions/receipts";
-import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 import { awardPurchasePointsForPayment } from "@/lib/rewards/purchase-points";
 import {
   AGENCY_FEE_TYPE,
@@ -39,17 +38,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Guest card checkout (marketing-funnel) routes through the order-model
- * applier + shared post-paid side-effects, NOT the authenticated
- * payment_records path. Returns true when it handled the session so the
- * caller skips the commercial flow. Sessions are tagged with
- * `metadata.guest_checkout="1"` by `app/actions/card-checkout.ts`.
+ * Guest and final-submission checkout sessions route through the canonical
+ * order ledger. The latter is still authenticated, but its agency and
+ * government lines must be confirmed together before entitlement evaluation.
  */
-async function handleGuestCheckoutSession(
+async function handleOrderCheckoutSession(
   session: Stripe.Checkout.Session,
   event: Stripe.Event,
 ): Promise<boolean> {
-  if (session.metadata?.guest_checkout !== "1") return false;
+  if (
+    session.metadata?.guest_checkout !== "1"
+    && session.metadata?.submission_checkout !== "1"
+  ) return false;
   if (session.payment_status === "paid") {
     const result = await applyStripeEvent(createAdminClient() as never, {
       id: event.id,
@@ -245,23 +245,9 @@ async function finalizePaidRecord(
     }
   })();
 
-  // 5. Runner enqueue is durable in runner_job. Await it so a transient
-  // failure causes the verified provider webhook to retry instead of losing
-  // the critical post-payment handoff.
-  const appId = record.application_id;
-  if (appId) {
-    const { data: app } = await adminClient
-      .from("applications")
-      .select("country")
-      .eq("id", appId)
-      .maybeSingle();
-
-    if (app?.country) {
-      await enqueueRunnerJob(appId, app.country, {
-        correlationId: `stripe:${record.id}`,
-      });
-    }
-  }
+  // Payment confirmation never starts an official submission. The applicant
+  // returns to Review and must explicitly submit again; that request passes
+  // through the application-scoped entitlement gate.
 }
 
 async function handleCheckoutSessionEvent(
@@ -274,9 +260,9 @@ async function handleCheckoutSessionEvent(
     expand: ["payment_intent.latest_charge", "invoice"],
   });
 
-  // Guest marketing-funnel checkout: provision an account + magic-link
-  // instead of the authenticated payment_records flow.
-  if (await handleGuestCheckoutSession(session, event)) return;
+  // Order-model checkout: provision/backfill payment evidence and return the
+  // applicant to Review without enqueuing an official submission.
+  if (await handleOrderCheckoutSession(session, event)) return;
 
   const metadata = extractVizaMetadata(session.metadata);
   const existingRecord = await getRecordOrNull(adminClient, {

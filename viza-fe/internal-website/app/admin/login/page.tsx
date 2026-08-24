@@ -65,9 +65,10 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-b from-[#03346e] to-[#3d6dad] p-4 sm:p-8">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#fafafa] p-4 sm:p-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(3,52,110,0.14),transparent_38%),radial-gradient(circle_at_90%_100%,rgba(61,109,173,0.12),transparent_42%)]" />
       <motion.section
-        className="relative z-10 flex w-full max-w-[480px] flex-col rounded-[24px] bg-white px-6 py-8 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:px-10 sm:py-10"
+        className="relative z-10 flex w-full max-w-[480px] flex-col rounded-2xl border border-[#d4e0f0] bg-white px-6 py-8 shadow-[0_24px_90px_rgba(3,52,110,0.12)] sm:px-10 sm:py-10"
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -83,7 +84,7 @@ export default function AdminLoginPage() {
           transition={{ delay: 0.08, duration: 0.35 }}
         >
           <div className="text-center">
-            <h1 className="text-[clamp(26px,6vw,34px)] font-normal leading-[1.2] tracking-[-1px] text-[#3d3d3d]">{copy.title}</h1>
+            <h1 className="font-heading text-[clamp(26px,6vw,34px)] font-semibold leading-[1.2] tracking-[-1px] text-[#03346e]">{copy.title}</h1>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-[clamp(12px,1.5vh,16px)]">

@@ -11,6 +11,10 @@ application lifecycle state.
 ## Key Flows
 
 - `auth.ts`: admin auth and password change/signout.
+- `admin-access.ts`: database-backed admin registration invitations and
+  auditable account-wide high-access grants. Invitation tokens are hashed and
+  returned in plaintext only once; existing client accounts must authenticate
+  with the claimed verified email before acceptance.
 - `client-auth.ts`: client auth/session helpers and signout.
 - `application-lifecycle.ts`: lifecycle/status summaries derived from existing
   application, answer, document, and queue tables.

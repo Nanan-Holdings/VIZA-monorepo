@@ -95,6 +95,8 @@ export interface CreateCheckoutInput {
    * instead of the authenticated payment_records path.
    */
   guestCheckout?: boolean;
+  /** Routes an authenticated final-submission checkout through the order ledger. */
+  submissionCheckout?: boolean;
 }
 
 export interface RefundResult {
@@ -164,10 +166,29 @@ export async function createCheckoutSession(
   if (input.guestCheckout) {
     form["metadata[guest_checkout]"] = "1";
   }
+  if (input.submissionCheckout) {
+    form["metadata[submission_checkout]"] = "1";
+  }
   if (input.customerEmail) {
     form.customer_email = input.customerEmail;
   }
   return postForm<CheckoutSession>("/checkout/sessions", encodeForm(form));
+}
+
+export async function retrieveCheckoutSession(
+  sessionId: string,
+): Promise<CheckoutSession> {
+  const response = await fetch(`${STRIPE_API}/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+    headers: { Authorization: authHeader() },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as CheckoutSession & StripeError;
+  if (!response.ok) {
+    throw new Error(
+      `Stripe checkout session lookup: ${payload.error?.message ?? response.status}`,
+    );
+  }
+  return payload;
 }
 
 /**

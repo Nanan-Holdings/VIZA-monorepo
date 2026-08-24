@@ -13,6 +13,10 @@ import {
 } from "@/lib/submission-queue";
 import { enqueueRunnerJob } from "@/lib/queue/enqueue";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  evaluateSubmissionAccess,
+  submissionAccessHttpBody,
+} from "@/lib/payments/submission-access";
 import { resolveOfficialFeeApplicantAuth } from "../auth";
 import {
   ensureVietnamCardWorkerReady,
@@ -1109,6 +1113,50 @@ export async function POST(
     return NextResponse.json(
       { error: resolvedFee.message, errorCode: resolvedFee.code },
       { status: 422 },
+    );
+  }
+  try {
+    const returnTo = `/client/application/long-form?applicationId=${encodeURIComponent(applicationId)}&step=review`;
+    const access = await evaluateSubmissionAccess(admin, applicationId, {
+      payerAuthUserId: auth.actorId,
+      lockHighAccess: true,
+      returnTo,
+    });
+    if (access.status !== "ready") {
+      const checkoutUrl = new URL(
+        `/api/applications/${encodeURIComponent(applicationId)}/submission-checkout`,
+        request.nextUrl.origin,
+      );
+      checkoutUrl.searchParams.set("returnTo", returnTo);
+      const responseDecision = {
+        ...access,
+        checkoutUrl: access.status === "payment_required" ? checkoutUrl.toString() : null,
+      };
+      return NextResponse.json(
+        {
+          ...submissionAccessHttpBody(responseDecision),
+          code: access.status === "review_required"
+            ? "application_payment_review_required"
+            : "application_payment_required",
+          errorCode: access.status === "review_required"
+            ? "application_payment_review_required"
+            : "application_payment_required",
+        },
+        { status: access.status === "review_required" ? 409 : 402 },
+      );
+    }
+  } catch (error) {
+    console.error("[official-fee] submission access unavailable", {
+      applicationId: applicationId.slice(0, 8),
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(
+      {
+        error: "Submission payment eligibility is temporarily unavailable.",
+        code: "submission_access_unavailable",
+        errorCode: "submission_access_unavailable",
+      },
+      { status: 503 },
     );
   }
   if (!managedCard && !isVietnamApplication && !isIndonesiaApplication) {

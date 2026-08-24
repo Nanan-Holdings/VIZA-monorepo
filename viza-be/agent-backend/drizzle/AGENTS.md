@@ -424,6 +424,12 @@ The current internal automation migrations are:
   result writer to accept the canonical Japan QR, Kenya approval/rejection,
   and needs-attention/blocked statuses. Keep its Supabase migration mirror
   byte-identical.
+- `0185_admin_access_entitlements.sql`: adds service-owned applicant high-access
+  grants, application-scoped submission entitlements, admin memberships and
+  single-use registration invite digests. It links payment records to orders,
+  bootstraps existing administrators, hardens `handle_new_user`, and installs
+  fail-closed queue/application payment fences plus refund/dispute review
+  events. Keep the frontend Supabase migration byte-identical.
 
 ## Guardrails
 

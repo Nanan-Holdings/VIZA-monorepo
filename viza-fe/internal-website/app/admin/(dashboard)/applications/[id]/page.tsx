@@ -77,6 +77,21 @@ interface OrderRow {
   application_id: string;
 }
 
+interface SubmissionEntitlementRow {
+  application_id: string;
+  decision_status: "ready" | "payment_required" | "review_required";
+  access_level: "standard" | "high";
+  agency_fee_status: string;
+  agency_fee_amount_cents: number;
+  official_fee_status: string;
+  official_fee_amount_cents: number;
+  currency: string;
+  order_id: string | null;
+  government_fee_allocation_id: string | null;
+  decision_reason: string | null;
+  updated_at: string;
+}
+
 interface InboundRow {
   id: string;
   from_addr: string;
@@ -696,7 +711,13 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const profileWithAlias = applicant.profile as ApplicantProfileWithAlias | null;
   const aliasEmailStr = profileWithAlias?.inbox_alias ? String(profileWithAlias.inbox_alias).toLowerCase() : null;
 
-  const [{ data: jobs }, { data: orders }, inbound, { data: workItems }] = await Promise.all([
+  const [
+    { data: jobs },
+    { data: orders },
+    inbound,
+    { data: workItems },
+    { data: submissionEntitlements },
+  ] = await Promise.all([
     appIds.length > 0
       ? admin
           .from("runner_job")
@@ -728,12 +749,22 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
           .order("created_at", { ascending: false })
           .limit(50)
       : Promise.resolve({ data: [] }),
+    appIds.length > 0
+      ? admin
+          .from("application_submission_entitlements")
+          .select("application_id, decision_status, access_level, agency_fee_status, agency_fee_amount_cents, official_fee_status, official_fee_amount_cents, currency, order_id, government_fee_allocation_id, decision_reason, updated_at")
+          .in("application_id", appIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const jobRows = (jobs ?? []) as RunnerJobRow[];
   const orderRows = (orders ?? []) as OrderRow[];
   const inboundRows = (inbound.data ?? []) as InboundRow[];
   const workRows = (workItems ?? []) as AdminWorkItemRow[];
+  const entitlementRows = (submissionEntitlements ?? []) as SubmissionEntitlementRow[];
+  const entitlementByApplicationId = new Map(
+    entitlementRows.map((entitlement) => [entitlement.application_id, entitlement]),
+  );
   const documentLinks = new Map<string, string>();
   await Promise.all(
     applicant.applications.flatMap((application) =>
@@ -792,6 +823,33 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const caseDocuments = applicant.applications.flatMap((application) =>
     application.applicationDocuments.map((document) => ({ application, document })),
   );
+  const entitlementCopy = locale === "zh"
+    ? {
+        title: "提交付款资格",
+        description: "查看每个申请已锁定的 high access、服务费、官方费与结算证据。未生成报价的申请不会在这里提前锁定豁免。",
+        unquoted: "尚未生成最终提交报价",
+        standard: "普通权限",
+        high: "High access 已锁定",
+        agency: "VIZA 服务费",
+        official: "官方费",
+        order: "订单",
+        allocation: "官方费 allocation",
+        updated: "最近核对",
+        review: "人工复核原因",
+      }
+    : {
+        title: "Submission payment eligibility",
+        description: "Inspect the locked high-access decision, agency fee, official fee, and settlement evidence for each application. Unquoted applications do not lock a waiver early.",
+        unquoted: "Final-submission quote not generated",
+        standard: "Standard access",
+        high: "High access locked",
+        agency: "VIZA agency fee",
+        official: "Official fee",
+        order: "Order",
+        allocation: "Government allocation",
+        updated: "Last evaluated",
+        review: "Review reason",
+      };
 
   return (
     <div className="w-full space-y-6 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
@@ -822,6 +880,71 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />
       <PackageOverview applicant={applicant} copy={copy} locale={locale} />
       <SupportItems applicant={applicant} copy={copy} />
+
+      <SectionPanel title={entitlementCopy.title} description={entitlementCopy.description}>
+        <div className="space-y-3">
+          {applicant.applications.map((application) => {
+            const entitlement = entitlementByApplicationId.get(application.id);
+            return (
+              <div key={application.id} className="rounded-xl border border-[#e6eaf0] bg-[#fafafa] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-heading font-semibold text-[#232323]">
+                      {application.countryLabel} · {application.visaTypeLabel}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-[#8a94a3]">{shortenId(application.id)}</p>
+                  </div>
+                  {entitlement ? (
+                    <div className="flex flex-wrap gap-2">
+                      <StatusPill tone={entitlement.decision_status === "ready" ? "success" : entitlement.decision_status === "review_required" ? "danger" : "warning"}>
+                        {localizeStatusText(entitlement.decision_status, locale)}
+                      </StatusPill>
+                      <StatusPill tone={entitlement.access_level === "high" ? "brand" : "neutral"}>
+                        {entitlement.access_level === "high" ? entitlementCopy.high : entitlementCopy.standard}
+                      </StatusPill>
+                    </div>
+                  ) : (
+                    <StatusPill tone="neutral">{entitlementCopy.unquoted}</StatusPill>
+                  )}
+                </div>
+
+                {entitlement ? (
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <FieldValue
+                      label={entitlementCopy.agency}
+                      value={`${localizeStatusText(entitlement.agency_fee_status, locale)} · ${(entitlement.agency_fee_amount_cents / 100).toFixed(2)} ${entitlement.currency}`}
+                      fallback="-"
+                    />
+                    <FieldValue
+                      label={entitlementCopy.official}
+                      value={`${localizeStatusText(entitlement.official_fee_status, locale)} · ${(entitlement.official_fee_amount_cents / 100).toFixed(2)} ${entitlement.currency}`}
+                      fallback="-"
+                    />
+                    <FieldValue
+                      label={entitlementCopy.order}
+                      value={entitlement.order_id ? shortenId(entitlement.order_id) : copy.common.notRecorded}
+                      fallback={copy.common.notRecorded}
+                    />
+                    <FieldValue
+                      label={entitlementCopy.allocation}
+                      value={entitlement.government_fee_allocation_id ? shortenId(entitlement.government_fee_allocation_id) : copy.common.notRecorded}
+                      fallback={copy.common.notRecorded}
+                    />
+                    <FieldValue
+                      label={entitlementCopy.updated}
+                      value={formatAdminDateTime(entitlement.updated_at, locale, copy.common.notRecorded)}
+                      fallback={copy.common.notRecorded}
+                    />
+                    {entitlement.decision_reason ? (
+                      <FieldValue label={entitlementCopy.review} value={entitlement.decision_reason} fallback="-" />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </SectionPanel>
 
       <SectionPanel title={documentCopy.title} description={documentCopy.description}>
         {caseDocuments.length === 0 ? <p className="text-sm text-[#64748b]">{documentCopy.empty}</p> : (

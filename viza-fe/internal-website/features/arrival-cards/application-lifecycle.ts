@@ -2,6 +2,7 @@ import {
   isDigitalArrivalCardApplication,
   isKoreaEArrivalCardApplication,
 } from "@/lib/submission-queue";
+import { normalizeKoreaIssueNumber } from "@/features/kr-arrival-card/official-reference";
 
 export interface ArrivalCardApplicationLifecycleInput {
   country: string | null | undefined;
@@ -24,7 +25,7 @@ export function hasSuccessfulArrivalCardSubmission(
   if (record.status !== "submitted" || record.submitted !== true) return false;
 
   if (!isKoreaEArrivalCardApplication(input.country, input.visaType)) return true;
-  const issueNumber = typeof record.issueNumber === "string" ? record.issueNumber.trim() : "";
+  const issueNumber = normalizeKoreaIssueNumber(record.issueNumber);
   if (!issueNumber) return false;
   const portalUrl = typeof record.portalUrl === "string" ? record.portalUrl.trim() : "";
   let officialPortal = false;

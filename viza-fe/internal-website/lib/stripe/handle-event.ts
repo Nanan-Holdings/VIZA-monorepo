@@ -54,20 +54,21 @@ export async function applyStripeEvent(
         amountTotal > taxCents && taxCents > 0
           ? Math.round((taxCents * 10_000) / (amountTotal - taxCents))
           : 0;
-      const { error } = await admin
-        .from("order")
-        .update({
-          status: "paid",
-          stripe_payment_intent_id: session.payment_intent ?? null,
-          paid_at: new Date().toISOString(),
-          tax_amount_cents: taxCents,
-          tax_country: taxCountry,
-          tax_rate_basis_points: taxRateBps,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-      if (error) {
-        throw new Error(`order paid update: ${error.message}`);
+      const { error: confirmError } = await admin.rpc(
+        "confirm_submission_order_payment",
+        {
+          p_order_id: orderId,
+          p_provider_payment_id: session.payment_intent ?? "",
+          p_provider_session_id: session.id ?? "",
+          p_paid_at: new Date().toISOString(),
+          p_tax_amount_cents: taxCents,
+          p_tax_country: taxCountry,
+          p_tax_rate_basis_points: taxRateBps,
+          p_provider: "stripe",
+        },
+      );
+      if (confirmError) {
+        throw new Error(`atomic order payment confirmation: ${confirmError.message}`);
       }
       return { kind: "paid", orderId };
     }

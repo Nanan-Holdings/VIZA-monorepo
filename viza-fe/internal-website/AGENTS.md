@@ -176,8 +176,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   an `@viza.test` boolean. It must not call client-session continuity/profile
   helpers or expose the email/cookie, so capacity preflight remains read-only.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
-  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the production
-  admin email allowlist in `lib/admin-access.ts`.
+  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the fail-closed
+  dynamic admin membership check in `lib/admin-membership.ts`. Admin invite
+  secrets are hashed server-side by `lib/admin-invite-token.ts`; the historical
+  email list in `lib/admin-access.ts` is bootstrap/recovery data only.
 - Admin login uses the shared auth form controls but intentionally keeps a
   centered, globe-free layout distinct from the client login; authentication
   logic and portal authorization remain separate.
@@ -633,6 +635,13 @@ Smoke URLs:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
   `viza-be/agent-backend/drizzle/0175_expand_runner_result_statuses.sql`.
+- `supabase/migrations/20260824090000_admin_access_entitlements.sql`: creates
+  service-owned applicant high-access grants, application submission
+  entitlements, admin memberships, and single-use registration invite digests;
+  links payment records to orders, bootstraps current administrators, fixes
+  `handle_new_user`, and installs fail-closed queue/application payment fences.
+  Keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0185_admin_access_entitlements.sql`.
 - `supabase/manual/*`
 - `supabase/templates/*`
 - `lib/i18n/locale.ts`

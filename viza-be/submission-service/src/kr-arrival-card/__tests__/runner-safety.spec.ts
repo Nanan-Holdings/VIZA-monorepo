@@ -7,6 +7,10 @@ import {
   isRemoteBrowserProviderPolicyBlockMessage,
 } from "../../arrival-card-browser";
 import { classifyOfficialTravelLookup } from "../normalize";
+import {
+  extractOfficialIssueNumberFromText,
+  normalizeOfficialIssueNumber,
+} from "../confirmation";
 
 const runnerSource = readFileSync(
   resolve(process.cwd(), "src", "kr-arrival-card", "runner.ts"),
@@ -48,6 +52,29 @@ test("Korea runner uses official widgets for controlled fields", () => {
   assert.match(runnerSource, /bb-custom-select-container/);
   assert.match(runnerSource, /jquery\(month\)\.trigger\("change"\)/);
   assert.match(runnerSource, /kr_eac_date_widget_incompatible/);
+});
+
+test("Korea completion parser rejects the blank table heading as an issue number", () => {
+  const stillLoading = [
+    "Submission of e-Arrival card complete",
+    "Basic information",
+    "Issue number country/region",
+    "Surname (as shown on passport) Given name (as shown on passport)",
+  ].join("\n");
+  assert.equal(extractOfficialIssueNumberFromText(stillLoading), null);
+  assert.equal(normalizeOfficialIssueNumber("country"), null);
+});
+
+test("Korea completion parser accepts only a digit-bearing official issue token", () => {
+  assert.equal(
+    extractOfficialIssueNumberFromText("Issue number: EAC-20260824-AB123456"),
+    "EAC-20260824-AB123456",
+  );
+  assert.equal(
+    extractOfficialIssueNumberFromText("발급번호 20260824-1234567890"),
+    "20260824-1234567890",
+  );
+  assert.equal(normalizeOfficialIssueNumber("REFERENCE"), null);
 });
 
 test("Korea runner never bypasses disabled or readonly official controls", () => {
@@ -148,6 +175,52 @@ test("Korea e-Arrival Card classifies Bright Data government policy blocks", () 
   assert.equal(isRemoteBrowserProviderPolicyBlockMessage("net::ERR_NAME_NOT_RESOLVED"), false);
 });
 
+test("Korea success evidence waits for loaded data and never prints a blank fallback", () => {
+  assert.match(runnerSource, /hasVisibleConfirmationLoader/);
+  assert.match(runnerSource, /waitForOfficialIssueNumber\(page, 90_000\)/);
+  assert.match(runnerSource, /kr_eac_confirmation_pdf_rejected_missing_issue_number/);
+  assert.match(runnerSource, /kr_eac_verified_confirmation_page_pdf_fallback/);
+  assert.doesNotMatch(runnerSource, /kr_eac_confirmation_page_pdf_fallback/);
+});
+
+test("Korea CAPTCHA solve preserves leading zeroes and clicks the labelled confirmation control", () => {
+  assert.match(runnerSource, /numeric:\s*1/);
+  assert.match(runnerSource, /minLength:\s*6/);
+  assert.match(runnerSource, /maxLength:\s*6/);
+  assert.match(runnerSource, /including any leading zero/);
+  assert.match(runnerSource, /normalizeKrEArrivalCaptchaAnswer/);
+  assert.match(runnerSource, /button:has-text\('Confirm'\)/);
+  assert.doesNotMatch(runnerSource, /\["#captchaConfirm",\s*"\.captcha button",\s*"\[role='dialog'\] button"\]/);
+});
+
+test("Korea CAPTCHA solve retries transient solver failures and official rejections in the same form", () => {
+  assert.match(runnerSource, /const maxAttempts = 3/);
+  assert.match(runnerSource, /kr_eac_captcha_solver_failed attempt=/);
+  assert.match(runnerSource, /kr_eac_captcha_rejected attempt=/);
+  assert.match(runnerSource, /refreshVisibleCaptcha/);
+  assert.match(runnerSource, /waitForCaptchaDecision/);
+});
+
+test("Korea waits for the asynchronously mounted CAPTCHA checkpoint", () => {
+  assert.match(runnerSource, /const checkpointDeadline = Date\.now\(\) \+ 20_000/);
+  assert.match(runnerSource, /if \(image \|\| recaptchaFrame\) break/);
+  assert.match(runnerSource, /kr_eac_captcha_checkpoint_timeout/);
+  assert.match(runnerSource, /confirmation-not-reached/);
+});
+
+test("Korea anchors unnamed CAPTCHA controls to the verification image container", () => {
+  assert.match(runnerSource, /findVerificationCaptchaContainer/);
+  assert.match(runnerSource, /xpath=ancestor::\*\[descendant::input/);
+  assert.match(runnerSource, /const captchaContainer = await findVerificationCaptchaContainer\(image, captchaDialog\)/);
+  assert.match(runnerSource, /captchaContainer\.locator\(/);
+});
+
+test("Korea final review accepts the official English Confirm control", () => {
+  assert.match(runnerSource, /name: \/\^\(\?:confirm\|ok\|확인\)\$\/iu/);
+  assert.match(runnerSource, /input\[type='button'\]\[value='Confirm'\]/);
+  assert.match(runnerSource, /\.popBox button:has-text\('Confirm'\)/);
+});
+
 test("Korea navigation failures preserve a structured provider error", () => {
   assert.match(runnerSource, /kr_eac_browser_provider_policy_blocked/);
   assert.match(runnerSource, /kr_eac_official_portal_navigation_failed/);
@@ -170,6 +243,8 @@ test("Korea runner waits for official travel prompts to close", () => {
   assert.match(runnerSource, /lookup left an unexpected modal open/);
   assert.match(runnerSource, /visibleBodies\.length > 0/);
   assert.match(runnerSource, /kr_eac_control_click_failed/);
+  assert.match(runnerSource, /const lookupDeadline = Date\.now\(\) \+ 8_000/);
+  assert.match(runnerSource, /if \(promptAcknowledged \|\| observedCountry \|\| observedCity\) break/);
 });
 
 test("Korea review confirmation matches the current official popup markup", () => {
@@ -190,9 +265,9 @@ test("Korea verification-code CAPTCHA is not misclassified as a review prompt", 
   assert.match(runnerSource, /verification\\s\+code\|verification code for security/);
   assert.match(runnerSource, /captchaDialog\.locator\("img, canvas"\)/);
   assert.match(runnerSource, /bounds\.width >= 60 && bounds\.height >= 20/);
-  assert.match(runnerSource, /captchaDialog\.locator\("input:not\(\[type='hidden'\]\)/);
+  assert.match(runnerSource, /captchaContainer\.locator\(/);
   assert.match(runnerSource, /"button, a, span, \[onclick\]/);
-  assert.match(runnerSource, /captchaDialog\.getByText\(\/\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$\/iu\)/);
+  assert.match(runnerSource, /captchaContainer\.getByText\(\/\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$\/iu\)/);
   assert.match(runnerSource, /\^\(\?:confirm\|verify\|ok\|확인\|인증\)\$/);
   assert.match(runnerSource, /check that all the information\|information you entered is correct/);
   assert.doesNotMatch(runnerSource, /if \(!\/correct\|confirm/);

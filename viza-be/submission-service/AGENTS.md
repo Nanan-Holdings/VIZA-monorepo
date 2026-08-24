@@ -77,6 +77,7 @@ and must fail closed; callers must not perform a direct table settlement.
 
 ## Key Flows
 
+- `src/kr-arrival-card/confirmation.ts`: pure Korea e-Arrival Card issue-number parsing. It rejects unloaded completion-table labels such as `country/region`; keep runner success and PDF evidence gated on a digit-bearing official issue token after the portal loading overlay has cleared.
 - `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.

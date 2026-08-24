@@ -14,8 +14,8 @@ export const dynamic = "force-dynamic";
  * PhotonPay POSTs the transaction result here (the `notifyUrl` we set on the
  * cashier session). We:
  *   1. verify `x-pd-sign` against PhotonPay's platform public key,
- *   2. on a successful sale, mark the order paid and run the shared post-paid
- *      side-effects (magic-link + provisioning + runner) — the same pipeline
+ *   2. on a successful sale, atomically confirm the order and run the shared
+ *      post-paid side-effects (magic-link + provisioning) — the same pipeline
  *      the Stripe and WeChat guest paths use,
  *   3. reply the EXACT `{"roger": true}` PhotonPay expects.
  *
@@ -104,6 +104,23 @@ export async function POST(request: NextRequest) {
       // successful notification still re-emits the durable event key.
       if (isPayableOrderStatus(String(order.status))) {
         if (!SETTLED_STATUSES.has(String(order.status))) {
+          const providerPaymentId = String(
+            payload.transactionId ?? payload.tradeNo ?? payload.payId ?? reqId,
+          );
+          const { error: confirmationError } = await admin.rpc(
+            "confirm_submission_order_payment",
+            {
+              p_order_id: orderId,
+              p_provider_payment_id: providerPaymentId,
+              p_provider_session_id: reqId,
+              p_paid_at: new Date().toISOString(),
+              p_provider: "photonpay",
+            },
+          );
+          if (confirmationError) {
+            throw new Error(`atomic order payment confirmation: ${confirmationError.message}`);
+          }
+
           const existingMetadata =
             order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
               ? (order.metadata as Record<string, unknown>)
@@ -111,8 +128,6 @@ export async function POST(request: NextRequest) {
           const { error: updErr } = await admin
             .from("order")
             .update({
-              status: "paid",
-              paid_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               // `order` has no PhotonPay columns (unlike WeChat's dedicated ones),
               // so the settlement ids go in the generic metadata jsonb for

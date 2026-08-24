@@ -74,6 +74,7 @@ import {
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
 import { buildKoreaArrivalCardGateHref } from "@/features/kr-arrival-card/routes";
+import { normalizeKoreaIssueNumber } from "@/features/kr-arrival-card/official-reference";
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
@@ -199,10 +200,12 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const scheduled = result.status === "scheduled";
   const rawReferenceNumber = result.issueNumber ?? result.referenceNumber ?? result.confirmationNumber;
-  const referenceNumber =
-    result.country === "VN" && !isOfficialVietnamPrearrivalReference(rawReferenceNumber)
+  const referenceNumber = result.country === "KR"
+    ? normalizeKoreaIssueNumber(result.issueNumber)
+    : result.country === "VN" && !isOfficialVietnamPrearrivalReference(rawReferenceNumber)
       ? null
       : rawReferenceNumber;
+  const koreaIssueNumberMissing = result.country === "KR" && !referenceNumber && !scheduled;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const qrPath = result.artifacts?.qrCodes?.[0] ??
     (result.country === "VN" ? getVietnamPrearrivalQrPath(result) : null);
@@ -227,6 +230,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         })
       : result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
+    successful &&
     (result.country === "KR" || result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
     (
@@ -244,31 +248,32 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
   const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
   const arrivalCardMeta =
     result.country === "MY"
-      ? { label: "MDAC", countryParam: "malaysia" }
+      ? { labelEn: "MDAC", labelZh: "MDAC", countryParam: "malaysia" }
       : result.country === "TH"
-        ? { label: "TDAC", countryParam: "thailand" }
+        ? { labelEn: "TDAC", labelZh: "TDAC", countryParam: "thailand" }
         : result.country === "VN"
-          ? { label: "Vietnam Pre-Arrival", countryParam: "vietnam" }
+          ? { labelEn: "Vietnam Pre-Arrival", labelZh: "Vietnam Pre-Arrival", countryParam: "vietnam" }
           : result.country === "KR"
-            ? { label: "Korea e-Arrival Card", countryParam: "south_korea" }
-          : { label: "eTravel", countryParam: "philippines" };
-  const countryLabel = arrivalCardMeta.label;
+            ? { labelEn: "Korea e-Arrival Card", labelZh: "韩国电子入境卡", countryParam: "south_korea" }
+          : { labelEn: "eTravel", labelZh: "eTravel", countryParam: "philippines" };
+  const countryLabel = isZh ? arrivalCardMeta.labelZh : arrivalCardMeta.labelEn;
+  const countryFileLabel = arrivalCardMeta.labelEn;
   const countryParam = arrivalCardMeta.countryParam;
   const pdfUrl = pdfPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryFileLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
     : null;
   const qrUrl = qrPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(qrPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`)}`
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(qrPath)}&inline=1&download=${encodeURIComponent(`${countryFileLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`)}`
     : null;
   const confirmationScreenshotUrl = confirmationScreenshotPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&inline=1&download=${encodeURIComponent(`${countryFileLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
     : null;
   const confirmationScreenshotDownloadUrl = confirmationScreenshotPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&download=${encodeURIComponent(`${countryFileLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
     : null;
 
   const downloadPdf = useCallback(async () => {
-    if (!pdfUrl) return;
+    if (!successful || !pdfUrl) return;
     setDownloadingPdf(true);
     setDownloadError(null);
     try {
@@ -278,7 +283,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = objectUrl;
-      anchor.download = `${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`;
+      anchor.download = `${countryFileLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -288,7 +293,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     } finally {
       setDownloadingPdf(false);
     }
-  }, [countryLabel, pdfUrl, referenceNumber, result.applicationId]);
+  }, [countryFileLabel, pdfUrl, referenceNumber, result.applicationId, successful]);
 
   const startAgain = useCallback(async () => {
     setStartingAgain(true);
@@ -382,7 +387,11 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         ) : null}
         <p className="text-sm text-muted-foreground">
           {successful
-            ? result.country === "PH"
+            ? result.country === "KR"
+              ? (isZh
+                ? "韩国电子入境卡已在官网成功提交，官方确认页和申请编号已保存。"
+                : result.portalResponseSummary)
+            : result.country === "PH"
               ? isZh
                 ? "菲律宾 eTravel 官网已确认提交。请保存下方官方确认页截图；如果本次记录包含独立 QR，二维码会优先显示在参考号旁。"
                 : "The Philippines eTravel portal confirmed the submission. Save the official confirmation screenshot below; when a standalone QR is available, it appears beside the reference number."
@@ -391,6 +400,10 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               ? isZh
                 ? "官网已接收申报并完成邮箱验证。系统会持续检查最终二维码；请勿重复提交，二维码返回后本页面会自动显示成功和下载按钮。"
                 : "The official portal has received the declaration and verified the email. VIZA keeps checking for the final QR code. Do not submit again; this page will show success and the download automatically."
+            : koreaIssueNumberMissing
+              ? isZh
+                ? "官网确认信息未完整返回，不能视为提交成功"
+                : "Official confirmation information was incomplete; the submission is not considered successful."
             : scheduled
               ? result.portalResponseSummary
             : result.country === "PH"
@@ -491,7 +504,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
             {result.country === "KR"
-              ? (isZh ? "打开韩国入境卡 Check/Edit 官网" : "Open Korea e-Arrival Card Check/Edit")
+              ? (isZh ? "打开韩国电子入境卡查询/修改官网" : "Open Korea e-Arrival Card Check/Edit")
               : (isZh ? "打开官方入境卡网站" : "Open official arrival card website")}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>

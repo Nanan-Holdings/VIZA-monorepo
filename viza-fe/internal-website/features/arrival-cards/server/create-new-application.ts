@@ -238,3 +238,24 @@ export async function createNewArrivalCardApplication(userId: string, sourceAppl
     status: 201,
   } as const;
 }
+
+/**
+ * Starts another arrival-card application for VIZA's signed client session,
+ * whose identity is already the applicant profile id.
+ */
+export async function createNewArrivalCardApplicationForApplicant(
+  applicantProfileId: string,
+  sourceApplicationId: string,
+) {
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("applicant_profiles")
+    .select("auth_user_id")
+    .eq("id", applicantProfileId)
+    .maybeSingle();
+  if (!profile?.auth_user_id) {
+    return { error: "Applicant profile not found", status: 404 } as const;
+  }
+
+  return createNewArrivalCardApplication(profile.auth_user_id, sourceApplicationId);
+}

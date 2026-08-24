@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isAdminEmailAllowed } from "@/lib/admin-access";
+import { hasActiveAdminMembership } from "@/lib/admin-membership";
 import { normalizeSupabaseEnvValue } from "./env";
 import { createFetchWithTimeout } from "./fetch-with-timeout";
 
@@ -48,12 +48,15 @@ export async function updateSession(request: NextRequest) {
 
   // All paths that require an admin role in the `users` table
   const isAdminLogin = pathname === "/admin/login";
-  const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin;
+  // Registration is a token-gated public surface. The action itself validates
+  // the SHA-256 token and verified email; do not require an existing admin
+  // membership before an invite can be accepted.
+  const isAdminRegistration = pathname === "/admin/register";
+  const isProtectedPath = pathname.startsWith("/admin") && !isAdminLogin && !isAdminRegistration;
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const claims = claimsData?.claims;
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
-  const userEmail = typeof claims?.email === "string" ? claims.email : null;
 
   // Protect authenticated routes - redirect to login if not authenticated
   if (!userId && isProtectedPath) {
@@ -74,7 +77,7 @@ export async function updateSession(request: NextRequest) {
 
     const userRole = userData?.role;
     const hasAdminAccess =
-      userRole === "admin" && isAdminEmailAllowed(userEmail);
+      userRole === "admin" && (await hasActiveAdminMembership(supabase, userId));
 
     // Block users with no role in the `users` table from accessing any protected path.
     if (!userRole && isProtectedPath) {

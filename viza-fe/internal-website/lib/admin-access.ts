@@ -1,3 +1,8 @@
+/**
+ * Bootstrap/recovery identities only. Runtime portal access is determined by
+ * `users.role = 'admin'` plus an active `admin_memberships` row; no request
+ * path should call this allowlist as an authorization decision.
+ */
 const PRODUCTION_ADMIN_EMAILS = [
   "czz19974931995@gmail.com",
   "edward.zehua.zhang@gmail.com",

@@ -1,4 +1,4 @@
-﻿import {
+import {
 	pgTable,
 	text,
 	timestamp,
@@ -1587,12 +1587,13 @@ export type NewSharedProfileField = typeof sharedProfileFields.$inferInsert;
 // =============================================================================
 
 export const paymentRecords = pgTable("payment_records", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  applicationId: uuid("application_id"),
-  applicantId: uuid("applicant_id"),
-  authUserId: uuid("auth_user_id"),
-  visaPackageId: uuid("visa_package_id"),
-  provider: text("provider").notNull().default("stripe"),
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id"),
+	applicantId: uuid("applicant_id"),
+	authUserId: uuid("auth_user_id"),
+	visaPackageId: uuid("visa_package_id"),
+	orderId: uuid("order_id"),
+	provider: text("provider").notNull().default("stripe"),
   providerSessionId: text("provider_session_id"),
   providerPaymentId: text("provider_payment_id"),
   providerCustomerId: text("provider_customer_id"),
@@ -1619,7 +1620,144 @@ export const paymentRecords = pgTable("payment_records", {
   providerPaymentIdx: index("payment_records_provider_payment_idx").on(table.providerPaymentId),
   providerEventIdx: index("payment_records_provider_event_idx").on(table.providerEventId),
   appStatusIdx: index("payment_records_app_status_idx").on(table.applicationId, table.status),
-  idempotencyKeyIdx: uniqueIndex("payment_records_idempotency_key_idx").on(table.idempotencyKey),
+	idempotencyKeyIdx: uniqueIndex("payment_records_idempotency_key_idx").on(table.idempotencyKey),
+}));
+
+export const applicantAccessGrants = pgTable("applicant_access_grants", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	authUserId: uuid("auth_user_id").notNull(),
+	status: text("status").notNull().default("active"),
+	startsAt: timestamp("starts_at", { withTimezone: true }).defaultNow().notNull(),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+	grantedByAdminId: uuid("granted_by_admin_id").notNull(),
+	revokedByAdminId: uuid("revoked_by_admin_id"),
+	reason: text("reason").notNull(),
+	revokedAt: timestamp("revoked_at", { withTimezone: true }),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	accountStatusIdx: index("applicant_access_grants_account_status_idx").on(
+		table.authUserId,
+		table.status,
+		table.startsAt,
+		table.expiresAt,
+	),
+	activeAccountIdx: uniqueIndex("applicant_access_grants_one_active_idx")
+		.on(table.authUserId)
+		.where(sql`${table.status} = 'active'`),
+}));
+
+export const applicantAccessGrantEvents = pgTable("applicant_access_grant_events", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	grantId: uuid("grant_id").notNull(),
+	eventType: text("event_type").notNull(),
+	actorAdminId: uuid("actor_admin_id"),
+	reason: text("reason"),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	grantIdx: index("applicant_access_grant_events_grant_idx").on(table.grantId, table.createdAt),
+}));
+
+export const applicationSubmissionEntitlements = pgTable("application_submission_entitlements", {
+	applicationId: uuid("application_id").primaryKey(),
+	payerAuthUserId: uuid("payer_auth_user_id").notNull(),
+	accessLevel: text("access_level").notNull().default("standard"),
+	accessGrantId: uuid("access_grant_id"),
+	grantLockedAt: timestamp("grant_locked_at", { withTimezone: true }),
+	agencyFeeStatus: text("agency_fee_status").notNull().default("required"),
+	agencyFeeAmountCents: integer("agency_fee_amount_cents").notNull().default(0),
+	officialFeeStatus: text("official_fee_status").notNull().default("required"),
+	officialFeeAmountCents: integer("official_fee_amount_cents").notNull().default(0),
+	currency: text("currency").notNull().default("USD"),
+	orderId: uuid("order_id"),
+	paymentRecordId: uuid("payment_record_id"),
+	governmentFeeAllocationId: uuid("government_fee_allocation_id"),
+	decisionStatus: text("decision_status").notNull().default("payment_required"),
+	decisionReason: text("decision_reason").notNull().default("not_evaluated"),
+	lockedAt: timestamp("locked_at", { withTimezone: true }),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	payerIdx: index("application_submission_entitlements_payer_idx").on(table.payerAuthUserId, table.decisionStatus),
+	orderIdx: index("application_submission_entitlements_order_idx").on(table.orderId),
+	allocationIdx: index("application_submission_entitlements_allocation_idx").on(table.governmentFeeAllocationId),
+}));
+
+export const applicationSubmissionEntitlementEvents = pgTable("application_submission_entitlement_events", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	eventType: text("event_type").notNull(),
+	actorAuthUserId: uuid("actor_auth_user_id"),
+	decisionStatus: text("decision_status"),
+	snapshot: jsonb("snapshot").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	applicationIdx: index("application_submission_entitlement_events_app_idx").on(table.applicationId, table.createdAt),
+}));
+
+export const adminMemberships = pgTable("admin_memberships", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	authUserId: uuid("auth_user_id").notNull(),
+	status: text("status").notNull().default("active"),
+	grantedByAdminId: uuid("granted_by_admin_id"),
+	grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+	revokedByAdminId: uuid("revoked_by_admin_id"),
+	revokedAt: timestamp("revoked_at", { withTimezone: true }),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	statusIdx: index("admin_memberships_status_idx").on(table.status, table.grantedAt),
+	activeUserIdx: uniqueIndex("admin_memberships_one_active_idx")
+		.on(table.authUserId)
+		.where(sql`${table.status} = 'active'`),
+}));
+
+export const adminMembershipEvents = pgTable("admin_membership_events", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	membershipId: uuid("membership_id").notNull(),
+	eventType: text("event_type").notNull(),
+	actorAdminId: uuid("actor_admin_id"),
+	reason: text("reason"),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	membershipIdx: index("admin_membership_events_membership_idx").on(table.membershipId, table.createdAt),
+}));
+
+export const adminRegistrationInvites = pgTable("admin_registration_invites", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	tokenDigest: text("token_digest").notNull(),
+	createdByAdminId: uuid("created_by_admin_id").notNull(),
+	expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+	status: text("status").notNull().default("pending"),
+	claimedEmail: text("claimed_email"),
+	claimedUserId: uuid("claimed_user_id"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true }),
+	acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+	revokedByAdminId: uuid("revoked_by_admin_id"),
+	revokedAt: timestamp("revoked_at", { withTimezone: true }),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	tokenIdx: uniqueIndex("admin_registration_invites_token_digest_key").on(table.tokenDigest),
+	statusExpiryIdx: index("admin_registration_invites_status_expiry_idx").on(table.status, table.expiresAt),
+	claimedUserIdx: index("admin_registration_invites_claimed_user_idx").on(table.claimedUserId),
+}));
+
+export const adminRegistrationInviteEvents = pgTable("admin_registration_invite_events", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	inviteId: uuid("invite_id").notNull(),
+	eventType: text("event_type").notNull(),
+	actorAdminId: uuid("actor_admin_id"),
+	metadata: jsonb("metadata").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	inviteIdx: index("admin_registration_invite_events_invite_idx").on(table.inviteId, table.createdAt),
 }));
 
 export const officialFeeQuotes = pgTable("official_fee_quotes", {
@@ -2317,6 +2455,24 @@ export const piiRetentionJobs = pgTable("pii_retention_jobs", {
 
 export type PaymentRecord = typeof paymentRecords.$inferSelect;
 export type NewPaymentRecord = typeof paymentRecords.$inferInsert;
+export type ApplicantAccessGrant = typeof applicantAccessGrants.$inferSelect;
+export type NewApplicantAccessGrant = typeof applicantAccessGrants.$inferInsert;
+export type ApplicantAccessGrantEvent = typeof applicantAccessGrantEvents.$inferSelect;
+export type NewApplicantAccessGrantEvent = typeof applicantAccessGrantEvents.$inferInsert;
+export type ApplicationSubmissionEntitlement = typeof applicationSubmissionEntitlements.$inferSelect;
+export type NewApplicationSubmissionEntitlement = typeof applicationSubmissionEntitlements.$inferInsert;
+export type ApplicationSubmissionEntitlementEvent =
+  typeof applicationSubmissionEntitlementEvents.$inferSelect;
+export type NewApplicationSubmissionEntitlementEvent =
+  typeof applicationSubmissionEntitlementEvents.$inferInsert;
+export type AdminMembership = typeof adminMemberships.$inferSelect;
+export type NewAdminMembership = typeof adminMemberships.$inferInsert;
+export type AdminMembershipEvent = typeof adminMembershipEvents.$inferSelect;
+export type NewAdminMembershipEvent = typeof adminMembershipEvents.$inferInsert;
+export type AdminRegistrationInvite = typeof adminRegistrationInvites.$inferSelect;
+export type NewAdminRegistrationInvite = typeof adminRegistrationInvites.$inferInsert;
+export type AdminRegistrationInviteEvent = typeof adminRegistrationInviteEvents.$inferSelect;
+export type NewAdminRegistrationInviteEvent = typeof adminRegistrationInviteEvents.$inferInsert;
 export type OfficialFeeQuote = typeof officialFeeQuotes.$inferSelect;
 export type NewOfficialFeeQuote = typeof officialFeeQuotes.$inferInsert;
 export type PaymentInstrument = typeof paymentInstruments.$inferSelect;

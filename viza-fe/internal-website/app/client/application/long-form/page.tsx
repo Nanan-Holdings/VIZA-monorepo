@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { startTransition, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1429,7 +1429,16 @@ async function insertSubmissionQueueJob(
     const payload = (await response.json().catch(() => null)) as {
       error?: unknown;
       code?: unknown;
+      checkoutUrl?: unknown;
     } | null;
+    if (
+      response.status === 402
+      && typeof payload?.checkoutUrl === "string"
+      && payload.checkoutUrl
+    ) {
+      window.location.assign(payload.checkoutUrl);
+      throw new Error("Redirecting to checkout.");
+    }
     const rawError = typeof payload?.error === "string"
       ? payload.error
       : `Submission queue creation failed with ${response.status}`;
@@ -1481,6 +1490,38 @@ async function insertSubmissionQueueJob(
   };
 }
 
+async function prepareSubmissionAccess(applicationId: string): Promise<boolean> {
+  const currentUrl = new URL(window.location.href);
+  currentUrl.searchParams.set("applicationId", applicationId);
+  currentUrl.searchParams.set("step", "review");
+  currentUrl.searchParams.delete("payment");
+  currentUrl.searchParams.delete("orderId");
+  const returnTo = `${currentUrl.pathname}${currentUrl.search}`;
+  const response = await fetch(`/api/applications/${applicationId}/submission-access`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ returnTo }),
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    error?: unknown;
+    checkoutUrl?: unknown;
+  } | null;
+  if (response.ok) return true;
+  if (
+    response.status === 402
+    && typeof payload?.checkoutUrl === "string"
+    && payload.checkoutUrl
+  ) {
+    window.location.assign(payload.checkoutUrl);
+    return false;
+  }
+  throw new Error(
+    typeof payload?.error === "string"
+      ? payload.error
+      : "Submission payment eligibility could not be confirmed.",
+  );
+}
+
 async function insertOfficialFeeSubmissionQueueJobWithCard(
   applicationId: string,
   _card: VietnamOneTimePaymentCard | undefined,
@@ -1502,7 +1543,9 @@ async function insertOfficialFeeSubmissionQueueJobWithCard(
   if (!response.ok) {
     if (
       (payload?.code === "official_fee_funding_required" ||
-        payload?.errorCode === "official_fee_funding_required") &&
+        payload?.errorCode === "official_fee_funding_required" ||
+        payload?.code === "application_payment_required" ||
+        payload?.errorCode === "application_payment_required") &&
       typeof payload.checkoutUrl === "string"
     ) {
       window.location.assign(payload.checkoutUrl);
@@ -1713,6 +1756,7 @@ export default function ApplicationPage() {
   const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
   const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
   const returnToParam = searchParams.get("returnTo")?.trim() || null;
+  const paymentConfirmed = searchParams.get("payment") === "confirmed";
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
   const teamNotice = searchParams.get("teamNotice");
   const explicitCountry =
@@ -4387,8 +4431,27 @@ export default function ApplicationPage() {
       return;
     }
 
-    setSubmitCheckState("idle");
-    await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
+    if (!appState.applicationId) {
+      setSubmitCheckState("invalid");
+      setError("Application must be saved before submission.");
+      return;
+    }
+    try {
+      const ready = await prepareSubmissionAccess(appState.applicationId);
+      if (!ready) {
+        setSubmitCheckState("idle");
+        return;
+      }
+      setSubmitCheckState("idle");
+      await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
+    } catch (submitAccessError) {
+      setSubmitCheckState("invalid");
+      setError(
+        submitAccessError instanceof Error
+          ? submitAccessError.message
+          : "Submission payment eligibility could not be confirmed.",
+      );
+    }
   };
 
   const activeCountry = resolvedCountry;
@@ -4751,6 +4814,18 @@ export default function ApplicationPage() {
               {pageTitle}
             </h1>
           </header>
+
+          {paymentConfirmed && jumpToReview ? (
+            <Alert variant="info" className="mb-5">
+              <AlertIcon variant="info" />
+              <AlertTitle>{isZhInterface ? "付款已确认" : "Payment confirmed"}</AlertTitle>
+              <AlertDescription>
+                {isZhInterface
+                  ? "费用已到账。请复核申请内容，并再次明确点击提交；系统不会自动向官网提交。"
+                  : "Your payment is confirmed. Review the application and explicitly submit again; VIZA will not file it automatically."}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           {showFormFillingAssistant ? (
             <div ref={formAssistantRef} className="scroll-mt-4">

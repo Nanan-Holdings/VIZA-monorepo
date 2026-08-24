@@ -17,6 +17,10 @@ This module holds shared payment-domain helpers used by client and API routes.
   Stripe Checkout Alipay/WeChat Pay method selection.
 - `official-fee-catalog.ts`: typed country/visa classification for VIZA-managed
   virtual-card payments and explicit offline/free exceptions.
+- `submission-access.ts`: application-scoped final-submission evaluator. It
+  locks valid high-access waivers, reconciles legacy order/payment evidence,
+  validates official-fee allocations, and returns the stable
+  `SubmissionAccessDecision` used by every server-side submission boundary.
 
 ## Guardrails
 
@@ -26,3 +30,8 @@ This module holds shared payment-domain helpers used by client and API routes.
   any `portal_direct` value is legacy data, not an instruction for applicants
   to enter their own card.
 - Do not import client components from this module.
+- Never accept payment evidence from a different application. A ready decision
+  requires the exact application entitlement plus matching amount/currency for
+  managed official-fee allocations.
+- Payment confirmation prepares the entitlement but never enqueues an official
+  submission. The applicant must return to Review and explicitly submit again.

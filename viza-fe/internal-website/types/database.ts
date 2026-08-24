@@ -14,6 +14,534 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_memberships: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          granted_at: string
+          granted_by_admin_id: string | null
+          id: string
+          metadata: Json
+          revoked_at: string | null
+          revoked_by_admin_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          granted_at?: string
+          granted_by_admin_id?: string | null
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          granted_at?: string
+          granted_by_admin_id?: string | null
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_membership_events: {
+        Row: {
+          actor_admin_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          membership_id: string
+          metadata: Json
+          reason: string | null
+        }
+        Insert: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          membership_id: string
+          metadata?: Json
+          reason?: string | null
+        }
+        Update: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          membership_id?: string
+          metadata?: Json
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      admin_registration_invites: {
+        Row: {
+          accepted_at: string | null
+          claimed_at: string | null
+          claimed_email: string | null
+          claimed_user_id: string | null
+          created_at: string
+          created_by_admin_id: string
+          expires_at: string
+          id: string
+          metadata: Json
+          revoked_at: string | null
+          revoked_by_admin_id: string | null
+          status: string
+          token_digest: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          claimed_at?: string | null
+          claimed_email?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          created_by_admin_id: string
+          expires_at: string
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          status?: string
+          token_digest: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          claimed_at?: string | null
+          claimed_email?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          created_by_admin_id?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          status?: string
+          token_digest?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_registration_invite_events: {
+        Row: {
+          actor_admin_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          invite_id: string
+          metadata: Json
+        }
+        Insert: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          invite_id: string
+          metadata?: Json
+        }
+        Update: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          invite_id?: string
+          metadata?: Json
+        }
+        Relationships: []
+      }
+      applicant_access_grants: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          expires_at: string | null
+          granted_by_admin_id: string
+          id: string
+          metadata: Json
+          reason: string
+          revoked_at: string | null
+          revoked_by_admin_id: string | null
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          expires_at?: string | null
+          granted_by_admin_id: string
+          id?: string
+          metadata?: Json
+          reason: string
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          expires_at?: string | null
+          granted_by_admin_id?: string
+          id?: string
+          metadata?: Json
+          reason?: string
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      applicant_access_grant_events: {
+        Row: {
+          actor_admin_id: string | null
+          created_at: string
+          event_type: string
+          grant_id: string
+          id: string
+          metadata: Json
+          reason: string | null
+        }
+        Insert: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type: string
+          grant_id: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+        }
+        Update: {
+          actor_admin_id?: string | null
+          created_at?: string
+          event_type?: string
+          grant_id?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      application_submission_entitlements: {
+        Row: {
+          access_grant_id: string | null
+          access_level: string
+          agency_fee_amount_cents: number
+          agency_fee_status: string
+          application_id: string
+          created_at: string
+          currency: string
+          decision_reason: string
+          decision_status: string
+          government_fee_allocation_id: string | null
+          grant_locked_at: string | null
+          locked_at: string | null
+          metadata: Json
+          official_fee_amount_cents: number
+          official_fee_status: string
+          order_id: string | null
+          payer_auth_user_id: string
+          payment_record_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_grant_id?: string | null
+          access_level?: string
+          agency_fee_amount_cents?: number
+          agency_fee_status?: string
+          application_id: string
+          created_at?: string
+          currency?: string
+          decision_reason?: string
+          decision_status?: string
+          government_fee_allocation_id?: string | null
+          grant_locked_at?: string | null
+          locked_at?: string | null
+          metadata?: Json
+          official_fee_amount_cents?: number
+          official_fee_status?: string
+          order_id?: string | null
+          payer_auth_user_id: string
+          payment_record_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_grant_id?: string | null
+          access_level?: string
+          agency_fee_amount_cents?: number
+          agency_fee_status?: string
+          application_id?: string
+          created_at?: string
+          currency?: string
+          decision_reason?: string
+          decision_status?: string
+          government_fee_allocation_id?: string | null
+          grant_locked_at?: string | null
+          locked_at?: string | null
+          metadata?: Json
+          official_fee_amount_cents?: number
+          official_fee_status?: string
+          order_id?: string | null
+          payer_auth_user_id?: string
+          payment_record_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      application_submission_entitlement_events: {
+        Row: {
+          actor_auth_user_id: string | null
+          application_id: string
+          created_at: string
+          decision_status: string | null
+          event_type: string
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          actor_auth_user_id?: string | null
+          application_id: string
+          created_at?: string
+          decision_status?: string | null
+          event_type: string
+          id?: string
+          snapshot?: Json
+        }
+        Update: {
+          actor_auth_user_id?: string | null
+          application_id?: string
+          created_at?: string
+          decision_status?: string | null
+          event_type?: string
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
+      payment_records: {
+        Row: {
+          amount_cents: number
+          applicant_id: string | null
+          application_id: string | null
+          auth_user_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          failed_at: string | null
+          fee_type: string
+          id: string
+          idempotency_key: string | null
+          metadata: Json | null
+          order_id: string | null
+          paid_at: string | null
+          provider: string
+          provider_customer_id: string | null
+          provider_event_id: string | null
+          provider_payment_id: string | null
+          provider_session_id: string | null
+          receipt_url: string | null
+          status: string
+          updated_at: string
+          visa_package_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          applicant_id?: string | null
+          application_id?: string | null
+          auth_user_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          failed_at?: string | null
+          fee_type?: string
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          paid_at?: string | null
+          provider?: string
+          provider_customer_id?: string | null
+          provider_event_id?: string | null
+          provider_payment_id?: string | null
+          provider_session_id?: string | null
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+          visa_package_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          applicant_id?: string | null
+          application_id?: string | null
+          auth_user_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          failed_at?: string | null
+          fee_type?: string
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          paid_at?: string | null
+          provider?: string
+          provider_customer_id?: string | null
+          provider_event_id?: string | null
+          provider_payment_id?: string | null
+          provider_session_id?: string | null
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+          visa_package_id?: string | null
+        }
+        Relationships: []
+      }
+      government_fee_allocations: {
+        Row: {
+          amount_cents: number
+          application_id: string
+          consumed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          metadata_redacted: Json
+          order_id: string
+          order_line_id: string | null
+          released_at: string | null
+          reserved_at: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          application_id: string
+          consumed_at?: string | null
+          created_at?: string
+          currency: string
+          id?: string
+          metadata_redacted?: Json
+          order_id: string
+          order_line_id?: string | null
+          released_at?: string | null
+          reserved_at?: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          application_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata_redacted?: Json
+          order_id?: string
+          order_line_id?: string | null
+          released_at?: string | null
+          reserved_at?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      order: {
+        Row: {
+          agency_fee_cents: number
+          applicant_id: string
+          application_id: string
+          created_at: string
+          govt_fee_cents: number
+          id: string
+          metadata: Json | null
+          paid_at: string | null
+          refunded_at: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          currency: string
+        }
+        Insert: {
+          agency_fee_cents?: number
+          applicant_id: string
+          application_id: string
+          created_at?: string
+          govt_fee_cents?: number
+          id?: string
+          metadata?: Json | null
+          paid_at?: string | null
+          refunded_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          currency?: string
+        }
+        Update: {
+          agency_fee_cents?: number
+          applicant_id?: string
+          application_id?: string
+          created_at?: string
+          govt_fee_cents?: number
+          id?: string
+          metadata?: Json | null
+          paid_at?: string | null
+          refunded_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          currency?: string
+        }
+        Relationships: []
+      }
+      order_line: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          kind: string
+          metadata: Json | null
+          order_id: string
+          payee: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          kind: string
+          metadata?: Json | null
+          order_id: string
+          payee: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json | null
+          order_id?: string
+          payee?: string
+        }
+        Relationships: []
+      }
       action_plans: {
         Row: {
           created_at: string | null
@@ -4456,6 +4984,18 @@ export type Database = {
       }
     }
     Functions: {
+      accept_admin_registration_invite: {
+        Args: {
+          p_email: string
+          p_name?: string | null
+          p_token_digest: string
+          p_user_id: string
+        }
+        Returns: {
+          invite_id: string
+          membership_id: string
+        }[]
+      }
       advance_protocol_step: {
         Args: { p_event?: string; p_user_id: string }
         Returns: boolean
@@ -4464,7 +5004,70 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      claim_admin_registration_invite: {
+        Args: {
+          p_claimed_email: string
+          p_claimed_user_id?: string | null
+          p_token_digest: string
+        }
+        Returns: Database["public"]["Tables"]["admin_registration_invites"]["Row"]
+      }
+      confirm_submission_order_payment: {
+        Args: {
+          p_order_id: string
+          p_paid_at?: string
+          p_provider?: string
+          p_provider_payment_id: string
+          p_provider_session_id: string
+          p_tax_amount_cents?: number | null
+          p_tax_country?: string | null
+          p_tax_rate_basis_points?: number | null
+        }
+        Returns: {
+          application_id: string
+          entitlement_ready: boolean
+          order_id: string
+          payment_record_id: string | null
+        }[]
+      }
+      create_admin_registration_invite: {
+        Args: {
+          p_admin_id: string
+          p_metadata?: Json
+          p_token_digest: string
+        }
+        Returns: Database["public"]["Tables"]["admin_registration_invites"]["Row"]
+      }
       create_pending_checkins: { Args: never; Returns: number }
+      ensure_submission_checkout_order: {
+        Args: {
+          p_application_id: string
+          p_checkout_claim_token?: string
+          p_payer_auth_user_id: string
+          p_return_to?: string | null
+        }
+        Returns: {
+          checkout_claimed: boolean
+          order_created: boolean
+          order_id: string
+          stripe_checkout_session_id: string | null
+        }[]
+      }
+      expire_admin_registration_invites: { Args: never; Returns: number }
+      expire_applicant_access_grants: {
+        Args: { p_auth_user_id?: string | null }
+        Returns: number
+      }
+      grant_applicant_high_access: {
+        Args: {
+          p_admin_id: string
+          p_auth_user_id: string
+          p_expires_at?: string | null
+          p_metadata?: Json
+          p_reason?: string
+        }
+        Returns: Database["public"]["Tables"]["applicant_access_grants"]["Row"]
+      }
       get_active_goals: {
         Args: { p_user_id: string }
         Returns: {
@@ -4557,6 +5160,22 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      revoke_admin_registration_invite: {
+        Args: {
+          p_admin_id: string
+          p_invite_id: string
+          p_reason?: string
+        }
+        Returns: Database["public"]["Tables"]["admin_registration_invites"]["Row"]
+      }
+      revoke_applicant_high_access: {
+        Args: {
+          p_admin_id: string
+          p_grant_id: string
+          p_reason?: string
+        }
+        Returns: Database["public"]["Tables"]["applicant_access_grants"]["Row"]
+      }
       search_med_knowledge: {
         Args: {
           filter_document?: string

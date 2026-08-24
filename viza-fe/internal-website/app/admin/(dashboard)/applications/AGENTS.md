@@ -14,7 +14,8 @@ application workflow.
 - Render `/admin/applications` as a user-card monitoring queue.
 - Render `/admin/applications/[id]` as a user overview with related applications.
 - Show applicant profile, package, payment, consent, signatures, documents,
-  packet status, external status, result delivery, and event timeline.
+  packet status, external status, result delivery, submission-entitlement
+  eligibility/evidence, and event timeline.
 - Provide customer-service context for chat/support escalation.
 - Allow admin-safe state corrections only when explicitly scoped and audited.
 - Exclude `VIZA_PLACEHOLDER_DRY_RUN` schema-QA records from the normal staff
@@ -49,6 +50,7 @@ application workflow.
 - `application_packets`
 - `application_events`
 - `notification_events`
+- `application_submission_entitlements`
 
 ## Guardrails
 

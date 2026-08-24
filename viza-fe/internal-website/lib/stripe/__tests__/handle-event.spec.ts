@@ -20,17 +20,34 @@ interface UpdateCall {
   where: Array<[string, unknown]>;
 }
 
+interface RpcCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
 function fakeAdmin(): {
   client: {
     from: (table: string) => unknown;
+    rpc: (
+      name: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
   updates: UpdateCall[];
+  rpcCalls: RpcCall[];
   selectStubs: Map<string, unknown>;
+  setRpcError: (message: string | null) => void;
 } {
   const updates: UpdateCall[] = [];
+  const rpcCalls: RpcCall[] = [];
   const selectStubs = new Map<string, unknown>();
+  let rpcError: { message: string } | null = null;
 
   const client = {
+    rpc(name: string, args: Record<string, unknown>) {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: null, error: rpcError });
+    },
     from(table: string) {
       let where: Array<[string, unknown]> = [];
       const builder: Record<string, unknown> = {
@@ -63,11 +80,19 @@ function fakeAdmin(): {
     },
   };
 
-  return { client, updates, selectStubs };
+  return {
+    client,
+    updates,
+    rpcCalls,
+    selectStubs,
+    setRpcError(message) {
+      rpcError = message ? { message } : null;
+    },
+  };
 }
 
-test("checkout.session.completed marks order paid", async () => {
-  const { client, updates } = fakeAdmin();
+test("checkout.session.completed confirms order, entitlement and allocation atomically", async () => {
+  const { client, updates, rpcCalls } = fakeAdmin();
   const result = await applyStripeEvent(client as never, {
     id: "evt_test_1",
     type: "checkout.session.completed",
@@ -82,11 +107,12 @@ test("checkout.session.completed marks order paid", async () => {
     },
   });
   assert.deepEqual(result, { kind: "paid", orderId: "ord_123" });
-  assert.equal(updates.length, 1);
-  assert.equal(updates[0].table, "order");
-  assert.equal(updates[0].patch.status, "paid");
-  assert.equal(updates[0].patch.stripe_payment_intent_id, "pi_test_xyz");
-  assert.deepEqual(updates[0].where, [["id", "ord_123"]]);
+  assert.equal(updates.length, 0);
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls[0].name, "confirm_submission_order_payment");
+  assert.equal(rpcCalls[0].args.p_order_id, "ord_123");
+  assert.equal(rpcCalls[0].args.p_provider_payment_id, "pi_test_xyz");
+  assert.equal(rpcCalls[0].args.p_provider, "stripe");
 });
 
 test("checkout.session.completed without payment_status=paid is ignored", async () => {
@@ -104,6 +130,28 @@ test("checkout.session.completed without payment_status=paid is ignored", async 
   });
   assert.equal(result.kind, "ignored");
   assert.equal(updates.length, 0);
+});
+
+test("checkout.session.completed fails closed when atomic confirmation fails", async () => {
+  const { client, setRpcError } = fakeAdmin();
+  setRpcError("allocation amount mismatch");
+
+  await assert.rejects(
+    applyStripeEvent(client as never, {
+      id: "evt_test_rpc_failure",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_failure",
+          payment_status: "paid",
+          payment_intent: "pi_test_failure",
+          amount_total: 9900,
+          metadata: { order_id: "ord_failure" },
+        },
+      },
+    }),
+    /atomic order payment confirmation: allocation amount mismatch/,
+  );
 });
 
 test("a delayed paid event does not revive a refunded order", async () => {
@@ -124,6 +172,30 @@ test("a delayed paid event does not revive a refunded order", async () => {
   assert.deepEqual(result, { kind: "ignored", type: "checkout.session.completed" });
   assert.equal(updates.length, 0);
 });
+
+for (const terminalStatus of ["partially_refunded", "disputed", "chargeback"] as const) {
+  test(`a delayed paid event does not revive a ${terminalStatus} order`, async () => {
+    const { client, updates, selectStubs, rpcCalls } = fakeAdmin();
+    selectStubs.set("order|id=ord_123", { status: terminalStatus });
+
+    const result = await applyStripeEvent(client as never, {
+      id: `evt_delayed_${terminalStatus}`,
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_abc",
+          payment_status: "paid",
+          payment_intent: "pi_test_xyz",
+          metadata: { order_id: "ord_123" },
+        },
+      },
+    });
+
+    assert.deepEqual(result, { kind: "ignored", type: "checkout.session.completed" });
+    assert.equal(updates.length, 0);
+    assert.equal(rpcCalls.length, 0);
+  });
+}
 
 test("charge.refunded marks order refunded", async () => {
   const { client, updates, selectStubs } = fakeAdmin();

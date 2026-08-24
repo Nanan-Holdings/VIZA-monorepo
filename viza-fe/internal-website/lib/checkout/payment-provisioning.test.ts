@@ -43,7 +43,6 @@ function fakeRunner(params: {
   const state = { ...(params.initialJob ?? job()) };
   let inboxFailures = params.failInboxOnce ? 1 : 0;
   let runnerMarkFailures = params.failRunnerMarkOnce ? 1 : 0;
-  let runnerCalls = 0;
   const runner: ProvisioningStepRunner = {
     loadAccount: async () => account,
     ensureAccount: async () => account,
@@ -54,18 +53,15 @@ function fakeRunner(params: {
         throw new Error("temporary inbox outage");
       }
     },
-    enqueueRunner: async () => {
-      runnerCalls += 1;
-    },
     markStep: async (patch) => {
       if (runnerMarkFailures > 0 && patch.runner_status === "completed") {
         runnerMarkFailures -= 1;
-        throw new Error("worker restarted after runner enqueue");
+        throw new Error("worker restarted before final payment-state mark");
       }
       Object.assign(state, patch);
     },
   };
-  return { runner, state, getRunnerCalls: () => runnerCalls };
+  return { runner, state };
 }
 
 describe("payment provisioning state machine", () => {
@@ -172,7 +168,7 @@ describe("payment provisioning state machine", () => {
     expect(second.state.runner_status).toBe("completed");
   });
 
-  it("recovers a runner enqueue after a worker restart", async () => {
+  it("never enqueues an official submission during payment provisioning", async () => {
     const first = fakeRunner({ failRunnerMarkOnce: true });
     await expect(executePaymentProvisioningSteps(job({
       user_status: "completed",
@@ -180,7 +176,6 @@ describe("payment provisioning state machine", () => {
       application_status: "completed",
       inbox_status: "completed",
     }), first.runner)).rejects.toThrow("worker restarted");
-    expect(first.getRunnerCalls()).toBe(1);
 
     const second = fakeRunner({
       initialJob: {

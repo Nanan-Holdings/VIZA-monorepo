@@ -21,6 +21,10 @@ import {
   officialTravelLookupMatches,
   type KrEArrivalPortalPayload,
 } from "./normalize.js";
+import {
+  extractOfficialIssueNumberFromText,
+  normalizeOfficialIssueNumber,
+} from "./confirmation.js";
 
 export interface KrEArrivalPortalSubmissionResult {
   submitted: boolean;
@@ -901,7 +905,7 @@ async function acknowledgeOfficialTravelLookupPrompt(
   logs: string[],
   executionContext?: RunnerExecutionContext,
   waitForPromptMs = 0,
-): Promise<void> {
+): Promise<boolean> {
   const travelPromptPattern = /(?:flight|ship|airport|port|not found|unknown|unable|조회|항공|선박|공항|항구|없)/iu;
   // The current individual-declaration page renders alerts in the static
   // `#popupAlert` wrapper with a `<span id="confirm">` action. Older portal
@@ -950,7 +954,7 @@ async function acknowledgeOfficialTravelLookupPrompt(
     }
     if (!handledThisPass) break;
   }
-  if (!acknowledged) return;
+  if (!acknowledged) return false;
 
   const remainingDialogs = page.locator(dialogSelector);
   const remainingCount = await remainingDialogs.count().catch(() => 0);
@@ -971,6 +975,7 @@ async function acknowledgeOfficialTravelLookupPrompt(
     );
   }
   logs.push(`kr_eac_${label}_lookup_prompt_acknowledged`);
+  return true;
 }
 
 async function lookupOfficialTravelLocation(
@@ -1016,8 +1021,26 @@ async function lookupOfficialTravelLocation(
   const citySelector = segment === "E"
     ? [`${scope} .ent_str_apt`]
     : [`${scope} .dep_str_apt`];
-  const observedCountry = await readOfficialTravelLookupValue(page, countrySelector);
-  const observedCity = await readOfficialTravelLookupValue(page, citySelector);
+  // The portal renders its unknown-flight confirmation asynchronously. A
+  // fixed short sleep can miss the modal and leave it covering the departure
+  // controls. Observe either committed lookup values or the official prompt
+  // before continuing to the next section.
+  const lookupDeadline = Date.now() + 8_000;
+  let observedCountry = "";
+  let observedCity = "";
+  let promptAcknowledged = false;
+  while (Date.now() < lookupDeadline) {
+    promptAcknowledged = await acknowledgeOfficialTravelLookupPrompt(
+      page,
+      label,
+      logs,
+      executionContext,
+    ) || promptAcknowledged;
+    observedCountry = await readOfficialTravelLookupValue(page, countrySelector);
+    observedCity = await readOfficialTravelLookupValue(page, citySelector);
+    if (promptAcknowledged || observedCountry || observedCity) break;
+    await page.waitForTimeout(250);
+  }
   const lookupState = classifyOfficialTravelLookup(
     expectedCountry,
     expectedCity,
@@ -1412,6 +1435,76 @@ function extractSixDigitCode(message: Pick<InboundMessage, "subject" | "text" | 
   return /(?<![\w-])\d{6}(?![\w-])/u.exec([message.subject ?? "", message.text ?? "", visibleHtml].join("\n"))?.[0] ?? null;
 }
 
+export const KR_EARRIVAL_CAPTCHA_TASK_OPTIONS = {
+  case: false,
+  numeric: 1,
+  minLength: 6,
+  maxLength: 6,
+  comment: "Korea e-Arrival Card verification code. Enter exactly all six digits, including any leading zero.",
+} as const;
+
+function normalizeKrEArrivalCaptchaAnswer(value: string): string | null {
+  const normalized = value.replace(/\s+/gu, "").trim();
+  return /^\d{6}$/u.test(normalized) ? normalized : null;
+}
+
+async function waitForCaptchaDecision(
+  page: Page,
+  timeoutMs = 8_000,
+): Promise<"accepted" | "rejected" | "pending"> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await page.locator("#captchaResult").first().inputValue().catch(() => "");
+    if (result === "Y") return "accepted";
+    if (result && result !== "Y") return "rejected";
+
+    const currentDialog = await findVisibleVerificationCodeDialog(page);
+    const currentImage = await findVisibleVerificationCaptchaImage(page);
+    const currentInput = await findVisible(page, [
+      "input[name*='captcha' i]",
+      "#captchaInput",
+      ".captcha input:not([type='hidden'])",
+    ]);
+    if (!currentImage && !currentInput && !currentDialog) return "accepted";
+    await page.waitForTimeout(250);
+  }
+  return "pending";
+}
+
+async function refreshVisibleCaptcha(
+  page: Page,
+  previousImage: Buffer,
+  executionContext?: RunnerExecutionContext,
+): Promise<boolean> {
+  const refresh = await findVisible(page, [
+    "#captchaReload",
+    "#btnCaptchaReload",
+    "button[title*='refresh' i]",
+    "button[aria-label*='refresh' i]",
+    "[role='dialog'] button:has(img[alt*='refresh' i])",
+    "[role='dialog'] button:has([class*='refresh' i])",
+    ".popBox button:has(img[alt*='refresh' i])",
+    ".popBox button:has([class*='refresh' i])",
+    "[class*='captcha' i] .btn_refresh",
+    "[class*='captcha' i] .captcha_refresh",
+  ]);
+  if (refresh) {
+    executionContext?.assertOwned();
+    await refresh.click({ timeout: 15_000 }).catch(() => undefined);
+  }
+
+  const deadline = Date.now() + 6_000;
+  while (Date.now() < deadline) {
+    const image = await findVisibleVerificationCaptchaImage(page);
+    if (image) {
+      const currentImage = await image.screenshot().catch(() => null);
+      if (currentImage && !currentImage.equals(previousImage)) return true;
+    }
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+
 async function handleEmailVerification(
   page: Page,
   applicantId: string | undefined,
@@ -1487,29 +1580,72 @@ async function findVisibleVerificationCodeDialog(page: Page): Promise<Locator | 
   return null;
 }
 
-async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?: RunnerExecutionContext): Promise<boolean> {
+async function findVisibleVerificationCaptchaImage(page: Page): Promise<Locator | null> {
   const captchaDialog = await findVisibleVerificationCodeDialog(page);
+  const image = await findVisible(page, [
+    "img[src*='captcha' i]",
+    ".captcha img",
+    "[class*='captcha' i] img",
+  ]);
+  if (image || !captchaDialog) return image;
 
-  let image = await findVisible(page, ["img[src*='captcha' i]", ".captcha img", "[class*='captcha' i] img"]);
-  if (!image && captchaDialog) {
-    const visualCandidates = captchaDialog.locator("img, canvas");
-    const visualCount = await visualCandidates.count().catch(() => 0);
-    for (let index = 0; index < visualCount; index += 1) {
-      const candidate = visualCandidates.nth(index);
-      const bounds = await candidate.boundingBox().catch(() => null);
-      if (bounds && bounds.width >= 60 && bounds.height >= 20 && await candidate.isVisible().catch(() => false)) {
-        image = candidate;
-        break;
-      }
+  const visualCandidates = captchaDialog.locator("img, canvas");
+  const visualCount = await visualCandidates.count().catch(() => 0);
+  for (let index = 0; index < visualCount; index += 1) {
+    const candidate = visualCandidates.nth(index);
+    const bounds = await candidate.boundingBox().catch(() => null);
+    if (bounds && bounds.width >= 60 && bounds.height >= 20 && await candidate.isVisible().catch(() => false)) {
+      return candidate;
     }
   }
-  const recaptchaFrame = await findVisible(page, ["iframe[src*='recaptcha' i]", "iframe[src*='turnstile' i]"]);
-  if (!image && !recaptchaFrame && !captchaDialog) return false;
-  if (!image && !recaptchaFrame && captchaDialog) {
-    throw new KrEArrivalPortalError("Official Korea e-Arrival Card verification-code CAPTCHA image was not observable.", {
-      code: "kr_eac_captcha_selector_drift",
-      blocked: true,
-    });
+  return null;
+}
+
+async function findVerificationCaptchaContainer(
+  image: Locator,
+  captchaDialog: Locator | null,
+): Promise<Locator | null> {
+  if (captchaDialog) return captchaDialog;
+
+  // The current official portal does not give the verification-code input a
+  // CAPTCHA-specific id/name. Anchor the fallback to the CAPTCHA image and
+  // walk to the nearest ancestor that actually owns an editable control. This
+  // keeps the search inside the verification popup instead of accidentally
+  // selecting one of the application form fields underneath the modal.
+  const container = image.locator(
+    "xpath=ancestor::*[descendant::input[not(@type='hidden') and not(@type='button') and not(@type='submit')] or descendant::textarea or descendant::*[@contenteditable='true']][1]",
+  );
+  if (await container.count().catch(() => 0) < 1) return null;
+  return await container.isVisible().catch(() => false) ? container : null;
+}
+
+async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?: RunnerExecutionContext): Promise<boolean> {
+  let captchaDialog: Locator | null = null;
+  let image: Locator | null = null;
+  let recaptchaFrame: Locator | null = null;
+  const checkpointDeadline = Date.now() + 20_000;
+  while (Date.now() < checkpointDeadline) {
+    captchaDialog = await findVisibleVerificationCodeDialog(page);
+    image = await findVisibleVerificationCaptchaImage(page);
+    recaptchaFrame = await findVisible(page, ["iframe[src*='recaptcha' i]", "iframe[src*='turnstile' i]"]);
+    if (image || recaptchaFrame) break;
+
+    const body = await page.locator("body").innerText().catch(() => "");
+    if (extractOfficialIssueNumberFromText(body)) {
+      logs.push("kr_eac_confirmation_arrived_before_captcha");
+      return false;
+    }
+    await page.waitForTimeout(250);
+  }
+  if (!image && !recaptchaFrame) {
+    if (captchaDialog) {
+      throw new KrEArrivalPortalError("Official Korea e-Arrival Card verification-code CAPTCHA image was not observable.", {
+        code: "kr_eac_captcha_selector_drift",
+        blocked: true,
+      });
+    }
+    logs.push("kr_eac_captcha_checkpoint_timeout");
+    return false;
   }
   if (recaptchaFrame) {
     const frameSrc = await recaptchaFrame.getAttribute("src").catch(() => "");
@@ -1530,42 +1666,114 @@ async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?
     return true;
   }
 
-  const screenshot = await image!.screenshot();
-  executionContext?.assertOwned();
-  const solved = await solveImageCaptcha(screenshot, Number.parseInt(process.env.KR_EAC_CAPTCHA_TIMEOUT_MS ?? "120000", 10), { case: true });
-  let input = await findVisible(page, ["input[name*='captcha' i]", "#captchaInput", ".captcha input:not([type='hidden'])"]);
-  if (!input && captchaDialog) {
-    const inputs = captchaDialog.locator("input:not([type='hidden']):not([type='button']):not([type='submit'])");
-    const inputCount = await inputs.count().catch(() => 0);
-    for (let index = 0; index < inputCount; index += 1) {
-      const candidate = inputs.nth(index);
-      if (await candidate.isVisible().catch(() => false) && await candidate.isEditable().catch(() => false)) {
-        input = candidate;
-        break;
+  const configuredTimeout = Number.parseInt(process.env.KR_EAC_CAPTCHA_TIMEOUT_MS ?? "150000", 10);
+  const timeoutMs = Number.isFinite(configuredTimeout) ? Math.max(30_000, configuredTimeout) : 150_000;
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    captchaDialog = await findVisibleVerificationCodeDialog(page);
+    image = await findVisibleVerificationCaptchaImage(page);
+    if (!image) {
+      logs.push(`kr_eac_captcha_dialog_closed attempt=${attempt}`);
+      return true;
+    }
+    const screenshot = await image.screenshot();
+    executionContext?.assertOwned();
+
+    let solved: Awaited<ReturnType<typeof solveImageCaptcha>>;
+    try {
+      solved = await solveImageCaptcha(screenshot, timeoutMs, KR_EARRIVAL_CAPTCHA_TASK_OPTIONS);
+    } catch (error) {
+      const errorCode = error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : "";
+      const retryableSolverFailure = !/(?:CONFIG|ZERO_BALANCE)/iu.test(errorCode);
+      logs.push(`kr_eac_captcha_solver_failed attempt=${attempt} code=${safeSummary(errorCode || "unknown")}`);
+      if (attempt < maxAttempts && retryableSolverFailure) {
+        await page.waitForTimeout(750);
+        continue;
+      }
+      throw error;
+    }
+
+    const answer = normalizeKrEArrivalCaptchaAnswer(solved.text);
+    if (!answer) {
+      executionContext?.assertOwned();
+      await reportBadCaptcha(solved.solveId).catch(() => undefined);
+      logs.push(`kr_eac_captcha_invalid_format attempt=${attempt}`);
+      if (attempt < maxAttempts && await refreshVisibleCaptcha(page, screenshot, executionContext)) continue;
+      throw new KrEArrivalPortalError(
+        "Korea e-Arrival Card CAPTCHA solver did not return exactly six digits.",
+        { code: "kr_eac_captcha_invalid_format", retryable: true },
+      );
+    }
+
+    const captchaContainer = await findVerificationCaptchaContainer(image, captchaDialog);
+    let input = await findVisible(page, ["input[name*='captcha' i]", "#captchaInput", ".captcha input:not([type='hidden'])"]);
+    if (!input && captchaDialog) {
+      const inputs = captchaDialog.locator("input:not([type='hidden']):not([type='button']):not([type='submit'])");
+      const inputCount = await inputs.count().catch(() => 0);
+      for (let index = 0; index < inputCount; index += 1) {
+        const candidate = inputs.nth(index);
+        if (await candidate.isVisible().catch(() => false) && await candidate.isEditable().catch(() => false)) {
+          input = candidate;
+          break;
+        }
       }
     }
-  }
-  if (!input) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA input was not observable.", { code: "kr_eac_captcha_selector_drift" });
-  await input.fill(solved.text);
-  let verify = await findVisible(page, ["#captchaConfirm", ".captcha button", "[role='dialog'] button"]);
-  if (!verify && captchaDialog) {
-    // The official verification popup currently renders its actions as
-    // text-backed non-button elements. Match their observable label inside the
-    // CAPTCHA dialog instead of assuming the review popup's `#confirm` markup.
-    const actions = captchaDialog.locator(
-      "button, a, span, [onclick], #confirm, .pop-btn2, input[type='button'], input[type='submit'], [role='button']",
-    );
-    const actionCount = await actions.count().catch(() => 0);
-    for (let index = 0; index < actionCount; index += 1) {
-      const candidate = actions.nth(index);
-      const textLabel = await candidate.innerText().catch(() => "");
-      const valueLabel = await candidate.getAttribute("value").catch(() => null) ?? "";
-      if (/^(?:confirm|verify|ok|확인|인증)$/iu.test(`${textLabel} ${valueLabel}`.trim()) && await candidate.isVisible().catch(() => false)) {
-        verify = candidate;
-        break;
+    if (!input && captchaContainer) {
+      const inputs = captchaContainer.locator(
+        "input:not([type='hidden']):not([type='button']):not([type='submit']), textarea, [contenteditable='true']",
+      );
+      const inputCount = await inputs.count().catch(() => 0);
+      for (let index = 0; index < inputCount; index += 1) {
+        const candidate = inputs.nth(index);
+        if (await candidate.isVisible().catch(() => false) && await candidate.isEditable().catch(() => false)) {
+          input = candidate;
+          break;
+        }
       }
     }
-    if (!verify) {
+    if (!input) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA input was not observable.", { code: "kr_eac_captcha_selector_drift" });
+    await input.fill(answer);
+    let verify = await findVisible(page, [
+      "#captchaConfirm",
+      "[role='dialog'] button:has-text('Confirm')",
+      "[role='dialog'] button:has-text('확인')",
+      ".popBox button:has-text('Confirm')",
+      ".popBox button:has-text('확인')",
+      "button:has-text('Confirm')",
+      "button:has-text('확인')",
+      "input[type='button'][value='Confirm']",
+      "input[type='button'][value='확인']",
+    ]);
+    if (!verify && captchaContainer) {
+      const actions = captchaContainer.locator(
+        "button, a, span, [onclick], #confirm, .pop-btn2, input[type='button'], input[type='submit'], [role='button']",
+      );
+      const actionCount = await actions.count().catch(() => 0);
+      for (let index = 0; index < actionCount; index += 1) {
+        const candidate = actions.nth(index);
+        const textLabel = await candidate.innerText().catch(() => "");
+        const valueLabel = await candidate.getAttribute("value").catch(() => null) ?? "";
+        if (/^(?:confirm|verify|ok|확인|인증)$/iu.test(`${textLabel} ${valueLabel}`.trim()) && await candidate.isVisible().catch(() => false)) {
+          verify = candidate;
+          break;
+        }
+      }
+      if (!verify) {
+        const exactTextActions = captchaContainer.getByText(/^(?:confirm|verify|ok|확인|인증)$/iu);
+        const exactTextActionCount = await exactTextActions.count().catch(() => 0);
+        for (let index = 0; index < exactTextActionCount; index += 1) {
+          const candidate = exactTextActions.nth(index);
+          if (await candidate.isVisible().catch(() => false)) {
+            verify = candidate;
+            break;
+          }
+        }
+      }
+    }
+    if (!verify && captchaDialog) {
       const exactTextActions = captchaDialog.getByText(/^(?:confirm|verify|ok|확인|인증)$/iu);
       const exactTextActionCount = await exactTextActions.count().catch(() => 0);
       for (let index = 0; index < exactTextActionCount; index += 1) {
@@ -1576,22 +1784,23 @@ async function solveVisibleCaptcha(page: Page, logs: string[], executionContext?
         }
       }
     }
-  }
-  if (!verify) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA confirmation control was not observable.", { code: "kr_eac_captcha_selector_drift" });
-  executionContext?.assertOwned();
-  await verify.click({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-  const result = await page.locator("#captchaResult").inputValue().catch(() => "");
-  const captchaStillVisible = captchaDialog
-    ? await captchaDialog.isVisible().catch(() => false)
-    : Boolean(await findVisible(page, ["img[src*='captcha' i]", ".captcha img"]));
-  if (result !== "Y" && captchaStillVisible) {
+    if (!verify) throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA confirmation control was not observable.", { code: "kr_eac_captcha_selector_drift" });
+    executionContext?.assertOwned();
+    await verify.click({ timeout: 15_000 });
+    const decision = await waitForCaptchaDecision(page);
+    if (decision === "accepted") {
+      logs.push(`kr_eac_captcha_solved attempt=${attempt}`);
+      return true;
+    }
+
     executionContext?.assertOwned();
     await reportBadCaptcha(solved.solveId).catch(() => undefined);
+    logs.push(`kr_eac_captcha_rejected attempt=${attempt} decision=${decision}`);
+    if (attempt < maxAttempts && await refreshVisibleCaptcha(page, screenshot, executionContext)) continue;
     throw new KrEArrivalPortalError("Official Korea e-Arrival Card rejected the CAPTCHA solution.", { code: "kr_eac_captcha_rejected", retryable: true });
   }
-  logs.push("kr_eac_captcha_solved");
-  return true;
+
+  throw new KrEArrivalPortalError("Official Korea e-Arrival Card CAPTCHA attempts were exhausted.", { code: "kr_eac_captcha_rejected", retryable: true });
 }
 
 async function confirmOfficialReview(page: Page, executionContext?: RunnerExecutionContext): Promise<void> {
@@ -1618,6 +1827,22 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
       break;
     }
   }
+  if (!button) {
+    const labelledButton = dialog.getByRole("button", { name: /^(?:confirm|ok|확인)$/iu }).first();
+    button = await labelledButton.isVisible().catch(() => false)
+      ? labelledButton
+      : await findVisible(page, [
+        ".popBox button:has-text('Confirm')",
+        ".popBox button:has-text('확인')",
+        ".popBox button:has-text('OK')",
+        ".popup button:has-text('Confirm')",
+        "[role='dialog'] button:has-text('Confirm')",
+        "input[type='button'][value='Confirm']",
+        "input[type='submit'][value='Confirm']",
+        "input[type='button'][value='OK']",
+        "input[type='button'][value='확인']",
+      ]);
+  }
   if (!button) throw new KrEArrivalPortalError("Official Korea e-Arrival Card review confirmation control was not observable.", { code: "kr_eac_review_selector_drift" });
   executionContext?.assertOwned();
   await button.click({ timeout: 15_000 });
@@ -1634,30 +1859,44 @@ async function confirmOfficialReview(page: Page, executionContext?: RunnerExecut
   }
 }
 
-function extractIssueNumber(pageText: string): string | null {
-  const patterns = [
-    /(?:issue|reference|confirmation)\s*(?:number|no\.?|id)?\s*[:#-]?\s*([A-Z0-9-]{6,})/iu,
-    /(?:발급번호|신고번호|접수번호)\s*[:#-]?\s*([A-Z0-9-]{6,})/u,
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(pageText);
-    if (match?.[1]) return match[1].trim();
-  }
-  return null;
-}
-
 async function extractIssueNumberAsync(pageText: string, page: Page): Promise<string | null> {
   for (const selector of ["input[name='eacIssNo']", "input[name='eacRepIssNo']", "#iss_no"]) {
     const candidate = await page.locator(selector).first().inputValue().catch(() => "");
-    if (candidate.trim()) return candidate.trim();
+    const issueNumber = normalizeOfficialIssueNumber(candidate);
+    if (issueNumber) return issueNumber;
   }
-  return extractIssueNumber(pageText);
+  return extractOfficialIssueNumberFromText(pageText);
+}
+
+async function hasVisibleConfirmationLoader(page: Page): Promise<boolean> {
+  return (await findVisible(page, [".loadingBox", ".loadingBg", ".loading"])) !== null;
+}
+
+async function waitForOfficialIssueNumber(
+  page: Page,
+  timeoutMs: number,
+): Promise<{ body: string; issueNumber: string | null; successMarker: boolean }> {
+  const deadline = Date.now() + timeoutMs;
+  let latestBody = "";
+  let latestIssueNumber: string | null = null;
+  let latestSuccessMarker = false;
+  while (Date.now() < deadline) {
+    latestBody = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
+    latestIssueNumber = await extractIssueNumberAsync(latestBody, page);
+    latestSuccessMarker = /submission of e-arrival card complete|전자입국신고서.*(?:제출|신고).*완료|신고가 완료/iu.test(latestBody);
+    if (latestIssueNumber && !(await hasVisibleConfirmationLoader(page))) {
+      return { body: latestBody, issueNumber: latestIssueNumber, successMarker: latestSuccessMarker };
+    }
+    await page.waitForTimeout(1_000);
+  }
+  return { body: latestBody, issueNumber: latestIssueNumber, successMarker: latestSuccessMarker };
 }
 
 async function saveOfficialPdf(
   page: Page,
   dir: string,
   logs: string[],
+  issueNumber: string,
   executionContext?: RunnerExecutionContext,
 ): Promise<string[]> {
   const pdfPath = path.join(dir, `korea-e-arrival-confirmation-${Date.now()}.pdf`);
@@ -1670,19 +1909,54 @@ async function saveOfficialPdf(
         downloadLink.click({ timeout: 15_000 }),
       ]);
       await download.saveAs(pdfPath);
-      logs.push("kr_eac_official_pdf_downloaded");
-      return [pdfPath];
+      if (fs.statSync(pdfPath).size > 1_000) {
+        logs.push("kr_eac_official_pdf_downloaded");
+        return [pdfPath];
+      }
+      logs.push("kr_eac_official_pdf_rejected_too_small");
     } catch (error) {
       logs.push(`kr_eac_pdf_download_unavailable ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
   }
+
+  let pdfPage = page;
+  const viewCard = await findVisible(page, [
+    "button:has-text('View e-Arrival card')",
+    "a:has-text('View e-Arrival card')",
+    "button:has-text('전자입국신고서 보기')",
+    "a:has-text('전자입국신고서 보기')",
+  ]);
+  if (viewCard) {
+    const popupPromise = page.waitForEvent("popup", { timeout: 8_000 }).catch(() => null);
+    const downloadPromise = page.waitForEvent("download", { timeout: 8_000 }).catch(() => null);
+    executionContext?.assertOwned();
+    await viewCard.click({ timeout: 15_000, noWaitAfter: true });
+    const [popup, download] = await Promise.all([popupPromise, downloadPromise]);
+    if (download) {
+      await download.saveAs(pdfPath);
+      if (fs.statSync(pdfPath).size > 1_000) {
+        logs.push("kr_eac_official_view_pdf_downloaded");
+        return [pdfPath];
+      }
+      logs.push("kr_eac_official_view_pdf_rejected_too_small");
+    }
+    if (popup) pdfPage = popup;
+  }
+
   try {
-    await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
+    await pdfPage.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    const printable = await waitForOfficialIssueNumber(pdfPage, 30_000);
+    if (printable.issueNumber !== issueNumber) {
+      logs.push("kr_eac_confirmation_pdf_rejected_missing_issue_number");
+      return [];
+    }
+    await pdfPage.pdf({ path: pdfPath, format: "A4", printBackground: true });
     const stat = fs.statSync(pdfPath);
-    if (stat.size > 500) {
-      logs.push("kr_eac_confirmation_page_pdf_fallback");
+    if (stat.size > 5_000) {
+      logs.push("kr_eac_verified_confirmation_page_pdf_fallback");
       return [pdfPath];
     }
+    logs.push("kr_eac_confirmation_pdf_rejected_too_small");
   } catch (error) {
     logs.push(`kr_eac_pdf_fallback_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
   }
@@ -1753,20 +2027,31 @@ export async function runKrEArrivalPortalSubmission(
     await confirmOfficialReview(page, options.executionContext);
     options.executionContext?.assertOwned();
     await page.waitForLoadState("domcontentloaded", { timeout: 90_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
-    screenshots.push(await saveScreenshot(page, tempDir, "after-submit", logs, sensitiveValues));
-
-    const body = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
-    const issueNumber = await extractIssueNumberAsync(body, page);
-    const successMarker = /submitted|success|발급번호|전자입국신고서.*발급|신고가 완료/i.test(body)
-      || /goSubmit|result|complete/i.test(page.url());
+    const confirmation = await waitForOfficialIssueNumber(page, 90_000);
+    const { body, issueNumber, successMarker } = confirmation;
     if (!successMarker || !issueNumber) {
+      const confirmationTimeoutScreenshot = await saveScreenshot(
+        page,
+        tempDir,
+        "confirmation-not-reached",
+        logs,
+        sensitiveValues,
+      ).catch(() => null);
       throw new KrEArrivalPortalError(
         "Official Korea e-Arrival Card did not return both a success page and issue number.",
-        { code: "kr_eac_confirmation_not_reached", screenshotPaths: screenshots, logs, portalSummary: safeSummary(body, sensitiveValues), retryable: true },
+        {
+          code: "kr_eac_confirmation_not_reached",
+          screenshotPaths: confirmationTimeoutScreenshot
+            ? [...screenshots, confirmationTimeoutScreenshot]
+            : screenshots,
+          logs,
+          portalSummary: safeSummary(body, sensitiveValues),
+          retryable: true,
+        },
       );
     }
-    pdfs.push(...await saveOfficialPdf(page, tempDir, logs, options.executionContext));
+    screenshots.push(await saveScreenshot(page, tempDir, "after-submit", logs, sensitiveValues));
+    pdfs.push(...await saveOfficialPdf(page, tempDir, logs, issueNumber, options.executionContext));
     logs.push("kr_eac_official_confirmation_observed");
     const submittedAt = new Date().toISOString();
     const validUntil = new Date(Date.parse(submittedAt) + 72 * 60 * 60 * 1000).toISOString();

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmailAllowed } from "@/lib/admin-access";
+import { hasActiveAdminMembership } from "@/lib/admin-membership";
 
 export type UserRole = "admin" | "staff" | "customer_service";
 
@@ -43,7 +43,9 @@ export async function getCurrentUser() {
     return null;
   }
 
-  if (userData.role === "admin" && !isAdminEmailAllowed(userData.email)) {
+  // Admin access is database-backed and revocable. Do not use email or
+  // user-editable metadata as a runtime authorization signal.
+  if (userData.role === "admin" && !(await hasActiveAdminMembership(supabase, user.id))) {
     return null;
   }
 

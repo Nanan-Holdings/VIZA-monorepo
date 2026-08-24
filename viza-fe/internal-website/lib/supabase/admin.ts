@@ -1,4 +1,4 @@
-﻿import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
 import { normalizeSupabaseEnvValue } from "./env";
@@ -57,7 +57,12 @@ export async function createUserWithAdmin(
     await requireAdmin();
 
     // 2. Validate inputs
-    const validRoles: UserRole[] = ["admin", "admin", "staff", "customer_service"];
+    // Administrator accounts are provisioned only by the single-use invite
+    // acceptance transaction, which also creates the required membership.
+    if (role === "admin") {
+      return { success: false, error: "Use an admin registration invitation." };
+    }
+    const validRoles: UserRole[] = ["staff", "customer_service"];
     if (!validRoles.includes(role)) {
       return { success: false, error: "Invalid role" };
     }

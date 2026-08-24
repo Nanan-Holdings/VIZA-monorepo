@@ -7,8 +7,8 @@ import { runPostPaidSideEffects } from "@/lib/checkout/post-paid";
  * true (lib/pricing.ts): Stripe cannot process a 0-amount Checkout
  * session and a free flow has nothing to collect, so we mark the order
  * paid directly and run the same post-paid side-effects the payment
- * webhook would (account provisioning + magic-link mail + runner job —
- * all idempotent).
+ * webhook would (account provisioning + magic-link mail — all idempotent).
+ * Final application submission remains an explicit action from Review.
  */
 export async function completeFreeOrder(
   admin: SupabaseClient,

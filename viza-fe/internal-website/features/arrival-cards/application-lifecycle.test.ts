@@ -108,5 +108,21 @@ describe("arrival-card application lifecycle", () => {
         portalUrl: "https://www.e-arrivalcard.go.kr/portal/check",
       },
     })).toBe(false);
+    expect(hasSuccessfulArrivalCardSubmission({
+      country: "south_korea",
+      visaType: "KR_E_ARRIVAL_CARD",
+      submissionResult: {
+        country: "KR",
+        visaType: "KR_E_ARRIVAL_CARD",
+        status: "submitted",
+        mode: "live_assisted",
+        provider: "korea_e_arrival_card_live",
+        applicationId: "korea-application-id",
+        submitted: true,
+        issueNumber: "country",
+        portalUrl: "https://www.e-arrivalcard.go.kr/portal/check",
+        confirmationPdfStoragePath: "applications/korea/confirmation.pdf",
+      },
+    })).toBe(false);
   });
 });
