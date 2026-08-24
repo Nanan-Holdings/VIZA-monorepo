@@ -16,6 +16,7 @@ import {
   shouldRetryMissingPhEtravelResponse,
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
+  phEtravelCountryOptionText,
 } from "../runner";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -66,6 +67,13 @@ test("PH eTravel accepts official code values committed by eGovPH comboboxes", (
   assert.equal(isPhEtravelComboboxSelectionCommitted("SG"), true);
   assert.equal(isPhEtravelComboboxSelectionCommitted("Singapore"), true);
   assert.equal(isPhEtravelComboboxSelectionCommitted("  "), false);
+});
+
+test("PH eTravel searches country comboboxes with official display labels", () => {
+  assert.equal(phEtravelCountryOptionText("SG"), "Singapore");
+  assert.equal(phEtravelCountryOptionText("SGP"), "Singapore");
+  assert.equal(phEtravelCountryOptionText("CHN"), "China");
+  assert.equal(phEtravelCountryOptionText("Malaysia"), "Malaysia");
 });
 
 test("PH eTravel retries Continue when Turnstile appears before the registration POST", () => {
