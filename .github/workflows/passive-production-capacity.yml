@@ -1,0 +1,70 @@
+name: Passive production capacity observation
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-database-maintenance
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    name: Read-only production capacity observation
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: supabase-production-recovery
+
+    steps:
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Capture three passive capacity samples
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          PRODUCTION_DB_MAINTENANCE_ACTION: capacity-observe
+          PRODUCTION_DB_MAINTENANCE_CONFIRM: oyjxdzsoejraedqghndi:capacity-observe
+        run: node scripts/production-db-maintenance.mjs > "$RUNNER_TEMP/passive-capacity.json"
+
+      - name: Publish aggregate summary and enforce blockers
+        if: always()
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/passive-capacity.json"
+          test -s "$report" || { echo "Passive capacity report was not produced"; exit 1; }
+          status="$(jq -r '.assessment.status' "$report")"
+          blockers="$(jq '.assessment.blockers | length' "$report")"
+          warnings="$(jq '.assessment.warnings | length' "$report")"
+          candidates="$(jq '.assessment.optimization_candidates | length' "$report")"
+          max_connections="$(jq '.assessment.summary.max_total_connections' "$report")"
+          max_utilization="$(jq '.assessment.summary.max_connection_utilization_percent' "$report")"
+          {
+            echo "## Passive production capacity"
+            echo ""
+            echo "- Status: **${status}**"
+            echo "- Samples: 3 over 10 seconds"
+            echo "- Maximum connections: ${max_connections}"
+            echo "- Maximum effective connection utilization: ${max_utilization}%"
+            echo "- Blockers: ${blockers}"
+            echo "- Warnings: ${warnings}"
+            echo "- Redacted query optimization candidates: ${candidates}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$status" != "red"
+
+      - name: Upload metadata-only capacity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passive-production-capacity-${{ github.run_id }}
+          path: ${{ runner.temp }}/passive-capacity.json
+          if-no-files-found: warn
+          retention-days: 7

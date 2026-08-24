@@ -64,3 +64,15 @@ scheduled recovery workflows.
   any wait persisting into a one-second sample, >=80% utilization,
   query-error/slow-query increase, metric reset, or incomplete
   sampling; neither secret may reach setup, checkout, logs, or artifacts.
+- `passive-production-capacity.yml` is the no-load production observer. It runs
+  every six hours (and on explicit dispatch) through the main-only
+  `supabase-production-recovery` Environment, shares the database-maintenance
+  concurrency group, and performs exactly three metadata-only read samples over
+  ten seconds. It may query the sanitized Performance Advisor and
+  `pg_stat_statements` aggregates, but must never emit statement text,
+  parameters, session identities, or table rows. Reports are retained for only
+  seven days; persistent connection saturation, locks, long/idle transactions,
+  or a new deadlock fail the job, while redacted query IDs are evidence for a
+  later reviewed optimization rather than permission to create an index. An
+  unavailable `pg_stat_statements` extension must make the report incomplete
+  and warning-level; it must never be presented as green capacity evidence.
