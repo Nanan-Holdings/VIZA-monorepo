@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasDurableTerminalSubmissionResult,
+  shouldResetJpVjwPreflightAfterAnswerSave,
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
@@ -67,5 +68,43 @@ describe("hasDurableTerminalSubmissionResult", () => {
 describe("shouldShowReviewAlongsideSubmissionStatus", () => {
   it("keeps the read-only application review beside every submission status", () => {
     expect(shouldShowReviewAlongsideSubmissionStatus()).toBe(true);
+  });
+});
+
+describe("shouldResetJpVjwPreflightAfterAnswerSave", () => {
+  it("resets only the stale Japan payload-validation result", () => {
+    expect(
+      shouldResetJpVjwPreflightAfterAnswerSave({
+        visaType: "JP_VISIT_JAPAN_WEB",
+        submissionResultStatus: "needs_attention",
+        submissionResult: {
+          errorDetails: { code: "jp_vjw_payload_validation_failed" },
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    {
+      visaType: "KE_ETA",
+      submissionResultStatus: "needs_attention",
+      submissionResult: {
+        errorDetails: { code: "jp_vjw_payload_validation_failed" },
+      },
+    },
+    {
+      visaType: "JP_VISIT_JAPAN_WEB",
+      submissionResultStatus: "needs_attention",
+      submissionResult: { errorDetails: { code: "official_portal_blocked" } },
+    },
+    {
+      visaType: "JP_VISIT_JAPAN_WEB",
+      submissionResultStatus: "qr_ready",
+      submissionResult: {
+        errorDetails: { code: "jp_vjw_payload_validation_failed" },
+      },
+    },
+  ])("preserves non-editable or non-Japan submission state", (input) => {
+    expect(shouldResetJpVjwPreflightAfterAnswerSave(input)).toBe(false);
   });
 });

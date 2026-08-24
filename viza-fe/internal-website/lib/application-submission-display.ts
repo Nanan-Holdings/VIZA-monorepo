@@ -1,5 +1,8 @@
 import type { SubmissionResult, SubmissionResultStatus } from "@/lib/submission-result";
 
+export const JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE =
+  "jp_vjw_payload_validation_failed";
+
 const TERMINAL_RESULT_STATUSES = new Set([
   "completed",
   "submitted",
@@ -41,4 +44,33 @@ export function shouldShowSubmissionStatusStep(input: {
  */
 export function shouldShowReviewAlongsideSubmissionStatus(): true {
   return true;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/**
+ * A payload-validation failure happened before any official-site side effect.
+ * Once the applicant edits their answers, that stale result must no longer
+ * replace the primary review/submit action. Official portal failures and
+ * active/terminal results remain untouched.
+ */
+export function shouldResetJpVjwPreflightAfterAnswerSave(input: {
+  visaType?: string | null;
+  submissionResultStatus?: string | null;
+  submissionResult?: unknown;
+}): boolean {
+  if ((input.visaType ?? "").trim().toUpperCase() !== "JP_VISIT_JAPAN_WEB") {
+    return false;
+  }
+  if ((input.submissionResultStatus ?? "").trim().toLowerCase() !== "needs_attention") {
+    return false;
+  }
+
+  const result = asRecord(input.submissionResult);
+  const errorDetails = asRecord(result?.errorDetails);
+  return errorDetails?.code === JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE;
 }
