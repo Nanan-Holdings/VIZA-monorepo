@@ -106,6 +106,36 @@ describe("database pool lifecycle", () => {
 		consoleError.mockRestore();
 	});
 
+	it("aggregates bounded query latency metrics without SQL or parameter values", async () => {
+		const database = await import("./index.js");
+		database.dbLogEmitter.emit("db_query", {
+			fingerprint: "a".repeat(64),
+			parameterCount: 2,
+			parameterTypes: ["string", "number"],
+			durationMs: 750,
+			result: "ok",
+		});
+		database.dbLogEmitter.emit("db_query", {
+			fingerprint: "b".repeat(64),
+			parameterCount: 1,
+			parameterTypes: ["string"],
+			durationMs: 25,
+			result: "error",
+		});
+
+		const metrics = database.getDatabaseQueryMetrics();
+		expect(metrics).toMatchObject({
+			totalQueries: 2,
+			failedQueries: 1,
+			slowQueries: 1,
+			slowThresholdMs: 500,
+			maxDurationMs: 750,
+		});
+		expect(metrics.p95DurationMs).toBe(750);
+		expect(JSON.stringify(metrics)).not.toContain("parameterTypes");
+		expect(JSON.stringify(metrics)).not.toMatch(/SELECT|INSERT|secret-value/i);
+	});
+
 	it("verifies role defaults through exactly three fresh production clients", async () => {
 		process.env.NODE_ENV = "production";
 		process.env.DATABASE_URL =

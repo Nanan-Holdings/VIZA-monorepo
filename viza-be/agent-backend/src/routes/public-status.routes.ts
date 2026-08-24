@@ -1,10 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import {
+  getDatabasePoolMetrics,
+  getDatabaseQueryMetrics,
+} from "../db/index.js";
+import {
   getPublicPortalStatus,
   runPortalHealthProbes,
 } from "../services/portal-health.service.js";
 import { Logger } from "../utils/logger.js";
+import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
@@ -68,4 +73,18 @@ statusOperationsRouter.post("/probe", requireStatusCronSecret, async (_req, res)
     );
     res.status(503).json({ ok: false, error: "status_probe_failed" });
   }
+});
+
+statusOperationsRouter.get("/capacity", requireStatusCronSecret, (_req, res) => {
+  res
+    .set("Cache-Control", "no-store")
+    .status(200)
+    .json({
+      ok: true,
+      chat: getLatestChatCapacityStats(),
+      database: {
+        pool: getDatabasePoolMetrics(),
+        queries: getDatabaseQueryMetrics(),
+      },
+    });
 });
