@@ -51,6 +51,10 @@ import {
   isOngoingApplicationRecord,
 } from "@/lib/applications/ongoing-application";
 import {
+  JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE,
+  shouldResetJpVjwPreflightAfterAnswerSave,
+} from "@/lib/application-submission-display";
+import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
 } from "@/lib/applications/qa-safety";
@@ -707,7 +711,9 @@ async function saveDynamicAnswersOnce(
     });
     const { data: app, error: appError } = await adminClient
       .from("applications")
-      .select("id, applicant_id")
+      .select(
+        "id, applicant_id, visa_type, submitted_at, submission_result, submission_result_status, updated_at"
+      )
       .eq("id", applicationId)
       .single();
 
@@ -803,6 +809,44 @@ async function saveDynamicAnswersOnce(
           }
           return { error: legacyError.message };
         }
+      }
+    }
+
+    if (
+      shouldResetJpVjwPreflightAfterAnswerSave({
+        visaType: app.visa_type,
+        submissionResultStatus: app.submission_result_status,
+        submissionResult: app.submission_result,
+      })
+    ) {
+      const { count: activeJobCount, error: activeJobError } = await adminClient
+        .from("runner_job")
+        .select("id", { count: "exact", head: true })
+        .eq("application_id", applicationId)
+        .in("status", ["queued", "running", "retrying", "scheduled"]);
+
+      if (activeJobError) return { error: activeJobError.message };
+
+      if ((activeJobCount ?? 0) === 0) {
+        const { error: resetError } = await adminClient
+          .from("applications")
+          .update({
+            submitted_at: null,
+            submission_result: null,
+            submission_result_status: null,
+            submission_result_updated_at: now,
+            updated_at: now,
+          })
+          .eq("id", applicationId)
+          .eq("submission_result_status", "needs_attention")
+          .eq("updated_at", app.updated_at)
+          .filter(
+            "submission_result->errorDetails->>code",
+            "eq",
+            JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE
+          );
+
+        if (resetError) return { error: resetError.message };
       }
     }
 
