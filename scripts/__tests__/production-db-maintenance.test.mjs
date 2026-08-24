@@ -438,6 +438,34 @@ test("passive capacity assessment rejects malformed samples and warns without st
   });
   assert.equal(result.status, "warn");
   assert.match(result.warnings.join("\n"), /evidence is incomplete/u);
+
+  const missingDatabaseMarker = passiveCapacitySample({ project_ref_marker: null });
+  const markerResult = assessPassiveCapacity({
+    samples: [missingDatabaseMarker, missingDatabaseMarker, missingDatabaseMarker],
+    statementMetrics: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      observation_window_seconds: 3600,
+      statements: [],
+    },
+  });
+  assert.equal(markerResult.status, "warn");
+  assert.match(markerResult.warnings.join("\n"), /Management API identity remains authoritative/u);
+
+  assert.throws(
+    () => assessPassiveCapacity({
+      samples: [
+        passiveCapacitySample(),
+        passiveCapacitySample({ project_ref_marker: "wrong-project" }),
+        passiveCapacitySample(),
+      ],
+      statementMetrics: {
+        stats_reset: "2026-08-22T00:00:00Z",
+        observation_window_seconds: 3600,
+        statements: [],
+      },
+    }),
+    /sample contract is invalid/u,
+  );
 });
 
 test("passive capacity assessment fails closed when database counters reset", () => {
