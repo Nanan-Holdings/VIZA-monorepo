@@ -2,7 +2,10 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { artifact } from "../artifact.js";
 import { getCountrySubmissionProvider } from "../country-submissions/index.js";
-import { loadCanonicalAnswers } from "../queue/answers.js";
+import {
+  loadCanonicalAnswers,
+  loadCountrySubmissionContext,
+} from "../queue/answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "../queue/types.js";
 import {
   RunnerJobOwnershipLostError,
@@ -20,6 +23,8 @@ import {
 } from "../sgac/index.js";
 import type { CountrySubmissionApplication, SubmissionPayload } from "../country-submissions/types.js";
 import type { SgArrivalCardSubmissionResult } from "../submission-result.js";
+import { ensureApplicationInboxAlias } from "../inbox/alias.js";
+import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 
 async function persistFiles(
   jobId: string,
@@ -52,6 +57,25 @@ async function persistFiles(
 function fullName(answers: Record<string, string>): string | null {
   const value = answers.full_name ?? [answers.given_names, answers.surname].filter(Boolean).join(" ");
   return value.trim() || null;
+}
+
+/**
+ * ICA correspondence must use VIZA's application-scoped mailbox. The
+ * applicant's personal address remains only the verified forwarding target.
+ */
+export function routeSgacEmailAnswers(
+  answers: Record<string, string>,
+  managedAlias: string,
+): Record<string, string> {
+  const alias = managedAlias.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+$/u.test(alias)) {
+    throw new Error("SGAC managed inbox alias is invalid");
+  }
+  return {
+    ...answers,
+    email: alias,
+    email_address: alias,
+  };
 }
 
 function toSgacApplication(applicationId: string, answers: Record<string, string>): CountrySubmissionApplication {
@@ -129,7 +153,15 @@ export async function runOne(
     "SG Arrival Card pool execution",
   );
   const poolExecutionContext = identity.executionContext;
-  const answers = await loadCanonicalAnswers(applicationId);
+  const [canonicalAnswers, context] = await Promise.all([
+    loadCanonicalAnswers(applicationId),
+    loadCountrySubmissionContext(applicationId),
+  ]);
+  if (!(await hasAliasEmailForwardingConsent(context.profile.id))) {
+    throw new NeedsHumanError("sgac: VIZA email forwarding consent is required");
+  }
+  const managedInbox = await ensureApplicationInboxAlias(applicationId, context.profile.id);
+  const answers = routeSgacEmailAnswers(canonicalAnswers, managedInbox.alias);
   const isLongTermPassHolder = answers.sgac_applicant_type?.trim().toLowerCase() === "long_term_pass_holder";
   const payload = isLongTermPassHolder
     ? toSgacLongTermPassPayload(applicationId, answers, `runner-job:${identity.jobId}`)
@@ -176,6 +208,10 @@ export async function runOne(
       portalResponseSummary: portal.portalResponseSummary,
       confirmationPdfStoragePath: pdfs[0] ?? null,
       artifacts: { screenshots, pdfs, logs: portal.logs, traces: [] },
+      payloadSummary: {
+        arrivalDate: payload.trip.arrivalDate ?? null,
+        accommodationAddressProvided: Boolean(payload.countrySpecific.accommodation_address?.trim()),
+      },
     };
     poolExecutionContext.assertOwned();
     const resultStatus = portal.submitted ? "submitted" : "failed";
