@@ -1,0 +1,73 @@
+name: Online capacity gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Full reviewed 40-character commit SHA
+        required: true
+        type: string
+      confirm:
+        description: Type <staging-project-ref>:public-edge
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: online-capacity-staging
+  cancel-in-progress: false
+
+jobs:
+  public-edge:
+    name: 100-user public edge gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-online-capacity
+    env:
+      ONLINE_CAPACITY_CONFIRM: staging-only
+      ONLINE_CAPACITY_BASE_URL: ${{ vars.ONLINE_CAPACITY_BASE_URL }}
+      ONLINE_CAPACITY_AGENT_URL: ${{ vars.ONLINE_CAPACITY_AGENT_URL }}
+      ONLINE_CAPACITY_PROJECT_REF: ${{ vars.ONLINE_CAPACITY_PROJECT_REF }}
+      ONLINE_CAPACITY_SUPABASE_URL: ${{ vars.ONLINE_CAPACITY_SUPABASE_URL }}
+      ONLINE_CAPACITY_USERS: "100"
+    defaults:
+      run:
+        shell: bash
+        working-directory: viza-be/agent-backend
+    steps:
+      - name: Validate reviewed source and confirmation
+        working-directory: .
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "source_ref must be a full lowercase commit SHA"; exit 1; }
+          test -n "$ONLINE_CAPACITY_PROJECT_REF" || { echo "staging project ref is not configured"; exit 1; }
+          test "$CONFIRM" = "$ONLINE_CAPACITY_PROJECT_REF:public-edge" || { echo "confirmation mismatch"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          persist-credentials: false
+      - name: Verify exact checkout
+        working-directory: .
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: viza-be/agent-backend/package-lock.json
+      - run: npm ci
+      - run: npm run load:online-capacity
+      - name: Upload metadata-only capacity result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-capacity-${{ github.run_id }}
+          path: load-test-results/online-capacity/**/summary.json
+          if-no-files-found: ignore
+          retention-days: 14
