@@ -5,25 +5,18 @@ export const JP_VJW_VISA_TYPE = "JP_VISIT_JAPAN_WEB" as const;
 
 /** Canonical answer keys emitted by the DB seed and consumed by the runner. */
 export const JP_VJW_REQUIRED_ANSWER_KEYS = [
-  "passport_type",
   "surname",
   "given_names",
   "date_of_birth",
   "nationality",
-  "sex",
   "passport_number",
   "passport_expiry_date",
-  "passport_issuing_country",
-  "email_address",
-  "phone_number",
   "residence_country",
   "occupation",
   "residence_city",
   "arrival_date",
-  "arrival_airport",
   "arrival_airline",
   "flight_number",
-  "last_embarkation_country",
   "departure_city_or_port",
   "purpose_of_visit",
   "planned_stay_days",
@@ -31,7 +24,6 @@ export const JP_VJW_REQUIRED_ANSWER_KEYS = [
   "accommodation_prefecture",
   "accommodation_city",
   "accommodation_address",
-  "accommodation_postal_code",
   "accommodation_phone",
   "has_been_deported",
   "has_criminal_record",
@@ -45,7 +37,6 @@ export const JP_VJW_REQUIRED_ANSWER_KEYS = [
   "has_unaccompanied_baggage",
   "has_cash_or_valuables_over_threshold",
   "customs_declaration_confirmed",
-  "immigration_declaration",
 ] as const;
 
 export type JpVjwYesNo = "yes" | "no";
@@ -81,27 +72,22 @@ export class JpVjwPortalValidationError extends Error {
 export interface JpVjwPortalPayload {
   applicationId: string;
   idempotencyKey: string;
-  passportType: string;
   surname: string;
   givenNames: string;
   emailAddress: string;
   fullName: string;
   dateOfBirth: string;
-  sex: string;
+  sex?: string;
   nationality: string;
   passportNumber: string;
   passportExpiryDate: string;
-  passportIssuingCountry: string;
-  phoneNumber: string;
   residenceCountry: string;
   occupation: string;
   residenceCity: string;
   arrivalDate: string;
   departureDate?: string;
-  portOfEntry: string;
   arrivalAirline: string;
   flightNumber: string;
-  lastEmbarkationCountry: string;
   departureCityOrPort: string;
   purposeOfVisit: string;
   plannedStayDays: number;
@@ -109,7 +95,7 @@ export interface JpVjwPortalPayload {
   accommodationPrefecture: string;
   accommodationCity: string;
   accommodationAddress: string;
-  accommodationPostalCode: string;
+  accommodationPostalCode?: string;
   accommodationPhone: string;
   immigrationAnswers: JpVjwImmigrationAnswers;
   customsAnswers: JpVjwCustomsAnswers;
@@ -137,6 +123,16 @@ function firstText(values: unknown[]): string {
 function required(value: string, key: string, missing: string[]): string {
   if (!value) missing.push(key);
   return value;
+}
+
+function canonicalNationality(value: string): string {
+  const normalized = value.trim().toUpperCase();
+  return ["CHN", "CHINA", "中国", "中华人民共和国"].includes(normalized) ? "CHN" : value.trim();
+}
+
+function canonicalPurpose(value: string): string {
+  const normalized = value.trim().toUpperCase();
+  return ["0", "TOURISM", "旅游", "観光"].includes(normalized) ? "0" : value.trim();
 }
 
 function normalizeYesNo(value: unknown, key: string, missing: string[]): JpVjwYesNo {
@@ -226,6 +222,11 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
   }
 
   const flight = splitFlightNumber(firstText([answers.flight_number]));
+  const officialFinalConfirmation = requireConfirmed(
+    answers.customs_declaration_confirmed ?? answers.immigration_declaration,
+    "customs_declaration_confirmed",
+    missing,
+  );
   const customsAnswers: JpVjwCustomsAnswers = {
     hasProhibitedGoods: normalizeSplitLegacyNo(
       answers.has_prohibited_goods,
@@ -245,7 +246,7 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     hasGoodsForOtherPerson: normalizeYesNo(answers.has_goods_for_other_person, "has_goods_for_other_person", missing),
     hasUnaccompaniedBaggage: normalizeYesNo(answers.has_unaccompanied_baggage, "has_unaccompanied_baggage", missing),
     hasCashOrValuablesOverThreshold: normalizeYesNo(answers.has_cash_or_valuables_over_threshold, "has_cash_or_valuables_over_threshold", missing),
-    declarationConfirmed: requireConfirmed(answers.customs_declaration_confirmed, "customs_declaration_confirmed", missing),
+    declarationConfirmed: officialFinalConfirmation,
   };
   const immigrationAnswers: JpVjwImmigrationAnswers = {
     hasBeenDeported: normalizeYesNo(answers.has_been_deported, "has_been_deported", missing),
@@ -255,41 +256,36 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
       "has_controlled_substances_or_weapons",
       missing,
     ),
-    declarationConfirmed: requireConfirmed(answers.immigration_declaration, "immigration_declaration", missing),
+    declarationConfirmed: officialFinalConfirmation,
   };
 
   const result: JpVjwPortalPayload = {
     applicationId: required(text(payload.applicationId), "applicationId", missing),
     idempotencyKey: required(text(payload.idempotencyKey), "idempotencyKey", missing),
-    passportType: required(firstText([answers.passport_type]), "passport_type", missing),
     surname,
     givenNames,
     emailAddress: required(firstText([answers.alias_email_address, answers.email_address, personal.email]), "email_address", missing),
     fullName: [surname, givenNames].filter(Boolean).join(" "),
     dateOfBirth: required(firstText([answers.date_of_birth, personal.dateOfBirth]), "date_of_birth", missing),
-    sex: required(firstText([answers.sex, answers.gender, personal.gender]), "sex", missing),
-    nationality: required(firstText([answers.nationality, personal.nationality]), "nationality", missing),
+    sex: firstText([answers.sex, answers.gender, personal.gender]) || undefined,
+    nationality: canonicalNationality(required(firstText([answers.nationality, personal.nationality]), "nationality", missing)),
     passportNumber: required(firstText([answers.passport_number, personal.passportNumber]), "passport_number", missing),
     passportExpiryDate: required(firstText([answers.passport_expiry_date, personal.passportExpiryDate]), "passport_expiry_date", missing),
-    passportIssuingCountry: required(firstText([answers.passport_issuing_country, personal.passportIssuingCountry]), "passport_issuing_country", missing),
-    phoneNumber: required(firstText([answers.phone_number, personal.phone]), "phone_number", missing),
     residenceCountry: required(firstText([answers.residence_country, personal.nationality]), "residence_country", missing),
     occupation: required(firstText([answers.occupation]), "occupation", missing),
     residenceCity: required(firstText([answers.residence_city]), "residence_city", missing),
     arrivalDate,
     departureDate,
-    portOfEntry: required(firstText([answers.arrival_airport]), "arrival_airport", missing),
     arrivalAirline: required(firstText([answers.arrival_airline, flight.airlineHint]), "arrival_airline", missing),
     flightNumber: required(flight.number, "flight_number", missing),
-    lastEmbarkationCountry: required(firstText([answers.last_embarkation_country]), "last_embarkation_country", missing),
     departureCityOrPort: required(firstText([answers.departure_city_or_port]), "departure_city_or_port", missing),
-    purposeOfVisit: required(firstText([answers.purpose_of_visit, trip.purpose]), "purpose_of_visit", missing),
+    purposeOfVisit: canonicalPurpose(required(firstText([answers.purpose_of_visit, trip.purpose]), "purpose_of_visit", missing)),
     plannedStayDays,
     accommodationName: required(firstText([answers.accommodation_name, trip.accommodationName]), "accommodation_name", missing),
     accommodationPrefecture: required(firstText([answers.accommodation_prefecture]), "accommodation_prefecture", missing),
     accommodationCity: required(firstText([answers.accommodation_city]), "accommodation_city", missing),
     accommodationAddress: required(firstText([answers.accommodation_address, trip.accommodationAddress]), "accommodation_address", missing),
-    accommodationPostalCode: required(firstText([answers.accommodation_postal_code]), "accommodation_postal_code", missing),
+    accommodationPostalCode: firstText([answers.accommodation_postal_code]) || undefined,
     accommodationPhone: required(firstText([answers.accommodation_phone]), "accommodation_phone", missing),
     immigrationAnswers,
     customsAnswers,
@@ -324,7 +320,6 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
   assertMinimumLength(result.residenceCountry, "residence_country", 2, missing);
   assertMinimumLength(result.residenceCity, "residence_city", 2, missing);
   assertMinimumLength(result.arrivalAirline, "arrival_airline", 2, missing);
-  assertMinimumLength(result.lastEmbarkationCountry, "last_embarkation_country", 2, missing);
   assertMinimumLength(result.departureCityOrPort, "departure_city_or_port", 2, missing);
   assertMinimumLength(result.accommodationName, "accommodation_name", 2, missing);
   assertMinimumLength(result.accommodationPrefecture, "accommodation_prefecture", 2, missing);

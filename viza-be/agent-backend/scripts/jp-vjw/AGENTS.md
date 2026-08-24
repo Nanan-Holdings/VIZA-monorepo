@@ -1,20 +1,33 @@
-# Japan Visit Japan Web Seed Module
+# Japan Visit Japan Web Schema Package
 
-Scope: the DB-driven `JP_VISIT_JAPAN_WEB` arrival-declaration schema.
+Scope: `scripts/jp-vjw/**`.
 
 - Keep Visit Japan Web separate from Japan visa/eVISA intake. This package
   covers online immigration and customs arrival procedures only.
-- `form-fields.ts` contains canonical answer keys required by the official
-  portal runner. Applicant documents are represented by package document
-  requirements and `application_documents`, never as file-path answers.
-- `options.value`, `label_en`, and `official_label` are the official English
-  values used by the runner. `label_zh` is display-only Chinese UI text.
-- `official-airports.ts` is a versioned snapshot of the Japan Customs
-  "Customs Airport" table. Preserve its exact official English values and
-  Chinese display-only labels. Revalidate the selected airport against the
-  current official source before live submission; never silently expand the
-  list from unofficial travel data.
-- The seed is single-traveller and limited to Chinese ordinary-passport
-  tourism in the first release.
+- `form-fields.ts` is the canonical DB-driven VIZA intake for
+  `JP_VISIT_JAPAN_WEB`. Visible controls must match the reviewed current
+  Visit Japan Web controls; legacy answer keys remain hidden/computed only.
+- `official-master.snapshot.json` is a manually reviewed, versioned snapshot
+  of the official VJW Angular bundle masters. Never refresh it directly in
+  production. Run `generate-official-master-snapshot.ts` against a downloaded
+  official bundle, review the diff, then publish a migration.
+- `official-master.ts` converts the reviewed snapshot to bilingual schema
+  options without changing official stored codes/values.
+- Applicant documents belong in package requirements and
+  `application_documents`, never as file-path answers.
+- `official-airports.ts` is retained as a Japan Customs reference snapshot,
+  but airport is not a current VJW intake control and must stay hidden.
+- `generate-schema-migration.ts` emits the byte-identical backend/frontend
+  data migration after the canonical field definitions pass tests.
+- Current first-phase scope is a Chinese ordinary-passport tourist with no
+  affirmative customs detail branch. Do not invent fields for airport,
+  passport type, or a second declaration checkbox when the official flow does
+  not ask them.
 - `seed-form-fields.ts` replaces this product's rows idempotently and the
   top-level compatibility entry must remain available.
+
+Validation:
+
+```powershell
+npx vitest run scripts/jp-vjw/form-fields.test.ts
+```

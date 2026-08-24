@@ -625,6 +625,10 @@ Smoke URLs:
   extends the existing application-first, null-lease cancellation RPC to Japan
   VJW and Kenya eTA pending/scheduled queue states; keep it byte-identical to
   `viza-be/agent-backend/drizzle/0184_jp_ke_cancel_pending_submission.sql`.
+- `supabase/migrations/20260824163030_jp_vjw_official_control_parity.sql`:
+  publishes the reviewed VJW 3.16 dropdown/autocomplete masters and exact
+  visible control types; keep it byte-identical to
+  `viza-be/agent-backend/drizzle/0185_jp_vjw_official_control_parity.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to

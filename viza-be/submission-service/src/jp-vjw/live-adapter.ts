@@ -718,7 +718,7 @@ async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> 
   await selectNative(context, "nationality", context.payload.nationality, ["CHN", "China", "中国"]);
   await fillDateParts(context, "dateOfBirth", context.payload.dateOfBirth);
   const optionalProfileSex = context.page.locator("select[formcontrolname='sex']").first();
-  if (await optionalProfileSex.count()) {
+  if (context.payload.sex && await optionalProfileSex.count()) {
     await selectNative(context, "sex", context.payload.sex, sexAliases(context.payload.sex));
   }
   await fillDateParts(context, "dateOfExpiry", context.payload.passportExpiryDate);
@@ -747,11 +747,13 @@ async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> 
 
 async function fillJapanAddress(context: JpVjwLiveAdapterContext, route: "vjwpti002" | "vjwpic021"): Promise<void> {
   const postalControl = route === "vjwpti002" ? "postalCode" : "postalCode";
-  await fillControl(context, postalControl, context.payload.accommodationPostalCode.replace(/-/gu, ""));
-  const autoButton = context.page.getByRole("button", { name: /邮政编码.*自动|郵便番号.*自動|postal code/i }).first();
-  if (await autoButton.isVisible().catch(() => false)) {
-    await autoButton.click();
-    await context.page.waitForTimeout(600);
+  if (context.payload.accommodationPostalCode) {
+    await fillControl(context, postalControl, context.payload.accommodationPostalCode.replace(/-/gu, ""));
+    const autoButton = context.page.getByRole("button", { name: /邮政编码.*自动|郵便番号.*自動|postal code/i }).first();
+    if (await autoButton.isVisible().catch(() => false)) {
+      await autoButton.click();
+      await context.page.waitForTimeout(600);
+    }
   }
   await selectNative(context, "prefecture", context.payload.accommodationPrefecture);
   await selectNative(context, "city", context.payload.accommodationCity);

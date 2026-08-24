@@ -1,5 +1,12 @@
 import { toBilingualSeedRow, type BilingualSeedField } from "../bilingual-seed-row";
-import { JP_CUSTOMS_AIRPORT_OPTIONS, JP_CUSTOMS_AIRPORT_SOURCE } from "./official-airports";
+import {
+  JP_VJW_AIRLINE_OPTIONS,
+  JP_VJW_CITIES_BY_PREFECTURE,
+  JP_VJW_EMBARKATION_POINT_OPTIONS,
+  JP_VJW_NATIONALITY_OPTIONS,
+  JP_VJW_OFFICIAL_MASTER_SOURCE,
+  JP_VJW_PREFECTURE_OPTIONS,
+} from "./official-master";
 
 export const JP_VISIT_JAPAN_WEB_VISA_TYPE = "JP_VISIT_JAPAN_WEB";
 
@@ -28,14 +35,7 @@ const option = (value: string, labelZh: string, labelEn = value): JpVjwOption =>
 });
 
 const YES_NO = [option("yes", "是", "Yes"), option("no", "否", "No")];
-const SEX_OPTIONS = [
-  option("Male", "男", "Male"),
-  option("Female", "女", "Female"),
-  option("Other", "其他", "Other"),
-];
-const PASSPORT_TYPE_OPTIONS = [option("Ordinary passport", "普通护照")];
-const NATIONALITY_OPTIONS = [option("China", "中国")];
-const PURPOSE_OPTIONS = [option("Tourism", "旅游", "Tourism")];
+const PURPOSE_OPTIONS = [option("0", "旅游", "Tourism")];
 const OCCUPATION_OPTIONS = [
   option("0100", "公司职员", "Company employee"),
   option("0200", "公司总经理、公司董事", "Company president or executive"),
@@ -50,20 +50,24 @@ const OCCUPATION_OPTIONS = [
 ];
 const showIf = (expression: string) => ({ showIf: expression });
 
+const hiddenCompatibilityRules = (labelZh: string, replacedBy?: string) => rules(labelZh, {
+  no_user_input: true,
+  legacy_compatibility_only: true,
+  official_control: null,
+  ...(replacedBy ? { replaced_by: replacedBy } : {}),
+});
+
 export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   {
     field_name: "passport_type",
     label: "Passport Type",
-    field_type: "select",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 1,
-    options: PASSPORT_TYPE_OPTIONS,
-    validation_rules: rules("护照类型", {
-      first_phase_value: "Ordinary passport",
-      allowed_values: ["Ordinary passport"],
-    }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("护照类型"),
   },
   {
     field_name: "surname",
@@ -73,7 +77,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 2,
-    validation_rules: rules("姓（按护照）", { maxLength: 80, passport_source: true }),
+    validation_rules: rules("姓（按护照）", { maxLength: 39, passport_source: true, official_control_type: "text" }),
   },
   {
     field_name: "given_names",
@@ -83,7 +87,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 3,
-    validation_rules: rules("名（按护照）", { maxLength: 100, passport_source: true }),
+    validation_rules: rules("名（按护照）", { maxLength: 39, passport_source: true, official_control_type: "text" }),
   },
   {
     field_name: "full_name",
@@ -119,19 +123,24 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 5,
-    options: NATIONALITY_OPTIONS,
-    validation_rules: rules("国籍", { first_phase_value: "China", passport_source: true }),
+    options: JP_VJW_NATIONALITY_OPTIONS,
+    validation_rules: rules("国籍", {
+      first_phase_value: "CHN",
+      passport_source: true,
+      official_control_type: "select",
+      option_identity: "ICAO nationality code",
+    }),
   },
   {
     field_name: "sex",
     label: "Sex",
-    field_type: "select",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 6,
-    options: SEX_OPTIONS,
-    validation_rules: rules("性别", { passport_source: true }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("性别"),
   },
   {
     field_name: "passport_number",
@@ -156,36 +165,35 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   {
     field_name: "passport_issuing_country",
     label: "Passport Issuing Country",
-    field_type: "select",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 9,
-    options: NATIONALITY_OPTIONS,
-    validation_rules: rules("护照签发国家", { first_phase_value: "China", passport_source: true }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("护照签发国家"),
   },
   {
     field_name: "email_address",
     label: "Email Address",
-    field_type: "text",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 10,
-    validation_rules: rules("电子邮箱地址", {
-      pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-      runner_policy: "use_managed_alias_for_official_account_and_forward_updates_with_consent",
-    }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("电子邮箱地址", "application-scoped managed alias"),
   },
   {
     field_name: "phone_number",
     label: "Telephone Number",
-    field_type: "text",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 11,
-    validation_rules: rules("联系电话", { maxLength: 32 }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("联系电话", "accommodation_phone"),
   },
   {
     field_name: "residence_country",
@@ -195,7 +203,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 1,
     step_name: "Traveller and Passport",
     display_order: 12,
-    validation_rules: rules("居住国家 / 地区", { maxLength: 80 }),
+    validation_rules: rules("居住国家 / 地区", { maxLength: 80, official_control_type: "text" }),
   },
   {
     field_name: "occupation",
@@ -208,6 +216,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     options: OCCUPATION_OPTIONS,
     validation_rules: rules("职业", {
       official_control: "occupation",
+      official_control_type: "select",
       official_options_snapshot: "Visit Japan Web main.1dcb51ecdb7a1ed7.js occupationMaster",
       option_identity: "official_code",
       helper_zh: "请按实际情况选择当前职业；退休人员或列表未涵盖的职业请选择“其他”。",
@@ -224,6 +233,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     validation_rules: rules("现居住城市", {
       maxLength: 120,
       official_control: "cityName",
+      official_control_type: "text",
       helper_zh: "请填写您目前实际居住的城市，不是本次航班的出发机场。",
     }),
   },
@@ -235,40 +245,40 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 1,
-    validation_rules: rules("抵达日本日期", { format: "YYYY-MM-DD", timezone: "Asia/Tokyo" }),
+    validation_rules: rules("抵达日本日期", {
+      format: "YYYY-MM-DD",
+      timezone: "Asia/Tokyo",
+      official_control_type: "date",
+    }),
   },
   {
     field_name: "arrival_airport",
     label: "Intended Arrival Airport in Japan",
-    field_type: "select",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 2,
-    options: JP_CUSTOMS_AIRPORT_OPTIONS,
-    validation_rules: rules("计划入境机场", {
-      official_options_source: JP_CUSTOMS_AIRPORT_SOURCE.url,
-      official_options_authority: JP_CUSTOMS_AIRPORT_SOURCE.authority,
-      official_options_effective_date: JP_CUSTOMS_AIRPORT_SOURCE.effectiveDate,
-      official_options_retrieved_at: JP_CUSTOMS_AIRPORT_SOURCE.retrievedAt,
-      option_scope: "japan_customs_airports",
-      option_identity: "official_english_name",
-      runtime_code_resolution: "revalidate_against_current_official_source_before_live_submit",
-    }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("计划入境机场", "arrival_airline + flight_number"),
   },
   {
     field_name: "arrival_airline",
     label: "Arrival Airline",
-    field_type: "text",
+    field_type: "select",
     required: true,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 3,
+    options: JP_VJW_AIRLINE_OPTIONS,
     validation_rules: rules("抵达航空公司", {
-      maxLength: 120,
       official_control: "airlineCompany",
-      runtime_option_resolution: "match_current_visit_japan_web_airline_master",
-      helper_zh: "请填写承运航空公司的中英文名称或二字代码，VIZA 提交时会与 Visit Japan Web 当前航空公司列表匹配。",
+      official_control_type: "select",
+      official_options_source: JP_VJW_OFFICIAL_MASTER_SOURCE.sourceUrl,
+      official_options_schema_version: JP_VJW_OFFICIAL_MASTER_SOURCE.schemaVersion,
+      official_options_sha256: JP_VJW_OFFICIAL_MASTER_SOURCE.sha256,
+      option_identity: "IATA two-character code",
+      helper_zh: "请选择承运航空公司；列表值与当前 Visit Japan Web 官网下拉选项一致。",
     }),
   },
   {
@@ -289,12 +299,13 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   {
     field_name: "last_embarkation_country",
     label: "Country/Region of Last Embarkation",
-    field_type: "text",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 5,
-    validation_rules: rules("最后出发国家 / 地区", { maxLength: 80, runner_canonical_key: "last_embarkation_country" }),
+    conditional_logic: showIf("false"),
+    validation_rules: hiddenCompatibilityRules("最后出发国家 / 地区", "departure_city_or_port"),
   },
   {
     field_name: "departure_city_or_port",
@@ -304,7 +315,17 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 6,
-    validation_rules: rules("出发城市 / 港口", { maxLength: 120 }),
+    options: JP_VJW_EMBARKATION_POINT_OPTIONS,
+    validation_rules: rules("出发城市 / 港口", {
+      maxLength: 120,
+      official_control: "departurePoint",
+      official_control_type: "text_autocomplete_with_free_entry",
+      suggestions_source: JP_VJW_OFFICIAL_MASTER_SOURCE.sourceUrl,
+      suggestions_schema_version: JP_VJW_OFFICIAL_MASTER_SOURCE.schemaVersion,
+      option_identity: "official English place name",
+      allow_custom_value: true,
+      helper_zh: "请输入并从官网同源建议中选择出发城市或港口；官网允许列表外地点时也可直接填写英文。",
+    }),
   },
   {
     field_name: "purpose_of_visit",
@@ -315,7 +336,11 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     step_name: "Arrival and Stay",
     display_order: 7,
     options: PURPOSE_OPTIONS,
-    validation_rules: rules("访问目的", { first_phase_value: "Tourism" }),
+    validation_rules: rules("访问目的", {
+      first_phase_value: "0",
+      official_control_type: "select",
+      option_identity: "official purpose code",
+    }),
   },
   {
     field_name: "planned_stay_days",
@@ -331,48 +356,58 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     field_name: "accommodation_postal_code",
     label: "Postal Code in Japan",
     field_type: "text",
-    required: true,
+    required: false,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 9,
     validation_rules: rules("日本邮政编码", {
       pattern: "^[0-9]{3}-?[0-9]{4}$",
       official_control: "postalCode",
-      helper_zh: "请输入 7 位日本邮政编码；VIZA 会在官网核对并尝试自动填写都道府县和城市。",
+      official_control_type: "text",
+      helper_zh: "如填写，请输入 7 位日本邮政编码；VIZA 会在官网核对并尝试自动填写都道府县和城市。",
     }),
   },
   {
     field_name: "accommodation_prefecture",
     label: "Prefecture of Accommodation in Japan",
-    field_type: "text",
+    field_type: "select",
     required: true,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 10,
-    validation_rules: rules("日本住宿所在都道府县（英文）", {
-      maxLength: 80,
+    options: JP_VJW_PREFECTURE_OPTIONS,
+    validation_rules: rules("日本住宿所在都道府县", {
       official_control: "prefecture",
-      helper_zh: "请填写住宿地址所在都道府县的英文名称，例如 TOKYO、OSAKA。",
+      official_control_type: "select",
+      official_options_source: JP_VJW_OFFICIAL_MASTER_SOURCE.sourceUrl,
+      official_options_schema_version: JP_VJW_OFFICIAL_MASTER_SOURCE.schemaVersion,
+      option_identity: "official prefecture code",
+      helper_zh: "请选择住宿地址所在都道府县；选项与当前 Visit Japan Web 官网一致。",
     }),
   },
   {
     field_name: "accommodation_city",
     label: "City/Ward/Town of Accommodation in Japan",
-    field_type: "text",
+    field_type: "select",
     required: true,
     step_number: 2,
     step_name: "Arrival and Stay",
     display_order: 11,
-    validation_rules: rules("日本住宿所在市区町村（英文）", {
-      maxLength: 45,
+    validation_rules: rules("日本住宿所在市区町村", {
       official_control: "city",
-      helper_zh: "请填写官网地址列表使用的英文市区町村名称，例如 SHINJUKU KU。",
+      official_control_type: "select",
+      dependent_on: "accommodation_prefecture",
+      dependent_options: JP_VJW_CITIES_BY_PREFECTURE,
+      official_options_source: JP_VJW_OFFICIAL_MASTER_SOURCE.sourceUrl,
+      official_options_schema_version: JP_VJW_OFFICIAL_MASTER_SOURCE.schemaVersion,
+      option_identity: "official English city/ward/town name",
+      helper_zh: "请先选择都道府县，再从当前 Visit Japan Web 官网同源列表中选择市区町村。",
     }),
   },
   {
     field_name: "accommodation_address",
     label: "Address in Japan",
-    field_type: "textarea",
+    field_type: "text",
     required: true,
     step_number: 2,
     step_name: "Arrival and Stay",
@@ -380,6 +415,7 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
     validation_rules: rules("日本住宿町名、丁目和门牌号（英文）", {
       maxLength: 45,
       official_control: "address",
+      official_control_type: "text",
       helper_zh: "这里只填写町名、丁目和门牌号；都道府县与市区町村请填写在上方对应项目。",
     }),
   },
@@ -601,50 +637,52 @@ export const JP_VISIT_JAPAN_WEB_FORM_FIELDS: JpVjwFieldDef[] = [
   },
   {
     field_name: "customs_declaration_confirmed",
-    label: "I confirm that my customs declaration is complete and truthful.",
+    label: "The above entry is true and correct.",
     field_type: "checkbox",
     required: true,
     step_number: 4,
     step_name: "Customs Declaration",
     display_order: 11,
-    validation_rules: rules("我确认海关申报完整且真实", {
+    validation_rules: rules("我确认上述填写内容真实且正确", {
       final_review: true,
       boolean_contract: "must_be_true",
       official_value: "true",
+      official_control: "confirmChk",
+      official_control_type: "checkbox",
+      helper_priority: "critical",
+      helper_zh: "此为 Visit Japan Web 入境审查与海关申报合并流程的最终确认。请在核对旅客、行程、住宿、入境审查及海关答案后勾选；VIZA 将按这些已确认信息提交官网并生成二维码。",
     }),
   },
   {
     field_name: "immigration_declaration",
     label: "I have reviewed the immigration declaration answers above and confirm that they are complete and truthful.",
-    field_type: "checkbox",
-    required: true,
+    field_type: "computed",
+    required: false,
     step_number: 3,
     step_name: "Immigration Declaration",
     display_order: 4,
-    validation_rules: rules("我已核对上述入境申报信息，并确认完整且真实", {
-      final_review: true,
+    conditional_logic: showIf("false"),
+    validation_rules: rules("旧版入境申报确认", {
       runner_canonical_key: "immigration_declaration",
-      boolean_contract: "must_be_true",
-      official_value: "true",
-      helper_priority: "critical",
-      helper_zh: "请先完成并核对上方三项入境申报问题。勾选后即表示这些答案已经由您确认，VIZA 将按此信息填写官方申报。",
-      helper_en: "Complete and review the three immigration declaration questions above before confirming. VIZA will use the confirmed answers for the official declaration.",
+      no_user_input: true,
+      legacy_compatibility_only: true,
+      replaced_by: "customs_declaration_confirmed",
     }),
   },
   {
     field_name: "final_declaration",
-    label: "Final Declaration (derived from the immigration and customs confirmations)",
+    label: "Final Declaration (derived from the official final confirmation)",
     field_type: "computed",
     required: false,
     step_number: 4,
     step_name: "Customs Declaration",
     display_order: 12,
     conditional_logic: showIf("false"),
-    validation_rules: rules("最终申报（由入境和海关确认汇总）", {
+    validation_rules: rules("最终申报（由官网最终确认生成）", {
       runner_canonical_key: "final_declaration",
-      derived_from: ["immigration_declaration", "customs_declaration_confirmed"],
+      derived_from: ["customs_declaration_confirmed"],
       no_user_input: true,
-      aggregation: "yes_only_when_all_confirmations_are_true",
+      aggregation: "yes_only_when_official_confirmation_is_true",
     }),
   },
 ];

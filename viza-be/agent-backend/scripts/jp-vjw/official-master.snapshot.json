@@ -1,0 +1,3809 @@
+{
+  "metadata": {
+    "schemaVersion": "VJW-3.16",
+    "sourceUrl": "https://www.vjw.digital.go.jp/main/main.1dcb51ecdb7a1ed7.js",
+    "retrievedAt": "2026-08-24",
+    "sha256": "64d37b919f3a2ecfe9b6ceee2ec58c31239965ca3e7c1c51e063e0dfe93bb3cc",
+    "publicationPolicy": "manual-review-required-before-production-update"
+  },
+  "prefectures": [
+    {
+      "code": "01",
+      "label": "HOKKAIDO"
+    },
+    {
+      "code": "02",
+      "label": "AOMORI KEN"
+    },
+    {
+      "code": "03",
+      "label": "IWATE KEN"
+    },
+    {
+      "code": "04",
+      "label": "MIYAGI KEN"
+    },
+    {
+      "code": "05",
+      "label": "AKITA KEN"
+    },
+    {
+      "code": "06",
+      "label": "YAMAGATA KEN"
+    },
+    {
+      "code": "07",
+      "label": "FUKUSHIMA KEN"
+    },
+    {
+      "code": "08",
+      "label": "IBARAKI KEN"
+    },
+    {
+      "code": "09",
+      "label": "TOCHIGI KEN"
+    },
+    {
+      "code": "10",
+      "label": "GUMMA KEN"
+    },
+    {
+      "code": "11",
+      "label": "SAITAMA KEN"
+    },
+    {
+      "code": "12",
+      "label": "CHIBA KEN"
+    },
+    {
+      "code": "13",
+      "label": "TOKYO TO"
+    },
+    {
+      "code": "14",
+      "label": "KANAGAWA KEN"
+    },
+    {
+      "code": "15",
+      "label": "NIIGATA KEN"
+    },
+    {
+      "code": "16",
+      "label": "TOYAMA KEN"
+    },
+    {
+      "code": "17",
+      "label": "ISHIKAWA KEN"
+    },
+    {
+      "code": "18",
+      "label": "FUKUI KEN"
+    },
+    {
+      "code": "19",
+      "label": "YAMANASHI KEN"
+    },
+    {
+      "code": "20",
+      "label": "NAGANO KEN"
+    },
+    {
+      "code": "21",
+      "label": "GIFU KEN"
+    },
+    {
+      "code": "22",
+      "label": "SHIZUOKA KEN"
+    },
+    {
+      "code": "23",
+      "label": "AICHI KEN"
+    },
+    {
+      "code": "24",
+      "label": "MIE KEN"
+    },
+    {
+      "code": "25",
+      "label": "SHIGA KEN"
+    },
+    {
+      "code": "26",
+      "label": "KYOTO FU"
+    },
+    {
+      "code": "27",
+      "label": "OSAKA FU"
+    },
+    {
+      "code": "28",
+      "label": "HYOGO KEN"
+    },
+    {
+      "code": "29",
+      "label": "NARA KEN"
+    },
+    {
+      "code": "30",
+      "label": "WAKAYAMA KEN"
+    },
+    {
+      "code": "31",
+      "label": "TOTTORI KEN"
+    },
+    {
+      "code": "32",
+      "label": "SHIMANE KEN"
+    },
+    {
+      "code": "33",
+      "label": "OKAYAMA KEN"
+    },
+    {
+      "code": "34",
+      "label": "HIROSHIMA KEN"
+    },
+    {
+      "code": "35",
+      "label": "YAMAGUCHI KEN"
+    },
+    {
+      "code": "36",
+      "label": "TOKUSHIMA KEN"
+    },
+    {
+      "code": "37",
+      "label": "KAGAWA KEN"
+    },
+    {
+      "code": "38",
+      "label": "EHIME KEN"
+    },
+    {
+      "code": "39",
+      "label": "KOCHI KEN"
+    },
+    {
+      "code": "40",
+      "label": "FUKUOKA KEN"
+    },
+    {
+      "code": "41",
+      "label": "SAGA KEN"
+    },
+    {
+      "code": "42",
+      "label": "NAGASAKI KEN"
+    },
+    {
+      "code": "43",
+      "label": "KUMAMOTO KEN"
+    },
+    {
+      "code": "44",
+      "label": "OITA KEN"
+    },
+    {
+      "code": "45",
+      "label": "MIYAZAKI KEN"
+    },
+    {
+      "code": "46",
+      "label": "KAGOSHIMA KEN"
+    },
+    {
+      "code": "47",
+      "label": "OKINAWA KEN"
+    }
+  ],
+  "citiesByPrefecture": {
+    "10": [
+      "AGATSUMA GUN HIGASHIAGATSUMA MACHI",
+      "AGATSUMA GUN KUSATSU MACHI",
+      "AGATSUMA GUN NAGANOHARA MACHI",
+      "AGATSUMA GUN NAKANOJO MACHI",
+      "AGATSUMA GUN TAKAYAMA MURA",
+      "AGATSUMA GUN TSUMAGOI MURA",
+      "ANNAKA SHI",
+      "FUJIOKA SHI",
+      "ISESAKI SHI",
+      "KANRA GUN KANRA MACHI",
+      "KANRA GUN NAMMOKU MURA",
+      "KANRA GUN SHIMONITA MACHI",
+      "KIRYU SHI",
+      "KITAGUMMA GUN SHINTO MURA",
+      "KITAGUMMA GUN YOSHIOKA MACHI",
+      "MAEBASHI SHI",
+      "MIDORI SHI",
+      "NUMATA SHI",
+      "ORA GUN CHIYODA MACHI",
+      "ORA GUN ITAKURA MACHI",
+      "ORA GUN MEIWA MACHI",
+      "ORA GUN OIZUMI MACHI",
+      "ORA GUN ORA MACHI",
+      "OTA SHI",
+      "SAWA GUN TAMAMURA MACHI",
+      "SHIBUKAWA SHI",
+      "TAKASAKI SHI",
+      "TANO GUN KANNA MACHI",
+      "TANO GUN UENO MURA",
+      "TATEBAYASHI SHI",
+      "TOMIOKA SHI",
+      "TONE GUN KATASHINA MURA",
+      "TONE GUN KAWABA MURA",
+      "TONE GUN MINAKAMI MACHI",
+      "TONE GUN SHOWA MURA"
+    ],
+    "11": [
+      "AGEO SHI",
+      "ASAKA SHI",
+      "CHICHIBU GUN HIGASHICHICHIBU MURA",
+      "CHICHIBU GUN MINANO MACHI",
+      "CHICHIBU GUN NAGATORO MACHI",
+      "CHICHIBU GUN OGANO MACHI",
+      "CHICHIBU GUN YOKOZE MACHI",
+      "CHICHIBU SHI",
+      "FUJIMI SHI",
+      "FUJIMINO SHI",
+      "FUKAYA SHI",
+      "GYODA SHI",
+      "HANNO SHI",
+      "HANYU SHI",
+      "HASUDA SHI",
+      "HIDAKA SHI",
+      "HIGASHIMATSUYAMA SHI",
+      "HIKI GUN HATOYAMA MACHI",
+      "HIKI GUN KAWAJIMA MACHI",
+      "HIKI GUN NAMEGAWA MACHI",
+      "HIKI GUN OGAWA MACHI",
+      "HIKI GUN RANZAN MACHI",
+      "HIKI GUN TOKIGAWA MACHI",
+      "HIKI GUN YOSHIMI MACHI",
+      "HONJO SHI",
+      "IRUMA GUN MIYOSHI MACHI",
+      "IRUMA GUN MOROYAMA MACHI",
+      "IRUMA GUN OGOSE MACHI",
+      "IRUMA SHI",
+      "KASUKABE SHI",
+      "KAWAGOE SHI",
+      "KAWAGUCHI SHI",
+      "KAZO SHI",
+      "KITAADACHI GUN INA MACHI",
+      "KITAKATSUSHIKA GUN MATSUBUSHI MACHI",
+      "KITAKATSUSHIKA GUN SUGITO MACHI",
+      "KITAMOTO SHI",
+      "KODAMA GUN KAMIKAWA MACHI",
+      "KODAMA GUN KAMISATO MACHI",
+      "KODAMA GUN MISATO MACHI",
+      "KONOSU SHI",
+      "KOSHIGAYA SHI",
+      "KUKI SHI",
+      "KUMAGAYA SHI",
+      "MINAMISAITAMA GUN MIYASHIRO MACHI",
+      "MISATO SHI",
+      "NIIZA SHI",
+      "OKEGAWA SHI",
+      "OSATO GUN YORII MACHI",
+      "SAITAMA SHI CHUO KU",
+      "SAITAMA SHI IWATSUKI KU",
+      "SAITAMA SHI KITA KU",
+      "SAITAMA SHI MIDORI KU",
+      "SAITAMA SHI MINAMI KU",
+      "SAITAMA SHI MINUMA KU",
+      "SAITAMA SHI NISHI KU",
+      "SAITAMA SHI OMIYA KU",
+      "SAITAMA SHI SAKURA KU",
+      "SAITAMA SHI URAWA KU",
+      "SAKADO SHI",
+      "SATTE SHI",
+      "SAYAMA SHI",
+      "SHIKI SHI",
+      "SHIRAOKA SHI",
+      "SOKA SHI",
+      "TODA SHI",
+      "TOKOROZAWA SHI",
+      "TSURUGASHIMA SHI",
+      "WAKO SHI",
+      "WARABI SHI",
+      "YASHIO SHI",
+      "YOSHIKAWA SHI"
+    ],
+    "12": [
+      "ABIKO SHI",
+      "ASAHI SHI",
+      "AWA GUN KYONAN MACHI",
+      "CHIBA SHI CHUO KU",
+      "CHIBA SHI HANAMIGAWA KU",
+      "CHIBA SHI INAGE KU",
+      "CHIBA SHI MIDORI KU",
+      "CHIBA SHI MIHAMA KU",
+      "CHIBA SHI WAKABA KU",
+      "CHOSEI GUN CHONAN MACHI",
+      "CHOSEI GUN CHOSEI MURA",
+      "CHOSEI GUN ICHINOMIYA MACHI",
+      "CHOSEI GUN MUTSUZAWA MACHI",
+      "CHOSEI GUN NAGARA MACHI",
+      "CHOSEI GUN SHIRAKO MACHI",
+      "CHOSHI SHI",
+      "FUNABASHI SHI",
+      "FUTTSU SHI",
+      "ICHIHARA SHI",
+      "ICHIKAWA SHI",
+      "IMBA GUN SAKAE MACHI",
+      "IMBA GUN SHISUI MACHI",
+      "INZAI SHI",
+      "ISUMI GUN ONJUKU MACHI",
+      "ISUMI GUN OTAKI MACHI",
+      "ISUMI SHI",
+      "KAMAGAYA SHI",
+      "KAMOGAWA SHI",
+      "KASHIWA SHI",
+      "KATORI GUN KOZAKI MACHI",
+      "KATORI GUN TAKO MACHI",
+      "KATORI GUN TONOSHO MACHI",
+      "KATORI SHI",
+      "KATSURA SHI",
+      "KIMITSU SHI",
+      "KISARAZU SHI",
+      "MATSUDO SHI",
+      "MINAMIBOSO SHI",
+      "MOBARA SHI",
+      "NAGAREYAMA SHI",
+      "NARASHINO SHI",
+      "NARITA SHI",
+      "NODA SHI",
+      "OAMISHIRASATO SHI",
+      "SAKURA SHI",
+      "SAMBU GUN KUJUKURI MACHI",
+      "SAMBU GUN SHIBAYAMA MACHI",
+      "SAMBU GUN YOKOSHIBAHIKARI MACHI",
+      "SAMMU SHI",
+      "SHIROI SHI",
+      "SODEGAURA SHI",
+      "SOSA SHI",
+      "TATEYAMA SHI",
+      "TOGANE SHI",
+      "TOMISATO SHI",
+      "URAYASU SHI",
+      "YACHIMATA SHI",
+      "YACHIYO SHI",
+      "YOTSUKAIDO SHI"
+    ],
+    "13": [
+      "ADACHI KU",
+      "AKIRUNO SHI",
+      "AKISHIMA SHI",
+      "AOGASHIMA MURA",
+      "ARAKAWA KU",
+      "BUNKYO KU",
+      "CHIYODA KU",
+      "CHOFU SHI",
+      "CHUO KU",
+      "EDOGAWA KU",
+      "FUCHU SHI",
+      "FUSSA SHI",
+      "HACHIJOJIMA HACHIJO MACHI",
+      "HACHIOJI SHI",
+      "HAMURA SHI",
+      "HIGASHIKURUME SHI",
+      "HIGASHIMURAYAMA SHI",
+      "HIGASHIYAMATO SHI",
+      "HINO SHI",
+      "INAGI SHI",
+      "ITABASHI KU",
+      "KATSUSHIKA KU",
+      "KITA KU",
+      "KIYOSE SHI",
+      "KODAIRA SHI",
+      "KOGANEI SHI",
+      "KOKUBUNJI SHI",
+      "KOMAE SHI",
+      "KOTO KU",
+      "KOZUSHIMA MURA",
+      "KUNITACHI SHI",
+      "MACHIDA SHI",
+      "MEGURO KU",
+      "MIKURAJIMA MURA",
+      "MINATO KU",
+      "MITAKA SHI",
+      "MIYAKEJIMA MIYAKE MURA",
+      "MUSASHIMURAYAMA SHI",
+      "MUSASHINO SHI",
+      "NAKANO KU",
+      "NERIMA KU",
+      "NIIJIMA MURA",
+      "NISHITAMA GUN HINODE MACHI",
+      "NISHITAMA GUN HINOHARA MURA",
+      "NISHITAMA GUN MIZUHO MACHI",
+      "NISHITAMA GUN OKUTAMA MACHI",
+      "NISHITOKYO SHI",
+      "OGASAWARA MURA",
+      "OME SHI",
+      "OSHIMA MACHI",
+      "OTA KU",
+      "SETAGAYA KU",
+      "SHIBUYA KU",
+      "SHINAGAWA KU",
+      "SHINJUKU KU",
+      "SUGINAMI KU",
+      "SUMIDA KU",
+      "TACHIKAWA SHI",
+      "TAITO KU",
+      "TAMA SHI",
+      "TOSHIMA KU",
+      "TOSHIMA MURA"
+    ],
+    "14": [
+      "AIKO GUN AIKAWA MACHI",
+      "AIKO GUN KIYOKAWA MURA",
+      "ASHIGARAKAMI GUN KAISEI MACHI",
+      "ASHIGARAKAMI GUN MATSUDA MACHI",
+      "ASHIGARAKAMI GUN NAKAI MACHI",
+      "ASHIGARAKAMI GUN OI MACHI",
+      "ASHIGARAKAMI GUN YAMAKITA MACHI",
+      "ASHIGARASHIMO GUN HAKONE MACHI",
+      "ASHIGARASHIMO GUN MANAZURU MACHI",
+      "ASHIGARASHIMO GUN YUGAWARA MACHI",
+      "ATSUGI SHI",
+      "AYASE SHI",
+      "CHIGASAKI SHI",
+      "EBINA SHI",
+      "FUJISAWA SHI",
+      "HADANO SHI",
+      "HIRATSUKA SHI",
+      "ISEHARA SHI",
+      "KAMAKURA SHI",
+      "KAWASAKI SHI ASAO KU",
+      "KAWASAKI SHI KAWASAKI KU",
+      "KAWASAKI SHI MIYAMAE KU",
+      "KAWASAKI SHI NAKAHARA KU",
+      "KAWASAKI SHI SAIWAI KU",
+      "KAWASAKI SHI TAKATSU KU",
+      "KAWASAKI SHI TAMA KU",
+      "KOZA GUN SAMUKAWA MACHI",
+      "MINAMIASHIGARA SHI",
+      "MIURA GUN HAYAMA MACHI",
+      "MIURA SHI",
+      "NAKA GUN NINOMIYA MACHI",
+      "NAKA GUN OISO MACHI",
+      "ODAWARA SHI",
+      "SAGAMIHARA SHI CHUO KU",
+      "SAGAMIHARA SHI MIDORI KU",
+      "SAGAMIHARA SHI MINAMI KU",
+      "YAMATO SHI",
+      "YOKOHAMA SHI AOBA KU",
+      "YOKOHAMA SHI ASAHI KU",
+      "YOKOHAMA SHI HODOGAYA KU",
+      "YOKOHAMA SHI ISOGO KU",
+      "YOKOHAMA SHI IZUMI KU",
+      "YOKOHAMA SHI KANAGAWA KU",
+      "YOKOHAMA SHI KANAZAWA KU",
+      "YOKOHAMA SHI KOHOKU KU",
+      "YOKOHAMA SHI KONAN KU",
+      "YOKOHAMA SHI MIDORI KU",
+      "YOKOHAMA SHI MINAMI KU",
+      "YOKOHAMA SHI NAKA KU",
+      "YOKOHAMA SHI NISHI KU",
+      "YOKOHAMA SHI SAKAE KU",
+      "YOKOHAMA SHI SEYA KU",
+      "YOKOHAMA SHI TOTSUKA KU",
+      "YOKOHAMA SHI TSURUMI KU",
+      "YOKOHAMA SHI TSUZUKI KU",
+      "YOKOSUKA SHI",
+      "ZAMA SHI",
+      "ZUSHI SHI"
+    ],
+    "15": [
+      "AGANO SHI",
+      "GOSEN SHI",
+      "HIGASHIKAMBARA GUN AGA MACHI",
+      "ITOIGAWA SHI",
+      "IWAFUNE GUN AWASHIMAURA MURA",
+      "IWAFUNE GUN SEKIKAWA MURA",
+      "JOETSU SHI",
+      "KAMO SHI",
+      "KARIWA GUN KARIWA MURA",
+      "KASHIWAZAKI SHI",
+      "KITAKAMBARA GUN SEIRO MACHI",
+      "MINAMIKAMBARA GUN TAGAMI MACHI",
+      "MINAMIUONUMA GUN YUZAWA MACHI",
+      "MINAMIUONUMA SHI",
+      "MITSUKE SHI",
+      "MURAKAMI SHI",
+      "MYOKO SHI",
+      "NAGAOKA SHI",
+      "NAKAUONUMA GUN TSUNAN MACHI",
+      "NIIGATA SHI AKIHA KU",
+      "NIIGATA SHI CHUO KU",
+      "NIIGATA SHI HIGASHI KU",
+      "NIIGATA SHI KITA KU",
+      "NIIGATA SHI KONAN KU",
+      "NIIGATA SHI MINAMI KU",
+      "NIIGATA SHI NISHI KU",
+      "NIIGATA SHI NISHIKAN KU",
+      "NISHIKAMBARA GUN YAHIKO MURA",
+      "OJIYA SHI",
+      "SADO SHI",
+      "SANJO SHI",
+      "SANTO GUN IZUMOZAKI MACHI",
+      "SHIBATA SHI",
+      "TAINAI SHI",
+      "TOKAMACHI SHI",
+      "TSUBAME SHI",
+      "UONUMA SHI"
+    ],
+    "16": [
+      "HIMI SHI",
+      "IMIZU SHI",
+      "KUROBE SHI",
+      "NAKANIIKAWA GUN FUNAHASHI MURA",
+      "NAKANIIKAWA GUN KAMIICHI MACHI",
+      "NAKANIIKAWA GUN TATEYAMA MACHI",
+      "NAMERIKAWA SHI",
+      "NANTO SHI",
+      "OYABE SHI",
+      "SHIMONIIKAWA GUN ASAHI MACHI",
+      "SHIMONIIKAWA GUN NYUZEN MACHI",
+      "TAKAOKA SHI",
+      "TONAMI SHI",
+      "TOYAMA SHI",
+      "UOZU SHI"
+    ],
+    "17": [
+      "HAKUI GUN HODATSUSHIMIZU CHO",
+      "HAKUI GUN SHIKA MACHI",
+      "HAKUI SHI",
+      "HAKUSAN SHI",
+      "HOSU GUN ANAMIZU MACHI",
+      "HOSU GUN NOTO CHO",
+      "KAGA SHI",
+      "KAHOKU GUN TSUBATA MACHI",
+      "KAHOKU GUN UCHINADA MACHI",
+      "KAHOKU SHI",
+      "KANAZAWA SHI",
+      "KASHIMA GUN NAKANOTO MACHI",
+      "KOMATSU SHI",
+      "NANAO SHI",
+      "NOMI GUN KAWAKITA MACHI",
+      "NOMI SHI",
+      "NONOICHI SHI",
+      "SUZU SHI",
+      "WAJIMA SHI"
+    ],
+    "18": [
+      "AWARA SHI",
+      "ECHIZEN SHI",
+      "FUKUI SHI",
+      "IMADATE GUN IKEDA CHO",
+      "KATSUYAMA SHI",
+      "MIKATA GUN MIHAMA CHO",
+      "MIKATAKAMINAKA GUN WAKASA CHO",
+      "NANJO GUN MINAMIECHIZEN CHO",
+      "NYU GUN ECHIZEN CHO",
+      "OBAMA SHI",
+      "OI GUN OI CHO",
+      "OI GUN TAKAHAMA CHO",
+      "ONO SHI",
+      "SABAE SHI",
+      "SAKAI SHI",
+      "TSURUGA SHI",
+      "YOSHIDA GUN EIHEIJI CHO"
+    ],
+    "19": [
+      "CHUO SHI",
+      "FUEFUKI SHI",
+      "FUJIYOSHIDA SHI",
+      "HOKUTO SHI",
+      "KAI SHI",
+      "KITATSURU GUN KOSUGE MURA",
+      "KITATSURU GUN TABAYAMA MURA",
+      "KOFU SHI",
+      "KOSHU SHI",
+      "MINAMIARUPUSU SHI",
+      "MINAMIKOMA GUN FUJIKAWA CHO",
+      "MINAMIKOMA GUN HAYAKAWA CHO",
+      "MINAMIKOMA GUN MINOBU CHO",
+      "MINAMIKOMA GUN NAMBU CHO",
+      "MINAMITSURU GUN DOSHI MURA",
+      "MINAMITSURU GUN FUJIKAWAGUCHIKO MAC",
+      "MINAMITSURU GUN NARUSAWA MURA",
+      "MINAMITSURU GUN NISHIKATSURA CHO",
+      "MINAMITSURU GUN OSHINO MURA",
+      "MINAMITSURU GUN YAMANAKAKO MURA",
+      "NAKAKOMA GUN SHOWA CHO",
+      "NIRASAKI SHI",
+      "NISHIYATSUSHIRO GUN ICHIKAWAMISATO",
+      "OTSUKI SHI",
+      "TSURU SHI",
+      "UENOHARA SHI",
+      "YAMANASHI SHI"
+    ],
+    "20": [
+      "AZUMINO SHI",
+      "CHIISAGATA GUN AOKI MURA",
+      "CHIISAGATA GUN NAGAWA MACHI",
+      "CHIKUMA SHI",
+      "CHINO SHI",
+      "HANISHINA GUN SAKAKI MACHI",
+      "HIGASHICHIKUMA GUN ASAHI MURA",
+      "HIGASHICHIKUMA GUN CHIKUHOKU MURA",
+      "HIGASHICHIKUMA GUN IKUSAKA MURA",
+      "HIGASHICHIKUMA GUN OMI MURA",
+      "HIGASHICHIKUMA GUN YAMAGATA MURA",
+      "IIDA SHI",
+      "IIYAMA SHI",
+      "INA SHI",
+      "KAMIINA GUN IIJIMA MACHI",
+      "KAMIINA GUN MINAMIMINOWA MURA",
+      "KAMIINA GUN MINOWA MACHI",
+      "KAMIINA GUN MIYADA MURA",
+      "KAMIINA GUN NAKAGAWA MURA",
+      "KAMIINA GUN TATSUNO MACHI",
+      "KAMIMINOCHI GUN IIZUNA MACHI",
+      "KAMIMINOCHI GUN OGAWA MURA",
+      "KAMIMINOCHI GUN SHINANO MACHI",
+      "KAMITAKAI GUN OBUSE MACHI",
+      "KAMITAKAI GUN TAKAYAMA MURA",
+      "KISO GUN AGEMATSU MACHI",
+      "KISO GUN KISO MACHI",
+      "KISO GUN KISO MURA",
+      "KISO GUN NAGISO MACHI",
+      "KISO GUN OKUWA MURA",
+      "KISO GUN OTAKI MURA",
+      "KITAAZUMI GUN HAKUBA MURA",
+      "KITAAZUMI GUN IKEDA MACHI",
+      "KITAAZUMI GUN MATSUKAWA MURA",
+      "KITAAZUMI GUN OTARI MURA",
+      "KITASAKU GUN KARUIZAWA MACHI",
+      "KITASAKU GUN MIYOTA MACHI",
+      "KITASAKU GUN TATESHINA MACHI",
+      "KOMAGANE SHI",
+      "KOMORO SHI",
+      "MATSUMOTO SHI",
+      "MINAMISAKU GUN KAWAKAMI MURA",
+      "MINAMISAKU GUN KITAAIKI MURA",
+      "MINAMISAKU GUN KOMI MACHI",
+      "MINAMISAKU GUN MINAMIAIKI MURA",
+      "MINAMISAKU GUN MINAMIMAKI MURA",
+      "MINAMISAKU GUN SAKUHO MACHI",
+      "NAGANO SHI",
+      "NAKANO SHI",
+      "OKAYA SHI",
+      "OMACHI SHI",
+      "SAKU SHI",
+      "SHIMOINA GUN ACHI MURA",
+      "SHIMOINA GUN ANAN CHO",
+      "SHIMOINA GUN HIRAYA MURA",
+      "SHIMOINA GUN MATSUKAWA MACHI",
+      "SHIMOINA GUN NEBA MURA",
+      "SHIMOINA GUN OSHIKA MURA",
+      "SHIMOINA GUN SHIMOJO MURA",
+      "SHIMOINA GUN TAKAGI MURA",
+      "SHIMOINA GUN TAKAMORI MACHI",
+      "SHIMOINA GUN TENRYU MURA",
+      "SHIMOINA GUN TOYOKA MURA",
+      "SHIMOINA GUN URUGI MURA",
+      "SHIMOINA GUN YASUOKA MURA",
+      "SHIMOMINOCHI GUN SAKAE MURA",
+      "SHIMOTAKAI GUN KIJIMADAIRA MURA",
+      "SHIMOTAKAI GUN NOZAWAONSEN MURA",
+      "SHIMOTAKAI GUN YAMANOCHI MACHI",
+      "SHIOJIRI SHI",
+      "SUWA GUN FUJIMI MACHI",
+      "SUWA GUN HARA MURA",
+      "SUWA GUN SHIMOSUWA MACHI",
+      "SUWA SHI",
+      "SUZAKA SHI",
+      "TOMI SHI",
+      "UEDA SHI"
+    ],
+    "21": [
+      "AMPACHI GUN AMPACHI CHO",
+      "AMPACHI GUN GODO CHO",
+      "AMPACHI GUN WANOCHI CHO",
+      "ENA SHI",
+      "FUWA GUN SEKIGAHARA CHO",
+      "FUWA GUN TARUI CHO",
+      "GERO SHI",
+      "GIFU SHI",
+      "GUJO SHI",
+      "HASHIMA GUN GINAN CHO",
+      "HASHIMA GUN KASAMATSU CHO",
+      "HASHIMA SHI",
+      "HIDA SHI",
+      "IBI GUN IBIGAWA CHO",
+      "IBI GUN IKEDA CHO",
+      "IBI GUN ONO CHO",
+      "KAIZU SHI",
+      "KAKAMIGAHARA SHI",
+      "KAMO GUN HICHISO CHO",
+      "KAMO GUN HIGASHISHIRAKAWA MURA",
+      "KAMO GUN KAWABE CHO",
+      "KAMO GUN SAKAHOGI CHO",
+      "KAMO GUN SHIRAKAWA CHO",
+      "KAMO GUN TOMIKA CHO",
+      "KAMO GUN YAOTSU CHO",
+      "KANI GUN MITAKE CHO",
+      "KANI SHI",
+      "MINO SHI",
+      "MINOKAMO SHI",
+      "MIZUHO SHI",
+      "MIZUNAMI SHI",
+      "MOTOSU GUN KITAGATA CHO",
+      "MOTOSU SHI",
+      "NAKATSUGAWA SHI",
+      "OGAKI SHI",
+      "ONO GUN SHIRAKAWA MURA",
+      "SEKI SHI",
+      "TAJIMI SHI",
+      "TAKAYAMA SHI",
+      "TOKI SHI",
+      "YAMAGATA SHI",
+      "YORO GUN YORO CHO"
+    ],
+    "22": [
+      "ATAMI SHI",
+      "FUJI SHI",
+      "FUJIEDA SHI",
+      "FUJINOMIYA SHI",
+      "FUKUROI SHI",
+      "GOTEMBA SHI",
+      "HAIBARA GUN KAWANEHON CHO",
+      "HAIBARA GUN YOSHIDA CHO",
+      "HAMAMATSU SHI CHUO KU",
+      "HAMAMATSU SHI HAMANA KU",
+      "HAMAMATSU SHI TENRYU KU",
+      "ITO SHI",
+      "IWATA SHI",
+      "IZU SHI",
+      "IZUNOKUNI SHI",
+      "KAKEGAWA SHI",
+      "KAMO GUN HIGASHIIZU CHO",
+      "KAMO GUN KAWAZU CHO",
+      "KAMO GUN MATSUZAKI CHO",
+      "KAMO GUN MINAMIIZU CHO",
+      "KAMO GUN NISHIIZU CHO",
+      "KIKUGAWA SHI",
+      "KOSAI SHI",
+      "MAKINOHARA SHI",
+      "MISHIMA SHI",
+      "NUMAZU SHI",
+      "OMAEZAKI SHI",
+      "SHIMADA SHI",
+      "SHIMODA SHI",
+      "SHIZUOKA SHI AOI KU",
+      "SHIZUOKA SHI SHIMIZU KU",
+      "SHIZUOKA SHI SURUGA KU",
+      "SHUCHI GUN MORI MACHI",
+      "SUNTO GUN NAGAIZUMI CHO",
+      "SUNTO GUN OYAMA CHO",
+      "SUNTO GUN SHIMIZU CHO",
+      "SUSONO SHI",
+      "TAGATA GUN KANNAMI CHO",
+      "YAIZU SHI"
+    ],
+    "23": [
+      "AICHI GUN TOGO CHO",
+      "AISAI SHI",
+      "AMA GUN KANIE CHO",
+      "AMA GUN OHARU CHO",
+      "AMA GUN TOBISHIMA MURA",
+      "AMA SHI",
+      "ANJO SHI",
+      "CHIRYU SHI",
+      "CHITA GUN AGUI CHO",
+      "CHITA GUN HIGASHIURA CHO",
+      "CHITA GUN MIHAMA CHO",
+      "CHITA GUN MINAMICHITA CHO",
+      "CHITA GUN TAKETOYO CHO",
+      "CHITA SHI",
+      "GAMAGORI SHI",
+      "HANDA SHI",
+      "HEKINAN SHI",
+      "ICHINOMIYA SHI",
+      "INAZAWA SHI",
+      "INUYAMA SHI",
+      "IWAKURA SHI",
+      "KARIYA SHI",
+      "KASUGAI SHI",
+      "KITANAGOYA SHI",
+      "KITASHITARA GUN SHITARA CHO",
+      "KITASHITARA GUN TOEI CHO",
+      "KITASHITARA GUN TOYONE MURA",
+      "KIYOSU SHI",
+      "KOMAKI SHI",
+      "KONAN SHI",
+      "MIYOSHI SHI",
+      "NAGAKUTE SHI",
+      "NAGOYA SHI ATSUTA KU",
+      "NAGOYA SHI CHIKUSA KU",
+      "NAGOYA SHI HIGASHI KU",
+      "NAGOYA SHI KITA KU",
+      "NAGOYA SHI MEITO KU",
+      "NAGOYA SHI MIDORI KU",
+      "NAGOYA SHI MINAMI KU",
+      "NAGOYA SHI MINATO KU",
+      "NAGOYA SHI MIZUHO KU",
+      "NAGOYA SHI MORIYAMA KU",
+      "NAGOYA SHI NAKA KU",
+      "NAGOYA SHI NAKAGAWA KU",
+      "NAGOYA SHI NAKAMURA KU",
+      "NAGOYA SHI NISHI KU",
+      "NAGOYA SHI SHOWA KU",
+      "NAGOYA SHI TEMPAKU KU",
+      "NISHIKASUGAI GUN TOYOYAMA CHO",
+      "NISHIO SHI",
+      "NISSHIN SHI",
+      "NIWA GUN FUSO CHO",
+      "NIWA GUN OGUCHI CHO",
+      "NUKATA GUN KOTA CHO",
+      "OBU SHI",
+      "OKAZAKI SHI",
+      "OWARIASAHI SHI",
+      "SETO SHI",
+      "SHINSHIRO SHI",
+      "TAHARA SHI",
+      "TAKAHAMA SHI",
+      "TOKAI SHI",
+      "TOKONAME SHI",
+      "TOYOAKE SHI",
+      "TOYOHASHI SHI",
+      "TOYOKAWA SHI",
+      "TOYOTA SHI",
+      "TSUSHIMA SHI",
+      "YATOMI SHI"
+    ],
+    "24": [
+      "IGA SHI",
+      "INABE GUN TOIN CHO",
+      "INABE SHI",
+      "ISE SHI",
+      "KAMEYAMA SHI",
+      "KITAMURO GUN KIHOKU CHO",
+      "KUMANO SHI",
+      "KUWANA GUN KISOSAKI CHO",
+      "KUWANA SHI",
+      "MATSUSAKA SHI",
+      "MIE GUN ASAHI CHO",
+      "MIE GUN KAWAGOE CHO",
+      "MIE GUN KOMONO CHO",
+      "MINAMIMURO GUN KIHO CHO",
+      "MINAMIMURO GUN MIHAMA CHO",
+      "NABARI SHI",
+      "OWASE SHI",
+      "SHIMA SHI",
+      "SUZUKA SHI",
+      "TAKI GUN MEIWA CHO",
+      "TAKI GUN ODAI CHO",
+      "TAKI GUN TAKI CHO",
+      "TOBA SHI",
+      "TSU SHI",
+      "WATARAI GUN MINAMIISE CHO",
+      "WATARAI GUN TAIKI CHO",
+      "WATARAI GUN TAMAKI CHO",
+      "WATARAI GUN WATARAI CHO",
+      "YOKKAICHI SHI"
+    ],
+    "25": [
+      "ECHI GUN AISHO CHO",
+      "GAMO GUN HINO CHO",
+      "GAMO GUN RYUO CHO",
+      "HIGASHIOMI SHI",
+      "HIKONE SHI",
+      "INUKAMI GUN KORA CHO",
+      "INUKAMI GUN TAGA CHO",
+      "INUKAMI GUN TOYOSATO CHO",
+      "KOKA SHI",
+      "KONAN SHI",
+      "KUSATSU SHI",
+      "MAIBARA SHI",
+      "MORIYAMA SHI",
+      "NAGAHAMA SHI",
+      "OMIHACHIMAN SHI",
+      "OTSU SHI",
+      "RITTO SHI",
+      "TAKASHIMA SHI",
+      "YASU SHI"
+    ],
+    "26": [
+      "AYABE SHI",
+      "FUKUCHIYAMA SHI",
+      "FUNAI GUN KYOTAMBA CHO",
+      "JOYO SHI",
+      "KAMEOKA SHI",
+      "KIZUGAWA SHI",
+      "KUSE GUN KUMIYAMA CHO",
+      "KYOTANABE SHI",
+      "KYOTANGO SHI",
+      "KYOTO SHI FUSHIMI KU",
+      "KYOTO SHI HIGASHIYAMA KU",
+      "KYOTO SHI KAMIGYO KU",
+      "KYOTO SHI KITA KU",
+      "KYOTO SHI MINAMI KU",
+      "KYOTO SHI NAKAGYO KU",
+      "KYOTO SHI NISHIKYO KU",
+      "KYOTO SHI SAKYO KU",
+      "KYOTO SHI SHIMOGYO KU",
+      "KYOTO SHI UKYO KU",
+      "KYOTO SHI YAMASHINA KU",
+      "MAIZURU SHI",
+      "MIYAZU SHI",
+      "MUKO SHI",
+      "NAGAOKAKYO SHI",
+      "NANTAN SHI",
+      "OTOKUNI GUN OYAMAZAKI CHO",
+      "SORAKU GUN KASAGI CHO",
+      "SORAKU GUN MINAMIYAMASHIRO MURA",
+      "SORAKU GUN SEIKA CHO",
+      "SORAKU GUN WAZUKA CHO",
+      "TSUZUKI GUN IDE CHO",
+      "TSUZUKI GUN UJITAWARA CHO",
+      "UJI SHI",
+      "YAWATA SHI",
+      "YOSA GUN INE CHO",
+      "YOSA GUN YOSANO CHO"
+    ],
+    "27": [
+      "DAITO SHI",
+      "FUJIIDERA SHI",
+      "HABIKINO SHI",
+      "HANNAN SHI",
+      "HIGASHIOSAKA SHI",
+      "HIRAKATA SHI",
+      "IBARAKI SHI",
+      "IKEDA SHI",
+      "IZUMI SHI",
+      "IZUMIOTSU SHI",
+      "IZUMISANO SHI",
+      "KADOMA SHI",
+      "KAIZUKA SHI",
+      "KASHIWARA SHI",
+      "KATANO SHI",
+      "KAWACHINAGANO SHI",
+      "KISHIWADA SHI",
+      "MATSUBARA SHI",
+      "MINAMIKAWACHI GUN CHIHAYAAKASAKA MU",
+      "MINAMIKAWACHI GUN KANAN CHO",
+      "MINAMIKAWACHI GUN TAISHI CHO",
+      "MINO SHI",
+      "MISHIMA GUN SHIMAMOTO CHO",
+      "MORIGUCHI SHI",
+      "NEYAGAWA SHI",
+      "OSAKA SHI ABENO KU",
+      "OSAKA SHI ASAHI KU",
+      "OSAKA SHI CHUO KU",
+      "OSAKA SHI FUKUSHIMA KU",
+      "OSAKA SHI HIGASHINARI KU",
+      "OSAKA SHI HIGASHISUMIYOSHI KU",
+      "OSAKA SHI HIGASHIYODOGAWA KU",
+      "OSAKA SHI HIRANO KU",
+      "OSAKA SHI IKUNO KU",
+      "OSAKA SHI JOTO KU",
+      "OSAKA SHI KITA KU",
+      "OSAKA SHI KONOHANA KU",
+      "OSAKA SHI MINATO KU",
+      "OSAKA SHI MIYAKOJIMA KU",
+      "OSAKA SHI NANIWA KU",
+      "OSAKA SHI NISHI KU",
+      "OSAKA SHI NISHINARI KU",
+      "OSAKA SHI NISHIYODOGAWA KU",
+      "OSAKA SHI SUMINOE KU",
+      "OSAKA SHI SUMIYOSHI KU",
+      "OSAKA SHI TAISHO KU",
+      "OSAKA SHI TENNOJI KU",
+      "OSAKA SHI TSURUMI KU",
+      "OSAKA SHI YODOGAWA KU",
+      "OSAKASAYAMA SHI",
+      "SAKAI SHI HIGASHI KU",
+      "SAKAI SHI KITA KU",
+      "SAKAI SHI MIHARA KU",
+      "SAKAI SHI MINAMI KU",
+      "SAKAI SHI NAKA KU",
+      "SAKAI SHI NISHI KU",
+      "SAKAI SHI SAKAI KU",
+      "SEMBOKU GUN TADAOKA CHO",
+      "SENNAN GUN KUMATORI CHO",
+      "SENNAN GUN MISAKI CHO",
+      "SENNAN GUN TAJIRI CHO",
+      "SENNAN SHI",
+      "SETTSU SHI",
+      "SHIJONAWATE SHI",
+      "SUITA SHI",
+      "TAKAISHI SHI",
+      "TAKATSUKI SHI",
+      "TONDABAYASHI SHI",
+      "TOYONAKA SHI",
+      "TOYONO GUN NOSE CHO",
+      "TOYONO GUN TOYONO CHO",
+      "YAO SHI"
+    ],
+    "28": [
+      "AIOI SHI",
+      "AKASHI SHI",
+      "AKO GUN KAMIGORI CHO",
+      "AKO SHI",
+      "AMAGASAKI SHI",
+      "ASAGO SHI",
+      "ASHIYA SHI",
+      "AWAJI SHI",
+      "HIMEJI SHI",
+      "IBO GUN TAISHI CHO",
+      "ITAMI SHI",
+      "KAKO GUN HARIMA CHO",
+      "KAKO GUN INAMI CHO",
+      "KAKOGAWA SHI",
+      "KANZAKI GUN FUKUSAKI CHO",
+      "KANZAKI GUN ICHIKAWA CHO",
+      "KANZAKI GUN KAMIKAWA CHO",
+      "KASAI SHI",
+      "KATO SHI",
+      "KAWABE GUN INAGAWA CHO",
+      "KAWANISHI SHI",
+      "KOBE SHI CHUO KU",
+      "KOBE SHI HIGASHINADA KU",
+      "KOBE SHI HYOGO KU",
+      "KOBE SHI KITA KU",
+      "KOBE SHI NADA KU",
+      "KOBE SHI NAGATA KU",
+      "KOBE SHI NISHI KU",
+      "KOBE SHI SUMA KU",
+      "KOBE SHI TARUMI KU",
+      "MIKATA GUN KAMI CHO",
+      "MIKATA GUN SHINONSEN CHO",
+      "MIKI SHI",
+      "MINAMIAWAJI SHI",
+      "NISHINOMIYA SHI",
+      "NISHIWAKI SHI",
+      "ONO SHI",
+      "SANDA SHI",
+      "SAYO GUN SAYO CHO",
+      "SHISO SHI",
+      "SUMOTO SHI",
+      "TAKA GUN TAKA CHO",
+      "TAKARAZUKA SHI",
+      "TAKASAGO SHI",
+      "TAMBA SHI",
+      "TAMBASASAYAMA SHI",
+      "TATSUNO SHI",
+      "TOYOKA SHI",
+      "YABU SHI"
+    ],
+    "29": [
+      "GOJO SHI",
+      "GOSE SHI",
+      "IKOMA GUN ANDO CHO",
+      "IKOMA GUN HEGURI CHO",
+      "IKOMA GUN IKARUGA CHO",
+      "IKOMA GUN SANGO CHO",
+      "IKOMA SHI",
+      "KASHIBA SHI",
+      "KASHIHARA SHI",
+      "KATSURAGI SHI",
+      "KITAKATSURAGI GUN KAMMAKI CHO",
+      "KITAKATSURAGI GUN KAWAI CHO",
+      "KITAKATSURAGI GUN KORYO CHO",
+      "KITAKATSURAGI GUN OJI CHO",
+      "NARA SHI",
+      "SAKURAI SHI",
+      "SHIKI GUN KAWANISHI CHO",
+      "SHIKI GUN MIYAKE CHO",
+      "SHIKI GUN TAWARAMOTO CHO",
+      "TAKAICHI GUN ASUKA MURA",
+      "TAKAICHI GUN TAKATORI CHO",
+      "TENRI SHI",
+      "UDA GUN MITSUE MURA",
+      "UDA GUN SONI MURA",
+      "UDA SHI",
+      "YAMABE GUN YAMAZOE MURA",
+      "YAMATOKORIYAMA SHI",
+      "YAMATOTAKADA SHI",
+      "YOSHINO GUN HIGASHIYOSHINO MURA",
+      "YOSHINO GUN KAMIKITAYAMA MURA",
+      "YOSHINO GUN KAWAKAMI MURA",
+      "YOSHINO GUN KUROTAKI MURA",
+      "YOSHINO GUN NOSEGAWA MURA",
+      "YOSHINO GUN OYODO CHO",
+      "YOSHINO GUN SHIMOICHI CHO",
+      "YOSHINO GUN SHIMOKITAYAMA MURA",
+      "YOSHINO GUN TENKAWA MURA",
+      "YOSHINO GUN TOTSUKAWA MURA",
+      "YOSHINO GUN YOSHINO CHO"
+    ],
+    "30": [
+      "ARIDA GUN ARIDAGAWA CHO",
+      "ARIDA GUN HIROGAWA CHO",
+      "ARIDA GUN YUASA CHO",
+      "ARIDA SHI",
+      "GOBO SHI",
+      "HASHIMOTO SHI",
+      "HIDAKA GUN HIDAKA CHO",
+      "HIDAKA GUN HIDAKAGAWA CHO",
+      "HIDAKA GUN INAMI CHO",
+      "HIDAKA GUN MIHAMA CHO",
+      "HIDAKA GUN MINABE CHO",
+      "HIDAKA GUN YURA CHO",
+      "HIGASHIMURO GUN KITAYAMA MURA",
+      "HIGASHIMURO GUN KOZAGAWA CHO",
+      "HIGASHIMURO GUN KUSHIMOTO CHO",
+      "HIGASHIMURO GUN NACHIKATSURA CHO",
+      "HIGASHIMURO GUN TAIJI CHO",
+      "ITO GUN KATSURAGI CHO",
+      "ITO GUN KOYA CHO",
+      "ITO GUN KUDOYAMA CHO",
+      "IWADE SHI",
+      "KAINAN SHI",
+      "KAISO GUN KIMINO CHO",
+      "KINOKAWA SHI",
+      "NISHIMURO GUN KAMITONDA CHO",
+      "NISHIMURO GUN SHIRAHAMA CHO",
+      "NISHIMURO GUN SUSAMI CHO",
+      "SHINGU SHI",
+      "TANABE SHI",
+      "WAKAYAMA SHI"
+    ],
+    "31": [
+      "HINO GUN HINO CHO",
+      "HINO GUN KOFU CHO",
+      "HINO GUN NICHINAN CHO",
+      "IWAMI GUN IWAMI CHO",
+      "KURAYOSHI SHI",
+      "SAIHAKU GUN DAISEN CHO",
+      "SAIHAKU GUN HIEZU SON",
+      "SAIHAKU GUN HOKI CHO",
+      "SAIHAKU GUN NAMBU CHO",
+      "SAKAIMINATO SHI",
+      "TOHAKU GUN HOKUEI CHO",
+      "TOHAKU GUN KOTORA CHO",
+      "TOHAKU GUN MISASA CHO",
+      "TOHAKU GUN YURIHAMA CHO",
+      "TOTTORI SHI",
+      "YAZU GUN CHIZU CHO",
+      "YAZU GUN WAKASA CHO",
+      "YAZU GUN YAZU CHO",
+      "YONAGO SHI"
+    ],
+    "32": [
+      "GOTSU SHI",
+      "HAMADA SHI",
+      "IISHI GUN IINAN CHO",
+      "IZUMO SHI",
+      "KANOASHI GUN TSUWANO CHO",
+      "KANOASHI GUN YOSHIKA CHO",
+      "MASUDA SHI",
+      "MATSUE SHI",
+      "NITA GUN OKUIZUMO CHO",
+      "OCHI GUN KAWAMOTO MACHI",
+      "OCHI GUN MISATO CHO",
+      "OCHI GUN ONAN CHO",
+      "ODA SHI",
+      "OKI GUN AMA CHO",
+      "OKI GUN CHIBU MURA",
+      "OKI GUN NISHINOSHIMA CHO",
+      "OKI GUN OKINOSHIMA CHO",
+      "UNNAN SHI",
+      "YASUGI SHI"
+    ],
+    "33": [
+      "AIDA GUN NISHIAWAKURA SON",
+      "AKAIWA SHI",
+      "ASAKUCHI GUN SATOSHO CHO",
+      "ASAKUCHI SHI",
+      "BIZEN SHI",
+      "IBARA SHI",
+      "KAGA GUN KIBICHUO CHO",
+      "KASAOKA SHI",
+      "KATSUTA GUN NAGI CHO",
+      "KATSUTA GUN SHOO CHO",
+      "KUME GUN KUMENAN CHO",
+      "KUME GUN MISAKI CHO",
+      "KURASHIKI SHI",
+      "MANIWA GUN SHINJO SON",
+      "MANIWA SHI",
+      "MIMASAKA SHI",
+      "NIIMI SHI",
+      "ODA GUN YAKAGE CHO",
+      "OKAYAMA SHI HIGASHI KU",
+      "OKAYAMA SHI KITA KU",
+      "OKAYAMA SHI MINAMI KU",
+      "OKAYAMA SHI NAKA KU",
+      "SETOCHI SHI",
+      "SOJA SHI",
+      "TAKAHASHI SHI",
+      "TAMANO SHI",
+      "TOMATA GUN KAGAMINO CHO",
+      "TSUKUBO GUN HAYASHIMA CHO",
+      "TSUYAMA SHI",
+      "WAKE GUN WAKE CHO"
+    ],
+    "34": [
+      "AKI GUN FUCHU CHO",
+      "AKI GUN KAITA CHO",
+      "AKI GUN KUMANO CHO",
+      "AKI GUN SAKA CHO",
+      "AKITAKATA SHI",
+      "ETAJIMA SHI",
+      "FUCHU SHI",
+      "FUKUYAMA SHI",
+      "HATSUKAICHI SHI",
+      "HIGASHIHIROSHIMA SHI",
+      "HIROSHIMA SHI AKI KU",
+      "HIROSHIMA SHI ASAKITA KU",
+      "HIROSHIMA SHI ASAMINAMI KU",
+      "HIROSHIMA SHI HIGASHI KU",
+      "HIROSHIMA SHI MINAMI KU",
+      "HIROSHIMA SHI NAKA KU",
+      "HIROSHIMA SHI NISHI KU",
+      "HIROSHIMA SHI SAEKI KU",
+      "JINSEKI GUN JINSEKIKOGEN CHO",
+      "KURE SHI",
+      "MIHARA SHI",
+      "MIYOSHI SHI",
+      "ONOMICHI SHI",
+      "OTAKE SHI",
+      "SERA GUN SERA CHO",
+      "SHOBARA SHI",
+      "TAKEHARA SHI",
+      "TOYOTA GUN OSAKIKAMIJIMA CHO",
+      "YAMAGATA GUN AKIOTA CHO",
+      "YAMAGATA GUN KITAHIROSHIMA CHO"
+    ],
+    "35": [
+      "ABU GUN ABU CHO",
+      "HAGI SHI",
+      "HIKARI SHI",
+      "HOFU SHI",
+      "IWAKUNI SHI",
+      "KUDAMATSU SHI",
+      "KUGA GUN WAKI CHO",
+      "KUMAGE GUN HIRAO CHO",
+      "KUMAGE GUN KAMINOSEKI CHO",
+      "KUMAGE GUN TABUSE CHO",
+      "MINE SHI",
+      "NAGATO SHI",
+      "OSHIMA GUN SUOOSHIMA CHO",
+      "SANYOONODA SHI",
+      "SHIMONOSEKI SHI",
+      "SHUNAN SHI",
+      "UBE SHI",
+      "YAMAGUCHI SHI",
+      "YANAI SHI"
+    ],
+    "36": [
+      "ANAN SHI",
+      "AWA SHI",
+      "ITANO GUN AIZUMI CHO",
+      "ITANO GUN ITANO CHO",
+      "ITANO GUN KAMIITA CHO",
+      "ITANO GUN KITAJIMA CHO",
+      "ITANO GUN MATSUSHIGE CHO",
+      "KAIFU GUN KAIYO CHO",
+      "KAIFU GUN MINAMI CHO",
+      "KAIFU GUN MUGI CHO",
+      "KATSURA GUN KAMIKATSU CHO",
+      "KATSURA GUN KATSURA CHO",
+      "KOMATSUSHIMA SHI",
+      "MIMA GUN TSURUGI CHO",
+      "MIMA SHI",
+      "MIYOSHI GUN HIGASHIMIYOSHI CHO",
+      "MIYOSHI SHI",
+      "MYODO GUN SANAGOCHI SON",
+      "MYOZAI GUN ISHII CHO",
+      "MYOZAI GUN KAMIYAMA CHO",
+      "NAKA GUN NAKA CHO",
+      "NARUTO SHI",
+      "TOKUSHIMA SHI",
+      "YOSHINOGAWA SHI"
+    ],
+    "37": [
+      "AYAUTA GUN AYAGAWA CHO",
+      "AYAUTA GUN UTAZU CHO",
+      "HIGASHIKAGAWA SHI",
+      "KAGAWA GUN NAOSHIMA CHO",
+      "KANONJI SHI",
+      "KITA GUN MIKI CHO",
+      "MARUGAME SHI",
+      "MITOYO SHI",
+      "NAKATADO GUN KOTOHIRA CHO",
+      "NAKATADO GUN MANNO CHO",
+      "NAKATADO GUN TADOTSU CHO",
+      "SAKAIDE SHI",
+      "SANUKI SHI",
+      "SHOZU GUN SHODOSHIMA CHO",
+      "SHOZU GUN TONOSHO CHO",
+      "TAKAMATSU SHI",
+      "ZENTSUJI SHI"
+    ],
+    "38": [
+      "IMABARI SHI",
+      "IYO GUN MASAKI CHO",
+      "IYO GUN TOBE CHO",
+      "IYO SHI",
+      "KAMIUKENA GUN KUMAKOGEN CHO",
+      "KITA GUN UCHIKO CHO",
+      "KITAUWA GUN KIHOKU CHO",
+      "KITAUWA GUN MATSUNO CHO",
+      "MATSUYAMA SHI",
+      "MINAMIUWA GUN AINAN CHO",
+      "NIIHAMA SHI",
+      "NISHIUWA GUN IKATA CHO",
+      "OCHI GUN KAMIJIMA CHO",
+      "OZU SHI",
+      "SAIJO SHI",
+      "SEIYO SHI",
+      "SHIKOKUCHUO SHI",
+      "TOON SHI",
+      "UWAJIMA SHI",
+      "YAWATAHAMA SHI"
+    ],
+    "39": [
+      "AGAWA GUN INO CHO",
+      "AGAWA GUN NIYODOGAWA CHO",
+      "AKI GUN GEISEI MURA",
+      "AKI GUN KITAGAWA MURA",
+      "AKI GUN NAHARI CHO",
+      "AKI GUN TANO CHO",
+      "AKI GUN TOYO CHO",
+      "AKI GUN UMAJI MURA",
+      "AKI GUN YASUDA CHO",
+      "AKI SHI",
+      "HATA GUN KUROSHIO CHO",
+      "HATA GUN MIHARA MURA",
+      "HATA GUN OTSUKI CHO",
+      "KAMI SHI",
+      "KOCHI SHI",
+      "KONAN SHI",
+      "MUROTO SHI",
+      "NAGAOKA GUN MOTOYAMA CHO",
+      "NAGAOKA GUN OTOYO CHO",
+      "NANKOKU SHI",
+      "SHIMANTO SHI",
+      "SUKUMO SHI",
+      "SUSAKI SHI",
+      "TAKAOKA GUN HIDAKA MURA",
+      "TAKAOKA GUN NAKATOSA CHO",
+      "TAKAOKA GUN OCHI CHO",
+      "TAKAOKA GUN SAKAWA CHO",
+      "TAKAOKA GUN SHIMANTO CHO",
+      "TAKAOKA GUN TSUNO CHO",
+      "TAKAOKA GUN YUSUHARA CHO",
+      "TOSA GUN OKAWA MURA",
+      "TOSA GUN TOSA CHO",
+      "TOSA SHI",
+      "TOSASHIMIZU SHI"
+    ],
+    "40": [
+      "ASAKURA GUN CHIKUZEN MACHI",
+      "ASAKURA GUN TOHO MURA",
+      "ASAKURA SHI",
+      "BUZEN SHI",
+      "CHIKUGO SHI",
+      "CHIKUJO GUN CHIKUJO MACHI",
+      "CHIKUJO GUN KOGE MACHI",
+      "CHIKUJO GUN YOSHITOMI MACHI",
+      "CHIKUSHINO SHI",
+      "DAZAIFU SHI",
+      "FUKUOKA SHI CHUO KU",
+      "FUKUOKA SHI HAKATA KU",
+      "FUKUOKA SHI HIGASHI KU",
+      "FUKUOKA SHI JONAN KU",
+      "FUKUOKA SHI MINAMI KU",
+      "FUKUOKA SHI NISHI KU",
+      "FUKUOKA SHI SAWARA KU",
+      "FUKUTSU SHI",
+      "IIZUKA SHI",
+      "ITOSHIMA SHI",
+      "KAHO GUN KEISEN MACHI",
+      "KAMA SHI",
+      "KASUGA SHI",
+      "KASUYA GUN HISAYAMA MACHI",
+      "KASUYA GUN KASUYA MACHI",
+      "KASUYA GUN SASAGURI MACHI",
+      "KASUYA GUN SHIME MACHI",
+      "KASUYA GUN SHINGU MACHI",
+      "KASUYA GUN SUE MACHI",
+      "KASUYA GUN UMI MACHI",
+      "KITAKYUSHU SHI KOKURAKITA KU",
+      "KITAKYUSHU SHI KOKURAMINAMI KU",
+      "KITAKYUSHU SHI MOJI KU",
+      "KITAKYUSHU SHI TOBATA KU",
+      "KITAKYUSHU SHI WAKAMATSU KU",
+      "KITAKYUSHU SHI YAHATAHIGASHI KU",
+      "KITAKYUSHU SHI YAHATANISHI KU",
+      "KOGA SHI",
+      "KURATE GUN KOTAKE MACHI",
+      "KURATE GUN KURATE MACHI",
+      "KURUME SHI",
+      "MII GUN TACHIARAI MACHI",
+      "MIYAKO GUN KANDA MACHI",
+      "MIYAKO GUN MIYAKO MACHI",
+      "MIYAMA SHI",
+      "MIYAWAKA SHI",
+      "MIZUMA GUN OKI MACHI",
+      "MUNAKATA SHI",
+      "NAKAGAWA SHI",
+      "NAKAMA SHI",
+      "NOGATA SHI",
+      "OGORI SHI",
+      "OKAWA SHI",
+      "OMUTA SHI",
+      "ONGA GUN ASHIYA MACHI",
+      "ONGA GUN MIZUMAKI MACHI",
+      "ONGA GUN OKAGAKI MACHI",
+      "ONGA GUN ONGA CHO",
+      "ONOJO SHI",
+      "TAGAWA GUN AKA MURA",
+      "TAGAWA GUN FUKUCHI MACHI",
+      "TAGAWA GUN ITODA MACHI",
+      "TAGAWA GUN KAWARA MACHI",
+      "TAGAWA GUN KAWASAKI MACHI",
+      "TAGAWA GUN OTO MACHI",
+      "TAGAWA GUN SOEDA MACHI",
+      "TAGAWA SHI",
+      "UKIHA SHI",
+      "YAME GUN HIROKAWA MACHI",
+      "YAME SHI",
+      "YANAGAWA SHI",
+      "YUKUHASHI SHI"
+    ],
+    "41": [
+      "FUJITSU GUN TARA CHO",
+      "HIGASHIMATSURA GUN GENKAI CHO",
+      "IMARI SHI",
+      "KANZAKI GUN YOSHINOGARI CHO",
+      "KANZAKI SHI",
+      "KARATSU SHI",
+      "KASHIMA SHI",
+      "KISHIMA GUN KOHOKU MACHI",
+      "KISHIMA GUN OMACHI CHO",
+      "KISHIMA GUN SHIROISHI CHO",
+      "MIYAKI GUN KAMIMINE CHO",
+      "MIYAKI GUN KIYAMA CHO",
+      "MIYAKI GUN MIYAKI CHO",
+      "NISHIMATSURA GUN ARITA CHO",
+      "OGI SHI",
+      "SAGA SHI",
+      "TAKEO SHI",
+      "TAKU SHI",
+      "TOSU SHI",
+      "URESHINO SHI"
+    ],
+    "42": [
+      "GOTO SHI",
+      "HIGASHISONOGI GUN HASAMI CHO",
+      "HIGASHISONOGI GUN HIGASHISONOGI CHO",
+      "HIGASHISONOGI GUN KAWATANA CHO",
+      "HIRADO SHI",
+      "IKI SHI",
+      "ISAHAYA SHI",
+      "KITAMATSURA GUN OJIKA CHO",
+      "KITAMATSURA GUN SAZA CHO",
+      "MATSURA SHI",
+      "MINAMIMATSURA GUN SHINKAMIGOTO CHO",
+      "MINAMISHIMABARA SHI",
+      "NAGASAKI SHI",
+      "NISHISONOGI GUN NAGAYO CHO",
+      "NISHISONOGI GUN TOGITSU CHO",
+      "OMURA SHI",
+      "SAIKAI SHI",
+      "SASEBO SHI",
+      "SHIMABARA SHI",
+      "TSUSHIMA SHI",
+      "UNZEN SHI"
+    ],
+    "43": [
+      "AMAKUSA GUN REIHOKU MACHI",
+      "AMAKUSA SHI",
+      "ARAO SHI",
+      "ASHIKITA GUN ASHIKITA MACHI",
+      "ASHIKITA GUN TSUNAGI MACHI",
+      "ASO GUN MINAMIASO MURA",
+      "ASO GUN MINAMIOGUNI MACHI",
+      "ASO GUN NISHIHARA MURA",
+      "ASO GUN OGUNI MACHI",
+      "ASO GUN TAKAMORI MACHI",
+      "ASO GUN UBUYAMA MURA",
+      "ASO SHI",
+      "HITOYOSHI SHI",
+      "KAMIAMAKUSA SHI",
+      "KAMIMASHIKI GUN KASHIMA MACHI",
+      "KAMIMASHIKI GUN KOSA MACHI",
+      "KAMIMASHIKI GUN MASHIKI MACHI",
+      "KAMIMASHIKI GUN MIFUNE MACHI",
+      "KAMIMASHIKI GUN YAMATO CHO",
+      "KIKUCHI GUN KIKUYO MACHI",
+      "KIKUCHI GUN OZU MACHI",
+      "KIKUCHI SHI",
+      "KOSHI SHI",
+      "KUMA GUN ASAGIRI CHO",
+      "KUMA GUN ITSUKI MURA",
+      "KUMA GUN KUMA MURA",
+      "KUMA GUN MIZUKAMI MURA",
+      "KUMA GUN NISHIKI MACHI",
+      "KUMA GUN SAGARA MURA",
+      "KUMA GUN TARAGI MACHI",
+      "KUMA GUN YAMAE MURA",
+      "KUMA GUN YUNOMAE MACHI",
+      "KUMAMOTO SHI CHUO KU",
+      "KUMAMOTO SHI HIGASHI KU",
+      "KUMAMOTO SHI KITA KU",
+      "KUMAMOTO SHI MINAMI KU",
+      "KUMAMOTO SHI NISHI KU",
+      "MINAMATA SHI",
+      "SHIMOMASHIKI GUN MISATO MACHI",
+      "TAMANA GUN GYOKUTO MACHI",
+      "TAMANA GUN NAGASU MACHI",
+      "TAMANA GUN NAGOMI MACHI",
+      "TAMANA GUN NANKAN MACHI",
+      "TAMANA SHI",
+      "UKI SHI",
+      "UTO SHI",
+      "YAMAGA SHI",
+      "YATSUSHIRO GUN HIKAWA CHO",
+      "YATSUSHIRO SHI"
+    ],
+    "44": [
+      "BEPPU SHI",
+      "BUNGOONO SHI",
+      "BUNGOTAKADA SHI",
+      "HAYAMI GUN HIJI MACHI",
+      "HIGASHIKUNISAKI GUN HIMESHIMA MURA",
+      "HITA SHI",
+      "KITSUKI SHI",
+      "KUNISAKI SHI",
+      "KUSU GUN KOKONOE MACHI",
+      "KUSU GUN KUSU MACHI",
+      "NAKATSU SHI",
+      "OITA SHI",
+      "SAIKI SHI",
+      "TAKETA SHI",
+      "TSUKUMI SHI",
+      "USA SHI",
+      "USUKI SHI",
+      "YUFU SHI"
+    ],
+    "45": [
+      "EBINO SHI",
+      "HIGASHIMOROKATA GUN AYA CHO",
+      "HIGASHIMOROKATA GUN KUNITOMI CHO",
+      "HIGASHIUSUKI GUN KADOGAWA CHO",
+      "HIGASHIUSUKI GUN MISATO CHO",
+      "HIGASHIUSUKI GUN MOROTSUKA SON",
+      "HIGASHIUSUKI GUN SHIIBA SON",
+      "HYUGA SHI",
+      "KITAMOROKATA GUN MIMATA CHO",
+      "KOBAYASHI SHI",
+      "KOYU GUN KAWAMINAMI CHO",
+      "KOYU GUN KIJO CHO",
+      "KOYU GUN NISHIMERA SON",
+      "KOYU GUN SHINTOMI CHO",
+      "KOYU GUN TAKANABE CHO",
+      "KOYU GUN TSUNO CHO",
+      "KUSHIMA SHI",
+      "MIYAKONOJO SHI",
+      "MIYAZAKI SHI",
+      "NICHINAN SHI",
+      "NISHIMOROKATA GUN TAKAHARU CHO",
+      "NISHIUSUKI GUN GOKASE CHO",
+      "NISHIUSUKI GUN HINOKAGE CHO",
+      "NISHIUSUKI GUN TAKACHIHO CHO",
+      "NOBEOKA SHI",
+      "SAITO SHI"
+    ],
+    "46": [
+      "AIRA GUN YUSUI CHO",
+      "AIRA SHI",
+      "AKUNE SHI",
+      "AMAMI SHI",
+      "HIOKI SHI",
+      "IBUSUKI SHI",
+      "ICHIKIKUSHIKINO SHI",
+      "ISA SHI",
+      "IZUMI GUN NAGASHIMA CHO",
+      "IZUMI SHI",
+      "KAGOSHIMA GUN MISHIMA MURA",
+      "KAGOSHIMA GUN TOSHIMA MURA",
+      "KAGOSHIMA SHI",
+      "KANOYA SHI",
+      "KIMOTSUKI GUN HIGASHIKUSHIRA CHO",
+      "KIMOTSUKI GUN KIMOTSUKI CHO",
+      "KIMOTSUKI GUN KINKO CHO",
+      "KIMOTSUKI GUN MINAMIOSUMI CHO",
+      "KIRISHIMA SHI",
+      "KUMAGE GUN MINAMITANE CHO",
+      "KUMAGE GUN NAKATANE CHO",
+      "KUMAGE GUN YAKUSHIMA CHO",
+      "MAKURAZAKI SHI",
+      "MINAMIKYUSHU SHI",
+      "MINAMISATSUMA SHI",
+      "NISHINOMOTE SHI",
+      "OSHIMA GUN AMAGI CHO",
+      "OSHIMA GUN CHINA CHO",
+      "OSHIMA GUN ISEN CHO",
+      "OSHIMA GUN KIKAI CHO",
+      "OSHIMA GUN SETOCHI CHO",
+      "OSHIMA GUN TATSUGO CHO",
+      "OSHIMA GUN TOKUNOSHIMA CHO",
+      "OSHIMA GUN UKEN SON",
+      "OSHIMA GUN WADOMARI CHO",
+      "OSHIMA GUN YAMATO SON",
+      "OSHIMA GUN YORON CHO",
+      "SATSUMA GUN SATSUMA CHO",
+      "SATSUMASENDAI SHI",
+      "SHIBUSHI SHI",
+      "SO GUN OSAKI CHO",
+      "SO SHI",
+      "TARUMIZU SHI"
+    ],
+    "47": [
+      "GINOWAN SHI",
+      "ISHIGAKI SHI",
+      "ITOMAN SHI",
+      "KUNIGAMI GUN GINOZA SON",
+      "KUNIGAMI GUN HIGASHI SON",
+      "KUNIGAMI GUN IE SON",
+      "KUNIGAMI GUN KIN CHO",
+      "KUNIGAMI GUN KUNIGAMI SON",
+      "KUNIGAMI GUN MOTOBU CHO",
+      "KUNIGAMI GUN NAKIJIN SON",
+      "KUNIGAMI GUN OGIMI SON",
+      "KUNIGAMI GUN ONNA SON",
+      "MIYAKO GUN TARAMA SON",
+      "MIYAKOJIMA SHI",
+      "NAGO SHI",
+      "NAHA SHI",
+      "NAKAGAMI GUN CHATAN CHO",
+      "NAKAGAMI GUN KADENA CHO",
+      "NAKAGAMI GUN KITANAKAGUSUKU SON",
+      "NAKAGAMI GUN NAKAGUSUKU SON",
+      "NAKAGAMI GUN NISHIHARA CHO",
+      "NAKAGAMI GUN YOMITAN SON",
+      "NANJO SHI",
+      "OKINAWA SHI",
+      "SHIMAJIRI GUN AGUNI SON",
+      "SHIMAJIRI GUN HAEBARU CHO",
+      "SHIMAJIRI GUN IHEYA SON",
+      "SHIMAJIRI GUN IZENA SON",
+      "SHIMAJIRI GUN KITADAITO SON",
+      "SHIMAJIRI GUN KUMEJIMA CHO",
+      "SHIMAJIRI GUN MINAMIDAITO SON",
+      "SHIMAJIRI GUN TOKASHIKI SON",
+      "SHIMAJIRI GUN TONAKI SON",
+      "SHIMAJIRI GUN YAESE CHO",
+      "SHIMAJIRI GUN YONABARU CHO",
+      "SHIMAJIRI GUN ZAMAMI SON",
+      "TOMIGUSUKU SHI",
+      "URASOE SHI",
+      "URUMA SHI",
+      "YAEYAMA GUN TAKETOMI CHO",
+      "YAEYAMA GUN YONAGUNI CHO"
+    ],
+    "01": [
+      "ABASHIRI GUN BIHORO CHO",
+      "ABASHIRI GUN OZORA CHO",
+      "ABASHIRI GUN TSUBETSU CHO",
+      "ABASHIRI SHI",
+      "ABUTA GUN KIMOBETSU CHO",
+      "ABUTA GUN KUTCHAN CHO",
+      "ABUTA GUN KYOGOKU CHO",
+      "ABUTA GUN MAKKARI MURA",
+      "ABUTA GUN NISEKO CHO",
+      "ABUTA GUN RUSUTSU MURA",
+      "ABUTA GUN TOYAKO CHO",
+      "ABUTA GUN TOYORA CHO",
+      "AKABIRA SHI",
+      "AKAN GUN TSURUI MURA",
+      "AKKESHI GUN AKKESHI CHO",
+      "AKKESHI GUN HAMANAKA CHO",
+      "ASAHIKAWA SHI",
+      "ASHIBETSU SHI",
+      "ASHORO GUN ASHORO CHO",
+      "ASHORO GUN RIKUBETSU CHO",
+      "BIBAI SHI",
+      "CHITOSE SHI",
+      "DATE SHI",
+      "EBETSU SHI",
+      "ENIWA SHI",
+      "ESASHI GUN ESASHI CHO",
+      "ESASHI GUN HAMATOMBETSU CHO",
+      "ESASHI GUN NAKATOMBETSU CHO",
+      "FUKAGAWA SHI",
+      "FURANO SHI",
+      "FURU GUN KAMOENAI MURA",
+      "FURU GUN TOMARI MURA",
+      "FURUBIRA GUN FURUBIRA CHO",
+      "FUTAMI GUN YAKUMO CHO",
+      "HAKODATE SHI",
+      "HIDAKA GUN SHINHIDAKA CHO",
+      "HIRO GUN HIRO CHO",
+      "HIRO GUN TAIKI CHO",
+      "HIYAMA GUN ASSABU CHO",
+      "HIYAMA GUN ESASHI CHO",
+      "HIYAMA GUN KAMINOKUNI CHO",
+      "HOKUTO SHI",
+      "HOROIZUMI GUN ERIMO CHO",
+      "ISHIKARI GUN SHINSHINOTSU MURA",
+      "ISHIKARI GUN TOBETSU CHO",
+      "ISHIKARI SHI",
+      "ISOYA GUN RANKOSHI CHO",
+      "IWAMIZAWA SHI",
+      "IWANAI GUN IWANAI CHO",
+      "IWANAI GUN KYOWA CHO",
+      "KABATO GUN SHINTOTSUKAWA CHO",
+      "KABATO GUN TSUKIGATA CHO",
+      "KABATO GUN URAUSU CHO",
+      "KAMEDA GUN NANAE CHO",
+      "KAMIISO GUN KIKONAI CHO",
+      "KAMIISO GUN SHIRIUCHI CHO",
+      "KAMIKAWA GUN AIBETSU CHO",
+      "KAMIKAWA GUN BIEI CHO",
+      "KAMIKAWA GUN HIGASHIKAGURA CHO",
+      "KAMIKAWA GUN HIGASHIKAWA CHO",
+      "KAMIKAWA GUN KAMIKAWA CHO",
+      "KAMIKAWA GUN KEMBUCHI CHO",
+      "KAMIKAWA GUN PIPPU CHO",
+      "KAMIKAWA GUN SHIMIZU CHO",
+      "KAMIKAWA GUN SHIMOKAWA CHO",
+      "KAMIKAWA GUN SHINTOKU CHO",
+      "KAMIKAWA GUN TAKASU CHO",
+      "KAMIKAWA GUN TOMA CHO",
+      "KAMIKAWA GUN WASSAMU CHO",
+      "KASAI GUN MEMURO CHO",
+      "KASAI GUN NAKASATSUNAI MURA",
+      "KASAI GUN SARABETSU MURA",
+      "KATO GUN KAMISHIHORO CHO",
+      "KATO GUN OTOFUKE CHO",
+      "KATO GUN SHIHORO CHO",
+      "KATO GUN SHIKAOI CHO",
+      "KAWAKAMI GUN SHIBECHA CHO",
+      "KAWAKAMI GUN TESHIKAGA CHO",
+      "KAYABE GUN MORI MACHI",
+      "KAYABE GUN SHIKABE CHO",
+      "KITAHIROSHIMA SHI",
+      "KITAMI SHI",
+      "KUDO GUN SETANA CHO",
+      "KUSHIRO GUN KUSHIRO CHO",
+      "KUSHIRO SHI",
+      "MASHIKE GUN MASHIKE CHO",
+      "MATSUMAE GUN FUKUSHIMA CHO",
+      "MATSUMAE GUN MATSUMAE CHO",
+      "MENASHI GUN RAUSU CHO",
+      "MIKASA SHI",
+      "MOMBETSU GUN ENGARU CHO",
+      "MOMBETSU GUN NISHIOKOPPE MURA",
+      "MOMBETSU GUN OKOPPE CHO",
+      "MOMBETSU GUN OMU CHO",
+      "MOMBETSU GUN TAKINOE CHO",
+      "MOMBETSU GUN YUBETSU CHO",
+      "MOMBETSU SHI",
+      "MURORAN SHI",
+      "NAKAGAWA GUN BIFUKA CHO",
+      "NAKAGAWA GUN HOMBETSU CHO",
+      "NAKAGAWA GUN IKEDA CHO",
+      "NAKAGAWA GUN MAKUBETSU CHO",
+      "NAKAGAWA GUN NAKAGAWA CHO",
+      "NAKAGAWA GUN OTOINEPPU MURA",
+      "NAKAGAWA GUN TOYOKORO CHO",
+      "NAYORO SHI",
+      "NEMURO SHI",
+      "NIIKAPPU GUN NIIKAPPU CHO",
+      "NISHI GUN OTOBE CHO",
+      "NOBORIBETSU SHI",
+      "NOTSUKE GUN BETSUKAI CHO",
+      "OBIHIRO SHI",
+      "OKUSHIRI GUN OKUSHIRI CHO",
+      "OTARU SHI",
+      "REBUN GUN REBUN CHO",
+      "RISHIRI GUN RISHIRI CHO",
+      "RISHIRI GUN RISHIRIFUJI CHO",
+      "RUMOI GUN OBIRA CHO",
+      "RUMOI SHI",
+      "SAMANI GUN SAMANI CHO",
+      "SAPPORO SHI ATSUBETSU KU",
+      "SAPPORO SHI CHUO KU",
+      "SAPPORO SHI HIGASHI KU",
+      "SAPPORO SHI KITA KU",
+      "SAPPORO SHI KIYOTA KU",
+      "SAPPORO SHI MINAMI KU",
+      "SAPPORO SHI NISHI KU",
+      "SAPPORO SHI SHIROISHI KU",
+      "SAPPORO SHI TEINE KU",
+      "SAPPORO SHI TOYOHIRA KU",
+      "SARU GUN BIRATORI CHO",
+      "SARU GUN HIDAKA CHO",
+      "SETANA GUN IMAKANE CHO",
+      "SHAKOTAN GUN SHAKOTAN CHO",
+      "SHARI GUN KIYOSATO CHO",
+      "SHARI GUN KOSHIMIZU CHO",
+      "SHARI GUN SHARI CHO",
+      "SHIBETSU GUN NAKASHIBETSU CHO",
+      "SHIBETSU GUN SHIBETSU CHO",
+      "SHIBETSU SHI",
+      "SHIMAMAKI GUN SHIMAMAKI MURA",
+      "SHIRANUKA GUN SHIRANUKA CHO",
+      "SHIRAOI GUN SHIRAOI CHO",
+      "SORACHI GUN KAMIFURANO CHO",
+      "SORACHI GUN KAMISUNAGAWA CHO",
+      "SORACHI GUN MINAMIFURANO CHO",
+      "SORACHI GUN NAIE CHO",
+      "SORACHI GUN NAKAFURANO CHO",
+      "SORACHI GUN NAMPORO CHO",
+      "SOYA GUN SARUFUTSU MURA",
+      "SUNAGAWA SHI",
+      "SUTTSU GUN KUROMATSUNAI CHO",
+      "SUTTSU GUN SUTTSU CHO",
+      "TAKIKAWA SHI",
+      "TESHIO GUN EMBETSU CHO",
+      "TESHIO GUN HORONOBE CHO",
+      "TESHIO GUN TESHIO CHO",
+      "TESHIO GUN TOYOTOMI CHO",
+      "TOKACHI GUN URAHORO CHO",
+      "TOKORO GUN KUNNEPPU CHO",
+      "TOKORO GUN OKETO CHO",
+      "TOKORO GUN SAROMA CHO",
+      "TOMAKOMAI SHI",
+      "TOMAMAE GUN HABORO CHO",
+      "TOMAMAE GUN SHOSAMBETSU MURA",
+      "TOMAMAE GUN TOMAMAE CHO",
+      "URAKAWA GUN URAKAWA CHO",
+      "URYU GUN CHIPPUBETSU CHO",
+      "URYU GUN HOKURYU CHO",
+      "URYU GUN HOROKANAI CHO",
+      "URYU GUN MOSEUSHI CHO",
+      "URYU GUN NUMATA CHO",
+      "URYU GUN URYU CHO",
+      "USU GUN SOBETSU CHO",
+      "UTASHINAI SHI",
+      "WAKKANAI SHI",
+      "YAMAKOSHI GUN OSHAMAMBE CHO",
+      "YOICHI GUN AKAIGAWA MURA",
+      "YOICHI GUN NIKI CHO",
+      "YOICHI GUN YOICHI CHO",
+      "YUBARI GUN KURIYAMA CHO",
+      "YUBARI GUN NAGANUMA CHO",
+      "YUBARI GUN YUNI CHO",
+      "YUBARI SHI",
+      "YUFUTSU GUN ABIRA CHO",
+      "YUFUTSU GUN ATSUMA CHO",
+      "YUFUTSU GUN MUKAWA CHO",
+      "YUFUTSU GUN SHIMUKAPPU MURA"
+    ],
+    "02": [
+      "AOMORI SHI",
+      "GOSHOGAWARA SHI",
+      "HACHINOHE SHI",
+      "HIGASHITSUGARU GUN HIRANAI MACHI",
+      "HIGASHITSUGARU GUN IMABETSU MACHI",
+      "HIGASHITSUGARU GUN SOTOGAHAMA MACHI",
+      "HIGASHITSUGARU GUN YOMOGITA MURA",
+      "HIRAKAWA SHI",
+      "HIROSAKI SHI",
+      "KAMIKITA GUN NOHEJI MACHI",
+      "KAMIKITA GUN OIRASE CHO",
+      "KAMIKITA GUN ROKKASHO MURA",
+      "KAMIKITA GUN ROKUNOHE MACHI",
+      "KAMIKITA GUN SHICHINOHE MACHI",
+      "KAMIKITA GUN TOHOKU MACHI",
+      "KAMIKITA GUN YOKOHAMA MACHI",
+      "KITATSUGARU GUN ITAYANAGI MACHI",
+      "KITATSUGARU GUN NAKADOMARI MACHI",
+      "KITATSUGARU GUN TSURUTA MACHI",
+      "KUROISHI SHI",
+      "MINAMITSUGARU GUN FUJISAKI MACHI",
+      "MINAMITSUGARU GUN INAKADATE MURA",
+      "MINAMITSUGARU GUN OWANI MACHI",
+      "MISAWA SHI",
+      "MUTSU SHI",
+      "NAKATSUGARU GUN NISHIMEYA MURA",
+      "NISHITSUGARU GUN AJIGASAWA MACHI",
+      "NISHITSUGARU GUN FUKAURA MACHI",
+      "SANNOHE GUN GONOHE MACHI",
+      "SANNOHE GUN HASHIKAMI CHO",
+      "SANNOHE GUN NAMBU CHO",
+      "SANNOHE GUN SANNOHE MACHI",
+      "SANNOHE GUN SHINGO MURA",
+      "SANNOHE GUN TAKKO MACHI",
+      "SHIMOKITA GUN HIGASHIDORI MURA",
+      "SHIMOKITA GUN KAZAMAURA MURA",
+      "SHIMOKITA GUN OMA MACHI",
+      "SHIMOKITA GUN SAI MURA",
+      "TOWADA SHI",
+      "TSUGARU SHI"
+    ],
+    "03": [
+      "HACHIMANTAI SHI",
+      "HANAMAKI SHI",
+      "ICHINOSEKI SHI",
+      "ISAWA GUN KANEGASAKI CHO",
+      "IWATE GUN IWATE MACHI",
+      "IWATE GUN KUZUMAKI MACHI",
+      "IWATE GUN SHIZUKUISHI CHO",
+      "KAMAISHI SHI",
+      "KAMIHEI GUN OTSUCHI CHO",
+      "KESEN GUN SUMITA CHO",
+      "KITAKAMI SHI",
+      "KUJI SHI",
+      "KUNOHE GUN HIRONO CHO",
+      "KUNOHE GUN KARUMAI MACHI",
+      "KUNOHE GUN KUNOHE MURA",
+      "KUNOHE GUN NODA MURA",
+      "MIYAKO SHI",
+      "MORIOKA SHI",
+      "NINOHE GUN ICHINOHE MACHI",
+      "NINOHE SHI",
+      "NISHIIWAI GUN HIRAIZUMI CHO",
+      "OFUNATO SHI",
+      "OSHU SHI",
+      "RIKUZENTAKATA SHI",
+      "SHIMOHEI GUN FUDAI MURA",
+      "SHIMOHEI GUN IWAIZUMI CHO",
+      "SHIMOHEI GUN TANOHATA MURA",
+      "SHIMOHEI GUN YAMADA MACHI",
+      "SHIWA GUN SHIWA CHO",
+      "SHIWA GUN YAHABA CHO",
+      "TAKIZAWA SHI",
+      "TONO SHI",
+      "WAGA GUN NISHIWAGA MACHI"
+    ],
+    "04": [
+      "HIGASHIMATSUSHIMA SHI",
+      "IGU GUN MARUMORI MACHI",
+      "ISHINOMAKI SHI",
+      "IWANUMA SHI",
+      "KAKUDA SHI",
+      "KAMI GUN KAMI MACHI",
+      "KAMI GUN SHIKAMA CHO",
+      "KATTA GUN SHICHIKASHUKU MACHI",
+      "KATTA GUN ZAO MACHI",
+      "KESENNUMA SHI",
+      "KURIHARA SHI",
+      "KUROKAWA GUN OHIRA MURA",
+      "KUROKAWA GUN OSATO CHO",
+      "KUROKAWA GUN TAIWA CHO",
+      "MIYAGI GUN MATSUSHIMA MACHI",
+      "MIYAGI GUN RIFU CHO",
+      "MIYAGI GUN SHICHIGAHAMA MACHI",
+      "MOTOYOSHI GUN MINAMISANRIKU CHO",
+      "NATORI SHI",
+      "OSAKI SHI",
+      "OSHIKA GUN ONAGAWA CHO",
+      "SENDAI SHI AOBA KU",
+      "SENDAI SHI IZUMI KU",
+      "SENDAI SHI MIYAGINO KU",
+      "SENDAI SHI TAIHAKU KU",
+      "SENDAI SHI WAKABAYASHI KU",
+      "SHIBATA GUN KAWASAKI MACHI",
+      "SHIBATA GUN MURATA MACHI",
+      "SHIBATA GUN OGAWARA MACHI",
+      "SHIBATA GUN SHIBATA MACHI",
+      "SHIOGAMA SHI",
+      "SHIROISHI SHI",
+      "TAGAJO SHI",
+      "TODA GUN MISATO MACHI",
+      "TODA GUN WAKUYA CHO",
+      "TOME SHI",
+      "TOMIYA SHI",
+      "WATARI GUN WATARI CHO",
+      "WATARI GUN YAMAMOTO CHO"
+    ],
+    "05": [
+      "AKITA SHI",
+      "DAISEN SHI",
+      "KATAGAMI SHI",
+      "KAZUNO GUN KOSAKA MACHI",
+      "KAZUNO SHI",
+      "KITAAKITA GUN KAMIKOANI MURA",
+      "KITAAKITA SHI",
+      "MINAMIAKITA GUN GOJOME MACHI",
+      "MINAMIAKITA GUN HACHIROGATA MACHI",
+      "MINAMIAKITA GUN IKAWA MACHI",
+      "MINAMIAKITA GUN OGATA MURA",
+      "NIKAHO SHI",
+      "NOSHIRO SHI",
+      "ODATE SHI",
+      "OGA SHI",
+      "OGACHI GUN HIGASHINARUSE MURA",
+      "OGACHI GUN UGO MACHI",
+      "SEMBOKU GUN MISATO CHO",
+      "SEMBOKU SHI",
+      "YAMAMOTO GUN FUJISATO MACHI",
+      "YAMAMOTO GUN HAPPO CHO",
+      "YAMAMOTO GUN MITANE CHO",
+      "YOKOTE SHI",
+      "YURIHONJO SHI",
+      "YUZAWA SHI"
+    ],
+    "06": [
+      "AKUMI GUN YUZA MACHI",
+      "HIGASHIMURAYAMA GUN NAKAYAMA MACHI",
+      "HIGASHIMURAYAMA GUN YAMANOBE MACHI",
+      "HIGASHINE SHI",
+      "HIGASHIOKITAMA GUN KAWANISHI MACHI",
+      "HIGASHIOKITAMA GUN TAKAHATA MACHI",
+      "HIGASHITAGAWA GUN MIKAWA MACHI",
+      "HIGASHITAGAWA GUN SHONAI MACHI",
+      "KAMINOYAMA SHI",
+      "KITAMURAYAMA GUN OISHIDA MACHI",
+      "MOGAMI GUN FUNAGATA MACHI",
+      "MOGAMI GUN KANEYAMA MACHI",
+      "MOGAMI GUN MAMUROGAWA MACHI",
+      "MOGAMI GUN MOGAMI MACHI",
+      "MOGAMI GUN OKURA MURA",
+      "MOGAMI GUN SAKEGAWA MURA",
+      "MOGAMI GUN TOZAWA MURA",
+      "MURAYAMA SHI",
+      "NAGAI SHI",
+      "NANYO SHI",
+      "NISHIMURAYAMA GUN ASAHI MACHI",
+      "NISHIMURAYAMA GUN KAHOKU CHO",
+      "NISHIMURAYAMA GUN NISHIKAWA MACHI",
+      "NISHIMURAYAMA GUN OE MACHI",
+      "NISHIOKITAMA GUN IIDE MACHI",
+      "NISHIOKITAMA GUN OGUNI MACHI",
+      "NISHIOKITAMA GUN SHIRATAKA MACHI",
+      "OBANAZAWA SHI",
+      "SAGAE SHI",
+      "SAKATA SHI",
+      "SHINJO SHI",
+      "TENDO SHI",
+      "TSURUOKA SHI",
+      "YAMAGATA SHI",
+      "YONEZAWA SHI"
+    ],
+    "07": [
+      "ADACHI GUN OTAMA MURA",
+      "AIZUWAKAMATSU SHI",
+      "DATE GUN KAWAMATA MACHI",
+      "DATE GUN KORI MACHI",
+      "DATE GUN KUNIMI MACHI",
+      "DATE SHI",
+      "FUKUSHIMA SHI",
+      "FUTABA GUN FUTABA MACHI",
+      "FUTABA GUN HIRONO MACHI",
+      "FUTABA GUN KATSURAO MURA",
+      "FUTABA GUN KAWAUCHI MURA",
+      "FUTABA GUN NAMIE MACHI",
+      "FUTABA GUN NARAHA MACHI",
+      "FUTABA GUN OKUMA MACHI",
+      "FUTABA GUN TOMIOKA MACHI",
+      "HIGASHISHIRAKAWA GUN HANAWA MACHI",
+      "HIGASHISHIRAKAWA GUN SAMEGAWA MURA",
+      "HIGASHISHIRAKAWA GUN TANAGURA MACHI",
+      "HIGASHISHIRAKAWA GUN YAMATSURI MACH",
+      "ISHIKAWA GUN ASAKAWA MACHI",
+      "ISHIKAWA GUN FURUDONO MACHI",
+      "ISHIKAWA GUN HIRATA MURA",
+      "ISHIKAWA GUN ISHIKAWA MACHI",
+      "ISHIKAWA GUN TAMAKAWA MURA",
+      "IWAKI SHI",
+      "IWASE GUN KAGAMIISHI MACHI",
+      "IWASE GUN TENEI MURA",
+      "KAWANUMA GUN AIZUBANGE MACHI",
+      "KAWANUMA GUN YANAIZU MACHI",
+      "KAWANUMA GUN YUGAWA MURA",
+      "KITAKATA SHI",
+      "KORIYAMA SHI",
+      "MINAMIAIZU GUN HINOEMATA MURA",
+      "MINAMIAIZU GUN MINAMIAIZU MACHI",
+      "MINAMIAIZU GUN SHIMOGO MACHI",
+      "MINAMIAIZU GUN TADAMI MACHI",
+      "MINAMISOMA SHI",
+      "MOTOMIYA SHI",
+      "NIHOMMATSU SHI",
+      "NISHISHIRAKAWA GUN IZUMIZAKI MURA",
+      "NISHISHIRAKAWA GUN NAKAJIMA MURA",
+      "NISHISHIRAKAWA GUN NISHIGO MURA",
+      "NISHISHIRAKAWA GUN YABUKI MACHI",
+      "ONUMA GUN AIZUMISATO MACHI",
+      "ONUMA GUN KANEYAMA MACHI",
+      "ONUMA GUN MISHIMA MACHI",
+      "ONUMA GUN SHOWA MURA",
+      "SHIRAKAWA SHI",
+      "SOMA GUN IITATE MURA",
+      "SOMA GUN SHINCHI MACHI",
+      "SOMA SHI",
+      "SUKAGAWA SHI",
+      "TAMURA GUN MIHARU MACHI",
+      "TAMURA GUN ONO MACHI",
+      "TAMURA SHI",
+      "YAMA GUN BANDAI MACHI",
+      "YAMA GUN INAWASHIRO MACHI",
+      "YAMA GUN KITASHIOBARA MURA",
+      "YAMA GUN NISHIAIZU MACHI"
+    ],
+    "08": [
+      "BANDO SHI",
+      "CHIKUSEI SHI",
+      "HIGASHIIBARAKI GUN IBARAKI MACHI",
+      "HIGASHIIBARAKI GUN OARAI MACHI",
+      "HIGASHIIBARAKI GUN SHIROSATO MACHI",
+      "HITACHI SHI",
+      "HITACHINAKA SHI",
+      "HITACHIOMIYA SHI",
+      "HITACHIOTA SHI",
+      "HOKOTA SHI",
+      "INASHIKI GUN AMI MACHI",
+      "INASHIKI GUN KAWACHI MACHI",
+      "INASHIKI GUN MIHO MURA",
+      "INASHIKI SHI",
+      "ISHIOKA SHI",
+      "ITAKO SHI",
+      "JOSO SHI",
+      "KAMISU SHI",
+      "KASAMA SHI",
+      "KASHIMA SHI",
+      "KASUMIGAURA SHI",
+      "KITAIBARAKI SHI",
+      "KITASOMA GUN TONE MACHI",
+      "KOGA SHI",
+      "KUJI GUN DAIGO MACHI",
+      "MITO SHI",
+      "MORIYA SHI",
+      "NAKA GUN TOKAI MURA",
+      "NAKA SHI",
+      "NAMEGATA SHI",
+      "OMITAMA SHI",
+      "RYUGASAKI SHI",
+      "SAKURAGAWA SHI",
+      "SASHIMA GUN GOKA MACHI",
+      "SASHIMA GUN SAKAI MACHI",
+      "SHIMOTSUMA SHI",
+      "TAKAHAGI SHI",
+      "TORIDE SHI",
+      "TSUCHIURA SHI",
+      "TSUKUBA SHI",
+      "TSUKUBAMIRAI SHI",
+      "USHIKU SHI",
+      "YUKI GUN YACHIYO MACHI",
+      "YUKI SHI"
+    ],
+    "09": [
+      "ASHIKAGA SHI",
+      "HAGA GUN HAGA MACHI",
+      "HAGA GUN ICHIKAI MACHI",
+      "HAGA GUN MASHIKO MACHI",
+      "HAGA GUN MOTEGI MACHI",
+      "KANUMA SHI",
+      "KAWACHI GUN KAMINOKAWA MACHI",
+      "MOKA SHI",
+      "NASU GUN NAKAGAWA MACHI",
+      "NASU GUN NASU MACHI",
+      "NASUKARASUYAMA SHI",
+      "NASUSHIOBARA SHI",
+      "NIKKO SHI",
+      "OTAWARA SHI",
+      "OYAMA SHI",
+      "SAKURA SHI",
+      "SANO SHI",
+      "SHIMOTSUGA GUN MIBU MACHI",
+      "SHIMOTSUGA GUN NOGI MACHI",
+      "SHIMOTSUKE SHI",
+      "SHIOYA GUN SHIOYA MACHI",
+      "SHIOYA GUN TAKANEZAWA MACHI",
+      "TOCHIGI SHI",
+      "UTSUNOMIYA SHI",
+      "YAITA SHI"
+    ]
+  },
+  "airlines": [
+    {
+      "code": "1",
+      "iata": "3K",
+      "label": "3K：JETSTAR ASIA AIRWAYS(JSA)"
+    },
+    {
+      "code": "2",
+      "iata": "3S",
+      "label": "3S：AEROLOGIC(BOX)"
+    },
+    {
+      "code": "3",
+      "iata": "3U",
+      "label": "3U：SICHUAN AIRLINES(CSC)"
+    },
+    {
+      "code": "4",
+      "iata": "3V",
+      "label": "3V：ASL AIRLINES BELGIUM(TAY)"
+    },
+    {
+      "code": "5",
+      "iata": "4B",
+      "label": "4B：AVIASTAR-TU(TUP)"
+    },
+    {
+      "code": "6",
+      "iata": "4G",
+      "label": "4G：GAZPROMAVIA AVIATION(GZP)"
+    },
+    {
+      "code": "7",
+      "iata": "4V",
+      "label": "4V：FLY GANGWON(FGW)"
+    },
+    {
+      "code": "8",
+      "iata": "5J",
+      "label": "5J：CEBU PACIFIC AIR(CEB)"
+    },
+    {
+      "code": "9",
+      "iata": "5K",
+      "label": "5K：HI FLY(HFY)"
+    },
+    {
+      "code": "10",
+      "iata": "5X",
+      "label": "5X：UPS AIRLINES(UPS)"
+    },
+    {
+      "code": "11",
+      "iata": "5Y",
+      "label": "5Y：ATLAS AIR(GTI)"
+    },
+    {
+      "code": "12",
+      "iata": "6J",
+      "label": "6J：SOLASEED AIR(SNJ)"
+    },
+    {
+      "code": "13",
+      "iata": "7C",
+      "label": "7C：JEJU AIR(JJA)"
+    },
+    {
+      "code": "14",
+      "iata": "7G",
+      "label": "7G：STAR FLYER(SFJ)"
+    },
+    {
+      "code": "15",
+      "iata": "7L",
+      "label": "7L：SILK WAY WEST AIRLINES(AZG)"
+    },
+    {
+      "code": "16",
+      "iata": "8L",
+      "label": "8L：LUCKY AIR(LKE)"
+    },
+    {
+      "code": "17",
+      "iata": "8M",
+      "label": "8M：MYANMAR AIRWAYS INTERNATIONAL(MMA)"
+    },
+    {
+      "code": "18",
+      "iata": "9C",
+      "label": "9C：SPRING AIRLINES(CQH)"
+    },
+    {
+      "code": "19",
+      "iata": "9S",
+      "label": "9S：SOUTHERN AIR(SOO)"
+    },
+    {
+      "code": "20",
+      "iata": "AA",
+      "label": "AA：AMERICAN AIRLINES(AAL)"
+    },
+    {
+      "code": "21",
+      "iata": "AC",
+      "label": "AC：AIR CANADA(ACA)"
+    },
+    {
+      "code": "22",
+      "iata": "AE",
+      "label": "AE：MANDARIN AIRLINES(MDA)"
+    },
+    {
+      "code": "23",
+      "iata": "AF",
+      "label": "AF：AIR FRANCE(AFR)"
+    },
+    {
+      "code": "24",
+      "iata": "AI",
+      "label": "AI：AIR INDIA(AIC)"
+    },
+    {
+      "code": "25",
+      "iata": "AK",
+      "label": "AK：AIR ASIA(AXM)"
+    },
+    {
+      "code": "26",
+      "iata": "AM",
+      "label": "AM：AEROMEXICO(AMX)"
+    },
+    {
+      "code": "27",
+      "iata": "AQ",
+      "label": "AQ：9AIR(JYH)"
+    },
+    {
+      "code": "28",
+      "iata": "AY",
+      "label": "AY：FINNAIR(FIN)"
+    },
+    {
+      "code": "29",
+      "iata": "AZ",
+      "label": "AZ：ITALIA TRASPORTO AEREO(ITY)"
+    },
+    {
+      "code": "30",
+      "iata": "BA",
+      "label": "BA：BRITISH AIRWAYS(BAW)"
+    },
+    {
+      "code": "31",
+      "iata": "BC",
+      "label": "BC：SKYMARK AIRLINES(SKY)"
+    },
+    {
+      "code": "32",
+      "iata": "BI",
+      "label": "BI：ROYAL BRUNEI AIRLINES(RBA)"
+    },
+    {
+      "code": "33",
+      "iata": "BL",
+      "label": "BL：PACIFIC AIRLINES(PIC)"
+    },
+    {
+      "code": "34",
+      "iata": "BR",
+      "label": "BR：EVA AIRWAYS(EVA)"
+    },
+    {
+      "code": "35",
+      "iata": "BX",
+      "label": "BX：AIR BUSAN(ABL)"
+    },
+    {
+      "code": "36",
+      "iata": "C8",
+      "label": "C8：CARGOLUX ITALIA(ICV)"
+    },
+    {
+      "code": "37",
+      "iata": "CA",
+      "label": "CA：AIR CHINA(CCA)"
+    },
+    {
+      "code": "38",
+      "iata": "CF",
+      "label": "CF：CHINA POSTAL AIRLINES(CYZ)"
+    },
+    {
+      "code": "39",
+      "iata": "CI",
+      "label": "CI：CHINA AIRLINES(CAL)"
+    },
+    {
+      "code": "40",
+      "iata": "CK",
+      "label": "CK：CHINA CARGO AIRLINES(CKK)"
+    },
+    {
+      "code": "41",
+      "iata": "CV",
+      "label": "CV：CARGOLUX AIRLINES(CLX)"
+    },
+    {
+      "code": "42",
+      "iata": "CX",
+      "label": "CX：CATHAY PACIFIC AIRWAYS(CPA)"
+    },
+    {
+      "code": "43",
+      "iata": "CZ",
+      "label": "CZ：CHINA SOUTHERN AIRLINES(CSN)"
+    },
+    {
+      "code": "44",
+      "iata": "D7",
+      "label": "D7：AIRASIA X(XAX)"
+    },
+    {
+      "code": "45",
+      "iata": "DL",
+      "label": "DL：DELTA AIR LINES(DAL)"
+    },
+    {
+      "code": "46",
+      "iata": "DV",
+      "label": "DV：SCAT AIRLINES(VSV)"
+    },
+    {
+      "code": "47",
+      "iata": "EH",
+      "label": "EH：ANA WINGS(AKX)"
+    },
+    {
+      "code": "48",
+      "iata": "EK",
+      "label": "EK：EMIRATES(UAE)"
+    },
+    {
+      "code": "49",
+      "iata": "ET",
+      "label": "ET：ETHIOPIAN AIRLINES(ETH)"
+    },
+    {
+      "code": "50",
+      "iata": "EY",
+      "label": "EY：ETIHAD AIRWAYS(ETD)"
+    },
+    {
+      "code": "51",
+      "iata": "FD",
+      "label": "FD：THAI AIRASIA(AIQ)"
+    },
+    {
+      "code": "52",
+      "iata": "FJ",
+      "label": "FJ：FIJI AIRWAYS(FJI)"
+    },
+    {
+      "code": "53",
+      "iata": "FM",
+      "label": "FM：SHANGHAI AIRLINES(CSH)"
+    },
+    {
+      "code": "54",
+      "iata": "FW",
+      "label": "FW：IBEX AIRLINES(IBX)"
+    },
+    {
+      "code": "55",
+      "iata": "FX",
+      "label": "FX：FEDEX EXPRESS(FDX)"
+    },
+    {
+      "code": "56",
+      "iata": "FY",
+      "label": "FY：FIREFLY(FFM)"
+    },
+    {
+      "code": "57",
+      "iata": "GA",
+      "label": "GA：GARUDA INDONESIA(GIA)"
+    },
+    {
+      "code": "58",
+      "iata": "GB",
+      "label": "GB：ABX AIR(ABX)"
+    },
+    {
+      "code": "59",
+      "iata": "GG",
+      "label": "GG：SKY LEASE CARGO(KYE)"
+    },
+    {
+      "code": "60",
+      "iata": "GI",
+      "label": "GI：GUANGDONG LONGHAO AIRLINES(LHA)"
+    },
+    {
+      "code": "61",
+      "iata": "GJ",
+      "label": "GJ：ZHEJIANG LOONG AIRLINES(CDC)"
+    },
+    {
+      "code": "62",
+      "iata": "GK",
+      "label": "GK：JETSTAR JAPAN(JJP)"
+    },
+    {
+      "code": "63",
+      "iata": "GS",
+      "label": "GS：TIANJIN AIRLINES(GCR)"
+    },
+    {
+      "code": "64",
+      "iata": "H5",
+      "label": "H5：I-FLY AIRLINES(RSY)"
+    },
+    {
+      "code": "65",
+      "iata": "HA",
+      "label": "HA：HAWAIIAN AIRLINES(HAL)"
+    },
+    {
+      "code": "66",
+      "iata": "HB",
+      "label": "HB：GREATER BAY AIRLINES(HGB)"
+    },
+    {
+      "code": "67",
+      "iata": "HD",
+      "label": "HD：AIRDO(ADO)"
+    },
+    {
+      "code": "68",
+      "iata": "HO",
+      "label": "HO：JUNEYAO AIRLINES(DKH)"
+    },
+    {
+      "code": "69",
+      "iata": "HR",
+      "label": "HR：HAHN AIR(HHN)"
+    },
+    {
+      "code": "70",
+      "iata": "HU",
+      "label": "HU：HAINAN AIRLINES(CHH)"
+    },
+    {
+      "code": "71",
+      "iata": "HX",
+      "label": "HX：HONG KONG AIRLINES(CRK)"
+    },
+    {
+      "code": "72",
+      "iata": "HY",
+      "label": "HY：UZBEKISTAN AIRWAYS(UZB)"
+    },
+    {
+      "code": "73",
+      "iata": "HZ",
+      "label": "HZ：AURORA AIRLINES(SHU)"
+    },
+    {
+      "code": "74",
+      "iata": "IA",
+      "label": "IA：IRAQI AIRWAYS(IAW)"
+    },
+    {
+      "code": "75",
+      "iata": "IB",
+      "label": "IB：IBERIA(IBE)"
+    },
+    {
+      "code": "76",
+      "iata": "IJ",
+      "label": "IJ：SPRING AIRLINES JAPAN(SJO)"
+    },
+    {
+      "code": "77",
+      "iata": "IT",
+      "label": "IT：TIGER AIR TAIWAN(TTW)"
+    },
+    {
+      "code": "78",
+      "iata": "JC",
+      "label": "JC：JAPAN AIR COMMUTER(JAC)"
+    },
+    {
+      "code": "79",
+      "iata": "JD",
+      "label": "JD：BEIJING CAPITAL AIRLINES(CBJ)"
+    },
+    {
+      "code": "80",
+      "iata": "JH",
+      "label": "JH：FUJI DREAM AIRLINES(FDA)"
+    },
+    {
+      "code": "81",
+      "iata": "JL",
+      "label": "JL：JAPAN AIRLINES(JAL)"
+    },
+    {
+      "code": "82",
+      "iata": "JQ",
+      "label": "JQ：JETSTAR AIRWAYS(JST)"
+    },
+    {
+      "code": "83",
+      "iata": "JX",
+      "label": "JX：STARLUX AIRLINES(SJX)"
+    },
+    {
+      "code": "84",
+      "iata": "K4",
+      "label": "K4：KALITTA AIR(CKS)"
+    },
+    {
+      "code": "85",
+      "iata": "K6",
+      "label": "K6：AIR CAMBODIA CO., LTD.(KHV)"
+    },
+    {
+      "code": "86",
+      "iata": "KD",
+      "label": "KD：WESTERN GLOBAL AIRLINES(WGN)"
+    },
+    {
+      "code": "87",
+      "iata": "KE",
+      "label": "KE：KOREAN AIR(KAL)"
+    },
+    {
+      "code": "88",
+      "iata": "KJ",
+      "label": "KJ：AIR INCHEON(AIH)"
+    },
+    {
+      "code": "89",
+      "iata": "KL",
+      "label": "KL：KLM ROYAL DUTCH AIRLINES(KLM)"
+    },
+    {
+      "code": "90",
+      "iata": "KZ",
+      "label": "KZ：NIPPON CARGO AIRLINES(NCA)"
+    },
+    {
+      "code": "91",
+      "iata": "LA",
+      "label": "LA：LATAM CHILE(LAN)"
+    },
+    {
+      "code": "92",
+      "iata": "LD",
+      "label": "LD：AHK AIR HONG KONG(AHK)"
+    },
+    {
+      "code": "93",
+      "iata": "LH",
+      "label": "LH：LUFTHANSA(DLH)"
+    },
+    {
+      "code": "94",
+      "iata": "LJ",
+      "label": "LJ：JIN AIR(JNA)"
+    },
+    {
+      "code": "95",
+      "iata": "LO",
+      "label": "LO：LOT POLISH AIRLINES(LOT)"
+    },
+    {
+      "code": "96",
+      "iata": "LX",
+      "label": "LX：SWISS INTERNATIONAL AIR LINES(SWR)"
+    },
+    {
+      "code": "97",
+      "iata": "LY",
+      "label": "LY：EL AL ISRAEL AIRLINES(ELY)"
+    },
+    {
+      "code": "98",
+      "iata": "M0",
+      "label": "M0：AERO MONGOLIA(MNG)"
+    },
+    {
+      "code": "99",
+      "iata": "MF",
+      "label": "MF：XIAMEN AIRLINES(CXA)"
+    },
+    {
+      "code": "100",
+      "iata": "MH",
+      "label": "MH：MALAYSIA AIRLINES(MAS)"
+    },
+    {
+      "code": "101",
+      "iata": "MM",
+      "label": "MM：PEACH AVIATION(APJ)"
+    },
+    {
+      "code": "102",
+      "iata": "MP",
+      "label": "MP：MARTINAIR HOLLAND(MPH)"
+    },
+    {
+      "code": "103",
+      "iata": "MS",
+      "label": "MS：EGYPT AIR(MSR)"
+    },
+    {
+      "code": "104",
+      "iata": "MU",
+      "label": "MU：CHINA EASTERN AIRLINES(CES)"
+    },
+    {
+      "code": "105",
+      "iata": "MZ",
+      "label": "MZ：AMAKUSA AIRLINES(AHX)"
+    },
+    {
+      "code": "106",
+      "iata": "N8",
+      "label": "N8：NATIONAL AIRLINES(NCR)"
+    },
+    {
+      "code": "107",
+      "iata": "NH",
+      "label": "NH：ALL NIPPON AIRWAYS(ANA)"
+    },
+    {
+      "code": "108",
+      "iata": "NQ",
+      "label": "NQ：AIR JAPAN(AJX)"
+    },
+    {
+      "code": "109",
+      "iata": "NS",
+      "label": "NS：HEBEI AIRLINES CO.,LTD.(HBH)"
+    },
+    {
+      "code": "110",
+      "iata": "NU",
+      "label": "NU：JAPAN TRANSOCEAN AIR(JTA)"
+    },
+    {
+      "code": "111",
+      "iata": "NX",
+      "label": "NX：AIR MACAU(AMU)"
+    },
+    {
+      "code": "112",
+      "iata": "NZ",
+      "label": "NZ：AIR NEW ZEALAND(ANZ)"
+    },
+    {
+      "code": "113",
+      "iata": "O3",
+      "label": "O3：SF AIRLINES(CSS)"
+    },
+    {
+      "code": "114",
+      "iata": "OC",
+      "label": "OC：ORIENTAL AIR BRIDGE(ORC)"
+    },
+    {
+      "code": "115",
+      "iata": "OD",
+      "label": "OD：BATIK AIR MALAYSIA(MXD)"
+    },
+    {
+      "code": "116",
+      "iata": "OM",
+      "label": "OM：MIAT MONGOLIAN AIRLINES(MGL)"
+    },
+    {
+      "code": "117",
+      "iata": "OS",
+      "label": "OS：AUSTRIAN AIRLINES(AUA)"
+    },
+    {
+      "code": "118",
+      "iata": "OY",
+      "label": "OY：OMNI AIR INTERNATIONAL(OAE)"
+    },
+    {
+      "code": "119",
+      "iata": "OZ",
+      "label": "OZ：ASIANA AIRLINES(AAR)"
+    },
+    {
+      "code": "120",
+      "iata": "P9",
+      "label": "P9：ASIA PACIFIC AIRLINES(MGE)"
+    },
+    {
+      "code": "121",
+      "iata": "PG",
+      "label": "PG：BANGKOK AIRWAYS(BKP)"
+    },
+    {
+      "code": "122",
+      "iata": "PK",
+      "label": "PK：PAKISTAN INTERNATIONAL AIRLINES(PIA)"
+    },
+    {
+      "code": "123",
+      "iata": "PN",
+      "label": "PN：WEST AIR(CHB)"
+    },
+    {
+      "code": "124",
+      "iata": "PO",
+      "label": "PO：POLAR AIR CARGO(PAC)"
+    },
+    {
+      "code": "125",
+      "iata": "PR",
+      "label": "PR：PHILIPPINE AIRLINES(PAL)"
+    },
+    {
+      "code": "126",
+      "iata": "QF",
+      "label": "QF：QANTAS AIRWAYS(QFA)"
+    },
+    {
+      "code": "127",
+      "iata": "QH",
+      "label": "QH：BAMBOO AIRWAYS(BAV)"
+    },
+    {
+      "code": "128",
+      "iata": "QR",
+      "label": "QR：QATAR AIRWAYS(QTR)"
+    },
+    {
+      "code": "129",
+      "iata": "R3",
+      "label": "R3：YAKUTIA AIRLINES(SYL)"
+    },
+    {
+      "code": "130",
+      "iata": "RA",
+      "label": "RA：NEPAL AIRLINES(RNA)"
+    },
+    {
+      "code": "131",
+      "iata": "RH",
+      "label": "RH：HONG KONG AIR CARGO CARRIER(HKC)"
+    },
+    {
+      "code": "132",
+      "iata": "RS",
+      "label": "RS：AIR SEOUL(ASV)"
+    },
+    {
+      "code": "133",
+      "iata": "RU",
+      "label": "RU：AIRBRIDGE CARGO AIRLINES(ABW)"
+    },
+    {
+      "code": "134",
+      "iata": "S7",
+      "label": "S7：S7 AIRLINES(SBI)"
+    },
+    {
+      "code": "135",
+      "iata": "SA",
+      "label": "SA：SOUTH AFRICAN AIRWAYS(SAA)"
+    },
+    {
+      "code": "136",
+      "iata": "SB",
+      "label": "SB：AIRCALIN(ACI)"
+    },
+    {
+      "code": "137",
+      "iata": "SC",
+      "label": "SC：SHANDONG AIRLINES(CDG)"
+    },
+    {
+      "code": "138",
+      "iata": "SK",
+      "label": "SK：SCANDINAVIAN AIRLINES SYSTEM(SAS)"
+    },
+    {
+      "code": "139",
+      "iata": "SL",
+      "label": "SL：THAI LION AIR(TLM)"
+    },
+    {
+      "code": "140",
+      "iata": "SQ",
+      "label": "SQ：SINGAPORE AIRLINES(SIA)"
+    },
+    {
+      "code": "141",
+      "iata": "SU",
+      "label": "SU：AEROFLOT RUSSIAN AIRLINES(AFL)"
+    },
+    {
+      "code": "142",
+      "iata": "SV",
+      "label": "SV：SAUDI ARABIAN AIRLINES(SVA)"
+    },
+    {
+      "code": "143",
+      "iata": "TG",
+      "label": "TG：THAI AIRWAYS INTERNATIONAL(THA)"
+    },
+    {
+      "code": "144",
+      "iata": "TK",
+      "label": "TK：TURKISH AIRLINES(THY)"
+    },
+    {
+      "code": "145",
+      "iata": "TN",
+      "label": "TN：AIR TAHITI NUI(THT)"
+    },
+    {
+      "code": "146",
+      "iata": "TR",
+      "label": "TR：SCOOT TIGERAIR(TGW)"
+    },
+    {
+      "code": "147",
+      "iata": "TW",
+      "label": "TW：T'WAY AIR(TWB)"
+    },
+    {
+      "code": "148",
+      "iata": "UA",
+      "label": "UA：UNITED AIRLINES(UAL)"
+    },
+    {
+      "code": "149",
+      "iata": "UK",
+      "label": "UK：VISTARA(VTI)"
+    },
+    {
+      "code": "150",
+      "iata": "UL",
+      "label": "UL：SRILANKAN AIRLINES(ALK)"
+    },
+    {
+      "code": "151",
+      "iata": "UO",
+      "label": "UO：HK EXPRESS(HKE)"
+    },
+    {
+      "code": "152",
+      "iata": "VA",
+      "label": "VA：VIRGIN AUSTRALIA(VOZ)"
+    },
+    {
+      "code": "153",
+      "iata": "VI",
+      "label": "VI：VOLGA-DNEPR AIRLINES(VDA)"
+    },
+    {
+      "code": "154",
+      "iata": "VJ",
+      "label": "VJ：VIETJET AIR(VJC)"
+    },
+    {
+      "code": "155",
+      "iata": "VN",
+      "label": "VN：VIETNAM AIRLINES(HVN)"
+    },
+    {
+      "code": "156",
+      "iata": "VZ",
+      "label": "VZ：THAI VIETJET AIR(VTJ)"
+    },
+    {
+      "code": "157",
+      "iata": "W8",
+      "label": "W8：CARGOJET AIRWAYS(CJT)"
+    },
+    {
+      "code": "158",
+      "iata": "XJ",
+      "label": "XJ：THAI AIR ASIA X(TAX)"
+    },
+    {
+      "code": "159",
+      "iata": "YG",
+      "label": "YG：YTO CARGO AIRLINES(HYT)"
+    },
+    {
+      "code": "160",
+      "iata": "YP",
+      "label": "YP：AIR PREMIA(APZ)"
+    },
+    {
+      "code": "161",
+      "iata": "Z2",
+      "label": "Z2：PHILIPPINES AIRASIA(APG)"
+    },
+    {
+      "code": "162",
+      "iata": "ZE",
+      "label": "ZE：EASTAR JET(ESR)"
+    },
+    {
+      "code": "163",
+      "iata": "ZG",
+      "label": "ZG：ZIPAIR TOKYO(TZP)"
+    },
+    {
+      "code": "164",
+      "iata": "ZH",
+      "label": "ZH：SHENZHEN AIRLINES(CSZ)"
+    },
+    {
+      "code": "165",
+      "iata": "ZP",
+      "label": "ZP：SILK WAY AIRLINES(AZQ)"
+    },
+    {
+      "code": "166",
+      "iata": "RF",
+      "label": "RF：AERO K AIRLINES(EOK)"
+    },
+    {
+      "code": "167",
+      "iata": "BG",
+      "label": "BG：BIMAN BANGLADESH AIRLINES(BBC)"
+    },
+    {
+      "code": "168",
+      "iata": "WS",
+      "label": "WS：WESTJET AIRLINES(WJA)"
+    },
+    {
+      "code": "169",
+      "iata": "QW",
+      "label": "QW：QINGDAO AIRLINES CO., LTD.(QDA)"
+    },
+    {
+      "code": "170",
+      "iata": "KN",
+      "label": "KN：CHINA UNITED AIRLINE(CUA)"
+    },
+    {
+      "code": "171",
+      "iata": "WE",
+      "label": "WE：PARATA AIR(PTA)"
+    },
+    {
+      "code": "172",
+      "iata": "AS",
+      "label": "AS：ALASKA AIRLINES INC.(ASA)"
+    },
+    {
+      "code": "173",
+      "iata": "PX",
+      "label": "PX：AIR NIUGINI(ANG)"
+    },
+    {
+      "code": "999",
+      "iata": "ZZ",
+      "label": "ZZ：OTHER AIRLINE"
+    }
+  ],
+  "embarkationPoints": [
+    {
+      "code": "1",
+      "label": "ABU DHABI"
+    },
+    {
+      "code": "2",
+      "label": "ADDIS ABABA"
+    },
+    {
+      "code": "3",
+      "label": "ADELAIDE"
+    },
+    {
+      "code": "4",
+      "label": "AMSTERDAM"
+    },
+    {
+      "code": "5",
+      "label": "ANCHORAGE"
+    },
+    {
+      "code": "6",
+      "label": "ATHENS"
+    },
+    {
+      "code": "7",
+      "label": "ATLANTA"
+    },
+    {
+      "code": "8",
+      "label": "BALI"
+    },
+    {
+      "code": "9",
+      "label": "BANDAR SERI BEGAWAN"
+    },
+    {
+      "code": "10",
+      "label": "BANGKOK"
+    },
+    {
+      "code": "11",
+      "label": "BARCELONA"
+    },
+    {
+      "code": "12",
+      "label": "BASEL"
+    },
+    {
+      "code": "13",
+      "label": "BEIJING"
+    },
+    {
+      "code": "14",
+      "label": "BENGALURU"
+    },
+    {
+      "code": "15",
+      "label": "BOSTON"
+    },
+    {
+      "code": "16",
+      "label": "BRISBANE"
+    },
+    {
+      "code": "17",
+      "label": "BRUSSELS"
+    },
+    {
+      "code": "18",
+      "label": "BUDAPEST"
+    },
+    {
+      "code": "19",
+      "label": "BUSAN"
+    },
+    {
+      "code": "20",
+      "label": "CAIRNS"
+    },
+    {
+      "code": "21",
+      "label": "CAIRO"
+    },
+    {
+      "code": "22",
+      "label": "CALGARY"
+    },
+    {
+      "code": "23",
+      "label": "CEBU"
+    },
+    {
+      "code": "24",
+      "label": "CHANGCHUN"
+    },
+    {
+      "code": "25",
+      "label": "CHANGSHA"
+    },
+    {
+      "code": "26",
+      "label": "CHANGZHOU"
+    },
+    {
+      "code": "27",
+      "label": "CHENGDU"
+    },
+    {
+      "code": "28",
+      "label": "CHENNAI"
+    },
+    {
+      "code": "29",
+      "label": "CHEONGJU"
+    },
+    {
+      "code": "30",
+      "label": "CHIANG MAI"
+    },
+    {
+      "code": "31",
+      "label": "CHICAGO"
+    },
+    {
+      "code": "32",
+      "label": "CHONGQING"
+    },
+    {
+      "code": "33",
+      "label": "CLARK"
+    },
+    {
+      "code": "34",
+      "label": "COLOMBO"
+    },
+    {
+      "code": "35",
+      "label": "COPENHAGEN"
+    },
+    {
+      "code": "36",
+      "label": "DA NANG"
+    },
+    {
+      "code": "37",
+      "label": "DAEGU"
+    },
+    {
+      "code": "38",
+      "label": "DALIAN"
+    },
+    {
+      "code": "39",
+      "label": "DALLAS"
+    },
+    {
+      "code": "40",
+      "label": "DELHI"
+    },
+    {
+      "code": "41",
+      "label": "DENPASAR"
+    },
+    {
+      "code": "42",
+      "label": "DENVER"
+    },
+    {
+      "code": "43",
+      "label": "DETROIT"
+    },
+    {
+      "code": "44",
+      "label": "DHAKA"
+    },
+    {
+      "code": "45",
+      "label": "DJIBOUTI"
+    },
+    {
+      "code": "46",
+      "label": "DOHA"
+    },
+    {
+      "code": "47",
+      "label": "DON MUEANG"
+    },
+    {
+      "code": "48",
+      "label": "DUBAI"
+    },
+    {
+      "code": "49",
+      "label": "DUBROVNIK"
+    },
+    {
+      "code": "50",
+      "label": "DUSSELDORF"
+    },
+    {
+      "code": "51",
+      "label": "FAIRBANKS"
+    },
+    {
+      "code": "52",
+      "label": "FRANKFURT"
+    },
+    {
+      "code": "53",
+      "label": "FUZHOU"
+    },
+    {
+      "code": "54",
+      "label": "GOLD COAST"
+    },
+    {
+      "code": "55",
+      "label": "GUAM"
+    },
+    {
+      "code": "56",
+      "label": "GUANGZHOU"
+    },
+    {
+      "code": "57",
+      "label": "GUIYANG"
+    },
+    {
+      "code": "58",
+      "label": "HABAROVSK"
+    },
+    {
+      "code": "59",
+      "label": "HAIKOU"
+    },
+    {
+      "code": "60",
+      "label": "HAI-PHONG"
+    },
+    {
+      "code": "61",
+      "label": "HANGZHOU"
+    },
+    {
+      "code": "62",
+      "label": "HANOI"
+    },
+    {
+      "code": "63",
+      "label": "HARBIN"
+    },
+    {
+      "code": "64",
+      "label": "HEFEI"
+    },
+    {
+      "code": "65",
+      "label": "HELSINKI"
+    },
+    {
+      "code": "66",
+      "label": "HO CHI MINH"
+    },
+    {
+      "code": "67",
+      "label": "HONG KONG"
+    },
+    {
+      "code": "68",
+      "label": "HONOLULU"
+    },
+    {
+      "code": "69",
+      "label": "HOUSTON"
+    },
+    {
+      "code": "70",
+      "label": "HUALIAN"
+    },
+    {
+      "code": "71",
+      "label": "INCHEON"
+    },
+    {
+      "code": "72",
+      "label": "ISTANBUL"
+    },
+    {
+      "code": "73",
+      "label": "JAKARTA"
+    },
+    {
+      "code": "74",
+      "label": "JEDDAH"
+    },
+    {
+      "code": "75",
+      "label": "JEJU"
+    },
+    {
+      "code": "76",
+      "label": "JINAN"
+    },
+    {
+      "code": "77",
+      "label": "JOHANNESBURG"
+    },
+    {
+      "code": "78",
+      "label": "KAILUA-KONA"
+    },
+    {
+      "code": "79",
+      "label": "KAOHSIUNG"
+    },
+    {
+      "code": "80",
+      "label": "KARACHI"
+    },
+    {
+      "code": "81",
+      "label": "KATHMANDU"
+    },
+    {
+      "code": "82",
+      "label": "KEFLAVIK"
+    },
+    {
+      "code": "83",
+      "label": "KINMEN"
+    },
+    {
+      "code": "84",
+      "label": "KONA"
+    },
+    {
+      "code": "85",
+      "label": "KOROR"
+    },
+    {
+      "code": "86",
+      "label": "KOTA KINABALU"
+    },
+    {
+      "code": "87",
+      "label": "KUALA LUMPUR"
+    },
+    {
+      "code": "88",
+      "label": "KUNMING"
+    },
+    {
+      "code": "89",
+      "label": "LAHORE"
+    },
+    {
+      "code": "90",
+      "label": "LANZHOU"
+    },
+    {
+      "code": "91",
+      "label": "LAS VEGAS"
+    },
+    {
+      "code": "92",
+      "label": "LISBON"
+    },
+    {
+      "code": "93",
+      "label": "LJUBLJANA"
+    },
+    {
+      "code": "94",
+      "label": "LONDON"
+    },
+    {
+      "code": "95",
+      "label": "LOS ANGELES"
+    },
+    {
+      "code": "96",
+      "label": "LUANG PRABANG"
+    },
+    {
+      "code": "97",
+      "label": "LUOYANG"
+    },
+    {
+      "code": "98",
+      "label": "MACAU"
+    },
+    {
+      "code": "99",
+      "label": "MADRID"
+    },
+    {
+      "code": "100",
+      "label": "MANILA"
+    },
+    {
+      "code": "101",
+      "label": "MELBOURNE"
+    },
+    {
+      "code": "102",
+      "label": "MEXICO CITY"
+    },
+    {
+      "code": "103",
+      "label": "MIAMI"
+    },
+    {
+      "code": "104",
+      "label": "MILANO"
+    },
+    {
+      "code": "105",
+      "label": "MINNEAPOLIS"
+    },
+    {
+      "code": "106",
+      "label": "MONTREAL"
+    },
+    {
+      "code": "107",
+      "label": "MOSKVA"
+    },
+    {
+      "code": "108",
+      "label": "MUAN"
+    },
+    {
+      "code": "109",
+      "label": "MUMBAI"
+    },
+    {
+      "code": "110",
+      "label": "MUNICH"
+    },
+    {
+      "code": "111",
+      "label": "NADI"
+    },
+    {
+      "code": "112",
+      "label": "NANCHANG"
+    },
+    {
+      "code": "113",
+      "label": "NANJING"
+    },
+    {
+      "code": "114",
+      "label": "NANTONG"
+    },
+    {
+      "code": "115",
+      "label": "NAPOLI"
+    },
+    {
+      "code": "116",
+      "label": "NEW YORK"
+    },
+    {
+      "code": "117",
+      "label": "NEWARK"
+    },
+    {
+      "code": "118",
+      "label": "NHA-TRANG"
+    },
+    {
+      "code": "119",
+      "label": "NINGBO"
+    },
+    {
+      "code": "120",
+      "label": "NOUMEA"
+    },
+    {
+      "code": "121",
+      "label": "NOVOSIBIRSK"
+    },
+    {
+      "code": "122",
+      "label": "NURSULTAN"
+    },
+    {
+      "code": "123",
+      "label": "OAKLAND"
+    },
+    {
+      "code": "124",
+      "label": "PAPEETE"
+    },
+    {
+      "code": "125",
+      "label": "PARIS"
+    },
+    {
+      "code": "126",
+      "label": "PERTH"
+    },
+    {
+      "code": "127",
+      "label": "PHOENIX"
+    },
+    {
+      "code": "128",
+      "label": "PHU QUOC"
+    },
+    {
+      "code": "129",
+      "label": "PHUKET"
+    },
+    {
+      "code": "130",
+      "label": "PNOMPENH"
+    },
+    {
+      "code": "131",
+      "label": "PORTLAND"
+    },
+    {
+      "code": "132",
+      "label": "PRAGUE"
+    },
+    {
+      "code": "133",
+      "label": "QINGDAO"
+    },
+    {
+      "code": "134",
+      "label": "QUY NHON"
+    },
+    {
+      "code": "135",
+      "label": "RIYADH"
+    },
+    {
+      "code": "136",
+      "label": "ROMA"
+    },
+    {
+      "code": "137",
+      "label": "SAIPAN"
+    },
+    {
+      "code": "138",
+      "label": "SAN DIEGO"
+    },
+    {
+      "code": "139",
+      "label": "SAN FRANCISCO"
+    },
+    {
+      "code": "140",
+      "label": "SAN JOSE"
+    },
+    {
+      "code": "141",
+      "label": "SANYA"
+    },
+    {
+      "code": "142",
+      "label": "SAVANNAH"
+    },
+    {
+      "code": "143",
+      "label": "SEATTLE"
+    },
+    {
+      "code": "144",
+      "label": "SEOUL"
+    },
+    {
+      "code": "145",
+      "label": "SHANGHAI"
+    },
+    {
+      "code": "146",
+      "label": "SHENYANG"
+    },
+    {
+      "code": "147",
+      "label": "SHENZHEN"
+    },
+    {
+      "code": "148",
+      "label": "SHIJIAZHUANG"
+    },
+    {
+      "code": "149",
+      "label": "SINGAPORE"
+    },
+    {
+      "code": "150",
+      "label": "STOCKHOLM"
+    },
+    {
+      "code": "151",
+      "label": "SYDNEY"
+    },
+    {
+      "code": "152",
+      "label": "TAICHUNG"
+    },
+    {
+      "code": "153",
+      "label": "TAINAN"
+    },
+    {
+      "code": "154",
+      "label": "TAIPEI"
+    },
+    {
+      "code": "155",
+      "label": "TAIYUAN"
+    },
+    {
+      "code": "156",
+      "label": "TASHKENT"
+    },
+    {
+      "code": "157",
+      "label": "TEL AVIV"
+    },
+    {
+      "code": "158",
+      "label": "TIANJIN"
+    },
+    {
+      "code": "159",
+      "label": "TORONTO"
+    },
+    {
+      "code": "160",
+      "label": "TOULOUSE"
+    },
+    {
+      "code": "161",
+      "label": "ULAN BATOR"
+    },
+    {
+      "code": "162",
+      "label": "ULAN-UDE"
+    },
+    {
+      "code": "163",
+      "label": "URUMQI"
+    },
+    {
+      "code": "164",
+      "label": "VAN DON"
+    },
+    {
+      "code": "165",
+      "label": "VANCOUVER"
+    },
+    {
+      "code": "166",
+      "label": "VENICE"
+    },
+    {
+      "code": "167",
+      "label": "VIENNA"
+    },
+    {
+      "code": "168",
+      "label": "VILNIUS"
+    },
+    {
+      "code": "169",
+      "label": "VINH"
+    },
+    {
+      "code": "170",
+      "label": "VLADIVOSTOK"
+    },
+    {
+      "code": "171",
+      "label": "WARSZAWA"
+    },
+    {
+      "code": "172",
+      "label": "WASHINGTON, DC"
+    },
+    {
+      "code": "173",
+      "label": "WENZHOU"
+    },
+    {
+      "code": "174",
+      "label": "WUHAN"
+    },
+    {
+      "code": "175",
+      "label": "WUXI"
+    },
+    {
+      "code": "176",
+      "label": "XIAMEN"
+    },
+    {
+      "code": "177",
+      "label": "XI'AN"
+    },
+    {
+      "code": "178",
+      "label": "XIANGYANG"
+    },
+    {
+      "code": "179",
+      "label": "XUZHOU"
+    },
+    {
+      "code": "180",
+      "label": "YANGON"
+    },
+    {
+      "code": "181",
+      "label": "YANGZHOU"
+    },
+    {
+      "code": "182",
+      "label": "YANJI"
+    },
+    {
+      "code": "183",
+      "label": "YANTAI"
+    },
+    {
+      "code": "184",
+      "label": "YULIN"
+    },
+    {
+      "code": "185",
+      "label": "YUZHNO-SAKHALINSK"
+    },
+    {
+      "code": "186",
+      "label": "ZHENGZHOU"
+    },
+    {
+      "code": "187",
+      "label": "ZURICH"
+    }
+  ]
+}

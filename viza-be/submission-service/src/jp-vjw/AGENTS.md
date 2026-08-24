@@ -25,6 +25,12 @@ visa/paper-form runner.
 - `live-adapter.ts` owns the current official Angular route/control state
   machine, including hCaptcha callback delivery, email-code verification,
   profile/trip registration, final ownership check, and QR element capture.
+- The normalized required-answer contract contains only controls used by the
+  current official flow. Managed account email may come from the application
+  alias/profile, postal code is optional, and the single official
+  `confirmChk` confirmation covers the combined immigration/customs entry.
+  Do not reintroduce airport, last-embarkation-country, passport-type, issuing-
+  country, general-phone, or a second visible declaration gate.
 - `verification.ts` owns redaction-safe parsing of the six-digit official
   registration email code. Callers may return it to the browser adapter but
   must never log it.

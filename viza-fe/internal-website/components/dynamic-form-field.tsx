@@ -867,7 +867,13 @@ export function DynamicFormField({
       }
 
       {
-        const rules = field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean; has_does_not_apply?: boolean } | null;
+        const rules = field.validationRules as {
+          allow_custom_value?: boolean;
+          allow_do_not_know?: boolean;
+          allow_does_not_apply?: boolean;
+          has_does_not_apply?: boolean;
+          official_control_type?: string;
+        } | null;
         const allowDoNotKnow = rules?.allow_do_not_know;
         const allowDoesNotApply = rules?.allow_does_not_apply || rules?.has_does_not_apply;
         const isDoNotKnow = value === "DO_NOT_KNOW";
@@ -877,37 +883,55 @@ export function DynamicFormField({
 
         const isTaiwanEnglishName = field.visaType === "TW_ENTRY_PERMIT" && field.fieldName === "name_english";
         const isTaiwanChineseName = field.visaType === "TW_ENTRY_PERMIT" && field.fieldName === "name_chinese";
+        const autocompleteOptions = rules?.official_control_type === "text_autocomplete_with_free_entry"
+          && rules.allow_custom_value === true
+          ? normaliseOptions(options, sideLocale)
+          : [];
+        const autocompleteListId = autocompleteOptions.length > 0
+          ? `${field.visaType}-${field.fieldName}-suggestions`.replace(/[^A-Za-z0-9_-]/g, "-")
+          : undefined;
         const inputNode = (
-          <ApplicationFormInputGroup
-            className={`h-12 ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}
-            filled={Boolean(value) && !isOverridden}
-            forceWhiteBackground={forceWhiteBackground}
-          >
-            <InputGroupInput
-              type={fieldType === "text" ? "text" : fieldType}
-              placeholder={localizedPlaceholder}
-              value={isOverridden ? "" : value}
-              onChange={(e) => {
-                let nextValue = maxLength ? e.target.value.slice(0, maxLength) : e.target.value;
-                if (isTaiwanEnglishName) nextValue = nextValue.toUpperCase();
-                onChange(nextValue);
-              }}
-              onBlur={isTaiwanChineseName ? () => {
-                void convertSimplifiedToTraditional(value).then((converted) => {
-                  if (converted !== value) onChange(converted);
-                });
-              } : undefined}
-              required={required && !isOverridden}
-              disabled={isOverridden || disabled}
-              maxLength={maxLength}
-              className={`h-12 text-[15px] ${characterCount ? "pr-14" : ""}`}
-            />
-            {characterCount ? (
-              <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
-                {characterCount}
-              </span>
+          <>
+            <ApplicationFormInputGroup
+              className={`h-12 ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}
+              filled={Boolean(value) && !isOverridden}
+              forceWhiteBackground={forceWhiteBackground}
+            >
+              <InputGroupInput
+                type={fieldType === "text" ? "text" : fieldType}
+                list={autocompleteListId}
+                autoComplete={autocompleteListId ? "off" : undefined}
+                placeholder={localizedPlaceholder}
+                value={isOverridden ? "" : value}
+                onChange={(e) => {
+                  let nextValue = maxLength ? e.target.value.slice(0, maxLength) : e.target.value;
+                  if (isTaiwanEnglishName) nextValue = nextValue.toUpperCase();
+                  onChange(nextValue);
+                }}
+                onBlur={isTaiwanChineseName ? () => {
+                  void convertSimplifiedToTraditional(value).then((converted) => {
+                    if (converted !== value) onChange(converted);
+                  });
+                } : undefined}
+                required={required && !isOverridden}
+                disabled={isOverridden || disabled}
+                maxLength={maxLength}
+                className={`h-12 text-[15px] ${characterCount ? "pr-14" : ""}`}
+              />
+              {characterCount ? (
+                <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
+                  {characterCount}
+                </span>
+              ) : null}
+            </ApplicationFormInputGroup>
+            {autocompleteListId ? (
+              <datalist id={autocompleteListId}>
+                {autocompleteOptions.map((entry) => (
+                  <option key={entry.value} value={entry.value}>{entry.text}</option>
+                ))}
+              </datalist>
             ) : null}
-          </ApplicationFormInputGroup>
+          </>
         );
 
         const sideCheckbox = allowDoNotKnow ? (
