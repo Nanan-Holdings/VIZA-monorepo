@@ -8,9 +8,17 @@ on:
         required: true
         type: string
       confirm:
-        description: Type <staging-project-ref>:public-edge
+        description: Type <staging-project-ref>:<selected-scope>
         required: true
         type: string
+      scope:
+        description: Read-only workload scope
+        required: true
+        type: choice
+        default: public_edge_read_only
+        options:
+          - public_edge_read_only
+          - authenticated_sustained_read_only
 
 permissions:
   contents: read
@@ -20,8 +28,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  public-edge:
-    name: 100-user public edge gate
+  capacity:
+    name: 100-user read-only capacity gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging-online-capacity
@@ -32,6 +40,12 @@ jobs:
       ONLINE_CAPACITY_PROJECT_REF: ${{ vars.ONLINE_CAPACITY_PROJECT_REF }}
       ONLINE_CAPACITY_SUPABASE_URL: ${{ vars.ONLINE_CAPACITY_SUPABASE_URL }}
       ONLINE_CAPACITY_USERS: "100"
+      ONLINE_CAPACITY_SCOPE: ${{ inputs.scope }}
+      ONLINE_CAPACITY_DURATION_MS: ${{ inputs.scope == 'authenticated_sustained_read_only' && '300000' || '0' }}
+      ONLINE_CAPACITY_RAMP_MS: ${{ inputs.scope == 'authenticated_sustained_read_only' && '30000' || '0' }}
+      ONLINE_CAPACITY_PACING_MS: ${{ inputs.scope == 'authenticated_sustained_read_only' && '5000' || '0' }}
+      ONLINE_CAPACITY_SYNTHETIC_ACCOUNT: ${{ vars.ONLINE_CAPACITY_SYNTHETIC_ACCOUNT }}
+      ONLINE_CAPACITY_SYNTHETIC_USER_ID: ${{ vars.ONLINE_CAPACITY_SYNTHETIC_USER_ID }}
     defaults:
       run:
         shell: bash
@@ -46,7 +60,7 @@ jobs:
           set -euo pipefail
           [[ "$SOURCE_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "source_ref must be a full lowercase commit SHA"; exit 1; }
           test -n "$ONLINE_CAPACITY_PROJECT_REF" || { echo "staging project ref is not configured"; exit 1; }
-          test "$CONFIRM" = "$ONLINE_CAPACITY_PROJECT_REF:public-edge" || { echo "confirmation mismatch"; exit 1; }
+          test "$CONFIRM" = "$ONLINE_CAPACITY_PROJECT_REF:${{ inputs.scope }}" || { echo "confirmation mismatch"; exit 1; }
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.source_ref }}
@@ -55,14 +69,25 @@ jobs:
         working-directory: .
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
-        run: test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+          git fetch --no-tags --depth=1 origin refs/heads/main
+          test "$SOURCE_REF" = "$(git rev-parse FETCH_HEAD)" || { echo "source_ref must be the current protected main HEAD"; exit 1; }
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: viza-be/agent-backend/package-lock.json
       - run: npm ci
-      - run: npm run load:online-capacity
+      - name: Run public-edge capacity gate
+        if: inputs.scope == 'public_edge_read_only'
+        run: npm run load:online-capacity
+      - name: Run authenticated capacity gate
+        if: inputs.scope == 'authenticated_sustained_read_only'
+        env:
+          ONLINE_CAPACITY_SESSION_COOKIE: ${{ secrets.ONLINE_CAPACITY_SESSION_COOKIE }}
+        run: npm run load:online-capacity
       - name: Upload metadata-only capacity result
         if: always()
         uses: actions/upload-artifact@v4

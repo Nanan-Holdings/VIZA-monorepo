@@ -33,13 +33,15 @@ afterEach(async () => {
 interface FixtureServer {
 	baseUrl: string;
 	getMaximumInFlight(): number;
+	getSessionRequestCount(): number;
 }
 
 async function startFixtureServer(
-	options: { failHealth?: boolean; markerProjectRef?: string } = {},
+	options: { failHealth?: boolean; markerProjectRef?: string; sessionUserId?: string } = {},
 ): Promise<FixtureServer> {
 	let inFlight = 0;
 	let maxInFlight = 0;
+	let sessionRequestCount = 0;
 	const server = createServer((request, response) => {
 		inFlight += 1;
 		maxInFlight = Math.max(maxInFlight, inFlight);
@@ -53,6 +55,23 @@ async function startFixtureServer(
 						projectRef: options.markerProjectRef ?? "local-test",
 					}),
 				);
+			} else if (request.url === "/api/health/online-capacity-session") {
+				if (request.headers.cookie === "viza_test_session=fixture") {
+					sessionRequestCount += 1;
+				}
+				response.writeHead(200, { "content-type": "application/json" });
+				response.end(JSON.stringify({
+					valid: true,
+					userId: options.sessionUserId ?? "11111111-1111-4111-8111-111111111111",
+					sessionKind: "supabase",
+					syntheticAccount: true,
+				}));
+			} else if (request.url === "/client/home" || request.url === "/client/status") {
+				if (request.headers.cookie === "viza_test_session=fixture") {
+					sessionRequestCount += 1;
+				}
+				response.writeHead(200, { "content-type": "text/plain" });
+				response.end("authenticated");
 			} else if (request.url === "/client/login") {
 				response.writeHead(200, { "content-type": "text/plain" });
 				response.end("login");
@@ -80,6 +99,7 @@ async function startFixtureServer(
 	return {
 		baseUrl: `http://127.0.0.1:${address.port}`,
 		getMaximumInFlight: () => maxInFlight,
+		getSessionRequestCount: () => sessionRequestCount,
 	};
 }
 
@@ -94,11 +114,31 @@ function localEnvironment(baseUrl: string, users = "100"): NodeJS.ProcessEnv {
 	};
 }
 
+function authenticatedLocalEnvironment(baseUrl: string): NodeJS.ProcessEnv {
+	return {
+		...localEnvironment(baseUrl),
+		ONLINE_CAPACITY_SCOPE: "authenticated_sustained_read_only",
+		ONLINE_CAPACITY_SYNTHETIC_ACCOUNT: "capacity@viza.test",
+		ONLINE_CAPACITY_SESSION_COOKIE: "viza_test_session=fixture",
+		ONLINE_CAPACITY_SYNTHETIC_USER_ID: "11111111-1111-4111-8111-111111111111",
+		ONLINE_CAPACITY_DURATION_MS: "0",
+		ONLINE_CAPACITY_RAMP_MS: "0",
+		ONLINE_CAPACITY_PACING_MS: "0",
+	};
+}
+
 describe("online capacity release gate", () => {
 	const harnessSource = readFileSync(
 		path.resolve(
 			path.dirname(fileURLToPath(import.meta.url)),
 			"../../scripts/online-capacity-load.ts",
+		),
+		"utf8",
+	);
+	const workflowSource = readFileSync(
+		path.resolve(
+			path.dirname(fileURLToPath(import.meta.url)),
+			"../../../../.github/workflows/online-capacity-gate.yml",
 		),
 		"utf8",
 	);
@@ -171,6 +211,16 @@ describe("online capacity release gate", () => {
 		expect(config.users).toBe(25);
 	});
 
+	it("fails closed when authenticated scope lacks its synthetic identity or cookie", async () => {
+		const fixture = await startFixtureServer();
+		expect(() =>
+			validateOnlineCapacityGuards({
+				...localEnvironment(fixture.baseUrl),
+				ONLINE_CAPACITY_SCOPE: "authenticated_sustained_read_only",
+			}),
+		).toThrow(/@viza\.test/i);
+	});
+
 	it("runs 100 concurrent synthetic users through every read-only scenario", async () => {
 		const fixture = await startFixtureServer();
 		const config = validateOnlineCapacityGuards(localEnvironment(fixture.baseUrl));
@@ -205,6 +255,33 @@ describe("online capacity release gate", () => {
 		expect(summary.failures).toContain("agent_readiness_failures");
 	});
 
+	it("runs a diagnostic authenticated wave without exposing its session secret", async () => {
+		const fixture = await startFixtureServer();
+		const summary = await executeOnlineCapacityRun(
+			validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+		);
+
+		expect(summary.scope).toBe("authenticated_sustained_read_only");
+		expect(summary.completedUsers).toBe(100);
+		expect(summary.releaseMatrixComplete).toBe(false);
+		expect(summary.failures).toContain("release_matrix_incomplete");
+		expect(summary.scenarios.every(({ attempts }) => attempts === 200)).toBe(true);
+		expect(fixture.getSessionRequestCount()).toBeGreaterThanOrEqual(400);
+		expect(JSON.stringify(summary)).not.toContain("viza_test_session");
+	});
+
+	it("refuses a valid cookie belonging to a different user before the wave", async () => {
+		const fixture = await startFixtureServer({
+			sessionUserId: "22222222-2222-4222-8222-222222222222",
+		});
+		await expect(
+			executeOnlineCapacityRun(
+				validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+			),
+		).rejects.toThrow(/exact synthetic user/i);
+		expect(fixture.getSessionRequestCount()).toBe(1);
+	});
+
 	it("refuses to start the request wave when either deployment marker is mismatched", async () => {
 		const fixture = await startFixtureServer({ markerProjectRef: "not-local" });
 		await expect(
@@ -234,7 +311,11 @@ describe("online capacity release gate", () => {
 			},
 		];
 		const result = evaluateOnlineCapacityRun({
+			scope: "public_edge_read_only",
 			users: 100,
+			sustainedForMs: 0,
+			rampUpMs: 0,
+			completedUsers: 100,
 			scenarios,
 		});
 
@@ -242,7 +323,11 @@ describe("online capacity release gate", () => {
 		expect(result.failures).toContain("request_errors");
 		expect(
 			evaluateOnlineCapacityRun({
+				scope: "public_edge_read_only",
 				users: 1,
+				sustainedForMs: 0,
+				rampUpMs: 0,
+				completedUsers: 1,
 				scenarios: scenarios.map((scenario) => ({
 					...scenario,
 					attempts: 1,
@@ -251,6 +336,68 @@ describe("online capacity release gate", () => {
 				})),
 			}).failures,
 		).toContain("release_matrix_incomplete");
+	});
+
+	it("requires the full authenticated duration, ramp, and completed user count", () => {
+		const scenarios = (["client_home", "client_status", "agent_readiness"] as const).map(
+			(name) => ({
+				name,
+				attempts: 100,
+				succeeded: 100,
+				failed: 0,
+				serverErrors: 0,
+				timedOut: 0,
+				p50Ms: 20,
+				p95Ms: 40,
+				p99Ms: 50,
+				maxMs: 60,
+			}),
+		);
+		expect(
+			evaluateOnlineCapacityRun({
+				scope: "authenticated_sustained_read_only",
+				users: 100,
+				sustainedForMs: 300_000,
+				rampUpMs: 30_000,
+				completedUsers: 100,
+				scenarios,
+			}).passed,
+		).toBe(true);
+	});
+
+	it("rejects negative and non-finite scenario metrics", () => {
+		const base: OnlineCapacityScenarioResult = {
+			name: "client_login",
+			attempts: 100,
+			succeeded: 100,
+			failed: 0,
+			serverErrors: 0,
+			timedOut: 0,
+			p50Ms: 20,
+			p95Ms: 30,
+			p99Ms: 40,
+			maxMs: 50,
+		};
+		for (const invalid of [
+			{ ...base, serverErrors: -1 },
+			{ ...base, timedOut: Number.NaN },
+			{ ...base, p95Ms: -1 },
+		]) {
+			const result = evaluateOnlineCapacityRun({
+				scope: "public_edge_read_only",
+				users: 100,
+				sustainedForMs: 0,
+				rampUpMs: 0,
+				completedUsers: 100,
+				scenarios: [
+					invalid,
+					{ ...base, name: "application_auth_redirect" },
+					{ ...base, name: "agent_readiness" },
+				],
+			});
+			expect(result.passed).toBe(false);
+			expect(result.failures).toContain("client_login_invalid_metrics");
+		}
 	});
 
 	it("anchors artifacts outside package directories without recording responses", () => {
@@ -269,10 +416,28 @@ describe("online capacity release gate", () => {
 		expect(harnessSource).toContain('method: "GET"');
 		expect(harnessSource).toContain('redirect: "manual"');
 		expect(harnessSource).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
-		expect(harnessSource).not.toMatch(/\b(?:cookie|authorization)\s*:/i);
+		expect(harnessSource).toMatch(/scenario\.requiresSession[\s\S]*cookie: sessionCookie/i);
+		expect(harnessSource).not.toMatch(/\bauthorization\s*:/i);
 		expect(harnessSource).not.toMatch(/service[_-]?role|payment|official[_-]?submit/i);
 		expect(harnessSource.indexOf("validateOnlineCapacityGuards()")).toBeLessThan(
 			harnessSource.indexOf("executeOnlineCapacityRun(config)"),
+		);
+	});
+
+	it("exposes the session cookie only to trusted-main authenticated execution", () => {
+		expect(workflowSource).toContain("source_ref must be the current protected main HEAD");
+		expect(workflowSource).toContain("git fetch --no-tags --depth=1 origin refs/heads/main");
+		expect(workflowSource.match(/secrets\.ONLINE_CAPACITY_SESSION_COOKIE/gu)).toHaveLength(1);
+		const jobEnvironment = workflowSource.slice(
+			workflowSource.indexOf("    env:"),
+			workflowSource.indexOf("    defaults:"),
+		);
+		expect(jobEnvironment).not.toContain("ONLINE_CAPACITY_SESSION_COOKIE");
+		expect(workflowSource.indexOf("ONLINE_CAPACITY_SESSION_COOKIE")).toBeGreaterThan(
+			workflowSource.indexOf("Run authenticated capacity gate"),
+		);
+		expect(workflowSource.indexOf("ONLINE_CAPACITY_SESSION_COOKIE")).toBeGreaterThan(
+			workflowSource.indexOf("npm ci"),
 		);
 	});
 });
