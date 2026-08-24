@@ -50,6 +50,20 @@ describe("runner cutover guarded boundary source contract", () => {
     expect(longForm).not.toContain("/api/submission-worker/wake");
   });
 
+  it("persists the exact dynamic answer snapshot before creating a browser submission job", () => {
+    const longForm = source("app/client/application/long-form/page.tsx");
+    const handler = longForm.slice(longForm.indexOf("const handleDynamicReviewComplete"));
+    const persistIndex = handler.indexOf(
+      "persistCurrentDynamicAnswersForSubmission(applicationId)",
+    );
+    const enqueueIndex = handler.indexOf("return insertSubmissionQueueJob({");
+
+    expect(persistIndex).toBeGreaterThanOrEqual(0);
+    expect(enqueueIndex).toBeGreaterThanOrEqual(0);
+    expect(persistIndex).toBeLessThan(enqueueIndex);
+    expect(handler).toContain("getCurrentSubmitMissingFields(submissionAnswerSnapshot)");
+  });
+
   it("guards direct Korea and local submission-service routes before worker side effects", () => {
     expectGuardBefore(
       "app/api/applications/[id]/korea-official-eform/route.ts",
