@@ -192,6 +192,9 @@ requires five observations spanning at least 22 hours before treating the
 transaction deltas into full-day totals. In scheduled use, a non-uploaded JSONL
 manifest binds every report to a unique GitHub run creation time and current or
 Artifact evidence time; stale, replayed, or future-dated samples fail closed.
+An artifact from a failed historical observer run is validated before it is
+added; an absent or malformed sanitized report is removed from the temporary
+history and counts as missing evidence rather than poisoning future trends.
 It emits only aggregate capacity counters, Advisor lint counts, and persistent
 redacted query IDs; it never reads the database or turns a candidate into an
 automatic migration.
