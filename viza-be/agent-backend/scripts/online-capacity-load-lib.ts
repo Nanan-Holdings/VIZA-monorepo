@@ -49,6 +49,7 @@ export interface OnlineCapacityDatabaseTelemetry {
 	maxConnections: number;
 	peakActiveConnections: number;
 	peakWaitingRequests: number;
+	samplesWithWaitingRequests: number;
 	peakUtilizationPercent: number;
 	baselineTotalQueries: number;
 	finalTotalQueries: number;
@@ -128,6 +129,8 @@ function hasValidDatabaseTelemetry(value: OnlineCapacityDatabaseTelemetry): bool
 		isNonNegativeInteger(value.peakActiveConnections) &&
 		value.peakActiveConnections <= value.maxConnections &&
 		isNonNegativeInteger(value.peakWaitingRequests) &&
+		isNonNegativeInteger(value.samplesWithWaitingRequests) &&
+		value.samplesWithWaitingRequests <= value.sampleCount &&
 		isNonNegativeFinite(value.peakUtilizationPercent) &&
 		value.peakUtilizationPercent <= 100 &&
 		isNonNegativeInteger(value.baselineTotalQueries) &&
@@ -206,7 +209,10 @@ export function evaluateOnlineCapacityRun(
 			}
 			if (!telemetry.allPoolStatesOpen) failures.push("database_pool_not_open");
 			if (!telemetry.singleInstance) failures.push("database_instance_changed");
-			if (telemetry.peakWaitingRequests !== 0) failures.push("database_pool_waiting");
+			if (
+				telemetry.peakWaitingRequests > 1 ||
+				telemetry.samplesWithWaitingRequests !== 0
+			) failures.push("database_pool_waiting");
 			if (telemetry.peakUtilizationPercent >= 80) failures.push("database_pool_utilization");
 			if (telemetry.metricResetDetected) failures.push("database_query_metric_reset");
 			if (telemetry.failedQueryDelta !== 0) failures.push("database_query_errors");

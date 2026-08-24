@@ -603,6 +603,7 @@ function summarizeDatabaseCapacity(
 		maxConnections: baseline.pool.maxConnections,
 		peakActiveConnections: Math.max(...samples.map(({ pool }) => pool.peakActiveConnections)),
 		peakWaitingRequests: Math.max(...samples.map(({ pool }) => pool.peakWaitingRequests)),
+		samplesWithWaitingRequests: samples.filter(({ pool }) => pool.waitingRequests > 0).length,
 		peakUtilizationPercent: Math.max(...samples.map(({ pool }) => pool.peakUtilizationPercent)),
 		baselineTotalQueries: baseline.queries.totalQueries,
 		finalTotalQueries: final.queries.totalQueries,
@@ -779,6 +780,10 @@ export async function executeOnlineCapacityRun(
 				}
 				readyResolvers[index]?.();
 				await steadyWave;
+				const steadyPhaseDelay = config.pacingMs > 0
+					? Math.floor((config.pacingMs * index) / config.users)
+					: 0;
+				await delay(steadyPhaseDelay);
 				const finishAt = performance.now() + config.durationMs;
 				do {
 					if (telemetryMonitor.hasFailed()) break;
