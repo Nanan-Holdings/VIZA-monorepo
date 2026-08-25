@@ -140,19 +140,30 @@ export function TravelInfoStep({ country, prefill, visaType, onComplete }: Trave
     en: prefill?.usAddressZip ?? "",
   });
 
+  /** Which English cells the applicant has typed into — those stop auto-filling. */
+  const [enEdited, setEnEdited] = useState<Partial<Record<TextField, boolean>>>({});
+
+  /**
+   * Editing the English column leaves the Chinese column exactly as entered; the
+   * English column is only auto-derived until the applicant edits it themselves.
+   */
   const updateText = (field: TextField, side: "zh" | "en", value: string) => {
+    if (side === "en") {
+      setEnEdited((current) => ({ ...current, [field]: true }));
+      setTextValues((current) => ({
+        ...current,
+        [field]: { ...current[field], en: value },
+      }));
+      return;
+    }
     setTextValues((current) => ({
       ...current,
-      [field]:
-        side === "zh"
-          ? {
-              zh: value,
-              en: translateWithDictionary(value, TEXT_TRANSLATIONS, "Please confirm official English"),
-            }
-          : {
-              zh: reverseWithDictionary(value, TEXT_TRANSLATIONS),
-              en: value,
-            },
+      [field]: {
+        zh: value,
+        en: enEdited[field]
+          ? current[field].en
+          : translateWithDictionary(value, TEXT_TRANSLATIONS, "Please confirm official English"),
+      },
     }));
   };
 
