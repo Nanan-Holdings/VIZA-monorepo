@@ -1,0 +1,97 @@
+/* Shared chrome for the narrative pages: /about (who we are) and /product (what we do). */
+.story {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 56px 40px 96px;
+}
+
+.story-head { max-width: 720px; margin-bottom: 48px; }
+.story-eyebrow {
+  display: inline-block;
+  font: 500 12px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-500);
+  margin-bottom: 14px;
+}
+.story-head h1 {
+  font: 500 40px/1.12 var(--font-heading);
+  letter-spacing: -1.4px;
+  color: var(--fg-1);
+  margin: 0 0 14px;
+}
+.story-head p { color: var(--fg-2); font-size: 16px; line-height: 1.65; }
+
+.story-section { margin-top: 56px; }
+.story-section h2 {
+  font: 500 26px/1.2 var(--font-heading);
+  letter-spacing: -0.6px;
+  color: var(--fg-1);
+  margin: 0 0 8px;
+}
+.story-section > p { color: var(--fg-2); font-size: 15px; line-height: 1.7; max-width: 720px; }
+
+.story-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.story-card {
+  background: #fff;
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  padding: 22px;
+}
+.story-card h3 {
+  font: 500 16px/1.3 var(--font-heading);
+  color: var(--fg-1);
+  margin: 0 0 6px;
+}
+.story-card p { color: var(--fg-2); font-size: 14px; line-height: 1.6; margin: 0; }
+
+.story-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.story-fact {
+  border-left: 2px solid var(--brand-100, var(--border-hairline));
+  padding-left: 16px;
+}
+.story-fact .k {
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  margin-bottom: 6px;
+}
+.story-fact .v { font: 500 16px/1.4 var(--font-heading); color: var(--fg-1); }
+
+.story-note {
+  margin-top: 40px;
+  padding: 18px 20px;
+  background: var(--brand-50);
+  border-radius: 14px;
+  color: var(--fg-2);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.story-cta { margin-top: 48px; display: flex; gap: 12px; flex-wrap: wrap; }
+.story-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 22px; border-radius: 999px;
+  background: var(--brand-500); color: #fff;
+  font: 500 15px/1 var(--font-sans); text-decoration: none;
+}
+.story-btn.secondary {
+  background: #fff; color: var(--fg-1);
+  border: 1px solid var(--border-hairline);
+}
+
+@media (max-width: 720px) {
+  .story { padding: 36px 20px 72px; }
+  .story-head h1 { font-size: 30px; letter-spacing: -0.8px; }
+}
