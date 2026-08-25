@@ -228,7 +228,7 @@ const ZH_LABELS: Record<string, string> = {
   "Spouse — Given Names": "配偶——名字",
   "Spouse — Date of Birth": "配偶——出生日期",
   "Spouse — Nationality": "配偶——国籍",
-  "Spouse — Country of Birth": "配偶——出生国家",
+  "Spouse — Country of Birth": "配偶——出生国家/地区",
   // ─── Step 10: Family Information: Partner ─────────────────────────────
   "Partner's Surnames": "伴侣姓氏",
   "Partner's Given Names": "伴侣名字",
@@ -852,7 +852,7 @@ const GENERIC_ZH_TEXT: Record<string, string> = {
   "First name(s) (given name(s))": "名（名字）",
   "Date of birth": "出生日期",
   "Place of birth (city or town)": "出生地（城市或城镇）",
-  "Country of birth": "出生国家",
+  "Country of birth": "出生国家/地区",
   "Current nationality": "当前国籍",
   "Is your nationality at birth different from your current nationality?": "您的出生时国籍是否与当前国籍不同？",
   "Nationality at birth": "出生时国籍",
@@ -966,7 +966,7 @@ const FIELD_NAME_ZH: Record<string, string> = {
   surname: "姓氏",
   given_names: "名字",
   date_of_birth: "出生日期",
-  country_of_birth: "出生国家",
+  country_of_birth: "出生国家/地区",
   place_of_birth: "出生地",
   city_of_birth: "出生城市",
   nationality: "国籍",
@@ -1313,6 +1313,14 @@ function generateChineseFromText(text: string): string | null {
 
 function getChineseExampleForField(fieldName?: string, fallbackExample?: string): string {
   const normalizedField = fieldName?.toLowerCase() ?? "";
+  // Codes, numbers and identifiers are not translated. "e.g. 86" on
+  // `mobile_country_code` used to become "例如：中国" purely because the field name
+  // contains "country", telling the applicant to type a country name into a field
+  // that only accepts digits.
+  if (fallbackExample && !/[A-Za-z\u3400-\u9fff]{2,}/u.test(fallbackExample)) return fallbackExample;
+  if (/(?:^|_)(code|number|no|zip|postcode|postal_code)(?:_|$)/u.test(normalizedField)) {
+    return fallbackExample ?? "示例";
+  }
   if (normalizedField.includes("surname") || normalizedField.includes("family_name")) return "张";
   if (normalizedField.includes("given") || normalizedField.includes("first_name")) return "小明";
   if (normalizedField.includes("full_name") || normalizedField.includes("native")) return "张小明";

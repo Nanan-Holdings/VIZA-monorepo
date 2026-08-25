@@ -554,6 +554,13 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
       prefill?.fullNameNativeAlphabet,
     ),
   });
+  /** Which English cells the applicant has typed into — those stop auto-filling. */
+  const [enEdited, setEnEdited] = useState<Record<TextFieldKey, boolean>>({
+    surname: false,
+    givenNames: false,
+    fullNameNativeAlphabet: false,
+  });
+  const [birthCityEnEdited, setBirthCityEnEdited] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState(prefill?.dateOfBirth ?? "");
   const [maritalStatus, setMaritalStatus] = useState(prefill?.maritalStatus ?? "");
   const [sex, setSex] = useState(prefill?.sex ?? "");
@@ -670,13 +677,29 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
     city_of_birth: cityValue,
   };
 
+  /**
+   * Editing one side must never rewrite what the applicant typed on the other.
+   *
+   * The English column is auto-filled from the Chinese only until the applicant
+   * edits it themselves; after that it is theirs, and later Chinese edits leave it
+   * alone. Editing English never touches the Chinese column at all — that used to
+   * back-translate and mangle the name the applicant had entered.
+   */
   const updateText = (field: TextFieldKey, side: Side, value: string) => {
+    if (side === "en") {
+      setEnEdited((current) => ({ ...current, [field]: true }));
+      setTextValues((current) => ({
+        ...current,
+        [field]: { ...current[field], en: value },
+      }));
+      return;
+    }
     setTextValues((current) => ({
       ...current,
-      [field]:
-        side === "zh"
-          ? { zh: value, en: translateZhText(value, "name") }
-          : { zh: translateEnText(value), en: value },
+      [field]: {
+        zh: value,
+        en: enEdited[field] ? current[field].en : translateZhText(value, "name"),
+      },
     }));
   };
 
@@ -687,20 +710,23 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
     setBirthRegionCode(nextRegion?.code ?? "");
     setBirthCityCode("");
     setCustomBirthCity({ zh: "", en: "" });
+    setBirthCityEnEdited(false);
   };
 
   const handleBirthRegionChange = (regionCode: string) => {
     setBirthRegionCode(regionCode);
     setBirthCityCode("");
     setCustomBirthCity({ zh: "", en: "" });
+    setBirthCityEnEdited(false);
   };
 
   const updateCustomBirthCity = (side: Side, value: string) => {
     setBirthCityCode(CUSTOM_CITY_CODE);
-    setCustomBirthCity(
+    if (side === "en") setBirthCityEnEdited(true);
+    setCustomBirthCity((current) =>
       side === "zh"
-        ? { zh: value, en: translateZhText(value) }
-        : { zh: translateEnText(value), en: value },
+        ? { zh: value, en: birthCityEnEdited ? current.en : translateZhText(value) }
+        : { ...current, en: value },
     );
   };
 
@@ -969,7 +995,7 @@ export function PersonalInfoStep({ country, prefill, visaType, onComplete }: Per
               <CountryOptionControl
                 side="zh"
                 value={birthCountryCode}
-                placeholder="选择出生国家..."
+                placeholder="选择出生国家/地区..."
                 onChange={handleBirthCountryChange}
               />
             }

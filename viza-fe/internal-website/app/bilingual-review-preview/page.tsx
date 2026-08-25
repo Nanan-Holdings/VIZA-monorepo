@@ -129,7 +129,7 @@ const INITIAL_FIELDS: PreviewField[] = [
   {
     id: "countryOfBirth",
     section: "出生信息",
-    label: "出生国家",
+    label: "出生国家/地区",
     helper: "先选择国家，省/州和城市会按国家缩小范围。",
     kind: "option",
     chineseValue: "中国",
