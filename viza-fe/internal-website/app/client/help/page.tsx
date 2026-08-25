@@ -129,7 +129,16 @@ function FAQSection() {
   const t = useTranslations("help");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const FAQ_KEYS = ["resetPassword", "referrals", "updateInfo", "updatePayment", "dataPrivate", "contactSupport"] as const;
+  const FAQ_KEYS = [
+    "resetPassword",
+    "updateInfo",
+    "startNewApplication",
+    "updatePayment",
+    "feeBreakdown",
+    "processingTime",
+    "dataPrivate",
+    "contactSupport",
+  ] as const;
   const faqs = FAQ_KEYS.map(key => ({
     question: t(`faqs.${key}.question`),
     answer: t(`faqs.${key}.answer`),
@@ -208,11 +217,14 @@ function SupportRedirectSection() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.6 }}
     >
+      {/* Goes straight to raising a request. It used to land on the Support Center,
+          whose first card links back here — a loop with no answer at the end of it. */}
+      <p className="text-[15px] leading-6 text-muted-foreground">{t("supportCta.title")}</p>
       <Link
-        href="/client/support"
-        className="inline-flex items-center gap-1.5 text-[15px] font-medium leading-6 text-brand-500 transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        href="/client/support/requests"
+        className="mt-2 inline-flex items-center gap-1.5 text-[15px] font-medium leading-6 text-brand-500 transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        {t("supportCta.title")}
+        {t("supportCta.action")}
         <ArrowUpRight className="size-4" />
       </Link>
     </motion.div>

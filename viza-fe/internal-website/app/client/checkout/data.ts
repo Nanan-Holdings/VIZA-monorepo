@@ -1,4 +1,5 @@
 import "server-only";
+import { getTranslations } from "next-intl/server";
 
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -338,6 +339,49 @@ function getGovernmentFeeMetadata(packageRow: VisaPackageRow): Record<string, Js
   );
 }
 
+/**
+ * Translator for the strings this module produces.
+ *
+ * The checkout page (and the Help Center it links to) was English-only whatever the
+ * interface language was set to. Rather than return pre-rendered English, the
+ * builders below take a lookup so the caller can supply the applicant's locale.
+ * Omitting it keeps the previous English wording, which is what the unit tests use.
+ */
+export type CheckoutCopy = (key: string) => string;
+
+const EN_CHECKOUT_COPY: Record<string, string> = {
+  "governmentFee.amountPending": "Confirmed before payment",
+  "governmentFee.amountAtPayment": "Confirmed at the official payment step",
+  "governmentFee.included.label": "Official fee payment",
+  "governmentFee.included.description": "VIZA manages the official fee payment for this application.",
+  "governmentFee.included.detail":
+    "When payment is due, VIZA creates a limited virtual card for this application and pays the official portal on your behalf.",
+  "governmentFee.estimated.label": "Estimated official fee",
+  "governmentFee.estimated.description": "This estimate is managed separately from today's VIZA agency-fee checkout.",
+  "governmentFee.estimated.detail":
+    "The official amount can change. VIZA confirms it before creating an exact-purpose virtual card and paying the portal.",
+  "governmentFee.external.label": "Official fee managed by VIZA",
+  "governmentFee.external.description": "VIZA pays the official portal for you when the application reaches the payment step.",
+  "governmentFee.external.detail":
+    "A secure virtual card is created only for this application and official fee. You do not enter card details on the government portal.",
+  "governmentFee.separate.label": "Official fee managed by VIZA",
+  "governmentFee.separate.description": "This fee is managed separately from today's Stripe agency-fee checkout.",
+  "governmentFee.separate.detail":
+    "When the official fee is due, VIZA creates an application-specific virtual card and pays the portal on your behalf.",
+  "governmentFee.unknown.label": "Official fee amount pending",
+  "governmentFee.unknown.description": "The official amount will be confirmed before VIZA pays it for this application.",
+  "governmentFee.unknown.detail":
+    "VIZA will confirm the amount, create a limited virtual card for that amount, and pay the government portal on your behalf.",
+  "nextStep.start.label": "Start application",
+  "nextStep.start.description": "Start the application form so VIZA can prepare the next steps.",
+  "nextStep.consent.label": "Continue to consent",
+  "nextStep.consent.description": "Review VIZA's terms, privacy notice, and agency authorisation for this application.",
+  "nextStep.documents.label": "Continue to documents",
+  "nextStep.documents.description": "Upload and review supporting documents for this visa package.",
+};
+
+const defaultCheckoutCopy: CheckoutCopy = (key) => EN_CHECKOUT_COPY[key] ?? key;
+
 function normalizeGovernmentFeeMode(
   rawMode: string | null,
   amountCents: number | null,
@@ -354,6 +398,7 @@ function normalizeGovernmentFeeMode(
 export function resolveGovernmentFee(
   packageRow: VisaPackageRow,
   application: ApplicationRow | null,
+  copy: CheckoutCopy = defaultCheckoutCopy,
 ): GovernmentFeeDisclosure {
   const metadata = getGovernmentFeeMetadata(packageRow);
   const configuredPricing = pricingFor(packageRow.country, packageRow.visa_type);
@@ -386,65 +431,55 @@ export function resolveGovernmentFee(
       : amount !== null
         ? `${currency} ${amount.toFixed(2)}`
         : mode === "unknown"
-          ? "Confirmed before payment"
-          : "Confirmed at the official payment step";
+          ? copy("governmentFee.amountPending")
+          : copy("governmentFee.amountAtPayment");
 
   if (mode === "included") {
     return {
       mode,
-      label: "Official fee payment",
+      label: copy("governmentFee.included.label"),
       amountLabel,
-      description: "VIZA manages the official fee payment for this application.",
-      detail:
-        metadataNote ??
-        "When payment is due, VIZA creates a limited virtual card for this application and pays the official portal on your behalf.",
+      description: copy("governmentFee.included.description"),
+      detail: metadataNote ?? copy("governmentFee.included.detail"),
     };
   }
 
   if (mode === "estimated") {
     return {
       mode,
-      label: "Estimated official fee",
+      label: copy("governmentFee.estimated.label"),
       amountLabel,
-      description: "This estimate is managed separately from today's VIZA agency-fee checkout.",
-      detail:
-        metadataNote ??
-        "The official amount can change. VIZA confirms it before creating an exact-purpose virtual card and paying the portal.",
+      description: copy("governmentFee.estimated.description"),
+      detail: metadataNote ?? copy("governmentFee.estimated.detail"),
     };
   }
 
   if (mode === "external") {
     return {
       mode,
-      label: "Official fee managed by VIZA",
+      label: copy("governmentFee.external.label"),
       amountLabel,
-      description: "VIZA pays the official portal for you when the application reaches the payment step.",
-      detail:
-        metadataNote ??
-        "A secure virtual card is created only for this application and official fee. You do not enter card details on the government portal.",
+      description: copy("governmentFee.external.description"),
+      detail: metadataNote ?? copy("governmentFee.external.detail"),
     };
   }
 
   if (mode === "separate") {
     return {
       mode,
-      label: "Official fee managed by VIZA",
+      label: copy("governmentFee.separate.label"),
       amountLabel,
-      description: "This fee is managed separately from today's Stripe agency-fee checkout.",
-      detail:
-        metadataNote ??
-        "When the official fee is due, VIZA creates an application-specific virtual card and pays the portal on your behalf.",
+      description: copy("governmentFee.separate.description"),
+      detail: metadataNote ?? copy("governmentFee.separate.detail"),
     };
   }
 
   return {
     mode,
-    label: "Official fee amount pending",
+    label: copy("governmentFee.unknown.label"),
     amountLabel,
-    description: "The official amount will be confirmed before VIZA pays it for this application.",
-    detail:
-      metadataNote ??
-      "VIZA will confirm the amount, create a limited virtual card for that amount, and pay the government portal on your behalf.",
+    description: copy("governmentFee.unknown.description"),
+    detail: metadataNote ?? copy("governmentFee.unknown.detail"),
   };
 }
 
@@ -453,6 +488,7 @@ function buildNextStep(
     CheckoutPackageSummary,
     "applicationId" | "country" | "visaType" | "hasConsent" | "hasSignature"
   >,
+  copy: CheckoutCopy = defaultCheckoutCopy,
 ): CheckoutNextStep {
   const params = new URLSearchParams({
     country: summary.country,
@@ -465,8 +501,8 @@ function buildNextStep(
         country: summary.country,
         visaType: summary.visaType,
       }),
-      label: "Start application",
-      description: "Start the application form so VIZA can prepare the next steps.",
+      label: copy("nextStep.start.label"),
+      description: copy("nextStep.start.description"),
     };
   }
 
@@ -475,8 +511,8 @@ function buildNextStep(
   if (!summary.hasConsent || !summary.hasSignature) {
     return {
       href: `/client/consent?${params.toString()}`,
-      label: "Continue to consent",
-      description: "Review VIZA's terms, privacy notice, and agency authorisation for this application.",
+      label: copy("nextStep.consent.label"),
+      description: copy("nextStep.consent.description"),
     };
   }
 
@@ -484,8 +520,8 @@ function buildNextStep(
 
   return {
     href: `/client/documents?${params.toString()}`,
-    label: "Continue to documents",
-    description: "Upload and review supporting documents for this visa package.",
+    label: copy("nextStep.documents.label"),
+    description: copy("nextStep.documents.description"),
   };
 }
 
@@ -526,6 +562,7 @@ function buildPackageSummaries({
   consentEvents,
   signatures,
   selectedApplicationId,
+  copy = defaultCheckoutCopy,
 }: {
   assignments: UserPackageRow[];
   packages: VisaPackageRow[];
@@ -534,6 +571,7 @@ function buildPackageSummaries({
   consentEvents: ConsentEventRow[];
   signatures: ApplicationSignatureRow[];
   selectedApplicationId?: string | null;
+  copy?: CheckoutCopy;
 }): CheckoutPackageSummary[] {
   const packagesById = new Map(packages.map((packageRow) => [packageRow.id, packageRow]));
   const selectedApplication = selectedApplicationId
@@ -573,7 +611,7 @@ function buildPackageSummaries({
         visaType: packageRow.visa_type,
         visaTypeLabel: getVisaTypeDisplayName(packageRow.visa_type),
         agencyFee,
-        governmentFee: resolveGovernmentFee(packageRow, application),
+        governmentFee: resolveGovernmentFee(packageRow, application, copy),
         applicationId: application?.id ?? assignment.application_id,
         applicationStatus: application?.status ?? null,
         latestPayment,
@@ -584,10 +622,21 @@ function buildPackageSummaries({
 
       return {
         ...summaryBase,
-        nextStep: buildNextStep(summaryBase),
+        nextStep: buildNextStep(summaryBase, copy),
       };
     })
     .filter((summary): summary is CheckoutPackageSummary => Boolean(summary));
+}
+
+/** Resolve the applicant's locale once and hand a lookup to the summary builders. */
+async function loadCheckoutCopy(): Promise<CheckoutCopy> {
+  try {
+    const t = await getTranslations("clientCheckout.data");
+    return (key) => t(key);
+  } catch {
+    // Missing translations must never take checkout down.
+    return defaultCheckoutCopy;
+  }
 }
 
 export async function getCheckoutContext(selection: CheckoutSelection = {}): Promise<CheckoutContext> {
@@ -742,6 +791,7 @@ export async function getCheckoutContext(selection: CheckoutSelection = {}): Pro
       consentEvents,
       signatures,
       selectedApplicationId: selection.applicationId,
+      copy: await loadCheckoutCopy(),
     });
     const selectedPackage = resolveCheckoutPackageSelection(packages, selection);
 

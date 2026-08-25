@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { startStripeCheckout } from "./actions";
 import { CheckoutSubmitButton } from "./submit-button";
 import {
@@ -10,16 +11,16 @@ import {
   getCheckoutContext,
   reconcileStripeCheckoutSession,
 } from "./data";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Checkout | VIZA",
-  description: "Pay the VIZA agency fee through Stripe Checkout.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("clientCheckout");
+  return { title: t("metaTitle"), description: t("metaDescription") };
+}
 
 type CheckoutSearchParams = {
   applicationId?: string | string[];
@@ -39,52 +40,33 @@ function getParam(params: CheckoutSearchParams | undefined, key: keyof CheckoutS
   return value ?? null;
 }
 
-function getErrorReturnState(error: string | null): CheckoutReturnState {
+type CheckoutT = Awaited<ReturnType<typeof getTranslations<"clientCheckout">>>;
+
+const ERROR_KEYS = new Set([
+  "checkout_unavailable",
+  "missing_package",
+  "package_not_found",
+  "payment_record_failed",
+  "pricing_missing",
+  "stripe_unconfigured",
+]);
+
+const WARNING_ERRORS = new Set(["pricing_missing", "stripe_unconfigured"]);
+
+function getErrorReturnState(error: string | null, t: CheckoutT): CheckoutReturnState {
   if (!error) return null;
-
-  const messages: Record<string, CheckoutReturnState> = {
-    checkout_unavailable: {
-      tone: "error",
-      title: "Checkout is temporarily unavailable",
-      description: "Stripe Checkout could not be opened. Please try again or contact support.",
-    },
-    missing_package: {
-      tone: "error",
-      title: "Choose a visa package first",
-      description: "We need an active package before starting agency-fee payment.",
-    },
-    package_not_found: {
-      tone: "error",
-      title: "Package not found",
-      description: "This package is not active on your account. Please choose another package.",
-    },
-    payment_record_failed: {
-      tone: "error",
-      title: "Payment record was not created",
-      description: "VIZA did not start Stripe Checkout because the payment record could not be prepared.",
-    },
-    pricing_missing: {
-      tone: "warning",
-      title: "Agency fee is not configured",
-      description: "This package needs a VIZA agency fee before Stripe Checkout can be started.",
-    },
-    stripe_unconfigured: {
-      tone: "warning",
-      title: "Stripe Checkout is not configured",
-      description: "Production payment requires STRIPE_SECRET_KEY (sk_...), STRIPE_WEBHOOK_SECRET, and an app URL. No card details are collected here.",
-    },
+  const key = ERROR_KEYS.has(error) ? error : "generic";
+  return {
+    tone: WARNING_ERRORS.has(key) ? "warning" : "error",
+    title: t(`errors.${key}.title`),
+    description: t(`errors.${key}.description`),
   };
-
-  return (
-    messages[error] ?? {
-      tone: "error",
-      title: "Checkout needs attention",
-      description: "Something interrupted checkout. Please try again or contact support.",
-    }
-  );
 }
 
-async function getReturnState(params: CheckoutSearchParams | undefined): Promise<CheckoutReturnState> {
+async function getReturnState(
+  params: CheckoutSearchParams | undefined,
+  t: CheckoutT,
+): Promise<CheckoutReturnState> {
   const status = getParam(params, "status");
   if (status === "success") {
     return reconcileStripeCheckoutSession(getParam(params, "session_id"));
@@ -93,12 +75,12 @@ async function getReturnState(params: CheckoutSearchParams | undefined): Promise
   if (status === "cancelled") {
     return {
       tone: "warning",
-      title: "Stripe Checkout was cancelled",
-      description: "No VIZA agency fee was recorded. You can review the package and restart Stripe Checkout.",
+      title: t("errors.cancelled.title"),
+      description: t("errors.cancelled.description"),
     };
   }
 
-  return getErrorReturnState(getParam(params, "error"));
+  return getErrorReturnState(getParam(params, "error"), t);
 }
 
 function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
@@ -109,6 +91,7 @@ function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
       variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"}
       className="shadow-sm"
     >
+      <AlertIcon variant={state.tone === "success" ? "success" : state.tone === "warning" ? "warning" : "destructive"} />
       <AlertTitle>{state.title}</AlertTitle>
       <AlertDescription>{state.description}</AlertDescription>
     </Alert>
@@ -132,15 +115,13 @@ function DetailRow({
   );
 }
 
-function EmptyCheckoutState() {
+function EmptyCheckoutState({ t }: { t: CheckoutT }) {
   return (
     <ApplicationFormPanel className="flex min-h-[320px] flex-col items-center justify-center p-6 text-center">
-      <h2 className="text-xl font-semibold text-foreground">No active package ready for checkout</h2>
-      <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-        Select a destination or ask the VIZA team to assign a package before starting agency-fee payment.
-      </p>
+      <h2 className="text-xl font-semibold text-foreground">{t("empty.title")}</h2>
+      <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{t("empty.description")}</p>
       <Button asChild className="mt-6 h-11 rounded-full bg-brand-500 px-5 hover:bg-brand-600">
-        <Link href="/client/application">Choose a visa route</Link>
+        <Link href="/client/application">{t("empty.cta")}</Link>
       </Button>
     </ApplicationFormPanel>
   );
@@ -150,13 +131,15 @@ function CheckoutContent({
   selectedPackage,
   stripeConfigured,
   returnState,
+  t,
 }: {
   selectedPackage: CheckoutPackageSummary;
   stripeConfigured: boolean;
   returnState: CheckoutReturnState;
+  t: CheckoutT;
 }) {
   const canStartPayment = Boolean(selectedPackage.agencyFee) && stripeConfigured && !selectedPackage.isPaid;
-  const agencyFeeLabel = selectedPackage.agencyFee?.label ?? "Not configured";
+  const agencyFeeLabel = selectedPackage.agencyFee?.label ?? t("notConfigured");
   const paidAt = selectedPackage.latestPayment?.updated_at ?? selectedPackage.latestPayment?.created_at ?? null;
 
   return (
@@ -164,11 +147,10 @@ function CheckoutContent({
       <ReturnStateAlert state={returnState} />
 
       {!stripeConfigured ? (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-          <AlertTitle>Stripe Checkout needs configuration</AlertTitle>
-          <AlertDescription>
-            The page is safe to review, but payment is disabled until Stripe environment variables are configured.
-          </AlertDescription>
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>{t("stripeUnconfigured.title")}</AlertTitle>
+          <AlertDescription>{t("stripeUnconfigured.description")}</AlertDescription>
         </Alert>
       ) : null}
 
@@ -187,26 +169,24 @@ function CheckoutContent({
               {selectedPackage.description ? (
                 <p className="leading-7 text-muted-foreground">{selectedPackage.description}</p>
               ) : (
-                <p className="leading-7 text-muted-foreground">
-                  Confirm this package before starting Stripe Checkout for the VIZA agency fee.
-                </p>
+                <p className="leading-7 text-muted-foreground">{t("confirmPackage")}</p>
               )}
 
               <div className="grid border-y sm:grid-cols-3 sm:divide-x">
                 <div className="py-4 sm:pr-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Agency fee</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{t("agencyFee")}</p>
                   <p className="mt-2 text-xl font-semibold text-foreground">{agencyFeeLabel}</p>
                 </div>
                 <div className="border-t py-4 sm:border-t-0 sm:px-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Application</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{t("application")}</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
-                    {selectedPackage.applicationStatus?.replace(/_/g, " ") ?? "Not started"}
+                    {selectedPackage.applicationStatus?.replace(/_/g, " ") ?? t("notStarted")}
                   </p>
                 </div>
                 <div className="border-t py-4 sm:border-t-0 sm:pl-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Payment</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{t("payment")}</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
-                    {selectedPackage.isPaid ? "Paid" : selectedPackage.latestPayment?.status ?? "Not paid"}
+                    {selectedPackage.isPaid ? t("paid") : selectedPackage.latestPayment?.status ?? t("notPaid")}
                   </p>
                 </div>
               </div>
@@ -215,10 +195,8 @@ function CheckoutContent({
 
           <ApplicationFormPanel className="p-5 sm:p-6">
             <div>
-              <h2 className="text-base font-semibold text-foreground">Official fee payment</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                VIZA pays the official portal on your behalf with a secure virtual card created for this application.
-              </p>
+              <h2 className="text-base font-semibold text-foreground">{t("officialFee.title")}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{t("officialFee.lede")}</p>
             </div>
             <div className="mt-5 space-y-4">
               <div className="border-y py-4">
@@ -235,46 +213,44 @@ function CheckoutContent({
                 </div>
               </div>
               <p className="leading-7 text-muted-foreground">{selectedPackage.governmentFee.detail}</p>
-              <div className="rounded-lg bg-brand-50 p-4 text-sm leading-6 text-brand-900">
-                You will never need to enter card details on the government portal. When the official fee is due,
-                VIZA creates a limited virtual card for this application, pays the portal, and records the result.
-              </div>
+              <div className="rounded-lg bg-brand-50 p-4 text-sm leading-6 text-brand-900">{t("officialFee.note")}</div>
             </div>
           </ApplicationFormPanel>
         </div>
 
         <aside className="space-y-6">
           <ApplicationFormPanel className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-foreground">Order summary</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("summary.title")}</h2>
             <div className="mt-5 space-y-5">
               <div>
-                <DetailRow label="Package" value={selectedPackage.packageName} />
-                <DetailRow label="Destination" value={selectedPackage.countryName} />
-                <DetailRow label="Visa type" value={selectedPackage.visaTypeLabel} />
-                <DetailRow label="VIZA agency fee" value={agencyFeeLabel} />
-                <DetailRow label="Official fee" value="Paid by VIZA with a virtual card" muted />
+                <DetailRow label={t("summary.package")} value={selectedPackage.packageName} />
+                <DetailRow label={t("summary.destination")} value={selectedPackage.countryName} />
+                <DetailRow label={t("summary.visaType")} value={selectedPackage.visaTypeLabel} />
+                <DetailRow label={t("summary.agencyFee")} value={agencyFeeLabel} />
+                <DetailRow label={t("summary.officialFee")} value={t("summary.officialFeeValue")} muted />
               </div>
 
               <div className="rounded-lg bg-muted/40 p-4">
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-sm font-medium text-muted-foreground">Due today</span>
+                  <span className="text-sm font-medium text-muted-foreground">{t("summary.dueToday")}</span>
                   <span className="text-2xl font-semibold text-foreground">
                     {selectedPackage.agencyFee
                       ? formatMoney(selectedPackage.agencyFee.cents, selectedPackage.agencyFee.currency)
-                      : "Unavailable"}
+                      : t("unavailable")}
                   </span>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Paid through Stripe-hosted Checkout for VIZA's agency fee only.
-                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{t("summary.stripeNote")}</p>
               </div>
 
               {selectedPackage.isPaid ? (
                 <div className="space-y-4">
-                  <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
-                    <AlertTitle>Agency fee recorded</AlertTitle>
+                  <Alert variant="success">
+                    <AlertIcon variant="success" />
+                    <AlertTitle>{t("paidAlert.title")}</AlertTitle>
                     <AlertDescription>
-                      {paidAt ? `Latest confirmation: ${new Date(paidAt).toLocaleString()}` : "Payment is on file."}
+                      {paidAt
+                        ? t("paidAlert.confirmedAt", { at: new Date(paidAt).toLocaleString() })
+                        : t("paidAlert.onFile")}
                     </AlertDescription>
                   </Alert>
                   <Button asChild className="h-12 w-full rounded-full bg-brand-500 hover:bg-brand-600">
@@ -288,15 +264,11 @@ function CheckoutContent({
                   {selectedPackage.applicationId ? (
                     <input type="hidden" name="applicationId" value={selectedPackage.applicationId} />
                   ) : null}
-                  <CheckoutSubmitButton disabled={!canStartPayment}>Pay agency fee with Stripe</CheckoutSubmitButton>
+                  <CheckoutSubmitButton disabled={!canStartPayment}>{t("payButton")}</CheckoutSubmitButton>
                   {!selectedPackage.agencyFee ? (
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Checkout is disabled because this package does not have an agency fee configured.
-                    </p>
+                    <p className="text-sm leading-6 text-muted-foreground">{t("noAgencyFee")}</p>
                   ) : (
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      You will enter card details only on Stripe's hosted checkout page.
-                    </p>
+                    <p className="text-sm leading-6 text-muted-foreground">{t("stripeOnly")}</p>
                   )}
                 </form>
               )}
@@ -304,13 +276,10 @@ function CheckoutContent({
           </ApplicationFormPanel>
 
           <ApplicationFormPanel className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-foreground">After payment</h2>
+            <h2 className="text-base font-semibold text-foreground">{t("afterPayment.title")}</h2>
             <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
               <p>{selectedPackage.nextStep.description}</p>
-              <p>
-                When an official portal fee becomes due, VIZA will create an application-specific virtual card and pay
-                it on your behalf. No government-portal card entry is required from you.
-              </p>
+              <p>{t("afterPayment.body")}</p>
             </div>
           </ApplicationFormPanel>
         </aside>
@@ -320,8 +289,9 @@ function CheckoutContent({
 }
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
+  const t = await getTranslations("clientCheckout");
   const params = await searchParams;
-  const returnState = await getReturnState(params);
+  const returnState = await getReturnState(params, t);
   const context = await getCheckoutContext({
     packageId: getParam(params, "packageId"),
     applicationId: getParam(params, "applicationId"),
@@ -335,16 +305,13 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     <div className="mx-auto max-w-[1090px] space-y-8 pb-16">
       <header className="space-y-3">
         <div className="max-w-3xl space-y-3">
-          <h1 className="text-3xl font-semibold text-foreground md:text-4xl">Checkout</h1>
-          <p className="text-base leading-7 text-muted-foreground">
-            Confirm the visa application selected on your Home page and pay VIZA's agency fee through Stripe Checkout.
-            When the official fee is due, VIZA creates a secure virtual card and pays the government portal for you.
-          </p>
+          <h1 className="text-3xl font-semibold text-foreground md:text-4xl">{t("title")}</h1>
+          <p className="text-base leading-7 text-muted-foreground">{t("lede")}</p>
         </div>
       </header>
 
       {context.error ? (
-        <ClientErrorAlert message={context.error} title="Checkout could not load" />
+        <ClientErrorAlert message={context.error} title={t("loadFailed")} />
       ) : null}
 
       {context.selectedPackage ? (
@@ -352,11 +319,12 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           selectedPackage={context.selectedPackage}
           stripeConfigured={context.stripeConfigured}
           returnState={returnState}
+          t={t}
         />
       ) : (
         <div className="space-y-6">
           <ReturnStateAlert state={returnState} />
-          <EmptyCheckoutState />
+          <EmptyCheckoutState t={t} />
         </div>
       )}
     </div>

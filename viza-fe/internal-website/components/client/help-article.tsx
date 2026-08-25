@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowUpRight } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export interface HelpArticleSection {
   heading: string;
@@ -21,6 +22,7 @@ interface HelpArticleProps {
 }
 
 export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
+  const t = useTranslations("help.articleChrome");
   useEffect(() => {
     const handleScroll = () => {
       const scrollThreshold = 195;
@@ -61,7 +63,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
             className="inline-flex items-center gap-1.5 text-[rgba(255,255,255,0.75)] hover:text-white text-[14px] font-medium transition-colors"
           >
             <ArrowLeft className="size-4" />
-            Help Center
+            {t("helpCenter")}
           </Link>
         </motion.div>
 
@@ -149,13 +151,25 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.6 }}
           >
-            <Link
-              href="/client/help"
-              className="inline-flex items-center gap-1.5 text-[#c1785d] hover:text-[#a5604a] text-[15px] font-medium transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              Back to Help Center
-            </Link>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link
+                href="/client/help"
+                className="inline-flex items-center gap-1.5 text-[#c1785d] hover:text-[#a5604a] text-[15px] font-medium transition-colors"
+              >
+                <ArrowLeft className="size-4" />
+                {t("backToHelp")}
+              </Link>
+              <span className="inline-flex items-center gap-2 text-[14px] text-[#6b6b6b]">
+                {t("stillStuck")}
+                <Link
+                  href="/client/support/requests"
+                  className="inline-flex items-center gap-1 font-medium text-brand-500 transition-colors hover:text-brand-400"
+                >
+                  {t("contactSupport")}
+                  <ArrowUpRight className="size-4" />
+                </Link>
+              </span>
+            </div>
           </motion.div>
         </div>
       </div>
