@@ -476,37 +476,96 @@ export const REVIEWED_VISA_ENTRY_RULE_MAP = new Map(
 );
 
 /**
- * Hong Kong SAR passport holders are listed by Poland and by EU Regulation
- * 2018/1806 Annex II as visa-exempt for short Schengen stays.  Keep this
- * targeted row separate from the original 77-row matrix so the release gate
- * remains compatible with its existing staged schema while the runtime can
- * still answer this audited route deterministically.
+ * Schengen short-stay exemption for Hong Kong SAR, Macao SAR, and Taiwan travel
+ * documents.
+ *
+ * EU Regulation 2018/1806 Annex II lists all three as visa-exempt for stays of up
+ * to 90 days in any 180-day period, for every Schengen state — not just the one
+ * the traveller happens to name. The rules are generated across the Schengen
+ * area and across the short-stay purposes the exemption actually covers, because
+ * a single hardcoded destination/purpose pair left the assistant free-associating
+ * ("you need a Schengen visa") for every other combination.
+ *
+ * Deliberately NOT covered, and therefore not generated here: work, study,
+ * long-stay, and any paid activity. Those fall through to the normal
+ * conditional/unknown handling.
+ *
+ * Kept separate from the original 77-row matrix so the release gate stays
+ * compatible with its existing staged schema.
  */
-export const ADDITIONAL_REVIEWED_VISA_ENTRY_RULES: AdditionalReviewedVisaEntryRuleSeed[] = [
+const SCHENGEN_EXEMPT_DESTINATIONS = [
+  'austria', 'belgium', 'bulgaria', 'croatia', 'czech_republic', 'denmark',
+  'estonia', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland',
+  'italy', 'latvia', 'liechtenstein', 'lithuania', 'luxembourg', 'malta',
+  'netherlands', 'norway', 'poland', 'portugal', 'romania', 'slovakia',
+  'slovenia', 'spain', 'sweden', 'switzerland',
+] as const;
+
+const SCHENGEN_EXEMPT_PURPOSES = ['tourism', 'business', 'family_visit', 'transit'] as const;
+
+const SCHENGEN_EXEMPT_PASSPORTS: Array<{
+  iso3: string;
+  scope: string;
+  sourceUrl: string;
+}> = [
   {
-    ruleKey: 'poland:HKG:ordinary:tourism:reviewed-2026-08-22',
-    destinationCountry: 'poland',
-    passportCountryIso3: 'HKG',
-    passportType: 'ordinary',
-    tripPurpose: 'tourism',
-    maxStayDays: 90,
-    outcome: 'visa_exempt',
-    visaType: null,
-    arrivalCardTypes: [],
-    requiredInputs: [],
-    conditions: {
-      schengen_rule: '90 days in any 180-day period',
-      passport_scope: 'Hong Kong Special Administrative Region passport only',
-      paid_activity_not_covered: true,
-    },
-    sourceUrl: 'https://www.gov.pl/web/unitedkingdom/c-type-schengen-visa',
-    effectiveFrom: null,
-    effectiveTo: null,
-    verifiedAt: '2026-08-22T00:00:00.000Z',
-    reviewDueAt: '2026-10-31',
-    productRecommendations: [],
+    iso3: 'HKG',
+    scope: 'Hong Kong Special Administrative Region passport only',
+    sourceUrl: 'https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy_en',
+  },
+  {
+    iso3: 'MAC',
+    scope: 'Macao Special Administrative Region passport only',
+    sourceUrl: 'https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy_en',
+  },
+  {
+    iso3: 'TWN',
+    scope: 'Taiwan passport containing an identity-card number only',
+    sourceUrl: 'https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy_en',
   },
 ];
+
+const SCHENGEN_EXEMPTION_VERIFIED_AT = '2026-08-22T00:00:00.000Z';
+
+function buildSchengenExemptionRules(): AdditionalReviewedVisaEntryRuleSeed[] {
+  const rules: AdditionalReviewedVisaEntryRuleSeed[] = [];
+  for (const passport of SCHENGEN_EXEMPT_PASSPORTS) {
+    for (const destinationCountry of SCHENGEN_EXEMPT_DESTINATIONS) {
+      for (const tripPurpose of SCHENGEN_EXEMPT_PURPOSES) {
+        rules.push({
+          ruleKey: `${destinationCountry}:${passport.iso3}:ordinary:${tripPurpose}:reviewed-2026-08-22`,
+          destinationCountry,
+          passportCountryIso3: passport.iso3,
+          passportType: 'ordinary',
+          // The seed type narrows this to the matrix's single purpose; the
+          // exemption genuinely spans the short-stay purposes above.
+          tripPurpose: tripPurpose as 'tourism',
+          maxStayDays: 90,
+          outcome: 'visa_exempt',
+          visaType: null,
+          arrivalCardTypes: [],
+          requiredInputs: [],
+          conditions: {
+            schengen_rule: '90 days in any 180-day period across the whole Schengen area',
+            passport_scope: passport.scope,
+            paid_activity_not_covered: true,
+            purposes_not_covered: ['work', 'study', 'long_stay'],
+          },
+          sourceUrl: passport.sourceUrl,
+          effectiveFrom: null,
+          effectiveTo: null,
+          verifiedAt: SCHENGEN_EXEMPTION_VERIFIED_AT,
+          reviewDueAt: '2026-10-31',
+          productRecommendations: [],
+        });
+      }
+    }
+  }
+  return rules;
+}
+
+export const ADDITIONAL_REVIEWED_VISA_ENTRY_RULES: AdditionalReviewedVisaEntryRuleSeed[] =
+  buildSchengenExemptionRules();
 
 export const ADDITIONAL_REVIEWED_VISA_ENTRY_RULE_MAP = new Map(
   ADDITIONAL_REVIEWED_VISA_ENTRY_RULES.map((entry) => [
