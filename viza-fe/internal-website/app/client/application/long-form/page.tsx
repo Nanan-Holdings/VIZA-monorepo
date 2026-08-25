@@ -1196,6 +1196,22 @@ function FinalConfirmationPanel({
                   : "Checking supporting documents and current form status. You can submit once this finishes."
               : submitCopy}
           </p>
+          {hasMissing ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5">
+              {missingFields.map((field) => (
+                <li key={`${field.stepId}:${field.fieldName}`}>
+                  {field.label}
+                  {field.reason === "invalid"
+                    ? isZh
+                      ? "（格式或内容不符合要求）"
+                      : " (format or content does not meet the requirement)"
+                    : isZh
+                      ? "（未填写）"
+                      : " (not provided)"}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </AlertDescription>
       </Alert>
 
@@ -2628,13 +2644,30 @@ export default function ApplicationPage() {
   );
   const formAssistantReadinessProgress = useMemo(() => {
     const formProgress = getAssistantProgress(dbSteps, dynamicAnswerSnapshot);
-    if (!showStandaloneDocumentStep) return formProgress;
+    // Required-field progress must not count a non-empty value that final
+    // validation already rejects (for example an incomplete Japan address).
+    // Otherwise the assistant can show 100% while Submit immediately returns
+    // the applicant to the form.
+    const invalidAnsweredCount = tabCompletion.missingFields.filter((item) =>
+      item.reason === "invalid" && Boolean(dynamicAnswerSnapshot[item.fieldName]?.trim()),
+    ).length;
+    const validatedFormProgress = {
+      completed: Math.max(0, formProgress.completed - invalidAnsweredCount),
+      total: formProgress.total,
+    };
+    if (!showStandaloneDocumentStep) return validatedFormProgress;
     const documentProgress = getRequiredDocumentProgress(documentCenterData);
     return {
-      completed: formProgress.completed + documentProgress.completed,
-      total: formProgress.total + documentProgress.total,
+      completed: validatedFormProgress.completed + documentProgress.completed,
+      total: validatedFormProgress.total + documentProgress.total,
     };
-  }, [dbSteps, documentCenterData, dynamicAnswerSnapshot, showStandaloneDocumentStep]);
+  }, [
+    dbSteps,
+    documentCenterData,
+    dynamicAnswerSnapshot,
+    showStandaloneDocumentStep,
+    tabCompletion.missingFields,
+  ]);
   const missingRequiredDocumentKeys = useMemo(
     () => showStandaloneDocumentStep
       ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
