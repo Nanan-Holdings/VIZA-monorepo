@@ -184,6 +184,7 @@ describe("computeAllTabCompletion", () => {
         stepNumber: 2,
         stepName: "Arrival and Stay",
         fields: [
+          field("flight_number", { label: "Flight number" }),
           field("accommodation_name", { label: "Accommodation name" }),
           field("accommodation_prefecture", { label: "Accommodation prefecture" }),
           field("accommodation_city", { label: "Accommodation city" }),
@@ -196,6 +197,7 @@ describe("computeAllTabCompletion", () => {
       effectiveSteps: [{ id: 0, name: "Traveller" }, { id: 1, name: "Stay" }],
       answers: {
         residence_country: "x",
+        flight_number: "SQ111",
         accommodation_name: "x",
         accommodation_prefecture: "x",
         accommodation_city: "TK",
@@ -214,6 +216,7 @@ describe("computeAllTabCompletion", () => {
 
     expect(result.missingFields.map((item) => item.fieldName)).toEqual([
       "residence_country",
+      "flight_number",
       "accommodation_name",
       "accommodation_prefecture",
       "accommodation_address",

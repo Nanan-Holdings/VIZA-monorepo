@@ -1388,6 +1388,25 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.queryByText("必填项")).not.toBeInTheDocument();
   });
 
+  it("shows a localized submit-time error beside the invalid field", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "X" }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="JP_VISIT_JAPAN_WEB"
+        invalidFieldMessages={new Map([
+          ["surname", "请输入完整的姓氏。"],
+        ])}
+      />,
+    );
+
+    const field = container.querySelector<HTMLElement>('[data-application-field-name="surname"]');
+    expect(field).toHaveAttribute("data-validation-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("请输入完整的姓氏。");
+  });
+
   it("keeps a top-level block controller free of conditional-panel padding", () => {
     const blockControllerStep: WizardStep = {
       stepNumber: 5,

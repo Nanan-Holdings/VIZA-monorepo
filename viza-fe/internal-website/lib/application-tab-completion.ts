@@ -22,6 +22,7 @@ export interface MissingApplicationField {
   stepName: string;
   fieldName: string;
   label: string;
+  labelZh?: string;
   reason: "required" | "invalid" | "external_gate" | "ceac_required";
 }
 
@@ -92,6 +93,11 @@ function normalizeAnswer(value: string | null | undefined): string {
   return text(value).toLowerCase();
 }
 
+function getChineseFieldLabel(field: VisaFormFieldRow): string | undefined {
+  const labelZh = field.validationRules?.label_zh;
+  return typeof labelZh === "string" && labelZh.trim() ? labelZh.trim() : undefined;
+}
+
 function isJapanVisitJapanWebApplication(
   country?: string | null,
   visaType?: string | null,
@@ -112,6 +118,50 @@ const JP_VJW_MINIMUM_TEXT_LENGTHS = {
   accommodation_address: 3,
 } as const;
 
+const JP_VJW_FLIGHT_NUMBER_PATTERN = /^\d{1,8}$/;
+
+export function getApplicationFieldErrorMessage(
+  field: MissingApplicationField,
+  options: {
+    country?: string | null;
+    visaType?: string | null;
+    isZh: boolean;
+  },
+): string {
+  if (isJapanVisitJapanWebApplication(options.country, options.visaType)) {
+    const japanMessages = options.isZh
+      ? {
+          residence_country: "请输入有效的居住国家或地区。",
+          accommodation_name: "请输入完整的日本住宿名称（英文）。",
+          accommodation_prefecture: "请选择日本住宿所在的都道府县。",
+          accommodation_city: "请选择日本住宿所在的市区町村。",
+          accommodation_address: "请输入完整的日本住宿町名、丁目和门牌号（英文），至少 3 个字符。",
+          flight_number: "航班号仅填写 1–8 位数字（例如 SQ111 填写 111），并确认所选航空公司与实际航班一致。",
+        }
+      : {
+          residence_country: "Enter a valid country or region of residence.",
+          accommodation_name: "Enter the full name of your accommodation in Japan in English.",
+          accommodation_prefecture: "Select the prefecture of your accommodation in Japan.",
+          accommodation_city: "Select the city, ward, town, or village of your accommodation in Japan.",
+          accommodation_address: "Enter the complete town, block, and building number of your accommodation in Japan in English (at least 3 characters).",
+          flight_number: "Enter only the 1–8 digit numeric part of the flight number (for SQ111, enter 111), and confirm the selected airline matches your flight.",
+        };
+    const japanMessage = japanMessages[field.fieldName as keyof typeof japanMessages];
+    if (japanMessage) return japanMessage;
+  }
+
+  if (field.reason === "invalid") {
+    const label = options.isZh ? field.labelZh ?? field.label : field.label;
+    return options.isZh
+      ? `请检查“${label}”的格式或内容。`
+      : `Check the format or content of “${label}”.`;
+  }
+  const label = options.isZh ? field.labelZh ?? field.label : field.label;
+  return options.isZh
+    ? `请填写“${label}”。`
+    : `Complete “${label}”.`;
+}
+
 function getInvalidJapanVisitJapanWebFields(
   dbSteps: WizardStep[],
   answers: Record<string, string>,
@@ -120,6 +170,10 @@ function getInvalidJapanVisitJapanWebFields(
     step.fields.map((field) => ({ stepIndex, field })),
   );
   return fields.filter(({ field }) => {
+    if (field.fieldName === "flight_number") {
+      const value = text(answers[field.fieldName]);
+      return value.length > 0 && !JP_VJW_FLIGHT_NUMBER_PATTERN.test(value);
+    }
     const minimum = JP_VJW_MINIMUM_TEXT_LENGTHS[
       field.fieldName as keyof typeof JP_VJW_MINIMUM_TEXT_LENGTHS
     ];
@@ -304,6 +358,7 @@ function missingForDynamicStep(
       stepName,
       fieldName: field.fieldName,
       label: field.label || field.fieldName,
+      labelZh: getChineseFieldLabel(field),
       reason: hasValue(answers[field.fieldName]) ? "invalid" : "required",
     });
   }
@@ -329,6 +384,7 @@ function missingForDynamicStep(
       stepName,
       fieldName: first.fieldName,
       label: first.label || first.fieldName,
+      labelZh: getChineseFieldLabel(first),
       reason: "required",
     });
   }
@@ -355,6 +411,7 @@ export function getMissingDynamicFormFields(
       stepName: dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
       fieldName: field.fieldName,
       label: field.label || field.fieldName,
+      labelZh: getChineseFieldLabel(field),
       reason: "invalid" as const,
     })));
   }
@@ -364,6 +421,7 @@ export function getMissingDynamicFormFields(
       stepName: dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
       fieldName: field.fieldName,
       label: field.label || field.fieldName,
+      labelZh: getChineseFieldLabel(field),
       reason: "invalid" as const,
     })));
   }
@@ -511,6 +569,7 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
             input.dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
           fieldName: field.fieldName,
           label: field.label || field.fieldName,
+          labelZh: getChineseFieldLabel(field),
           reason: "invalid" as const,
         };
       });
@@ -545,6 +604,7 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
             input.dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`,
           fieldName: field.fieldName,
           label: field.label || field.fieldName,
+          labelZh: getChineseFieldLabel(field),
           reason: "invalid" as const,
         };
       });
