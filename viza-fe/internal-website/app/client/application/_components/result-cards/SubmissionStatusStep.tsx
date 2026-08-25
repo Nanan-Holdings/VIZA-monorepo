@@ -500,6 +500,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "No official downloadable confirmation PDF is available for this submission."}
           </p>
         ) : null}
+        {successful ? <WhatHappensNext country={result.country} isZh={isZh} /> : null}
         {downloadError ? <ClientErrorAlert message={downloadError} /> : null}
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
@@ -511,6 +512,106 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * "Submitted" is not the end of the story for the traveller — each portal sends a
+ * different confirmation, and if it doesn't arrive (or arrives wrong) they need to
+ * act before they fly. Previously the card stopped at a green tick and left them to
+ * guess whether anything else was coming.
+ */
+function WhatHappensNext({ country, isZh }: { country: string; isZh: boolean }) {
+  const COPY: Record<string, { zh: string[]; en: string[] }> = {
+    MY: {
+      zh: [
+        "马来西亚移民局会向你填写的邮箱发送一封 MDAC 确认邮件，通常几分钟内到达。",
+        "收到后请核对：姓名拼写、护照号、抵达日期和航班号是否与证件和机票一致。",
+        "如果 30 分钟内没收到，先看垃圾邮件；仍然没有，或内容有误，请用上面的按钮重新提交，或联系我们。",
+      ],
+      en: [
+        "Malaysian Immigration emails an MDAC confirmation to the address you entered, usually within minutes.",
+        "When it arrives, check the name spelling, passport number, arrival date and flight number against your documents.",
+        "Nothing after 30 minutes? Check spam first. Still missing, or wrong? Submit again above, or contact us.",
+      ],
+    },
+    TH: {
+      zh: [
+        "泰国 TDAC 会返回一个二维码，请下载保存并在入境时出示。",
+        "请核对姓名、护照号和抵达日期是否与证件一致。",
+        "如果二维码无法下载或信息有误，可以重新提交，或联系我们处理。",
+      ],
+      en: [
+        "Thailand TDAC returns a QR code — download it and have it ready at immigration.",
+        "Check the name, passport number and arrival date against your documents.",
+        "If the QR won't download or the details are wrong, submit again, or contact us.",
+      ],
+    },
+    PH: {
+      zh: [
+        "菲律宾 eTravel 会返回二维码和参考号，请截图保存并在值机与入境时出示。",
+        "请核对姓名、护照号和抵达日期。",
+        "eTravel 免费，不是签证，也不代表一定获准入境。",
+      ],
+      en: [
+        "Philippines eTravel returns a QR code and a reference number — save them for check-in and immigration.",
+        "Check the name, passport number and arrival date.",
+        "eTravel is free, is not a visa, and does not guarantee admission at the border.",
+      ],
+    },
+    VN: {
+      zh: [
+        "越南入境前申报完成后会返回二维码，请下载保存。",
+        "请核对姓名、护照号和抵达日期。",
+        "如果二维码迟迟未生成，请不要重复提交，先联系我们查看进度。",
+      ],
+      en: [
+        "Vietnam's pre-arrival declaration returns a QR code once processed — download and keep it.",
+        "Check the name, passport number and arrival date.",
+        "If the QR is slow to appear, don't resubmit — contact us and we'll check where it is.",
+      ],
+    },
+    KR: {
+      zh: [
+        "韩国入境卡提交后可在官网的 Check/Edit 页面查询记录。",
+        "请核对姓名、护照号和抵达日期。",
+        "如需修改，请通过上面的官网入口操作，或联系我们。",
+      ],
+      en: [
+        "Korea's e-Arrival Card record can be looked up on the portal's Check/Edit page.",
+        "Check the name, passport number and arrival date.",
+        "To change anything, use the portal link above, or contact us.",
+      ],
+    },
+  };
+
+  const fallback = {
+    zh: [
+      "请核对确认信息中的姓名、护照号和抵达日期是否与证件一致。",
+      "如果信息有误或没有收到官方确认，请重新提交，或联系我们。",
+    ],
+    en: [
+      "Check the name, passport number and arrival date on the confirmation against your documents.",
+      "If anything is wrong, or no official confirmation arrives, submit again or contact us.",
+    ],
+  };
+
+  const items = (COPY[country] ?? fallback)[isZh ? "zh" : "en"];
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
+      <p className="text-sm font-medium text-foreground">
+        {isZh ? "接下来会发生什么" : "What happens next"}
+      </p>
+      <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span aria-hidden="true">·</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
