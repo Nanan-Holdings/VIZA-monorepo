@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import { AddressAutofill, type ResolvedAddressParts } from "@/components/application-steps/address-autofill";
 import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
@@ -2516,6 +2517,59 @@ function getInlineGroup(field: VisaFormFieldRow): string | null {
 
 /** Get the block_group from a field's validationRules — used to wrap
  *  a set of consecutive non-repeatable fields in a visual container box. */
+/**
+ * Address fields that can drive a state/city lookup — a street address, a
+ * property/hotel name, or a postal code the applicant already typed.
+ */
+function isAddressLookupField(field: VisaFormFieldRow): boolean {
+  if (!usesBilingualAnswerPair(field)) return false;
+  const name = field.fieldName.toLowerCase();
+  if (/(?:^|_)(state|province|city|town|postal_code|postcode)(?:_|$)/u.test(name)) return false;
+  return /(?:^|_)address(?:_line\d+)?$/u.test(name) || /(?:^|_)address_/u.test(name);
+}
+
+type AddressSiblingKind = "state" | "city" | "postcode";
+
+/**
+ * Sibling state/city/postcode fields that belong to the same address block.
+ *
+ * Preference order: fields sharing the address field's `block_group`, then fields
+ * sharing its name prefix (`accommodation_address` → `accommodation_city`), then
+ * anything matching in the same step. Returns at most one field per kind.
+ */
+function findAddressSiblings(
+  addressField: VisaFormFieldRow,
+  fields: VisaFormFieldRow[],
+): Partial<Record<AddressSiblingKind, VisaFormFieldRow>> {
+  const group = getBlockGroup(addressField);
+  const prefix = addressField.fieldName.replace(/(?:_address(?:_line\d+)?|_address_.*)$/u, "");
+
+  const matchers: Array<[AddressSiblingKind, RegExp]> = [
+    ["state", /(?:^|_)(state|province|state_province|region)(?:_|$)/u],
+    ["city", /(?:^|_)(city|town|city_town)(?:_|$)/u],
+    ["postcode", /(?:^|_)(postal_code|postcode|zip|zip_code)(?:_|$)/u],
+  ];
+
+  const candidates = fields.filter((field) => field.fieldName !== addressField.fieldName);
+  const scope = [
+    group ? candidates.filter((field) => getBlockGroup(field) === group) : [],
+    candidates.filter((field) => prefix && field.fieldName.startsWith(`${prefix}_`)),
+    candidates,
+  ];
+
+  const result: Partial<Record<AddressSiblingKind, VisaFormFieldRow>> = {};
+  for (const [kind, pattern] of matchers) {
+    for (const pool of scope) {
+      const hit = pool.find((field) => pattern.test(field.fieldName.toLowerCase()));
+      if (hit) {
+        result[kind] = hit;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 function getBlockGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { block_group?: string } | null;
   return rules?.block_group ?? null;
@@ -4120,6 +4174,64 @@ export function DynamicStepForm({
     ));
   };
 
+  /** Country name used to bias the address lookup toward the destination. */
+  const addressCountryHint = useMemo(() => {
+    const raw = (country ?? values.destination_country ?? "").trim();
+    if (!raw) return null;
+    const match = (countries.all as CountryDataListCountry[]).find(
+      (candidate) =>
+        candidate.alpha2?.toLowerCase() === raw.toLowerCase() ||
+        candidate.alpha3?.toLowerCase() === raw.toLowerCase() ||
+        candidate.name?.toLowerCase() === raw.toLowerCase().replace(/_/g, " "),
+    );
+    return match?.name ?? raw.replace(/_/g, " ");
+  }, [country, values]);
+
+  /**
+   * Write a resolved address's administrative parts into the sibling fields.
+   *
+   * For a select we only accept a value that genuinely matches one of its options
+   * (the official portals reject anything else); for a free-text field we write the
+   * resolved string. Empty parts are skipped so a partial result never blanks a
+   * field the applicant already filled.
+   */
+  const applyResolvedAddress = (
+    siblings: Partial<Record<"state" | "city" | "postcode", VisaFormFieldRow>>,
+    parts: ResolvedAddressParts,
+  ) => {
+    const assignments: Array<[VisaFormFieldRow | undefined, string]> = [
+      [siblings.state, parts.state],
+      [siblings.city, parts.city],
+      [siblings.postcode, parts.postalCode],
+    ];
+
+    for (const [targetField, rawValue] of assignments) {
+      const value = rawValue.trim();
+      if (!targetField || !value) continue;
+
+      const options = targetField.options;
+      if (options && options.length > 0) {
+        const matched = options.find((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionText = typeof option === "string" ? option : option.text;
+          return (
+            optionValue?.toLowerCase() === value.toLowerCase() ||
+            optionText?.toLowerCase() === value.toLowerCase()
+          );
+        });
+        if (!matched) continue;
+        handleChange(targetField.fieldName, typeof matched === "string" ? matched : matched.value);
+        continue;
+      }
+
+      if (usesBilingualAnswerPair(targetField)) {
+        handleBilingualTextChange(targetField.fieldName, "en", value);
+      } else {
+        handleChange(targetField.fieldName, value);
+      }
+    }
+  };
+
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
@@ -4659,6 +4771,23 @@ export function DynamicStepForm({
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
+    // Address → state/city helper. Only offered when this step actually has the
+    // sibling fields to fill; otherwise the button would resolve into nothing.
+    const addressSiblings = isAddressLookupField(field)
+      ? findAddressSiblings(field, step.fields)
+      : {};
+    const showAddressAutofill =
+      isAddressLookupField(field) && Boolean(addressSiblings.state || addressSiblings.city);
+    const addressAutofill = showAddressAutofill ? (
+      <AddressAutofill
+        query={values[valueKey] ?? ""}
+        countryHint={addressCountryHint}
+        locale={locale}
+        isChineseInterface={isChineseInterface}
+        onResolved={(parts) => applyResolvedAddress(addressSiblings, parts)}
+      />
+    ) : null;
+
     const showChineseFieldFooter = isTextLike
       || showVnPrearrivalEvisaHelp
       || (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved")
@@ -4729,6 +4858,7 @@ export function DynamicStepForm({
           <div className="min-w-0">
             {renderSide("en")}
           </div>
+          {addressAutofill}
           {(showVnPrearrivalEvisaHelp ||
             (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
             showIssue ||
@@ -4800,6 +4930,7 @@ export function DynamicStepForm({
         <div className="min-w-0">
           {renderSide("zh")}
         </div>
+        {addressAutofill}
         {showChineseFieldFooter ? (
           <div className="mt-1 flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (
