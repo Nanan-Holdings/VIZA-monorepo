@@ -73,8 +73,8 @@ export const unitedStates: VisaContent = {
       title: "Interview preparation & tracking",
       body: "We send personalised interview coaching, likely question sets, and a document checklist. Ten-print fingerprints and a photo are taken at the interview. On the day, we're on standby for any last-minute queries.",
       statusRows: [
-        { label: "DS-160 confirmed & interview booked", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Interview coaching pack delivered", ts: "3 Jul, 2:00 PM", onTime: true },
+        { label: "DS-160 confirmed & interview booked", ts: "3 Jul, 10:15 AM" },
+        { label: "Interview coaching pack delivered", ts: "3 Jul, 2:00 PM" },
         { label: "Interview scheduled — 10 Jul", ts: "In progress" },
       ],
     },
@@ -210,7 +210,7 @@ export const unitedStates: VisaContent = {
     etaValue: "10 Jul 2026, 09:00 AM",
     title: "U.S. B1/B2 Visa · 10-year validity",
     saving: "Expert prep included",
-    sub: "All-inclusive of DS-160 review, interview coaching, and on-time guarantee.",
+    sub: "All-inclusive of DS-160 review, interview coaching, and an advisor check before filing.",
     foot: "MRV application fee and VIZA service fee are collected together at checkout.",
   },
 

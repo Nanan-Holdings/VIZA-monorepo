@@ -4,40 +4,35 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
-import { visaHref } from "@/lib/countries";
+import { DOCUMENT_TIER_ORDER, visaHref, type DocumentTier, type VisaPurpose } from "@/lib/countries";
+import { PASSPORTS, passportByCode, usePassportSelection } from "@/lib/passports";
 import { displayFeeSGD, totalSgd } from "@/lib/pricing";
 import { useCatalogue } from "@/components/CatalogueProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import SiteFooter from "@/components/SiteFooter";
 import VisaWorldMap from "@/components/VisaWorldMap";
+import { NAV_TABS } from "@/lib/nav-tabs";
+import { portalUrl } from "@/lib/utils";
 
 const FILTER_KEYS = ["delivery", "type", "documents", "dates"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
 
-const SORT_KEYS = ["guaranteed", "feeLow", "duration", "popular", "recent"] as const;
+const SORT_KEYS = ["fastest", "feeLow", "duration", "popular", "recent"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
 
-/** Passport ranking data (no copy — names resolve from the `passports` namespace). */
-const PASSPORTS = [
-  { code: "SG", free: 157, voa: 29, req: 9, rank: "#1" },
-  { code: "JP", free: 154, voa: 30, req: 11, rank: "#2" },
-  { code: "KR", free: 152, voa: 31, req: 12, rank: "#3" },
-  { code: "DE", free: 153, voa: 28, req: 14, rank: "#3" },
-  { code: "FR", free: 151, voa: 29, req: 15, rank: "#4" },
-  { code: "GB", free: 148, voa: 30, req: 17, rank: "#5" },
-  { code: "US", free: 145, voa: 31, req: 19, rank: "#6" },
-  { code: "AU", free: 144, voa: 32, req: 19, rank: "#6" },
-  { code: "CA", free: 144, voa: 31, req: 20, rank: "#7" },
-  { code: "AE", free: 132, voa: 38, req: 25, rank: "#11" },
-  { code: "CN", free: 85, voa: 32, req: 78, rank: "#60" },
-  { code: "IN", free: 58, voa: 28, req: 109, rank: "#80" },
-  { code: "BR", free: 134, voa: 26, req: 35, rank: "#15" },
-  { code: "PH", free: 67, voa: 30, req: 98, rank: "#73" },
-  { code: "ID", free: 76, voa: 30, req: 89, rank: "#67" },
-  { code: "MY", free: 124, voa: 35, req: 36, rank: "#13" },
-  { code: "TH", free: 81, voa: 32, req: 82, rank: "#62" },
-] as const;
-type Passport = (typeof PASSPORTS)[number];
+/**
+ * What each filter option actually does. Index 0 is always the "no constraint"
+ * option, so a freshly loaded page shows the whole catalogue.
+ *
+ * `delivery` / `dates` both bound the estimated turnaround (`processingDays`);
+ * `dates` frames it as "can this still land before I travel?".
+ */
+const DELIVERY_MAX_DAYS: Array<number | null> = [null, 1, 3, 7, 30];
+const DATE_WINDOW_DAYS: Array<number | null> = [null, 7, 30, 90, 180];
+const TYPE_PURPOSES: Array<VisaPurpose | null> = [null, "tourism", "business"];
+const DOCUMENT_MAX_TIER: Array<DocumentTier | null> = [null, "minimal", "standard", "full"];
+
+
 
 const Chevron = ({ size = 12 }: { size?: number }) => (
   <svg className="chev" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
@@ -70,40 +65,30 @@ export default function ExplorePage() {
   useEffect(() => setMounted(true), []);
 
   // --- Nav tab pill indicator ---
-  const [activeTab, setActiveTab] = useState<"explore" | "events">("explore");
   const tabsRef = useRef<HTMLDivElement>(null);
-  const exploreRef = useRef<HTMLAnchorElement>(null);
-  const eventsRef = useRef<HTMLAnchorElement>(null);
+  const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   useLayoutEffect(() => {
-    const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
-    const wrap = tabsRef.current;
-    if (!el || !wrap) return;
-    const r = el.getBoundingClientRect();
-    const pr = wrap.getBoundingClientRect();
-    setPill({ left: r.left - pr.left, width: r.width });
-  }, [activeTab, t]);
-
-  useEffect(() => {
-    const onResize = () => {
-      const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
+    const measure = () => {
+      const el = tabRefs.current.explore;
       const wrap = tabsRef.current;
       if (!el || !wrap) return;
       const r = el.getBoundingClientRect();
       const pr = wrap.getBoundingClientRect();
       setPill({ left: r.left - pr.left, width: r.width });
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [activeTab]);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [t]);
 
   // --- Passport selector ---
-  const [passportCode, setPassportCode] = useState<string>("SG");
+  const [passportCode, setPassportCode] = usePassportSelection();
   const [ppOpen, setPpOpen] = useState(false);
   const [ppQuery, setPpQuery] = useState("");
   const ppInputRef = useRef<HTMLInputElement>(null);
-  const passport: Passport = PASSPORTS.find((p) => p.code === passportCode) ?? PASSPORTS[0];
+  const passport = passportByCode(passportCode);
   const passportName = t(`passports.${passport.code}`);
 
   useEffect(() => {
@@ -129,7 +114,7 @@ export default function ExplorePage() {
 
   // --- Filter / sort dropdowns ---
   const [filterSel, setFilterSel] = useState<Record<FilterKey, number>>({ delivery: 0, type: 0, documents: 0, dates: 0 });
-  const [sortKey, setSortKey] = useState<SortKey>("guaranteed");
+  const [sortKey, setSortKey] = useState<SortKey>("popular");
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
 
   useEffect(() => {
@@ -175,10 +160,17 @@ export default function ExplorePage() {
     });
   const [search, setSearch] = useState("");
 
+  // `SiteNav`'s search box submits to `/?q=…`; pick it up so a search started on
+  // a country page lands on a filtered grid instead of being silently dropped.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
+
   // Keep known destinations browsable when the publication API is empty or
   // unavailable. The detail and apply routes still use `launched` to prevent
   // unpublished products from being presented as ready for purchase.
-  const countries = useMemo(
+  const allCountries = useMemo(
     () =>
       catalogueCountries.map((c) => ({
         slug: c.slug,
@@ -187,19 +179,71 @@ export default function ExplorePage() {
         type: t.has(`visaTypes.${c.type}`) ? t(`visaTypes.${c.type}`) : c.type,
         valid: t.has(`validity.${c.slug}`) ? t(`validity.${c.slug}`) : c.validity,
         fee: totalSgd(c.pricing) === 0 ? t("visa.priceFree") : displayFeeSGD(c.pricing) ?? t("explore.seePricing"),
+        feeSgd: totalSgd(c.pricing),
         tag: c.tag,
         img: c.image,
         flagCode: c.flagCode,
         featured: c.featured,
         launched: c.launched,
+        processingDays: c.processingDays,
+        purposes: c.purposes,
+        documentTier: c.documentTier,
+        validityDays: c.validityDays,
+        popularity: c.popularity,
+        publishedAt: c.publishedAt,
       })),
     [catalogueCountries, t],
   );
 
-  const matches = (name: string, city: string) => {
+  const activeFilterCount = FILTER_KEYS.filter((key) => filterSel[key] !== 0).length;
+  const resetFilters = () => setFilterSel({ delivery: 0, type: 0, documents: 0, dates: 0 });
+
+  /**
+   * Search + the four filter pills + the sort menu, all applied for real.
+   * Previously the pills only changed their own label, which read as a broken
+   * control; every option now narrows or reorders the grid.
+   */
+  const countries = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return !q || name.toLowerCase().includes(q) || city.toLowerCase().includes(q);
-  };
+    const maxDeliveryDays = DELIVERY_MAX_DAYS[filterSel.delivery] ?? null;
+    const travelWindowDays = DATE_WINDOW_DAYS[filterSel.dates] ?? null;
+    const purpose = TYPE_PURPOSES[filterSel.type] ?? null;
+    const maxTier = DOCUMENT_MAX_TIER[filterSel.documents] ?? null;
+    const maxTierIndex = maxTier ? DOCUMENT_TIER_ORDER.indexOf(maxTier) : -1;
+
+    const filtered = allCountries.filter((c) => {
+      if (q && !c.name.toLowerCase().includes(q) && !c.city.toLowerCase().includes(q)) return false;
+      if (maxDeliveryDays !== null && c.processingDays > maxDeliveryDays) return false;
+      // "Travelling this week/month" only makes sense for destinations we can
+      // still turn around inside that window.
+      if (travelWindowDays !== null && c.processingDays > travelWindowDays) return false;
+      if (purpose && !c.purposes.includes(purpose)) return false;
+      if (maxTierIndex >= 0 && DOCUMENT_TIER_ORDER.indexOf(c.documentTier) > maxTierIndex) return false;
+      return true;
+    });
+
+    const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+    const sorted = [...filtered];
+    switch (sortKey) {
+      case "fastest":
+        sorted.sort((a, b) => a.processingDays - b.processingDays || byName(a, b));
+        break;
+      case "feeLow":
+        // Destinations with no published price sort last rather than as "free".
+        sorted.sort((a, b) => (a.feeSgd ?? Infinity) - (b.feeSgd ?? Infinity) || byName(a, b));
+        break;
+      case "duration":
+        sorted.sort((a, b) => b.validityDays - a.validityDays || byName(a, b));
+        break;
+      case "popular":
+        sorted.sort((a, b) => a.popularity - b.popularity || byName(a, b));
+        break;
+      case "recent":
+        sorted.sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? "") || byName(a, b));
+        break;
+    }
+    return sorted;
+  }, [allCountries, search, filterSel, sortKey]);
 
   const first = countries.slice(0, 9);
   const rest = countries.slice(9);
@@ -208,9 +252,8 @@ export default function ExplorePage() {
   const Card = ({ c, featured }: { c: CardData; featured?: boolean }) => {
     const fav = favs.has(c.slug);
     const isFast = c.tag === "fast";
-    const hidden = !matches(c.name, c.city);
     return (
-      <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
+      <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit" }}>
         <div className="card-img">
           <div className="photo" style={{ backgroundImage: `url('${c.img}')` }}></div>
           {c.launched
@@ -243,8 +286,10 @@ export default function ExplorePage() {
           </div>
           <div className="card-foot">
             <div className="foot-eta">
-              <span className="lk">{c.launched ? t("explore.guaranteedBy") : t("common.comingSoon")}</span>
-              <span className="lv">{c.launched ? t("explore.guarantor") : t("visa.seePricing")}</span>
+              {/* Estimated turnaround, never a delivery guarantee — VIZA does not
+                  control embassy timing, and "保证送达" read as guaranteed approval. */}
+              <span className="lk">{c.launched ? t("explore.cardProcessing") : t("common.comingSoon")}</span>
+              <span className="lv">{c.launched ? t("explore.processingEstimate", { days: c.processingDays }) : t("visa.seePricing")}</span>
             </div>
             <button className="foot-cta" aria-label={c.launched ? t("explore.startApplication") : t("common.learnMore")} onClick={(e) => e.preventDefault()}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -320,8 +365,16 @@ export default function ExplorePage() {
 
           <div className="center-tabs nav-tabs" ref={tabsRef}>
             <span className="pill-indicator" style={{ left: pill.left, width: pill.width }}></span>
-            <a ref={exploreRef} className={`nav-tab ${activeTab === "explore" ? "active" : ""}`} href="/" onClick={() => setActiveTab("explore")}>{t("nav.explore")}</a>
-            <a ref={eventsRef} className={`nav-tab ${activeTab === "events" ? "active" : ""}`} href="/events" onClick={() => setActiveTab("events")}>{t("nav.events")}</a>
+            {NAV_TABS.map((tab) => (
+              <a
+                key={tab.id}
+                ref={(el) => { tabRefs.current[tab.id] = el; }}
+                className={`nav-tab ${tab.id === "explore" ? "active" : ""}`}
+                href={tab.href}
+              >
+                {t(tab.labelKey)}
+              </a>
+            ))}
           </div>
 
           <div className="nav-right">
@@ -330,10 +383,13 @@ export default function ExplorePage() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("nav.searchPlaceholder")} />
             </label>
             <LanguageToggle />
-            <button className="icon-btn" title={t("explore.help")}>
+            {/* Both of these used to be inert (a bare <button> and a <div>). */}
+            <a className="icon-btn" href="/contact" title={t("explore.help")} aria-label={t("explore.help")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-            </button>
-            <div className="avatar">CL</div>
+            </a>
+            <a className="avatar" href={portalUrl("/client/login")} title={t("nav.signIn")} aria-label={t("nav.signIn")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            </a>
           </div>
         </div>
       </nav>
@@ -401,6 +457,9 @@ export default function ExplorePage() {
               b: (chunks) => <strong>{chunks}</strong>,
               dot: () => <span style={{ color: "#cdcdcd" }}>·</span>,
             })}
+            {activeFilterCount > 0 && (
+              <button className="clear-filters" onClick={resetFilters}>{t("explore.clearFilters", { n: activeFilterCount })}</button>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <button className="sort-select" onClick={openSortMenu}>
@@ -421,8 +480,13 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        {countries.length === 0 ? (
+        {allCountries.length === 0 ? (
           <div className="footnote" role="status">{t("explore.catalogueUnavailable")}</div>
+        ) : countries.length === 0 ? (
+          <div className="no-results" role="status">
+            <p>{t("explore.noResults")}</p>
+            <button className="clear-filters" onClick={() => { resetFilters(); setSearch(""); }}>{t("explore.resetAll")}</button>
+          </div>
         ) : view === "map" ? (
           /* Dotted world map: colorized dots for supported destinations, hover for the card */
           <VisaWorldMap

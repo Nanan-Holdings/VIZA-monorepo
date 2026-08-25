@@ -58,8 +58,8 @@ export const unitedStates: VisaContent = {
       title: "面试准备与进度跟踪",
       body: "我们将发送个性化面试辅导材料、高频问题集及材料清单。面试时将采集十指指纹及照片。面试当天，顾问全程待命，随时解答临时问题。",
       statusRows: [
-        { label: "DS-160已确认并完成面试预约", ts: "7月3日 上午10:15", onTime: true },
-        { label: "面试辅导包已发送", ts: "7月3日 下午2:00", onTime: true },
+        { label: "DS-160已确认并完成面试预约", ts: "7月3日 上午10:15" },
+        { label: "面试辅导包已发送", ts: "7月3日 下午2:00" },
         { label: "面试定于7月10日 — 准备中", ts: "处理中" },
       ],
     },
@@ -195,7 +195,7 @@ export const unitedStates: VisaContent = {
     etaValue: "2026年7月10日 上午9:00",
     title: "美国 B1/B2 签证 · 10年有效期",
     saving: "含专家全程辅导",
-    sub: "全包服务，含DS-160审核、面试辅导及准时保障。",
+    sub: "全包服务，含DS-160审核与面试辅导。",
     foot: "MRV申请费与VIZA服务费在结账时统一收取。",
   },
 

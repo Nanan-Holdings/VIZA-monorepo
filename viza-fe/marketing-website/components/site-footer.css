@@ -32,8 +32,9 @@
   max-width: 1280px; margin: 0 auto;
   padding: 72px 0 64px;
   display: grid;
-  grid-template-columns: 1.45fr 1fr 1.05fr 1.1fr;
-  gap: 48px;
+  /* brand · company · product · legal · offices */
+  grid-template-columns: 1.5fr 0.9fr 1fr 0.9fr 1.1fr;
+  gap: 40px;
 }
 .site-foot .foot-brand .foot-logo img { height: 22px; }
 .site-foot .foot-brand .foot-tag {

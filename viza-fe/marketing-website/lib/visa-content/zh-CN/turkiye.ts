@@ -34,7 +34,7 @@ export const turkiye: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "电子签证数分钟签发" },
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "photo", label: "无需照片" },
   ],
 
@@ -64,8 +64,8 @@ export const turkiye: VisaContent = {
       title: "近乎即时签发",
       body: "门户在付款后数分钟内即签发大多数电子签证。官方建议至少在出发前48小时申请——我们已为您预留缓冲。",
       statusRows: [
-        { label: "申请已提交至 evisa.gov.tr", ts: "6月12日 上午 9:10", onTime: true },
-        { label: "政府费用已支付 · 签发确认", ts: "6月12日 上午 9:14", onTime: true },
+        { label: "申请已提交至 evisa.gov.tr", ts: "6月12日 上午 9:10" },
+        { label: "政府费用已支付 · 签发确认", ts: "6月12日 上午 9:14" },
         { label: "最终文件核对", ts: "处理中" },
       ],
     },
@@ -193,7 +193,7 @@ export const turkiye: VisaContent = {
     {
       category: "申请流程",
       q: "多快能拿到电子签证？",
-      a: "官方门户在数分钟内签发大多数电子签证——表单约3分钟填完，付款后即可下载 PDF。官方仍建议至少在出发前48小时申请，VIZA 按此缓冲提交，并提供准时保障。",
+      a: "官方门户在数分钟内签发大多数电子签证——表单约3分钟填完，付款后即可下载 PDF。官方仍建议至少在出发前48小时申请，VIZA 按此缓冲提交，但出签时间由官方决定。",
     },
     {
       category: "退款、拒签与重新申请",
@@ -235,8 +235,8 @@ export const turkiye: VisaContent = {
     etaValue: "2026年6月12日 上午9:32",
     title: "电子签证 · 土耳其",
     saving: "数分钟内签发",
-    sub: "含政府签证费、材料审核及准时保障，一价全包。",
-    foot: "政府签证费与 VIZA 服务费在结账时一并收取，并享有准时保障。",
+    sub: "含政府签证费与材料审核，一价全包。",
+    foot: "政府签证费与 VIZA 服务费在结账时一并收取。办理时间为估算值，最终由官方决定。",
   },
 
   aiPlaceholder: "关于土耳其入境，您有任何问题都可以问我——免签政策、电子签证费用、90/180规则……",

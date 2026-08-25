@@ -38,7 +38,7 @@ export const india: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "全程在线" },
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "材料精简" },
   ],
 
@@ -68,8 +68,8 @@ export const india: VisaContent = {
       title: "印度移民局审核",
       body: "审批结果通常在72小时内以邮件发送。我们持续监控门户状态，一旦收到补传材料的要求立即处理——未及时响应补传要求是拒签的主要原因之一。",
       statusRows: [
-        { label: "申请已提交至门户", ts: "6月20日 上午10:15", onTime: true },
-        { label: "已转交背景审查", ts: "6月20日 下午2:30", onTime: true },
+        { label: "申请已提交至门户", ts: "6月20日 上午10:15" },
+        { label: "已转交背景审查", ts: "6月20日 下午2:30" },
         { label: "等待最终审批", ts: "处理中" },
       ],
     },
@@ -186,7 +186,7 @@ export const india: VisaContent = {
     {
       category: "申请流程",
       q: "电子签证审理需要多长时间？",
-      a: "审批结果通常在提交后72小时内以邮件发送。最早可在抵达前120天申请，且政府要求至少提前4天完成申请和付款——逾期不予受理。VIZA 以准时保障为时间线背书。",
+      a: "审批结果通常在提交后72小时内以邮件发送。最早可在抵达前120天申请，且政府要求至少提前4天完成申请和付款——逾期不予受理。VIZA 会在规则允许的最早时间递交并持续跟进，但出签时间由官方决定。",
     },
     {
       category: "申请流程",
@@ -219,7 +219,7 @@ export const india: VisaContent = {
     etaValue: "2026年6月23日 下午3:00",
     title: "电子旅游签证 · 30天停留",
     saving: "全程在线——无需前往领事馆",
-    sub: "全包价，含材料审核、照片核验及准时保障。",
+    sub: "全包价，含材料审核与照片核验。",
     foot: "政府签证费在结账时收取并直接提交至 indianvisaonline.gov.in；VIZA 服务费涵盖材料准备、照片合规核查及状态监控。",
   },
 

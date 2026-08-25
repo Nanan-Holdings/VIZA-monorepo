@@ -40,7 +40,7 @@ export const turkiye: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "e-Visa issued in minutes" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "photo", label: "No photo required" },
   ],
 
@@ -70,8 +70,8 @@ export const turkiye: VisaContent = {
       title: "Near-instant issuance",
       body: "The portal issues most e-Visas within minutes of payment. The government advises filing at least 48 hours before departure — we build that buffer in.",
       statusRows: [
-        { label: "Application submitted to evisa.gov.tr", ts: "12 Jun, 9:10 AM", onTime: true },
-        { label: "Government fee paid · issuance confirmed", ts: "12 Jun, 9:14 AM", onTime: true },
+        { label: "Application submitted to evisa.gov.tr", ts: "12 Jun, 9:10 AM" },
+        { label: "Government fee paid · issuance confirmed", ts: "12 Jun, 9:14 AM" },
         { label: "Final document check", ts: "In progress" },
       ],
     },
@@ -199,7 +199,7 @@ export const turkiye: VisaContent = {
     {
       category: "Application process",
       q: "How quickly will I receive my e-Visa?",
-      a: "The official portal issues most e-Visas within minutes — the form takes about 3 minutes and the PDF downloads right after payment. The government still advises applying at least 48 hours before departure, and VIZA files with that buffer, backed by our on-time guarantee.",
+      a: "The official portal issues most e-Visas within minutes — the form takes about 3 minutes and the PDF downloads right after payment. The government still advises applying at least 48 hours before departure, and VIZA files with that buffer. Turnaround times are estimates, not a promised date.",
     },
     {
       category: "Refunds, rejections & reapplications",
@@ -241,8 +241,8 @@ export const turkiye: VisaContent = {
     etaValue: "12 Jun 2026, 09:32 AM",
     title: "e-Visa · Türkiye",
     saving: "Issued in minutes",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Türkiye entry — visa-free rules, e-Visa fees, the 90/180 rule…",

@@ -48,7 +48,7 @@ export const egypt: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Filed within 24 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -78,8 +78,8 @@ export const egypt: VisaContent = {
       title: "Your e-Visa gets processed",
       body: "Approvals typically take 5 – 7 business days (longer in peak season). We track the application so we can flag delays before they affect your trip.",
       statusRows: [
-        { label: "Application submitted to visa2egypt.gov.eg", ts: "5 Jul, 9:00 AM", onTime: true },
-        { label: "Payment confirmed by the portal", ts: "5 Jul, 11:45 AM", onTime: true },
+        { label: "Application submitted to visa2egypt.gov.eg", ts: "5 Jul, 9:00 AM" },
+        { label: "Payment confirmed by the portal", ts: "5 Jul, 11:45 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -176,7 +176,7 @@ export const egypt: VisaContent = {
     {
       category: "Application process",
       q: "How long does the Egypt e-Visa take?",
-      a: "Approvals typically take 5 – 7 business days, longer in peak season, and the official portal asks applicants to file at least 7 days before departure. The embassy route takes 10+ business days. VIZA files your application within 24 hours, tracks it daily, and backs the timeline with an on-time guarantee — your money back if we're late.",
+      a: "Approvals typically take 5 – 7 business days, longer in peak season, and the official portal asks applicants to file at least 7 days before departure. The embassy route takes 10+ business days. VIZA files your application within 24 hours and tracks it daily, though the issuing authority sets the decision date.",
     },
     {
       category: "Application process",
@@ -202,8 +202,8 @@ export const egypt: VisaContent = {
     etaValue: "12 Jul 2026, 02:15 PM",
     title: "Tourist e-Visa · 30-day stay",
     saving: "5+ days faster than embassy",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Egypt visas — fees, processing, documents…",
