@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { Question as CircleHelp, CircleNotch as Loader2, Sparkle as Sparkles, Trash as Trash2 } from "@phosphor-icons/react";
+import { Question as CircleHelp, CircleNotch as Loader2, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import { AddressAutofill, type ResolvedAddressParts } from "@/components/application-steps/address-autofill";
 import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
 import { Button } from "@/components/ui/button";
@@ -2526,6 +2527,59 @@ function getInlineGroup(field: VisaFormFieldRow): string | null {
   return rules?.inline_group ?? null;
 }
 
+/**
+ * Address fields that can drive a state/city lookup — a street address, a
+ * property/hotel name, or a postal code the applicant already typed.
+ */
+function isAddressLookupField(field: VisaFormFieldRow): boolean {
+  if (!isTextLikeField(field)) return false;
+  const name = field.fieldName.toLowerCase();
+  if (/(?:^|_)(state|province|city|town|postal_code|postcode)(?:_|$)/u.test(name)) return false;
+  return /(?:^|_)address(?:_line\d+)?$/u.test(name) || /(?:^|_)address_/u.test(name);
+}
+
+type AddressSiblingKind = "state" | "city" | "postcode";
+
+/**
+ * Sibling state/city/postcode fields that belong to the same address block.
+ *
+ * Preference order: fields sharing the address field's `block_group`, then fields
+ * sharing its name prefix (`accommodation_address` → `accommodation_city`), then
+ * anything matching in the same step. Returns at most one field per kind.
+ */
+function findAddressSiblings(
+  addressField: VisaFormFieldRow,
+  fields: VisaFormFieldRow[],
+): Partial<Record<AddressSiblingKind, VisaFormFieldRow>> {
+  const group = getBlockGroup(addressField);
+  const prefix = addressField.fieldName.replace(/(?:_address(?:_line\d+)?|_address_.*)$/u, "");
+
+  const matchers: Array<[AddressSiblingKind, RegExp]> = [
+    ["state", /(?:^|_)(state|province|state_province|region)(?:_|$)/u],
+    ["city", /(?:^|_)(city|town|city_town)(?:_|$)/u],
+    ["postcode", /(?:^|_)(postal_code|postcode|zip|zip_code)(?:_|$)/u],
+  ];
+
+  const candidates = fields.filter((field) => field.fieldName !== addressField.fieldName);
+  const scope = [
+    group ? candidates.filter((field) => getBlockGroup(field) === group) : [],
+    candidates.filter((field) => prefix && field.fieldName.startsWith(`${prefix}_`)),
+    candidates,
+  ];
+
+  const result: Partial<Record<AddressSiblingKind, VisaFormFieldRow>> = {};
+  for (const [kind, pattern] of matchers) {
+    for (const pool of scope) {
+      const hit = pool.find((field) => pattern.test(field.fieldName.toLowerCase()));
+      if (hit) {
+        result[kind] = hit;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 /** Get the block_group from a field's validationRules — used to wrap
  *  a set of consecutive non-repeatable fields in a visual container box. */
 function getBlockGroup(field: VisaFormFieldRow): string | null {
@@ -4131,6 +4185,64 @@ export function DynamicStepForm({
     ));
   };
 
+  /** Country name used to bias the address lookup toward the destination. */
+  const addressCountryHint = useMemo(() => {
+    const raw = (country ?? values.destination_country ?? "").trim();
+    if (!raw) return null;
+    const match = (countries.all as CountryDataListCountry[]).find(
+      (candidate) =>
+        candidate.alpha2?.toLowerCase() === raw.toLowerCase() ||
+        candidate.alpha3?.toLowerCase() === raw.toLowerCase() ||
+        candidate.name?.toLowerCase() === raw.toLowerCase().replace(/_/g, " "),
+    );
+    return match?.name ?? raw.replace(/_/g, " ");
+  }, [country, values]);
+
+  /**
+   * Write a resolved address's administrative parts into the sibling fields.
+   *
+   * For a select we only accept a value that genuinely matches one of its options
+   * (the official portals reject anything else); for a free-text field we write the
+   * resolved string. Empty parts are skipped so a partial result never blanks a
+   * field the applicant already filled.
+   */
+  const applyResolvedAddress = (
+    siblings: Partial<Record<"state" | "city" | "postcode", VisaFormFieldRow>>,
+    parts: ResolvedAddressParts,
+  ) => {
+    const assignments: Array<[VisaFormFieldRow | undefined, string]> = [
+      [siblings.state, parts.state],
+      [siblings.city, parts.city],
+      [siblings.postcode, parts.postalCode],
+    ];
+
+    for (const [targetField, rawValue] of assignments) {
+      const value = rawValue.trim();
+      if (!targetField || !value) continue;
+
+      const options = targetField.options;
+      if (options && options.length > 0) {
+        const matched = options.find((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionText = typeof option === "string" ? option : option.text;
+          return (
+            optionValue?.toLowerCase() === value.toLowerCase() ||
+            optionText?.toLowerCase() === value.toLowerCase()
+          );
+        });
+        if (!matched) continue;
+        handleChange(targetField.fieldName, typeof matched === "string" ? matched : matched.value);
+        continue;
+      }
+
+      if (usesBilingualTextPair(targetField)) {
+        handleBilingualTextChange(targetField.fieldName, "en", value);
+      } else {
+        handleChange(targetField.fieldName, value);
+      }
+    }
+  };
+
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
@@ -4371,8 +4483,15 @@ export function DynamicStepForm({
       indonesiaPostalLookup.status === "invalid" ||
       indonesiaPostalLookup.status === "unavailable");
 
+  const isFormAssistantFilled = (field: VisaFormFieldRow, valueKey = field.fieldName) =>
+    Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
+
   /** Translate and render a single field */
-  const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
+  const renderField = (
+    field: VisaFormFieldRow,
+    valueKey: string,
+    applyConditionalFieldPadding = false,
+  ) => {
     const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
     const submitCheckInvalid = Boolean(
       invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey) || reviewIssue?.severity === "error",
@@ -4497,13 +4616,9 @@ export function DynamicStepForm({
     const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
-    const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());
-    const aiFilledBadge = isAiFilled ? (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600">
-        <Sparkles className="h-3 w-3" aria-hidden="true" />
-        {isChineseInterface ? "AI 已填写" : "AI filled"}
-      </span>
-    ) : null;
+    const aiFilledLabel = isFormAssistantFilled(field, valueKey)
+      ? (isChineseInterface ? "AI 已填写" : "AI filled")
+      : undefined;
     let guidancePopover: ReactNode = null;
 
     const renderSide = (side: BilingualSide) => {
@@ -4574,10 +4689,9 @@ export function DynamicStepForm({
               }
               handleChange(valueKey, nextValue);
             }}
-            forceWhiteBackground={forceWhiteBackground}
             disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}
             displayLocale={side}
-            labelMeta={side === (isChineseInterface ? "zh" : "en") ? aiFilledBadge : undefined}
+            aiFilledLabel={side === (isChineseInterface ? "zh" : "en") ? aiFilledLabel : undefined}
             labelAction={side === (isChineseInterface ? "zh" : "en") ? guidancePopover : undefined}
             onSearchQuery={
               isKoreaAddressSearchSelect
@@ -4665,6 +4779,23 @@ export function DynamicStepForm({
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
       values.visa_type?.trim() === "EV";
+    // Address → state/city helper. Only offered when this step actually has the
+    // sibling fields to fill; otherwise the button would resolve into nothing.
+    const addressSiblings = isAddressLookupField(field)
+      ? findAddressSiblings(field, step.fields)
+      : {};
+    const showAddressAutofill =
+      isAddressLookupField(field) && Boolean(addressSiblings.state || addressSiblings.city);
+    const addressAutofill = showAddressAutofill ? (
+      <AddressAutofill
+        query={values[valueKey] ?? ""}
+        countryHint={addressCountryHint}
+        locale={locale}
+        isChineseInterface={isChineseInterface}
+        onResolved={(parts) => applyResolvedAddress(addressSiblings, parts)}
+      />
+    ) : null;
+
     const showChineseFieldFooter = isTextLike
       || showVnPrearrivalEvisaHelp
       || (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved")
@@ -4722,18 +4853,16 @@ export function DynamicStepForm({
           aria-invalid={submitCheckInvalid || undefined}
           className={cn(
             "application-form-field group/field relative transition-colors",
-            forceWhiteBackground && "py-1.5",
+            applyConditionalFieldPadding && "py-1.5",
             panelOpen ? "bg-[#fbfdff]" : "",
-            isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
             highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
-            reviewIssue && "-mx-3 px-3 py-3",
-            reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
-            reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
+            reviewWarning && "[&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
           )}
         >
           <div className="min-w-0">
             {renderSide("en")}
           </div>
+          {addressAutofill}
           {(showVnPrearrivalEvisaHelp ||
             (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
             showIssue) && (
@@ -4750,26 +4879,28 @@ export function DynamicStepForm({
             </div>
           )}
           {reviewIssue ? (
-            <div className={cn(
-              "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
-              reviewIssue.severity === "error"
-                ? "border-red-200 bg-red-50 text-red-800"
-                : "border-amber-200 bg-amber-50 text-amber-900",
-            )}>
-              <p className="text-sm leading-5">{reviewIssue.message}</p>
-              {onNavigateReviewIssue ? (
+            <>
+              <p
+                className={cn(
+                  "mt-2 text-right text-[13px] font-medium leading-5",
+                  reviewIssue.severity === "error" ? "text-red-600" : "text-amber-700",
+                )}
+                data-review-issue-message="true"
+              >
+                {reviewIssue.message}
+              </p>
+              {onNavigateReviewIssue && reviewIssue.nextFieldName ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="ml-auto mt-1 flex"
                   onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
                 >
-                  {reviewIssue.nextFieldName
-                    ? tButtons("reviewRepair.nextIssue")
-                    : tButtons("reviewRepair.returnToAssistant")}
+                  {tButtons("reviewRepair.nextIssue")}
                 </Button>
               ) : null}
-            </div>
+            </>
           ) : null}
         </div>
       );
@@ -4786,19 +4917,17 @@ export function DynamicStepForm({
         aria-invalid={submitCheckInvalid || undefined}
         className={cn(
           "application-form-field group/field relative transition-colors",
-          forceWhiteBackground && "py-1.5",
+          applyConditionalFieldPadding && "py-1.5",
           panelOpen ? "bg-[#fbfdff]" : "",
-          isAiFilled && "-mx-2 rounded-lg bg-brand-50/50 px-2 py-2",
           highlightControlAsWarning && "rounded-lg [&_.application-form-control]:!border-red-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(239_68_68)] [&_[role=checkbox]]:!border-red-500 [&_[data-application-checkbox]]:!border-red-500 [&_[data-application-radio]]:!border-red-500",
-          reviewIssue && "-mx-3 px-3 py-3",
-          reviewIssue?.severity === "error" && "rounded-lg bg-red-50",
-          reviewWarning && "rounded-lg bg-amber-50 [&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
+          reviewWarning && "[&_.application-form-control]:!border-amber-500 [&_.application-form-control]:!shadow-[0_0_0_1px_rgb(245_158_11)] [&_[role=checkbox]]:!border-amber-500 [&_[data-application-checkbox]]:!border-amber-500 [&_[data-application-radio]]:!border-amber-500",
           highlightedFieldName === valueKey && "rounded-lg ring-2 ring-amber-300 ring-offset-2",
         )}
       >
         <div className="min-w-0">
           {renderSide("zh")}
         </div>
+        {addressAutofill}
         {showChineseFieldFooter ? (
           <div className="mt-1 flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (
@@ -4830,26 +4959,28 @@ export function DynamicStepForm({
           </div>
         ) : null}
         {reviewIssue ? (
-          <div className={cn(
-            "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2",
-            reviewIssue.severity === "error"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-amber-200 bg-amber-50 text-amber-900",
-          )}>
-            <p className="text-sm leading-5">{reviewIssue.message}</p>
-            {onNavigateReviewIssue ? (
+          <>
+            <p
+              className={cn(
+                "mt-2 text-right text-[13px] font-medium leading-5",
+                reviewIssue.severity === "error" ? "text-red-600" : "text-amber-700",
+              )}
+              data-review-issue-message="true"
+            >
+              {reviewIssue.message}
+            </p>
+            {onNavigateReviewIssue && reviewIssue.nextFieldName ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="ml-auto mt-1 flex"
                 onClick={() => onNavigateReviewIssue(reviewIssue.nextFieldName)}
               >
-                {reviewIssue.nextFieldName
-                  ? tButtons("reviewRepair.nextIssue")
-                  : tButtons("reviewRepair.returnToAssistant")}
+                {tButtons("reviewRepair.nextIssue")}
               </Button>
             ) : null}
-          </div>
+          </>
         ) : null}
       </div>
     );
@@ -4859,8 +4990,9 @@ export function DynamicStepForm({
   const renderedGroups = new Set<string>();
   const renderedInlineGroups = new Set<string>();
   const renderedBlockGroups = new Set<string>();
-  const renderedMultiOptionConditionalGroups = new Set<string>();
   const formVisaType = visaType ?? step.fields[0]?.visaType;
+  const usesArrivalCardFieldRhythm = formVisaType?.endsWith("_ARRIVAL_CARD") ?? false;
+  const applyConditionalFieldPadding = !usesArrivalCardFieldRhythm;
   const showTaiwanContactAddressNotice = formVisaType === "TW_ENTRY_PERMIT"
     && isTaiwanEntryPermitContactAddressStep(step.stepName);
 
@@ -4885,7 +5017,7 @@ export function DynamicStepForm({
     >
       <div
         ref={formContentRef}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-6"
         data-scroll-height-content="true"
       >
       {showTaiwanContactAddressNotice ? (
@@ -4907,14 +5039,10 @@ export function DynamicStepForm({
 
         // Non-repeatable field
         if (!group) {
-          const multiOptionRoot = multiOptionConditionalGroups.fieldToRoot[field.fieldName];
-          if (multiOptionRoot) {
-            if (renderedMultiOptionConditionalGroups.has(multiOptionRoot)) return null;
-            renderedMultiOptionConditionalGroups.add(multiOptionRoot);
-
-            const visibleConditionalFields = (
-              multiOptionConditionalGroups.fieldsByRoot[multiOptionRoot] ?? []
-            ).filter(
+          const ownedMultiOptionConditionalFields =
+            multiOptionConditionalGroups.fieldsByRoot[field.fieldName] ?? [];
+          if (ownedMultiOptionConditionalFields.length > 0) {
+            const visibleConditionalFields = ownedMultiOptionConditionalFields.filter(
               (candidate) =>
                 !externallyHandled.has(candidate.fieldName) &&
                 !isIndonesiaPostalAutoFillField(candidate) &&
@@ -4922,30 +5050,59 @@ export function DynamicStepForm({
                   isDisabledByLT24(candidate, candidate.fieldName, values, step.fields)) &&
                 !isGatedByUnansweredToggle(candidate),
             );
-            if (visibleConditionalFields.length === 0) return null;
 
-            return (
-              <ApplicationConditionalFieldsPanel
-                key={`multi-option-conditional-${multiOptionRoot}`}
-                className="-mt-1"
-                data-conditional-controller={multiOptionRoot}
-              >
-                {groupFieldsInline(visibleConditionalFields).map((item) => {
-                  if (Array.isArray(item)) {
-                    return (
-                      <div
-                        key={item.map((candidate) => candidate.fieldName).join("-")}
-                        className="grid gap-2"
-                        style={inlineGroupGridStyle(item.length)}
-                      >
-                        {item.map((candidate) => renderField(candidate, candidate.fieldName, true))}
-                      </div>
-                    );
-                  }
-                  return renderField(item, item.fieldName, true);
-                })}
-              </ApplicationConditionalFieldsPanel>
-            );
+            if (visibleConditionalFields.length > 0) {
+              return (
+                <div
+                  key={`multi-option-conditional-group-${field.fieldName}`}
+                  className="flex flex-col gap-6"
+                >
+                  {renderField(field, field.fieldName)}
+                  <ApplicationConditionalFieldsPanel
+                    unframed={usesArrivalCardFieldRhythm}
+                    className={cn(
+                      "gap-6",
+                      usesArrivalCardFieldRhythm
+                        ? "mt-0"
+                        : "-mt-1",
+                    )}
+                    data-conditional-controller={field.fieldName}
+                  >
+                    {groupFieldsInline(visibleConditionalFields).map((item) => {
+                      if (Array.isArray(item)) {
+                        return (
+                          <div
+                            key={item.map((candidate) => candidate.fieldName).join("-")}
+                            className="grid gap-2"
+                            style={inlineGroupGridStyle(item.length)}
+                          >
+                            {item.map((candidate) =>
+                              renderField(
+                                candidate,
+                                candidate.fieldName,
+                                applyConditionalFieldPadding,
+                              )
+                            )}
+                          </div>
+                        );
+                      }
+                      return renderField(
+                        item,
+                        item.fieldName,
+                        applyConditionalFieldPadding,
+                      );
+                    })}
+                  </ApplicationConditionalFieldsPanel>
+                </div>
+              );
+            }
+          }
+
+          const multiOptionRoot = multiOptionConditionalGroups.fieldToRoot[field.fieldName];
+          if (multiOptionRoot) {
+            // The controller owns and renders this entire branch, even when a
+            // schema lists a dependent before the controller.
+            return null;
           }
 
           // Block group: wrap a consecutive set of non-repeatable fields in a
@@ -4971,7 +5128,7 @@ export function DynamicStepForm({
             const blockContent = (
               <div
                 key={`block-${bg}`}
-                className="flex flex-col gap-2"
+                className="flex flex-col gap-6"
               >
                 {blockFields.map((f) => {
                   const inlineInBlock = getInlineGroup(f);
@@ -4980,7 +5137,11 @@ export function DynamicStepForm({
                     renderedInlineInBlock.add(inlineInBlock);
                     const inlineFields = blockFields.filter((x) => getInlineGroup(x) === inlineInBlock);
                     if (inlineFields.length <= 1) {
-                      return renderField(f, f.fieldName, blockOwnsConditionalPanel);
+                      return renderField(
+                        f,
+                        f.fieldName,
+                        blockOwnsConditionalPanel && applyConditionalFieldPadding,
+                      );
                     }
                     return (
                       <div
@@ -4991,12 +5152,16 @@ export function DynamicStepForm({
                         {inlineFields.map((x) => renderField(
                           x,
                           x.fieldName,
-                          blockOwnsConditionalPanel,
+                          blockOwnsConditionalPanel && applyConditionalFieldPadding,
                         ))}
                       </div>
                     );
                   }
-                  return renderField(f, f.fieldName, blockOwnsConditionalPanel);
+                  return renderField(
+                    f,
+                    f.fieldName,
+                    blockOwnsConditionalPanel && applyConditionalFieldPadding,
+                  );
                 })}
               </div>
             );
@@ -5005,7 +5170,13 @@ export function DynamicStepForm({
               return (
                 <ApplicationConditionalFieldsPanel
                   key={`block-${bg}`}
-                  className="-mt-1"
+                  unframed={usesArrivalCardFieldRhythm}
+                  className={cn(
+                    "gap-6",
+                    usesArrivalCardFieldRhythm
+                      ? "mt-0"
+                      : "-mt-1",
+                  )}
                 >
                   {blockContent}
                 </ApplicationConditionalFieldsPanel>
@@ -5035,13 +5206,19 @@ export function DynamicStepForm({
               const renderedInlineField = renderField(
                 inlineField,
                 inlineField.fieldName,
-                shouldOwnConditionalPanel(inlineField),
+                shouldOwnConditionalPanel(inlineField) && applyConditionalFieldPadding,
               );
 
               return shouldOwnConditionalPanel(inlineField) ? (
                 <ApplicationConditionalFieldsPanel
                   key={`inline-${ig}`}
-                  className="-mt-1"
+                  unframed={usesArrivalCardFieldRhythm}
+                  className={cn(
+                    "gap-6",
+                    usesArrivalCardFieldRhythm
+                      ? "mt-0"
+                      : "-mt-1",
+                  )}
                 >
                   {renderedInlineField}
                 </ApplicationConditionalFieldsPanel>
@@ -5058,7 +5235,7 @@ export function DynamicStepForm({
                 {inlineFields.map((f) => renderField(
                   f,
                   f.fieldName,
-                  isConditionalInlineGroup,
+                  isConditionalInlineGroup && applyConditionalFieldPadding,
                 ))}
               </div>
             );
@@ -5066,7 +5243,13 @@ export function DynamicStepForm({
             return isConditionalInlineGroup ? (
               <ApplicationConditionalFieldsPanel
                 key={`inline-${ig}`}
-                className="-mt-1"
+                unframed={usesArrivalCardFieldRhythm}
+                className={cn(
+                  "gap-6",
+                  usesArrivalCardFieldRhythm
+                    ? "mt-0"
+                    : "-mt-1",
+                )}
               >
                 {inlineContent}
               </ApplicationConditionalFieldsPanel>
@@ -5076,13 +5259,19 @@ export function DynamicStepForm({
           const renderedField = renderField(
             field,
             field.fieldName,
-            shouldOwnConditionalPanel(field),
+            shouldOwnConditionalPanel(field) && applyConditionalFieldPadding,
           );
 
           return shouldOwnConditionalPanel(field) ? (
             <ApplicationConditionalFieldsPanel
               key={`conditional-${field.fieldName}`}
-              className="-mt-1"
+              unframed={usesArrivalCardFieldRhythm}
+              className={cn(
+                "gap-6",
+                usesArrivalCardFieldRhythm
+                  ? "mt-0"
+                  : "-mt-1",
+              )}
             >
               {renderedField}
             </ApplicationConditionalFieldsPanel>
@@ -5103,13 +5292,20 @@ export function DynamicStepForm({
 
         const count = groupCounts[group] ?? 1;
         const isConditionalGroup = groupFields.some(hasConditionalDependency);
+        const applyRepeatGroupFieldPadding =
+          !(isConditionalGroup && usesArrivalCardFieldRhythm);
         const canAddGroupInstance =
           (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
-
         return (
           <ApplicationConditionalFieldsPanel
             key={`group-${group}`}
-            className={cn(isConditionalGroup && "-mt-1")}
+            unframed={isConditionalGroup && usesArrivalCardFieldRhythm}
+            className={cn(
+              "gap-6",
+              isConditionalGroup && (usesArrivalCardFieldRhythm
+                ? "mt-0"
+                : "-mt-1"),
+            )}
             canAdd={canAddGroupInstance}
             onAdd={() => addGroupInstance(group)}
             addLabel={tButtons("addAnother")}
@@ -5117,7 +5313,7 @@ export function DynamicStepForm({
             {Array.from({ length: count }, (_, instanceIdx) => (
               <div
                 key={`${group}-${instanceIdx}`}
-                className="flex flex-col gap-2"
+                className="flex flex-col gap-6"
                 data-repeat-group-instance="true"
               >
                 {count > 1 && (
@@ -5143,11 +5339,19 @@ export function DynamicStepForm({
                         className="grid gap-2"
                         style={inlineGroupGridStyle(item.length)}
                       >
-                        {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
+                        {item.map((f) => renderField(
+                          f,
+                          instanceKey(f.fieldName, instanceIdx),
+                          applyRepeatGroupFieldPadding,
+                        ))}
                       </div>
                     );
                   }
-                  return renderField(item, instanceKey(item.fieldName, instanceIdx), true);
+                  return renderField(
+                    item,
+                    instanceKey(item.fieldName, instanceIdx),
+                    applyRepeatGroupFieldPadding,
+                  );
                 })}
               </div>
             ))}
