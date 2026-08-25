@@ -72,7 +72,9 @@ import {
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
+import { PhEtravelResultCard } from "@/features/ph-etravel/PhEtravelResultCard";
 import { buildKoreaArrivalCardGateHref } from "@/features/kr-arrival-card/routes";
+import { SubmissionConfirmationEvidence } from "./SubmissionConfirmationEvidence";
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
@@ -87,6 +89,8 @@ interface SubmissionStatusStepProps {
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
   submissionStarting?: boolean;
+  /** The application page renders the containing submission section and heading. */
+  embedded?: boolean;
   onResubmit?: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
@@ -205,9 +209,6 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const qrPath = result.artifacts?.qrCodes?.[0] ??
     (result.country === "VN" ? getVietnamPrearrivalQrPath(result) : null);
-  const confirmationScreenshotPath = result.country === "PH"
-    ? result.artifacts?.screenshots?.at(-1) ?? null
-    : null;
   const vietnamFinalizing =
     result.country === "VN" &&
     result.submitted &&
@@ -258,12 +259,6 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     : null;
   const qrUrl = qrPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(qrPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`)}`
-    : null;
-  const confirmationScreenshotUrl = confirmationScreenshotPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
-    : null;
-  const confirmationScreenshotDownloadUrl = confirmationScreenshotPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
     : null;
 
   const downloadPdf = useCallback(async () => {
@@ -406,33 +401,6 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               : "Philippines eTravel is free, is not a visa, and does not guarantee admission at border control."}
           </p>
         ) : null}
-        {successful && confirmationScreenshotUrl ? (
-          <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {isZh ? "菲律宾 eTravel 官网确认页" : "Philippines eTravel official confirmation"}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {isZh
-                  ? "这是提交时保存的官网原始凭证截图，可能包含二维码、参考号和入境提示。点击图片可查看原图。"
-                  : "This is the original official-portal evidence saved at submission and may contain the QR, reference number, and entry instructions. Select the image to view it at full size."}
-              </p>
-            </div>
-            <a
-              href={confirmationScreenshotUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={isZh ? "查看菲律宾 eTravel 官网确认页原图" : "View the Philippines eTravel confirmation image"}
-              className="block overflow-hidden rounded-md border bg-white"
-            >
-              <img
-                src={confirmationScreenshotUrl}
-                alt={isZh ? "菲律宾 eTravel 官网确认页截图" : "Philippines eTravel official confirmation screenshot"}
-                className="max-h-[34rem] w-full object-contain"
-              />
-            </a>
-          </div>
-        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           {pdfUrl ? (
             <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
@@ -445,14 +413,6 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               <a href={qrUrl} download={`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`}>
                 <Download className="mr-2 h-4 w-4" />
                 {isZh ? "下载官方二维码" : "Download official QR code"}
-              </a>
-            </Button>
-          ) : null}
-          {successful && confirmationScreenshotDownloadUrl ? (
-            <Button asChild type="button" variant="outline">
-              <a href={confirmationScreenshotDownloadUrl}>
-                <Download className="mr-2 h-4 w-4" />
-                {isZh ? "下载官网确认截图" : "Download confirmation image"}
               </a>
             </Button>
           ) : null}
@@ -471,10 +431,10 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "The Malaysia MDAC portal currently returns a submission confirmation but does not provide an official downloadable PDF."
               : result.country === "PH"
                 ? isZh
-                  ? confirmationScreenshotUrl
+                  ? (result.artifacts?.screenshots?.length ?? 0) > 0
                     ? "菲律宾 eTravel 本次没有官方 PDF；官网确认页截图已在上方提供查看和下载。"
                     : "菲律宾 eTravel 通常返回 QR code / 参考号；当前记录没有可下载的官方 PDF 或确认截图。"
-                  : confirmationScreenshotUrl
+                  : (result.artifacts?.screenshots?.length ?? 0) > 0
                     ? "No official PDF was provided for this eTravel submission; the official confirmation image is available above."
                     : "The Philippines eTravel portal usually returns a QR code/reference; this record has no downloadable PDF or confirmation image."
                 : result.country === "VN"
@@ -486,6 +446,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "No official downloadable confirmation PDF is available for this submission."}
           </p>
         ) : null}
+        {successful ? <WhatHappensNext country={result.country} isZh={isZh} /> : null}
         {downloadError ? <ClientErrorAlert message={downloadError} /> : null}
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
@@ -497,6 +458,106 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * "Submitted" is not the end of the story for the traveller — each portal sends a
+ * different confirmation, and if it doesn't arrive (or arrives wrong) they need to
+ * act before they fly. Previously the card stopped at a green tick and left them to
+ * guess whether anything else was coming.
+ */
+function WhatHappensNext({ country, isZh }: { country: string; isZh: boolean }) {
+  const COPY: Record<string, { zh: string[]; en: string[] }> = {
+    MY: {
+      zh: [
+        "马来西亚移民局会向你填写的邮箱发送一封 MDAC 确认邮件，通常几分钟内到达。",
+        "收到后请核对：姓名拼写、护照号、抵达日期和航班号是否与证件和机票一致。",
+        "如果 30 分钟内没收到，先看垃圾邮件；仍然没有，或内容有误，请用上面的按钮重新提交，或联系我们。",
+      ],
+      en: [
+        "Malaysian Immigration emails an MDAC confirmation to the address you entered, usually within minutes.",
+        "When it arrives, check the name spelling, passport number, arrival date and flight number against your documents.",
+        "Nothing after 30 minutes? Check spam first. Still missing, or wrong? Submit again above, or contact us.",
+      ],
+    },
+    TH: {
+      zh: [
+        "泰国 TDAC 会返回一个二维码，请下载保存并在入境时出示。",
+        "请核对姓名、护照号和抵达日期是否与证件一致。",
+        "如果二维码无法下载或信息有误，可以重新提交，或联系我们处理。",
+      ],
+      en: [
+        "Thailand TDAC returns a QR code — download it and have it ready at immigration.",
+        "Check the name, passport number and arrival date against your documents.",
+        "If the QR won't download or the details are wrong, submit again, or contact us.",
+      ],
+    },
+    PH: {
+      zh: [
+        "菲律宾 eTravel 会返回二维码和参考号，请截图保存并在值机与入境时出示。",
+        "请核对姓名、护照号和抵达日期。",
+        "eTravel 免费，不是签证，也不代表一定获准入境。",
+      ],
+      en: [
+        "Philippines eTravel returns a QR code and a reference number — save them for check-in and immigration.",
+        "Check the name, passport number and arrival date.",
+        "eTravel is free, is not a visa, and does not guarantee admission at the border.",
+      ],
+    },
+    VN: {
+      zh: [
+        "越南入境前申报完成后会返回二维码，请下载保存。",
+        "请核对姓名、护照号和抵达日期。",
+        "如果二维码迟迟未生成，请不要重复提交，先联系我们查看进度。",
+      ],
+      en: [
+        "Vietnam's pre-arrival declaration returns a QR code once processed — download and keep it.",
+        "Check the name, passport number and arrival date.",
+        "If the QR is slow to appear, don't resubmit — contact us and we'll check where it is.",
+      ],
+    },
+    KR: {
+      zh: [
+        "韩国入境卡提交后可在官网的 Check/Edit 页面查询记录。",
+        "请核对姓名、护照号和抵达日期。",
+        "如需修改，请通过上面的官网入口操作，或联系我们。",
+      ],
+      en: [
+        "Korea's e-Arrival Card record can be looked up on the portal's Check/Edit page.",
+        "Check the name, passport number and arrival date.",
+        "To change anything, use the portal link above, or contact us.",
+      ],
+    },
+  };
+
+  const fallback = {
+    zh: [
+      "请核对确认信息中的姓名、护照号和抵达日期是否与证件一致。",
+      "如果信息有误或没有收到官方确认，请重新提交，或联系我们。",
+    ],
+    en: [
+      "Check the name, passport number and arrival date on the confirmation against your documents.",
+      "If anything is wrong, or no official confirmation arrives, submit again or contact us.",
+    ],
+  };
+
+  const items = (COPY[country] ?? fallback)[isZh ? "zh" : "en"];
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
+      <p className="text-sm font-medium text-foreground">
+        {isZh ? "接下来会发生什么" : "What happens next"}
+      </p>
+      <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span aria-hidden="true">·</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -1468,6 +1529,7 @@ export function SubmissionStatusStep({
   status,
   result,
   submissionStarting = false,
+  embedded = false,
   onResubmit,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
@@ -2006,6 +2068,7 @@ export function SubmissionStatusStep({
           persistenceKey={submissionProgressPersistenceKey(null)}
           country={country}
           visaType={visaType}
+          embedded={embedded}
         />
       </div>
     );
@@ -2032,6 +2095,7 @@ export function SubmissionStatusStep({
           resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
+          embedded={embedded}
         />
       </div>
     );
@@ -2131,6 +2195,7 @@ export function SubmissionStatusStep({
           vietnamPaymentCheckpointResult,
           snapshot?.queue?.id ?? null,
           isZh,
+          embedded,
         )}
       </div>
     );
@@ -2291,6 +2356,7 @@ export function SubmissionStatusStep({
           effectiveResult,
           snapshot?.queue?.id ?? null,
           isZh,
+          embedded,
         )}
       </div>
     );
@@ -2327,6 +2393,7 @@ export function SubmissionStatusStep({
         resetProgressOnMount={Boolean(activeProgressCycleKey)}
         country={country}
         visaType={visaType}
+        embedded={embedded}
       />
     </div>
   );
@@ -2347,6 +2414,41 @@ function renderSubmissionResultCard(
   result: SubmissionResult | null,
   jobId: string | null = null,
   isZh = false,
+  embedded = false,
+) {
+  const card = renderSubmissionResultCardContent(
+    applicationId,
+    country,
+    visaType,
+    result,
+    jobId,
+    isZh,
+    embedded,
+  );
+  if (!result || result.country === "SG" || isDigitalArrivalCardResult(result)) {
+    return card;
+  }
+
+  return (
+    <div className="space-y-4">
+      {card}
+      <SubmissionConfirmationEvidence
+        applicationId={applicationId ?? ("applicationId" in result ? result.applicationId : null)}
+        result={result}
+        isZh={isZh}
+      />
+    </div>
+  );
+}
+
+function renderSubmissionResultCardContent(
+  applicationId: string | null,
+  country: string | null,
+  visaType: string | null,
+  result: SubmissionResult | null,
+  jobId: string | null = null,
+  isZh = false,
+  embedded = false,
 ) {
   if (!result) {
     const persistenceKey = submissionProgressPersistenceKey(jobId);
@@ -2408,17 +2510,28 @@ function renderSubmissionResultCard(
       ) : null;
     case "VN":
       if (isDigitalArrivalCardResult(result)) {
-        return <DigitalArrivalCardResultCard result={result} />;
+        return (
+          <div className="space-y-4">
+            <DigitalArrivalCardResultCard result={result} />
+            <SubmissionConfirmationEvidence
+              applicationId={result.applicationId}
+              result={result}
+              isZh={isZh}
+              includePdfDownloads={false}
+            />
+          </div>
+        );
       }
       return <VnResultCard applicationId={applicationId} result={result} jobId={jobId} />;
     case "PH":
-      return isDigitalArrivalCardResult(result) ? (
-        <DigitalArrivalCardResultCard result={result} />
-      ) : (
-        <FailureCard errorMessage="The stored Philippines eTravel result is invalid." />
-      );
+      if (!isDigitalArrivalCardResult(result)) {
+        return <FailureCard errorMessage="The stored Philippines eTravel result is invalid." />;
+      }
+      return createPhEtravelStoredResultRecoveryPresentation(result).state === "submitted_candidate"
+        ? <PhEtravelResultCard result={result} embedded={embedded} />
+        : <DigitalArrivalCardResultCard result={result} />;
     case "SG":
-      return <SgArrivalCardResultCard result={result} />;
+      return <SgArrivalCardResultCard result={result} embedded={embedded} />;
     case "AU":
       return applicationId ? (
         <AuResultCard applicationId={applicationId} result={result} />
@@ -2434,7 +2547,17 @@ function renderSubmissionResultCard(
       return <TwResultCard applicationId={applicationId ?? undefined} result={result} />;
     case "KR":
       if (isDigitalArrivalCardResult(result)) {
-        return <DigitalArrivalCardResultCard result={result} />;
+        return (
+          <div className="space-y-4">
+            <DigitalArrivalCardResultCard result={result} />
+            <SubmissionConfirmationEvidence
+              applicationId={result.applicationId}
+              result={result}
+              isZh={isZh}
+              includePdfDownloads={false}
+            />
+          </div>
+        );
       }
       return applicationId ? (
         <KrResultCard applicationId={applicationId} result={result} />
@@ -2462,7 +2585,17 @@ function renderSubmissionResultCard(
     case "MY":
     case "TH":
       if (isDigitalArrivalCardResult(result)) {
-        return <DigitalArrivalCardResultCard result={result} />;
+        return (
+          <div className="space-y-4">
+            <DigitalArrivalCardResultCard result={result} />
+            <SubmissionConfirmationEvidence
+              applicationId={result.applicationId}
+              result={result}
+              isZh={isZh}
+              includePdfDownloads={false}
+            />
+          </div>
+        );
       }
       return isGenericEvisaResult(result) ? (
         <GenericEvisaResultCard
