@@ -19,12 +19,14 @@ import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistan
 import {
   buildFieldExplanation,
   buildFieldClarificationFallback,
+  buildReviewedChoiceAnswerHint,
   fieldClarificationInstruction,
   getFormAssistantFallbackSources,
   hasFieldSpecificExplanation,
   isFormAssistantConfirmationField,
   isFieldClarificationRequest,
   isUsefulFieldClarificationReply,
+  getReviewedChoiceAnswerLabels,
 } from "./constants";
 import {
   canonicalizeApplicationOptionAnswers,
@@ -113,6 +115,12 @@ type ProposedTurn = {
   intent: ProposedTurnIntent;
   reply: string;
   patches: ProposedPatch[];
+};
+
+type PendingUnsupportedOption = {
+  fieldName: string;
+  value: string;
+  reason: "sgac_singapore_residence";
 };
 
 const PRODUCT_TIME_ZONES: Record<string, string> = {
@@ -258,6 +266,132 @@ export function parseDirectYesNoAnswer(
     value: hasNegativeSignal ? noValue : yesValue,
     confidence: "high",
   };
+}
+
+interface AssistantStall {
+  fieldName: string | null;
+  count: number;
+}
+
+/** How many times the same field may be re-asked before we change tack. */
+const STALL_LIMIT = 2;
+
+function readAssistantStall(state: Record<string, unknown> | null): AssistantStall {
+  const stall = state?.assistantStall;
+  if (!stall || typeof stall !== "object" || Array.isArray(stall)) {
+    return { fieldName: null, count: 0 };
+  }
+  const value = stall as Record<string, unknown>;
+  return {
+    fieldName: typeof value.fieldName === "string" ? value.fieldName : null,
+    count: typeof value.count === "number" && Number.isFinite(value.count) ? value.count : 0,
+  };
+}
+
+/**
+ * Message for a field the assistant has now asked about several times without
+ * getting an answer it can use.
+ *
+ * Repeating the identical question is what produced the observed dead loop: the
+ * applicant answers, nothing is accepted, the same sentence comes back verbatim,
+ * and there is no way out of the conversation. Explain the field once more and
+ * point at the form, which they can always fill in directly.
+ */
+function buildStalledFieldMessage(field: VisaFormFieldRow, locale: string): string {
+  const label = localizedLabel(field, locale);
+  const explanation = buildFieldClarificationFallback(field, locale);
+  return locale.startsWith("zh")
+    ? [
+        `看起来我没能把你的回答对应到“${label}”这一项，抱歉。`,
+        explanation,
+        `你也可以直接在下方表单里填写这一项，然后我们继续下一题。`,
+      ].filter(Boolean).join(" ")
+    : [
+        `Sorry — I haven't been able to map your answer onto “${label}”.`,
+        explanation,
+        `You can also type this one straight into the form below, and we'll carry on from the next question.`,
+      ].filter(Boolean).join(" ");
+}
+
+function readPendingUnsupportedOption(state: Record<string, unknown> | null): PendingUnsupportedOption | null {
+  const pending = state?.pendingUnsupportedOption;
+  if (!pending || typeof pending !== "object" || Array.isArray(pending)) return null;
+  const value = pending as Record<string, unknown>;
+  return value.reason === "sgac_singapore_residence" &&
+    typeof value.fieldName === "string" &&
+    typeof value.value === "string"
+    ? {
+        fieldName: value.fieldName,
+        value: value.value,
+        reason: value.reason,
+      }
+    : null;
+}
+
+function isStandaloneAffirmation(text: string): boolean {
+  const normalized = normalizedNaturalLanguageValue(text);
+  return new Set(["yes", "yep", "yeah", "correct", "right", "是", "是的", "对", "对的", "正确"])
+    .has(normalized);
+}
+
+function identifiesSingaporeResidence(text: string): boolean {
+  const normalized = normalizedNaturalLanguageValue(text);
+  return new Set([
+    "singapore",
+    "singaporeitself",
+    "iliveinsingapore",
+    "currentlyliveinsingapore",
+    "myresidenceissingapore",
+    "新加坡",
+    "我住在新加坡",
+    "我现在住在新加坡",
+  ]).has(normalized);
+}
+
+function recentAssistantConfirmedSingaporeResidence(messages: ModelConversationMessage[]): boolean {
+  const lastAssistantMessage = messages.findLast((message) => message.role === "assistant")?.content ?? "";
+  return /(?:place of residence|residence option).{0,80}singapore|singapore.{0,80}(?:place of residence|residence option)/i
+    .test(lastAssistantMessage);
+}
+
+function unsupportedSgacSingaporeResidence(params: {
+  visaType: string;
+  currentField: VisaFormFieldRow | undefined;
+  message: string;
+  pending: PendingUnsupportedOption | null;
+  recentConversation: ModelConversationMessage[];
+}): PendingUnsupportedOption | null {
+  if (
+    params.visaType.trim().toUpperCase() !== "SG_ARRIVAL_CARD" ||
+    params.currentField?.fieldName !== "place_of_residence" ||
+    !params.currentField.options?.length
+  ) return null;
+
+  const singaporeIsAnOfficialOption = matchingOptionsForAnswer(
+    "Singapore",
+    params.currentField.options,
+    params.currentField.fieldName,
+  ).length > 0;
+  if (singaporeIsAnOfficialOption) return null;
+
+  const confirmsPendingSingapore = isStandaloneAffirmation(params.message) && (
+    (
+      params.pending?.fieldName === params.currentField.fieldName &&
+      params.pending.reason === "sgac_singapore_residence"
+    ) || recentAssistantConfirmedSingaporeResidence(params.recentConversation)
+  );
+  if (!identifiesSingaporeResidence(params.message) && !confirmsPendingSingapore) return null;
+  return {
+    fieldName: params.currentField.fieldName,
+    value: "Singapore",
+    reason: "sgac_singapore_residence",
+  };
+}
+
+function unsupportedSgacSingaporeResidenceReply(locale: string): string {
+  return locale.startsWith("zh")
+    ? "新加坡不在 ICA 外国访客新加坡入境卡的官方“居住地”选项中，所以我不能把它保存为有效表单值。如果你是新加坡公民、永久居民或长期准证持有人，请在“居留身份类型”中选择对应的居民选项；居民路径不使用此字段。"
+    : "Singapore is not available in ICA’s official Place of Residence list for foreign visitors, so I can’t save it as a valid form value. If you are a Singapore Citizen, Permanent Resident, or Long-Term Pass holder, choose the matching Residency Type; resident routes do not use this field.";
 }
 
 async function loadApplicationKnowledge(params: {
@@ -1055,7 +1189,54 @@ export function parseDirectCurrentFieldAnswer(
       return null;
     }
   }
+
+  // A bare name on a plain name field is an answer, not something to send to a
+  // model that may return low confidence and stall the conversation. A single
+  // Chinese surname like "刘" is exactly the case that looped: the applicant
+  // answered correctly and got the identical question back, turn after turn.
+  if (
+    field.fieldType === "text" &&
+    !field.options?.length &&
+    typeof pattern !== "string" &&
+    isPlainNameField(field)
+  ) {
+    const value = text.trim();
+    const withinMaxLength = typeof field.validationRules?.maxLength === "number"
+      ? value.length <= field.validationRules.maxLength
+      : true;
+    // Chinese has no word spacing, so a length cap plus a function-word check is
+    // what separates a name from a sentence.
+    const hasHan = /\p{Script=Han}/u.test(value);
+    const looksLikeProse = /[的了吗呢吧我你他她它们请想要改问答题不没有是在和跟然后这那个]/u.test(value);
+    if (
+      value.length > 0 &&
+      withinMaxLength &&
+      (hasHan ? value.length <= 8 && !looksLikeProse : value.length <= 60) &&
+      // Letters, spaces and name punctuation only: anything else could be a
+      // correction or two answers at once — leave those to the model.
+      /^[\p{Script=Han}\p{L}][\p{Script=Han}\p{L}''\-. ]*$/u.test(value) &&
+      !isVagueFormAnswer(value)
+    ) {
+      return { fieldName: field.fieldName, value, confidence: "high", modelSource: "deterministic" };
+    }
+  }
+
   return null;
+}
+
+/** Free-text fields that hold a person's name and nothing else. */
+function isPlainNameField(field: VisaFormFieldRow): boolean {
+  const haystack = [
+    field.fieldName,
+    field.label,
+    String(field.validationRules?.label_zh ?? ""),
+  ].join(" ").toLowerCase();
+  if (/address|city|country|company|employer|school|occupation|purpose|reason/.test(haystack)) {
+    return false;
+  }
+  return /(?:^|_)(?:surname|given_names?|family_name|middle_name|full_name|name)(?:_|$)/.test(field.fieldName)
+    || /\bsurname\b|\bfamily name\b|\bgiven names?\b|\bfull name\b/.test(haystack)
+    || /姓氏|姓名|名字/.test(haystack);
 }
 
 function parseUniqueVisibleFieldAnswer(
@@ -1075,6 +1256,10 @@ function parseUniqueVisibleFieldAnswer(
 }
 
 const FRIENDLY_FIELD_QUESTIONS: Record<string, { zh: string; en: string }> = {
+  sgac_applicant_type: {
+    zh: "请选择 ICA 居留身份类型：新加坡公民 / 永久居民、长期准证持有人，或外国访客 / 原则批准函持有人？",
+    en: "Which ICA Residency Type applies: Singapore Citizen / Permanent Resident, Long-Term Pass Holder, or Foreign Visitor / In-Principle Approval Holder?",
+  },
   full_name: {
     zh: "先确认一下，你护照上的英文全名是什么？请按护照原样告诉我。",
     en: "First, what is your full name exactly as it appears in your passport?",
@@ -1474,6 +1659,22 @@ function genericFieldQuestion(field: VisaFormFieldRow, label: string, locale: st
   return directFieldQuestion(label, locale);
 }
 
+function appendReviewedChoicesToQuestion(
+  question: string,
+  field: VisaFormFieldRow,
+  locale: string,
+): string {
+  const labels = getReviewedChoiceAnswerLabels(field, locale);
+  const hint = buildReviewedChoiceAnswerHint(field, locale);
+  if (!labels || !hint) return question;
+  const normalizedQuestion = normalizedNaturalLanguageValue(question);
+  const alreadyNamesEveryChoice = labels.every((label) => {
+    const normalizedLabel = normalizedNaturalLanguageValue(label);
+    return normalizedLabel.length > 0 && normalizedQuestion.includes(normalizedLabel);
+  });
+  return alreadyNamesEveryChoice ? question : `${question} ${hint}`;
+}
+
 function friendlyQuestion(
   field: VisaFormFieldRow,
   locale: string,
@@ -1486,14 +1687,16 @@ function friendlyQuestion(
       ? PH_ETRAVEL_FIELD_QUESTIONS[field.fieldName]
       : undefined;
   const resolvedCopy = copy ?? COMMON_FIELD_QUESTIONS[field.fieldName];
-  if (resolvedCopy) return locale.startsWith("zh") ? resolvedCopy.zh : resolvedCopy.en;
   const label = localizedLabel(field, locale);
   if (isFormAssistantConfirmationField(field)) {
     return locale.startsWith("zh")
       ? "请查看并确认下方显示的完整声明。"
       : "Please review and confirm the complete declaration shown below.";
   }
-  return genericFieldQuestion(field, label, locale);
+  const question = resolvedCopy
+    ? locale.startsWith("zh") ? resolvedCopy.zh : resolvedCopy.en
+    : genericFieldQuestion(field, label, locale);
+  return appendReviewedChoicesToQuestion(question, field, locale);
 }
 
 export function buildFormAssistantFieldQuestion(
@@ -2591,6 +2794,14 @@ export async function runAssistantTurn(params: {
     ...visibleCandidatePool.filter((field) => field !== currentField),
   ].slice(0, 5);
   const recentConversation = await loadRecentModelConversation(params.admin, params.session.id);
+  const pendingUnsupportedOption = readPendingUnsupportedOption(params.session.state_json);
+  const unsupportedResidence = unsupportedSgacSingaporeResidence({
+    visaType: params.visaType,
+    currentField,
+    message,
+    pending: pendingUnsupportedOption,
+    recentConversation,
+  });
   const relevantExistingAnswers = relevantExistingAnswerContext(
     params.steps,
     currentField,
@@ -2663,7 +2874,9 @@ export async function runAssistantTurn(params: {
       : findAccommodationOptionCandidates(message, currentField);
   let proposed: ProposedTurn;
   try {
-    proposed = applicationReadinessQuestion || correctionCancellation || exactVagueAnswer || promptInjectionAttempt || ambiguousAlternativeAnswer ||
+    proposed = unsupportedResidence
+      ? { intent: "clarification", reply: unsupportedSgacSingaporeResidenceReply(params.locale), patches: [] }
+      : applicationReadinessQuestion || correctionCancellation || exactVagueAnswer || promptInjectionAttempt || ambiguousAlternativeAnswer ||
       deterministicOptionClarification || optionDisambiguationCandidates.length > 0
       ? { intent: "unclear", reply: "", patches: [] }
       : explicitMultiPatches.length >= 2
@@ -2823,6 +3036,16 @@ export async function runAssistantTurn(params: {
   const nextQuestion = nextMissing.length > 0
     ? buildQuestion(nextFields, params.locale, params)
     : buildCompletionQuestion(optionalFields, params.locale, params, params.documentReadiness);
+  // Same field, no patch, again: the applicant is stuck rather than idle.
+  const previousStall = readAssistantStall(params.session.state_json);
+  const stalledOnSameField =
+    appliedPatches.length === 0 &&
+    Boolean(currentField) &&
+    nextFields[0]?.fieldName === currentField?.fieldName;
+  const stallCount = stalledOnSameField
+    ? (previousStall.fieldName === currentField?.fieldName ? previousStall.count : 0) + 1
+    : 0;
+
   const nextProgress = getAssistantProgress(params.steps, nextValues);
   const correctionConflict = requestedCorrectionField
     ? skippedConflicts.includes(requestedCorrectionField.fieldName)
@@ -2841,7 +3064,9 @@ export async function runAssistantTurn(params: {
     ? "好的，我会保留原来的酒店信息。"
     : "Okay, I’ll keep your existing hotel information.";
   let assistantMessage: string;
-  if (applicationReadinessQuestion) {
+  if (unsupportedResidence) {
+    assistantMessage = proposed.reply;
+  } else if (applicationReadinessQuestion) {
     assistantMessage = buildApplicationReadinessAnswer(params.documentReadiness, params.locale);
   } else if (correctionCancellation) {
     assistantMessage = [correctionCancellationMessage, nextQuestion].filter(Boolean).join("\n\n");
@@ -2884,6 +3109,8 @@ export async function runAssistantTurn(params: {
     assistantMessage = isUsefulModelFollowUp(proposed.reply, currentField)
       ? proposed.reply
       : buildFieldClarificationFallback(currentField, params.locale);
+  } else if (stallCount >= STALL_LIMIT && currentField) {
+    assistantMessage = buildStalledFieldMessage(currentField, params.locale);
   } else {
     assistantMessage = [
       buildTurnAcknowledgement(appliedPatches.length, params.locale, nextProgress.completed),
@@ -2919,6 +3146,10 @@ export async function runAssistantTurn(params: {
         pendingCorrectionField: correctionNeedsAnotherAnswer && !correctionConflict
           ? requestedCorrectionField?.fieldName ?? null
           : null,
+        pendingUnsupportedOption: unsupportedResidence,
+        assistantStall: stalledOnSameField
+          ? { fieldName: currentField?.fieldName ?? null, count: stallCount }
+          : { fieldName: null, count: 0 },
         lastAssistantFilledField: appliedPatches.at(-1)?.fieldName ?? lastAssistantFilledField,
       },
       state_version: Date.now(),

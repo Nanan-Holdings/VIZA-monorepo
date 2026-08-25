@@ -12,7 +12,6 @@ export type TravelPlannerCopy = {
   chooseCountry: string;
   customCountryPlaceholder: string;
   confirmCountry: string;
-  noMoreCountries: string;
   chooseCitiesAfterCountry: string;
   loadingCity: string;
   chooseCity: string;
@@ -173,7 +172,6 @@ const EN: TravelPlannerCopy = {
   chooseCountry: "Select countries (multiple allowed)",
   customCountryPlaceholder: "Enter other countries (comma-separated)",
   confirmCountry: "Confirm countries",
-  noMoreCountries: "No more countries",
   chooseCitiesAfterCountry: "Select a country first, then choose cities",
   loadingCity: "Loading cities…",
   chooseCity: "Select cities (multiple allowed)",
@@ -335,7 +333,6 @@ const ZH: TravelPlannerCopy = {
   chooseCountry: "请选择国家（可多选）",
   customCountryPlaceholder: "输入其他国家（可填写多个，用逗号分隔）",
   confirmCountry: "确认国家",
-  noMoreCountries: "没有其他国家了",
   chooseCitiesAfterCountry: "请先选择国家，再选择城市",
   loadingCity: "正在加载城市…",
   chooseCity: "请选择城市（可多选）",
