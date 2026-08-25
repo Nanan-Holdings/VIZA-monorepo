@@ -294,8 +294,14 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
       taiwanOfficialTermsConsent: rawTaiwanConsent
         ? {
-            entryPromptAccepted: rawTaiwanConsent.entryPromptAccepted === true,
-            termsModalAccepted: rawTaiwanConsent.termsModalAccepted === true,
+          entryPromptAccepted: rawTaiwanConsent.entryPromptAccepted === true,
+          termsModalAccepted: rawTaiwanConsent.termsModalAccepted === true,
+          applicantTruthDeclarationAccepted:
+            rawTaiwanConsent.applicantTruthDeclarationAccepted === true,
+          electronicSubmissionAuthorized:
+            rawTaiwanConsent.electronicSubmissionAuthorized === true,
+          officialFeeResponsibilityAccepted:
+            rawTaiwanConsent.officialFeeResponsibilityAccepted === true,
           }
         : null,
     };
@@ -573,6 +579,17 @@ async function insertTaiwanRunnerJob(input: {
         version: "tw_official_terms_v1",
         entryPromptAccepted: input.consent.entryPromptAccepted,
         termsModalAccepted: input.consent.termsModalAccepted,
+        recordedAt: input.now,
+        source: "viza_final_confirmation",
+      },
+      taiwanSubmissionAuthorization: {
+        version: "tw_submission_authorization_v1",
+        applicantTruthDeclarationAccepted:
+          input.consent.applicantTruthDeclarationAccepted,
+        electronicSubmissionAuthorized:
+          input.consent.electronicSubmissionAuthorized,
+        officialFeeResponsibilityAccepted:
+          input.consent.officialFeeResponsibilityAccepted,
         recordedAt: input.now,
         source: "viza_final_confirmation",
       },
@@ -1745,11 +1762,17 @@ export async function POST(
     }
     if (isTaiwanEntryPermitApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const consent = requestedSubmission.taiwanOfficialTermsConsent;
-      if (!consent?.entryPromptAccepted || !consent.termsModalAccepted) {
+      if (
+        !consent?.entryPromptAccepted ||
+        !consent.termsModalAccepted ||
+        !consent.applicantTruthDeclarationAccepted ||
+        !consent.electronicSubmissionAuthorized ||
+        !consent.officialFeeResponsibilityAccepted
+      ) {
         return NextResponse.json(
           {
-            error: "请分别确认台湾官网进入提示与条款弹窗授权后再提交。",
-            code: "tw_official_terms_consent_required",
+            error: "请在 VIZA 完成资料真实性、电子提交、官方费用责任及两项官网条款确认后再提交。",
+            code: "tw_submission_authorization_required",
           },
           { status: 422 },
         );

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   deriveNonTerminalStatus,
   deriveSubmissionStatus,
-  hasTaiwanApplicantHandoffReady,
   runnerFlowForSubmissionStatus,
   runnerPoolJobToQueueRow,
   sgacRunnerJobToQueueRow,
@@ -864,42 +863,6 @@ describe("selectQueueForSubmissionStatus", () => {
     ]);
 
     expect(queue?.id).toBe("new_failed_retry");
-  });
-});
-
-describe("hasTaiwanApplicantHandoffReady", () => {
-  it("lets a durable Taiwan applicant handoff outrank the lease-holding runner", () => {
-    expect(
-      hasTaiwanApplicantHandoffReady({
-        country: "taiwan",
-        visa_type: "TW_ENTRY_PERMIT",
-        submission_result_status: "needs_user_action",
-        submission_result: {
-          country: "TW",
-          status: "stopped_at_captcha",
-          handoffId: "handoff_1",
-        },
-      }),
-    ).toBe(true);
-  });
-
-  it("rejects incomplete and non-Taiwan handoff results", () => {
-    expect(
-      hasTaiwanApplicantHandoffReady({
-        country: "taiwan",
-        visa_type: "TW_ENTRY_PERMIT",
-        submission_result_status: "needs_user_action",
-        submission_result: { country: "TW", status: "stopped_at_captcha" },
-      }),
-    ).toBe(false);
-    expect(
-      hasTaiwanApplicantHandoffReady({
-        country: "vietnam",
-        visa_type: "evisa_tourism",
-        submission_result_status: "needs_user_action",
-        submission_result: { status: "stopped_at_captcha", handoffId: "handoff_1" },
-      }),
-    ).toBe(false);
   });
 });
 

@@ -183,10 +183,11 @@ describe("Taiwan runner compliance boundary", () => {
     assert.doesNotMatch(guardSource, /stopped_at_captcha[^\n]+throw/);
   });
 
-  it("requires both audited VIZA terms authorizations before canonical final submit", async () => {
-    const [haltRunnerSource, consentSource, termsSource, applySource] = await Promise.all([
+  it("requires audited final confirmation and both official terms before canonical submit", async () => {
+    const [haltRunnerSource, consentSource, authorizationSource, termsSource, applySource] = await Promise.all([
       readFile(join(SRC_DIR, "queue", "halt-runners.ts"), "utf8"),
       readTwSource("official-terms-consent.ts"),
+      readTwSource("submission-authorization.ts"),
       readTwSource("terms-modal.ts"),
       readTwSource("apply.ts"),
     ]);
@@ -198,6 +199,10 @@ describe("Taiwan runner compliance boundary", () => {
     assert.match(consentSource, /entryPromptAccepted !== true/);
     assert.match(consentSource, /termsModalAccepted !== true/);
     assert.match(consentSource, /viza_final_confirmation/);
+    assert.match(haltRunnerSource, /metadata\?\.taiwanSubmissionAuthorization/);
+    assert.match(authorizationSource, /applicantTruthDeclarationAccepted !== true/);
+    assert.match(authorizationSource, /electronicSubmissionAuthorized !== true/);
+    assert.match(authorizationSource, /officialFeeResponsibilityAccepted !== true/);
     assert.match(termsSource, /await ensureTermsCheckboxChecked/);
     assert.ok(
       termsSource.indexOf("await ensureTermsCheckboxChecked") <

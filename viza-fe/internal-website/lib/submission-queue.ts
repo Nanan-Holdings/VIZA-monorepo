@@ -151,6 +151,9 @@ export type SubmissionRetryIntent = "retry" | "new_application";
 export interface TaiwanOfficialTermsConsentInput {
   entryPromptAccepted: boolean;
   termsModalAccepted: boolean;
+  applicantTruthDeclarationAccepted: boolean;
+  electronicSubmissionAuthorized: boolean;
+  officialFeeResponsibilityAccepted: boolean;
 }
 
 const DS160_VISA_TYPES = new Set([

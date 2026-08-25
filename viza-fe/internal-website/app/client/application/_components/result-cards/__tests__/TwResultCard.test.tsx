@@ -1,7 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SubmissionStatusStep } from "../SubmissionStatusStep";
-import { normalizeTwStatus, TwResultCard } from "../TwResultCard";
+import {
+  deriveTaiwanCustomerSubmissionState,
+  normalizeTwStatus,
+  TwResultCard,
+} from "../TwResultCard";
 import type { TwSubmissionResult } from "@/lib/submission-result";
 
 vi.mock("next-intl", () => ({
@@ -21,6 +25,7 @@ describe("TwResultCard", () => {
     expect(normalizeTwStatus("running", "uploading_documents")).toBe("uploading");
     expect(normalizeTwStatus("running", "validating_uploads")).toBe("validating");
     expect(normalizeTwStatus("completed", "captcha_boundary")).toBe("stopped_at_captcha");
+    expect(normalizeTwStatus("running", "ready_to_submit")).toBe("stopped_at_captcha");
     expect(normalizeTwStatus("completed", "submitted")).toBe("submitted");
     expect(normalizeTwStatus("failed")).toBe("failed");
   });
@@ -38,19 +43,20 @@ describe("TwResultCard", () => {
 
     render(<TwResultCard applicationId="application-id" result={result} />);
 
-    expect(screen.getByText("台湾官网提交尚未完成")).toBeInTheDocument();
-    expect(screen.getByText(/旧版接管流程留下的状态/u)).toBeInTheDocument();
+    expect(screen.getByText("请在 VIZA 内完成最终确认")).toBeInTheDocument();
+    expect(screen.getByText(/此状态不代表已提交/u)).toBeInTheDocument();
     expect(screen.getByText("12345678901234567890")).toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回 VIZA 核对并授权提交" })).toHaveAttribute(
+      "href",
+      "/client/application/long-form?applicationId=application-id&review=final",
+    );
     expect(screen.queryByRole("button", { name: "打开已填写的台湾官网" })).not.toBeInTheDocument();
   });
 
-  it("does not keep an old open button after the Taiwan handoff expires and offers refill", async () => {
-    const onRetry = vi.fn();
+  it("retires an expired handoff and routes back to VIZA final review without direct enqueue", () => {
     render(
       <TwResultCard
         applicationId="application-id"
-        onRetry={onRetry}
         result={{
           country: "TW",
           status: "stopped_at_captcha",
@@ -60,19 +66,32 @@ describe("TwResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("重新执行台湾官网正式提交")).toBeInTheDocument();
+    expect(screen.getByText("在 VIZA 内重新核对并授权")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "打开已填写的台湾官网" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新正式提交" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回 VIZA 核对并授权提交" })).toHaveAttribute(
+      "href",
+      "/client/application/long-form?applicationId=application-id&review=final",
+    );
+  });
 
-    const retry = screen.getByRole("button", { name: "重新正式提交" });
-    expect(retry).toBeDisabled();
-    fireEvent.click(screen.getByLabelText(/蓝色 OK/u));
-    fireEvent.click(screen.getByLabelText(/勾选「同意上述条款」/u));
-    expect(retry).toBeEnabled();
-    fireEvent.click(retry);
-    expect(onRetry).toHaveBeenCalledWith("live_assisted", {
-      entryPromptAccepted: true,
-      termsModalAccepted: true,
-    });
+  it("maps durable results to the six customer-facing Taiwan states", () => {
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "queued" })).toBe("queued");
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "filling" })).toBe("running");
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "stopped_at_captcha" })).toBe("needs_confirmation");
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "failed", error: "otp timeout" })).toBe("needs_operational_review");
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "failed", missingFields: ["name_chinese"] })).toBe("failed");
+    expect(deriveTaiwanCustomerSubmissionState({
+      country: "TW",
+      status: "submitted",
+      officialReceipt: {
+        source: "official_success_page_with_application_number",
+        capturedAt: "2026-08-25T00:00:00.000Z",
+        portalUrl: "https://official.example/result",
+        caseNumber: "TW-RECEIPT",
+      },
+    })).toBe("submitted_with_receipt");
+    expect(deriveTaiwanCustomerSubmissionState({ country: "TW", status: "submitted" })).toBe("needs_operational_review");
   });
 
   it("shows submitted only as official receipt evidence, not approval or payment", () => {
@@ -106,8 +125,6 @@ describe("TwResultCard", () => {
     render(
       <TwResultCard
         applicationId="application-id"
-        onRetry={vi.fn()}
-        retryError="申请资料尚未完整，不能开始官网自动填写。请先补齐缺失信息和材料。"
         retryCompleteness={{
           completionScope: "applicant_intake",
           complete: false,
@@ -324,7 +341,7 @@ describe("TwResultCard", () => {
     expect(screen.queryByText("台湾官网自动填写未完成")).not.toBeInTheDocument();
   });
 
-  it("posts Taiwan refill directly to retry-submission without calling the long-form live callback", async () => {
+  it("never posts a Taiwan retry from the result card", async () => {
     const onResubmit = vi.fn();
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -378,20 +395,14 @@ describe("TwResultCard", () => {
       />,
     );
 
-    fireEvent.click(await screen.findByLabelText(/蓝色 OK/u));
-    fireEvent.click(screen.getByLabelText(/勾选「同意上述条款」/u));
-    fireEvent.click(screen.getByRole("button", { name: "重新正式提交" }));
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/retry-submission",
-        expect.objectContaining({
-          method: "POST",
-          body: expect.stringContaining('"taiwanOfficialTermsConsent":{"entryPromptAccepted":true,"termsModalAccepted":true}'),
-        }),
-      );
-    });
+    expect(await screen.findByRole("link", { name: "返回 VIZA 核对并授权提交" })).toHaveAttribute(
+      "href",
+      "/client/application/long-form?applicationId=application-id&review=final",
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/applications/application-id/retry-submission",
+      expect.anything(),
+    );
     expect(onResubmit).not.toHaveBeenCalled();
-    expect(screen.getByText("台湾官网自动填写任务已排队")).toBeInTheDocument();
   });
 });

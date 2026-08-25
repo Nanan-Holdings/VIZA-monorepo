@@ -1047,6 +1047,9 @@ function FinalConfirmationPanel({
   koreaPreflightTrusted,
   forceDryRun,
   missingFields,
+  documentProgress,
+  missingDocumentCount,
+  conflictCount,
   requirementsLoading,
   submittingMode,
   submitCheckState,
@@ -1058,6 +1061,9 @@ function FinalConfirmationPanel({
   koreaPreflightTrusted: boolean;
   forceDryRun: boolean;
   missingFields: MissingApplicationField[];
+  documentProgress: { completed: number; total: number };
+  missingDocumentCount: number;
+  conflictCount: number;
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
   submitCheckState: SubmitCheckState;
@@ -1069,6 +1075,9 @@ function FinalConfirmationPanel({
 }) {
   const [taiwanEntryPromptAccepted, setTaiwanEntryPromptAccepted] = useState(false);
   const [taiwanTermsModalAccepted, setTaiwanTermsModalAccepted] = useState(false);
+  const [taiwanTruthAccepted, setTaiwanTruthAccepted] = useState(false);
+  const [taiwanSubmissionAuthorized, setTaiwanSubmissionAuthorized] = useState(false);
+  const [taiwanFeeResponsibilityAccepted, setTaiwanFeeResponsibilityAccepted] = useState(false);
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
   const isChecking = submitCheckState === "checking";
@@ -1150,8 +1159,17 @@ function FinalConfirmationPanel({
   // becomes an unexplained dead end. Only an in-flight check/submission locks
   // the control against duplicate requests.
   const taiwanTermsReady =
-    !isTaiwan || (taiwanEntryPromptAccepted && taiwanTermsModalAccepted);
-  const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
+    !isTaiwan || (
+      taiwanEntryPromptAccepted &&
+      taiwanTermsModalAccepted &&
+      taiwanTruthAccepted &&
+      taiwanSubmissionAuthorized &&
+      taiwanFeeResponsibilityAccepted
+    );
+  const taiwanReviewBlocked = isTaiwan && (
+    hasMissing || missingDocumentCount > 0 || conflictCount > 0 || requirementsLoading
+  );
+  const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady || taiwanReviewBlocked ||
     (isPhEtravel && hasMissing) ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (hasLiveAssistedTarget && !liveAssistedEnabled);
@@ -1196,14 +1214,26 @@ function FinalConfirmationPanel({
         <div className="space-y-4 border-y border-[#d7e6fb] py-5">
           <div>
             <h3 className="text-base font-semibold text-[#0b2545]">
-              {isZh ? "台湾官网条款授权" : "Taiwan official terms authorization"}
+              {isZh ? "核对并授权台湾申请提交" : "Review and authorize the Taiwan submission"}
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
               {isZh
-                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。审核通过后如产生官网费用，申请人需按官网通知另行支付，VIZA 不会自动付款。"
-                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, the applicant must pay it separately as instructed by the official site; VIZA will not pay it automatically."}
+                ? "请先核对上方将提交的资料与文件。确认后，VIZA 会在后台完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。"
+                : "Review the information and files shown above. After confirmation, VIZA completes the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified."}
             </p>
           </div>
+          <div className="grid gap-2 border-y border-[#d7e6fb] py-3 text-sm text-[#29496c] sm:grid-cols-3">
+            <div>{isZh ? "关键资料" : "Key information"}: {missingFields.length === 0 ? (isZh ? "已核对" : "Reviewed") : (isZh ? `缺 ${missingFields.length} 项` : `${missingFields.length} missing`)}</div>
+            <div>{isZh ? "支持文件" : "Supporting files"}: {documentProgress.completed}/{documentProgress.total}</div>
+            <div>{isZh ? "冲突与错误" : "Conflicts and errors"}: {conflictCount + missingDocumentCount}</div>
+          </div>
+          {(missingFields.length > 0 || missingDocumentCount > 0 || conflictCount > 0) && (
+            <p className="text-sm font-medium text-amber-800">
+              {isZh
+                ? "仍有缺失或冲突，系统不会创建台湾官网提交任务。请先返回对应资料或文件步骤修正。"
+                : "Missing or conflicting items remain. No Taiwan submission job will be created until they are resolved."}
+            </p>
+          )}
           <ApplicationCheckbox
             id="tw-entry-prompt-consent"
             name="tw-entry-prompt-consent"
@@ -1224,6 +1254,41 @@ function FinalConfirmationPanel({
               ? "我同意台湾官网条款弹窗，并授权 VIZA 勾选「同意上述条款」后点击「确定」。"
               : "I accept the official terms modal and authorize VIZA to check “Agree to the terms above” before clicking Confirm."}
           />
+          <ApplicationCheckbox
+            id="tw-truth-declaration"
+            name="tw-truth-declaration"
+            checked={taiwanTruthAccepted}
+            onCheckedChange={setTaiwanTruthAccepted}
+            required
+            label={isZh
+              ? "我确认上方资料与文件真实、完整且准确，并愿意承担不实或遗漏所产生的责任。"
+              : "I confirm that the information and files above are truthful, complete, and accurate."}
+          />
+          <ApplicationCheckbox
+            id="tw-electronic-submission-authorization"
+            name="tw-electronic-submission-authorization"
+            checked={taiwanSubmissionAuthorized}
+            onCheckedChange={setTaiwanSubmissionAuthorized}
+            required
+            label={isZh
+              ? "我授权 VIZA 代表我将上述资料电子提交至台湾官网，并完成官网最终「确认资料」。"
+              : "I authorize VIZA to electronically submit the information above and complete the official final confirmation on my behalf."}
+          />
+          <ApplicationCheckbox
+            id="tw-official-fee-responsibility"
+            name="tw-official-fee-responsibility"
+            checked={taiwanFeeResponsibilityAccepted}
+            onCheckedChange={setTaiwanFeeResponsibilityAccepted}
+            required
+            label={isZh
+              ? "我了解获批后如产生官方费用，须按官网通知由申请人自行支付；VIZA 不会自动付款。"
+              : "I understand that any official fee due after approval must be paid by the applicant as instructed; VIZA will not pay automatically."}
+          />
+          <p className="text-sm font-medium text-[#0b2545]">
+            {isZh
+              ? "提交后，部分资料可能无法修改。请确认无误后再授权。"
+              : "Some information may no longer be editable after submission. Authorize only after completing your review."}
+          </p>
         </div>
       )}
 
@@ -1235,6 +1300,9 @@ function FinalConfirmationPanel({
             ? {
                 entryPromptAccepted: taiwanEntryPromptAccepted,
                 termsModalAccepted: taiwanTermsModalAccepted,
+                applicantTruthDeclarationAccepted: taiwanTruthAccepted,
+                electronicSubmissionAuthorized: taiwanSubmissionAuthorized,
+                officialFeeResponsibilityAccepted: taiwanFeeResponsibilityAccepted,
               }
             : undefined;
           void Promise.resolve(onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent))
@@ -1265,7 +1333,9 @@ function FinalConfirmationPanel({
               ? isZh
                 ? `还缺 ${missingFields.length} 个必填项`
                 : `${missingFields.length} required ${missingFields.length === 1 ? "item" : "items"} missing`
-              : isZh ? "提交" : "Submit"}
+              : isTaiwan
+                ? isZh ? "确认并授权提交" : "Confirm and authorize submission"
+                : isZh ? "提交" : "Submit"}
           </>
         )}
       </button>
@@ -2569,6 +2639,10 @@ export default function ApplicationPage() {
       ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
       : [],
     [documentCenterData, showStandaloneDocumentStep],
+  );
+  const confirmationDocumentProgress = useMemo(
+    () => getRequiredDocumentProgress(documentCenterData),
+    [documentCenterData],
   );
   const applicationReadyForAssistantReview =
     (!showStandaloneDocumentStep || documentCenterLoaded) &&
@@ -5052,6 +5126,9 @@ export default function ApplicationPage() {
                                   koreaPreflightTrusted={koreaPreflightTrusted}
                                   forceDryRun={forceDryRun}
                                   missingFields={confirmationMissingFields}
+                                  documentProgress={confirmationDocumentProgress}
+                                  missingDocumentCount={missingRequiredDocumentKeys.length}
+                                  conflictCount={formAssistantDisplayValidation?.errors.length ?? 0}
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
@@ -5192,6 +5269,9 @@ export default function ApplicationPage() {
                                   koreaPreflightTrusted={koreaPreflightTrusted}
                                   forceDryRun={forceDryRun}
                                   missingFields={confirmationMissingFields}
+                                  documentProgress={confirmationDocumentProgress}
+                                  missingDocumentCount={missingRequiredDocumentKeys.length}
+                                  conflictCount={formAssistantDisplayValidation?.errors.length ?? 0}
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}

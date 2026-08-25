@@ -64,6 +64,7 @@ import {
   createTwOfficialLoginProviderFromEnvironment,
   createTwOfficialLoginOtpProviderFromEnvironment,
   parseTwOfficialTermsConsentAudit,
+  parseTwSubmissionAuthorizationAudit,
   type TwOfficialTermsConsentAudit,
 } from "../tw/index.js";
 import { resolveApplicationDocumentPaths } from "../documents/resolve-application-documents.js";
@@ -703,9 +704,12 @@ async function loadTwOfficialTermsConsent(
   }
   const metadata = (data as { metadata?: Record<string, unknown> | null }).metadata;
   const consent = parseTwOfficialTermsConsentAudit(metadata?.taiwanOfficialTermsConsent);
-  if (!consent) {
+  const submissionAuthorization = parseTwSubmissionAuthorizationAudit(
+    metadata?.taiwanSubmissionAuthorization,
+  );
+  if (!consent || !submissionAuthorization) {
     throw new NeedsHumanError(
-      "taiwan: both official entry-prompt and terms-modal authorizations are required before formal submission",
+      "taiwan: complete VIZA final confirmation and both official terms authorizations are required before formal submission",
     );
   }
   return consent;

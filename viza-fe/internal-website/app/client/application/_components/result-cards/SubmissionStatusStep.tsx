@@ -2183,10 +2183,7 @@ export function SubmissionStatusStep({
       <div className="space-y-4">
         <TwResultCard
           applicationId={applicationId ?? undefined}
-          retryBusy={resubmitting}
-          retryError={retryError}
           retryCompleteness={retryCompleteness}
-          onRetry={(mode, consent) => handleRetry(mode, undefined, consent)}
           result={buildTwResultFromStatus({
             result: effectiveResult,
             snapshot,

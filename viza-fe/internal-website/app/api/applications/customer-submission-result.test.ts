@@ -27,6 +27,37 @@ describe("sanitizeCustomerSubmissionResult", () => {
     expect(sanitizeCustomerSubmissionResult(result)).toBe(result);
   });
 
+  it("removes Taiwan portal and handoff data while preserving receipt evidence", () => {
+    expect(sanitizeCustomerSubmissionResult({
+      country: "TW",
+      status: "submitted",
+      portalUrl: "https://coa.immigration.gov.tw/private/result",
+      handoffId: "takeover-id",
+      handoffExpiresAt: "2026-08-25T12:00:00.000Z",
+      officialUrl: "https://coa.immigration.gov.tw/apply",
+      diagnostics: {
+        liveViewUrl: "https://live.example.test/session",
+        vncUrl: "wss://browser.example.test/vnc",
+        cdpUrl: "wss://browser.example.test/cdp",
+      },
+      officialReceipt: {
+        source: "official_success_page_with_application_number",
+        caseNumber: "TW-RECEIPT",
+        capturedAt: "2026-08-25T11:00:00.000Z",
+        portalUrl: "https://coa.immigration.gov.tw/private/result",
+      },
+    })).toEqual({
+      country: "TW",
+      status: "submitted",
+      diagnostics: {},
+      officialReceipt: {
+        source: "official_success_page_with_application_number",
+        caseNumber: "TW-RECEIPT",
+        capturedAt: "2026-08-25T11:00:00.000Z",
+      },
+    });
+  });
+
   it("removes nested payment and mailbox secrets while preserving Kenya evidence", () => {
     const result = {
       country: "KE",

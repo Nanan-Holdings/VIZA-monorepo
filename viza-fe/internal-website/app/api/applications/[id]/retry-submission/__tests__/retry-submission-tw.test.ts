@@ -211,6 +211,9 @@ async function post(body: Record<string, unknown>) {
     taiwanOfficialTermsConsent: {
       entryPromptAccepted: true,
       termsModalAccepted: true,
+      applicantTruthDeclarationAccepted: true,
+      electronicSubmissionAuthorized: true,
+      officialFeeResponsibilityAccepted: true,
     },
     ...body,
   }) as never, {
@@ -293,6 +296,13 @@ describe("Taiwan entry permit retry submission API", () => {
           termsModalAccepted: true,
           source: "viza_final_confirmation",
         },
+        taiwanSubmissionAuthorization: {
+          version: "tw_submission_authorization_v1",
+          applicantTruthDeclarationAccepted: true,
+          electronicSubmissionAuthorized: true,
+          officialFeeResponsibilityAccepted: true,
+          source: "viza_final_confirmation",
+        },
       },
     });
     expect(lastApplicationUpdate).toMatchObject({
@@ -302,34 +312,33 @@ describe("Taiwan entry permit retry submission API", () => {
     });
   });
 
-  it("requires both official terms authorizations before enqueueing", async () => {
+  it("requires every VIZA final confirmation before enqueueing", async () => {
     process.env.TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED = "true";
 
-    const missingEntryPrompt = await post({
-      mode: "live_assisted",
-      country: "taiwan",
-      visaType: "TW_ENTRY_PERMIT",
-      taiwanOfficialTermsConsent: {
-        entryPromptAccepted: false,
-        termsModalAccepted: true,
-      },
-    });
-    expect(missingEntryPrompt.status).toBe(422);
-    expect(missingEntryPrompt.body.code).toBe("tw_official_terms_consent_required");
-    expect(lastRunnerJobArgs).toBeNull();
-
-    const missingModal = await post({
-      mode: "live_assisted",
-      country: "taiwan",
-      visaType: "TW_ENTRY_PERMIT",
-      taiwanOfficialTermsConsent: {
-        entryPromptAccepted: true,
-        termsModalAccepted: false,
-      },
-    });
-    expect(missingModal.status).toBe(422);
-    expect(missingModal.body.code).toBe("tw_official_terms_consent_required");
-    expect(lastRunnerJobArgs).toBeNull();
+    for (const key of [
+      "entryPromptAccepted",
+      "termsModalAccepted",
+      "applicantTruthDeclarationAccepted",
+      "electronicSubmissionAuthorized",
+      "officialFeeResponsibilityAccepted",
+    ] as const) {
+      const result = await post({
+        mode: "live_assisted",
+        country: "taiwan",
+        visaType: "TW_ENTRY_PERMIT",
+        taiwanOfficialTermsConsent: {
+          entryPromptAccepted: true,
+          termsModalAccepted: true,
+          applicantTruthDeclarationAccepted: true,
+          electronicSubmissionAuthorized: true,
+          officialFeeResponsibilityAccepted: true,
+          [key]: false,
+        },
+      });
+      expect(result.status).toBe(422);
+      expect(result.body.code).toBe("tw_submission_authorization_required");
+      expect(lastRunnerJobArgs).toBeNull();
+    }
   });
 
   it("rejects live Taiwan submission by default when the server flag is missing", async () => {

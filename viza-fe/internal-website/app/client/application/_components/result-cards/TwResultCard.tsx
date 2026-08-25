@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useLocale } from "next-intl";
 import {
   Warning as AlertTriangle,
@@ -10,32 +9,27 @@ import {
   CircleNotch as Loader2,
   ShieldCheck,
   CloudArrowUp as UploadCloud,
-  ArrowClockwise as RotateCw,
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
-import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { TwSubmissionResult, TwSubmissionStatus } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
-import type {
-  SubmissionMode,
-  TaiwanOfficialTermsConsentInput,
-} from "@/lib/submission-queue";
 
 interface TwResultCardProps {
   applicationId?: string;
   result: TwSubmissionResult;
-  retryBusy?: boolean;
-  retryError?: string | null;
   retryCompleteness?: ApplicationCompletenessResult | null;
-  onRetry?: (
-    mode: SubmissionMode,
-    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
-  ) => Promise<void> | void;
 }
+
+export type TaiwanCustomerSubmissionState =
+  | "needs_confirmation"
+  | "queued"
+  | "running"
+  | "needs_operational_review"
+  | "submitted_with_receipt"
+  | "failed";
 
 type FailureCategory =
   | "missing_required_field"
@@ -127,12 +121,12 @@ const STATUS_META: Record<TwSubmissionStatus, {
     badgeEn: "Validating",
   },
   stopped_at_captcha: {
-    labelZh: "旧流程未完成",
-    labelEn: "Legacy flow incomplete",
-    titleZh: "台湾官网提交尚未完成",
-    titleEn: "Taiwan official submission is incomplete",
-    bodyZh: "这是旧版接管流程留下的状态，不代表已提交。重新确认两项官网条款授权后，VIZA 可在后台重新执行正式提交。",
-    bodyEn: "This is a legacy handoff state and does not mean submitted. Confirm both official-terms authorizations to run the formal background submission again.",
+    labelZh: "需要确认",
+    labelEn: "Confirmation needed",
+    titleZh: "请在 VIZA 内完成最终确认",
+    titleEn: "Complete final confirmation in VIZA",
+    bodyZh: "此状态不代表已提交。请在 VIZA 核对资料与文件，并完成真实性、代提交、费用责任及官网条款授权。",
+    bodyEn: "This status does not mean submitted. Review the data and files in VIZA, then complete the truth, submission, fee, and official-terms authorizations.",
     badgeZh: "未提交",
     badgeEn: "Not submitted",
   },
@@ -226,7 +220,7 @@ export function normalizeTwStatus(
 ): TwSubmissionStatus {
   const raw = `${normalizeToken(currentStage)} ${normalizeToken(status)}`;
 
-  if (/\bstopped_at_captcha\b|\bcaptcha_boundary\b|\bcaptcha_required\b/.test(raw)) return "stopped_at_captcha";
+  if (/\bstopped_at_captcha\b|\bcaptcha_boundary\b|\bcaptcha_required\b|\bready_to_submit\b/.test(raw)) return "stopped_at_captcha";
   if (/\bsubmitted\b|\bcompleted\b/.test(raw)) return "submitted";
   if (/\bfailed\b|\berror\b|\bstalled\b/.test(raw)) return "failed";
   if (/otp|one_time|verification_code|email_code/.test(raw)) return "otp_required";
@@ -292,6 +286,28 @@ function isRecoverableTwFailure(result: TwSubmissionResult, failure: ReturnType<
   );
 }
 
+export function deriveTaiwanCustomerSubmissionState(
+  result: TwSubmissionResult,
+): TaiwanCustomerSubmissionState {
+  const normalized = normalizeTwStatus(result.status, result.currentStage);
+  const hasVerifiedReceipt = Boolean(
+    result.officialReceipt?.caseNumber?.trim() &&
+    result.officialReceipt.source === "official_success_page_with_application_number",
+  );
+  if (normalized === "submitted") {
+    return hasVerifiedReceipt ? "submitted_with_receipt" : "needs_operational_review";
+  }
+  if (normalized === "stopped_at_captcha") return "needs_confirmation";
+  if (normalized === "queued") return "queued";
+  if (["logging_in", "otp_required", "filling", "uploading", "validating"].includes(normalized)) {
+    return "running";
+  }
+  const failure = categorizeTwFailure(result);
+  return ["missing_required_field", "document_invalid"].includes(failure.category)
+    ? "failed"
+    : "needs_operational_review";
+}
+
 function longFormUrl(applicationId: string, params: Record<string, string>): string {
   const search = new URLSearchParams({ applicationId, ...params });
   return `/client/application/long-form?${search.toString()}`;
@@ -330,14 +346,9 @@ function StepPill({
 export function TwResultCard({
   applicationId,
   result,
-  retryBusy = false,
-  retryError = null,
   retryCompleteness = null,
-  onRetry,
 }: TwResultCardProps) {
   const isZh = isChineseLocale(useLocale());
-  const [entryPromptAccepted, setEntryPromptAccepted] = useState(false);
-  const [termsModalAccepted, setTermsModalAccepted] = useState(false);
   const normalizedStatus = normalizeTwStatus(result.status, result.currentStage);
   const hasVerifiedReceipt = Boolean(
     result.officialReceipt?.caseNumber?.trim() &&
@@ -354,8 +365,14 @@ export function TwResultCard({
   const failure = failed ? categorizeTwFailure(result) : null;
   const failureMeta = failure ? FAILURE_META[failure.category] : null;
   const recoverableFailure = isRecoverableTwFailure(result, failure);
-  const canRetry = Boolean(applicationId && onRetry && !submitted && (stopped || recoverableFailure));
-  const termsReady = entryPromptAccepted && termsModalAccepted;
+  const customerState = deriveTaiwanCustomerSubmissionState(result);
+  const needsOperationalReview = customerState === "needs_operational_review";
+  const mayReturnToConfirmation = Boolean(
+    applicationId &&
+    !submitted &&
+    (stopped || recoverableFailure) &&
+    retryCompleteness?.complete !== false,
+  );
 
   return (
     <Card className="rounded-xl border-input">
@@ -366,14 +383,24 @@ export function TwResultCard({
               "h-5 w-5",
               failed ? "text-amber-600" : submitted ? "text-emerald-600" : stopped ? "text-brand-500" : "animate-spin text-brand-500",
             ].join(" ")} />
-            {isZh ? meta.titleZh : meta.titleEn}
+            {needsOperationalReview
+              ? isZh ? "台湾提交需要运营复核" : "Taiwan submission needs operational review"
+              : isZh ? meta.titleZh : meta.titleEn}
           </CardTitle>
-          <Badge variant="secondary" className="w-fit">{isZh ? meta.badgeZh : meta.badgeEn}</Badge>
+          <Badge variant="secondary" className="w-fit">
+            {needsOperationalReview
+              ? isZh ? "运营复核" : "Operational review"
+              : isZh ? meta.badgeZh : meta.badgeEn}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {isZh ? meta.bodyZh : meta.bodyEn}
+          {needsOperationalReview
+            ? isZh
+              ? "VIZA 无法安全确认官网结果，已停止自动推进。当前不会标记为已提交，也不会引导你打开官网；运营将根据脱敏诊断复核。"
+              : "VIZA could not safely verify the official result and stopped. This is not marked submitted and no official-site handoff is exposed; operations will review redacted diagnostics."
+            : isZh ? meta.bodyZh : meta.bodyEn}
         </p>
 
         {!failed && !submitted && (
@@ -387,72 +414,42 @@ export function TwResultCard({
         {stopped && (
           <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
             <div className="font-semibold">
-              {isZh ? "已停在官方验证码前，尚未提交" : "Stopped before the official CAPTCHA and not submitted"}
+              {isZh ? "旧版官网接管状态已停用，尚未提交" : "Legacy official-site handoff retired; not submitted"}
             </div>
             <p>
               {isZh
-                ? "该旧会话不再开放。VIZA 不会把它视为已提交，也不会沿用其中的验证码。"
-                : "The legacy session is no longer opened. VIZA does not treat it as submitted or reuse its CAPTCHA."}
+                ? "该旧会话不会再向申请人开放。VIZA 不会把它视为已提交，也不会沿用其中的验证码。"
+                : "The legacy session is no longer exposed to applicants. VIZA does not treat it as submitted or reuse its CAPTCHA."}
             </p>
             <p>
               {isZh
-                ? "请重新确认下方两项官网条款授权，再由后台正式提交。"
-                : "Confirm both official-terms authorizations below to start a formal background submission."}
+                ? "请返回 VIZA 最终核对页，完成全部声明与授权后再创建新的后台提交任务。"
+                : "Return to VIZA final review and complete every declaration and authorization before starting a new background submission."}
             </p>
           </div>
         )}
 
-        {(stopped || recoverableFailure) && !submitted && (
+        {mayReturnToConfirmation && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2 text-sm leading-relaxed text-amber-950">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <div className="space-y-1">
                 <div className="font-semibold">
-                  {isZh ? "重新执行台湾官网正式提交" : "Run the formal Taiwan submission again"}
+                  {isZh ? "在 VIZA 内重新核对并授权" : "Review and authorize again in VIZA"}
                 </div>
                 <p>
                   {isZh
-                    ? "VIZA 会创建一条单次后台任务，自动填写、处理验证码并点击官网「确认资料」。只有取得官方回执编号才会显示提交成功；不会自动付款。"
-                    : "VIZA creates one background job to fill the form, handle CAPTCHA, and click the official final confirmation. Success requires an official receipt number. Payment is never automatic."}
+                    ? "你不会被带到台湾官网。核对资料、文件与声明后，VIZA 才会创建一条单次后台提交任务。"
+                    : "You will not be sent to the Taiwan official site. VIZA creates one background submission job only after you review the data, files, and declarations."}
                 </p>
               </div>
             </div>
-            <ApplicationCheckbox
-              id="tw-retry-entry-prompt-consent"
-              checked={entryPromptAccepted}
-              onCheckedChange={setEntryPromptAccepted}
-              required
-              label={isZh
-                ? "我同意 VIZA 确认台湾官网进入申请时显示的提示（蓝色 OK）。"
-                : "I authorize VIZA to accept the official entry prompt (blue OK)."}
-            />
-            <ApplicationCheckbox
-              id="tw-retry-terms-modal-consent"
-              checked={termsModalAccepted}
-              onCheckedChange={setTermsModalAccepted}
-              required
-              label={isZh
-                ? "我同意官网条款，并授权 VIZA 勾选「同意上述条款」后点击「确定」。"
-                : "I accept the official terms and authorize VIZA to check the agreement before clicking Confirm."}
-            />
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!canRetry || retryBusy || !termsReady}
-              onClick={() => {
-                if (!canRetry || retryBusy) return;
-                void onRetry?.("live_assisted", {
-                  entryPromptAccepted,
-                  termsModalAccepted,
-                });
-              }}
-            >
-              {retryBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
-              {retryBusy
-                ? isZh ? "正在重新排队" : "Requeueing"
-                : isZh ? "重新正式提交" : "Retry formal submission"}
+            <Button asChild className="w-full">
+              <a href={longFormUrl(applicationId!, { review: "final" })}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                {isZh ? "返回 VIZA 核对并授权提交" : "Return to VIZA review and authorize"}
+              </a>
             </Button>
-            {retryError ? <ClientErrorAlert message={retryError} /> : null}
           </div>
         )}
 

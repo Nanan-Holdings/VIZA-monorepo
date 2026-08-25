@@ -31,7 +31,7 @@ function step(id: number, sourceName: string) {
 }
 
 describe("Taiwan entry permit long-form layout", () => {
-  it("requires and forwards both official terms authorizations at final confirmation", () => {
+  it("requires and forwards all VIZA and official-site authorizations at final confirmation", () => {
     const source = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),
       "utf8",
@@ -39,7 +39,16 @@ describe("Taiwan entry permit long-form layout", () => {
 
     expect(source).toContain('id="tw-entry-prompt-consent"');
     expect(source).toContain('id="tw-terms-modal-consent"');
-    expect(source).toContain("taiwanEntryPromptAccepted && taiwanTermsModalAccepted");
+    expect(source).toContain('id="tw-truth-declaration"');
+    expect(source).toContain('id="tw-electronic-submission-authorization"');
+    expect(source).toContain('id="tw-official-fee-responsibility"');
+    expect(source).toContain("taiwanEntryPromptAccepted &&");
+    expect(source).toContain("taiwanTermsModalAccepted &&");
+    expect(source).toContain("taiwanTruthAccepted &&");
+    expect(source).toContain("taiwanSubmissionAuthorized &&");
+    expect(source).toContain("taiwanFeeResponsibilityAccepted");
+    expect(source).toContain("提交后，部分资料可能无法修改");
+    expect(source).toContain("确认并授权提交");
     expect(source).toContain(
       "onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent)",
     );

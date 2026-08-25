@@ -41,6 +41,8 @@ function statusApplication(overrides: Partial<StatusApplication> = {}): StatusAp
     files: [],
     events: [],
     applicationRecords: [],
+    centerHref: "/client/application/long-form?applicationId=app-1",
+    editable: true,
     ...overrides,
   };
 }

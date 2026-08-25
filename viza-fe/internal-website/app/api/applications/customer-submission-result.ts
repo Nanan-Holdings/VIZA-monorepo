@@ -33,19 +33,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Builds the browser-safe projection of a durable submission result.
- * UK portal credentials and force-resume URLs are runner-only data and must
- * never cross the customer status API boundary, even as ciphertext.
+ * Portal credentials and force-resume URLs are runner-only data and must
+ * never cross the customer status API boundary, even as ciphertext. Taiwan
+ * handoff fields remain available to internal diagnostics only.
  */
 export function sanitizeCustomerSubmissionResult(result: unknown): unknown {
   if (!isRecord(result)) return result;
 
-  const stripPortalUrl = result.country === "UK";
+  const country = typeof result.country === "string" ? result.country.trim().toUpperCase() : "";
+  const stripPortalUrl = country === "UK" || country === "TW" || country === "TAIWAN";
+  const stripTaiwanHandoff = country === "TW" || country === "TAIWAN";
 
-  const sanitize = (value: unknown, removePortalUrl: boolean): [unknown, boolean] => {
+  const sanitize = (
+    value: unknown,
+    removePortalUrl: boolean,
+    removeTaiwanHandoff: boolean,
+  ): [unknown, boolean] => {
     if (Array.isArray(value)) {
       let changed = false;
       const next = value.map((item) => {
-        const [sanitized, itemChanged] = sanitize(item, removePortalUrl);
+        const [sanitized, itemChanged] = sanitize(item, removePortalUrl, removeTaiwanHandoff);
         changed ||= itemChanged;
         return sanitized;
       });
@@ -59,17 +66,32 @@ export function sanitizeCustomerSubmissionResult(result: unknown): unknown {
       const normalizedKey = key.trim().toLowerCase();
       if (
         PRIVATE_RESULT_FIELDS.has(normalizedKey) ||
-        (removePortalUrl && normalizedKey === "portalurl")
+        (removePortalUrl && normalizedKey === "portalurl") ||
+        (removeTaiwanHandoff && [
+          "handoffid",
+          "handoffexpiresat",
+          "liveviewurl",
+          "vncurl",
+          "cdpurl",
+          "takeoversessionid",
+          "officialurl",
+          "officialsiteurl",
+          "resumeurl",
+        ].includes(normalizedKey))
       ) {
         changed = true;
         continue;
       }
-      const [sanitized, childChanged] = sanitize(child, removePortalUrl);
+      const [sanitized, childChanged] = sanitize(
+        child,
+        removePortalUrl,
+        removeTaiwanHandoff,
+      );
       changed ||= childChanged;
       next[key] = sanitized;
     }
     return [changed ? next : value, changed];
   };
 
-  return sanitize(result, stripPortalUrl)[0];
+  return sanitize(result, stripPortalUrl, stripTaiwanHandoff)[0];
 }

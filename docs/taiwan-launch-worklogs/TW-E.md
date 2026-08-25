@@ -106,3 +106,71 @@ API 成功响应预期包含：
 
 - Frontend queue portion can be treated as closed: the frontend API/helper layer can create a traceable Taiwan live queue job id and focused regression tests pin provider, mode, status, stage, default rejection, and duplicate submission behavior.
 - This does not close Taiwan launch overall: real button clicking still depends on TW-G/deployment/routing resolving the long-form body render failure, and actual worker consumption/official submission still depends on TW-A/TW-02/TW-G backend and integration validation.
+
+## 2026-08-25 正式工作区集成：全程留在 VIZA、后台自动提交
+
+本节取代上方旧的 `submission_queue` RPC 入队证据。台湾正式提交现已切换为 canonical `runner_job`，且本次没有创建或重试任何真实 job。
+
+### 集成与冲突检查
+
+- 补丁来源：`/Users/mmmytooo/.codex/.chatgpt-projects/g-p-6a6d6a817d00819191640198c28c83bf/tw-viza-background-submission.patch`
+- `git apply --check --whitespace=error-all`：通过，无 whitespace error 或上下文冲突。
+- 应用前逐项对比补丁文件与未提交改动：Mock Interview、DS-160 guide、登录和 application-center 的并行改动均不与补丁同文件重叠。
+- 补丁直接应用成功；无需三方合并或人工冲突处理，也没有覆盖其他 AI 改动。
+- `git diff --check`：通过。
+
+### 实际应用文件
+
+- `viza-fe/internal-website/lib/submission-queue.ts`
+- `viza-fe/internal-website/app/client/application/long-form/page.tsx`
+- `viza-fe/internal-website/app/client/application/long-form/__tests__/taiwan-entry-permit-layout.test.ts`
+- `viza-fe/internal-website/app/client/application/_components/result-cards/TwResultCard.tsx`
+- `viza-fe/internal-website/app/client/application/_components/result-cards/__tests__/TwResultCard.test.tsx`
+- `viza-fe/internal-website/app/client/application/_components/result-cards/SubmissionStatusStep.tsx`
+- `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/retry-submission/__tests__/retry-submission-tw.test.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.test.ts`
+- `viza-fe/internal-website/app/api/applications/customer-submission-result.ts`
+- `viza-fe/internal-website/app/api/applications/customer-submission-result.test.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/submission-status/route-handler.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
+- `viza-be/submission-service/src/queue/halt-runners.ts`
+- `viza-be/submission-service/src/tw/index.ts`
+- `viza-be/submission-service/src/tw/submission-authorization.ts`（新增）
+- `viza-be/submission-service/src/tw/__tests__/submission-authorization.spec.ts`（新增）
+- `viza-be/submission-service/src/tw/__tests__/compliance.spec.ts`
+- `docs/taiwan-launch-worklogs/TW-E.md`（本记录）
+
+### 验收行为
+
+- 用户只在 VIZA 最终核对页完成五项确认：两项官网条款、资料真实性声明、电子代提交授权、官方费用责任确认。
+- 前端在缺字段、缺文件、资料冲突或 requirements 尚未加载时禁用台湾提交；API 再次执行 completeness 检查，未完成时返回 `application_incomplete`，不会调用 `enqueueRunnerJob`。
+- 台湾 live 开关继续 fail-closed：只有服务端 `TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED === "true"` 才允许正式入队，不读取 `NEXT_PUBLIC_*` 放行。
+- 正式提交调用 canonical `enqueueRunnerJob(applicationId, "taiwan", ...)`，测试返回可追踪 `jobId = runner_tw_live_001`；响应包含 `queueBackend = runner_job`、`queueStatus = tw_live_assisted_pending`、`mode = live_assisted`、`provider = taiwan_overseas_cn_entry_permit_live`。
+- runner metadata 包含版本化 `taiwanOfficialTermsConsent` 与 `taiwanSubmissionAuthorization`；submission-service 在正式提交前同时校验两组审计记录。
+- 双击/重复提交受两层保护：已有 active `runner_job` 返回 409；canonical enqueue 返回 `created = false` 时复用原 `jobId` 并返回 `alreadyQueued = true`。
+- 客户状态固定为 `needs_confirmation`、`queued`、`running`、`needs_operational_review`、`submitted_with_receipt`、`failed` 六类。只有 `officialReceipt.source = official_success_page_with_application_number` 且有非空 `caseNumber` 才显示已提交；无 receipt 的 submitted 进入运营复核。
+- 台湾公开 handoff API 对已认证申请人返回 410，对未认证请求返回 401；客户 API 递归移除 `portalUrl`、handoff、Live View、VNC/CDP、official/resume URL 字段，同时保留脱敏 receipt 证据。
+- 台湾结果卡只提供返回 VIZA 最终核对页的 CTA；没有台湾官网跳转、Live View 或 handoff CTA。
+
+### 验证命令与结果
+
+- 前端 focused tests：
+  - 命令：`npm test -- --run 'lib/__tests__/submission-queue.test.ts' 'app/client/application/long-form/__tests__/taiwan-entry-permit-layout.test.ts' 'app/client/application/_components/result-cards/__tests__/TwResultCard.test.tsx' 'app/api/applications/[id]/retry-submission/__tests__/retry-submission-tw.test.ts' 'app/api/applications/[id]/taiwan-handoff/route.test.ts' 'app/api/applications/customer-submission-result.test.ts' 'app/api/applications/[id]/submission-status/route.test.ts'`
+  - 结果：通过，7 files，100/100 tests。
+- submission-service focused tests：
+  - 命令：`node --import tsx --test 'src/tw/__tests__/submission-authorization.spec.ts' 'src/tw/__tests__/official-terms-consent.spec.ts' 'src/tw/__tests__/compliance.spec.ts' 'src/tw/__tests__/receipt.spec.ts'`
+  - 结果：通过，19/19 tests。
+- 前端 typecheck：在 `viza-fe/internal-website` 运行 `npm run type-check`，通过。
+- submission-service typecheck：在 `viza-be/submission-service` 运行 `npm run type-check`，通过。
+- 前端 focused lint：对 14 个补丁涉及的前端 TS/TSX 文件运行本地 ESLint，0 errors。`SubmissionStatusStep.tsx` 有 2 个既有 warning，补丁只删除该文件中的台湾 retry props，未触及 warning 行；测试文件按仓库 lint ignore 配置跳过。
+- submission-service 没有 lint script 或 ESLint/Biome 配置；以 focused tests 和 `tsc --noEmit` 验证。
+
+### READY_FOR_COMMIT 与生产审批
+
+- 台湾补丁本身：`READY_FOR_COMMIT`。正式工作区仍同时包含其他并行未提交改动，后续必须只选择性暂存本节列出的台湾文件；本工作包未 commit、push 或 deploy。
+- 仍需发布负责人批准并执行 internal-website 与 submission-service 同批部署。
+- 仍需生产配置负责人明确设置服务端 `TW_ENTRY_PERMIT_LIVE_SUBMISSION_ENABLED=true`；缺失或其他值均保持拒绝。
+- 部署后仍需经业务/合规与运营批准的受控 smoke：使用已授权测试申请创建单一真实 `runner_job`，确认 worker 消费、状态回写及官方 receipt 后再扩大流量。本工作包未访问台湾官网、未提交真实申请、未读取密钥或申请人资料。
+- 本补丁不需要数据库 migration，也未更改 production DB 或 env。

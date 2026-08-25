@@ -98,6 +98,13 @@ export {
 } from "./official-terms-consent";
 
 export {
+  TW_SUBMISSION_AUTHORIZATION_VERSION,
+  assertTwSubmissionAuthorizationAudit,
+  parseTwSubmissionAuthorizationAudit,
+  type TwSubmissionAuthorizationAudit,
+} from "./submission-authorization";
+
+export {
   runTwFormalRunnerPreflight,
   type TwFormalPreflightDiagnostic,
   type TwFormalPreflightInput,
