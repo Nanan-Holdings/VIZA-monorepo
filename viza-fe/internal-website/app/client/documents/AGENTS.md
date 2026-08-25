@@ -13,8 +13,9 @@ application flow.
 
 - Render checklist rows from `document_requirements` or
   `visa_packages.metadata.document_checklist`.
-- Use a conservative fallback checklist only when package-specific requirements
-  are missing.
+- Use a hard-coded fallback only for an explicitly identified product whose
+  requirements have been reviewed. If package-specific requirements are
+  missing, return an empty checklist; never invent a shared generic checklist.
 - Persist uploads to Supabase Storage bucket `application-documents`.
 - Confirm passport OCR into reusable profile columns and confirm national
   identity-card OCR into `universal_profile_answers`; keep identity-card

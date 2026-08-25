@@ -664,6 +664,7 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
       purpose: null,
     },
     answers: {
+      sgac_applicant_type: "foreign_visitor",
       purpose_of_travel: "holiday",
       place_of_birth_country: "Singapore",
       place_of_residence: "CHINA, BEIJING, BEIJING",
@@ -679,6 +680,7 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
       accommodation_other_type: "friends",
       recent_country_visit_history: "none",
       has_health_symptoms: "no",
+      ica_declaration_accepted: "true",
       health_declaration: "yes",
       official_submission_acknowledgement: "yes",
       final_declaration: "yes",
@@ -700,6 +702,7 @@ test("registry: SG Arrival Card validates every conditional transport and health
   assert.ok(provider);
 
   const baseAnswers = {
+    sgac_applicant_type: "foreign_visitor",
     purpose_of_travel: "holiday",
     place_of_birth_country: "Singapore",
     place_of_residence: "CHINA, BEIJING, BEIJING",
@@ -711,6 +714,7 @@ test("registry: SG Arrival Card validates every conditional transport and health
     accommodation_other_type: "transit",
     has_health_symptoms: "no",
     recent_country_visit_history: "no",
+    ica_declaration_accepted: "true",
   };
   const validate = (answers: Record<string, string>) =>
     provider.validate(
@@ -771,6 +775,48 @@ test("registry: SG Arrival Card validates every conditional transport and health
     recent_high_risk_region_visit_history: "no",
   });
   assert.equal(symptomsYes.ok, true);
+});
+
+test("registry: one SG Arrival Card provider validates both ICA resident routes", () => {
+  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+  assert.ok(provider);
+
+  const validateResident = (answers: Record<string, string>) => provider.validate(
+    baseApplication({
+      countryCode: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Singapore",
+        departureDate: null,
+      },
+      answers: {
+        has_health_symptoms: "no",
+        recent_country_visit_history: "no",
+        ica_declaration_accepted: "true",
+        ...answers,
+      },
+    }),
+  );
+
+  assert.equal(validateResident({
+    sgac_applicant_type: "singapore_citizen_or_permanent_resident",
+    singapore_nric: "S1234567D",
+    mode_of_travel: "air",
+    accommodation_type: "hotel",
+  }).ok, true);
+  assert.equal(validateResident({
+    sgac_applicant_type: "long_term_pass_holder",
+    singapore_fin: "G1234567X",
+  }).ok, true);
+
+  const missingNric = validateResident({
+    sgac_applicant_type: "singapore_citizen_or_permanent_resident",
+  });
+  assert.equal(missingNric.ok, false);
+  assert.ok(missingNric.missingRequiredFields.includes("answers.singapore_nric"));
+  assert.equal(missingNric.missingRequiredFields.includes("profile.passportNumber"), false);
+  assert.equal(missingNric.missingRequiredFields.includes("trip.departureDate"), false);
 });
 
 test("from-records: prefers the latest SGAC answers over stale profile and application columns", () => {
@@ -867,12 +913,14 @@ test("registry: SG Arrival Card rejects missing purpose_of_travel without using 
         purpose: null,
       },
       answers: {
+        sgac_applicant_type: "foreign_visitor",
         mode_of_travel: "air",
         transport_number: "SQ317",
         place_of_residence: "CHINA, BEIJING, BEIJING",
         last_city_or_port_before_singapore: "Kuala Lumpur",
         next_city_or_port_after_singapore: "Bangkok",
         accommodation_type: "others",
+        ica_declaration_accepted: "true",
         health_declaration: "yes",
         official_submission_acknowledgement: "yes",
         final_declaration: "yes",

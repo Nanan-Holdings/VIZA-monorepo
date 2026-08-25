@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -25,13 +26,20 @@ import {
   buildUniversalProfileFieldDefinitions,
   canonicalizeUniversalProfileFieldName,
   getUniversalProfileCategory,
-  isReusableUniversalProfileField,
-  splitUniversalProfileRepeatKey,
   type UniversalProfileAnswerRecord,
   type UniversalProfileFieldDefinition,
 } from "@/lib/universal-profile-fields";
+import {
+  buildUniversalProfileSyncCandidates,
+  getUniversalProfileSyncChanges,
+  preserveUnchangedUniversalProfileTranslations,
+  type UniversalProfileSyncCandidate,
+  type UniversalProfileSyncChange,
+} from "@/lib/universal-profile-sync";
 import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
+import { resolveApplicationAgreement } from "@/lib/application-agreements";
+import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { retryTransientSupabaseResult } from "@/lib/supabase/fetch-with-timeout";
 import {
   cacheApplicationAnswers,
@@ -284,6 +292,77 @@ function isMissingSchemaFeatureError(
       normalized.includes("relation")) &&
     featureNames.some((name) => normalized.includes(name.toLowerCase()))
   );
+}
+
+function isAcceptedAgreementValue(value: string | undefined): boolean {
+  return ["true", "yes", "1", "on"].includes((value ?? "").trim().toLowerCase());
+}
+
+function agreementContentFingerprint(contentEn: string, contentZh: string | null): string {
+  // This identifies a statement version for audit history. It is not used as a
+  // security primitive or password hash.
+  return createHash("md5").update(`${contentEn}\u0000${contentZh ?? ""}`).digest("hex");
+}
+
+async function recordApplicationAgreementAcceptances(input: {
+  adminClient: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  country: string | null;
+  visaType: string | null;
+  answers: Record<string, string>;
+  occurredAt: string;
+}): Promise<string | null> {
+  const changedFieldNames = Object.keys(input.answers);
+  if (changedFieldNames.length === 0 || !input.visaType) return null;
+
+  const schemaVisaType = resolveVisaFormSchemaVisaType(input.visaType, input.country);
+  const { data, error } = await input.adminClient
+    .from("visa_form_fields")
+    .select("*")
+    .eq("visa_type", schemaVisaType)
+    .in("field_name", changedFieldNames);
+  if (error) return error.message;
+
+  const agreements = (data ?? [])
+    .map((row) => normalizeBilingualFormField(dbRowToFormField(row as VisaFormFieldDbRow)))
+    .map((field) => ({ field, agreement: resolveApplicationAgreement(field) }))
+    .filter((item): item is { field: ReturnType<typeof normalizeBilingualFormField>; agreement: NonNullable<ReturnType<typeof resolveApplicationAgreement>> } => Boolean(item.agreement));
+  if (agreements.length === 0) return null;
+
+  const revokedFieldNames = agreements
+    .filter(({ field }) => !isAcceptedAgreementValue(input.answers[field.fieldName]))
+    .map(({ field }) => field.fieldName);
+  if (revokedFieldNames.length > 0) {
+    const { error: revokeError } = await input.adminClient
+      .from("application_agreement_acceptances")
+      .update({ revoked_at: input.occurredAt, updated_at: input.occurredAt })
+      .eq("application_id", input.applicationId)
+      .in("field_name", revokedFieldNames)
+      .is("revoked_at", null);
+    if (revokeError) return revokeError.message;
+  }
+
+  const acceptedRows = agreements
+    .filter(({ field }) => isAcceptedAgreementValue(input.answers[field.fieldName]))
+    .map(({ field, agreement }) => ({
+      application_id: input.applicationId,
+      field_name: field.fieldName,
+      content_fingerprint: agreementContentFingerprint(agreement.contentEn, agreement.contentZh),
+      agreement_version: agreement.version,
+      agreement_content_en: agreement.contentEn,
+      agreement_content_zh: agreement.contentZh,
+      source_url: agreement.sourceUrl,
+      source_label: agreement.sourceLabel,
+      accepted_at: input.occurredAt,
+      revoked_at: null,
+      updated_at: input.occurredAt,
+    }));
+  if (acceptedRows.length === 0) return null;
+
+  const { error: acceptanceError } = await input.adminClient
+    .from("application_agreement_acceptances")
+    .upsert(acceptedRows, { onConflict: "application_id,field_name,content_fingerprint" });
+  return acceptanceError?.message ?? null;
 }
 
 interface UniversalProfileAnswerDbRow {
@@ -707,7 +786,7 @@ async function saveDynamicAnswersOnce(
     });
     const { data: app, error: appError } = await adminClient
       .from("applications")
-      .select("id, applicant_id")
+      .select("id, applicant_id, country, visa_type")
       .eq("id", applicationId)
       .single();
 
@@ -805,6 +884,16 @@ async function saveDynamicAnswersOnce(
         }
       }
     }
+
+    const agreementError = await recordApplicationAgreementAcceptances({
+      adminClient,
+      applicationId,
+      country: app.country ?? null,
+      visaType: app.visa_type ?? null,
+      answers,
+      occurredAt: now,
+    });
+    if (agreementError) return { error: agreementError };
 
     // Dynamic visa form saves are application-scoped. Universal Profile is a
     // reusable source for initial autofill and must only change through explicit
@@ -1177,8 +1266,146 @@ export async function saveUniversalProfileAnswerValues(input: {
   }
 }
 
+interface ApplicationUniversalProfileSyncSource {
+  application: {
+    id: string;
+    applicant_id: string;
+    visa_type: string;
+  };
+  candidates: UniversalProfileSyncCandidate[];
+  changes: UniversalProfileSyncChange[];
+  skippedCount: number;
+}
+
+async function loadApplicationUniversalProfileSyncSource(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+  applicationId: string,
+): Promise<{ source?: ApplicationUniversalProfileSyncSource; error?: string }> {
+  const { data: application, error: applicationError } = await adminClient
+    .from("applications")
+    .select("id, applicant_id, visa_type, purpose")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (applicationError) return { error: applicationError.message };
+  if (!application?.applicant_id || !application.visa_type) {
+    return { error: "Application not found" };
+  }
+  if (isQaDryRunPurpose(application.purpose)) {
+    return {
+      error: "QA dry-run answers cannot be copied into Universal Profile.",
+    };
+  }
+
+  const ownerResult = await loadApplicationOwnerProfile(
+    adminClient,
+    application.applicant_id,
+  );
+  if (ownerResult.error) return { error: ownerResult.error };
+  if (!ownsApplication(ownerResult.profile, userId)) {
+    return { error: "Unauthorized" };
+  }
+
+  const [
+    { data: schemaRows, error: schemaError },
+    { data: answerRows, error: answerError },
+    existingResult,
+  ] = await Promise.all([
+    adminClient
+      .from("visa_form_fields")
+      .select("*")
+      .eq("visa_type", application.visa_type)
+      .order("step_number", { ascending: true })
+      .order("display_order", { ascending: true }),
+    adminClient
+      .from("visa_application_answers")
+      .select("field_name, value_text")
+      .eq("application_id", applicationId),
+    loadReusableProfileAnswers(adminClient, userId),
+  ]);
+  if (schemaError) return { error: schemaError.message };
+  if (answerError) return { error: answerError.message };
+  if (!existingResult.schemaAvailable) {
+    return { error: "Universal Profile schema is not installed" };
+  }
+  if (existingResult.error) return { error: existingResult.error };
+
+  const fields = ((schemaRows ?? []) as VisaFormFieldDbRow[]).map((row) =>
+    normalizeBilingualFormField(dbRowToFormField(row)),
+  );
+  const candidateResult = buildUniversalProfileSyncCandidates(
+    fields,
+    (answerRows ?? []) as Array<{
+      field_name: string;
+      value_text: string | null;
+    }>,
+  );
+  const candidates = preserveUnchangedUniversalProfileTranslations(
+    candidateResult.candidates,
+    existingResult.answers,
+  );
+
+  return {
+    source: {
+      application: {
+        id: application.id,
+        applicant_id: application.applicant_id,
+        visa_type: application.visa_type,
+      },
+      candidates,
+      changes: getUniversalProfileSyncChanges(
+        candidates,
+        existingResult.answers,
+      ),
+      skippedCount: candidateResult.skippedCount,
+    },
+  };
+}
+
+export async function loadApplicationUniversalProfileChanges(
+  applicationId: string,
+): Promise<{
+  changes: UniversalProfileSyncChange[];
+  skippedCount?: number;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { changes: [], error: "Not authenticated" };
+
+    const result = await loadApplicationUniversalProfileSyncSource(
+      createAdminClient(),
+      user.id,
+      applicationId,
+    );
+    if (result.error || !result.source) {
+      return { changes: [], error: result.error ?? "Could not compare profile" };
+    }
+
+    await auditPiiRead(
+      "actions/visa-application-answers:loadApplicationUniversalProfileChanges",
+      result.source.application.applicant_id,
+      ["form_answers", "passport", "contact", "address"],
+      { purpose: "self_view" },
+    );
+
+    return {
+      changes: result.source.changes,
+      skippedCount: result.source.skippedCount,
+    };
+  } catch (err) {
+    return {
+      changes: [],
+      error: err instanceof Error ? err.message : "Failed to compare universal profile",
+    };
+  }
+}
+
 export async function syncApplicationAnswersToUniversalProfile(
-  applicationId: string
+  applicationId: string,
 ): Promise<{ savedCount?: number; skippedCount?: number; error?: string }> {
   try {
     const supabase = await createClient();
@@ -1188,129 +1415,72 @@ export async function syncApplicationAnswersToUniversalProfile(
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const { data: application, error: applicationError } = await adminClient
-      .from("applications")
-      .select("id, applicant_id, visa_type, purpose")
-      .eq("id", applicationId)
-      .maybeSingle();
-    if (applicationError) return { error: applicationError.message };
-    if (!application?.applicant_id) return { error: "Application not found" };
-    if (isQaDryRunPurpose(application.purpose)) {
-      return {
-        error: "QA dry-run answers cannot be copied into Universal Profile.",
-      };
+    const result = await loadApplicationUniversalProfileSyncSource(
+      adminClient,
+      user.id,
+      applicationId,
+    );
+    if (result.error || !result.source) {
+      return { error: result.error ?? "Could not compare profile" };
     }
 
-    const ownerResult = await loadApplicationOwnerProfile(
-      adminClient,
-      application.applicant_id
-    );
-    if (ownerResult.error) return { error: ownerResult.error };
-    if (!ownsApplication(ownerResult.profile, user.id))
-      return { error: "Unauthorized" };
+    const { application, candidates, changes, skippedCount } = result.source;
+    if (changes.length === 0) return { savedCount: 0, skippedCount };
 
-    const [
-      { data: schemaRows, error: schemaError },
-      { data: answerRows, error: answerError },
-    ] = await Promise.all([
-      adminClient
-        .from("visa_form_fields")
-        .select("*")
-        .eq("visa_type", application.visa_type),
-      adminClient
-        .from("visa_application_answers")
-        .select("field_name, value_text")
-        .eq("application_id", applicationId),
-    ]);
-    if (schemaError) return { error: schemaError.message };
-    if (answerError) return { error: answerError.message };
-
-    const fields = ((schemaRows ?? []) as VisaFormFieldDbRow[]).map((row) =>
-      normalizeBilingualFormField(dbRowToFormField(row))
-    );
-    const fieldsByName = new Map(
-      fields.map((field) => [field.fieldName, field])
-    );
-    const answers = new Map(
-      (
-        (answerRows ?? []) as Array<{
-          field_name: string;
-          value_text: string | null;
-        }>
-      ).map((row) => [row.field_name, row.value_text?.trim() ?? ""] as const)
+    const changedKeys = new Set(changes.map((change) => change.canonicalKey));
+    const changedCandidates = candidates.filter((candidate) =>
+      changedKeys.has(candidate.canonicalKey),
     );
     const now = new Date().toISOString();
-    const upserts: Record<string, unknown>[] = [];
+    const upserts = changedCandidates.map((candidate) => ({
+      applicant_id: application.applicant_id,
+      auth_user_id: user.id,
+      canonical_key: candidate.canonicalKey,
+      value_text: candidate.value,
+      value_zh: candidate.valueZh,
+      value_en: candidate.valueEn,
+      label_zh: candidate.labelZh,
+      label_en: candidate.labelEn,
+      field_type: candidate.field.fieldType,
+      category: candidate.category,
+      source_application_id: applicationId,
+      source_visa_type: application.visa_type,
+      source_field_name: candidate.sourceFieldName,
+      field_schema: candidate.field,
+      updated_at: now,
+    }));
     const legacyProfilePatch: Record<string, string> = {};
-    let skippedCount = 0;
-
-    for (const [fieldName, value] of answers) {
-      if (
-        !value ||
-        fieldName.endsWith("_zh") ||
-        fieldName.endsWith("_en") ||
-        fieldName.startsWith("__")
-      )
-        continue;
-      const { baseKey, repeatSuffix } =
-        splitUniversalProfileRepeatKey(fieldName);
-      const field = fieldsByName.get(baseKey);
-      if (!field || !isReusableUniversalProfileField(field)) {
-        skippedCount += 1;
-        continue;
-      }
-      const valueZh = cleanOptional(answers.get(`${fieldName}_zh`));
-      const valueEn = cleanOptional(answers.get(`${fieldName}_en`));
-      if (
-        isSyntheticQaValue(value) ||
-        isSyntheticQaValue(valueZh) ||
-        isSyntheticQaValue(valueEn)
-      ) {
-        skippedCount += 1;
-        continue;
-      }
-      const canonicalKey = `${canonicalizeUniversalProfileFieldName(baseKey)}${repeatSuffix}`;
+    for (const candidate of changedCandidates) {
+      const repeatSuffix = candidate.canonicalKey.match(/__\d+$/)?.[0] ?? "";
       const legacyColumn = repeatSuffix
         ? null
-        : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[canonicalKey];
-      if (legacyColumn) {
-        legacyProfilePatch[legacyColumn] = value;
-        if (
-          valueZh &&
-          UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_zh`)
-        ) {
-          legacyProfilePatch[`${legacyColumn}_zh`] = valueZh;
-        }
-        if (
-          valueEn &&
-          UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_en`)
-        ) {
-          legacyProfilePatch[`${legacyColumn}_en`] = valueEn;
-        }
+        : UNIVERSAL_TO_LEGACY_PROFILE_COLUMN[candidate.canonicalKey];
+      if (!legacyColumn) continue;
+      legacyProfilePatch[legacyColumn] = candidate.value;
+      if (
+        candidate.valueZh
+        && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_zh`)
+      ) {
+        legacyProfilePatch[`${legacyColumn}_zh`] = candidate.valueZh;
       }
-      upserts.push({
-        applicant_id: application.applicant_id,
-        auth_user_id: user.id,
-        canonical_key: canonicalKey,
-        value_text: value,
-        value_zh: valueZh,
-        value_en: valueEn,
-        label_zh: getChineseLabel(field.label),
-        label_en: getEnglishLabel(field.label),
-        field_type: field.fieldType,
-        category: getUniversalProfileCategory(
-          canonicalKey,
-          field.stepName ?? ""
-        ),
-        source_application_id: applicationId,
-        source_visa_type: application.visa_type,
-        source_field_name: fieldName,
-        field_schema: field,
-        updated_at: now,
-      });
+      if (
+        candidate.valueEn
+        && UNIVERSAL_PROFILE_SAVE_FIELD_SET.has(`${legacyColumn}_en`)
+      ) {
+        legacyProfilePatch[`${legacyColumn}_en`] = candidate.valueEn;
+      }
     }
 
-    if (upserts.length === 0) return { savedCount: 0, skippedCount };
+    if (Object.keys(legacyProfilePatch).length > 0) {
+      const { error: profileUpdateError } = await adminClient
+        .from("applicant_profiles")
+        .update({ ...legacyProfilePatch, updated_at: now })
+        .eq("id", application.applicant_id);
+      if (profileUpdateError) return { error: profileUpdateError.message };
+    }
+
+    // Write the field-keyed source of truth last. If the legacy compatibility
+    // update fails, the preview remains unchanged and the user can safely retry.
     const { error: upsertError } = await adminClient
       .from("universal_profile_answers")
       .upsert(upserts, { onConflict: "auth_user_id,canonical_key" });
@@ -1321,14 +1491,6 @@ export async function syncApplicationAnswersToUniversalProfile(
         return { error: "Universal Profile schema is not installed" };
       }
       return { error: upsertError.message };
-    }
-
-    if (Object.keys(legacyProfilePatch).length > 0) {
-      const { error: profileUpdateError } = await adminClient
-        .from("applicant_profiles")
-        .update({ ...legacyProfilePatch, updated_at: now })
-        .eq("id", application.applicant_id);
-      if (profileUpdateError) return { error: profileUpdateError.message };
     }
 
     return { savedCount: upserts.length, skippedCount };

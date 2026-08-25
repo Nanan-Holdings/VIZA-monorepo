@@ -42,6 +42,10 @@ Scope: Philippines eTravel-specific frontend helpers.
   an authoritative post-submit registration read and stable `reference_number`,
   treat QR as a client render derived from that reference, and never permit
   automatic re-submit for an ambiguous result.
+- `PhEtravelResultCard.tsx` renders the compact applicant-facing terminal
+  status, reference, QR, confirmation screenshot/PDF evidence, and official
+  portal link. It may render submitted UI only after `result-recovery.ts`
+  classifies the stored result as an authoritative submitted candidate.
 - `coverage-parity.ts` owns the E17 machine-checkable 111-record frontend
   parity map. It may gate unresolved fields, but must never promote runtime,
   result, legacy QR alias, or diverted records into applicant inputs.

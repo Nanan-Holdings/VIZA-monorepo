@@ -29,6 +29,16 @@ describe('visa product registry', () => {
     expect(VISA_PRODUCT_REGISTRY.AE_TOURIST_VISA.country).toBe('united_arab_emirates');
   });
 
+  it('has one Singapore arrival-card product and keeps the entry visa separate', () => {
+    const singaporeProducts = Object.values(VISA_PRODUCT_REGISTRY)
+      .filter((product) => product.country === 'singapore');
+    expect(singaporeProducts.filter((product) => product.kind === 'arrival_declaration'))
+      .toEqual([VISA_PRODUCT_REGISTRY.SG_ARRIVAL_CARD]);
+    expect(VISA_PRODUCT_REGISTRY.SG_VISITOR_VISA.kind).toBe('visa');
+    expect(VISA_PRODUCT_REGISTRY.SG_VISITOR_VISA.productCode)
+      .not.toBe(VISA_PRODUCT_REGISTRY.SG_ARRIVAL_CARD.productCode);
+  });
+
   it('normalizes legacy product aliases without exposing hybrid products', () => {
     expect(canonicalProductCode('tourist_b211a')).toBe('ID_C1_TOURIST');
     expect(canonicalProductCode('c3_or_keta')).toBe('KR_C39_SHORT_TERM_VISIT');

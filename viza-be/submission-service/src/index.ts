@@ -182,6 +182,7 @@ import {
   normalizeSgacPortalPayload,
   runSgacPortalSubmission,
   SGAC_OFFICIAL_PORTAL_URL,
+  sgacPortalUrlForPayload,
   SgacPortalError,
   SgacPortalValidationError,
 } from "./sgac";
@@ -5944,17 +5945,17 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       return;
     }
 
+    const portalPayload = normalizeSgacPortalPayload(payload);
     await supabase
       .from("submission_queue")
       .update({
         current_stage: "running_ica_portal",
-        official_portal_url: SGAC_OFFICIAL_PORTAL_URL,
+        official_portal_url: sgacPortalUrlForPayload(portalPayload),
         heartbeat_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
 
-    const portalPayload = normalizeSgacPortalPayload(payload);
     portalHeartbeatTimer = setInterval(() => {
       void supabase
         .from("submission_queue")

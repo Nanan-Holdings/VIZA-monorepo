@@ -83,6 +83,9 @@ Smoke at least one route that uses the changed primitive.
   badge, or secondary label. Confirm the product rationale with Edward and
   obtain his explicit approval before proposing any future optional marker.
   `application-form-controls.tsx` remains a compatibility re-export only.
+- `application-form-metadata.tsx`: compact reusable metadata for form fields.
+  Character counts render inside a control, while the AI-filled indicator is a
+  text-only upper-right control marker matched to the count's 11px type scale.
 - `supporting-document-card.tsx`: shared visual shell for individual document
   upload cards; upload behavior remains owned by the consuming feature.
 - `document-upload-field.tsx` and `document-pdf-preview.tsx`: canonical upload

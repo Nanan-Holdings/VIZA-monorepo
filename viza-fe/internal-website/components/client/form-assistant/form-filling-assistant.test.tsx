@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en.json";
@@ -41,6 +41,7 @@ function renderAssistant(
 describe("FormFillingAssistant", () => {
   const originalMediaRecorder = globalThis.MediaRecorder;
   const originalMediaDevices = navigator.mediaDevices;
+  const originalMatchMedia = window.matchMedia;
 
   afterEach(() => {
     Object.defineProperty(globalThis, "MediaRecorder", {
@@ -51,6 +52,11 @@ describe("FormFillingAssistant", () => {
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: originalMediaDevices,
+      writable: true,
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
       writable: true,
     });
     vi.restoreAllMocks();
@@ -71,6 +77,18 @@ describe("FormFillingAssistant", () => {
     expect(screen.queryByRole("button", { name: /Passport number/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review answers" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Press Enter to send/)).not.toBeInTheDocument();
+  });
+
+  it("keeps submitted application history visible without editable voice or text controls", () => {
+    renderAssistant({ readOnly: true });
+
+    expect(screen.getByRole("region", { name: "Form filling assistant" })).toBeInTheDocument();
+    expect(screen.getByText("What is your passport number?")).toBeInTheDocument();
+    expect(screen.getByTestId("form-assistant-read-only-notice")).toHaveTextContent(
+      "Your assistant conversation remains available here for reference.",
+    );
+    expect(screen.getByRole("textbox", { name: "Message for the form filling assistant" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start voice input" })).toBeDisabled();
   });
 
   it("does not render a loading answer-check action before assistant state is ready", () => {
@@ -112,6 +130,59 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByText("Current question")).toBeInTheDocument();
   });
 
+  it("reveals a newly received assistant reply one character at a time", () => {
+    vi.useFakeTimers();
+    renderAssistant({
+      messages: [{
+        id: "assistant-new",
+        role: "assistant",
+        content: "Your answer was saved. What is your flight number?",
+        animate: true,
+      }],
+    });
+
+    const typingMessage = screen.getByTestId("form-assistant-typing-message");
+    expect(typingMessage).toHaveAttribute("data-typing", "true");
+    expect(typingMessage).toHaveAttribute(
+      "aria-label",
+      "Your answer was saved. What is your flight number?",
+    );
+    expect(typingMessage).toHaveTextContent("Y");
+    expect(typingMessage).not.toHaveTextContent("Your answer was saved");
+
+    for (const _character of Array.from(
+      "Your answer was saved. What is your flight number?",
+    )) {
+      act(() => vi.runOnlyPendingTimers());
+    }
+
+    expect(typingMessage).toHaveAttribute("data-typing", "false");
+    expect(typingMessage).toHaveTextContent(
+      "Your answer was saved. What is your flight number?",
+    );
+  });
+
+  it("shows the complete new reply immediately when reduced motion is enabled", () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+      writable: true,
+    });
+
+    renderAssistant({
+      messages: [{
+        id: "assistant-reduced-motion",
+        role: "assistant",
+        content: "What is your flight number?",
+        animate: true,
+      }],
+    });
+
+    const typingMessage = screen.getByTestId("form-assistant-typing-message");
+    expect(typingMessage).toHaveAttribute("data-typing", "false");
+    expect(typingMessage).toHaveTextContent("What is your flight number?");
+  });
+
   it("allows scrolling upward and jumping back to the latest message", () => {
     renderAssistant({
       messages: Array.from({ length: 8 }, (_, index) => ({
@@ -150,9 +221,17 @@ describe("FormFillingAssistant", () => {
     const panel = screen.getByRole("region", { name: "Form filling assistant" });
     const composer = screen.getByRole("textbox", { name: "Message for the form filling assistant" });
     const composerRow = composer.parentElement;
+    const icon = screen.getByTestId("form-assistant-icon");
+    const headerRow = icon.parentElement?.parentElement;
+    const description = screen.getByText(
+      "I check what is already complete and ask one question at a time. Answer here by text or voice.",
+    );
 
     expect(panel).toHaveClass("shadow-none");
-    expect(screen.getByTestId("form-assistant-icon")).toBeInTheDocument();
+    expect(icon).toHaveClass("h-6", "w-6");
+    expect(icon.parentElement).toHaveClass("h-12", "w-12");
+    expect(headerRow).toHaveClass("items-center");
+    expect(description).toHaveClass("mt-0.5", "leading-5");
     expect(screen.queryByText("AI assistant")).not.toBeInTheDocument();
     expect(composerRow).toHaveClass("items-center", "shadow-none");
     expect(composerRow).not.toHaveClass("items-end");
@@ -361,6 +440,22 @@ describe("FormFillingAssistant", () => {
     expect(within(conversation).getByText("Answer check")).toBeInTheDocument();
     expect(within(conversation).getByText("Nationality must use an official option.")).toBeInTheDocument();
     expect(within(conversation).getByRole("button", { name: "Review final answers" })).toBeInTheDocument();
+  });
+
+  it("renders a clean answer check with the canonical success alert", () => {
+    renderAssistant({
+      missingFields: [],
+      validationResult: {
+        errors: [],
+        warnings: [],
+      },
+    });
+    const conversation = screen.getByRole("log", { name: "Form filling assistant conversation" });
+    const alert = within(conversation).getByRole("alert");
+
+    expect(alert).toHaveTextContent("Answer check");
+    expect(alert).toHaveTextContent("No required errors were found. Please review the form once more before continuing.");
+    expect(alert.querySelector("svg")).not.toBeNull();
   });
 
   it("offers inline editing and an original-form jump for every field issue", () => {

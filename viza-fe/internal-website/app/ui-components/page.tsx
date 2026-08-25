@@ -19,6 +19,10 @@ import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-c
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormField } from "@/components/ui/application-form-field";
 import {
+  ApplicationFormAiFilledIndicator,
+  ApplicationFormCharacterCount,
+} from "@/components/ui/application-form-metadata";
+import {
   ApplicationFormControlDisplay,
   ApplicationFormInputGroup,
 } from "@/components/ui/application-form-input";
@@ -218,6 +222,33 @@ export default function UiComponentsPage() {
               >
                 applicant@viza.example
               </ApplicationFormControlDisplay>
+            </ApplicationFormField>
+          </ApplicationFormPanel>
+
+          <ApplicationFormPanel className="p-5">
+            <h2 className="text-base font-semibold text-foreground">Field metadata</h2>
+            <ApplicationFormField
+              label="Given name"
+              labelAction={<GalleryFieldAiAssist field="Given name" />}
+              className="mt-5"
+            >
+              <ApplicationFormInputGroup className="h-12" filled>
+                <InputGroupInput
+                  aria-label="Given name"
+                  value="Edward Zhang"
+                  readOnly
+                  className="h-12 pr-20 text-[15px]"
+                />
+                <ApplicationFormAiFilledIndicator
+                  label="AI filled"
+                  className="pointer-events-none absolute right-3 top-2"
+                />
+                <ApplicationFormCharacterCount
+                  current={11}
+                  maximum={130}
+                  className="absolute bottom-2 right-3"
+                />
+              </ApplicationFormInputGroup>
             </ApplicationFormField>
           </ApplicationFormPanel>
 

@@ -288,6 +288,20 @@ export interface DigitalArrivalCardSubmissionResult {
   portalUrl: string;
   portalResponseSummary: string;
   confirmationPdfStoragePath?: string | null;
+  resultEvidence?: {
+    authoritativeRead?: {
+      source: "official_registration_result_read";
+      postSubmitRead: true;
+      referenceNumber: string;
+      stableReference: true;
+    } | null;
+    qrRender?: {
+      renderer: "official_client_reference_qr";
+      renderedForReference: string;
+      rendered: true;
+      referenceValueValidated: true;
+    } | null;
+  };
   errorDetails?: {
     code: string;
     message: string;

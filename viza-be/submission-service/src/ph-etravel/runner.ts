@@ -72,6 +72,28 @@ export interface PhEtravelRunnerOptions {
 /** E16: no browser final-submit path is enabled until controlled live evidence closes. */
 export const PH_ETRAVEL_FINAL_SUBMIT_ENABLED = false;
 
+function phEtravelSignatureImageDataUrl(filePath: string | null): string | null {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  const bytes = fs.readFileSync(filePath);
+  if (bytes.length === 0 || bytes.length > 5 * 1024 * 1024) return null;
+  const extension = path.extname(filePath).toLowerCase();
+  const mimeType = extension === ".png"
+    ? "image/png"
+    : extension === ".jpg" || extension === ".jpeg"
+      ? "image/jpeg"
+      : extension === ".webp"
+        ? "image/webp"
+        : bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+          ? "image/png"
+          : bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+            ? "image/jpeg"
+            : bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP"
+              ? "image/webp"
+              : null;
+  if (!mimeType) return null;
+  return `data:${mimeType};base64,${bytes.toString("base64")}`;
+}
+
 function safeOfficialReference(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -390,6 +412,13 @@ function countryOptionPattern(value: string): RegExp {
   return new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 }
 
+export function phEtravelCountryOptionText(value: string): string {
+  const normalized = value.trim();
+  if (/china|chinese|cn|chn/i.test(normalized)) return "China";
+  if (/singapore|sg|sgp/i.test(normalized)) return "Singapore";
+  return normalized;
+}
+
 function sexOptionPattern(value: string): RegExp {
   if (/^m|male/i.test(value)) return /^male$/i;
   if (/^f|female/i.test(value)) return /^female$/i;
@@ -601,7 +630,10 @@ async function clickTurnstileProtectedContinue(
   let lastText = await bodyText(page);
   let lastResponseStatus: number | undefined;
   let lastResponseSummary: string | undefined;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = phEtravelTurnstileAttemptLimit(
+    process.env.PH_ETRAVEL_TURNSTILE_MAX_ATTEMPTS,
+  );
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const hasChallenge = await page
       .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
       .first()
@@ -646,7 +678,7 @@ async function clickTurnstileProtectedContinue(
       );
       if (isPhEtravelRegistrationResponseRejected(lastResponseStatus)) {
         lastText = await bodyText(page);
-        if (attempt < 3) {
+        if (attempt < maxAttempts) {
           logs.push(`ph_etravel_continue_response_retry attempt=${attempt}`);
           await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
           await page.waitForTimeout(2_000);
@@ -663,7 +695,7 @@ async function clickTurnstileProtectedContinue(
       options.responseUrlPattern &&
       response === null &&
       shouldRetryMissingPhEtravelResponse(lastText) &&
-      attempt < 3
+      attempt < maxAttempts
     ) {
       // eTravel renders Turnstile only after the first Continue click. In that
       // state no registration POST is sent. Let Browserbase/2Captcha finish,
@@ -682,6 +714,12 @@ async function clickTurnstileProtectedContinue(
     lastText = await bodyText(page);
   }
   return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
+}
+
+export function phEtravelTurnstileAttemptLimit(value?: string): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed)) return 5;
+  return Math.min(5, Math.max(1, parsed));
 }
 
 export function isPhEtravelRegistrationResponseRejected(status: number): boolean {
@@ -1088,6 +1126,13 @@ async function chooseReactSelectByHiddenName(
   return selectedTextPattern.test(visibleText);
 }
 
+export function isPhEtravelComboboxSelectionCommitted(value: string): boolean {
+  // eGovPH renders a label such as "Singapore" but persists an official code
+  // such as "SG" in the named input after the matching option is clicked.
+  // Treat that non-empty committed value as the authoritative selection.
+  return value.trim().length > 0;
+}
+
 async function chooseHeadlessComboboxByInputName(
   page: Page,
   inputName: string,
@@ -1122,7 +1167,7 @@ async function chooseHeadlessComboboxByInputName(
   if (!clicked) return false;
   await page.waitForTimeout(700);
   const value = await input.inputValue().catch(() => "");
-  return expectedText.test(value);
+  return isPhEtravelComboboxSelectionCommitted(value);
 }
 
 async function chooseDropdownOption(
@@ -1212,7 +1257,7 @@ async function completeEgovPermanentResidenceOnboarding(
   }
 
   logs.push("ph_etravel_egov_onboarding_residence_detected");
-  const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
+  const countryText = phEtravelCountryOptionText(payload.countryOfResidence);
   const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
   let choseCountry = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -2367,6 +2412,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         // runner's --submit flag or the live queue's operator gate may turn
         // off the Review stop.
         stopBeforeSubmit: options.stopBeforeSubmit ?? true,
+        signatureImageDataUrl: phEtravelSignatureImageDataUrl(payload.customs.customsSignatureFile),
         onStep: async (name) => {
           screenshots.push(await saveScreenshot(page, name, logs));
         },

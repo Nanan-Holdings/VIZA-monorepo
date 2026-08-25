@@ -9,6 +9,8 @@ interface ApplicationConditionalFieldsPanelProps extends React.ComponentPropsWit
   addLabel?: React.ReactNode;
   onAdd?: () => void;
   canAdd?: boolean;
+  /** Renders structural grouping without the default card treatment. */
+  unframed?: boolean;
 }
 
 function ApplicationConditionalFieldsPanel({
@@ -16,13 +18,15 @@ function ApplicationConditionalFieldsPanel({
   addLabel,
   onAdd,
   canAdd = false,
+  unframed = false,
   className,
   ...props
 }: ApplicationConditionalFieldsPanelProps) {
   return (
     <div
       className={cn(
-        "application-conditional-fields-panel flex flex-col gap-2 border bg-white p-4",
+        "application-conditional-fields-panel flex flex-col gap-2",
+        unframed ? "!border-0 bg-transparent p-0" : "border bg-white p-4",
         className,
       )}
       {...props}

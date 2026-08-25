@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeSgacPortalPayload, SgacPortalValidationError } from "../normalize";
+import {
+  normalizeSgacPortalPayload,
+  SgacPortalValidationError,
+  type SgacForeignVisitorPortalPayload,
+  type SgacPortalPayload,
+} from "../normalize";
 import { SGAC_HOTEL_OPTIONS, SGAC_NATIONALITY_OPTIONS } from "../official-options";
+import { sgacPortalUrlForPayload } from "../runner";
 import type { SubmissionPayload } from "../../country-submissions/types";
 
 function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload {
@@ -39,14 +45,21 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       next_city_or_port_after_singapore: "Bangkok",
       accommodation_type: "others",
       accommodation_other_type: "transit",
-      recent_country_visit_history: "none",
+      recent_country_visit_history: "no",
       has_health_symptoms: "no",
       has_used_different_name_to_enter_singapore: "no",
-      final_declaration: "yes",
+      sgac_applicant_type: "foreign_visitor",
+      ica_declaration_accepted: "true",
     },
     metadata: {},
     ...overrides,
   };
+}
+
+function assertForeignVisitor(
+  payload: SgacPortalPayload,
+): asserts payload is SgacForeignVisitorPortalPayload {
+  assert.equal(payload.applicantType, "foreign_visitor");
 }
 
 test("SGAC hotel snapshot preserves every current ICA record", () => {
@@ -101,6 +114,7 @@ test("normalizeSgacPortalPayload maps Hong Kong, Macao, and Taiwan aliases to IC
       { now: new Date("2026-06-12T08:00:00+08:00") },
     );
 
+    assertForeignVisitor(payload);
     assert.equal(payload.nationalityLabel, expectedLabel);
   }
 });
@@ -110,6 +124,7 @@ test("normalizeSgacPortalPayload maps purpose_of_travel and transport number int
     now: new Date("2026-06-12T08:00:00+08:00"),
   });
 
+  assertForeignVisitor(payload);
   assert.equal(payload.purposeOfTravelLabel, "Holiday/Sightseeing/Leisure");
   assert.equal(payload.transport.mode, "air");
   assert.equal(payload.transport.airTransportType, "commercial");
@@ -122,6 +137,7 @@ test("normalizeSgacPortalPayload maps purpose_of_travel and transport number int
   assert.equal(payload.nextCityQuery, "THAILAND, BANGKOK, BANGKOK");
   assert.equal(payload.phoneCountryCode, "86");
   assert.equal(payload.phoneNumber, "13800138000");
+  assert.equal(sgacPortalUrlForPayload(payload), "https://eservices.ica.gov.sg/sgarrivalcard/fvipa");
 });
 
 test("normalizeSgacPortalPayload combines a separately selected ICA carrier with a bare flight number", () => {
@@ -137,6 +153,7 @@ test("normalizeSgacPortalPayload combines a separately selected ICA carrier with
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.equal(payload.transport.mode, "air");
   assert.equal(payload.transport.airTransportType, "commercial");
   assert.equal(payload.transport.carrierCodeQuery, "AS");
@@ -157,6 +174,7 @@ test("normalizeSgacPortalPayload treats standard airline flight numbers as comme
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.equal(payload.transport.mode, "air");
   assert.equal(payload.transport.airTransportType, "commercial");
   assert.equal(payload.transport.carrierCodeQuery, "SQ");
@@ -176,6 +194,7 @@ test("normalizeSgacPortalPayload maps land transport branch into ICA vehicle fie
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.deepEqual(payload.transport, {
     mode: "land",
     landTransportType: "car",
@@ -195,6 +214,7 @@ test("normalizeSgacPortalPayload maps sea cruise and vessel branches into ICA fi
     }),
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
+  assertForeignVisitor(cruisePayload);
   assert.deepEqual(cruisePayload.transport, {
     mode: "sea",
     seaTransportType: "cruise",
@@ -212,6 +232,7 @@ test("normalizeSgacPortalPayload maps sea cruise and vessel branches into ICA fi
     }),
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
+  assertForeignVisitor(vesselPayload);
   assert.deepEqual(vesselPayload.transport, {
     mode: "sea",
     seaTransportType: "commercial_vessel",
@@ -232,8 +253,82 @@ test("normalizeSgacPortalPayload reads the ICA health follow-up shown after symp
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.equal(payload.hasHealthSymptoms, true);
   assert.equal(payload.hasYellowFeverTravelHistory, true);
+});
+
+test("normalizeSgacPortalPayload maps the ICA Singapore Citizen / PR route without foreign-visitor fields", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        sgac_applicant_type: "singapore_citizen_or_permanent_resident",
+        singapore_nric: "S1234567D",
+        has_health_symptoms: "no",
+        recent_country_visit_history: "no",
+        ica_declaration_accepted: "true",
+      },
+      trip: {
+        destinationCountry: "Singapore",
+        arrivalDate: "2026-06-13",
+        departureDate: null,
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.applicantType, "singapore_citizen_or_permanent_resident");
+  assert.equal(payload.identityNumber, "S1234567D");
+  assert.equal(payload.arrivalDate, "13/06/2026");
+  assert.equal("passportNumber" in payload, false);
+  assert.equal(sgacPortalUrlForPayload(payload), "https://eservices.ica.gov.sg/sgarrivalcard/scpr");
+});
+
+test("normalizeSgacPortalPayload maps the ICA Long-Term Pass route and validates FIN", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        sgac_applicant_type: "long_term_pass_holder",
+        singapore_fin: "G1234567X",
+        has_health_symptoms: "yes",
+        recent_high_risk_region_visit_history: "no",
+        ica_declaration_accepted: "true",
+      },
+      trip: {
+        destinationCountry: "Singapore",
+        arrivalDate: "2026-06-13",
+        departureDate: null,
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.applicantType, "long_term_pass_holder");
+  assert.equal(payload.identityNumber, "G1234567X");
+  assert.equal(payload.hasHealthSymptoms, true);
+  assert.equal(sgacPortalUrlForPayload(payload), "https://eservices.ica.gov.sg/sgarrivalcard/ltp");
+});
+
+test("normalizeSgacPortalPayload rejects an identifier from the wrong ICA residency route", () => {
+  assert.throws(
+    () => normalizeSgacPortalPayload(
+      basePayload({
+        countrySpecific: {
+          sgac_applicant_type: "long_term_pass_holder",
+          singapore_fin: "S1234567D",
+          has_health_symptoms: "no",
+          recent_country_visit_history: "no",
+          ica_declaration_accepted: "true",
+        },
+      }),
+      { now: new Date("2026-06-12T08:00:00+08:00") },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.deepEqual(error.missingFields, ["singapore_fin"]);
+      return true;
+    },
+  );
 });
 
 test("normalizeSgacPortalPayload requires vehicle number for land arrivals", () => {
@@ -273,6 +368,7 @@ test("normalizeSgacPortalPayload prefers mobile_number and splits it for ICA pho
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.equal(payload.phoneCountryCode, "86");
   assert.equal(payload.phoneNumber, "19974911995");
 });
@@ -349,6 +445,7 @@ test("normalizeSgacPortalPayload accepts exposed ICA hotel options", () => {
     { now: new Date("2026-06-12T08:00:00+08:00") },
   );
 
+  assertForeignVisitor(payload);
   assert.deepEqual(payload.accommodation, {
     type: "hotel",
     hotelNameQuery: "MARINA BAY SANDS SINGAPORE",

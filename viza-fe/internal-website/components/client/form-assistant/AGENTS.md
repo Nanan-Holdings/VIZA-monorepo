@@ -36,6 +36,11 @@ server mutations or navigation.
   replies use the navy bubble, the composer uses the 760px rounded pill with
   an upward-arrow send action, and the shared scroll-to-bottom affordance is
   used for history navigation. Voice remains an additional composer action.
+- Reveal only a newly received assistant reply progressively at a short
+  character cadence. Persisted history must render immediately, the
+  conversation must keep following the reply only while the applicant remains
+  near the bottom, and reduced-motion users must receive the complete reply
+  without animation.
 - Keep the composer free of redundant keyboard-hint text and hide final-check
   controls while assistant state is loading. Do not render viewport-level fill
   notices or undo cards after assistant writes. Successful writes remain visible

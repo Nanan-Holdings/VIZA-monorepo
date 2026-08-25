@@ -37,4 +37,39 @@ describe("isArtifactReferencedBySubmissionResult", () => {
       }),
     ).toBe(false);
   });
+
+  it("accepts direct confirmation screenshot and approval PDF paths", () => {
+    expect(
+      isArtifactReferencedBySubmissionResult(
+        "jobs/job-id/ke/confirmation.png",
+        {
+          officialConfirmationScreenshotStoragePath: "jobs/job-id/ke/confirmation.png",
+          approvalPdfStoragePath: "jobs/job-id/ke/approval.pdf",
+        },
+      ),
+    ).toBe(true);
+    expect(
+      isArtifactReferencedBySubmissionResult(
+        "jobs/job-id/ke/approval.pdf",
+        {
+          officialConfirmationScreenshotStoragePath: "jobs/job-id/ke/confirmation.png",
+          approvalPdfStoragePath: "jobs/job-id/ke/approval.pdf",
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a CEAC evidence screenshot only when it is exactly referenced", () => {
+    const screenshotPath = "jobs/job-id/us/ceac-confirmation.png";
+    expect(
+      isArtifactReferencedBySubmissionResult(screenshotPath, {
+        evidence: { screenshotPath },
+      }),
+    ).toBe(true);
+    expect(
+      isArtifactReferencedBySubmissionResult("jobs/other/us/ceac-confirmation.png", {
+        evidence: { screenshotPath },
+      }),
+    ).toBe(false);
+  });
 });

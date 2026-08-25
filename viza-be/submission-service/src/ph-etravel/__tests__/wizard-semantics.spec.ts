@@ -101,6 +101,12 @@ test("E15 SEA electronic positive post-signature remains evidence-pending and co
 test("E15 page semantic classifier uses page meaning rather than a numeric wizard index", () => {
   assert.equal(
     classifyPhEtravelPostSignatureSemantic(
+      "New Travel Declaration Add Family Member Travel History No Record Found!",
+    ),
+    null,
+  );
+  assert.equal(
+    classifyPhEtravelPostSignatureSemantic(
       "wizard_page=42 Family Member(s) Travel declarations will also be generated for selected family members.",
     ),
     "family",

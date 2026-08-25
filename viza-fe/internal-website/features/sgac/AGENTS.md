@@ -6,4 +6,7 @@ Scope: SG Arrival Card-specific UI and server helpers.
 - Do not expose portal dumps, payloads, storage paths, logs, or internal queue status to applicants.
 - A new submission creates a new application and preserves previous confirmation evidence.
 - `date-window.ts` owns the ICA three-day submission-window calculation for website/API scheduling decisions.
+- `applicant-type.ts` owns the three ICA residency values and their `scpr`,
+  `ltp`, and `fvipa` URLs. All frontend scheduling and display branches must use
+  this contract; residency routes are not separate products.
 - Next.js route files may delegate here, but SGAC business logic belongs in this folder.

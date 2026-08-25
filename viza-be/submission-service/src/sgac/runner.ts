@@ -5,7 +5,11 @@ import { createHash } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { type Browser, type BrowserContext, type Locator, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
-import type { SgacPortalPayload } from "./normalize";
+import type {
+  SgacForeignVisitorPortalPayload,
+  SgacPortalPayload,
+  SgacResidentPortalPayload,
+} from "./normalize";
 import {
   reportBadCaptcha,
   solveImageCaptcha,
@@ -20,6 +24,16 @@ import {
 import { launchAbortableResource } from "../queue/portal-safety.js";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
+export const SGAC_RESIDENT_PORTAL_URLS = {
+  singapore_citizen_or_permanent_resident: "https://eservices.ica.gov.sg/sgarrivalcard/scpr",
+  long_term_pass_holder: "https://eservices.ica.gov.sg/sgarrivalcard/ltp",
+} as const;
+
+export function sgacPortalUrlForPayload(payload: SgacPortalPayload): string {
+  return payload.applicantType === "foreign_visitor"
+    ? SGAC_OFFICIAL_PORTAL_URL
+    : SGAC_RESIDENT_PORTAL_URLS[payload.applicantType];
+}
 
 const SGAC_CAPTCHA_MAX_ATTEMPTS = readPositiveIntegerEnv("SGAC_CAPTCHA_MAX_ATTEMPTS", 10);
 const SGAC_CAPTCHA_SOLVE_TIMEOUT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SOLVE_TIMEOUT_MS", 150_000);
@@ -667,7 +681,7 @@ async function launch(headless: boolean): Promise<Handles> {
   }
 }
 
-async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {
+async function fillTravellerStep(page: Page, payload: SgacForeignVisitorPortalPayload): Promise<void> {
   const fullNameInput = page.locator("#indFullName_0");
   const waitForTravellerForm = async (timeout = 8_000): Promise<boolean> => {
     await fullNameInput.waitFor({ state: "visible", timeout }).catch(() => undefined);
@@ -720,7 +734,33 @@ async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promis
   await page.waitForSelector("#lastCityCityInput_0", { timeout: 40_000 });
 }
 
-async function fillTransport(page: Page, payload: SgacPortalPayload): Promise<void> {
+async function fillResidentTravellerStep(
+  page: Page,
+  payload: SgacResidentPortalPayload,
+  artifactDir: string,
+): Promise<void> {
+  const identityInput = page.locator("#nricFin_ehcGroup_0");
+  await identityInput.waitFor({ state: "visible", timeout: 40_000 });
+
+  const arrivalButton = page.getByRole("button", {
+    name: new RegExp(escapeRegex(payload.arrivalDate)),
+  }).first();
+  await arrivalButton.click({ timeout: 20_000 });
+  await identityInput.fill(payload.identityNumber);
+  await page.locator("#residentName_0").fill(payload.fullName);
+  await page.locator("#dob_ehcGroup_0").fill(payload.dateOfBirth);
+  await page.locator("#email_0").fill(payload.email);
+  await page.locator(`#ehcGroup_sq8_${payload.hasHealthSymptoms ? "Y" : "N"}_0`).click();
+  await page.waitForTimeout(500);
+  const yellowFever = page.locator(
+    `#ehcGroup_sq9_${payload.hasYellowFeverTravelHistory ? "Y" : "N"}_0`,
+  );
+  if (await yellowFever.isVisible().catch(() => false)) await yellowFever.click();
+  await clickVisibleRoleButton(page, /^Next$/i);
+  await waitForReviewStep(page, artifactDir);
+}
+
+async function fillTransport(page: Page, payload: SgacForeignVisitorPortalPayload): Promise<void> {
   if (payload.transport.mode === "air") {
     await page.locator("#tptModeTypeInput_0_0").click();
     if (payload.transport.airTransportType === "commercial") {
@@ -788,7 +828,7 @@ async function fillTransport(page: Page, payload: SgacPortalPayload): Promise<vo
   await fillIfPresent(page, "#vesselNameInput_0", payload.transport.transportNumber);
 }
 
-async function fillAccommodation(page: Page, payload: SgacPortalPayload): Promise<void> {
+async function fillAccommodation(page: Page, payload: SgacForeignVisitorPortalPayload): Promise<void> {
   const accommodation = payload.accommodation;
   if (accommodation.type === "hotel") {
     await page.locator("#accoTypeInput_0_0").click();
@@ -817,7 +857,7 @@ async function fillAccommodation(page: Page, payload: SgacPortalPayload): Promis
   await page.locator(`#accoOthInput_0_${accommodation.otherType === "day_trip" ? "0" : "1"}`).click();
 }
 
-async function fillTripStep(page: Page, payload: SgacPortalPayload, artifactDir: string): Promise<void> {
+async function fillTripStep(page: Page, payload: SgacForeignVisitorPortalPayload, artifactDir: string): Promise<void> {
   await selectNgOption(page, "#lastCityCityInput_0", payload.lastCityQuery, payload.lastCityQuery, "Last City/Port of Embarkation Before Singapore");
   await selectNgOption(page, "#purposeOfTravel_0", payload.purposeOfTravelLabel, payload.purposeOfTravelLabel, "Purpose of Travel");
   await fillTransport(page, payload);
@@ -875,11 +915,17 @@ export async function runSgacPortalSubmission(
 
   try {
     const { page } = handles;
-    await page.goto(SGAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: options.timeoutMs ?? 60_000 });
-    await fillTravellerStep(page, payload);
-    screenshots.push(await screenshot(page, artifactDir, "sgac-trip-step"));
-    await fillTripStep(page, payload, artifactDir);
-    await assertNoVisiblePortalErrors(page, artifactDir, "trip");
+    const officialPortalUrl = sgacPortalUrlForPayload(payload);
+    await page.goto(officialPortalUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs ?? 60_000 });
+    if (payload.applicantType === "foreign_visitor") {
+      await fillTravellerStep(page, payload);
+      screenshots.push(await screenshot(page, artifactDir, "sgac-trip-step"));
+      await fillTripStep(page, payload, artifactDir);
+      await assertNoVisiblePortalErrors(page, artifactDir, "trip");
+    } else {
+      await fillResidentTravellerStep(page, payload, artifactDir);
+      await assertNoVisiblePortalErrors(page, artifactDir, "resident");
+    }
     screenshots.push(await screenshot(page, artifactDir, "sgac-review"));
 
     if (options.stopBeforeSubmit) {

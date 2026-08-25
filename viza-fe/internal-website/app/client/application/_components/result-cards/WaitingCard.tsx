@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { motion } from "motion/react";
-import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,8 +35,11 @@ export type SubmissionVisualStage =
 
 interface Phase {
   id: "preparing" | "filling" | "confirming";
-  labelEn: string;
-  labelZh: string;
+}
+
+interface SubmissionActivity {
+  en: string;
+  zh: string;
 }
 
 type FvOfficialAccount = {
@@ -48,24 +50,32 @@ type FvOfficialAccount = {
 };
 
 const PHASES: Phase[] = [
-  {
-    id: "preparing",
-    labelEn: "Validating English answers",
-    labelZh: "正在校验英文版答案",
-  },
-  {
-    id: "filling",
-    labelEn: "Filling the official form",
-    labelZh: "正在填写官网表单",
-  },
-  {
-    id: "confirming",
-    labelEn: "Waiting for checkpoint or result",
-    labelZh: "正在等待检查点或结果",
-  },
+  { id: "preparing" },
+  { id: "filling" },
+  { id: "confirming" },
 ];
 
 const PHASE_PROGRESS = [34, 67, 99] as const;
+
+const PREPARING_ACTIVITIES: SubmissionActivity[] = [
+  { en: "Checking your application answers", zh: "正在核对申请答案" },
+  { en: "Preparing details for the official form", zh: "正在准备官网填写信息" },
+];
+
+const FORM_FILLING_ACTIVITIES: SubmissionActivity[] = [
+  { en: "Filling your full name", zh: "正在填写姓名" },
+  { en: "Filling your date of birth", zh: "正在填写出生日期" },
+  { en: "Filling your travel document details", zh: "正在填写旅行证件信息" },
+  { en: "Filling your email address", zh: "正在填写电子邮箱" },
+  { en: "Filling your trip details", zh: "正在填写行程信息" },
+  { en: "Completing the official declaration", zh: "正在填写官网声明" },
+];
+
+const CONFIRMING_ACTIVITIES: SubmissionActivity[] = [
+  { en: "Reviewing the official form", zh: "正在核对官网表单" },
+  { en: "Checking the official portal", zh: "正在检查官网状态" },
+  { en: "Confirming your application result", zh: "正在确认申请结果" },
+];
 
 function phaseIndexForProgress(progress: number): number {
   if (progress <= PHASE_PROGRESS[0]) return 0;
@@ -202,13 +212,6 @@ export function localizeProgressMessage(
   return message;
 }
 
-function isPacedRuntimeMessage(message: string | null | undefined): boolean {
-  if (!message) return false;
-  return /^(?:\s*Current stage:)|Fly 云端已到达官方付款阶段|Fly 云端正在填写|Fly cloud.*official payment stage|The Fly cloud run is filling|submission job is queued|preparing and mapping|the runner is filling|the runner is advancing|still confirming the submission result|submission completed|automated submission has started|自动提交任务已启动|银行卡已安全送入云端|正在准备官网填写任务/i.test(
-    message.trim(),
-  );
-}
-
 /**
  * WaitingCard — renders while applications.submission_result_status is
  * `waiting` or `processing`. Phase progresses on a soft timer; the realtime
@@ -220,13 +223,13 @@ export function WaitingCard({
   stage,
   serverProgress,
   message,
-  error,
   applicationId,
   persistenceKey,
   progressCycleKey,
   resetProgressOnMount,
   country,
   visaType,
+  embedded = false,
   onVisualComplete,
 }: {
   status: SubmissionVisualStatus | null;
@@ -240,6 +243,8 @@ export function WaitingCard({
   resetProgressOnMount?: boolean;
   country?: string | null;
   visaType?: string | null;
+  /** Lets the application review screen provide the enclosing section heading. */
+  embedded?: boolean;
   onVisualComplete?: () => void;
 }) {
   const locale = useLocale();
@@ -272,7 +277,6 @@ export function WaitingCard({
         : reportedPhaseProgress;
   const {
     displayedProgress,
-    isVisuallyComplete,
   } = useSmoothProgress({
     serverProgress: visualServerProgress,
     persistenceKey: persistenceKey?.trim() || undefined,
@@ -292,6 +296,22 @@ export function WaitingCard({
   });
   const activePhaseIdx = phaseIndexForProgress(displayedProgress);
   const activePhase = PHASES[activePhaseIdx] ?? PHASES[0];
+  const activities =
+    activePhase.id === "preparing"
+      ? PREPARING_ACTIVITIES
+      : activePhase.id === "filling"
+        ? FORM_FILLING_ACTIVITIES
+        : CONFIRMING_ACTIVITIES;
+  const [activityIndex, setActivityIndex] = useState(0);
+  useEffect(() => {
+    setActivityIndex(0);
+    if (completeStatus || failedStatus || waitingForUser) return;
+    const interval = window.setInterval(() => {
+      setActivityIndex((current) => (current + 1) % activities.length);
+    }, 2_400);
+    return () => window.clearInterval(interval);
+  }, [activities.length, activePhase.id, completeStatus, failedStatus, waitingForUser]);
+  const activity = activities[activityIndex % activities.length] ?? activities[0];
 
   useEffect(() => {
     if (!applicationId || !isFrance || officialAccount) return;
@@ -350,43 +370,6 @@ export function WaitingCard({
     };
   }, [applicationId, isFrance, officialAccount]);
 
-  const progressMessage = (() => {
-    const localizedError = localizeProgressMessage(error, isZh);
-    const localizedMessage = localizeProgressMessage(message, isZh);
-    if (failedStatus && localizedError) return localizedError;
-    if (normalizeStatus(status) === "stalled") {
-      return isZh
-        ? "仍在等待检查点或结果，但后台任务最近没有更新。请稍后重试或联系支持。"
-        : "Still waiting for a checkpoint or result, but the background worker has not updated recently.";
-    }
-    if (waitingForUser) {
-      return isZh
-        ? "流程已暂停，等待您或工作人员完成官网上的必要操作。"
-        : "The flow is paused while a required official-portal action is completed.";
-    }
-    const reportedPhaseMatchesVisual = reportedPhaseIdx === activePhaseIdx;
-    if (
-      localizedMessage &&
-      (!isPacedRuntimeMessage(message) ||
-        (reportedPhaseMatchesVisual && (!completeStatus || isVisuallyComplete)))
-    ) {
-      return localizedMessage;
-    }
-    if (activePhase.id === "preparing") {
-      return isZh
-        ? "正在整理并校验官网所需的英文答案。"
-        : "Preparing and validating the English answers required by the official portal.";
-    }
-    if (activePhase.id === "filling") {
-      return isZh
-        ? "正在填写官网表单。"
-        : "Filling the official portal form.";
-    }
-    return isZh
-      ? "正在等待官网检查点或最终结果。"
-      : "Waiting for an official-portal checkpoint or the final result.";
-  })();
-
   async function cancelScheduledSubmission() {
     if (!applicationId || cancelingScheduled) return;
     setCancelingScheduled(true);
@@ -409,14 +392,22 @@ export function WaitingCard({
 
   if (scheduledStatus) {
     return (
-      <Card className="rounded-xl border-input">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-foreground">
-            <Clock3 className="h-5 w-5 text-brand-500" />
-            {isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <Card className={cn("rounded-xl border-input", embedded && "border-0 bg-transparent shadow-none")}>
+        {!embedded ? (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-foreground">
+              <Clock3 className="h-5 w-5 text-brand-500" />
+              {isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
+            </CardTitle>
+          </CardHeader>
+        ) : null}
+        <CardContent className={cn("space-y-5", embedded && "p-0")}>
+          {embedded ? (
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Clock3 className="h-4 w-4 text-brand-500" />
+              {isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
+            </div>
+          ) : null}
           <p className="text-sm leading-relaxed text-muted-foreground">
             {message ??
               (isZh
@@ -457,80 +448,29 @@ export function WaitingCard({
   }
 
   return (
-    <Card className="rounded-xl border-input">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-foreground">
-          <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
-          {isZh ? "正在提交您的申请" : "Submitting your application"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {isZh
-            ? "VIZA 正在使用英文版答案处理官网填写流程。遇到验证码、人工检查点或结果准备好后，本页面会自动更新。"
-            : "VIZA is using your English answers for the official fill flow. This page will update when a CAPTCHA, manual checkpoint, or result is ready."}
-        </p>
-
-        <div aria-live="polite" className="space-y-3">
+    <Card className={cn("rounded-xl border-input", embedded && "border-0 bg-transparent shadow-none")}>
+      {!embedded ? (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-foreground">
+            <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+            {isZh ? "正在提交您的申请" : "Submitting your application"}
+          </CardTitle>
+        </CardHeader>
+      ) : null}
+      <CardContent className={cn("space-y-5", embedded && "p-0")}>
+        <div aria-live="polite" className="space-y-2">
           <SmoothProgressBar
             displayedProgress={displayedProgress}
-            label={isZh ? activePhase.labelZh : activePhase.labelEn}
+            label={isZh ? activity.zh : activity.en}
             ariaLabel={isZh ? "提交进度" : "Submission progress"}
             size="md"
             transitionMs={760}
-            trackClassName="bg-muted"
-            valueClassName="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"
+            labelClassName="text-sm font-normal text-muted-foreground"
+            trackClassName="bg-brand-50"
+            barClassName="bg-brand-500"
+            valueClassName="font-medium text-brand-600"
           />
-          <p className="text-xs text-muted-foreground">
-            {progressMessage}
-          </p>
         </div>
-
-        <ol className="grid gap-2 sm:grid-cols-3" aria-label={isZh ? "提交阶段" : "Submission phases"}>
-          {PHASES.map((phase, i) => {
-            const done = i < activePhaseIdx || (completeStatus && isVisuallyComplete);
-            const active = !done && i === activePhaseIdx;
-            return (
-              <motion.li
-                key={phase.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: i * 0.05 }}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2",
-                  done && "border-brand-200 bg-brand-50",
-                  active && "border-brand-500 bg-white",
-                  !done && !active && "border-input bg-muted/30",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                    done && "border-brand-500 bg-brand-500 text-white",
-                    active && "border-brand-500 text-brand-500",
-                    !done && !active && "border-input text-muted-foreground",
-                  )}
-                >
-                  {done ? (
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  ) : active ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <span className="text-xs font-medium">{i + 1}</span>
-                  )}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs",
-                    active ? "text-foreground font-medium" : "text-muted-foreground",
-                  )}
-                >
-                  {isZh ? phase.labelZh : phase.labelEn}
-                </span>
-              </motion.li>
-            );
-          })}
-        </ol>
 
         {officialAccount?.email && (
           <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { assignUserPackage } from "@/app/actions/user-package";
+import { alertToast } from "@/components/ui/alert-toast";
 
 interface VisaPackage {
   id: string;
@@ -30,7 +31,10 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
       const result = await assignUserPackage(userId, selectedPackageId);
 
       if (!result.success) {
-        alert(`Failed to assign package: ${result.error}`);
+        alertToast("Failed to assign package", {
+          variant: "destructive",
+          description: result.error,
+        });
         return;
       }
 
@@ -38,7 +42,10 @@ export function AssignPackageForm({ userId, visaPackages }: AssignPackageFormPro
       setSelectedPackageId("");
       router.refresh();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      alertToast("Unable to assign package", {
+        variant: "destructive",
+        description: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setIsSubmitting(false);
     }

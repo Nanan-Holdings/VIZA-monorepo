@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
   CheckCircle as CheckCircle2,
@@ -11,7 +10,6 @@ import {
   CreditCard,
   CircleNotch as Loader2,
   Envelope as Mail,
-  MapPin,
   PauseCircle,
   Play,
   ArrowsClockwise as RefreshCw,
@@ -21,7 +19,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -486,7 +484,7 @@ export function FranceAppointmentAssistant({
 
       {errorMessage ? (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertIcon variant="destructive" />
           <AlertTitle>{t("errorTitle")}</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
@@ -518,7 +516,7 @@ export function FranceAppointmentAssistant({
             </div>
             {snapshot?.review?.missingFields && snapshot.review.missingFields.length > 0 ? (
               <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
+                <AlertIcon variant="destructive" />
                 <AlertTitle>{t("review.missingFieldsTitle")}</AlertTitle>
                 <AlertDescription>
                   <p>{t("review.missingFieldsBody")}</p>
@@ -548,8 +546,8 @@ export function FranceAppointmentAssistant({
                 ))}
               </select>
             </BrandField>
-            <Alert className="border-slate-200 bg-slate-50">
-              <MapPin className="h-4 w-4" />
+            <Alert variant="info">
+              <AlertIcon variant="info" />
               <AlertDescription>{t("setup.referenceHint")}</AlertDescription>
             </Alert>
             <label className="flex items-start gap-3 rounded-[8px] border bg-muted/30 p-4">
@@ -592,8 +590,8 @@ export function FranceAppointmentAssistant({
           </CardHeader>
           <CardContent className="space-y-5">
             {snapshot?.pendingManualAction ? (
-              <Alert className="border-amber-200 bg-amber-50">
-                <PauseCircle className="h-4 w-4 text-amber-700" />
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
                 <AlertTitle>{t("checkpoint.title")}</AlertTitle>
                 <AlertDescription>
                   {snapshot.pendingManualAction.instruction ?? t("checkpoint.body")}
@@ -659,8 +657,8 @@ export function FranceAppointmentAssistant({
           </CardHeader>
           <CardContent className="space-y-4">
             {slots.length === 0 ? (
-              <Alert>
-                <CalendarCheck className="h-4 w-4" />
+              <Alert variant="info">
+                <AlertIcon variant="info" />
                 <AlertTitle>{t("slots.noSlots")}</AlertTitle>
                 <AlertDescription>{t("stateMachine.noSlotsBody")}</AlertDescription>
               </Alert>
@@ -703,8 +701,8 @@ export function FranceAppointmentAssistant({
               })
             )}
             {isAssistedLive ? (
-              <Alert className="border-brand-200 bg-brand-50/60">
-                <ShieldCheck className="h-4 w-4 text-brand-600" />
+              <Alert variant="info">
+                <AlertIcon variant="info" />
                 <AlertTitle>{t("slots.liveObservationTitle")}</AlertTitle>
                 <AlertDescription>{t("slots.liveObservationBody")}</AlertDescription>
               </Alert>
@@ -732,8 +730,8 @@ export function FranceAppointmentAssistant({
           </CardHeader>
           <CardContent className="space-y-5">
             {isAssistedLive ? (
-              <Alert className="border-brand-200 bg-brand-50/60">
-                <ShieldCheck className="h-4 w-4 text-brand-600" />
+              <Alert variant="info">
+                <AlertIcon variant="info" />
                 <AlertTitle>{t("slots.liveObservationTitle")}</AlertTitle>
                 <AlertDescription>{t("slots.liveObservationBody")}</AlertDescription>
               </Alert>
@@ -778,8 +776,8 @@ export function FranceAppointmentAssistant({
             ) : null}
 
             {!isAssistedLive ? (
-              <Alert className="border-amber-200 bg-amber-50">
-              <ShieldCheck className="h-4 w-4" />
+              <Alert variant="warning">
+              <AlertIcon variant="warning" />
               <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
               <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
               </Alert>

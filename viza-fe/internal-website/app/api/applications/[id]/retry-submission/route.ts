@@ -23,6 +23,12 @@ import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
+import {
+  isSgacApplicantType,
+  isSgacResidentApplicantType,
+  sgacPortalUrlForApplicantType,
+  type SgacApplicantType,
+} from "@/features/sgac/applicant-type";
 import { koreaSeoulMidnightIso } from "@/features/kr-arrival-card/date-window";
 import { decidePhEtravelLiveSchedule } from "@/features/ph-etravel/retry-schedule";
 import { decideKoreaEArrivalCardLiveSchedule } from "@/features/kr-arrival-card/retry-schedule";
@@ -116,11 +122,11 @@ type RetryQueueInsertResult = {
 };
 
 type SgacScheduleDecision =
-  | { action: "submit"; arrivalDate: string; departureDate: string }
+  | { action: "submit"; arrivalDate: string; departureDate: string | null }
   | {
       action: "schedule";
       arrivalDate: string;
-      departureDate: string;
+      departureDate: string | null;
       earliestSubmissionDate: string;
       daysUntilOpen: number;
       result: Record<string, unknown>;
@@ -1306,10 +1312,45 @@ async function readKoreaEArrivalPreflight(
   return validateKoreaEArrivalPreflight(answers);
 }
 
+async function readSgacApplicantType(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ applicantType: string | null; error: string | null }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("value_text, value_json")
+    .eq("application_id", applicationId)
+    .eq("field_name", "sgac_applicant_type")
+    .maybeSingle();
+
+  if (error) return { applicantType: null, error: error.message };
+  return {
+    applicantType: answerValueToText(data ?? {})?.trim().toLowerCase() ?? null,
+    error: null,
+  };
+}
+
+async function readSgacDeclarationAcceptance(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ accepted: boolean; error: string | null }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("value_text, value_json")
+    .eq("application_id", applicationId)
+    .eq("field_name", "ica_declaration_accepted")
+    .maybeSingle();
+
+  if (error) return { accepted: false, error: error.message };
+  const value = answerValueToText(data ?? {})?.trim().toLowerCase();
+  return { accepted: ["true", "yes", "1", "on"].includes(value ?? ""), error: null };
+}
+
 async function decideSgacLiveSchedule(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
   application: ApplicationForRetry;
+  applicantType: SgacApplicantType;
   now: string;
 }): Promise<SgacScheduleDecision> {
   const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
@@ -1317,13 +1358,18 @@ async function decideSgacLiveSchedule(input: {
     return { action: "reject", status: 500, code: "sgac_date_load_failed", message: dates.error };
   }
 
-  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
-  if (!travelDates.ok) {
+  const isResident = isSgacResidentApplicantType(input.applicantType);
+  const travelDates = isResident
+    ? { ok: true as const, arrivalDate: dates.arrivalDate, departureDate: null }
+    : validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  if (!travelDates.ok || !travelDates.arrivalDate) {
     return {
       action: "reject",
       status: 422,
-      code: `sgac_${travelDates.code}`,
-      message: travelDates.message,
+      code: !travelDates.ok ? `sgac_${travelDates.code}` : "sgac_missing_date",
+      message: !travelDates.ok
+        ? travelDates.message
+        : "SGAC resident submissions require an arrival date.",
     };
   }
 
@@ -1355,9 +1401,9 @@ async function decideSgacLiveSchedule(input: {
       submitted: false,
       confirmationNumber: null,
       referenceNumber: null,
-      portalUrl: "https://eservices.ica.gov.sg/sgarrivalcard/fvipa",
+      portalUrl: sgacPortalUrlForApplicantType(input.applicantType),
       portalResponseSummary:
-        `ICA accepts SG Arrival Card submissions within three days including arrival day. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `ICA SG Arrival Card submissions are accepted within three days including arrival day. This ${input.applicantType.replaceAll("_", " ")} application is scheduled for ${window.earliestSubmissionDate}.`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,
@@ -1878,11 +1924,44 @@ export async function POST(
       }
     }
     if (isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const sgacApplicant = await readSgacApplicantType(admin, applicationId);
+      if (sgacApplicant.error) {
+        return NextResponse.json(
+          { error: sgacApplicant.error, code: "sgac_applicant_type_load_failed" },
+          { status: 500 },
+        );
+      }
+      const declaration = await readSgacDeclarationAcceptance(admin, applicationId);
+      if (declaration.error) {
+        return NextResponse.json(
+          { error: declaration.error, code: "sgac_ica_declaration_load_failed" },
+          { status: 500 },
+        );
+      }
+      if (!declaration.accepted) {
+        return NextResponse.json(
+          {
+            error: "Confirm that you have read and agreed to the ICA declaration before submitting.",
+            code: "sgac_ica_declaration_required",
+          },
+          { status: 422 },
+        );
+      }
+      if (!isSgacApplicantType(sgacApplicant.applicantType)) {
+        return NextResponse.json(
+          {
+            error: "Choose an SG Arrival Card applicant type before submitting.",
+            code: "sgac_applicant_type_required",
+          },
+          { status: 422 },
+        );
+      }
       const scheduleDecision = await decideSgacLiveSchedule({
         admin,
-        applicationId,
-        application: ownedApplication,
-        now,
+      applicationId,
+      application: ownedApplication,
+        applicantType: sgacApplicant.applicantType,
+      now,
       });
       if (scheduleDecision.action === "reject") {
         return NextResponse.json(

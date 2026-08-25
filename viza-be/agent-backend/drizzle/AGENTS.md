@@ -141,6 +141,13 @@ The current internal automation migrations are:
 - `0172_enable_jp_ke_shared_runner_flows.sql`: adds the exact `japan/jp_vjw`
   and `kenya/ke_eta` tuples to the on-demand shared runner enqueue, claim,
   recovery, requeue, concurrency-cap, and scale-to-zero database fences.
+- `0175_application_agreement_acceptances.sql`: stores immutable,
+  application-scoped copies of accepted official declaration/consent text. It
+  is service-role-only and excludes ordinary boolean form controls.
+- `0176_sgac_residency_type_contract.sql`: keeps one Singapore Arrival Card
+  catalog row and updates its metadata to describe ICA's in-form citizen/PR,
+  Long-Term Pass, and foreign visitor/IPA residency routes; the separate
+  Singapore Entry Visa product is unchanged.
 - `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
   form parity fields, conditional tables, ward/commune metadata hooks, and
   official date/expense/insurance validation rules.

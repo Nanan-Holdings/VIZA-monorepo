@@ -9,13 +9,14 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ArrowUp, Robot as Bot, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, Microphone as Mic, Square } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +29,7 @@ export interface FormAssistantMessage {
   content: string;
   createdAt?: string;
   inputMode?: "text" | "voice" | "system" | "confirmation";
+  animate?: boolean;
 }
 
 export interface FormAssistantMissingField {
@@ -68,6 +70,7 @@ export interface FormFillingAssistantProps {
   progress: { completed: number; total: number };
   messages: FormAssistantMessage[];
   missingFields: FormAssistantMissingField[];
+  readOnly?: boolean;
   loading?: boolean;
   validationResult?: FormAssistantValidationResult | null;
   showReviewAction?: boolean;
@@ -93,6 +96,56 @@ const MIME_CANDIDATES = [
 
 type RecordingState = "idle" | "recording" | "transcribing";
 
+const TYPING_CHARACTER_INTERVAL_MS = 18;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function ProgressiveAssistantMessage({
+  message,
+  onProgress,
+}: {
+  message: FormAssistantMessage;
+  onProgress: () => void;
+}) {
+  const characters = Array.from(message.content);
+  const shouldAnimate = message.animate === true && !prefersReducedMotion();
+  const [visibleLength, setVisibleLength] = useState(() =>
+    shouldAnimate ? Math.min(1, characters.length) : characters.length,
+  );
+  const isTyping = shouldAnimate && visibleLength < characters.length;
+
+  useEffect(() => {
+    onProgress();
+    if (!isTyping) return;
+
+    const timeout = window.setTimeout(() => {
+      setVisibleLength((current) => Math.min(current + 1, characters.length));
+    }, TYPING_CHARACTER_INTERVAL_MS);
+    return () => window.clearTimeout(timeout);
+  }, [characters.length, isTyping, onProgress, visibleLength]);
+
+  return (
+    <div
+      aria-label={message.content}
+      data-testid="form-assistant-typing-message"
+      data-typing={isTyping ? "true" : "false"}
+      role="group"
+    >
+      <div aria-hidden="true">
+        <ChatMessage
+          role="agent"
+          content={characters.slice(0, visibleLength).join("")}
+          density="compact"
+        />
+      </div>
+    </div>
+  );
+}
+
 function getMimeType(): string {
   if (typeof MediaRecorder === "undefined") return "";
   if (typeof MediaRecorder.isTypeSupported !== "function") return "";
@@ -117,6 +170,7 @@ export function FormFillingAssistant({
   progress,
   messages,
   missingFields,
+  readOnly = false,
   loading = false,
   validationResult = null,
   showReviewAction,
@@ -332,6 +386,10 @@ export function FormFillingAssistant({
   }, [clearRecordingTimers, stopTracks]);
 
   useEffect(() => {
+    if (readOnly && recordingState !== "idle") stopRecording(true);
+  }, [readOnly, recordingState, stopRecording]);
+
+  useEffect(() => {
     if (!window.localStorage) return;
     if (draft.trim()) {
       window.localStorage.setItem(composerStorageKey, draft);
@@ -362,6 +420,12 @@ export function FormFillingAssistant({
     const isNearBottom = distanceFromBottom <= 64;
     shouldFollowLatestRef.current = isNearBottom;
     setShowScrollToLatest(!isNearBottom);
+  }, []);
+
+  const handleAssistantTypingProgress = useCallback(() => {
+    const conversation = conversationRef.current;
+    if (!conversation || !shouldFollowLatestRef.current) return;
+    conversation.scrollTop = conversation.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -488,15 +552,15 @@ export function FormFillingAssistant({
       aria-labelledby={titleId}
     >
       <CardHeader className="gap-4 border-b border-brand-50 p-5 sm:p-6">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
-            <Bot className="h-5 w-5" data-testid="form-assistant-icon" />
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
+            <Bot className="h-6 w-6" data-testid="form-assistant-icon" />
           </span>
           <div className="min-w-0">
             <CardTitle id={titleId} className="text-lg text-brand-600">
               {t("title")}
             </CardTitle>
-            <CardDescription className="mt-2 leading-6">{t("description")}</CardDescription>
+            <CardDescription className="mt-0.5 leading-5">{t("description")}</CardDescription>
           </div>
         </div>
         <div className="space-y-2" aria-label={t("progressLabel")}>
@@ -558,18 +622,25 @@ export function FormFillingAssistant({
 
                 return (
                   <div key={message.id} className={confirmationLabel ? "space-y-2" : undefined}>
-                    <ChatMessage
-                      role={message.role === "user" ? "user" : "agent"}
-                      content={message.content}
-                      density="compact"
-                    />
+                    {message.role === "assistant" && message.animate ? (
+                      <ProgressiveAssistantMessage
+                        message={message}
+                        onProgress={handleAssistantTypingProgress}
+                      />
+                    ) : (
+                      <ChatMessage
+                        role={message.role === "user" ? "user" : "agent"}
+                        content={message.content}
+                        density="compact"
+                      />
+                    )}
                     {confirmationLabel ? (
                       <ApplicationCheckbox
                         checked={Boolean(persistedConfirmation) || currentConfirmationPending}
-                        disabled={Boolean(persistedConfirmation) || currentConfirmationPending}
+                        disabled={readOnly || Boolean(persistedConfirmation) || currentConfirmationPending}
                         required={pendingConfirmation?.required}
                         label={confirmationLabel}
-                        onCheckedChange={persistedConfirmation ? undefined : handleConfirmationCheck}
+                        onCheckedChange={readOnly || persistedConfirmation ? undefined : handleConfirmationCheck}
                       />
                     ) : null}
                   </div>
@@ -588,16 +659,14 @@ export function FormFillingAssistant({
                 ))}
               </div>
             ) : null}
-            {!loading && requiredDocumentUploader ? (
+            {!readOnly && !loading && requiredDocumentUploader ? (
               <div data-testid="form-assistant-required-document-uploader">
                 {requiredDocumentUploader}
               </div>
             ) : null}
             {validationResult ? (
               <section className="space-y-3" aria-labelledby={validationTitleId} aria-live="polite">
-                <h3 id={validationTitleId} className="text-sm font-semibold text-brand-700">
-                  {t("validation.title")}
-                </h3>
+                <h3 id={validationTitleId} className="sr-only">{t("validation.title")}</h3>
                 {errors.length > 0 ? (
                   <ClientErrorAlert
                     title={t("validation.errors", { count: errors.length })}
@@ -627,43 +696,47 @@ export function FormFillingAssistant({
                   />
                 ) : null}
                 {warnings.length > 0 ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-amber-900">
-                      <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-                      <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
-                    </div>
-                    <ul className="space-y-3">
-                      {warnings.map((issue, index) => (
-                        <li
-                          key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}
-                          className="space-y-3 rounded-lg border border-amber-200 bg-white p-4"
-                          data-form-assistant-review-issue="warning"
-                        >
-                          <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
-                          {renderIssueField?.(issue)}
-                          {issue.fieldName && onJumpToIssue ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="border-amber-300 text-amber-900 hover:bg-amber-100 hover:text-amber-950"
-                              onClick={() => onJumpToIssue(issue.fieldName!)}
-                            >
-                              {t("reviewRepair.jumpToOriginal")}
-                            </Button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <Alert variant="warning">
+                    <AlertIcon variant="warning" />
+                    <AlertTitle>{t("validation.warnings", { count: warnings.length })}</AlertTitle>
+                    <AlertDescription>
+                      <ul className="space-y-3">
+                        {warnings.map((issue, index) => (
+                          <li
+                            key={issue.id ?? `${issue.fieldName ?? "warning"}-${index}`}
+                            className="space-y-3 rounded-lg border border-amber-200 bg-white p-4"
+                            data-form-assistant-review-issue="warning"
+                          >
+                            <p className="text-sm leading-6 text-amber-900">{issue.message}</p>
+                            {renderIssueField?.(issue)}
+                            {issue.fieldName && onJumpToIssue ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="border-amber-300 text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+                                onClick={() => onJumpToIssue(issue.fieldName!)}
+                              >
+                                {t("reviewRepair.jumpToOriginal")}
+                              </Button>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
                 ) : null}
                 {errors.length === 0 && warnings.length === 0 ? (
-                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
+                  <Alert variant="success">
+                    <AlertIcon variant="success" />
+                    <AlertTitle>{t("validation.title")}</AlertTitle>
+                    <AlertDescription><p>{t("validation.pass")}</p></AlertDescription>
+                  </Alert>
                 ) : null}
               </section>
             ) : null}
             {reviewActionError ? <ClientErrorAlert message={reviewActionError} /> : null}
-            {(showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
+            {!readOnly && (showReviewAction ?? (missingFields.length === 0 && progress.total > 0)) && !loading ? (
               <div
                 className="flex justify-start pb-1"
                 data-testid="form-assistant-review-action"
@@ -698,6 +771,16 @@ export function FormFillingAssistant({
 
         {recordingError ? <ClientErrorAlert message={recordingError} /> : null}
 
+        {readOnly ? (
+          <Alert variant="info" data-testid="form-assistant-read-only-notice">
+            <AlertIcon variant="info" />
+            <AlertTitle>{t("readOnly.title")}</AlertTitle>
+            <AlertDescription>
+              <p>{t("readOnly.description")}</p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <div className="mx-auto w-full max-w-[760px]">
           <div className="flex items-center gap-2 rounded-[26px] border border-gray-200 bg-white px-3 py-2 shadow-none transition-all duration-200 hover:border-gray-300 focus-within:border-brand-500">
             <Textarea
@@ -707,7 +790,7 @@ export function FormFillingAssistant({
               onKeyDown={handleComposerKeyDown}
               placeholder={t("composer.placeholder")}
               aria-label={t("composer.label")}
-              disabled={recordingState === "transcribing"}
+              disabled={readOnly || recordingState === "transcribing"}
               rows={1}
               className="min-h-11 max-h-[168px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-base leading-7 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0"
             />
@@ -721,7 +804,7 @@ export function FormFillingAssistant({
                   aria-label={recordingState === "recording" ? t("composer.stopRecording") : t("composer.startRecording")}
                   aria-pressed={recordingState === "recording"}
                   onClick={() => (recordingState === "recording" ? stopRecording() : void startRecording())}
-                  disabled={loading || recordingState === "transcribing"}
+                  disabled={readOnly || loading || recordingState === "transcribing"}
                 >
                   {recordingState === "recording" ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
@@ -745,7 +828,7 @@ export function FormFillingAssistant({
                 className="h-11 w-11 rounded-full bg-brand-500 text-white hover:bg-brand-600"
                 aria-label={t("composer.send")}
                 onClick={handleSend}
-                disabled={!draft.trim() || loading || recordingState !== "idle"}
+                disabled={readOnly || !draft.trim() || loading || recordingState !== "idle"}
               >
                 <ArrowUp className="size-5" weight="bold" />
               </Button>

@@ -28,6 +28,8 @@ export interface FormAssistantMessage {
   content: string;
   createdAt: string;
   inputMode?: "text" | "voice" | "system" | "confirmation";
+  /** Client-only hint; never persisted or sent to the assistant service. */
+  animate?: boolean;
 }
 
 export interface FormAssistantProgress {

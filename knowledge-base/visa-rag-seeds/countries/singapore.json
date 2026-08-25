@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-04",
+  "version": "2026-08-24",
   "country": "singapore",
   "notes": "Country-level VIZA RAG seed for singapore. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -79,7 +79,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Use ICA SG Arrival Card e-Service or MyICA Mobile for the SGAC workflow. This RAG chunk is for SG Arrival Card traveller declaration intake and form-filling preparation only; route Singapore entry visa, SAVE/Form 14A, work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Use ICA SG Arrival Card e-Service or MyICA Mobile for the SGAC workflow. SGAC is one arrival-card product whose official e-service begins with three residency routes: Singapore Citizen / Permanent Resident, Long-Term Pass Holder, and Foreign Visitor / In-Principle Approval Holder. This RAG chunk is for SG Arrival Card traveller declaration intake and form-filling preparation only; route Singapore entry visa, SAVE/Form 14A, work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
         },
         {
           "id": "singapore_form_fields_to_collect",
@@ -91,7 +91,7 @@
             "field-mapping",
             "intake"
           ],
-          "content": "Singapore SG Arrival Card intake should collect traveller identity, passport details, nationality/citizenship, sex, date/place of birth, place of residence, email/mobile contact, arrival/departure dates, last and next city/port, purpose of travel, mode and transport number, accommodation type/details, and electronic health declaration answers."
+          "content": "Singapore SG Arrival Card intake must first collect the ICA Residency Type. Singapore Citizens and Permanent Residents provide NRIC, name, date of birth, email, arrival date, and electronic health declaration answers. Long-Term Pass Holders provide the same resident-route information using FIN. Only Foreign Visitors / In-Principle Approval Holders provide passport details, nationality/citizenship, sex, country/place of birth, place of residence, mobile contact, departure date, last and next city/port, purpose, transport, and accommodation details in addition to the shared arrival and health information."
         },
         {
           "id": "singapore_supporting_documents_and_review",
@@ -103,7 +103,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "Workflow guardrails: SG Arrival Card is not a visa, does not replace any visa requirement for visa-required travellers, and is normally submitted within the ICA timing window before arrival. VIZA should keep SGAC separate from Singapore entry visa/Form 14A and surface the ICA submission result when the backend runner succeeds."
+          "content": "Workflow guardrails: SG Arrival Card is not a visa, does not replace any visa requirement for visa-required travellers, and is normally submitted within the ICA timing window before arrival. VIZA should keep one SG_ARRIVAL_CARD product with the in-form ICA Residency Type selector, route it to ICA scpr, ltp, or fvipa as applicable, keep Singapore entry visa/Form 14A as the separate SG_VISITOR_VISA product, and surface the ICA submission result when the backend runner succeeds."
         },
         {
           "id": "standard_passport_identity_field_rules",

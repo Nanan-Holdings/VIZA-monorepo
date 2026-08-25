@@ -25,7 +25,7 @@ MAX_RAW_BYTES = "26214400"
 # Cloudflare's spamScore is 0..1 in practice, but 3rd-party headers
 # (X-Spam-Score) can run up to 5+. Quarantine at >=5 — tune in prod.
 SPAM_SCORE_QUARANTINE = "5"
-INBOX_FORWARD_FROM = "VIZA <noreply@viza.app>"
+INBOX_FORWARD_FROM = "VIZA <noreply@viza.it.com>"
 
 [triggers]
 crons = ["*/1 * * * *"]

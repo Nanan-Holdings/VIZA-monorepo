@@ -138,7 +138,26 @@ describe("shared field explanation policy", () => {
     expect(reply).toContain("asks whether you are travelling as an aircraft passenger or a vessel passenger");
     expect(reply).toContain("Reply with how you are entering the destination country");
     expect(reply).toContain("simply aircraft");
+    expect(reply).toContain("Available answers: AIRCRAFT PASSENGER or VESSEL PASSENGER");
     expect(reply).not.toMatch(/\b(?:choose|select|click)\b/i);
+  });
+
+  it("lists every small reviewed applicant-type answer in clarification chat", () => {
+    const reply = buildFieldClarificationFallback({
+      fieldName: "sgac_applicant_type",
+      label: "Residency Type",
+      fieldType: "select",
+      required: true,
+      placeholder: null,
+      options: [
+        { value: "singapore_citizen_or_permanent_resident", label_en: "Singapore Citizen / Permanent Resident" },
+        { value: "long_term_pass_holder", label_en: "Long-Term Pass Holder" },
+        { value: "foreign_visitor", label_en: "Foreign Visitor / In-Principle Approval Holder" },
+      ],
+    }, "en");
+
+    expect(reply).toContain("Available answers: Singapore Citizen / Permanent Resident, Long-Term Pass Holder, or Foreign Visitor / In-Principle Approval Holder");
+    expect(reply).toContain("Reply in your own words");
   });
 
   it("explains country of origin by its travel meaning, not its control type", () => {
