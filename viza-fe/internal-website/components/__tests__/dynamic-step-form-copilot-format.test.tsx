@@ -1407,6 +1407,44 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("请输入完整的姓氏。");
   });
 
+  it("ignores stale bilingual copies for structured numeric identifiers", () => {
+    const flightStep: WizardStep = {
+      stepNumber: 2,
+      stepName: "Arrival and Stay",
+      fields: [{
+        id: "field-flight-number",
+        visaType: "JP_VISIT_JAPAN_WEB",
+        fieldName: "flight_number",
+        label: "Flight Number",
+        fieldType: "text",
+        required: true,
+        stepNumber: 2,
+        stepName: "Arrival and Stay",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: {
+          label_zh: "抵达航班号（仅填写数字部分）",
+          pattern: "^[0-9]{1,8}$",
+        },
+        options: null,
+        conditionalLogic: null,
+      }],
+    };
+
+    render(
+      <DynamicStepForm
+        step={flightStep}
+        prefill={{ flight_number: "111", flight_number_en: "SQ111" }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="JP_VISIT_JAPAN_WEB"
+      />,
+    );
+
+    expect(screen.getByDisplayValue("111")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("SQ111")).not.toBeInTheDocument();
+  });
+
   it("keeps a top-level block controller free of conditional-panel padding", () => {
     const blockControllerStep: WizardStep = {
       stepNumber: 5,

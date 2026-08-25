@@ -313,6 +313,22 @@ describe("dynamic review localization", () => {
     expect(getBilingualReviewValue(answers, "purpose_of_entry", "Tourism", field, "en")).toBe("Tourism");
   });
 
+  test("uses the canonical value for structured identifiers", () => {
+    const field = baseField({
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "text",
+      validationRules: { pattern: "^[0-9]{1,8}$" },
+    });
+    const answers = {
+      flight_number: "111",
+      flight_number_en: "SQ111",
+    };
+
+    expect(getBilingualReviewValue(answers, "flight_number", "111", field, "zh")).toBe("111");
+    expect(getBilingualReviewValue(answers, "flight_number", "111", field, "en")).toBe("111");
+  });
+
   test("resolves the selected Vietnam visa issue-place code on both review sides", () => {
     const field = baseField({
       fieldName: "visa_issued_place",
