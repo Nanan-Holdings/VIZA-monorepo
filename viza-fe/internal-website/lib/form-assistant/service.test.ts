@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
-import { SGAC_HOTEL_NAME_OPTIONS } from "../../../../viza-be/agent-backend/scripts/sgac/official-options";
+import {
+  SGAC_CITY_OPTIONS,
+  SGAC_HOTEL_NAME_OPTIONS,
+} from "../../../../viza-be/agent-backend/scripts/sgac/official-options";
 import { sgacOptionLabelZh } from "../../../../viza-be/agent-backend/scripts/sgac/option-labels";
 
 vi.mock("server-only", () => ({}));
@@ -98,6 +101,47 @@ describe("cross-country assistant question grammar", () => {
       fieldType: "checkbox",
       validationRules: { mustBeTrue: true },
     }, "en", product)).toBe("Please review and confirm the complete declaration shown below.");
+  });
+
+  it("includes every small reviewed choice set directly in generic application chat", () => {
+    expect(buildFormAssistantFieldQuestion({
+      ...field("application_type", "Application type", "申请类型"),
+      fieldType: "select",
+      options: [
+        { value: "individual", text: "Individual" },
+        { value: "family", text: "Family" },
+        { value: "business", text: "Business" },
+      ],
+    }, "en", product)).toBe(
+      "What is your application type? Available answers: Individual, Family, or Business. Reply in your own words.",
+    );
+  });
+
+  it("asks the SG Arrival Card residency question with all three official choices", () => {
+    expect(buildFormAssistantFieldQuestion({
+      ...field("sgac_applicant_type", "Residency Type", "居留身份类型"),
+      fieldType: "select",
+      options: [
+        { value: "singapore_citizen_or_permanent_resident", label_en: "Singapore Citizen / Permanent Resident" },
+        { value: "long_term_pass_holder", label_en: "Long-Term Pass Holder" },
+        { value: "foreign_visitor", label_en: "Foreign Visitor / In-Principle Approval Holder" },
+      ],
+    }, "en", { country: "singapore", visaType: "SG_ARRIVAL_CARD" })).toBe(
+      "Which ICA Residency Type applies: Singapore Citizen / Permanent Resident, Long-Term Pass Holder, or Foreign Visitor / In-Principle Approval Holder?",
+    );
+  });
+
+  it("adds reviewed choices when country-specific copy does not name them", () => {
+    expect(buildFormAssistantFieldQuestion({
+      ...field("sex", "Sex as indicated in passport", "护照所示性别"),
+      fieldType: "select",
+      options: [
+        { value: "M", text: "Male" },
+        { value: "F", text: "Female" },
+      ],
+    }, "en", { country: "singapore", visaType: "SG_ARRIVAL_CARD" })).toBe(
+      "What sex is shown in your passport? Available answers: Male or Female. Reply in your own words.",
+    );
   });
 });
 
@@ -360,6 +404,89 @@ function createAssistantAdminStub(
 }
 
 describe("generic natural-language model extraction", () => {
+  const sgacResidenceField: VisaFormFieldRow = {
+    ...field("place_of_residence", "Place of Residence", "居住地"),
+    fieldType: "select",
+    options: SGAC_CITY_OPTIONS.map((option) => ({
+      value: option.value,
+      text: option.labelEn,
+      label_zh: option.labelZh,
+      label_en: option.labelEn,
+    })),
+  };
+
+  it("stops an unsupported Singapore residence from entering an impossible confirmation loop", async () => {
+    const stub = createAssistantAdminStub();
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [sgacResidenceField] }],
+      answers: {},
+      text: "singapore",
+      locale: "en",
+      inputMode: "text",
+      idempotencyKey: "unsupported-singapore-residence",
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.assistantMessage).toContain("not available in ICA’s official Place of Residence list for foreign visitors");
+    expect(result.assistantMessage).toContain("Singapore Citizen, Permanent Resident, or Long-Term Pass holder");
+    expect(result.assistantMessage).not.toContain("Which city do you currently live in?");
+    expect(stub.answerUpdates).toEqual([]);
+    expect(stub.sessionUpdates.at(-1)).toMatchObject({
+      state_json: {
+        pendingUnsupportedOption: {
+          fieldName: "place_of_residence",
+          value: "Singapore",
+          reason: "sgac_singapore_residence",
+        },
+      },
+    });
+  });
+
+  it("does not restart the residence question when Yes confirms the prior Singapore clarification", async () => {
+    const stub = createAssistantAdminStub(undefined, [{
+      role: "assistant",
+      content: "I understand you currently live in Singapore, but I need the official residence option for the form. Is your place of residence Singapore itself?",
+      created_at: "2026-08-23T00:00:00.000Z",
+    }]);
+    const result = await runAssistantTurn({
+      admin: stub.admin,
+      session: {
+        id: "session-id",
+        schema_fingerprint: "fingerprint",
+        knowledge_release_key: null,
+        state_json: {},
+      },
+      applicationId: "application-id",
+      applicantId: "applicant-id",
+      authUserId: "user-id",
+      steps: [{ stepNumber: 1, stepName: "Traveller Information", fields: [sgacResidenceField] }],
+      answers: {},
+      text: "Yes",
+      locale: "en",
+      inputMode: "text",
+      idempotencyKey: "confirm-unsupported-singapore-residence",
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
+    });
+
+    expect(result.appliedPatches).toEqual([]);
+    expect(result.assistantMessage).toContain("not available in ICA’s official Place of Residence list for foreign visitors");
+    expect(result.assistantMessage).not.toContain("Which city do you currently live in?");
+    expect(stub.answerUpdates).toEqual([]);
+  });
+
   it("translates a natural answer into a high-confidence field patch for a non-SG form", async () => {
     const originalKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
@@ -936,8 +1063,8 @@ describe("generic natural-language model extraction", () => {
               content: JSON.stringify({
                 reply: "",
                 patches: [{
-                  fieldName: "surname_at_birth",
-                  value: "张",
+                  fieldName: "purpose_of_visit_details",
+                  value: "参加行业会议",
                   confidence: "high",
                 }],
               }),
@@ -964,10 +1091,10 @@ describe("generic natural-language model extraction", () => {
         steps: [{
           stepNumber: 1,
           stepName: "Personal details",
-          fields: [field("surname_at_birth", "Surname at birth", "出生时姓氏/曾用姓氏")],
+          fields: [field("purpose_of_visit_details", "Purpose of visit — details", "访问目的说明")],
         }],
         answers: {},
-        text: "张",
+        text: "去参加一个行业会议",
         locale: "zh",
         inputMode: "text",
         idempotencyKey: "deepseek-fallback-turn",
@@ -976,8 +1103,8 @@ describe("generic natural-language model extraction", () => {
       });
 
       expect(result.appliedPatches).toEqual([expect.objectContaining({
-        fieldName: "surname_at_birth",
-        value: "张",
+        fieldName: "purpose_of_visit_details",
+        value: "参加行业会议",
       })]);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(String(fetchMock.mock.calls[1]?.[0])).toBe("https://api.deepseek.com/chat/completions");
@@ -1029,10 +1156,10 @@ describe("generic natural-language model extraction", () => {
         steps: [{
           stepNumber: 1,
           stepName: "Personal details",
-          fields: [field("surname_at_birth", "Surname at birth", "出生时姓氏/曾用姓氏")],
+          fields: [field("purpose_of_visit_details", "Purpose of visit — details", "访问目的说明")],
         }],
         answers: {},
-        text: "张",
+        text: "去参加一个行业会议",
         locale: "zh",
         inputMode: "text",
         idempotencyKey: "providers-unavailable-turn",

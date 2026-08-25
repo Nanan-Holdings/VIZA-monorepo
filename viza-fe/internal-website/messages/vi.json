@@ -51,23 +51,23 @@
     "ofRequired": "[VI] of {total} required",
     "percentComplete": "[VI] {pct}% complete",
     "quickActions": {
-      "title": "[VI] Quick Actions",
+      "title": "[VI] Shortcuts",
       "visaAI": "[VI] Open Visa AI",
       "travelAI": "[VI] Open Travel AI",
       "viewStatus": "[VI] View Application Status"
     },
     "activeVisa": {
-      "label": "[VI] Active visa",
-      "empty": "[VI] No active visa application",
-      "open": "[VI] Open application",
-      "choose": "[VI] Choose a visa"
+      "label": "[VI] Application in progress",
+      "empty": "[VI] No application in progress",
+      "open": "[VI] Open this application",
+      "choose": "[VI] Pick a destination to start"
     },
     "universalInfo": {
-      "title": "[VI] Profile readiness",
-      "subtitle": "[VI] Reusable details for this and future applications",
+      "title": "[VI] My reusable details",
+      "subtitle": "[VI] Fill in once — later applications use it automatically",
       "saved": "[VI] {completed} of {total} details ready",
       "fields": "[VI] Surname, given names, birthday, birthplace, passport, contact",
-      "edit": "[VI] Review profile"
+      "edit": "[VI] View and edit details"
     },
     "emptyApplication": {
       "noActiveApplication": "[VI] No active application",
@@ -491,6 +491,18 @@
       "selectFallback": "[VI] Select…",
       "addAnother": "[VI] Add another",
       "remove": "[VI] Remove"
+    },
+    "chooser": {
+      "title": "[VI] Applications",
+      "subtitle": "[VI] Pick up an application already in progress, or start a new one.",
+      "resumeHeading": "[VI] In progress",
+      "resume": "[VI] Continue",
+      "progress": "[VI] {percent}% complete",
+      "startHeading": "[VI] Start something new",
+      "startNew": "[VI] Start a new application",
+      "startNewHint": "[VI] Choosing another destination won't affect the applications above.",
+      "startNewHintEmpty": "[VI] Pick a destination and we'll take you into the right visa flow.",
+      "loadFailed": "[VI] We couldn't load your applications just now — you can still start a new one below."
     }
   },
   "applicationSteps": {
@@ -834,7 +846,7 @@
         "sex": "[VI] Sex",
         "nationality": "[VI] Nationality",
         "hasOtherNationalities": "[VI] Do you hold any other nationalities?",
-        "countryOfBirth": "[VI] Country of birth",
+        "countryOfBirth": "[VI] Country/region of birth",
         "placeOfBirth": "[VI] Town/city of birth",
         "placeOfBirthPlaceholder": "[VI] e.g. Manchester",
         "maritalStatus": "[VI] Marital status",
@@ -1051,7 +1063,7 @@
         "givenNames": "[VI] Given name(s)",
         "dob": "[VI] Date of birth",
         "placeOfBirth": "[VI] Place of birth",
-        "countryOfBirth": "[VI] Country of birth",
+        "countryOfBirth": "[VI] Country/region of birth",
         "nationality": "[VI] Current nationality",
         "nationalityAtBirth": "[VI] Nationality at birth (if different)",
         "nationalIdNumber": "[VI] National identity number",
@@ -1273,7 +1285,7 @@
         "sex": "[VI] Sex",
         "nationality": "[VI] Nationality",
         "nationalityAtBirth": "[VI] Nationality at birth",
-        "countryOfBirth": "[VI] Country of birth",
+        "countryOfBirth": "[VI] Country/region of birth",
         "placeOfBirth": "[VI] Place of birth",
         "nationalIdNumber": "[VI] National identity number",
         "religion": "[VI] Religion",
@@ -1491,7 +1503,7 @@
         "dob": "[VI] Date of birth",
         "sex": "[VI] Sex",
         "nationality": "[VI] Nationality",
-        "countryOfBirth": "[VI] Country of birth",
+        "countryOfBirth": "[VI] Country/region of birth",
         "placeOfBirth": "[VI] Town/city of birth",
         "relationshipStatus": "[VI] Relationship status",
         "hasNationalId": "[VI] Do you have a national identity card?",
@@ -1695,7 +1707,7 @@
       "gender": "[VI] Gender",
       "male": "[VI] Male",
       "female": "[VI] Female",
-      "countryOfBirth": "[VI] Country of birth",
+      "countryOfBirth": "[VI] Country/region of birth",
       "countryOfBirthPlaceholder": "[VI] Select country",
       "cityOfBirth": "[VI] City of birth",
       "cityOfBirthPlaceholder": "[VI] e.g. Shanghai",
@@ -2205,7 +2217,7 @@
       "nationality": "[VI] Nationality",
       "cityOfBirth": "[VI] City of birth",
       "cityOfBirthPlaceholder": "[VI] e.g. Beijing",
-      "countryOfBirth": "[VI] Country of birth",
+      "countryOfBirth": "[VI] Country/region of birth",
       "countryPlaceholder": "[VI] Select",
       "datePlaceholder": "[VI] Select date",
       "spouseAddressType": "[VI] Spouse address type",
@@ -3023,27 +3035,386 @@
     "faqs": {
       "resetPassword": {
         "question": "[VI] How do I reset my password?",
-        "answer": "[VI] Go to Settings and open the Security section to reset your password. Enter your current password and then your new password twice to confirm. Changes take effect immediately."
-      },
-      "referrals": {
-        "question": "Chương trình giới thiệu hoạt động như thế nào?",
-        "answer": "Chia sẻ liên kết giới thiệu trên trang Giới thiệu bạn bè. Phần thưởng đủ điều kiện sẽ xuất hiện trong Points Center sau khi đáp ứng các yêu cầu."
+        "answer": "[VI] Go to Settings → Security. Enter your current password, then the new one twice; the change takes effect immediately. If you've forgotten it, use “Forgot password” on the sign-in page and we'll email you a reset link."
       },
       "updateInfo": {
-        "question": "[VI] How do I update my personal information?",
-        "answer": "[VI] Go to Settings and select the Profile tab. You can update your name, date of birth, phone number, and address. Tap Save to apply changes."
+        "question": "[VI] How do I change my personal details?",
+        "answer": "[VI] Go to Settings → Universal Information to update your name, date of birth, country/region of birth, passport details, phone number and address. Save each section separately. Applications already lodged with an authority are not updated automatically — tell support if something has changed."
+      },
+      "startNewApplication": {
+        "question": "[VI] How do I start a new application without touching my existing one?",
+        "answer": "[VI] Open the Application tab. It asks first: continue one already in progress, or start a new one. Choosing “start a new application” and picking a destination leaves your existing applications untouched."
       },
       "updatePayment": {
-        "question": "[VI] How do I add or update a payment method?",
-        "answer": "[VI] Billing and payment method management are currently handled offline. Please contact our support team to update your billing details."
+        "question": "[VI] How do I pay, or change how I pay?",
+        "answer": "[VI] Payment happens at checkout, and the available methods are shown before you confirm. We never ask for full card details over chat or email. Past payments, receipts and refund status live under Billing."
+      },
+      "feeBreakdown": {
+        "question": "[VI] What am I actually paying for?",
+        "answer": "[VI] Checkout lists the government fee and the VIZA service fee separately. The government fee is the destination's official charge and we don't mark it up; the service fee is what we charge for handling the application. They refund under different rules — see the refund policy."
+      },
+      "processingTime": {
+        "question": "[VI] How long until the visa is issued?",
+        "answer": "[VI] The times shown are estimates based on past applications. The actual decision and its timing rest with the consulate or immigration authority — we can't influence that and we don't promise a date. Once it's lodged, Status shows each step as it happens."
       },
       "dataPrivate": {
-        "question": "Dữ liệu hồ sơ của tôi có được bảo mật không?",
-        "answer": "Dữ liệu hồ sơ được bảo vệ và chỉ bạn, nhân viên VIZA được ủy quyền cùng các nhà cung cấp cần thiết để thực hiện dịch vụ thị thực đã yêu cầu mới có thể truy cập."
+        "question": "[VI] Is my application data safe?",
+        "answer": "[VI] It's stored and transmitted encrypted, and reachable only by you, authorised VIZA staff, and the providers needed to deliver the visa service. The Data usage article under Privacy and security has the detail."
       },
       "contactSupport": {
-        "question": "[VI] How do I contact support?",
-        "answer": "[VI] You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.it.com."
+        "question": "[VI] How do I reach a person?",
+        "answer": "[VI] Raise a request under Help → Contact, or email support@viza.it.com. We work Singapore business hours and usually reply within one business day."
+      }
+    },
+    "supportCta": {
+      "title": "[VI] Didn't find the answer?",
+      "action": "[VI] Contact a human"
+    },
+    "articleChrome": {
+      "backToHelp": "[VI] Back to Help Center",
+      "helpCenter": "[VI] Help Center",
+      "stillStuck": "[VI] Still stuck?",
+      "contactSupport": "[VI] Contact a human"
+    },
+    "articles": {
+      "completeYourProfile": {
+        "metaTitle": "[VI] Complete Your Profile | Help Center",
+        "title": "[VI] Complete your profile",
+        "subtitle": "[VI] Keep reusable applicant information accurate across your visa applications.",
+        "sections": [
+          {
+            "heading": "[VI] Why your profile matters",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Your Universal Information profile stores applicant details that can be reused across visa applications. Keeping it accurate reduces duplicate entry and helps prevent inconsistencies in official forms."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] How to update your profile",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Open Settings from the navigation menu.",
+                  "[VI] Select Universal Information.",
+                  "[VI] Review your identity, contact, passport, travel, and background details.",
+                  "[VI] Save each section after making changes."
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "[VI] Enter names, dates, and passport details exactly as they appear on your travel documents."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] What information is collected",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Identity information, including your legal name, birth details, nationality, and gender.",
+                  "[VI] Contact information, including your email, phone number, and current address.",
+                  "[VI] Passport details and reusable supporting documents.",
+                  "[VI] Travel, family, education, employment, and background details used by visa forms."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Updating your email or password",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Email and password changes are handled in the Security section of Settings. Go to Settings → Security and follow the prompts to update your login credentials."
+              }
+            ]
+          }
+        ]
+      },
+      "addPaymentMethod": {
+        "metaTitle": "[VI] Add a Payment Method | Help Center",
+        "title": "[VI] Add a payment method",
+        "subtitle": "[VI] How billing and payment work on the platform.",
+        "sections": [
+          {
+            "heading": "[VI] How billing works",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] VIZA uses secure checkout for eligible application, subscription, and agency-fee payments. Available payment methods are shown before you confirm a purchase."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Setting up your payment method",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Open the application or subscription checkout you want to pay.",
+                  "[VI] Review the amount, currency, and payment description.",
+                  "[VI] Choose one of the payment methods offered at checkout and complete the provider's secure flow."
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "[VI] VIZA never asks you to send full card details through chat or email. Contact support if a checkout does not show the payment method you expect."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Using points",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Eligible VIZA Points and their redemption options are shown in Points Center. Availability and limits vary by plan, promotion, and purchase type."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Viewing past transactions",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Open Billing to view payment history, receipts, invoice requests, and refund status."
+              }
+            ]
+          }
+        ]
+      },
+      "exploreServices": {
+        "metaTitle": "[VI] Explore VIZA | Help Center",
+        "title": "[VI] Explore VIZA",
+        "subtitle": "[VI] The tools available throughout your visa journey.",
+        "sections": [
+          {
+            "heading": "[VI] Visa applications",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Start or continue an application from Home or the Application tab. VIZA keeps your answers, supporting documents, payments, consent, and status in one workflow."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Universal Information",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Save reusable personal, passport, contact, travel, and background information once, then reuse it across supported visa applications."
+              },
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Open Universal Information from Settings.",
+                  "[VI] Review each category and upload reusable documents.",
+                  "[VI] Save your changes before returning to an application.",
+                  "[VI] Confirm prefilled answers inside each visa form before submission."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Visa AI",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Use Visa AI to understand visa routes, requirements, and next steps. Once your route is clear, continue detailed data entry in the Application area."
+              },
+              {
+                "type": "tip",
+                "text": "[VI] For official requirements, rely on the source links shown by VIZA and ask support when something is uncertain."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Travel AI",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Plan trips with Travel AI — destinations, dates, travellers, preferences, and itinerary ideas. Travel planning stays separate from your official visa application."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Support and status",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Use Status to follow application progress, and Support for account, payment, document, or timing questions that need a person."
+              }
+            ]
+          }
+        ]
+      },
+      "accountSecurityTips": {
+        "metaTitle": "[VI] Account Security Tips | Help Center",
+        "title": "[VI] Account security tips",
+        "subtitle": "[VI] Keeping your account and personal data safe.",
+        "sections": [
+          {
+            "heading": "[VI] Use a strong, unique password",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Choose a password that is long, unique, and hard to guess. Don't reuse a password from another service."
+              },
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Use at least 12 characters.",
+                  "[VI] Include uppercase, lowercase, numbers, and symbols.",
+                  "[VI] Store passwords in a trusted password manager if you can."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Keep your credentials private",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Never share your login details. Our support team will never ask for your password."
+              },
+              {
+                "type": "tip",
+                "text": "[VI] If you think your password has been exposed, change it straight away in Settings → Security."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Safe login habits",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Log out after using a shared or public device.",
+                  "[VI] Don't save passwords in public browsers.",
+                  "[VI] Avoid signing in from networks you don't know."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Watch for suspicious activity",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] If you see unexpected account changes, failed-login alerts, or activity you don't recognise, contact support as soon as you can."
+              }
+            ]
+          }
+        ]
+      },
+      "dataUsage": {
+        "metaTitle": "[VI] Data Usage | Help Center",
+        "title": "[VI] Data usage",
+        "subtitle": "[VI] What data we collect, and what we do with it.",
+        "sections": [
+          {
+            "heading": "[VI] What we collect",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Personal information: name, date of birth, phone number, and address.",
+                  "[VI] Application data: passport details, visa history, form answers, supporting documents, and consent records.",
+                  "[VI] Usage data: pages visited, features used, and session activity, used to improve the platform.",
+                  "[VI] Transaction data: payment status, invoices, refunds, and subscription records."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] How it is used",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] To prepare, review, and manage your visa applications.",
+                  "[VI] To let authorised VIZA staff review application materials and support you.",
+                  "[VI] To process payments and track service fulfilment.",
+                  "[VI] To send you application, document, payment, and status notifications."
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "[VI] Your personal data is treated as confidential and is not sold to third parties."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Third-party services",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Some functions rely on third-party providers for payments, document processing, communications, and official submission."
+              },
+              {
+                "type": "paragraph",
+                "text": "[VI] Only the minimum information needed to deliver the service is shared with them."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Your rights",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Ask for a copy of your account and personal data by contacting support.",
+                  "[VI] Ask us to correct inaccurate profile details.",
+                  "[VI] Ask for your account to be deleted, subject to visa and legal retention requirements."
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "twoFactorSupport": {
+        "metaTitle": "[VI] Two-Factor Support | Help Center",
+        "title": "[VI] Two-factor authentication",
+        "subtitle": "[VI] An extra layer of protection on your account.",
+        "sections": [
+          {
+            "heading": "[VI] What it is",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Two-factor authentication (2FA) adds a second verification step when you sign in, so your account stays protected even if your password is compromised."
+              }
+            ]
+          },
+          {
+            "heading": "[VI] Turning it on",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] 2FA is currently switched on for you by our team rather than self-service."
+              },
+              {
+                "type": "list",
+                "items": [
+                  "[VI] Open Support and raise a request.",
+                  "[VI] Ask for two-factor authentication on your account.",
+                  "[VI] Follow the setup instructions support sends you."
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "[VI] If you lose your second factor",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "[VI] Contact support as soon as you can. We'll verify your identity and help you get back in."
+              }
+            ]
+          }
+        ]
       }
     }
   },
@@ -3224,6 +3595,138 @@
       "egypt": "[VI] Egypt",
       "pisa": "[VI] Pisa",
       "singapore": "[VI] Singapore"
+    }
+  },
+  "clientCheckout": {
+    "metaTitle": "[VI] Checkout | VIZA",
+    "metaDescription": "[VI] Pay the VIZA service fee through Stripe Checkout.",
+    "title": "[VI] Checkout",
+    "lede": "[VI] Confirm the visa application you selected and pay VIZA's service fee through Stripe. When the official government fee falls due, VIZA creates a secure virtual card and pays the government portal for you.",
+    "loadFailed": "[VI] Checkout could not load",
+    "notConfigured": "[VI] Not configured",
+    "notStarted": "[VI] Not started",
+    "paid": "[VI] Paid",
+    "notPaid": "[VI] Not paid",
+    "unavailable": "[VI] Unavailable",
+    "agencyFee": "[VI] Service fee",
+    "application": "[VI] Application",
+    "payment": "[VI] Payment",
+    "confirmPackage": "[VI] Check this package over before starting Stripe Checkout for the VIZA service fee.",
+    "payButton": "[VI] Pay service fee with Stripe",
+    "noAgencyFee": "[VI] Checkout is disabled because this package has no service fee configured.",
+    "stripeOnly": "[VI] You'll enter card details only on Stripe's own checkout page.",
+    "stripeUnconfigured": {
+      "title": "[VI] Stripe Checkout needs configuration",
+      "description": "[VI] The page is safe to review, but payment is switched off until the Stripe environment variables are configured."
+    },
+    "officialFee": {
+      "title": "[VI] Official government fee",
+      "lede": "[VI] VIZA pays the official portal on your behalf, with a virtual card created for this application only.",
+      "note": "[VI] You'll never need to enter card details on a government portal. When the official fee falls due, VIZA creates a limited virtual card for this application, pays the portal, and records the result."
+    },
+    "summary": {
+      "title": "[VI] Order summary",
+      "package": "[VI] Package",
+      "destination": "[VI] Destination",
+      "visaType": "[VI] Visa type",
+      "agencyFee": "[VI] VIZA service fee",
+      "officialFee": "[VI] Official fee",
+      "officialFeeValue": "[VI] Paid by VIZA with a virtual card",
+      "dueToday": "[VI] Due today",
+      "stripeNote": "[VI] Charged through Stripe's hosted checkout, for VIZA's service fee only."
+    },
+    "paidAlert": {
+      "title": "[VI] Service fee recorded",
+      "confirmedAt": "[VI] Latest confirmation: {at}",
+      "onFile": "[VI] Payment is on file."
+    },
+    "afterPayment": {
+      "title": "[VI] After payment",
+      "body": "[VI] When an official portal fee falls due, VIZA creates a virtual card for that application and pays it for you. You never enter card details on the government portal."
+    },
+    "empty": {
+      "title": "[VI] No package is ready for checkout",
+      "description": "[VI] Pick a destination, or ask the VIZA team to assign a package, before starting service-fee payment.",
+      "cta": "[VI] Choose a visa route"
+    },
+    "errors": {
+      "generic": {
+        "title": "[VI] Checkout needs attention",
+        "description": "[VI] Something interrupted checkout. Try again, or contact support."
+      },
+      "cancelled": {
+        "title": "[VI] Stripe Checkout was cancelled",
+        "description": "[VI] No VIZA service fee was recorded. You can review the package and start Stripe Checkout again."
+      },
+      "checkout_unavailable": {
+        "title": "[VI] Checkout is temporarily unavailable",
+        "description": "[VI] Stripe Checkout could not be opened. Try again, or contact support."
+      },
+      "missing_package": {
+        "title": "[VI] Choose a visa package first",
+        "description": "[VI] We need an active package before service-fee payment can start."
+      },
+      "package_not_found": {
+        "title": "[VI] Package not found",
+        "description": "[VI] This package is not active on your account. Please choose another one."
+      },
+      "payment_record_failed": {
+        "title": "[VI] Payment record was not created",
+        "description": "[VI] VIZA did not start Stripe Checkout because the payment record could not be prepared."
+      },
+      "pricing_missing": {
+        "title": "[VI] Service fee is not configured",
+        "description": "[VI] This package needs a VIZA service fee before Stripe Checkout can start."
+      },
+      "stripe_unconfigured": {
+        "title": "[VI] Stripe Checkout is not configured",
+        "description": "[VI] Production payment requires STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and an app URL. No card details are collected here."
+      }
+    },
+    "data": {
+      "governmentFee": {
+        "amountPending": "[VI] Confirmed before payment",
+        "amountAtPayment": "[VI] Confirmed at the official payment step",
+        "included": {
+          "label": "[VI] Official fee payment",
+          "description": "[VI] VIZA handles the official fee for this application.",
+          "detail": "[VI] When payment falls due, VIZA creates a limited virtual card for this application and pays the official portal for you."
+        },
+        "estimated": {
+          "label": "[VI] Estimated official fee",
+          "description": "[VI] This estimate is handled separately from today's VIZA service-fee checkout.",
+          "detail": "[VI] The official amount can change. VIZA confirms it before creating a single-purpose virtual card and paying the portal."
+        },
+        "external": {
+          "label": "[VI] Official fee handled by VIZA",
+          "description": "[VI] VIZA pays the official portal for you when the application reaches the payment step.",
+          "detail": "[VI] A virtual card is created for this application and this official fee only. You don't enter card details on the government portal."
+        },
+        "separate": {
+          "label": "[VI] Official fee handled by VIZA",
+          "description": "[VI] This fee is handled separately from today's Stripe service-fee checkout.",
+          "detail": "[VI] When the official fee falls due, VIZA creates a virtual card for this application and pays the portal for you."
+        },
+        "unknown": {
+          "label": "[VI] Official fee amount pending",
+          "description": "[VI] The official amount is confirmed before VIZA pays it for this application.",
+          "detail": "[VI] VIZA confirms the amount, creates a limited virtual card for it, and pays the government portal for you."
+        }
+      },
+      "nextStep": {
+        "start": {
+          "label": "[VI] Start application",
+          "description": "[VI] Start the application form so VIZA can prepare the next steps."
+        },
+        "consent": {
+          "label": "[VI] Continue to consent",
+          "description": "[VI] Review VIZA's terms, privacy notice, and agency authorisation for this application."
+        },
+        "documents": {
+          "label": "[VI] Continue to documents",
+          "description": "[VI] Upload and review supporting documents for this visa package."
+        }
+      }
     }
   }
 }

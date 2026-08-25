@@ -2040,6 +2040,9 @@ export function TravelPlannerForm({
               value={customCountriesInput}
             />
           )}
+          {/* One control, one behaviour: "No more countries" ran exactly the same
+              handler with the same disabled rule, so it read as a second choice
+              that did something different when it didn't. */}
           <Button
             className="w-full"
             disabled={busy || isLoadingCountryOptions || countries.length === 0}
@@ -2047,15 +2050,6 @@ export function TravelPlannerForm({
             size="sm"
           >
             {copy.confirmCountry}
-          </Button>
-          <Button
-            className="w-full"
-            disabled={busy || isLoadingCountryOptions || countries.length === 0}
-            onClick={submitCountries}
-            size="sm"
-            variant="outline"
-          >
-            {copy.noMoreCountries}
           </Button>
         </div>
       )}

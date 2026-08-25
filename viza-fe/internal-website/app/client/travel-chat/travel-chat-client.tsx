@@ -28,6 +28,7 @@ import {
 } from "@phosphor-icons/react";
 import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
+import { cn } from "@/lib/utils";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
@@ -6349,7 +6350,14 @@ export function TravelChatClient({
                   </div>
                   <div
                     ref={messageScrollRef}
-                    className="h-full space-y-4 overflow-y-auto overscroll-y-contain px-3 py-4 [scrollbar-width:none] sm:pl-10 sm:pr-4 md:py-6 md:pl-12 md:pr-6 [&::-webkit-scrollbar]:hidden"
+                    className={cn(
+                      "h-full space-y-4 overflow-y-auto overscroll-y-contain px-3 py-4 [scrollbar-width:none] sm:pl-10 sm:pr-4 md:py-6 md:pl-12 md:pr-6 [&::-webkit-scrollbar]:hidden",
+                      // The session-toggle button is absolutely positioned at
+                      // left-3/top-3 with z-30. Below `sm` the message column only
+                      // has 12px of left padding, so the first line of the opening
+                      // message rendered underneath it. Reserve the button's height.
+                      !embedded && "pt-16 sm:pt-4",
+                    )}
                     data-testid="travel-message-scroll"
                   >
                     <div className="space-y-6 sm:space-y-8">
