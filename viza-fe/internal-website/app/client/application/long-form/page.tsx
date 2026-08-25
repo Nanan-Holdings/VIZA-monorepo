@@ -79,6 +79,21 @@ type SubmissionQueueRequestError = Error & {
     labelZh?: string;
   }>;
 };
+
+function localizedSubmissionAccessError(
+  code: string | undefined,
+  rawError: string,
+  isZh: boolean,
+): string {
+  if (!isZh) return rawError;
+  if (code === "application_payment_review_required") {
+    return "此申请的付款记录需要人工核对后才能提交。日本 Visit Japan Web 官方服务本身免费，请勿重复付款。";
+  }
+  if (code === "application_payment_required") {
+    return "提交前需要完成适用的 VIZA 服务费及官方费用确认。";
+  }
+  return rawError;
+}
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
 import { canUseFormAssistant, isFormAssistantConfirmationField } from "@/lib/form-assistant/constants";
 import {
@@ -1490,7 +1505,11 @@ async function insertSubmissionQueueJob(
           : /disabled by environment configuration/i.test(rawError)
             ? "韩国 e-Arrival Card 真实提交功能暂未启用。"
             : "韩国 e-Arrival Card 提交请求未被接受，请稍后重试；你的表单内容已保存。")
-      : rawError;
+      : localizedSubmissionAccessError(
+          typeof payload?.code === "string" ? payload.code : undefined,
+          rawError,
+          input.locale.toLowerCase().startsWith("zh"),
+        );
     const requestError = new Error(localizedError) as SubmissionQueueRequestError;
     requestError.code = typeof payload?.code === "string" ? payload.code : undefined;
     requestError.missingFields = Array.isArray(payload?.missingFields)
@@ -1525,7 +1544,7 @@ async function insertSubmissionQueueJob(
   };
 }
 
-async function prepareSubmissionAccess(applicationId: string): Promise<boolean> {
+async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Promise<boolean> {
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set("applicationId", applicationId);
   currentUrl.searchParams.set("step", "review");
@@ -1539,6 +1558,7 @@ async function prepareSubmissionAccess(applicationId: string): Promise<boolean> 
   });
   const payload = (await response.json().catch(() => null)) as {
     error?: unknown;
+    code?: unknown;
     checkoutUrl?: unknown;
   } | null;
   if (response.ok) return true;
@@ -1550,11 +1570,14 @@ async function prepareSubmissionAccess(applicationId: string): Promise<boolean> 
     window.location.assign(payload.checkoutUrl);
     return false;
   }
-  throw new Error(
-    typeof payload?.error === "string"
-      ? payload.error
-      : "Submission payment eligibility could not be confirmed.",
-  );
+  const rawError = typeof payload?.error === "string"
+    ? payload.error
+    : "Submission payment eligibility could not be confirmed.";
+  throw new Error(localizedSubmissionAccessError(
+    typeof payload?.code === "string" ? payload.code : undefined,
+    rawError,
+    isZh,
+  ));
 }
 
 async function insertOfficialFeeSubmissionQueueJobWithCard(
@@ -4533,7 +4556,7 @@ export default function ApplicationPage() {
       return;
     }
     try {
-      const ready = await prepareSubmissionAccess(appState.applicationId);
+      const ready = await prepareSubmissionAccess(appState.applicationId, isZhInterface);
       if (!ready) {
         setSubmitCheckState("idle");
         return;

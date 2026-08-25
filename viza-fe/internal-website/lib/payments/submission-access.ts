@@ -464,11 +464,19 @@ export async function evaluateSubmissionAccess(
   const agencyPricingConfigured = configuredAgencyAmount !== null
     && configuredAgencyAmount !== undefined;
   const agencyAmount = Math.max(0, configuredAgencyAmount ?? 0);
+  const explicitlyFreePackage = packagePricing !== null
+    && Number(packagePricing.agency_fee_cents) === 0
+    && Number(packagePricing.government_fee_cents) === 0;
   const paidAgencyOrder = paidOrders.find(
     (order) => Number(order.agency_fee_cents) >= agencyAmount,
   ) ?? null;
   let agency: SubmissionFeeDecision;
-  if (hasReviewOrder || hasReviewPayment) {
+  if (explicitlyFreePackage) {
+    // A published zero-total package has no payment evidence to review. This
+    // must win over stale legacy order/payment flags so free arrival
+    // declarations never enter a manual-payment checkpoint.
+    agency = fee("waived", 0, currency);
+  } else if (hasReviewOrder || hasReviewPayment) {
     agency = fee("review_required", agencyAmount, currency);
   } else if (accessLevel === "high") {
     agency = fee("waived", agencyAmount, currency);

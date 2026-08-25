@@ -213,6 +213,49 @@ describe("submission access evaluator", () => {
     });
   });
 
+  it("does not send an explicitly free Japan VJW package to payment review for stale legacy evidence", async () => {
+    const admin = fakeAdmin(baseTables({
+      applications: [{
+        id: "app-1",
+        applicant_id: "profile-1",
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        purpose: null,
+        visa_package_id: "package-jp-vjw",
+        group_id: null,
+        government_fee_cents: 0,
+        government_fee_currency: "USD",
+      }],
+      visa_packages: [{
+        id: "package-jp-vjw",
+        price_cents: null,
+        currency: "USD",
+      }],
+      package_pricing: [{
+        visa_package_id: "package-jp-vjw",
+        currency: "USD",
+        government_fee_cents: 0,
+        agency_fee_cents: 0,
+        updated_at: "2026-08-24T00:00:00.000Z",
+      }],
+      order: [{
+        id: "legacy-zero-order",
+        application_id: "app-1",
+        status: "disputed",
+        agency_fee_cents: 0,
+        govt_fee_cents: 0,
+        currency: "USD",
+        created_at: "2026-08-24T00:00:00.000Z",
+      }],
+    }));
+
+    const decision = await evaluateSubmissionAccess(admin.client as never, "app-1");
+
+    expect(decision.status).toBe("ready");
+    expect(decision.agencyFee.status).toBe("waived");
+    expect(decision.officialFee.status).toBe("not_required");
+  });
+
   it("preserves a high-access waiver already locked to the application", async () => {
     const admin = fakeAdmin(baseTables({
       application_submission_entitlements: [{
