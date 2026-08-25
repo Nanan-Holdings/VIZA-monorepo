@@ -47,9 +47,10 @@ export function StepUsContact({ value, onChange, onContinue }: StepUsContactProp
           {t("title")}
         </h1>
         <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
+        <p className="text-sm text-muted-foreground sm:text-base">{t("truthfulContactHint")}</p>
       </header>
 
-      <BrandField label={t("contactType")}>
+      <BrandField label={t("contactType")} hint={t("truthfulContactHint")}>
         <TabChoice
           name="us-contact-type"
           value={value.isOrganization ? "organization" : "person"}

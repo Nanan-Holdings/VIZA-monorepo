@@ -177,7 +177,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
         />
       </BrandField>
 
-      <BrandField label={t("issuedInAnotherCountry")}>
+      <BrandField label={t("issuedInAnotherCountry")} hint={t("issuingPlaceHint")}>
         <TabChoice
           name="issued-in-another-country"
           value={value.issuedInAnotherCountry ? "yes" : "no"}
@@ -212,7 +212,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
       </BrandField>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <BrandField label={t("issuanceCity")} htmlFor="issuance-city">
+        <BrandField label={t("issuanceCity")} htmlFor="issuance-city" hint={t("issuingPlaceHint")}>
           <BrandInput
             id="issuance-city"
             value={value.issuanceCity}
@@ -220,7 +220,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
             placeholder={t("issuanceCityPlaceholder")}
           />
         </BrandField>
-        <BrandField label={t("issuanceProvince")} htmlFor="issuance-province">
+        <BrandField label={t("issuanceProvince")} htmlFor="issuance-province" hint={t("issuingPlaceHint")}>
           <BrandInput
             id="issuance-province"
             value={value.issuanceProvince}
@@ -231,14 +231,14 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <BrandField label={t("issueDate")}>
+        <BrandField label={t("issueDate")} hint={t("passportDatesHint")}>
           <DatePicker
             value={value.issueDate}
             onChange={(next) => set("issueDate", next)}
             placeholder={t("issueDatePlaceholder")}
           />
         </BrandField>
-        <BrandField label={t("expiryDate")}>
+        <BrandField label={t("expiryDate")} hint={t("passportDatesHint")}>
           <DatePicker
             value={value.expiryDate}
             onChange={(next) => set("expiryDate", next)}
@@ -250,7 +250,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
       <div className="flex flex-col gap-5 pt-1">
         <h2 className="text-xl font-semibold tracking-tight text-foreground">{t("extraQuestionsTitle")}</h2>
 
-        <BrandField label={t("extraOtherCitizenship")}>
+        <BrandField label={t("extraOtherCitizenship")} hint={t("extraOtherCitizenshipHint")}>
           <TabChoice
             name="extra-other-citizenship"
             value={value.hasAdditionalNationality ? "yes" : "no"}
@@ -345,7 +345,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
           ) : null}
         </BrandField>
 
-        <BrandField label={t("extraOtherCountryPermanentResidence")}>
+        <BrandField label={t("extraOtherCountryPermanentResidence")} hint={t("extraOtherCountryPermanentResidenceHint")}>
           <TabChoice
             name="extra-other-country-permanent-residence"
             value={value.hasOtherCountryPermanentResidence ? "yes" : "no"}
@@ -419,7 +419,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
           {value.hasUsSocialSecurityOrTaxId ? (
             <div className="mt-3 flex flex-col gap-4 border-l-2 border-brand-50 pl-3">
               <div className="space-y-2">
-                <BrandField label={t("extraSsnLabel")}>
+                <BrandField label={t("extraSsnLabel")} hint={t("extraSsnHint")}>
                   <TabChoice
                     name="has-ssn"
                     value={value.hasSsn ? "yes" : "no"}
@@ -574,7 +574,7 @@ export function StepPassport({ value, onChange, onContinue }: StepPassportProps)
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-white p-4">
         <h3 className="text-[28px] font-semibold tracking-tight text-foreground">{t("lostPassportSectionTitle")}</h3>
-        <BrandField label={t("lostPassportQuestion")}>
+        <BrandField label={t("lostPassportQuestion")} hint={t("lostPassportHint")}>
           <TabChoice
             name="lost-passport"
             value={value.hasLostPassport ? "yes" : "no"}

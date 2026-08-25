@@ -169,7 +169,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
           </div>
         </div>
 
-        <BrandField label={t("primaryOccupation")} required>
+        <BrandField label={t("primaryOccupation")} required hint={t("primaryOccupationHint")}>
           <Select value={value.primaryOccupation} onValueChange={(next) => set("primaryOccupation", next as OccupationKey)}>
             <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px]">
               <SelectValue placeholder={t("primaryOccupationPlaceholder")} />
@@ -198,7 +198,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
 
         {showDetails ? (
           <div className="grid gap-x-4 gap-y-4 border-t border-border/60 pt-4 sm:grid-cols-2">
-            <BrandField label={showStudentDetails ? t("schoolName") : t("employerName")} required className="sm:col-span-2">
+            <BrandField label={showStudentDetails ? t("schoolName") : t("employerName")} required hint={t("employerNameHint")} className="sm:col-span-2">
               <BrandInput
                 value={value.employerName}
                 onChange={(e) => set("employerName", e.target.value)}
@@ -214,7 +214,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
                     placeholder={t("jobTitlePlaceholder")}
                   />
                 </BrandField>
-                <BrandField label={t("jobDuties")} required className="sm:col-span-2">
+                <BrandField label={t("jobDuties")} required hint={t("jobDutiesHint")} className="sm:col-span-2">
                   <textarea
                     value={value.jobDuties}
                     onChange={(e) => set("jobDuties", e.target.value)}
@@ -267,7 +267,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
                 placeholder={t("countryPlaceholder")}
               />
             </BrandField>
-            <BrandField label={showStudentDetails ? t("schoolPhone") : t("employerPhone")} required className="sm:col-span-2">
+            <BrandField label={showStudentDetails ? t("schoolPhone") : t("employerPhone")} required hint={t("employerPhoneHint")} className="sm:col-span-2">
               <InputGroup className="h-12">
                 <InputGroupAddon className="h-12 rounded-l-lg border-[#e8e8e8] bg-white px-2">
                   <select
@@ -290,14 +290,14 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
                 />
               </InputGroup>
             </BrandField>
-            <BrandField label={t("employmentStartDate")} required className="sm:col-span-2">
+            <BrandField label={t("employmentStartDate")} required hint={t("employmentStartDateHint")} className="sm:col-span-2">
               <DatePicker
                 value={value.employmentStartDate}
                 onChange={(next) => set("employmentStartDate", next)}
                 placeholder={t("datePlaceholder")}
               />
             </BrandField>
-            <BrandField label={t("monthlySalary")} hint={t("monthlySalaryHint")} className="sm:col-span-2">
+            <BrandField label={t("monthlySalary")} hint={`${t("monthlySalaryHint")} ${t("monthlySalaryTruthHint")}`} className="sm:col-span-2">
               <label className="mb-1 inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <Checkbox
                   checked={value.noMonthlySalary}
@@ -337,7 +337,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
               ) : null}
             </BrandField>
             {showStudentDetails ? (
-              <BrandField label={t("courseOfStudy")} required className="sm:col-span-2">
+              <BrandField label={t("courseOfStudy")} required hint={t("educationCourseHint")} className="sm:col-span-2">
                 <textarea
                   value={value.jobTitle}
                   onChange={(e) => set("jobTitle", e.target.value)}
@@ -592,7 +592,7 @@ export function StepWorkEducation({ value, onChange, onContinue }: StepWorkEduca
                       placeholder={t("educationInstitutionPlaceholder")}
                     />
                   </BrandField>
-                  <BrandField label={t("educationCourse")} required className="sm:col-span-2">
+                  <BrandField label={t("educationCourse")} required hint={t("educationCourseHint")} className="sm:col-span-2">
                     <BrandInput
                       value={education.course}
                       onChange={(e) => setEducationEntry(index, "course", e.target.value)}

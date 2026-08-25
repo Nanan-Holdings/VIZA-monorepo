@@ -114,7 +114,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
         <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
       </header>
 
-      <BrandField label={t("plans")} required>
+      <BrandField label={t("plans")} required hint={t("plansHint")}>
         <TabChoice
           name="travel-plans"
           value={value.plansState}
@@ -212,14 +212,14 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
         <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
           <p className="text-sm font-semibold text-foreground">{t("estimatedPlanTitle")}</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <BrandField label={t("estimatedArrivalDate")} required>
+            <BrandField label={t("estimatedArrivalDate")} required hint={t("estimatedTripHint")}>
               <DatePicker
                 value={value.arrivalDate}
                 onChange={(next) => set("arrivalDate", next)}
                 placeholder={t("arrivalDatePlaceholder")}
               />
             </BrandField>
-            <BrandField label={t("lengthOfStay")} htmlFor="length" required>
+            <BrandField label={t("lengthOfStay")} htmlFor="length" required hint={t("estimatedTripHint")}>
               <div className="flex gap-2">
                 {isShortTransit ? null : (
                   <BrandInput
@@ -260,7 +260,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
       {showCompanionBlock ? (
         <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
           <p className="text-sm font-semibold text-foreground">{t("companionsTitle")}</p>
-          <BrandField label={t("hasCompanions")} required>
+          <BrandField label={t("hasCompanions")} required hint={t("hasCompanionsHint")}>
             <TabChoice
               name="has-companions"
               value={value.hasCompanions}
@@ -276,7 +276,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
           {value.hasCompanions === "yes" ? (
             <>
-              <BrandField label={t("companionGroupTravel")} required>
+              <BrandField label={t("companionGroupTravel")} required hint={t("companionGroupTravelHint")}>
                 <TabChoice
                   name="companion-group-travel"
                   value={value.companionGroupTravel}
@@ -366,7 +366,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("internationalTravelTitle")}</p>
-        <BrandField label={t("hasVisitedOtherCountriesLast5Years")} required>
+        <BrandField label={t("hasVisitedOtherCountriesLast5Years")} required hint={t("visitedCountriesHint")}>
           <TabChoice
             name="has-visited-other-countries"
             value={value.hasVisitedOtherCountriesLast5Years}
@@ -407,7 +407,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("previousUsTravelTitle")}</p>
-        <BrandField label={t("hasBeenInUs")} required>
+        <BrandField label={t("hasBeenInUs")} required hint={t("hasBeenInUsHint")}>
           <TabChoice
             name="has-been-in-us"
             value={value.hasBeenInUs}
@@ -550,7 +550,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("previousUsVisaTitle")}</p>
-        <BrandField label={t("previousVisa")} required>
+        <BrandField label={t("previousVisa")} required hint={t("previousVisaHint")}>
           <TabChoice
             name="has-previous-visa"
             value={value.previousVisa}
@@ -714,7 +714,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("visaHistoryTitle")}</p>
-        <BrandField label={t("previousRefusal")} required>
+        <BrandField label={t("previousRefusal")} required hint={t("previousRefusalHint")}>
           <TabChoice
             name="previous-refusal"
             value={value.previousRefusal}
@@ -773,7 +773,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
           </BrandField>
         ) : null}
 
-        <BrandField label={t("petitionFiled")} required>
+        <BrandField label={t("petitionFiled")} required hint={t("petitionFiledHint")}>
           <TabChoice
             name="petition-filed"
             value={value.petitionFiled}
@@ -801,7 +801,7 @@ export function StepTravel({ value, onChange, onContinue }: StepTravelProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("tripPaymentTitle")}</p>
-        <BrandField label={t("payer")} required>
+        <BrandField label={t("payer")} required hint={t("payerHint")}>
           <Select value={value.tripPayer} onValueChange={(next) => set("tripPayer", next as SimplifiedTravel["tripPayer"])}>
             <SelectTrigger className="h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-brand-500 focus:border-brand-500 data-[placeholder]:text-muted-foreground">
               <SelectValue placeholder={t("payerPlaceholder")} />

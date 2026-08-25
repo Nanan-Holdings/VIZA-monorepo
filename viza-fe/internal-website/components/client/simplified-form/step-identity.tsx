@@ -78,7 +78,7 @@ export function StepIdentity({
             <p className="pr-8 leading-7">{description}</p>
             {example ? (
               <div className="mt-3 rounded-xl bg-muted/50 px-4 py-2.5 text-muted-foreground">
-                Example: {example}
+                {t("exampleLabel")}: {example}
               </div>
             ) : null}
           </PopoverContent>
@@ -164,7 +164,7 @@ export function StepIdentity({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <BrandField label={t("firstName")} htmlFor="first-name" required>
+        <BrandField label={t("firstName")} htmlFor="first-name" required hint={t("firstNameHint")}>
           <BrandInput
             id="first-name"
             value={value.firstName}
@@ -174,7 +174,7 @@ export function StepIdentity({
             required
           />
         </BrandField>
-        <BrandField label={t("lastName")} htmlFor="last-name" required>
+        <BrandField label={t("lastName")} htmlFor="last-name" required hint={t("lastNameHint")}>
           <BrandInput
             id="last-name"
             value={value.lastName}
@@ -188,7 +188,7 @@ export function StepIdentity({
 
       {/* Date of Birth * */}
       <div>
-        <BrandField label={t("dateOfBirth")} required>
+        <BrandField label={t("dateOfBirth")} required hint={t("dateOfBirthHint")}>
           <DatePicker
             value={value.dob}
             onChange={(next) => set("dob", next)}
@@ -228,10 +228,7 @@ export function StepIdentity({
       </div>
 
       {/* Country of Birth * */}
-      <div>
-        <label className="block font-medium mb-2">
-          {t("countryOfBirth")} <span className="text-red-500">*</span>
-        </label>
+      <BrandField label={t("countryOfBirth")} required hint={t("birthPlaceHint")}>
         <CountryDropdown
           defaultValue={value.countryOfBirth}
           placeholder={t("countryOfBirthPlaceholder")}
@@ -243,20 +240,17 @@ export function StepIdentity({
             })
           }
         />
-      </div>
+      </BrandField>
 
       {/* City of Birth * */}
-      <div>
-        <label className="block font-medium mb-2">
-          {t("cityOfBirth")} <span className="text-red-500">*</span>
-        </label>
+      <BrandField label={t("cityOfBirth")} required hint={t("birthPlaceHint")}>
         <BrandInput
           value={value.cityOfBirth}
           onChange={(e) => set("cityOfBirth", e.target.value)}
           placeholder={t("cityOfBirthPlaceholder")}
           required
         />
-      </div>
+      </BrandField>
 
       {/* No State/Province Checkbox */}
       <div className="flex items-center gap-2">
@@ -274,16 +268,13 @@ export function StepIdentity({
 
       {/* State/Province (conditional) */}
       {!value.hasNoStateOfBirth && (
-        <div>
-          <label className="block font-medium mb-2">
-            {t("stateOfBirth")} <span className="text-red-500">*</span>
-          </label>
+        <BrandField label={t("stateOfBirth")} required hint={t("birthPlaceHint")}>
           <BrandInput
             value={value.stateOfBirth}
             onChange={(e) => set("stateOfBirth", e.target.value)}
             placeholder={t("stateOfBirthPlaceholder")}
           />
-        </div>
+        </BrandField>
       )}
 
       {/* Nationality * */}
@@ -299,10 +290,7 @@ export function StepIdentity({
       </div>
 
       {/* Marital Status * */}
-      <div>
-        <label className="block font-medium mb-2">
-          {t("maritalStatus")} <span className="text-red-500">*</span>
-        </label>
+      <BrandField label={t("maritalStatus")} required hint={t("maritalStatusHint")}>
         <select
           value={value.maritalStatus}
           onChange={(e) => set("maritalStatus", e.target.value as SimplifiedIdentity["maritalStatus"])}
@@ -319,7 +307,7 @@ export function StepIdentity({
           <option value="Widowed">{t("widowed")}</option>
           <option value="Other">{t("other")}</option>
         </select>
-      </div>
+      </BrandField>
 
       {value.maritalStatus === "Other" ? (
         <BrandField label={t("maritalStatusOtherExplain")} required>

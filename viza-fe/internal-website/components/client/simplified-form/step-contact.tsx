@@ -155,7 +155,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <BrandField label={t("email")} htmlFor="email" required>
+        <BrandField label={t("email")} htmlFor="email" required hint={t("additionalEmailsHint")}>
           <InputGroup className="h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-brand-500 focus-within:border-brand-500">
             <InputGroupAddon align="inline-start">
               <Mail className="h-4 w-4 text-muted-foreground" />
@@ -172,7 +172,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
             />
           </InputGroup>
         </BrandField>
-        <BrandField label={t("phone")} htmlFor="phone" required>
+        <BrandField label={t("phone")} htmlFor="phone" required hint={t("additionalPhonesHint")}>
           <div className="flex gap-2">
             <select
               value={matchedPrimaryDialCode}
@@ -206,7 +206,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <BrandField label="您还有其他电话号码吗？">
+        <BrandField label="您还有其他电话号码吗？" hint={t("additionalPhonesHint")}>
           <TabChoice
             name="has-other-phone"
             value={hasOtherPhone ? "yes" : "no"}
@@ -280,7 +280,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
             </div>
           ) : null}
         </BrandField>
-        <BrandField label="您还有其他电子邮箱吗？">
+        <BrandField label="您还有其他电子邮箱吗？" hint={t("additionalEmailsHint")}>
           <TabChoice
             name="has-other-email"
             value={hasOtherEmail ? "yes" : "no"}
@@ -344,7 +344,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
 
       <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/40 p-4">
         <p className="text-sm font-semibold text-foreground">{t("homeAddressTitle")}</p>
-        <BrandField label={t("homeCountry")} required>
+        <BrandField label={t("homeCountry")} required hint={t("homeAddressHint")}>
           <CountryDropdown
             defaultValue={value.homeCountry}
             placeholder={t("homeCountryPlaceholder")}
@@ -402,7 +402,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
         </BrandField>
       </div>
 
-      <BrandField label={t("mailingSame")}>
+      <BrandField label={t("mailingSame")} hint={t("mailingSameHint")}>
         <TabChoice
           name="mailing-same"
           value={value.mailingSame ? "yes" : "no"}
@@ -525,7 +525,7 @@ export function StepContact({ value, onChange, onContinue }: StepContactProps) {
               </div>
             ) : null}
 
-            <BrandField label={t("otherPlatforms")}>
+            <BrandField label={t("otherPlatforms")} hint={t("otherPlatformsHint")}>
               <select
                 className="h-12 rounded-lg border border-[#e8e8e8] bg-white px-3 text-[15px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                 defaultValue=""

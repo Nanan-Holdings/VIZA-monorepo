@@ -99,6 +99,7 @@ export function StepUsStay({ value, onChange, onContinue }: StepUsStayProps) {
           {t("usStayPageTitle")}
         </h1>
         <p className="text-sm text-muted-foreground sm:text-base">{t("usStayPageSubtitle")}</p>
+        <p className="text-sm text-muted-foreground sm:text-base">{t("usAccommodationTruthHint")}</p>
       </header>
 
       {/* Accommodation type icon grid */}
@@ -307,7 +308,7 @@ export function StepUsStay({ value, onChange, onContinue }: StepUsStayProps) {
               <p className="text-xs text-muted-foreground">{t("accomAddressSubtitle")}</p>
             </div>
           </div>
-          <BrandField label={t("usStreet")} required>
+          <BrandField label={t("usStreet")} required hint={t("usAccommodationTruthHint")}>
             <BrandInput
               value={value.usStreet}
               onChange={(e) => set("usStreet", e.target.value)}
