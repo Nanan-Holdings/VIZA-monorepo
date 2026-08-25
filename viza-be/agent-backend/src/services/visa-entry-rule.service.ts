@@ -11,6 +11,12 @@ import {
   getVisaProduct,
   type VisaProductRecommendation,
 } from '../config/visa-product-registry.js';
+import {
+  SCHENGEN_KNOWLEDGE_COUNTRIES,
+  getCountryDisplayName as getCountryDisplayNameEn,
+  getCountryDisplayNameZh,
+  type SupportedKnowledgeCountry,
+} from '../config/visa-destination-registry.js';
 
 const logger = new Logger({ serviceName: 'VisaEntryRuleService' });
 
@@ -358,24 +364,40 @@ export function buildVisaEntryRulePrompt(
     ].join('\n');
   }
 
+  // Hong Kong SAR / Macao SAR / Taiwan travel documents are visa-exempt for short
+  // Schengen stays across the whole area, not only for the state the traveller
+  // happened to name. Without an explicit lead the model reverted to "you need a
+  // Schengen visa", which is wrong and would have sold an unnecessary application.
+  const SCHENGEN_EXEMPT_PASSPORT_LABELS: Record<string, { zh: string; en: string }> = {
+    HKG: { zh: '中国香港特别行政区护照', en: 'Hong Kong Special Administrative Region passport' },
+    MAC: { zh: '中国澳门特别行政区护照', en: 'Macao Special Administrative Region passport' },
+    TWN: { zh: '中国台湾地区护照（载有身份证号）', en: 'Taiwan passport containing an identity-card number' },
+  };
+  const schengenExemptLabel = SCHENGEN_EXEMPT_PASSPORT_LABELS[rule.passportCountryIso3];
+
   if (
-    rule.destinationCountry === 'poland' &&
-    rule.passportCountryIso3 === 'HKG' &&
-    rule.passportType === 'ordinary'
+    schengenExemptLabel &&
+    rule.passportType === 'ordinary' &&
+    SCHENGEN_KNOWLEDGE_COUNTRIES.has(rule.destinationCountry as SupportedKnowledgeCountry)
   ) {
+    const destination =
+      locale === 'zh'
+        ? getCountryDisplayNameZh(rule.destinationCountry)
+        : getCountryDisplayNameEn(rule.destinationCountry as SupportedKnowledgeCountry);
     const policyLead =
       locale === 'zh'
         ? rule.outcome === 'visa_exempt'
-          ? '持香港特别行政区护照短期赴波兰，如果整个申根区停留在任意180天内累计不超过90天且不涉及有偿活动，按当前规则免签，不需申请申根C类短期签证。'
-          : '香港特别行政区护照的波兰短期免签规则覆盖任意180天内累计不超过90天、且不涉及有偿活动的短期访问；你还需确认出行目的，工作、学习、居留或超过90天不能直接套用该免签结论。'
+          ? `持${schengenExemptLabel.zh}短期前往${destination}，只要整个申根区停留在任意 180 天内累计不超过 90 天、且不涉及有偿活动，按当前规则免签，不需要申请申根 C 类短期签证。`
+          : `${schengenExemptLabel.zh}的申根短期免签覆盖任意 180 天内累计不超过 90 天、且不涉及有偿活动的访问。请先确认出行目的：工作、学习、居留或超过 90 天不适用该免签结论。`
         : rule.outcome === 'visa_exempt'
-          ? 'Hong Kong Special Administrative Region passport holders do not need a Schengen C short-stay visa for Poland when the total Schengen stay is no more than 90 days in any 180-day period and does not involve paid activity.'
-          : 'The Poland short-stay visa exemption for Hong Kong Special Administrative Region passports covers visits of no more than 90 days in any 180-day period that do not involve paid activity. Confirm the purpose because work, study, residence, or a stay over 90 days cannot use this conclusion automatically.';
+          ? `Holders of a ${schengenExemptLabel.en} do not need a Schengen C short-stay visa for ${destination} when the total Schengen stay is no more than 90 days in any 180-day period and involves no paid activity.`
+          : `The Schengen short-stay exemption for a ${schengenExemptLabel.en} covers visits of no more than 90 days in any 180-day period with no paid activity. Confirm the purpose first: work, study, residence, or a stay over 90 days cannot use this conclusion.`;
     return [
       'MANDATORY POLICY LEAD (use this conclusion as the first paragraph):',
       policyLead,
       `Official source: ${rule.sourceUrl}`,
-      'Do not recommend a Schengen C visa unless the traveller later gives facts outside this reviewed exemption.',
+      'Never state that this traveller needs a Schengen C short-stay visa for a covered short visit, in this paragraph or any later one.',
+      'Note that ETIAS pre-travel authorisation applies to visa-exempt travellers once it is in force, and that it is not a visa.',
       `Still required before a final route conclusion: ${rule.requiredInputs.join(', ') || 'none'}`,
     ].join('\n');
   }
