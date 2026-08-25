@@ -29,6 +29,10 @@ import {
   ApplicationFormLabelAction,
 } from "@/components/ui/application-form-field";
 import {
+  ApplicationFormAiFilledIndicator,
+  ApplicationFormCharacterCount,
+} from "@/components/ui/application-form-metadata";
+import {
   ApplicationFormControlDisplay,
   ApplicationFormInputGroup,
 } from "@/components/ui/application-form-input";
@@ -42,6 +46,10 @@ import {
 import { ApplicationFormTextarea } from "@/components/ui/application-form-textarea";
 import { ApplicationYesNoControl } from "@/components/ui/application-yes-no-control";
 import { APPLICATION_SEARCHABLE_OPTION_MIN } from "@/lib/application-schema-ui-contract";
+import {
+  buildApplicationAgreementHref,
+  resolveApplicationAgreement,
+} from "@/lib/application-agreements";
 
 type CountryCodeEntry = {
   alpha2: string;
@@ -246,10 +254,10 @@ interface DynamicFormFieldProps {
   field: VisaFormFieldRow;
   value: string;
   onChange: (value: string) => void;
-  forceWhiteBackground?: boolean;
   disabled?: boolean;
   displayLocale?: "zh" | "en";
   labelMeta?: ReactNode;
+  aiFilledLabel?: string;
   labelAction?: ReactNode;
   onSearchQuery?: (query: string) => void;
   onLoadMore?: () => void;
@@ -371,13 +379,11 @@ function SsnSegmentedInput({
   value,
   onChange,
   required,
-  whiteControlClass,
   ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   required: boolean;
-  whiteControlClass: string;
   ariaLabel: string;
 }) {
   const [part1, part2, part3] = parseSsnSegments(value);
@@ -400,21 +406,21 @@ function SsnSegmentedInput({
       aria-label={ariaLabel}
     >
       <InputOTPGroup>
-        <InputOTPSlot index={0} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={1} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={2} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={0} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={1} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={2} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
       </InputOTPGroup>
       <InputOTPSeparator className="mx-0 text-gray-500" />
       <InputOTPGroup>
-        <InputOTPSlot index={3} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={4} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={3} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={4} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
       </InputOTPGroup>
       <InputOTPSeparator className="mx-0 text-gray-500" />
       <InputOTPGroup>
-        <InputOTPSlot index={5} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={6} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={7} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
-        <InputOTPSlot index={8} className={`h-12 w-10 text-[15px] border-[#e8e8e8] ${whiteControlClass}`} />
+        <InputOTPSlot index={5} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={6} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={7} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
+        <InputOTPSlot index={8} className="h-12 w-10 border-[#e8e8e8] text-[15px]" />
       </InputOTPGroup>
     </InputOTP>
   );
@@ -424,10 +430,10 @@ export function DynamicFormField({
   field,
   value,
   onChange,
-  forceWhiteBackground = false,
   disabled = false,
   displayLocale,
   labelMeta,
+  aiFilledLabel,
   labelAction,
   onSearchQuery,
   onLoadMore,
@@ -458,6 +464,12 @@ export function DynamicFormField({
   );
   const helperText = criticalInlineHelperText;
   const characterCount = maxLength ? `${value.length}/${maxLength}` : undefined;
+  const aiFilledIndicator = aiFilledLabel ? (
+    <ApplicationFormAiFilledIndicator
+      label={aiFilledLabel}
+      className="pointer-events-none absolute right-3 top-2"
+    />
+  ) : null;
 
   useEffect(() => {
     selectionChangeRef.current = onChange;
@@ -514,19 +526,17 @@ export function DynamicFormField({
           value={value}
           onChange={onChange}
           placeholder={localizedPlaceholder}
-          forceWhiteBackground={forceWhiteBackground}
           displayLocale={sideLocale}
           disabled={disabled}
         />
       ) : (
-        <ApplicationFormControlDisplay className={`h-12 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+        <ApplicationFormControlDisplay className="h-12 bg-gray-50 text-[15px] text-gray-400">
           {dateIsDoNotKnow ? doNotKnowLabel : doesNotApplyLabel}
         </ApplicationFormControlDisplay>
       );
       const dateInputNode = dateIsYearOnly ? (
         <ApplicationFormInputGroup
           filled={Boolean(value)}
-          forceWhiteBackground={forceWhiteBackground}
         >
           <InputGroupInput
             value={value}
@@ -605,7 +615,6 @@ export function DynamicFormField({
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(country) => commitSelection(country.name)}
-              forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
             />
@@ -621,7 +630,6 @@ export function DynamicFormField({
               defaultValue={value}
               onChange={(region) => commitSelection(region.shortCode)}
               className="h-12 text-[15px] data-[placeholder]:text-muted-foreground"
-              forceWhiteBackground={forceWhiteBackground}
             />
           </FieldWrapper>
         );
@@ -655,7 +663,6 @@ export function DynamicFormField({
               options={opts}
               placeholder={localizedPlaceholder ?? selectFallback}
               disabled={disabled}
-              forceWhiteBackground={forceWhiteBackground}
               sideLocale={sideLocale}
               onSearchQuery={onSearchQuery}
               onLoadMore={onLoadMore}
@@ -673,7 +680,6 @@ export function DynamicFormField({
             <ApplicationFormSelectTrigger
               className={`h-12 text-[15px] data-[placeholder]:text-muted-foreground ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}
               filled={opts.some((option) => option.value === optimisticSelectionValue)}
-              forceWhiteBackground={forceWhiteBackground}
             >
               <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
             </ApplicationFormSelectTrigger>
@@ -700,7 +706,6 @@ export function DynamicFormField({
             options={opts}
             placeholder={localizedPlaceholder ?? selectFallback}
             disabled={disabled}
-            forceWhiteBackground={forceWhiteBackground}
             sideLocale={sideLocale}
             exclusiveOption={rules?.exclusive_option}
           />
@@ -717,13 +722,15 @@ export function DynamicFormField({
               onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
               placeholder={localizedPlaceholder}
               maxLength={maxLength}
-              className="pb-7 text-[15px]"
-              forceWhiteBackground={forceWhiteBackground}
+              className={`pb-7 text-[15px] ${aiFilledIndicator ? "pr-20" : ""}`}
             />
+            {aiFilledIndicator}
             {characterCount ? (
-              <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
-                {characterCount}
-              </span>
+              <ApplicationFormCharacterCount
+                current={value.length}
+                maximum={maxLength!}
+                className="absolute bottom-2 right-3"
+              />
             ) : null}
           </div>
         </FieldWrapper>
@@ -732,6 +739,7 @@ export function DynamicFormField({
     case "checkbox":
       {
         const opts = normaliseOptions(options, sideLocale);
+        const agreement = resolveApplicationAgreement(field);
         const checkedValue = opts[0]?.value || "true";
         const normalisedValue = value.trim().toLowerCase();
         const isChecked = normalisedValue === checkedValue.toLowerCase()
@@ -753,6 +761,19 @@ export function DynamicFormField({
                   <span>{label}</span>
                   {labelMeta}
                 </span>
+              ) : agreement ? (
+                <span className="inline-flex flex-wrap items-baseline gap-x-2">
+                  <span>{label}</span>
+                  <a
+                    className="font-medium text-[#03346E] underline underline-offset-4"
+                    href={buildApplicationAgreementHref(field.visaType, field.fieldName)}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {sideLocale === "zh" ? "查看声明" : "View agreement"}
+                  </a>
+                </span>
               ) : label}
               description={helperText}
               className={cn("application-form-question-label", labelAction && "pr-10")}
@@ -769,7 +790,7 @@ export function DynamicFormField({
     case "file":
       return (
         <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
-          <ApplicationFormControlDisplay className={`h-12 justify-center border-dashed text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+          <ApplicationFormControlDisplay className="h-12 justify-center border-dashed bg-gray-50 text-gray-400">
             {t("upload")}: {label}
           </ApplicationFormControlDisplay>
         </FieldWrapper>
@@ -788,7 +809,6 @@ export function DynamicFormField({
                 options={opts}
                 placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
                 disabled={disabled}
-                forceWhiteBackground={forceWhiteBackground}
                 sideLocale={sideLocale}
               />
             </FieldWrapper>
@@ -800,7 +820,6 @@ export function DynamicFormField({
               placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
               onChange={(country) => commitSelection(country.name)}
-              forceWhiteBackground={forceWhiteBackground}
               displayLocale={sideLocale}
               allowedCountryCodes={isSchengenMemberState ? SCHENGEN_MEMBER_ALPHA2_CODES : undefined}
             />
@@ -828,7 +847,6 @@ export function DynamicFormField({
               options={opts}
               placeholder={localizedPlaceholder ?? selectFallback}
               disabled={disabled}
-              forceWhiteBackground={forceWhiteBackground}
               sideLocale={sideLocale}
             />
           ) : (
@@ -859,7 +877,6 @@ export function DynamicFormField({
               value={value}
               onChange={onChange}
               required={required}
-              whiteControlClass={forceWhiteBackground ? "bg-white" : ""}
               ariaLabel={t("dynamicField.usSocialSecurityNumber")}
             />
           </FieldWrapper>
@@ -881,7 +898,6 @@ export function DynamicFormField({
           <ApplicationFormInputGroup
             className={`h-12 ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}
             filled={Boolean(value) && !isOverridden}
-            forceWhiteBackground={forceWhiteBackground}
           >
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
@@ -900,12 +916,15 @@ export function DynamicFormField({
               required={required && !isOverridden}
               disabled={isOverridden || disabled}
               maxLength={maxLength}
-              className={`h-12 text-[15px] ${characterCount ? "pr-14" : ""}`}
+              className={`h-12 text-[15px] ${aiFilledIndicator ? "pr-20" : characterCount ? "pr-14" : ""}`}
             />
+            {aiFilledIndicator}
             {characterCount ? (
-              <span className="pointer-events-none absolute bottom-2 right-3 text-[11px] leading-none text-gray-400">
-                {characterCount}
-              </span>
+              <ApplicationFormCharacterCount
+                current={value.length}
+                maximum={maxLength!}
+                className="absolute bottom-2 right-3"
+              />
             ) : null}
           </ApplicationFormInputGroup>
         );

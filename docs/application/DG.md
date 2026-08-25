@@ -112,6 +112,7 @@ Shared form components:
 
 - `viza-fe/internal-website/components/dynamic-step-form.tsx`
 - `viza-fe/internal-website/components/dynamic-form-field.tsx`
+- `viza-fe/internal-website/app/client/application/agreements/[visaType]/[fieldName]/page.tsx`
 - `viza-fe/internal-website/components/field-guidance-panel.tsx`
 - `viza-fe/internal-website/components/client/form-assistant/form-filling-assistant.tsx`
 - `viza-fe/internal-website/components/application-steps/photo-upload-step.tsx`
@@ -122,6 +123,7 @@ Frontend supporting libraries and types:
 - `viza-fe/internal-website/lib/ds160-translations.ts`
 - `viza-fe/internal-website/lib/visa-destinations.ts`
 - `viza-fe/internal-website/lib/visa-form-fields.ts`
+- `viza-fe/internal-website/lib/application-agreements.ts`
 - `viza-fe/internal-website/types/visa-form-fields.ts`
 - `viza-fe/internal-website/types/field-guidance.ts`
 
@@ -175,6 +177,11 @@ Client routes:
   requests.
 - `/client/chat`: VIZA AI and Travel AI chat.
 - `/client/travel-chat`: dedicated Travel AI route.
+
+Document checklists are fail-closed. They may come from
+`document_requirements`, package metadata, or an explicitly reviewed
+product-owned fallback. Missing product configuration produces an empty
+checklist and never inherits a shared generic visa requirement set.
 
 Admin routes:
 
@@ -311,6 +318,12 @@ writes use `source=form_assistant` plus provenance in `source_metadata`.
 Manual form saves use `source=user_form`, clear earlier AI provenance, and win
 concurrent conflicts. The assistant never writes Universal Profile data.
 
+After a completed turn reaches the browser, only the new assistant reply is
+revealed progressively at a short character cadence. Persisted conversation
+history renders immediately and `prefers-reduced-motion` disables the reveal;
+this is a client presentation behavior and does not change turn persistence or
+the JSON API contract.
+
 SGAC has an empty document-requirement manifest, so its assistant does not ask
 for uploads. The country-neutral document extraction policy is deny-by-default
 and limits each document type to approved field categories. Documents are read
@@ -419,7 +432,10 @@ keeps stable identity/contact/passport/family/work/education and immigration
 history facts, and excludes trip-specific plans, destination contacts,
 declarations, payment data, CAPTCHA/session data, and secrets. Future forms use
 these records only as non-overwriting prefill: an application-specific saved
-answer always wins.
+answer always wins. Before saving, the Review card compares these canonical
+answers with `universal_profile_answers`, lists only new or changed facts, and
+shows the previous value struck through beside its replacement. Unchanged
+answers are neither listed nor rewritten.
 
 `/client/universal-info` builds its extended sections from the union of current
 `visa_form_fields` schemas. Saved values use the same read-only row treatment as

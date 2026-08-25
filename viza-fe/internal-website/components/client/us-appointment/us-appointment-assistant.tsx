@@ -3,11 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
   CheckCircle as CheckCircle2,
-  WarningCircle as CircleAlert,
   Clock as Clock3,
   Eye,
   EyeSlash as EyeOff,
@@ -19,7 +17,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -598,15 +596,15 @@ export function USAppointmentAssistant({
 
       {errorMessage ? (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertIcon variant="destructive" />
           <AlertTitle>{t("errorTitle")}</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       ) : null}
 
       {!workerReady ? (
-        <Alert>
-          <CircleAlert className="h-4 w-4" />
+        <Alert variant="info">
+          <AlertIcon variant="info" />
           <AlertTitle>{t("cloud.unavailable")}</AlertTitle>
           <AlertDescription>{t("stateMachine.workerUnavailable")}</AlertDescription>
         </Alert>
@@ -809,8 +807,8 @@ export function USAppointmentAssistant({
           </CardHeader>
           <CardContent className="space-y-4">
             {slots.length === 0 ? (
-              <Alert>
-                <CalendarCheck className="h-4 w-4" />
+              <Alert variant="info">
+                <AlertIcon variant="info" />
                 <AlertTitle>{t("slots.noSlots")}</AlertTitle>
                 <AlertDescription>{t("stateMachine.noSlotsBody")}</AlertDescription>
               </Alert>
@@ -869,8 +867,8 @@ export function USAppointmentAssistant({
             ) : (
               <p className="text-sm text-muted-foreground">{t("final.requirement")}</p>
             )}
-            <Alert className="border-amber-200 bg-amber-50">
-              <ShieldCheck className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
               <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
               <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
             </Alert>

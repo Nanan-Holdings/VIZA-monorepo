@@ -61,6 +61,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "mobile_country_code",
       "has_health_symptoms",
       "recent_country_visit_history",
+      "ica_declaration_accepted",
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
     }
@@ -69,8 +70,8 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
   test("keeps every SGAC form field referenced by the submission mapping contract", () => {
     const fieldNames = extractFieldNames();
-    expect(fieldNames).toHaveLength(39);
-    expect(new Set(fieldNames).size).toBe(39);
+    expect(fieldNames).toHaveLength(43);
+    expect(new Set(fieldNames).size).toBe(43);
 
     for (const fieldName of fieldNames) {
       const quotedFieldName = `"${fieldName}"`;
@@ -166,14 +167,76 @@ describe("Singapore SG Arrival Card schema seed", () => {
     );
   });
 
-  test("keeps arrival and departure dates together in trip information", () => {
-    expect(seedSource).toContain(
-      'field_name: "arrival_date", label: "Date of Arrival (DD/MM/YYYY)", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 1',
-    );
-    expect(seedSource).toContain(
-      'field_name: "departure_date", label: "Date of Departure from Singapore", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 2',
-    );
-    expect(seedSource.match(/inline_group: "sgac_travel_dates"/g)?.length).toBe(2);
+  test("keeps arrival and departure dates together in trip information for foreign visitors", () => {
+    const byName = new Map(SGAC_FORM_FIELDS.map((field) => [field.field_name, field]));
+    const arrival = byName.get("arrival_date");
+    const departure = byName.get("departure_date");
+
+    expect(arrival).toMatchObject({
+      label: "Date of Arrival",
+      required: true,
+      step_number: 2,
+      step_name: "Trip Information",
+      display_order: 1,
+    });
+    expect(departure).toMatchObject({
+      label: "Date of Departure from Singapore",
+      required: true,
+      step_number: 2,
+      step_name: "Trip Information",
+      display_order: 2,
+      conditional_logic: { showIf: "sgac_applicant_type === foreign_visitor" },
+    });
+    expect(arrival?.validation_rules?.inline_group).toBe("sgac_travel_dates");
+    expect(departure?.validation_rules?.inline_group).toBe("sgac_travel_dates");
+  });
+
+  test("models ICA's three residency routes inside one SG Arrival Card form", () => {
+    const byName = new Map(SGAC_FORM_FIELDS.map((field) => [field.field_name, field]));
+
+    expect(byName.get("sgac_applicant_type")).toMatchObject({
+      required: true,
+      label: "Residency Type",
+      options: expect.arrayContaining([
+        expect.objectContaining({
+          value: "singapore_citizen_or_permanent_resident",
+          label_en: "Singapore Citizen / Permanent Resident",
+        }),
+        expect.objectContaining({ value: "long_term_pass_holder", label_en: "Long-Term Pass Holder" }),
+        expect.objectContaining({ value: "foreign_visitor", label_en: "Foreign Visitor / In-Principle Approval Holder" }),
+      ]),
+    });
+    expect(byName.get("singapore_nric")).toMatchObject({
+      required: true,
+      conditional_logic: {
+        showIf: "sgac_applicant_type === singapore_citizen_or_permanent_resident",
+      },
+      validation_rules: expect.objectContaining({ pattern: "^[ST][0-9]{7}[A-Z]$" }),
+    });
+    expect(byName.get("singapore_fin")).toMatchObject({
+      required: true,
+      conditional_logic: { showIf: "sgac_applicant_type === long_term_pass_holder" },
+      validation_rules: expect.objectContaining({ pattern: "^[FGM][0-9]{7}[A-Z]$" }),
+    });
+    expect(byName.get("place_of_residence")?.conditional_logic).toEqual({
+      showIf: "sgac_applicant_type === foreign_visitor",
+    });
+    expect(byName.get("last_city_or_port_before_singapore")?.conditional_logic).toEqual({
+      showIf: "sgac_applicant_type === foreign_visitor",
+    });
+    expect(byName.get("has_health_symptoms")?.conditional_logic).toBeUndefined();
+    expect(byName.get("recent_country_visit_history")?.conditional_logic).toEqual({
+      showIf: "has_health_symptoms === no",
+    });
+    expect(byName.get("recent_high_risk_region_visit_history")?.conditional_logic).toEqual({
+      showIf: "has_health_symptoms === yes",
+    });
+    expect(byName.get("ica_declaration_accepted")).toMatchObject({
+      label: "I have read and agreed to the declaration.",
+      field_type: "checkbox",
+      required: true,
+      validation_rules: expect.objectContaining({ source: "ICA_SGAC_LID0000258" }),
+    });
   });
 
   test("models ICA transport and health conditional branches", () => {

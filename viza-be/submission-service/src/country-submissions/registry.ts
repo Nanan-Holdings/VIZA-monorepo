@@ -239,45 +239,66 @@ const WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS = {
   key: "answers.has_health_symptoms",
   equals: "no",
 };
+const WHEN_SGAC_FOREIGN_VISITOR = {
+  key: "answers.sgac_applicant_type",
+  equals: "foreign_visitor",
+};
+const WHEN_SGAC_LONG_TERM_PASS_HOLDER = {
+  key: "answers.sgac_applicant_type",
+  equals: "long_term_pass_holder",
+};
+const WHEN_SGAC_CITIZEN_OR_PR = {
+  key: "answers.sgac_applicant_type",
+  equals: "singapore_citizen_or_permanent_resident",
+};
+const whenSgacForeignVisitor = (
+  condition: NonNullable<FieldRequirement["condition"]>,
+): NonNullable<FieldRequirement["condition"]> => ({
+  all: [WHEN_SGAC_FOREIGN_VISITOR, condition],
+});
 
 const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
+  sgacField("sgac_applicant_type", "Residency type", "personal"),
   { key: "profile.fullName", label: "Full name", category: "personal", required: true },
   { key: "profile.dateOfBirth", label: "Date of birth", category: "personal", required: true },
-  { key: "profile.gender", label: "Gender", category: "personal", required: true },
-  { key: "profile.nationality", label: "Nationality", category: "personal", required: true },
-  { key: "profile.passportNumber", label: "Passport number", category: "passport", required: true },
-  { key: "profile.passportExpiryDate", label: "Passport expiry date", category: "passport", required: true },
+  { key: "profile.gender", label: "Gender", category: "personal", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
+  { key: "profile.nationality", label: "Nationality", category: "personal", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
+  { key: "profile.passportNumber", label: "Passport number", category: "passport", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
+  { key: "profile.passportExpiryDate", label: "Passport expiry date", category: "passport", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
   { key: "profile.email", label: "Email", category: "contact", required: true },
-  { key: "profile.phone", label: "Phone", category: "contact", required: true },
+  { key: "profile.phone", label: "Phone", category: "contact", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
   { key: "trip.arrivalDate", label: "Arrival date", category: "trip", required: true },
-  { key: "trip.departureDate", label: "Departure date", category: "trip", required: true },
-  sgacField("place_of_birth_country", "Country/place of birth", "personal"),
-  sgacField("place_of_residence", "Place of residence", "personal"),
-  sgacField("mobile_country_code", "Country/region code", "contact"),
-  sgacField("has_used_different_name_to_enter_singapore", "Different-name passport declaration", "security"),
-  sgacField("purpose_of_travel", "Purpose of travel", "trip"),
-  sgacField("last_city_or_port_before_singapore", "Last city / port before Singapore", "trip"),
-  sgacField("next_city_or_port_after_singapore", "Next city / port after Singapore", "trip"),
-  sgacField("mode_of_travel", "Mode of travel", "trip"),
-  sgacField("air_transport_type", "Type of air transport", "trip", WHEN_SGAC_AIR),
-  sgacField("carrier_code", "Carrier code", "trip", WHEN_SGAC_AIR_COMMERCIAL),
-  sgacField("transport_number", "Flight number", "trip", WHEN_SGAC_AIR),
-  sgacField("land_transport_type", "Land transport type", "trip", WHEN_SGAC_LAND),
-  sgacField("vehicle_number", "Vehicle number", "trip", WHEN_SGAC_LAND),
-  sgacField("sea_transport_type", "Sea transport type", "trip", WHEN_SGAC_SEA),
-  sgacField("cruise_name", "Cruise name", "trip", WHEN_SGAC_SEA_CRUISE),
-  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_COMMERCIAL_VESSEL),
-  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_FERRY),
-  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_PRIVATE_CRAFT),
-  sgacField("accommodation_type", "Accommodation type", "trip"),
-  sgacField("accommodation_name", "Hotel name", "trip", WHEN_SGAC_HOTEL),
-  sgacField("accommodation_other_type", "Other accommodation type", "trip", WHEN_SGAC_OTHER_ACCOMMODATION),
-  sgacField("accommodation_postcode", "Singapore postal code", "trip", WHEN_SGAC_RESIDENTIAL),
-  sgacField("accommodation_block_number", "Block/house number", "trip", WHEN_SGAC_RESIDENTIAL),
-  sgacField("accommodation_street_name", "Street name", "trip", WHEN_SGAC_RESIDENTIAL),
+  { key: "trip.departureDate", label: "Departure date", category: "trip", required: true, condition: WHEN_SGAC_FOREIGN_VISITOR },
+  sgacField("singapore_nric", "NRIC", "personal", WHEN_SGAC_CITIZEN_OR_PR),
+  sgacField("singapore_fin", "FIN", "personal", WHEN_SGAC_LONG_TERM_PASS_HOLDER),
+  sgacField("place_of_birth_country", "Country/place of birth", "personal", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("place_of_residence", "Place of residence", "personal", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("mobile_country_code", "Country/region code", "contact", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("has_used_different_name_to_enter_singapore", "Different-name passport declaration", "security", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("purpose_of_travel", "Purpose of travel", "trip", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("last_city_or_port_before_singapore", "Last city / port before Singapore", "trip", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("next_city_or_port_after_singapore", "Next city / port after Singapore", "trip", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("mode_of_travel", "Mode of travel", "trip", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("air_transport_type", "Type of air transport", "trip", whenSgacForeignVisitor(WHEN_SGAC_AIR)),
+  sgacField("carrier_code", "Carrier code", "trip", whenSgacForeignVisitor(WHEN_SGAC_AIR_COMMERCIAL)),
+  sgacField("transport_number", "Flight number", "trip", whenSgacForeignVisitor(WHEN_SGAC_AIR)),
+  sgacField("land_transport_type", "Land transport type", "trip", whenSgacForeignVisitor(WHEN_SGAC_LAND)),
+  sgacField("vehicle_number", "Vehicle number", "trip", whenSgacForeignVisitor(WHEN_SGAC_LAND)),
+  sgacField("sea_transport_type", "Sea transport type", "trip", whenSgacForeignVisitor(WHEN_SGAC_SEA)),
+  sgacField("cruise_name", "Cruise name", "trip", whenSgacForeignVisitor(WHEN_SGAC_SEA_CRUISE)),
+  sgacField("vessel_name", "Vessel name", "trip", whenSgacForeignVisitor(WHEN_SGAC_SEA_COMMERCIAL_VESSEL)),
+  sgacField("vessel_name", "Vessel name", "trip", whenSgacForeignVisitor(WHEN_SGAC_SEA_FERRY)),
+  sgacField("vessel_name", "Vessel name", "trip", whenSgacForeignVisitor(WHEN_SGAC_SEA_PRIVATE_CRAFT)),
+  sgacField("accommodation_type", "Accommodation type", "trip", WHEN_SGAC_FOREIGN_VISITOR),
+  sgacField("accommodation_name", "Hotel name", "trip", whenSgacForeignVisitor(WHEN_SGAC_HOTEL)),
+  sgacField("accommodation_other_type", "Other accommodation type", "trip", whenSgacForeignVisitor(WHEN_SGAC_OTHER_ACCOMMODATION)),
+  sgacField("accommodation_postcode", "Singapore postal code", "trip", whenSgacForeignVisitor(WHEN_SGAC_RESIDENTIAL)),
+  sgacField("accommodation_block_number", "Block/house number", "trip", whenSgacForeignVisitor(WHEN_SGAC_RESIDENTIAL)),
+  sgacField("accommodation_street_name", "Street name", "trip", whenSgacForeignVisitor(WHEN_SGAC_RESIDENTIAL)),
   sgacField("recent_country_visit_history", "Yellow-fever travel history declaration", "security", WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS),
   sgacField("recent_high_risk_region_visit_history", "High-risk-region travel history declaration", "security", WHEN_SGAC_HAS_HEALTH_SYMPTOMS),
   sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
+  sgacField("ica_declaration_accepted", "ICA declaration acceptance", "security"),
 ];
 
 function arrivalCardField(
@@ -1235,28 +1256,42 @@ function shouldValidateRequirement(
   requirement: FieldRequirement,
 ): boolean {
   if (!requirement.condition) return true;
-  const actual = readValueByKey(application, requirement.condition.key);
-  if (requirement.condition.equals !== undefined) {
+  return conditionMatches(application, requirement.condition);
+}
+
+function conditionMatches(
+  application: CountrySubmissionApplication,
+  condition: NonNullable<FieldRequirement["condition"]>,
+): boolean {
+  if (condition.all) {
+    return condition.all.every((candidate) => conditionMatches(application, candidate));
+  }
+  if (condition.any) {
+    return condition.any.some((candidate) => conditionMatches(application, candidate));
+  }
+  if (!condition.key) return true;
+  const actual = readValueByKey(application, condition.key);
+  if (condition.equals !== undefined) {
     return actual
-      ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
+      ? normalizeRequirementValue(actual) === normalizeRequirementValue(condition.equals)
       : false;
   }
-  if (requirement.condition.notEquals !== undefined) {
+  if (condition.notEquals !== undefined) {
     return actual
-      ? normalizeRequirementValue(actual) !== normalizeRequirementValue(requirement.condition.notEquals)
+      ? normalizeRequirementValue(actual) !== normalizeRequirementValue(condition.notEquals)
       : true;
   }
-  if (requirement.condition.in !== undefined) {
+  if (condition.in !== undefined) {
     if (!actual) return false;
     const normalizedActual = normalizeRequirementValue(actual);
-    return requirement.condition.in.some(
+    return condition.in.some(
       (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
     );
   }
-  if (requirement.condition.notIn !== undefined) {
+  if (condition.notIn !== undefined) {
     if (!actual) return true;
     const normalizedActual = normalizeRequirementValue(actual);
-    return !requirement.condition.notIn.some(
+    return !condition.notIn.some(
       (candidate) => normalizeRequirementValue(candidate) === normalizedActual,
     );
   }

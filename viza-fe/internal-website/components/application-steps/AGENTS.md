@@ -28,7 +28,9 @@ review, bilingual review helpers, and status confirmation.
   by review steps before an application is submitted.
 - `universal-profile-sync-card.tsx`: explicit Review-tab action that copies
   reusable application facts into Universal Profile while excluding trip,
-  declaration, payment, and secret fields.
+  declaration, payment, and secret fields. It loads the existing profile first,
+  lists only new or changed reusable answers, and strikes through the prior
+  value for an update.
 - `status-step.tsx` and `status-card.tsx`: post-submission confirmation/status.
 - `bilingual-form-shared.tsx` and `review-shared.tsx`: shared row/format helpers.
 

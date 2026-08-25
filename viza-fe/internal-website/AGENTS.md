@@ -134,7 +134,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   field-keyed `universal_profile_answers` table created by
   `supabase/migrations/20260801193500_create_universal_profile_answers.sql`.
   Review-tab sync is explicit, excludes trip/payment/declaration/secret data,
-  and future forms consume it only as non-overwriting prefill.
+  and future forms consume it only as non-overwriting prefill. Shared candidate
+  filtering and existing-value comparison live in
+  `lib/universal-profile-sync.ts`; the Review card must use that same comparison
+  before displaying or saving new and changed facts.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`

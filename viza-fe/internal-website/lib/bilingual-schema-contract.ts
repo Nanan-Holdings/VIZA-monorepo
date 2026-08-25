@@ -8,6 +8,7 @@ import {
   getEnglishPlaceholder,
 } from "./ds160-translations";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY } from "./taiwan-administrative-units";
+import { resolveApplicationAgreement } from "./application-agreements";
 
 type BilingualSide = "zh" | "en";
 
@@ -1733,6 +1734,17 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const requiredOverride =
     fieldWithOverrides.visaType === "TW_ENTRY_PERMIT" && TW_REQUIRED_FIELD_OVERRIDES.has(normalizeFieldName(fieldWithOverrides.fieldName));
 
+  const agreement = resolveApplicationAgreement({
+    ...fieldWithOverrides,
+    required: requiredOverride ? true : fieldWithOverrides.required,
+    label: labelEn,
+    validationRules: {
+      ...(fieldWithOverrides.validationRules ?? {}),
+      label_zh: labelZh,
+      label_en: labelEn,
+    },
+  });
+
   return {
     ...fieldWithOverrides,
     required: requiredOverride ? true : fieldWithOverrides.required,
@@ -1745,6 +1757,16 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
       ...(placeholderEn ? { placeholder_en: placeholderEn } : {}),
       ...(helperZh ? { helper_zh: helperZh } : {}),
       ...(helperEn ? { helper_en: helperEn } : {}),
+      ...(agreement
+        ? {
+            agreement_kind: "official_statement",
+            agreement_content_en: agreement.contentEn,
+            ...(agreement.contentZh ? { agreement_content_zh: agreement.contentZh } : {}),
+            ...(agreement.sourceUrl ? { agreement_source_url: agreement.sourceUrl } : {}),
+            ...(agreement.sourceLabel ? { agreement_source_label: agreement.sourceLabel } : {}),
+            agreement_version: agreement.version,
+          }
+        : {}),
     },
     options: fieldWithOverrides.options?.map(normalizeBilingualOption) ?? fieldWithOverrides.options,
   };

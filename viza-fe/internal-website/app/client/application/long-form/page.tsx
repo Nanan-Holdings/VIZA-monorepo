@@ -113,10 +113,10 @@ import {
 } from "@/lib/application-tab-completion";
 import { getAssistantProgress, validateApplicationAnswers } from "@/lib/form-assistant/validator";
 import {
-  shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import { isSgacResidentApplicantType } from "@/features/sgac/applicant-type";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
@@ -175,6 +175,11 @@ import {
 type StepStatus = "complete" | "in_progress" | "locked";
 
 const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
+const SGAC_ICA_DECLARATION_FIELD = "ica_declaration_accepted";
+
+function isAcceptedDeclarationValue(value: string | undefined): boolean {
+  return ["true", "yes", "1", "on"].includes(value?.trim().toLowerCase() ?? "");
+}
 
 function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
   const persistedMessages = state.messages.at(-1)?.role === "assistant"
@@ -190,6 +195,7 @@ function prepareFormAssistantState(state: FormAssistantState): FormAssistantStat
         content: state.assistantMessage,
         createdAt: new Date().toISOString(),
         inputMode: "system",
+        animate: true,
       },
     ],
   };
@@ -1049,6 +1055,10 @@ function FinalConfirmationPanel({
   requirementsLoading,
   submittingMode,
   submitCheckState,
+  showSgacDeclarationFallback,
+  sgacDeclarationAccepted,
+  sgacResident,
+  onSgacDeclarationChange,
   onSubmit,
 }: {
   isZh: boolean;
@@ -1060,6 +1070,10 @@ function FinalConfirmationPanel({
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
   submitCheckState: SubmitCheckState;
+  showSgacDeclarationFallback: boolean;
+  sgacDeclarationAccepted: boolean;
+  sgacResident: boolean;
+  onSgacDeclarationChange: (accepted: boolean) => void | Promise<void>;
   onSubmit: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
@@ -1068,6 +1082,8 @@ function FinalConfirmationPanel({
 }) {
   const [taiwanEntryPromptAccepted, setTaiwanEntryPromptAccepted] = useState(false);
   const [taiwanTermsModalAccepted, setTaiwanTermsModalAccepted] = useState(false);
+  const [sgacDeclarationSaving, setSgacDeclarationSaving] = useState(false);
+  const [sgacDeclarationError, setSgacDeclarationError] = useState<string | null>(null);
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
   const isChecking = submitCheckState === "checking";
@@ -1163,7 +1179,9 @@ function FinalConfirmationPanel({
         ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
         : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
       : hasLiveAssistedTarget
-        ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
+        ? isSgac && sgacResident
+          ? "Click Submit to create an ICA resident SG Arrival Card submission job. VIZA uses the official residency route selected in your form and shows progress and official evidence here."
+          : "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
         : "Click Submit to create the background submission job and show progress here.";
 
   return (
@@ -1224,6 +1242,47 @@ function FinalConfirmationPanel({
           />
         </div>
       )}
+
+      {showSgacDeclarationFallback ? (
+        <div className="space-y-3 border-y border-[#d7e6fb] py-5">
+          <div>
+            <h3 className="text-base font-semibold text-[#0b2545]">
+              {isZh ? "ICA 声明确认" : "ICA declaration confirmation"}
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
+              {isZh
+                ? "提交新加坡入境卡前，您必须确认已阅读并同意 ICA 声明。"
+                : "Before submitting your SG Arrival Card, confirm that you have read and agree to the ICA declaration."}
+            </p>
+          </div>
+          <ApplicationCheckbox
+            id="sgac-ica-declaration"
+            name="sgac-ica-declaration"
+            checked={sgacDeclarationAccepted}
+            disabled={sgacDeclarationSaving || isSubmitting}
+            required
+            label={isZh
+              ? "我已阅读并同意 ICA SG Arrival Card 声明。"
+              : "I have read and agree to the ICA SG Arrival Card declaration."}
+            onCheckedChange={(accepted) => {
+              setSgacDeclarationSaving(true);
+              setSgacDeclarationError(null);
+              void Promise.resolve(onSgacDeclarationChange(accepted))
+                .catch((error: unknown) => {
+                  setSgacDeclarationError(
+                    error instanceof Error
+                      ? error.message
+                      : isZh
+                        ? "无法保存 ICA 声明确认，请重试。"
+                        : "We could not save your ICA declaration confirmation. Please try again.",
+                  );
+                })
+                .finally(() => setSgacDeclarationSaving(false));
+            }}
+          />
+          {sgacDeclarationError ? <ClientErrorAlert message={sgacDeclarationError} /> : null}
+        </div>
+      ) : null}
 
       <button
         type="button"
@@ -2076,6 +2135,18 @@ export default function ApplicationPage() {
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
+  // Some existing SGAC drafts were created before the declaration field was
+  // seeded. Keep those applications submit-ready by rendering and validating
+  // the required declaration in the final confirmation panel.
+  const hasSgacDeclarationSchemaField = dbSteps.some((step) =>
+    step.fields.some((field) => field.fieldName === SGAC_ICA_DECLARATION_FIELD),
+  );
+  const showSgacDeclarationFallback = isSgArrivalCard && !hasSgacDeclarationSchemaField;
+  const sgacDeclarationAccepted = isAcceptedDeclarationValue(
+    dynamicAnswers[SGAC_ICA_DECLARATION_FIELD],
+  );
+  const sgacResident = isSgArrivalCard &&
+    isSgacResidentApplicantType(dynamicAnswers.sgac_applicant_type?.trim().toLowerCase());
   const isKoreaEArrivalCard = isKoreaEArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isJapanVjwApplication = isJapanVisitJapanWebApplication(resolvedCountry, resolvedVisaType);
   const isKenyaEtaProduct = isKenyaEtaApplication(resolvedCountry, resolvedVisaType);
@@ -2095,13 +2166,17 @@ export default function ApplicationPage() {
   const formAssistantEligible =
     !koreaSchemaUnavailable &&
     (!isKoreaEArrivalCard || koreaPreflightTrusted) &&
-    !formAssistantBlockedByArrivalCardSuccess &&
     canUseFormAssistant({
       applicationId: appState.applicationId,
       visaType: resolvedVisaType,
       schemaFieldCount: formAssistantSchemaFieldCount,
     });
-  const showFormFillingAssistant = formAssistantEligible && !formAssistantUnavailable;
+  const formAssistantCanLoad =
+    formAssistantEligible && !formAssistantBlockedByArrivalCardSuccess;
+  const showFormFillingAssistant =
+    formAssistantEligible &&
+    !formAssistantUnavailable &&
+    (!formAssistantBlockedByArrivalCardSuccess || formAssistantState !== null);
 
   useEffect(() => {
     const applicationId = appState.applicationId;
@@ -2109,6 +2184,13 @@ export default function ApplicationPage() {
       setFormAssistantState(null);
       setAiFilledFieldNames([]);
       setFormAssistantUnavailable(false);
+      return;
+    }
+    // A completed arrival-card submission locks further assistant mutations,
+    // but the conversation already shown on this page must remain visible as
+    // read-only history beside the new submission status panel.
+    if (!formAssistantCanLoad) {
+      setFormAssistantBusy(false);
       return;
     }
     const controller = new AbortController();
@@ -2138,7 +2220,7 @@ export default function ApplicationPage() {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, formAssistantReloadKey, locale]);
+  }, [appState.applicationId, formAssistantCanLoad, formAssistantEligible, formAssistantReloadKey, locale]);
 
   // A concurrent Server Action refresh can remount the client subtree after a
   // successful assistant request and leave the card in its empty 0 / 0 shell.
@@ -2146,6 +2228,7 @@ export default function ApplicationPage() {
   useEffect(() => {
     if (
       !formAssistantEligible ||
+      !formAssistantCanLoad ||
       !appState.applicationId ||
       formAssistantBusy ||
       formAssistantUnavailable ||
@@ -2158,6 +2241,7 @@ export default function ApplicationPage() {
   }, [
     appState.applicationId,
     formAssistantBusy,
+    formAssistantCanLoad,
     formAssistantEligible,
     formAssistantState,
     formAssistantUnavailable,
@@ -2471,9 +2555,19 @@ export default function ApplicationPage() {
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
     : tabCompletion.missingFields;
-  const confirmationMissingFields = forceDryRun
+  const confirmationMissingFields = (forceDryRun
     ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
-    : visibleMissingFields;
+    : visibleMissingFields).concat(
+      showSgacDeclarationFallback && !sgacDeclarationAccepted
+        ? [{
+            stepId: reviewStepIndex,
+            stepName: isZhInterface ? "审核申请" : "Review Application",
+            fieldName: SGAC_ICA_DECLARATION_FIELD,
+            label: isZhInterface ? "ICA SG Arrival Card 声明" : "ICA SG Arrival Card declaration",
+            reason: "required" as const,
+          }]
+        : [],
+    );
   const automaticPastDateValidation = useMemo(() => {
     if (!useDynamic) return null;
     const result = validateApplicationAnswers({
@@ -2539,25 +2633,62 @@ export default function ApplicationPage() {
         : [{ id: issue.code, message: issue.message, severity }];
     });
     return {
-      errors: expand(formAssistantValidation.errors, "error"),
+      errors: [
+        ...expand(formAssistantValidation.errors, "error"),
+        ...(showSgacDeclarationFallback && !sgacDeclarationAccepted
+          ? [{
+              id: "sgac_ica_declaration_required",
+              fieldName: SGAC_ICA_DECLARATION_FIELD,
+              message: isZhInterface
+                ? "请先在最终确认中阅读并同意 ICA SG Arrival Card 声明。"
+                : "Read and agree to the ICA SG Arrival Card declaration in Final confirmation before submitting.",
+              severity: "error" as const,
+            }]
+          : []),
+      ],
       warnings: expand(formAssistantValidation.warnings, "warning"),
       warningsAcknowledged: formAssistantValidation.canReview,
       dirty: false,
     };
-  }, [formAssistantValidation, formAssistantValidationDirty]);
+  }, [
+    formAssistantValidation,
+    formAssistantValidationDirty,
+    isZhInterface,
+    sgacDeclarationAccepted,
+    showSgacDeclarationFallback,
+  ]);
   const formFieldsComplete = useMemo(
-    () => tabCompletion.missingFields.every((item) => item.stepId >= documentStepIndex),
-    [documentStepIndex, tabCompletion.missingFields],
+    () => tabCompletion.missingFields.every((item) => item.stepId >= documentStepIndex) &&
+      (!showSgacDeclarationFallback || sgacDeclarationAccepted),
+    [
+      documentStepIndex,
+      sgacDeclarationAccepted,
+      showSgacDeclarationFallback,
+      tabCompletion.missingFields,
+    ],
   );
   const formAssistantReadinessProgress = useMemo(() => {
     const formProgress = getAssistantProgress(dbSteps, dynamicAnswerSnapshot);
-    if (!showStandaloneDocumentStep) return formProgress;
+    const withSgacDeclaration = showSgacDeclarationFallback
+      ? {
+          completed: formProgress.completed + (sgacDeclarationAccepted ? 1 : 0),
+          total: formProgress.total + 1,
+        }
+      : formProgress;
+    if (!showStandaloneDocumentStep) return withSgacDeclaration;
     const documentProgress = getRequiredDocumentProgress(documentCenterData);
     return {
-      completed: formProgress.completed + documentProgress.completed,
-      total: formProgress.total + documentProgress.total,
+      completed: withSgacDeclaration.completed + documentProgress.completed,
+      total: withSgacDeclaration.total + documentProgress.total,
     };
-  }, [dbSteps, documentCenterData, dynamicAnswerSnapshot, showStandaloneDocumentStep]);
+  }, [
+    dbSteps,
+    documentCenterData,
+    dynamicAnswerSnapshot,
+    sgacDeclarationAccepted,
+    showSgacDeclarationFallback,
+    showStandaloneDocumentStep,
+  ]);
   const missingRequiredDocumentKeys = useMemo(
     () => showStandaloneDocumentStep
       ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
@@ -2566,7 +2697,8 @@ export default function ApplicationPage() {
   );
   const applicationReadyForAssistantReview =
     (!showStandaloneDocumentStep || documentCenterLoaded) &&
-    tabCompletion.missingFields.length === 0;
+    tabCompletion.missingFields.length === 0 &&
+    (!showSgacDeclarationFallback || sgacDeclarationAccepted);
   const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
   const invalidFieldNamesByStep = useMemo(() => {
     const fieldsByStep = new Map<number, Set<string>>();
@@ -2587,7 +2719,6 @@ export default function ApplicationPage() {
   // A submission/status card must never replace the saved application review.
   // This applies uniformly to pending, payment, handoff, success, retry, and
   // failure states across every long-form country workflow.
-  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
 
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
@@ -3106,6 +3237,24 @@ export default function ApplicationPage() {
     }
   }, [dynamicAnswers, ensureWritableApplicationId]);
 
+  const handleSgacDeclarationChange = useCallback(async (accepted: boolean) => {
+    const applicationId = await ensureWritableApplicationId();
+    const value = accepted ? "true" : "";
+    const saveResult = await saveDynamicAnswers(applicationId, {
+      [SGAC_ICA_DECLARATION_FIELD]: value,
+    });
+    if (saveResult.error) throw new Error(saveResult.error);
+
+    setDynamicAnswers((current) => ({
+      ...current,
+      [SGAC_ICA_DECLARATION_FIELD]: value,
+    }));
+    // Any previous submit result described the answer snapshot before this
+    // confirmation changed. Recompute it from the newly saved value instead.
+    setSubmitMissingFields([]);
+    markFormAssistantAnswersChanged();
+  }, [ensureWritableApplicationId, markFormAssistantAnswersChanged]);
+
   const handleFormAssistantSend = useCallback(async (
     text: string,
     options: {
@@ -3224,6 +3373,7 @@ export default function ApplicationPage() {
             content: payload.assistantMessage,
             createdAt: now,
             inputMode: "system",
+            animate: true,
           },
         ],
         aiFilledFieldNames: Array.from(new Set([
@@ -3324,6 +3474,15 @@ export default function ApplicationPage() {
 
   const scrollToApplicationField = useCallback((fieldName: string, fallbackStepIndex?: number) => {
     const baseFieldName = getBaseAnswerFieldName(fieldName);
+    if (showSgacDeclarationFallback && baseFieldName === SGAC_ICA_DECLARATION_FIELD) {
+      navigateFormAssistantToReview();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          document.getElementById("sgac-ica-declaration")?.focus({ preventScroll: true });
+        });
+      });
+      return;
+    }
     const location = formAssistantFieldLocations.get(baseFieldName);
     const targetStepIndex = location?.stepIndex ?? fallbackStepIndex;
     if (targetStepIndex === undefined) return;
@@ -3348,7 +3507,12 @@ export default function ApplicationPage() {
         )?.focus({ preventScroll: true });
       });
     });
-  }, [formAssistantFieldLocations, scrollToStepPanel]);
+  }, [
+    formAssistantFieldLocations,
+    navigateFormAssistantToReview,
+    scrollToStepPanel,
+    showSgacDeclarationFallback,
+  ]);
 
   const scrollToDocumentRequirement = useCallback((requirementKey: string, fallbackStepIndex: number) => {
     const requestId = ++documentRequirementNavigationRef.current;
@@ -3890,26 +4054,41 @@ export default function ApplicationPage() {
   );
 
   const getCurrentSubmitMissingFields = useCallback(
-    (answers: Record<string, string>) => computeAllTabCompletion({
-      dbSteps,
-      effectiveSteps,
-      answers,
-      documentCenterData,
-      documentsLoaded: documentCenterLoaded,
-      submittedAt: appState.submittedAt,
-      submissionResultStatus: appState.submissionResultStatus,
-      applicationConsentPresent: appState.applicationConsentPresent,
-      applicationSignaturePresent: appState.applicationSignaturePresent,
-      canadaPortalTermsConsentPresent: appState.canadaPortalTermsConsentPresent,
-      country: resolvedCountry,
-      visaType: resolvedVisaType,
-      documentStepId: documentStepIndex,
-      reviewStepId: reviewStepIndex,
-      teamStepId: teamStepIndex,
-      confirmationStepId: statusStepIndex,
-      showDocumentStep,
-      showTeamStep,
-    }).missingFields,
+    (answers: Record<string, string>) => {
+      const missing = computeAllTabCompletion({
+        dbSteps,
+        effectiveSteps,
+        answers,
+        documentCenterData,
+        documentsLoaded: documentCenterLoaded,
+        submittedAt: appState.submittedAt,
+        submissionResultStatus: appState.submissionResultStatus,
+        applicationConsentPresent: appState.applicationConsentPresent,
+        applicationSignaturePresent: appState.applicationSignaturePresent,
+        canadaPortalTermsConsentPresent: appState.canadaPortalTermsConsentPresent,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        documentStepId: documentStepIndex,
+        reviewStepId: reviewStepIndex,
+        teamStepId: teamStepIndex,
+        confirmationStepId: statusStepIndex,
+        showDocumentStep,
+        showTeamStep,
+      }).missingFields;
+      if (!showSgacDeclarationFallback || isAcceptedDeclarationValue(answers[SGAC_ICA_DECLARATION_FIELD])) {
+        return missing;
+      }
+      return [
+        ...missing,
+        {
+          stepId: reviewStepIndex,
+          stepName: isZhInterface ? "审核申请" : "Review Application",
+          fieldName: SGAC_ICA_DECLARATION_FIELD,
+          label: isZhInterface ? "ICA SG Arrival Card 声明" : "ICA SG Arrival Card declaration",
+          reason: "required" as const,
+        },
+      ];
+    },
     [
       appState.submissionResultStatus,
       appState.submittedAt,
@@ -3924,7 +4103,9 @@ export default function ApplicationPage() {
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
+      isZhInterface,
       showDocumentStep,
+      showSgacDeclarationFallback,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
@@ -4764,9 +4945,10 @@ export default function ApplicationPage() {
                     section: field.stepName,
                   };
                 })}
+                readOnly={formAssistantBlockedByArrivalCardSuccess}
                 loading={formAssistantBusy}
                 validationResult={formAssistantDisplayValidation}
-                showReviewAction={applicationReadyForAssistantReview}
+                showReviewAction={applicationReadyForAssistantReview || showSgacDeclarationFallback}
                 onSend={handleFormAssistantSend}
                 onConfirm={handleFormAssistantConfirm}
                 onTranscribe={handleFormAssistantTranscribe}
@@ -4949,37 +5131,21 @@ export default function ApplicationPage() {
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
                           showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
-                              {showReviewAlongsideSubmissionStatus ? (
-                                <DynamicReviewStep
-                                  applicationId={appState.applicationId}
-                                  dynamicAnswers={dynamicAnswerSnapshot}
-                                  dbSteps={dbSteps}
-                                  photoPath={appState.photo}
-                                  onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
-                                  onPhotoEdit={() => scrollToDocumentRequirement(
-                                    "photo",
-                                    showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
-                                  )}
-                                  onComplete={() => undefined}
-                                  mode="continue"
-                                  showAction={false}
-                                  reviewIssues={formAssistantFieldReviewIssueMap}
-                                />
-                              ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                submissionStarting={saving && submittingMode !== null}
-                                onResubmit={handleDynamicReviewComplete}
-                              />
-                            </div>
+                            <DynamicReviewStep
+                              applicationId={appState.applicationId}
+                              dynamicAnswers={dynamicAnswerSnapshot}
+                              dbSteps={dbSteps}
+                              photoPath={appState.photo}
+                              onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
+                              onPhotoEdit={() => scrollToDocumentRequirement(
+                                "photo",
+                                showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
+                              )}
+                              onComplete={() => undefined}
+                              mode="continue"
+                              showAction={false}
+                              reviewIssues={formAssistantFieldReviewIssueMap}
+                            />
                           ) : (
                             <div className="flex flex-col gap-6">
                               <DynamicReviewStep
@@ -5012,6 +5178,10 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
+                                  showSgacDeclarationFallback={showSgacDeclarationFallback}
+                                  sgacDeclarationAccepted={sgacDeclarationAccepted}
+                                  sgacResident={sgacResident}
+                                  onSgacDeclarationChange={handleSgacDeclarationChange}
                                   onSubmit={(mode, paymentCard, taiwanConsent) =>
                                     checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
@@ -5093,35 +5263,19 @@ export default function ApplicationPage() {
                         )}
                         {step.id === fallbackReviewStepIndex && (
                           showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
-                              {showReviewAlongsideSubmissionStatus ? (
-                                <ReviewStep
-                                  applicationId={appState.applicationId ?? ""}
-                                  data={appState}
-                                  onEdit={(section, fieldName) => {
-                                    const sectionMap: Record<string, number> = {
-                                      personal: 0, passport: 1, travel: 2, documents: 3,
-                                    };
-                                    scrollToApplicationField(fieldName, sectionMap[section] ?? 0);
-                                  }}
-                                  onComplete={() => undefined}
-                                  mode="continue"
-                                  showAction={false}
-                                />
-                              ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                submissionStarting={saving && submittingMode !== null}
-                                onResubmit={handleReviewComplete}
-                              />
-                            </div>
+                            <ReviewStep
+                              applicationId={appState.applicationId ?? ""}
+                              data={appState}
+                              onEdit={(section, fieldName) => {
+                                const sectionMap: Record<string, number> = {
+                                  personal: 0, passport: 1, travel: 2, documents: 3,
+                                };
+                                scrollToApplicationField(fieldName, sectionMap[section] ?? 0);
+                              }}
+                              onComplete={() => undefined}
+                              mode="continue"
+                              showAction={false}
+                            />
                           ) : (
                             <div className="flex flex-col gap-6">
                               <ReviewStep
@@ -5152,6 +5306,10 @@ export default function ApplicationPage() {
                                   requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
+                                  showSgacDeclarationFallback={showSgacDeclarationFallback}
+                                  sgacDeclarationAccepted={sgacDeclarationAccepted}
+                                  sgacResident={sgacResident}
+                                  onSgacDeclarationChange={handleSgacDeclarationChange}
                                   onSubmit={(mode, paymentCard, taiwanConsent) =>
                                     checkAndSubmit(handleReviewComplete, mode, paymentCard, taiwanConsent)}
                                 />
@@ -5162,6 +5320,63 @@ export default function ApplicationPage() {
                       </>
                     )}
                   </ApplicationFormPanel>
+                  {useDynamic &&
+                  step.id === reviewStepIndex &&
+                  appState.applicationId &&
+                  showSubmissionStatusStep ? (
+                    <section
+                      aria-labelledby={`submission-status-heading-${step.id}`}
+                      className="w-full"
+                    >
+                      <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
+                        <h2
+                          id={`submission-status-heading-${step.id}`}
+                          className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]"
+                        >
+                          {isZhInterface ? "申请状态" : "Application status"}
+                        </h2>
+                        <SubmissionStatusStep
+                          applicationId={appState.applicationId}
+                          country={activeCountry}
+                          visaType={activeVisaType}
+                          status={appState.submissionResultStatus}
+                          result={appState.submissionResult}
+                          submissionStarting={saving && submittingMode !== null}
+                          embedded
+                          onResubmit={handleDynamicReviewComplete}
+                        />
+                      </ApplicationFormPanel>
+                    </section>
+                  ) : null}
+                  {!useDynamic &&
+                  step.id === fallbackReviewStepIndex &&
+                  appState.applicationId &&
+                  showSubmissionStatusStep ? (
+                    <section
+                      aria-labelledby={`submission-status-heading-${step.id}`}
+                      className="w-full"
+                      data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
+                    >
+                      <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
+                        <h2
+                          id={`submission-status-heading-${step.id}`}
+                          className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]"
+                        >
+                          {isZhInterface ? "申请状态" : "Application status"}
+                        </h2>
+                        <SubmissionStatusStep
+                          applicationId={appState.applicationId}
+                          country={activeCountry}
+                          visaType={activeVisaType}
+                          status={appState.submissionResultStatus}
+                          result={appState.submissionResult}
+                          submissionStarting={saving && submittingMode !== null}
+                          embedded
+                          onResubmit={handleReviewComplete}
+                        />
+                      </ApplicationFormPanel>
+                    </section>
+                  ) : null}
                 </div>
               );
             })}

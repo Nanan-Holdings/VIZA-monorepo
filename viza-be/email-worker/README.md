@@ -46,6 +46,10 @@ R2 is optional. After enabling it for the account, create
 `viza-inbox-bodies` and `viza-inbox-bodies-preview`, then uncomment the
 `r2_buckets` binding in `wrangler.toml` to enable durable retries.
 
+The Resend retry path sends from `VIZA <noreply@viza.it.com>`. Keep
+`viza.it.com` verified in Resend; do not point `INBOX_FORWARD_FROM` at the
+legacy, unverified `viza.app` domain.
+
 ## Schema
 
 Migration: `viza-be/agent-backend/drizzle/0045_inbound_email.sql`.

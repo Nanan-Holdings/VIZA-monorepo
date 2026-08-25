@@ -96,7 +96,7 @@ export interface DocumentPackageSummary {
   description: string | null;
   country: string;
   visaType: string;
-  source: "document_requirements" | "package_metadata" | "fallback";
+  source: "document_requirements" | "package_metadata" | "fallback" | "none";
 }
 
 export interface DocumentRequirement {
@@ -267,17 +267,19 @@ interface OcrExtractionRow {
   updated_at: string | null;
 }
 
-const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
+type DocumentLabelDefault = Pick<
+  DocumentRequirement,
+  "key" | "documentType" | "labelEn" | "labelZh" | "description" | "accept"
+>;
+
+const DOCUMENT_LABEL_DEFAULTS: DocumentLabelDefault[] = [
   {
     key: "passport_copy",
     documentType: "passport_copy",
     labelEn: "Passport bio page",
     labelZh: "护照资料页",
     description: "Clear scan or photo of the passport bio-data page.",
-    required: true,
-    sortOrder: 10,
     accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
-    source: "fallback",
   },
   {
     key: "photo",
@@ -285,10 +287,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Passport-size photo",
     labelZh: "证件照",
     description: "Recent passport-style photo that follows the destination photo rules.",
-    required: true,
-    sortOrder: 20,
     accept: [".jpg", ".jpeg", ".png", ".webp"],
-    source: "fallback",
   },
   {
     key: "travel_itinerary",
@@ -296,10 +295,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Travel itinerary",
     labelZh: "旅行行程",
     description: "Day-by-day route, dates, cities, and major planned activities.",
-    required: true,
-    sortOrder: 30,
     accept: [".pdf", ".doc", ".docx", ".json"],
-    source: "fallback",
   },
   {
     key: "bank_statement",
@@ -307,10 +303,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Proof of funds",
     labelZh: "资金证明",
     description: "Recent bank statement or equivalent financial evidence.",
-    required: true,
-    sortOrder: 40,
     accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
-    source: "fallback",
   },
   {
     key: "flight_booking",
@@ -318,10 +311,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Flight booking",
     labelZh: "机票预订",
     description: "Reservation or planned arrival and departure details, if available.",
-    required: false,
-    sortOrder: 50,
     accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
-    source: "fallback",
   },
   {
     key: "hotel_booking",
@@ -329,10 +319,7 @@ const FALLBACK_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Accommodation booking",
     labelZh: "住宿预订",
     description: "Hotel, host, or accommodation confirmation, if available.",
-    required: false,
-    sortOrder: 60,
     accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
-    source: "fallback",
   },
 ];
 
@@ -897,17 +884,17 @@ function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequire
   }));
 }
 
-function fallbackLabelFor(key: string): Pick<DocumentRequirement, "labelEn" | "labelZh" | "description" | "accept"> {
-  const fallback = FALLBACK_REQUIREMENTS.find(
+function defaultLabelFor(key: string): Pick<DocumentRequirement, "labelEn" | "labelZh" | "description" | "accept"> {
+  const defaults = DOCUMENT_LABEL_DEFAULTS.find(
     (requirement) => requirement.key === key || requirement.documentType === key,
   );
 
-  if (fallback) {
+  if (defaults) {
     return {
-      labelEn: fallback.labelEn,
-      labelZh: fallback.labelZh,
-      description: fallback.description,
-      accept: fallback.accept,
+      labelEn: defaults.labelEn,
+      labelZh: defaults.labelZh,
+      description: defaults.description,
+      accept: defaults.accept,
     };
   }
 
@@ -974,7 +961,7 @@ function selectDocumentApplication(
 function normalizeRequirementRow(row: DocumentRequirementRow): DocumentRequirement {
   const metadata = isRecord(row.metadata) ? row.metadata : {};
   const key = row.requirement_key;
-  const labels = fallbackLabelFor(key);
+  const labels = defaultLabelFor(key);
   const documentType = getString(metadata, ["document_type", "documentType", "type"]) ?? key;
 
   return {
@@ -1000,7 +987,7 @@ function normalizeMetadataChecklistItem(
   defaultRequired: boolean,
 ): DocumentRequirement | null {
   if (typeof item === "string") {
-    const labels = fallbackLabelFor(item);
+    const labels = defaultLabelFor(item);
     return {
       key: item,
       documentType: item,
@@ -1019,7 +1006,7 @@ function normalizeMetadataChecklistItem(
   const key =
     getString(item, ["requirement_key", "requirementKey", "key", "id", "document_type", "documentType", "type"]) ??
     `supporting_document_${index + 1}`;
-  const labels = fallbackLabelFor(key);
+  const labels = defaultLabelFor(key);
   const optional = getBoolean(item, ["optional"]);
   const explicitRequired = getBoolean(item, ["required", "is_required", "isRequired"]);
   const required = explicitRequired ?? (optional === null ? defaultRequired : !optional);
@@ -1462,7 +1449,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
   }
 
-  return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };
+  // Missing configuration must never fabricate shared visa requirements.
+  // Only reviewed DB/package rows and the explicit product-owned fallbacks
+  // above are allowed to create applicant upload obligations.
+  return { source: "none" as const, requirements: [] };
 }
 
 async function loadDocuments(applicationId: string): Promise<ApplicationDocument[]> {

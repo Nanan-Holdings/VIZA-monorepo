@@ -3,6 +3,11 @@
 Scope: Singapore `SG_ARRIVAL_CARD` official ICA portal automation only.
 
 - `normalize.ts` maps VIZA answer keys to the ICA portal payload.
+- `sgac_applicant_type` selects one route inside the single SGAC product:
+  `singapore_citizen_or_permanent_resident` -> `/scpr`,
+  `long_term_pass_holder` -> `/ltp`, and `foreign_visitor` -> `/fvipa`.
+  Resident payloads use NRIC/FIN plus identity, arrival, contact, and health
+  fields; never validate them against the foreign-visitor passport/trip set.
 - `official-options.ts` mirrors SGAC official-option lists used by the seed and
   blocks stale/free-text values before the worker opens the ICA portal.
 - ICA's nationality API currently returns 204 base records, while the SGAC

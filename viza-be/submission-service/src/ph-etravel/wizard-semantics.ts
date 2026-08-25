@@ -31,6 +31,12 @@ export function resolvePhEtravelWizardRoute(url: string): PhEtravelWizardRoute {
 }
 
 export function classifyPhEtravelPostSignatureSemantic(portalText: string): PhEtravelPostSignatureSemantic | null {
+  if (/new travel declaration/i.test(portalText) && /travel history/i.test(portalText)) {
+    // The authenticated dashboard contains generic "Add Family Member" and
+    // empty-history copy. It is the entry point to a new declaration, not the
+    // post-signature family-selection wizard.
+    return null;
+  }
   if (/new travel declaration summary|kindly double check the information before submitting|travel declaration summary/i.test(portalText)) {
     return "summary";
   }

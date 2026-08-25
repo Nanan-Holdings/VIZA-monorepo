@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { startWechatCheckout } from "@/app/actions/wechat-checkout";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 
@@ -236,9 +237,10 @@ export function WechatCheckoutForm({
           {t.submit}
         </button>
         {errMsg && (
-          <p className="text-sm text-destructive" role="alert">
-            {errMsg}
-          </p>
+          <Alert variant="destructive">
+            <AlertIcon variant="destructive" />
+            <AlertDescription><p>{errMsg}</p></AlertDescription>
+          </Alert>
         )}
       </form>
     </Shell>

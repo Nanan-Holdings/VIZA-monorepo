@@ -34,9 +34,21 @@ export function isArtifactReferencedBySubmissionResult(
 
   const directPaths = [
     submissionResult.confirmationPdfStoragePath,
+    submissionResult.emailConfirmationPdfStoragePath,
+    submissionResult.approvalPdfStoragePath,
     submissionResult.printablePdfStoragePath,
+    submissionResult.artifactStoragePath,
+    submissionResult.confirmationScreenshotStoragePath,
+    submissionResult.officialConfirmationScreenshotStoragePath,
     submissionResult.reviewScreenshotStoragePath,
   ].filter((value): value is string => typeof value === "string");
+
+  const evidence = isStringRecord(submissionResult.evidence)
+    ? submissionResult.evidence
+    : null;
+  if (evidence && typeof evidence.screenshotPath === "string") {
+    directPaths.push(evidence.screenshotPath);
+  }
 
   const artifacts = isStringRecord(submissionResult.artifacts)
     ? submissionResult.artifacts

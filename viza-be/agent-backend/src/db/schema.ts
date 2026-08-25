@@ -1542,6 +1542,25 @@ export const visaApplicationAnswers = pgTable("visa_application_answers", {
 export type VisaApplicationAnswer = typeof visaApplicationAnswers.$inferSelect;
 export type NewVisaApplicationAnswer = typeof visaApplicationAnswers.$inferInsert;
 
+export const applicationAgreementAcceptances = pgTable("application_agreement_acceptances", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicationId: uuid("application_id").notNull(),
+  fieldName: text("field_name").notNull(),
+  contentFingerprint: text("content_fingerprint").notNull(),
+  agreementVersion: text("agreement_version").notNull(),
+  agreementContentEn: text("agreement_content_en").notNull(),
+  agreementContentZh: text("agreement_content_zh"),
+  sourceUrl: text("source_url"),
+  sourceLabel: text("source_label"),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ApplicationAgreementAcceptance = typeof applicationAgreementAcceptances.$inferSelect;
+export type NewApplicationAgreementAcceptance = typeof applicationAgreementAcceptances.$inferInsert;
+
 export const applicationProfileSnapshots = pgTable("application_profile_snapshots", {
   id: uuid("id").primaryKey().defaultRandom(),
   applicationId: uuid("application_id").notNull(),

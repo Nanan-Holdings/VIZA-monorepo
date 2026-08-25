@@ -17,18 +17,22 @@ export type FieldCategory =
   | "metadata"
   | "country_specific";
 
+export interface FieldRequirementCondition {
+  key?: string;
+  equals?: string | boolean;
+  notEquals?: string | boolean;
+  in?: Array<string | boolean>;
+  notIn?: Array<string | boolean>;
+  all?: FieldRequirementCondition[];
+  any?: FieldRequirementCondition[];
+}
+
 export interface FieldRequirement {
   key: string;
   label: string;
   category: FieldCategory;
   required: boolean;
-  condition?: {
-    key: string;
-    equals?: string | boolean;
-    notEquals?: string | boolean;
-    in?: Array<string | boolean>;
-    notIn?: Array<string | boolean>;
-  };
+  condition?: FieldRequirementCondition;
 }
 
 export interface ValidationIssue {

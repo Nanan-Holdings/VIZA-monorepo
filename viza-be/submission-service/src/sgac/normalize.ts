@@ -20,23 +20,38 @@ export class SgacPortalValidationError extends Error {
   }
 }
 
-export interface SgacPortalPayload {
+export type SgacApplicantType =
+  | "singapore_citizen_or_permanent_resident"
+  | "long_term_pass_holder"
+  | "foreign_visitor";
+
+interface SgacPortalPayloadBase {
   applicationId: string;
+  applicantType: SgacApplicantType;
   fullName: string;
-  passportNumber: string;
-  passportExpiryDate: string;
-  sex: "M" | "F" | "O";
   dateOfBirth: string;
-  nationalityLabel: string;
-  placeOfBirthLabel: string;
-  residenceCityQuery: string;
   email: string;
-  phoneCountryCode: string;
-  phoneNumber: string;
-  hasUsedDifferentName: boolean;
   hasHealthSymptoms: boolean;
   hasYellowFeverTravelHistory: boolean;
   arrivalDate: string;
+}
+
+export interface SgacResidentPortalPayload extends SgacPortalPayloadBase {
+  applicantType: Exclude<SgacApplicantType, "foreign_visitor">;
+  identityNumber: string;
+}
+
+export interface SgacForeignVisitorPortalPayload extends SgacPortalPayloadBase {
+  applicantType: "foreign_visitor";
+  passportNumber: string;
+  passportExpiryDate: string;
+  sex: "M" | "F" | "O";
+  nationalityLabel: string;
+  placeOfBirthLabel: string;
+  residenceCityQuery: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
+  hasUsedDifferentName: boolean;
   departureDate: string;
   lastCityQuery: string;
   nextCityQuery: string;
@@ -45,6 +60,10 @@ export interface SgacPortalPayload {
   transport: SgacTransportPayload;
   accommodation: SgacAccommodationPayload;
 }
+
+export type SgacPortalPayload =
+  | SgacResidentPortalPayload
+  | SgacForeignVisitorPortalPayload;
 
 export type SgacTransportPayload =
   | {
@@ -329,6 +348,15 @@ function boolYes(value: string | null): boolean {
   return ["yes", "y", "true", "1", "on"].includes(normalizeKey(value));
 }
 
+function requiredYesNo(value: string | null, field: string, missing: string[]): boolean {
+  const raw = required(value, field, field, missing);
+  const normalized = normalizeKey(raw);
+  if (["yes", "y", "true", "1", "on"].includes(normalized)) return true;
+  if (["no", "n", "false", "0", "off"].includes(normalized)) return false;
+  if (raw) missing.push(field);
+  return false;
+}
+
 function splitPhone(rawPhone: string): { countryCode: string; phoneNumber: string } {
   const compact = rawPhone.trim().replace(/[()\s-]+/g, "");
   if (compact.startsWith("+")) {
@@ -529,19 +557,88 @@ export function normalizeSgacPortalPayload(
     );
   }
 
+  const applicantTypeValue = required(
+    read(payload, "sgac_applicant_type"),
+    "sgac_applicant_type",
+    "Residency type",
+    missing,
+  ).toLowerCase();
+  const allowedApplicantTypes: SgacApplicantType[] = [
+    "singapore_citizen_or_permanent_resident",
+    "long_term_pass_holder",
+    "foreign_visitor",
+  ];
+  const applicantType = allowedApplicantTypes.find((value) => value === applicantTypeValue);
+  if (applicantTypeValue && !applicantType) missing.push("sgac_applicant_type");
+  if (!boolYes(read(payload, "ica_declaration_accepted"))) {
+    missing.push("ica_declaration_accepted");
+  }
+
   const arrivalIso = required(payload.trip.arrivalDate, "arrival_date", "Arrival date", missing);
   if (arrivalIso) assertArrivalInIcaWindow(arrivalIso, now);
+  const hasHealthSymptoms = requiredYesNo(
+    read(payload, "has_health_symptoms"),
+    "has_health_symptoms",
+    missing,
+  );
+  const healthHistoryField = hasHealthSymptoms
+    ? "recent_high_risk_region_visit_history"
+    : "recent_country_visit_history";
+  const sharedPayload = {
+    applicationId: payload.applicationId,
+    applicantType: applicantType ?? "foreign_visitor",
+    fullName: required(payload.personal.fullName, "full_name", "Full name", missing),
+    dateOfBirth: formatDate(required(payload.personal.dateOfBirth, "date_of_birth", "Date of birth", missing)),
+    email: required(payload.personal.email, "email_address", "Email address", missing),
+    hasHealthSymptoms,
+    hasYellowFeverTravelHistory: requiredYesNo(
+      read(payload, healthHistoryField),
+      healthHistoryField,
+      missing,
+    ),
+    arrivalDate: formatDate(arrivalIso),
+  };
+
+  if (applicantType && applicantType !== "foreign_visitor") {
+    const identityField = applicantType === "long_term_pass_holder"
+      ? "singapore_fin"
+      : "singapore_nric";
+    const identityNumber = required(
+      read(payload, identityField),
+      identityField,
+      applicantType === "long_term_pass_holder" ? "FIN" : "NRIC",
+      missing,
+    ).toUpperCase();
+    const identityPattern = applicantType === "long_term_pass_holder"
+      ? /^[FGM][0-9]{7}[A-Z]$/
+      : /^[ST][0-9]{7}[A-Z]$/;
+    if (identityNumber && !identityPattern.test(identityNumber)) missing.push(identityField);
+
+    const uniqueMissing = [...new Set(missing)];
+    if (uniqueMissing.length > 0) {
+      throw new SgacPortalValidationError(
+        `SG Arrival Card resident payload is missing or invalid: ${uniqueMissing.join(", ")}.`,
+        uniqueMissing,
+      );
+    }
+
+    return {
+      ...sharedPayload,
+      applicantType,
+      identityNumber,
+    };
+  }
+
   const departure = required(payload.trip.departureDate, "departure_date", "Departure date", missing);
   const purpose = mapPurpose(read(payload, "purpose_of_travel") ?? payload.trip.purpose ?? null, missing);
   const phone = normalizePhoneForIca(payload, missing);
 
-  const normalized: SgacPortalPayload = {
-    applicationId: payload.applicationId,
-    fullName: required(payload.personal.fullName, "full_name", "Full name", missing),
+  const normalized: SgacForeignVisitorPortalPayload = {
+    ...sharedPayload,
+    applicantType: "foreign_visitor",
     passportNumber: required(payload.personal.passportNumber, "passport_number", "Passport number", missing),
     passportExpiryDate: formatDate(required(payload.personal.passportExpiryDate, "passport_expiry_date", "Passport expiry date", missing)),
     sex: mapSex(payload.personal.gender ?? read(payload, "sex"), missing),
-    dateOfBirth: formatDate(required(payload.personal.dateOfBirth, "date_of_birth", "Date of birth", missing)),
     nationalityLabel: mapNationalityLabel(required(payload.personal.nationality, "nationality", "Nationality", missing), missing),
     placeOfBirthLabel: mapCountryLabel(
       required(
@@ -562,13 +659,13 @@ export function normalizeSgacPortalPayload(
           missing,
         ),
       ) ?? "",
-    email: required(payload.personal.email, "email_address", "Email address", missing),
     phoneCountryCode: phone.countryCode,
     phoneNumber: phone.phoneNumber,
-    hasUsedDifferentName: boolYes(read(payload, "has_used_different_name_to_enter_singapore")),
-    hasHealthSymptoms: boolYes(read(payload, "has_health_symptoms")),
-    hasYellowFeverTravelHistory: boolYes(read(payload, "recent_high_risk_region_visit_history") ?? read(payload, "recent_country_visit_history")),
-    arrivalDate: formatDate(arrivalIso),
+    hasUsedDifferentName: requiredYesNo(
+      read(payload, "has_used_different_name_to_enter_singapore"),
+      "has_used_different_name_to_enter_singapore",
+      missing,
+    ),
     departureDate: formatDate(departure),
     lastCityQuery:
       findOfficialCityLabel(

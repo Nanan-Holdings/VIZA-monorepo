@@ -7,7 +7,7 @@ import {
 const NOW = new Date("2026-06-22T10:00:00+08:00");
 
 describe("SGAC submission date window", () => {
-  test("opens from two days before arrival through arrival day", () => {
+  test("opens from two days before arrival through arrival day, including today", () => {
     expect(evaluateSgacSubmissionWindow("2026-06-22", NOW)).toMatchObject({
       status: "open",
       earliestSubmissionDate: "2026-06-20",

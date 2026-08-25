@@ -89,9 +89,65 @@ const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map(officialOption("hotel"));
 const CARRIER_CODES = SGAC_CARRIER_CODE_OPTIONS.map(officialOption("carrier"));
 
 const showIf = (expression: string) => ({ showIf: expression });
+const SGAC_APPLICANT_TYPES = [
+  option("singapore_citizen_or_permanent_resident", "新加坡公民 / 永久居民", "Singapore Citizen / Permanent Resident"),
+  option("long_term_pass_holder", "长期准证持有人", "Long-Term Pass Holder"),
+  option("foreign_visitor", "外国访客 / 原则批准函持有人", "Foreign Visitor / In-Principle Approval Holder"),
+];
+const ICA_DECLARATION_ACCEPTED = [
+  option("true", "我已阅读并同意该声明。", "I have read and agreed to the declaration."),
+];
 
-export const SGAC_FORM_FIELDS: SgacFieldDef[] = [
-  { field_name: "full_name", label: "Full Name (In Passport)", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 1, placeholder: "Given Name followed by Surname", validation_rules: rules("护照上的完整姓名", { maxLength: 130, official: true }) },
+// ICA exposes one SGAC service with three residency routes. Keep the two
+// resident forms isolated from the foreign-visitor form; in particular,
+// Singapore is not an ICA "Place of Residence" city option in that flow.
+const FOREIGN_VISITOR_ONLY_FIELDS = new Set([
+  "passport_number",
+  "passport_expiry_date",
+  "sex",
+  "nationality",
+  "place_of_birth_country",
+  "place_of_residence",
+  "mobile_country_code",
+  "mobile_number",
+  "has_used_different_name_to_enter_singapore",
+  "departure_date",
+  "last_city_or_port_before_singapore",
+  "purpose_of_travel",
+  "mode_of_travel",
+  "air_transport_type",
+  "carrier_code",
+  "transport_number",
+  "carrier_name",
+  "land_transport_type",
+  "vehicle_number",
+  "sea_transport_type",
+  "cruise_name",
+  "vessel_name",
+  "accommodation_type",
+  "accommodation_name",
+  "accommodation_other_type",
+  "accommodation_postcode",
+  "accommodation_block_number",
+  "accommodation_street_name",
+  "accommodation_building_name",
+  "accommodation_floor_number",
+  "accommodation_unit_number",
+  "next_city_or_port_after_singapore",
+]);
+
+function applyApplicantTypeCondition(field: SgacFieldDef): SgacFieldDef {
+  if (!FOREIGN_VISITOR_ONLY_FIELDS.has(field.field_name)) return field;
+  const existingCondition = (field.conditional_logic as { showIf?: string } | undefined)?.showIf;
+  const profileCondition = "sgac_applicant_type === foreign_visitor";
+  return {
+    ...field,
+    conditional_logic: showIf(existingCondition ? `${profileCondition} && ${existingCondition}` : profileCondition),
+  };
+}
+
+const SGAC_BASE_FORM_FIELDS: SgacFieldDef[] = [
+  { field_name: "full_name", label: "Full Name", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 3, placeholder: "Given Name followed by Surname", validation_rules: rules("完整姓名", { maxLength: 130, official: true }) },
   { field_name: "passport_number", label: "Passport Number", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 2, validation_rules: rules("护照号码", { maxLength: 20, official: true }) },
   { field_name: "passport_expiry_date", label: "Date of Passport Expiry", field_type: "date", required: true, step_number: 1, step_name: "Traveller Information", display_order: 3, validation_rules: rules("护照到期日期", { format: "YYYY-MM-DD", official: true }) },
   { field_name: "sex", label: "Sex as indicated in passport", field_type: "select", required: true, step_number: 1, step_name: "Traveller Information", display_order: 4, options: SEX, validation_rules: rules("护照所示性别", { official: true }) },
@@ -104,7 +160,7 @@ export const SGAC_FORM_FIELDS: SgacFieldDef[] = [
   { field_name: "mobile_number", label: "Mobile Number", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 11, validation_rules: rules("手机号码", { pattern: "^[0-9]{6,15}$", official: true }) },
   { field_name: "has_used_different_name_to_enter_singapore", label: "Have you ever used a passport under a different name to enter Singapore?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 12, options: YES_NO, validation_rules: rules("是否曾使用不同姓名的护照入境新加坡？", { official: true }) },
   { field_name: "has_health_symptoms", label: "Do you currently have fever, cough, shortness of breath, headache, vomiting, dizziness or rash?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 13, options: YES_NO, validation_rules: rules("目前是否有发热、咳嗽、呼吸急促、头痛、呕吐、头晕或皮疹？", { official: true }) },
-  { field_name: "recent_country_visit_history", label: "Have you visited countries/places in Africa or Latin America identified for Yellow Fever risk in the six days before arrival?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 14, options: YES_NO, conditional_logic: showIf("has_health_symptoms === no"), validation_rules: rules("抵达前六天内是否到访黄热病风险国家或地区？", { official: true }) },
+  { field_name: "recent_country_visit_history", label: "Have you visited any of the listed countries in Africa or Latin America in the past 6 days prior to your arrival in Singapore?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 14, options: YES_NO, conditional_logic: showIf("has_health_symptoms === no"), validation_rules: rules("抵达新加坡前 6 天内是否到访过非洲或拉丁美洲列出的国家？", { official: true }) },
   { field_name: "recent_high_risk_region_visit_history", label: "Have you visited Bangladesh, India, Africa, the Middle East or Latin America in the past 21 days prior to your arrival in Singapore?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 15, options: YES_NO, conditional_logic: showIf("has_health_symptoms === yes"), validation_rules: rules("抵达新加坡前 21 天内是否到访孟加拉国、印度、非洲、中东或拉丁美洲？", { official: true }) },
 
   { field_name: "arrival_date", label: "Date of Arrival", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 1, validation_rules: rules("抵达日期", { format: "YYYY-MM-DD", inline_group: "sgac_travel_dates", official: true }) },
@@ -131,6 +187,54 @@ export const SGAC_FORM_FIELDS: SgacFieldDef[] = [
   { field_name: "accommodation_floor_number", label: "Floor Number", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 22, conditional_logic: showIf("accommodation_type === residential"), validation_rules: rules("楼层", { allow_does_not_apply: true, official: true }) },
   { field_name: "accommodation_unit_number", label: "Unit Number", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 23, conditional_logic: showIf("accommodation_type === residential"), validation_rules: rules("单元号", { allow_does_not_apply: true, official: true }) },
   { field_name: "next_city_or_port_after_singapore", label: "Next City/Port of Disembarkation After Singapore", field_type: "select", required: true, step_number: 2, step_name: "Trip Information", display_order: 24, options: CITY_PORTS, validation_rules: rules("离开新加坡后下船/抵达的下一城市/港口", { source: "ICA_SGAC_CITY", official: true }) },
+];
+
+export const SGAC_FORM_FIELDS: SgacFieldDef[] = [
+  {
+    field_name: "sgac_applicant_type",
+    label: "Residency Type",
+    field_type: "select",
+    required: true,
+    step_number: 1,
+    step_name: "Traveller Information",
+    display_order: 1,
+    options: SGAC_APPLICANT_TYPES,
+    validation_rules: rules("居留身份类型", { source: "ICA_SGAC_SELECT_RESIDENCY_TYPE", official: true }),
+  },
+  {
+    field_name: "singapore_nric",
+    label: "NRIC",
+    field_type: "text",
+    required: true,
+    step_number: 1,
+    step_name: "Traveller Information",
+    display_order: 2,
+    conditional_logic: showIf("sgac_applicant_type === singapore_citizen_or_permanent_resident"),
+    validation_rules: rules("新加坡国民身份证号码（NRIC）", { minLength: 9, maxLength: 9, pattern: "^[ST][0-9]{7}[A-Z]$", official: true }),
+  },
+  {
+    field_name: "singapore_fin",
+    label: "FIN",
+    field_type: "text",
+    required: true,
+    step_number: 1,
+    step_name: "Traveller Information",
+    display_order: 2,
+    conditional_logic: showIf("sgac_applicant_type === long_term_pass_holder"),
+    validation_rules: rules("外国人身份证号码（FIN）", { minLength: 9, maxLength: 9, pattern: "^[FGM][0-9]{7}[A-Z]$", official: true }),
+  },
+  ...SGAC_BASE_FORM_FIELDS.map(applyApplicantTypeCondition),
+  {
+    field_name: "ica_declaration_accepted",
+    label: "I have read and agreed to the declaration.",
+    field_type: "checkbox",
+    required: true,
+    step_number: 3,
+    step_name: "Declaration",
+    display_order: 1,
+    options: ICA_DECLARATION_ACCEPTED,
+    validation_rules: rules("我已阅读并同意该声明。", { source: "ICA_SGAC_LID0000258", official: true }),
+  },
 ];
 
 export const SGAC_OFFICIAL_FIELD_NAMES = SGAC_FORM_FIELDS.map((field) => field.field_name);

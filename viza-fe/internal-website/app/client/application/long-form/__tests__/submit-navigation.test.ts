@@ -81,6 +81,22 @@ describe("application submit navigation", () => {
     ).toHaveLength(2);
   });
 
+  it("retains the loaded form assistant as read-only when an arrival-card result completes", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+
+    expect(pageSource).toContain(
+      "(!formAssistantBlockedByArrivalCardSuccess || formAssistantState !== null)",
+    );
+    expect(pageSource).toContain("readOnly={formAssistantBlockedByArrivalCardSuccess}");
+    expect(pageSource).toContain("if (!formAssistantCanLoad) {");
+    expect(pageSource).not.toMatch(
+      /const formAssistantEligible\s*=([\s\S]{0,240})!formAssistantBlockedByArrivalCardSuccess/,
+    );
+  });
+
   it("shows specific Chinese Korea queue errors instead of leaking English server copy", () => {
     const pageSource = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),
@@ -96,5 +112,22 @@ describe("application submit navigation", () => {
     expect(queueHelper).toContain("确认韩文地址、英文地址和 5 位邮编均已自动填写");
     expect(queueHelper).toContain("登录状态已过期，请刷新页面或重新登录后再提交");
     expect(queueHelper).toContain("input.locale.toLowerCase().startsWith(\"zh\")");
+  });
+
+  it("keeps older SG Arrival Card drafts blocked until the ICA declaration is saved", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+
+    expect(pageSource).toContain("const showSgacDeclarationFallback = isSgArrivalCard && !hasSgacDeclarationSchemaField;");
+    expect(pageSource).toContain('id="sgac-ica-declaration"');
+    expect(pageSource).toContain("const handleSgacDeclarationChange = useCallback(async (accepted: boolean) => {");
+    expect(pageSource).toContain("[SGAC_ICA_DECLARATION_FIELD]: value");
+    expect(pageSource).toContain("if (!showSgacDeclarationFallback || isAcceptedDeclarationValue(answers[SGAC_ICA_DECLARATION_FIELD])) {");
+    expect(pageSource).toContain("const sgacLongTermPassHolder = isSgArrivalCard &&");
+    expect(pageSource).toContain("ICA Long-Term Pass holder submission job");
+    expect(pageSource).not.toContain("Open ICA's Long-Term Pass holder service");
+    expect(pageSource).not.toContain("if (sgacLongTermPassHolder) {");
   });
 });

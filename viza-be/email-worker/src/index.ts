@@ -447,7 +447,7 @@ async function sendForwardedEmail(
       "Idempotency-Key": `viza-alias-forward-${row.id}`,
     },
     body: JSON.stringify({
-      from: env.INBOX_FORWARD_FROM?.trim() || "VIZA <noreply@viza.app>",
+      from: env.INBOX_FORWARD_FROM?.trim() || "VIZA <noreply@viza.it.com>",
       to: [destination],
       subject: row.subject ? `[VIZA 转发] ${row.subject}` : "[VIZA 转发] 官方申请邮件",
       html,

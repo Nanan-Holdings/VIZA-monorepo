@@ -15,6 +15,8 @@ reports, and workflow documentation for VIZA.
 - `client-portal-prd.md`: client portal product requirements.
 - `prd-backend-data-schema.md`: backend data model requirements.
 - `application/DG.md`: application form developer guide.
+- `application/agreement-capture.md`: agreement/declaration checkbox capture,
+  immutable acceptance evidence, and official-source recrawl status.
 - `application/UG.md`: application form user guide.
 - `application/schema-ui-contract.md`: canonical mapping from scraped master
   schema fields to frozen application components, conditional-panel ownership,

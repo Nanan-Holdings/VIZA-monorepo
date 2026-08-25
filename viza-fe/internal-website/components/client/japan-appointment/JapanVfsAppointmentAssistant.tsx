@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
-  WarningCircle as AlertCircle,
   ArrowLeft,
   CalendarCheck,
   CheckCircle as CheckCircle2,
@@ -17,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,23 +209,23 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
         ))}
       </ol>
 
-      <Alert className="border-brand-100 bg-brand-50">
-        <ShieldCheck className="h-4 w-4 text-brand-600" />
+      <Alert variant="info">
+        <AlertIcon variant="info" />
         <AlertTitle>{t("free.title")}</AlertTitle>
         <AlertDescription>{t("free.body")}</AlertDescription>
       </Alert>
 
       {error ? (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertIcon variant="destructive" />
           <AlertTitle>{t("errors.title")}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
       {snapshot?.account?.accountStatus === "mobile_already_registered" ? (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertCircle className="h-4 w-4 text-amber-700" />
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
           <AlertTitle>{t("account.mobileAlreadyRegisteredTitle")}</AlertTitle>
           <AlertDescription>{t("account.mobileAlreadyRegisteredBody")}</AlertDescription>
         </Alert>
@@ -325,10 +324,10 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
         <Card className="rounded-[8px]">
           <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-brand-600" />{t("account.title")}</CardTitle></CardHeader>
           <CardContent className="space-y-5">
-            <Alert className="border-brand-100 bg-brand-50"><ShieldCheck className="h-4 w-4 text-brand-600" /><AlertTitle>{t("workflow.publicOnlyTitle")}</AlertTitle><AlertDescription>{t("workflow.publicOnlyBody")}</AlertDescription></Alert>
+            <Alert variant="info"><AlertIcon variant="info" /><AlertTitle>{t("workflow.publicOnlyTitle")}</AlertTitle><AlertDescription>{t("workflow.publicOnlyBody")}</AlertDescription></Alert>
             {snapshot?.pendingManualAction ? (
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertCircle className="h-4 w-4 text-amber-700" />
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
                 <AlertTitle>{t(`checkpoints.${snapshot.pendingManualAction.actionType}`)}</AlertTitle>
                 <AlertDescription>{t(`checkpointBodies.${snapshot.pendingManualAction.actionType}`)}</AlertDescription>
               </Alert>
@@ -369,7 +368,7 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
           <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-brand-600" />{t("final.title")}</CardTitle></CardHeader>
           <CardContent className="space-y-5">
             {selectedSlot ? <div className="rounded-[8px] border bg-muted/30 p-4"><div className="font-medium">{selectedSlot.appointmentDate} {selectedSlot.appointmentTime}</div><div className="mt-1 text-sm text-muted-foreground">{selectedSlot.appointmentLocation}</div></div> : null}
-            {job.status === "appointment_payment_required" ? <Alert><ExternalLink className="h-4 w-4" /><AlertTitle>{t("payment.officialTitle")}</AlertTitle><AlertDescription>{t("payment.officialBody")}</AlertDescription></Alert> : null}
+            {job.status === "appointment_payment_required" ? <Alert variant="info"><AlertIcon variant="info" /><AlertTitle>{t("payment.officialTitle")}</AlertTitle><AlertDescription>{t("payment.officialBody")}</AlertDescription></Alert> : null}
             <label className="flex items-start gap-3 rounded-[8px] border p-3 text-sm"><Checkbox checked={finalApproved} onCheckedChange={(value) => setFinalApproved(value === true)} /><span>{t("final.consent")}</span></label>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" disabled={!finalApproved || busy !== null || job.status !== "appointment_payment_ready"} onClick={() => void action("approve", () => approveJapanAppointmentFinal(job.id))}>{t("final.approve")}</Button>

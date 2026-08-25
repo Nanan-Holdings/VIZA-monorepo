@@ -663,7 +663,7 @@ const FIELDS: FieldDef[] = [
   // Single consent checkbox above the Submit button.
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "violation_of_vietnam_laws_details", label: "Details of Vietnamese law/regulation violation", field_type: "textarea", required: true, step_number: 9, step_name: "Declaration", display_order: 1, conditional_logic: { showIf: VIOLATED_LAWS }, validation_rules: { maxLength: 1000 } },
-  { field_name: "final_declaration", label: "I hereby declare that the above statements are true, accurate, and complete, and I accept responsibility under Vietnamese law for any false declaration", field_type: "checkbox", required: true, step_number: 9, step_name: "Declaration", display_order: 2, options: [{ value: "yes", text: "I agree" }] },
+  { field_name: "final_declaration", label: "I assure that I have truthfully declared all relevant details.", field_type: "checkbox", required: true, step_number: 9, step_name: "Declaration", display_order: 2, options: [{ value: "yes", text: "I agree" }], validation_rules: { agreement_source_url: "https://evisa.xuatnhapcanh.gov.vn/en_US/khai-thi-thuc-dien-tu/cap-thi-thuc-dien-tu?type=edit", agreement_source_label: "Vietnam Immigration e-Visa application" } },
 ];
 
 // ─── Seed Runner ────────────────────────────────────────────────────────────

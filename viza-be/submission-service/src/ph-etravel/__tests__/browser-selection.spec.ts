@@ -11,10 +11,13 @@ import {
 } from "../../arrival-card-browser";
 import {
   PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS,
+  isPhEtravelComboboxSelectionCommitted,
   isPhEtravelRegistrationResponseRejected,
   shouldRetryMissingPhEtravelResponse,
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
+  phEtravelCountryOptionText,
+  phEtravelTurnstileAttemptLimit,
 } from "../runner";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -59,6 +62,26 @@ test("PH eTravel retries rejected registration API responses instead of waiting 
   assert.equal(isPhEtravelRegistrationResponseRejected(422), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(429), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(200), false);
+});
+
+test("PH eTravel accepts official code values committed by eGovPH comboboxes", () => {
+  assert.equal(isPhEtravelComboboxSelectionCommitted("SG"), true);
+  assert.equal(isPhEtravelComboboxSelectionCommitted("Singapore"), true);
+  assert.equal(isPhEtravelComboboxSelectionCommitted("  "), false);
+});
+
+test("PH eTravel searches country comboboxes with official display labels", () => {
+  assert.equal(phEtravelCountryOptionText("SG"), "Singapore");
+  assert.equal(phEtravelCountryOptionText("SGP"), "Singapore");
+  assert.equal(phEtravelCountryOptionText("CHN"), "China");
+  assert.equal(phEtravelCountryOptionText("Malaysia"), "Malaysia");
+});
+
+test("PH eTravel bounds fresh Turnstile attempts while tolerating transient rejects", () => {
+  assert.equal(phEtravelTurnstileAttemptLimit(), 5);
+  assert.equal(phEtravelTurnstileAttemptLimit("3"), 3);
+  assert.equal(phEtravelTurnstileAttemptLimit("0"), 1);
+  assert.equal(phEtravelTurnstileAttemptLimit("12"), 5);
 });
 
 test("PH eTravel retries Continue when Turnstile appears before the registration POST", () => {

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result";
+import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
 import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
@@ -40,7 +41,93 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(localizeProgressMessage("云端任务正在继续。", true)).toBe("云端任务正在继续。");
   });
 
-  it("completes the three loading phases gradually without following an early backend stage", () => {
+  it("renders SGAC success as embedded application status without inventing a confirmation number", () => {
+    render(
+      <SgArrivalCardResultCard
+        embedded
+        result={{
+          country: "SG",
+          visaType: "SG_ARRIVAL_CARD",
+          status: "submitted",
+          mode: "live_assisted",
+          provider: "sg_arrival_card_live",
+          applicationId: "sgac-application-id",
+          submitted: true,
+          confirmationNumber: null,
+          referenceNumber: null,
+          portalUrl: "https://eservices.ica.gov.sg/sgarrivalcard/ltp",
+          portalResponseSummary: "Official submission completed.",
+          payloadSummary: {
+            arrivalDate: "2026-08-26",
+            accommodationAddressProvided: true,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("新加坡入境卡");
+    expect(screen.getByText("已提交")).toHaveClass("rounded-full", "bg-emerald-50");
+    expect(screen.queryByText("DE / 确认号")).not.toBeInTheDocument();
+    expect(screen.getByText("2026-08-26")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "打开 ICA SGAC 官方网站" })).toHaveAttribute(
+      "href",
+      "https://eservices.ica.gov.sg/sgarrivalcard/ltp",
+    );
+    expect(screen.getByRole("link", { name: "打开 ICA SGAC 官方网站" })).toHaveClass(
+      "text-brand-500",
+      "rounded-full",
+    );
+  });
+
+  it("shows the saved SGAC confirmation page with screenshot and PDF downloads", () => {
+    render(
+      <SgArrivalCardResultCard
+        embedded
+        result={{
+          country: "SG",
+          visaType: "SG_ARRIVAL_CARD",
+          status: "submitted",
+          mode: "live_assisted",
+          provider: "sg_arrival_card_live",
+          applicationId: "sgac-application-id",
+          submitted: true,
+          confirmationNumber: "DE123456789",
+          referenceNumber: "DE123456789",
+          portalUrl: "https://eservices.ica.gov.sg/sgarrivalcard/ltp",
+          portalResponseSummary: "Official submission completed.",
+          confirmationPdfStoragePath:
+            "user/sgac-application-id/SG/sgac-confirmation.pdf",
+          artifacts: {
+            screenshots: [
+              "user/sgac-application-id/SG/sgac-trip.png",
+              "user/sgac-application-id/SG/sgac-confirmation.png",
+            ],
+            pdfs: ["user/sgac-application-id/SG/sgac-confirmation.pdf"],
+            logs: [],
+            traces: [],
+          },
+          payloadSummary: {
+            arrivalDate: "2026-08-26",
+            accommodationAddressProvided: true,
+          },
+        }}
+      />,
+    );
+
+    const screenshot = screen.getByAltText("官网确认页截图");
+    expect(screenshot).toHaveAttribute("src", expect.stringContaining("sgac-confirmation.png"));
+    expect(screen.queryByText("官网确认凭证")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "下载确认截图" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "打开原始确认页截图" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/这是提交时保存的官网确认页/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "下载确认 PDF" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("sgac-confirmation.pdf"),
+    );
+  });
+
+  it("updates the compact progress label gradually without following an early backend stage", () => {
     vi.useFakeTimers();
     const { rerender } = render(
       <WaitingCard
@@ -48,17 +135,16 @@ describe("DigitalArrivalCardResultCard", () => {
         persistenceKey="submission-run:queue-monotonic-stage"
         progressCycleKey="queue-monotonic-stage"
         status="running"
+        country="singapore"
+        visaType="SG_ARRIVAL_CARD"
         stage="payment_handoff"
         serverProgress={88}
         message="Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"
       />,
     );
 
-    const phaseItem = (label: string) =>
-      screen
-        .getAllByText(label)
-        .find((element) => element.closest("ol"))
-        ?.closest("li");
+    expect(screen.getByText("正在核对申请答案")).toBeInTheDocument();
+    expect(screen.queryByText("正在整理并校验官网所需的英文答案。")).not.toBeInTheDocument();
 
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
@@ -72,13 +158,8 @@ describe("DigitalArrivalCardResultCard", () => {
       "aria-valuenow",
       "5",
     );
-    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-500");
-    expect(phaseItem("正在填写官网表单")).not.toHaveClass("border-brand-500");
-    expect(phaseItem("正在等待检查点或结果")).not.toHaveClass("border-brand-500");
-    expect(screen.getByText("正在整理并校验官网所需的英文答案。")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("正在准备官网填写信息")).toBeInTheDocument();
+    expect(screen.queryByText("正在填写官网表单")).not.toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(24_000);
@@ -87,10 +168,8 @@ describe("DigitalArrivalCardResultCard", () => {
       "aria-valuenow",
       "35",
     );
-    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
-    expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-500");
-    expect(phaseItem("正在等待检查点或结果")).not.toHaveClass("border-brand-500");
-    expect(screen.getByText("正在填写官网表单。")).toBeInTheDocument();
+    expect(screen.getByText("正在填写姓名")).toBeInTheDocument();
+    expect(screen.queryByText("正在填写官网表单")).not.toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(26_400);
@@ -99,12 +178,8 @@ describe("DigitalArrivalCardResultCard", () => {
       "aria-valuenow",
       "68",
     );
-    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
-    expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-200");
-    expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
-    expect(
-      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("正在核对官网表单")).toBeInTheDocument();
+    expect(screen.queryByText("正在填写姓名")).not.toBeInTheDocument();
 
     rerender(
       <WaitingCard
@@ -112,19 +187,20 @@ describe("DigitalArrivalCardResultCard", () => {
         persistenceKey="submission-run:queue-monotonic-stage"
         progressCycleKey="queue-monotonic-stage"
         status="running"
+        country="singapore"
+        visaType="SG_ARRIVAL_CARD"
         stage="preparing"
         serverProgress={12}
         message="正在准备官网填写任务。"
       />,
     );
 
-    expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
-    expect(phaseItem("正在校验英文版答案")).toHaveClass("border-brand-200");
+    expect(screen.getByText("正在核对官网表单")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
       "aria-valuenow",
       "68",
     );
-    expect(screen.getByText("正在等待官网检查点或最终结果。")).toBeInTheDocument();
+    expect(screen.getByText("正在核对官网表单")).toBeInTheDocument();
   });
 
   it("restores Vietnam submission progress after the status card remounts", async () => {
@@ -376,6 +452,88 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("renders an authoritative Philippines result in the compact embedded status panel", () => {
+    const result = {
+      country: "PH",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      applicationId: "application-id",
+      submitted: true,
+      referenceNumber: "PH-REFERENCE-123",
+      portalUrl: "https://etravel.gov.ph/",
+      portalResponseSummary: "Official confirmation captured.",
+      resultEvidence: {
+        authoritativeRead: {
+          source: "official_registration_result_read",
+          postSubmitRead: true,
+          stableReference: true,
+          referenceNumber: "PH-REFERENCE-123",
+        },
+        qrRender: {
+          renderer: "official_client_reference_qr",
+          rendered: true,
+          renderedForReference: "PH-REFERENCE-123",
+          referenceValueValidated: true,
+        },
+      },
+      artifacts: {
+        screenshots: ["user/application-id/PH/ph-confirmation.png"],
+        qrCodes: ["user/application-id/PH/ph-reference-qr.png"],
+        pdfs: ["user/application-id/PH/ph-confirmation.pdf"],
+        logs: [],
+        traces: [],
+      },
+      payloadSummary: {
+        accommodationAddressProvided: true,
+      },
+    } satisfies DigitalArrivalCardSubmissionResult;
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="philippines"
+        visaType="PH_ETRAVEL_ARRIVAL_CARD"
+        status="completed"
+        result={result}
+        embedded
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("菲律宾 eTravel");
+    expect(screen.getByText("已提交")).toHaveClass("rounded-full", "bg-emerald-50");
+    expect(screen.getByText("PH-REFERENCE-123")).toBeInTheDocument();
+    const qrPanel = screen.getByRole("region", { name: "官方 eTravel 二维码" });
+    const confirmationPanel = screen.getByRole("region", { name: "官方登记确认" });
+    expect(qrPanel.parentElement).toHaveClass("md:grid-cols-2");
+    expect(confirmationPanel.parentElement).toBe(qrPanel.parentElement);
+    expect(qrPanel).toHaveTextContent("登记参考号");
+    expect(confirmationPanel).toHaveTextContent("请下载 PDF 留存");
+    expect(screen.getByAltText("菲律宾 eTravel 官方二维码")).toHaveAttribute(
+      "src",
+      expect.stringContaining("ph-reference-qr.png"),
+    );
+    expect(screen.getByAltText("官网确认页截图")).toHaveAttribute(
+      "src",
+      expect.stringContaining("ph-confirmation.png"),
+    );
+    expect(screen.getByRole("link", { name: "下载确认 PDF" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("ph-confirmation.pdf"),
+    );
+    expect(screen.getByRole("link", { name: "下载官方二维码" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("ph-reference-qr.png"),
+    );
+    expect(screen.getByRole("link", { name: "打开菲律宾 eTravel 官方网站" })).toHaveClass(
+      "w-full",
+      "bg-brand-500",
+    );
+    expect(screen.queryByText("eTravel 提交成功")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
+  });
+
   it("keeps polling an incomplete Vietnam result and switches to the QR download", async () => {
     const awaitingQr: DigitalArrivalCardSubmissionResult = {
       country: "VN",
@@ -444,11 +602,7 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(
-      screen.getByText(
-        "官网已接收申报。系统每 3 秒自动检查一次；二维码生成后，本页面会立即显示提交成功和下载按钮。",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("正在核对申请答案")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Vietnam Pre-Arrival 提交成功")).toBeInTheDocument();
@@ -1112,7 +1266,7 @@ describe("cloud submission retry routing", () => {
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
+    expect(screen.getByText("正在核对申请答案")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/applications/application-id/official-fee/pay",
       expect.objectContaining({

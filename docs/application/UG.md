@@ -141,6 +141,16 @@ typing directly into the bilingual form in any order. Before each question the
 assistant checks the answers already saved on this application, so it does not
 ask again for information that is already available.
 
+There is one Singapore Arrival Card application. At the start of that form,
+choose the ICA Residency Type that applies: **Singapore Citizen / Permanent
+Resident**, **Long-Term Pass Holder**, or **Foreign Visitor / In-Principle
+Approval Holder**. The form then shows only that official route's fields. The
+separate Singapore Entry Visa product is a visa, not a second arrival card.
+
+When a new assistant reply is ready, its text appears progressively instead of
+arriving as one large block. Earlier messages remain immediately readable, and
+devices configured to reduce motion show each reply in full.
+
 Stopping a recording creates editable text in the message box. Review names,
 dates, passport numbers and flight numbers, then send the text yourself. The
 recording is not saved to your account or chat history. If microphone access or
@@ -163,7 +173,10 @@ The final Review Application step is read-only. It summarizes completed answers,
 shows paired Chinese/English or official values for final checking, and lists
 empty or missing fields at the bottom. Confirmation and submission controls are
 part of this same step. If something is wrong or missing, use the edit action to
-return to the relevant form step.
+return to the relevant form step. The **Update Universal Profile** card lists
+only reusable answers that are new or different from the saved profile. Changed
+answers show the old value struck through before the new value; application-only
+trip, payment, and declaration answers do not appear there.
 
 ## Submission Status
 

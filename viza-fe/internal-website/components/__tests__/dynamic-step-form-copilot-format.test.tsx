@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { isValidElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DynamicStepForm } from "../dynamic-step-form";
@@ -781,6 +781,67 @@ const sgacFullNameStep: WizardStep = {
       validationRules: null,
       options: null,
       conditionalLogic: null,
+    },
+  ],
+};
+
+const sgacConditionalFieldStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Traveller Information",
+  fields: [
+    {
+      id: "field-sgac-applicant-type",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "sgac_applicant_type",
+      label: "Residency Type",
+      fieldType: "select",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 1,
+      placeholder: "Choose one",
+      validationRules: null,
+      options: [
+        {
+          value: "singapore_citizen_or_permanent_resident",
+          text: "Singapore Citizen / Permanent Resident",
+        },
+        { value: "long_term_pass_holder", text: "Long-Term Pass Holder" },
+        { value: "foreign_visitor", text: "Foreign Visitor / In-Principle Approval Holder" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-sgac-nric",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "singapore_nric",
+      label: "NRIC",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: {
+        showIf: "sgac_applicant_type === singapore_citizen_or_permanent_resident",
+      },
+    },
+    {
+      id: "field-sgac-fin",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "singapore_fin",
+      label: "FIN",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: { showIf: "sgac_applicant_type === long_term_pass_holder" },
     },
   ],
 };
@@ -2017,7 +2078,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(control).not.toHaveClass("pr-10");
   });
 
-  it("places the AI-filled marker beside the field label with compact vertical padding", () => {
+  it("renders compact AI-filled metadata without a field highlight", () => {
     const { container } = render(
       <DynamicStepForm
         step={requiredTextStep}
@@ -2029,14 +2090,45 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     const field = container.querySelector<HTMLElement>('[data-application-field-name="surname"]');
-    const label = field?.querySelector<HTMLElement>(".application-form-question-label");
-    const badge = screen.getByText("AI 已填写").closest("span");
-    const labelRow = label?.parentElement;
+    const indicator = screen.getByText("AI 已填写");
+    expect(field).not.toHaveClass("bg-brand-50/50", "rounded-lg", "px-2", "py-2");
+    expect(indicator).toHaveClass("absolute", "right-3", "top-2", "text-[11px]", "text-brand-500");
+    expect(indicator).toHaveAttribute("data-application-form-ai-filled", "true");
+    expect(container.querySelector('[data-testid="form-assistant-filled-icon"]')).toBeNull();
+  });
 
-    expect(field).toHaveClass("py-2");
-    expect(labelRow).toContainElement(badge);
-    expect(label?.nextElementSibling).toBe(badge);
-    expect(badge).toHaveClass("shrink-0");
+  it("does not add a blue surface around AI-filled conditional fields", async () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={conditionalPanelStep}
+        prefill={{
+          has_inviter_in_japan: "yes",
+          inviter_full_name: "Test Inviter",
+          inviter_address: "Tokyo",
+        }}
+        onComplete={vi.fn()}
+        aiFilledFieldNames={new Set(["inviter_full_name"])}
+        visaType="JP_TOURIST"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".application-conditional-fields-panel")).not.toBeNull();
+    });
+    const panel = container.querySelector<HTMLElement>(".application-conditional-fields-panel");
+    const controllerField = container.querySelector<HTMLElement>(
+      '[data-application-field-name="has_inviter_in_japan"]',
+    );
+    const filledField = container.querySelector<HTMLElement>(
+      '[data-application-field-name="inviter_full_name"]',
+    );
+
+    expect(container.querySelector('[data-form-assistant-filled-conditional-group="true"]')).toBeNull();
+    expect(controllerField?.parentElement).toContainElement(panel);
+    expect(controllerField?.parentElement).toContainElement(filledField);
+    expect(panel).not.toHaveClass("!border-0", "!bg-transparent", "!bg-brand-50/50");
+    expect(controllerField).not.toHaveClass("bg-brand-50/50", "-mx-2");
+    expect(filledField).not.toHaveClass("bg-brand-50/50", "-mx-2");
   });
 
   it("preserves bottom-page height after removing a repeat instance until scrolling safely upward", () => {
@@ -2311,6 +2403,65 @@ describe("DynamicStepForm copilot format", () => {
     const field = container.querySelector<HTMLElement>('[data-application-field-name="city_of_birth"]');
     await waitFor(() => expect(field).toHaveAttribute("data-field-warning", "true"));
     expect(field?.className).toContain("[&_.application-form-control]:!border-red-500");
+  });
+
+  it("uses a spacious, unframed conditional layout for SGAC fields", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={sgacConditionalFieldStep}
+        prefill={{
+          sgac_applicant_type: "long_term_pass_holder",
+          singapore_fin: "M0325549W",
+        }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="SG_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(container.querySelector("[data-scroll-height-content='true']")).toHaveClass("gap-6");
+    const conditionalPanel = container.querySelector(".application-conditional-fields-panel");
+    const finInput = container.querySelector(
+      '[data-application-field-name="singapore_fin"] .application-form-input',
+    );
+    expect(conditionalPanel).toHaveClass("!border-0", "bg-transparent", "p-0");
+    expect(conditionalPanel).toHaveClass("gap-6");
+    expect(conditionalPanel).not.toHaveClass("border", "bg-white", "p-4");
+    expect(finInput).toHaveAttribute("data-filled", "true");
+    expect(finInput).toHaveAttribute("data-force-white", "false");
+    expect(container.querySelector('[data-force-white="true"]')).toBeNull();
+  });
+
+  it("shows the NRIC branch inside the same SGAC form for Singapore citizens and PRs", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={sgacConditionalFieldStep}
+        prefill={{
+          sgac_applicant_type: "singapore_citizen_or_permanent_resident",
+          singapore_nric: "S1234567D",
+        }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="SG_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(container.querySelector('[data-application-field-name="singapore_nric"]')).not.toBeNull();
+    expect(container.querySelector('[data-application-field-name="singapore_fin"]')).toBeNull();
+  });
+
+  it("uses the spacious field rhythm for every application form", () => {
+    const { container } = render(
+      <DynamicStepForm
+        step={requiredTextStep}
+        prefill={{ surname: "ZHANG" }}
+        onComplete={vi.fn()}
+        showContinueButton={false}
+        visaType="DS160"
+      />,
+    );
+
+    expect(container.querySelector("[data-scroll-height-content='true']")).toHaveClass("gap-6");
   });
 
   it("repairs a Chinese value accidentally saved in the SGAC English full-name field", () => {
@@ -2813,9 +2964,9 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByText("The refreshed scan found a related warning.")).toBeInTheDocument();
   });
 
-  it("returns to the assistant after the final reviewed issue", () => {
+  it("renders the final reviewed issue as unframed right-aligned text without a return button", () => {
     const onNavigateReviewIssue = vi.fn();
-    render(
+    const { container } = render(
       <DynamicStepForm
         step={requiredTextStep}
         prefill={{ surname: "Test" }}
@@ -2825,7 +2976,7 @@ describe("DynamicStepForm copilot format", () => {
           ["surname", {
             fieldName: "surname",
             message: "Please confirm this answer.",
-            severity: "warning" as const,
+            severity: "error" as const,
             nextFieldName: null,
           }],
         ])}
@@ -2833,8 +2984,16 @@ describe("DynamicStepForm copilot format", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "reviewRepair.returnToAssistant" }));
-    expect(onNavigateReviewIssue).toHaveBeenCalledExactlyOnceWith(null);
+    const field = container.querySelector("[data-application-field-name='surname']");
+    const message = screen.getByText("Please confirm this answer.");
+
+    expect(message).toHaveAttribute("data-review-issue-message", "true");
+    expect(message).toHaveClass("text-right", "text-red-600");
+    expect(message.parentElement).toBe(field);
+    expect(field).not.toHaveClass("bg-red-50", "px-3", "py-3");
+    expect(screen.queryByRole("button", { name: "reviewRepair.returnToAssistant" }))
+      .not.toBeInTheDocument();
+    expect(onNavigateReviewIssue).not.toHaveBeenCalled();
   });
 
   it("keeps any number of explicitly inline fields on one equal-width row", () => {

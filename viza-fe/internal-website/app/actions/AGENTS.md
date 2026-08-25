@@ -32,7 +32,10 @@ application lifecycle state.
   Critical answer reads refresh an encrypted independent cache; transient save
   failures enqueue encrypted, idempotent replay events instead of losing work.
   Reusable-profile prefill/sync and ordinary answer saves must reject synthetic
-  QA markers, and QA dry-run applications must never sync into Universal Profile.
+  QA markers, QA dry-run applications must never sync into Universal Profile,
+  and Review-card preview/save must share the canonical comparison in
+  `lib/universal-profile-sync.ts` so unchanged answers are never presented or
+  rewritten as updates.
   Korea e-Arrival Card preflight completion also lives here so ownership,
   active-application identity, draft creation, and audit-answer persistence happen
   behind one authenticated server boundary.

@@ -44,7 +44,7 @@ describe("arrival card destination labels", () => {
     expect(getVisaTypeDisplayName("SG_ARRIVAL_CARD")).toBe("SG Arrival Card");
     expect(getVisaTypeDisplayNameZh("SG_ARRIVAL_CARD")).toBe("入境卡");
 
-    expect(getVisaPackageTitle("singapore", "SG_ARRIVAL_CARD")).toBe("Singapore SG Arrival Card");
+    expect(getVisaPackageTitle("singapore", "SG_ARRIVAL_CARD")).toBe("Singapore Arrival Card");
     expect(getVisaPackageTitleZh("singapore", "SG_ARRIVAL_CARD")).toBe("新加坡入境卡");
   });
 

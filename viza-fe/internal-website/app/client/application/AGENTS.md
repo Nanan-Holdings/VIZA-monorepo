@@ -38,6 +38,7 @@ Before changing this route, read:
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
 - `components/client/form-assistant/form-filling-assistant.tsx`: reusable application-level assistant for DB-driven forms, including text/voice composer, progress, provenance notices, and final-check controls.
 - `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
+- `agreements/[visaType]/[fieldName]/page.tsx`: authenticated, read-only display of the exact agreement/declaration text for a qualifying checkbox. The acceptance snapshot itself is written only by the trusted answer-save action.
 - `app/client/application/_components/result-cards/submission-status-poll.ts`:
   bounded retry policy for final-step status polling. Network failures and
   retryable upstream responses must reconnect without marking the durable
@@ -45,6 +46,9 @@ Before changing this route, read:
 - `app/client/application/_components/result-cards/PostSubmissionInfoPanel.tsx`:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
+- `app/client/application/_components/result-cards/SubmissionConfirmationEvidence.tsx`:
+  displays the terminal official confirmation screenshot and authenticated
+  screenshot/PDF downloads whenever a runner persisted confirmation evidence.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `lib/application-schema-ui-contract.ts`: compiles the complete visa schema to
   canonical `/ui-components` controls and assigns one shared conditional panel

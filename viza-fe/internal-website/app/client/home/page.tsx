@@ -629,7 +629,7 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        <div className="mt-12 w-full sm:mt-16">
+        <div className="mt-20 w-full sm:mt-28 xl:mt-16">
           {isTimelineLoading ? (
             <TimelineLoadingState />
           ) : (

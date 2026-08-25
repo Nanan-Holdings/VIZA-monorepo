@@ -3,6 +3,10 @@
 Scope: Singapore `SG_ARRIVAL_CARD` form schema only.
 
 - `form-fields.ts` is the official ICA field inventory used by the DB seed.
+- Keep one `SG_ARRIVAL_CARD` schema with ICA's three in-form residency routes:
+  Singapore Citizen / Permanent Resident (`singapore_nric`), Long-Term Pass
+  Holder (`singapore_fin`), and Foreign Visitor / In-Principle Approval Holder
+  (passport and trip fields). Do not split these into separate products.
 - `official-options.ts` owns SGAC official-option lists exposed in VIZA; fields
   backed by ICA autocomplete, such as Hotel Name, must not fall back to free text.
 - ICA's nationality API currently returns 204 base records, but its SGAC

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Warning as AlertTriangle, ArrowLeft, ArrowSquareOut as ExternalLink, Info, MapPin } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowSquareOut as ExternalLink, MapPin } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -95,6 +95,7 @@ export function KoreaAppointmentRules({ applicationId }: { applicationId: string
 
       {error ? (
         <Alert variant="destructive">
+          <AlertIcon variant="destructive" />
           <AlertTitle>{isZh ? "无法读取规则" : "Could not load rules"}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -134,8 +135,8 @@ export function KoreaAppointmentRules({ applicationId }: { applicationId: string
                   </span>
                 ) : null}
               </div>
-              <Alert className="border-brand-100 bg-brand-50/40">
-                <Info className="h-4 w-4" />
+              <Alert variant="info">
+                <AlertIcon variant="info" />
                 <AlertTitle>{isZh ? "规则提醒" : "Rule reminder"}</AlertTitle>
                 <AlertDescription className="space-y-2">
                   <p>{isZh ? center.appointmentRuleZh : center.appointmentRuleEn}</p>
@@ -178,8 +179,8 @@ export function KoreaAppointmentRules({ applicationId }: { applicationId: string
           </Card>
 
           {snapshot.routing.basis === "ambiguous" ? (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
               <AlertTitle>{isZh ? "领区信息不完整" : "Jurisdiction information incomplete"}</AlertTitle>
               <AlertDescription>
                 {isZh
