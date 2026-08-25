@@ -113,6 +113,7 @@ import { readApplicationRouteParam } from "@/lib/client/application-route-params
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
   computeAllTabCompletion,
+  getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
   getMissingRequiredDocumentRequirementKeys,
   getRequiredDocumentProgress,
@@ -1200,14 +1201,11 @@ function FinalConfirmationPanel({
             <ul className="mt-3 list-disc space-y-1 pl-5">
               {missingFields.map((field) => (
                 <li key={`${field.stepId}:${field.fieldName}`}>
-                  {field.label}
-                  {field.reason === "invalid"
-                    ? isZh
-                      ? "（格式或内容不符合要求）"
-                      : " (format or content does not meet the requirement)"
-                    : isZh
-                      ? "（未填写）"
-                      : " (not provided)"}
+                  {getApplicationFieldErrorMessage(field, {
+                    country: isJapanVjw ? "japan" : null,
+                    visaType: isJapanVjw ? "JP_VISIT_JAPAN_WEB" : null,
+                    isZh,
+                  })}
                 </li>
               ))}
             </ul>
@@ -2689,6 +2687,27 @@ export default function ApplicationPage() {
     }
     return fieldsByStep;
   }, [confirmationMissingFields, submitCheckState]);
+  const invalidFieldMessagesByStep = useMemo(() => {
+    const messagesByStep = new Map<number, Map<string, string>>();
+    if (submitCheckState !== "invalid") return messagesByStep;
+
+    for (const item of confirmationMissingFields) {
+      const fieldMessages = messagesByStep.get(item.stepId) ?? new Map<string, string>();
+      fieldMessages.set(item.fieldName, getApplicationFieldErrorMessage(item, {
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        isZh: isZhInterface,
+      }));
+      messagesByStep.set(item.stepId, fieldMessages);
+    }
+    return messagesByStep;
+  }, [
+    confirmationMissingFields,
+    isZhInterface,
+    resolvedCountry,
+    resolvedVisaType,
+    submitCheckState,
+  ]);
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
@@ -5073,6 +5092,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               externallyHandledFieldNames={passportUploadHandledFields}
                               invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
+                              invalidFieldMessages={invalidFieldMessagesByStep.get(step.id)}
                               aiFilledFieldNames={new Set(aiFilledFieldNames)}
                               reviewIssues={formAssistantFieldReviewIssueMap}
                               onNavigateReviewIssue={handleNavigateReviewIssue}

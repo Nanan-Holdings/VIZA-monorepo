@@ -77,6 +77,8 @@ interface DynamicStepFormProps {
    * visible step in the long form at once.
    */
   invalidFieldNames?: ReadonlySet<string>;
+  /** Localized submit-time errors keyed by the concrete answer field name. */
+  invalidFieldMessages?: ReadonlyMap<string, string>;
   /** Fields last written by the form assistant. Manual edits clear this flag. */
   aiFilledFieldNames?: ReadonlySet<string>;
   /** Final-answer review issues keyed by the concrete answer field name. */
@@ -2806,6 +2808,7 @@ export function DynamicStepForm({
   focusFieldName,
   externallyHandledFieldNames,
   invalidFieldNames,
+  invalidFieldMessages,
   aiFilledFieldNames,
   reviewIssues,
   onNavigateReviewIssue,
@@ -4374,8 +4377,13 @@ export function DynamicStepForm({
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
     const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
+    const submitCheckMessage = invalidFieldMessages?.get(valueKey)
+      ?? invalidFieldMessages?.get(field.fieldName);
     const submitCheckInvalid = Boolean(
-      invalidFieldNames?.has(field.fieldName) || invalidFieldNames?.has(valueKey) || reviewIssue?.severity === "error",
+      submitCheckMessage ||
+      invalidFieldNames?.has(field.fieldName) ||
+      invalidFieldNames?.has(valueKey) ||
+      reviewIssue?.severity === "error",
     );
     const reviewWarning = reviewIssue?.severity === "warning";
     const rawPlaceholder = field.placeholder ?? null;
@@ -4668,7 +4676,8 @@ export function DynamicStepForm({
     const showChineseFieldFooter = isTextLike
       || showVnPrearrivalEvisaHelp
       || (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved")
-      || showIssue;
+      || showIssue
+      || Boolean(submitCheckMessage);
     guidancePopover = (
       <Popover
         open={panelOpen}
@@ -4736,7 +4745,8 @@ export function DynamicStepForm({
           </div>
           {(showVnPrearrivalEvisaHelp ||
             (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved") ||
-            showIssue) && (
+            showIssue ||
+            submitCheckMessage) && (
             <div className="mt-2 flex items-center justify-end gap-2">
               {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
               {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
@@ -4746,6 +4756,11 @@ export function DynamicStepForm({
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
                 </span>
+              )}
+              {submitCheckMessage && (
+                <p role="alert" className="text-[13px] font-medium text-red-600">
+                  {submitCheckMessage}
+                </p>
               )}
             </div>
           )}
@@ -4825,6 +4840,11 @@ export function DynamicStepForm({
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
                 </span>
+              )}
+              {submitCheckMessage && (
+                <p role="alert" className="text-[13px] font-medium text-red-600">
+                  {submitCheckMessage}
+                </p>
               )}
             </div>
           </div>
