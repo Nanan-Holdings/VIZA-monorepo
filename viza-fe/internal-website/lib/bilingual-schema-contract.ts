@@ -16,6 +16,33 @@ type FieldLike = Pick<
   "fieldName" | "fieldType" | "label" | "placeholder" | "required" | "stepName" | "validationRules" | "options" | "visaType"
 >;
 
+export function usesBilingualAnswerPair(field: FieldLike): boolean {
+  if (field.fieldType !== "text" && field.fieldType !== "textarea") return false;
+
+  const rules = field.validationRules as {
+    derived_from?: unknown;
+    pattern?: unknown;
+    read_only?: unknown;
+  } | null;
+  const isOfficialAddressDerivedValue = rules?.derived_from === "stay_address_search"
+    && rules.read_only === true;
+  if (isOfficialAddressDerivedValue) return false;
+
+  const fieldName = field.fieldName.toLowerCase();
+  const pattern = typeof rules?.pattern === "string" ? rules.pattern : "";
+  const numericPatternRemainder = pattern
+    .replace(/\\d/g, "")
+    .replace(/\[0-9\]/g, "")
+    .replace(/[0-9]/g, "");
+  const hasNumericOnlyPattern = pattern.length > 0
+    && (pattern.includes("\\d") || pattern.includes("[0-9]"))
+    && !/[a-z]/i.test(numericPatternRemainder);
+  const isStructuredIdentifier = /(?:^|_)postal_code$/u.test(fieldName)
+    || hasNumericOnlyPattern;
+
+  return !isStructuredIdentifier;
+}
+
 type OptionObject = Extract<VisaFormFieldOption, { value: string }>;
 const LOCALIZED_OPTIONS_CACHE = new WeakMap<VisaFormFieldOption[], Partial<Record<BilingualSide, VisaFormFieldOption[]>>>();
 

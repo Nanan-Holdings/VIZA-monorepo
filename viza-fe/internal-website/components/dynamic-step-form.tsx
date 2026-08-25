@@ -36,6 +36,7 @@ import {
   resolveLocalizedFieldLabel,
   resolveLocalizedOptions,
   resolveLocalizedPlaceholder,
+  usesBilingualAnswerPair,
 } from "@/lib/bilingual-schema-contract";
 import { evaluateShowIf, isRequiredUnlessSatisfied, isRequiredWhenSatisfied } from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -337,21 +338,6 @@ function cloneTextPairs(pairs: Record<string, BilingualTextValue>): Record<strin
   return Object.fromEntries(
     Object.entries(pairs).map(([key, value]) => [key, { ...value }]),
   );
-}
-
-function isTextLikeField(field: VisaFormFieldRow): boolean {
-  return field.fieldType === "text" || field.fieldType === "textarea";
-}
-
-function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
-  // Postal codes are structured identifiers. Translating them can replace a
-  // valid numeric value with a place name and breaks the official lookup.
-  const rules = field.validationRules as { derived_from?: unknown; read_only?: unknown } | null;
-  const isOfficialAddressDerivedValue = rules?.derived_from === "stay_address_search"
-    && rules.read_only === true;
-  return isTextLikeField(field)
-    && !/(?:^|_)postal_code$/u.test(field.fieldName)
-    && !isOfficialAddressDerivedValue;
 }
 
 function hasChineseText(value: string): boolean {
@@ -1562,7 +1548,7 @@ function buildCurrentStepAnswerPatch(
       answers[`${field.fieldName}_zh`] = values[`${field.fieldName}_zh`] ?? "";
       answers[`${field.fieldName}_en`] = values[`${field.fieldName}_en`] ?? values[field.fieldName] ?? "";
     }
-    if (!usesBilingualTextPair(field)) continue;
+    if (!usesBilingualAnswerPair(field)) continue;
     const group = getRepeatGroup(field);
     const keys = group
       ? Array.from(
@@ -2971,7 +2957,7 @@ export function DynamicStepForm({
     const init: Record<string, BilingualTextValue> = {};
     const normalizedPrefill = normalizeTdacStepValues(step.fields, { ...prefill }, visaType);
     for (const field of step.fields) {
-      if (!usesBilingualTextPair(field)) continue;
+      if (!usesBilingualAnswerPair(field)) continue;
       const group = getRepeatGroup(field);
       if (group) {
         const count = groupCounts[group] ?? 1;
@@ -3787,7 +3773,7 @@ export function DynamicStepForm({
         valuesChanged = true;
       }
 
-      if (usesBilingualTextPair(field)) {
+      if (usesBilingualAnswerPair(field)) {
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
@@ -3854,7 +3840,7 @@ export function DynamicStepForm({
       }
     }
     for (const field of step.fields) {
-      if (!usesBilingualTextPair(field)) continue;
+      if (!usesBilingualAnswerPair(field)) continue;
       const group = getRepeatGroup(field);
       const keys = group
         ? Array.from({ length: groupCountsRef.current[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
@@ -4186,7 +4172,7 @@ export function DynamicStepForm({
     setTextPairs((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
-        if (usesBilingualTextPair(field)) {
+        if (usesBilingualAnswerPair(field)) {
           next[instanceKey(field.fieldName, count - 1)] = { zh: "", en: "" };
         }
       }
@@ -4222,13 +4208,13 @@ export function DynamicStepForm({
       const fields = repeatGroupFields[group] ?? [];
       for (let i = instanceIdx; i < count - 1; i++) {
         for (const field of fields) {
-          if (usesBilingualTextPair(field)) {
+          if (usesBilingualAnswerPair(field)) {
             next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
           }
         }
       }
       for (const field of fields) {
-        if (usesBilingualTextPair(field)) {
+        if (usesBilingualAnswerPair(field)) {
           delete next[instanceKey(field.fieldName, count - 1)];
         }
       }
@@ -4502,7 +4488,7 @@ export function DynamicStepForm({
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const tdacTransitCheckboxLocked =
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
-    const isTextLike = usesBilingualTextPair(field);
+    const isTextLike = usesBilingualAnswerPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
     const isAiFilled = Boolean(aiFilledFieldNames?.has(field.fieldName) && values[valueKey]?.trim());

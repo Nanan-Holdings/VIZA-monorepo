@@ -12,6 +12,7 @@ import {
 import {
   resolveLocalizedFieldLabel,
   resolveOptionDisplayLabel,
+  usesBilingualAnswerPair,
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
 import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
@@ -93,10 +94,6 @@ export function getReviewOptionText(
   return getLocalizedOptionText(value, officialOptions, side);
 }
 
-function isTextLikeReviewField(field: WizardStep["fields"][number]): boolean {
-  return field.fieldType === "text" || field.fieldType === "textarea";
-}
-
 export function getBilingualReviewValue(
   dynamicAnswers: Record<string, string>,
   answerKey: string,
@@ -104,7 +101,7 @@ export function getBilingualReviewValue(
   field: WizardStep["fields"][number],
   side: "zh" | "en",
 ): string {
-  if (!isTextLikeReviewField(field)) return value;
+  if (!usesBilingualAnswerPair(field)) return value;
 
   const explicit = dynamicAnswers[`${answerKey}_${side}`]?.trim();
   if (explicit) return explicit;
