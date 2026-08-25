@@ -94,17 +94,21 @@ export function PassportStep({ country, prefill, visaType, onComplete }: Passpor
     }));
   };
 
+  /** True once the applicant edits the English cell, after which it stops auto-filling. */
+  const [cityEnEdited, setCityEnEdited] = useState(false);
+
+  /** English edits never rewrite the Chinese the applicant entered. */
   const updateCity = (side: "zh" | "en", value: string) => {
-    setPassportIssuanceCity(
+    if (side === "en") setCityEnEdited(true);
+    setPassportIssuanceCity((current) =>
       side === "zh"
         ? {
             zh: value,
-            en: translateWithDictionary(value, CITY_TRANSLATIONS, "Please confirm official English"),
+            en: cityEnEdited
+              ? current.en
+              : translateWithDictionary(value, CITY_TRANSLATIONS, "Please confirm official English"),
           }
-        : {
-            zh: reverseWithDictionary(value, CITY_TRANSLATIONS),
-            en: value,
-          },
+        : { ...current, en: value },
     );
   };
 
