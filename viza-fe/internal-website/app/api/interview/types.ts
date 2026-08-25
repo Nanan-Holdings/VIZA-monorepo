@@ -27,11 +27,30 @@ export interface ApplicantProfile {
 
 export type InterviewProfileField = keyof ApplicantProfile;
 
+export type InterviewProfileFieldStatus =
+  | "confirmed"
+  | "needs_confirmation"
+  | "missing";
+
+export type InterviewProfileValueSource =
+  | "saved_application"
+  | "simplified_form"
+  | "derived"
+  | "practice";
+
+export interface InterviewProfileFieldState {
+  field: InterviewProfileField;
+  status: InterviewProfileFieldStatus;
+  source: InterviewProfileValueSource | null;
+}
+
 export interface InterviewApplicationContext {
   source: "standalone" | "application";
   applicationId?: string;
   missingFields: InterviewProfileField[];
   verifiedFields: InterviewProfileField[];
+  needsConfirmationFields?: InterviewProfileField[];
+  fieldStates?: InterviewProfileFieldState[];
 }
 
 export type InterviewContextConsistencyStatus =
@@ -60,10 +79,18 @@ export interface InterviewOfficer {
 
 export type AnswerRequirement =
   | "detail"
+  | "purpose"
+  | "activity"
+  | "travel_anchor"
   | "destination"
   | "time"
   | "money"
+  | "payer"
+  | "funding_source"
   | "work"
+  | "role"
+  | "organization"
+  | "responsibility"
   | "ties"
   | "history"
   | "companions"
@@ -83,6 +110,9 @@ export interface AnswerAssessment {
   status: "strong" | "developing" | "weak";
   note: string;
   missingRequirements: AnswerRequirement[];
+  coveredFacts?: AnswerRequirement[];
+  tooVague?: boolean;
+  conflictFields?: InterviewProfileField[];
   dimensions?: InterviewScoreDimensions;
 }
 
@@ -120,6 +150,10 @@ export interface InterviewQuestionAnalysis {
   status: "strong" | "developing" | "weak";
   note: string;
   responseFramework: string;
+  coveredFacts?: string[];
+  unclearPoints?: string[];
+  nextPracticeQuestion?: string;
+  sourceGap?: "application_missing" | "answer_insufficient" | null;
 }
 
 export interface InterviewReport {

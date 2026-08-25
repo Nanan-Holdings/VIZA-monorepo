@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowCounterClockwise,
   CheckCircle,
@@ -21,6 +22,8 @@ import type {
   ApplicantProfile,
   InterviewContextSummary,
   InterviewOfficer,
+  InterviewProfileField,
+  InterviewProfileFieldStatus,
 } from "@/app/api/interview/types";
 import {
   DEFAULT_OFFICER,
@@ -31,11 +34,23 @@ import {
   interviewStageForPhase,
   recoverableInterviewError,
   readInterviewSession,
+  resetInterviewSession,
   reportIdempotencyKey,
   writeInterviewSession,
   type InterviewSession,
 } from "./session";
 import { useBrowserSpeech } from "./_hooks/use-browser-speech";
+import {
+  INTERVIEW_DISCLAIMER_VERSION,
+  KEY_INTERVIEW_FIELDS,
+  PROFILE_GROUPS,
+  captureMissingFactsFromAnswer,
+  confirmExistingProfile,
+  fieldState,
+  mergeLoadedProfile,
+  profilePreparationCounts,
+  updatePracticeField,
+} from "./profile-state";
 
 const OFFICERS: InterviewOfficer[] = [
   DEFAULT_OFFICER,
@@ -65,13 +80,14 @@ function updateSession(session: InterviewSession, patch: Partial<InterviewSessio
   };
 }
 
-function fieldLabel(field: keyof ApplicantProfile) {
-  return ({
+const FIELD_LABELS: Record<InterviewProfileField, string> = {
+    purpose: "访问目的",
     purposeDetails: "赴美目的",
     destinations: "目的地",
     travelDates: "出行时间",
     duration: "停留时长",
     funding: "资金来源",
+    budget: "预计预算",
     occupation: "职业或身份",
     employer: "单位/学校",
     homeTies: "回国安排",
@@ -79,7 +95,27 @@ function fieldLabel(field: keyof ApplicantProfile) {
     companions: "同行人",
     usContact: "美国联系人",
     refusalHistory: "拒签或入境记录",
-  } as Partial<Record<keyof ApplicantProfile, string>>)[field] ?? field;
+};
+
+const FIELD_PLACEHOLDERS: Record<InterviewProfileField, string> = {
+  purpose: "请选择真实访问目的",
+  purposeDetails: "说明真实访问目的和一项具体活动",
+  destinations: "计划前往的城市或地点",
+  travelDates: "预计出发和返程时间",
+  duration: "预计停留天数或时长",
+  funding: "费用由谁承担、资金来自哪里",
+  budget: "本次旅行的真实预算",
+  occupation: "当前职业、学业或其他身份",
+  employer: "公司、机构或学校名称",
+  homeTies: "回国后继续履行的具体工作、学业或家庭安排",
+  previousTravel: "如实说明既往出境或赴美记录",
+  companions: "独自出行或同行人关系",
+  usContact: "美国联系人或机构类型",
+  refusalHistory: "如实说明拒签或被拒绝入境记录",
+};
+
+function fieldLabel(field: keyof ApplicantProfile) {
+  return FIELD_LABELS[field];
 }
 
 function profileValue(profile: ApplicantProfile, field: keyof ApplicantProfile) {
@@ -181,15 +217,20 @@ function SetupField({
   value,
   onChange,
   placeholder,
+  status,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  status?: InterviewProfileFieldStatus;
 }) {
   return (
     <label className="text-sm font-medium text-[#26364a]">
-      {label}
+      <span className="flex items-center justify-between gap-3">
+        <span>{label}</span>
+        {status ? <FieldStatusBadge status={status} /> : null}
+      </span>
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -198,6 +239,16 @@ function SetupField({
       />
     </label>
   );
+}
+
+function FieldStatusBadge({ status }: { status: InterviewProfileFieldStatus }) {
+  const label = status === "confirmed" ? "已确认" : status === "needs_confirmation" ? "待确认" : "缺失";
+  const tone = status === "confirmed"
+    ? "bg-emerald-50 text-emerald-700"
+    : status === "needs_confirmation"
+      ? "bg-amber-50 text-amber-800"
+      : "bg-red-50 text-red-700";
+  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
 }
 
 export default function InterviewPracticePage() {
@@ -211,14 +262,52 @@ export default function InterviewPracticePage() {
   const [hydrated, setHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contextLoadStatus, setContextLoadStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    applicationId ? "idle" : "ready",
+  );
+  const [contextLoadError, setContextLoadError] = useState<string | null>(null);
+  const [contextRetryToken, setContextRetryToken] = useState(0);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const speechQuestionRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
 
   useEffect(() => {
     const saved = readInterviewSession(window.localStorage, sessionIdentity);
-    if (saved) setSession(saved);
+    if (saved) {
+      setSession(saved);
+      setDisclaimerAccepted(saved.disclaimerVersion === INTERVIEW_DISCLAIMER_VERSION);
+    }
     setHydrated(true);
   }, [sessionIdentity]);
+
+  useEffect(() => {
+    if (!hydrated || !applicationId) return;
+    const controller = new AbortController();
+    setContextLoadStatus("loading");
+    setContextLoadError(null);
+    void fetch(`/api/interview/context?applicationId=${encodeURIComponent(applicationId)}`, {
+      signal: controller.signal,
+    }).then(async (response) => {
+      const data = await response.json() as {
+        profile?: ApplicantProfile;
+        context?: InterviewContextSummary;
+        error?: string;
+      };
+      if (!response.ok || !data.profile || !data.context) {
+        throw new Error(data.error || "暂时无法读取申请资料，请稍后重试。");
+      }
+      setSession((current) => updateSession(current, {
+        profile: mergeLoadedProfile(current.profile, current.applicationContext, data.profile!),
+        applicationContext: data.context!,
+      }));
+      setContextLoadStatus("ready");
+    }).catch((loadError: unknown) => {
+      if (controller.signal.aborted) return;
+      setContextLoadError(loadError instanceof Error ? loadError.message : "暂时无法读取申请资料，请稍后重试。");
+      setContextLoadStatus("error");
+    });
+    return () => controller.abort();
+  }, [applicationId, contextRetryToken, hydrated]);
 
   useEffect(() => {
     if (hydrated) writeInterviewSession(window.localStorage, session, sessionIdentity);
@@ -234,8 +323,11 @@ export default function InterviewPracticePage() {
     [session.profile],
   );
   const blockingMissingFields = applicationId ? [] : missingFields;
-  const contextMissingFields = session.applicationContext?.missingFields ?? [];
-  const contextVerifiedFields = session.applicationContext?.verifiedFields ?? [];
+  const preparationCounts = profilePreparationCounts(session.applicationContext);
+  const preparationTotal = session.applicationContext?.fieldStates?.length ?? REQUIRED_FIELDS.length;
+  const preparationScore = preparationTotal
+    ? Math.round(((preparationCounts.confirmed + preparationCounts.needsConfirmation * 0.5) / preparationTotal) * 100)
+    : 0;
   const requestApplicationId = session.applicationId ?? applicationId ?? undefined;
 
   useEffect(() => {
@@ -248,12 +340,22 @@ export default function InterviewPracticePage() {
     window.speechSynthesis?.speak(utterance);
   }, [session.currentQuestion?.prompt, session.language, session.phase]);
 
-  const updateProfile = (field: keyof ApplicantProfile, value: string) => {
-    setSession((current) => updateSession(current, { profile: { ...current.profile, [field]: value } }));
+  const updateProfile = (field: InterviewProfileField, value: string) => {
+    setSession((current) => {
+      const updated = updatePracticeField(current.profile, current.applicationContext, field, value);
+      return updateSession(current, {
+        profile: updated.profile,
+        applicationContext: updated.context,
+      });
+    });
   };
 
-  const begin = async () => {
+  const begin = async (mode: "confirm" | "existing" = "confirm") => {
     if (requestInFlightRef.current) return;
+    if (!disclaimerAccepted) {
+      setError("请先阅读并确认免责声明。");
+      return;
+    }
     if (blockingMissingFields.length) {
       setError(`请先补全：${blockingMissingFields.map(fieldLabel).join("、")}`);
       return;
@@ -261,6 +363,14 @@ export default function InterviewPracticePage() {
     requestInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
+    const effectiveContext = mode === "confirm" && session.applicationContext
+      ? confirmExistingProfile(session.profile, session.applicationContext)
+      : session.applicationContext;
+    const confirmedFields = effectiveContext?.verifiedFields ?? [];
+    setSession((current) => updateSession(current, {
+      applicationContext: effectiveContext,
+      disclaimerVersion: INTERVIEW_DISCLAIMER_VERSION,
+    }));
     try {
       const response = await fetch("/api/interview", {
         method: "POST",
@@ -270,9 +380,13 @@ export default function InterviewPracticePage() {
           language: session.language,
           applicationId: requestApplicationId,
           profile: session.profile,
+          confirmedFields,
         }),
       });
-      if (!response.ok) throw new Error("start_failed");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(failure?.error || "暂时无法开始，请稍后重试。");
+      }
       const data = await response.json() as {
         question: InterviewSession["currentQuestion"];
         questionIndex: number;
@@ -300,8 +414,8 @@ export default function InterviewPracticePage() {
         report: null,
         reportStatus: "idle",
       }));
-    } catch {
-      setError("暂时无法开始，请稍后重试。你的资料已保留。");
+    } catch (startError) {
+      setError(`${startError instanceof Error ? startError.message : "暂时无法开始，请稍后重试。"} 你的资料已保留。`);
       setSession((current) => updateSession(current, {
         errorRecovery: recoverableInterviewError("start", "start_failed"),
         pendingRequestKey: null,
@@ -335,6 +449,7 @@ export default function InterviewPracticePage() {
           language: session.language,
           applicationId: requestApplicationId,
           profile: session.profile,
+          confirmedFields: session.applicationContext?.verifiedFields ?? [],
           question,
           answer,
           questionIndex: session.questionIndex,
@@ -351,26 +466,30 @@ export default function InterviewPracticePage() {
         context: InterviewContextSummary;
       };
       speechQuestionRef.current = null;
-      setSession((current) => updateSession(current, {
-        exchanges: [...current.exchanges, { question, answer, assessment: data.assessment, submittedAt: new Date().toISOString() }],
-        applicationContext: data.context,
-        currentQuestion: data.nextQuestion,
-        questionIndex: data.nextQuestionIndex,
-        draftAnswer: "",
-        completedTopics: Array.from(new Set([...current.completedTopics, question.parentId ?? question.id])),
-        followUpQuestionIds: question.isFollowUp
-          ? current.followUpQuestionIds
-          : [...current.followUpQuestionIds, ...(data.nextQuestion?.isFollowUp ? [question.id] : [])],
-        pendingRequestKey: null,
-        lastAnswerIdempotencyKey: idempotencyKey,
-        errorRecovery: {
-          lastError: null,
-          retryable: false,
-          lastFailedAction: null,
-          recoveredAt: null,
-        },
-        phase: data.completed ? "complete" : "interview",
-      }));
+      setSession((current) => {
+        const captured = captureMissingFactsFromAnswer(current.profile, data.context, question, answer);
+        return updateSession(current, {
+          profile: captured.profile,
+          exchanges: [...current.exchanges, { question, answer, assessment: data.assessment, submittedAt: new Date().toISOString() }],
+          applicationContext: captured.context,
+          currentQuestion: data.nextQuestion,
+          questionIndex: data.nextQuestionIndex,
+          draftAnswer: "",
+          completedTopics: Array.from(new Set([...current.completedTopics, question.parentId ?? question.id])),
+          followUpQuestionIds: question.isFollowUp
+            ? current.followUpQuestionIds
+            : [...current.followUpQuestionIds, ...(data.nextQuestion?.isFollowUp ? [question.id] : [])],
+          pendingRequestKey: null,
+          lastAnswerIdempotencyKey: idempotencyKey,
+          errorRecovery: {
+            lastError: null,
+            retryable: false,
+            lastFailedAction: null,
+            recoveredAt: null,
+          },
+          phase: data.completed ? "complete" : "interview",
+        });
+      });
     } catch {
       setError("回答没有保存。请检查网络后再次提交；当前文字回答不会丢失。");
       setSession((current) => updateSession(current, {
@@ -415,6 +534,7 @@ export default function InterviewPracticePage() {
           idempotencyKey: key,
           applicationId: requestApplicationId,
           profile: session.profile,
+          confirmedFields: session.applicationContext?.verifiedFields ?? [],
           exchanges: session.exchanges,
         }),
       });
@@ -454,7 +574,7 @@ export default function InterviewPracticePage() {
     clearInterviewSession(window.localStorage, sessionIdentity);
     speechQuestionRef.current = null;
     setError(null);
-    setSession(applyInterviewSessionIdentity(createInterviewSession(), sessionIdentity));
+    setSession((current) => resetInterviewSession(current));
   };
 
   const restartWeakTopics = () => {
@@ -485,6 +605,53 @@ export default function InterviewPracticePage() {
     }));
   };
 
+  const restartFromTopic = async (questionIndex: number) => {
+    if (submitting || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          language: session.language,
+          applicationId: requestApplicationId,
+          profile: session.profile,
+          confirmedFields: session.applicationContext?.verifiedFields ?? [],
+          questionIndex,
+        }),
+      });
+      if (!response.ok) throw new Error("topic_restart_failed");
+      const data = await response.json() as {
+        question: InterviewSession["currentQuestion"];
+        questionIndex: number;
+        context: InterviewContextSummary;
+      };
+      setSession((current) => updateSession(current, {
+        phase: "interview",
+        stage: "question",
+        applicationContext: data.context,
+        currentQuestion: data.question,
+        questionIndex: data.questionIndex,
+        exchanges: [],
+        draftAnswer: "",
+        completedTopics: [],
+        followUpQuestionIds: [],
+        pendingRequestKey: null,
+        lastAnswerIdempotencyKey: null,
+        reportStatus: "idle",
+        report: null,
+      }));
+    } catch {
+      setError("暂时无法重练该主题，本轮报告已保留。 ");
+    } finally {
+      requestInFlightRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
   if (!hydrated) {
     return (
       <main className="mx-auto max-w-5xl py-10 text-center text-sm text-muted-foreground">
@@ -493,42 +660,76 @@ export default function InterviewPracticePage() {
     );
   }
 
+  if (applicationId && session.phase === "setup" && contextLoadStatus !== "ready") {
+    if (contextLoadStatus === "error") {
+      return (
+        <main className="mx-auto max-w-3xl pb-14 pt-8">
+          <section className="border-y border-amber-200 bg-amber-50 px-5 py-8 text-center">
+            <WarningCircle size={32} className="mx-auto text-amber-700" />
+            <h1 className="mt-3 text-xl font-semibold text-[#26364a]">申请资料读取失败</h1>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#66758a]">
+              {contextLoadError ?? "暂时无法读取申请资料。"} 页面没有把读取失败伪装成空白资料。
+            </p>
+            <Button onClick={() => setContextRetryToken((value) => value + 1)} className="mt-5 h-10 rounded-full px-5">
+              重新读取
+            </Button>
+          </section>
+        </main>
+      );
+    }
+    return (
+      <main className="mx-auto max-w-3xl pb-14 pt-10 text-center">
+        <CircleNotch size={28} className="mx-auto animate-spin text-brand-600" />
+        <h1 className="mt-3 text-lg font-semibold text-[#26364a]">正在读取申请资料</h1>
+        <p className="mt-2 text-sm text-[#66758a]">完成前不会先显示一份空白资料摘要。</p>
+      </main>
+    );
+  }
+
   if (session.phase === "report" && session.report) {
     const report = session.report;
+    const coveredTopics = new Set(session.exchanges.map((exchange) => exchange.question.parentId ?? exchange.question.id)).size;
+    const completion = Math.round((coveredTopics / TOPICS.length) * 100);
+    const needsPracticeTopics = Array.from(new Set(
+      report.questionAnalysis.filter((item) => item.status !== "strong" || item.unclearPoints?.length).map((item) => item.topic),
+    ));
     return (
       <main className="mx-auto max-w-5xl space-y-6 pb-14 pt-4">
         <section className="border-b border-[#e5eaf2] pb-6">
-          <p className="text-sm text-[#66758a]">美国 B1/B2 模拟面试</p>
+          <p className="text-sm text-[#66758a]">美国 B1/B2 · 第 3 阶段 / 3</p>
           <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-[#172235]">练习报告</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#66758a]">
-                这是练习准备度评估，不代表签证结果，也不能替代真实材料和面签判断。
+                这里评估本轮回答的覆盖度、具体性和与已确认资料的一致性，不预测签证结果。
               </p>
             </div>
-            <div className="w-fit rounded-lg border border-brand-100 bg-brand-50 px-5 py-3">
-              <div className="text-3xl font-semibold text-brand-600">{report.overallScore}</div>
-              <div className="text-xs text-[#66758a]">练习准备度 · {report.readiness}</div>
-            </div>
+            {applicationId ? (
+              <Link
+                href={`/client/application/long-form?country=united_states&visaType=${encodeURIComponent(visaType)}&applicationId=${encodeURIComponent(applicationId)}`}
+                className="text-sm font-medium text-brand-600 hover:underline"
+              >
+                回到申请补资料
+              </Link>
+            ) : null}
           </div>
         </section>
 
         <section className="grid gap-3 sm:grid-cols-4">
-          {Object.entries(report.dimensions)
-            .filter(([key]) => key !== "consistencyStatus")
-            .map(([key, score]) => (
-            <div key={key} className="rounded-lg border border-[#e5eaf2] bg-white p-4">
-              <p className="text-sm text-[#66758a]">
-                {({ clarity: "清晰度", completeness: "完整度", specificity: "具体性", consistency: "一致性", returnIntent: "回国意图" } as Record<string, string>)[key]}
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-[#26364a]">
-                {score === null ? "未核验" : score}
-              </p>
+          {[
+            ["覆盖主题", `${coveredTopics}/${TOPICS.length}`],
+            ["练习完成度", `${completion}%`],
+            ["回答一致性", report.dimensions.consistency === null ? "未核验" : `${report.dimensions.consistency}`],
+            ["继续练习", `${needsPracticeTopics.length} 项`],
+          ].map(([label, value]) => (
+            <div key={label} className="border-y border-[#e5eaf2] bg-white p-4">
+              <p className="text-sm text-[#66758a]">{label}</p>
+              <p className="mt-1 text-2xl font-semibold text-[#26364a]">{value}</p>
             </div>
           ))}
         </section>
 
-        <section className="grid gap-6 md:grid-cols-2">
+        <section className="grid gap-6 border-y border-[#e5eaf2] py-5 md:grid-cols-2">
           <div className="rounded-lg border border-[#e5eaf2] bg-white p-5">
             <h2 className="text-xl font-semibold text-[#26364a]">强项</h2>
             <div className="mt-4 space-y-4">
@@ -565,17 +766,57 @@ export default function InterviewPracticePage() {
           </section>
         ) : null}
 
-        <section className="rounded-lg border border-[#e5eaf2] bg-white p-5">
-          <h2 className="text-xl font-semibold text-[#26364a]">逐题回答与建议</h2>
+        <section className="border-l-4 border-[#cfd9e6] bg-[#f7f9fc] px-4 py-3">
+          <p className="text-sm leading-6 text-[#526173]">{report.disclaimer}</p>
+          <p className="mt-1 text-xs leading-5 text-[#7a8798]">
+            VIZA is not the U.S. Government or a U.S. consulate. This practice does not provide legal or visa advice and does not predict any visa outcome.
+          </p>
+        </section>
+
+        <section className="border-y border-[#e5eaf2] bg-white py-5">
+          <h2 className="text-xl font-semibold text-[#26364a]">逐主题练习反馈</h2>
+          <p className="mt-1 text-sm leading-6 text-[#66758a]">只指出已覆盖事实和仍需澄清的地方，不生成标准答案。</p>
           <div className="mt-4 divide-y divide-[#eef2f6]">
             {report.questionAnalysis.map((item, index) => (
               <article key={`${item.question}-${index}`} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium text-[#26364a]">{index + 1}. {item.question}</p>
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${scoreTone(item.score)}`}>{item.score} 分</span>
+                  <span className={`rounded px-2 py-1 text-xs font-medium ${scoreTone(item.score)}`}>
+                    {item.status === "strong" ? "信息较完整" : item.status === "weak" ? "需要澄清" : "可以更具体"}
+                  </span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-[#26364a]">{item.answer}</p>
-                <p className="mt-2 text-sm leading-6 text-[#66758a]">{item.note} · {item.responseFramework}</p>
+                <dl className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <dt className="text-[#8a94a6]">你的回答摘要</dt>
+                    <dd className="mt-1 leading-6 text-[#26364a]">{item.answer}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[#8a94a6]">已覆盖事实</dt>
+                    <dd className="mt-1 leading-6 text-[#26364a]">{item.coveredFacts?.length ? item.coveredFacts.join("、") : "尚未覆盖关键事实"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[#8a94a6]">仍不清楚</dt>
+                    <dd className="mt-1 leading-6 text-[#26364a]">
+                      {item.unclearPoints?.length ? item.unclearPoints.join("、") : "本轮未发现需要继续澄清的关键点"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[#8a94a6]">问题来源</dt>
+                    <dd className="mt-1 leading-6 text-[#26364a]">
+                      {item.sourceGap === "application_missing"
+                        ? "申请资料缺失"
+                        : item.sourceGap === "answer_insufficient"
+                          ? "口头回答不够具体"
+                          : "未发现明显缺口"}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex flex-col gap-3 border-l-2 border-brand-200 pl-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm leading-6 text-[#526173]">继续练习：{item.nextPracticeQuestion ?? item.responseFramework}</p>
+                  <Button type="button" variant="outline" className="h-9 shrink-0 rounded-full" onClick={() => void restartFromTopic(Math.min(index, 7))}>
+                    再练一次该主题
+                  </Button>
+                </div>
               </article>
             ))}
           </div>
@@ -584,7 +825,7 @@ export default function InterviewPracticePage() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button onClick={restartWeakTopics} variant="outline" className="h-11 rounded-full px-6">
             <Target />
-            只重练弱项
+            回到资料准备
           </Button>
           <Button onClick={restart} className="h-11 rounded-full px-6">
             <ArrowCounterClockwise />
@@ -737,120 +978,169 @@ export default function InterviewPracticePage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 pb-14 pt-4">
-      <header className="border-b border-[#e5eaf2] pb-5">
-        <p className="text-sm font-medium text-brand-600">美国 B1/B2</p>
-        <h1 className="mt-1 text-3xl font-semibold text-[#172235]">模拟面试练习</h1>
+    <main className="mx-auto max-w-6xl space-y-7 pb-14 pt-4">
+      <header className="border-b border-[#dfe5ec] pb-5">
+        <p className="text-sm font-medium text-brand-600">美国 B1/B2 · 第 1 阶段 / 3</p>
+        <h1 className="mt-1 text-3xl font-semibold text-[#172235]">资料准备</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#66758a]">
-          先确认资料，再选择练习语言和节奏。页面会复用已保存的练习会话；有申请编号时，会标出还缺哪些练习所需信息。
+          只整理本次面试会用到的关键事实。申请未填完也可以开始基础练习，缺失越多，个性化程度越低。
         </p>
       </header>
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
-          <section className="rounded-lg border border-[#e5eaf2] bg-white p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-[#26364a]">资料摘要</h2>
-                <p className="mt-1 text-sm leading-6 text-[#66758a]">
-                  如果申请资料已同步到练习会话，这里不会重复要求填写；只需要补齐缺失项并确认。
-                </p>
-              </div>
-              <span className="w-fit rounded-full bg-[#f2f5f8] px-3 py-1 text-xs font-medium text-[#526173]">
-                {session.language === "en-US" ? "英文模拟" : "中文练习"}
-              </span>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-medium text-[#26364a]">
-                访问目的
-                <select
-                  value={session.profile.purpose}
-                  onChange={(event) => updateProfile("purpose", event.target.value)}
-                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
-                >
-                  <option value="tourism">旅游</option>
-                  <option value="business">商务</option>
-                  <option value="family_visit">探亲访友</option>
-                  <option value="medical">就医</option>
-                  <option value="other">其他短期访问</option>
-                </select>
-              </label>
-              <SetupField label="赴美目的与具体活动 *" value={session.profile.purposeDetails} onChange={(value) => updateProfile("purposeDetails", value)} placeholder="例如：参加某展会并拜访客户" />
-              <SetupField label="目的城市 *" value={session.profile.destinations} onChange={(value) => updateProfile("destinations", value)} placeholder="例如：旧金山、洛杉矶" />
-              <SetupField label="出行时间 *" value={session.profile.travelDates} onChange={(value) => updateProfile("travelDates", value)} placeholder="例如：2026 年 10 月" />
-              <SetupField label="预计停留时长 *" value={session.profile.duration} onChange={(value) => updateProfile("duration", value)} placeholder="例如：12 天" />
-              <SetupField label="谁承担费用 *" value={session.profile.funding} onChange={(value) => updateProfile("funding", value)} placeholder="例如：本人承担" />
-              <SetupField label="预计预算（可选）" value={session.profile.budget} onChange={(value) => updateProfile("budget", value)} placeholder="例如：3 万元人民币" />
-              <SetupField label="职业或当前身份 *" value={session.profile.occupation} onChange={(value) => updateProfile("occupation", value)} placeholder="例如：产品经理" />
-              <SetupField label="单位/学校（可选）" value={session.profile.employer} onChange={(value) => updateProfile("employer", value)} placeholder="例如：公司或学校全称" />
-              <SetupField label="回国后的具体安排 *" value={session.profile.homeTies} onChange={(value) => updateProfile("homeTies", value)} placeholder="例如：项目交接后继续负责上线" />
-              <SetupField label="既往出境记录（可选）" value={session.profile.previousTravel} onChange={(value) => updateProfile("previousTravel", value)} placeholder="例如：2024 年去过日本；或第一次出境" />
-            </div>
-          </section>
+      <section className="grid grid-cols-2 border-y border-[#dfe5ec] bg-white sm:grid-cols-4">
+        {[
+          ["面试资料准备度", `${preparationScore}%`],
+          ["已读取字段", String(preparationCounts.confirmed + preparationCounts.needsConfirmation)],
+          ["待确认", String(preparationCounts.needsConfirmation)],
+          ["关键缺失", String(applicationId ? preparationCounts.criticalMissing : missingFields.length)],
+        ].map(([label, value]) => (
+          <div key={label} className="border-b border-r border-[#e9edf2] p-4 last:border-r-0 sm:border-b-0">
+            <p className="text-xs text-[#7a8798]">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-[#26364a]">{value}</p>
+          </div>
+        ))}
+      </section>
 
-          <section className="rounded-lg border border-[#e5eaf2] bg-white p-5">
-            <h2 className="text-xl font-semibold text-[#26364a]">练习语言</h2>
-            <p className="mt-1 text-sm leading-6 text-[#66758a]">
-              中文用于熟悉题型；英文会以面签语言提问、追问、识别和播报。
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-[#f2f5f8] p-1" role="group" aria-label="练习语言">
-              {([['zh-CN', '中文熟悉题型'], ['en-US', '英文模拟面签']] as const).map(([language, label]) => (
+      {applicationId ? (
+        <section className="flex flex-col gap-3 border-b border-[#e5eaf2] pb-5 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium text-[#26364a]">已关联美国 B1/B2 申请</p>
+            <p className="mt-1 text-[#66758a]">申请编号：{applicationId}</p>
+          </div>
+          <Link
+            href={`/client/application/long-form?country=united_states&visaType=${encodeURIComponent(visaType)}&applicationId=${encodeURIComponent(applicationId)}`}
+            className="font-medium text-brand-600 hover:underline"
+          >
+            回到申请补资料
+          </Link>
+        </section>
+      ) : null}
+
+      <section id="critical-profile-fields" className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="divide-y divide-[#e5eaf2] border-y border-[#dfe5ec] bg-white">
+          {PROFILE_GROUPS.map((group) => (
+            <section key={group.title} className="px-5 py-6">
+              <h2 className="text-lg font-semibold text-[#26364a]">{group.title}</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {group.fields.map((field) => {
+                  const status = fieldState(session.applicationContext, field).status;
+                  const label = `${FIELD_LABELS[field]}${KEY_INTERVIEW_FIELDS.includes(field) ? " · 关键" : ""}`;
+                  if (field === "purpose") {
+                    return (
+                      <label key={field} className="text-sm font-medium text-[#26364a]">
+                        <span className="flex items-center justify-between gap-3">
+                          <span>{label}</span>
+                          <FieldStatusBadge status={status} />
+                        </span>
+                        <select
+                          value={status === "missing" ? "" : session.profile.purpose}
+                          onChange={(event) => updateProfile("purpose", event.target.value as ApplicantProfile["purpose"])}
+                          className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
+                        >
+                          <option value="">请选择</option>
+                          <option value="tourism">旅游</option>
+                          <option value="business">商务</option>
+                          <option value="family_visit">探亲访友</option>
+                          <option value="medical">就医</option>
+                          <option value="other">其他短期访问</option>
+                        </select>
+                      </label>
+                    );
+                  }
+                  return (
+                    <SetupField
+                      key={field}
+                      label={label}
+                      value={String(session.profile[field] ?? "")}
+                      onChange={(value) => updateProfile(field, value)}
+                      placeholder={FIELD_PLACEHOLDERS[field]}
+                      status={status}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+          <section className="border-y border-[#dfe5ec] bg-white py-5">
+            <h2 className="font-semibold text-[#26364a]">练习设置</h2>
+            <div className="mt-4 grid grid-cols-2 gap-1 rounded-md bg-[#f2f5f8] p-1" role="group" aria-label="练习语言">
+              {([['zh-CN', '中文'], ['en-US', 'English']] as const).map(([language, label]) => (
                 <button
                   key={language}
                   type="button"
                   aria-pressed={session.language === language}
                   onClick={() => setSession((current) => updateSession(current, { language }))}
-                  className={`min-h-10 rounded-md px-3 text-sm font-medium transition-colors ${session.language === language ? "bg-white text-brand-700 shadow-sm" : "text-[#66758a] hover:text-[#26364a]"}`}
+                  className={`min-h-10 rounded px-3 text-sm font-medium ${session.language === language ? "bg-white text-brand-700 shadow-sm" : "text-[#66758a]"}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
+            <label className="mt-4 block text-sm font-medium text-[#26364a]">
+              面试节奏
+              <select
+                value={session.officer.id}
+                onChange={(event) => {
+                  const officer = OFFICERS.find((item) => item.id === event.target.value);
+                  if (officer) setSession((current) => updateSession(current, { officer }));
+                }}
+                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
+              >
+                {OFFICERS.map((officer) => <option key={officer.id} value={officer.id}>{officer.name}</option>)}
+              </select>
+            </label>
           </section>
 
-          <section className="rounded-lg border border-[#e5eaf2] bg-white p-5">
-            <h2 className="text-xl font-semibold text-[#26364a]">面试节奏</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {OFFICERS.map((officer) => (
-                <button
-                  type="button"
-                  key={officer.id}
-                  onClick={() => setSession((current) => updateSession(current, { officer }))}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
-                    session.officer.id === officer.id
-                      ? "border-brand-500 bg-brand-50"
-                      : "border-[#e5eaf2] hover:bg-[#f7f9fc]"
-                  }`}
-                >
-                  <p className="font-medium text-[#26364a]">{officer.name}</p>
-                  <p className="mt-1 text-sm leading-5 text-[#66758a]">{officer.style}</p>
-                </button>
-              ))}
-            </div>
+          <section className="border border-[#cfd9e6] bg-[#f7f9fc] p-4">
+            <p className="text-sm font-semibold text-[#26364a]">使用说明与免责声明</p>
+            <p className="mt-2 text-[13px] leading-5 text-[#526173]">
+              模拟面试仅用于帮助您熟悉常见问题并检查回答与申请资料的一致性，不是美国政府或领事馆提供的服务，也不构成法律、移民或签证建议，不预测或保证签证结果。请始终如实回答并以官方要求为准。
+            </p>
+            <p className="mt-2 text-xs leading-5 text-[#7a8798]">
+              This practice tool is not provided by or affiliated with the U.S. Government or any U.S. consulate. It does not provide legal, immigration, or visa advice and does not predict or guarantee any visa outcome.
+            </p>
+            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-[#26364a]">
+              <input
+                type="checkbox"
+                checked={disclaimerAccepted}
+                onChange={(event) => setDisclaimerAccepted(event.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>我已阅读，并会始终如实回答，不背诵或编造所谓标准答案。</span>
+            </label>
           </section>
-        </div>
 
-        <aside className="space-y-4">
-          <LinkedApplicationSummary
-            applicationId={applicationId}
-            missingFields={applicationId ? contextMissingFields : missingFields}
-            verifiedFields={contextVerifiedFields}
-            consistencyStatus={session.applicationContext?.consistencyStatus}
-          />
-          <section className="rounded-lg border border-[#e5eaf2] bg-white p-4">
-            <h2 className="text-sm font-semibold text-[#26364a]">开始前确认</h2>
-            <ul className="mt-3 space-y-2 text-sm leading-5 text-[#66758a]">
-              <li>语言：{session.language === "en-US" ? "英文模拟面签" : "中文熟悉题型"}。</li>
-              <li>题目：围绕 8 个核心主题，必要时追问。</li>
-              <li>资料隔离：{applicationId ? "按当前申请单独保存。" : "作为独立练习保存。"}</li>
-              <li>报告：评估练习准备度，不预测签证结果。</li>
-            </ul>
-          </section>
+          {applicationId && preparationCounts.criticalMissing > 0 ? (
+            <p className="text-sm leading-6 text-amber-800">
+              当前有 {preparationCounts.criticalMissing} 项关键资料缺失。仍可开始基础练习，但问题与报告的个性化程度会降低。
+            </p>
+          ) : null}
           <ErrorNotice message={error} />
-          <Button onClick={begin} disabled={submitting} className="h-11 w-full rounded-full px-6">
-            {submitting ? <CircleNotch className="animate-spin" /> : <Play />}
-            开始模拟面试
-          </Button>
+          <div className="space-y-2">
+            <Button onClick={() => void begin("confirm")} disabled={submitting} className="h-11 w-full rounded-full px-6">
+              {submitting ? <CircleNotch className="animate-spin" /> : <Play />}
+              确认并开始
+            </Button>
+            {applicationId ? (
+              <Button onClick={() => void begin("existing")} disabled={submitting} variant="outline" className="h-11 w-full rounded-full px-6">
+                使用现有资料练习
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 w-full"
+              onClick={() => {
+                document.getElementById("critical-profile-fields")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                setError("请优先补充标记为“关键”的缺失资料；不需要填完整份 DS-160。");
+              }}
+            >
+              先补关键资料
+            </Button>
+          </div>
         </aside>
       </section>
     </main>

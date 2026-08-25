@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { ApplicantProfile, InterviewApplicationContext } from "./types";
+import type { ApplicantProfile, InterviewApplicationContext, InterviewProfileField } from "./types";
 import {
   InterviewContextError,
   loadInterviewApplicationContext,
@@ -34,12 +34,64 @@ export const questionSchema = z.object({
 });
 
 export const applicationIdSchema = z.string().uuid();
+export const interviewProfileFieldSchema = z.enum([
+  "purpose",
+  "purposeDetails",
+  "destinations",
+  "travelDates",
+  "duration",
+  "funding",
+  "budget",
+  "occupation",
+  "employer",
+  "homeTies",
+  "previousTravel",
+  "companions",
+  "usContact",
+  "refusalHistory",
+]);
+
+function mergePracticeProfile(
+  resolved: ResolvedInterviewContext,
+  practiceProfile: ApplicantProfile | undefined,
+  confirmedFields: InterviewProfileField[],
+): ResolvedInterviewContext {
+  if (!practiceProfile || confirmedFields.length === 0) return resolved;
+  const profile = { ...resolved.profile };
+  const confirmed = new Set(confirmedFields);
+  for (const field of confirmed) {
+    const value = practiceProfile[field];
+    if (typeof value === "string" && value.trim()) {
+      (profile as unknown as Record<InterviewProfileField, string>)[field] = value;
+    }
+  }
+  const fieldStates = (resolved.context.fieldStates ?? []).map((state) => (
+    confirmed.has(state.field) && String(profile[state.field] ?? "").trim()
+      ? { ...state, status: "confirmed" as const, source: "practice" as const }
+      : state
+  ));
+  return {
+    ...resolved,
+    profile,
+    context: {
+      ...resolved.context,
+      fieldStates,
+      verifiedFields: fieldStates.filter((state) => state.status === "confirmed").map((state) => state.field),
+      missingFields: fieldStates.filter((state) => state.status === "missing").map((state) => state.field),
+      needsConfirmationFields: fieldStates.filter((state) => state.status === "needs_confirmation").map((state) => state.field),
+    },
+  };
+}
 
 export async function resolveInterviewContext(input: {
   applicationId?: string;
   profile?: ApplicantProfile;
+  confirmedFields?: InterviewProfileField[];
 }): Promise<ResolvedInterviewContext> {
-  if (input.applicationId) return loadInterviewApplicationContext(input.applicationId);
+  if (input.applicationId) {
+    const resolved = await loadInterviewApplicationContext(input.applicationId);
+    return mergePracticeProfile(resolved, input.profile, input.confirmedFields ?? []);
+  }
   if (!input.profile) {
     throw new InterviewContextError("CONTEXT_LOAD_FAILED", 400, "独立练习需要提供练习资料。");
   }
@@ -57,6 +109,8 @@ export function contextResponse(context: InterviewApplicationContext) {
     applicationId: context.applicationId,
     missingFields: context.missingFields,
     verifiedFields: context.verifiedFields,
+    needsConfirmationFields: context.needsConfirmationFields ?? [],
+    fieldStates: context.fieldStates ?? [],
     consistencyStatus,
   };
 }

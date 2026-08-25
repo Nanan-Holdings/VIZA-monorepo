@@ -20,6 +20,25 @@ function answer(value: string) {
   return { value, source: "user" };
 }
 
+function legacyAnswer(value: string) {
+  return { value, source: null };
+}
+
+function adminWithSimplifiedState(value: unknown = null) {
+  const maybeSingle = vi.fn().mockResolvedValue({
+    data: value ? { value_text: JSON.stringify(value) } : null,
+    error: null,
+  });
+  const chain = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle,
+  };
+  chain.select.mockReturnValue(chain);
+  chain.eq.mockReturnValue(chain);
+  return { from: vi.fn().mockReturnValue(chain) };
+}
+
 describe("interview application context", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -41,6 +60,7 @@ describe("interview application context", () => {
 
     expect(mapped.profile).toMatchObject({
       purpose: "other",
+      purposeDetails: "B1/B2 短期商务或旅游访问",
       destinations: "Seattle",
       duration: "10 DAY(S)",
       occupation: "student",
@@ -49,6 +69,40 @@ describe("interview application context", () => {
     });
     expect(mapped.missingFields).toContain("homeTies");
     expect(mapped.verifiedFields).toContain("refusalHistory");
+  });
+
+  it("maps canonical and simplified-form keys while separating unconfirmed values from true gaps", () => {
+    const mapped = mapDs160AnswersToInterviewProfile({
+      purpose_of_trip: legacyAnswer("B"),
+      purpose_of_trip_specify: legacyAnswer("B1/B2"),
+      trip_payer_type: legacyAnswer("self"),
+      has_been_in_us: legacyAnswer("no"),
+      has_traveled_last_five_years: legacyAnswer("yes"),
+      traveled_country: legacyAnswer("JPN"),
+    }, {
+      form: {
+        travel: { placesToVisit: ["Seattle"], arrivalDate: "2026-10-01", lengthValue: "10", lengthUnit: "Days" },
+        work: { primaryOccupation: "STUDENT", employerName: "Example University" },
+      },
+    });
+
+    expect(mapped.profile).toMatchObject({
+      purposeDetails: "B1/B2 短期商务或旅游访问",
+      destinations: "Seattle",
+      travelDates: "2026-10-01",
+      duration: "10 Days",
+      funding: "本人承担",
+      occupation: "STUDENT",
+      employer: "Example University",
+    });
+    expect(mapped.needsConfirmationFields).toEqual(expect.arrayContaining([
+      "purposeDetails",
+      "destinations",
+      "funding",
+      "previousTravel",
+    ]));
+    expect(mapped.missingFields).toContain("homeTies");
+    expect(mapped.profile.previousTravel).toContain("JPN");
   });
 
   it("enforces the existing ownership boundary before loading answers", async () => {
@@ -70,7 +124,7 @@ describe("interview application context", () => {
   });
 
   it("loads only the owned US DS-160 application's answers", async () => {
-    const admin = {};
+    const admin = adminWithSimplifiedState({ form: { travel: { placesToVisit: ["Boston"] } } });
     requireOwnedApplication.mockResolvedValue({
       admin,
       user: { id: "owner" },
@@ -83,7 +137,9 @@ describe("interview application context", () => {
       authUserId: "owner",
     });
     expect(result.context.source).toBe("application");
-    expect(result.context.missingFields).toContain("destinations");
+    expect(result.context.missingFields).toContain("homeTies");
+    expect(result.profile.destinations).toBe("Boston");
+    expect(result.context.needsConfirmationFields).toContain("purposeDetails");
     expect(result.cacheScope).toContain("owner");
   });
 });

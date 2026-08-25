@@ -7,6 +7,7 @@ import {
   contextErrorResponse,
   contextResponse,
   errorResponse,
+  interviewProfileFieldSchema,
   profileSchema,
   questionSchema,
   readIdempotent,
@@ -23,6 +24,8 @@ const requestSchema = z.discriminatedUnion("action", [
     language: z.enum(["zh-CN", "en-US"]).default("zh-CN"),
     applicationId: applicationIdSchema.optional(),
     profile: profileSchema.optional(),
+    confirmedFields: z.array(interviewProfileFieldSchema).max(20).optional(),
+    questionIndex: z.number().int().min(0).max(7).optional(),
   }).strict(),
   z.object({
     action: z.literal("answer"),
@@ -30,6 +33,7 @@ const requestSchema = z.discriminatedUnion("action", [
     idempotencyKey: z.string().min(8).max(240),
     applicationId: applicationIdSchema.optional(),
     profile: profileSchema.optional(),
+    confirmedFields: z.array(interviewProfileFieldSchema).max(20).optional(),
     question: questionSchema,
     answer: z.string().trim().min(1).max(1500),
     questionIndex: z.number().int().min(0).max(20),
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
     resolved = await resolveInterviewContext({
       applicationId: parsed.data.applicationId,
       profile: parsed.data.profile,
+      confirmedFields: parsed.data.confirmedFields,
     });
   } catch (error) {
     return contextErrorResponse(error);
@@ -77,9 +82,10 @@ export async function POST(request: NextRequest) {
 
   const responseContext = contextResponse(resolved.context);
   if (parsed.data.action === "start") {
+    const questionIndex = parsed.data.questionIndex ?? 0;
     return Response.json({
-      question: getQuestion(resolved.profile, 0, parsed.data.language),
-      questionIndex: 0,
+      question: getQuestion(resolved.profile, questionIndex, parsed.data.language),
+      questionIndex,
       context: responseContext,
     });
   }
@@ -93,6 +99,7 @@ export async function POST(request: NextRequest) {
     applicationId: parsed.data.applicationId,
     language: parsed.data.language,
     profile: parsed.data.applicationId ? undefined : resolved.profile,
+    confirmedFields: parsed.data.confirmedFields,
     question: parsed.data.question,
     answer: parsed.data.answer,
     questionIndex: parsed.data.questionIndex,

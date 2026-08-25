@@ -7,6 +7,7 @@ import {
   contextErrorResponse,
   contextResponse,
   errorResponse,
+  interviewProfileFieldSchema,
   profileSchema,
   questionSchema,
   readIdempotent,
@@ -30,6 +31,7 @@ const reportRequestSchema = z.object({
   idempotencyKey: z.string().min(8).max(240),
   applicationId: applicationIdSchema.optional(),
   profile: profileSchema.optional(),
+  confirmedFields: z.array(interviewProfileFieldSchema).max(20).optional(),
   exchanges: z.array(exchangeSchema).min(1).max(24),
 }).strict();
 
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
     resolved = await resolveInterviewContext({
       applicationId: parsed.data.applicationId,
       profile: parsed.data.profile,
+      confirmedFields: parsed.data.confirmedFields,
     });
   } catch (error) {
     return contextErrorResponse(error);
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
   const fingerprint = requestFingerprint({
     applicationId: parsed.data.applicationId,
     profile: parsed.data.applicationId ? undefined : resolved.profile,
+    confirmedFields: parsed.data.confirmedFields,
     exchanges: parsed.data.exchanges.map(({ question, answer, submittedAt }) => ({ question, answer, submittedAt })),
   });
   const cached = readIdempotent(reportCache, cacheKey, fingerprint);

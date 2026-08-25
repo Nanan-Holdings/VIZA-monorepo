@@ -14,6 +14,83 @@ describe("interview engine", () => {
     expect(second.nextQuestion?.id).toBe("duration");
   });
 
+  it("does not follow up when the answer covers the topic's minimum facts", () => {
+    const question = getQuestion(profile, 1)!;
+    const result = processAnswer({
+      profile,
+      question,
+      answer: "我会去旧金山和洛杉矶，分别参观博物馆和国家公园，并按已订行程住宿。",
+      questionIndex: 1,
+      followUpUsed: false,
+    });
+
+    expect(result.assessment.missingRequirements).toEqual([]);
+    expect(result.nextQuestion).toMatchObject({ id: "duration", isFollowUp: false });
+  });
+
+  it("follows up on a vague answer and on missing practice facts", () => {
+    const vague = processAnswer({
+      profile,
+      question: getQuestion(profile, 0)!,
+      answer: "去玩",
+      questionIndex: 0,
+      followUpUsed: false,
+    });
+    expect(vague.assessment.tooVague).toBe(true);
+    expect(vague.nextQuestion).toMatchObject({ parentId: "purpose", isFollowUp: true });
+
+    const incompleteProfile = { ...profile, funding: "", budget: "" };
+    const missing = processAnswer({
+      profile: incompleteProfile,
+      context: {
+        source: "application",
+        applicationId: "application-id",
+        missingFields: ["funding", "budget"],
+        verifiedFields: [],
+      },
+      question: getQuestion(incompleteProfile, 3)!,
+      answer: "我自己承担",
+      questionIndex: 3,
+      followUpUsed: false,
+    });
+    expect(missing.nextQuestion).toMatchObject({ parentId: "funding", isFollowUp: true });
+  });
+
+  it("asks for neutral clarification when an answer conflicts with confirmed application facts", () => {
+    const question = getQuestion(profile, 2)!;
+    const result = processAnswer({
+      profile,
+      context: {
+        source: "application",
+        applicationId: "application-id",
+        missingFields: [],
+        verifiedFields: ["duration"],
+      },
+      question,
+      answer: "我计划停留 30 天。",
+      questionIndex: 2,
+      followUpUsed: false,
+    });
+
+    expect(result.assessment.conflictFields).toEqual(["duration"]);
+    expect(result.nextQuestion?.prompt).toContain("请核对事实后如实澄清");
+    expect(result.nextQuestion).toMatchObject({ parentId: "duration", isFollowUp: true });
+  });
+
+  it("advances after the per-topic follow-up limit is reached", () => {
+    const question = getQuestion(profile, 2)!;
+    const result = processAnswer({
+      profile,
+      question: { ...question, id: "duration-follow-up", parentId: "duration", isFollowUp: true },
+      answer: "不知道",
+      questionIndex: 2,
+      followUpUsed: true,
+    });
+
+    expect(result.nextQuestionIndex).toBe(3);
+    expect(result.nextQuestion).toMatchObject({ id: "funding", isFollowUp: false });
+  });
+
   it("creates a personalized incomplete-session report", () => {
     const question = getQuestion(profile, 0)!;
     const assessment = processAnswer({ profile, question, answer: "我和家人去美国旅游，计划参观博物馆和国家公园。", questionIndex: 0, followUpUsed: true }).assessment;

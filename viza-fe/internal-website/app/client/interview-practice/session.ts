@@ -49,6 +49,7 @@ export interface InterviewSession {
   lastAnswerIdempotencyKey: string | null;
   errorRecovery: InterviewErrorRecovery;
   applicationContext: InterviewContextSummary | null;
+  disclaimerVersion: number | null;
   reportStatus: ReportStatus;
   report: InterviewReport | null;
   updatedAt: string;
@@ -101,10 +102,18 @@ const exchangeSchema = z.object({
     note: z.string(),
     missingRequirements: z.array(z.enum([
       "detail",
+      "purpose",
+      "activity",
+      "travel_anchor",
       "destination",
       "time",
       "money",
+      "payer",
+      "funding_source",
       "work",
+      "role",
+      "organization",
+      "responsibility",
       "ties",
       "history",
       "companions",
@@ -144,6 +153,12 @@ const applicationContextSchema = z.object({
   applicationId: z.string().optional(),
   missingFields: z.array(z.string()),
   verifiedFields: z.array(z.string()),
+  needsConfirmationFields: z.array(z.string()).optional().default([]),
+  fieldStates: z.array(z.object({
+    field: z.string(),
+    status: z.enum(["confirmed", "needs_confirmation", "missing"]),
+    source: z.enum(["saved_application", "simplified_form", "derived", "practice"]).nullable(),
+  })).optional().default([]),
   consistencyStatus: z.enum(["unverified", "verifiable", "partially_verifiable"]),
 });
 
@@ -172,6 +187,7 @@ const storedSessionSchema = z.object({
     recoveredAt: z.string().nullable(),
   }),
   applicationContext: applicationContextSchema.nullable().optional().default(null),
+  disclaimerVersion: z.number().int().positive().nullable().optional().default(null),
   reportStatus: z.enum(["idle", "generating", "failed", "ready"]),
   report: z.unknown().nullable(),
   updatedAt: z.string(),
@@ -241,6 +257,7 @@ export function createInterviewSession(now = new Date().toISOString()): Intervie
       recoveredAt: null,
     },
     applicationContext: null,
+    disclaimerVersion: null,
     reportStatus: "idle",
     report: null,
     updatedAt: now,
@@ -295,6 +312,7 @@ export function migrateLegacyInterviewSession(
       recoveredAt: null,
     },
     applicationContext: null,
+    disclaimerVersion: null,
     report: legacy.report as InterviewReport | null,
   };
 }
@@ -394,7 +412,10 @@ export function resetInterviewSession(
   session: InterviewSession,
   now = new Date().toISOString(),
 ): InterviewSession {
-  return applyInterviewSessionIdentity(createInterviewSession(now), {
+  return applyInterviewSessionIdentity({
+    ...createInterviewSession(now),
+    disclaimerVersion: session.disclaimerVersion,
+  }, {
     applicationId: session.applicationId,
     visaType: session.visaType,
   });

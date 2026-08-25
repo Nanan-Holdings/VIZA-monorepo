@@ -7,6 +7,7 @@ import type {
   InterviewQuestion,
   InterviewReport,
   InterviewPracticeLanguage,
+  InterviewProfileField,
   InterviewPurpose,
 } from "./types";
 
@@ -35,10 +36,18 @@ const PURPOSE_LABELS_EN: Record<InterviewPurpose, string> = {
 
 const REQUIREMENT_LABELS: Record<AnswerRequirement, string> = {
   detail: "具体事实",
+  purpose: "访问目的",
+  activity: "具体活动",
+  travel_anchor: "时间或地点",
   destination: "城市或地点",
   time: "明确时间",
   money: "金额与资金来源",
+  payer: "费用承担者",
+  funding_source: "资金来源或预算",
   work: "职业或学业安排",
+  role: "职业、身份或学业",
+  organization: "单位或学校",
+  responsibility: "职责或学习内容",
   ties: "回国后的具体安排",
   history: "真实的旅行记录",
   companions: "同行人情况",
@@ -47,10 +56,18 @@ const REQUIREMENT_LABELS: Record<AnswerRequirement, string> = {
 };
 
 const REQUIREMENT_PATTERNS: Record<Exclude<AnswerRequirement, "detail">, RegExp> = {
+  purpose: /旅游|旅遊|商务|商務|探亲|探親|访友|訪友|就医|就醫|治疗|治療|会议|會議|访问|訪問|touris|business|visit|medical|conference/i,
+  activity: /参观|參觀|游览|遊覽|参加|參加|拜访|拜訪|开会|開會|会议|會議|治疗|治療|看望|博物馆|博物館|公园|公園|客户|客戶|attend|visit|tour|museum|park|conference|meeting|treatment/i,
+  travel_anchor: /\d|天|周|月|年|号|號|日期|美国|美國|纽约|紐約|洛杉矶|洛杉磯|旧金山|舊金山|芝加哥|波士顿|波士頓|西雅图|西雅圖|华盛顿|華盛頓|city|date|day|week|month|United States|U\.S\./i,
   destination: /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|美国|酒店|公园|博物馆|会议|客户|医院|亲属|city|hotel|conference|hospital/i,
   time: /\d|天|周|月|年|号|日期|时间|行程|回程|机票|day|week|month|date|return/i,
   money: /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|公司承担|money|budget|salary|saving|fund/i,
+  payer: /本人|自己|父母|配偶|家人|公司|单位|雇主|资助人|赞助人|self|parent|spouse|family|company|employer|sponsor/i,
+  funding_source: /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|公司|雇主|money|budget|salary|saving|income|bank|fund|company|employer|sponsor/i,
   work: /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|大学|课程|业务|生意|自由职业|退休|job|company|employer|student|school|university|business/i,
+  role: /职业|身份|职位|岗位|经理|工程师|顾问|老师|教师|医生|学生|退休|待业|自由职业|job|role|position|manager|engineer|consultant|teacher|doctor|student|retired|unemployed/i,
+  organization: /公司|单位|机构|学校|大学|学院|雇主|任职于|就职于|工作于|就读于|company|organization|employer|school|university|college|work at|study at/i,
+  responsibility: /负责|职责|工作内容|项目|业务|课程|专业|研究|学习|请假|假期|responsib|duties|project|course|major|research|leave|vacation/i,
   ties: /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|房产|工作|公司|学校|回国|回来|项目|客户|责任|return|family|job|home|project/i,
   history: /去过|没有|未曾|从未|第一次|国家|日本|韩国|欧洲|新加坡|泰国|英国|澳洲|加拿大|美国|travel|never|first|visited/i,
   companions: /独自|自己|同行|同伴|家人|朋友|同事|团队|没有|无人|alone|companion|family|friend|colleague|group|nobody/i,
@@ -59,6 +76,17 @@ const REQUIREMENT_PATTERNS: Record<Exclude<AnswerRequirement, "detail">, RegExp>
 };
 
 const GENERIC_WEAK_ANSWERS = /^(不知道|不清楚|随便|没有想好|还没想|无所谓|是|否|有|没有|好|ok|yes|no|1|2)[。.!！]?$/i;
+
+const QUESTION_PROFILE_FIELDS: Record<string, InterviewProfileField[]> = {
+  purpose: ["purpose", "purposeDetails"],
+  itinerary: ["destinations"],
+  duration: ["travelDates", "duration"],
+  funding: ["funding", "budget"],
+  employment_education: ["occupation", "employer"],
+  companions_contact: ["companions", "usContact"],
+  travel_refusal_history: ["previousTravel", "refusalHistory"],
+  return_ties: ["homeTies"],
+};
 
 function compact(value: string, fallback: string) {
   return value.trim() || fallback;
@@ -86,11 +114,11 @@ export function buildInterviewPlan(
   const destinations = compact(profile.destinations, english ? "your planned destinations" : "计划中的城市");
   const occupation = compact(profile.occupation, english ? "your current occupation or student status" : "目前的职业或学业身份");
   return [
-    { id: "purpose", topic: english ? "Purpose of travel" : "赴美目的", requirements: ["detail"], prompt: (value) => purposeQuestion(value, language) },
+    { id: "purpose", topic: english ? "Purpose of travel" : "赴美目的", requirements: ["purpose", "activity", "travel_anchor"], prompt: (value) => purposeQuestion(value, language) },
     { id: "itinerary", topic: english ? "Itinerary" : "行程安排", requirements: ["destination", "detail"], prompt: () => english ? "Which cities will you visit, and what exactly do you plan to do in each one?" : `你在${destinations}具体怎么安排？` },
     { id: "duration", topic: english ? "Length of stay" : "停留时间", requirements: ["time"], prompt: () => english ? "How long do you plan to stay in the United States?" : "你准备在美国待多久？" },
-    { id: "funding", topic: english ? "Trip funding" : "费用来源", requirements: ["money"], prompt: () => english ? "Who will pay for this trip, and what is your planned budget?" : "谁承担这次旅行费用，预算如何安排？" },
-    { id: "employment_education", topic: english ? "Employment or education" : "职业或学业", requirements: ["work", "detail"], prompt: () => english ? "What is your current job or course of study, and what are your leave or vacation arrangements?" : `${occupation}，你具体的工作或学业安排是什么？` },
+    { id: "funding", topic: english ? "Trip funding" : "费用来源", requirements: ["payer", "funding_source"], prompt: () => english ? "Who will pay for this trip, and what is your planned budget?" : "谁承担这次旅行费用，预算如何安排？" },
+    { id: "employment_education", topic: english ? "Employment or education" : "职业或学业", requirements: ["role", "organization", "responsibility"], prompt: () => english ? "What is your current job or course of study, and what are your leave or vacation arrangements?" : `${occupation}，你具体的工作或学业安排是什么？` },
     { id: "companions_contact", topic: english ? "Travel companions and U.S. contact" : "同行人与美国联系人", requirements: ["companions", "contact"], prompt: () => english ? "Who is traveling with you, and who or which organization is your contact in the United States?" : "这次是否有人同行，你在美国的联系人是谁或是什么机构？" },
     { id: "travel_refusal_history", topic: english ? "Travel and refusal history" : "旅行与拒签记录", requirements: ["history", "refusal"], prompt: () => english ? "Please describe your previous international travel and any U.S. visa refusals or denied entries." : "请如实说明既往出境、赴美和拒签或被拒绝入境的情况。" },
     { id: "return_ties", topic: english ? "Reasons to return" : "回国约束", requirements: ["ties", "detail"], prompt: () => english ? "What specific work, study, or family responsibilities require you to return home after this trip?" : "旅行结束后，哪些具体工作、学业或家庭安排要求你按时回国？" },
@@ -114,23 +142,40 @@ function hasRequirement(answer: string, requirement: AnswerRequirement) {
     : REQUIREMENT_PATTERNS[requirement].test(text);
 }
 
-function profileAnchors(profile: ApplicantProfile, questionId: string) {
-  const source = questionId === "purpose"
-    ? profile.purposeDetails
-    : questionId === "itinerary"
-      ? profile.destinations
-      : questionId === "duration"
-        ? `${profile.travelDates} ${profile.duration}`
-        : questionId === "funding"
-          ? `${profile.funding} ${profile.budget}`
-          : questionId === "employment_education"
-            ? `${profile.occupation} ${profile.employer}`
-            : questionId === "companions_contact"
-              ? `${profile.companions ?? ""} ${profile.usContact ?? ""}`
-              : questionId === "travel_refusal_history"
-                ? `${profile.previousTravel} ${profile.refusalHistory ?? ""}`
-                : profile.homeTies;
+function profileAnchors(profile: ApplicantProfile, questionId: string, fields = QUESTION_PROFILE_FIELDS[questionId] ?? []) {
+  const source = fields.map((field) => profile[field] ?? "").join(" ");
   return source.split(/[\s,，、。;；/]+/).map((part) => part.trim()).filter((part) => part.length >= 2).slice(0, 10);
+}
+
+function numericTokens(value: string) {
+  return Array.from(value.matchAll(/\d+(?:\.\d+)?/g), (match) => match[0]);
+}
+
+function polarity(value: string) {
+  if (/无|没有|未曾|从未|否|独自|no\b|never|none|alone/i.test(value)) return "no";
+  if (/有|曾经|去过|同行|yes\b|visited|with\s+/i.test(value)) return "yes";
+  return null;
+}
+
+function conflictingFields(
+  profile: ApplicantProfile,
+  questionId: string,
+  answer: string,
+  context?: InterviewApplicationContext,
+) {
+  if (context?.source !== "application") return [];
+  const verified = new Set(context.verifiedFields);
+  return (QUESTION_PROFILE_FIELDS[questionId] ?? []).filter((field) => {
+    if (!verified.has(field)) return false;
+    const expected = String(profile[field] ?? "").trim();
+    if (!expected) return false;
+    const expectedNumbers = numericTokens(expected);
+    const answerNumbers = numericTokens(answer);
+    if (expectedNumbers.length && answerNumbers.length && !expectedNumbers.some((value) => answerNumbers.includes(value))) return true;
+    const expectedPolarity = polarity(expected);
+    const answerPolarity = polarity(answer);
+    return expectedPolarity !== null && answerPolarity !== null && expectedPolarity !== answerPolarity;
+  });
 }
 
 export function assessAnswer(
@@ -143,25 +188,45 @@ export function assessAnswer(
   const definition = buildInterviewPlan(profile).find((item) => item.id === questionId);
   const requirements = definition?.requirements ?? ["detail"];
   const missingRequirements = requirements.filter((requirement) => !hasRequirement(answer, requirement));
+  const coveredFacts = requirements.filter((requirement) => !missingRequirements.includes(requirement));
   const text = answer.trim();
-  const anchors = profileAnchors(profile, questionId);
+  const verifiedQuestionFields = (QUESTION_PROFILE_FIELDS[questionId] ?? []).filter((field) => context?.verifiedFields.includes(field));
+  const anchors = profileAnchors(profile, questionId, verifiedQuestionFields);
   const anchorMatches = anchors.filter((anchor) => text.toLowerCase().includes(anchor.toLowerCase())).length;
+  const conflictFields = conflictingFields(profile, questionId, text, context);
+  const tooVague = GENERIC_WEAK_ANSWERS.test(text) || text.length < 8;
   const completeness = Math.max(20, Math.round(100 * (requirements.length - missingRequirements.length) / requirements.length));
   const specificity = Math.max(20, Math.min(96, 35 + Math.min(text.length, 45) + (/\d/.test(text) ? 8 : 0)));
   const canVerify = context?.source === "application" && anchors.length > 0;
-  const consistency = canVerify && anchorMatches > 0 ? Math.min(96, 84 + anchorMatches * 4) : null;
+  const consistency = conflictFields.length > 0
+    ? 35
+    : canVerify && anchorMatches > 0
+      ? Math.min(96, 84 + anchorMatches * 4)
+      : null;
   const consistencyStatus = consistency === null ? "unverified" : "verified";
   let score = Math.round(completeness * 0.55 + specificity * 0.45);
   if (consistency !== null) score = Math.round(score * 0.9 + consistency * 0.1);
   if (GENERIC_WEAK_ANSWERS.test(text)) score -= 24;
+  if (conflictFields.length) score -= 18;
   score = Math.max(20, Math.min(94, score));
   const status = score >= 78 ? "strong" : score < 60 ? "weak" : "developing";
-  const note = missingRequirements.length > 0
-    ? `还需说明${missingRequirements.map((item) => REQUIREMENT_LABELS[item]).join("、")}`
+  const note = conflictFields.length > 0
+    ? "回答与已确认资料存在需要澄清的不一致，请核对真实事实"
+    : missingRequirements.length > 0
+    ? `还需说明${missingRequirements.map((item) => REQUIREMENT_LABELS[item]).join("、")}${consistencyStatus === "unverified" ? "；与申请资料的一致性未核验" : ""}`
     : consistencyStatus === "verified"
       ? "回答具体，并与已保存申请中的可核验事实一致"
       : "回答基本完整；与申请资料的一致性未核验";
-  return { score, status, note, missingRequirements, dimensions: { completeness, specificity, consistency, consistencyStatus } };
+  return {
+    score,
+    status,
+    note,
+    missingRequirements,
+    coveredFacts,
+    tooVague,
+    conflictFields,
+    dimensions: { completeness, specificity, consistency, consistencyStatus },
+  };
 }
 
 export function buildFollowUp(
@@ -170,15 +235,69 @@ export function buildFollowUp(
   assessment: AnswerAssessment,
   language: InterviewPracticeLanguage = "zh-CN",
 ): InterviewQuestion | null {
-  const missing = assessment.missingRequirements[0];
+  const conflict = assessment.conflictFields?.[0];
+  if (conflict) {
+    const labels = ({
+      purpose: "访问目的",
+      purposeDetails: "具体活动",
+      destinations: "目的地",
+      travelDates: "出行时间",
+      duration: "停留时长",
+      funding: "费用承担",
+      budget: "预算",
+      occupation: "职业或身份",
+      employer: "单位或学校",
+      homeTies: "回国安排",
+      previousTravel: "旅行记录",
+      companions: "同行人",
+      usContact: "美国联系人",
+      refusalHistory: "拒签记录",
+    } satisfies Record<InterviewProfileField, string>)[conflict];
+    const labelEn = ({
+      purpose: "purpose of travel",
+      purposeDetails: "planned activities",
+      destinations: "destination",
+      travelDates: "travel dates",
+      duration: "length of stay",
+      funding: "trip funding",
+      budget: "budget",
+      occupation: "occupation or status",
+      employer: "employer or school",
+      homeTies: "return plans",
+      previousTravel: "travel history",
+      companions: "travel companions",
+      usContact: "U.S. contact",
+      refusalHistory: "refusal history",
+    } satisfies Record<InterviewProfileField, string>)[conflict];
+    return {
+      id: `${question.parentId ?? question.id}-follow-up`,
+      parentId: question.parentId ?? question.id,
+      topic: question.topic,
+      prompt: language === "en-US"
+        ? `Your answer differs from the confirmed application information about ${labelEn}. Please verify the facts and clarify truthfully.`
+        : `你刚才的回答与已确认资料中的“${labels}”不一致，请核对事实后如实澄清。`,
+      isFollowUp: true,
+    };
+  }
+  const questionId = question.parentId ?? question.id;
+  const fallbackRequirement = buildInterviewPlan(profile, language).find((item) => item.id === questionId)?.requirements[0];
+  const missing = assessment.missingRequirements[0] ?? (assessment.tooVague ? fallbackRequirement : undefined);
   if (!missing) return null;
   if (language === "en-US") {
     const prompts: Record<AnswerRequirement, string> = {
       detail: question.id === "purpose" ? "Please explain your purpose of travel and one specific planned activity." : "Please state the most important specific fact in one sentence.",
+      purpose: "What is the truthful primary purpose of this visit?",
+      activity: "What specific activity do you plan to do during this visit?",
+      travel_anchor: "When or where will this planned activity take place?",
       destination: "Which city is your main destination, and what will you do there?",
       time: "Exactly how many days will you stay, and when will you return?",
       money: "What is your approximate budget, and where will the money come from?",
+      payer: "Who exactly will pay for this trip?",
+      funding_source: "What is the approximate budget, and what truthful source of funds will cover it?",
       work: "What is your job or course of study, where do you work or study, and what leave arrangements have you made?",
+      role: "What is your current job, status, or course of study?",
+      organization: "Which company, organization, or school are you affiliated with?",
+      responsibility: "What are your actual duties, studies, or leave arrangements?",
       ties: "Which specific work, study, or family responsibility must you return to?",
       history: "Where did you travel most recently? If you have no international travel history, please say so directly.",
       companions: "Are you traveling alone or with someone? Please state your relationship to each companion.",
@@ -189,10 +308,18 @@ export function buildFollowUp(
   }
   const prompts: Record<AnswerRequirement, string> = {
     detail: question.id === "purpose" ? "请用真实事实说明访问目的和一项具体安排。" : "请用一句话说清最关键的具体事实。",
+    purpose: "请明确说明本次赴美的真实主要目的。",
+    activity: "本次访问会进行哪一项具体活动？",
+    travel_anchor: "这项安排会在什么时间或地点进行？",
     destination: `最主要去哪个城市？练习资料中记录的是“${compact(profile.destinations, "尚未填写")}”。`,
     time: `具体待多少天？练习资料中记录的是“${compact(profile.duration, "尚未填写")}”。`,
     money: `大约准备多少预算，资金从哪里来？练习资料中记录的是“${compact(profile.funding, "尚未填写")}”。`,
+    payer: "请明确说明由谁承担本次旅行费用。",
+    funding_source: "请说明真实预算，以及将使用哪一项真实资金来源。",
     work: "你的职位或学业、单位以及请假或假期安排分别是什么？",
+    role: "请说明你当前真实的职业、身份或所学专业。",
+    organization: "你目前所在的单位、公司或学校是什么？",
+    responsibility: "你的实际职责、学习内容或请假安排是什么？",
     ties: "回国后哪一项工作、学业或家庭责任必须继续？",
     history: "最近一次去了哪里？如果没有出境记录，请直接说明。",
     companions: "请明确说明是独自出行，还是与哪些关系的人同行。",
@@ -279,9 +406,29 @@ export function createInterviewReport(input: {
     strengths,
     actions,
     riskFlags,
-    questionAnalysis: exchanges.map((exchange) => ({ question: exchange.question.prompt, answer: exchange.answer, topic: exchange.question.topic, score: exchange.assessment.score, status: exchange.assessment.status, note: exchange.assessment.note, responseFramework: frameworkFor(exchange.question.id, input.profile) })),
+    questionAnalysis: exchanges.map((exchange) => {
+      const baseId = exchange.question.parentId ?? exchange.question.id;
+      const applicationMissing = (QUESTION_PROFILE_FIELDS[baseId] ?? []).some((field) => input.context?.missingFields.includes(field));
+      const unclearPoints = [
+        ...exchange.assessment.missingRequirements.map((item) => REQUIREMENT_LABELS[item]),
+        ...(exchange.assessment.conflictFields?.length ? ["与已确认申请资料存在不一致"] : []),
+      ];
+      return {
+        question: exchange.question.prompt,
+        answer: exchange.answer,
+        topic: exchange.question.topic,
+        score: exchange.assessment.score,
+        status: exchange.assessment.status,
+        note: exchange.assessment.note,
+        responseFramework: frameworkFor(exchange.question.id, input.profile),
+        coveredFacts: (exchange.assessment.coveredFacts ?? []).map((item) => REQUIREMENT_LABELS[item]),
+        unclearPoints,
+        nextPracticeQuestion: buildFollowUp(input.profile, exchange.question, exchange.assessment)?.prompt ?? "尝试用更简短的方式复述相同真实事实。",
+        sourceGap: applicationMissing ? "application_missing" : unclearPoints.length ? "answer_insufficient" : null,
+      };
+    }),
     generatedAt: input.generatedAt ?? new Date().toISOString(),
     idempotencyKey: input.idempotencyKey,
-    disclaimer: "本报告仅用于面试练习，不预测、保证或代表任何签证结果。",
+    disclaimer: "模拟面试仅用于帮助您熟悉常见问题并检查回答与申请资料的一致性，不是美国政府或领事馆提供的服务，也不构成法律、移民或签证建议，不预测或保证签证结果。请始终如实回答并以官方要求为准。",
   };
 }
