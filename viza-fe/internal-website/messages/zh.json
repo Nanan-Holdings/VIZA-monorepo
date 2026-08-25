@@ -76,19 +76,22 @@
     "ofRequired": "共需 {total} 份",
     "percentComplete": "已完成 {pct}%",
     "quickActions": {
-      "title": "快捷操作",
+      "title": "常用入口",
       "visaAI": "进入签证 AI",
       "travelAI": "进入旅行 AI",
       "viewStatus": "查看申请状态"
     },
     "activeVisa": {
-      "label": "当前签证",
-      "empty": "暂无正在办理的签证",
-      "open": "打开申请",
-      "choose": "选择签证"
+      "label": "进行中的申请",
+      "empty": "还没有进行中的申请",
+      "open": "打开这份申请",
+      "choose": "选择目的地开始申请"
     },
     "timeline": {
-      "groups": { "todo": "待办事项", "completed": "已完成任务" },
+      "groups": {
+        "todo": "待办事项",
+        "completed": "已完成任务"
+      },
       "states": {
         "complete": "已完成",
         "current": "当前步骤",
@@ -162,20 +165,12 @@
         "completed": "此申请目前还没有已完成任务。"
       }
     },
-    "subscriptionPlan": {
-      "title": "VIZA 申请",
-      "subtitle": "申请方案与订阅状态",
-      "planTitle": "VIZA 申请",
-      "planStatus": "体验版 · 续费暂未启用",
-      "viewPlan": "查看方案",
-      "viewDetails": "查看详情"
-    },
     "universalInfo": {
-      "title": "资料完整度",
-      "subtitle": "可用于当前及之后的签证申请",
+      "title": "我的通用资料",
+      "subtitle": "填一次，后续申请自动带入",
       "saved": "{total} 项资料中已完成 {completed} 项",
       "fields": "姓氏、名字、生日、出生地、护照、联系方式",
-      "edit": "查看资料"
+      "edit": "查看并编辑资料"
     },
     "emptyApplication": {
       "noActiveApplication": "暂无活跃申请",
@@ -613,12 +608,12 @@
       "openOfficial": "打开官方办理入口",
       "workerTitle": "预约查询服务暂时不可用",
       "workerBody": "本次官网查询没有完成，因此目前无法判断是否有时段。请稍后重新查询。",
-      "retry": "重新查询官网时间"
-      ,"vfsTerms": "我授权 VIZA 使用已确认的申请资料，在 VFS Global 韩国签证预约系统创建并安全保存加密账号、勾选官网必需条款、接收账号激活邮件并登录查询沈阳时段。验证码、实名、付款和最终提交仍需我单独确认。"
-      ,"vfsStart": "创建账号并查询官网时间"
-      ,"vfsEmailTitle": "正在等待官网账号激活"
-      ,"vfsEmailBody": "VFS 已进入邮箱验证阶段。VIZA 只读取发往专用别名的官方激活邮件，不会在页面或日志中显示激活链接。"
-      ,"vfsEmailRetry": "继续验证并查询"
+      "retry": "重新查询官网时间",
+      "vfsTerms": "我授权 VIZA 使用已确认的申请资料，在 VFS Global 韩国签证预约系统创建并安全保存加密账号、勾选官网必需条款、接收账号激活邮件并登录查询沈阳时段。验证码、实名、付款和最终提交仍需我单独确认。",
+      "vfsStart": "创建账号并查询官网时间",
+      "vfsEmailTitle": "正在等待官网账号激活",
+      "vfsEmailBody": "VFS 已进入邮箱验证阶段。VIZA 只读取发往专用别名的官方激活邮件，不会在页面或日志中显示激活链接。",
+      "vfsEmailRetry": "继续验证并查询"
     },
     "slots": {
       "title": "选择预约时间",
@@ -720,7 +715,10 @@
     "edit": "编辑",
     "postSubmission": {
       "title": "提交后信息",
-      "tabs": { "results": "回执与结果", "updates": "申请更新" },
+      "tabs": {
+        "results": "回执与结果",
+        "updates": "申请更新"
+      },
       "officialReference": "官方参考号",
       "download": "下载",
       "resultsEmpty": "生成或收到回执和结果文件后，会显示在这里。",
@@ -736,6 +734,10 @@
       "scrollToLatest": "跳到最新消息",
       "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
       "thinking": "正在检查你的申请...",
+      "readOnly": {
+        "title": "申请已提交",
+        "description": "助手对话会保留在这里供你查看。如需添加或修改答案，请新建申请。"
+      },
       "missing": {
         "title": "仍需补充的信息",
         "required": "必填",
@@ -1158,6 +1160,18 @@
         "cancel": "取消",
         "confirm": "移除"
       }
+    },
+    "chooser": {
+      "title": "申请",
+      "subtitle": "继续一份进行中的申请，或开始一份新的。",
+      "resumeHeading": "进行中的申请",
+      "resume": "继续填写",
+      "progress": "已完成 {percent}%",
+      "startHeading": "开始新申请",
+      "startNew": "开始一份新申请",
+      "startNewHint": "选择另一个目的地，不会影响上面进行中的申请。",
+      "startNewHintEmpty": "先选择目的地，我们会带你进入对应的签证流程。",
+      "loadFailed": "暂时读不到你的申请列表，下面仍可开始新申请。"
     }
   },
   "clientStatus": {
@@ -1379,7 +1393,7 @@
       "cityOfBirthPlaceholder": "如：北京",
       "stateOfBirth": "出生省 / 州",
       "stateOfBirthPlaceholder": "如：北京",
-      "countryOfBirth": "出生国家",
+      "countryOfBirth": "出生国家/地区",
       "countryOfBirthPlaceholder": "如：中国",
       "occupation": "职业",
       "occupationPlaceholder": "如：软件工程师",
@@ -1683,13 +1697,13 @@
       "gender": "性别",
       "male": "男",
       "female": "女",
-      "countryOfBirth": "出生国家",
+      "countryOfBirth": "出生国家/地区",
       "countryOfBirthPlaceholder": "选择国家",
       "cityOfBirth": "出生城市",
       "cityOfBirthPlaceholder": "例如:上海",
       "stateOfBirth": "出生州/省",
       "stateOfBirthPlaceholder": "例如 广东省",
-      "noStateProvince": "我的出生国家没有州/省",
+      "noStateProvince": "我的出生国家/地区没有州/省",
       "nationality": "国籍",
       "nationalityPlaceholder": "选择国籍",
       "maritalStatus": "婚姻状况",
@@ -1726,7 +1740,7 @@
       "spouseDob": "配偶出生日期",
       "spouseNationality": "配偶国籍",
       "spouseCityOfBirth": "配偶出生城市",
-      "spouseCountryOfBirth": "配偶出生国家"
+      "spouseCountryOfBirth": "配偶出生国家/地区"
     },
     "contact": {
       "title": "领事馆如何联系您?",
@@ -2193,7 +2207,7 @@
       "nationality": "国籍",
       "cityOfBirth": "出生城市",
       "cityOfBirthPlaceholder": "例如 北京",
-      "countryOfBirth": "出生国家",
+      "countryOfBirth": "出生国家/地区",
       "countryPlaceholder": "选择",
       "datePlaceholder": "选择日期",
       "spouseAddressType": "配偶地址类型",
@@ -2653,7 +2667,7 @@
         "givenNames": "名 (Given names)",
         "dob": "出生日期",
         "placeOfBirth": "出生地 (城市/地区)",
-        "countryOfBirth": "出生国家",
+        "countryOfBirth": "出生国家/地区",
         "nationality": "现国籍",
         "nationalityAtBirth": "出生时国籍 (如不同)",
         "nationalIdNumber": "身份证号码",
@@ -2884,7 +2898,7 @@
         "sex": "性别",
         "nationality": "国籍",
         "hasOtherNationalities": "是否持有其他国籍?",
-        "countryOfBirth": "出生国家",
+        "countryOfBirth": "出生国家/地区",
         "placeOfBirth": "出生城市",
         "placeOfBirthPlaceholder": "如 Manchester",
         "maritalStatus": "婚姻状况",
@@ -3101,7 +3115,7 @@
         "sex": "性别",
         "nationality": "国籍",
         "nationalityAtBirth": "出生时国籍",
-        "countryOfBirth": "出生国家",
+        "countryOfBirth": "出生国家/地区",
         "placeOfBirth": "出生地",
         "nationalIdNumber": "身份证号",
         "religion": "宗教",
@@ -3319,7 +3333,7 @@
         "dob": "出生日期",
         "sex": "性别",
         "nationality": "国籍",
-        "countryOfBirth": "出生国家",
+        "countryOfBirth": "出生国家/地区",
         "placeOfBirth": "出生城市",
         "relationshipStatus": "婚姻状况",
         "hasNationalId": "是否有身份证?",
@@ -4163,7 +4177,11 @@
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
           "description": "1000 积分可兑换一次入境卡免费提交服务。",
-          "countries": ["新加坡", "马来西亚", "泰国"]
+          "countries": [
+            "新加坡",
+            "马来西亚",
+            "泰国"
+          ]
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",
@@ -4370,7 +4388,7 @@
         "surname": "姓氏 / Surname",
         "givenNames": "名字 / Given names",
         "dateOfBirth": "出生日期 / Date of birth",
-        "birthCountry": "出生国家 / Country of birth",
+        "birthCountry": "出生国家/地区 / Country or region of birth",
         "birthProvinceOrState": "出生省/州 / State/Province of birth",
         "birthCity": "出生城市 / City of birth",
         "gender": "性别 / Gender",
@@ -4393,7 +4411,7 @@
         "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "选择出生日期",
         "dateOfBirthEn": "Select date of birth",
-        "birthCountryZh": "选择出生国家...",
+        "birthCountryZh": "选择出生国家/地区...",
         "birthCountryEn": "Select country of birth...",
         "birthProvinceOrStateZh": "如：湖南",
         "birthProvinceOrStateEn": "For example: Hunan",
@@ -4635,32 +4653,388 @@
     },
     "faqTitle": "常见问题",
     "supportCta": {
-      "title": "还需要帮助？"
+      "title": "没找到答案？",
+      "action": "联系人工客服"
     },
     "faqs": {
       "resetPassword": {
         "question": "如何重置密码？",
-        "answer": "前往设置，打开安全部分重置密码。输入当前密码，然后两次输入新密码确认。更改立即生效。"
-      },
-      "referrals": {
-        "question": "推荐如何运作？",
-        "answer": "在“推荐好友”页面分享您的专属链接。满足推荐条件后，可用奖励会显示在 Points Center。"
+        "answer": "进入「设置 → 安全」重置密码。输入当前密码，再输入两次新密码确认，改完立即生效。忘记密码的话，在登录页点「忘记密码」，我们会发一封重置邮件给你。"
       },
       "updateInfo": {
-        "question": "如何更新个人信息？",
-        "answer": "前往设置，选择个人资料标签。您可以更新姓名、出生日期、电话号码和地址。点击保存以应用更改。"
+        "question": "如何修改个人信息？",
+        "answer": "进入「设置 → 通用资料」，可以修改姓名、出生日期、出生国家/地区、护照信息、手机号和地址。每个部分改完后单独保存。已经递交给官方的申请，信息不会自动同步更新——如有变动请联系客服。"
+      },
+      "startNewApplication": {
+        "question": "怎么开始一份新的申请，而不动我已有的那份？",
+        "answer": "打开「申请」标签，页面会先让你选择：继续某份进行中的申请，或开始一份新的。选「开始一份新申请」并挑目的地，不会影响已有申请。"
       },
       "updatePayment": {
-        "question": "如何添加或更新付款方式？",
-        "answer": "账单和付款方式管理目前由线下处理。请联系我们的客服团队更新您的账单信息。"
+        "question": "如何付款或更换付款方式？",
+        "answer": "付款在结账页完成，可用的付款方式会在确认前列出。我们不会通过聊天或邮件索要完整卡号。历史付款、回执和退款状态在「回执与发票」中查看。"
+      },
+      "feeBreakdown": {
+        "question": "我付的钱包含哪些部分？",
+        "answer": "结账时会把政府费用和 VIZA 服务费分开列出。政府费用按目的地官方标准收取，我们不加价；服务费是我们的办理费用。两者的退款规则不同，详见退款政策。"
+      },
+      "processingTime": {
+        "question": "多久能出签？",
+        "answer": "页面上的时间是根据以往申请给出的估算。实际出签时间由使馆或目的地移民局决定，我们无法控制，也不会承诺具体日期。递交后可以在「状态」里看到每一步的进展。"
       },
       "dataPrivate": {
-        "question": "我的申请数据是否保密？",
-        "answer": "您的申请数据受到保护，仅您本人、获授权的 VIZA 工作人员以及完成所请求签证服务所必需的服务提供商可以访问。"
+        "question": "我的申请资料安全吗？",
+        "answer": "资料加密存储和传输，只有你本人、获授权的 VIZA 同事，以及办理该签证必须用到的服务提供方可以访问。详见「隐私和安全」下的数据使用说明。"
       },
       "contactSupport": {
-        "question": "如何联系客服？",
-        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.it.com 联系我们。"
+        "question": "怎么联系人工客服？",
+        "answer": "在「帮助 → 提交请求」里提交，或发邮件到 support@viza.it.com。我们在新加坡时间的工作时段处理，一般一个工作日内回复。"
+      }
+    },
+    "articleChrome": {
+      "backToHelp": "返回帮助中心",
+      "helpCenter": "帮助中心",
+      "stillStuck": "还没解决？",
+      "contactSupport": "联系人工客服"
+    },
+    "articles": {
+      "completeYourProfile": {
+        "metaTitle": "完善通用资料 | 帮助中心",
+        "title": "完善你的通用资料",
+        "subtitle": "填一次，后续每份签证申请都能复用同一份准确信息。",
+        "sections": [
+          {
+            "heading": "为什么要填通用资料",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "通用资料保存的是可以在多份签证申请之间复用的申请人信息。填准一次，后面就不用重复输入，也能避免不同表格之间信息对不上。"
+              }
+            ]
+          },
+          {
+            "heading": "怎么更新",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "从导航栏进入「设置」。",
+                  "选择「通用资料」。",
+                  "核对身份、联系方式、护照、出行和背景信息。",
+                  "每个部分改完后记得保存。"
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "姓名、日期和护照信息请与证件上的写法完全一致。"
+              }
+            ]
+          },
+          {
+            "heading": "会收集哪些信息",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "身份信息：法定姓名、出生信息、国籍和性别。",
+                  "联系方式：邮箱、手机号和当前住址。",
+                  "护照信息，以及可复用的支持材料。",
+                  "签证表格会用到的出行、家庭、教育、工作和背景信息。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "改邮箱或密码",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "邮箱和密码在「设置 → 安全」里修改，按页面提示操作即可。"
+              }
+            ]
+          }
+        ]
+      },
+      "addPaymentMethod": {
+        "metaTitle": "添加付款方式 | 帮助中心",
+        "title": "添加付款方式",
+        "subtitle": "平台的收费和付款是怎么走的。",
+        "sections": [
+          {
+            "heading": "收费方式",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "申请费、订阅费和服务费通过安全结账页面支付。确认付款前，页面会先列出可用的付款方式。"
+              }
+            ]
+          },
+          {
+            "heading": "设置付款方式",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "打开需要支付的申请或订阅结账页。",
+                  "核对金额、币种和付款说明。",
+                  "选择结账页提供的付款方式，按支付服务商的安全流程完成付款。"
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "VIZA 不会通过聊天或邮件向你索要完整卡号。如果结账页没有出现你预期的付款方式，请联系客服。"
+              }
+            ]
+          },
+          {
+            "heading": "使用积分",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "可用的 VIZA 积分和兑换选项在「积分中心」查看。可兑换范围和上限会因方案、活动和购买类型而不同。"
+              }
+            ]
+          },
+          {
+            "heading": "查看历史交易",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "在「回执与发票」中可以查看付款记录、回执、发票申请和退款状态。"
+              }
+            ]
+          }
+        ]
+      },
+      "exploreServices": {
+        "metaTitle": "了解 VIZA | 帮助中心",
+        "title": "VIZA 能帮你做什么",
+        "subtitle": "整个签证流程里，你可以用到的功能。",
+        "sections": [
+          {
+            "heading": "签证申请",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "从「首页」或「申请」开始新申请或继续未完成的申请。表单答案、材料、付款、授权和进度都在同一个流程里。"
+              }
+            ]
+          },
+          {
+            "heading": "通用资料",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "个人信息、护照、联系方式、出行和背景信息只填一次，之后在支持的签证申请中自动复用。"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "在「设置」中打开「通用资料」。",
+                  "逐项核对，并上传可复用的材料。",
+                  "回到申请之前先保存。",
+                  "在每份签证表格中，提交前再确认一遍自动带入的内容。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "签证 AI",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "用签证 AI 了解签证路径、材料要求和下一步该做什么。确定路径之后，回到「申请」里填写详细信息。"
+              },
+              {
+                "type": "tip",
+                "text": "涉及官方要求时，请以 VIZA 给出的来源链接为准；拿不准的直接问客服。"
+              }
+            ]
+          },
+          {
+            "heading": "旅行 AI",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "用旅行 AI 规划行程——目的地、日期、同行人、偏好和行程建议。行程规划与正式签证申请是分开的。"
+              }
+            ]
+          },
+          {
+            "heading": "进度与客服",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "在「状态」里跟进申请进度；账户、付款、材料或时间方面需要人工处理的问题，走「帮助」提交请求。"
+              }
+            ]
+          }
+        ]
+      },
+      "accountSecurityTips": {
+        "metaTitle": "账户安全建议 | 帮助中心",
+        "title": "账户安全建议",
+        "subtitle": "保护好你的账户和个人信息。",
+        "sections": [
+          {
+            "heading": "用一个足够强的独立密码",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "密码要长、要独特、不容易猜到，不要和其他网站用同一个。"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "至少 12 位。",
+                  "包含大小写字母、数字和符号。",
+                  "有条件的话用密码管理器保存。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "不要外泄登录信息",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "任何情况下都不要把登录信息给别人。我们的客服不会向你索要密码。"
+              },
+              {
+                "type": "tip",
+                "text": "怀疑密码泄露，请立即到「设置 → 安全」修改。"
+              }
+            ]
+          },
+          {
+            "heading": "安全的登录习惯",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "用公共或共用设备后记得退出登录。",
+                  "不要在公共浏览器里保存密码。",
+                  "尽量不要在陌生网络上登录。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "留意异常情况",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "如果发现账户信息被改动、收到登录失败提醒、或看到不是你操作的记录，请尽快联系客服。"
+              }
+            ]
+          }
+        ]
+      },
+      "dataUsage": {
+        "metaTitle": "数据使用 | 帮助中心",
+        "title": "我们收集哪些数据",
+        "subtitle": "收集什么，用来做什么。",
+        "sections": [
+          {
+            "heading": "收集的内容",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "个人信息：姓名、出生日期、手机号和地址。",
+                  "申请信息：护照信息、签证历史、表格答案、支持材料和授权记录。",
+                  "使用数据：访问的页面、使用的功能和会话记录，用于改进产品。",
+                  "交易数据：付款状态、发票、退款和订阅记录。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "用途",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "准备、审核和管理你的签证申请。",
+                  "让获授权的 VIZA 同事查看申请材料并提供协助。",
+                  "处理付款并跟踪服务履行情况。",
+                  "发送申请、材料、付款和进度相关的通知。"
+                ]
+              },
+              {
+                "type": "tip",
+                "text": "你的个人信息按保密处理，不会出售给第三方。"
+              }
+            ]
+          },
+          {
+            "heading": "第三方服务",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "付款、材料处理、通讯和官方递交等环节会用到第三方服务商。"
+              },
+              {
+                "type": "paragraph",
+                "text": "只会向他们提供完成服务所必需的最少信息。"
+              }
+            ]
+          },
+          {
+            "heading": "你的权利",
+            "content": [
+              {
+                "type": "list",
+                "items": [
+                  "联系客服，申请获取你的账户和个人数据副本。",
+                  "申请更正不准确的资料。",
+                  "申请删除账户——在签证和法律要求的留存期限内会有例外。"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "twoFactorSupport": {
+        "metaTitle": "两步验证 | 帮助中心",
+        "title": "两步验证",
+        "subtitle": "给账户加一层保护。",
+        "sections": [
+          {
+            "heading": "这是什么",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "两步验证（2FA）在登录时增加一道验证步骤。即使密码泄露，账户仍然受保护。"
+              }
+            ]
+          },
+          {
+            "heading": "怎么开启",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "目前两步验证由我们的团队协助开启，暂不支持自助设置。"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "打开「帮助」并提交请求。",
+                  "说明需要为账户开启两步验证。",
+                  "按客服发来的步骤完成设置。"
+                ]
+              }
+            ]
+          },
+          {
+            "heading": "如果验证方式丢失了",
+            "content": [
+              {
+                "type": "paragraph",
+                "text": "请尽快联系客服。我们会核验身份，协助你恢复登录。"
+              }
+            ]
+          }
+        ]
       }
     }
   },
@@ -5778,6 +6152,138 @@
       "paymentRequired": "请先完成 VFS 安全付款授权。",
       "finalRequired": "提交前请批准最终预约。",
       "sessionRequired": "登录会话已过期，请重新登录后继续。"
+    }
+  },
+  "clientCheckout": {
+    "metaTitle": "结账 | VIZA",
+    "metaDescription": "通过 Stripe 支付 VIZA 服务费。",
+    "title": "结账",
+    "lede": "确认你选择的这份签证申请，并通过 Stripe 支付 VIZA 服务费。政府费用到期时，由 VIZA 用一张一次性虚拟卡代你在官方网站支付。",
+    "loadFailed": "结账页加载失败",
+    "notConfigured": "未配置",
+    "notStarted": "未开始",
+    "paid": "已支付",
+    "notPaid": "未支付",
+    "unavailable": "暂不可用",
+    "agencyFee": "服务费",
+    "application": "申请",
+    "payment": "付款",
+    "confirmPackage": "确认这份方案无误后，再开始支付 VIZA 服务费。",
+    "payButton": "通过 Stripe 支付服务费",
+    "noAgencyFee": "该方案尚未配置服务费，暂时无法结账。",
+    "stripeOnly": "卡号只会填写在 Stripe 自己的支付页面上。",
+    "stripeUnconfigured": {
+      "title": "Stripe 结账尚未配置",
+      "description": "页面可以正常查看，但在 Stripe 环境变量配置完成前无法付款。"
+    },
+    "officialFee": {
+      "title": "政府官方费用",
+      "lede": "官方费用由 VIZA 代付，使用一张仅供这份申请使用的虚拟卡。",
+      "note": "你不需要在任何政府网站上填写银行卡信息。官方费用到期时，VIZA 会为这份申请生成一张限额虚拟卡，完成支付并记录结果。"
+    },
+    "summary": {
+      "title": "订单明细",
+      "package": "方案",
+      "destination": "目的地",
+      "visaType": "签证类型",
+      "agencyFee": "VIZA 服务费",
+      "officialFee": "政府费用",
+      "officialFeeValue": "由 VIZA 用虚拟卡代付",
+      "dueToday": "今日应付",
+      "stripeNote": "通过 Stripe 托管的结账页收取，仅包含 VIZA 服务费。"
+    },
+    "paidAlert": {
+      "title": "服务费已记录",
+      "confirmedAt": "最近确认时间：{at}",
+      "onFile": "付款记录已存档。"
+    },
+    "afterPayment": {
+      "title": "付款之后",
+      "body": "官方费用到期时，VIZA 会为这份申请生成一张专用虚拟卡并代为支付。你无需在政府网站上输入任何卡信息。"
+    },
+    "empty": {
+      "title": "当前没有可结账的方案",
+      "description": "请先选择目的地，或联系 VIZA 团队为你分配方案，然后再进行服务费付款。",
+      "cta": "选择签证路径"
+    },
+    "errors": {
+      "generic": {
+        "title": "结账遇到问题",
+        "description": "结账过程被中断。请重试，或联系客服。"
+      },
+      "cancelled": {
+        "title": "已取消 Stripe 结账",
+        "description": "没有产生任何 VIZA 服务费记录。你可以核对方案后重新发起结账。"
+      },
+      "checkout_unavailable": {
+        "title": "结账暂时不可用",
+        "description": "Stripe 结账页无法打开。请重试，或联系客服。"
+      },
+      "missing_package": {
+        "title": "请先选择签证方案",
+        "description": "需要先有一份生效中的方案，才能开始服务费付款。"
+      },
+      "package_not_found": {
+        "title": "未找到该方案",
+        "description": "该方案在你的账户下未生效，请另选一个。"
+      },
+      "payment_record_failed": {
+        "title": "付款记录创建失败",
+        "description": "由于付款记录未能准备好，VIZA 没有发起 Stripe 结账。"
+      },
+      "pricing_missing": {
+        "title": "尚未配置服务费",
+        "description": "该方案需要先配置 VIZA 服务费，才能发起 Stripe 结账。"
+      },
+      "stripe_unconfigured": {
+        "title": "Stripe 结账尚未配置",
+        "description": "正式付款需要配置 STRIPE_SECRET_KEY、STRIPE_WEBHOOK_SECRET 和应用地址。本页面不收集任何卡信息。"
+      }
+    },
+    "data": {
+      "governmentFee": {
+        "amountPending": "付款前确认",
+        "amountAtPayment": "在官方付款环节确认",
+        "included": {
+          "label": "政府费用代付",
+          "description": "这份申请的政府费用由 VIZA 处理。",
+          "detail": "费用到期时，VIZA 会为这份申请生成一张限额虚拟卡，代你在官方网站完成支付。"
+        },
+        "estimated": {
+          "label": "政府费用（预估）",
+          "description": "该预估金额与今天的 VIZA 服务费结账分开处理。",
+          "detail": "官方金额可能变动。VIZA 会先确认金额，再生成一张专用虚拟卡完成支付。"
+        },
+        "external": {
+          "label": "政府费用由 VIZA 代付",
+          "description": "申请走到付款环节时，由 VIZA 在官方网站代你支付。",
+          "detail": "虚拟卡仅用于这份申请的这笔官方费用。你不需要在政府网站上输入卡信息。"
+        },
+        "separate": {
+          "label": "政府费用由 VIZA 代付",
+          "description": "该费用与今天的 Stripe 服务费结账分开处理。",
+          "detail": "官方费用到期时，VIZA 会为这份申请生成专用虚拟卡并代为支付。"
+        },
+        "unknown": {
+          "label": "政府费用金额待确认",
+          "description": "VIZA 会先确认官方金额，再代你支付。",
+          "detail": "VIZA 确认金额后，会生成对应额度的限额虚拟卡，代你在政府网站完成支付。"
+        }
+      },
+      "nextStep": {
+        "start": {
+          "label": "开始填写申请",
+          "description": "先把申请表填起来，VIZA 才能准备后续步骤。"
+        },
+        "consent": {
+          "label": "继续确认授权",
+          "description": "查看并确认 VIZA 的服务条款、隐私说明和代办授权。"
+        },
+        "documents": {
+          "label": "继续上传材料",
+          "description": "上传并核对这份签证方案所需的支持材料。"
+        }
+      }
     }
   }
 }
