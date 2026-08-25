@@ -1811,6 +1811,15 @@ export async function fillPhEtravelOfficialDeclaration(
       await page.waitForTimeout(1_500);
       continue;
     }
+    const completedObservedAirCompanionSequence = canContinueObservedAirWizard &&
+      postSignatureSemantics.join(",") === "signature,family,no_companion_confirmation";
+    if (completedObservedAirCompanionSequence &&
+      (postSignatureSemantic === "family" || postSignatureSemantic === "no_companion_confirmation")) {
+      // The modal/backdrop can remain in body text briefly after Yes closes.
+      // Give the Summary transition time to replace it before reclassifying.
+      await page.waitForTimeout(1_000);
+      continue;
+    }
     const isObservedAirSummary = postSignatureSemantic === "summary" && canContinueObservedAirWizard &&
       postSignatureSemantics.join(",") === "signature,family,no_companion_confirmation";
     const postSignatureGuard = postSignatureSemantic
