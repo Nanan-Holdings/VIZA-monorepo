@@ -1698,7 +1698,12 @@ export async function fillPhEtravelOfficialDeclaration(
     payload.accompanied18PlusCount === "0";
 
   if (/dashboard|etravel registration|travel declaration|my travel/i.test(portalText)) {
-    const opened = await clickVisibleButton(page, /new travel declaration|new declaration|register travel|travel declaration|new registration/i);
+    const newestIncompleteDraft = await firstVisible([
+      page.getByText(/^view\s*\/\s*manage$/i).first(),
+    ]);
+    const opened = newestIncompleteDraft
+      ? await newestIncompleteDraft.click({ force: true, timeout: 10_000 }).then(() => true).catch(() => false)
+      : await clickVisibleButton(page, /new travel declaration|new declaration|register travel|travel declaration|new registration/i);
     if (opened) {
       await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
       await page.waitForTimeout(2_000);
@@ -1736,6 +1741,18 @@ export async function fillPhEtravelOfficialDeclaration(
       Boolean(options.signatureImageDataUrl);
     const canApplyObservedAirSignature = wizardRoute !== "unknown" && hasApprovedAirSignaturePath;
     const canContinueObservedAirWizard = wizardRoute === "regular_me" && hasApprovedAirSignaturePath;
+    if (canContinueObservedAirWizard && postSignatureSemantics.length === 0) {
+      // A managed eTravel account persists incomplete declarations. When a
+      // retry resumes after the signature page, reconstruct only the
+      // completed no-companion prefix that the visible official page proves.
+      if (postSignatureSemantic === "family") {
+        postSignatureSemantics.push("signature");
+      } else if (postSignatureSemantic === "no_companion_confirmation") {
+        postSignatureSemantics.push("signature", "family");
+      } else if (postSignatureSemantic === "summary") {
+        postSignatureSemantics.push("signature", "family", "no_companion_confirmation");
+      }
+    }
     if (postSignatureSemantic === "signature" && canApplyObservedAirSignature &&
       postSignatureSemantics.length === 0) {
       if (!await applyPhEtravelSignatureCanvas(page, options.signatureImageDataUrl as string)) {
@@ -1931,6 +1948,19 @@ export async function fillPhEtravelOfficialDeclaration(
     }
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
+    await page.waitForFunction(() => {
+      const bodyText = document.body?.innerText ?? "";
+      if (/successfully registered|reference number|travel declaration summary|family member\(s\)|declaration signature/i.test(bodyText)) {
+        return true;
+      }
+      return Array.from(document.querySelectorAll("input, select, textarea, button, [role='button']"))
+        .some((element) => {
+          const node = element as HTMLElement;
+          const style = window.getComputedStyle(node);
+          const rect = node.getBoundingClientRect();
+          return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+        });
+    }, undefined, { timeout: 20_000 }).catch(() => undefined);
   }
 
   portalText = await page.locator("body").innerText().catch(() => "");
