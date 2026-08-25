@@ -39,7 +39,7 @@ export const japan: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Expert document review" },
   ],
 
@@ -69,8 +69,8 @@ export const japan: VisaContent = {
       title: "Visa processed by the embassy",
       body: "MOFA's standard is 5 working days from a complete application, but the Embassy in Singapore advises allowing at least 10 business days. We track each consular stage and flag any document requests immediately.",
       statusRows: [
-        { label: "Application lodged with the Embassy of Japan", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Documents accepted — under consular review", ts: "12 Jun, 11:30 AM", onTime: true },
+        { label: "Application lodged with the Embassy of Japan", ts: "12 Jun, 9:00 AM" },
+        { label: "Documents accepted — under consular review", ts: "12 Jun, 11:30 AM" },
         { label: "Awaiting consular decision", ts: "In progress" },
       ],
     },
@@ -200,8 +200,8 @@ export const japan: VisaContent = {
     etaValue: "17 Jun 2026, 02:00 PM",
     title: "Temporary Visitor visa · up to 90 days",
     saving: "Faster than going direct",
-    sub: "All-inclusive of document review, preparation, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of document review, preparation, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Japan visas — eVISA eligibility, fees, Singapore exemption…",

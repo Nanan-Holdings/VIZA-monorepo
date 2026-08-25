@@ -50,7 +50,7 @@ export const malaysia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Official processing · 48 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Document pre-check" },
   ],
 
@@ -80,8 +80,8 @@ export const malaysia: VisaContent = {
       title: "Your eVISA gets processed",
       body: "Malaysian Immigration's official processing time is 48 hours, counted in working days only — weekends and public holidays in Malaysia and your country don't count. We monitor the queue and flag any delay early.",
       statusRows: [
-        { label: "Application submitted on the official eVISA portal", ts: "15 Aug, 8:30 AM", onTime: true },
-        { label: "Application under Immigration review", ts: "15 Aug, 2:00 PM", onTime: true },
+        { label: "Application submitted on the official eVISA portal", ts: "15 Aug, 8:30 AM" },
+        { label: "Application under Immigration review", ts: "15 Aug, 2:00 PM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -176,12 +176,12 @@ export const malaysia: VisaContent = {
     {
       category: "Application process",
       q: "How long does Malaysian Immigration take to process an eVISA?",
-      a: "The official processing time is 48 hours — counted in working days only, so weekends and public holidays in Malaysia and your home country don't count. Immigration advises applying at least 2 weeks before departure. VIZA files immediately, monitors the queue, and backs the timeline with an on-time guarantee.",
+      a: "The official processing time is 48 hours — counted in working days only, so weekends and public holidays in Malaysia and your home country don't count. Immigration advises applying at least 2 weeks before departure. VIZA files immediately, monitors the queue, and tracks it throughout — though the issuing authority sets the timing.",
     },
     {
       category: "Application process",
       q: "How much does the Malaysia eVISA cost?",
-      a: "The government visa fee is set by nationality — RM 20 to RM 50 (≈ SGD 6–15; China RM 30). The online portal adds a processing fee, widely reported at around RM 105 (≈ SGD 32). VIZA quotes you a single all-in price at checkout covering government charges, document review, and our on-time guarantee.",
+      a: "The government visa fee is set by nationality — RM 20 to RM 50 (≈ SGD 6–15; China RM 30). The online portal adds a processing fee, widely reported at around RM 105 (≈ SGD 32). VIZA quotes you a single all-in price at checkout covering government charges and document review.",
     },
     {
       category: "Refunds, rejections & reapplications",
@@ -205,8 +205,8 @@ export const malaysia: VisaContent = {
     etaValue: "17 Aug 2026, 10:00 AM",
     title: "Tourist eVISA (SEV) · 30-day stay",
     saving: "1 day faster than filing direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Malaysia eVISAs — eligibility, documents, processing time…",

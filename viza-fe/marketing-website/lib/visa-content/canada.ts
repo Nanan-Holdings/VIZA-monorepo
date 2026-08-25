@@ -56,7 +56,7 @@ export const canada: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "eTA approved in minutes" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Biometrics booked for you" },
   ],
 
@@ -86,8 +86,8 @@ export const canada: VisaContent = {
       title: "IRCC processes your visa",
       body: "China-lodged visitor visas currently average 8 – 14 weeks; Singapore-lodged online files clear in a few weeks. We track your IRCC status and answer document requests the same day so nothing stalls.",
       statusRows: [
-        { label: "Application submitted to IRCC Portal", ts: "6 Jul, 9:40 AM", onTime: true },
-        { label: "Biometrics completed at VFS Global", ts: "18 Jul, 11:05 AM", onTime: true },
+        { label: "Application submitted to IRCC Portal", ts: "6 Jul, 9:40 AM" },
+        { label: "Biometrics completed at VFS Global", ts: "18 Jul, 11:05 AM" },
         { label: "Awaiting final decision", ts: "In progress" },
       ],
     },
@@ -216,8 +216,8 @@ export const canada: VisaContent = {
     etaValue: "25 Sep 2026, 03:15 PM",
     title: "Visitor visa (TRV) · multi-entry",
     saving: "Biometrics booked for you",
-    sub: "All-inclusive of document review, IRCC Portal filing, biometrics booking, and on-time guarantee.",
-    foot: "IRCC government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of document review, IRCC Portal filing, biometrics booking, and an advisor check before filing.",
+    foot: "IRCC government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Canada visas — eTA vs TRV, fees, biometrics, processing…",

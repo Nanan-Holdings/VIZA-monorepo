@@ -40,7 +40,7 @@ export const thailand: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast approval" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -70,8 +70,8 @@ export const thailand: VisaContent = {
       title: "Your eVisa gets processed",
       body: "Consular processing typically takes 5 – 10 working days after payment. We monitor each update and flag any request for extra documents before it delays your trip.",
       statusRows: [
-        { label: "Application submitted to eVisa portal", ts: "8 Jul, 8:30 AM", onTime: true },
-        { label: "Documents forwarded to consular officer", ts: "8 Jul, 11:00 AM", onTime: true },
+        { label: "Application submitted to eVisa portal", ts: "8 Jul, 8:30 AM" },
+        { label: "Documents forwarded to consular officer", ts: "8 Jul, 11:00 AM" },
         { label: "Awaiting consular approval", ts: "In progress" },
       ],
     },
@@ -199,7 +199,7 @@ export const thailand: VisaContent = {
     {
       category: "Application process",
       q: "How long does the Thailand eVisa take?",
-      a: "Consular processing typically takes 5 – 10 working days after payment. The Royal Thai Embassy Singapore advises applying at least 21 working days before travel and remaining in Singapore until the eVisa is approved — so start early. We back our timeline with an on-time guarantee.",
+      a: "Consular processing typically takes 5 – 10 working days after payment. The Royal Thai Embassy Singapore advises applying at least 21 working days before travel and remaining in Singapore until the eVisa is approved — so start early. We file as soon as your documents are complete; consular timing is not something we control.",
     },
     {
       category: "Application process",
@@ -251,8 +251,8 @@ export const thailand: VisaContent = {
     etaValue: "17 Jul 2026, 03:00 PM",
     title: "eVisa (TR) · 60-day stay",
     saving: "Faster than applying direct",
-    sub: "All-inclusive of the SGD 50 government fee, document review, TDAC filing, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of the SGD 50 government fee, document review, TDAC filing, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Thailand visas — exemptions, TDAC, extensions, documents…",

@@ -25,7 +25,7 @@ export const indonesia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 24 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -55,8 +55,8 @@ export const indonesia: VisaContent = {
       title: "Your e-VOA gets processed",
       body: "We track each handoff inside Immigration so we can flag delays before they affect your trip.",
       statusRows: [
-        { label: "Application sent to Immigration supervisor", ts: "8 May, 5:45 AM", onTime: true },
-        { label: "Forwarded to internal intelligence", ts: "8 May, 8:12 AM", onTime: true },
+        { label: "Application sent to Immigration supervisor", ts: "8 May, 5:45 AM" },
+        { label: "Forwarded to internal intelligence", ts: "8 May, 8:12 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -144,7 +144,7 @@ export const indonesia: VisaContent = {
     {
       category: "Application process",
       q: "How long does VIZA take to process an e-VOA?",
-      a: "Most e-VOAs are delivered within 24 hours. Filing direct with Immigration typically takes 2 – 3 days. We back the timeline with an on-time guarantee — your money back if we’re late.",
+      a: "Most e-VOAs are delivered within 24 hours. Filing direct with Immigration typically takes 2 – 3 days. These are Immigration's own timings — we file promptly and track it, but we don't promise a date.",
     },
     {
       category: "Application process",
@@ -169,8 +169,8 @@ export const indonesia: VisaContent = {
     etaValue: "9 May 2026, 03:03 PM",
     title: "e-VOA · 30-day stay",
     saving: "21 hrs faster",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Indonesia visas — fees, processing, documents…",

@@ -38,7 +38,7 @@ export const france: VisaContent = {
     { k: "入境次数", v: "单次 · 两次 · 多次" },
   ],
   tags: [
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "全套材料审核" },
     { icon: "globe", label: "29国申根区通行" },
   ],
@@ -69,8 +69,8 @@ export const france: VisaContent = {
       title: "采集生物特征 & 领事馆审理",
       body: "您需本人到场录入指纹并递交材料。按欧盟签证法规，标准审理为15个自然日，复杂个案可延至45天——我们持续跟踪进度，并及时转达补充材料要求。",
       statusRows: [
-        { label: "生物特征采集已完成", ts: "6月12日 上午9:00", onTime: true },
-        { label: "材料已递交领事馆", ts: "6月12日 上午11:30", onTime: true },
+        { label: "生物特征采集已完成", ts: "6月12日 上午9:00" },
+        { label: "材料已递交领事馆", ts: "6月12日 上午11:30" },
         { label: "等待领事馆审理", ts: "处理中" },
       ],
     },
@@ -224,7 +224,7 @@ export const france: VisaContent = {
     etaValue: "2026年6月26日 下午3:00",
     title: "申根签证（C类）· 停留90天",
     saving: "含完整材料审核服务",
-    sub: "全包价，含材料审核、France-Visas 表格代填及准时保障。",
+    sub: "全包价，含材料审核与 France-Visas 表格代填。",
     foot: "政府签证费（90欧元 ≈ SGD 131）在结账时收取并缴纳至领事馆；签证中心服务费于预约现场另行支付。VIZA 服务费涵盖材料准备、审核及预约支持。",
   },
 

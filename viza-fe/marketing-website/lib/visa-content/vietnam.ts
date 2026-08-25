@@ -50,7 +50,7 @@ export const vietnam: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 72 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -80,8 +80,8 @@ export const vietnam: VisaContent = {
       title: "Your e-Visa gets processed",
       body: "The Immigration Department's official turnaround is 3 working days from a complete application. We monitor the portal queue and flag any requests for further information before they delay your approval.",
       statusRows: [
-        { label: "Application submitted to Vietnam Immigration", ts: "3 Jul, 10:15 AM", onTime: true },
-        { label: "Application under review", ts: "4 Jul, 9:00 AM", onTime: true },
+        { label: "Application submitted to Vietnam Immigration", ts: "3 Jul, 10:15 AM" },
+        { label: "Application under review", ts: "4 Jul, 9:00 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -190,7 +190,7 @@ export const vietnam: VisaContent = {
     {
       category: "Application process",
       q: "How long does processing take?",
-      a: "The Immigration Department's official turnaround is 3 working days after receiving a complete application and fee. Around peak seasons and Vietnamese public holidays (Tet, 30 Apr – 1 May, 2 Sep) expect 3–7 working days. VIZA monitors your application throughout and backs the timeline with an on-time guarantee — your processing fee is refunded if we're late.",
+      a: "The Immigration Department's official turnaround is 3 working days after receiving a complete application and fee. Around peak seasons and Vietnamese public holidays (Tet, 30 Apr – 1 May, 2 Sep) expect 3–7 working days. VIZA monitors your application throughout and tracks it throughout. The issuing authority sets the timing, so we quote an estimate rather than a promised date.",
     },
     {
       category: "Application process",
@@ -217,8 +217,8 @@ export const vietnam: VisaContent = {
     etaValue: "6 Jul 2026, 11:00 AM",
     title: "e-Visa (EV) · up to 90 days",
     saving: "2 days faster than filing direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Vietnam e-Visas — single vs. multiple entry, processing time, documents…",

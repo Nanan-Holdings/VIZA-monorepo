@@ -97,8 +97,11 @@ export default function VisaWorldMap({ countries, renderCard }: Props) {
         </div>
       )}
 
+      {/* The two dot colours previously carried bare labels ("快速通道") that did not
+          say what the difference actually is — spell out both routes. */}
       <div className="wmap-legend">
-        <span className="wmap-key tag-fast">{t("fastTrack")}</span>
+        <span className="wmap-legend-title">{t("mapLegendTitle")}</span>
+        <span className="wmap-key tag-fast">{t("mapLegendFast")}</span>
         <span className="wmap-key tag-evisa">{t("mapLegendEvisa")}</span>
         <span className="wmap-hint">{t("mapHint")}</span>
       </div>

@@ -223,6 +223,7 @@
     color: var(--fg-1); transition: background .15s, color .15s;
   }
   .icon-btn:hover { background: var(--brand-50); color: var(--brand-500); }
+  a.icon-btn, a.avatar { text-decoration: none; }
   .avatar {
     width: 40px; height: 40px; border-radius: 999px;
     background: linear-gradient(135deg, var(--brand-400), var(--brand-600));
@@ -292,8 +293,23 @@
   }
   .results-count {
     font-size: 14px; color: var(--fg-2);
+    display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap;
   }
   .results-count strong { color: var(--fg-1); font-weight: 600; }
+
+  /* Filter reset + "nothing matched" state (the filter pills now really filter). */
+  .clear-filters {
+    border: 1px solid var(--border-hairline); background: #fff;
+    border-radius: 999px; padding: 5px 12px;
+    font: 500 13px/1 var(--font-sans); color: var(--brand-500);
+    cursor: pointer; transition: background .15s;
+  }
+  .clear-filters:hover { background: var(--brand-50); }
+  .no-results {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 64px 24px; text-align: center;
+    color: var(--fg-2); font-size: 15px;
+  }
   .view-toggle {
     display: inline-flex; padding: 4px;
     background: #fff; border: 1px solid var(--border-hairline);
@@ -571,12 +587,16 @@
   }
 
   .wmap-legend {
-    display: flex; align-items: center; gap: 18px;
+    display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap;
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px dashed var(--border-hairline);
     font: 500 12px/1.2 var(--font-sans);
     color: var(--fg-2);
+  }
+  .wmap-legend-title {
+    font-weight: 600; color: var(--fg-1);
+    margin-right: 4px; flex: 0 0 auto;
   }
   .wmap-key { display: inline-flex; align-items: center; gap: 7px; }
   .wmap-key::before {

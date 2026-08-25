@@ -56,7 +56,7 @@ export const australia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Expert-prepared application" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Full document review" },
   ],
 
@@ -86,8 +86,8 @@ export const australia: VisaContent = {
       title: "Your visa gets processed",
       body: "We monitor your ImmiAccount status daily and respond fast if the case officer requests more information — the single biggest cause of blown timelines. Don't book flights yet: Home Affairs advises waiting for the grant.",
       statusRows: [
-        { label: "Application lodged via ImmiAccount", ts: "10 Jun, 10:00 AM", onTime: true },
-        { label: "Health and character checks initiated", ts: "10 Jun, 2:30 PM", onTime: true },
+        { label: "Application lodged via ImmiAccount", ts: "10 Jun, 10:00 AM" },
+        { label: "Health and character checks initiated", ts: "10 Jun, 2:30 PM" },
         { label: "Awaiting officer decision", ts: "In progress" },
       ],
     },
@@ -224,8 +224,8 @@ export const australia: VisaContent = {
     etaValue: "21 Jun 2026, 02:15 PM",
     title: "Visitor 600 · Tourist stream · up to 12-month validity",
     saving: "Decision-ready first time",
-    sub: "All-inclusive of government fee, document preparation, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document preparation, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Australia visas — fees, processing, documents…",

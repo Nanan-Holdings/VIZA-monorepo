@@ -30,9 +30,9 @@ const CrossMark = () => (
   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
 );
 
-const CLEARANCE_GRID_KEYS = ["encryption", "region", "audit", "retention"] as const;
+const CLEARANCE_GRID_KEYS = ["encryption", "region", "retention"] as const;
 
-const STAT_KEYS = ["docs", "retention", "pentests", "ack"] as const;
+const STAT_KEYS = ["retention", "ack"] as const;
 
 const DOC_CARDS = [
   {
@@ -57,14 +57,14 @@ const DOC_CARDS = [
   },
 ] as const;
 
-const FEATURE_KEYS = ["minimise", "payments", "atRest", "inTransit", "audits", "access", "education"] as const;
+const FEATURE_KEYS = ["minimise", "payments", "atRest", "inTransit", "access", "education"] as const;
 
-const VDP_META_KEYS = ["ack", "triage", "lang", "pgp"] as const;
+const VDP_META_KEYS = ["ack", "triage", "lang"] as const;
 
 const INCLUDE_KEYS = ["type", "url", "steps", "impact", "poc"] as const;
 const DONT_SEND_KEYS = ["secrets", "malware", "scanners", "customerData", "socialEng"] as const;
 
-const SCOPE_IN_KEYS = ["web", "infra", "mobile", "marketing"] as const;
+const SCOPE_IN_KEYS = ["web", "infra", "marketing"] as const;
 const SCOPE_OUT_KEYS = ["devices", "phishing", "thirdParty", "scanners", "headers"] as const;
 
 const PLEDGE_ITEM_NUMS = ["1", "2", "3", "4"] as const;

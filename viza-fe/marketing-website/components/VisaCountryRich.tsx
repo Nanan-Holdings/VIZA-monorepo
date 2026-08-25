@@ -234,13 +234,15 @@ export default function VisaCountryRich({
                     <h3>{step.title}</h3>
                     <p>{step.body}</p>
                     {step.statusRows ? (
+                      /* Labelled as an example: the timestamps are an illustration of
+                         what the tracker shows, not this visitor's own application. */
                       <div className="step-status">
+                        <div className="step-status-head">{t("timelineSample")}</div>
                         {step.statusRows.map((row, ri) => (
                           <div className="row" key={ri}>
                             <span className="dot"></span>
                             {row.label}
                             <span className="ts">{row.ts}</span>
-                            {row.onTime ? <span className="ontime">{t("onTime")}</span> : null}
                           </div>
                         ))}
                       </div>
@@ -257,13 +259,13 @@ export default function VisaCountryRich({
             <p className="block-sub">{content.docsSub}</p>
             <div className="docs">
               {content.documents.map((d) => (
+                /* Static reference cards — no chevron, since there is nothing to open. */
                 <div className="doc" key={d.name}>
                   <div className="ico">{ICONS.doc}</div>
                   <div>
                     <div className="nm">{d.name}</div>
                     <div className="sub">{d.sub}</div>
                   </div>
-                  <svg className="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
               ))}
             </div>

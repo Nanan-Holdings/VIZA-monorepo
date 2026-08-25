@@ -7,46 +7,44 @@
     "home": "Home",
     "apply": "Apply",
     "visas": "Visas",
-    "explore": "Explore",
+    "explore": "Destinations",
     "events": "Events",
     "careers": "Careers",
     "contact": "Contact",
     "signIn": "Sign in",
     "getStarted": "Get started",
     "yourPassport": "Your passport",
-    "searchPlaceholder": "Search a country or visa…"
+    "searchPlaceholder": "Search a country or visa…",
+    "product": "What we do",
+    "about": "Who we are"
   },
   "footer": {
     "product": "Products",
     "company": "Company",
     "legal": "Legal",
     "offices": "Offices",
-    "askAi": "Ask AI about VIZA",
     "security": "Security",
     "status": "Status",
-    "refunds": "Refunds",
     "privacy": "Privacy",
     "terms": "Terms",
-    "pricing": "Pricing",
-    "rights": "All rights reserved.",
-    "tagline": "VIZA helps you plan, apply, and track visas seamlessly across the world.",
+    "tagline": "Check the requirements, get the documents together, lodge the application, follow it through — VIZA takes that off your hands.",
     "careers": "Careers",
     "contact": "Contact",
     "refundsPolicy": "Refunds Policy",
     "copyright": "© VIZA, All rights reserved",
-    "prodMockInterview": "U.S. Mock Interview",
-    "prodVisaReq": "Visa Requirements",
-    "prodSchengen": "Schengen Appointment Checker",
-    "prodPhoto": "Visa Photo Creator",
-    "prodHelpline": "VIZA Emergency Helpline",
-    "prodStudent": "Student Visa"
+    "prodVisaReq": "Visa requirement lookup",
+    "prodSchengen": "France / Schengen visa",
+    "about": "Who we are",
+    "prodOverview": "What we do",
+    "prodApply": "Apply online",
+    "prodUsVisa": "US B1/B2 visa"
   },
   "pages": {
     "home": {
       "title": "VIZA — Visa applications, handled.",
-      "description": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip.",
+      "description": "Check which countries your passport enters visa-free, which need a visa, and what applying actually costs and takes.",
       "heroTitle": "Where to next?",
-      "heroLede": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip."
+      "heroLede": "See where your passport gets you, what a visa costs, and how long it takes. When you're ready to apply, we'll handle the paperwork."
     },
     "apply": {
       "title": "Apply — VIZA",
@@ -89,6 +87,117 @@
       "nearby": "Nearby countries",
       "faq": "FAQ",
       "sources": "Official sources"
+    },
+    "product": {
+      "metaTitle": "What we do — VIZA",
+      "metaDescription": "What VIZA ships today: visa requirement lookup, a reusable applicant profile, assisted form filling, submission to official portals, and status tracking.",
+      "eyebrow": "Product",
+      "title": "What we actually do.",
+      "lede": "VIZA is a visa application service. Everything below is live today — nothing on this page is a roadmap item.",
+      "flowTitle": "How one application runs",
+      "flowLede": "Four steps. You can see where it stands at any point, and reach an advisor at any point.",
+      "steps": {
+        "choose": {
+          "title": "Pick a destination",
+          "body": "Check against your passport whether you need a visa, which one, and what the government fee plus our fee comes to."
+        },
+        "prepare": {
+          "title": "Prepare your details",
+          "body": "Upload your passport page and we read the details off it. They're saved once and reused on every later application."
+        },
+        "review": {
+          "title": "Check the form",
+          "body": "An assistant walks the official form question by question and pre-fills what it already knows; an advisor checks it before anything is lodged."
+        },
+        "submit": {
+          "title": "Submit and follow up",
+          "body": "We lodge the application on the destination's official system and mirror the receipts and outcome back to your application page."
+        }
+      },
+      "featuresTitle": "The features",
+      "featuresLede": "All of these are in use today.",
+      "features": {
+        "browse": {
+          "title": "Visa requirement lookup",
+          "body": "By passport: which destinations are visa-free, which offer an e-visa or visa on arrival, and which need one arranged in advance — with fees and document lists."
+        },
+        "profile": {
+          "title": "Reusable applicant profile",
+          "body": "Name, date of birth, place of birth, passport, contact details and address are entered once and carried into every later application."
+        },
+        "ocr": {
+          "title": "Passport reading",
+          "body": "Upload the passport data page and the name, nationality, number and expiry are read off it. You only confirm."
+        },
+        "assist": {
+          "title": "AI form assistant",
+          "body": "Walks the official form one question at a time, reads what you've already given us, and doesn't ask twice."
+        },
+        "bilingual": {
+          "title": "Side-by-side bilingual entry",
+          "body": "Type in Chinese with the English rendering beside it. Either side can be edited on its own without overwriting the other."
+        },
+        "submit": {
+          "title": "Submission to official portals",
+          "body": "Supported today: US DS-160, e-visas for Vietnam, India and Egypt, Malaysia MDAC, the Singapore Arrival Card, Thailand TDAC, Philippines eTravel, Korea K-ETA and Japan Visit Japan Web, among others."
+        },
+        "track": {
+          "title": "Status tracking",
+          "body": "Every step, official reference number and returned document sits on the application page, so you're not chasing support for an update."
+        },
+        "interview": {
+          "title": "US visa interview practice",
+          "body": "A practice run of the B1/B2 interview so the format and the usual questions aren't new on the day."
+        }
+      },
+      "limitsTitle": "What we can't do",
+      "limitsLede": "Saying this plainly is more useful than glossing over it.",
+      "limitsNote": "Whether a visa is approved, and when, is decided by the consulate or immigration authority. We can't influence that and we don't promise approval or a specific issue date. What we are answerable for is whether your documents were complete and correct, whether the form was filled in properly, whether it was lodged on time — and compensating you under the refund policy when we get any of that wrong.",
+      "ctaBrowse": "Browse destinations",
+      "ctaPortal": "Sign in to the portal"
+    },
+    "about": {
+      "metaTitle": "Who we are — VIZA",
+      "metaDescription": "VIZA is a visa application company with offices in Singapore and Shanghai.",
+      "eyebrow": "About",
+      "title": "Who we are.",
+      "lede": "VIZA is a visa application company, with offices in Singapore and Shanghai.",
+      "storyTitle": "Why we work on this",
+      "storyBody": "The hard part of getting a visa usually isn't the visa. It's not knowing whether you need one, which documents actually count, what a particular field on the form is asking for, and hearing nothing after you've lodged it. We take those parts on — software for the repetitive work, people for the parts that need judgement.",
+      "valuesTitle": "How we work",
+      "values": {
+        "plain": {
+          "title": "Say it plainly",
+          "body": "Fees itemised, refunds spelled out, and the things we can't do stated as things we can't do."
+        },
+        "scope": {
+          "title": "Only promise what we control",
+          "body": "Approval is the consulate's call, so we don't build promises on it. Documents, forms and submission timing are ours — and we pay out under the refund policy when we get them wrong."
+        },
+        "handson": {
+          "title": "Software plus people",
+          "body": "Repetitive form filling and document checks run through the system; anything needing experience goes to an advisor."
+        }
+      },
+      "officesTitle": "Offices",
+      "offices": {
+        "sg": "Singapore",
+        "cn": "Shanghai, China"
+      },
+      "teamTitle": "The team",
+      "teamBody": "We're a small team that builds the product and runs the visa work at the same time — the people writing the code sit with the people handling applications.",
+      "teamNote": "To be supplied: team bios and the company timeline aren't signed off yet, so this page deliberately doesn't name individuals or dates. Replace pages.about.story* and the team copy in messages once the approved version exists.",
+      "ctaCareers": "Join us",
+      "ctaContact": "Contact us"
+    },
+    "events": {
+      "metaTitle": "Events — VIZA",
+      "metaDescription": "VIZA events, online and in person.",
+      "eyebrow": "Events",
+      "title": "No events yet.",
+      "lede": "We haven't started running events. When there's a visa clinic, an in-person session or something with a partner, it'll be posted here first.",
+      "ctaBrowse": "Browse destinations instead",
+      "ctaContact": "Want to run something with us? Get in touch"
     }
   },
   "common": {
@@ -145,7 +254,7 @@
     "pillCheckout": "At checkout",
     "pillAllInclusive": "All-inclusive",
     "priceCta": "Start application",
-    "onTime": "On time"
+    "timelineSample": "Example timeline"
   },
   "apply": {
     "stepOf": "Step {n} of 3",
@@ -195,17 +304,17 @@
     "phone": "Phone",
     "consent": "I confirm the details above match my passport, and I authorise VIZA to submit this application on my behalf to the immigration authorities of {country}.",
     "s3Title": "Travel & checkout",
-    "s3Desc": "Pick your arrival window. We’ll guarantee your visa is approved before you fly — or we refund every cent.",
+    "s3Desc": "Pick your arrival window and we'll work backwards from it. The issuing authority decides the actual date — what we show is an estimate.",
     "arrival": "Arrival in {country}",
     "speed": "Processing speed",
     "stdTitle": "Standard processing",
-    "stdSub": "Guaranteed by 12 May, 8:00 AM SGT · ~5 business days",
+    "stdSub": "Estimated by 12 May, 8:00 AM SGT · ~5 business days",
     "included": "Included",
     "expTitle": "Express processing",
     "recommended": "Recommended",
-    "expSub": "Guaranteed by 8 May, 3:00 PM SGT · ~24 hours",
+    "expSub": "Estimated by 8 May, 3:00 PM SGT · ~24 hours",
     "rushTitle": "Super rush",
-    "rushSub": "Guaranteed by 6 May, 6:00 PM SGT · ~4 hours",
+    "rushSub": "Estimated by 6 May, 6:00 PM SGT · ~4 hours",
     "addons": "Add-ons",
     "insTitle": "Travel insurance",
     "insSub": "Trip cancellation, medical, lost baggage — Allianz, 7-day cover",
@@ -216,8 +325,8 @@
     "payTitle": "Choose how to pay",
     "paySub": "Secure checkout is handled by VIZA’s portal. Pick a method to continue — your application details carry over automatically.",
     "yourApp": "Your application",
-    "guaranteedBy": "Guaranteed delivery by",
-    "onTimeRefund": "On time, or your money back",
+    "guaranteedBy": "Estimated decision by",
+    "onTimeRefund": "An estimate, not a promised date",
     "govFee": "Government fee",
     "vizaProcessing": "VIZA processing",
     "expressUpgrade": "Express upgrade",
@@ -229,8 +338,8 @@
     "superRush": "Super rush",
     "insurance": "Insurance",
     "esim": "eSIM",
-    "helpOnline": "Priya is online",
-    "helpTap": "Tap to chat with your VIZA consultant",
+    "helpOnline": "Need a hand?",
+    "helpTap": "Tap to reach a VIZA advisor",
     "payAmount": "Pay SGD {amount}",
     "totalAmount": "SGD {amount}",
     "payFree": "Free — no payment needed",
@@ -270,17 +379,15 @@
     "resultsCount": "Showing <b>{count}</b> destinations <dot></dot> sorted by <b>{sort}</b>",
     "grid": "Grid",
     "map": "Map",
-    "mapLegendEvisa": "e-Visa & visitor visas",
+    "mapLegendEvisa": "Embassy submission — lodged with a consulate or visa centre, takes longer",
     "mapHint": "Hover a highlighted dot to preview a destination",
     "sectionTitle": "For {country} passports",
     "seeAll": "See all {n}",
-    "footnote": "Government visa fees are charged separately and vary by country.",
-    "fastTrack": "Fast track",
+    "footnote": "Government visa fees are charged separately and vary by country. Turnaround figures are estimates from past applications — the final decision and timing rest with the authority.",
+    "fastTrack": "Online e-visa",
     "cardType": "Type",
     "cardValid": "Valid",
     "cardFee": "VIZA fee",
-    "guaranteedBy": "Guaranteed by",
-    "guarantor": "VIZA",
     "save": "Save",
     "startApplication": "Start application",
     "seePricing": "See pricing",
@@ -306,11 +413,8 @@
       ],
       "type": [
         "All types",
-        "Tourist",
-        "Business",
-        "Work",
-        "Student",
-        "Digital nomad"
+        "Tourism",
+        "Business"
       ],
       "documents": [
         "Any documents",
@@ -319,20 +423,27 @@
         "Detailed package"
       ],
       "dates": [
-        "Select dates",
-        "This week",
-        "This month",
-        "In 3 months",
-        "In 6 months"
+        "Any travel date",
+        "Travelling this week",
+        "Travelling this month",
+        "Within 3 months",
+        "Within 6 months"
       ]
     },
     "sorts": {
-      "guaranteed": "Guaranteed delivery",
-      "feeLow": "Visa fee (low to high)",
-      "duration": "Visa duration",
-      "popular": "Popular destinations",
+      "fastest": "Fastest to process",
+      "feeLow": "Price (low to high)",
+      "duration": "Visa validity",
+      "popular": "Most popular",
       "recent": "Recently added"
-    }
+    },
+    "cardProcessing": "Typical turnaround",
+    "processingEstimate": "~{days} days",
+    "clearFilters": "Clear filters ({n})",
+    "noResults": "No destinations match these filters.",
+    "resetAll": "Reset everything",
+    "mapLegendFast": "Online e-visa — no embassy visit, usually issued within days",
+    "mapLegendTitle": "Legend"
   },
   "cities": {
     "viza-test": "Live checkout test",
@@ -389,7 +500,10 @@
     "PH": "Philippines",
     "ID": "Indonesia",
     "MY": "Malaysia",
-    "TH": "Thailand"
+    "TH": "Thailand",
+    "HK": "Hong Kong SAR",
+    "MO": "Macao SAR",
+    "TW": "Taiwan"
   },
   "countries": {
     "viza-test": "VIZA Test",
@@ -837,60 +951,55 @@
   "contact": {
     "hero": {
       "crumb": "Get in touch",
-      "status": "All four desks online",
-      "statusMeta": "· 24 consultants live now",
-      "headline": "We pick up<br></br>the phone. <em>And</em><br></br><u>we mean it.</u>",
-      "lead": "Tricky Schengen rejection. Visa expiring on Monday. Just a pricing question. <strong>Pick a channel below</strong> — phone, WhatsApp, WeChat, or email — and a consultant who handles that exact corridor will be with you in minutes, not days.",
+      "headline": "Got a question?<br></br>Just ask us.",
+      "lead": "A refusal you want to try again after, a visa running out of time, or just a price check — <strong>pick a channel below</strong>. We answer during Singapore business hours, usually within one business day.",
       "sendBrief": "Send a brief",
       "seeChannels": "See all channels",
       "channelsLabel": "Choose your channel",
-      "channelsHint": "Each one staffed by humans on our consultant floor — not a chatbot, not a forwarding inbox."
+      "channelsHint": "Every channel listed here is one we actually monitor."
     },
     "channels": {
       "whatsapp": {
-        "tag": "QR · live chat",
+        "tag": "Chat",
         "title": "WhatsApp",
-        "sub": "Fastest channel · median 2 min reply",
-        "scan": "Scan to chat",
-        "hours": "24/7 · all hours covered",
-        "action": "Start a chat ↗"
+        "sub": "Best for a quick question",
+        "numberLabel": "WhatsApp number",
+        "hours": "Mon–Fri · 9:00–18:00 SGT",
+        "action": "Open WhatsApp ↗"
       },
       "wechat": {
-        "tag": "QR · 微信",
+        "tag": "WeChat",
         "title": "WeChat",
-        "sub": "For our clients in mainland China & SEA",
-        "scan": "Scan to add",
-        "hours": "Mon–Sun · 9am–11pm SGT",
-        "action": "Open in WeChat ↗"
+        "sub": "For customers in mainland China and Southeast Asia",
+        "idLabel": "WeChat ID",
+        "idHint": "Search for this ID in WeChat and add us.",
+        "hours": "Mon–Fri · 9:00–18:00 SGT"
       },
       "phone": {
-        "tag": "Voice · 7 languages",
+        "tag": "Phone",
         "title": "Phone",
-        "sub": "For urgent visa issues — talk to a consultant",
-        "asiaLabel": "Singapore · primary",
-        "asiaLangs": "English · 普通话 · Bahasa · हिन्दी · Tagalog",
-        "americasLabel": "China · Shanghai",
-        "americasLangs": "普通话 · English",
-        "hours": "24/7 emergency line · always live",
-        "action": "Tap to dial ↗"
+        "sub": "Faster than typing for a complicated case",
+        "asiaLabel": "Singapore",
+        "asiaLangs": "English · Mandarin",
+        "hours": "Mon–Fri · 9:00–18:00 SGT",
+        "action": "Call ↗"
       },
       "email": {
-        "tag": "Async · written",
+        "tag": "Email",
         "title": "Email",
-        "sub": "Best for documents, attachments, long context",
-        "generalLabel": "General enquiries",
-        "generalSub": "Routed to the right desk within an hour.",
-        "pressLabel": "Press & partnerships",
-        "hours": "4 hour SLA on weekdays",
-        "action": "Compose ↗"
+        "sub": "Best for documents and detail",
+        "generalLabel": "General enquiries and refunds",
+        "generalSub": "Include your application reference if you have one.",
+        "hours": "Answered within one business day",
+        "action": "Write to us ↗"
       }
     },
     "form": {
       "eyebrow": "Send us a brief",
       "title": "The fastest way to a useful reply.",
-      "lede": "Tell us your nationality, where you’re going, and what’s blocking you. The form below routes you to a consultant who handles that exact corridor — not a generalist who’ll forward your email twice.",
+      "lede": "Tell us your passport, your destination, and what you're stuck on. The form goes to an advisor who knows that route.",
       "cardTitle": "Contact brief",
-      "cardNote": "Fields marked <req>▲</req> are required. We typically respond within 4 working hours.",
+      "cardNote": "Fields marked <req>▲</req> are required. We normally reply within one business day — if you're travelling within 48 hours, say so in the message.",
       "formIdLabel": "Form ID",
       "fullName": "Full name",
       "fullNamePh": "As it appears on your passport",
@@ -943,28 +1052,24 @@
       "consent": "I agree to VIZA processing my message and contact details under the <a>Privacy Policy</a>. We never share your passport details with third parties.",
       "submit": "Send brief",
       "sending": "Sending…",
-      "success": "Thanks — your brief is in. We'll reply to your email shortly.",
+      "success": "Got it — we'll reply to the email address you gave us.",
       "error": "Couldn't send your brief right now. Please retry, or reach us on WhatsApp / email."
     },
     "aside": {
-      "promiseTitle": "Response promise",
-      "promiseBody": "Every brief lands on a real consultant’s desk within minutes — never a shared inbox. Here’s how fast we typically reply, by channel.",
+      "promiseTitle": "Response times",
+      "promiseBody": "We work through enquiries during Singapore business hours. These are the actual turnarounds, not marketing numbers.",
       "sla": [
         {
-          "k": "WhatsApp",
-          "v": "~2 min"
+          "k": "WhatsApp / WeChat",
+          "v": "Same day, in business hours"
         },
         {
-          "k": "WeChat",
-          "v": "~5 min"
-        },
-        {
-          "k": "Phone (urgent)",
-          "v": "Live, 24/7"
+          "k": "Phone",
+          "v": "Answered in business hours"
         },
         {
           "k": "Email / form",
-          "v": "< 4 hrs"
+          "v": "Within one business day"
         }
       ],
       "includeTitle": "What to include",
@@ -976,69 +1081,55 @@
         "Past refusals, if any",
         "Application reference (VIZA-XXXX)"
       ],
-      "dataTitle": "Your data, briefly",
-      "dataBody": "We’re SOC 2 Type II and ISO 27001 certified. Passport scans live in a separate vault, encrypted at rest and in transit, with audit logs on every read.",
-      "dataPills": [
-        "SOC 2 Type II",
-        "ISO 27001",
-        "GDPR"
-      ]
+      "dataTitle": "About your data",
+      "dataBody": "Passport scans are stored encrypted, transferred encrypted, and access is logged. We don't sell or share your details with third parties — the privacy policy has the specifics."
     },
     "desks": {
-      "eyebrow": "Regional desks",
-      "title": "The local number<br></br>for the local consulate.",
-      "lede": "Visa rules are nationality- and consulate-specific, so our consultants are too. Each desk speaks the language of the embassies they file with every day.",
-      "directLine": "Direct line",
+      "eyebrow": "Offices",
+      "title": "Two offices,<br></br>one team.",
+      "lede": "Our advisors sit in Singapore and Shanghai and work the same hours.",
       "email": "Email",
       "address": "Address",
       "maps": "Open in Maps →",
       "cn": {
-        "status": "Online · 6 consultants",
         "title": "Shanghai",
         "sub": "China operations",
-        "tz": "GMT+8 · 9am–8pm"
+        "tz": "GMT+8 · Mon–Fri 9:00–18:00"
       },
       "sg": {
-        "status": "Online · 9 consultants",
         "title": "Singapore — HQ",
         "sub": "Asia-Pacific operations",
-        "tz": "GMT+8 · 9am–8pm"
-      }
-    },
-    "emergency": {
-      "tag": "▲ Emergency helpline · 24/7",
-      "title": "Stuck at the airport? Visa expiring tomorrow?",
-      "body": "If you’re traveling in the next 48 hours and something has gone wrong, skip the form. Call our emergency desk — it’s staffed around the clock, every day of the year, by senior consultants only.",
-      "hotlineLabel": "Emergency hotline (Asia / global)",
-      "call": "Call emergency desk"
+        "tz": "GMT+8 · Mon–Fri 9:00–18:00"
+      },
+      "directLine": "Phone"
     },
     "faq": {
       "eyebrow": "Before you write",
-      "title": "A few questions we get every day.",
-      "lede": "If your question is in here, you’ll get an answer faster from reading than from waiting for a reply. If not — please do write.",
+      "title": "The questions we get most.",
+      "lede": "If yours is here, reading the answer is faster than waiting for a reply.",
       "q1": {
-        "q": "How fast will I actually hear back?",
-        "a": "Median: 2 minutes on WhatsApp, 5 minutes on WeChat, and under 4 hours on email. Phone is always live. If your trip is in the next 48 hours, call the emergency line — it skips the queue."
+        "q": "How quickly will you reply?",
+        "a": "WhatsApp and WeChat: same day within business hours. Email and the form: within one business day. We work Monday to Friday, 9:00–18:00 Singapore time, and don't work weekends or Singapore public holidays. If you're travelling within 48 hours, say so at the top of your message and we'll bring it forward."
       },
       "q2": {
-        "q": "Do you charge for an initial consult?",
-        "a": "No. Quotes and corridor-specific advice are free. You only pay once you decide to file an application through us, and we publish the full fee breakdown before you commit."
+        "q": "Does an enquiry cost anything?",
+        "a": "No. Requirement checks, quotes and document lists are free. You only pay if you decide to lodge through us, and you see the full breakdown — government fee and our fee listed separately — before you do."
       },
       "q3": {
-        "q": "Will my passport be safe?",
-        "a": "Passport scans live in a separate encrypted vault with audit logs on every read. We’re SOC 2 Type II and ISO 27001 certified. We do not share your data with third parties under any circumstances."
+        "q": "Is my passport information safe?",
+        "a": "Passport scans are stored encrypted, transferred encrypted, access is logged, and we don't share or sell them to third parties. Retention periods, the rights you can exercise, and who to contact are set out in the privacy policy."
       },
       "q4": {
-        "q": "Can I add VIZA on WeChat from outside China?",
-        "a": "Yes — scan the QR above from any WeChat app, anywhere. Our SEA and China desks both staff the WeChat channel, so you get a reply in your business hours, not ours."
+        "q": "Can I add you on WeChat from outside mainland China?",
+        "a": "Yes — search for our WeChat ID and add us from any region. WeChat is watched by colleagues in both China and Southeast Asia, with the same same-day turnaround in business hours."
       },
       "q5": {
-        "q": "I had a visa refusal. Can you still help?",
-        "a": "Often, yes. Send us the refusal letter (or as much detail as you have) on the form above and we’ll come back with a corridor-specific refile plan and the realistic odds. Refusals are not the end of the road."
+        "q": "I've been refused before. Can you still help?",
+        "a": "Usually. Send us the refusal letter or whatever detail you have; we'll work out which category the reason falls into and whether re-applying is worth it and what would need to change. We'll tell you honestly how likely it looks rather than taking the job regardless."
       },
       "q6": {
-        "q": "I’m a partner / agent / OTA. Different inbox?",
-        "a": "Yes — please email <a>sales@kelin.studio</a> directly. Partnerships are handled by a dedicated BD team and routed separately from consumer queries."
+        "q": "I'm an agency, travel agent or OTA — how do we work together?",
+        "a": "Email us with what you have in mind and rough volumes in the subject line, and a colleague on the business side will pick it up."
       }
     }
   },
@@ -1466,9 +1557,9 @@
     },
     "hero": {
       "eyebrow": "Transparency · Refunds Policy",
-      "title1": "If we miss, <em>you don’t pay.</em>",
-      "title2": "If they miss, we still try.",
-      "lede": "Every visa application carries two costs — what the government charges, and what we charge for handling it. This page explains, line by line, <strong>what you get back, when, and why</strong>. No buried clauses, no “subject-to” footnotes."
+      "title1": "If we get it wrong, <em>you don’t pay.</em>",
+      "title2": "The consulate’s decision isn’t ours to make.",
+      "lede": "Every visa application carries two costs — what the government charges, and what we charge for handling it. This page sets out line by line <strong>what comes back and when</strong>. We are answerable for the parts we control: documents, forms, and filing on time."
     },
     "meta": {
       "effective": "Effective",
@@ -1487,8 +1578,8 @@
       "c1": {
         "num": "100",
         "small": "%",
-        "title": "Service fee back if we miss the date",
-        "body": "Our entire handling fee is refunded if your visa arrives after the date we guaranteed at checkout."
+        "title": "Our mistake, full service fee back",
+        "body": "If a delay or refusal traces back to us — wrong form, wrong documents, or not filed when we said we would — the whole handling fee is refunded."
       },
       "c2": {
         "num": "7",
@@ -1502,10 +1593,10 @@
         "body": "If a visa is refused for reasons within our control, we re-file once at our cost — including a fresh government fee."
       },
       "c4": {
-        "num": "24",
-        "small": "/7",
-        "title": "Human, never a form",
-        "body": "Claims are reviewed by a real consultant in our Singapore office, not a queueing bot. Always."
+        "num": "1",
+        "small": "business day",
+        "title": "Reviewed by a person",
+        "body": "Claims are reviewed by a consultant in our Singapore office, normally acknowledged within one business day."
       }
     },
     "toc": {
@@ -1518,14 +1609,14 @@
       "claim": "Filing a claim",
       "faq": "Common questions",
       "changelog": "Changelog",
-      "help": "Need this in writing for an employer or insurer?",
-      "download": "Download as PDF"
+      "help": "Need a refund position confirmed in writing for a specific application?",
+      "helpLink": "Contact us"
     },
     "summary": {
       "num": "§ 01",
       "title": "The whole policy, in one line.",
-      "intro": "If we don’t deliver on what we promised at checkout, you don’t pay us for it. Government fees follow each embassy’s own rules — we collect them on your behalf and pass on whatever the consulate returns.",
-      "callout": "The single thing worth remembering: <strong>our service fee is fully refundable</strong> if we miss your guaranteed delivery date, lose your documents, or refuse a re-file we promised. Government fees are <strong>refundable only if the embassy issues a refund</strong> — most never do once an application is filed."
+      "intro": "If the problem is on our side of the line, you don’t pay us for the work. Government fees follow each embassy’s own rules — we collect them for you and pass on whatever the consulate returns.",
+      "callout": "The single thing worth remembering: when <strong>the fault is ours</strong> — wrong form, documents prepared incorrectly, not filed when we said, your documents lost, or a promised re-file we didn’t honour — <strong>our service fee is refunded in full</strong>. When a consulate decides, and what it decides, is outside our control and we make no promise about it. Government fees are <strong>refundable only if the embassy issues a refund</strong> — most never do once an application is filed."
     },
     "fees": {
       "num": "§ 02",
@@ -1547,8 +1638,8 @@
           "service": {
             "k": "Line item 02",
             "name": "VIZA service",
-            "desc": "Application prep, document review, fast-track filing, your consultant, and on-time guarantee.",
-            "badge": "Fully refundable on our promise"
+            "desc": "Application prep, document review, form completion and checking, fast-track filing, and your consultant.",
+            "badge": "Fully refundable when the fault is ours"
           },
           "partner": {
             "k": "Line item 03",
@@ -1605,8 +1696,8 @@
           }
         },
         "missDate": {
-          "title": "We miss the guaranteed date",
-          "sub": "Delay caused by VIZA or our network",
+          "title": "The delay was ours",
+          "sub": "We didn’t file when we said, or it stalled inside our own process",
           "gov": {
             "v": "0%",
             "label": "Visa was still issued"
@@ -1621,8 +1712,8 @@
           }
         },
         "rejectedFault": {
-          "title": "Visa rejected — our fault",
-          "sub": "Document error, wrong form, missed deadline",
+          "title": "Visa refused — our fault",
+          "sub": "We filled the form in wrong, used the wrong version, prepared documents that didn’t meet the requirement, or missed an official deadline",
           "gov": {
             "v": "100%",
             "label": "We re-file at our cost"
@@ -1634,6 +1725,22 @@
           "partner": {
             "v": "50%",
             "label": "Courier re-used where possible"
+          }
+        },
+        "rejectedApplicant": {
+          "title": "Visa refused — the information you gave was wrong",
+          "sub": "A name, passport number, date of birth, itinerary or employment detail was incorrect or untrue, and you confirmed it at the review step",
+          "gov": {
+            "v": "0%",
+            "label": "Embassy keeps the fee"
+          },
+          "service": {
+            "v": "0%",
+            "label": "Service was delivered"
+          },
+          "partner": {
+            "v": "0%",
+            "label": "Service was delivered"
           }
         },
         "rejectedDiscretion": {
@@ -1685,12 +1792,12 @@
           }
         }
       },
-      "muted": "“Goodwill credit” means VIZA travel credit redeemable against any future application, valid 24 months. You can convert credit to a cash refund on request — we just default to credit because most travellers come back."
+      "muted": "A “goodwill credit” is VIZA travel credit against any future application, valid 24 months. You can ask for it as a cash refund at any time. On where the line sits: we are responsible for filling the form, for whether the documents meet the official requirement, and for filing when we said we would. You are responsible for the accuracy and truthfulness of what you tell us. The review step shows you the final content to confirm — an error still present after you confirm it sits with the applicant."
     },
     "timeline": {
       "num": "§ 04",
       "title": "How a refund actually moves.",
-      "intro": "Most refund pages stop at “we will process within reasonable time”. Here is the real internal SLA — the same one our refunds team is measured against.",
+      "intro": "Here is how a refund actually moves through us, and roughly how long each step takes. If a step runs slow, we tell you why rather than leaving you to ask.",
       "steps": {
         "file": {
           "time": "Hour 0",
@@ -1700,7 +1807,7 @@
         "ack": {
           "time": "Hour 4",
           "title": "Acknowledged",
-          "desc": "A real consultant — not a chatbot — confirms receipt and shares the case ID."
+          "desc": "A consultant confirms receipt and gives you a case number."
         },
         "review": {
           "time": "Day 1–2",
@@ -1736,13 +1843,12 @@
     "claim": {
       "num": "§ 06",
       "title": "Filing a claim takes ninety seconds.",
-      "intro": "No forms, no ticket numbers, no “kindly revert”. One of three doors, all of them open.",
+      "intro": "Two ways in. Either is fine.",
       "items": {
-        "inapp": "<strong>In-app.</strong> Open any application in your VIZA dashboard, scroll to <em>Money & receipts</em>, click <em>Open refund claim</em>. Pre-filled with your case ID.",
-        "email": "<strong>By email.</strong> Reply to any thread from your consultant, or write to <link>refunds@viza.co</link> with the application reference.",
-        "person": "<strong>In person.</strong> Walk into any VIZA office — Shanghai or Singapore — between 09:00 and 18:00 local time. Bring your passport."
+        "inapp": "<strong>In the portal.</strong> Open the application, go to <em>Help & support</em>, and start a refund request. Your case reference is filled in for you.",
+        "email": "<strong>By email.</strong> Reply to any thread from your consultant, or write to <link>support@viza.it.com</link> with the application reference."
       },
-      "escalate": "Unhappy with the outcome? Every decision can be escalated to our refunds committee, chaired by our Chief Customer Officer, who reviews disputed cases weekly. From there, Singapore CASE mediation is available at no cost to you."
+      "escalate": "If you disagree with the outcome, reply to the decision email saying why and we’ll review it again. If we still can’t agree, Singapore CASE mediation is open to you at no cost."
     },
     "faq": {
       "num": "§ 07",
@@ -1755,7 +1861,7 @@
         },
         "rejected": {
           "q": "My visa was rejected. Do I get my money back?",
-          "a": "It depends on <strong>why</strong> it was rejected. If the rejection traces back to something we got wrong — a wrong form, an out-of-date supporting document, a missed deadline — we refund our full fee <strong>and</strong> re-file at our cost. If the rejection was the embassy’s own discretion (intent, prior travel, eligibility), the government fee is gone and we apply a 25% goodwill credit toward your next application."
+          "a": "It depends on <strong>why</strong>. If the refusal traces to a mistake of ours — wrong form, wrong version, documents that didn’t meet the requirement, a missed deadline — we refund the service fee in full <strong>and</strong> re-file at our cost. If it was consular discretion (intent, travel history, eligibility), the government fee can’t come back and we put a 25% goodwill credit against your next application. If the refusal follows from information you gave us that was wrong and that you confirmed at the review step, no refund applies."
         },
         "settleTime": {
           "q": "How long does the money take to actually show up?",
@@ -1767,7 +1873,7 @@
         },
         "holiday": {
           "q": "I missed a deadline because of a public holiday in another country. Is that on me?",
-          "a": "No — that’s on us. Every guaranteed-delivery date already accounts for declared public holidays in the destination country, plus a buffer for embassy processing backlogs. If we got that math wrong, you’re covered under “we miss the guaranteed date” in §03."
+          "a": "If we scheduled the filing without accounting for a published public holiday at the destination and filed late as a result, that’s on us — the “the delay was ours” row in §03 applies. If the consulate is simply slower clearing a post-holiday backlog, that isn’t within our control; we keep chasing it and keep you updated."
         },
         "cashCredit": {
           "q": "Can I get the goodwill credit as cash instead?",
@@ -1799,12 +1905,12 @@
       },
       "cta": {
         "title": "Have an open application that’s running late?",
-        "body": "Open a claim from your dashboard. A real consultant will review it within 4 working hours — usually faster.",
+        "body": "Start a refund request from the portal, or talk to a consultant directly.",
         "open": "Open a refund claim",
         "talk": "Talk to a consultant"
       }
     },
-    "updatedStrip": "Last reviewed by VIZA Legal & Customer teams on 1 May 2026 · Next scheduled review 1 Aug 2026 · <link>View the audit log</link>"
+    "updatedStrip": "This policy was last updated on 1 May 2026. If any clause is unclear, just ask us."
   },
   "security": {
     "hero": {
@@ -1829,10 +1935,6 @@
           "k": "Region",
           "v": "SG · US · EU"
         },
-        "audit": {
-          "k": "Audit cadence",
-          "v": "Quarterly"
-        },
         "retention": {
           "k": "Retention",
           "v": "90 days max"
@@ -1849,25 +1951,15 @@
       "restVal": "AES-256, region-pinned"
     },
     "stats": {
-      "docs": {
-        "value": "2.4M",
-        "unit": "+",
-        "label": "Documents handled in 2025, zero customer-data breaches"
-      },
       "retention": {
         "value": "90",
         "unit": "d",
         "label": "Maximum retention for source documents after issuance"
       },
-      "pentests": {
-        "value": "4×",
-        "unit": "/yr",
-        "label": "External penetration tests, all reports published internally"
-      },
       "ack": {
-        "value": "'<'24",
-        "unit": "hr",
-        "label": "Median time-to-acknowledge for a reported vulnerability"
+        "value": "3",
+        "unit": "business days",
+        "label": "Target for acknowledging a vulnerability report"
       }
     },
     "docs": {
@@ -1913,7 +2005,7 @@
         "payments": {
           "tag": "/payments",
           "title": "Secure payments",
-          "body": "Card data is tokenised through a PCI-DSS Level 1 processor — we never see or store full card numbers. Every transaction goes through 3-D Secure 2.0, multi-factor authentication, and our internal fraud-detection layer.",
+          "body": "Card details are handled and tokenised by Stripe — the number never passes through or rests in VIZA's systems. The payment page is hosted by Stripe; we only receive the result.",
           "why": "<strong>Why:</strong> a stolen VIZA session cannot complete a payment alone."
         },
         "atRest": {
@@ -1927,12 +2019,6 @@
           "title": "End-to-end encryption",
           "body": "All traffic between your device, our servers, and partner consulates uses TLS 1.3 with strict pinning. Document uploads use a separate, signed channel so that even network-level adversaries can’t see what you’re sending.",
           "why": "<strong>Why:</strong> hostile networks, including airport Wi-Fi, can’t read your application."
-        },
-        "audits": {
-          "tag": "/audits",
-          "title": "Regular security audits",
-          "body": "We run an external penetration test every quarter, an annual SOC 2 Type II audit, and continuous automated vulnerability scanning. Every finding is logged with a fix-by date, and overdue items page the engineering lead.",
-          "why": "<strong>Why:</strong> threats move; our defences are checked against them on a clock."
         },
         "access": {
           "tag": "/access",
@@ -1952,23 +2038,19 @@
       "tag": "▲ Vulnerability disclosure · open to all researchers",
       "title": "Found something?<br></br><em>We want to hear about it.</em>",
       "p1": "The security of our users and partners is everything. If you believe you’ve identified a genuine vulnerability affecting VIZA services, we’d like you to tell us about it directly — and we’ll work with you respectfully and quickly to fix it.",
-      "p2": "Email your findings to <strong>security@viza.it.com</strong>. We’ll acknowledge receipt within one business day, even if it turns out to be already-known or out-of-scope.",
+      "p2": "Send what you found to <strong>security@viza.it.com</strong>. We acknowledge within three business days even if the issue is already known or out of scope.",
       "meta": {
         "ack": {
-          "k": "Acknowledged in",
-          "v": "'<' 24 hours"
+          "k": "Acknowledgement",
+          "v": "Within 3 business days"
         },
         "triage": {
-          "k": "Triaged in",
-          "v": "3 business days"
+          "k": "Initial triage",
+          "v": "Within 5 business days"
         },
         "lang": {
           "k": "Languages",
-          "v": "EN · ID · AR"
-        },
-        "pgp": {
-          "k": "PGP key",
-          "v": "0xVIZA · 2026"
+          "v": "English · 中文"
         }
       },
       "ctaEmail": "Email security@viza.it.com",
@@ -2026,9 +2108,8 @@
         "pill": "In scope",
         "heading": "Reports we’ll actively triage",
         "items": {
-          "web": "VIZA web applications and APIs at <code>*.viza.com</code> — including the applicant portal, consultant console, and partner endpoints.",
+          "web": "VIZA web applications and APIs at <code>*.viza.it.com</code> — including the applicant portal, consultant console, and partner endpoints.",
           "infra": "VIZA-owned infrastructure and services — auth, payments, document pipeline, scheduling.",
-          "mobile": "Mobile applications (iOS, Android) published under the VIZA developer account.",
           "marketing": "Public-facing marketing and content sites under VIZA-controlled domains."
         }
       },
@@ -2064,7 +2145,7 @@
         "title": "VIZA <em>commitments.</em>",
         "p": "In return, we don’t ghost reporters, we don’t argue severity to dodge a fix, and we don’t sue people who help us.",
         "items": {
-          "1": "We will review every valid report and respond within one business day, no matter the severity.",
+          "1": "We read every valid report and reply within three business days, whatever the severity.",
           "2": "We will communicate respectfully — no defensive language, no “working as intended” hand-waving.",
           "3": "We will take appropriate remediation actions where required, and tell you when the fix has shipped.",
           "4": "We will credit you (with consent) in our security changelog when the issue is resolved."

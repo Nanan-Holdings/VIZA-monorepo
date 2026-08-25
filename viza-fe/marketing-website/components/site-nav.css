@@ -158,6 +158,7 @@
   cursor: pointer;
 }
 .site-nav .icon-btn:hover { background: var(--brand-50); color: var(--brand-500); }
+.site-nav a.icon-btn, .site-nav a.avatar { text-decoration: none; }
 .site-nav .avatar {
   width: 40px; height: 40px; border-radius: 999px;
   background: linear-gradient(135deg, var(--brand-400), var(--brand-600));

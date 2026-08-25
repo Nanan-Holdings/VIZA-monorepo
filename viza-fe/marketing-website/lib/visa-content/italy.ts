@@ -39,7 +39,7 @@ export const italy: VisaContent = {
     { k: "Entry", v: "Single · double · multiple" },
   ],
   tags: [
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Full document review" },
     { icon: "bolt", label: "Schengen-wide access" },
   ],
@@ -70,8 +70,8 @@ export const italy: VisaContent = {
       title: "Biometrics & consulate review",
       body: "You attend in person to give fingerprints (waived if captured within the previous 59 months). The consulate's standard decision window is 15 calendar days, extendable to 45 when further scrutiny is needed — we track the queue and flag any document requests.",
       statusRows: [
-        { label: "Biometrics appointment confirmed", ts: "15 Jun, 9:30 AM", onTime: true },
-        { label: "Application lodged with consulate", ts: "15 Jun, 12:00 PM", onTime: true },
+        { label: "Biometrics appointment confirmed", ts: "15 Jun, 9:30 AM" },
+        { label: "Application lodged with consulate", ts: "15 Jun, 12:00 PM" },
         { label: "Awaiting consulate decision", ts: "In progress" },
       ],
     },
@@ -232,7 +232,7 @@ export const italy: VisaContent = {
     etaValue: "29 Jun 2026, 03:00 PM",
     title: "Schengen Visa (Type C) · up to 90 days",
     saving: "Full dossier review included",
-    sub: "All-inclusive of document review, form preparation, and on-time guarantee.",
+    sub: "All-inclusive of document review, form preparation, and an advisor check before filing.",
     foot: "Government visa fee (€90 adult) is collected at checkout and paid to the consulate; VIZA's service fee covers preparation, review, and appointment support.",
   },
 

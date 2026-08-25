@@ -45,7 +45,7 @@ export const saudiArabia: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · in 24 hrs" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -75,8 +75,8 @@ export const saudiArabia: VisaContent = {
       title: "Your eVisa gets processed",
       body: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours. We track the application and flag any delay well before your departure — we recommend applying at least 72 hours before travel.",
       statusRows: [
-        { label: "Application submitted to visa.visitsaudi.com", ts: "13 Jun, 8:30 AM", onTime: true },
-        { label: "Payment confirmed · insurance policy assigned", ts: "13 Jun, 8:42 AM", onTime: true },
+        { label: "Application submitted to visa.visitsaudi.com", ts: "13 Jun, 8:30 AM" },
+        { label: "Payment confirmed · insurance policy assigned", ts: "13 Jun, 8:42 AM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -180,7 +180,7 @@ export const saudiArabia: VisaContent = {
     {
       category: "Application process",
       q: "How long does VIZA take to process a Saudi eVisa?",
-      a: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours, delivered as an email attachment. We back our 24-hour timeline with an on-time guarantee — your money back if we're late — and recommend applying at least 72 hours before travel as a buffer.",
+      a: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours, delivered as an email attachment. We file immediately and recommend applying at least 72 hours before travel as a buffer; the Ministry sets the actual issue time.",
     },
     {
       category: "Application process",
@@ -212,8 +212,8 @@ export const saudiArabia: VisaContent = {
     etaValue: "14 Jun 2026, 02:15 PM",
     title: "Tourist eVisa · 1-year multiple entry · 90-day stays",
     saving: "1 day faster",
-    sub: "All-inclusive of government fee, mandatory medical insurance, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, mandatory medical insurance, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about Saudi Arabia visas — fees, processing, documents…",

@@ -31,7 +31,7 @@ export const unitedKingdom: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "快速通道 · 顾问全程协助" },
-    { icon: "shield", label: "准时保证" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "材料全面审核" },
   ],
 
@@ -61,8 +61,8 @@ export const unitedKingdom: VisaContent = {
       title: "生物采集与 UKVI 审理",
       body: "您前往 VFS Global 签证申请中心采集指纹和面部照片（无需上传照片）。随后我们跟踪 UKVI 进度；视地区开放情况可加购优先服务（约 5 个工作日，+GBP 500）或超级优先服务（约 1 个工作日，+GBP 1,000）。",
       statusRows: [
-        { label: "申请已提交至 UKVI", ts: "6月12日 上午9:00", onTime: true },
-        { label: "已在 VFS Global 完成生物采集", ts: "6月13日 上午11:30", onTime: true },
+        { label: "申请已提交至 UKVI", ts: "6月12日 上午9:00" },
+        { label: "已在 VFS Global 完成生物采集", ts: "6月13日 上午11:30" },
         { label: "等待 UKVI 最终决定", ts: "进行中" },
       ],
     },
@@ -192,8 +192,8 @@ export const unitedKingdom: VisaContent = {
     etaValue: "2026年7月3日 14:00",
     title: "标准访客签证 · 最长 6 个月",
     saving: "顾问全程协助 · 减少延误",
-    sub: "含 UKVI 申请费、材料审核、生物采集预约及准时保证，全包价格。",
-    foot: "UKVI 申请费与 VIZA 服务费在结账时一并收取，并附准时保证。",
+    sub: "含 UKVI 申请费、材料审核与生物采集预约，全包价格。",
+    foot: "UKVI 申请费与 VIZA 服务费在结账时一并收取。办理时间为估算值，最终由官方决定。",
   },
 
   aiPlaceholder: "关于英国访客签证，随时提问——材料、处理时间、申请资格……",

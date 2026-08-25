@@ -44,7 +44,7 @@ export const unitedArabEmirates: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "48-hr government processing" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -74,8 +74,8 @@ export const unitedArabEmirates: VisaContent = {
       title: "Your visa gets processed",
       body: "GDRFA Dubai's stated processing time is 48 hours. We monitor each stage and flag any delays so you always know where things stand.",
       statusRows: [
-        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM", onTime: true },
-        { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM", onTime: true },
+        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM" },
+        { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM" },
         { label: "Awaiting final visa issuance", ts: "In progress" },
       ],
     },
@@ -192,7 +192,7 @@ export const unitedArabEmirates: VisaContent = {
     {
       category: "Application process",
       q: "How quickly will I receive my UAE tourist visa?",
-      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end, backed by our on-time guarantee — your money back if we're late.",
+      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end, Issuing timelines are set by the authority, so we quote estimates rather than promising a date.",
     },
     {
       category: "Application process",
@@ -239,8 +239,8 @@ export const unitedArabEmirates: VisaContent = {
     etaValue: "18 Jun 2026, 12:00 PM",
     title: "Tourist visa · 30 or 60-day stay",
     saving: "Faster than applying direct",
-    sub: "All-inclusive of government fee, document review, and on-time guarantee.",
-    foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of government fee, document review, and an advisor check before filing.",
+    foot: "Government fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about UAE visas — visa-free entry, fees, extensions…",
