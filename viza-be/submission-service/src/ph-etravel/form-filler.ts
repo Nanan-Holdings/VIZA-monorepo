@@ -1767,7 +1767,24 @@ export async function fillPhEtravelOfficialDeclaration(
           "family_next_control_missing",
         );
       }
-      await page.waitForTimeout(1_000);
+      const noCompanionPrompt = page.getByText(
+        /haven't selected any family members|not traveling with a companion|traveling with a companion/i,
+      ).first();
+      const promptVisible = await noCompanionPrompt
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!promptVisible ||
+        !await clickVisibleButton(page, /^yes$|^confirm$|^continue$|proceed|not traveling with a companion/i)) {
+        throw new PhEtravelFormFillError(
+          "Philippines eTravel companion confirmation did not expose a confirmation control.",
+          "ph_etravel_family_companion_confirmation",
+          promptVisible ? "family_confirmation_control_missing" : "family_confirmation_prompt_missing",
+        );
+      }
+      postSignatureSemantics.push("no_companion_confirmation");
+      await options.onStep?.("family-none-confirmed");
+      await page.waitForTimeout(1_500);
       continue;
     }
     if (postSignatureSemantic === "no_companion_confirmation" && canContinueObservedAirWizard &&
