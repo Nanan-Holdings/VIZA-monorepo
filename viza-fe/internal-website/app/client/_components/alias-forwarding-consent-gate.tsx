@@ -21,9 +21,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { LOCAL_TEST_SESSION_COOKIE_NAME } from "@/lib/client-dev-session";
 
 interface AliasForwardingConsentGateProps {
   enabled: boolean;
+}
+
+export function shouldBypassAliasForwardingConsentGate(
+  cookieString: string,
+  nodeEnv = process.env.NODE_ENV,
+  hostname = typeof window === "undefined" ? "" : window.location.hostname,
+): boolean {
+  if (nodeEnv !== "development") return false;
+  if (hostname !== "localhost" && hostname !== "127.0.0.1") return false;
+  return cookieString
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .some((cookie) => cookie === `${LOCAL_TEST_SESSION_COOKIE_NAME}=1`);
 }
 
 function actionErrorMessage(code: ApplicantInboxActionErrorCode, isZh: boolean): string {
@@ -46,6 +60,13 @@ export function AliasForwardingConsentGate({
   enabled,
 }: AliasForwardingConsentGateProps) {
   const isZh = isChineseLocale(useLocale());
+  const bypassed =
+    typeof document !== "undefined" &&
+    shouldBypassAliasForwardingConsentGate(
+      document.cookie,
+      process.env.NODE_ENV,
+      window.location.hostname,
+    );
   const [setup, setSetup] = useState<ApplicantInboxSetupState | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,7 +74,7 @@ export function AliasForwardingConsentGate({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || bypassed) return;
 
     let cancelled = false;
     setLoading(true);
@@ -79,9 +100,9 @@ export function AliasForwardingConsentGate({
     return () => {
       cancelled = true;
     };
-  }, [enabled, isZh]);
+  }, [bypassed, enabled, isZh]);
 
-  if (!enabled || loading || setup?.forwardingAuthorized) {
+  if (!enabled || bypassed || loading || setup?.forwardingAuthorized) {
     return null;
   }
 

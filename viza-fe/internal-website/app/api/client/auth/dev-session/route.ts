@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClientSession } from "@/lib/client-session";
+import { LOCAL_TEST_SESSION_COOKIE_NAME } from "@/lib/client-dev-session";
 import { isLocalTestSessionAllowed } from "./availability";
 
 export async function POST(request: Request) {
@@ -21,5 +22,13 @@ export async function POST(request: Request) {
   }
 
   await createClientSession(userId, email);
-  return NextResponse.json({ success: true, redirectTo: "/client/home" });
+  const response = NextResponse.json({ success: true, redirectTo: "/client/home" });
+  response.cookies.set(LOCAL_TEST_SESSION_COOKIE_NAME, "1", {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: false,
+    path: "/",
+    maxAge: 60 * 60,
+  });
+  return response;
 }

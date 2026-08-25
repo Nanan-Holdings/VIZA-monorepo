@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AliasForwardingConsentGate } from "../alias-forwarding-consent-gate";
+import {
+  AliasForwardingConsentGate,
+  shouldBypassAliasForwardingConsentGate,
+} from "../alias-forwarding-consent-gate";
 
 const initializeInbox = vi.fn();
 const authorizeForwarding = vi.fn();
@@ -117,5 +120,57 @@ describe("AliasForwardingConsentGate", () => {
 
     expect(await screen.findByText("登录状态已失效，请刷新页面后重新登录。")).toBeInTheDocument();
     expect(screen.getByText("授权申请专属邮箱转发")).toBeInTheDocument();
+  });
+
+  it("allows only local development test sessions to bypass the consent gate", async () => {
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "development",
+        "localhost",
+      ),
+    ).toBe(true);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "development",
+        "127.0.0.1",
+      ),
+    ).toBe(true);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "production",
+        "localhost",
+      ),
+    ).toBe(false);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "production",
+        "app.viza.it.com",
+      ),
+    ).toBe(false);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "development",
+        "192.168.0.14",
+      ),
+    ).toBe(false);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "other=1; viza_local_test_session=1",
+        "development",
+        "preview.viza.it.com",
+      ),
+    ).toBe(false);
+    expect(
+      shouldBypassAliasForwardingConsentGate(
+        "viza_local_test_session=0",
+        "development",
+        "localhost",
+      ),
+    ).toBe(false);
   });
 });

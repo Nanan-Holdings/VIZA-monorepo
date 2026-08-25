@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AUTH_REQUEST_TIMEOUT_MS } from "@/app/client/(auth)/login/page";
+import { AUTH_REQUEST_TIMEOUT_MS } from "@/lib/client-auth-timeouts";
 import { SUPABASE_AUTH_TIMEOUT_MS } from "./route";
 
 describe("client auth timeout budget", () => {
