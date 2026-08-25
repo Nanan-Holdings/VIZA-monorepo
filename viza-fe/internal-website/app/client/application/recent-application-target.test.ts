@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveApplicationCenterApplication } from "@/app/client/status/application-center-resolution";
 import { getRecentApplicationTarget } from "./recent-application-target";
 import type { ApplicationListItem } from "@/app/client/status/applications-list";
 
@@ -100,6 +101,43 @@ describe("getRecentApplicationTarget", () => {
       labelMode: "start",
       href: "#start-new-application",
       applicationId: null,
+    });
+  });
+
+  it("uses the shared edit target for the latest incomplete unpaid application", () => {
+    const applicationId = "36cdba28-us";
+    const resolution = resolveApplicationCenterApplication({
+      lifecycleState: "needs_payment",
+      paymentState: "blocked",
+      intake: {
+        complete: false,
+        questionnaireComplete: false,
+        documentCollectionComplete: true,
+      },
+      officialReadOnly: false,
+      officialProcessing: false,
+      paymentEligible: false,
+      editHref: `/client/application/long-form?applicationId=${applicationId}`,
+      detailHref: `/client/application/long-form?applicationId=${applicationId}&step=status`,
+      checkoutHref: `/client/checkout?applicationId=${applicationId}`,
+    });
+
+    const target = getRecentApplicationTarget([
+      item([
+        record({
+          applicationId,
+          ongoing: resolution.editable,
+          continueHref: resolution.rowHref,
+          detailHref: resolution.rowHref,
+          updatedAt: "2026-08-25T10:00:00.000Z",
+        }),
+      ]),
+    ]);
+
+    expect(target).toEqual({
+      labelMode: "continue",
+      href: `/client/application/long-form?applicationId=${applicationId}`,
+      applicationId,
     });
   });
 });

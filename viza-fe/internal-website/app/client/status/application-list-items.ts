@@ -1,7 +1,6 @@
 import {
   getPopularVisaDestinationByPackage,
 } from "@/lib/visa-destinations";
-import { isOngoingApplicationState } from "@/lib/client/active-application-selection";
 import { isDs160VisaType } from "@/lib/submission-queue";
 import type {
   ApplicationListItem,
@@ -113,7 +112,7 @@ export function toApplicationListItem(
       visaType: record.visaType,
       continueHref: record.continueHref,
       detailHref: record.detailHref,
-      ongoing: isOngoingApplicationState(record.state),
+      ongoing: record.editable,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       submittedAt: record.submittedAt,

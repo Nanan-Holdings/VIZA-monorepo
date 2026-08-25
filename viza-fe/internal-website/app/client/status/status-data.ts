@@ -24,6 +24,12 @@ import {
   getAutomatedOnlineSubmissionEvidence,
   isAutomatedOnlineVisaType,
 } from "@/lib/submission-result-evidence";
+import { loadApplicationCompleteness } from "@/lib/application-completeness";
+import {
+  resolveApplicationCenterApplication,
+  type ApplicantIntakeSummary,
+  type ApplicationCenterResolution,
+} from "./application-center-resolution";
 
 export type StatusStepKey =
   | "payment"
@@ -113,6 +119,7 @@ export interface CountryApplicationRecord {
   file: StatusFile | null;
   detailHref: string;
   continueHref: string;
+  editable: boolean;
 }
 
 export interface StatusApplication {
@@ -189,6 +196,8 @@ export interface StatusApplication {
   files: StatusFile[];
   events: StatusEvent[];
   applicationRecords: CountryApplicationRecord[];
+  centerHref: string;
+  editable: boolean;
 }
 
 export interface ClientStatusData {
@@ -586,13 +595,6 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
     : application.packageId
       ? `/client/status?packageId=${encodeURIComponent(application.packageId)}`
       : `/client/status?country=${encodeURIComponent(application.countryKey)}`;
-  const primaryAction = application.actions.find((action) => action.primary);
-  const continueHref = primaryAction?.href ?? buildApplicationLongFormHref({
-    applicationId: application.id,
-    country: application.country,
-    visaType: application.visaType,
-  });
-
   return {
     id: application.id ?? application.key,
     applicationId: application.id,
@@ -609,7 +611,8 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
     confirmationNumber: application.officialReference,
     file: getPrimaryResultFile(application),
     detailHref,
-    continueHref,
+    continueHref: application.centerHref,
+    editable: application.editable,
   };
 }
 
@@ -729,7 +732,10 @@ function getLiveStatusApplicationIds(applications: ApplicationRow[]): string[] {
 }
 
 function getLatestPayment(rows: PaymentRow[]): PaymentRow | null {
-  return sortByNewest(rows, (row) => row.updated_at ?? row.created_at)[0] ?? null;
+  return sortByNewest(
+    rows.filter((row) => normalizeStatus(row.fee_type) === "agency_fee"),
+    (row) => row.updated_at ?? row.created_at,
+  )[0] ?? null;
 }
 
 function getLatestPacket(rows: PacketRow[]): PacketRow | null {
@@ -904,6 +910,35 @@ function getResultState(
   return handoffComplete ? "current" : "upcoming";
 }
 
+function applicationIsOfficialReadOnly(
+  application: ApplicationRow,
+  liveSubmission: LiveSubmissionSummary | null,
+): boolean {
+  const rawStatus = normalizeStatus(application.status);
+  const resultStatus = normalizeStatus(application.result_status);
+  const submissionResultStatus = normalizeStatus(application.submission_result_status);
+  return Boolean(
+    submissionResultIsSubmitted(application) ||
+    SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) ||
+    APPROVED_RESULT_STATUSES.has(rawStatus) ||
+    APPROVED_RESULT_STATUSES.has(resultStatus) ||
+    REJECTED_RESULT_STATUSES.has(rawStatus) ||
+    REJECTED_RESULT_STATUSES.has(resultStatus) ||
+    application.external_reference ||
+    (liveSubmission && ["submitted", "completed"].includes(liveSubmission.state))
+  );
+}
+
+function applicationIsOfficialProcessing(
+  application: ApplicationRow,
+  liveSubmission: LiveSubmissionSummary | null,
+): boolean {
+  return Boolean(
+    EXTERNAL_ACTIVE_STATUSES.has(normalizeStatus(application.external_status)) ||
+    (liveSubmission && ["pending", "running"].includes(liveSubmission.state))
+  );
+}
+
 function getOverallState(steps: StatusStep[], application: ApplicationRow | null): ClientStatusState {
   const rawStatus = normalizeStatus(application?.status);
   const resultStatus = normalizeStatus(application?.result_status);
@@ -967,6 +1002,7 @@ function buildActions(
   packageBase: { country: string; visaType: string },
   steps: StatusStep[],
   resultFile: StatusFile | null,
+  centerResolution?: ApplicationCenterResolution,
 ): StatusAction[] {
   const applicationHref = buildApplicationLongFormHref({
     applicationId: application?.id,
@@ -978,6 +1014,14 @@ function buildActions(
   if (!application) {
     actions.push({ key: "startApplication", href: applicationHref, primary: true });
     return actions;
+  }
+
+  if (centerResolution?.actions) return centerResolution.actions;
+  if (centerResolution && !centerResolution.editable) {
+    if (resultFile?.href) {
+      return [{ key: "downloadResult", href: resultFile.href, primary: true }];
+    }
+    return [{ key: "waitExternal", href: centerResolution.rowHref, primary: true }];
   }
 
   if (isArrivalCardStatusTarget(packageBase)) {
@@ -1023,7 +1067,10 @@ function buildActions(
     actions.push({ key: "contactSupport", href: "/client/support", primary: true });
   }
 
-  if (!actions.some((action) => action.key === "continueForm")) {
+  if (
+    centerResolution?.editable !== false &&
+    !actions.some((action) => action.key === "continueForm")
+  ) {
     actions.push({ key: "continueForm", href: applicationHref, primary: false });
   }
 
@@ -1200,6 +1247,10 @@ function buildPackageOnlyApplication(userPackage: {
     { key: "result", state: "upcoming", updatedAt: null, statusValue: null, metricValue: null },
   ];
   const state = paymentComplete ? "needs_consent" : "not_started";
+  const centerHref = buildApplicationLongFormHref({
+    country: base.country,
+    visaType: base.visaType,
+  });
 
   const shell: StatusApplication = {
     ...base,
@@ -1249,6 +1300,8 @@ function buildPackageOnlyApplication(userPackage: {
     files: [],
     events: [],
     applicationRecords: [],
+    centerHref,
+    editable: true,
   };
 
   const metricSteps = buildSteps(shell);
@@ -1273,6 +1326,7 @@ async function buildApplicationStatus({
   events,
   notifications,
   officialTracking,
+  intake,
 }: {
   adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
@@ -1287,6 +1341,7 @@ async function buildApplicationStatus({
   events: EventRow[];
   notifications: NotificationRow[];
   officialTracking: OfficialTrackingRow | null;
+  intake: ApplicantIntakeSummary | null;
 }): Promise<StatusApplication> {
   const base = buildPackageBase(application.country, application.visa_type);
   const latestPayment = getLatestPayment(payments);
@@ -1397,7 +1452,39 @@ async function buildApplicationStatus({
       })
     : null;
   const resolvedSteps = arrivalCardSteps ?? initialSteps;
-  const overallState = getOverallState(resolvedSteps, application);
+  const lifecycleState = getOverallState(resolvedSteps, application);
+  const editHref = buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: base.country,
+    visaType: base.visaType,
+  });
+  const detailHref = buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: base.country,
+    visaType: base.visaType,
+    step: "status",
+  });
+  const centerResolution = resolveApplicationCenterApplication({
+    lifecycleState,
+    paymentState: isArrivalCard ? "complete" : paymentState,
+    intake: isArrivalCard
+      ? {
+          complete: true,
+          questionnaireComplete: true,
+          documentCollectionComplete: true,
+        }
+      : intake,
+    officialReadOnly: applicationIsOfficialReadOnly(application, liveSubmission),
+    officialProcessing: applicationIsOfficialProcessing(application, liveSubmission),
+    paymentEligible:
+      isArrivalCard ||
+      normalizeStatus(application.status) === "payment_pending" ||
+      latestPayment !== null,
+    editHref,
+    detailHref,
+    checkoutHref: `/client/checkout?applicationId=${encodeURIComponent(application.id)}`,
+  });
+  const overallState = centerResolution.state;
   const progressPercent = isArrivalCard
     ? getArrivalCardProgressPercent({
         liveSubmission,
@@ -1482,6 +1569,8 @@ async function buildApplicationStatus({
       .slice(0, 3)
       .map((row) => ({ eventType: row.event_type, createdAt: row.created_at })),
     applicationRecords: [],
+    centerHref: centerResolution.rowHref,
+    editable: centerResolution.editable,
   };
 
   const metricSteps = buildSteps(shell);
@@ -1489,7 +1578,7 @@ async function buildApplicationStatus({
   return {
     ...shell,
     steps: metricSteps,
-    actions: buildActions(application, base, metricSteps, resultFile),
+    actions: buildActions(application, base, metricSteps, resultFile, centerResolution),
   };
 }
 
@@ -1825,6 +1914,41 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     officialTracking.map((row) => [row.application_id, row]),
   );
 
+  const intakeByApplication = new Map<string, ApplicantIntakeSummary | null>();
+  const intakeReads = await Promise.all(
+    applications.map(async (application) => {
+      const liveSubmission = liveSubmissionByApplication.get(application.id) ?? null;
+      if (
+        isArrivalCardVisaType(application.visa_type) ||
+        applicationIsOfficialReadOnly(application, liveSubmission)
+      ) {
+        return { id: application.id, intake: null, failed: false };
+      }
+
+      try {
+        const completeness = await loadApplicationCompleteness({
+          admin: adminClient,
+          application,
+        });
+        return {
+          id: application.id,
+          intake: {
+            complete: completeness.complete,
+            questionnaireComplete: completeness.questionnaireComplete,
+            documentCollectionComplete: completeness.documentCollectionComplete,
+          },
+          failed: false,
+        };
+      } catch {
+        return { id: application.id, intake: null, failed: true };
+      }
+    }),
+  );
+  partialData = partialData || intakeReads.some((result) => result.failed);
+  for (const result of intakeReads) {
+    intakeByApplication.set(result.id, result.intake);
+  }
+
   const statusApplications = await Promise.all(
     applications.map((application) =>
       buildApplicationStatus({
@@ -1844,6 +1968,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         events: eventsByApplication.get(application.id) ?? [],
         notifications: notificationsByApplication.get(application.id) ?? [],
         officialTracking: officialTrackingByApplication.get(application.id) ?? null,
+        intake: intakeByApplication.get(application.id) ?? null,
       }),
     ),
   );

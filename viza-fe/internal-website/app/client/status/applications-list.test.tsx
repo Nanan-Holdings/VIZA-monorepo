@@ -275,8 +275,11 @@ function statusApplication(overrides: Partial<StatusApplication> = {}): StatusAp
         file: null,
         detailHref: "/client/application/long-form?applicationId=us-one&step=status",
         continueHref: "/client/application/long-form?applicationId=us-one",
+        editable: true,
       },
     ],
+    centerHref: "/client/application/long-form?applicationId=us-one",
+    editable: true,
     ...overrides,
   };
 }

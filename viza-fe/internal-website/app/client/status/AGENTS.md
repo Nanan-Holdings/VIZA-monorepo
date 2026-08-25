@@ -46,6 +46,10 @@ results and updates from the same data.
 - Status/detail links must preserve the application ID, canonical country, and
   visa type together so the application route cannot combine a historical row
   with a stale active/default product identity.
+- Derive each application-center status, editability boundary, row target, and
+  payment/edit actions through `application-center-resolution.ts`. Incomplete
+  intake stays editable even when payment or external-processing metadata is
+  stale; only verified official submission evidence makes the row read-only.
 - Exclude applications whose purpose is `VIZA_PLACEHOLDER_DRY_RUN`; schema-QA
   records are test infrastructure, not customer application history.
 - Keep result-delivery links in the submitted application view when
