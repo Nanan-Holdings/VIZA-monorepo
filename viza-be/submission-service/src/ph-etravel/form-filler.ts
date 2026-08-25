@@ -1736,7 +1736,8 @@ export async function fillPhEtravelOfficialDeclaration(
       Boolean(options.signatureImageDataUrl);
     const canApplyObservedAirSignature = wizardRoute !== "unknown" && hasApprovedAirSignaturePath;
     const canContinueObservedAirWizard = wizardRoute === "regular_me" && hasApprovedAirSignaturePath;
-    if (postSignatureSemantic === "signature" && canApplyObservedAirSignature) {
+    if (postSignatureSemantic === "signature" && canApplyObservedAirSignature &&
+      postSignatureSemantics.length === 0) {
       if (!await applyPhEtravelSignatureCanvas(page, options.signatureImageDataUrl as string)) {
         throw new PhEtravelFormFillError(
           "Philippines eTravel declaration signature could not be applied to the official canvas.",
@@ -1754,6 +1755,14 @@ export async function fillPhEtravelOfficialDeclaration(
         );
       }
       await page.waitForTimeout(1_500);
+      continue;
+    }
+    if (postSignatureSemantic === "signature" && canApplyObservedAirSignature &&
+      postSignatureSemantics.length === 1 && postSignatureSemantics[0] === "signature") {
+      // The portal can retain the previous page text briefly after Next has
+      // already removed the canvas. Wait for the route content to settle
+      // instead of attempting to paint the same signature a second time.
+      await page.waitForTimeout(1_000);
       continue;
     }
     if (postSignatureSemantic === "family" && canContinueObservedAirWizard &&
