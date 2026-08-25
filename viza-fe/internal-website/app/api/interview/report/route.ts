@@ -2,24 +2,27 @@ import { NextRequest } from "next/server";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+/**
+ * Practice-session summary.
+ *
+ * Deliberately NOT included: a pass-likelihood verdict, a per-question
+ * good/bad judgement, or "how to answer better" suggestions. We cannot predict a
+ * consular officer's decision, and coaching someone on how to phrase answers for
+ * a visa interview is not something we should be doing. What's left is a factual
+ * record of what was asked and what the applicant said, plus a rough delivery
+ * score so they can see whether they're getting more fluent with practice.
+ */
 export interface InterviewReport {
   overallScore: number;
-  passLikelihood: "高" | "中" | "低";
   dimensions: {
     clarity: number;
     confidence: number;
     consistency: number;
     narrativeAlignment: number;
   };
-  strengths: string[];
-  improvements: string[];
   questionAnalysis: Array<{
     question: string;
     answer: string;
-    score: number;
-    flag: "strong" | "neutral" | "weak";
-    flagLabel: string;
-    note: string;
     timestamp: string;
     topic: string;
   }>;
@@ -34,12 +37,6 @@ const LLM_MODEL =
   process.env.LLM_REPORT_MODEL ?? process.env.LLM_MODEL ?? "qwen2.5:3b";
 const LLM_API_KEY =
   process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? "ollama";
-
-const FLAG_LABELS: Record<"strong" | "neutral" | "weak", string> = {
-  strong: "表现最优",
-  neutral: "中性",
-  weak: "需要注意",
-};
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -93,34 +90,19 @@ function buildLocalReport(messages: Message[]): InterviewReport {
     : 60;
   const weakCount = scored.filter((item) => item.score.flag === "weak").length;
   const strong = scored.find((item) => item.score.flag === "strong");
-  const weak = scored.find((item) => item.score.flag === "weak");
   const overallScore = clampScore(avg - Math.max(0, weakCount - 2) * 4);
-  const passLikelihood = overallScore >= 78 && weakCount <= 1 ? "高" : overallScore < 64 || weakCount >= 4 ? "低" : "中";
 
   return {
     overallScore,
-    passLikelihood,
     dimensions: {
       clarity: clampScore(avg + 4),
       confidence: clampScore(avg - (weakCount * 2)),
       consistency: clampScore(avg - (weakCount * 3)),
       narrativeAlignment: clampScore(avg + (strong ? 2 : -2)),
     },
-    strengths: [
-      strong ? `第${strong.i + 1}题细节较具体：${truncate(strong.pair.answer, 18)}` : "暂未看到特别突出的回答",
-      "能够完成主要面试问题",
-    ],
-    improvements: [
-      weak ? `第${weak.i + 1}题需要补充具体事实` : "建议每题补充城市、时间或金额",
-      "准备一版一分钟行程概括",
-    ],
     questionAnalysis: scored.map(({ pair, i, score }) => ({
       question: truncate(pair.question, 60),
       answer: truncate(pair.answer, 60),
-      score: score.score,
-      flag: score.flag,
-      flagLabel: FLAG_LABELS[score.flag],
-      note: score.note,
       timestamp: timestampForIndex(i),
       topic: score.topic,
     })),
@@ -186,27 +168,17 @@ ${numbered}
 - 80-90分（优秀）：回答具体详细，有具体数字/地点/计划，逻辑清晰
 - 90分以上：极少见，仅限回答非常完整且毫无破绽
 
-【passLikelihood 判断规则】
-- 如果超过3题回答是单字、乱码、"1"、"不知道"类敷衍内容，必须给"低"
-- 如果多数回答缺乏细节，给"中"
-- 只有回答普遍具体且逻辑一致，才给"高"
-
-请认真阅读每一条回答，根据申请人的真实表现评估，只返回以下 JSON，不要输出多余文字：
+请认真阅读每一条回答，只返回以下 JSON，不要输出多余文字：
 
 {
   "overallScore": <0-100 整数，严格按评分标准>,
-  "passLikelihood": <"高"|"中"|"低">,
   "dimensions": { "clarity": <0-100>, "confidence": <0-100>, "consistency": <0-100>, "narrativeAlignment": <0-100> },
-  "strengths": [
-    <2-3条优势，必须引用申请人的具体回答内容，说明哪道题好在哪里，每条不超过30字。如果没有明显优势，如实说明>
-  ],
-  "improvements": [
-    <2-3条改进建议，必须指出具体哪道题有什么问题，给出可操作的改进方向，每条不超过35字>
-  ],
   "questions": [
-    { "index": <题号整数>, "score": <0-100>, "flag": <"strong"|"neutral"|"weak">, "note": <针对该题回答的具体点评，不超过20字>, "topic": <4字以内话题> }
+    { "index": <题号整数>, "score": <0-100>, "topic": <4字以内话题> }
   ]
 }
+
+不要输出通过概率、每题优劣判断，或如何改进回答的建议。
 
 评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。`;
 
@@ -243,10 +215,7 @@ ${numbered}
 
     let parsed: {
       overallScore: number;
-      passLikelihood: "高" | "中" | "低";
       dimensions: InterviewReport["dimensions"];
-      strengths: string[];
-      improvements: string[];
       questions: LlmScore[];
     };
     try {
@@ -264,14 +233,9 @@ ${numbered}
     const questionAnalysis: InterviewReport["questionAnalysis"] = pairs.map(
       (pair, i) => {
         const s = scoreByIndex.get(i + 1);
-        const flag = s?.flag ?? "neutral";
         return {
           question: truncate(pair.question, 60),
           answer: truncate(pair.answer, 60),
-          score: s?.score ?? 70,
-          flag,
-          flagLabel: FLAG_LABELS[flag] ?? "中性",
-          note: s?.note ?? "回答基本符合要求",
           timestamp: timestampForIndex(i),
           topic: s?.topic ?? "综合评估",
         };
@@ -280,15 +244,12 @@ ${numbered}
 
     const report: InterviewReport = {
       overallScore: clampScore(parsed.overallScore ?? 70),
-      passLikelihood: parsed.passLikelihood ?? "中",
       dimensions: parsed.dimensions ?? {
         clarity: 70,
         confidence: 70,
         consistency: 70,
         narrativeAlignment: 70,
       },
-      strengths: parsed.strengths ?? [],
-      improvements: parsed.improvements ?? [],
       questionAnalysis,
     };
 

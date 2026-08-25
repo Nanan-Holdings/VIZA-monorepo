@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { InterviewReport } from "@/app/api/interview/report/route";
 import { useLiveTalking, type LiveTalkingStatus } from "./_hooks/use-live-talking";
+import { alertToast } from "@/components/ui/alert-toast";
 
 const TRANSCRIPT_KEY = "viza_interview_transcript";
 
@@ -351,7 +352,7 @@ function StartPage({ onStart }: { onStart: () => void }) {
           {[
             { icon: "👨‍💼", t: "真实口吻提问", d: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
             { icon: "🎙️", t: "语音双向交互", d: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
-            { icon: "📊", t: "逐题评估报告", d: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
+            { icon: "📊", t: "练习记录", d: "面试结束后生成一份练习记录：本次被问到的问题、你的回答，以及表达流畅度的综合评分。" },
           ].map((f) => (
             <div key={f.t} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
               <div className="w-[40px] h-[40px] rounded-[10px] bg-[#EEF3FA] flex items-center justify-center text-[18px] mb-4">{f.icon}</div>
@@ -367,7 +368,7 @@ function StartPage({ onStart }: { onStart: () => void }) {
           {[
             { n: 1, t: "点击开始", d: "无需注册，直接进入 AI 仿真面试，全程免费使用。" },
             { n: 2, t: "语音 / 文字作答", d: "AI 按真实节奏逐题提问，支持语音回答。" },
-            { n: 3, t: "查看详细报告", d: "自动生成综合评分报告，逐题分析并给出针对性改进建议。" },
+            { n: 3, t: "查看练习记录", d: "结束后生成一份记录：本次的问答内容和表达流畅度评分。" },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex gap-4 items-start">
               <div className="w-[36px] h-[36px] rounded-full bg-[#03346E] text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0">{s.n}</div>
@@ -730,7 +731,13 @@ function InterviewPage({
   function toggleListening() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("您的浏览器不支持语音识别，请使用 Chrome 或 Edge。"); return; }
+    if (!SR) {
+      alertToast("语音识别不可用", {
+        variant: "warning",
+        description: "您的浏览器不支持语音识别，请使用 Chrome 或 Edge。",
+      });
+      return;
+    }
     if (isListeningRef.current) {
       // User clicked again — stop and auto-send
       isListeningRef.current = false;
@@ -1125,12 +1132,6 @@ function InterviewPage({
 // ─── Report Page ──────────────────────────────────────────────────────────────
 
 function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () => void }) {
-  const passLikelihoodColor = report.passLikelihood === "高"
-    ? { dot: "#4ADE80", bg: "#15803D", text: "#BBF7D0" }
-    : report.passLikelihood === "中"
-    ? { dot: "#FCD34D", bg: "#B45309", text: "#FEF3C7" }
-    : { dot: "#F87171", bg: "#B91C1C", text: "#FEE2E2" };
-
   const scoreCircumference = 2 * Math.PI * 38;
   const scoreDash = scoreCircumference * (report.overallScore / 100);
 
@@ -1162,15 +1163,10 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
           </svg>
           {/* verdict */}
           <div className="flex-shrink-0">
-            <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">综合评分</div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-1.5 rounded-full"
-                style={{ background: passLikelihoodColor.bg, color: passLikelihoodColor.text }}>
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: passLikelihoodColor.dot }} />
-                通过概率：{report.passLikelihood}
-              </span>
-            </div>
-            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">共完成 {report.questionAnalysis.length} 道问题 · 7 个模块</div>
+            {/* No pass-likelihood verdict: a consular decision is not ours to predict. */}
+            <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">表达评分</div>
+            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">共完成 {report.questionAnalysis.length} 道问题</div>
+            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-1">该评分只反映本次练习的表达情况，与签证结果无关。</div>
           </div>
           {/* divider */}
           <div className="w-px self-stretch bg-[rgba(255,255,255,0.12)] flex-shrink-0 hidden sm:block" style={{ minHeight: 64 }} />
@@ -1212,46 +1208,20 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
               ))}
             </div>
           </div>
-
-          {/* AI Insights */}
-          <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">AI 洞察</p>
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-green-700 mb-2.5">✓ 关键优势</div>
-              {report.strengths.map((s, i) => (
-                <div key={i} className="border-l-[2.5px] border-green-600 rounded-[0_6px_6px_0] bg-green-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{s}</div>
-              ))}
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold text-red-600 mb-2.5">! 需要改进</div>
-              {report.improvements.map((imp, i) => (
-                <div key={i} className="border-l-[2.5px] border-red-500 rounded-[0_6px_6px_0] bg-red-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{imp}</div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* Right col — question analysis */}
+        {/* Right col — what was asked and what the applicant said */}
         <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex flex-col min-h-0" style={{ maxHeight: 580 }}>
-          <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">逐题分析</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">本次问答记录</p>
           <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
             {report.questionAnalysis.map((qa, i) => {
-              const badgeClass = qa.flag === "strong"
-                ? "bg-green-100 text-green-800"
-                : qa.flag === "weak"
-                ? "bg-red-100 text-red-700"
-                : "bg-[#f0f0f0] text-[#888]";
               return (
                 <div key={i} className="bg-[#f7f8fa] border border-[#efefef] rounded-xl p-3.5">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[11px] text-[#3D6DAD]">{qa.timestamp} · {qa.topic}</span>
-                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>{qa.flagLabel}</span>
                   </div>
                   <p className="text-[12px] text-[#999] italic mb-1.5">「{qa.question}」</p>
-                  <p className="text-[12px] text-[#3d3d3d] leading-relaxed mb-2">{qa.answer}</p>
-                  <div className="bg-white border border-[#efefef] rounded px-2.5 py-2 text-[11px] text-[rgba(0,0,0,0.45)] leading-relaxed italic">
-                    分析：{qa.note}
-                  </div>
+                  <p className="text-[12px] text-[#3d3d3d] leading-relaxed">{qa.answer}</p>
                 </div>
               );
             })}
@@ -1444,13 +1414,11 @@ export default function InterviewPracticePage() {
     } catch (err) {
       console.error("Report generation error:", err);
       setReport({
-        overallScore: 72, passLikelihood: "中",
+        overallScore: 72,
         dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
-        strengths: ["回答基本流畅，能够正常沟通", "部分问题回答较为直接清晰"],
-        improvements: ["建议提前准备具体的行程安排细节", "资金来源说明需更加明确具体"],
         questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== ENDING_MESSAGE).slice(0, 8).map((m, i) => ({
           question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? "(未回答)",
-          score: 70, flag: "neutral" as const, flagLabel: "中性", note: "回答基本符合要求", timestamp: `0${i + 1}:00`, topic: "综合评估",
+          timestamp: `0${i + 1}:00`, topic: "综合评估",
         })),
       });
     } finally { setIsGeneratingReport(false); }
