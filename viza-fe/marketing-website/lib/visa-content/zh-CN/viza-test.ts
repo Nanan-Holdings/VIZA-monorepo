@@ -50,8 +50,8 @@ export const vizaTest: VisaContent = {
       title: "跟随实时进度",
       body: "状态时间线会像真实申请一样更新，让你了解真实订单中的体验。",
       statusRows: [
-        { label: "已收到测试申请", ts: "刚刚", onTime: true },
-        { label: "演示审核已完成", ts: "片刻之后", onTime: true },
+        { label: "已收到测试申请", ts: "刚刚" },
+        { label: "演示审核已完成", ts: "片刻之后" },
         { label: "演示交付", ts: "进行中" },
       ],
     },

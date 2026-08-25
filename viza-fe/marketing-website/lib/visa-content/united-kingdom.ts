@@ -40,7 +40,7 @@ export const unitedKingdom: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fast track · consultant-guided" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Full document check" },
   ],
 
@@ -70,8 +70,8 @@ export const unitedKingdom: VisaContent = {
       title: "Biometrics & UKVI processing",
       body: "You attend a short VFS Global appointment for fingerprints and a facial photo — no photo upload needed. We then monitor the UKVI queue; priority (~5 working days, +GBP 500) and super priority (~1 working day, +GBP 1,000) are available where offered.",
       statusRows: [
-        { label: "Application submitted to UKVI", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Biometrics enrolled at VFS Global", ts: "13 Jun, 11:30 AM", onTime: true },
+        { label: "Application submitted to UKVI", ts: "12 Jun, 9:00 AM" },
+        { label: "Biometrics enrolled at VFS Global", ts: "13 Jun, 11:30 AM" },
         { label: "Awaiting UKVI decision", ts: "In progress" },
       ],
     },
@@ -201,8 +201,8 @@ export const unitedKingdom: VisaContent = {
     etaValue: "3 Jul 2026, 02:00 PM",
     title: "Standard Visitor Visa · up to 6 months",
     saving: "Consultant-guided · fewer delays",
-    sub: "All-inclusive of UKVI application fee, document review, biometric appointment booking, and on-time guarantee.",
-    foot: "UKVI application fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
+    sub: "All-inclusive of UKVI application fee, document review, biometric appointment booking, and an advisor check before filing.",
+    foot: "UKVI application fee and VIZA processing are collected together at checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about UK visitor visas — documents, processing times, eligibility…",

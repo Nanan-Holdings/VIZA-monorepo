@@ -46,7 +46,7 @@ export const unitedArabEmirates: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "政府48小时审结" },
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "材料精简" },
   ],
 
@@ -76,8 +76,8 @@ export const unitedArabEmirates: VisaContent = {
       title: "签证处理中",
       body: "迪拜 GDRFA 公布的审理时长为48小时。我们全程监控每个阶段，及时标记任何延误，让您随时掌握进展。",
       statusRows: [
-        { label: "申请已递交至迪拜 GDRFA", ts: "6月15日 上午 10:00", onTime: true },
-        { label: "身份及旅行证件已核验", ts: "6月15日 下午 1:30", onTime: true },
+        { label: "申请已递交至迪拜 GDRFA", ts: "6月15日 上午 10:00" },
+        { label: "身份及旅行证件已核验", ts: "6月15日 下午 1:30" },
         { label: "等待签证最终签发", ts: "处理中" },
       ],
     },
@@ -194,7 +194,7 @@ export const unitedArabEmirates: VisaContent = {
     {
       category: "申请流程",
       q: "通过 VIZA 多快能拿到阿联酋旅游签证？",
-      a: "迪拜 GDRFA 公布的审理时长为递交后48小时。通过 VIZA，大多数签证在2–3个工作日内全程办结，并享准时保障——如有延误，全额退款。",
+      a: "迪拜 GDRFA 公布的审理时长为递交后48小时。通过 VIZA，大多数签证在2–3个工作日内全程办结。出签时间由官方决定，我们只给估算，不承诺具体日期。",
     },
     {
       category: "申请流程",
@@ -241,8 +241,8 @@ export const unitedArabEmirates: VisaContent = {
     etaValue: "2026年6月18日 中午12:00",
     title: "旅游签证 · 停留30天或60天",
     saving: "比直接申请更快",
-    sub: "含政府签证费、材料审核及准时保障，一价全包。",
-    foot: "政府签证费与 VIZA 服务费在结账时一并收取，并享有准时保障。",
+    sub: "含政府签证费与材料审核，一价全包。",
+    foot: "政府签证费与 VIZA 服务费在结账时一并收取。办理时间为估算值，最终由官方决定。",
   },
 
   aiPlaceholder: "关于阿联酋签证，您有任何问题都可以问我——免签入境、费用、延期……",
