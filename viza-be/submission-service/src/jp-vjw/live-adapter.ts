@@ -12,6 +12,7 @@ import { JpVjwPortalError } from "./errors.js";
 import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_AGREE_DISPLAY_QR_NAME,
   JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME,
   JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
@@ -800,6 +801,18 @@ export async function openJpVjwQrView(
       await fail(context, "jp_vjw_qr_action_blocked", "Visit Japan Web QR action could not be activated.");
     });
     context.logs.push("jpvjw_qr_action_dom_fallback");
+  }
+  await context.page.waitForTimeout(250);
+  if (!currentRoute(context.page).includes("vjwpic026")) {
+    const agreeAndDisplay = context.page.getByRole("button", { name: JP_VJW_AGREE_DISPLAY_QR_NAME }).first();
+    const guideVisible = await agreeAndDisplay.waitFor({ state: "visible", timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (guideVisible && !currentRoute(context.page).includes("vjwpic026")) {
+      context.executionContext?.assertOwned();
+      await agreeAndDisplay.click();
+      context.logs.push("jpvjw_qr_procedure_guide_confirmed");
+    }
   }
   await waitForRoute(context, ["vjwpic026"]);
 }
