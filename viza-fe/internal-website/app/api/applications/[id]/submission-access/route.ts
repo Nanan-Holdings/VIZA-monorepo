@@ -5,8 +5,8 @@ import {
   evaluateSubmissionAccess,
   submissionAccessHttpBody,
 } from "@/lib/payments/submission-access";
+import { getApplicationApiApplicantProfileId } from "@/lib/application-api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,11 +29,13 @@ export async function POST(
     return NextResponse.json({ error: "Invalid application id." }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const requesterProfileId = await getApplicationApiApplicantProfileId();
+  if (!requesterProfileId) {
+    return NextResponse.json(
+      { error: "Authentication required.", code: "authentication_required" },
+      { status: 401 },
+    );
+  }
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
@@ -53,9 +55,16 @@ export async function POST(
 
   const { data: profile } = await admin
     .from("applicant_profiles")
-    .select("auth_user_id, dependant_of_user_id")
+    .select("id, auth_user_id, dependant_of_user_id")
     .eq("id", application.applicant_id)
     .maybeSingle();
+  const { data: requesterProfile } = requesterProfileId === application.applicant_id
+    ? { data: profile }
+    : await admin
+      .from("applicant_profiles")
+      .select("id, auth_user_id, dependant_of_user_id")
+      .eq("id", requesterProfileId)
+      .maybeSingle();
   let groupPayerId: string | null = null;
   if (application.group_id) {
     const { data: group } = await admin
@@ -66,13 +75,17 @@ export async function POST(
     groupPayerId = group?.payer_user_id ? String(group.payer_user_id) : null;
   }
   const ownerId = groupPayerId ?? profile?.auth_user_id ?? profile?.dependant_of_user_id;
-  if (!profile || ownerId !== user.id) {
+  const requesterOwnerId = requesterProfile?.auth_user_id
+    ?? requesterProfile?.dependant_of_user_id;
+  const ownsApplication = requesterProfileId === application.applicant_id
+    || (Boolean(ownerId) && requesterOwnerId === ownerId);
+  if (!profile || !requesterProfile || !ownerId || !ownsApplication) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
 
   try {
     const decision = await evaluateSubmissionAccess(admin, applicationId, {
-      payerAuthUserId: user.id,
+      payerAuthUserId: ownerId,
       lockHighAccess: true,
       returnTo,
     });
