@@ -155,6 +155,8 @@ jobs:
           peak="$(jq -r '.assessment.summary.peak_connection_utilization_percent' "$trend")"
           median="$(jq -r '.assessment.summary.median_connection_utilization_percent' "$trend")"
           candidates="$(jq -r '.review_candidates | length' "$trend")"
+          table_activity_complete="$(jq -r '.table_activity_window.complete_24h' "$trend")"
+          table_candidates="$(jq -r '.table_activity_review_candidates | length' "$trend")"
           {
             echo ""
             echo "## Passive production capacity — 24-hour trend"
@@ -166,6 +168,8 @@ jobs:
             echo "- Peak connection utilization: ${peak}%"
             echo "- Median connection utilization: ${median}%"
             echo "- Persistent redacted query IDs eligible for review: ${candidates}"
+            echo "- Table activity evidence complete: ${table_activity_complete}"
+            echo "- Privacy-safe table activity candidates: ${table_candidates}"
           } >> "$GITHUB_STEP_SUMMARY"
           test "$trend_status" != "red"
 

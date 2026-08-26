@@ -71,6 +71,20 @@ function passiveCapacitySample(overrides = {}) {
       live_machine_slots: 0,
     },
     maintenance_candidates: [],
+    table_activity: {
+      stats_reset: "2026-08-22T00:00:00Z",
+      tables: [{
+        table: "portal_health_checks",
+        seq_scan: "100",
+        seq_tup_read: "1000",
+        idx_scan: "200",
+        idx_tup_fetch: "300",
+        n_tup_ins: "10",
+        n_tup_upd: "5",
+        n_tup_del: "1",
+        n_tup_hot_upd: "4",
+      }],
+    },
     pg_stat_statements_available: true,
     ...overrides,
   };
@@ -567,7 +581,7 @@ test("passive capacity observation takes three read-only samples and emits no st
   assert.equal(requests.filter(({ url }) => url.endsWith("/database/query/read-only")).length, 4);
   assert.equal(requests.some(({ url }) => /\/database\/query$/u.test(url)), false);
   assert.equal(result.project_ref, PRODUCTION_PROJECT_REF);
-  assert.equal(result.sanitization_schema, "viza-passive-capacity-metadata-only-v1");
+  assert.equal(result.sanitization_schema, "viza-passive-capacity-metadata-only-v2");
   assert.equal(result.samples.length, 3);
   assert.equal(result.assessment.status, "green");
   assert.equal(JSON.stringify(result).includes("must not be emitted"), false);
@@ -580,6 +594,11 @@ test("passive capacity observation takes three read-only samples and emits no st
   });
   assert.doesNotMatch(PASSIVE_CAPACITY_SQL, /SELECT\s+\*\s+FROM\s+public\./iu);
   assert.doesNotMatch(PG_STAT_STATEMENTS_AUDIT_SQL, /\bquery\b\s*,/iu);
+  assert.match(PASSIVE_CAPACITY_SQL, /'table_activity'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'seq_scan'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'seq_tup_read'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'idx_scan'/u);
+  assert.match(PASSIVE_CAPACITY_SQL, /'n_tup_hot_upd'/u);
 });
 
 test("scheduled passive capacity workflow is read-only, single-flight, and retains only metadata", () => {
