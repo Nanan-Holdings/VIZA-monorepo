@@ -1896,7 +1896,7 @@ async function waitForOfficialIssueNumber(
     latestBody = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
     latestIssueNumber = await extractIssueNumberAsync(latestBody, page);
     latestSuccessMarker = isOfficialCompletionPageText(latestBody);
-    if (latestIssueNumber && !(await hasVisibleConfirmationLoader(page))) {
+    if (latestIssueNumber && latestSuccessMarker && !(await hasVisibleConfirmationLoader(page))) {
       return { body: latestBody, issueNumber: latestIssueNumber, successMarker: latestSuccessMarker };
     }
     await page.waitForTimeout(1_000);
@@ -2110,7 +2110,16 @@ export async function runKrEArrivalPortalSubmission(
     await confirmOfficialReview(page, options.executionContext);
     options.executionContext?.assertOwned();
     await page.waitForLoadState("domcontentloaded", { timeout: 90_000 }).catch(() => undefined);
-    const confirmation = await waitForOfficialIssueNumber(page, 90_000);
+    let confirmation = await waitForOfficialIssueNumber(page, 90_000);
+    if (!confirmation.successMarker || !confirmation.issueNumber) {
+      // The official portal can finish rendering the completion table exactly
+      // as the primary timeout expires. A masked production screenshot proved
+      // that the success heading and issue number were both visible immediately
+      // after the final polling read. Re-read once before classifying that late
+      // render as a failed submission.
+      logs.push("kr_eac_confirmation_grace_wait");
+      confirmation = await waitForOfficialIssueNumber(page, 30_000);
+    }
     const { body, issueNumber, successMarker } = confirmation;
     if (!successMarker || !issueNumber) {
       const confirmationTimeoutScreenshot = await saveScreenshot(
