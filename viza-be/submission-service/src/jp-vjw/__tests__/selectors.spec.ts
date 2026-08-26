@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 import {
+  clickImmigrationAndCustoms,
   chooseJpVjwAutocomplete,
   fillJpVjwVerificationCode,
   openJpVjwQrView,
@@ -148,6 +149,38 @@ test("Visit Japan Web QR action falls back to the verified Angular control when 
     );
     assert.match(page.url(), /vjwpic026/u);
     assert.deepEqual(logs, ["jpvjw_qr_action_dom_fallback"]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web confirms the observed immigration and customs introduction dialog before waiting for the form route", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <button id="declaration">Immigration clearance and Customs declaration Not registered</button>
+      <div id="intro" role="dialog" hidden>
+        <h2>Immigration clearance and Customs declaration</h2>
+        <button id="next">Next</button>
+        <button>Back</button>
+      </div>
+      <script>
+        document.querySelector('#declaration').addEventListener('click', () => {
+          document.querySelector('#intro').hidden = false;
+        });
+        document.querySelector('#next').addEventListener('click', () => {
+          window.location.hash = '#/vjwpic004';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await clickImmigrationAndCustoms({ page, logs } as unknown as JpVjwLiveAdapterContext);
+    assert.match(page.url(), /vjwpic004/u);
+    assert.deepEqual(logs, ["jpvjw_immigration_customs_intro_confirmed"]);
   } finally {
     await browser.close();
   }

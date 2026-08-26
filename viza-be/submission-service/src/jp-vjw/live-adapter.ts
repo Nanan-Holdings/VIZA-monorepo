@@ -19,6 +19,7 @@ import {
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
   JP_VJW_MANUAL_PASSPORT_NAME,
   JP_VJW_MFA_NO_NAME,
+  JP_VJW_NEXT_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
   JP_VJW_PROFILE_COMPLETE_NAME,
@@ -892,12 +893,24 @@ async function registerTrip(context: JpVjwLiveAdapterContext, title: string): Pr
   context.logs.push("jpvjw_trip_registered");
 }
 
-async function clickImmigrationAndCustoms(context: JpVjwLiveAdapterContext): Promise<void> {
+export async function clickImmigrationAndCustoms(context: JpVjwLiveAdapterContext): Promise<void> {
   const action = context.page.getByRole("button", { name: /入境审查.*海关申报|入国.*税関申告|Immigration.*Customs/i }).first();
   if (!(await action.isVisible().catch(() => false))) {
     await fail(context, "jp_vjw_immigration_customs_action_missing", "Immigration and customs action was not visible on the trip dashboard.");
   }
   await action.click();
+  await context.page.waitForTimeout(250);
+  if (!currentRoute(context.page).includes("vjwpic004")) {
+    const introNext = context.page.getByRole("button", { name: JP_VJW_NEXT_NAME }).first();
+    const introVisible = await introNext.waitFor({ state: "visible", timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (introVisible && !currentRoute(context.page).includes("vjwpic004")) {
+      context.executionContext?.assertOwned();
+      await introNext.click();
+      context.logs.push("jpvjw_immigration_customs_intro_confirmed");
+    }
+  }
   await waitForRoute(context, ["vjwpic004"]);
 }
 
