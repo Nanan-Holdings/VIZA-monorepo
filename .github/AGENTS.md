@@ -91,3 +91,12 @@ scheduled recovery workflows.
   constituent observation makes the trend red. Only query IDs that recur
   in at least half the complete window (and at least three observations) are
   retained as review candidates; the trend never authorizes DDL automatically.
+  Report v2 also records only cumulative `pg_stat_user_tables` counters as
+  decimal strings, keyed by public table name. The trend compares monotonic
+  snapshots with the same database statistics-reset marker and may surface a
+  table for review only after a complete 24-hour window. It must not collect
+  statement text, parameters, row values, relation contents, or automatically
+  turn sequential-scan/write deltas into DDL. A review candidate requires the
+  exact same table to have monotonic counters in every segment of the complete
+  window and either at least 100 sequential scans touching 10,000 tuples or at
+  least 1,000 writes; these are review thresholds, not index criteria.

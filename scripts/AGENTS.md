@@ -198,6 +198,18 @@ history and counts as missing evidence rather than poisoning future trends.
 It emits only aggregate capacity counters, Advisor lint counts, and persistent
 redacted query IDs; it never reads the database or turns a candidate into an
 automatic migration.
+The v2 passive report additionally carries sorted public-table activity
+counters from `pg_stat_user_tables` as exact decimal strings. The trend accepts
+older v1 artifacts, calculates deltas only across matching statistics-reset
+markers and monotonic counters, and withholds table review candidates until the
+same five-observation/22-hour evidence window is complete. These counters are
+metadata: never add SQL text, parameters, row samples, user identifiers, or
+automatic index creation to the table-activity path.
+The table-review threshold is deliberately conservative: all four consecutive
+segments must be present for that table, followed by either at least 100
+sequential scans touching 10,000 tuples or at least 1,000 inserts/updates/
+deletes. A matching table still requires Advisor, static-call-site, and EXPLAIN
+evidence before any migration is proposed.
 Function-hardening batches use the structured `function_search_path` assertion
 to pin an exact `pg_catalog`-first namespace path and SECURITY
 DEFINER/INVOKER mode; they must pair it with explicit execution-ACL assertions
