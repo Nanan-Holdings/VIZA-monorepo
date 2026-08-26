@@ -14,6 +14,7 @@ import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
+  isJpVjwDeclarationRegistered,
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
   JP_VJW_MANUAL_PASSPORT_NAME,
@@ -1017,8 +1018,13 @@ export async function submitJpVjwLive(context: JpVjwLiveAdapterContext): Promise
     if (!(await openExistingTrip(context, title))) await registerTrip(context, title);
   }
   const existingQr = context.page.getByRole("button", { name: /显示QR码|QRコードを表示|Display QR/i }).first();
+  const declarationAction = context.page.getByRole("button", { name: /入境审查.*海关申报|入国.*税関申告|Immigration.*Customs/i }).first();
+  const declarationStatus = await declarationAction.innerText().catch(() => "");
   let submittedAt = new Date().toISOString();
-  if (await existingQr.isVisible().catch(() => false)) {
+  if (
+    await existingQr.isVisible().catch(() => false)
+    && isJpVjwDeclarationRegistered(declarationStatus)
+  ) {
     await openJpVjwQrView(context, existingQr);
     context.logs.push("jpvjw_existing_official_qr_reused");
   } else {
