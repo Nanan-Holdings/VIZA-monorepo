@@ -864,7 +864,10 @@ work_counts AS (
 table_activity AS (
   SELECT jsonb_build_object(
     'stats_reset', (
-      SELECT stats_reset
+      SELECT COALESCE(
+        stats_reset,
+        pg_catalog.pg_postmaster_start_time()
+      )
       FROM pg_catalog.pg_stat_database
       WHERE datname = current_database()
     ),
