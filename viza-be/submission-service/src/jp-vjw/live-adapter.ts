@@ -25,6 +25,8 @@ import {
   JP_VJW_NO_COPY_TRIP_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
+  JP_VJW_TO_ENTRY_PROCEDURE_NAME,
+  JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
 } from "./selectors.js";
 
@@ -819,13 +821,48 @@ async function registerTrip(context: JpVjwLiveAdapterContext, title: string): Pr
   await clickPrimary(context);
   await waitForRoute(context, ["vjwpti004"]);
   await clickPrimary(context, true);
-  await context.page.locator("app-vjwpti005").first().waitFor({
-    state: "visible",
-    timeout: ROUTE_TIMEOUT_MS,
-  }).catch(async () => {
+
+  const confirmationHeading = context.page.getByText(JP_VJW_TRIP_REGISTERED_NAME).first();
+  const toProcedureButton = context.page.getByRole("button", { name: JP_VJW_TO_ENTRY_PROCEDURE_NAME }).first();
+  const deadline = Date.now() + ROUTE_TIMEOUT_MS;
+  let confirmation: "modal" | "legacy" | "dashboard" | null = null;
+  while (Date.now() < deadline) {
+    const route = currentRoute(context.page);
+    if (route.includes("vjwpti006")) {
+      confirmation = "dashboard";
+      break;
+    }
+    if (
+      route.includes("vjwpti005")
+      && await context.page.locator("app-vjwpti005").first().isVisible().catch(() => false)
+    ) {
+      confirmation = "legacy";
+      break;
+    }
+    if (
+      await confirmationHeading.isVisible().catch(() => false)
+      && await toProcedureButton.isVisible().catch(() => false)
+    ) {
+      confirmation = "modal";
+      break;
+    }
+    await context.page.waitForTimeout(200);
+  }
+
+  if (!confirmation) {
     await fail(context, "jp_vjw_trip_save_unconfirmed", "Visit Japan Web did not confirm the trip save.");
-  });
-  await navigateRoute(context, "vjwpti006");
+  }
+  if (confirmation === "modal") {
+    context.executionContext?.assertOwned();
+    await toProcedureButton.click();
+    await waitForRoute(context, ["vjwpti006"]);
+    context.logs.push("jpvjw_trip_registered_modal_confirmed");
+  } else if (confirmation === "legacy") {
+    await navigateRoute(context, "vjwpti006");
+    context.logs.push("jpvjw_trip_registered_legacy_confirmed");
+  } else {
+    context.logs.push("jpvjw_trip_registered_dashboard_confirmed");
+  }
   context.logs.push("jpvjw_trip_registered");
 }
 
