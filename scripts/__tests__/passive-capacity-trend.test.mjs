@@ -27,24 +27,26 @@ function report({
   queryids = [],
   blockers = [],
   warnings = [],
+  tableActivity = null,
 } = {}) {
   const startedAt = new Date(at);
   const finishedAt = new Date(startedAt.getTime() + 10_000);
   return {
     schema_version: 1,
     project_ref: PROJECT_REF,
-    sanitization_schema: "viza-passive-capacity-metadata-only-v1",
+    sanitization_schema: tableActivity
+      ? "viza-passive-capacity-metadata-only-v2"
+      : "viza-passive-capacity-metadata-only-v1",
     performance_advisor: {
       lints: [
         { name: "unindexed_foreign_keys", level: "WARN" },
         { name: "unused_index", level: "INFO" },
       ],
     },
-    samples: [
-      { sample_at: startedAt.toISOString() },
-      { sample_at: new Date(startedAt.getTime() + 5_000).toISOString() },
-      { sample_at: finishedAt.toISOString() },
-    ],
+    samples: [0, 5_000, 10_000].map((offset) => ({
+      sample_at: new Date(startedAt.getTime() + offset).toISOString(),
+      ...(tableActivity ? { table_activity: tableActivity } : {}),
+    })),
     assessment: {
       status,
       blockers,
@@ -67,6 +69,43 @@ function report({
         mean_exec_time_ms: 60 + index,
       })),
     },
+  };
+}
+
+function activitySnapshot(multiplier) {
+  const counters = (values) => Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, String(value * multiplier)]),
+  );
+  return {
+    stats_reset: "2026-08-22T00:00:00.000Z",
+    tables: [
+      {
+        table: "form_assistant_messages",
+        ...counters({
+          seq_scan: 2,
+          seq_tup_read: 20,
+          idx_scan: 100,
+          idx_tup_fetch: 100,
+          n_tup_ins: 1,
+          n_tup_upd: 1,
+          n_tup_del: 0,
+          n_tup_hot_upd: 1,
+        }),
+      },
+      {
+        table: "portal_health_checks",
+        ...counters({
+          seq_scan: 100,
+          seq_tup_read: 20_000,
+          idx_scan: 1_000,
+          idx_tup_fetch: 1_000,
+          n_tup_ins: 500,
+          n_tup_upd: 0,
+          n_tup_del: 0,
+          n_tup_hot_upd: 0,
+        }),
+      },
+    ],
   };
 }
 
@@ -108,7 +147,7 @@ test("24-hour trend aggregates only metadata and promotes persistent query IDs f
   const result = assessPassiveCapacityTrend(reports);
   const encoded = JSON.stringify(result);
 
-  assert.equal(result.sanitization_schema, "viza-passive-capacity-trend-metadata-only-v1");
+  assert.equal(result.sanitization_schema, "viza-passive-capacity-trend-metadata-only-v2");
   assert.equal(result.window.complete_24h, true);
   assert.equal(result.window.observation_count, 5);
   assert.equal(result.window.span_hours, 24);
@@ -120,6 +159,89 @@ test("24-hour trend aggregates only metadata and promotes persistent query IDs f
   assert.deepEqual(result.review_candidates.map(({ queryid }) => queryid), ["42"]);
   assert.equal(result.review_candidates[0].observation_count, 5);
   assert.doesNotMatch(encoded, /query_text|statement_text|parameters|application_id|session_id/iu);
+});
+
+test("24-hour trend maps privacy-safe table activity without SQL text", () => {
+  const reports = [0, 6, 12, 18, 24].map((hour, index) => report({
+    at: new Date(Date.parse("2026-08-24T00:00:00.000Z") + hour * 3_600_000).toISOString(),
+    tableActivity: activitySnapshot(index + 1),
+  }));
+
+  const result = assessPassiveCapacityTrend(reports);
+  const encoded = JSON.stringify(result);
+
+  assert.equal(result.sanitization_schema, "viza-passive-capacity-trend-metadata-only-v2");
+  assert.deepEqual(result.table_activity_window, {
+    observation_count: 5,
+    valid_segment_count: 4,
+    reset_segment_count: 0,
+    complete_24h: true,
+  });
+  assert.deepEqual(result.table_activity_review_candidates, [{
+    table: "portal_health_checks",
+    seq_scan_delta: "400",
+    seq_tup_read_delta: "80000",
+    idx_scan_delta: "4000",
+    idx_tup_fetch_delta: "4000",
+    write_delta: "2000",
+    average_seq_tuples_per_scan: 200,
+  }]);
+  assert.doesNotMatch(encoded, /query_text|statement_text|parameters|application_id|session_id/iu);
+});
+
+test("table activity evidence stays incomplete across statistics resets", () => {
+  const reports = [0, 6, 12, 18, 24].map((hour, index) => {
+    const tableActivity = activitySnapshot(index + 1);
+    if (index >= 3) tableActivity.stats_reset = "2026-08-24T17:00:00.000Z";
+    return report({
+      at: new Date(Date.parse("2026-08-24T00:00:00.000Z") + hour * 3_600_000).toISOString(),
+      tableActivity,
+    });
+  });
+
+  const result = assessPassiveCapacityTrend(reports);
+
+  assert.equal(result.window.complete_24h, true);
+  assert.equal(result.table_activity_window.complete_24h, false);
+  assert.equal(result.table_activity_window.reset_segment_count, 1);
+  assert.deepEqual(result.table_activity_review_candidates, []);
+});
+
+test("table activity never bridges old reports or null reset markers", () => {
+  const mixed = [0, 6, 12, 18, 24].map((hour, index) => report({
+    at: new Date(Date.parse("2026-08-24T00:00:00.000Z") + hour * 3_600_000).toISOString(),
+    tableActivity: index === 2 ? null : activitySnapshot(index + 1),
+  }));
+  const mixedResult = assessPassiveCapacityTrend(mixed);
+  assert.equal(mixedResult.window.complete_24h, true);
+  assert.equal(mixedResult.table_activity_window.observation_count, 4);
+  assert.equal(mixedResult.table_activity_window.complete_24h, false);
+  assert.deepEqual(mixedResult.table_activity_review_candidates, []);
+
+  const nullReset = [0, 6, 12, 18, 24].map((hour, index) => {
+    const tableActivity = activitySnapshot(index + 1);
+    tableActivity.stats_reset = null;
+    return report({
+      at: new Date(Date.parse("2026-08-24T00:00:00.000Z") + hour * 3_600_000).toISOString(),
+      tableActivity,
+    });
+  });
+  const nullResult = assessPassiveCapacityTrend(nullReset);
+  assert.equal(nullResult.table_activity_window.complete_24h, false);
+  assert.equal(nullResult.table_activity_window.reset_segment_count, 4);
+  assert.deepEqual(nullResult.table_activity_review_candidates, []);
+});
+
+test("table activity rejects non-string counters", () => {
+  const invalid = report({
+    at: "2026-08-24T00:00:00.000Z",
+    tableActivity: activitySnapshot(1),
+  });
+  invalid.samples[2].table_activity.tables[0].seq_scan = 1;
+  assert.throws(
+    () => assessPassiveCapacityTrend([invalid]),
+    /table activity counter/u,
+  );
 });
 
 test("one red observation makes the complete trend red", () => {
@@ -263,6 +385,8 @@ test("scheduled workflow downloads only main passive artifacts and uploads the t
   assert.match(source, /\.head_branch == "main" and \.path ==/u);
   assert.match(source, /passive-capacity-trend\.mjs/u);
   assert.match(source, /passive-capacity-trend\.json/u);
+  assert.match(source, /table_activity_window\.complete_24h/u);
+  assert.match(source, /table_activity_review_candidates/u);
   assert.match(source, /test "\$trend_status" != "red"/u);
   const uploadBlock = source.slice(source.indexOf("- name: Upload metadata-only capacity report"));
   assert.doesNotMatch(uploadBlock, /passive-capacity-evidence/u);
