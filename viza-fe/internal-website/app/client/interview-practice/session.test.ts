@@ -84,7 +84,7 @@ describe("interview session", () => {
     };
 
     expect(normalizeStoredInterviewSession(JSON.stringify(oldV2), { applicationId: "app-a" })).toMatchObject({
-      version: 3,
+      version: 4,
       id: "legacy",
       applicationId: "app-a",
       language: "zh-CN",
@@ -97,6 +97,50 @@ describe("interview session", () => {
   it("drops corrupt storage instead of throwing during hydration", () => {
     expect(normalizeStoredInterviewSession("{not json")).toBeNull();
     expect(normalizeStoredInterviewSession(JSON.stringify({ version: 2 }))).toBeNull();
+  });
+
+  it("sanitizes low-information v3 setup drafts and restores the canonical pace", () => {
+    const previous = {
+      ...createInterviewSession("2026-08-22T00:00:00.000Z"),
+      version: 3,
+      phase: "setup",
+      stage: "profile",
+      profile: {
+        ...createInterviewSession().profile,
+        destinations: "in",
+        travelDates: "uuu",
+        duration: "jn",
+        funding: "jb",
+      },
+      officer: {
+        id: "standard",
+        name: "Miller",
+        style: "legacy value",
+      },
+      applicationContext: {
+        source: "application",
+        applicationId: "app-a",
+        missingFields: [],
+        verifiedFields: ["destinations", "travelDates", "duration", "funding"],
+        needsConfirmationFields: [],
+        fieldStates: ["destinations", "travelDates", "duration", "funding"].map((field) => ({
+          field,
+          status: "confirmed",
+          source: "practice",
+        })),
+        consistencyStatus: "verifiable",
+      },
+    };
+
+    expect(normalizeStoredInterviewSession(JSON.stringify(previous), { applicationId: "app-a" })).toMatchObject({
+      version: 4,
+      officer: { id: "standard", name: "标准（推荐）" },
+      profile: { destinations: "", travelDates: "", duration: "", funding: "" },
+      applicationContext: {
+        missingFields: expect.arrayContaining(["destinations", "travelDates", "duration", "funding"]),
+        verifiedFields: [],
+      },
+    });
   });
 
   it("restores exact phase, stage, draft, report status, and recovery metadata", () => {

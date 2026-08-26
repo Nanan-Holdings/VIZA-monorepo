@@ -104,6 +104,7 @@ import {
 } from "@/lib/client/recent-application-form";
 import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
 import { readApplicationRouteParam } from "@/lib/client/application-route-params";
+import { resolveApplicationRouteProduct } from "./application-route-identity";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
   computeAllTabCompletion,
@@ -1729,6 +1730,14 @@ type LoadedApplication = {
   accommodation_address?: string | null;
 };
 
+type ExplicitApplicationContextState = {
+  applicationId: string;
+  status: "loading" | "ready" | "error";
+  application: LoadedApplication | null;
+  profile: LoadedApplicantProfile | null;
+  reason: string | null;
+};
+
 function KoreaArrivalCardSchemaUnavailableNotice({ isZh }: { isZh: boolean }) {
   return (
     <main
@@ -1792,27 +1801,132 @@ export default function ApplicationPage() {
         explicitVisaType,
       ) || explicitCountry
     : explicitCountry;
-  const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
+  const preferExplicitPackage = Boolean(
+    !explicitApplicationId && (explicitCountry || explicitVisaType),
+  );
   const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
+  const [explicitApplicationContext, setExplicitApplicationContext] =
+    useState<ExplicitApplicationContextState | null>(null);
+
+  useEffect(() => {
+    if (!explicitApplicationId) {
+      setExplicitApplicationContext(null);
+      return;
+    }
+
+    let cancelled = false;
+    setExplicitApplicationContext({
+      applicationId: explicitApplicationId,
+      status: "loading",
+      application: null,
+      profile: null,
+      reason: null,
+    });
+
+    void getTeamApplicationContext(explicitApplicationId)
+      .then((context) => {
+        if (cancelled) return;
+        if (
+          !context.ok ||
+          !context.application?.country?.trim() ||
+          !context.application.visa_type?.trim() ||
+          !context.profile
+        ) {
+          setExplicitApplicationContext({
+            applicationId: explicitApplicationId,
+            status: "error",
+            application: null,
+            profile: null,
+            reason: context.reason ?? "Application identity is unavailable",
+          });
+          return;
+        }
+
+        setExplicitApplicationContext({
+          applicationId: explicitApplicationId,
+          status: "ready",
+          application: context.application as LoadedApplication,
+          profile: context.profile as LoadedApplicantProfile,
+          reason: null,
+        });
+      })
+      .catch((contextError) => {
+        attemptStaleServerActionReload(contextError);
+        if (cancelled) return;
+        setExplicitApplicationContext({
+          applicationId: explicitApplicationId,
+          status: "error",
+          application: null,
+          profile: null,
+          reason: "Could not load this application",
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [explicitApplicationId]);
+
+  const currentExplicitApplicationContext =
+    explicitApplicationContext?.applicationId === explicitApplicationId
+      ? explicitApplicationContext
+      : null;
 
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
   const [dbSteps, setDbSteps] = useState<WizardStep[]>([]);
   const [visaPackage, setVisaPackage] = useState<UserVisaPackage | null>(null);
   const [packageLoaded, setPackageLoaded] = useState(false);
+  const routeProduct = useMemo(
+    () =>
+      resolveApplicationRouteProduct({
+        applicationId: explicitApplicationId,
+        application:
+          currentExplicitApplicationContext?.status === "ready"
+            ? currentExplicitApplicationContext.application
+            : null,
+        explicitCountry,
+        requestedVisaType,
+        packageCountry: visaPackage?.country ?? null,
+        packageVisaType: visaPackage?.visa_type ?? null,
+      }),
+    [
+      currentExplicitApplicationContext,
+      explicitApplicationId,
+      explicitCountry,
+      requestedVisaType,
+      visaPackage?.country,
+      visaPackage?.visa_type,
+    ],
+  );
 
   useEffect(() => {
     let cancelled = false;
     setPackageLoaded(false);
     setDbSteps([]);
+    if (explicitApplicationId && !routeProduct) {
+      if (currentExplicitApplicationContext?.status === "error") {
+        setPackageLoaded(true);
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const authoritativeVisaType = explicitApplicationId
+      ? routeProduct?.visaType ?? null
+      : explicitVisaType;
+    const authoritativeCountry = explicitApplicationId
+      ? routeProduct?.country ?? null
+      : explicitProductCountry;
     const packagePromise: Promise<UserVisaPackage | null> =
-      explicitVisaType || isExplicitStatusView
+      authoritativeVisaType || isExplicitStatusView
         ? Promise.resolve(null)
         : getUserVisaPackage().catch((error) => {
             attemptStaleServerActionReload(error);
             return null;
           });
-    if (!explicitVisaType && !isExplicitStatusView) {
+    if (!authoritativeVisaType && !isExplicitStatusView) {
       void packagePromise.then((pkg) => {
         if (!cancelled && pkg) setVisaPackage(pkg);
       });
@@ -1830,8 +1944,8 @@ export default function ApplicationPage() {
       };
     }
 
-    const stepsPromise = explicitVisaType
-      ? getVisaFormSteps(explicitVisaType, { country: explicitProductCountry })
+    const stepsPromise = authoritativeVisaType
+      ? getVisaFormSteps(authoritativeVisaType, { country: authoritativeCountry })
       : packagePromise.then((pkg) => getVisaFormSteps(
           pkg?.visa_type ?? "ID_C1_TOURIST",
           { country: pkg?.country ?? null },
@@ -1854,7 +1968,14 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitProductCountry, explicitVisaType, isExplicitStatusView]);
+  }, [
+    currentExplicitApplicationContext?.status,
+    explicitApplicationId,
+    explicitProductCountry,
+    explicitVisaType,
+    isExplicitStatusView,
+    routeProduct,
+  ]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -2123,11 +2244,8 @@ export default function ApplicationPage() {
     if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
   }, []);
 
-  const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST";
-  const resolvedCountry = getCanonicalApplicationProductCountry(
-    explicitProductCountry ?? visaPackage?.country ?? "indonesia",
-    resolvedVisaType,
-  );
+  const resolvedVisaType = routeProduct?.visaType ?? "";
+  const resolvedCountry = routeProduct?.country ?? "";
   const isTaiwanEntryPermit = resolvedVisaType === "TW_ENTRY_PERMIT";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
@@ -2243,7 +2361,9 @@ export default function ApplicationPage() {
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
   const preserveIndonesiaReview =
-    isIndonesiaEVisa || isIndonesiaEVisaApplication(explicitCountry, requestedVisaType);
+    isIndonesiaEVisa ||
+    (!explicitApplicationId &&
+      isIndonesiaEVisaApplication(explicitCountry, requestedVisaType));
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2713,15 +2833,21 @@ export default function ApplicationPage() {
       let application: LoadedApplication | null = null;
 
       if (explicitApplicationId) {
-        const context = await getTeamApplicationContext(explicitApplicationId);
-        if (!context.ok || !context.application || !context.profile) {
+        if (
+          currentExplicitApplicationContext?.status !== "ready" ||
+          !currentExplicitApplicationContext.application ||
+          !currentExplicitApplicationContext.profile
+        ) {
           if (isLatestRequest()) {
-            setError(context.reason ?? t("errors.noApplicationFound"));
+            setError(
+              currentExplicitApplicationContext?.reason ??
+                t("errors.noApplicationFound"),
+            );
           }
           return;
         }
-        profile = context.profile as LoadedApplicantProfile;
-        application = context.application as LoadedApplication;
+        profile = currentExplicitApplicationContext.profile;
+        application = currentExplicitApplicationContext.application;
       } else {
         const context = await loadApplicationFormContext(resolvedCountry, resolvedVisaType, {
           preferExplicit: preferExplicitPackage,
@@ -2901,6 +3027,7 @@ export default function ApplicationPage() {
     }
   }, [
     dbSteps,
+    currentExplicitApplicationContext,
     explicitApplicationId,
     isKoreaEArrivalCard,
     isZhInterface,
@@ -4764,6 +4891,23 @@ export default function ApplicationPage() {
     };
   }, [effectiveSteps, isExplicitStatusView, loading, packageLoaded]);
 
+  if (
+    explicitApplicationId &&
+    currentExplicitApplicationContext?.status === "error"
+  ) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <ClientErrorAlert
+          message={
+            isZhInterface
+              ? "无法确认此申请对应的国家和签证类型。为避免打开错误表单，本次加载已停止。请从申请中心重新打开。"
+              : "We could not verify this application's country and visa type. Loading stopped to prevent opening the wrong form. Reopen it from the application center."
+          }
+        />
+      </main>
+    );
+  }
+
   if (isExplicitStatusView) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
@@ -4799,7 +4943,7 @@ export default function ApplicationPage() {
     );
   }
 
-  const hasResolvedPackage = Boolean(explicitCountry || explicitVisaType || visaPackage);
+  const hasResolvedPackage = Boolean(routeProduct);
   const pageTitle = isPhilippinesEtravel
     ? isZhInterface
       ? resolvedVisaType === "PH_ETRAVEL_DEPARTURE_CARD"

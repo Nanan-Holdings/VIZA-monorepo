@@ -30,6 +30,17 @@ vi.mock("./_hooks/use-browser-speech", () => ({
   }),
 }));
 
+const interviewerTtsPlay = vi.fn();
+const interviewerTtsStop = vi.fn();
+vi.mock("./_hooks/use-interviewer-tts", () => ({
+  useInterviewerTts: () => ({
+    play: interviewerTtsPlay,
+    stop: interviewerTtsStop,
+    selectedVoiceName: "Mock Natural Voice",
+    supported: true,
+  }),
+}));
+
 function completeProfile(session: InterviewSession): InterviewSession {
   return {
     ...session,
@@ -96,6 +107,8 @@ describe("InterviewPracticePage", () => {
     window.localStorage.clear();
     speechStart.mockReset();
     speechStop.mockReset();
+    interviewerTtsPlay.mockReset();
+    interviewerTtsStop.mockReset();
     vi.stubGlobal("speechSynthesis", { cancel: vi.fn(), speak: vi.fn() });
     vi.stubGlobal("SpeechSynthesisUtterance", vi.fn(function SpeechSynthesisUtterance(this: { lang?: string; text?: string }, text: string) {
       this.text = text;
@@ -129,13 +142,66 @@ describe("InterviewPracticePage", () => {
 
     render(<InterviewPracticePage />);
 
-    expect(await screen.findByDisplayValue("Seattle")).toBeInTheDocument();
+    expect(await screen.findByText("Seattle")).toBeInTheDocument();
     expect(screen.getByDisplayValue("本人承担")).toBeInTheDocument();
     expect(screen.getByText((_, element) => element?.textContent === `申请编号：${applicationId}`)).toBeInTheDocument();
     expect(screen.getAllByText("待确认").length).toBeGreaterThan(0);
     expect(screen.getAllByText("缺失").length).toBeGreaterThan(0);
     expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId, visaType: "DS160_B1B2" }))).toBeTruthy();
     expect(window.localStorage.getItem(getInterviewSessionKey({ applicationId, visaType: "US_B1_B2" }))).toBeNull();
+  });
+
+  it("does not let invalid legacy setup drafts override loaded application answers", async () => {
+    const applicationId = "00000000-0000-4000-8000-000000000123";
+    const visaType = "DS160";
+    searchParams = new URLSearchParams(`applicationId=${applicationId}&visaType=${visaType}`);
+    const previous = {
+      ...createInterviewSession(),
+      version: 3,
+      applicationId,
+      visaType,
+      profile: {
+        ...createInterviewSession().profile,
+        destinations: "in",
+        travelDates: "uuu",
+        duration: "jn",
+        funding: "jb",
+      },
+      officer: { id: "standard", name: "Miller", style: "legacy value" },
+      applicationContext: {
+        source: "application",
+        applicationId,
+        missingFields: [],
+        verifiedFields: ["destinations", "travelDates", "duration", "funding"],
+        needsConfirmationFields: [],
+        fieldStates: ["destinations", "travelDates", "duration", "funding"].map((field) => ({
+          field,
+          status: "confirmed",
+          source: "practice",
+        })),
+        consistencyStatus: "verifiable",
+      },
+    };
+    window.localStorage.setItem(
+      getInterviewSessionKey({ applicationId, visaType }),
+      JSON.stringify(previous),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(linkedContext({
+      ...createInterviewSession().profile,
+      destinations: "西雅图",
+      travelDates: "2026 年 10 月",
+      duration: "12 天",
+      funding: "本人承担",
+    })), { status: 200 }));
+
+    render(<InterviewPracticePage />);
+
+    expect(await screen.findByText("西雅图")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("in")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("uuu")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("jn")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("jb")).not.toBeInTheDocument();
+    expect(screen.queryByText("Miller")).not.toBeInTheDocument();
   });
 
   it("maps a saved DS-160 payload into the linked summary without inventing missing facts", async () => {
@@ -177,22 +243,46 @@ describe("InterviewPracticePage", () => {
     expect(await screen.findByDisplayValue("B1/B2 短期商务或旅游访问")).toBeInTheDocument();
     expect(screen.getByLabelText(/访问目的/u)).toHaveValue("other");
     expect(screen.getByDisplayValue("本人承担")).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/无赴美记录/u)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/无赴美记录/u)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/目的地/u)).toHaveValue("");
     expect(screen.getAllByText("待确认").length).toBeGreaterThan(0);
     expect(screen.getAllByText("缺失").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem(getInterviewSessionKey({ applicationId, visaType: "DS160" })) ?? "{}"))
+        .toMatchObject({ profile: { previousTravel: expect.stringMatching(/无赴美记录/u) } });
+    });
   });
 
-  it("requires the short bilingual disclaimer acknowledgement before practice", async () => {
+  it("requires the localized disclaimer acknowledgement before practice", async () => {
     const session = completeProfile(createInterviewSession());
     seedSession(session);
     render(<InterviewPracticePage />);
 
-    expect(await screen.findByText(/不是美国政府或领事馆提供的服务/u)).toBeInTheDocument();
-    expect(screen.getByText(/not provided by or affiliated with the U\.S\. Government/u)).toBeInTheDocument();
+    expect(await screen.findByText(/VIZA 不代表美国政府或领事馆/u)).toBeInTheDocument();
+    expect(screen.queryByText(/not provided by or affiliated with the U\.S\. Government/u)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "确认并开始" }));
     expect(await screen.findByText(/请先阅读并确认免责声明/u)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps preparation compact and exposes audio calibration without repeating the full application", async () => {
+    const session = completeProfile(createInterviewSession());
+    seedSession(session);
+
+    render(<InterviewPracticePage />);
+
+    expect(await screen.findByRole("heading", { name: "申请档案" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("dossier-item")).toHaveLength(5);
+    expect(screen.getByRole("heading", { name: "环境校准" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "练习设置" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "旅行经历" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "英文" })).toBeInTheDocument();
+    expect(screen.queryByText("Miller")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "试听声音" }));
+    expect(interviewerTtsPlay).toHaveBeenCalledWith("您好，面试练习即将开始。");
+    fireEvent.click(screen.getByRole("button", { name: "测试麦克风" }));
+    expect(speechStart).toHaveBeenCalledWith("");
   });
 
   it("does not render an empty setup form while linked data is loading", async () => {
@@ -203,7 +293,19 @@ describe("InterviewPracticePage", () => {
     expect(await screen.findByText("正在读取申请资料")).toBeInTheDocument();
     expect(screen.queryByLabelText(/目的地/u)).not.toBeInTheDocument();
     resolveFetch(new Response(JSON.stringify(linkedContext(completeProfile(createInterviewSession()).profile)), { status: 200 }));
-    expect(await screen.findByLabelText(/目的地/u)).toBeInTheDocument();
+    expect(await screen.findByText("旧金山、洛杉矶")).toBeInTheDocument();
+  });
+
+  it("restores setup at the top of the page", async () => {
+    document.documentElement.scrollTop = 420;
+    document.body.scrollTop = 420;
+    seedSession(completeProfile(createInterviewSession()));
+
+    render(<InterviewPracticePage />);
+
+    expect(await screen.findByRole("heading", { name: "面试准备就绪检查" })).toBeInTheDocument();
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(document.body.scrollTop).toBe(0);
   });
 
   it("shows a retryable read error instead of treating failure as missing data", async () => {
@@ -219,6 +321,7 @@ describe("InterviewPracticePage", () => {
     render(<InterviewPracticePage />);
 
     acceptDisclaimer();
+    document.documentElement.scrollTop = 240;
     fireEvent.click(await screen.findByRole("button", { name: "确认并开始" }));
 
     expect(await screen.findByText(/请先补全/u)).toBeInTheDocument();
@@ -241,7 +344,18 @@ describe("InterviewPracticePage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "确认并开始" }));
 
     expect(await screen.findByText("你为什么去美国？")).toBeInTheDocument();
+    expect(document.documentElement.scrollTop).toBe(0);
     expect(screen.getByText(/第 1 \/ 8 个核心主题/u)).toBeInTheDocument();
+    await waitFor(() => expect(interviewerTtsPlay).toHaveBeenCalledWith("你为什么去美国？"));
+    fireEvent.click(screen.getByRole("button", { name: "重听" }));
+    expect(interviewerTtsPlay).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "重听" })).toHaveAttribute("title", "当前语音：Mock Natural Voice");
+
+    fireEvent.click(screen.getByRole("button", { name: "暂停" }));
+    expect(screen.getByText("练习已暂停")).toBeInTheDocument();
+    expect(screen.getByLabelText("实时回答")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "继续" }));
+    expect(screen.getByLabelText("实时回答")).not.toBeDisabled();
   });
 
   it("starts a persisted English practice session", async () => {
@@ -256,7 +370,7 @@ describe("InterviewPracticePage", () => {
     );
 
     render(<InterviewPracticePage />);
-    fireEvent.click(await screen.findByRole("button", { name: "English" }));
+    fireEvent.click(await screen.findByRole("button", { name: "英文" }));
     acceptDisclaimer();
     fireEvent.click(screen.getByRole("button", { name: "确认并开始" }));
 
@@ -308,6 +422,9 @@ describe("InterviewPracticePage", () => {
     render(<InterviewPracticePage />);
 
     expect(await screen.findByText(/这是练习准备度评估，不代表签证结果/u)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "总体洞察" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "逐题复盘" })).toBeInTheDocument();
+    expect(screen.getByText("你为什么去美国？").closest("details")).not.toHaveAttribute("open");
     expect(screen.getByRole("button", { name: "回到资料准备" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "完整重练" })).toBeInTheDocument();
   });
@@ -334,7 +451,7 @@ describe("InterviewPracticePage", () => {
     );
 
     render(<InterviewPracticePage />);
-    fireEvent.click(await screen.findByRole("button", { name: "提交回答" }));
+    fireEvent.click(await screen.findByRole("button", { name: "回答完成" }));
 
     expect(await screen.findByText("你怎么安排行程？")).toBeInTheDocument();
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toMatchObject({
@@ -384,6 +501,6 @@ describe("InterviewPracticePage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "完整重练" }));
 
     expect(fetch).not.toHaveBeenCalled();
-    expect(await screen.findByText("资料准备")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "面试准备就绪检查" })).toBeInTheDocument();
   });
 });

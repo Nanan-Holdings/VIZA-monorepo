@@ -88,12 +88,14 @@ export function updatePracticeField(
 export function confirmExistingProfile(
   profile: ApplicantProfile,
   context: InterviewContextSummary,
+  fields?: InterviewProfileField[],
 ): InterviewContextSummary {
-  const states = (context.fieldStates ?? []).map((state) => (
-    valueFor(profile, state.field)
+  const states = (context.fieldStates ?? []).map((state) => {
+    if (fields && !fields.includes(state.field)) return state;
+    return valueFor(profile, state.field)
       ? { ...state, status: "confirmed" as const }
-      : { ...state, status: "missing" as const, source: null }
-  ));
+      : { ...state, status: "missing" as const, source: null };
+  });
   return rebuildContext(context, states);
 }
 

@@ -9,7 +9,8 @@ import type {
 } from "@/app/api/interview/types";
 
 export const INTERVIEW_SESSION_KEY = "viza:b1b2-interview:session:v2";
-export const INTERVIEW_SESSION_VERSION = 3;
+export const INTERVIEW_SESSION_VERSION = 4;
+export const PREVIOUS_INTERVIEW_SESSION_VERSION = 3;
 export const LEGACY_INTERVIEW_SESSION_VERSION = 2;
 
 export type InterviewPhase = "setup" | "interview" | "complete" | "report";
@@ -72,11 +73,25 @@ export const DEFAULT_PROFILE: ApplicantProfile = {
   refusalHistory: "",
 };
 
-export const DEFAULT_OFFICER: InterviewOfficer = {
-  id: "standard",
-  name: "Miller",
-  style: "标准节奏，优先核实目的、行程和回国约束",
-};
+export const INTERVIEW_OFFICERS: InterviewOfficer[] = [
+  {
+    id: "standard",
+    name: "标准（推荐）",
+    style: "标准节奏，依次核实目的、行程和回国约束。",
+  },
+  {
+    id: "rapid",
+    name: "较快",
+    style: "减少停顿，适合熟悉流程后练习简洁回答。",
+  },
+  {
+    id: "supportive",
+    name: "较慢",
+    style: "增加思考时间，适合第一次练习或需要逐步组织事实时使用。",
+  },
+];
+
+export const DEFAULT_OFFICER: InterviewOfficer = INTERVIEW_OFFICERS[0];
 
 const questionSchema = z.object({
   id: z.string(),
@@ -193,6 +208,10 @@ const storedSessionSchema = z.object({
   updatedAt: z.string(),
 });
 
+const previousStoredSessionSchema = storedSessionSchema.extend({
+  version: z.literal(PREVIOUS_INTERVIEW_SESSION_VERSION),
+});
+
 const legacyStoredSessionSchema = z.object({
   version: z.literal(LEGACY_INTERVIEW_SESSION_VERSION),
   id: z.string().min(1),
@@ -212,6 +231,85 @@ const legacyStoredSessionSchema = z.object({
 function createId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `interview-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+const LOW_INFORMATION_VALUE = /^(?:test(?:ing)?|foo|bar|asdf|qwer|lorem|n\/?a|null|undefined)$/i;
+const SHORT_LOWERCASE_TOKEN = /^[a-z]{1,3}$/;
+const REPEATED_TOKEN = /^([a-z0-9])\1{1,7}$/i;
+
+export function sanitizePersistedProfileValue(field: keyof ApplicantProfile, value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized || normalized.length > 500 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(normalized)) return "";
+  if (LOW_INFORMATION_VALUE.test(normalized) || SHORT_LOWERCASE_TOKEN.test(normalized) || REPEATED_TOKEN.test(normalized)) return "";
+
+  if (field === "travelDates") {
+    const looksLikeDate = /\d/.test(normalized)
+      || /(年|月|日|近期|暂定|待定|spring|summer|autumn|fall|winter|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(normalized);
+    return looksLikeDate ? normalized : "";
+  }
+  if (field === "duration") {
+    const looksLikeDuration = /\d/.test(normalized)
+      || /(天|日|周|週|星期|个月|個月|月|day|week|month)/i.test(normalized);
+    return looksLikeDuration ? normalized : "";
+  }
+  return normalized;
+}
+
+function canonicalOfficer(officer: InterviewOfficer) {
+  return INTERVIEW_OFFICERS.find((candidate) => candidate.id === officer.id) ?? DEFAULT_OFFICER;
+}
+
+function sanitizeSetupProfile(profile: ApplicantProfile): ApplicantProfile {
+  const next = { ...profile };
+  for (const field of Object.keys(next) as Array<keyof ApplicantProfile>) {
+    if (field === "purpose") continue;
+    (next as Record<keyof ApplicantProfile, string>)[field] = sanitizePersistedProfileValue(
+      field,
+      String(profile[field] ?? ""),
+    );
+  }
+  return next;
+}
+
+function sanitizeSetupContext(
+  context: InterviewContextSummary | null,
+  profile: ApplicantProfile,
+) {
+  if (!context?.fieldStates?.length) return context;
+  const states = context.fieldStates.map((state) => {
+    if (state.field === "purpose") return state;
+    return profile[state.field]?.trim()
+      ? state
+      : { ...state, status: "missing" as const, source: null };
+  });
+  const missingFields = states.filter((state) => state.status === "missing").map((state) => state.field);
+  const verifiedFields = states.filter((state) => state.status === "confirmed").map((state) => state.field);
+  const needsConfirmationFields = states.filter((state) => state.status === "needs_confirmation").map((state) => state.field);
+  return {
+    ...context,
+    fieldStates: states,
+    missingFields,
+    verifiedFields,
+    needsConfirmationFields,
+    consistencyStatus: verifiedFields.length === 0
+      ? "unverified" as const
+      : missingFields.length || needsConfirmationFields.length
+        ? "partially_verifiable" as const
+        : "verifiable" as const,
+  };
+}
+
+function sanitizeRestoredSession(session: InterviewSession): InterviewSession {
+  const profile = session.phase === "setup" ? sanitizeSetupProfile(session.profile) : session.profile;
+  return {
+    ...session,
+    version: INTERVIEW_SESSION_VERSION,
+    profile,
+    officer: canonicalOfficer(session.officer),
+    applicationContext: session.phase === "setup"
+      ? sanitizeSetupContext(session.applicationContext, profile)
+      : session.applicationContext,
+  };
 }
 
 function normalizeIdentity(identity?: InterviewSessionIdentity): Required<InterviewSessionIdentity> {
@@ -295,7 +393,7 @@ export function migrateLegacyInterviewSession(
           ? "question"
           : "profile";
 
-  return {
+  return sanitizeRestoredSession({
     ...legacy,
     version: INTERVIEW_SESSION_VERSION,
     applicationId: normalizedIdentity.applicationId,
@@ -314,7 +412,7 @@ export function migrateLegacyInterviewSession(
     applicationContext: null,
     disclaimerVersion: null,
     report: legacy.report as InterviewReport | null,
-  };
+  });
 }
 
 export function normalizeStoredInterviewSession(
@@ -331,14 +429,28 @@ export function normalizeStoredInterviewSession(
   const result = storedSessionSchema.safeParse(parsed);
   if (result.success) {
     const session = result.data as Omit<InterviewSession, "report"> & { report: unknown };
-    return applyInterviewSessionIdentity(
+    return sanitizeRestoredSession(applyInterviewSessionIdentity(
       {
         ...session,
         applicationContext: session.applicationContext as InterviewContextSummary | null,
         report: session.report as InterviewReport | null,
       },
       identity ?? { applicationId: session.applicationId, visaType: session.visaType },
-    );
+    ));
+  }
+
+  const previous = previousStoredSessionSchema.safeParse(parsed);
+  if (previous.success) {
+    const session = previous.data as unknown as InterviewSession;
+    return sanitizeRestoredSession(applyInterviewSessionIdentity(
+      {
+        ...session,
+        version: INTERVIEW_SESSION_VERSION,
+        applicationContext: session.applicationContext as InterviewContextSummary | null,
+        report: session.report as InterviewReport | null,
+      },
+      identity ?? { applicationId: session.applicationId, visaType: session.visaType },
+    ));
   }
 
   const legacy = legacyStoredSessionSchema.safeParse(parsed);
@@ -363,7 +475,7 @@ export function writeInterviewSession(
   session: InterviewSession,
   identity?: InterviewSessionIdentity,
 ) {
-  const sessionWithIdentity = applyInterviewSessionIdentity(session, identity);
+  const sessionWithIdentity = sanitizeRestoredSession(applyInterviewSessionIdentity(session, identity));
   storage.setItem(getInterviewSessionKey(sessionWithIdentity), JSON.stringify(sessionWithIdentity));
 }
 

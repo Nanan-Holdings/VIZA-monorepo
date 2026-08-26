@@ -52,6 +52,10 @@ import {
   getCompiledConditionalPanelController,
   getCompiledConditionalPanelMode,
 } from "@/lib/application-schema-ui-contract";
+import {
+  getDs160LongFormGuideHintKeys,
+  isDs160LongFormGuideHintContext,
+} from "@/lib/ds160-guide-hints";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -2811,6 +2815,7 @@ export function DynamicStepForm({
   onNavigateReviewIssue,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
+  const tDs160Hints = useTranslations("simplifiedForm");
   const externallyHandled = useMemo(
     () => new Set(externallyHandledFieldNames ?? []),
     [externallyHandledFieldNames],
@@ -4508,6 +4513,13 @@ export function DynamicStepForm({
 
     const renderSide = (side: BilingualSide) => {
       const isTaiwanEntryPermit = (visaType ?? field.visaType) === "TW_ENTRY_PERMIT";
+      const ds160GuideHintText = isDs160LongFormGuideHintContext(country, visaType, field.visaType)
+        ? getDs160LongFormGuideHintKeys(field.fieldName)
+          .map((key) => tDs160Hints(key))
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+        : "";
       const isKoreaAddressSearchSelect = isKoreaOfficialAddressSearchField(field);
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
       const remoteDependsOn = phEtravelSource
@@ -4549,6 +4561,18 @@ export function DynamicStepForm({
           side === "zh" ? zhPlaceholder : enPlaceholder,
         ),
         options: resolveLocalizedOptions(fieldOptions, side),
+        validationRules: ds160GuideHintText
+          ? {
+              ...(field.validationRules ?? {}),
+              [side === "zh" ? "helper_zh" : "helper_en"]: [
+                typeof field.validationRules?.[side === "zh" ? "helper_zh" : "helper_en"] === "string"
+                  ? field.validationRules[side === "zh" ? "helper_zh" : "helper_en"]
+                  : "",
+                ds160GuideHintText,
+              ].filter(Boolean).join(" "),
+              helper_priority: "critical",
+            }
+          : field.validationRules,
       };
       if (
         isPhEtravelStep &&

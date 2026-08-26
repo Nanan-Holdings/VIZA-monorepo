@@ -79,6 +79,13 @@ describe("interview profile preparation", () => {
     expect(profilePreparationCounts(confirmed).criticalMissing).toBeGreaterThan(0);
   });
 
+  it("only confirms the key facts shown to the user when a field scope is provided", () => {
+    const confirmed = confirmExistingProfile(profile, context, ["purposeDetails"]);
+
+    expect(confirmed.verifiedFields).toEqual(expect.arrayContaining(["purposeDetails", "destinations"]));
+    expect(confirmed.needsConfirmationFields).toEqual(expect.arrayContaining(["purpose", "funding"]));
+  });
+
   it("captures a missing fact from an interview answer in this practice context", () => {
     const result = captureMissingFactsFromAnswer(profile, context, {
       id: "return_ties",
