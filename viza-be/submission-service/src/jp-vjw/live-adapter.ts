@@ -775,6 +775,31 @@ async function openExistingTrip(context: JpVjwLiveAdapterContext, title: string)
   return true;
 }
 
+export async function openJpVjwQrView(
+  context: JpVjwLiveAdapterContext,
+  action: Locator,
+): Promise<void> {
+  if (!(await action.isVisible().catch(() => false))) {
+    await fail(context, "jp_vjw_qr_action_missing", "Visit Japan Web QR action was not visible.");
+  }
+  const sourceRoute = currentRoute(context.page);
+  if (!sourceRoute.includes("vjwpti006") && !sourceRoute.includes("vjwpic022")) {
+    await fail(context, "jp_vjw_qr_action_unexpected_route", "Visit Japan Web QR action appeared on an unexpected route.");
+  }
+
+  context.executionContext?.assertOwned();
+  const clickedNormally = await action.click({ timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!clickedNormally) {
+    await action.evaluate((element) => (element as HTMLElement).click()).catch(async () => {
+      await fail(context, "jp_vjw_qr_action_blocked", "Visit Japan Web QR action could not be activated.");
+    });
+    context.logs.push("jpvjw_qr_action_dom_fallback");
+  }
+  await waitForRoute(context, ["vjwpic026"]);
+}
+
 async function openNewTripRegistration(context: JpVjwLiveAdapterContext): Promise<void> {
   const titleControl = context.page.locator("[formcontrolname='travelTitle']").first();
   if (await titleControl.isVisible().catch(() => false)) return;
@@ -961,13 +986,11 @@ async function completeImmigrationAndCustoms(context: JpVjwLiveAdapterContext): 
   }).catch(async () => {
     await fail(context, "jp_vjw_definitive_save_unconfirmed", "Visit Japan Web did not confirm the definitive declaration save.");
   });
-  const qrAction = context.page.getByRole("button", { name: /显示QR码|顯示QR碼|QRコードを表示|Display QR/i }).first();
-  if (await qrAction.isVisible().catch(() => false)) await qrAction.click();
-  else {
-    const qrLink = context.page.getByText(/显示QR码|QRコードを表示|Display QR/i).first();
-    if (await qrLink.isVisible().catch(() => false)) await qrLink.click();
+  let qrAction = context.page.getByRole("button", { name: /显示QR码|顯示QR碼|QRコードを表示|Display QR/i }).first();
+  if (!(await qrAction.isVisible().catch(() => false))) {
+    qrAction = context.page.getByText(/显示QR码|顯示QR碼|QRコードを表示|Display QR/i).first();
   }
-  await waitForRoute(context, ["vjwpic026"]);
+  await openJpVjwQrView(context, qrAction);
   return submittedAt;
 }
 
@@ -996,8 +1019,7 @@ export async function submitJpVjwLive(context: JpVjwLiveAdapterContext): Promise
   const existingQr = context.page.getByRole("button", { name: /显示QR码|QRコードを表示|Display QR/i }).first();
   let submittedAt = new Date().toISOString();
   if (await existingQr.isVisible().catch(() => false)) {
-    await existingQr.click();
-    await waitForRoute(context, ["vjwpic026"]);
+    await openJpVjwQrView(context, existingQr);
     context.logs.push("jpvjw_existing_official_qr_reused");
   } else {
     await clickImmigrationAndCustoms(context);
