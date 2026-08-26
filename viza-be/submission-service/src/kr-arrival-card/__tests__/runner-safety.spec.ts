@@ -193,6 +193,9 @@ test("Korea e-Arrival Card classifies Bright Data government policy blocks", () 
 test("Korea success evidence waits for loaded data and never prints a blank fallback", () => {
   assert.match(runnerSource, /hasVisibleConfirmationLoader/);
   assert.match(runnerSource, /waitForOfficialIssueNumber\(page, 90_000\)/);
+  assert.match(runnerSource, /latestIssueNumber && latestSuccessMarker/);
+  assert.match(runnerSource, /kr_eac_confirmation_grace_wait/);
+  assert.match(runnerSource, /waitForOfficialIssueNumber\(page, 30_000\)/);
   assert.match(runnerSource, /kr_eac_verified_detailed_card_pdf_fallback/);
   assert.doesNotMatch(runnerSource, /kr_eac_confirmation_page_pdf_fallback/);
   assert.match(runnerSource, /#btnViewEacInfo/);
