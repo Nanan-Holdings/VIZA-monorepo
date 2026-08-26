@@ -169,7 +169,12 @@ const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 const DEFAULT_MANAGED_INBOX_DOMAIN = "viza.it.com";
 const LEGACY_MANAGED_INBOX_DOMAINS = new Set(["haggstorm.com"]);
-const MAX_SUBMISSION_ANSWER_FIELDS = 200;
+// Dynamic forms preserve official values, Chinese display values, English
+// review companions, and legacy aliases in one snapshot. Mature arrival-card
+// applications can legitimately exceed 200 keys even though the visible form
+// is much shorter. Keep a bounded ceiling while allowing that synchronized
+// representation to cross the final submission boundary intact.
+const MAX_SUBMISSION_ANSWER_FIELDS = 500;
 const MAX_SUBMISSION_ANSWER_VALUE_LENGTH = 20_000;
 const MAX_SUBMISSION_ANSWER_TOTAL_LENGTH = 500_000;
 

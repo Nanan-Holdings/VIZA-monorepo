@@ -712,6 +712,44 @@ describe("Taiwan entry permit retry submission API", () => {
     });
   });
 
+  it("accepts a synchronized Japan snapshot with more than 200 answer keys", async () => {
+    process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
+    process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
+    currentApplication = {
+      ...baseApplication,
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+    };
+    currentApplicationAnswers = [...validJapanAnswers];
+    const companionAnswers = Object.fromEntries(
+      Array.from({ length: 203 }, (_, index) => [
+        `review_companion_${index}`,
+        `VALUE_${index}`,
+      ]),
+    );
+    const answerSnapshot = {
+      ...companionAnswers,
+      ...Object.fromEntries(
+        validJapanAnswers.map((answer) => [answer.field_name, answer.value_text]),
+      ),
+    };
+
+    const result = await post({
+      mode: "live_assisted",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      answerSnapshot,
+    });
+
+    expect(result.status).toBe(200);
+    expect(lastAnswerUpsert).toHaveLength(Object.keys(answerSnapshot).length);
+    expect(lastRunnerPoolArgs).toMatchObject({
+      applicationId,
+      country: "japan",
+      flowKey: "jp_vjw",
+    });
+  });
+
   it("rejects Japan live submission before enqueue when official text fields are placeholders", async () => {
     process.env.JP_VISIT_JAPAN_WEB_LIVE_SUBMISSION_ENABLED = "true";
     process.env.JP_VISIT_JAPAN_WEB_COMPLIANCE_APPROVED = "true";
