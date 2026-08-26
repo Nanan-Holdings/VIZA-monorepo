@@ -861,6 +861,33 @@ work_counts AS (
         AND lease_until > pg_catalog.clock_timestamp())
       AS live_machine_slots
 ),
+table_activity AS (
+  SELECT jsonb_build_object(
+    'stats_reset', (
+      SELECT stats_reset
+      FROM pg_catalog.pg_stat_database
+      WHERE datname = current_database()
+    ),
+    'tables', COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'table', stats.relname,
+          'seq_scan', COALESCE(stats.seq_scan, 0)::text,
+          'seq_tup_read', COALESCE(stats.seq_tup_read, 0)::text,
+          'idx_scan', COALESCE(stats.idx_scan, 0)::text,
+          'idx_tup_fetch', COALESCE(stats.idx_tup_fetch, 0)::text,
+          'n_tup_ins', COALESCE(stats.n_tup_ins, 0)::text,
+          'n_tup_upd', COALESCE(stats.n_tup_upd, 0)::text,
+          'n_tup_del', COALESCE(stats.n_tup_del, 0)::text,
+          'n_tup_hot_upd', COALESCE(stats.n_tup_hot_upd, 0)::text
+        ) ORDER BY stats.relname
+      ),
+      '[]'::jsonb
+    )
+  ) AS value
+  FROM pg_catalog.pg_stat_user_tables stats
+  WHERE stats.schemaname = 'public'
+),
 maintenance_candidates AS (
   SELECT COALESCE(
     jsonb_agg(
@@ -936,11 +963,13 @@ SELECT jsonb_build_object(
     'vn_status_running', work_counts.vn_status_running,
     'live_machine_slots', work_counts.live_machine_slots
   ),
+  'table_activity', table_activity.value,
   'maintenance_candidates', maintenance_candidates.value,
   'pg_stat_statements_available',
     pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
 ) AS passive_capacity
-FROM settings, activity, lock_summary, database_stats, work_counts, maintenance_candidates;
+FROM settings, activity, lock_summary, database_stats, work_counts,
+     table_activity, maintenance_candidates;
 `;
 
 const expectedCapSnapshotSql = JSON.stringify(EXPECTED_CAP_SNAPSHOT).replaceAll("'", "''");
@@ -2345,6 +2374,47 @@ function validTimestamp(value) {
   return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
 }
 
+const TABLE_ACTIVITY_COUNTERS = [
+  "seq_scan",
+  "seq_tup_read",
+  "idx_scan",
+  "idx_tup_fetch",
+  "n_tup_ins",
+  "n_tup_upd",
+  "n_tup_del",
+  "n_tup_hot_upd",
+];
+
+function validateTableActivitySnapshot(snapshot, path) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
+      (snapshot.stats_reset !== null && !validTimestamp(snapshot.stats_reset)) ||
+      !Array.isArray(snapshot.tables)) {
+    throw new Error(`Passive capacity table activity ${path} is invalid`);
+  }
+  const expectedKeys = ["table", ...TABLE_ACTIVITY_COUNTERS].sort();
+  const seen = new Set();
+  let previous = "";
+  for (const [index, table] of snapshot.tables.entries()) {
+    if (!table || typeof table !== "object" || Array.isArray(table) ||
+        typeof table.table !== "string" ||
+        !/^[A-Za-z_][A-Za-z0-9_$]{0,62}$/u.test(table.table) ||
+        seen.has(table.table) || table.table.localeCompare(previous) < 0 ||
+        JSON.stringify(Object.keys(table).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error(`Passive capacity table activity ${path}.tables[${index}] is invalid`);
+    }
+    for (const key of TABLE_ACTIVITY_COUNTERS) {
+      if (typeof table[key] !== "string" || !/^\d+$/u.test(table[key])) {
+        throw new Error(
+          `Passive capacity table activity ${path}.tables[${index}].${key} is invalid`,
+        );
+      }
+    }
+    seen.add(table.table);
+    previous = table.table;
+  }
+  return snapshot;
+}
+
 function validateCapacityStatementMetrics(statementMetrics, { required }) {
   if (
     !statementMetrics || typeof statementMetrics !== "object" ||
@@ -2458,6 +2528,7 @@ function validatePassiveCapacitySample(sample) {
   if (!Array.isArray(sample.maintenance_candidates)) {
     throw new Error("Passive capacity maintenance candidates are invalid");
   }
+  validateTableActivitySnapshot(sample.table_activity, "sample.table_activity");
   return sample;
 }
 
@@ -2707,7 +2778,7 @@ export async function runPassiveCapacityObservation({
       catalog_endpoint: "database/query/read-only",
     },
     project_ref: projectRef,
-    sanitization_schema: "viza-passive-capacity-metadata-only-v1",
+    sanitization_schema: "viza-passive-capacity-metadata-only-v2",
     performance_advisor: performanceAdvisor,
     samples,
     pg_stat_statements: statementMetrics,
