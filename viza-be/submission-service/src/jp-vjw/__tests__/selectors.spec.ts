@@ -22,6 +22,8 @@ import {
   JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
+  JP_VJW_TO_ENTRY_PROCEDURE_NAME,
+  JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
   hasOfficialJpVjwQrEvidence,
   isJpVjwCloudfrontAccessGate,
@@ -61,6 +63,10 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("Confirm entered details", JP_VJW_CONFIRM_ENTERED_DETAILS_NAME);
   assert.match("Register new planned entry/return", JP_VJW_NEW_TRIP_NAME);
   assert.match("Proceed to registration without copying details", JP_VJW_NO_COPY_TRIP_NAME);
+  assert.match("Registered planned entry/return", JP_VJW_TRIP_REGISTERED_NAME);
+  assert.match("To entry/return procedure", JP_VJW_TO_ENTRY_PROCEDURE_NAME);
+  assert.match("入国・帰国予定を登録しました", JP_VJW_TRIP_REGISTERED_NAME);
+  assert.match("入国・帰国手続へ", JP_VJW_TO_ENTRY_PROCEDURE_NAME);
 });
 
 test("Visit Japan Web native option matching skips the empty placeholder", () => {

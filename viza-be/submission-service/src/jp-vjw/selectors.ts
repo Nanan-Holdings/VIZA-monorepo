@@ -64,6 +64,12 @@ export const JP_VJW_NEW_TRIP_NAME =
 export const JP_VJW_NO_COPY_TRIP_NAME =
   /不复制.*继续登记|不複製.*繼續登記|Proceed to registration without copying details|引き継がずに登録を進める/i;
 
+export const JP_VJW_TRIP_REGISTERED_NAME =
+  /已登记.*入境.*回国计划|已登記.*入境.*回國計劃|Registered planned entry\/return|入国・帰国予定を登録しました|入国・帰国予定の登録が完了しました/i;
+
+export const JP_VJW_TO_ENTRY_PROCEDURE_NAME =
+  /前往入境.*回国手续|前往入境.*回國手續|To entry\/return procedure|入国・帰国手続へ/i;
+
 /**
  * The official VJW edge currently rejects Playwright's HeadlessChrome UA with
  * a CloudFront 404. This is a browser identity override, not a success
