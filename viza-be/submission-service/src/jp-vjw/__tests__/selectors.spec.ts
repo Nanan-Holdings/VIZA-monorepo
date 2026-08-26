@@ -27,6 +27,7 @@ import {
   JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
   hasOfficialJpVjwQrEvidence,
+  isJpVjwDeclarationRegistered,
   isJpVjwCloudfrontAccessGate,
   isOfficialJpVjwUrl,
   resolveJpVjwUserAgent,
@@ -179,4 +180,12 @@ test("Visit Japan Web QR gate accepts the official simplified-Chinese QR heading
     qrElementVisible: true,
     qrArtifactPath: "C:/evidence/official-qr.png",
   }), true);
+});
+
+test("Visit Japan Web declaration state never treats the disabled Not registered card as reusable QR evidence", () => {
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration Not registered"), false);
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration Registered"), true);
+  assert.equal(isJpVjwDeclarationRegistered("入境审查及海关申报 未登记"), false);
+  assert.equal(isJpVjwDeclarationRegistered("入国審査及び税関申告 登録済み"), true);
+  assert.equal(isJpVjwDeclarationRegistered("Immigration clearance and Customs declaration"), false);
 });
