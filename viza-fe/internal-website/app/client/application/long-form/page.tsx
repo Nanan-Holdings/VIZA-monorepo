@@ -92,6 +92,9 @@ function localizedSubmissionAccessError(
   if (code === "application_payment_required") {
     return "提交前需要完成适用的 VIZA 服务费及官方费用确认。";
   }
+  if (code === "authentication_required" || /^unauthorized$/i.test(rawError.trim())) {
+    return "登录状态已失效，请重新登录后再提交。";
+  }
   return rawError;
 }
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
