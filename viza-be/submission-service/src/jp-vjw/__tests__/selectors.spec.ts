@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import {
   chooseJpVjwAutocomplete,
   fillJpVjwVerificationCode,
+  openJpVjwQrView,
   resolveJpVjwNativeOptionValue,
   type JpVjwLiveAdapterContext,
 } from "../live-adapter";
@@ -123,6 +124,29 @@ test("Visit Japan Web verification code uses keyboard events required by the pro
     assert.equal(await page.evaluate(() =>
       (window as unknown as Window & { keyboardEvents: number }).keyboardEvents >= 6,
     ), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web QR action falls back to the verified Angular control when an overlay intercepts pointer clicks", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <a id="qr" role="button" onclick="window.location.hash = '#/vjwpic026'">Display QR</a>
+      <div style="position: fixed; inset: 0; z-index: 2"></div>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await openJpVjwQrView(
+      { page, logs } as unknown as JpVjwLiveAdapterContext,
+      page.getByRole("button", { name: "Display QR" }),
+    );
+    assert.match(page.url(), /vjwpic026/u);
+    assert.deepEqual(logs, ["jpvjw_qr_action_dom_fallback"]);
   } finally {
     await browser.close();
   }
