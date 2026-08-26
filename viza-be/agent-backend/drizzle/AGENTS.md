@@ -430,6 +430,16 @@ The current internal automation migrations are:
   bootstraps existing administrators, hardens `handle_new_user`, and installs
   fail-closed queue/application payment fences plus refund/dispute review
   events. Keep the frontend Supabase migration byte-identical.
+- `0186_jp_vjw_official_control_parity.sql`: publishes the reviewed VJW 3.16
+  dropdown/autocomplete masters and exact visible control types. It is ordered
+  before the two label-only Japan migrations and remains byte-identical to its
+  timestamped frontend Supabase mirror.
+- `0187_jp_vjw_chinese_option_labels.sql`: adds Simplified Chinese display
+  labels without changing official stored codes or English values. Keep its
+  timestamped frontend Supabase mirror byte-identical.
+- `0188_jp_vjw_simplified_chinese_admin_labels.sql`: removes residual Japanese
+  kana from municipality display labels without changing official romanized
+  values. Keep its timestamped frontend Supabase mirror byte-identical.
 
 ## Guardrails
 
