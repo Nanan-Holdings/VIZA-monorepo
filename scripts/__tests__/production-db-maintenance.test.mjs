@@ -599,6 +599,10 @@ test("passive capacity observation takes three read-only samples and emits no st
   assert.match(PASSIVE_CAPACITY_SQL, /'seq_tup_read'/u);
   assert.match(PASSIVE_CAPACITY_SQL, /'idx_scan'/u);
   assert.match(PASSIVE_CAPACITY_SQL, /'n_tup_hot_upd'/u);
+  assert.match(
+    PASSIVE_CAPACITY_SQL,
+    /COALESCE\(\s*stats_reset,\s*pg_catalog\.pg_postmaster_start_time\(\)\s*\)/u,
+  );
 });
 
 test("scheduled passive capacity workflow is read-only, single-flight, and retains only metadata", () => {
