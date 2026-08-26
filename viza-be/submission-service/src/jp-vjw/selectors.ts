@@ -70,6 +70,8 @@ export const JP_VJW_TRIP_REGISTERED_NAME =
 export const JP_VJW_TO_ENTRY_PROCEDURE_NAME =
   /前往入境.*回国手续|前往入境.*回國手續|To entry\/return procedure|入国・帰国手続へ/i;
 
+export const JP_VJW_NEXT_NAME = /^(?:下一步|Next|次へ)$/i;
+
 export const JP_VJW_DECLARATION_NOT_REGISTERED_NAME =
   /未登记|未登記|Not registered|未登録/i;
 
