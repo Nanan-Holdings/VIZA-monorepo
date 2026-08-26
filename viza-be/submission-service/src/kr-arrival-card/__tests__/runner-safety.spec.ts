@@ -9,6 +9,7 @@ import {
 import { classifyOfficialTravelLookup } from "../normalize";
 import {
   extractOfficialIssueNumberFromText,
+  isOfficialCompletionPageText,
   normalizeOfficialIssueNumber,
 } from "../confirmation";
 
@@ -67,6 +68,14 @@ test("Korea completion parser rejects the blank table heading as an issue number
 
 test("Korea completion parser accepts only a digit-bearing official issue token", () => {
   assert.equal(
+    extractOfficialIssueNumberFromText("EAC-26-PA-123456789"),
+    "EAC-26-PA-123456789",
+  );
+  assert.equal(
+    extractOfficialIssueNumberFromText("EAC‑26‑PA‑123456789"),
+    "EAC-26-PA-123456789",
+  );
+  assert.equal(
     extractOfficialIssueNumberFromText("Issue number: EAC-20260824-AB123456"),
     "EAC-20260824-AB123456",
   );
@@ -75,6 +84,12 @@ test("Korea completion parser accepts only a digit-bearing official issue token"
     "20260824-1234567890",
   );
   assert.equal(normalizeOfficialIssueNumber("REFERENCE"), null);
+});
+
+test("Korea completion marker accepts the official non-breaking hyphen", () => {
+  assert.equal(isOfficialCompletionPageText("Submission of e-Arrival card complete"), true);
+  assert.equal(isOfficialCompletionPageText("Submission of e‑Arrival card complete"), true);
+  assert.equal(isOfficialCompletionPageText("Korea e-Arrival Card declaration"), false);
 });
 
 test("Korea runner never bypasses disabled or readonly official controls", () => {
@@ -178,9 +193,12 @@ test("Korea e-Arrival Card classifies Bright Data government policy blocks", () 
 test("Korea success evidence waits for loaded data and never prints a blank fallback", () => {
   assert.match(runnerSource, /hasVisibleConfirmationLoader/);
   assert.match(runnerSource, /waitForOfficialIssueNumber\(page, 90_000\)/);
-  assert.match(runnerSource, /kr_eac_confirmation_pdf_rejected_missing_issue_number/);
-  assert.match(runnerSource, /kr_eac_verified_confirmation_page_pdf_fallback/);
+  assert.match(runnerSource, /kr_eac_verified_detailed_card_pdf_fallback/);
   assert.doesNotMatch(runnerSource, /kr_eac_confirmation_page_pdf_fallback/);
+  assert.match(runnerSource, /#btnViewEacInfo/);
+  assert.match(runnerSource, /kr_eac_official_card_view_pdf_captured/);
+  assert.match(runnerSource, /kr_eac_official_card_view_pdf_rejected_missing_rendered_detail/);
+  assert.match(runnerSource, /kr_eac_confirmation_pdf_rejected_missing_detailed_card/);
 });
 
 test("Korea CAPTCHA solve preserves leading zeroes and clicks the labelled confirmation control", () => {
@@ -199,6 +217,18 @@ test("Korea CAPTCHA solve retries transient solver failures and official rejecti
   assert.match(runnerSource, /kr_eac_captcha_rejected attempt=/);
   assert.match(runnerSource, /refreshVisibleCaptcha/);
   assert.match(runnerSource, /waitForCaptchaDecision/);
+});
+
+test("Korea treats the official completion page as authoritative over a stale CAPTCHA result", () => {
+  const completionCheck = runnerSource.indexOf("isOfficialCompletionPageText(body)");
+  const captchaResultCheck = runnerSource.indexOf('page.locator("#captchaResult")');
+  assert.ok(completionCheck >= 0);
+  assert.ok(captchaResultCheck >= 0);
+  assert.ok(completionCheck < captchaResultCheck);
+  assert.match(runnerSource, /let sawRejectedResult = false/);
+  assert.match(runnerSource, /sawRejectedResult \? "rejected" : "pending"/);
+  assert.doesNotMatch(runnerSource, /if \(result && result !== "Y"\) return "rejected"/);
+  assert.match(runnerSource, /latestSuccessMarker = isOfficialCompletionPageText\(latestBody\)/);
 });
 
 test("Korea waits for the asynchronously mounted CAPTCHA checkpoint", () => {

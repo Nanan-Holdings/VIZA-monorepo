@@ -176,7 +176,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   an `@viza.test` boolean. It must not call client-session continuity/profile
   helpers or expose the email/cookie, so capacity preflight remains read-only.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
-  `lib/client-session.ts`, `lib/impersonation-session.ts`, and the fail-closed
+  `lib/client-session.ts`, `lib/application-api-auth.ts`,
+  `lib/impersonation-session.ts`, and the fail-closed
   dynamic admin membership check in `lib/admin-membership.ts`. Admin invite
   secrets are hashed server-side by `lib/admin-invite-token.ts`; the historical
   email list in `lib/admin-access.ts` is bootstrap/recovery data only.

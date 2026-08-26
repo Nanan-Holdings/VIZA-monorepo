@@ -90,7 +90,14 @@ vi.mock("@/lib/client-session", () => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createClient: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn(async () => ({
+        data: { user: { id: "auth_tw" } },
+        error: null,
+      })),
+    },
+  })),
 }));
 
 vi.mock("@/lib/face/match", () => ({

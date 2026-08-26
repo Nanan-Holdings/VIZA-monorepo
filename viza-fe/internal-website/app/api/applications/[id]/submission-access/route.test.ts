@@ -3,14 +3,20 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   getApplicationApiApplicantProfileId: vi.fn(),
+  getClientSessionFromRequest: vi.fn(),
+  getSupabaseUser: vi.fn(),
   evaluateSubmissionAccess: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
-vi.mock("@/lib/application-api-auth", () => ({
-  getApplicationApiApplicantProfileId:
-    mocks.getApplicationApiApplicantProfileId,
-}));
+vi.mock("@/lib/application-api-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/application-api-auth")>();
+  return {
+    ...actual,
+    getApplicationApiApplicantProfileId:
+      mocks.getApplicationApiApplicantProfileId,
+  };
+});
 vi.mock("@/lib/payments/submission-access", () => ({
   APPLICATION_PAYMENT_REQUIRED: "application_payment_required",
   evaluateSubmissionAccess: mocks.evaluateSubmissionAccess,
@@ -18,6 +24,14 @@ vi.mock("@/lib/payments/submission-access", () => ({
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mocks.createAdminClient,
+}));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    auth: { getUser: mocks.getSupabaseUser },
+  })),
+}));
+vi.mock("@/lib/client-session", () => ({
+  getClientSessionFromRequest: mocks.getClientSessionFromRequest,
 }));
 
 import { POST } from "./route";
@@ -81,6 +95,14 @@ function adminFor({
 describe("submission access route authentication", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getClientSessionFromRequest.mockResolvedValue({
+      userId: "profile-owner",
+      authUserId: "auth-owner",
+      email: "owner@example.invalid",
+    });
+    mocks.getSupabaseUser.mockResolvedValue({
+      data: { user: { id: "auth-owner" } },
+    });
     mocks.evaluateSubmissionAccess.mockResolvedValue({ status: "ready" });
   });
 
@@ -125,6 +147,14 @@ describe("submission access route authentication", () => {
 
   it("does not allow an unrelated signed client profile to submit the application", async () => {
     mocks.getApplicationApiApplicantProfileId.mockResolvedValue("profile-other");
+    mocks.getClientSessionFromRequest.mockResolvedValue({
+      userId: "profile-other",
+      authUserId: "auth-other",
+      email: "other@example.invalid",
+    });
+    mocks.getSupabaseUser.mockResolvedValue({
+      data: { user: { id: "auth-other" } },
+    });
     const admin = adminFor({
       requesterProfileId: "profile-other",
       requesterAuthUserId: "auth-other",

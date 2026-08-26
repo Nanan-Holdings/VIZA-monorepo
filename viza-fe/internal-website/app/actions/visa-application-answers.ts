@@ -6,6 +6,7 @@ import {
   getClientSessionWithFallback,
   type ClientSession,
 } from "@/lib/client-session";
+import { getOwnedApplicantSession } from "@/lib/application-api-auth";
 import {
   resolveApplicantProfileForAuthUser,
   type ApplicantProfileIdentityRow,
@@ -696,7 +697,7 @@ async function saveDynamicAnswersOnce(
     if (!normalized.ok) return { error: normalized.error };
     const answers = normalized.data;
     const savedAt = new Date().toISOString();
-    const resilienceEvent: ApplicationAnswersEvent = {
+    let resilienceEvent: ApplicationAnswersEvent = {
       version: 1,
       applicantId: session.userId,
       applicationId,
@@ -732,9 +733,14 @@ async function saveDynamicAnswersOnce(
     );
 
     if (profileError) return { error: profileError };
-    if (!ownsApplicationSession(profile, session)) {
+    const ownedSession = await getOwnedApplicantSession(profile, session);
+    if (!ownedSession) {
       return { error: "Unauthorized" };
     }
+    resilienceEvent = {
+      ...resilienceEvent,
+      applicantId: ownedSession.userId,
+    };
 
     const now = savedAt;
     const emptyFieldNames = Object.entries(answers)
@@ -887,18 +893,6 @@ async function saveDynamicAnswersOnce(
     }
     return { error: err instanceof Error ? err.message : "Failed to save" };
   }
-}
-
-function ownsApplicationSession(
-  profile: ApplicationOwnerProfile | null,
-  session: ClientSession
-): profile is ApplicationOwnerProfile & { id: string } {
-  return Boolean(
-    profile?.id &&
-    (profile.id === session.userId ||
-      (session.authUserId && profile.auth_user_id === session.authUserId) ||
-      profile.dependant_of_user_id === (session.authUserId ?? session.userId))
-  );
 }
 
 export async function saveDynamicAnswers(
@@ -1564,7 +1558,10 @@ export async function completeKoreaEArrivalCardPreflight(input: {
       }
 
       const owner = await loadApplicationOwnerProfile(adminClient, application.applicant_id);
-      if (owner.error || !ownsApplicationSession(owner.profile, session)) {
+      const ownedSession = owner.error
+        ? null
+        : await getOwnedApplicantSession(owner.profile, session);
+      if (owner.error || !ownedSession) {
         return { ok: false, error: owner.error ?? "Unauthorized" };
       }
       if (
@@ -1898,7 +1895,8 @@ export async function loadDynamicAnswers(
       }
       return { answers: {}, error: profileError };
     }
-    if (!ownsApplicationSession(profile, session)) {
+    const ownedSession = await getOwnedApplicantSession(profile, session);
+    if (!ownedSession) {
       return { answers: {}, error: "Unauthorized" };
     }
 
@@ -1928,7 +1926,7 @@ export async function loadDynamicAnswers(
 
     await cacheApplicationAnswers({
       version: 1,
-      applicantId: session.userId,
+      applicantId: ownedSession.userId,
       applicationId,
       answers,
       savedAt: new Date().toISOString(),

@@ -3,6 +3,7 @@ import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
+import { clientSessionOwnsApplicant } from "@/lib/application-api-auth";
 import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { isRunnerCutoverPaused } from "@/lib/runner-cutover-pause.server";
@@ -1712,33 +1713,16 @@ export async function POST(
   }
 
   const legacySession = await getClientSessionFromRequest(request);
-  let authUserId: string | null = null;
-  if (!legacySession) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    authUserId = user?.id ?? null;
-  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const authUserId = user?.id ?? null;
   if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const profileQuery = admin
-    .from("applicant_profiles")
-    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias");
-  const { data: profile, error: profileError } = legacySession
-    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
-    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
-
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
-  }
-  if (!profile) {
-    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
-  }
-
   const { data: application, error: applicationError } = await admin
     .from("applications")
     .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address, submission_result, submission_result_status")
@@ -1752,8 +1736,32 @@ export async function POST(
   if (!ownedApplication) {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
   }
+
+  // Load the target application's owner first, then let either independently
+  // valid login session prove ownership. Selecting a profile from whichever
+  // credential happened to be checked first caused mixed legacy/Supabase
+  // sessions to reject an application that the same page had just loaded.
+  const { data: profile, error: profileError } = await admin
+    .from("applicant_profiles")
+    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias")
+    .eq("id", ownedApplication.applicant_id)
+    .maybeSingle();
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+  if (!profile) {
+    return NextResponse.json({ error: "Applicant profile not found" }, { status: 404 });
+  }
+
   const ownedProfile = profile as ProfileForRetry;
-  if (ownedApplication.applicant_id !== ownedProfile.id) {
+  const legacyOwnsApplication = Boolean(
+    legacySession && clientSessionOwnsApplicant(ownedProfile, legacySession),
+  );
+  const supabaseOwnsApplication = Boolean(
+    authUserId && ownedProfile.auth_user_id === authUserId,
+  );
+  if (!legacyOwnsApplication && !supabaseOwnsApplication) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

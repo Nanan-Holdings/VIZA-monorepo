@@ -42,6 +42,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-access/route.ts`
   performs the final-review payment preflight and returns a stable `402`
   `application_payment_required` response with an application-scoped quote.
+  Its adjacent `auth.ts` resolves both the signed VIZA client session and
+  Supabase Auth against the exact target owner before returning the
+  authoritative payer ID; `auth.test.ts` guards mixed-session and group-payer
+  fail-closed behavior.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-checkout/route.ts`
   creates or reuses the exact outstanding order and redirects to the verified
   payment provider. Its return target is restricted to the application flow.
