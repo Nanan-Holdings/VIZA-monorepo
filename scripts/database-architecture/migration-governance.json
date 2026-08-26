@@ -195,6 +195,26 @@
       "drizzle": "viza-be/agent-backend/drizzle/0183_notification_preferences_policy_dedupe.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260824061117_notification_preferences_policy_dedupe.sql",
       "sha256": "fbbaa13c9cde71289d4b22103bd33e11c87e61620e9d65f78d17c41d63968cde"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0185_admin_access_entitlements.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824090000_admin_access_entitlements.sql",
+      "sha256": "9432919ed89fbb0f7017cfa2ac42ffd3861d84f0d42b53c7771474f409cba36e"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824163030_jp_vjw_official_control_parity.sql",
+      "sha256": "f41f3fe52fe01c721cca261473f87a0b643ab0bfe87bd72a1a1a6a63b696e922"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824170000_jp_vjw_chinese_option_labels.sql",
+      "sha256": "b1db1a687934c182505ac45bfc6da137c42a3dcdd76c667567b43fe288fe59ae"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260824173000_jp_vjw_simplified_chinese_admin_labels.sql",
+      "sha256": "620607722f5554f3bf0c1eda69b0d768d6455ed372a3dc0a993c4e7d85bd39b4"
     }
   ],
   "no_mirror": [],
@@ -227,6 +247,45 @@
       "verified_unapplied_at": "2026-08-23T03:57:56Z",
       "production_ledger_versions_absent": [
         "20260818140000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0185_jp_vjw_official_control_parity.sql",
+      "to": "viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql",
+      "sha256": "f41f3fe52fe01c721cca261473f87a0b643ab0bfe87bd72a1a1a6a63b696e922",
+      "reason": "Repair the Japan VJW migration numbering collision before its first production apply while preserving execution order.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0186_jp_vjw_chinese_option_labels.sql",
+      "to": "viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql",
+      "sha256": "b1db1a687934c182505ac45bfc6da137c42a3dcdd76c667567b43fe288fe59ae",
+      "reason": "Shift the unapplied Japan VJW label migration with its prerequisite so repository execution order stays unchanged.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
+      ]
+    },
+    {
+      "from": "viza-be/agent-backend/drizzle/0187_jp_vjw_simplified_chinese_admin_labels.sql",
+      "to": "viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql",
+      "sha256": "620607722f5554f3bf0c1eda69b0d768d6455ed372a3dc0a993c4e7d85bd39b4",
+      "reason": "Shift the unapplied Japan VJW municipality-label migration with its prerequisites so execution order stays unchanged.",
+      "verified_unapplied_at": "2026-08-26T22:06:44Z",
+      "production_ledger_versions_absent": [
+        "20260824090000",
+        "20260824163030",
+        "20260824170000",
+        "20260824173000"
       ]
     }
   ],

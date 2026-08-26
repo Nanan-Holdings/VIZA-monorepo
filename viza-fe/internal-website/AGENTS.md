@@ -631,16 +631,16 @@ Smoke URLs:
 - `supabase/migrations/20260824163030_jp_vjw_official_control_parity.sql`:
   publishes the reviewed VJW 3.16 dropdown/autocomplete masters and exact
   visible control types; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0185_jp_vjw_official_control_parity.sql`.
+  `viza-be/agent-backend/drizzle/0186_jp_vjw_official_control_parity.sql`.
 - `supabase/migrations/20260824170000_jp_vjw_chinese_option_labels.sql`:
   publishes Simplified Chinese display labels for the reviewed VJW option
   masters while preserving every official stored code/English value; keep it
   byte-identical to
-  `viza-be/agent-backend/drizzle/0186_jp_vjw_chinese_option_labels.sql`.
+  `viza-be/agent-backend/drizzle/0187_jp_vjw_chinese_option_labels.sql`.
 - `supabase/migrations/20260824173000_jp_vjw_simplified_chinese_admin_labels.sql`:
   removes residual Japanese kana from VJW municipality display labels while
   preserving every official romanized value; keep it byte-identical to
-  `viza-be/agent-backend/drizzle/0187_jp_vjw_simplified_chinese_admin_labels.sql`.
+  `viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql`.
 - `supabase/migrations/20260824011500_expand_runner_result_statuses.sql`:
   mirrors the backend shared-pool result-status expansion; keep it
   byte-identical to
