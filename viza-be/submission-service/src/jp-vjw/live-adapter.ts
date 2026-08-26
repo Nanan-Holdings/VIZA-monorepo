@@ -12,8 +12,10 @@ import { JpVjwPortalError } from "./errors.js";
 import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
+  JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME,
   JP_VJW_CONFIRM_ENTERED_DETAILS_NAME,
   JP_VJW_CREATE_ACCOUNT_NAME,
+  JP_VJW_DECLARATION_COMPLETE_NAME,
   isJpVjwDeclarationRegistered,
   JP_VJW_GO_TO_LOGIN_NAME,
   JP_VJW_JAPANESE_PASSPORT_QUESTION,
@@ -914,6 +916,49 @@ export async function clickImmigrationAndCustoms(context: JpVjwLiveAdapterContex
   await waitForRoute(context, ["vjwpic004"]);
 }
 
+export async function confirmJpVjwDeclarationSave(context: JpVjwLiveAdapterContext): Promise<void> {
+  const completionHeading = context.page.getByText(JP_VJW_DECLARATION_COMPLETE_NAME).first();
+  const backToProcedure = context.page.getByRole("button", { name: JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME }).first();
+  const deadline = Date.now() + ROUTE_TIMEOUT_MS;
+  let confirmation: "modal" | "legacy" | "dashboard" | null = null;
+  while (Date.now() < deadline) {
+    const route = currentRoute(context.page);
+    if (route.includes("vjwpti006")) {
+      confirmation = "dashboard";
+      break;
+    }
+    if (
+      route.includes("vjwpic022")
+      && await context.page.locator("app-vjwpic022").first().isVisible().catch(() => false)
+    ) {
+      confirmation = "legacy";
+      break;
+    }
+    if (
+      await completionHeading.isVisible().catch(() => false)
+      && await backToProcedure.isVisible().catch(() => false)
+    ) {
+      confirmation = "modal";
+      break;
+    }
+    await context.page.waitForTimeout(200);
+  }
+
+  if (!confirmation) {
+    await fail(context, "jp_vjw_definitive_save_unconfirmed", "Visit Japan Web did not confirm the definitive declaration save.");
+  }
+  if (confirmation === "modal") {
+    context.executionContext?.assertOwned();
+    await backToProcedure.click();
+    await waitForRoute(context, ["vjwpti006"]);
+    context.logs.push("jpvjw_declaration_registered_modal_confirmed");
+  } else if (confirmation === "legacy") {
+    context.logs.push("jpvjw_declaration_registered_legacy_confirmed");
+  } else {
+    context.logs.push("jpvjw_declaration_registered_dashboard_confirmed");
+  }
+}
+
 function assertSupportedCustomsPath(context: JpVjwLiveAdapterContext): void {
   const values = Object.entries(context.payload.customsAnswers)
     .filter(([key]) => key !== "declarationConfirmed")
@@ -994,12 +1039,7 @@ async function completeImmigrationAndCustoms(context: JpVjwLiveAdapterContext): 
   context.executionContext?.assertOwned();
   const submittedAt = new Date().toISOString();
   await clickPrimary(context, true);
-  await context.page.locator("app-vjwpic022").first().waitFor({
-    state: "visible",
-    timeout: ROUTE_TIMEOUT_MS,
-  }).catch(async () => {
-    await fail(context, "jp_vjw_definitive_save_unconfirmed", "Visit Japan Web did not confirm the definitive declaration save.");
-  });
+  await confirmJpVjwDeclarationSave(context);
   let qrAction = context.page.getByRole("button", { name: /显示QR码|顯示QR碼|QRコードを表示|Display QR/i }).first();
   if (!(await qrAction.isVisible().catch(() => false))) {
     qrAction = context.page.getByText(/显示QR码|顯示QR碼|QRコードを表示|Display QR/i).first();
