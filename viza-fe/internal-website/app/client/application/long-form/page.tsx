@@ -1749,6 +1749,15 @@ function recoverOrFormatServerActionError(
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
+function localizeApplicationAuthError(message: string, isZh: boolean): string {
+  if (!/^(unauthorized|forbidden|not authenticated)$/iu.test(message.trim())) {
+    return message;
+  }
+  return isZh
+    ? "登录状态与当前申请的身份验证失败。请刷新页面后重新提交；你的表单内容已保留。"
+    : "Your login session could not be verified for this application. Refresh the page and submit again; your answers have been preserved.";
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -4340,7 +4349,7 @@ export default function ApplicationPage() {
         t("errors.stalePage"),
       );
       if (!message) return;
-      setError(message);
+      setError(localizeApplicationAuthError(message, isZhInterface));
       // If the queue endpoint succeeded but the follow-up application refresh
       // failed, keep the status panel visible. The server-side queue is the
       // authoritative side effect and reverting to the form would invite a
@@ -4482,7 +4491,7 @@ export default function ApplicationPage() {
         t("errors.stalePage"),
       );
       if (!message) return;
-      setError(message);
+      setError(localizeApplicationAuthError(message, isZhInterface));
       throw submissionError;
     } finally {
       setSaving(false);
@@ -4591,7 +4600,7 @@ export default function ApplicationPage() {
       }
       setError(
         submitAccessError instanceof Error
-          ? submitAccessError.message
+          ? localizeApplicationAuthError(submitAccessError.message, isZhInterface)
           : "Submission payment eligibility could not be confirmed.",
       );
     }

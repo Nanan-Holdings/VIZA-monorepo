@@ -256,6 +256,30 @@ describe("submission access evaluator", () => {
     expect(decision.officialFee.status).toBe("not_required");
   });
 
+  it("allows standard access when an arrival declaration is explicitly free", async () => {
+    const tables = baseTables({
+      applications: [{
+        id: "app-1",
+        applicant_id: "profile-1",
+        country: "south_korea",
+        visa_type: "KR_E_ARRIVAL_CARD",
+        purpose: null,
+        visa_package_id: null,
+        government_fee_cents: 0,
+        government_fee_currency: "USD",
+      }],
+    });
+    const decision = await evaluateSubmissionAccess(fakeAdmin(tables).client as never, "app-1");
+    expect(decision.status).toBe("ready");
+    expect(decision.accessLevel).toBe("standard");
+    expect(decision.agencyFee).toMatchObject({
+      status: "waived",
+      amountCents: 0,
+      amountDueCents: 0,
+    });
+    expect(decision.officialFee.status).toBe("not_required");
+  });
+
   it("preserves a high-access waiver already locked to the application", async () => {
     const admin = fakeAdmin(baseTables({
       application_submission_entitlements: [{

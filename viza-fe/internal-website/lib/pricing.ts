@@ -53,6 +53,18 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     currency: "USD",
     govtFeeChannel: "portal_direct",
   },
+  {
+    // The Korea e-Arrival Card is a free declaration. VIZA currently does not
+    // collect a separate service fee for this product, so both fee rails are
+    // explicitly zero instead of falling through to the unconfigured-price
+    // review path.
+    country: "south_korea",
+    visaType: "KR_E_ARRIVAL_CARD",
+    agencyFeeCents: 0,
+    govtFeeCents: 0,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+  },
   // MKT-007: launch countries previously missing from pricing.
   {
     country: "saudi_arabia",

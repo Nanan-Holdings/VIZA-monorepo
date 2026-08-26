@@ -7,6 +7,9 @@ import {
 } from "@/lib/payments/submission-access";
 import { getApplicationApiApplicantProfileId } from "@/lib/application-api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getClientSessionFromRequest } from "@/lib/client-session";
+import { resolveSubmissionAccessPayerAuthUserId } from "./auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +39,13 @@ export async function POST(
       { status: 401 },
     );
   }
+
+  const legacySession = await getClientSessionFromRequest(request);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const supabaseAuthUserId = user?.id ?? null;
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
@@ -79,13 +89,24 @@ export async function POST(
     ?? requesterProfile?.dependant_of_user_id;
   const ownsApplication = requesterProfileId === application.applicant_id
     || (Boolean(ownerId) && requesterOwnerId === ownerId);
-  if (!profile || !requesterProfile || !ownerId || !ownsApplication) {
+  if (!profile) {
+    return NextResponse.json({ error: "Application not found." }, { status: 404 });
+  }
+  const sessionPayerAuthUserId = resolveSubmissionAccessPayerAuthUserId({
+    profile,
+    groupPayerAuthUserId: groupPayerId,
+    legacySession,
+    supabaseAuthUserId,
+  });
+  const payerAuthUserId = sessionPayerAuthUserId
+    ?? (!application.group_id && ownsApplication ? ownerId : null);
+  if (!payerAuthUserId) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
 
   try {
     const decision = await evaluateSubmissionAccess(admin, applicationId, {
-      payerAuthUserId: ownerId,
+      payerAuthUserId,
       lockHighAccess: true,
       returnTo,
     });

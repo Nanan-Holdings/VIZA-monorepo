@@ -23,6 +23,7 @@ import {
 } from "./normalize.js";
 import {
   extractOfficialIssueNumberFromText,
+  isOfficialCompletionPageText,
   normalizeOfficialIssueNumber,
 } from "./confirmation.js";
 
@@ -1453,10 +1454,21 @@ async function waitForCaptchaDecision(
   timeoutMs = 8_000,
 ): Promise<"accepted" | "rejected" | "pending"> {
   const deadline = Date.now() + timeoutMs;
+  let sawRejectedResult = false;
   while (Date.now() < deadline) {
+    // The official portal can navigate to its completion view while retaining
+    // a stale, rejected `#captchaResult` field in the new document.  The
+    // authoritative completion marker must win over that legacy field;
+    // otherwise a genuinely submitted declaration is retried and can be
+    // duplicated.
+    const body = await page.locator("body").innerText().catch(() => "");
+    if (isOfficialCompletionPageText(body)) {
+      return "accepted";
+    }
+
     const result = await page.locator("#captchaResult").first().inputValue().catch(() => "");
     if (result === "Y") return "accepted";
-    if (result && result !== "Y") return "rejected";
+    if (result && result !== "Y") sawRejectedResult = true;
 
     const currentDialog = await findVisibleVerificationCodeDialog(page);
     const currentImage = await findVisibleVerificationCaptchaImage(page);
@@ -1465,10 +1477,10 @@ async function waitForCaptchaDecision(
       "#captchaInput",
       ".captcha input:not([type='hidden'])",
     ]);
-    if (!currentImage && !currentInput && !currentDialog) return "accepted";
+    if (!currentImage && !currentInput && !currentDialog && !sawRejectedResult) return "accepted";
     await page.waitForTimeout(250);
   }
-  return "pending";
+  return sawRejectedResult ? "rejected" : "pending";
 }
 
 async function refreshVisibleCaptcha(
@@ -1883,7 +1895,7 @@ async function waitForOfficialIssueNumber(
   while (Date.now() < deadline) {
     latestBody = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
     latestIssueNumber = await extractIssueNumberAsync(latestBody, page);
-    latestSuccessMarker = /submission of e-arrival card complete|전자입국신고서.*(?:제출|신고).*완료|신고가 완료/iu.test(latestBody);
+    latestSuccessMarker = isOfficialCompletionPageText(latestBody);
     if (latestIssueNumber && !(await hasVisibleConfirmationLoader(page))) {
       return { body: latestBody, issueNumber: latestIssueNumber, successMarker: latestSuccessMarker };
     }
@@ -1921,10 +1933,14 @@ async function saveOfficialPdf(
 
   let pdfPage = page;
   const viewCard = await findVisible(page, [
+    "#btnViewEacInfo",
+    ".btnViewEacInfo",
     "button:has-text('View e-Arrival card')",
     "a:has-text('View e-Arrival card')",
+    "input[type='button'][value*='View e-Arrival card' i]",
     "button:has-text('전자입국신고서 보기')",
     "a:has-text('전자입국신고서 보기')",
+    "input[type='button'][value*='전자입국신고서 보기']",
   ]);
   if (viewCard) {
     const popupPromise = page.waitForEvent("popup", { timeout: 8_000 }).catch(() => null);
@@ -1941,19 +1957,86 @@ async function saveOfficialPdf(
       logs.push("kr_eac_official_view_pdf_rejected_too_small");
     }
     if (popup) pdfPage = popup;
+
+    if (!popup) {
+      const deadline = Date.now() + 20_000;
+      let officialCardView: Locator | null = null;
+      while (Date.now() < deadline) {
+        const candidates = page.locator(".popBox, [role='dialog'], .popup, .modal");
+        const count = await candidates.count().catch(() => 0);
+        for (let index = 0; index < count; index += 1) {
+          const candidate = candidates.nth(index);
+          if (!(await candidate.isVisible().catch(() => false))) continue;
+          const text = await candidate.innerText().catch(() => "");
+          if (
+            text.includes(issueNumber)
+            && /passport number|여권번호/iu.test(text)
+            && /date of arrival|입국.*일자|도착.*일자/iu.test(text)
+          ) {
+            officialCardView = candidate;
+            break;
+          }
+        }
+        if (officialCardView) break;
+        await page.waitForTimeout(250);
+      }
+
+      if (officialCardView) {
+        const snapshot = await officialCardView.evaluate((element) => ({
+          baseUrl: document.baseURI,
+          head: document.head.innerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, ""),
+          body: element.outerHTML,
+        }));
+        const printablePage = await page.context().newPage();
+        try {
+          await printablePage.setContent(
+            `<!doctype html><html><head><meta charset="utf-8"><base href="${snapshot.baseUrl}">${snapshot.head}</head><body>${snapshot.body}</body></html>`,
+            { waitUntil: "domcontentloaded", timeout: 30_000 },
+          );
+          await Promise.race([
+            printablePage.evaluate(() => document.fonts.ready),
+            printablePage.waitForTimeout(5_000),
+          ]).catch(() => undefined);
+          await printablePage.waitForTimeout(500);
+          const printableText = await printablePage.locator("body").innerText().catch(() => "");
+          if (
+            !printableText.includes(issueNumber)
+            || !/passport number|여권번호/iu.test(printableText)
+            || !/date of arrival|입국.*일자|도착.*일자/iu.test(printableText)
+          ) {
+            logs.push("kr_eac_official_card_view_pdf_rejected_missing_rendered_detail");
+            return [];
+          }
+          await printablePage.pdf({ path: pdfPath, format: "A4", printBackground: true });
+          if (fs.statSync(pdfPath).size > 5_000) {
+            logs.push("kr_eac_official_card_view_pdf_captured");
+            return [pdfPath];
+          }
+          logs.push("kr_eac_official_card_view_pdf_rejected_too_small");
+        } finally {
+          await printablePage.close().catch(() => undefined);
+        }
+      } else {
+        logs.push("kr_eac_official_card_view_not_observable");
+      }
+    }
   }
 
   try {
     await pdfPage.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     const printable = await waitForOfficialIssueNumber(pdfPage, 30_000);
-    if (printable.issueNumber !== issueNumber) {
-      logs.push("kr_eac_confirmation_pdf_rejected_missing_issue_number");
+    if (
+      printable.issueNumber !== issueNumber
+      || !/passport number|여권번호/iu.test(printable.body)
+      || !/date of arrival|입국.*일자|도착.*일자/iu.test(printable.body)
+    ) {
+      logs.push("kr_eac_confirmation_pdf_rejected_missing_detailed_card");
       return [];
     }
     await pdfPage.pdf({ path: pdfPath, format: "A4", printBackground: true });
     const stat = fs.statSync(pdfPath);
     if (stat.size > 5_000) {
-      logs.push("kr_eac_verified_confirmation_page_pdf_fallback");
+      logs.push("kr_eac_verified_detailed_card_pdf_fallback");
       return [pdfPath];
     }
     logs.push("kr_eac_confirmation_pdf_rejected_too_small");
