@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import {
   clickImmigrationAndCustoms,
   chooseJpVjwAutocomplete,
+  confirmJpVjwDeclarationSave,
   fillJpVjwVerificationCode,
   openJpVjwQrView,
   resolveJpVjwNativeOptionValue,
@@ -181,6 +182,33 @@ test("Visit Japan Web confirms the observed immigration and customs introduction
     await clickImmigrationAndCustoms({ page, logs } as unknown as JpVjwLiveAdapterContext);
     assert.match(page.url(), /vjwpic004/u);
     assert.deepEqual(logs, ["jpvjw_immigration_customs_intro_confirmed"]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("Visit Japan Web accepts the observed definitive declaration success dialog before returning for QR evidence", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <div role="dialog">
+        <h2>Registration complete</h2>
+        <button id="back">Back to Entry/Return Procedure</button>
+      </div>
+      <script>
+        document.querySelector('#back').addEventListener('click', () => {
+          window.location.hash = '#/vjwpti006';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpic019";
+    });
+    await confirmJpVjwDeclarationSave({ page, logs } as unknown as JpVjwLiveAdapterContext);
+    assert.match(page.url(), /vjwpti006/u);
+    assert.deepEqual(logs, ["jpvjw_declaration_registered_modal_confirmed"]);
   } finally {
     await browser.close();
   }
