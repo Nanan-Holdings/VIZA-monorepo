@@ -155,6 +155,41 @@ test("Visit Japan Web QR action falls back to the verified Angular control when 
   }
 });
 
+test("Visit Japan Web confirms the observed procedure guide before displaying the official QR route", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const logs: string[] = [];
+  try {
+    await page.setContent(`
+      <button id="display">Display QR code</button>
+      <div id="guide" role="dialog" hidden>
+        <h2>Procedure Guide</h2>
+        <button id="agree">Agree and display the QR code</button>
+        <button>Confirm the contents of the declaration</button>
+      </div>
+      <script>
+        document.querySelector('#display').addEventListener('click', () => {
+          document.querySelector('#guide').hidden = false;
+        });
+        document.querySelector('#agree').addEventListener('click', () => {
+          window.location.hash = '#/vjwpic026';
+        });
+      </script>
+    `);
+    await page.evaluate(() => {
+      window.location.hash = "#/vjwpti006";
+    });
+    await openJpVjwQrView(
+      { page, logs } as unknown as JpVjwLiveAdapterContext,
+      page.getByRole("button", { name: "Display QR code" }),
+    );
+    assert.match(page.url(), /vjwpic026/u);
+    assert.deepEqual(logs, ["jpvjw_qr_procedure_guide_confirmed"]);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("Visit Japan Web confirms the observed immigration and customs introduction dialog before waiting for the form route", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();

@@ -78,6 +78,9 @@ export const JP_VJW_DECLARATION_COMPLETE_NAME =
 export const JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME =
   /返回入境.*回国手续|返回入境.*回國手續|Back to Entry\/Return Procedure|入国・帰国手続に戻る/i;
 
+export const JP_VJW_AGREE_DISPLAY_QR_NAME =
+  /同意并显示QR码|同意並顯示QR碼|Agree and display the QR code|同意してQRコードを表示/i;
+
 export const JP_VJW_DECLARATION_NOT_REGISTERED_NAME =
   /未登记|未登記|Not registered|未登録/i;
 
