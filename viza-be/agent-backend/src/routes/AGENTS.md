@@ -13,6 +13,11 @@ and internal admin flows.
 - `validate-application.ts`: `POST /api/validate-application`.
 - `translation.routes.ts`: translation generation/read/update under
   `/api/applications/:id/...`.
+- `submission-result.routes.ts`: owner-authorized result artifacts plus the
+  explicit POST-only Visit Japan Web account reveal boundary.
+- `jp-vjw-credentials.ts`: application-scoped Visit Japan Web vault-key and
+  strict legacy-alias compatibility policy. Plaintext credentials must never
+  enter logs, GET responses, or `submission_result`.
 - `application-answers.routes.ts`: application answer persistence helpers.
 - `profile-prefill.routes.ts`: profile prefill APIs.
 - `user-packages.routes.ts`: package/destination APIs.

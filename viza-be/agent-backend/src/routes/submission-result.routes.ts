@@ -22,7 +22,15 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 import { decryptSecret } from "../utils/secret-cipher.js";
+import { applicantVault } from "../db/applicant-vault.js";
 import type { SubmissionResult } from "../types/submission-result.js";
+import {
+  getJpVjwCredentialKeys,
+  hasAuthoritativeJpVjwResult,
+  JP_VJW_LEGACY_CREDENTIAL_KEYS,
+  JP_VJW_OFFICIAL_PORTAL_URL,
+  resolveJpVjwStoredCredentials,
+} from "./jp-vjw-credentials.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "SubmissionResultRoutes" });
@@ -34,6 +42,8 @@ interface ResolvedOwnership {
   authUserId: string;
   applicantId: string;
   applicationId: string;
+  country: string | null;
+  visaType: string | null;
   submissionResult: SubmissionResult | null;
   submissionResultStatus: string | null;
 }
@@ -85,7 +95,7 @@ async function requireApplicationOwner(
     const { data: app, error: appErr } = await admin
       .from("applications")
       .select(
-        "id, applicant_id, submission_result, submission_result_status, applicant_profiles!inner(auth_user_id)",
+        "id, applicant_id, country, visa_type, submission_result, submission_result_status, applicant_profiles!inner(auth_user_id)",
       )
       .eq("id", id)
       .single();
@@ -105,6 +115,8 @@ async function requireApplicationOwner(
       authUserId,
       applicantId: app.applicant_id as string,
       applicationId: app.id as string,
+      country: (app.country as string | null) ?? null,
+      visaType: (app.visa_type as string | null) ?? null,
       submissionResult: (app.submission_result as SubmissionResult | null) ?? null,
       submissionResultStatus: (app.submission_result_status as string | null) ?? null,
     } satisfies ResolvedOwnership;
@@ -150,6 +162,102 @@ router.get(
         { applicationId: ownership.applicationId },
       );
       res.status(500).json({ error: "Decrypt failed" });
+    }
+  },
+);
+
+/**
+ * POST /api/applications/:id/jp-vjw/account/reveal
+ *
+ * Explicit owner-only credential reveal. Plaintext is never logged, cached,
+ * included in submission_result, or returned by a GET request.
+ */
+router.post(
+  "/:id/jp-vjw/account/reveal",
+  requireApplicationOwner,
+  async (_req: Request, res: Response): Promise<void> => {
+    res.set({
+      "Cache-Control": "private, no-store",
+      Pragma: "no-cache",
+      "X-Content-Type-Options": "nosniff",
+    });
+    const ownership = res.locals.ownership as ResolvedOwnership;
+    const normalizedCountry = ownership.country?.trim().toLowerCase();
+    if (
+      ownership.visaType !== "JP_VISIT_JAPAN_WEB"
+      || (normalizedCountry !== "japan" && normalizedCountry !== "jp")
+    ) {
+      res.status(409).json({ error: "This application is not a Visit Japan Web declaration" });
+      return;
+    }
+    if (!hasAuthoritativeJpVjwResult(ownership.submissionResult)) {
+      res.status(409).json({ error: "Visit Japan Web credentials are available only after the official QR is ready" });
+      return;
+    }
+
+    try {
+      const admin = getSupabaseClient();
+      const { data: aliasRow, error: aliasError } = await admin
+        .from("application_inbox_aliases")
+        .select("alias")
+        .eq("application_id", ownership.applicationId)
+        .eq("applicant_id", ownership.applicantId)
+        .is("retired_at", null)
+        .maybeSingle();
+      if (aliasError || !aliasRow?.alias) {
+        res.status(409).json({ error: "The Visit Japan Web managed account is not available" });
+        return;
+      }
+
+      const opts = {
+        actor: "agent-backend:jp-vjw-owner-reveal",
+        correlationId: ownership.applicationId,
+      };
+      const scopedKeys = getJpVjwCredentialKeys(ownership.applicationId);
+      const [scopedEmail, scopedPassword, scopedRegistrationState] = await Promise.all([
+        applicantVault.get(ownership.applicantId, scopedKeys.email, opts),
+        applicantVault.get(ownership.applicantId, scopedKeys.password, opts),
+        applicantVault.get(ownership.applicantId, scopedKeys.registrationState, opts),
+      ]);
+      const scopedHasData = Boolean(scopedEmail || scopedPassword || scopedRegistrationState);
+      const [legacyEmail, legacyPassword, legacyRegistrationState] = scopedHasData
+        ? [null, null, null]
+        : await Promise.all([
+            applicantVault.get(ownership.applicantId, JP_VJW_LEGACY_CREDENTIAL_KEYS.email, opts),
+            applicantVault.get(ownership.applicantId, JP_VJW_LEGACY_CREDENTIAL_KEYS.password, opts),
+            applicantVault.get(ownership.applicantId, JP_VJW_LEGACY_CREDENTIAL_KEYS.registrationState, opts),
+          ]);
+      const resolved = resolveJpVjwStoredCredentials({
+        alias: aliasRow.alias as string,
+        scoped: {
+          email: scopedEmail,
+          password: scopedPassword,
+          registrationState: scopedRegistrationState,
+        },
+        legacy: {
+          email: legacyEmail,
+          password: legacyPassword,
+          registrationState: legacyRegistrationState,
+        },
+      });
+      if (!resolved.ok) {
+        res.status(409).json({ error: "The Visit Japan Web managed account is not ready" });
+        return;
+      }
+
+      res.json({
+        email: resolved.email,
+        password: resolved.password,
+        portalUrl: JP_VJW_OFFICIAL_PORTAL_URL,
+        revealedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error(
+        "jp_vjw_credentials_reveal_failed",
+        err instanceof Error ? err : new Error(String(err)),
+        { applicationId: ownership.applicationId },
+      );
+      res.status(500).json({ error: "Could not reveal the Visit Japan Web managed account" });
     }
   },
 );

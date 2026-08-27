@@ -1,6 +1,17 @@
 "use client";
 
-import { ArrowSquareOut as ExternalLink, Download, ShieldCheck, Warning as AlertTriangle } from "@phosphor-icons/react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowSquareOut as ExternalLink,
+  Download,
+  Eye,
+  EyeSlash,
+  Plus,
+  ShieldCheck,
+  SpinnerGap as Loader2,
+  Warning as AlertTriangle,
+  X,
+} from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +23,13 @@ import type {
 import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
 
 type AutomatedOnlineResult = JpVisitJapanWebSubmissionResult | KeEtaSubmissionResult;
+
+interface JpVjwPortalCredentials {
+  email: string;
+  password: string;
+  portalUrl: string;
+  revealedAt: string;
+}
 
 export function isAutomatedOnlineResult(
   result: { country?: string; visaType?: string } | null,
@@ -58,6 +76,88 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
       : rejected
         ? (isZh ? "肯尼亚电子旅行授权未获批准" : "Kenya eTA was rejected")
         : (isZh ? "正在核验官方结果" : "Verifying the official result");
+  const [startingAgain, setStartingAgain] = useState(false);
+  const [revealingCredentials, setRevealingCredentials] = useState(false);
+  const [credentials, setCredentials] = useState<JpVjwPortalCredentials | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!credentials) return;
+    const clearCredentials = () => {
+      setCredentials(null);
+      setShowPassword(false);
+    };
+    const timeout = window.setTimeout(clearCredentials, 60_000);
+    window.addEventListener("blur", clearCredentials);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("blur", clearCredentials);
+    };
+  }, [credentials]);
+
+  const startAgain = useCallback(async () => {
+    if (!isJapan || !success) return;
+    setStartingAgain(true);
+    setActionError(null);
+    try {
+      const response = await fetch(
+        `/api/applications/${encodeURIComponent(result.applicationId)}/arrival-card-new-application`,
+        { method: "POST" },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        applicationId?: string;
+        error?: string;
+      } | null;
+      if (!response.ok || !body?.applicationId) {
+        throw new Error(body?.error || (isZh ? "无法创建新的日本申报表。" : "Could not create a new Japan declaration."));
+      }
+      window.location.href = `/client/application/long-form?country=japan&visaType=JP_VISIT_JAPAN_WEB&applicationId=${encodeURIComponent(body.applicationId)}`;
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
+      setStartingAgain(false);
+    }
+  }, [isJapan, isZh, result.applicationId, success]);
+
+  const revealCredentials = useCallback(async () => {
+    if (!isJapan || !success) return;
+    setRevealingCredentials(true);
+    setActionError(null);
+    try {
+      const response = await fetch(
+        `/api/applications/${encodeURIComponent(result.applicationId)}/jp-vjw-portal-credentials`,
+        { method: "POST", cache: "no-store" },
+      );
+      const body = (await response.json().catch(() => null)) as Partial<JpVjwPortalCredentials> & {
+        error?: string;
+      } | null;
+      if (
+        !response.ok
+        || typeof body?.email !== "string"
+        || typeof body.password !== "string"
+        || typeof body.portalUrl !== "string"
+        || typeof body.revealedAt !== "string"
+      ) {
+        throw new Error(body?.error || (isZh ? "无法读取日本官网登录信息。" : "Could not reveal the Visit Japan Web account."));
+      }
+      setCredentials({
+        email: body.email,
+        password: body.password,
+        portalUrl: body.portalUrl,
+        revealedAt: body.revealedAt,
+      });
+      setShowPassword(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRevealingCredentials(false);
+    }
+  }, [isJapan, isZh, result.applicationId, success]);
+
+  const clearCredentials = useCallback(() => {
+    setCredentials(null);
+    setShowPassword(false);
+  }, []);
 
   return (
     <Card className="rounded-lg border-input">
@@ -108,6 +208,64 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
                 : artifactIsQr ? "View official QR code" : "Download official approval"}
             </a>
           </Button>
+        ) : null}
+
+        {isJapan && success ? (
+          <Button type="button" variant="outline" className="w-full" onClick={startAgain} disabled={startingAgain}>
+            {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            {isZh ? "在此填写" : "Fill another form here"}
+          </Button>
+        ) : null}
+
+        {isJapan && success ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={revealCredentials}
+            disabled={revealingCredentials}
+          >
+            {revealingCredentials ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+            {isZh ? "查看官网登录信息" : "View official portal login"}
+          </Button>
+        ) : null}
+
+        {credentials ? (
+          <section className="space-y-3 rounded-md border bg-muted/30 p-3" aria-label={isZh ? "日本官网登录信息" : "Visit Japan Web login details"}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">{isZh ? "日本官网登录信息" : "Visit Japan Web login details"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isZh ? "信息会在 60 秒后或切换窗口时自动隐藏。" : "These details hide after 60 seconds or when you switch windows."}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={clearCredentials} aria-label={isZh ? "隐藏官网登录信息" : "Hide portal login details"}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">{isZh ? "账号（邮箱）" : "Account email"}</dt>
+                <dd className="mt-1 break-all font-mono">{credentials.email}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{isZh ? "密码" : "Password"}</dt>
+                <dd className="mt-1 flex items-center justify-between gap-3">
+                  <span className="break-all font-mono">{showPassword ? credentials.password : "••••••••••••••••"}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowPassword((visible) => !visible)}>
+                    {showPassword ? <EyeSlash className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                    {showPassword
+                      ? isZh ? "隐藏密码" : "Hide password"
+                      : isZh ? "显示密码" : "Show password"}
+                  </Button>
+                </dd>
+              </div>
+            </dl>
+          </section>
+        ) : null}
+
+        {actionError ? (
+          <p role="alert" className="text-sm text-destructive">{actionError}</p>
         ) : null}
 
         <Button asChild variant="ghost" className="w-full">

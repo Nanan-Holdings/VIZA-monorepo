@@ -4,6 +4,7 @@ import type { WizardStep } from "@/types/visa-form-fields";
 import {
   DynamicReviewStep,
   getBilingualReviewValue,
+  getReviewBooleanText,
   getLocalizedReviewSectionTitle,
   getLocalizedOptionText,
   getReviewOptionText,
@@ -296,6 +297,43 @@ describe("dynamic review localization", () => {
     expect(getLocalizedOptionText("single", options, "zh")).toBe("单次入境");
     expect(getLocalizedOptionText("single", options, "en")).toBe("Single-entry");
     expect(getLocalizedOptionText("official", [{ value: "official", text: "Official" }], "zh")).toBe("公务人员");
+  });
+
+  test("localizes stored checkbox booleans on both review sides", () => {
+    expect(getReviewBooleanText("true", "zh")).toBe("是");
+    expect(getReviewBooleanText("false", "zh")).toBe("否");
+    expect(getReviewBooleanText("true", "en")).toBe("Yes");
+    expect(getReviewBooleanText("false", "en")).toBe("No");
+    expect(getReviewBooleanText("unexpected", "zh")).toBeNull();
+  });
+
+  test("renders a confirmation checkbox as Chinese and official English text", () => {
+    const field = baseField({
+      fieldName: "arrival_information_confirmed",
+      label: "The above entry is true and correct.",
+      fieldType: "checkbox",
+      validationRules: {
+        label_zh: "我确认上述填写内容真实且正确",
+        label_en: "The above entry is true and correct.",
+      },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ arrival_information_confirmed: "true" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Review", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        showAction={false}
+      />,
+    );
+
+    expect(screen.getByText("是")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+    expect(screen.queryByText("true")).not.toBeInTheDocument();
   });
 
   test("prefers explicit Chinese companion values on the review left side", () => {

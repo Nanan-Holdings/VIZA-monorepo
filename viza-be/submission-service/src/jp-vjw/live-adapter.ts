@@ -491,6 +491,7 @@ async function registerAccount(context: JpVjwLiveAdapterContext): Promise<void> 
   await waitForRoute(context, ["vjwplo001"]);
   await markJpVjwAccountRegistered({
     applicantId: context.applicantId,
+    applicationId: context.payload.applicationId,
     correlationId: context.payload.applicationId,
   });
   context.logs.push("jpvjw_account_registered");
@@ -568,6 +569,7 @@ async function ensureAuthenticated(context: JpVjwLiveAdapterContext): Promise<vo
     if (context.account.registrationState !== "registered") {
       await markJpVjwAccountRegistered({
         applicantId: context.applicantId,
+        applicationId: context.payload.applicationId,
         correlationId: context.payload.applicationId,
       });
     }
