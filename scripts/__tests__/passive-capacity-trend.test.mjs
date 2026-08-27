@@ -28,15 +28,18 @@ function report({
   blockers = [],
   warnings = [],
   tableActivity = null,
+  connectionSources = null,
 } = {}) {
   const startedAt = new Date(at);
   const finishedAt = new Date(startedAt.getTime() + 10_000);
   return {
     schema_version: 1,
     project_ref: PROJECT_REF,
-    sanitization_schema: tableActivity
-      ? "viza-passive-capacity-metadata-only-v2"
-      : "viza-passive-capacity-metadata-only-v1",
+    sanitization_schema: connectionSources
+      ? "viza-passive-capacity-metadata-only-v3"
+      : tableActivity
+        ? "viza-passive-capacity-metadata-only-v2"
+        : "viza-passive-capacity-metadata-only-v1",
     performance_advisor: {
       lints: [
         { name: "unindexed_foreign_keys", level: "WARN" },
@@ -46,6 +49,12 @@ function report({
     samples: [0, 5_000, 10_000].map((offset) => ({
       sample_at: new Date(startedAt.getTime() + offset).toISOString(),
       ...(tableActivity ? { table_activity: tableActivity } : {}),
+      ...(connectionSources ? {
+        connections: {
+          current_database: connectionSources.reduce((sum, source) => sum + source.total, 0),
+        },
+        connection_sources: connectionSources,
+      } : {}),
     })),
     assessment: {
       status,
@@ -61,6 +70,11 @@ function report({
         deadlock_delta: 0,
         commit_delta: 10,
         rollback_delta: 0,
+        ...(connectionSources ? {
+          connection_source_peaks: Object.fromEntries(
+            connectionSources.map(({ source, total }) => [source, total]),
+          ),
+        } : {}),
       },
       optimization_candidates: queryids.map((queryid, index) => ({
         queryid,
@@ -70,6 +84,21 @@ function report({
       })),
     },
   };
+}
+
+function connectionSources() {
+  return [
+    ["agent_backend", 2],
+    ["maintenance", 1],
+    ["other", 9],
+  ].map(([source, total]) => ({
+    source,
+    total,
+    active: source === "agent_backend" ? 1 : 0,
+    idle: source === "agent_backend" ? total - 1 : total,
+    idle_in_transaction: 0,
+    other: 0,
+  }));
 }
 
 function activitySnapshot(multiplier) {
@@ -187,6 +216,57 @@ test("24-hour trend maps privacy-safe table activity without SQL text", () => {
     average_seq_tuples_per_scan: 200,
   }]);
   assert.doesNotMatch(encoded, /query_text|statement_text|parameters|application_id|session_id/iu);
+});
+
+test("v3 report accepts only fixed connection-source buckets", () => {
+  const directory = mkdtempSync(join(tmpdir(), "viza-capacity-v3-"));
+  const validPath = join(directory, "passive-capacity.json");
+  try {
+    writeFileSync(validPath, JSON.stringify(report({
+      at: "2026-08-24T00:00:00.000Z",
+      tableActivity: activitySnapshot(1),
+      connectionSources: connectionSources(),
+    })));
+    assert.doesNotThrow(() => validatePassiveCapacityReportFile(validPath));
+
+    const invalid = report({
+      at: "2026-08-24T00:00:00.000Z",
+      tableActivity: activitySnapshot(1),
+      connectionSources: connectionSources(),
+    });
+    invalid.samples[0].connection_sources[0].source = "raw-client-name";
+    writeFileSync(validPath, JSON.stringify(invalid));
+    assert.throws(
+      () => validatePassiveCapacityReportFile(validPath),
+      /connection sources/u,
+    );
+
+    const rawName = report({
+      at: "2026-08-24T00:00:00.000Z",
+      tableActivity: activitySnapshot(1),
+      connectionSources: connectionSources(),
+    });
+    rawName.samples[0].application_name = "must-not-leak";
+    writeFileSync(validPath, JSON.stringify(rawName));
+    assert.throws(
+      () => validatePassiveCapacityReportFile(validPath),
+      /forbidden metadata key/u,
+    );
+
+    const inconsistent = report({
+      at: "2026-08-24T00:00:00.000Z",
+      tableActivity: activitySnapshot(1),
+      connectionSources: connectionSources(),
+    });
+    inconsistent.samples[0].connections.current_database += 1;
+    writeFileSync(validPath, JSON.stringify(inconsistent));
+    assert.throws(
+      () => validatePassiveCapacityReportFile(validPath),
+      /connection sources/u,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("table activity evidence stays incomplete across statistics resets", () => {

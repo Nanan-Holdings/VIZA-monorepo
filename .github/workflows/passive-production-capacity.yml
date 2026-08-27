@@ -48,6 +48,7 @@ jobs:
           candidates="$(jq '.assessment.optimization_candidates | length' "$report")"
           max_connections="$(jq '.assessment.summary.max_total_connections' "$report")"
           max_utilization="$(jq '.assessment.summary.max_connection_utilization_percent' "$report")"
+          connection_source_peaks="$(jq -c '.assessment.summary.connection_source_peaks' "$report")"
           {
             echo "## Passive production capacity"
             echo ""
@@ -55,6 +56,7 @@ jobs:
             echo "- Samples: 3 over 10 seconds"
             echo "- Maximum connections: ${max_connections}"
             echo "- Maximum effective connection utilization: ${max_utilization}%"
+            echo "- Best-effort connection source peaks: ${connection_source_peaks}"
             echo "- Blockers: ${blockers}"
             echo "- Warnings: ${warnings}"
             echo "- Redacted query optimization candidates: ${candidates}"
