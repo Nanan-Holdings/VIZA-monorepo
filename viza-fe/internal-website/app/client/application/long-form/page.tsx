@@ -142,7 +142,7 @@ import {
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
-import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
@@ -202,7 +202,11 @@ type StepStatus = "complete" | "in_progress" | "locked";
 
 const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
 
-function prepareFormAssistantState(state: FormAssistantState): FormAssistantState {
+function prepareFormAssistantState(
+  state: FormAssistantState,
+  options: { readOnly?: boolean } = {},
+): FormAssistantState {
+  if (options.readOnly) return state;
   const persistedMessages = state.messages.at(-1)?.role === "assistant"
     ? state.messages.slice(0, -1)
     : state.messages;
@@ -2213,15 +2217,15 @@ export default function ApplicationPage() {
   });
 
   const formAssistantSchemaFieldCount = dbSteps.reduce((count, step) => count + step.fields.length, 0);
-  const formAssistantBlockedByArrivalCardSuccess = hasSuccessfulArrivalCardSubmission({
+  const formAssistantReadOnly = hasSuccessfulFormSubmission({
     country: resolvedCountry,
     visaType: resolvedVisaType,
+    submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
   const formAssistantEligible =
     !koreaSchemaUnavailable &&
-    (!isKoreaEArrivalCard || koreaPreflightTrusted) &&
-    !formAssistantBlockedByArrivalCardSuccess &&
+    (!isKoreaEArrivalCard || koreaPreflightTrusted || formAssistantReadOnly) &&
     canUseFormAssistant({
       applicationId: appState.applicationId,
       visaType: resolvedVisaType,
@@ -2250,7 +2254,7 @@ export default function ApplicationPage() {
       })
       .then((state) => {
         if (controller.signal.aborted) return;
-        setFormAssistantState(prepareFormAssistantState(state));
+        setFormAssistantState(prepareFormAssistantState(state, { readOnly: formAssistantReadOnly }));
         setAiFilledFieldNames(state.aiFilledFieldNames);
       })
       .catch((assistantError) => {
@@ -2264,7 +2268,7 @@ export default function ApplicationPage() {
         if (!controller.signal.aborted) setFormAssistantBusy(false);
       });
     return () => controller.abort();
-  }, [appState.applicationId, formAssistantEligible, formAssistantReloadKey, locale]);
+  }, [appState.applicationId, formAssistantEligible, formAssistantReadOnly, formAssistantReloadKey, locale]);
 
   // A concurrent Server Action refresh can remount the client subtree after a
   // successful assistant request and leave the card in its empty 0 / 0 shell.
@@ -3269,6 +3273,45 @@ export default function ApplicationPage() {
       setAutosaveFailed(false);
     }
   }, [dynamicAnswers, ensureWritableApplicationId]);
+
+  const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
+    const answerEntries = Object.entries(answerPatch);
+    if (answerEntries.length === 0) return;
+
+    markLiveSaveActivity();
+    const applicationId = await ensureWritableApplicationId();
+    const runSave = autosaveQueueRef.current.then(() => saveDynamicAnswers(applicationId, answerPatch));
+    autosaveQueueRef.current = runSave.then(
+      () => undefined,
+      () => undefined,
+    );
+    const saveResult = await runSave;
+    if (saveResult.error) throw new Error(saveResult.error);
+
+    const fieldNames = new Set(answerEntries.map(([fieldName]) => fieldName));
+    autosaveRequestRef.current += 1;
+    externalDraftProtectionRef.current = {
+      fieldNames,
+      expiresAt: Date.now() + 5_000,
+    };
+    for (const [stepIndexText, draft] of Object.entries(dynamicDraftRef.current)) {
+      const nextDraft = { ...draft };
+      let changed = false;
+      for (const fieldName of fieldNames) {
+        if (!Object.prototype.hasOwnProperty.call(nextDraft, fieldName)) continue;
+        delete nextDraft[fieldName];
+        changed = true;
+      }
+      if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
+    }
+
+    setDynamicAnswers((current) => ({ ...current, ...answerPatch }));
+    setAiFilledFieldNames((current) => current.filter((fieldName) => !fieldNames.has(fieldName)));
+    setSubmitMissingFields([]);
+    setDraftVersion((current) => current + 1);
+    setExternalAnswerRevision((current) => current + 1);
+    markFormAssistantAnswersChanged();
+  }, [ensureWritableApplicationId, markFormAssistantAnswersChanged, markLiveSaveActivity]);
 
   const handleFormAssistantSend = useCallback(async (
     text: string,
@@ -5004,6 +5047,7 @@ export default function ApplicationPage() {
                   };
                 })}
                 loading={formAssistantBusy}
+                readOnly={formAssistantReadOnly}
                 validationResult={formAssistantDisplayValidation}
                 showReviewAction={applicationReadyForAssistantReview}
                 onSend={handleFormAssistantSend}
@@ -5155,6 +5199,7 @@ export default function ApplicationPage() {
                           </>
                         )}
                         {showFormFillingAssistant &&
+                        !formAssistantReadOnly &&
                         formFieldsComplete &&
                         step.id === lastVisibleFormStepId ? (
                           <BrandActionButton
@@ -5204,6 +5249,7 @@ export default function ApplicationPage() {
                                     "photo",
                                     showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
                                   )}
+                                  onSaveOfficialValue={formAssistantReadOnly ? undefined : handleReviewOfficialValueSave}
                                   onComplete={() => undefined}
                                   mode="continue"
                                   showAction={false}
@@ -5232,6 +5278,7 @@ export default function ApplicationPage() {
                                   "photo",
                                   showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
                                 )}
+                                onSaveOfficialValue={handleReviewOfficialValueSave}
                                 onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
                                 mode="continue"
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}

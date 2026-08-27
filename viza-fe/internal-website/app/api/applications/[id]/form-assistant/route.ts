@@ -10,6 +10,7 @@ import {
 import {
   buildAssistantState,
   getOrCreateAssistantSession,
+  loadAssistantSession,
   loadAssistantMessages,
 } from "@/lib/form-assistant/service";
 
@@ -20,7 +21,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const owned = await requireOwnedApplication(id);
+  const owned = await requireOwnedApplication(id, { allowSuccessfulSubmission: true });
   if ("error" in owned) return Response.json({ error: owned.error }, { status: owned.status });
   if (!consumeFormAssistantRateLimit(`state:${owned.user.id}`, { limit: 120, windowMs: 60_000 })) {
     return Response.json({ error: "Too many requests." }, { status: 429 });
@@ -46,24 +47,30 @@ export async function GET(
         return null;
       }),
     ]);
-    const answers = await repairAssistantOfficialOptionAnswers(
-      owned.admin,
-      id,
-      steps,
-      answerRows,
-    );
-    const session = await getOrCreateAssistantSession({
-      admin: owned.admin,
-      applicationId: id,
-      applicantId: owned.application.applicant_id,
-      authUserId: owned.user.id,
-      country: owned.application.country,
-      visaType: owned.application.visa_type,
-      steps,
-    });
-    const messages = await loadAssistantMessages(owned.admin, session.id);
+    const answers = owned.formAssistantReadOnly
+      ? answerRows
+      : await repairAssistantOfficialOptionAnswers(
+          owned.admin,
+          id,
+          steps,
+          answerRows,
+        );
+    const session = owned.formAssistantReadOnly
+      ? await loadAssistantSession(owned.admin, id)
+      : await getOrCreateAssistantSession({
+          admin: owned.admin,
+          applicationId: id,
+          applicantId: owned.application.applicant_id,
+          authUserId: owned.user.id,
+          country: owned.application.country,
+          visaType: owned.application.visa_type,
+          steps,
+        });
+    const messages = session
+      ? await loadAssistantMessages(owned.admin, session.id)
+      : [];
     return Response.json(buildAssistantState({
-      sessionId: session.id,
+      sessionId: session?.id ?? `read-only-${id}`,
       country: owned.application.country,
       visaType: owned.application.visa_type,
       steps,

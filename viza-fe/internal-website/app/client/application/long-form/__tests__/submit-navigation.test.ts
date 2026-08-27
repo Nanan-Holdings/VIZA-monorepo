@@ -97,4 +97,25 @@ describe("application submit navigation", () => {
     expect(queueHelper).toContain("登录状态已过期，请刷新页面或重新登录后再提交");
     expect(queueHelper).toContain("input.locale.toLowerCase().startsWith(\"zh\")");
   });
+
+  it("keeps the form assistant visible but read-only after a reliable success", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const assistantEligibility = sourceBetween(
+      pageSource,
+      "const formAssistantSchemaFieldCount =",
+      "useEffect(() => {",
+    );
+
+    expect(assistantEligibility).toContain("const formAssistantReadOnly = hasSuccessfulFormSubmission");
+    expect(assistantEligibility).toContain("koreaPreflightTrusted || formAssistantReadOnly");
+    expect(assistantEligibility).not.toContain("!formAssistantReadOnly");
+    expect(pageSource).toContain("readOnly={formAssistantReadOnly}");
+    expect(pageSource).toContain("prepareFormAssistantState(state, { readOnly: formAssistantReadOnly })");
+    expect(pageSource).toMatch(
+      /function prepareFormAssistantState\([\s\S]{0,180}if \(options\.readOnly\) return state;/,
+    );
+  });
 });

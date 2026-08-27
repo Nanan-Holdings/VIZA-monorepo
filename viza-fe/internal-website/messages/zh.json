@@ -736,6 +736,12 @@
       "scrollToLatest": "跳到最新消息",
       "emptyConversation": "告诉我你想补充的内容，或回答我提出的问题。你也可以使用麦克风口述答案。",
       "thinking": "正在检查你的申请...",
+      "readOnly": {
+        "description": "你可以查看这份已提交申请的历史对话和完成进度。",
+        "emptyConversation": "这份申请提交前没有保存表单填写助手对话。",
+        "notice": "申请已提交。表单填写助手现为只读状态，无法继续修改答案或发送新消息。",
+        "composerPlaceholder": "申请已提交，无法继续发送"
+      },
       "missing": {
         "title": "仍需补充的信息",
         "required": "必填",
@@ -1547,6 +1553,8 @@
       "retryTranslation": "重试",
       "editTranslation": "编辑",
       "saveTranslation": "保存",
+      "savingOfficialValue": "正在保存…",
+      "officialValueSaveFailed": "英文内容暂时无法保存。修改内容仍在输入框中，请重试。",
       "sectionPersonal": "个人信息",
       "sectionPassport": "护照信息",
       "sectionTravel": "旅行信息",

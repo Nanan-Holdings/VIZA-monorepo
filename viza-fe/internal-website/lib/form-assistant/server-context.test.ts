@@ -40,7 +40,7 @@ describe("requireOwnedApplication", () => {
     getClientSessionWithFallback.mockReset();
   });
 
-  it("locks every form-assistant endpoint after an official arrival-card success", async () => {
+  it("locks mutations but allows read-only history after a reliable success", async () => {
     getClientSessionWithFallback.mockResolvedValue({
       userId: "profile-id",
       authUserId: "auth-user-id",
@@ -56,6 +56,7 @@ describe("requireOwnedApplication", () => {
           country: "malaysia",
           visa_type: "MY_MDAC_ARRIVAL_CARD",
           submitted_at: "2026-08-18T00:00:00.000Z",
+          submission_result_status: "submitted",
           submission_result: {
             country: "MY",
             visaType: "MY_MDAC_ARRIVAL_CARD",
@@ -77,14 +78,19 @@ describe("requireOwnedApplication", () => {
       }),
     };
     createAdminClient.mockReturnValue({
-      from: vi.fn()
-        .mockReturnValueOnce(applicationQuery)
-        .mockReturnValueOnce(profileQuery),
+      from: vi.fn((table: string) => table === "applications" ? applicationQuery : profileQuery),
     });
 
     await expect(requireOwnedApplication("application-id")).resolves.toEqual({
       status: 409,
-      error: "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+      error: "The form assistant is read-only after a successful submission. Start another application to continue.",
+    });
+
+    await expect(requireOwnedApplication("application-id", {
+      allowSuccessfulSubmission: true,
+    })).resolves.toMatchObject({
+      formAssistantReadOnly: true,
+      application: { id: "application-id" },
     });
   });
 });

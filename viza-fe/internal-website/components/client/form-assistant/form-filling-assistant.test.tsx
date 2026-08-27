@@ -55,6 +55,7 @@ describe("FormFillingAssistant", () => {
     });
     vi.restoreAllMocks();
     vi.useRealTimers();
+    window.localStorage.clear();
   });
 
   it("keeps missing fields inside the conversation instead of rendering a jump list", () => {
@@ -110,6 +111,53 @@ describe("FormFillingAssistant", () => {
     expect(screen.getByText("Old question")).toBeInTheDocument();
     expect(screen.getByText("Old answer")).toBeInTheDocument();
     expect(screen.getByText("Current question")).toBeInTheDocument();
+  });
+
+  it("keeps submitted application history visible while disabling every write action", () => {
+    const { props } = renderAssistant({
+      readOnly: true,
+      progress: { completed: 5, total: 5 },
+      messages: [
+        { id: "old-assistant", role: "assistant", content: "Old question" },
+        { id: "old-user", role: "user", content: "Old answer" },
+        { id: "confirmation-prompt", role: "assistant", content: "Confirm the declaration" },
+      ],
+      missingFields: [{
+        fieldName: "declaration",
+        fieldType: "checkbox",
+        requiresConfirmation: true,
+        label: "I confirm the declaration",
+        required: true,
+      }],
+      showReviewAction: true,
+      validationResult: {
+        errors: [{ fieldName: "passport_number", message: "Passport number needs review." }],
+        warnings: [],
+      },
+      requiredDocumentUploader: <button type="button">Upload document</button>,
+    });
+
+    expect(screen.getByText("Old question")).toBeInTheDocument();
+    expect(screen.getByText("Old answer")).toBeInTheDocument();
+    expect(screen.getByText("5 of 5 required items complete")).toBeInTheDocument();
+    expect(screen.getByTestId("form-assistant-read-only-notice")).toHaveTextContent(
+      "This application has been submitted",
+    );
+    expect(screen.getByRole("textbox", { name: "Message for the form filling assistant" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start voice input" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /I confirm the declaration/ })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Upload document" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Passport number needs review.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-assistant-review-action")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /I confirm the declaration/ }));
+    expect(props.onSend).not.toHaveBeenCalled();
+    expect(props.onConfirm).not.toHaveBeenCalled();
+    expect(props.onTranscribe).not.toHaveBeenCalled();
+    expect(props.onValidate).not.toHaveBeenCalled();
+    expect(props.onGoToReview).not.toHaveBeenCalled();
   });
 
   it("allows scrolling upward and jumping back to the latest message", () => {
