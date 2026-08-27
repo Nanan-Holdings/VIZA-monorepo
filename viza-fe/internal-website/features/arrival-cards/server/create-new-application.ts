@@ -32,6 +32,10 @@ const ARRIVAL_CARD_CONFIG = {
     country: "south_korea",
     errorName: "Korea e-Arrival Card",
   },
+  JP_VISIT_JAPAN_WEB: {
+    country: "japan",
+    errorName: "Visit Japan Web",
+  },
 } as const;
 
 const REUSABLE_ANSWER_KEYS = [

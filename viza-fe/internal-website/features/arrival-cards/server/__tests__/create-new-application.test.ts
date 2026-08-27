@@ -81,6 +81,52 @@ describe("createNewArrivalCardApplication", () => {
     );
   });
 
+  it("creates a new Visit Japan Web draft after an official QR result", async () => {
+    const profileQuery = query({ data: { id: "profile-id" }, error: null });
+    const sourceQuery = query({
+      data: {
+        id: "source-id",
+        applicant_id: "profile-id",
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        visa_package_id: "package-id",
+        submission_result: {
+          country: "JP",
+          visaType: "JP_VISIT_JAPAN_WEB",
+          status: "qr_ready",
+          applicationId: "source-id",
+          submitted: true,
+          qrReady: true,
+          artifacts: { qrCodes: ["applications/japan/official-qr.png"] },
+        },
+      },
+      error: null,
+    });
+    const existingQuery = query({ data: [], error: null });
+    const createQuery = query({ data: { id: "new-japan-application-id" }, error: null });
+    const answersQuery = query({ data: [], error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(profileQuery)
+      .mockReturnValueOnce(sourceQuery)
+      .mockReturnValueOnce(existingQuery)
+      .mockReturnValueOnce(createQuery)
+      .mockReturnValueOnce(answersQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewArrivalCardApplication("user-id", "source-id")).resolves.toEqual({
+      applicationId: "new-japan-application-id",
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      status: 201,
+    });
+    expect(createQuery.insert).toHaveBeenCalledWith(expect.objectContaining({
+      country: "japan",
+      visa_type: "JP_VISIT_JAPAN_WEB",
+      status: "draft",
+    }));
+  });
+
   it("reuses an existing ongoing draft instead of violating the uniqueness index", async () => {
     const profileQuery = query({ data: { id: "profile-id" }, error: null });
     const sourceQuery = query({

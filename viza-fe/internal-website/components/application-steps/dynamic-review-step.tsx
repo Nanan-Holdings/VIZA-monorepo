@@ -94,6 +94,20 @@ export function getReviewOptionText(
   return getLocalizedOptionText(value, officialOptions, side);
 }
 
+export function getReviewBooleanText(
+  value: string,
+  side: "zh" | "en",
+): string | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return side === "zh" ? "是" : "Yes";
+  }
+  if (normalized === "false" || normalized === "0") {
+    return side === "zh" ? "否" : "No";
+  }
+  return null;
+}
+
 export function getBilingualReviewValue(
   dynamicAnswers: Record<string, string>,
   answerKey: string,
@@ -217,6 +231,10 @@ export function DynamicReviewStep({
     if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
     if (!field) return value;
 
+    if (field.fieldType === "checkbox") {
+      return getReviewBooleanText(value, side) ?? value;
+    }
+
     return getReviewOptionText(dynamicAnswers, value, field, side) ?? value;
   }, [dynamicAnswers, t]);
 
@@ -226,6 +244,10 @@ export function DynamicReviewStep({
   ): string => {
     if (field.fieldType === "date") {
       return formatDateOfficial(value) ?? value;
+    }
+
+    if (field.fieldType === "checkbox") {
+      return getReviewBooleanText(value, "en") ?? value;
     }
 
     if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {

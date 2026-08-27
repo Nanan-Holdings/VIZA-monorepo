@@ -87,6 +87,10 @@ ports directly.
   guards shared-runner artifact access without allowing unrelated job paths or
   strings found only in runner logs.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/jp-vjw-portal-credentials/route.ts`
+  is a POST-only, owner-session proxy for an explicit Visit Japan Web account
+  reveal. It must forward a bearer token to the agent backend, return no-store
+  responses, and never place credentials in URLs, logs, or status projections.
 - `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
   creates a new blank U.S. DS-160 VIZA draft from a submitted application and
   returns the explicit form URL; its implementation/test helpers live in the

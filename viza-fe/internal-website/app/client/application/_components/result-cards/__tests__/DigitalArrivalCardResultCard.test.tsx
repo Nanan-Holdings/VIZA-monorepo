@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result";
+import type {
+  DigitalArrivalCardSubmissionResult,
+  JpVisitJapanWebSubmissionResult,
+} from "@/lib/submission-result";
 import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
@@ -8,6 +11,7 @@ import {
 } from "../SubmissionStatusStep";
 import { FailureCard } from "../FailureCard";
 import { localizeProgressMessage, WaitingCard } from "../WaitingCard";
+import { AutomatedOnlineResultCard } from "../AutomatedOnlineResultCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -22,6 +26,80 @@ describe("DigitalArrivalCardResultCard", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  const successfulJapanResult: JpVisitJapanWebSubmissionResult = {
+    country: "JP",
+    visaType: "JP_VISIT_JAPAN_WEB",
+    status: "qr_ready",
+    mode: "live_assisted",
+    provider: "jp_visit_japan_web_live",
+    applicationId: "jp-application-id",
+    submitted: true,
+    qrReady: true,
+    referenceNumber: null,
+    submittedAt: "2026-08-27T00:00:00.000Z",
+    portalUrl: "https://www.vjw.digital.go.jp/",
+    portalResponseSummary: "Official Visit Japan Web QR evidence captured.",
+    artifacts: {
+      screenshots: [],
+      qrCodes: ["applications/japan/official-qr.png"],
+      logs: [],
+      traces: [],
+    },
+  };
+
+  it("offers a new Visit Japan Web form through the shared arrival-card draft endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Could not create a new Visit Japan Web application" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "在此填写" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/jp-application-id/arrival-card-new-application",
+        { method: "POST" },
+      );
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not create a new Visit Japan Web application",
+    );
+  });
+
+  it("reveals the owner-only Visit Japan Web login on click and clears it on blur", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        email: "application@viza.it.com",
+        password: "TestPassword2!",
+        portalUrl: "https://www.vjw.digital.go.jp/",
+        revealedAt: "2026-08-27T00:00:00.000Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "查看官网登录信息" }));
+
+    expect(await screen.findByText("application@viza.it.com")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/applications/jp-application-id/jp-vjw-portal-credentials",
+      { method: "POST", cache: "no-store" },
+    );
+    expect(screen.queryByText("TestPassword2!")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "显示密码" }));
+    expect(screen.getByText("TestPassword2!")).toBeInTheDocument();
+
+    act(() => window.dispatchEvent(new Event("blur")));
+    expect(screen.queryByText("application@viza.it.com")).not.toBeInTheDocument();
+    expect(screen.queryByText("TestPassword2!")).not.toBeInTheDocument();
   });
 
   it("localizes raw loading stages for the Chinese interface", () => {
