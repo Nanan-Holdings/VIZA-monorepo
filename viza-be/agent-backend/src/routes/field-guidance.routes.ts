@@ -11,6 +11,8 @@ import {
   type VisaKnowledgeChunk,
 } from "../services/visa-knowledge.service.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
+import { createRequestAbortSignal } from "./request-abort.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "FieldGuidance" });
@@ -1427,7 +1429,8 @@ async function generateAiGuidance(
   reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
   locale: "zh" | "en",
-  chunks: VisaKnowledgeChunk[]
+  chunks: VisaKnowledgeChunk[],
+  requestSignal?: AbortSignal,
 ): Promise<AiGuidanceJson | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
@@ -1444,7 +1447,7 @@ async function generateAiGuidance(
     .join("\n\n");
 
   try {
-    const message = await client.responses.create({
+    const message = await runWithProviderCapacity((signal) => client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 500,
       instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document. Treat issuing country, place of issue, and issuing authority as distinct fields; authority names must never be suggested as place-of-issue answers. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, option descriptions, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Produce a compact guidance card: summary must be one actionable sentence (at most ${locale === "zh" ? "60 Chinese characters" : "140 characters"}); return at most 2 short examples; formatHints, hints, and officialWarnings may contain at most one short item each; return at most ${MAX_OPTION_EXPLANATIONS} directly relevant option explanations. Use empty arrays for anything that adds no value. Do not repeat the field name, sources, confidence, or generic disclaimers. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
@@ -1491,13 +1494,14 @@ async function generateAiGuidance(
           },
         },
       },
-    });
+    }, { signal }), requestSignal);
 
     const parsed = parseJsonObject(message.output_text);
     return parsed;
   } catch (error) {
-    logger.warn("AI field guidance generation failed", error as Error, {
+    logger.warn("AI field guidance generation failed", undefined, {
       fieldName: field.fieldName,
+      errorName: error instanceof Error ? error.name : "UnknownError",
     });
     return null;
   }
@@ -1511,7 +1515,8 @@ async function generateQuestionReply(
   validation: ValidationBody,
   history: ChatMessage[],
   locale: "zh" | "en",
-  chunks: VisaKnowledgeChunk[]
+  chunks: VisaKnowledgeChunk[],
+  requestSignal?: AbortSignal,
 ): Promise<{ reply: string; aiUsed: boolean }> {
   const fallback =
     standardIdentityQuestionFallback(reqBody, field, locale) ??
@@ -1542,7 +1547,7 @@ async function generateQuestionReply(
   }));
 
   try {
-    const message = await client.responses.create({
+    const message = await runWithProviderCapacity((signal) => client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 700,
       reasoning: { effort: "low" },
@@ -1555,7 +1560,7 @@ async function generateQuestionReply(
           content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nQuestion-specific field context:\n${optionContext}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant RAG context:\n${relevantContext || "No source context found."}`,
         },
       ],
-    });
+    }, { signal }), requestSignal);
 
     const reply = stripOutOfScopeFormReferences(
       stripMarkdown(message.output_text?.trim() ?? ""),
@@ -1577,8 +1582,9 @@ async function generateQuestionReply(
     }
     return { reply: reply || scopedFallback, aiUsed: Boolean(reply) };
   } catch (error) {
-    logger.warn("AI field question reply failed", error as Error, {
+    logger.warn("AI field question reply failed", undefined, {
       fieldName: field.fieldName,
+      errorName: error instanceof Error ? error.name : "UnknownError",
     });
     return { reply: scopedFallback, aiUsed: false };
   }
@@ -1587,7 +1593,8 @@ async function generateQuestionReply(
 async function getStaticGuidance(
   reqBody: FieldGuidanceRequest,
   field: FieldGuidanceField,
-  locale: "zh" | "en"
+  locale: "zh" | "en",
+  requestSignal?: AbortSignal,
 ): Promise<CachedGuidance & { cached: boolean; chunks: VisaKnowledgeChunk[] }> {
   const key = cacheKey(reqBody.country, reqBody.visaType, field.fieldName, reqBody.locale);
   const cached = GUIDANCE_CACHE.get(key);
@@ -1619,10 +1626,11 @@ async function getStaticGuidance(
         visaType: reqBody.visaType,
         intent: "form_intake",
         matchCount: 5,
+        signal: requestSignal,
       });
 
   const base = buildDeterministicGuidance(field, locale);
-  const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks);
+  const ai = await generateAiGuidance(reqBody, field, locale, knowledge.chunks, requestSignal);
   const merged = enforceGuidanceLanguage(
     ai ? mergeGuidance(base, ai, field, locale) : base,
     base,
@@ -1667,8 +1675,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
+    const requestSignal = createRequestAbortSignal(req, res);
     const locale = getLocale(body.locale);
-    const staticGuidance = await getStaticGuidance(body, field, locale);
+    const staticGuidance = await getStaticGuidance(body, field, locale, requestSignal);
     const validation = validateAnswer(
       field,
       body.answer ?? "",
@@ -1684,6 +1693,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           visaType: body.visaType,
           intent: "form_intake",
           matchCount: 5,
+          signal: requestSignal,
         })
       : null;
     const questionChunks = questionKnowledge
@@ -1698,7 +1708,8 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           validation,
           history,
           locale,
-          questionChunks
+          questionChunks,
+          requestSignal,
         )
       : null;
     const sources = questionKnowledge
