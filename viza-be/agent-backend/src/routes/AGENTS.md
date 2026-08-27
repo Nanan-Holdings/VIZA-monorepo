@@ -38,8 +38,9 @@ and internal admin flows.
 - `telegram-webhook.ts`: Telegram approval webhook.
 - `public-status.routes.ts`: unauthenticated redacted status snapshot and the
   separate bearer-secret-protected scheduled probe trigger. Its protected
-  `/capacity` snapshot contains only aggregate chat-gate, DB-pool, and hashed
-  query-latency metrics; never add user/session/message/SQL/parameter values.
+  `/capacity` snapshot contains only aggregate chat-gate, non-chat AI provider
+  gate, DB-pool, and hashed query-latency metrics; never add
+  user/session/message/SQL/parameter values.
 
 ## Ownership Boundaries
 
@@ -50,6 +51,11 @@ and internal admin flows.
   routes.
 - Keep Socket.IO event handling in `src/socket/**`, not REST routes.
 - Do not log PII or secrets.
+- Non-chat OpenAI/provider calls must use `runWithProviderCapacity()`. Keep chat
+  on its separate request-level gate so OCR or field-guidance spikes cannot
+  consume the chat turn budget. Capacity rejection may degrade optional AI
+  guidance/validation to deterministic behavior; required OCR must return a
+  retryable 503 without exposing provider errors.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
   real official-site payment submission, or browser runner behavior in route
   handlers. Official-fee, U.S. appointment, and France TLS appointment routes

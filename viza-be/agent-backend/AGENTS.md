@@ -189,6 +189,12 @@ explicitly reintroduces another provider.
 - `src/online-capacity-target.ts` owns the default-off target marker returned at
   `/api/health/online-capacity-target`. It derives the project ref from the
   service's actual Supabase URL and must never return keys or connection URLs.
+- `src/utils/provider-capacity.ts` owns the bounded instance-local budget for
+  non-chat AI/provider calls. Passport OCR, field guidance, validation, and
+  embedding requests must enter through `runWithProviderCapacity()`. Chat keeps
+  its separate turn-level gate. The protected capacity route may expose only
+  aggregate gate counts and bounded latency percentiles, never prompts,
+  responses, request identities, model input, or provider errors.
 
 ## Ownership Boundaries
 

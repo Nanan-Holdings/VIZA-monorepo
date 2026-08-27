@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
 
 const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 
@@ -153,7 +154,7 @@ async function getEmbedding(text: string): Promise<number[] | null> {
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
+    const response = await runWithProviderCapacity(() => fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -163,7 +164,7 @@ async function getEmbedding(text: string): Promise<number[] | null> {
         model: EMBEDDING_MODEL,
         input: text.slice(0, 8000),
       }),
-    });
+    }));
 
     if (!response.ok) {
       logger.warn("Embedding request failed", undefined, {

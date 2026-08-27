@@ -56,6 +56,12 @@ The following changes require no paid plan or additional service:
 - Reused one OpenAI client per backend replica, disabled hidden SDK retries,
   added a streaming deadline and disconnect cancellation, and bounded active
   and queued Socket.IO chat turns with per-connection duplicate suppression.
+- Added a separate instance-local budget for non-chat OpenAI/provider work
+  (passport OCR, field guidance, validation, and embeddings), with bounded
+  active/queued work, queue timeout/abort handling, retryable OCR overload,
+  deterministic optional-feature degradation, and aggregate metrics on the
+  protected capacity endpoint. This protects chat fairness but is not a
+  cross-replica global quota.
 
 These changes reduce request amplification and protect latency fairness. They
 do not change the Free-plan hard quotas of Supabase Realtime, database compute,

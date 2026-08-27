@@ -12,6 +12,7 @@ import {
 } from "../services/portal-health.service.js";
 import { Logger } from "../utils/logger.js";
 import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
+import { getLatestProviderCapacityStats } from "../utils/provider-capacity.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
@@ -100,6 +101,7 @@ statusOperationsRouter.get("/capacity", requireCapacityStatusSecret, (_req, res)
       ok: true,
       instanceId: capacityInstanceId,
       chat: getLatestChatCapacityStats(),
+      provider: getLatestProviderCapacityStats(),
       database: {
         pool: getDatabasePoolMetrics(),
         queries: getDatabaseQueryMetrics(),

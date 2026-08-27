@@ -17,6 +17,10 @@ import { Router } from "express";
 import { createOpenAiClient } from "../utils/openai-client.js";
 import { Logger } from "../utils/logger.js";
 import { maskPII } from "../utils/phi-masker.js";
+import {
+  ProviderCapacityError,
+  runWithProviderCapacity,
+} from "../utils/provider-capacity.js";
 
 const logger = new Logger({ serviceName: "PassportScanRoutes" });
 
@@ -140,7 +144,7 @@ passportScanRouter.post("/extract", async (req, res) => {
     const client = createOpenAiClient(OPENAI_API_KEY);
 
     const start = Date.now();
-    const response = await client.responses.create({
+    const response = await runWithProviderCapacity(() => client.responses.create({
       model: MODEL,
       max_output_tokens: 1024,
       input: [
@@ -164,7 +168,7 @@ passportScanRouter.post("/extract", async (req, res) => {
           schema: PASSPORT_EXTRACT_SCHEMA,
         },
       },
-    });
+    }));
 
     const elapsedMs = Date.now() - start;
 
@@ -193,6 +197,13 @@ passportScanRouter.post("/extract", async (req, res) => {
 
     res.json({ error: false, extracted });
   } catch (error) {
+    if (error instanceof ProviderCapacityError) {
+      res
+        .set("Retry-After", "2")
+        .status(503)
+        .json({ error: true, message: "OCR service is busy; retry shortly" });
+      return;
+    }
     logger.error("passport_extract_failed", error as Error);
     res.status(500).json({
       error: true,

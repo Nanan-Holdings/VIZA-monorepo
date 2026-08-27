@@ -13,6 +13,7 @@ import { Router, Request, Response } from "express";
 import { createOpenAiClient } from "../utils/openai-client.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "ValidateApplication" });
@@ -100,11 +101,11 @@ async function getEmbedding(text: string): Promise<number[] | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") return null;
 
   try {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
+    const res = await runWithProviderCapacity(() => fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
-    });
+    }));
     const data = await res.json() as { data?: Array<{embedding: number[]}> };
     return data.data?.[0]?.embedding ?? null;
   } catch {
@@ -193,7 +194,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         uploaded_documents: docs,
       }, null, 2);
 
-      const message = await client.responses.create({
+      const message = await runWithProviderCapacity(() => client.responses.create({
         model: OPENAI_VALIDATION_MODEL,
         max_output_tokens: 1024,
         instructions:
@@ -238,7 +239,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
             },
           },
         },
-      });
+      }));
 
       const responseText = message.output_text.trim();
 
