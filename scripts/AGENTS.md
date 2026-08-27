@@ -209,6 +209,13 @@ When PostgreSQL has never recorded an explicit `pg_stat_database.stats_reset`,
 the observer uses `pg_postmaster_start_time()` as a conservative non-null reset
 marker. A database restart therefore breaks the evidence window, while the
 existing monotonic-counter guard still rejects any counter reset or rollback.
+The v3 passive report adds only three fixed connection-source buckets derived
+from exact application-name equality: `agent_backend`, `maintenance`, and
+`other`. Unknown, empty, and Supabase-internal names are never emitted and are
+always counted as `other`. This is a best-effort snapshot of database backends
+under transaction pooling, not a request, user, or tenant metric. Keep raw
+application names, usernames, addresses, PIDs, SQL, parameters, and session
+identifiers out of the artifact and workflow summary.
 The table-review threshold is deliberately conservative: all four consecutive
 segments must be present for that table, followed by either at least 100
 sequential scans touching 10,000 tuples or at least 1,000 inserts/updates/

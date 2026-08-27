@@ -100,3 +100,12 @@ scheduled recovery workflows.
   exact same table to have monotonic counters in every segment of the complete
   window and either at least 100 sequential scans touching 10,000 tuples or at
   least 1,000 writes; these are review thresholds, not index criteria.
+  Report v3 additionally groups current-database client backends into only
+  three fixed, privacy-safe connection-source buckets: the exact
+  `viza-agent-backend` application name, the exact protected-maintenance
+  application name, and `other`. Empty and unknown names always remain
+  `other`; raw application names, usernames, addresses, PIDs, SQL, parameters,
+  and session identities must never enter reports or logs. The attribution is
+  a best-effort instantaneous diagnostic under Supavisor transaction pooling,
+  not a user/request count, authorization signal, or capacity denominator, and
+  a high `other` count is never an automatic blocker.
