@@ -1612,6 +1612,21 @@ export async function getOrCreateAssistantSession(params: {
   return created as SessionRow;
 }
 
+export async function loadAssistantSession(
+  admin: SupabaseClient,
+  applicationId: string,
+): Promise<SessionRow | null> {
+  const { data, error } = await admin
+    .from("form_assistant_sessions")
+    .select("id, schema_fingerprint, knowledge_release_key, state_json")
+    .eq("application_id", applicationId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as SessionRow | null) ?? null;
+}
+
 export async function loadAssistantMessages(
   admin: SupabaseClient,
   sessionId: string,

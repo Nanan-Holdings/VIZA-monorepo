@@ -76,6 +76,11 @@ Scope: this file applies to `lib/form-assistant/**`.
 - `validation-refresh.ts` guards automatic post-edit revalidation. A response
   may update the assistant and form only when both its request id and answer
   revision still match the latest snapshot.
+- `submission-readonly.ts` is the shared success-evidence gate for every form
+  assistant. Successful applications keep their saved conversation readable,
+  while all answer, confirmation, document, validation, and voice mutations
+  remain locked. Arrival cards and automated online products must retain their
+  stricter official evidence requirements.
 - Render assistant progress from the current merged form draft, not a previous
   assistant API response. Remote-search official selects are controlled by
   their product option endpoint and must not be rejected against a partial

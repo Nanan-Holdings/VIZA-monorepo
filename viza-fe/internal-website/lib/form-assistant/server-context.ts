@@ -18,9 +18,9 @@ import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { canonicalizeSchemaOptionValue } from "@/lib/universal-profile-prefill";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
-import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import { isJapanVisitJapanWebApplication } from "@/lib/submission-queue";
 import type { FormAssistantDocumentReadiness } from "@/types/form-assistant";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 
 export interface OwnedApplicationContext {
   admin: SupabaseClient;
@@ -34,12 +34,15 @@ export interface OwnedApplicationContext {
     country: string;
     visa_type: string;
     submitted_at: string | null;
+    submission_result_status: string | null;
     submission_result: unknown;
   };
+  formAssistantReadOnly: boolean;
 }
 
 export async function requireOwnedApplication(
   applicationId: string,
+  options: { allowSuccessfulSubmission?: boolean } = {},
 ): Promise<OwnedApplicationContext | { status: number; error: string }> {
   const session = await getClientSessionWithFallback();
   if (!session) return { status: 401, error: "Not authenticated" };
@@ -47,7 +50,7 @@ export async function requireOwnedApplication(
   const admin = createAdminClient();
   const { data: application } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, submitted_at, submission_result")
+    .select("id, applicant_id, country, visa_type, submitted_at, submission_result_status, submission_result")
     .eq("id", applicationId)
     .maybeSingle();
   if (!application?.applicant_id) return { status: 404, error: "Application not found" };
@@ -66,14 +69,16 @@ export async function requireOwnedApplication(
   if (!ownsProfile) {
     return { status: 403, error: "Unauthorized" };
   }
-  if (hasSuccessfulArrivalCardSubmission({
+  const formAssistantReadOnly = hasSuccessfulFormSubmission({
     country: application.country,
     visaType: application.visa_type,
+    submissionResultStatus: application.submission_result_status,
     submissionResult: application.submission_result,
-  })) {
+  });
+  if (formAssistantReadOnly && !options.allowSuccessfulSubmission) {
     return {
       status: 409,
-      error: "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+      error: "The form assistant is read-only after a successful submission. Start another application to continue.",
     };
   }
 
@@ -84,6 +89,7 @@ export async function requireOwnedApplication(
       email: session.email,
     },
     application: application as OwnedApplicationContext["application"],
+    formAssistantReadOnly,
   };
 }
 

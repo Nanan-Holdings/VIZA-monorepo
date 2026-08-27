@@ -739,6 +739,12 @@
       "scrollToLatest": "Jump to latest message",
       "emptyConversation": "Tell me what you would like to add, or answer the questions I ask. You can also use the microphone to dictate your answer.",
       "thinking": "Checking your application...",
+      "readOnly": {
+        "description": "Review the saved conversation and completion progress for this submitted application.",
+        "emptyConversation": "No form filling assistant conversation was saved before this application was submitted.",
+        "notice": "This application has been submitted. The form filling assistant is read-only, so you cannot change answers or send new messages.",
+        "composerPlaceholder": "Application submitted — sending is disabled"
+      },
       "missing": {
         "title": "Details still needed",
         "required": "Required",
@@ -1455,6 +1461,8 @@
       "retryTranslation": "Retry",
       "editTranslation": "Edit",
       "saveTranslation": "Save",
+      "savingOfficialValue": "Saving...",
+      "officialValueSaveFailed": "Could not save this English value. Your edit is still here; try again.",
       "sectionPersonal": "Personal Information",
       "sectionPassport": "Passport Details",
       "sectionTravel": "Travel Information",

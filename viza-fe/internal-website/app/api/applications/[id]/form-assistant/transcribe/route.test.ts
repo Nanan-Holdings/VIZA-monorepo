@@ -94,7 +94,7 @@ describe("POST /api/applications/[id]/form-assistant/transcribe", () => {
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({
-      error: "The form assistant is locked after a successful arrival-card submission. Start another submission to continue.",
+      error: "The form assistant is read-only after a successful submission. Start another application to continue.",
     });
     expect(fetch).not.toHaveBeenCalled();
   });
