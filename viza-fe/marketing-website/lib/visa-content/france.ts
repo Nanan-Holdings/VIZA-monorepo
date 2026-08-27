@@ -41,7 +41,7 @@ export const france: VisaContent = {
     { k: "Entry", v: "Single · double · multiple" },
   ],
   tags: [
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Full dossier review" },
     { icon: "globe", label: "29-country Schengen access" },
   ],
@@ -72,8 +72,8 @@ export const france: VisaContent = {
       title: "Biometrics & consulate review",
       body: "You attend the appointment in person to give fingerprints and submit the dossier. Standard processing is 15 calendar days under the EU Visa Code, extendable to 45 days in complex cases — we track the queue and flag any information requests.",
       statusRows: [
-        { label: "Biometrics appointment completed", ts: "12 Jun, 9:00 AM", onTime: true },
-        { label: "Dossier lodged with the consulate", ts: "12 Jun, 11:30 AM", onTime: true },
+        { label: "Biometrics appointment completed", ts: "12 Jun, 9:00 AM" },
+        { label: "Dossier lodged with the consulate", ts: "12 Jun, 11:30 AM" },
         { label: "Awaiting consulate decision", ts: "In progress" },
       ],
     },
@@ -227,7 +227,7 @@ export const france: VisaContent = {
     etaValue: "26 Jun 2026, 03:00 PM",
     title: "Schengen Visa (Type C) · 90-day stay",
     saving: "Full dossier review included",
-    sub: "All-inclusive of document review, France-Visas form preparation, and on-time guarantee.",
+    sub: "All-inclusive of document review, France-Visas form preparation, and an advisor check before filing.",
     foot: "Government visa fee (EUR 90 ≈ SGD 131) is collected at checkout and paid to the consulate; the application centre's service fee applies at your appointment. VIZA's fee covers preparation, review, and appointment support.",
   },
 

@@ -53,8 +53,8 @@ export const vizaTest: VisaContent = {
       title: "Follow live tracking",
       body: "The status timeline updates the way a real application would, so you know what to expect on a real order.",
       statusRows: [
-        { label: "Test application received", ts: "Just now", onTime: true },
-        { label: "Demo review completed", ts: "Moments later", onTime: true },
+        { label: "Test application received", ts: "Just now" },
+        { label: "Demo review completed", ts: "Moments later" },
         { label: "Demo delivery", ts: "In progress" },
       ],
     },
@@ -90,10 +90,10 @@ export const vizaTest: VisaContent = {
 
   extensionTitle: "Trying a real application",
   extensionSub:
-    "Real applications add exactly two things to what you just saw: a real consultant, and a real government filing — with our on-time guarantee.",
+    "Real applications add exactly two things to what you just saw: a real consultant, and a real government filing — with a named consultant reviewing it before filing.",
   extension: [
     { icon: "extend", k: "Real destinations", v: "17 countries", sub: "And growing" },
-    { icon: "shield", k: "On-time guarantee", v: "Money back", sub: "If we miss the promised date" },
+    { icon: "shield", k: "Advisor check", v: "Before filing", sub: "A person reviews every application" },
   ],
 
   reviews: {
@@ -143,7 +143,7 @@ export const vizaTest: VisaContent = {
     {
       category: "Going real",
       q: "How do I apply for a real visa afterwards?",
-      a: "Pick any destination from the explore page — the wizard is the one you just used. Real applications include a named consultant, a real government filing, and our on-time guarantee.",
+      a: "Pick any destination from the explore page — the wizard is the one you just used. Real applications include a named consultant, and a real government filing.",
     },
   ],
 
@@ -158,7 +158,7 @@ export const vizaTest: VisaContent = {
     title: "Test checkout · live demo",
     saving: "Free",
     sub: "The full application experience with nothing charged and nothing filed.",
-    foot: "The test flow is free. Real applications are charged only at their own checkout, backed by our on-time guarantee.",
+    foot: "The test flow is free. Real applications are charged only at their own checkout. Turnaround times are estimates, not a promised date.",
   },
 
   aiPlaceholder: "Ask anything about how VIZA works — flow, tracking, pricing…",

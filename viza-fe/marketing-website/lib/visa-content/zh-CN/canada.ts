@@ -25,7 +25,7 @@ export const canada: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "eTA数分钟获批" },
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "代办生物识别预约" },
   ],
 
@@ -55,8 +55,8 @@ export const canada: VisaContent = {
       title: "IRCC审理您的签证",
       body: "中国递交的访客签证目前平均需8–14周；新加坡在线递交通常数周内出结果。我们持续跟踪IRCC状态，补件要求当天响应，确保流程不停滞。",
       statusRows: [
-        { label: "申请已通过IRCC门户递交", ts: "7月6日 上午9:40", onTime: true },
-        { label: "已在VFS Global完成生物识别", ts: "7月18日 上午11:05", onTime: true },
+        { label: "申请已通过IRCC门户递交", ts: "7月6日 上午9:40" },
+        { label: "已在VFS Global完成生物识别", ts: "7月18日 上午11:05" },
         { label: "等待最终审批", ts: "处理中" },
       ],
     },
@@ -185,8 +185,8 @@ export const canada: VisaContent = {
     etaValue: "2026年9月25日 下午3:15",
     title: "访客签证（TRV）· 多次入境",
     saving: "代办生物识别预约",
-    sub: "全包服务，含材料审核、IRCC门户递交、生物识别预约及准时保障。",
-    foot: "IRCC政府费用与VIZA服务费在结账时统一收取，并享有准时保障。",
+    sub: "全包服务，含材料审核、IRCC门户递交、生物识别预约与材料审核。",
+    foot: "IRCC政府费用与VIZA服务费在结账时统一收取。办理时间为估算值，最终由官方决定。",
   },
 
   aiPlaceholder: "请随时提问关于加拿大签证的任何问题——eTA与TRV的区别、费用、生物识别、审理时长……",

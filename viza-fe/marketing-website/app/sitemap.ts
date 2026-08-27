@@ -9,6 +9,8 @@ import { getPublishedCatalogue } from "@/lib/public-catalogue";
  */
 const STATIC_ROUTES = [
   "",
+  "/about",
+  "/product",
   "/apply",
   "/contact",
   "/careers",

@@ -7,103 +7,7 @@ import SiteNav from "@/components/SiteNav";
 import "./contact.css";
 import SiteFooter from "@/components/SiteFooter";
 import { trackEvent } from "@/lib/analytics";
-
-/* ----------------------------- Fake QR code ------------------------------ */
-/**
- * Decorative QR-lookalike. Pseudo-random but deterministic per seed, with
- * finder/alignment/timing patterns so it LOOKS like a real 33x33 QR code.
- * Pure function — same seed always yields the exact same module grid.
- */
-const QR_SIZE = 33;
-
-function makeQrGrid(seed: string): number[][] {
-  // deterministic PRNG
-  let s = 0;
-  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
-  function rand() {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0xffffffff;
-  }
-
-  // grid: 0 = white, 1 = black
-  const grid: number[][] = Array.from({ length: QR_SIZE }, () => Array(QR_SIZE).fill(0));
-
-  // place finder pattern (7x7) at top-left of a 7x7 area starting at (r,c)
-  function placeFinder(r: number, c: number) {
-    for (let i = 0; i < 7; i++) {
-      for (let j = 0; j < 7; j++) {
-        const isBorder = i === 0 || i === 6 || j === 0 || j === 6;
-        const isCenter = i >= 2 && i <= 4 && j >= 2 && j <= 4;
-        grid[r + i][c + j] = isBorder || isCenter ? 1 : 0;
-      }
-    }
-  }
-  placeFinder(0, 0);
-  placeFinder(0, QR_SIZE - 7);
-  placeFinder(QR_SIZE - 7, 0);
-
-  // small alignment pattern bottom-right
-  function placeAlign(r: number, c: number) {
-    for (let i = 0; i < 5; i++) {
-      for (let j = 0; j < 5; j++) {
-        const isBorder = i === 0 || i === 4 || j === 0 || j === 4;
-        const isCenter = i === 2 && j === 2;
-        grid[r + i][c + j] = isBorder || isCenter ? 1 : 0;
-      }
-    }
-  }
-  placeAlign(QR_SIZE - 9, QR_SIZE - 9);
-
-  // timing patterns
-  for (let i = 8; i < QR_SIZE - 8; i++) {
-    grid[6][i] = i % 2 === 0 ? 1 : 0;
-    grid[i][6] = i % 2 === 0 ? 1 : 0;
-  }
-
-  // "reserved" zones we won't overwrite
-  function isReserved(r: number, c: number) {
-    if (r < 9 && c < 9) return true;
-    if (r < 9 && c > QR_SIZE - 9) return true;
-    if (r > QR_SIZE - 9 && c < 9) return true;
-    if (r >= QR_SIZE - 9 && c >= QR_SIZE - 9) return true;
-    if (r === 6 || c === 6) return true;
-    return false;
-  }
-
-  // fill data modules with deterministic noise
-  for (let r = 0; r < QR_SIZE; r++) {
-    for (let c = 0; c < QR_SIZE; c++) {
-      if (isReserved(r, c)) continue;
-      grid[r][c] = rand() < 0.48 ? 1 : 0;
-    }
-  }
-
-  // clear a 5x5 in the very center (for the logo)
-  const cx = Math.floor(QR_SIZE / 2);
-  for (let i = cx - 2; i <= cx + 2; i++) {
-    for (let j = cx - 2; j <= cx + 2; j++) {
-      grid[i][j] = 0;
-    }
-  }
-
-  return grid;
-}
-
-const QR_WHATSAPP = makeQrGrid("viza-whatsapp-help-desk");
-const QR_WECHAT = makeQrGrid("viza-wechat-help-desk");
-
-function FakeQr({ grid }: { grid: number[][] }) {
-  return (
-    <svg viewBox={`0 0 ${QR_SIZE} ${QR_SIZE}`} preserveAspectRatio="xMidYMid meet">
-      <rect width={QR_SIZE} height={QR_SIZE} fill="#fff" />
-      <g fill="#0a0a0a" shapeRendering="crispEdges">
-        {grid.flatMap((row, r) =>
-          row.map((on, c) => (on ? <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} /> : null)),
-        )}
-      </g>
-    </svg>
-  );
-}
+import { CONTACT, OFFICES, mapsHref } from "@/lib/contact";
 
 /* ------------------------------ Small icons ------------------------------ */
 
@@ -111,9 +15,6 @@ const WhatsAppIcon = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
 );
 
-const WeChatLogoIcon = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 4C5.4 4 2 6.7 2 10c0 1.7.9 3.3 2.4 4.4L3.5 17l3-1.5c.6.1 1.3.2 2 .2" /><path d="M22 14.5c0-2.8-2.7-5.1-6-5.1s-6 2.3-6 5.1 2.7 5.1 6 5.1c.5 0 1 0 1.5-.1L20 21l-.4-1.9c1.5-1 2.4-2.4 2.4-3.9z" /></svg>
-);
 
 const PhoneIcon = ({ size, strokeWidth = "1.8" }: { size: number; strokeWidth?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M3 5a2 2 0 0 1 2-2h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5z" /></svg>
@@ -133,23 +34,7 @@ const TickIcon = () => (
 
 /* ------------------------------- Page data ------------------------------- */
 /** Locale-invariant contact details (numbers, handles, addresses). */
-const CONTACTS = {
-  whatsapp: "+65 84106368",
-  wechat: "@viza_help",
-  phoneAsia: "+65 84106368",
-  phoneAmericas: "+66 18930437448",
-  emailGeneral: "sales@kelin.studio",
-  emailPress: "sales@kelin.studio",
-  emailPartners: "sales@kelin.studio",
-  emergency: "+65 84106368",
-} as const;
-
 const DIAL_CODES = ["🇸🇬 +65", "🇺🇸 +1", "🇬🇧 +44", "🇦🇪 +971", "🇨🇳 +86", "🇮🇳 +91", "🇵🇭 +63"] as const;
-
-const DESKS = [
-  { id: "cn", phone: "+66 18930437448", email: "sales@kelin.studio", address: "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai", closed: false },
-  { id: "sg", phone: "+65 84106368", email: "sales@kelin.studio", address: "225 Pasir Panjang Rd, Singapore", closed: false },
-] as const;
 
 const FAQ_IDS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
 
@@ -208,7 +93,6 @@ export default function ContactPage() {
   const reasons = t.raw("form.reasons") as string[];
   const slaRows = t.raw("aside.sla") as { k: string; v: string }[];
   const includeItems = t.raw("aside.includeItems") as string[];
-  const dataPills = t.raw("aside.dataPills") as string[];
 
   return (
     <>
@@ -224,11 +108,7 @@ export default function ContactPage() {
               <span className="sep">/</span>
               <span>{t("hero.crumb")}</span>
             </div>
-            <div className="hero-status">
-              <span className="dot"></span>
-              {t("hero.status")}
-              <span className="meta">{t("hero.statusMeta")}</span>
-            </div>
+
           </div>
 
           <h1 className="hero-headline">
@@ -256,32 +136,29 @@ export default function ContactPage() {
             <span className="lbl">{t("hero.channelsLabel")}</span>
             <span className="hint">{t("hero.channelsHint")}</span>
           </div>
+          {/* Real, clickable channels only. The previous cards rendered decorative
+              QR blocks (`FakeQr`) that scanned to nothing, and advertised a 24/7
+              hotline and minute-level reply times we do not staff. */}
           <div className="channel-grid">
 
             {/* WhatsApp */}
-            <div className="ch-card tone-whatsapp">
+            <a className="ch-card tone-whatsapp" href={`https://wa.me/${CONTACT.whatsappNumber}`} target="_blank" rel="noreferrer">
               <div className="ch-head">
                 <div className="ch-glyph"><WhatsAppIcon size={22} /></div>
                 <span className="ch-tag">{t("channels.whatsapp.tag")}</span>
               </div>
               <h3>{t("channels.whatsapp.title")}<small>{t("channels.whatsapp.sub")}</small></h3>
               <div className="ch-body">
-                <div className="qr-block">
-                  <div className="qr-frame">
-                    <FakeQr grid={QR_WHATSAPP} />
-                    <div className="qr-logo"><WhatsAppIcon size={18} /></div>
-                  </div>
-                  <div className="qr-meta">
-                    <strong>{t("channels.whatsapp.scan")}</strong>
-                    <span className="qr-handle">{CONTACTS.whatsapp}</span>
-                  </div>
+                <div className="big-read">
+                  <div className="label">{t("channels.whatsapp.numberLabel")}</div>
+                  <div className="value mono">{CONTACT.phoneSg}</div>
                 </div>
               </div>
               <div className="ch-foot">
-                <span className="hours"><span className="dot"></span>{t("channels.whatsapp.hours")}</span>
+                <span className="hours">{t("channels.whatsapp.hours")}</span>
                 <span className="ch-action">{t("channels.whatsapp.action")}</span>
               </div>
-            </div>
+            </a>
 
             {/* WeChat */}
             <div className="ch-card tone-wechat">
@@ -293,25 +170,19 @@ export default function ContactPage() {
               </div>
               <h3>{t("channels.wechat.title")}<small>{t("channels.wechat.sub")}</small></h3>
               <div className="ch-body">
-                <div className="qr-block">
-                  <div className="qr-frame">
-                    <FakeQr grid={QR_WECHAT} />
-                    <div className="qr-logo"><WeChatLogoIcon size={18} /></div>
-                  </div>
-                  <div className="qr-meta">
-                    <strong>{t("channels.wechat.scan")}</strong>
-                    <span className="qr-handle">{CONTACTS.wechat}</span>
-                  </div>
+                <div className="big-read">
+                  <div className="label">{t("channels.wechat.idLabel")}</div>
+                  <div className="value mono">{CONTACT.wechatId}</div>
+                  <div className="sub">{t("channels.wechat.idHint")}</div>
                 </div>
               </div>
               <div className="ch-foot">
-                <span className="hours"><span className="dot"></span>{t("channels.wechat.hours")}</span>
-                <span className="ch-action">{t("channels.wechat.action")}</span>
+                <span className="hours">{t("channels.wechat.hours")}</span>
               </div>
             </div>
 
             {/* Phone */}
-            <div className="ch-card tone-phone">
+            <a className="ch-card tone-phone" href={`tel:${CONTACT.phoneSgE164}`}>
               <div className="ch-head">
                 <div className="ch-glyph"><PhoneIcon size={22} /></div>
                 <span className="ch-tag">{t("channels.phone.tag")}</span>
@@ -320,23 +191,18 @@ export default function ContactPage() {
               <div className="ch-body">
                 <div className="big-read">
                   <div className="label">{t("channels.phone.asiaLabel")}</div>
-                  <div className="value mono">{CONTACTS.phoneAsia}</div>
+                  <div className="value mono">{CONTACT.phoneSg}</div>
                   <div className="sub">{t("channels.phone.asiaLangs")}</div>
-                </div>
-                <div className="big-read">
-                  <div className="label">{t("channels.phone.americasLabel")}</div>
-                  <div className="value mono">{CONTACTS.phoneAmericas}</div>
-                  <div className="sub">{t("channels.phone.americasLangs")}</div>
                 </div>
               </div>
               <div className="ch-foot">
-                <span className="hours"><span className="dot"></span>{t("channels.phone.hours")}</span>
+                <span className="hours">{t("channels.phone.hours")}</span>
                 <span className="ch-action">{t("channels.phone.action")}</span>
               </div>
-            </div>
+            </a>
 
             {/* Email */}
-            <div className="ch-card tone-email">
+            <a className="ch-card tone-email" href={`mailto:${CONTACT.emailSupport}`}>
               <div className="ch-head">
                 <div className="ch-glyph"><MailIcon size={22} /></div>
                 <span className="ch-tag">{t("channels.email.tag")}</span>
@@ -345,19 +211,15 @@ export default function ContactPage() {
               <div className="ch-body">
                 <div className="big-read">
                   <div className="label">{t("channels.email.generalLabel")}</div>
-                  <div className="value">{CONTACTS.emailGeneral}</div>
+                  <div className="value">{CONTACT.emailSupport}</div>
                   <div className="sub">{t("channels.email.generalSub")}</div>
-                </div>
-                <div className="big-read">
-                  <div className="label">{t("channels.email.pressLabel")}</div>
-                  <div className="value">{CONTACTS.emailPress}<br /><span style={{ fontSize: "18px" }}>{CONTACTS.emailPartners}</span></div>
                 </div>
               </div>
               <div className="ch-foot">
-                <span className="hours"><span className="dot"></span>{t("channels.email.hours")}</span>
+                <span className="hours">{t("channels.email.hours")}</span>
                 <span className="ch-action">{t("channels.email.action")}</span>
               </div>
-            </div>
+            </a>
 
           </div>
         </div>
@@ -482,7 +344,7 @@ export default function ContactPage() {
             <div className="form-foot">
               <label className="consent">
                 <input type="checkbox" required defaultChecked />
-                <span>{t.rich("form.consent", { a: (chunks: ReactNode) => <a href="#">{chunks}</a> })}</span>
+                <span>{t.rich("form.consent", { a: (chunks: ReactNode) => <a href="/legal/privacy">{chunks}</a> })}</span>
               </label>
               <button className="btn-submit" type="submit" disabled={formStatus === "sending"}>
                 {formStatus === "sending" ? t("form.sending") : t("form.submit")}
@@ -518,11 +380,7 @@ export default function ContactPage() {
             <div className="aside-card">
               <h4><span className="glyph"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>{t("aside.dataTitle")}</h4>
               <p>{t("aside.dataBody")}</p>
-              <div style={{ marginTop: "14px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {dataPills.map((pill) => (
-                  <span className="pill-status" key={pill}><span className="dot"></span>{pill}</span>
-                ))}
-              </div>
+
             </div>
           </aside>
         </div>
@@ -537,31 +395,32 @@ export default function ContactPage() {
             <p>{t("desks.lede")}</p>
           </div>
 
+          {/* Office cards, not a staffed-desk dashboard: the old markup claimed a live
+              advisor headcount per city and linked "open in maps" to "#". */}
           <div className="desks-grid">
-            {DESKS.map((desk) => (
-              <div className="desk" key={desk.id}>
+            {OFFICES.map((office) => (
+              <div className="desk" key={office.id}>
                 <div className="desk-head">
-                  <span className="desk-flag"><CircleFlag countryCode={desk.id} height={32} /></span>
-                  <span className={`desk-status${desk.closed ? " closed" : ""}`}><span className="dot"></span>{t(`desks.${desk.id}.status`)}</span>
+                  <span className="desk-flag"><CircleFlag countryCode={office.id} height={32} /></span>
                 </div>
-                <h4>{t(`desks.${desk.id}.title`)}<small>{t(`desks.${desk.id}.sub`)}</small></h4>
+                <h4>{t(`desks.${office.id}.title`)}<small>{t(`desks.${office.id}.sub`)}</small></h4>
                 <div className="desk-info">
                   <div className="row">
                     <span className="ic"><PhoneIcon size={12} strokeWidth="2.2" /></span>
-                    <div><small>{t("desks.directLine")}</small>{desk.phone}</div>
+                    <div><small>{t("desks.directLine")}</small>{CONTACT.phoneSg}</div>
                   </div>
                   <div className="row">
                     <span className="ic"><MailIcon size={12} strokeWidth="2.2" /></span>
-                    <div><small>{t("desks.email")}</small>{desk.email}</div>
+                    <div><small>{t("desks.email")}</small>{CONTACT.emailSupport}</div>
                   </div>
                   <div className="row">
                     <span className="ic"><PinIcon size={12} /></span>
-                    <div><small>{t("desks.address")}</small>{desk.address}</div>
+                    <div><small>{t("desks.address")}</small>{office.address}</div>
                   </div>
                 </div>
                 <div className="desk-foot">
-                  <span className="tz">{t(`desks.${desk.id}.tz`)}</span>
-                  <a href="#">{t("desks.maps")}</a>
+                  <span className="tz">{t(`desks.${office.id}.tz`)}</span>
+                  <a href={mapsHref(office.mapsQuery)} target="_blank" rel="noreferrer">{t("desks.maps")}</a>
                 </div>
               </div>
             ))}
@@ -569,22 +428,8 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* ============================== EMERGENCY ============================== */}
-      <div className="emergency" data-screen-label="Emergency">
-        <div>
-          <span className="tag-line">{t("emergency.tag")}</span>
-          <h2>{t("emergency.title")}</h2>
-          <p>{t("emergency.body")}</p>
-        </div>
-        <div className="right">
-          <span className="lab">{t("emergency.hotlineLabel")}</span>
-          <span className="number">{CONTACTS.emergency}</span>
-          <a className="em-btn" href="tel:+6584106368">
-            <PhoneIcon size={14} strokeWidth="2.2" />
-            {t("emergency.call")}
-          </a>
-        </div>
-      </div>
+      {/* The 24/7 emergency hotline band was removed: there is no round-the-clock
+          rota behind it. Time-critical cases are called out in the form copy instead. */}
 
       {/* ============================== FAQ ============================== */}
       <section className="section" id="faq" style={{ paddingTop: 0 }}>
@@ -598,7 +443,7 @@ export default function ContactPage() {
           {FAQ_IDS.map((id, i) => (
             <details className="faq" key={id} open={i === 0}>
               <summary>{t(`faq.${id}.q`)}<span className="plus">+</span></summary>
-              <p>{t.rich(`faq.${id}.a`, { a: (chunks: ReactNode) => <a href="#">{chunks}</a> })}</p>
+              <p>{t.rich(`faq.${id}.a`, { a: (chunks: ReactNode) => <a href={`mailto:${CONTACT.emailSupport}`}>{chunks}</a> })}</p>
             </details>
           ))}
         </div>

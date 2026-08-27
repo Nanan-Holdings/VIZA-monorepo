@@ -28,7 +28,7 @@ export const japan: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "快速通道" },
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "专家文件审核" },
   ],
 
@@ -58,8 +58,8 @@ export const japan: VisaContent = {
       title: "使馆审核签证",
       body: "MOFA 官方标准为完整材料受理后5个工作日办结，但日本驻新加坡大使馆建议预留至少10个工作日。我们全程跟踪各领事审核环节，如有补件要求即时通知您。",
       statusRows: [
-        { label: "申请已递交至日本大使馆", ts: "6月12日 上午9:00", onTime: true },
-        { label: "材料已受理 — 领事审核中", ts: "6月12日 上午11:30", onTime: true },
+        { label: "申请已递交至日本大使馆", ts: "6月12日 上午9:00" },
+        { label: "材料已受理 — 领事审核中", ts: "6月12日 上午11:30" },
         { label: "等待领事馆最终审批", ts: "处理中" },
       ],
     },
@@ -189,8 +189,8 @@ export const japan: VisaContent = {
     etaValue: "2026年6月17日 下午2:00",
     title: "短期停留签证 · 最长90天",
     saving: "比直接申请更高效",
-    sub: "全包服务，含材料审核、申请准备及准时保障。",
-    foot: "政府签证费与VIZA服务费在结账时统一收取，并享有准时保障。",
+    sub: "全包服务，含材料审核与申请准备。",
+    foot: "政府签证费与VIZA服务费在结账时统一收取。办理时间为估算值，最终由官方决定。",
   },
 
   aiPlaceholder: "请随时提问关于日本签证的任何问题——eVISA资格、费用、新加坡免签政策……",

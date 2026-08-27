@@ -49,7 +49,7 @@ export const india: VisaContent = {
   ],
   tags: [
     { icon: "bolt", label: "Fully online" },
-    { icon: "shield", label: "On-time guarantee" },
+    { icon: "shield", label: "Advisor-checked before filing" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
@@ -79,8 +79,8 @@ export const india: VisaContent = {
       title: "Application processed by the Bureau of Immigration",
       body: "Decisions are typically emailed within 72 hours. We monitor the portal and act immediately on any re-upload request — unanswered requests are a leading cause of rejection.",
       statusRows: [
-        { label: "Application submitted to portal", ts: "20 Jun, 10:15 AM", onTime: true },
-        { label: "Forwarded for background check", ts: "20 Jun, 2:30 PM", onTime: true },
+        { label: "Application submitted to portal", ts: "20 Jun, 10:15 AM" },
+        { label: "Forwarded for background check", ts: "20 Jun, 2:30 PM" },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
@@ -197,7 +197,7 @@ export const india: VisaContent = {
     {
       category: "Application process",
       q: "How long does the e-Visa take to process?",
-      a: "Decisions are typically emailed within 72 hours of submission. You can apply up to 120 days before arrival, and the government requires application and payment at least 4 days before travel — anything later is not processed. VIZA backs the timeline with an on-time guarantee.",
+      a: "Decisions are typically emailed within 72 hours of submission. You can apply up to 120 days before arrival, and the government requires application and payment at least 4 days before travel — anything later is not processed. VIZA files as early as the rules allow and tracks the application, but the issuing authority sets the timing.",
     },
     {
       category: "Application process",
@@ -230,7 +230,7 @@ export const india: VisaContent = {
     etaValue: "23 Jun 2026, 03:00 PM",
     title: "e-Tourist Visa · 30-day stay",
     saving: "Fully online — no consulate visit",
-    sub: "All-inclusive of document review, photo check, and on-time guarantee.",
+    sub: "All-inclusive of document review, photo check, and an advisor check before filing.",
     foot: "Government visa fee is collected at checkout and submitted to indianvisaonline.gov.in; VIZA's service fee covers document preparation, photo compliance, and status monitoring.",
   },
 

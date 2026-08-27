@@ -37,7 +37,7 @@ export const italy: VisaContent = {
     { k: "入境次数", v: "单次 · 两次 · 多次" },
   ],
   tags: [
-    { icon: "shield", label: "准时保障" },
+    { icon: "shield", label: "递交前顾问核对" },
     { icon: "doc", label: "全套材料审核" },
     { icon: "bolt", label: "申根区通行" },
   ],
@@ -68,8 +68,8 @@ export const italy: VisaContent = {
       title: "采集生物特征 & 领事馆审核",
       body: "您需本人到场录入指纹（59个月内已采集过申根指纹可豁免）。领事馆标准审理为15个日历日，需进一步审查时可延至45天——我们持续跟踪进度，及时提醒补件请求。",
       statusRows: [
-        { label: "生物特征预约已确认", ts: "6月15日 上午9:30", onTime: true },
-        { label: "申请材料已递交领事馆", ts: "6月15日 中午12:00", onTime: true },
+        { label: "生物特征预约已确认", ts: "6月15日 上午9:30" },
+        { label: "申请材料已递交领事馆", ts: "6月15日 中午12:00" },
         { label: "等待领事馆审核", ts: "处理中" },
       ],
     },
@@ -230,7 +230,7 @@ export const italy: VisaContent = {
     etaValue: "2026年6月29日 下午3:00",
     title: "申根签证（C类）· 最长90天",
     saving: "含完整材料审核服务",
-    sub: "全包价，含材料审核、表格填写及准时保障。",
+    sub: "全包价，含材料审核与表格填写。",
     foot: "政府签证费（成人90欧元）在结账时收取并缴纳至领事馆；VIZA 服务费涵盖材料准备、审核及预约支持。",
   },
 
