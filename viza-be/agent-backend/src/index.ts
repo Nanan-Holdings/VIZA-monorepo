@@ -12,6 +12,10 @@ import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-
 import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
 import { initSentry } from './observability/sentry-init.js';
+import {
+  startRuntimeCapacityMonitor,
+  stopRuntimeCapacityMonitor,
+} from './observability/runtime-capacity.js';
 import { createBoundedServerShutdown } from './server-shutdown.js';
 import { startPortalHealthProbeScheduler } from './services/portal-health.service.js';
 
@@ -82,7 +86,10 @@ function shutdown(signal: 'SIGINT' | 'SIGTERM'): void {
 const shutdownServer = createBoundedServerShutdown({
   io,
   closeDatabase,
-  beforeClose: () => stopStatusProbeScheduler?.(),
+  beforeClose: () => {
+    stopStatusProbeScheduler?.();
+    stopRuntimeCapacityMonitor();
+  },
   timeoutMs: gracefulShutdownTimeoutMs,
 });
 
@@ -103,6 +110,8 @@ try {
   throw error;
 }
 
+startRuntimeCapacityMonitor();
+
 server.listen(port)
   .once('listening', async () => {
     logger.info('Server started', { url: `http://localhost:${port}`, port });
@@ -122,6 +131,7 @@ server.listen(port)
     }
   })
   .once('error', (err: NodeJS.ErrnoException) => {
+    stopRuntimeCapacityMonitor();
     if (err.code === 'EADDRINUSE') {
       logger.error(`Port ${port} is already in use. Each service needs a unique port:
   admin-website     → 3000

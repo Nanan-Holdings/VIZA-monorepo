@@ -76,6 +76,29 @@ vi.mock("../utils/provider-capacity.js", () => ({
   }),
 }));
 
+vi.mock("../observability/runtime-capacity.js", () => ({
+  getRuntimeCapacityMetrics: () => ({
+    monitoring: true,
+    uptimeSeconds: 120,
+    eventLoop: {
+      delayMeanMs: 1,
+      delayP95Ms: 4,
+      delayP99Ms: 7,
+      delayMaxMs: 10,
+      utilizationPercent: 25,
+    },
+    memory: {
+      rssBytes: 100_000_000,
+      heapUsedBytes: 25_000_000,
+      heapTotalBytes: 50_000_000,
+      heapLimitBytes: 100_000_000,
+      externalBytes: 4_000_000,
+      arrayBuffersBytes: 1_000_000,
+      heapUtilizationPercent: 25,
+    },
+  }),
+}));
+
 vi.mock("../services/portal-health.service.js", () => ({
   getPublicPortalStatus: vi.fn(),
   runPortalHealthProbes: vi.fn(),
@@ -120,6 +143,11 @@ describe("capacity status route", () => {
       instanceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       chat: { active: 2, queued: 3 },
       provider: { active: 1, queued: 2, failed: 1 },
+      runtime: {
+        monitoring: true,
+        eventLoop: { delayP95Ms: 4, utilizationPercent: 25 },
+        memory: { heapUtilizationPercent: 25 },
+      },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });
     expect(JSON.stringify(response.body)).not.toMatch(/userId|sessionId|queryText|parameters/i);
