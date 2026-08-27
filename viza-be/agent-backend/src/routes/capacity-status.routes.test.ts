@@ -51,6 +51,31 @@ vi.mock("../socket/chat-concurrency.js", async () => {
   };
 });
 
+vi.mock("../utils/provider-capacity.js", () => ({
+  getLatestProviderCapacityStats: () => ({
+    active: 1,
+    queued: 2,
+    peakActive: 3,
+    peakQueued: 4,
+    maxActive: 8,
+    maxQueued: 32,
+    queueTimeoutMs: 5_000,
+    executionTimeoutMs: 60_000,
+    accepted: 12,
+    completed: 9,
+    failed: 1,
+    rejectedFull: 1,
+    timedOut: 0,
+    aborted: 0,
+    executionTimedOut: 0,
+    executionAborted: 0,
+    queueWaitP50Ms: 5,
+    queueWaitP95Ms: 12,
+    executionP50Ms: 300,
+    executionP95Ms: 800,
+  }),
+}));
+
 vi.mock("../services/portal-health.service.js", () => ({
   getPublicPortalStatus: vi.fn(),
   runPortalHealthProbes: vi.fn(),
@@ -94,6 +119,7 @@ describe("capacity status route", () => {
       ok: true,
       instanceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       chat: { active: 2, queued: 3 },
+      provider: { active: 1, queued: 2, failed: 1 },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });
     expect(JSON.stringify(response.body)).not.toMatch(/userId|sessionId|queryText|parameters/i);

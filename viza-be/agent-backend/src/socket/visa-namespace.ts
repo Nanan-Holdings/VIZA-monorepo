@@ -1232,6 +1232,7 @@ export function registerVisaNamespace(nsp: Namespace): void {
               visaType: knowledgeVisaType,
               intent: knowledgeIntent,
               matchCount: 5,
+              signal: requestController.signal,
             });
         const knowledgeContext = formatKnowledgeContext(knowledgeResult.chunks);
         const entryRulePrompt =

@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
+import { runWithProviderCapacity } from "../utils/provider-capacity.js";
 
 const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 
@@ -18,6 +19,7 @@ export type VisaKnowledgeIntent =
 
 export interface VisaKnowledgeQuery {
   query: string;
+  signal?: AbortSignal;
   country?: string | null;
   visaType?: string | null;
   intent?: VisaKnowledgeIntent;
@@ -147,38 +149,43 @@ function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery 
   return documentTypes ? { ...query, documentTypes } : query;
 }
 
-async function getEmbedding(text: string): Promise<number[] | null> {
+async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<number[] | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: text.slice(0, 8000),
-      }),
-    });
-
-    if (!response.ok) {
-      logger.warn("Embedding request failed", undefined, {
+    const result = await runWithProviderCapacity(async (signal) => {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: text.slice(0, 8000),
+        }),
+        signal,
+      });
+      if (!response.ok) return { status: response.status, body: null };
+      return {
         status: response.status,
+        body: await response.json() as { data?: Array<{ embedding?: number[] }> },
+      };
+    }, requestSignal);
+
+    if (!result.body) {
+      logger.warn("Embedding request failed", undefined, {
+        status: result.status,
       });
       return null;
     }
-
-    const body = (await response.json()) as {
-      data?: Array<{ embedding?: number[] }>;
-    };
-
-    return body.data?.[0]?.embedding ?? null;
+    return result.body.data?.[0]?.embedding ?? null;
   } catch (error) {
-    logger.warn("Embedding request errored", error as Error);
+    logger.warn("Embedding request errored", undefined, {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     return null;
   }
 }
@@ -295,7 +302,7 @@ export async function retrieveVisaKnowledge(
 
   const matchCount = clampMatchCount(normalizedQuery.matchCount);
   const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
-  const embedding = await getEmbedding(cleanQuery);
+  const embedding = await getEmbedding(cleanQuery, normalizedQuery.signal);
   const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
     !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);

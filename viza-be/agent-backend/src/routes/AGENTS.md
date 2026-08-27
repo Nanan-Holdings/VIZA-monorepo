@@ -29,6 +29,8 @@ and internal admin flows.
   status APIs.
 - `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
   applicant bearer-token verification in browser-facing backend routes.
+- `request-abort.ts`: converts HTTP upload aborts and premature response closes
+  into a request-scoped `AbortSignal` for bounded provider operations.
 - `chat-save-block.routes.ts`: chat block persistence. Application identity
   fields are rejected by `chat-save-block-application-identity.ts`; country,
   product, package, and ownership changes must use the canonical application
@@ -38,8 +40,9 @@ and internal admin flows.
 - `telegram-webhook.ts`: Telegram approval webhook.
 - `public-status.routes.ts`: unauthenticated redacted status snapshot and the
   separate bearer-secret-protected scheduled probe trigger. Its protected
-  `/capacity` snapshot contains only aggregate chat-gate, DB-pool, and hashed
-  query-latency metrics; never add user/session/message/SQL/parameter values.
+  `/capacity` snapshot contains only aggregate chat-gate, non-chat AI provider
+  gate, DB-pool, and hashed query-latency metrics; never add
+  user/session/message/SQL/parameter values.
 
 ## Ownership Boundaries
 
@@ -50,6 +53,12 @@ and internal admin flows.
   routes.
 - Keep Socket.IO event handling in `src/socket/**`, not REST routes.
 - Do not log PII or secrets.
+- Non-chat OpenAI/provider calls must use `runWithProviderCapacity()`. Keep chat
+  on its separate request-level gate so OCR or field-guidance spikes cannot
+  consume the chat turn budget. Pass the request-scoped abort signal through
+  the gate and into the provider client. Capacity rejection may degrade
+  optional AI guidance/validation to deterministic behavior; required OCR must
+  return a retryable redacted error without exposing provider details.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
   real official-site payment submission, or browser runner behavior in route
   handlers. Official-fee, U.S. appointment, and France TLS appointment routes
