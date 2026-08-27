@@ -823,6 +823,47 @@ activity AS (
   FROM pg_catalog.pg_stat_activity
   WHERE backend_type = 'client backend'
 ),
+connection_source_labels(position, source) AS (
+  VALUES
+    (1, 'agent_backend'::TEXT),
+    (2, 'maintenance'::TEXT),
+    (3, 'other'::TEXT)
+),
+connection_source_counts AS (
+  SELECT
+    CASE
+      WHEN application_name = 'viza-agent-backend' THEN 'agent_backend'
+      WHEN application_name = 'viza-production-maintenance' THEN 'maintenance'
+      ELSE 'other'
+    END AS source,
+    COUNT(*)::INTEGER AS total,
+    COUNT(*) FILTER (WHERE state = 'active')::INTEGER AS active,
+    COUNT(*) FILTER (WHERE state = 'idle')::INTEGER AS idle,
+    COUNT(*) FILTER (WHERE state = 'idle in transaction')::INTEGER
+      AS idle_in_transaction,
+    COUNT(*) FILTER (
+      WHERE state IS NULL
+         OR state NOT IN ('active', 'idle', 'idle in transaction')
+    )::INTEGER AS other
+  FROM pg_catalog.pg_stat_activity
+  WHERE backend_type = 'client backend'
+    AND datname = current_database()
+  GROUP BY 1
+),
+connection_sources AS (
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'source', labels.source,
+      'total', COALESCE(counts.total, 0),
+      'active', COALESCE(counts.active, 0),
+      'idle', COALESCE(counts.idle, 0),
+      'idle_in_transaction', COALESCE(counts.idle_in_transaction, 0),
+      'other', COALESCE(counts.other, 0)
+    ) ORDER BY labels.position
+  ) AS value
+  FROM connection_source_labels labels
+  LEFT JOIN connection_source_counts counts USING (source)
+),
 lock_summary AS (
   SELECT COUNT(*) FILTER (WHERE NOT granted)::INTEGER AS ungranted
   FROM pg_catalog.pg_locks
@@ -950,6 +991,7 @@ SELECT jsonb_build_object(
       activity.max_idle_in_transaction_seconds, 3
     )
   ),
+  'connection_sources', connection_sources.value,
   'locks', jsonb_build_object('ungranted', lock_summary.ungranted),
   'database_stats', jsonb_build_object(
     'stats_reset', database_stats.stats_reset,
@@ -971,7 +1013,7 @@ SELECT jsonb_build_object(
   'pg_stat_statements_available',
     pg_catalog.to_regclass('extensions.pg_stat_statements') IS NOT NULL
 ) AS passive_capacity
-FROM settings, activity, lock_summary, database_stats, work_counts,
+FROM settings, activity, connection_sources, lock_summary, database_stats, work_counts,
      table_activity, maintenance_candidates;
 `;
 
@@ -2388,6 +2430,50 @@ const TABLE_ACTIVITY_COUNTERS = [
   "n_tup_hot_upd",
 ];
 
+const CONNECTION_SOURCE_LABELS = [
+  "agent_backend",
+  "maintenance",
+  "other",
+];
+const CONNECTION_SOURCE_METRICS = [
+  "total",
+  "active",
+  "idle",
+  "idle_in_transaction",
+  "other",
+];
+
+function validateConnectionSources(sources, currentDatabaseConnections, path) {
+  if (!Array.isArray(sources) || sources.length !== CONNECTION_SOURCE_LABELS.length) {
+    throw new Error(`Passive capacity connection sources ${path} are invalid`);
+  }
+  const expectedKeys = ["source", ...CONNECTION_SOURCE_METRICS].sort();
+  let totalConnections = 0;
+  for (const [index, expectedSource] of CONNECTION_SOURCE_LABELS.entries()) {
+    const source = sources[index];
+    if (!source || typeof source !== "object" || Array.isArray(source) ||
+        source.source !== expectedSource ||
+        JSON.stringify(Object.keys(source).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+    }
+    for (const metric of CONNECTION_SOURCE_METRICS) {
+      const value = finiteMetric(source[metric], `${path}[${index}].${metric}`);
+      if (!Number.isInteger(value)) {
+        throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+      }
+    }
+    if (source.active + source.idle + source.idle_in_transaction + source.other !==
+        source.total) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are inconsistent`);
+    }
+    totalConnections += source.total;
+  }
+  if (totalConnections !== currentDatabaseConnections) {
+    throw new Error(`Passive capacity connection sources ${path} are inconsistent`);
+  }
+  return sources;
+}
+
 function validateTableActivitySnapshot(snapshot, path) {
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
       (snapshot.stats_reset !== null && !validTimestamp(snapshot.stats_reset)) ||
@@ -2512,6 +2598,11 @@ function validatePassiveCapacitySample(sample) {
   ) {
     throw new Error("Passive capacity connection counts are inconsistent");
   }
+  validateConnectionSources(
+    sample.connection_sources,
+    connections.current_database,
+    "sample.connection_sources",
+  );
   finiteMetric(locks.ungranted, "locks.ungranted");
   if (databaseStats.stats_reset !== null && typeof databaseStats.stats_reset !== "string") {
     throw new Error("Passive capacity database stats reset marker is invalid");
@@ -2679,6 +2770,12 @@ export function assessPassiveCapacity({ samples, statementMetrics }) {
       commit_delta: commitDelta,
       rollback_delta: rollbackDelta,
       maintenance_tables: maintenanceTables,
+      connection_source_peaks: Object.fromEntries(
+        CONNECTION_SOURCE_LABELS.map((source, index) => [
+          source,
+          Math.max(...validated.map((sample) => sample.connection_sources[index].total)),
+        ]),
+      ),
     },
     optimization_candidates: optimizationCandidates(validatedStatementMetrics),
   };
@@ -2781,7 +2878,7 @@ export async function runPassiveCapacityObservation({
       catalog_endpoint: "database/query/read-only",
     },
     project_ref: projectRef,
-    sanitization_schema: "viza-passive-capacity-metadata-only-v2",
+    sanitization_schema: "viza-passive-capacity-metadata-only-v3",
     performance_advisor: performanceAdvisor,
     samples,
     pg_stat_statements: statementMetrics,

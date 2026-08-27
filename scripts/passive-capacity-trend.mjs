@@ -6,8 +6,13 @@ const PRODUCTION_PROJECT_REF = "oyjxdzsoejraedqghndi";
 const REPORT_SCHEMAS = new Set([
   "viza-passive-capacity-metadata-only-v1",
   "viza-passive-capacity-metadata-only-v2",
+  "viza-passive-capacity-metadata-only-v3",
 ]);
-const TABLE_ACTIVITY_REPORT_SCHEMA = "viza-passive-capacity-metadata-only-v2";
+const TABLE_ACTIVITY_REPORT_SCHEMAS = new Set([
+  "viza-passive-capacity-metadata-only-v2",
+  "viza-passive-capacity-metadata-only-v3",
+]);
+const CONNECTION_SOURCE_REPORT_SCHEMA = "viza-passive-capacity-metadata-only-v3";
 const TREND_SCHEMA = "viza-passive-capacity-trend-metadata-only-v2";
 const LOOKBACK_HOURS = 30;
 const MINIMUM_OBSERVATIONS = 5;
@@ -16,17 +21,22 @@ const MAXIMUM_EVIDENCE_DELAY_MS = 15 * 60 * 1_000;
 const CLOCK_SKEW_MS = 60 * 1_000;
 const FORBIDDEN_METADATA_KEYS = new Set([
   "application_id",
+  "application_name",
   "applicant_id",
+  "client_addr",
+  "client_hostname",
   "email",
   "leased_by",
   "parameters",
   "params",
   "passport_number",
+  "pid",
   "query",
   "query_text",
   "session_id",
   "sql",
   "statement_text",
+  "usename",
   "user_id",
   "worker_id",
 ]);
@@ -39,6 +49,14 @@ const TABLE_ACTIVITY_COUNTERS = [
   "n_tup_upd",
   "n_tup_del",
   "n_tup_hot_upd",
+];
+const CONNECTION_SOURCE_LABELS = ["agent_backend", "maintenance", "other"];
+const CONNECTION_SOURCE_METRICS = [
+  "total",
+  "active",
+  "idle",
+  "idle_in_transaction",
+  "other",
 ];
 
 function finiteMetric(value, path) {
@@ -160,6 +178,40 @@ function validateTableActivity(snapshot, path) {
   return { statsReset: snapshot.stats_reset, tables };
 }
 
+function validateConnectionSources(sources, currentDatabaseConnections, path) {
+  if (!Array.isArray(sources) || sources.length !== CONNECTION_SOURCE_LABELS.length) {
+    throw new Error(`Passive capacity connection sources ${path} are invalid`);
+  }
+  const expectedKeys = ["source", ...CONNECTION_SOURCE_METRICS].sort();
+  let totalConnections = 0;
+  const validatedSources = sources.map((source, index) => {
+    if (!source || typeof source !== "object" || Array.isArray(source) ||
+        source.source !== CONNECTION_SOURCE_LABELS[index] ||
+        JSON.stringify(Object.keys(source).sort()) !== JSON.stringify(expectedKeys)) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+    }
+    const validated = { source: source.source };
+    for (const metric of CONNECTION_SOURCE_METRICS) {
+      const value = finiteMetric(source[metric], `${path}[${index}].${metric}`);
+      if (!Number.isInteger(value)) {
+        throw new Error(`Passive capacity connection sources ${path}[${index}] are invalid`);
+      }
+      validated[metric] = value;
+    }
+    if (validated.active + validated.idle + validated.idle_in_transaction +
+        validated.other !== validated.total) {
+      throw new Error(`Passive capacity connection sources ${path}[${index}] are inconsistent`);
+    }
+    totalConnections += validated.total;
+    return validated;
+  });
+  if (!Number.isInteger(currentDatabaseConnections) || currentDatabaseConnections < 0 ||
+      totalConnections !== currentDatabaseConnections) {
+    throw new Error(`Passive capacity connection sources ${path} are inconsistent`);
+  }
+  return validatedSources;
+}
+
 function validateReport(report) {
   assertNoForbiddenMetadataKeys(report);
   if (!report || typeof report !== "object" || Array.isArray(report)) {
@@ -176,9 +228,22 @@ function validateReport(report) {
   }
   const sampleTimes = report.samples.map((sample, index) =>
     timestamp(sample?.sample_at, `samples[${index}].sample_at`));
-  const tableActivity = report.sanitization_schema === TABLE_ACTIVITY_REPORT_SCHEMA
+  const tableActivity = TABLE_ACTIVITY_REPORT_SCHEMAS.has(report.sanitization_schema)
     ? report.samples.map((sample, index) =>
       validateTableActivity(sample?.table_activity, `samples[${index}].table_activity`))
+    : [];
+  const connectionSources = report.sanitization_schema === CONNECTION_SOURCE_REPORT_SCHEMA
+    ? report.samples.map((sample, index) => {
+      const currentDatabaseConnections = finiteMetric(
+        sample?.connections?.current_database,
+        `samples[${index}].connections.current_database`,
+      );
+      return validateConnectionSources(
+        sample?.connection_sources,
+        currentDatabaseConnections,
+        `samples[${index}].connection_sources`,
+      );
+    })
     : [];
   if (sampleTimes.some((value, index) => index > 0 && value < sampleTimes[index - 1])) {
     throw new Error("Passive capacity report samples are not ordered");
@@ -212,6 +277,26 @@ function validateReport(report) {
     "rollback_delta",
   ]) {
     metrics[key] = finiteMetric(summary[key], `assessment.summary.${key}`);
+  }
+  if (report.sanitization_schema === CONNECTION_SOURCE_REPORT_SCHEMA) {
+    const peaks = summary.connection_source_peaks;
+    if (!peaks || typeof peaks !== "object" || Array.isArray(peaks) ||
+        JSON.stringify(Object.keys(peaks).sort()) !==
+          JSON.stringify([...CONNECTION_SOURCE_LABELS].sort())) {
+      throw new Error("Passive capacity connection sources assessment summary is invalid");
+    }
+    metrics.connection_source_peaks = {};
+    for (const [index, source] of CONNECTION_SOURCE_LABELS.entries()) {
+      const value = finiteMetric(
+        peaks[source],
+        `assessment.summary.connection_source_peaks.${source}`,
+      );
+      const expected = Math.max(...connectionSources.map((sample) => sample[index].total));
+      if (!Number.isInteger(value) || value !== expected) {
+        throw new Error("Passive capacity connection sources assessment summary is inconsistent");
+      }
+      metrics.connection_source_peaks[source] = value;
+    }
   }
 
   const blockers = stringArray(assessment.blockers, "assessment.blockers");
