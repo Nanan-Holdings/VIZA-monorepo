@@ -13,6 +13,7 @@ import {
 import { Logger } from "../utils/logger.js";
 import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
 import { getLatestProviderCapacityStats } from "../utils/provider-capacity.js";
+import { getRuntimeCapacityMetrics } from "../observability/runtime-capacity.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
@@ -102,6 +103,7 @@ statusOperationsRouter.get("/capacity", requireCapacityStatusSecret, (_req, res)
       instanceId: capacityInstanceId,
       chat: getLatestChatCapacityStats(),
       provider: getLatestProviderCapacityStats(),
+      runtime: getRuntimeCapacityMetrics(),
       database: {
         pool: getDatabasePoolMetrics(),
         queries: getDatabaseQueryMetrics(),

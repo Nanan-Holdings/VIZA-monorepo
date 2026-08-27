@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	evaluateOnlineCapacityRun,
 	percentile,
+	type OnlineCapacityDatabaseTelemetry,
 	type OnlineCapacityScenarioResult,
 } from "../../scripts/online-capacity-load-lib.js";
 import {
@@ -43,6 +44,12 @@ async function startFixtureServer(
 		sessionUserId?: string;
 		capacityWaitingRequests?: number;
 		capacityFailedQueriesAfterFirst?: boolean;
+		capacityRuntimeMonitoring?: boolean;
+		capacityEventLoopP95Ms?: number;
+		capacityEventLoopUtilizationPercent?: number;
+		capacityHeapUtilizationPercent?: number;
+		capacityUptimeResetAfterFirst?: boolean;
+		capacityOmitRuntime?: boolean;
 	} = {},
 ): Promise<FixtureServer> {
 	let inFlight = 0;
@@ -93,6 +100,32 @@ async function startFixtureServer(
 					response.end(JSON.stringify({
 						ok: true,
 						instanceId: "33333333-3333-4333-8333-333333333333",
+						...(options.capacityOmitRuntime ? {} : { runtime: {
+							monitoring: options.capacityRuntimeMonitoring ?? true,
+							uptimeSeconds:
+								options.capacityUptimeResetAfterFirst && capacityRequestCount > 1
+									? 1
+									: 120 + capacityRequestCount,
+							eventLoop: {
+								delayMeanMs: 2,
+								delayP95Ms: options.capacityEventLoopP95Ms ?? 10,
+								delayP99Ms: Math.max(options.capacityEventLoopP95Ms ?? 10, 15),
+								delayMaxMs: Math.max(options.capacityEventLoopP95Ms ?? 10, 20),
+								utilizationPercent:
+									options.capacityEventLoopUtilizationPercent ?? 20,
+							},
+							memory: {
+								rssBytes: 150_000_000,
+								heapUsedBytes:
+									(options.capacityHeapUtilizationPercent ?? 25) * 10_000_000,
+								heapTotalBytes: 500_000_000,
+								heapLimitBytes: 1_000_000_000,
+								externalBytes: 10_000_000,
+								arrayBuffersBytes: 1_000_000,
+								heapUtilizationPercent:
+									options.capacityHeapUtilizationPercent ?? 25,
+							},
+						} }),
 						database: {
 							pool: {
 								state: "open",
@@ -174,6 +207,36 @@ function authenticatedLocalEnvironment(baseUrl: string): NodeJS.ProcessEnv {
 		ONLINE_CAPACITY_DURATION_MS: "0",
 		ONLINE_CAPACITY_RAMP_MS: "0",
 		ONLINE_CAPACITY_PACING_MS: "0",
+	};
+}
+
+function healthyDatabaseTelemetry(
+	overrides: Partial<OnlineCapacityDatabaseTelemetry> = {},
+): OnlineCapacityDatabaseTelemetry {
+	return {
+		sampleCount: 266,
+		requiredSamples: 266,
+		allPoolStatesOpen: true,
+		singleInstance: true,
+		maxConnections: 3,
+		peakActiveConnections: 2,
+		peakWaitingRequests: 0,
+		samplesWithWaitingRequests: 0,
+		peakUtilizationPercent: 66.67,
+		baselineTotalQueries: 10,
+		finalTotalQueries: 610,
+		failedQueryDelta: 0,
+		slowQueryDelta: 0,
+		metricResetDetected: false,
+		topSlowFingerprints: [],
+		allRuntimeMonitorsEnabled: true,
+		runtimeMetricResetDetected: false,
+		peakEventLoopDelayP95Ms: 10,
+		peakEventLoopDelayMaxMs: 20,
+		peakEventLoopUtilizationPercent: 20,
+		peakHeapUtilizationPercent: 25,
+		peakRssBytes: 150_000_000,
+		...overrides,
 	};
 }
 
@@ -423,25 +486,49 @@ describe("online capacity release gate", () => {
 				rampUpMs: 30_000,
 				completedUsers: 100,
 				scenarios,
-				databaseTelemetry: {
-					sampleCount: 266,
-					requiredSamples: 266,
-					allPoolStatesOpen: true,
-					singleInstance: true,
-					maxConnections: 3,
-					peakActiveConnections: 2,
-					peakWaitingRequests: 0,
-					samplesWithWaitingRequests: 0,
-					peakUtilizationPercent: 66.67,
-					baselineTotalQueries: 10,
-					finalTotalQueries: 610,
-					failedQueryDelta: 0,
-					slowQueryDelta: 0,
-					metricResetDetected: false,
-					topSlowFingerprints: [],
-				},
+				databaseTelemetry: healthyDatabaseTelemetry(),
 			}).passed,
 		).toBe(true);
+	});
+
+	it.each([
+		["runtime_monitoring_disabled", { allRuntimeMonitorsEnabled: false }],
+		["runtime_metric_reset", { runtimeMetricResetDetected: true }],
+		[
+			"runtime_event_loop_delay",
+			{ peakEventLoopDelayP95Ms: 100, peakEventLoopDelayMaxMs: 120 },
+		],
+		["runtime_event_loop_utilization", { peakEventLoopUtilizationPercent: 80 }],
+		["runtime_heap_utilization", { peakHeapUtilizationPercent: 80 }],
+	] as const)("fails authenticated release evaluation on %s", (failure, overrides) => {
+		const scenarios = ([
+			"client_home",
+			"client_status",
+			"agent_readiness",
+			"agent_database_read",
+		] as const).map((name) => ({
+			name,
+			attempts: 100,
+			succeeded: 100,
+			failed: 0,
+			serverErrors: 0,
+			timedOut: 0,
+			p50Ms: 20,
+			p95Ms: 40,
+			p99Ms: 50,
+			maxMs: 60,
+		}));
+		const result = evaluateOnlineCapacityRun({
+			scope: "authenticated_sustained_read_only",
+			users: 100,
+			sustainedForMs: 300_000,
+			rampUpMs: 30_000,
+			completedUsers: 100,
+			scenarios,
+			databaseTelemetry: healthyDatabaseTelemetry(overrides),
+		});
+		expect(result.passed).toBe(false);
+		expect(result.failures).toContain(failure);
 	});
 
 	it("fails authenticated diagnostics on pool waiting or new query errors", async () => {
@@ -455,6 +542,33 @@ describe("online capacity release gate", () => {
 		expect(summary.passed).toBe(false);
 		expect(summary.failures).toContain("database_pool_waiting");
 		expect(summary.failures).toContain("database_query_errors");
+	});
+
+	it("fails authenticated diagnostics when runtime monitoring is disabled", async () => {
+		const fixture = await startFixtureServer({ capacityRuntimeMonitoring: false });
+		const summary = await executeOnlineCapacityRun(
+			validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+		);
+		expect(summary.passed).toBe(false);
+		expect(summary.failures).toContain("runtime_monitoring_disabled");
+	});
+
+	it("fails authenticated diagnostics when process uptime resets", async () => {
+		const fixture = await startFixtureServer({ capacityUptimeResetAfterFirst: true });
+		const summary = await executeOnlineCapacityRun(
+			validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+		);
+		expect(summary.passed).toBe(false);
+		expect(summary.failures).toContain("runtime_metric_reset");
+	});
+
+	it("rejects authenticated diagnostics when runtime telemetry is missing", async () => {
+		const fixture = await startFixtureServer({ capacityOmitRuntime: true });
+		await expect(
+			executeOnlineCapacityRun(
+				validateOnlineCapacityGuards(authenticatedLocalEnvironment(fixture.baseUrl)),
+			),
+		).rejects.toThrow("Database capacity telemetry response is malformed");
 	});
 
 	it("rejects a database query counter rollback even when reset is falsely marked clear", () => {
@@ -482,23 +596,10 @@ describe("online capacity release gate", () => {
 			rampUpMs: 30_000,
 			completedUsers: 100,
 			scenarios,
-			databaseTelemetry: {
-				sampleCount: 266,
-				requiredSamples: 266,
-				allPoolStatesOpen: true,
-				singleInstance: true,
-				maxConnections: 3,
-				peakActiveConnections: 2,
-				peakWaitingRequests: 0,
-				samplesWithWaitingRequests: 0,
-				peakUtilizationPercent: 66.67,
+			databaseTelemetry: healthyDatabaseTelemetry({
 				baselineTotalQueries: 100,
 				finalTotalQueries: 1,
-				failedQueryDelta: 0,
-				slowQueryDelta: 0,
-				metricResetDetected: false,
-				topSlowFingerprints: [],
-			},
+			}),
 		});
 		expect(result.passed).toBe(false);
 		expect(result.failures).toContain("database_telemetry_invalid");

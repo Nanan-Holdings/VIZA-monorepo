@@ -176,7 +176,10 @@ explicitly reintroduces another provider.
   a step-scoped telemetry secret and fails closed on incomplete/malformed
   samples, non-open pool state, a cumulative wait peak above one, any wait that
   persists into a one-second sample, peak DB pool utilization at or above 80%,
-  counter reset, or new failed/slow query. Results retain only
+  counter reset, new failed/slow query, a disabled/restarted runtime monitor,
+  event-loop delay p95 at or above 100 ms, event-loop utilization at or above
+  80%, or V8 heap utilization at or above 80%. RSS is recorded only as an
+  aggregate because the V8 heap limit is not the container memory limit. Results retain only
   aggregates and SHA-256 query fingerprints. The status route uses its own
   `CAPACITY_STATUS_SECRET`, never the broader portal-probe secret. The protected
   synthetic `/api/internal/status/capacity/database-read` route is enabled only
@@ -196,6 +199,12 @@ explicitly reintroduces another provider.
   Chat keeps its separate turn-level gate. The protected capacity route may
   expose only aggregate gate counts and bounded latency percentiles, never
   prompts, responses, request identities, model input, or provider errors.
+- `src/observability/runtime-capacity.ts` owns low-cardinality process metrics
+  for the secret-protected capacity endpoint. It samples event-loop delay and
+  utilization plus aggregate process memory/uptime; never add PID, hostname,
+  environment values, request identity, user data, stack traces, or heap
+  snapshots. Event-loop delay is reset after each protected snapshot so load
+  gates observe bounded windows rather than a process-lifetime average.
 
 ## Ownership Boundaries
 
