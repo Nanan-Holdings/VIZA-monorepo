@@ -84,6 +84,33 @@ export interface ClaimOpts {
 }
 
 const DEFAULT_LEASE_MS = 15 * 60 * 1000;
+const DEFAULT_TRANSIENT_CLAIM_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000, 4_000, 8_000] as const;
+
+export function isTransientRunnerClaimLockError(error: unknown): boolean {
+  return error instanceof Error
+    && /could not obtain lock on row in relation ["']?applications["']?/i.test(error.message);
+}
+
+async function waitForClaimRetry(delayMs: number, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return false;
+  if (delayMs <= 0) {
+    await Promise.resolve();
+    return !signal?.aborted;
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, delayMs);
+    timer.unref?.();
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 export function isRunnerJobOwnershipLost(
   error: unknown,
@@ -409,6 +436,8 @@ export interface DrainOpts {
   leaseMs?: number;
   /** Override the heartbeat period for tests; defaults to one minute. */
   renewEveryMs?: number;
+  /** Bounded retry delays for transient application-row lock conflicts. */
+  claimLockRetryDelaysMs?: readonly number[];
   /** Runtime I/O overrides for executable worker tests. */
   dependencies?: RunnerQueueDependencies;
   onJobStart?: (job: RunnerJob) => void;
@@ -476,15 +505,18 @@ export async function renewJobLease(
 
 /**
  * Drain the runner_job queue once, claiming until the database reports that
- * no eligible row remains. This function deliberately has no sleep/retry
- * loop: a later enqueue (or the startup/wake endpoint) starts another drain.
- * A single caller owns the coalescing promise in index.ts, so concurrent
- * endpoint wakes never create duplicate consumers.
+ * no eligible row remains. Only the exact transient application-row lock
+ * conflict is retried locally with a bounded backoff; other claim failures
+ * still stop immediately. A single caller owns the coalescing promise in
+ * index.ts, so concurrent endpoint wakes never create duplicate consumers.
  */
 export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
   const client = opts.dependencies?.client ?? defaultClient;
+  const claimLockRetryDelaysMs =
+    opts.claimLockRetryDelaysMs ?? DEFAULT_TRANSIENT_CLAIM_RETRY_DELAYS_MS;
   let jobsProcessed = 0;
+  let transientClaimRetryCount = 0;
 
   for (;;) {
     if (opts.signal?.aborted) {
@@ -505,6 +537,7 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
         machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
       });
       opts.onClaimHealthy?.();
+      transientClaimRetryCount = 0;
     } catch (error) {
       claimRoundTripMs = Math.max(0, Date.now() - claimStartedAt);
       recordClaimMetric(opts, {
@@ -513,6 +546,21 @@ export async function drainAndRun(opts: DrainOpts): Promise<DrainResult> {
         durationMs: claimRoundTripMs,
         machineKind: process.env.RUNNER_MACHINE_KIND?.trim() || null,
       });
+      if (
+        isTransientRunnerClaimLockError(error)
+        && transientClaimRetryCount < claimLockRetryDelaysMs.length
+      ) {
+        const delayMs = Math.max(0, claimLockRetryDelaysMs[transientClaimRetryCount] ?? 0);
+        transientClaimRetryCount += 1;
+        console.warn(
+          `[queue] runner_job claim hit an application row lock; retrying `
+          + `attempt=${transientClaimRetryCount}/${claimLockRetryDelaysMs.length} delayMs=${delayMs}`,
+        );
+        if (!(await waitForClaimRetry(delayMs, opts.signal))) {
+          return { jobsProcessed, stoppedBecause: "aborted" };
+        }
+        continue;
+      }
       // Do not poll through an outage. The next explicit wake retries the
       // claim and avoids an idle worker repeatedly reading Supabase.
       console.error("[queue] runner_job claim failed", error);
