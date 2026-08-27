@@ -41,7 +41,7 @@ and internal admin flows.
 - `public-status.routes.ts`: unauthenticated redacted status snapshot and the
   separate bearer-secret-protected scheduled probe trigger. Its protected
   `/capacity` snapshot contains only aggregate chat-gate, non-chat AI provider
-  gate, DB-pool, and hashed query-latency metrics; never add
+  gate, process runtime, DB-pool, and hashed query-latency metrics; never add
   user/session/message/SQL/parameter values.
 
 ## Ownership Boundaries

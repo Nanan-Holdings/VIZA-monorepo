@@ -62,6 +62,12 @@ The following changes require no paid plan or additional service:
   deterministic optional-feature degradation, and aggregate metrics on the
   protected capacity endpoint. This protects chat fairness but is not a
   cross-replica global quota.
+- Added secret-protected, per-instance runtime capacity metrics for bounded
+  event-loop delay windows, event-loop utilization, V8 heap/RSS, and uptime.
+  The isolated authenticated 100-user gate now fails closed when the monitor is
+  disabled or restarts, event-loop p95 reaches 100 ms, event-loop utilization
+  reaches 80%, or V8 heap utilization reaches 80%. RSS remains evidence-only
+  because it needs an explicit container limit before a safe threshold exists.
 
 These changes reduce request amplification and protect latency fairness. They
 do not change the Free-plan hard quotas of Supabase Realtime, database compute,

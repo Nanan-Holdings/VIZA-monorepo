@@ -56,6 +56,13 @@ export interface OnlineCapacityDatabaseTelemetry {
 	failedQueryDelta: number;
 	slowQueryDelta: number;
 	metricResetDetected: boolean;
+	allRuntimeMonitorsEnabled: boolean;
+	runtimeMetricResetDetected: boolean;
+	peakEventLoopDelayP95Ms: number;
+	peakEventLoopDelayMaxMs: number;
+	peakEventLoopUtilizationPercent: number;
+	peakHeapUtilizationPercent: number;
+	peakRssBytes: number;
 	topSlowFingerprints: Array<{
 		fingerprint: string;
 		count: number;
@@ -139,6 +146,16 @@ function hasValidDatabaseTelemetry(value: OnlineCapacityDatabaseTelemetry): bool
 		isNonNegativeInteger(value.failedQueryDelta) &&
 		isNonNegativeInteger(value.slowQueryDelta) &&
 		typeof value.metricResetDetected === "boolean" &&
+		typeof value.allRuntimeMonitorsEnabled === "boolean" &&
+		typeof value.runtimeMetricResetDetected === "boolean" &&
+		isNonNegativeFinite(value.peakEventLoopDelayP95Ms) &&
+		isNonNegativeFinite(value.peakEventLoopDelayMaxMs) &&
+		value.peakEventLoopDelayP95Ms <= value.peakEventLoopDelayMaxMs &&
+		isNonNegativeFinite(value.peakEventLoopUtilizationPercent) &&
+		value.peakEventLoopUtilizationPercent <= 100 &&
+		isNonNegativeFinite(value.peakHeapUtilizationPercent) &&
+		value.peakHeapUtilizationPercent <= 100 &&
+		isNonNegativeInteger(value.peakRssBytes) &&
 		Array.isArray(value.topSlowFingerprints) &&
 		value.topSlowFingerprints.length <= 10 &&
 		value.topSlowFingerprints.every(
@@ -217,6 +234,17 @@ export function evaluateOnlineCapacityRun(
 			if (telemetry.metricResetDetected) failures.push("database_query_metric_reset");
 			if (telemetry.failedQueryDelta !== 0) failures.push("database_query_errors");
 			if (telemetry.slowQueryDelta !== 0) failures.push("database_slow_queries");
+			if (!telemetry.allRuntimeMonitorsEnabled) failures.push("runtime_monitoring_disabled");
+			if (telemetry.runtimeMetricResetDetected) failures.push("runtime_metric_reset");
+			if (telemetry.peakEventLoopDelayP95Ms >= 100) {
+				failures.push("runtime_event_loop_delay");
+			}
+			if (telemetry.peakEventLoopUtilizationPercent >= 80) {
+				failures.push("runtime_event_loop_utilization");
+			}
+			if (telemetry.peakHeapUtilizationPercent >= 80) {
+				failures.push("runtime_heap_utilization");
+			}
 		}
 	}
 
