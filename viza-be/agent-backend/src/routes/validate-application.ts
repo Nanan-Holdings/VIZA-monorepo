@@ -102,13 +102,15 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") return null;
 
   try {
-    const res = await runWithProviderCapacity((signal) => fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
-      signal,
-    }), requestSignal);
-    const data = await res.json() as { data?: Array<{embedding: number[]}> };
+    const data = await runWithProviderCapacity(async (signal) => {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
+        signal,
+      });
+      return await response.json() as { data?: Array<{embedding: number[]}> };
+    }, requestSignal);
     return data.data?.[0]?.embedding ?? null;
   } catch {
     return null;

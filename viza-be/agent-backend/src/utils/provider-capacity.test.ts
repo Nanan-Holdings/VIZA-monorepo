@@ -116,6 +116,32 @@ describe("ProviderConcurrencyGate", () => {
     }
   });
 
+  it("keeps the slot until a stalled response body is aborted", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = new ProviderConcurrencyGate(1, 1, 1_000, 50);
+      let headersReceived = false;
+      const operation = gate.run(async (signal) => {
+        headersReceived = true;
+        return await new Promise<never>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        });
+      });
+      const rejection = expect(operation).rejects.toMatchObject<ProviderCapacityError>({
+        code: "EXECUTION_TIMEOUT",
+      });
+
+      await vi.advanceTimersByTimeAsync(25);
+      expect(headersReceived).toBe(true);
+      expect(gate.getStats()).toMatchObject({ active: 1, completed: 0 });
+      await vi.advanceTimersByTimeAsync(25);
+      await rejection;
+      expect(gate.getStats()).toMatchObject({ active: 0, completed: 1, executionTimedOut: 1 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("propagates an active caller abort and releases the slot", async () => {
     const gate = new ProviderConcurrencyGate(1, 1, 1_000, 5_000);
     const controller = new AbortController();

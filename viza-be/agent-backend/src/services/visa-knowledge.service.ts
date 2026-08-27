@@ -155,31 +155,33 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
   }
 
   try {
-    const response = await runWithProviderCapacity((signal) => fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: text.slice(0, 8000),
-      }),
-      signal,
-    }), requestSignal);
-
-    if (!response.ok) {
-      logger.warn("Embedding request failed", undefined, {
+    const result = await runWithProviderCapacity(async (signal) => {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: text.slice(0, 8000),
+        }),
+        signal,
+      });
+      if (!response.ok) return { status: response.status, body: null };
+      return {
         status: response.status,
+        body: await response.json() as { data?: Array<{ embedding?: number[] }> },
+      };
+    }, requestSignal);
+
+    if (!result.body) {
+      logger.warn("Embedding request failed", undefined, {
+        status: result.status,
       });
       return null;
     }
-
-    const body = (await response.json()) as {
-      data?: Array<{ embedding?: number[] }>;
-    };
-
-    return body.data?.[0]?.embedding ?? null;
+    return result.body.data?.[0]?.embedding ?? null;
   } catch (error) {
     logger.warn("Embedding request errored", undefined, {
       errorName: error instanceof Error ? error.name : "UnknownError",
