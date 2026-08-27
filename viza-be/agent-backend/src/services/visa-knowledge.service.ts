@@ -19,6 +19,7 @@ export type VisaKnowledgeIntent =
 
 export interface VisaKnowledgeQuery {
   query: string;
+  signal?: AbortSignal;
   country?: string | null;
   visaType?: string | null;
   intent?: VisaKnowledgeIntent;
@@ -148,13 +149,13 @@ function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery 
   return documentTypes ? { ...query, documentTypes } : query;
 }
 
-async function getEmbedding(text: string): Promise<number[] | null> {
+async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<number[] | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
 
   try {
-    const response = await runWithProviderCapacity(() => fetch("https://api.openai.com/v1/embeddings", {
+    const response = await runWithProviderCapacity((signal) => fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -164,7 +165,8 @@ async function getEmbedding(text: string): Promise<number[] | null> {
         model: EMBEDDING_MODEL,
         input: text.slice(0, 8000),
       }),
-    }));
+      signal,
+    }), requestSignal);
 
     if (!response.ok) {
       logger.warn("Embedding request failed", undefined, {
@@ -179,7 +181,9 @@ async function getEmbedding(text: string): Promise<number[] | null> {
 
     return body.data?.[0]?.embedding ?? null;
   } catch (error) {
-    logger.warn("Embedding request errored", error as Error);
+    logger.warn("Embedding request errored", undefined, {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     return null;
   }
 }
@@ -296,7 +300,7 @@ export async function retrieveVisaKnowledge(
 
   const matchCount = clampMatchCount(normalizedQuery.matchCount);
   const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
-  const embedding = await getEmbedding(cleanQuery);
+  const embedding = await getEmbedding(cleanQuery, normalizedQuery.signal);
   const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
     !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);

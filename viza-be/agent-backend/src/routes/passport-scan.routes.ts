@@ -21,6 +21,7 @@ import {
   ProviderCapacityError,
   runWithProviderCapacity,
 } from "../utils/provider-capacity.js";
+import { createRequestAbortSignal } from "./request-abort.js";
 
 const logger = new Logger({ serviceName: "PassportScanRoutes" });
 
@@ -142,9 +143,10 @@ passportScanRouter.post("/extract", async (req, res) => {
     }
 
     const client = createOpenAiClient(OPENAI_API_KEY);
+    const requestSignal = createRequestAbortSignal(req, res);
 
     const start = Date.now();
-    const response = await runWithProviderCapacity(() => client.responses.create({
+    const response = await runWithProviderCapacity((signal) => client.responses.create({
       model: MODEL,
       max_output_tokens: 1024,
       input: [
@@ -168,7 +170,7 @@ passportScanRouter.post("/extract", async (req, res) => {
           schema: PASSPORT_EXTRACT_SCHEMA,
         },
       },
-    }));
+    }, { signal }), requestSignal);
 
     const elapsedMs = Date.now() - start;
 
@@ -204,11 +206,15 @@ passportScanRouter.post("/extract", async (req, res) => {
         .json({ error: true, message: "OCR service is busy; retry shortly" });
       return;
     }
-    logger.error("passport_extract_failed", error as Error);
-    res.status(500).json({
-      error: true,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    logger.error(
+      "passport_extract_failed",
+      new Error("Passport OCR provider request failed"),
+      { errorName: error instanceof Error ? error.name : "UnknownError" },
+    );
+    res
+      .set("Retry-After", "2")
+      .status(502)
+      .json({ error: true, message: "OCR service is temporarily unavailable; retry shortly" });
   }
 });
 

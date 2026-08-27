@@ -13,12 +13,15 @@ describe("provider capacity wiring", () => {
     const guidance = source("../routes/field-guidance.routes.ts");
     const knowledge = source("../services/visa-knowledge.service.ts");
 
-    expect(passport).toMatch(/runWithProviderCapacity\(\(\) => client\.responses\.create/u);
+    expect(passport).toMatch(/runWithProviderCapacity\(\(signal\) => client\.responses\.create/u);
     expect(validation.match(/runWithProviderCapacity\(/gu)).toHaveLength(2);
-    expect(validation).toMatch(/runWithProviderCapacity\(\(\) => fetch\("https:\/\/api\.openai\.com\/v1\/embeddings"/u);
-    expect(validation).toMatch(/runWithProviderCapacity\(\(\) => client\.responses\.create/u);
+    expect(validation).toMatch(/runWithProviderCapacity\(\(signal\) => fetch\("https:\/\/api\.openai\.com\/v1\/embeddings"[\s\S]*?signal/u);
+    expect(validation).toContain("}, { signal }), requestSignal)");
     expect(guidance.match(/runWithProviderCapacity\(/gu)).toHaveLength(2);
-    expect(knowledge).toMatch(/runWithProviderCapacity\(\(\) => fetch\("https:\/\/api\.openai\.com\/v1\/embeddings"/u);
+    expect(guidance.match(/\}, \{ signal \}\), requestSignal\)/gu)).toHaveLength(2);
+    expect(passport).toContain("}, { signal }), requestSignal)");
+    expect(knowledge).toMatch(/runWithProviderCapacity\(\(signal\) => fetch\("https:\/\/api\.openai\.com\/v1\/embeddings"[\s\S]*?signal/u);
+    expect(knowledge).toContain("}), requestSignal)");
   });
 
   it("keeps chat on its independent request-level capacity gate", () => {

@@ -57,4 +57,22 @@ describe("passport scan provider backpressure", () => {
     });
     expect(JSON.stringify(response.body)).not.toMatch(/QUEUE_FULL|OpenAI|provider unavailable/u);
   });
+
+  it("redacts ordinary provider failures and marks them retryable", async () => {
+    providerMock.run.mockRejectedValue(new Error("upstream request secret detail"));
+    const { passportScanRouter } = await import("./passport-scan.routes.js");
+    const app = express().use(express.json()).use(passportScanRouter);
+
+    const response = await request(app)
+      .post("/extract")
+      .send({ imageBase64: "ZmFrZQ==", mediaType: "image/jpeg" })
+      .expect(502);
+
+    expect(response.headers["retry-after"]).toBe("2");
+    expect(response.body).toEqual({
+      error: true,
+      message: "OCR service is temporarily unavailable; retry shortly",
+    });
+    expect(JSON.stringify(response.body)).not.toContain("upstream request secret detail");
+  });
 });

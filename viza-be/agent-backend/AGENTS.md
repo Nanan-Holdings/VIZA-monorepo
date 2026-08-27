@@ -191,10 +191,11 @@ explicitly reintroduces another provider.
   service's actual Supabase URL and must never return keys or connection URLs.
 - `src/utils/provider-capacity.ts` owns the bounded instance-local budget for
   non-chat AI/provider calls. Passport OCR, field guidance, validation, and
-  embedding requests must enter through `runWithProviderCapacity()`. Chat keeps
-  its separate turn-level gate. The protected capacity route may expose only
-  aggregate gate counts and bounded latency percentiles, never prompts,
-  responses, request identities, model input, or provider errors.
+  embedding requests must enter through `runWithProviderCapacity()`, consume
+  its execution `AbortSignal`, and preserve the bounded execution deadline.
+  Chat keeps its separate turn-level gate. The protected capacity route may
+  expose only aggregate gate counts and bounded latency percentiles, never
+  prompts, responses, request identities, model input, or provider errors.
 
 ## Ownership Boundaries
 

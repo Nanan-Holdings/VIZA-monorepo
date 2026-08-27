@@ -1,4 +1,8 @@
-export type ProviderCapacityErrorCode = "QUEUE_FULL" | "QUEUE_TIMEOUT" | "ABORTED";
+export type ProviderCapacityErrorCode =
+  | "QUEUE_FULL"
+  | "QUEUE_TIMEOUT"
+  | "EXECUTION_TIMEOUT"
+  | "ABORTED";
 
 export class ProviderCapacityError extends Error {
   constructor(public readonly code: ProviderCapacityErrorCode) {
@@ -27,12 +31,15 @@ export interface ProviderCapacityStats {
   maxActive: number;
   maxQueued: number;
   queueTimeoutMs: number;
+  executionTimeoutMs: number;
   accepted: number;
   completed: number;
   failed: number;
   rejectedFull: number;
   timedOut: number;
   aborted: number;
+  executionTimedOut: number;
+  executionAborted: number;
   queueWaitP50Ms: number;
   queueWaitP95Ms: number;
   executionP50Ms: number;
@@ -54,11 +61,22 @@ function boundedPositiveInteger(
 
 export function readProviderCapacityLimits(
   env: Readonly<Record<string, string | undefined>> = process.env,
-): { maxActive: number; maxQueued: number; queueTimeoutMs: number } {
+): {
+  maxActive: number;
+  maxQueued: number;
+  queueTimeoutMs: number;
+  executionTimeoutMs: number;
+} {
   return {
     maxActive: boundedPositiveInteger(env, "VIZA_PROVIDER_MAX_CONCURRENCY", 8, 64),
     maxQueued: boundedPositiveInteger(env, "VIZA_PROVIDER_MAX_QUEUE", 32, 512),
     queueTimeoutMs: boundedPositiveInteger(env, "VIZA_PROVIDER_QUEUE_TIMEOUT_MS", 5_000, 60_000),
+    executionTimeoutMs: boundedPositiveInteger(
+      env,
+      "VIZA_PROVIDER_EXECUTION_TIMEOUT_MS",
+      60_000,
+      180_000,
+    ),
   };
 }
 
@@ -85,6 +103,8 @@ export class ProviderConcurrencyGate {
   private rejectedFull = 0;
   private timedOut = 0;
   private aborted = 0;
+  private executionTimedOut = 0;
+  private executionAborted = 0;
   private readonly queueWaitSamples: number[] = [];
   private readonly executionSamples: number[] = [];
 
@@ -92,8 +112,9 @@ export class ProviderConcurrencyGate {
     private readonly maxActive: number,
     private readonly maxQueued: number,
     private readonly queueTimeoutMs: number,
+    private readonly executionTimeoutMs: number = 60_000,
   ) {
-    if (maxActive < 1 || maxQueued < 0 || queueTimeoutMs < 1) {
+    if (maxActive < 1 || maxQueued < 0 || queueTimeoutMs < 1 || executionTimeoutMs < 1) {
       throw new Error("Invalid provider concurrency gate configuration");
     }
   }
@@ -141,16 +162,49 @@ export class ProviderConcurrencyGate {
     });
   }
 
-  async run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  async run<T>(work: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> {
     const release = await this.acquire(signal);
     const startedAt = Date.now();
+    const executionController = new AbortController();
+    let executionTimedOut = false;
+    let executionAborted = false;
+    let failed = true;
+
+    const abortExecution = (code: "ABORTED" | "EXECUTION_TIMEOUT") => {
+      if (!executionController.signal.aborted) {
+        executionController.abort(new ProviderCapacityError(code));
+      }
+    };
+    const callerAbortListener = () => {
+      executionAborted = true;
+      abortExecution("ABORTED");
+    };
+    if (signal?.aborted) callerAbortListener();
+    else signal?.addEventListener("abort", callerAbortListener, { once: true });
+
+    const executionTimer = setTimeout(() => {
+      executionTimedOut = true;
+      abortExecution("EXECUTION_TIMEOUT");
+    }, this.executionTimeoutMs);
+    const aborted = new Promise<never>((_resolve, reject) => {
+      const rejectForAbort = () => {
+        const reason = executionController.signal.reason;
+        reject(reason instanceof ProviderCapacityError ? reason : new ProviderCapacityError("ABORTED"));
+      };
+      if (executionController.signal.aborted) rejectForAbort();
+      else executionController.signal.addEventListener("abort", rejectForAbort, { once: true });
+    });
+
     try {
-      const result = await work();
-      release({ failed: false, durationMs: Date.now() - startedAt });
+      const result = await Promise.race([work(executionController.signal), aborted]);
+      failed = false;
       return result;
-    } catch (error) {
-      release({ failed: true, durationMs: Date.now() - startedAt });
-      throw error;
+    } finally {
+      clearTimeout(executionTimer);
+      signal?.removeEventListener("abort", callerAbortListener);
+      if (executionTimedOut) this.executionTimedOut += 1;
+      if (executionAborted) this.executionAborted += 1;
+      release({ failed, durationMs: Date.now() - startedAt });
     }
   }
 
@@ -163,12 +217,15 @@ export class ProviderConcurrencyGate {
       maxActive: this.maxActive,
       maxQueued: this.maxQueued,
       queueTimeoutMs: this.queueTimeoutMs,
+      executionTimeoutMs: this.executionTimeoutMs,
       accepted: this.accepted,
       completed: this.completed,
       failed: this.failed,
       rejectedFull: this.rejectedFull,
       timedOut: this.timedOut,
       aborted: this.aborted,
+      executionTimedOut: this.executionTimedOut,
+      executionAborted: this.executionAborted,
       queueWaitP50Ms: percentile(this.queueWaitSamples, 0.5),
       queueWaitP95Ms: percentile(this.queueWaitSamples, 0.95),
       executionP50Ms: percentile(this.executionSamples, 0.5),
@@ -227,12 +284,16 @@ function getSharedProviderGate(): ProviderConcurrencyGate {
       limits.maxActive,
       limits.maxQueued,
       limits.queueTimeoutMs,
+      limits.executionTimeoutMs,
     );
   }
   return sharedProviderGate;
 }
 
-export function runWithProviderCapacity<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+export function runWithProviderCapacity<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   return getSharedProviderGate().run(work, signal);
 }
 
@@ -251,6 +312,8 @@ export function getLatestProviderCapacityStats(): ProviderCapacityStats {
     rejectedFull: 0,
     timedOut: 0,
     aborted: 0,
+    executionTimedOut: 0,
+    executionAborted: 0,
     queueWaitP50Ms: 0,
     queueWaitP95Ms: 0,
     executionP50Ms: 0,

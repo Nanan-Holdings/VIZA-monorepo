@@ -14,6 +14,7 @@ import { createOpenAiClient } from "../utils/openai-client.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 import { runWithProviderCapacity } from "../utils/provider-capacity.js";
+import { createRequestAbortSignal } from "./request-abort.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "ValidateApplication" });
@@ -97,15 +98,16 @@ function runHardRules(app: Record<string, unknown>, docs: string[]): {
 }
 
 // Get embedding from OpenAI
-async function getEmbedding(text: string): Promise<number[] | null> {
+async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<number[] | null> {
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") return null;
 
   try {
-    const res = await runWithProviderCapacity(() => fetch("https://api.openai.com/v1/embeddings", {
+    const res = await runWithProviderCapacity((signal) => fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
-    }));
+      signal,
+    }), requestSignal);
     const data = await res.json() as { data?: Array<{embedding: number[]}> };
     return data.data?.[0]?.embedding ?? null;
   } catch {
@@ -114,8 +116,14 @@ async function getEmbedding(text: string): Promise<number[] | null> {
 }
 
 // Fetch relevant visa knowledge chunks
-async function getKnowledgeContext(supabase: ReturnType<typeof getSupabaseClient>): Promise<string> {
-  const embedding = await getEmbedding("Indonesia B211A tourist visa requirements passport expiry travel dates documents");
+async function getKnowledgeContext(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  requestSignal?: AbortSignal,
+): Promise<string> {
+  const embedding = await getEmbedding(
+    "Indonesia B211A tourist visa requirements passport expiry travel dates documents",
+    requestSignal,
+  );
 
   if (embedding) {
     const { data } = await supabase.rpc("match_visa_chunks", {
@@ -147,6 +155,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   }
 
   const supabase = getSupabaseClient();
+  const requestSignal = createRequestAbortSignal(req, res);
 
   // Load application
   const { data: appData, error: appError } = await supabase
@@ -178,7 +187,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 
   if (OPENAI_API_KEY && OPENAI_API_KEY !== "your_openai_api_key_here") {
     try {
-      const knowledgeContext = await getKnowledgeContext(supabase);
+      const knowledgeContext = await getKnowledgeContext(supabase, requestSignal);
       const client = createOpenAiClient(OPENAI_API_KEY);
 
       const appSummary = JSON.stringify({
@@ -194,7 +203,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         uploaded_documents: docs,
       }, null, 2);
 
-      const message = await runWithProviderCapacity(() => client.responses.create({
+      const message = await runWithProviderCapacity((signal) => client.responses.create({
         model: OPENAI_VALIDATION_MODEL,
         max_output_tokens: 1024,
         instructions:
@@ -239,7 +248,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
             },
           },
         },
-      }));
+      }, { signal }), requestSignal);
 
       const responseText = message.output_text.trim();
 
@@ -251,8 +260,11 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         if (Array.isArray(parsed.warnings)) allWarnings.push(...parsed.warnings);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown OpenAI validation error";
-      logger.error("OpenAI validation failed", new Error("OpenAI validation failed"), { error: message });
+      logger.error(
+        "OpenAI validation failed",
+        new Error("OpenAI validation failed"),
+        { errorName: err instanceof Error ? err.name : "UnknownError" },
+      );
       // Don't block submission on OpenAI failure — hard rules already ran
     }
   }
