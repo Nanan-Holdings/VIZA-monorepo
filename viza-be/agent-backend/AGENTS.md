@@ -245,6 +245,9 @@ npm run db:migrate
 ```
 
 Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
+For multi-replica topology changes, also run
+`npm run test:socket-scaling-integration` against a disposable loopback Redis;
+the test skips safely when its dedicated URL is absent.
 
 ## Important Files
 

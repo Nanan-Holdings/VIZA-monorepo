@@ -11,6 +11,10 @@ scheduled recovery workflows.
 
 - Keep production-mutating workflows single-flight with an explicit
   `concurrency` group.
+- `ci-agent-backend.yml` provisions a disposable loopback Redis service only
+  for the Socket.IO scaling integration test. It must prove cross-node room
+  delivery over WebSocket without using production credentials or persistent
+  data.
 - Store credentials only in GitHub Actions secrets and non-sensitive deployment
   identifiers in repository variables. Never commit token values.
 - Scheduled recovery must fail closed on missing configuration, authentication
