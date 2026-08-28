@@ -40,6 +40,7 @@ import {
   testSupabaseConnection,
 } from './db/supabase-client.js';
 import { readOnlineCapacityTargetMarker } from './online-capacity-target.js';
+import { getSocketScalingStatus } from './socket/socket-scaling.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -107,12 +108,22 @@ app.get('/api/health/online-capacity-target', (_req, res) => {
 // from waiting on a stalled network connection.
 app.get('/ready', async (_req, res) => {
   const check = await testSupabaseConnection(getReadinessTimeoutMs());
-  res.status(check.success ? 200 : 503).json({
-    status: check.success ? 'ready' : 'not_ready',
+  const socket = getSocketScalingStatus();
+  const ready = check.success && socket.adapterReady;
+  res.status(ready ? 200 : 503).json({
+    status: ready ? 'ready' : 'not_ready',
     dependency: 'supabase',
     dependencyStatus: check.success ? 'ok' : 'unavailable',
-    error: check.success ? null : check.error ?? check.message,
+    error: check.success
+      ? socket.adapterReady ? null : 'socket_adapter_unavailable'
+      : check.error ?? check.message,
     latencyMs: check.latencyMs,
+    socket: {
+      mode: socket.mode,
+      multiReplicaEnabled: socket.multiReplicaEnabled,
+      adapterStatus: socket.adapterReady ? 'ok' : 'unavailable',
+      transports: socket.transports,
+    },
   });
 });
 
@@ -120,11 +131,15 @@ app.get('/ready', async (_req, res) => {
 // Render probes, but report dependency degradation truthfully in the body.
 app.get('/health', async (_req, res) => {
   const check = await testActiveKnowledgeRelease(getReadinessTimeoutMs());
-  res.status(200).json({
-    status: check.success ? 'ok' : 'degraded',
+  const socket = getSocketScalingStatus();
+  const adapterHealthy = !socket.multiReplicaEnabled || socket.adapterReady;
+  res.status(adapterHealthy ? 200 : 503).json({
+    status: check.success && adapterHealthy ? 'ok' : 'degraded',
     dependency: 'supabase',
     dependencyStatus: check.success ? 'ok' : 'unavailable',
-    error: check.success ? null : check.error ?? check.message,
+    error: adapterHealthy
+      ? check.success ? null : check.error ?? check.message
+      : 'socket_adapter_unavailable',
     latencyMs: check.latencyMs,
     gitSha:
       process.env.RENDER_GIT_COMMIT ??
@@ -134,6 +149,12 @@ app.get('/health', async (_req, res) => {
     memorySchemaVersion: 1,
     knowledgeReleaseId: check.releaseId,
     knowledgeReleaseKey: check.releaseKey,
+    socket: {
+      mode: socket.mode,
+      multiReplicaEnabled: socket.multiReplicaEnabled,
+      adapterStatus: socket.adapterReady ? 'ok' : 'unavailable',
+      transports: socket.transports,
+    },
   });
 });
 

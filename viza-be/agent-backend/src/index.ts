@@ -10,6 +10,10 @@ import { closeDatabase, verifyDatabaseRuntimeGuards } from './db/index.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
 import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-config.js';
 import { registerVisaNamespace } from './socket/visa-namespace.js';
+import {
+  initializeSocketScaling,
+  resolveSocketScalingConfig,
+} from './socket/socket-scaling.js';
 import { Logger } from './utils/logger.js';
 import { initSentry } from './observability/sentry-init.js';
 import {
@@ -43,6 +47,7 @@ const allowedOrigins = (
   .map((o) => o.trim());
 
 const server = http.createServer(app);
+const socketScalingConfig = resolveSocketScalingConfig();
 
 // Socket.IO — attach to the same HTTP server
 const io = new SocketIOServer(server, {
@@ -51,15 +56,12 @@ const io = new SocketIOServer(server, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  transports: ['polling', 'websocket'],
+  transports: socketScalingConfig.transports,
 });
-
-// Register the /visa namespace that the client connects to
-const visaNsp = io.of('/visa');
-registerVisaNamespace(visaNsp);
 
 const gracefulShutdownTimeoutMs = 5_000;
 let shutdownExitStarted = false;
+let closeSocketScaling = async (): Promise<void> => undefined;
 
 function toError(value: unknown): Error {
   return value instanceof Error ? value : new Error('Unknown shutdown error');
@@ -90,6 +92,7 @@ const shutdownServer = createBoundedServerShutdown({
     stopStatusProbeScheduler?.();
     stopRuntimeCapacityMonitor();
   },
+  afterSocketClose: () => closeSocketScaling(),
   timeoutMs: gracefulShutdownTimeoutMs,
 });
 
@@ -102,10 +105,22 @@ try {
   if (runtimeGuards) {
     logger.info('Database role timeout guards verified', runtimeGuards);
   }
+  const socketScaling = await initializeSocketScaling(io, socketScalingConfig);
+  closeSocketScaling = socketScaling.close;
+  logger.info('Socket.IO topology initialized', {
+    mode: socketScalingConfig.mode,
+    multiReplicaEnabled: socketScalingConfig.multiReplicaEnabled,
+    transports: socketScalingConfig.transports,
+  });
+
+  // Register only after the shared adapter is ready so a multi-replica process
+  // never accepts a namespace connection with a partial in-memory topology.
+  registerVisaNamespace(io.of('/visa'));
 } catch (error) {
-  logger.error('Database role timeout guard verification failed', toError(error));
+  logger.error('Backend startup guard failed', toError(error));
+  await closeSocketScaling().catch(() => undefined);
   await closeDatabase().catch((closeError: unknown) => {
-    logger.error('Database pool failed to close after startup guard failure', toError(closeError));
+    logger.error('Database pool failed to close after backend startup failure', toError(closeError));
   });
   throw error;
 }

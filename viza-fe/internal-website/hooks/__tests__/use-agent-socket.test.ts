@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { io } from "socket.io-client";
 
 // Mock socket.io-client
 const mockOn = vi.fn();
@@ -151,6 +152,10 @@ describe("useAgentSocket", () => {
     });
 
     expect(result.current.status).toBe("connecting");
+    expect(vi.mocked(io)).toHaveBeenCalledWith(
+      "http://localhost:3002/visa",
+      expect.objectContaining({ transports: ["polling", "websocket"] }),
+    );
   });
 
   it("registers event handlers on connect", async () => {

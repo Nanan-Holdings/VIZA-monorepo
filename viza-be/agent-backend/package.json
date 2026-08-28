@@ -64,6 +64,7 @@
 	"dependencies": {
 		"@google-cloud/translate": "^9.3.0",
 		"@google/generative-ai": "^0.24.0",
+		"@socket.io/redis-adapter": "^8.3.0",
 		"@supabase/supabase-js": "^2.74.0",
 		"@types/pdf-parse": "^1.1.5",
 		"agentevals": "^0.0.6",
@@ -85,7 +86,8 @@
 		"pdf-lib": "^1.17.1",
 		"pdf-parse": "^1.1.1",
 		"pg": "^8.11.5",
-		"socket.io": "^4.7.5",
+		"redis": "^6.2.1",
+		"socket.io": "^4.8.3",
 		"web-streams-polyfill": "^4.2.0",
 		"zod": "^3.25.76",
 		"zod-to-json-schema": "^3.23.0"
@@ -103,7 +105,7 @@
 		"@vitest/coverage-v8": "^1.6.1",
 		"drizzle-kit": "^0.21.1",
 		"eslint": "^9.34.0",
-		"socket.io-client": "^4.7.5",
+		"socket.io-client": "^4.8.3",
 		"supertest": "^7.0.0",
 		"tsx": "^4.9.3",
 		"typescript": "^5.4.5",

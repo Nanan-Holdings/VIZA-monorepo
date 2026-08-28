@@ -60,6 +60,12 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 21. Mixed Schengen + non-Schengen itineraries must preserve separate routes. For example, France + Iceland + UK should choose the correct Schengen main destination from Schengen day counts while still reminding the user that the UK needs a separate visitor visa/application link.
 22. Structured session state may continue to support backend reasoning, but `/client/chat` must not render a user-facing memory summary or memory editor.
 23. Historical assistant messages that contain a Singapore arrival-card application link but no persisted block must render one deduplicated VIZA `SG_ARRIVAL_CARD` application card; suppress the prose link because the card owns the CTA.
+24. Both Socket.IO client entry points use `lib/socket-transports.ts`. Keep the
+    single-replica default as polling plus WebSocket; when
+    `NEXT_PUBLIC_SOCKET_IO_MULTI_REPLICA_ENABLED=true`, use WebSocket-only and
+    keep that flag synchronized with the backend topology flag. Preserve
+    `tryAllTransports` so a rolling deployment can recover from a brief flag
+    mismatch by trying WebSocket after polling is rejected.
 
 ## Session Model
 
@@ -89,10 +95,13 @@ For backend Socket.IO or agent changes:
 
 1. `cd viza-be/agent-backend && npm run type-check`
 2. Verify the frontend still connects to `NEXT_PUBLIC_AGENT_BACKEND_URL/visa`.
-3. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
-4. Confirm locale-driven responses: when UI locale is Chinese and the user sends English text, the Socket payload includes `locale: "zh"` and the backend prompt requires Simplified Chinese.
-5. Confirm mixed itinerary handoff: France 4 days + Iceland 5 days + UK 6 days should produce Iceland Schengen as the Schengen form route and keep the UK separate route visible.
-6. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
+3. Verify a multi-replica build uses WebSocket-only and a default build keeps
+   the polling fallback; do not scale the backend until the Redis adapter is
+   ready.
+4. Confirm `token`, `response_complete`, `error`, and `application_block` event payloads still match `viza-fe/internal-website/types/agent-test.ts`.
+5. Confirm locale-driven responses: when UI locale is Chinese and the user sends English text, the Socket payload includes `locale: "zh"` and the backend prompt requires Simplified Chinese.
+6. Confirm mixed itinerary handoff: France 4 days + Iceland 5 days + UK 6 days should produce Iceland Schengen as the Schengen form route and keep the UK separate route visible.
+7. Run a Playwright smoke check against `/client/chat`; if no authenticated test session is available, verify the unauthenticated login redirect and backend `/health`.
 
 ## Current RAG Routing Scope
 
