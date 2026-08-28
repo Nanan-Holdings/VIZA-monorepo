@@ -16,6 +16,11 @@ services:
       # process.env.PORT, so this is the single source for the port.
       - key: PORT
         value: "8080"
+      # Single-replica is the safe default. Before setting true, provision a
+      # dedicated private TLS Redis/Valkey URL as SOCKET_IO_REDIS_URL and set
+      # NEXT_PUBLIC_SOCKET_IO_MULTI_REPLICA_ENABLED=true on the frontend.
+      - key: SOCKET_IO_MULTI_REPLICA_ENABLED
+        value: "false"
       - key: ANTHROPIC_API_KEY
         sync: false
       # Passport-scan OCR (POST /api/passport-scan/extract) runs on OpenAI

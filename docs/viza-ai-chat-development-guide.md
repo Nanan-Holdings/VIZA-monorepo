@@ -267,6 +267,7 @@ Frontend:
 
 ```env
 NEXT_PUBLIC_AGENT_BACKEND_URL=http://localhost:3002
+NEXT_PUBLIC_SOCKET_IO_MULTI_REPLICA_ENABLED=false
 ```
 
 Agent Backend:
@@ -274,10 +275,23 @@ Agent Backend:
 ```env
 PORT=3002
 CORS_ORIGINS=http://localhost:3000
+SOCKET_IO_MULTI_REPLICA_ENABLED=false
+# Required only for multi-replica mode; production must use a private rediss:// URL.
+SOCKET_IO_REDIS_URL=
 OPENAI_API_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
+
+单实例继续使用 Socket.IO 内存 adapter，并保留 polling 到 WebSocket 的兼容升级。
+只有在后端与前端两个 multi-replica flag 同时为 `true`、且共享 Redis adapter
+已经通过 `/ready` 后，才可以增加后端副本。多副本模式固定为 WebSocket-only，
+避免无粘性负载均衡把同一 polling 会话分配到不同实例。经典 Redis Pub/Sub
+adapter 不持久化聊天事件；Redis/Valkey 必须专用、私有、认证并使用 TLS。
+客户端同时启用 `tryAllTransports`，因此部署期间即使前后端 flag 短暂不一致，
+polling 被多副本后端拒绝后仍会尝试 WebSocket。多副本运行时若 adapter 失联，
+`/health` 返回 503，Render 会停止把该实例视为健康；单副本仍保留原有 200
+健康检查契约。
 
 如果 `OPENAI_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。`OPENAI_API_KEY` 用于 VIZA chat 生成、field guidance、application validation、passport OCR 和 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
 

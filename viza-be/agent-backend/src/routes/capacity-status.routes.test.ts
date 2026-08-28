@@ -99,6 +99,15 @@ vi.mock("../observability/runtime-capacity.js", () => ({
   }),
 }));
 
+vi.mock("../socket/socket-scaling.js", () => ({
+  getSocketScalingStatus: () => ({
+    mode: "memory",
+    multiReplicaEnabled: false,
+    adapterReady: true,
+    transports: ["polling", "websocket"],
+  }),
+}));
+
 vi.mock("../services/portal-health.service.js", () => ({
   getPublicPortalStatus: vi.fn(),
   runPortalHealthProbes: vi.fn(),
@@ -147,6 +156,12 @@ describe("capacity status route", () => {
         monitoring: true,
         eventLoop: { delayP95Ms: 4, utilizationPercent: 25 },
         memory: { heapUtilizationPercent: 25 },
+      },
+      socket: {
+        mode: "memory",
+        multiReplicaEnabled: false,
+        adapterReady: true,
+        transports: ["polling", "websocket"],
       },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });

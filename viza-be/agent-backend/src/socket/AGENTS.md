@@ -21,6 +21,11 @@ namespace `/visa` and sends/receives streaming events.
    replica so an upstream slowdown cannot exhaust every socket worker. Its
    bounded aggregate counters and wait-time samples contain no request identity
    or message content and feed the secret-protected capacity snapshot.
+7. `socket-scaling.ts` keeps the in-memory adapter and polling fallback for the
+   default single replica. Explicit multi-replica mode must initialize the
+   shared Redis adapter before `/visa` is registered, use WebSocket-only
+   transports, expose only aggregate adapter readiness, and fail startup when
+   its private TLS configuration is absent or unavailable.
 
 ## Ownership Boundaries
 
@@ -50,6 +55,14 @@ namespace `/visa` and sends/receives streaming events.
 - Persist visible user/assistant messages idempotently. The frontend also has a
   Supabase-side `ensureSessionMessage()` fallback, so Socket.IO persistence must
   check for an existing exact session/role/content row before inserting.
+- Never log `SOCKET_IO_REDIS_URL`, Redis errors that may echo that URL, chat
+  payloads, or channel contents. Production shared-adapter connections must use
+  `rediss://`; plaintext is limited to a local development loopback.
+- Do not enable more than one backend replica until both backend and frontend
+  multi-replica flags match and the shared adapter passes `/ready`.
+- In explicit multi-replica mode, runtime adapter loss must also make `/health`
+  non-2xx so the Render health check stops routing to the degraded instance.
+  Preserve the legacy HTTP 200 health contract for the default single replica.
 
 ## Validation
 
@@ -69,6 +82,7 @@ Also smoke `/client/chat` with the frontend when possible.
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/socket/chat-concurrency.ts`
+- `viza-be/agent-backend/src/socket/socket-scaling.ts`
 - `viza-be/agent-backend/src/socket/visa-product-recommendations.test.ts`
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
 - `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`

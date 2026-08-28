@@ -21,6 +21,7 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
+import { resolveSocketTransports } from "@/lib/socket-transports";
 
 import { useContinuousChat } from "@/hooks/use-continuous-chat";
 import { ChatMessage } from "@/components/client/companion/chat-message";
@@ -843,7 +844,8 @@ export function ChatClient({
 
     const socket = io(`${AGENT_BACKEND_URL}/visa`, {
       path: "/socket.io",
-      transports: ["polling", "websocket"],
+      transports: resolveSocketTransports(),
+      tryAllTransports: true,
       upgrade: true,
       reconnection: true,
       // Render can need more than a minute to wake a sleeping instance. Keep
