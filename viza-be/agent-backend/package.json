@@ -14,6 +14,7 @@
 		"test": "vitest run",
 		"test:unit": "vitest run tests/unit",
 		"test:integration": "vitest run tests/integration",
+		"test:socket-scaling-integration": "vitest run src/socket/socket-scaling.integration.test.ts",
 		"test:visa-agent-evals": "tsx scripts/run-visa-agent-evals.ts",
 		"test:visa-agent-robustness": "npm run test:visa-agent-evals",
 		"test:field-guidance-copilot": "tsx scripts/run-field-guidance-copilot-evals.ts",
