@@ -4,6 +4,7 @@ export interface BoundedServerShutdownOptions {
 	io: Pick<SocketIOServer, "close" | "disconnectSockets">;
 	closeDatabase: () => Promise<void>;
 	beforeClose?: () => void;
+	afterSocketClose?: () => Promise<void> | void;
 	timeoutMs: number;
 }
 
@@ -29,15 +30,25 @@ export function createBoundedServerShutdown(
 
 		const gracefulClose = (async (): Promise<void> => {
 			options.beforeClose?.();
-			let realtimeCloseError: unknown;
+			let closeError: unknown;
 			try {
 				await closeSocketIoAndHttp(options.io);
 			} catch (error) {
-				realtimeCloseError = error;
+				closeError = error;
 			}
 
-			await options.closeDatabase();
-			if (realtimeCloseError) throw realtimeCloseError;
+			try {
+				await options.afterSocketClose?.();
+			} catch (error) {
+				closeError ??= error;
+			}
+
+			try {
+				await options.closeDatabase();
+			} catch (error) {
+				closeError ??= error;
+			}
+			if (closeError) throw closeError;
 		})();
 
 		shutdownPromise = new Promise<void>((resolve, reject) => {

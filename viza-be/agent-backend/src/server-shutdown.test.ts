@@ -33,11 +33,15 @@ describe("bounded server shutdown", () => {
 		const closeDatabase = vi.fn(async () => {
 			closeOrder.push("database");
 		});
+		const afterSocketClose = vi.fn(async () => {
+			closeOrder.push("adapter");
+		});
 		const beforeClose = vi.fn();
 		const shutdown = createBoundedServerShutdown({
 			io,
 			closeDatabase,
 			beforeClose,
+			afterSocketClose,
 			timeoutMs: 1_000,
 		});
 
@@ -47,10 +51,11 @@ describe("bounded server shutdown", () => {
 		await first;
 
 		expect(beforeClose).toHaveBeenCalledTimes(1);
+		expect(afterSocketClose).toHaveBeenCalledTimes(1);
 		expect(closeDatabase).toHaveBeenCalledTimes(1);
 		expect(client.connected).toBe(false);
 		expect(httpServer.listening).toBe(false);
-		expect(closeOrder).toEqual(["socket", "database"]);
+		expect(closeOrder).toEqual(["socket", "adapter", "database"]);
 	});
 
 	it("rejects one shared shutdown promise at the configured deadline", async () => {
