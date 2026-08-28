@@ -26,6 +26,11 @@ namespace `/visa` and sends/receives streaming events.
    shared Redis adapter before `/visa` is registered, use WebSocket-only
    transports, expose only aggregate adapter readiness, and fail startup when
    its private TLS configuration is absent or unavailable.
+8. `socket-scaling.integration.test.ts` is the opt-in real-Redis gate. Backend
+   CI supplies a disposable loopback Redis service and proves that a room
+   broadcast crosses two independent Socket.IO server instances over WebSocket.
+   The test must skip locally when its dedicated loopback URL is absent and
+   must refuse remote Redis targets.
 
 ## Ownership Boundaries
 
@@ -75,6 +80,13 @@ npm run test:visa-agent-evals
 
 Also smoke `/client/chat` with the frontend when possible.
 
+The real-Redis test is opt-in outside CI:
+
+```powershell
+$env:SOCKET_IO_REDIS_INTEGRATION_URL = 'redis://127.0.0.1:6379'
+npm run test:socket-scaling-integration
+```
+
 ## Related Files
 
 - `viza-be/agent-backend/src/index.ts`
@@ -83,6 +95,7 @@ Also smoke `/client/chat` with the frontend when possible.
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/socket/chat-concurrency.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.ts`
+- `viza-be/agent-backend/src/socket/socket-scaling.integration.test.ts`
 - `viza-be/agent-backend/src/socket/visa-product-recommendations.test.ts`
 - `viza-be/agent-backend/src/config/visa-destination-registry.ts`
 - `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`
