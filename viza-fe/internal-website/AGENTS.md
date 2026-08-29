@@ -11,6 +11,10 @@ flag server-only, exact-value parsed, and default-off in `.env.example`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
 
+`npm run type-check` uses `tsconfig.typecheck.json` so stale development-server
+route artifacts under `.next/dev/types` cannot invalidate the production type
+check. Keep `.next/types` generated with `npx next typegen` in scope.
+
 Production Vercel Functions are pinned by `vercel.json` to `bom1` (Mumbai),
 which is the compute region nearest the production Supabase primary in
 `ap-south-1`. Keep database-backed Node.js routes in that region unless the
