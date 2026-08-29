@@ -401,7 +401,10 @@ review flow; country pages must not implement their own issue navigation.
 - Do not add decorative nested cards or section header table rows inside the form body.
 - Keep the outer form card clean and use spacing rather than extra internal borders.
 - Use explicit buttons for AI. Field focus should not open AI guidance.
-- Keep the review page read-only.
+- Before submission, render every English/official review value in a bordered
+  editor. Preserve `_zh` when English text changes, save the canonical value and
+  `_en`, and use typed date/option controls so official codes remain valid.
+  Successful submitted applications keep review read-only.
 
 ## Universal Profile reuse
 
