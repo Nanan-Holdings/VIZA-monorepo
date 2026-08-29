@@ -4,7 +4,7 @@
 # ========================================
 # Stage 1: Dependencies
 # ========================================
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 # Copy package files (package-lock.json is required for npm ci)
@@ -19,7 +19,7 @@ RUN npm ci --legacy-peer-deps && \
 # ========================================
 # Stage 2: Build
 # ========================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Copy node_modules from deps stage (already has all dependencies)
@@ -40,7 +40,7 @@ RUN npm run build
 # ========================================
 # Stage 3: Runtime
 # ========================================
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 # Set production environment
@@ -77,4 +77,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Start the application
 CMD ["node", "dist/index.js"]
-
