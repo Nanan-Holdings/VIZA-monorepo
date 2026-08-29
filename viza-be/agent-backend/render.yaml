@@ -10,6 +10,11 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     envVars:
+      # Keep the native Render runtime on the same active-LTS major as CI and
+      # the Docker fallback. The package engines range prevents a silent jump
+      # to a future major with different runtime behavior.
+      - key: NODE_VERSION
+        value: "24"
       - key: NODE_ENV
         value: production
       # CI-005: match the Dockerfile EXPOSE/ENV (8080). The app listens on
