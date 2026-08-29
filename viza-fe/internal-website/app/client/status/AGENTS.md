@@ -69,6 +69,11 @@ results and updates from the same data.
 - `notification_events`
 - `official_application_tracking` (service-role server read only)
 
+`status-profile-lookup.ts` keeps the current signed-session profile lookup to
+one indexed `applicant_profiles.id` read. Auth-user and email lookups are
+compatibility fallbacks only; preserve their focused query-count tests when
+changing client-session ownership behavior.
+
 ## Guardrails
 
 - Do not import service-role clients into client components.
