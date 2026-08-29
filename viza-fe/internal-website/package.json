@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "eslint .",
     "init:admin": "node scripts/init-admin-account.mjs",
     "sync:auth-emails": "node scripts/sync-supabase-auth-email-templates.mjs",

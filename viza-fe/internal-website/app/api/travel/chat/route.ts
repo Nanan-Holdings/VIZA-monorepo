@@ -1088,15 +1088,24 @@ function explicitPlannerDestinationOperations(
   return result;
 }
 
-function directDestinationOperations(text: string): TravelStateOperation[] {
+function isItineraryDestinationRequest(text: string): boolean {
+  return /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*\S+/iu.test(
+    text.trim()
+  );
+}
+
+function directDestinationOperations(
+  text: string,
+  preferCitiesForItinerary = false
+): TravelStateOperation[] {
   const normalized = text.trim();
-  const match =
-    normalized.match(
-      /^(?:我想去|我要去|想去|就去|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
-    ) ??
-    normalized.match(
-      /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*(.+?)(?:[。.!！？?])?$/iu
-    );
+  const directMatch = normalized.match(
+    /^(?:我想去|我要去|想去|就去|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  const itineraryMatch = normalized.match(
+    /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  const match = directMatch ?? itineraryMatch;
   if (!match) return [];
 
   const candidate = match[1]
@@ -1120,12 +1129,15 @@ function directDestinationOperations(text: string): TravelStateOperation[] {
       Boolean(getCuratedCityLabel(value, "en"));
     return {
       op: "add",
-      path: isCity ? "cities" : "countries",
+      path:
+        isCity || (!directMatch && Boolean(itineraryMatch) && preferCitiesForItinerary)
+          ? "cities"
+          : "countries",
       valueText: value,
       valueNumber: null,
       valueBoolean: null,
       explicit: true,
-      evidence: match[0],
+      evidence: normalized,
     };
   });
 }
@@ -1166,13 +1178,17 @@ function isExplicitPlannerDestinationForm(text: string): boolean {
 
 function stabilizeExplicitPlannerOperations(
   text: string,
-  operations: TravelStateOperation[]
+  operations: TravelStateOperation[],
+  hasSelectedCountry = false
 ): TravelStateOperation[] {
   let next = operations;
   const formDestinations = explicitPlannerDestinationOperations(text);
   next = appendExplicitDestinationOperations(next, formDestinations);
   if (!formDestinations.length) {
-    const directDestinations = directDestinationOperations(text);
+    const directDestinations = directDestinationOperations(
+      text,
+      hasSelectedCountry
+    );
     if (
       directDestinations.length &&
       !next.some(
@@ -1686,6 +1702,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const hasSelectedCountry = currentState.countries.length > 0;
     const validated = stabilizeExplicitPlannerOperations(
       input.text,
       stabilizeExplicitEndpointOperations(
@@ -1699,9 +1716,12 @@ export async function POST(request: Request) {
             pendingActions
           )
         )
-      )
+      ),
+      hasSelectedCountry
     );
-    const allowUnverifiedCity = isExplicitPlannerDestinationForm(input.text);
+    const allowUnverifiedCity =
+      isExplicitPlannerDestinationForm(input.text) ||
+      (hasSelectedCountry && isItineraryDestinationRequest(input.text));
     const resolved = validated.flatMap((operation) => {
       const item = resolveDestinationOperation(
         operation,

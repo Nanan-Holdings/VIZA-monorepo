@@ -18,6 +18,12 @@ Production Vercel uploads use the root `.vercelignore` because the linked
 project's `rootDirectory` is `viza-fe/internal-website`. Keep local build
 artifacts and non-frontend services out of the deployment bundle.
 
+Production Vercel deployments must authenticate with the organization-owned
+VIZA Google account. Never deploy from a personal Google identity or personal
+Vercel account. Before releasing, verify the linked project is `viza-internal`
+under the configured VIZA team, and do not persist Google credentials or Vercel
+tokens in the repository, shell history, logs, screenshots, or agent output.
+
 ## Local Test Admin
 
 Use this admin account for local portal smoke testing:
