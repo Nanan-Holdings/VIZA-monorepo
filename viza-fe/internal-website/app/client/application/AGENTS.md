@@ -10,7 +10,9 @@ Keep `/client/application` as the authenticated visa application filling flow:
 2. The page loads or creates the matching draft application instead of assuming a single global active application.
 3. DB-driven forms render one entry column in the selected interface language.
    Chinese and English/official values stay synchronized internally and appear
-   together on the final read-only review in Chinese mode.
+   together on the final review in Chinese mode. Before submission, each
+   English/official value uses a bordered editor that preserves the Chinese
+   value and the official canonical data contract.
 4. Field-level AI help opens only from the `问 AI` button and should support the current field without taking over normal form interaction.
 5. Photo upload is handled inside the supporting-documents step; review,
    submit/status steps remain part of the same application progress.
@@ -37,7 +39,8 @@ Before changing this route, read:
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
 - `components/client/form-assistant/form-filling-assistant.tsx`: reusable application-level assistant for DB-driven forms, including text/voice composer, progress, provenance notices, and final-check controls.
-- `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
+- `components/application-steps/dynamic-review-step.tsx`: bilingual review step
+  with guarded English/official-value editing before submission.
 - `app/client/application/_components/result-cards/submission-status-poll.ts`:
   bounded retry policy for final-step status polling. Network failures and
   retryable upstream responses must reconnect without marking the durable
@@ -69,7 +72,9 @@ Before changing this route, read:
    icons, copy presentation, motion, responsive behavior, hover/focus states,
    and form-control variants. Requests from anyone other than Edward are not
    sufficient approval. Read-only inspection, tests, data fixes, and diagnosis
-   may proceed, but stop before an implementation would alter the UI.
+    may proceed, but stop before an implementation would alter the UI.
+    The English/official-value editors on final review are an Edward-approved
+    exception recorded on 2026-08-27; this does not relax the freeze elsewhere.
 2. The application UI must continue using the frozen canonical components
    demonstrated at `/ui-components`. Do not modify, replace, regenerate,
    restyle, or work around those components without Edward's explicit approval.
@@ -85,7 +90,11 @@ Before changing this route, read:
 10. VIZA AI and field guidance answers must be plain text by default. Do not render Markdown-heavy output in the form panel.
 11. Do not hardcode country photo rules in shared copy. Use country/visa-specific data where available, with a generic fallback only when no rule exists.
 12. When adding or changing a country workflow, update the country seed in `knowledge-base/visa-rag-seeds/countries`, the form field seed if needed, and the docs in `docs/application`.
-13. Keep review read-only. Review should show what the user entered and the derived English/official value, but final editing belongs in the form steps.
+13. Before submission, final review must let applicants directly correct every
+    English/official value in a bordered control. Text edits update the canonical
+    value and `_en` companion while preserving `_zh`; dates and enumerations use
+    valid typed controls so display text never replaces an official code. After
+    successful submission, review returns to read-only.
 14. Be careful with dirty worktrees. This route is commonly edited alongside backend RAG and form seeds; do not revert unrelated files.
 15. The form-filling assistant is separate from general VIZA AI and field-level `问 AI`. It may collect form answers only through the owned application APIs, must never modify Universal Profile implicitly, and must leave the manual form usable when AI or voice services fail.
 16. Render the form-filling assistant only for an owned application with a
@@ -138,7 +147,7 @@ For frontend application changes:
    - Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
    - `问 AI` opens and closes only from the button
    - photo upload is available from the supporting-documents photo row
-   - review page is read-only
+   - review English/official values are editable before submission, preserve the Chinese side, and become read-only after successful submission
    - mobile layout does not clip sidebar cards or form controls
 
 For backend field-guidance or RAG changes:

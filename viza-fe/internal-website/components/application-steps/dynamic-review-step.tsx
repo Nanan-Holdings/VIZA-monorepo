@@ -15,7 +15,11 @@ import {
   usesBilingualAnswerPair,
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
-import { BilingualReviewPanel, type ReviewRow } from "./bilingual-review-panel";
+import {
+  BilingualReviewPanel,
+  type ReviewOfficialOption,
+  type ReviewRow,
+} from "./bilingual-review-panel";
 import { type FormAssistantFieldReviewIssue } from "@/types/form-assistant";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { isVisibleDynamicFieldRequired } from "@/lib/application-tab-completion";
@@ -36,6 +40,33 @@ function formatDateOfficial(value: string): string | null {
 
   const [, year, month, day] = match;
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+}
+
+function formatDateEditorValue(value: string): string {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const chineseMatch = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+  const officialMatch = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+
+  if (isoMatch || chineseMatch) {
+    const [, year, month, day] = isoMatch ?? chineseMatch!;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  if (officialMatch) {
+    const [, day, month, year] = officialMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return trimmed;
+}
+
+function isValidIsoCalendarDate(value: string): boolean {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const [, year, month, day] = match;
+  const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return parsed.getUTCFullYear() === Number(year)
+    && parsed.getUTCMonth() === Number(month) - 1
+    && parsed.getUTCDate() === Number(day);
 }
 
 export function getReviewSourceLabel(field: WizardStep["fields"][number]): string {
@@ -62,6 +93,16 @@ export function getReviewOptionText(
 ): string | null {
   const schemaLabel = getLocalizedOptionText(value, field.options, side);
   if (schemaLabel) return schemaLabel;
+
+  const officialOptions = getReviewFieldOptions(dynamicAnswers, field);
+  return getLocalizedOptionText(value, officialOptions, side);
+}
+
+function getReviewFieldOptions(
+  dynamicAnswers: Record<string, string>,
+  field: WizardStep["fields"][number],
+): WizardStep["fields"][number]["options"] {
+  if (field.options?.length) return field.options;
 
   const configuredSource = field.validationRules?.official_source;
   const inferredSource = field.fieldName === "province_city_of_hotel"
@@ -91,7 +132,24 @@ export function getReviewOptionText(
     : normalizedSource === "administrative_unit_level2"
       ? getVnPrearrivalAdministrativeOptions("level2", parentValue)
       : getVnPrearrivalStaticOptions(officialSource, parentValue);
-  return getLocalizedOptionText(value, officialOptions, side);
+  return officialOptions;
+}
+
+function toReviewOfficialOptions(
+  options: WizardStep["fields"][number]["options"],
+): ReviewOfficialOption[] {
+  if (!options?.length) return [];
+
+  const deduped = new Map<string, ReviewOfficialOption>();
+  for (const option of options) {
+    const value = typeof option === "string" ? option : option.value;
+    if (deduped.has(value)) continue;
+    deduped.set(value, {
+      value,
+      label: getLocalizedOptionText(value, options, "en") ?? value,
+    });
+  }
+  return Array.from(deduped.values());
 }
 
 export function getReviewBooleanText(
@@ -181,6 +239,7 @@ export interface DynamicReviewStepProps {
   onEdit: (stepIndex: number, fieldName: string) => void;
   onPhotoEdit: () => void;
   onComplete: () => void;
+  onSaveOfficialValue?: (answerPatch: Record<string, string>) => Promise<void>;
   mode?: "submit" | "continue";
   continueLabel?: string;
   showAction?: boolean;
@@ -195,6 +254,7 @@ export function DynamicReviewStep({
   onEdit,
   onPhotoEdit,
   onComplete,
+  onSaveOfficialValue,
   mode = "submit",
   continueLabel,
   showAction = true,
@@ -257,6 +317,28 @@ export function DynamicReviewStep({
     return value;
   }, [dynamicAnswers]);
 
+  const saveOfficialValue = useCallback(async (answerKey: string, officialValue: string) => {
+    if (!onSaveOfficialValue) return;
+    const schemaFieldName = answerKey.replace(/__\d+$/, "");
+    const field = dbSteps
+      .flatMap((step) => step.fields)
+      .find((candidate) => candidate.fieldName === schemaFieldName);
+    if (!field) throw new Error(`Review field not found: ${schemaFieldName}`);
+
+    const canonicalOfficialValue = field.fieldType === "date"
+      ? formatDateEditorValue(officialValue)
+      : officialValue;
+    if (field.fieldType === "date" && !isValidIsoCalendarDate(canonicalOfficialValue)) {
+      throw new Error(`Invalid official date: ${officialValue}`);
+    }
+
+    const answerPatch: Record<string, string> = { [answerKey]: canonicalOfficialValue };
+    if (usesBilingualAnswerPair(field)) {
+      answerPatch[`${answerKey}_en`] = canonicalOfficialValue;
+    }
+    await onSaveOfficialValue(answerPatch);
+  }, [dbSteps, onSaveOfficialValue]);
+
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const completedRows: ReviewRow[] = [];
     const missingRows: ReviewRow[] = [];
@@ -310,6 +392,27 @@ export function DynamicReviewStep({
                 getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
                 field,
               );
+          const officialOptions = toReviewOfficialOptions(getReviewFieldOptions(dynamicAnswers, field));
+          if (
+            (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country")
+            && value
+            && !officialOptions.some((option) => option.value === value)
+          ) {
+            officialOptions.push({ value, label: officialValue });
+          }
+          if (field.fieldType === "checkbox" && officialOptions.length === 0) {
+            officialOptions.push(
+              { value: "true", label: "Yes" },
+              { value: "false", label: "No" },
+            );
+          }
+          const officialEditorKind = field.fieldType === "textarea"
+            ? "textarea" as const
+            : field.fieldType === "date"
+              ? "date" as const
+              : officialOptions.length > 0
+                ? "select" as const
+                : "text" as const;
           const badges: string[] = [];
           const warnings: string[] = [];
 
@@ -351,6 +454,13 @@ export function DynamicReviewStep({
             optional: isOptionalBlank,
             issueSeverity: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.severity,
             issueMessage: (reviewIssues?.get(answerKey) ?? reviewIssues?.get(field.fieldName))?.message,
+            officialEditorKind,
+            officialEditorValue: officialEditorKind === "date"
+              ? isMissing ? "" : officialValue
+              : officialEditorKind === "select"
+                ? value
+                : isMissing ? "" : officialValue,
+            officialOptions: officialEditorKind === "select" ? officialOptions : undefined,
           };
 
           if (isRequiredMissing) missingRows.push(row);
@@ -369,6 +479,7 @@ export function DynamicReviewStep({
         <BilingualReviewPanel
           applicationId={applicationId}
           rows={bilingualRows}
+          onSaveOfficialValue={onSaveOfficialValue ? saveOfficialValue : undefined}
           onEditSection={onEdit}
         />
 
