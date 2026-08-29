@@ -10,6 +10,10 @@ and internal admin flows.
 ## Key Routes
 
 - `field-guidance.routes.ts`: `POST /api/field-guidance`.
+- `field-guidance-cache.ts`: bounded, expiring single-flight cache for static
+  field guidance. Cache keys and values may contain field metadata and public
+  knowledge only; applicant answers, questions, and chat history remain
+  request-scoped and must never enter this shared cache.
 - `validate-application.ts`: `POST /api/validate-application`.
 - `translation.routes.ts`: translation generation/read/update under
   `/api/applications/:id/...`.
