@@ -24,6 +24,10 @@ import {
   getAutomatedOnlineSubmissionEvidence,
   isAutomatedOnlineVisaType,
 } from "@/lib/submission-result-evidence";
+import {
+  loadStatusApplicantProfiles,
+  type StatusApplicantProfile,
+} from "./status-profile-lookup";
 
 export type StatusStepKey =
   | "payment"
@@ -198,11 +202,7 @@ export interface ClientStatusData {
   partialData: boolean;
 }
 
-interface ApplicantProfileRow {
-  id: string;
-  email: string | null;
-  auth_user_id: string | null;
-}
+type ApplicantProfileRow = StatusApplicantProfile;
 
 interface VisaPackageRow {
   id: string;
@@ -1495,7 +1495,7 @@ async function buildApplicationStatus({
 
 export async function getClientStatusData(): Promise<ClientStatusData> {
   const clientSession = await getClientSession();
-  let authUserId = clientSession?.userId ?? null;
+  let authUserId = clientSession?.authUserId ?? clientSession?.userId ?? null;
   let authEmail = clientSession?.email ?? null;
 
   // The proxy already verifies this signed cookie. Avoid a second remote Auth
@@ -1527,33 +1527,20 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   });
   let partialData = false;
 
-  const profileReads: Array<Promise<ReadRowsResult<ApplicantProfileRow>>> = [
-    readRows<ApplicantProfileRow>(
-      adminClient
-        .from("applicant_profiles")
-        .select("id, email, auth_user_id")
-        .eq("auth_user_id", authUserId),
-    ),
-    readRows<ApplicantProfileRow>(
-      adminClient
-        .from("applicant_profiles")
-        .select("id, email, auth_user_id")
-        .eq("id", authUserId),
-    ),
-  ];
-  if (authEmail) {
-    profileReads.push(
+  const profileLookup = await loadStatusApplicantProfiles({
+    sessionProfileId: clientSession?.userId ?? null,
+    authUserId,
+    authEmail,
+    read: (column, value) =>
       readRows<ApplicantProfileRow>(
         adminClient
           .from("applicant_profiles")
           .select("id, email, auth_user_id")
-          .eq("email", authEmail),
+          .eq(column, value),
       ),
-    );
-  }
-  const profileResults = await Promise.all(profileReads);
-  partialData = partialData || profileResults.some((result) => result.failed);
-  const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
+  });
+  partialData = partialData || profileLookup.failed;
+  const profiles = profileLookup.profiles;
   const profileIds = profiles.map((profile) => profile.id);
   authUserId =
     profiles.find((profile) => profile.id === clientSession?.userId)
