@@ -31,6 +31,7 @@ import {
   JP_VJW_OFFICIAL_PORTAL_URL,
   resolveJpVjwStoredCredentials,
 } from "./jp-vjw-credentials.js";
+import { readSupabaseUserAuthConfig } from "./supabase-user-auth-config.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "SubmissionResultRoutes" });
@@ -70,9 +71,8 @@ async function requireApplicationOwner(
     }
     const token = authHeader.slice("Bearer ".length).trim();
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !anonKey) {
+    const authConfig = readSupabaseUserAuthConfig();
+    if (!authConfig) {
       res.status(500).json({ error: "Supabase auth not configured" });
       return;
     }
@@ -80,7 +80,7 @@ async function requireApplicationOwner(
     // User-scoped client for token validation. We do NOT reuse this for the
     // ownership query because RLS could mask the row; the service-role
     // client is used for the join after we know the auth uid.
-    const userClient = createClient(supabaseUrl, anonKey, {
+    const userClient = createClient(authConfig.supabaseUrl, authConfig.anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
