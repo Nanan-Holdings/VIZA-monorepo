@@ -18,6 +18,9 @@ namespace `/visa` and sends/receives streaming events.
    single request-scoped database snapshot; never move chat content into a
    process-shared cache.
 4. Assistant output is persisted to `visa_chat_messages`.
+   `visible-chat-message.ts` keeps exact session/role/content idempotency in one
+   parameterized `INSERT ... WHERE NOT EXISTS` statement, rather than a
+   separate read followed by a write. Chat content must remain request-scoped.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
 6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
@@ -62,7 +65,8 @@ namespace `/visa` and sends/receives streaming events.
   mixed Schengen/non-Schengen flows, and service-country-to-RAG-seed coverage.
 - Persist visible user/assistant messages idempotently. The frontend also has a
   Supabase-side `ensureSessionMessage()` fallback, so Socket.IO persistence must
-  check for an existing exact session/role/content row before inserting.
+  check for an existing exact session/role/content row in the same parameterized
+  database statement used to insert it.
 - Never log `SOCKET_IO_REDIS_URL`, Redis errors that may echo that URL, chat
   payloads, or channel contents. Production shared-adapter connections must use
   `rediss://`; plaintext is limited to a local development loopback.
@@ -97,6 +101,7 @@ npm run test:socket-scaling-integration
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/socket/chat-concurrency.ts`
+- `viza-be/agent-backend/src/socket/visible-chat-message.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.integration.test.ts`
 - `viza-be/agent-backend/src/socket/visa-product-recommendations.test.ts`
