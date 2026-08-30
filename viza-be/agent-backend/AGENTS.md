@@ -258,6 +258,8 @@ the test skips safely when its dedicated URL is absent.
 - `src/socket/visa-namespace.ts`
 - `src/db/schema.ts`
 - `src/db/supabase-client.ts`
+- `src/db/successful-probe-cache.ts`: bounded success-only single-flight cache
+  used by Supabase health/readiness probes; failed probes are never cached.
 - `src/routes/internal-automation/*`
 - `src/routes/official-fee.routes.ts`
 - `src/routes/us-appointment.routes.ts`

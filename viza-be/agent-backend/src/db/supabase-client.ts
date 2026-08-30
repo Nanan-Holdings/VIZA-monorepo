@@ -14,12 +14,14 @@ import "../utils/node17-polyfills.js";
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logger } from "../utils/logger.js";
+import { SuccessfulProbeCache } from "./successful-probe-cache.js";
 
 const logger = new Logger({ serviceName: "SupabaseClient" });
 
 const DEFAULT_PROBE_TIMEOUT_MS = 3_000;
 const MAX_PROBE_TIMEOUT_MS = 3_000;
 const MIN_EXPLICIT_PROBE_TIMEOUT_MS = 100;
+const SUCCESSFUL_PROBE_CACHE_TTL_MS = 5_000;
 
 type SupabaseEnvironment = NodeJS.ProcessEnv;
 type SupabaseUrlEnvName = "SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_URL";
@@ -34,7 +36,6 @@ export interface SupabaseConnectionCheck {
 	success: boolean;
 	message: string;
 	latencyMs: number;
-	count?: number | null;
 	error?: string;
 }
 
@@ -46,6 +47,14 @@ export interface ActiveKnowledgeReleaseCheck {
 	releaseKey: string | null;
 	error?: string;
 }
+
+const connectionProbeCache = new SuccessfulProbeCache<SupabaseConnectionCheck>(
+	SUCCESSFUL_PROBE_CACHE_TTL_MS,
+);
+const knowledgeReleaseProbeCache =
+	new SuccessfulProbeCache<ActiveKnowledgeReleaseCheck>(
+		SUCCESSFUL_PROBE_CACHE_TTL_MS,
+	);
 
 function readFirstEnv(
 	env: SupabaseEnvironment,
@@ -144,7 +153,7 @@ export function getSupabaseClient(): SupabaseClient {
  * Test the Supabase connection by querying a simple table
  */
 
-export async function testSupabaseConnection(
+async function runSupabaseConnectionProbe(
 	timeoutMs = Number(process.env.READINESS_DB_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS),
 ): Promise<SupabaseConnectionCheck> {
 	const startedAt = Date.now();
@@ -152,10 +161,12 @@ export async function testSupabaseConnection(
 	try {
 		const client = getSupabaseClient();
 
-		// Try to query the applicant_profiles table (count only) - core table that must exist
-		const { error, count } = await client
+		// Confirm the core relation is reachable without an exact table count or
+		// returning applicant rows to the process.
+		const { error } = await client
 			.from("applicant_profiles")
-			.select("*", { count: "exact", head: true })
+			.select("id", { head: true })
+			.limit(1)
 			.abortSignal(controller.signal);
 
 		if (error) {
@@ -170,14 +181,11 @@ export async function testSupabaseConnection(
 			};
 		}
 
-		logger.info("supabase_connection_test_success", { userCount: count });
+		logger.info("supabase_connection_test_success");
 		return {
 			success: true,
-			message: `Supabase connection successful. Found ${
-				count || 0
-			} applicant profiles.`,
+			message: "Supabase connection successful.",
 			latencyMs: Date.now() - startedAt,
-			count,
 		};
 	} catch (error) {
 		logger.error("supabase_connection_test_error", error as Error);
@@ -192,12 +200,20 @@ export async function testSupabaseConnection(
 	}
 }
 
+export async function testSupabaseConnection(
+	timeoutMs = Number(process.env.READINESS_DB_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS),
+): Promise<SupabaseConnectionCheck> {
+	return connectionProbeCache.getOrCreate(() =>
+		runSupabaseConnectionProbe(timeoutMs),
+	);
+}
+
 /**
  * Probe the release metadata used by the legacy health response. The request
  * uses the same abort-bounded Supabase client as readiness checks so a stalled
  * REST connection cannot hold an HTTP health probe open indefinitely.
  */
-export async function testActiveKnowledgeRelease(
+async function runActiveKnowledgeReleaseProbe(
 	timeoutMs = Number(process.env.READINESS_DB_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS),
 ): Promise<ActiveKnowledgeReleaseCheck> {
 	const startedAt = Date.now();
@@ -243,4 +259,17 @@ export async function testActiveKnowledgeRelease(
 	} finally {
 		clearTimeout(timer);
 	}
+}
+
+export async function testActiveKnowledgeRelease(
+	timeoutMs = Number(process.env.READINESS_DB_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS),
+): Promise<ActiveKnowledgeReleaseCheck> {
+	return knowledgeReleaseProbeCache.getOrCreate(() =>
+		runActiveKnowledgeReleaseProbe(timeoutMs),
+	);
+}
+
+export function clearSupabaseProbeCachesForTests(): void {
+	connectionProbeCache.clear();
+	knowledgeReleaseProbeCache.clear();
 }
