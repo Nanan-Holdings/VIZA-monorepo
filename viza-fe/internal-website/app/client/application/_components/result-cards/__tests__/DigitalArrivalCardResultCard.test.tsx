@@ -58,7 +58,7 @@ describe("DigitalArrivalCardResultCard", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
-    fireEvent.click(screen.getByRole("button", { name: "在此填写" }));
+    fireEvent.click(screen.getByRole("button", { name: "再次填写" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -71,7 +71,25 @@ describe("DigitalArrivalCardResultCard", () => {
     );
   });
 
-  it("reveals the owner-only Visit Japan Web login on click and clears it on blur", async () => {
+  it("shows the official QR code directly with a separate download action", () => {
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+
+    const qrCode = screen.getByRole("img", { name: "日本官方二维码" });
+    expect(qrCode).toHaveAttribute(
+      "src",
+      "/api/applications/jp-application-id/submission-artifact?path=applications%2Fjapan%2Fofficial-qr.png&inline=1&download=visit-japan-web-jp-application-id.png",
+    );
+    expect(screen.getByRole("link", { name: "下载二维码" })).toHaveAttribute(
+      "href",
+      "/api/applications/jp-application-id/submission-artifact?path=applications%2Fjapan%2Fofficial-qr.png&download=visit-japan-web-jp-application-id.png",
+    );
+    expect(screen.queryByText("查看官方二维码")).not.toBeInTheDocument();
+    expect(screen.queryByText(/日本官方线上入境与海关申报服务免费/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the owner-only Visit Japan Web login visible and copies both values", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -97,7 +115,22 @@ describe("DigitalArrivalCardResultCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "显示密码" }));
     expect(screen.getByText("TestPassword2!")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "复制账号" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("application@viza.it.com"));
+    expect(screen.getByRole("button", { name: "已复制账号" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "复制密码" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("TestPassword2!"));
+    expect(screen.getByRole("button", { name: "已复制密码" })).toBeInTheDocument();
+
+    vi.useFakeTimers();
+    act(() => vi.advanceTimersByTime(61_000));
     act(() => window.dispatchEvent(new Event("blur")));
+    expect(screen.getByText("application@viza.it.com")).toBeInTheDocument();
+    expect(screen.getByText("TestPassword2!")).toBeInTheDocument();
+    expect(screen.queryByText(/60 秒后/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "隐藏官网登录信息" }));
     expect(screen.queryByText("application@viza.it.com")).not.toBeInTheDocument();
     expect(screen.queryByText("TestPassword2!")).not.toBeInTheDocument();
   });

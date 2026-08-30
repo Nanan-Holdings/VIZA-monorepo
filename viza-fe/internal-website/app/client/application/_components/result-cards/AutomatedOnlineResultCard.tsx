@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ArrowSquareOut as ExternalLink,
+  Check,
+  CopySimple,
   Download,
   Eye,
   EyeSlash,
@@ -46,8 +48,12 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
   const evidence = getAutomatedOnlineSubmissionEvidence(result, result.visaType);
   const artifactPath = evidence.qrPaths[0] ?? evidence.pdfPaths[0] ?? null;
   const artifactIsQr = Boolean(evidence.qrPaths[0]);
-  const artifactUrl = artifactPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(artifactPath)}&inline=${artifactIsQr ? "1" : "0"}&download=${encodeURIComponent(`${isJapan ? "visit-japan-web" : "kenya-eta"}-${result.applicationId}.${artifactIsQr ? "png" : "pdf"}`)}`
+  const artifactFilename = `${isJapan ? "visit-japan-web" : "kenya-eta"}-${result.applicationId}.${artifactIsQr ? "png" : "pdf"}`;
+  const artifactInlineUrl = artifactPath && artifactIsQr
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(artifactPath)}&inline=1&download=${encodeURIComponent(artifactFilename)}`
+    : null;
+  const artifactDownloadUrl = artifactPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(artifactPath)}&download=${encodeURIComponent(artifactFilename)}`
     : null;
   const blocked = result.status === "blocked" || result.status === "validation_failed" || result.status === "official_portal_error";
   const rejected = result.country === "KE" && result.status === "rejected";
@@ -80,21 +86,8 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
   const [revealingCredentials, setRevealingCredentials] = useState(false);
   const [credentials, setCredentials] = useState<JpVjwPortalCredentials | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [copiedCredential, setCopiedCredential] = useState<"email" | "password" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!credentials) return;
-    const clearCredentials = () => {
-      setCredentials(null);
-      setShowPassword(false);
-    };
-    const timeout = window.setTimeout(clearCredentials, 60_000);
-    window.addEventListener("blur", clearCredentials);
-    return () => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("blur", clearCredentials);
-    };
-  }, [credentials]);
 
   const startAgain = useCallback(async () => {
     if (!isJapan || !success) return;
@@ -147,6 +140,7 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
         revealedAt: body.revealedAt,
       });
       setShowPassword(false);
+      setCopiedCredential(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -157,7 +151,21 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
   const clearCredentials = useCallback(() => {
     setCredentials(null);
     setShowPassword(false);
+    setCopiedCredential(null);
   }, []);
+
+  const copyCredential = useCallback(async (
+    value: string,
+    field: "email" | "password",
+  ) => {
+    setActionError(null);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedCredential(field);
+    } catch {
+      setActionError(isZh ? "复制失败，请手动选择并复制。" : "Copy failed. Select and copy the value manually.");
+    }
+  }, [isZh]);
 
   return (
     <Card className="rounded-lg border-input">
@@ -185,27 +193,35 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
           {safeSummary}
         </p>
 
-        {isJapan ? (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-            {isZh
-              ? "日本官方线上入境与海关申报服务免费。VIZA 是独立服务，不是日本政府网站；根据官方使用条款，用户本人操作要求仍适用，VIZA 的自动化入口须经过合规授权，未获授权时不会执行官网操作。"
-              : "Visit Japan Web is free. VIZA is an independent service, not a Japanese government website. Its terms require the traveller to operate the service unless delegated operation is authorized; VIZA will not access the portal while that compliance gate is closed."}
-          </p>
-        ) : (
+        {!isJapan ? (
           <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
             {isZh
               ? "肯尼亚官方费用、支付手续费和 VIZA 服务费分别记录；VIZA 不会要求你在此页面输入官方门户卡号。"
               : "Kenya's official fee, payment processing fee, and VIZA service fee are recorded separately. VIZA will not ask you to enter an official-portal card number here."}
           </p>
-        )}
+        ) : null}
 
-        {artifactUrl && success ? (
+        {artifactInlineUrl && success ? (
+          <section className="space-y-4 rounded-lg border border-input bg-white p-4" aria-label={isZh ? "日本官方二维码" : "Official Visit Japan Web QR code"}>
+            <div className="flex justify-center">
+              <img
+                src={artifactInlineUrl}
+                alt={isZh ? "日本官方二维码" : "Official Visit Japan Web QR code"}
+                className="h-56 w-56 object-contain"
+              />
+            </div>
+            <Button asChild type="button" className="w-full">
+              <a href={artifactDownloadUrl ?? artifactInlineUrl}>
+                <Download className="mr-2 h-4 w-4" />
+                {isZh ? "下载二维码" : "Download QR code"}
+              </a>
+            </Button>
+          </section>
+        ) : artifactDownloadUrl && success ? (
           <Button asChild type="button">
-            <a href={artifactUrl} target="_blank" rel="noopener noreferrer">
+            <a href={artifactDownloadUrl}>
               <Download className="mr-2 h-4 w-4" />
-              {isZh
-                ? artifactIsQr ? "查看官方二维码" : "下载官方批准文件"
-                : artifactIsQr ? "View official QR code" : "Download official approval"}
+              {isZh ? "下载官方批准文件" : "Download official approval"}
             </a>
           </Button>
         ) : null}
@@ -213,7 +229,7 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
         {isJapan && success ? (
           <Button type="button" variant="outline" className="w-full" onClick={startAgain} disabled={startingAgain}>
             {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-            {isZh ? "在此填写" : "Fill another form here"}
+            {isZh ? "再次填写" : "Fill again"}
           </Button>
         ) : null}
 
@@ -235,9 +251,6 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">{isZh ? "日本官网登录信息" : "Visit Japan Web login details"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {isZh ? "信息会在 60 秒后或切换窗口时自动隐藏。" : "These details hide after 60 seconds or when you switch windows."}
-                </p>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={clearCredentials} aria-label={isZh ? "隐藏官网登录信息" : "Hide portal login details"}>
                 <X className="h-4 w-4" />
@@ -246,18 +259,44 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
             <dl className="space-y-3 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">{isZh ? "账号（邮箱）" : "Account email"}</dt>
-                <dd className="mt-1 break-all font-mono">{credentials.email}</dd>
+                <dd className="mt-1 flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 break-all font-mono">{credentials.email}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void copyCredential(credentials.email, "email")}
+                  >
+                    {copiedCredential === "email" ? <Check className="mr-2 h-4 w-4" /> : <CopySimple className="mr-2 h-4 w-4" />}
+                    {copiedCredential === "email"
+                      ? isZh ? "已复制账号" : "Email copied"
+                      : isZh ? "复制账号" : "Copy email"}
+                  </Button>
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">{isZh ? "密码" : "Password"}</dt>
-                <dd className="mt-1 flex items-center justify-between gap-3">
-                  <span className="break-all font-mono">{showPassword ? credentials.password : "••••••••••••••••"}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowPassword((visible) => !visible)}>
-                    {showPassword ? <EyeSlash className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-                    {showPassword
-                      ? isZh ? "隐藏密码" : "Hide password"
-                      : isZh ? "显示密码" : "Show password"}
-                  </Button>
+                <dd className="mt-1 flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 break-all font-mono">{showPassword ? credentials.password : "••••••••••••••••"}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setShowPassword((visible) => !visible)}>
+                      {showPassword ? <EyeSlash className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                      {showPassword
+                        ? isZh ? "隐藏密码" : "Hide password"
+                        : isZh ? "显示密码" : "Show password"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void copyCredential(credentials.password, "password")}
+                    >
+                      {copiedCredential === "password" ? <Check className="mr-2 h-4 w-4" /> : <CopySimple className="mr-2 h-4 w-4" />}
+                      {copiedCredential === "password"
+                        ? isZh ? "已复制密码" : "Password copied"
+                        : isZh ? "复制密码" : "Copy password"}
+                    </Button>
+                  </div>
                 </dd>
               </div>
             </dl>
