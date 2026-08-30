@@ -1,6 +1,11 @@
 import { createOpenAiClient } from "../utils/openai-client.js";
 import { Logger } from "../utils/logger.js";
-import { getSupabaseClient } from "../db/supabase-client.js";
+import {
+  buildApplicationContext,
+  type ApplicationContext,
+} from "./application-context.js";
+
+export { buildApplicationContext };
 
 const logger = new Logger({ serviceName: "VisaAgent" });
 
@@ -87,90 +92,6 @@ export function buildResponseLanguageInstruction(locale: ResponseLocale): string
   return locale === "zh"
     ? "Selected interface language: Simplified Chinese. Respond in natural Simplified Chinese even if the user writes in English or another language. Use Chinese product and form names in user-facing prose; do not mix in English names or internal product codes when a clear Chinese name exists. In particular, always call SG Arrival Card / SGAC \"新加坡电子入境卡\". Never expose VIZA internal routes or product codes in prose; application navigation belongs in the separate clickable card. Keep only genuinely necessary official government URLs and identifiers in their original form."
     : "Selected interface language: English. Respond primarily in English even if the user writes in Chinese or another language. Keep official visa names, form names, and URLs in their original language when useful, and briefly explain them in English.";
-}
-
-// =============================================================================
-// Application Context Builder (US-036)
-// =============================================================================
-
-interface ApplicationContext {
-  profile: Record<string, string | null> | null;
-  application: Record<string, string | null> | null;
-}
-
-/**
- * Fetch applicant profile and active application for a user from Supabase.
- * The chat frontend currently sends applicant_profiles.id as userId. The
- * auth_user_id fallback keeps older callers compatible.
- * Returns null on failure (non-fatal).
- */
-export async function buildApplicationContext(
-  userId: string
-): Promise<ApplicationContext> {
-  try {
-    const supabase = getSupabaseClient();
-
-    let { data: profile } = await supabase
-      .from("applicant_profiles")
-      .select(
-        "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
-      )
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!profile) {
-      const { data: profileByAuthUserId } = await supabase
-        .from("applicant_profiles")
-        .select(
-          "id, full_name, date_of_birth, nationality, passport_issuing_country, passport_number, passport_expiry_date, email, phone"
-        )
-        .eq("auth_user_id", userId)
-        .maybeSingle();
-
-      profile = profileByAuthUserId;
-    }
-
-    const { data: application } = await supabase
-      .from("applications")
-      .select(
-        "id, status, visa_type, country, arrival_date, departure_date, port_of_entry"
-      )
-      .eq("applicant_id", profile?.id ?? "")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    return {
-      profile: profile
-        ? {
-            full_name: profile.full_name ?? null,
-            date_of_birth: profile.date_of_birth ?? null,
-            nationality: profile.nationality ?? null,
-            passport_issuing_country: profile.passport_issuing_country ?? null,
-            passport_number: profile.passport_number ?? null,
-            passport_expiry_date: profile.passport_expiry_date ?? null,
-            email: profile.email ?? null,
-            phone: profile.phone ?? null,
-          }
-        : null,
-      application: application
-        ? {
-            id: application.id ?? null,
-            status: application.status ?? null,
-            visa_type: application.visa_type ?? null,
-            country: application.country ?? null,
-            arrival_date: application.arrival_date ?? null,
-            departure_date: application.departure_date ?? null,
-            port_of_entry: application.port_of_entry ?? null,
-          }
-        : null,
-    };
-  } catch (err) {
-    logger.warn("Failed to build application context", err as Error, {
-      userId,
-    });
-    return { profile: null, application: null };
-  }
 }
 
 /**
