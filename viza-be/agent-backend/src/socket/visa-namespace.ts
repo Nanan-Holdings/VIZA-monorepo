@@ -1,5 +1,4 @@
 import { Namespace, Socket } from 'socket.io';
-import { and, eq } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
 import {
@@ -59,6 +58,7 @@ import {
   loadChatTurnBootstrap,
   type ChatTurnBootstrapRow,
 } from './chat-turn-bootstrap.js';
+import { persistVisibleVisaChatMessage } from './visible-chat-message.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
 const CHAT_HISTORY_LIMIT = 50;
@@ -82,28 +82,12 @@ async function saveVisibleVisaChatMessage(
   role: 'user' | 'assistant',
   content: string
 ): Promise<void> {
-  const normalizedContent = content.trim();
-  if (!normalizedContent) return;
-
-  const existing = await db
-    .select({ id: visaChatMessages.id })
-    .from(visaChatMessages)
-    .where(
-      and(
-        eq(visaChatMessages.sessionId, sessionId),
-        eq(visaChatMessages.role, role),
-        eq(visaChatMessages.content, normalizedContent)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return;
-
-  await db.insert(visaChatMessages).values({
+  await persistVisibleVisaChatMessage(
     sessionId,
     role,
-    content: normalizedContent,
-  });
+    content,
+    (query) => db.execute(query)
+  );
 }
 
 function includesAny(value: string, terms: string[]): boolean {
