@@ -33,7 +33,12 @@ Supabase service-role client setup for the agent backend.
   production maintenance workflow and never replace it without validating the
   official download.
 - `migrate.ts`: migration runner.
-- `supabase-client.ts`: service-role Supabase client and connection check.
+- `supabase-client.ts`: service-role Supabase client plus success-only,
+  single-flight readiness checks. The core relation probe must remain an
+  existence-only `HEAD` query with `LIMIT 1`; never restore an exact applicant
+  count or log applicant identifiers.
+- `successful-probe-cache.ts`: five-second dependency-probe coalescing that
+  caches only successful results so failures remain immediately retryable.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
 - `../../drizzle/*.sql`: sequential SQL migrations.
 - `../../drizzle/0013_internal_automation_loop.sql`: website automation
