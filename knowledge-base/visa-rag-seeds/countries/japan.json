@@ -203,7 +203,7 @@
           "content": "Visit Japan Web 主要提交结构化入境和海关信息，不应把护照、机票或住宿文件路径写入 answers。VIZA 可在 application_documents 中保存护照、行程和住宿材料用于 OCR/人工核对；官方 portal 是否需要文件上传以当前页面为准。最终提交前必须让用户复核申报答案，并区分 VJW QR 结果与日本签证批准结果。"
         },
         {
-          "id": "standard_passport_identity_field_rules",
+          "id": "japan_vjw_standard_passport_identity_field_rules",
           "title": "Standard passport identity-field answer rules",
           "tags": ["standard-fields", "passport", "issuing-authority", "passport-type", "identity-document", "field-guidance", "official-source"],
           "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, official identity document, MRZ where that field is encoded, or the official form's dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. Treat issuing country, place of issue, and issuing authority as distinct fields and never substitute one for another. For Chinese ordinary passports, select Ordinary/Regular/Normal only when the document indicates that type."
