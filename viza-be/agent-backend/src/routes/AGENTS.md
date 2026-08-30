@@ -15,6 +15,10 @@ and internal admin flows.
   knowledge only; applicant answers, questions, and chat history remain
   request-scoped and must never enter this shared cache.
 - `validate-application.ts`: `POST /api/validate-application`.
+- `validate-application-knowledge-cache.ts`: bounded, expiring single-flight
+  cache for the fixed public knowledge retrieval used by application
+  validation. Every key must include the active knowledge release identity and
+  all retrieval parameters. Never cache applicant data or failed lookups.
 - `translation.routes.ts`: translation generation/read/update under
   `/api/applications/:id/...`.
 - `submission-result.routes.ts`: owner-authorized result artifacts plus the
