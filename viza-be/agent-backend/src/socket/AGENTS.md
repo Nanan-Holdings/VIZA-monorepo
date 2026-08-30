@@ -14,6 +14,9 @@ namespace `/visa` and sends/receives streaming events.
 3. `visa_chat_message` saves the user message, assembles history, loads
    application context, updates structured conversation state, retrieves RAG
    chunks, emits optional application redirect blocks, and streams OpenAI tokens.
+   `chat-turn-bootstrap.ts` must keep recent messages and persisted memory in a
+   single request-scoped database snapshot; never move chat content into a
+   process-shared cache.
 4. Assistant output is persisted to `visa_chat_messages`.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.

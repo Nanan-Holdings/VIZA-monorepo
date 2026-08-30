@@ -12,7 +12,9 @@ conversation state, and other cross-route behavior.
 - `visa-knowledge.service.ts`: embeddings, Supabase RPC retrieval,
   document-type targeting, fallback retrieval, and knowledge context formatting.
 - `visa-conversation-state.service.ts`: extracts, merges, persists, and
-  summarizes VIZA conversation route state.
+  summarizes VIZA conversation route state. It may reuse a complete
+  request-scoped session/message snapshot from the socket bootstrap, while an
+  incomplete legacy message page must retain the wider database fallback.
 - `visa-entry-rule.service.ts`: deterministic passport/destination eligibility
   lookup, reviewed policy fallbacks, and policy-first prompt generation.
 - `internal-automation/**`: lifecycle status mapping, external status
