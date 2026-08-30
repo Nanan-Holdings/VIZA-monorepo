@@ -34,6 +34,7 @@ import {
 import { getChineseLabel, getEnglishLabel } from "@/lib/ds160-translations";
 import { normalizeBilingualFormField } from "@/lib/bilingual-schema-contract";
 import { retryTransientSupabaseResult } from "@/lib/supabase/fetch-with-timeout";
+import { getCachedStaticVisaMetadata } from "@/lib/static-visa-metadata-cache";
 import {
   cacheApplicationAnswers,
   isResilienceEligibleError,
@@ -376,34 +377,50 @@ function groupUniversalSchemaRows(rows: VisaFormFieldDbRow[]) {
 
 async function loadUniversalProfileSchemaDefinitions(
   adminClient: ReturnType<typeof createAdminClient>
-) {
-  const pageSize = 1_000;
-  const rows: VisaFormFieldDbRow[] = [];
+): Promise<{
+  fields: UniversalProfileFieldDefinition[];
+  error?: string;
+}> {
+  try {
+    return await getCachedStaticVisaMetadata<{
+      fields: UniversalProfileFieldDefinition[];
+    }>("universal-profile-field-definitions:v1", async () => {
+      const rows = await getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
+        "visa-form-fields:v1:all",
+        async () => {
+          const pageSize = 1_000;
+          const allRows: VisaFormFieldDbRow[] = [];
 
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await adminClient
-      .from("visa_form_fields")
-      .select("*")
-      .order("visa_type", { ascending: true })
-      .order("step_number", { ascending: true })
-      .order("display_order", { ascending: true })
-      .range(from, from + pageSize - 1);
+          for (let from = 0; ; from += pageSize) {
+            const { data, error } = await adminClient
+              .from("visa_form_fields")
+              .select("*")
+              .order("visa_type", { ascending: true })
+              .order("step_number", { ascending: true })
+              .order("display_order", { ascending: true })
+              .range(from, from + pageSize - 1);
+            if (error) throw new Error(error.message);
 
-    if (error)
+            const page = (data ?? []) as VisaFormFieldDbRow[];
+            allRows.push(...page);
+            if (page.length < pageSize) break;
+          }
+          return allRows;
+        },
+      );
+
       return {
-        fields: [] as UniversalProfileFieldDefinition[],
-        error: error.message,
+        fields: buildUniversalProfileFieldDefinitions(
+          groupUniversalSchemaRows(rows)
+        ),
       };
-    const page = (data ?? []) as VisaFormFieldDbRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
+    });
+  } catch (error) {
+    return {
+      fields: [] as UniversalProfileFieldDefinition[],
+      error: error instanceof Error ? error.message : "Failed to load visa form schema",
+    };
   }
-
-  return {
-    fields: buildUniversalProfileFieldDefinitions(
-      groupUniversalSchemaRows(rows)
-    ),
-  };
 }
 
 async function loadApplicationOwnerProfile(
