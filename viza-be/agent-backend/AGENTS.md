@@ -22,6 +22,10 @@ explicitly reintroduces another provider.
   owns the bounded Socket.IO/HTTP/database shutdown order.
 - Express app: `src/app.ts` mounts REST routes and error handling.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
+  `src/agent/application-context.ts` owns the request-scoped applicant profile
+  and latest-application read. Keep its normal path as one nested Supabase
+  request, retain the legacy lookup as an availability fallback, and never
+  process-cache or log applicant data.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
 - Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
