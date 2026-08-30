@@ -35,6 +35,10 @@ Before changing this route, read:
 ## Key Files
 
 - `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends supporting-documents/review/status steps.
+  The normal form-context action preloads answers for the exact returned
+  application to avoid a duplicate ownership/read round trip. Reuse those
+  answers only while the application ID still matches; a newly bootstrapped or
+  explicit team application must perform its own authorized answer read.
 - `components/dynamic-step-form.tsx`: shared DB-driven localized form renderer, including hidden Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.

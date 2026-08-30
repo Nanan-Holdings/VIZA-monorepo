@@ -2799,6 +2799,10 @@ export default function ApplicationPage() {
     try {
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
+      let preloadedAnswers: {
+        applicationId: string;
+        answers: Record<string, string>;
+      } | null = null;
 
       if (explicitApplicationId) {
         const context = await getTeamApplicationContext(explicitApplicationId);
@@ -2820,6 +2824,12 @@ export default function ApplicationPage() {
         }
         profile = (context.profile as LoadedApplicantProfile | null) ?? null;
         application = (context.application as LoadedApplication | null) ?? null;
+        if (context.answersApplicationId && context.answers) {
+          preloadedAnswers = {
+            applicationId: context.answersApplicationId,
+            answers: context.answers,
+          };
+        }
       }
 
       if (
@@ -2879,12 +2889,16 @@ export default function ApplicationPage() {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
         let ds160Answers: Record<string, string> = {};
         if (application?.id) {
-          const { answers } = await loadDynamicAnswers(application.id);
-          ds160Answers = answers;
+          if (preloadedAnswers?.applicationId === application.id) {
+            ds160Answers = preloadedAnswers.answers;
+          } else {
+            const { answers } = await loadDynamicAnswers(application.id);
+            ds160Answers = answers;
+          }
           if (
             isLatestRequest() &&
             isKoreaEArrivalCard &&
-            validateKoreaEArrivalPreflight(answers).ok
+            validateKoreaEArrivalPreflight(ds160Answers).ok
           ) {
             setKoreaPreflightTrusted(true);
           }
