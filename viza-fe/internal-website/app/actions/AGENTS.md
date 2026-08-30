@@ -40,6 +40,12 @@ application lifecycle state.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
   Critical answer reads refresh an encrypted independent cache; transient save
   failures enqueue encrypted, idempotent replay events instead of losing work.
+  Form-context loads return answers only after resolving the owned applicant,
+  and ordinary answer reads/autosaves embed that same minimal ownership identity
+  in the application query so they do not spend a second database request on
+  `applicant_profiles`. Keep the legacy relationship fallback fail-closed and
+  cover the query budget plus unauthorized no-write path in
+  `visa-application-answers.query-budget.test.ts`.
   Universal Profile schema definitions may reuse the shared static visa
   metadata cache, but applicant profile values and answers must remain
   uncached and request-scoped.
