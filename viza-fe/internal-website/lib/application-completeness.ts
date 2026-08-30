@@ -3,6 +3,7 @@ import { normalizeBilingualFormField, resolveLocalizedFieldLabel } from "@/lib/b
 import { getTaiwanEntryPermitExtraRequirements } from "@/lib/taiwan-entry-permit-document-requirements";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { getFormVisaType } from "@/lib/visa-destinations";
+import { getCachedStaticVisaMetadata } from "@/lib/static-visa-metadata-cache";
 import { dbRowToFormField, type VisaFormFieldDbRow, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 
 type QueryableClient = {
@@ -522,17 +523,26 @@ export async function loadApplicationCompleteness(input: {
   );
 
   const [
-    { data: fieldRows, error: fieldRowsError },
+    fieldRows,
     { data: answerRows, error: answerRowsError },
     { data: documentRows, error: documentRowsError },
     { data: universalDocumentRows, error: universalDocumentRowsError },
   ] = await Promise.all([
-    admin
-      .from("visa_form_fields")
-      .select("*")
-      .eq("visa_type", schemaVisaType)
-      .order("step_number", { ascending: true })
-      .order("display_order", { ascending: true }),
+    getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
+      `visa-form-fields:v1:${schemaVisaType}`,
+      async () => {
+        const { data, error } = await admin
+          .from("visa_form_fields")
+          .select("*")
+          .eq("visa_type", schemaVisaType)
+          .order("step_number", { ascending: true })
+          .order("display_order", { ascending: true });
+        if (error) {
+          throw new Error(`Visa form schema lookup failed: ${error.message}`);
+        }
+        return (data ?? []) as VisaFormFieldDbRow[];
+      },
+    ),
     admin
       .from("visa_application_answers")
       .select("field_name, value_text")
@@ -549,8 +559,7 @@ export async function loadApplicationCompleteness(input: {
           .neq("status", "missing")
       : Promise.resolve({ data: [], error: null }),
   ]);
-  if (fieldRowsError) throw new Error(`Visa form schema lookup failed: ${fieldRowsError.message}`);
-  if (!fieldRows || fieldRows.length === 0) {
+  if (fieldRows.length === 0) {
     throw new Error(`Visa form schema is unavailable for ${schemaVisaType}`);
   }
   if (answerRowsError) throw new Error(`Application answer lookup failed: ${answerRowsError.message}`);
@@ -561,25 +570,45 @@ export async function loadApplicationCompleteness(input: {
 
   let requirements: ApplicationCompletenessDocumentRequirement[] = [];
   if (application.visa_package_id) {
-    const { data } = await admin
-      .from("document_requirements")
-      .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
-      .eq("visa_package_id", application.visa_package_id)
-      .order("sort_order", { ascending: true });
-    requirements = (data ?? []) as ApplicationCompletenessDocumentRequirement[];
+    try {
+      requirements = await getCachedStaticVisaMetadata<ApplicationCompletenessDocumentRequirement[]>(
+        `document-requirements:v1:package:${application.visa_package_id}`,
+        async () => {
+          const { data, error } = await admin
+            .from("document_requirements")
+            .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
+            .eq("visa_package_id", application.visa_package_id)
+            .order("sort_order", { ascending: true });
+          if (error) throw new Error(error.message);
+          return (data ?? []) as ApplicationCompletenessDocumentRequirement[];
+        },
+      );
+    } catch {
+      requirements = [];
+    }
   }
   if (requirements.length === 0) {
-    const { data } = await admin
-      .from("document_requirements")
-      .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
-      .eq("country", application.country)
-      .eq("visa_type", schemaVisaType)
-      .order("sort_order", { ascending: true });
-    requirements = (data ?? []) as ApplicationCompletenessDocumentRequirement[];
+    try {
+      requirements = await getCachedStaticVisaMetadata<ApplicationCompletenessDocumentRequirement[]>(
+        `document-requirements:v1:identity:${JSON.stringify([application.country ?? "", schemaVisaType])}`,
+        async () => {
+          const { data, error } = await admin
+            .from("document_requirements")
+            .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
+            .eq("country", application.country)
+            .eq("visa_type", schemaVisaType)
+            .order("sort_order", { ascending: true });
+          if (error) throw new Error(error.message);
+          return (data ?? []) as ApplicationCompletenessDocumentRequirement[];
+        },
+      );
+    } catch {
+      requirements = [];
+    }
   }
 
   const stepMap = new Map<number, WizardStep>();
-  for (const row of ((fieldRows ?? []) as VisaFormFieldDbRow[])) {
+  for (const row of fieldRows) {
     const field = normalizeBilingualFormField(dbRowToFormField(row));
     const step = stepMap.get(field.stepNumber) ?? {
       stepNumber: field.stepNumber,
