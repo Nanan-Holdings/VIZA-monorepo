@@ -47,6 +47,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   shared conditional-panel owner by `lib/application-schema-ui-contract.ts`.
   `scripts/audit-application-schema-ui.ts` validates every live country schema;
   strict errors block a schema launch.
+- Shared, non-sensitive visa form definitions and document requirements use
+  the bounded process-local singleflight cache in
+  `lib/static-visa-metadata-cache.ts`. Never place applicant answers, profile
+  data, credentials, payments, or other user-scoped values in that cache.
 - The development-only `/edge-cases` route under `app/edge-cases/**` reads that
   same compiler report and presents every current design edge case as a
   component study with the complete affected visa-type and field inventory.
@@ -528,6 +532,8 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
+- `lib/static-visa-metadata-cache.ts`: bounded TTL/LRU and cold-miss
+  singleflight for shared visa schema metadata only.
 - `lib/canada-trv-completion.ts`: fail-closed CA_TRV value validation and
   versioned consent/signature/IRCC-terms completion gates shared by the wizard.
 - `lib/application-step-sections.ts`
