@@ -1,5 +1,13 @@
-import { getSupabaseClient } from '../db/supabase-client.js';
+import {
+  getSupabaseClient,
+  testActiveKnowledgeRelease,
+  type ActiveKnowledgeReleaseCheck,
+} from '../db/supabase-client.js';
 import { Logger } from '../utils/logger.js';
+import {
+  createVisaEntryRuleCacheKey,
+  VisaEntryRuleCache,
+} from './visa-entry-rule-cache.js';
 import {
   ADDITIONAL_REVIEWED_VISA_ENTRY_RULE_MAP,
   REVIEWED_VISA_ENTRY_RULE_MAP,
@@ -13,6 +21,8 @@ import {
 } from '../config/visa-product-registry.js';
 
 const logger = new Logger({ serviceName: 'VisaEntryRuleService' });
+const ENTRY_RULE_CACHE_MAX_ENTRIES = 256;
+const ENTRY_RULE_CACHE_TTL_MS = 60 * 1000;
 
 export type VisaEntryOutcome =
   | 'visa_exempt'
@@ -254,8 +264,92 @@ function isProductRecommendation(value: unknown): value is VisaProductRecommenda
   );
 }
 
-export async function resolveVisaEntryRule(
-  query: VisaEntryRuleQuery
+async function loadActiveVisaEntryRule(
+  query: VisaEntryRuleQuery,
+  releaseId: string | null
+): Promise<VisaEntryRule | null> {
+  const supabase = getSupabaseClient();
+  let ruleQuery = supabase
+    .from('visa_entry_rules')
+    .select(
+      'rule_key, destination_country, passport_country_iso3, passport_type, trip_purpose, max_stay_days, outcome, review_status, visa_type, arrival_card_types, required_inputs, product_recommendations, conditions_json, source_url, effective_from, effective_to, verified_at, review_due_at, visa_knowledge_releases!inner(id, release_key, status)'
+    )
+    .eq('destination_country', query.destinationCountry)
+    .eq('passport_country_iso3', query.passportCountryIso3)
+    .eq('passport_type', query.passportType)
+    .eq('trip_purpose', query.tripPurpose ?? 'tourism')
+    .eq('status', 'active')
+    .eq('visa_knowledge_releases.status', 'active')
+    .order('verified_at', { ascending: false });
+
+  if (releaseId) ruleQuery = ruleQuery.eq('release_id', releaseId);
+
+  const { data, error } = await ruleQuery
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const rule = mapRule(data as Record<string, unknown>);
+  if (
+    !rule ||
+    rule.reviewStatus !== 'reviewed' ||
+    rule.outcome === 'unknown'
+  ) {
+    return null;
+  }
+  return rule;
+}
+
+function applyDatabaseStayLength(
+  rule: VisaEntryRule,
+  stayLengthDays: number | null
+): VisaEntryRule {
+  const requestRule = structuredClone(rule);
+  if (
+    requestRule.maxStayDays === null ||
+    stayLengthDays === null ||
+    stayLengthDays <= requestRule.maxStayDays
+  ) {
+    return requestRule;
+  }
+
+  return {
+    ...requestRule,
+    outcome: 'conditional',
+    visaType: null,
+    arrivalCardTypes: [],
+    requiredInputs: Array.from(
+      new Set([...requestRule.requiredInputs, 'stayLengthDays'])
+    ),
+    productRecommendations: [],
+  };
+}
+
+export interface VisaEntryRuleResolverDependencies {
+  getActiveRelease: () => Promise<ActiveKnowledgeReleaseCheck>;
+  loadActiveRule: (
+    query: VisaEntryRuleQuery,
+    releaseId: string | null
+  ) => Promise<VisaEntryRule | null>;
+  cache: VisaEntryRuleCache<VisaEntryRule | null>;
+}
+
+const visaEntryRuleCache = new VisaEntryRuleCache<VisaEntryRule | null>(
+  ENTRY_RULE_CACHE_MAX_ENTRIES,
+  ENTRY_RULE_CACHE_TTL_MS
+);
+
+const defaultVisaEntryRuleResolverDependencies: VisaEntryRuleResolverDependencies = {
+  getActiveRelease: () => testActiveKnowledgeRelease(),
+  loadActiveRule: loadActiveVisaEntryRule,
+  cache: visaEntryRuleCache,
+};
+
+export async function resolveVisaEntryRuleWithDependencies(
+  query: VisaEntryRuleQuery,
+  dependencies: VisaEntryRuleResolverDependencies
 ): Promise<VisaEntryRule | null> {
   if (
     !query.destinationCountry ||
@@ -266,57 +360,52 @@ export async function resolveVisaEntryRule(
   }
 
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('visa_entry_rules')
-      .select(
-        'rule_key, destination_country, passport_country_iso3, passport_type, trip_purpose, max_stay_days, outcome, review_status, visa_type, arrival_card_types, required_inputs, product_recommendations, conditions_json, source_url, effective_from, effective_to, verified_at, review_due_at, visa_knowledge_releases!inner(status)'
-      )
-      .eq('destination_country', query.destinationCountry)
-      .eq('passport_country_iso3', query.passportCountryIso3)
-      .eq('passport_type', query.passportType)
-      .eq('trip_purpose', query.tripPurpose ?? 'tourism')
-      .eq('status', 'active')
-      .eq('visa_knowledge_releases.status', 'active')
-      .order('verified_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const activeRelease = await dependencies.getActiveRelease();
+    let rule: VisaEntryRule | null;
 
-    if (!error && data) {
-      const rule = mapRule(data as Record<string, unknown>);
-      if (rule) {
-        if (
-          rule.reviewStatus !== 'reviewed' ||
-          rule.outcome === 'unknown'
-        ) {
-          return resolveReviewedVisaEntryRule(query);
-        }
-        if (
-          rule.maxStayDays !== null &&
-          query.stayLengthDays !== null &&
-          query.stayLengthDays > rule.maxStayDays
-        ) {
-          return {
-            ...rule,
-            outcome: 'conditional',
-            visaType: null,
-            arrivalCardTypes: [],
-            requiredInputs: Array.from(
-              new Set([...rule.requiredInputs, 'stayLengthDays'])
-            ),
-            productRecommendations: [],
-          };
-        }
-        return rule;
-      }
-    } else if (error) {
-      logger.warn('Entry-rule lookup failed; using reviewed code fallback', error);
+    if (
+      activeRelease.success &&
+      activeRelease.releaseId &&
+      activeRelease.releaseKey
+    ) {
+      const cacheKey = createVisaEntryRuleCacheKey({
+        releaseId: activeRelease.releaseId,
+        releaseKey: activeRelease.releaseKey,
+        destinationCountry: query.destinationCountry,
+        passportCountryIso3: query.passportCountryIso3,
+        passportType: query.passportType,
+        tripPurpose: query.tripPurpose ?? 'tourism',
+      });
+      const cached = await dependencies.cache.getOrCreate(
+        cacheKey,
+        () => dependencies.loadActiveRule(query, activeRelease.releaseId),
+        (value) => value !== null
+      );
+      rule = cached.value;
+    } else {
+      // Without an exact knowledge version, bypass the shared cache so a
+      // transient metadata failure cannot pin an unversioned rule.
+      rule = await dependencies.loadActiveRule(query, null);
     }
+
+    if (rule) return applyDatabaseStayLength(rule, query.stayLengthDays);
   } catch (error) {
-    logger.warn('Entry-rule lookup errored; using reviewed code fallback', error as Error);
+    logger.warn(
+      'Entry-rule lookup errored; using reviewed code fallback',
+      error as Error
+    );
   }
 
   return resolveReviewedVisaEntryRule(query);
+}
+
+export async function resolveVisaEntryRule(
+  query: VisaEntryRuleQuery
+): Promise<VisaEntryRule | null> {
+  return resolveVisaEntryRuleWithDependencies(
+    query,
+    defaultVisaEntryRuleResolverDependencies
+  );
 }
 
 export function buildVisaEntryRulePrompt(
