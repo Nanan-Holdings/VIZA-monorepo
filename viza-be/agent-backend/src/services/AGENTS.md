@@ -17,6 +17,10 @@ conversation state, and other cross-route behavior.
   incomplete legacy message page must retain the wider database fallback.
 - `visa-entry-rule.service.ts`: deterministic passport/destination eligibility
   lookup, reviewed policy fallbacks, and policy-first prompt generation.
+  `visa-entry-rule-cache.ts` coalesces identical public rule lookups in a
+  bounded process-local cache keyed to the exact active knowledge release.
+  Applicant identity, chat text, answers, and stay length must remain outside
+  the shared cache; stay limits are evaluated on a defensive per-request copy.
 - `internal-automation/**`: lifecycle status mapping, external status
   normalization, packet handoff payload shaping, and notification payload
   helpers for website-owned automation.
