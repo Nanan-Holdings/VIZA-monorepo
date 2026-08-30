@@ -1,8 +1,11 @@
 import { Namespace, Socket } from 'socket.io';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Logger } from '../utils/logger.js';
 import { db } from '../db/index.js';
-import { visaAgentRunDiagnostics, visaChatMessages } from '../db/schema.js';
+import {
+  visaAgentRunDiagnostics,
+  visaChatMessages,
+} from '../db/schema.js';
 import {
   streamChat,
   buildApplicationContext,
@@ -38,6 +41,7 @@ import {
   summarizeVisaConversationState,
   updateVisaConversationState,
   type VisaConversationState,
+  type VisaConversationStateSnapshot,
 } from '../services/visa-conversation-state.service.js';
 import {
   buildVisaEntryRulePrompt,
@@ -50,8 +54,14 @@ import {
   ChatConcurrencyGate,
   readChatCapacityLimits,
 } from './chat-concurrency.js';
+import {
+  buildChatTurnBootstrapQuery,
+  loadChatTurnBootstrap,
+  type ChatTurnBootstrapRow,
+} from './chat-turn-bootstrap.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
+const CHAT_HISTORY_LIMIT = 50;
 
 let chatConcurrencyGate: ChatConcurrencyGate | null = null;
 
@@ -1046,20 +1056,28 @@ export function registerVisaNamespace(nsp: Namespace): void {
           });
         }
 
-        // 2. Load conversation history (fallback to current message only)
+        // 2. Load conversation history and session memory in one DB snapshot.
+        // Application context is independent, so overlap it with this read.
+        const applicationContextPromise = buildApplicationContext(user_id);
         const clientHistory = normalizeClientHistory(request.history, message);
         let historySource: 'client' | 'database' | 'current_message' =
           clientHistory.length > 1 ? 'client' : 'current_message';
         let chatHistory: { role: 'user' | 'assistant'; content: string }[] =
           clientHistory.length > 0 ? clientHistory : [{ role: 'user', content: message }];
+        let conversationStateSnapshot: VisaConversationStateSnapshot | undefined;
 
         try {
-          const history = await db
-            .select({ role: visaChatMessages.role, content: visaChatMessages.content })
-            .from(visaChatMessages)
-            .where(eq(visaChatMessages.sessionId, session_id))
-            .orderBy(desc(visaChatMessages.createdAt))
-            .limit(50);
+          const bootstrap = await loadChatTurnBootstrap(
+            CHAT_HISTORY_LIMIT,
+            async () => {
+              const result = await db.execute(
+                buildChatTurnBootstrapQuery(session_id, CHAT_HISTORY_LIMIT),
+              );
+              return (result.rows ?? result) as unknown as ChatTurnBootstrapRow[];
+            },
+          );
+          const history = bootstrap.messageRows;
+          conversationStateSnapshot = bootstrap.conversationStateSnapshot ?? undefined;
 
           if (history.length > 0) {
             // Only include user/assistant messages (skip 'block' role for OpenAI API)
@@ -1083,18 +1101,21 @@ export function registerVisaNamespace(nsp: Namespace): void {
         }
 
         // 3. Build structured state, dynamic system prompt, and RAG context.
-        const appContext = await buildApplicationContext(user_id);
-        let priorConversationState: VisaConversationState | null = null;
-        let memoryRevision = 0;
-        try {
-          const persistedState = await loadVisaConversationState(session_id);
-          priorConversationState = persistedState.state;
-          memoryRevision = persistedState.revision;
-        } catch (stateErr) {
+        const persistedStatePromise = loadVisaConversationState(
+          session_id,
+          conversationStateSnapshot,
+        ).catch((stateErr: unknown) => {
           logger.warn('Failed to load visa conversation state', stateErr as Error, {
             sessionId: session_id,
           });
-        }
+          return null;
+        });
+        const [appContext, persistedState] = await Promise.all([
+          applicationContextPromise,
+          persistedStatePromise,
+        ]);
+        let priorConversationState: VisaConversationState | null = persistedState?.state ?? null;
+        let memoryRevision = persistedState?.revision ?? 0;
         const profilePassportCountry =
           appContext.profile?.nationality ??
           appContext.profile?.passport_issuing_country ??
