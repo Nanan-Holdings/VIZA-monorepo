@@ -871,23 +871,67 @@ export interface PersistedVisaConversationState {
   revision: number;
 }
 
-export async function loadVisaConversationState(
-  sessionId: string
-): Promise<PersistedVisaConversationState> {
-  const supabase = getSupabaseClient();
-  const { data: session, error: sessionError } = await supabase
-    .from('visa_chat_sessions')
-    .select('memory_json, memory_revision')
-    .eq('id', sessionId)
-    .maybeSingle();
-  if (sessionError) throw sessionError;
+export interface VisaConversationStateSnapshot {
+  memoryJson: unknown;
+  memoryRevision: number | string | bigint | null;
+  legacyMessageContents: string[];
+  legacyHistoryComplete: boolean;
+}
 
-  const memory = session?.memory_json as Partial<VisaConversationState> | undefined;
-  if (memory && Object.keys(memory).length > 0) {
-    return {
-      state: normalizeVisaConversationState(memory),
-      revision: Number(session?.memory_revision ?? 0),
-    };
+function stateFromMemoryJson(value: unknown): VisaConversationState | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (Object.keys(value).length === 0) return null;
+  return normalizeVisaConversationState(value as Partial<VisaConversationState>);
+}
+
+function stateFromLegacyMessages(contents: string[]): VisaConversationState | null {
+  return contents
+    .map(parseVisaConversationStateMarker)
+    .find((state): state is VisaConversationState => state !== null) ?? null;
+}
+
+/**
+ * Resolve state from a request-scoped session/message snapshot. A null result
+ * means the supplied message page was truncated and the wider legacy fallback
+ * query is still required.
+ */
+export function resolveVisaConversationStateSnapshot(
+  snapshot: VisaConversationStateSnapshot,
+): PersistedVisaConversationState | null {
+  const revision = Number(snapshot.memoryRevision ?? 0);
+  const memory = stateFromMemoryJson(snapshot.memoryJson);
+  if (memory) return { state: memory, revision };
+  if (!snapshot.legacyHistoryComplete) return null;
+
+  return {
+    state: stateFromLegacyMessages(snapshot.legacyMessageContents) ??
+      createEmptyVisaConversationState(),
+    revision,
+  };
+}
+
+export async function loadVisaConversationState(
+  sessionId: string,
+  snapshot?: VisaConversationStateSnapshot,
+): Promise<PersistedVisaConversationState> {
+  const resolvedSnapshot = snapshot
+    ? resolveVisaConversationStateSnapshot(snapshot)
+    : null;
+  if (resolvedSnapshot) return resolvedSnapshot;
+
+  const supabase = getSupabaseClient();
+  let revision = Number(snapshot?.memoryRevision ?? 0);
+  if (!snapshot) {
+    const { data: session, error: sessionError } = await supabase
+      .from('visa_chat_sessions')
+      .select('memory_json, memory_revision')
+      .eq('id', sessionId)
+      .maybeSingle();
+    if (sessionError) throw sessionError;
+
+    revision = Number(session?.memory_revision ?? 0);
+    const memory = stateFromMemoryJson(session?.memory_json);
+    if (memory) return { state: memory, revision };
   }
 
   const { data: rows, error: messagesError } = await supabase
@@ -898,14 +942,11 @@ export async function loadVisaConversationState(
     .limit(120);
   if (messagesError) throw messagesError;
 
-  const latest = (rows ?? [])
-    .map((row) => parseVisaConversationStateMarker(row.content))
-    .filter((state): state is VisaConversationState => state !== null)
-    .at(0);
+  const latest = stateFromLegacyMessages((rows ?? []).map((row) => row.content));
 
   return {
     state: latest ?? createEmptyVisaConversationState(),
-    revision: Number(session?.memory_revision ?? 0),
+    revision,
   };
 }
 
