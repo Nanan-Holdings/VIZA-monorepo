@@ -11,10 +11,14 @@
 
 import { Router, Request, Response } from "express";
 import { createOpenAiClient } from "../utils/openai-client.js";
-import { getSupabaseClient } from "../db/supabase-client.js";
+import {
+  getSupabaseClient,
+  testActiveKnowledgeRelease,
+} from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 import { runWithProviderCapacity } from "../utils/provider-capacity.js";
 import { createRequestAbortSignal } from "./request-abort.js";
+import { ValidationKnowledgeContextCache } from "./validate-application-knowledge-cache.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "ValidateApplication" });
@@ -37,6 +41,19 @@ const OPENAI_VALIDATION_MODEL =
   process.env.OPENAI_CHAT_MODEL ||
   process.env.OPENAI_MODEL ||
   "gpt-4o-mini";
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const VALIDATION_KNOWLEDGE_QUERY =
+  "Indonesia B211A tourist visa requirements passport expiry travel dates documents";
+const VALIDATION_KNOWLEDGE_MATCH_COUNT = 5;
+const VALIDATION_KNOWLEDGE_VISA_TYPE = "tourist_b211a";
+const validationKnowledgeCache = new ValidationKnowledgeContextCache();
+const STATIC_VALIDATION_KNOWLEDGE = `Indonesia B211A Tourist Visa Requirements:
+- Passport valid for at least 6 months beyond intended departure date
+- Single entry, maximum stay 60 days (extendable to 180 days total)
+- Required documents: passport copy, passport-size photo, flight booking, hotel booking, travel itinerary, bank statement (3 months)
+- Application via evisa.imigrasi.go.id
+- Processing time: 5 working days
+- Fee: IDR 1,000,000 (~$65 USD)`;
 
 // Hard-coded rule checks (run before AI semantic validation)
 function runHardRules(app: Record<string, unknown>, docs: string[]): {
@@ -106,7 +123,7 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
       const response = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
-        body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
+        body: JSON.stringify({ model: EMBEDDING_MODEL, input: text }),
         signal,
       });
       return await response.json() as { data?: Array<{embedding: number[]}> };
@@ -118,34 +135,61 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
 }
 
 // Fetch relevant visa knowledge chunks
+async function retrieveValidationKnowledgeContext(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  requestSignal?: AbortSignal,
+): Promise<string> {
+  const embedding = await getEmbedding(VALIDATION_KNOWLEDGE_QUERY, requestSignal);
+  if (!embedding) {
+    throw new Error("Validation knowledge embedding unavailable");
+  }
+
+  const { data, error } = await supabase.rpc("match_visa_chunks", {
+    query_embedding: embedding,
+    match_count: VALIDATION_KNOWLEDGE_MATCH_COUNT,
+    filter_visa_type: VALIDATION_KNOWLEDGE_VISA_TYPE,
+  });
+  if (error) {
+    throw new Error("Validation knowledge RPC unavailable");
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error("Validation knowledge returned no matches");
+  }
+
+  return (data as Array<{ content: string }>).map((chunk) => chunk.content).join("\n\n");
+}
+
+// Cache only shared official knowledge, keyed by the currently active release.
+// Shared work intentionally does not inherit one caller's abort signal.
 async function getKnowledgeContext(
   supabase: ReturnType<typeof getSupabaseClient>,
   requestSignal?: AbortSignal,
 ): Promise<string> {
-  const embedding = await getEmbedding(
-    "Indonesia B211A tourist visa requirements passport expiry travel dates documents",
-    requestSignal,
-  );
-
-  if (embedding) {
-    const { data } = await supabase.rpc("match_visa_chunks", {
-      query_embedding: embedding,
-      match_count: 5,
-      filter_visa_type: "tourist_b211a",
-    });
-    if (data && data.length > 0) {
-      return (data as Array<{content: string}>).map(c => c.content).join("\n\n");
+  const activeRelease = await testActiveKnowledgeRelease();
+  try {
+    if (activeRelease.success && activeRelease.releaseId && activeRelease.releaseKey) {
+      const result = await validationKnowledgeCache.getOrCreate({
+        releaseId: activeRelease.releaseId,
+        releaseKey: activeRelease.releaseKey,
+        query: VALIDATION_KNOWLEDGE_QUERY,
+        embeddingModel: EMBEDDING_MODEL,
+        matchCount: VALIDATION_KNOWLEDGE_MATCH_COUNT,
+        filterVisaType: VALIDATION_KNOWLEDGE_VISA_TYPE,
+      }, () => retrieveValidationKnowledgeContext(supabase));
+      return result.value;
     }
-  }
 
-  // Fallback: load static knowledge
-  return `Indonesia B211A Tourist Visa Requirements:
-- Passport valid for at least 6 months beyond intended departure date
-- Single entry, maximum stay 60 days (extendable to 180 days total)
-- Required documents: passport copy, passport-size photo, flight booking, hotel booking, travel itinerary, bank statement (3 months)
-- Application via evisa.imigrasi.go.id
-- Processing time: 5 working days
-- Fee: IDR 1,000,000 (~$65 USD)`;
+    // A release metadata outage must not make an unversioned result reusable.
+    return await retrieveValidationKnowledgeContext(supabase, requestSignal);
+  } catch (error) {
+    logger.warn("Validation knowledge retrieval degraded to static context", undefined, {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      versionedCacheEligible: Boolean(
+        activeRelease.success && activeRelease.releaseId && activeRelease.releaseKey,
+      ),
+    });
+    return STATIC_VALIDATION_KNOWLEDGE;
+  }
 }
 
 router.post("/", async (req: Request, res: Response): Promise<void> => {
