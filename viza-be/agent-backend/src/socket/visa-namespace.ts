@@ -36,7 +36,7 @@ import {
   loadVisaConversationState,
   normalizePassportCountryIso3,
   normalizeVisaConversationState,
-  saveVisaConversationState,
+  persistVisaConversationStateIfChanged,
   summarizeVisaConversationState,
   updateVisaConversationState,
   type VisaConversationState,
@@ -1171,15 +1171,17 @@ export function registerVisaNamespace(nsp: Namespace): void {
           message
         );
         try {
-          memoryRevision = await saveVisaConversationState(
+          const statePersistence = await persistVisaConversationStateIfChanged(
             session_id,
             conversationState,
-            memoryRevision
+            persistedState,
           );
+          memoryRevision = statePersistence.revision;
           socket.emit('visa_memory_updated', {
             sessionId: session_id,
             revision: memoryRevision,
             state: conversationState,
+            persisted: statePersistence.wrote,
           });
         } catch (stateErr) {
           if (
@@ -1193,16 +1195,18 @@ export function registerVisaNamespace(nsp: Namespace): void {
                 chatHistory,
                 message
               );
-              memoryRevision = await saveVisaConversationState(
+              const retryPersistence = await persistVisaConversationStateIfChanged(
                 session_id,
                 rebased,
-                current.revision
+                current,
               );
+              memoryRevision = retryPersistence.revision;
               Object.assign(conversationState, rebased);
               socket.emit('visa_memory_updated', {
                 sessionId: session_id,
                 revision: memoryRevision,
                 state: rebased,
+                persisted: retryPersistence.wrote,
               });
             } catch (retryError) {
               logger.warn('Failed to rebase visa conversation memory', retryError as Error, {

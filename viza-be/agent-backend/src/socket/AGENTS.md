@@ -29,6 +29,10 @@ namespace `/visa` and sends/receives streaming events.
    Application redirect blocks are emitted in their original order and then
    persisted by `application-block-persistence.ts` in one batch per turn;
    retain one-block writes only as the availability fallback.
+   Structured conversation memory must skip optimistic writes when every
+   semantic field is unchanged (ignoring only `updatedAt`). Legacy/empty
+   memory must still write once, and revision-conflict rebases must repeat the
+   same semantic check before retrying.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
 6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
