@@ -76,6 +76,32 @@ vi.mock("../utils/provider-capacity.js", () => ({
   }),
 }));
 
+vi.mock("../services/visa-knowledge-capacity.js", () => ({
+  getVisaKnowledgeCapacityMetrics: () => ({
+    active: 1,
+    peakActive: 3,
+    total: 12,
+    completed: 9,
+    degraded: 2,
+    failed: 1,
+    aborted: 2,
+    externalRequests: { embedding: 10, vector: 8, rest: 3 },
+    externalFailures: { embedding: 1, vector: 1, rest: 0 },
+    broadFallbacks: { vector: 2, rest: 1 },
+    results: { vector: 7, rest: 2, empty: 0 },
+    abortedByPhase: {
+      beforeExternal: 0,
+      embedding: 1,
+      vector: 1,
+      rest: 0,
+      between: 0,
+    },
+    durationP50Ms: 220,
+    durationP95Ms: 840,
+    durationMaxMs: 1_200,
+  }),
+}));
+
 vi.mock("../observability/runtime-capacity.js", () => ({
   getRuntimeCapacityMetrics: () => ({
     monitoring: true,
@@ -139,7 +165,7 @@ describe("capacity status route", () => {
     await request(app).get("/capacity").expect(401);
   });
 
-  it("returns only aggregate chat and database capacity metrics", async () => {
+  it("returns only aggregate process and dependency capacity metrics", async () => {
     const { statusOperationsRouter } = await import("./public-status.routes.js");
     const app = express().use(statusOperationsRouter);
     const response = await request(app)
@@ -152,6 +178,14 @@ describe("capacity status route", () => {
       instanceId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
       chat: { active: 2, queued: 3 },
       provider: { active: 1, queued: 2, failed: 1 },
+      rag: {
+        active: 1,
+        total: 12,
+        degraded: 2,
+        aborted: 2,
+        externalRequests: { embedding: 10, vector: 8, rest: 3 },
+        abortedByPhase: { embedding: 1, vector: 1 },
+      },
       runtime: {
         monitoring: true,
         eventLoop: { delayP95Ms: 4, utilizationPercent: 25 },
@@ -165,7 +199,9 @@ describe("capacity status route", () => {
       },
       database: { pool: { activeConnections: 1 }, queries: { totalQueries: 4 } },
     });
-    expect(JSON.stringify(response.body)).not.toMatch(/userId|sessionId|queryText|parameters/i);
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /userId|sessionId|queryText|parameters|country|visaType|message|content/i,
+    );
   });
 
   it("uses a dedicated secret and runs only a synthetic read while enabled", async () => {

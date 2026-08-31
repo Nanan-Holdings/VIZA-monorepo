@@ -1,6 +1,10 @@
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
 import { runWithProviderCapacity } from "../utils/provider-capacity.js";
+import {
+  visaKnowledgeCapacityMonitor,
+  type VisaKnowledgeRequestTrace,
+} from "./visa-knowledge-capacity.js";
 
 const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 
@@ -160,12 +164,17 @@ function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery 
   return documentTypes ? { ...query, documentTypes } : query;
 }
 
-async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<number[] | null> {
+async function getEmbedding(
+  text: string,
+  trace: VisaKnowledgeRequestTrace,
+  requestSignal?: AbortSignal,
+): Promise<number[] | null> {
   throwIfRequestAborted(requestSignal);
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
 
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "embedding");
   try {
     const result = await runWithProviderCapacity(async (signal) => {
       const response = await fetch("https://api.openai.com/v1/embeddings", {
@@ -188,15 +197,23 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
     }, requestSignal);
 
     throwIfRequestAborted(requestSignal);
+    visaKnowledgeCapacityMonitor.markBetween(trace);
     if (!result.body) {
+      visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
       logger.warn("Embedding request failed", undefined, {
         status: result.status,
       });
       return null;
     }
-    return result.body.data?.[0]?.embedding ?? null;
+    const embedding = result.body.data?.[0]?.embedding ?? null;
+    if (!embedding) {
+      visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
+    }
+    return embedding;
   } catch (error) {
     if (requestSignal?.aborted) throw requestAbortError(requestSignal);
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "embedding");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
     logger.warn("Embedding request errored", undefined, {
       errorName: error instanceof Error ? error.name : "UnknownError",
     });
@@ -239,7 +256,8 @@ async function retrieveWithVectorSearch(
   query: VisaKnowledgeQuery,
   embedding: number[],
   matchCount: number,
-  minSimilarity: number
+  minSimilarity: number,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeChunk[]> {
   const supabase = getSupabaseClient();
   const request = supabase.rpc("match_visa_chunks", {
@@ -253,13 +271,25 @@ async function retrieveWithVectorSearch(
         : null,
     min_similarity: minSimilarity,
   });
-  const { data, error } = query.signal
-    ? await request.abortSignal(query.signal)
-    : await request;
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "vector");
+  let response: Awaited<typeof request>;
+  try {
+    response = query.signal
+      ? await request.abortSignal(query.signal)
+      : await request;
+  } catch (error) {
+    if (query.signal?.aborted) throw error;
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "vector");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    throw error;
+  }
+  const { data, error } = response;
 
   throwIfRequestAborted(query.signal);
+  visaKnowledgeCapacityMonitor.markBetween(trace);
 
   if (error) {
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "vector");
     throw new Error(error.message);
   }
 
@@ -271,7 +301,8 @@ async function retrieveWithVectorSearch(
 
 async function retrieveWithFilteredFallback(
   query: VisaKnowledgeQuery,
-  matchCount: number
+  matchCount: number,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeChunk[]> {
   const supabase = getSupabaseClient();
   let request = supabase
@@ -293,13 +324,25 @@ async function retrieveWithFilteredFallback(
     request = request.in("document_type", query.documentTypes);
   }
 
-  const { data, error } = query.signal
-    ? await request.abortSignal(query.signal)
-    : await request;
+  visaKnowledgeCapacityMonitor.markExternalStart(trace, "rest");
+  let response: Awaited<typeof request>;
+  try {
+    response = query.signal
+      ? await request.abortSignal(query.signal)
+      : await request;
+  } catch (error) {
+    if (query.signal?.aborted) throw error;
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "rest");
+    visaKnowledgeCapacityMonitor.markBetween(trace);
+    throw error;
+  }
+  const { data, error } = response;
 
   throwIfRequestAborted(query.signal);
+  visaKnowledgeCapacityMonitor.markBetween(trace);
 
   if (error) {
+    visaKnowledgeCapacityMonitor.markExternalFailure(trace, "rest");
     logger.warn("Filtered knowledge fallback failed", error);
     return [];
   }
@@ -310,8 +353,9 @@ async function retrieveWithFilteredFallback(
     .filter((chunk): chunk is VisaKnowledgeChunk => chunk !== null);
 }
 
-export async function retrieveVisaKnowledge(
-  query: VisaKnowledgeQuery
+async function retrieveVisaKnowledgeInternal(
+  query: VisaKnowledgeQuery,
+  trace: VisaKnowledgeRequestTrace,
 ): Promise<VisaKnowledgeResult> {
   throwIfRequestAborted(query.signal);
   const normalizedQuery = normalizeKnowledgeQuery(query);
@@ -326,7 +370,11 @@ export async function retrieveVisaKnowledge(
 
   const matchCount = clampMatchCount(normalizedQuery.matchCount);
   const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
-  const embedding = await getEmbedding(cleanQuery, normalizedQuery.signal);
+  const embedding = await getEmbedding(
+    cleanQuery,
+    trace,
+    normalizedQuery.signal,
+  );
   throwIfRequestAborted(normalizedQuery.signal);
   const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
@@ -338,7 +386,8 @@ export async function retrieveVisaKnowledge(
         intentQuery,
         embedding,
         matchCount,
-        minSimilarity
+        minSimilarity,
+        trace,
       );
       if (chunks.length > 0) {
         return {
@@ -350,11 +399,13 @@ export async function retrieveVisaKnowledge(
 
       if (shouldRetryWithoutIntentDocumentTypes) {
         throwIfRequestAborted(normalizedQuery.signal);
+        visaKnowledgeCapacityMonitor.markBroadFallback(trace, "vector");
         const broadChunks = await retrieveWithVectorSearch(
           normalizedQuery,
           embedding,
           matchCount,
-          minSimilarity
+          minSimilarity,
+          trace,
         );
         if (broadChunks.length > 0) {
           return {
@@ -376,7 +427,11 @@ export async function retrieveVisaKnowledge(
   }
 
   throwIfRequestAborted(normalizedQuery.signal);
-  const fallbackChunks = await retrieveWithFilteredFallback(intentQuery, matchCount);
+  const fallbackChunks = await retrieveWithFilteredFallback(
+    intentQuery,
+    matchCount,
+    trace,
+  );
   if (fallbackChunks.length > 0) {
     return {
       chunks: fallbackChunks,
@@ -386,8 +441,11 @@ export async function retrieveVisaKnowledge(
   }
 
   throwIfRequestAborted(normalizedQuery.signal);
+  if (shouldRetryWithoutIntentDocumentTypes) {
+    visaKnowledgeCapacityMonitor.markBroadFallback(trace, "rest");
+  }
   const broadFallbackChunks = shouldRetryWithoutIntentDocumentTypes
-    ? await retrieveWithFilteredFallback(normalizedQuery, matchCount)
+    ? await retrieveWithFilteredFallback(normalizedQuery, matchCount, trace)
     : [];
   return {
     chunks: broadFallbackChunks,
@@ -399,6 +457,34 @@ export async function retrieveVisaKnowledge(
           ? "vector_search_failed"
           : "embedding_unavailable",
   };
+}
+
+export async function retrieveVisaKnowledge(
+  query: VisaKnowledgeQuery,
+): Promise<VisaKnowledgeResult> {
+  const trace = visaKnowledgeCapacityMonitor.start();
+  const startedAt = Date.now();
+  try {
+    const result = await retrieveVisaKnowledgeInternal(query, trace);
+    visaKnowledgeCapacityMonitor.finish(
+      trace,
+      "completed",
+      Date.now() - startedAt,
+      result.chunks.length === 0
+        ? "empty"
+        : result.usedEmbedding
+          ? "vector"
+          : "rest",
+    );
+    return result;
+  } catch (error) {
+    visaKnowledgeCapacityMonitor.finish(
+      trace,
+      query.signal?.aborted ? "aborted" : "failed",
+      Date.now() - startedAt,
+    );
+    throw error;
+  }
 }
 
 export function formatKnowledgeContext(chunks: VisaKnowledgeChunk[]): string {
