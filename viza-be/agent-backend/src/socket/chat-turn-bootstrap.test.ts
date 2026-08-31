@@ -2,9 +2,13 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildChatTurnBootstrapQuery,
+  buildPersistedUserChatTurnBootstrapQuery,
   loadChatTurnBootstrap,
+  persistUserMessageAndLoadChatTurnBootstrap,
   type ChatTurnBootstrapRow,
 } from './chat-turn-bootstrap.js';
+
+const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
 function row(overrides: Partial<ChatTurnBootstrapRow> = {}): ChatTurnBootstrapRow {
   return {
@@ -47,6 +51,54 @@ describe('chat turn bootstrap', () => {
       memoryRevision: 3,
       legacyHistoryComplete: true,
     });
+  });
+
+  it('persists the user message and loads the bootstrap in one statement', async () => {
+    const query = buildPersistedUserChatTurnBootstrapQuery(
+      SESSION_ID,
+      '  hello  ',
+      50,
+    );
+    expect(query).not.toBeNull();
+
+    const compiled = new PgDialect().sqlToQuery(query!);
+    expect(compiled.sql).toMatch(
+      /with message_input as \([\s\S]*?insert into "visa_chat_messages" \("session_id", "role", "content"\)[\s\S]*?where not exists \([\s\S]*?returning "id", "session_id", "role", "content", "created_at"[\s\S]*?union all[\s\S]*?from inserted_message as inserted[\s\S]*?order by candidate\.created_at desc, candidate\.id desc[\s\S]*?limit \$3/iu,
+    );
+    expect(compiled.params).toEqual([SESSION_ID, 'hello', 50]);
+  });
+
+  it('makes one database request per turn across a 100-turn burst', async () => {
+    const execute = vi.fn(async () => [row()]);
+
+    const results = await Promise.all(
+      Array.from({ length: 100 }, (_, index) =>
+        persistUserMessageAndLoadChatTurnBootstrap(
+          SESSION_ID,
+          `message-${index}`,
+          50,
+          execute,
+        ),
+      ),
+    );
+
+    expect(results).toHaveLength(100);
+    expect(results.every((result) => result?.messageRows.length === 1)).toBe(true);
+    expect(execute).toHaveBeenCalledTimes(100);
+  });
+
+  it('skips the combined database request for empty content', async () => {
+    const execute = vi.fn(async () => [row()]);
+
+    await expect(
+      persistUserMessageAndLoadChatTurnBootstrap(
+        SESSION_ID,
+        '   ',
+        50,
+        execute,
+      ),
+    ).resolves.toBeNull();
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it('represents an empty valid session without inventing a chat message', async () => {
