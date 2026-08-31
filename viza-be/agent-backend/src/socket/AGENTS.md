@@ -20,10 +20,12 @@ namespace `/visa` and sends/receives streaming events.
    using the inserted row's `RETURNING` data in the history window; retain the
    legacy save/read sequence only as an availability fallback. Never move chat
    content into a process-shared cache.
-4. Assistant output is persisted to `visa_chat_messages`.
-   `visible-chat-message.ts` keeps exact session/role/content idempotency in one
-   parameterized `INSERT ... WHERE NOT EXISTS` statement, rather than a
-   separate read followed by a write. Chat content must remain request-scoped.
+4. Assistant output and its redacted run diagnostic are persisted atomically by
+   `chat-turn-completion.ts` in one parameterized database statement. It keeps
+   exact session/role/content idempotency, records diagnostics even when the
+   assistant output is empty, and falls back to the legacy independent writes
+   only when the combined statement fails. Chat content must remain
+   request-scoped.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
 6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
@@ -104,6 +106,7 @@ npm run test:socket-scaling-integration
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/socket/chat-concurrency.ts`
+- `viza-be/agent-backend/src/socket/chat-turn-completion.ts`
 - `viza-be/agent-backend/src/socket/visible-chat-message.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.integration.test.ts`

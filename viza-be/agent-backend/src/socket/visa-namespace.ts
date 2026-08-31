@@ -60,6 +60,10 @@ import {
   type ChatTurnBootstrap,
   type ChatTurnBootstrapRow,
 } from './chat-turn-bootstrap.js';
+import {
+  persistChatTurnCompletion,
+  type ChatTurnCompletionDiagnostic,
+} from './chat-turn-completion.js';
 import { persistVisibleVisaChatMessage } from './visible-chat-message.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
@@ -1392,48 +1396,85 @@ export function registerVisaNamespace(nsp: Namespace): void {
             },
             onComplete: async (response, toolsUsed) => {
               fullResponse = response;
+              const diagnostic: ChatTurnCompletionDiagnostic = {
+                sessionId: session_id,
+                memoryRevision,
+                destinationCountry: knowledgeCountry,
+                passportCountryIso3: conversationState.passportCountryIso3,
+                entryRuleOutcome: entryRule?.outcome ?? 'unknown',
+                visaType: knowledgeVisaType,
+                recommendedProducts: applicationRedirects.map((block) => ({
+                  productCode: block.productCode,
+                  provider: block.provider,
+                  requirement: block.requirement,
+                })),
+                intent: knowledgeIntent,
+                sourceKeys: knowledgeResult.chunks
+                  .map((chunk) => chunk.sourceKey)
+                  .filter((sourceKey): sourceKey is string => Boolean(sourceKey)),
+                fallbackReason: knowledgeResult.fallbackReason,
+                model:
+                  process.env.OPENAI_MODEL ??
+                  process.env.OPENAI_CHAT_MODEL ??
+                  'unknown',
+                durationMs: Date.now() - startTime,
+              };
 
-              // 5. Save assistant text message to DB (only if there's text)
-              if (fullResponse.trim()) {
-                try {
-                  await saveVisibleVisaChatMessage(session_id, 'assistant', fullResponse);
-                } catch (dbErr) {
-                  logger.error('Failed to save assistant message', dbErr as Error, {
-                    sessionId: session_id,
-                  });
-                }
-              }
-
+              // 5. Persist assistant text and its redacted diagnostic atomically.
               try {
-                await db.insert(visaAgentRunDiagnostics).values({
-                  sessionId: session_id,
-                  memoryRevision,
-                  destinationCountry: knowledgeCountry,
-                  passportCountryIso3: conversationState.passportCountryIso3,
-                  entryRuleOutcome: entryRule?.outcome ?? 'unknown',
-                  visaType: knowledgeVisaType,
-                  recommendedProducts: applicationRedirects.map((block) => ({
-                    productCode: block.productCode,
-                    provider: block.provider,
-                    requirement: block.requirement,
-                  })),
-                  intent: knowledgeIntent,
-                  sourceKeys: knowledgeResult.chunks
-                    .map((chunk) => chunk.sourceKey)
-                    .filter((sourceKey): sourceKey is string => Boolean(sourceKey)),
-                  fallbackReason: knowledgeResult.fallbackReason,
-                  model:
-                    process.env.OPENAI_MODEL ??
-                    process.env.OPENAI_CHAT_MODEL ??
-                    'unknown',
-                  durationMs: Date.now() - startTime,
-                });
-              } catch (diagnosticError) {
-                logger.warn(
-                  'Failed to persist redacted visa-agent diagnostic',
-                  diagnosticError as Error,
-                  { sessionId: session_id }
+                await persistChatTurnCompletion(
+                  fullResponse,
+                  diagnostic,
+                  (query) => db.execute(query),
                 );
+              } catch (completionPersistenceError) {
+                logger.warn(
+                  'Combined chat completion persistence failed; using legacy writes',
+                  undefined,
+                  {
+                    sessionId: session_id,
+                    errorName:
+                      completionPersistenceError instanceof Error
+                        ? completionPersistenceError.name
+                        : 'UnknownError',
+                  }
+                );
+
+                if (fullResponse.trim()) {
+                  try {
+                    await saveVisibleVisaChatMessage(
+                      session_id,
+                      'assistant',
+                      fullResponse,
+                    );
+                  } catch (dbErr) {
+                    logger.warn(
+                      'Failed to save assistant message',
+                      undefined,
+                      {
+                        sessionId: session_id,
+                        errorName:
+                          dbErr instanceof Error ? dbErr.name : 'UnknownError',
+                      },
+                    );
+                  }
+                }
+
+                try {
+                  await db.insert(visaAgentRunDiagnostics).values(diagnostic);
+                } catch (diagnosticError) {
+                  logger.warn(
+                    'Failed to persist redacted visa-agent diagnostic',
+                    undefined,
+                    {
+                      sessionId: session_id,
+                      errorName:
+                        diagnosticError instanceof Error
+                          ? diagnosticError.name
+                          : 'UnknownError',
+                    }
+                  );
+                }
               }
 
               // 6. Emit response_complete
