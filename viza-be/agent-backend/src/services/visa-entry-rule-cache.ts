@@ -54,9 +54,10 @@ export function createVisaEntryRuleCacheKey({
 }
 
 /**
- * Process-local, bounded LRU cache with per-key singleflight. The caller may
- * decline to retain a successful result (for example a missing rule), while a
- * rejected factory is never written and retries normally on the next request.
+ * Process-local, bounded LRU cache with per-key singleflight. Successful
+ * lookups may include a missing value: the exact release identity in the key
+ * makes that negative result safe to retain for the bounded TTL. A rejected
+ * factory is never written and retries normally on the next request.
  */
 export class VisaEntryRuleCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();

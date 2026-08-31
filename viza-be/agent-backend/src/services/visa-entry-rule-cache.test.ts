@@ -15,7 +15,7 @@ const baseKey: VisaEntryRuleCacheKeyInput = {
 };
 
 describe('visa entry-rule cache', () => {
-  it('coalesces a 100-request miss burst without retaining a null result', async () => {
+  it('coalesces and retains a 100-request null-result burst', async () => {
     let release: ((value: null) => void) | undefined;
     const loadRule = vi.fn(
       () =>
@@ -27,7 +27,7 @@ describe('visa entry-rule cache', () => {
     const key = createVisaEntryRuleCacheKey(baseKey);
 
     const requests = Array.from({ length: 100 }, () =>
-      cache.getOrCreate(key, loadRule, (value) => value !== null)
+      cache.getOrCreate(key, loadRule)
     );
     release?.(null);
 
@@ -40,10 +40,10 @@ describe('visa entry-rule cache', () => {
     ).toHaveLength(99);
     const nextLoad = vi.fn(async () => null);
     await expect(
-      cache.getOrCreate(key, nextLoad, (value) => value !== null)
-    ).resolves.toEqual({ source: 'created', value: null });
+      cache.getOrCreate(key, nextLoad)
+    ).resolves.toEqual({ source: 'cache', value: null });
     expect(loadRule).toHaveBeenCalledTimes(1);
-    expect(nextLoad).toHaveBeenCalledTimes(1);
+    expect(nextLoad).not.toHaveBeenCalled();
   });
 
   it('invalidates naturally when the active knowledge release changes', async () => {

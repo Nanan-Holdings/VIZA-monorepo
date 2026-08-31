@@ -22,6 +22,8 @@ conversation state, and other cross-route behavior.
   lookup, reviewed policy fallbacks, and policy-first prompt generation.
   `visa-entry-rule-cache.ts` coalesces identical public rule lookups in a
   bounded process-local cache keyed to the exact active knowledge release.
+  Successful missing-rule lookups are negative-cached for the same bounded TTL;
+  database failures must remain immediately retryable.
   Applicant identity, chat text, answers, and stay length must remain outside
   the shared cache; stay limits are evaluated on a defensive per-request copy.
 - `internal-automation/**`: lifecycle status mapping, external status
