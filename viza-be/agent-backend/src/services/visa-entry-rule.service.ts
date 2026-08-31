@@ -378,8 +378,7 @@ export async function resolveVisaEntryRuleWithDependencies(
       });
       const cached = await dependencies.cache.getOrCreate(
         cacheKey,
-        () => dependencies.loadActiveRule(query, activeRelease.releaseId),
-        (value) => value !== null
+        () => dependencies.loadActiveRule(query, activeRelease.releaseId)
       );
       rule = cached.value;
     } else {

@@ -126,6 +126,31 @@ describe('resolveVisaEntryRuleWithDependencies', () => {
     expect(loadActiveRule).toHaveBeenCalledTimes(2);
   });
 
+  it('does not carry a negative result into a new knowledge release', async () => {
+    const loadActiveRule = vi
+      .fn<VisaEntryRuleResolverDependencies['loadActiveRule']>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(databaseRule);
+    const getActiveRelease = vi
+      .fn<VisaEntryRuleResolverDependencies['getActiveRelease']>()
+      .mockResolvedValueOnce(activeRelease('release-id-1', 'release-key-1'))
+      .mockResolvedValueOnce(activeRelease('release-id-2', 'release-key-2'));
+    const resolverDependencies = dependencies(loadActiveRule, getActiveRelease);
+
+    const beforeRelease = await resolveVisaEntryRuleWithDependencies(
+      query,
+      resolverDependencies
+    );
+    const afterRelease = await resolveVisaEntryRuleWithDependencies(
+      query,
+      resolverDependencies
+    );
+
+    expect(beforeRelease?.conditions).not.toEqual({ source: 'database' });
+    expect(afterRelease?.conditions).toEqual({ source: 'database' });
+    expect(loadActiveRule).toHaveBeenCalledTimes(2);
+  });
+
   it('bypasses shared caching when the active release cannot be identified', async () => {
     const loadActiveRule = vi.fn(async () => databaseRule);
     const getActiveRelease = vi.fn(async () => ({
@@ -165,7 +190,23 @@ describe('resolveVisaEntryRuleWithDependencies', () => {
     expect(loadActiveRule).toHaveBeenCalledTimes(2);
   });
 
-  it('does not retain missing rows or collapse explicit-purpose fallback semantics', async () => {
+  it('reduces 100 sequential missing-rule reads to one database lookup', async () => {
+    const loadActiveRule = vi.fn(async () => null);
+    const resolverDependencies = dependencies(loadActiveRule);
+
+    const results: Array<VisaEntryRule | null> = [];
+    for (let index = 0; index < 100; index += 1) {
+      results.push(
+        await resolveVisaEntryRuleWithDependencies(query, resolverDependencies)
+      );
+    }
+
+    expect(results).toHaveLength(100);
+    expect(results.every((rule) => rule?.outcome === 'visa_exempt')).toBe(true);
+    expect(loadActiveRule).toHaveBeenCalledTimes(1);
+  });
+
+  it('caches a missing row without collapsing explicit-purpose fallback semantics', async () => {
     const loadActiveRule = vi.fn(async () => null);
     const resolverDependencies = dependencies(loadActiveRule);
 
@@ -183,6 +224,6 @@ describe('resolveVisaEntryRuleWithDependencies', () => {
       requiredInputs: ['tripPurpose'],
     });
     expect(explicitTourism?.outcome).toBe('visa_exempt');
-    expect(loadActiveRule).toHaveBeenCalledTimes(2);
+    expect(loadActiveRule).toHaveBeenCalledTimes(1);
   });
 });
