@@ -11,6 +11,8 @@ conversation state, and other cross-route behavior.
 
 - `visa-knowledge.service.ts`: embeddings, Supabase RPC retrieval,
   document-type targeting, fallback retrieval, and knowledge context formatting.
+  It propagates the request abort signal into embedding, RPC, and REST work and
+  must not start another fallback after the caller disconnects.
 - `visa-conversation-state.service.ts`: extracts, merges, persists, and
   summarizes VIZA conversation route state. It may reuse a complete
   request-scoped session/message snapshot from the socket bootstrap, while an
@@ -69,6 +71,7 @@ Run from `viza-be/agent-backend`:
 
 ```powershell
 npm run type-check
+npm test -- --run src/services/visa-knowledge.service.test.ts
 npm run test:visa-agent-evals
 npm run test:field-guidance-copilot
 ```
