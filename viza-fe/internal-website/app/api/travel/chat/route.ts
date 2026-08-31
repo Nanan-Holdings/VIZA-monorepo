@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { countries } from "country-data-list";
 import { getTravelUserSession } from "@/lib/travel/auth";
 import {
   applyTravelStateOperations,
@@ -7,13 +8,22 @@ import {
   type TravelStateOperation,
 } from "@/lib/travel/conversation-state";
 import {
+  normalizeDestinationText,
   resolveLocalDestinationText,
   toTravelDestinationChatCard,
+  type DestinationResolution,
 } from "@/lib/travel/destination-resolver";
-import { findDropdownDestinationContract } from "@/lib/travel/destination-contracts";
-import { getCuratedCityLabel } from "@/lib/travel/locations";
+import {
+  findDropdownDestinationContract,
+  getDropdownDestinationContracts,
+} from "@/lib/travel/destination-contracts";
+import {
+  CURATED_CITIES_BY_COUNTRY,
+  getCuratedCityLabel,
+} from "@/lib/travel/locations";
 import type {
   TravelDestinationCard,
+  TravelPendingActionPreview,
   TravelQuickReply,
 } from "@/lib/travel/chat-types";
 import { nextMissingField, type TravelField } from "@/lib/travel/planner";
@@ -40,10 +50,7 @@ type TravelAgentIntent =
   | "clarify";
 
 type TravelAgentUiAction =
-  | "none"
-  | "collect_field"
-  | "generate_itinerary"
-  | "revise_itinerary";
+  "none" | "collect_field" | "generate_itinerary" | "revise_itinerary";
 
 type TravelAgentModelResult = {
   intent: TravelAgentIntent;
@@ -92,6 +99,429 @@ type OpenAIResponseEnvelope = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+type PlannerDestinationPath = "countries" | "cities";
+
+type CountryMetadata = {
+  name: string;
+  alpha2: string;
+  alpha3: string;
+};
+
+type DestinationLabel = {
+  path: PlannerDestinationPath;
+  label: string;
+  valueEn: string;
+  valueZh: string;
+};
+
+const COUNTRY_METADATA: CountryMetadata[] = (
+  countries.all as unknown[]
+).flatMap((item) => {
+  if (!isRecord(item)) return [];
+  const name = typeof item.name === "string" ? item.name.trim() : "";
+  const alpha2 =
+    typeof item.alpha2 === "string" ? item.alpha2.trim().toUpperCase() : "";
+  const alpha3 =
+    typeof item.alpha3 === "string" ? item.alpha3.trim().toUpperCase() : "";
+  return name && alpha2 && alpha3 ? [{ name, alpha2, alpha3 }] : [];
+});
+
+const ZH_REGION_DISPLAY_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
+
+function localizedCountryName(
+  countryNameEn: string,
+  locale: InterfaceLocale
+): string {
+  if (locale === "en") return countryNameEn;
+  const metadata = COUNTRY_METADATA.find(
+    (country) =>
+      country.name.toLocaleLowerCase() === countryNameEn.toLocaleLowerCase()
+  );
+  if (!metadata) return countryNameEn;
+  try {
+    return ZH_REGION_DISPLAY_NAMES.of(metadata.alpha2) ?? countryNameEn;
+  } catch {
+    return countryNameEn;
+  }
+}
+
+function countryMetadataForValue(value: string): CountryMetadata | null {
+  const normalized = normalizeDestinationText(value);
+  if (!normalized) return null;
+  return (
+    COUNTRY_METADATA.find((country) =>
+      [
+        country.name,
+        country.alpha2,
+        country.alpha3,
+        localizedCountryName(country.name, "zh"),
+      ].some((label) => normalizeDestinationText(label) === normalized)
+    ) ?? null
+  );
+}
+
+function countryLabelsForValue(value: string): string[] {
+  const metadata = countryMetadataForValue(value);
+  const normalizedValue = normalizeDestinationText(value);
+  if (!metadata) return [];
+  let localized = "";
+  try {
+    localized = ZH_REGION_DISPLAY_NAMES.of(metadata.alpha2) ?? "";
+  } catch {
+    localized = "";
+  }
+  const labels = [metadata.name, localized];
+  // ISO codes remain valid when the operation itself names the exact code,
+  // but they are deliberately not aliases for a country name in ordinary
+  // prose ("in", "to", "as", and "no" are all valid English words).
+  if (
+    normalizedValue === normalizeDestinationText(metadata.alpha2) ||
+    normalizedValue === normalizeDestinationText(metadata.alpha3)
+  ) {
+    labels.push(metadata.alpha2, metadata.alpha3);
+  }
+  return labels.filter((label): label is string => Boolean(label.trim()));
+}
+
+function cityCountryMatches(value: string): Array<{
+  countryNameEn: string;
+  cityEn: string;
+  cityZh: string;
+}> {
+  const normalized = normalizeDestinationText(value);
+  if (!normalized) return [];
+  const matches: Array<{
+    countryNameEn: string;
+    cityEn: string;
+    cityZh: string;
+  }> = [];
+  for (const [countryNameEn, cities] of Object.entries(
+    CURATED_CITIES_BY_COUNTRY
+  )) {
+    for (const city of cities) {
+      const labels = [city.en, city.zh, ...(city.aliases ?? [])].filter(
+        (label): label is string => Boolean(label?.trim())
+      );
+      if (
+        labels.some((label) => normalizeDestinationText(label) === normalized)
+      ) {
+        matches.push({
+          countryNameEn,
+          cityEn: city.en,
+          cityZh: city.zh ?? city.en,
+        });
+        break;
+      }
+    }
+  }
+  return matches;
+}
+
+function isKnownCountryValue(value: string): boolean {
+  return Boolean(countryMetadataForValue(value));
+}
+
+function isKnownCityValue(value: string): boolean {
+  if (findDropdownDestinationContract(value)) return true;
+  if (cityCountryMatches(value).length > 0) return true;
+  const resolution = resolveLocalDestinationText(value);
+  return (
+    resolution.status === "resolved" &&
+    resolution.destinations.some((destination) => Boolean(destination.city))
+  );
+}
+
+function localizedCityName(value: string, locale: InterfaceLocale): string {
+  const contract = findDropdownDestinationContract(value);
+  if (contract) return locale === "zh" ? contract.nameZh : contract.nameEn;
+
+  const curated = getCuratedCityLabel(value, locale);
+  if (curated) return curated;
+
+  const resolution = resolveLocalDestinationText(value);
+  if (resolution.status === "resolved") {
+    const destination = resolution.destinations[0];
+    if (destination) {
+      return locale === "zh"
+        ? (destination.nameZh ?? destination.city ?? destination.displayName)
+        : (destination.nameEn ?? destination.city ?? destination.displayName);
+    }
+  }
+  return value.trim();
+}
+
+function canonicalDestinationValue(
+  path: PlannerDestinationPath,
+  value: string
+): string {
+  if (path === "countries") {
+    return (
+      countryMetadataForValue(value)?.name ?? normalizeDestinationText(value)
+    );
+  }
+  const city = cityCountryMatches(value)[0];
+  if (city) return normalizeDestinationText(city.cityEn);
+  const contract = findDropdownDestinationContract(value);
+  if (contract) return normalizeDestinationText(contract.nameEn);
+  return normalizeDestinationText(value);
+}
+
+function destinationLabelRanges(
+  text: string,
+  label: string
+): Array<{ start: number; end: number }> {
+  const normalizedText = normalizeDestinationText(text);
+  const normalizedLabel = normalizeDestinationText(label);
+  if (!normalizedText || !normalizedLabel) return [];
+
+  if (/^[a-z0-9 ]+$/u.test(normalizedLabel)) {
+    const escaped = normalizedLabel.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const pattern = new RegExp(
+      `(?:^|[^a-z0-9])(${escaped})(?=$|[^a-z0-9])`,
+      "gu"
+    );
+    const ranges: Array<{ start: number; end: number }> = [];
+    for (const match of normalizedText.matchAll(pattern)) {
+      const value = match[1];
+      if (!value || match.index === undefined) continue;
+      const start = match.index + match[0].indexOf(value);
+      ranges.push({ start, end: start + value.length });
+    }
+    return ranges;
+  }
+
+  const ranges: Array<{ start: number; end: number }> = [];
+  let start = normalizedText.indexOf(normalizedLabel);
+  while (start >= 0) {
+    ranges.push({ start, end: start + normalizedLabel.length });
+    start = normalizedText.indexOf(normalizedLabel, start + 1);
+  }
+  return ranges;
+}
+
+function destinationLabels(): DestinationLabel[] {
+  const labels = new Map<string, DestinationLabel>();
+  const add = (item: DestinationLabel) => {
+    const normalized = normalizeDestinationText(item.label);
+    if (!normalized) return;
+    labels.set(`${item.path}:${normalized}`, item);
+  };
+
+  for (const country of COUNTRY_METADATA) {
+    const valueZh = localizedCountryName(country.name, "zh");
+    [country.name, valueZh].forEach((label) =>
+      add({
+        path: "countries",
+        label,
+        valueEn: country.name,
+        valueZh,
+      })
+    );
+  }
+
+  for (const [countryNameEn, cities] of Object.entries(
+    CURATED_CITIES_BY_COUNTRY
+  )) {
+    for (const city of cities) {
+      const valueZh = city.zh ?? city.en;
+      [city.en, valueZh, ...(city.aliases ?? [])].forEach((label) =>
+        add({
+          path: "cities",
+          label,
+          valueEn: city.en,
+          valueZh,
+        })
+      );
+    }
+    // The country key is intentionally included only as a canonical English
+    // label. Localized country labels come from COUNTRY_METADATA above.
+    add({
+      path: "countries",
+      label: countryNameEn,
+      valueEn: countryNameEn,
+      valueZh: localizedCountryName(countryNameEn, "zh"),
+    });
+  }
+
+  for (const contract of getDropdownDestinationContracts()) {
+    [
+      contract.nameEn,
+      contract.nameZh,
+      contract.canonicalName,
+      contract.city,
+      ...contract.aliases,
+    ].forEach((label) =>
+      add({
+        path: "cities",
+        label,
+        valueEn: contract.nameEn,
+        valueZh: contract.nameZh,
+      })
+    );
+    [contract.countryNameEn, contract.countryNameZh].forEach((label) =>
+      add({
+        path: "countries",
+        label,
+        valueEn: contract.countryNameEn,
+        valueZh: contract.countryNameZh,
+      })
+    );
+  }
+
+  return [...labels.values()];
+}
+
+const DESTINATION_LABELS = destinationLabels();
+
+function destinationFactClauses(text: string): string[] {
+  return text
+    .split(
+      /(?:[，,；;。.!！\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu
+    )
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
+function isNonFactDestinationClause(clause: string): boolean {
+  return (
+    isExplicitDestinationRemovalClause(clause) ||
+    DESTINATION_HYPOTHETICAL_PATTERN.test(clause) ||
+    DESTINATION_QUESTION_PATTERN.test(clause) ||
+    /(?:推荐|建议|介绍|展示|列出|recommend|suggest|alternative|other)/iu.test(
+      clause
+    )
+  );
+}
+
+function knownDestinationOperations(
+  text: string,
+  evidence: string,
+  locale: InterfaceLocale,
+  preferCitiesForItinerary = false
+): TravelStateOperation[] {
+  const clauses = destinationFactClauses(text).filter(
+    (clause) => !isNonFactDestinationClause(clause)
+  );
+  const operations: TravelStateOperation[] = [];
+  const seen = new Set<string>();
+  for (const clause of clauses) {
+    const matches = DESTINATION_LABELS.flatMap((label) =>
+      destinationLabelRanges(clause, label.label).map((range) => ({
+        ...range,
+        label,
+      }))
+    );
+    const nonContainedMatches = matches.filter(
+      (match) =>
+        !matches.some(
+          (other) =>
+            other !== match &&
+            other.label.path === match.label.path &&
+            other.start <= match.start &&
+            other.end >= match.end &&
+            other.end - other.start > match.end - match.start
+        )
+    );
+
+    for (const { label } of nonContainedMatches) {
+      const path =
+        label.path === "countries" && preferCitiesForItinerary
+          ? "cities"
+          : label.path;
+      const valueText = locale === "zh" ? label.valueZh : label.valueEn;
+      const key = `${path}:${canonicalDestinationValue(path, valueText)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      operations.push({
+        op: "add",
+        path,
+        valueText,
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence,
+      });
+    }
+  }
+  return operations;
+}
+
+function countryForCuratedCity(
+  value: string,
+  locale: InterfaceLocale
+): string | null {
+  const matches = cityCountryMatches(value);
+  const countryNames = [
+    ...new Set(matches.map((match) => match.countryNameEn)),
+  ];
+  if (countryNames.length !== 1) return null;
+  return localizedCountryName(countryNames[0], locale);
+}
+
+function countryForResolvedCity(
+  resolution: DestinationResolution,
+  locale: InterfaceLocale
+): string | null {
+  if (resolution.status !== "resolved") return null;
+  const destinations = resolution.destinations.filter(
+    (destination) =>
+      Boolean(destination.city) &&
+      Boolean(destination.countryNameEn ?? destination.countryName)
+  );
+  const countryKeys = [
+    ...new Set(
+      destinations.map(
+        (destination) =>
+          destination.countryCode ??
+          destination.countryNameEn ??
+          destination.countryName ??
+          ""
+      )
+    ),
+  ].filter(Boolean);
+  if (countryKeys.length !== 1 || !destinations.length) return null;
+  const destination = destinations[0];
+  const english =
+    destination.countryNameEn ?? destination.countryName ?? countryKeys[0];
+  return locale === "zh"
+    ? (destination.countryNameZh ?? localizedCountryName(english, locale))
+    : (destination.countryNameEn ?? destination.countryName ?? english);
+}
+
+function uniqueCountryForCity(
+  value: string,
+  locale: InterfaceLocale
+): string | null {
+  return (
+    countryForCuratedCity(value, locale) ??
+    countryForResolvedCity(resolveLocalDestinationText(value), locale)
+  );
+}
+
+function destinationPathForValue(
+  value: string,
+  preferCitiesForItinerary = false
+): PlannerDestinationPath | null {
+  const knownCountry = isKnownCountryValue(value);
+  const knownCity = isKnownCityValue(value);
+  if (knownCountry && !knownCity) return "countries";
+  if (knownCity && !knownCountry) return "cities";
+  if (knownCountry && knownCity) return "countries";
+  // An unresolved one-word destination must not silently become a country.
+  // Only a selected-country itinerary may safely treat an unknown value as a
+  // city; otherwise leave it for the model/UI to clarify.
+  return preferCitiesForItinerary ? "cities" : null;
+}
+
+function isBroadDestinationCandidate(value: string): boolean {
+  const normalized = value.trim();
+  return /^(?:一个|某个|某座|任何|随便|不确定|不知道|哪里|哪儿|某地|任意(?:地方|城市|国家)?|anywhere|somewhere|any\s+(?:city|country|place)|a\s+(?:city|country|place))(?:\s|$)/iu.test(
+    normalized
+  );
 }
 
 function toJson(value: unknown): Json {
@@ -421,7 +851,10 @@ async function callOpenAI(args: {
     saved_preferences: args.preferences,
     pending_confirmation_actions: args.pendingActions,
   });
-  const input: Array<{ role: "developer" | "user" | "assistant"; content: string }> = [
+  const input: Array<{
+    role: "developer" | "user" | "assistant";
+    content: string;
+  }> = [
     { role: "developer", content: systemPrompt(args.locale) },
     { role: "developer", content: `Current server context:\n${context}` },
   ];
@@ -452,10 +885,8 @@ async function callOpenAI(args: {
         },
       }),
       signal: AbortSignal.timeout(
-        Number.parseInt(
-          process.env.TRAVEL_AGENT_OPENAI_TIMEOUT_MS ?? "",
-          10
-        ) || TRAVEL_AGENT_OPENAI_TIMEOUT_MS
+        Number.parseInt(process.env.TRAVEL_AGENT_OPENAI_TIMEOUT_MS ?? "", 10) ||
+          TRAVEL_AGENT_OPENAI_TIMEOUT_MS
       ),
     });
 
@@ -471,7 +902,9 @@ async function callOpenAI(args: {
         TRAVEL_AGENT_FALLBACK_MODEL;
       response = await requestModel(activeTravelAgentModel);
     } else {
-      throw new Error(`OpenAI ${response.status}: ${primaryDetail.slice(0, 1_000)}`);
+      throw new Error(
+        `OpenAI ${response.status}: ${primaryDetail.slice(0, 1_000)}`
+      );
     }
   }
   if (!response.ok) {
@@ -509,33 +942,78 @@ function explicitDestinationCommand(
     );
   }
   const value = operation.valueText?.trim();
-  if (!value || !textMentionsDestination(text, value)) {
+  if (
+    !value ||
+    !textMentionsDestination(text, value, operation.path === "countries")
+  ) {
+    return false;
+  }
+  if (
+    operation.path === "countries" &&
+    !isKnownCountryValue(value) &&
+    isKnownCityValue(value)
+  ) {
+    return false;
+  }
+  if (
+    operation.path === "cities" &&
+    isKnownCountryValue(value) &&
+    !isKnownCityValue(value)
+  ) {
     return false;
   }
   if (operation.op === "add") {
-    if (EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(text)) return false;
-    return /(我想去|我要去|想去|加入|添加|选择|选|就去|改去|换成|回到|还是|决定去|目的地|\d+\s*(?:个)?人[^。！？]*去)/u.test(text);
+    if (
+      textExplicitlyRemovesDestination(text, value, operation.path === "cities")
+    ) {
+      return false;
+    }
+    return /(?:我想去|我要去|想去|加入|添加|选择|选|就去|改去|换成|回到|还是|决定去|目的地|\d+\s*(?:个)?人[^。！？]*去|i\s+want\s+to|go\s+to|travel\s+to|visit|select|choose|add|include|switch\s+to|destination)/iu.test(
+      text
+    );
   }
   if (operation.op === "remove") {
     return textExplicitlyRemovesDestination(
       text,
       value,
-      operation.path === "cities",
+      operation.path === "cities"
     );
   }
   return false;
 }
 
 const EXPLICIT_DESTINATION_REMOVAL_PATTERN =
-  /(?:不想去|不去|不要去|不要|别去|删除|删掉|移除|取消|撤销|去掉|换掉|\b(?:do not|don't|dont)\s+(?:want\b|go\s+to\b|visit\b)|\b(?:remove|delete|drop|cancel)\b)/iu;
+  /(?:不想去|不愿(?:意)?去|不去|不要去|别去|删除|删掉|移除|取消|撤销|去掉|换掉|不要(?:了|啦)|不要(?=\s*(?:把|将)?[A-Za-z\u3400-\u9fff])|\b(?:do not|don't|dont)\s+(?:want\b|go\s+to\b|visit\b)|\b(?:remove|delete|drop|cancel)\b)/iu;
 const DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN =
-  /(?:不是不想去|并非不想去|不是不去|\bnot\s+that\s+i\s+(?:do not|don't|dont)\s+want\b)/iu;
+  /(?:(?:不是|并非|并不是|没有|没|未必|不一定)\s*(?:不想去|不愿(?:意)?去|不去|不要(?:去)?|不考虑|删除|删掉|移除|去掉)|(?:不想|不要|不愿|不能|不可以)\s*不去|\b(?:not|never)\s+(?:that\s+)?(?:i\s+)?(?:do\s+not|don't|dont)\s+(?:want|go|visit)|\b(?:do\s+not|don't|dont)\s+not\s+(?:want|go|visit|remove|delete)\b)/iu;
+const DESTINATION_NEGATED_REMOVAL_ACTION_PATTERN =
+  /(?:不要|别|不想|不愿(?:意)?|不希望|\b(?:not|don't|do\s+not)\b)\s*(?:把|将)?[^，,；;。.!！？?\n]{0,24}?(?:删除|删掉|移除|去掉|取消|换掉|\b(?:remove|delete|drop|cancel)\b)/iu;
+const DESTINATION_NON_MUTATING_SUGGESTION_PATTERN =
+  /(?:不要|别)\s*(?:推荐|建议|介绍|展示|列出|recommend|suggest)/iu;
+const DESTINATION_HYPOTHETICAL_PATTERN =
+  /^(?:如果|假如|要是|若是|万一|假设|if|whether|in\s+case)(?:\s|$)/iu;
+const DESTINATION_QUESTION_PATTERN =
+  /(?:吗|是否|是不是|会不会|能不能|可以不可以)\s*[?？]?$|(?:值得|适合|好不好|怎么样|如何|推荐|建议)[^。.!！？?]*[?？]$|^(?!(?:can|could|would)\s+(?:you|i)\s+(?:plan|create|make|build|arrange|organize|show|generate)\b)(?:what|which|where|why|how|should|would|is|are|do|does|could|can)\b|^(?:i\s+wonder|do\s+i\s+need|is\s+it)\b|\b(?:good|worth|suitable|recommended)\b[^.!?]*[?]$/iu;
+
+function isExplicitDestinationRemovalClause(clause: string): boolean {
+  if (!EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(clause)) return false;
+  return !(
+    DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN.test(clause) ||
+    DESTINATION_NEGATED_REMOVAL_ACTION_PATTERN.test(clause) ||
+    DESTINATION_NON_MUTATING_SUGGESTION_PATTERN.test(clause) ||
+    DESTINATION_HYPOTHETICAL_PATTERN.test(clause) ||
+    DESTINATION_QUESTION_PATTERN.test(clause)
+  );
+}
 
 function destinationMentionLabels(
   value: string,
-  includeCountryLabels = false,
+  includeCountryLabels = false
 ): string[] {
   const labels = new Set([value]);
+  if (includeCountryLabels) {
+    countryLabelsForValue(value).forEach((label) => labels.add(label));
+  }
   const contract = findDropdownDestinationContract(value);
   if (contract) {
     [
@@ -579,7 +1057,7 @@ function destinationMentionLabels(
 function textMentionsDestination(
   text: string,
   value: string,
-  includeCountryLabels = false,
+  includeCountryLabels = false
 ): boolean {
   const normalizedText = text.normalize("NFKC").toLocaleLowerCase();
   return destinationMentionLabels(value, includeCountryLabels).some((label) => {
@@ -588,7 +1066,7 @@ function textMentionsDestination(
     if (/^[a-z0-9]{1,3}$/u.test(normalizedLabel)) {
       const escaped = normalizedLabel.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
       return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "u").test(
-        normalizedText,
+        normalizedText
       );
     }
     return normalizedText.includes(normalizedLabel);
@@ -598,30 +1076,33 @@ function textMentionsDestination(
 function textExplicitlyRemovesDestination(
   text: string,
   value: string,
-  includeCountryLabels = false,
+  includeCountryLabels = false
 ): boolean {
   return text
     .split(
-      /(?:[，,；;。.!！？?\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu,
+      /(?:[，,；;。.!！\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu
     )
     .map((clause) => clause.trim())
     .filter(Boolean)
     .some(
       (clause) =>
-        EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(clause) &&
-        !DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN.test(clause) &&
-        textMentionsDestination(clause, value, includeCountryLabels),
+        isExplicitDestinationRemovalClause(clause) &&
+        textMentionsDestination(clause, value, includeCountryLabels)
     );
 }
 
 function reconcileExplicitDestinationRemovals(
   text: string,
   currentState: unknown,
-  operations: TravelStateOperation[],
+  operations: TravelStateOperation[]
 ): TravelStateOperation[] {
   if (
     !EXPLICIT_DESTINATION_REMOVAL_PATTERN.test(text) ||
-    DESTINATION_REMOVAL_DOUBLE_NEGATIVE_PATTERN.test(text)
+    !text
+      .split(
+        /(?:[，,；;。.!！\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu
+      )
+      .some((clause) => isExplicitDestinationRemovalClause(clause))
   ) {
     return operations;
   }
@@ -643,7 +1124,7 @@ function reconcileExplicitDestinationRemovals(
         operation.explicit &&
         operation.op === "remove" &&
         operation.path === path &&
-        operation.valueText?.toLocaleLowerCase() === value.toLocaleLowerCase(),
+        operation.valueText?.toLocaleLowerCase() === value.toLocaleLowerCase()
     );
     if (alreadyRemoved) return [];
     return [
@@ -665,17 +1146,17 @@ function reconcileExplicitDestinationRemovals(
 function extractExplicitDepartureDate(text: string): string | null {
   const trimmed = text.trim();
   const shortDate = trimmed.match(
-    /^(?:(?:今天|明天|后天|大后天)|(?:(?:本|这|下|下下)周[一二三四五六日天末]?)|(?:(?:本|这|下|下下)个月)|(?:\d{1,2}月\d{1,2}(?:日|号))|(?:\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}(?:日)?))(?:出发)?$/u,
+    /^(?:(?:今天|明天|后天|大后天)|(?:(?:本|这|下|下下)周[一二三四五六日天末]?)|(?:(?:本|这|下|下下)个月)|(?:\d{1,2}月\d{1,2}(?:日|号))|(?:\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}(?:日)?))(?:出发)?$/u
   )?.[0];
   if (shortDate) return shortDate.replace(/出发$/u, "").trim();
 
   const explicitChinese = trimmed.match(
-    /(?:出发|启程)(?:时间|日期)?(?:就)?(?:定在|定为|安排在|是|为|[:：])?\s*([^，,；;。.!！？?]{2,30})/u,
+    /(?:出发|启程)(?:时间|日期)?(?:就)?(?:定在|定为|安排在|是|为|[:：])?\s*([^，,；;。.!！？?]{2,30})/u
   )?.[1];
   if (explicitChinese) return explicitChinese.trim();
 
   const explicitEnglish = trimmed.match(
-    /\b(?:departure(?:\s+date)?|depart|leave|leaving)\s*(?:is|on|will\s+be|:)?\s*([^,.!?]{2,40})/iu,
+    /\b(?:departure(?:\s+date)?|depart|leave|leaving)\s*(?:is|on|will\s+be|:)?\s*([^,.!?]{2,40})/iu
   )?.[1];
   return explicitEnglish?.trim() || null;
 }
@@ -686,16 +1167,16 @@ function toIsoDate(date: Date): string {
 
 function resolveExplicitDepartureDate(
   value: string,
-  now = new Date(),
+  now = new Date()
 ): string | null {
   const normalized = value.trim();
   const isoMatch = normalized.match(
-    /^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日)?$/u,
+    /^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日)?$/u
   );
   if (isoMatch) {
     const [, year, month, day] = isoMatch;
     const date = new Date(
-      Date.UTC(Number(year), Number(month) - 1, Number(day)),
+      Date.UTC(Number(year), Number(month) - 1, Number(day))
     );
     return Number.isNaN(date.getTime()) ? null : toIsoDate(date);
   }
@@ -706,7 +1187,7 @@ function resolveExplicitDepartureDate(
     let year = now.getUTCFullYear();
     let date = new Date(Date.UTC(year, Number(month) - 1, Number(day)));
     const today = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     );
     if (date < today) {
       year += 1;
@@ -723,24 +1204,23 @@ function resolveExplicitDepartureDate(
   };
   if (normalized in relativeDayOffsets) {
     const date = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     );
     date.setUTCDate(date.getUTCDate() + relativeDayOffsets[normalized]);
     return toIsoDate(date);
   }
 
   const weekMatch = normalized.match(
-    /^(本|这|下|下下)周([一二三四五六日天末])?$/u,
+    /^(本|这|下|下下)周([一二三四五六日天末])?$/u
   );
   if (weekMatch) {
     const [, weekPrefix, weekdayText] = weekMatch;
     const currentDay = now.getUTCDay() || 7;
     const monday = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     );
     monday.setUTCDate(monday.getUTCDate() - currentDay + 1);
-    const weekOffset =
-      weekPrefix === "下下" ? 2 : weekPrefix === "下" ? 1 : 0;
+    const weekOffset = weekPrefix === "下下" ? 2 : weekPrefix === "下" ? 1 : 0;
     const weekdayOffsets: Record<string, number> = {
       一: 0,
       二: 1,
@@ -755,7 +1235,7 @@ function resolveExplicitDepartureDate(
     monday.setUTCDate(
       monday.getUTCDate() +
         weekOffset * 7 +
-        (weekdayText ? weekdayOffsets[weekdayText] : 0),
+        (weekdayText ? weekdayOffsets[weekdayText] : 0)
     );
     return toIsoDate(monday);
   }
@@ -765,7 +1245,7 @@ function resolveExplicitDepartureDate(
 
 function reconcileExplicitDepartureDate(
   text: string,
-  operations: TravelStateOperation[],
+  operations: TravelStateOperation[]
 ): TravelStateOperation[] {
   const departureDateText = extractExplicitDepartureDate(text);
   if (!departureDateText) return operations;
@@ -792,7 +1272,7 @@ function reconcileExplicitDepartureDate(
     (operation) =>
       operation.explicit &&
       operation.op === "set" &&
-      operation.path === "departure_date",
+      operation.path === "departure_date"
   );
   const withDepartureDate = alreadyRecorded
     ? normalizedOperations
@@ -812,7 +1292,7 @@ function reconcileExplicitDepartureDate(
     (operation) =>
       operation.explicit &&
       operation.op === "set" &&
-      operation.path === "date_flexibility",
+      operation.path === "date_flexibility"
   );
   if (alreadyFixed) return withDepartureDate;
   return [
@@ -886,6 +1366,31 @@ function validateExplicitOperations(
         (Boolean(operation.evidence) && text.includes(operation.evidence)),
     };
   });
+}
+
+function resolvePendingDecisionIntent(
+  text: string,
+  modelIntent: TravelAgentIntent,
+  pendingActions: TravelStateOperation[]
+): TravelAgentIntent {
+  if (!pendingActions.length) return modelIntent;
+
+  const normalized = text.trim();
+  if (
+    /^(?:确认|确定|同意|接受|应用|确认这些更改|就按这个|好的|可以|没问题|yes|confirm(?: these changes)?|apply(?: these changes)?|accept|ok|okay)(?:[。.!！])?$/iu.test(
+      normalized
+    )
+  ) {
+    return "confirm_action";
+  }
+  if (
+    /^(?:取消|拒绝|不要|不接受|放弃|算了|取消这些更改|no|reject|cancel(?: these changes)?|decline)(?:[。.!！])?$/iu.test(
+      normalized
+    )
+  ) {
+    return "reject_action";
+  }
+  return modelIntent;
 }
 
 function parseExplicitDepartureDate(text: string): string | null {
@@ -1089,87 +1594,278 @@ function explicitPlannerDestinationOperations(
 }
 
 function isItineraryDestinationRequest(text: string): boolean {
-  return /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*\S+/iu.test(
-    text.trim()
-  );
+  const normalized = text.trim();
+  return [
+    /(?:计划|行程|安排)[\s\S]*?(?:去|前往)\s*\S+/iu,
+    /\b(?:plan|create|make|build|arrange|organize)\b[\s\S]*?\b(?:trip|itinerary|travel\s+plan)\b[\s\S]*?\b(?:to|for)\s+\S+/iu,
+  ].some((pattern) => pattern.test(normalized));
 }
 
 function directDestinationOperations(
   text: string,
-  preferCitiesForItinerary = false
+  preferCitiesForItinerary = false,
+  locale: InterfaceLocale = "zh"
 ): TravelStateOperation[] {
   const normalized = text.trim();
-  const directMatch = normalized.match(
-    /^(?:我想去|我要去|想去|就去|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
-  );
-  const itineraryMatch = normalized.match(
-    /(?:计划|行程|安排|plan|itinerary)[\s\S]*?(?:去|前往|visit)\s*(.+?)(?:[。.!！？?])?$/iu
-  );
-  const match = directMatch ?? itineraryMatch;
-  if (!match) return [];
-
-  const candidate = match[1]
-    .replace(/(?:去)?(?:旅游|旅行|玩|travel|tour)$/iu, "")
-    .trim();
   if (
-    !candidate ||
-    /^(?:哪里|哪儿|anywhere|somewhere)$/iu.test(candidate) ||
-    /\d|天|人|预算|budget|day|traveler|people/iu.test(candidate)
+    DESTINATION_HYPOTHETICAL_PATTERN.test(normalized) ||
+    DESTINATION_QUESTION_PATTERN.test(normalized)
   ) {
     return [];
   }
+  const directMatch = normalized.match(
+    /^(?:我想去|我要去|想去|就去|去|前往|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
+  );
+  const candidateTexts = new Set<string>();
+  if (directMatch?.[1]) candidateTexts.add(directMatch[1]);
+  for (const clause of normalized.split(
+    /(?:[，,；;。.!！\n]+|(?:但是|但|不过|然而)|\b(?:but|however|while)\b)/iu
+  )) {
+    const clauseMatch = clause
+      .trim()
+      .match(
+        /^(?:我想去|我要去|想去|就去|去|前往|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+)$/iu
+      );
+    if (clauseMatch?.[1]) candidateTexts.add(clauseMatch[1]);
 
-  return splitPlannerDestinationValues(candidate).map((value) => {
-    const resolution = resolveLocalDestinationText(value);
-    const isCity =
-      (resolution.status === "resolved" &&
-        resolution.destinations.some((destination) =>
-          Boolean(destination.city)
-        )) ||
-      Boolean(getCuratedCityLabel(value, "en"));
-    return {
-      op: "add",
-      path:
-        isCity || (!directMatch && Boolean(itineraryMatch) && preferCitiesForItinerary)
-          ? "cities"
-          : "countries",
-      valueText: value,
-      valueNumber: null,
-      valueBoolean: null,
-      explicit: true,
-      evidence: normalized,
-    };
+    const embeddedTravelMatch = clause
+      .trim()
+      .match(/\b(?:go|travel)\s+to\s+(.+)$/iu);
+    if (embeddedTravelMatch?.[1]) candidateTexts.add(embeddedTravelMatch[1]);
+  }
+  const itineraryMatches = [
+    normalized.match(
+      /(?:计划|行程|安排)[\s\S]*?(?:去|前往)\s*(.+?)(?:[。.!！？?])?$/iu
+    ),
+    normalized.match(
+      /\b(?:plan|create|make|build|arrange|organize)\b[\s\S]*?\b(?:trip|itinerary|travel\s+plan)\b[\s\S]*?\b(?:to|for)\s+(.+?)[.!?]?$/iu
+    ),
+  ];
+  itineraryMatches.forEach((match) => {
+    if (match?.[1]) candidateTexts.add(match[1]);
   });
+  if (!candidateTexts.size) return [];
+
+  return [...candidateTexts].flatMap((rawCandidate) => {
+    const candidate = rawCandidate
+      .replace(/[。.!！？?]+$/u, "")
+      .replace(/(?:去)?(?:旅游|旅行|玩|travel|tour)$/iu, "")
+      .trim();
+    if (
+      !candidate ||
+      /^(?:哪里|哪儿|anywhere|somewhere)$/iu.test(candidate) ||
+      isBroadDestinationCandidate(candidate)
+    ) {
+      return [];
+    }
+
+    const known = knownDestinationOperations(
+      candidate,
+      normalized,
+      locale,
+      false
+    );
+    if (known.length) return known;
+
+    return splitPlannerDestinationValues(candidate).flatMap((value) => {
+      if (
+        !value ||
+        /^(?:\d+|\d+\s*(?:天|日|days?|人|people|travelers?))$/iu.test(value) ||
+        isBroadDestinationCandidate(value)
+      ) {
+        return [];
+      }
+      const path = destinationPathForValue(value, preferCitiesForItinerary);
+      if (!path) return [];
+      return [
+        {
+          op: "add" as const,
+          path,
+          valueText: value,
+          valueNumber: null,
+          valueBoolean: null,
+          explicit: true,
+          evidence: normalized,
+        },
+      ];
+    });
+  });
+}
+
+type DestinationReplacementParts = {
+  oldText: string;
+  newText: string;
+};
+
+function destinationReplacementParts(
+  text: string
+): DestinationReplacementParts | null {
+  if (
+    DESTINATION_HYPOTHETICAL_PATTERN.test(text) ||
+    DESTINATION_QUESTION_PATTERN.test(text)
+  ) {
+    return null;
+  }
+
+  const match =
+    text
+      .trim()
+      .match(
+        /^(?:把|将)\s*(.+?)\s*(?:换成|改成|替换成|替换为|换为)\s*(.+?)(?:[。.!！？?])?$/u
+      ) ??
+    text
+      .trim()
+      .match(
+        /^(?:replace|swap|change)\s+(.+?)\s+(?:with|to)\s+(.+?)[.!?]?$/iu
+      ) ??
+    text
+      .trim()
+      .match(
+        /^(.+?)\s*(?:不要了|不去了|删除|删掉)[，,；;]\s*(?:改去|换成|改成|替换为|换到)\s*(.+?)[。.!！？?]?$/u
+      );
+  if (!match?.[1] || !match[2]) return null;
+
+  return {
+    oldText: match[1]
+      .replace(/^(?:我|其实我)?\s*(?:不想去|不去|不要去|想去|要去)\s*/u, "")
+      .trim(),
+    newText: match[2].trim(),
+  };
+}
+
+function explicitDestinationReplacementOperations(
+  text: string,
+  currentState: unknown,
+  locale: InterfaceLocale
+): TravelStateOperation[] {
+  const parts = destinationReplacementParts(text);
+  if (!parts?.oldText || !parts.newText) return [];
+
+  const state = coerceTravelState(currentState);
+  const selected: Array<{
+    path: PlannerDestinationPath;
+    value: string;
+  }> = [
+    ...state.cities.map((value) => ({ path: "cities" as const, value })),
+    ...state.countries.map((value) => ({ path: "countries" as const, value })),
+  ];
+  const oldParts = splitPlannerDestinationValues(parts.oldText);
+  const removals = selected.flatMap(({ path, value }) => {
+    const mentioned = oldParts.some((oldValue) =>
+      textMentionsDestination(oldValue, value, path === "cities")
+    );
+    if (!mentioned) return [];
+    return [
+      {
+        op: "remove" as const,
+        path,
+        valueText: value,
+        valueNumber: null,
+        valueBoolean: null,
+        explicit: true,
+        evidence: text,
+      },
+    ];
+  });
+  if (!removals.length) return [];
+
+  const additions = knownDestinationOperations(parts.newText, text, locale);
+  return [...removals, ...additions];
+}
+
+function isExplicitDestinationConfirmation(
+  text: string,
+  currentState: unknown
+): boolean {
+  const state = coerceTravelState(currentState);
+  if (!state.cities.length) return false;
+  if (
+    destinationReplacementParts(text) ||
+    state.cities.some((city) =>
+      textExplicitlyRemovesDestination(text, city, true)
+    ) ||
+    state.countries.some((country) =>
+      textExplicitlyRemovesDestination(text, country, true)
+    )
+  ) {
+    return false;
+  }
+
+  const normalized = text.trim();
+  const specificConfirmation = [
+    /^(?:好的?[，,]?\s*)?(?:(?:目的地|这些目的地|这些|以上目的地)\s*)?(?:就这些|可以了|没问题|这样就可以了|就按这些(?:来|安排)?)(?:[，,]\s*(?:继续|开始|进入)?[^。.!！？?]*)?(?:[。.!！？?])?$/iu,
+    /^(?:确认|确定)(?:一下)?(?:目的地|这些(?:目的地)?|以上(?:目的地)?)?(?:了)?(?:[。.!！？?])?$/iu,
+    /^(?:没有|没)(?:有)?(?:其他|别的|更多)(?:国家和城市|国家或城市|国家|城市|目的地)?(?:了)?(?:[。.!！？?])?$/iu,
+    /^(?:不用|不再)(?:再)?(?:添加|加)?(?:其他|别的|更多)?(?:国家和城市|国家或城市|国家|城市|目的地)?(?:了)?(?:[。.!！？?])?$/iu,
+    /^(?:that's all|no more(?: destinations?| countries?(?: or cities?)?| cities?)?|no other(?: destinations?| countries?(?: or cities?)?| cities?)?|confirm(?: these destinations?)?|okay,? that's enough)[.!?]?$/iu,
+  ].some((pattern) => pattern.test(normalized));
+  if (specificConfirmation) return true;
+
+  return (
+    nextMissingField(state) === "destination_confirmation" &&
+    /^(?:确认|确定|好的|可以|没问题|ok|okay)$/iu.test(normalized)
+  );
 }
 
 function appendExplicitDestinationOperations(
   operations: TravelStateOperation[],
   additions: TravelStateOperation[]
 ): TravelStateOperation[] {
-  const existing = new Set(
-    operations
-      .filter(
-        (operation) =>
-          (operation.path === "countries" || operation.path === "cities") &&
-          operation.op === "add" &&
-          operation.valueText
-      )
-      .map(
-        (operation) =>
-          `${operation.path}:${operation.valueText?.trim().toLocaleLowerCase()}`
-      )
+  const destinationKey = (operation: TravelStateOperation): string | null => {
+    if (
+      (operation.path !== "countries" && operation.path !== "cities") ||
+      !operation.valueText?.trim()
+    ) {
+      return null;
+    }
+    return `${operation.op}:${operation.path}:${canonicalDestinationValue(
+      operation.path,
+      operation.valueText
+    )}`;
+  };
+  const explicitIncomingKeys = new Set(
+    additions
+      .filter((operation) => operation.explicit)
+      .map(destinationKey)
+      .filter((key): key is string => Boolean(key))
   );
-  return [
-    ...operations,
-    ...additions.filter((operation) => {
-      const key = `${operation.path}:${operation.valueText
-        ?.trim()
-        .toLocaleLowerCase()}`;
-      if (existing.has(key)) return false;
-      existing.add(key);
-      return true;
-    }),
-  ];
+  const supersededByExplicitFacts = (operation: TravelStateOperation) => {
+    const key = destinationKey(operation);
+    if (!key || operation.explicit || operation.op !== "add") return false;
+    if (explicitIncomingKeys.has(key)) return true;
+    if (operation.path !== "countries" && operation.path !== "cities") {
+      return false;
+    }
+    const path: PlannerDestinationPath = operation.path;
+    const parts = splitPlannerDestinationValues(operation.valueText ?? "");
+    return (
+      parts.length > 1 &&
+      parts.every((part) =>
+        explicitIncomingKeys.has(
+          `add:${path}:${canonicalDestinationValue(path, part)}`
+        )
+      )
+    );
+  };
+  // A deterministic fact recovered from the user's sentence supersedes a
+  // model guess for the same operation/value. Keep add and remove separate:
+  // they represent different user intents and must never share a key.
+  const withoutSupersededGuesses = operations.filter((operation) => {
+    return !supersededByExplicitFacts(operation);
+  });
+  const existing = new Set(
+    withoutSupersededGuesses
+      .map(destinationKey)
+      .filter((key): key is string => Boolean(key))
+  );
+  const next = [...withoutSupersededGuesses];
+  for (const operation of additions) {
+    const key = destinationKey(operation);
+    if (!key || existing.has(key)) continue;
+    existing.add(key);
+    next.push(operation);
+  }
+  return next;
 }
 
 function isExplicitPlannerDestinationForm(text: string): boolean {
@@ -1179,26 +1875,27 @@ function isExplicitPlannerDestinationForm(text: string): boolean {
 function stabilizeExplicitPlannerOperations(
   text: string,
   operations: TravelStateOperation[],
-  hasSelectedCountry = false
+  hasSelectedCountry = false,
+  locale: InterfaceLocale = "zh",
+  currentState: unknown = null
 ): TravelStateOperation[] {
   let next = operations;
   const formDestinations = explicitPlannerDestinationOperations(text);
   next = appendExplicitDestinationOperations(next, formDestinations);
-  if (!formDestinations.length) {
-    const directDestinations = directDestinationOperations(
-      text,
-      hasSelectedCountry
+  const directDestinations = directDestinationOperations(
+    text,
+    hasSelectedCountry,
+    locale
+  );
+  // Merge every explicit destination recovered from the user's sentence.
+  // A partial model response must not hide another fact from the same turn.
+  next = appendExplicitDestinationOperations(next, directDestinations);
+
+  if (currentState !== null) {
+    next = appendExplicitDestinationOperations(
+      next,
+      explicitDestinationReplacementOperations(text, currentState, locale)
     );
-    if (
-      directDestinations.length &&
-      !next.some(
-        (operation) =>
-          (operation.path === "countries" || operation.path === "cities") &&
-          (operation.op === "add" || operation.op === "remove")
-      )
-    ) {
-      next = appendExplicitDestinationOperations(next, directDestinations);
-    }
   }
   const setNumber = (
     path: "travel_days" | "travelers" | "budget",
@@ -1219,7 +1916,7 @@ function stabilizeExplicitPlannerOperations(
   };
 
   const days = text.match(
-    /(?:出行天数是|天数先灵活，?\s*暂按)?\s*(\d+)\s*(?:天|日|days?)(?:左右|上下)?/iu
+    /(?:出行天数是|天数先灵活，?\s*暂按)?\s*(\d+)\s*(?:天|日|[-–]?\s*days?)(?:左右|上下)?/iu
   );
   if (days) setNumber("travel_days", days[1], days[0]);
   const travelers = text.match(
@@ -1231,7 +1928,7 @@ function stabilizeExplicitPlannerOperations(
   );
   if (budget) setNumber("budget", budget[1], budget[0]);
 
-  if (/^目的地就这些，继续规划后面的行程信息。?$/u.test(text)) {
+  if (isExplicitDestinationConfirmation(text, currentState)) {
     next = replaceExplicitOperation(next, {
       op: "set",
       path: "destination_confirmed",
@@ -1239,7 +1936,7 @@ function stabilizeExplicitPlannerOperations(
       valueNumber: null,
       valueBoolean: true,
       explicit: true,
-      evidence: "目的地就这些",
+      evidence: text,
     });
   }
 
@@ -1295,16 +1992,26 @@ function resolveDestinationOperation(
   // gate to `countries` drops valid dropdown/custom selections and makes the
   // planner ask for the country again on the next turn.
   if (operation.path === "countries") {
+    if (
+      operation.valueText &&
+      !isKnownCountryValue(operation.valueText) &&
+      isKnownCityValue(operation.valueText)
+    ) {
+      return null;
+    }
     return operation.valueText?.trim()
       ? { ...operation, valueText: operation.valueText.trim() }
       : null;
   }
 
-  if (
-    operation.path !== "cities" ||
-    !operation.valueText
-  ) {
+  if (operation.path !== "cities" || !operation.valueText) {
     return operation;
+  }
+  if (
+    isKnownCountryValue(operation.valueText) &&
+    !isKnownCityValue(operation.valueText)
+  ) {
+    return null;
   }
   const resolution = resolveLocalDestinationText(operation.valueText);
   if (resolution.status !== "resolved" || !resolution.destinations.length) {
@@ -1322,7 +2029,10 @@ function resolveDestinationOperation(
   if (!value) return null;
   return {
     ...operation,
-    valueText: locale === "zh" ? operation.valueText : value,
+    valueText:
+      locale === "zh"
+        ? (destination.nameZh ?? localizedCityName(operation.valueText, locale))
+        : (destination.nameEn ?? value),
   };
 }
 
@@ -1332,21 +2042,23 @@ function recommendationCards(
   locale: InterfaceLocale
 ): TravelDestinationCard[] {
   const seen = new Set<string>();
-  return recommendations.flatMap((recommendation) => {
-    const resolution = resolveLocalDestinationText(recommendation);
-    if (resolution.status !== "resolved") return [];
-    return resolution.destinations.slice(0, 1).flatMap((destination) => {
-      const key = destination.canonicalName.toLocaleLowerCase();
-      if (seen.has(key)) return [];
-      seen.add(key);
-      return [
-        {
-          ...toTravelDestinationChatCard(destination, userText, locale),
-          selection_state: "recommendation" as const,
-        },
-      ];
-    });
-  }).slice(0, 2);
+  return recommendations
+    .flatMap((recommendation) => {
+      const resolution = resolveLocalDestinationText(recommendation);
+      if (resolution.status !== "resolved") return [];
+      return resolution.destinations.slice(0, 1).flatMap((destination) => {
+        const key = destination.canonicalName.toLocaleLowerCase();
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [
+          {
+            ...toTravelDestinationChatCard(destination, userText, locale),
+            selection_state: "recommendation" as const,
+          },
+        ];
+      });
+    })
+    .slice(0, 2);
 }
 
 function parsePendingActions(value: unknown): TravelStateOperation[] {
@@ -1364,6 +2076,18 @@ function parsePendingActions(value: unknown): TravelStateOperation[] {
     );
     return parsed ? [parsed] : [];
   });
+}
+
+function toPendingActionPreviews(
+  actions: TravelStateOperation[]
+): TravelPendingActionPreview[] {
+  return actions.map((action) => ({
+    op: action.op,
+    path: action.path,
+    valueText: action.valueText,
+    valueNumber: action.valueNumber,
+    valueBoolean: action.valueBoolean,
+  }));
 }
 
 async function ensureSession(
@@ -1474,7 +2198,10 @@ function resolveExplicitItineraryIntent(
 export async function GET(request: Request) {
   const auth = await getTravelUserSession();
   if (!auth) {
-    return Response.json({ error: "Unauthorized", code: "session_expired" }, { status: 401 });
+    return Response.json(
+      { error: "Unauthorized", code: "session_expired" },
+      { status: 401 }
+    );
   }
 
   const sessionId = new URL(request.url).searchParams.get("sessionId")?.trim();
@@ -1485,12 +2212,15 @@ export async function GET(request: Request) {
   try {
     const session = await readSession(auth.userId, sessionId);
     const state = coerceTravelState(session?.state_json ?? null);
+    const pendingActions = parsePendingActions(session?.pending_actions_json);
     return Response.json(
       {
         exists: Boolean(session),
         state,
         state_version: session?.state_version ?? 0,
         next_missing_field: nextMissingField(state),
+        pending_confirmation: pendingActions.length > 0,
+        pending_actions: toPendingActionPreviews(pendingActions),
       },
       { status: 200 }
     );
@@ -1562,10 +2292,7 @@ async function saveExplicitPreferences(
   updates: TravelAgentModelResult["preferenceUpdates"]
 ): Promise<void> {
   const accepted = updates.filter(
-    (item) =>
-      item.explicit &&
-      item.evidence &&
-      userText.includes(item.evidence)
+    (item) => item.explicit && item.evidence && userText.includes(item.evidence)
   );
   if (!accepted.length) return;
 
@@ -1576,11 +2303,9 @@ async function saveExplicitPreferences(
   const timestamp = new Date().toISOString();
   const byIdentity = new Map<string, Record<string, unknown>>();
   for (const item of currentItems) {
-    if (typeof item.key !== "string" || typeof item.value !== "string") continue;
-    byIdentity.set(
-      `${item.key}:${item.value.toLocaleLowerCase()}`,
-      item
-    );
+    if (typeof item.key !== "string" || typeof item.value !== "string")
+      continue;
+    byIdentity.set(`${item.key}:${item.value.toLocaleLowerCase()}`, item);
   }
   for (const item of accepted) {
     byIdentity.set(`${item.key}:${item.value.toLocaleLowerCase()}`, {
@@ -1702,8 +2427,13 @@ export async function POST(request: Request) {
       );
     }
 
+    const pendingDecisionIntent = resolvePendingDecisionIntent(
+      input.text,
+      openAI.result.intent,
+      pendingActions
+    );
     const hasSelectedCountry = currentState.countries.length > 0;
-    const validated = stabilizeExplicitPlannerOperations(
+    let validated = stabilizeExplicitPlannerOperations(
       input.text,
       stabilizeExplicitEndpointOperations(
         input.text,
@@ -1717,8 +2447,27 @@ export async function POST(request: Request) {
           )
         )
       ),
-      hasSelectedCountry
+      hasSelectedCountry,
+      input.locale,
+      currentState
     );
+    if (pendingDecisionIntent === "confirm_action") {
+      // Confirmation applies the exact persisted, user-visible proposal. It
+      // must not depend on the model repeating a scalar value in the short
+      // confirmation message (for example, a previously proposed budget).
+      validated = [
+        ...pendingActions.map((operation) => ({
+          ...operation,
+          explicit: true,
+          evidence: input.text,
+        })),
+        ...validated,
+      ];
+    } else if (pendingDecisionIntent === "reject_action") {
+      // A rejection clears the proposal without letting model-generated
+      // operations from the rejection turn mutate the trip.
+      validated = [];
+    }
     const allowUnverifiedCity =
       isExplicitPlannerDestinationForm(input.text) ||
       (hasSelectedCountry && isItineraryDestinationRequest(input.text));
@@ -1739,23 +2488,23 @@ export async function POST(request: Request) {
       ) {
         continue;
       }
-      const destination = resolveLocalDestinationText(operation.valueText);
-      const country =
-        destination.status === "resolved"
-          ? (input.locale === "zh"
-              ? destination.destinations[0]?.countryNameZh ??
-                destination.destinations[0]?.countryName
-              : destination.destinations[0]?.countryNameEn ??
-                destination.destinations[0]?.countryName
-            )?.trim()
-          : "";
+      const country = uniqueCountryForCity(operation.valueText, input.locale);
+      const countryKey = country
+        ? canonicalDestinationValue("countries", country)
+        : "";
       if (
         country &&
+        !currentState.countries.some(
+          (value) =>
+            canonicalDestinationValue("countries", value) === countryKey
+        ) &&
         !resolved.some(
           (item) =>
             item.op === "add" &&
             item.path === "countries" &&
-            item.valueText?.toLocaleLowerCase() === country.toLocaleLowerCase()
+            item.valueText &&
+            canonicalDestinationValue("countries", item.valueText) ===
+              countryKey
         )
       ) {
         resolved.push({
@@ -1778,7 +2527,8 @@ export async function POST(request: Request) {
             item.explicit &&
             item.valueText
         );
-      const city = cityOperation?.valueText?.trim() || currentState[pair.cityPath];
+      const city =
+        cityOperation?.valueText?.trim() || currentState[pair.cityPath];
       const alreadyHasCountry = Boolean(
         resolved.some(
           (item) =>
@@ -1794,10 +2544,10 @@ export async function POST(request: Request) {
       const country =
         destination.status === "resolved"
           ? (input.locale === "zh"
-              ? destination.destinations[0]?.countryNameZh ??
-                destination.destinations[0]?.countryName
-              : destination.destinations[0]?.countryNameEn ??
-                destination.destinations[0]?.countryName
+              ? (destination.destinations[0]?.countryNameZh ??
+                destination.destinations[0]?.countryName)
+              : (destination.destinations[0]?.countryNameEn ??
+                destination.destinations[0]?.countryName)
             )?.trim()
           : "";
       if (!country) continue;
@@ -1816,31 +2566,38 @@ export async function POST(request: Request) {
       reconcileExplicitDestinationRemovals(
         input.text,
         currentState,
-        resolved.filter((operation) => operation.explicit),
-      ),
+        resolved.filter((operation) => operation.explicit)
+      )
     );
-    const nextPendingActions =
-      openAI.result.intent === "reject_action" ||
-      openAI.result.intent === "confirm_action"
-        ? []
-        : resolved.filter((operation) => !operation.explicit);
     const mutation = applyTravelStateOperations(
       session.state_json,
       explicitOperations
     );
     const effectiveIntent = resolveExplicitItineraryIntent(
       input.text,
-      openAI.result.intent
+      pendingDecisionIntent
     );
     const nextField = nextMissingField(mutation.state);
     const uiAction = getUiAction(effectiveIntent, nextField);
+    // An incomplete itinerary request gets a deterministic collect-field
+    // reply. Any model-only inferences from that turn are not visible to the
+    // user, so retaining them as pending actions would make a later generic
+    // confirmation apply hidden changes. Keep only pending actions on turns
+    // whose reply can actually expose them for confirmation.
+    const nextPendingActions =
+      pendingDecisionIntent === "reject_action" ||
+      pendingDecisionIntent === "confirm_action" ||
+      (effectiveIntent === "generate_itinerary" && Boolean(nextField))
+        ? []
+        : resolved.filter((operation) => !operation.explicit);
     const explicitlyRequestedRecommendations =
       /(推荐|建议|还有|其他|别的|替代|换一个|recommend|suggest|alternative|other)/iu.test(
         input.text
       );
     const allowRecommendationCards =
       effectiveIntent === "recommend_destinations" &&
-      (mutation.state.cities.length === 0 || explicitlyRequestedRecommendations);
+      (mutation.state.cities.length === 0 ||
+        explicitlyRequestedRecommendations);
     const coordinatedReply =
       effectiveIntent === "generate_itinerary" && nextField
         ? incompleteItineraryReply(input.locale, nextField)
@@ -1850,7 +2607,11 @@ export async function POST(request: Request) {
       reply: coordinatedReply,
       mode: effectiveIntent,
       cards: allowRecommendationCards
-        ? recommendationCards(openAI.result.recommendations, input.text, input.locale)
+        ? recommendationCards(
+            openAI.result.recommendations,
+            input.text,
+            input.locale
+          )
         : [],
       quick_replies: openAI.result.quickReplies,
       state: mutation.state,
@@ -1859,11 +2620,11 @@ export async function POST(request: Request) {
       ui_action: uiAction,
       applied_operations: mutation.applied,
       pending_confirmation: nextPendingActions.length > 0,
+      pending_actions: toPendingActionPreviews(nextPendingActions),
     };
 
-    const { data: commitData, error: commitError } = await createAdminClient().rpc(
-      "commit_travel_agent_turn",
-      {
+    const { data: commitData, error: commitError } =
+      await createAdminClient().rpc("commit_travel_agent_turn", {
         p_session_id: input.sessionId,
         p_user_id: auth.userId,
         p_external_message_id: input.messageId,
@@ -1875,8 +2636,7 @@ export async function POST(request: Request) {
         p_openai_response_id: openAI.id,
         p_pending_actions_json: toJson(nextPendingActions),
         p_response_json: toJson(responseBody),
-      }
-    );
+      });
     if (commitError) throw new Error(commitError.message);
     if (!isRecord(commitData)) throw new Error("Invalid conversation commit.");
     if (commitData.status === "conflict") {

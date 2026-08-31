@@ -84,7 +84,10 @@ vi.mock("@/lib/supabase/admin", () => ({
     },
     async rpc(_name: string, args: Record<string, unknown>) {
       const response = args.p_response_json as Record<string, unknown>;
-      testState.session.state_json = args.p_state_json as Record<string, unknown>;
+      testState.session.state_json = args.p_state_json as Record<
+        string,
+        unknown
+      >;
       testState.session.state_version += 1;
       testState.session.memory_summary = String(args.p_memory_summary);
       testState.session.openai_previous_response_id = String(
@@ -115,9 +118,7 @@ import {
   POST as postTravelChat,
 } from "@/app/api/travel/chat/route";
 import { GET as getIpLocation } from "@/app/api/travel/ip-location/route";
-import {
-  applyTravelStateOperations,
-} from "@/lib/travel/conversation-state";
+import { applyTravelStateOperations } from "@/lib/travel/conversation-state";
 import {
   createInitialTravelState,
   createTravelFormMessage,
@@ -211,7 +212,8 @@ describe("Travel IP origin suggestion", () => {
 function request(
   text: string,
   messageId: string,
-  version = testState.session.state_version
+  version = testState.session.state_version,
+  locale: "zh" | "en" = "zh"
 ) {
   return new Request("http://127.0.0.1:3000/api/travel/chat", {
     method: "POST",
@@ -220,7 +222,7 @@ function request(
       sessionId: "session-1",
       messageId,
       text,
-      locale: "zh",
+      locale,
       expectedStateVersion: version,
     }),
   });
@@ -240,7 +242,8 @@ function modelTurn(text: string) {
     return {
       ...base,
       intent: "recommend_destinations",
-      reply: "没关系，我们可以先从你喜欢的旅行感觉开始。东京、迪拜和巴厘岛各有不同，你更偏向城市、美食还是放松？",
+      reply:
+        "没关系，我们可以先从你喜欢的旅行感觉开始。东京、迪拜和巴厘岛各有不同，你更偏向城市、美食还是放松？",
       recommendations: ["东京", "迪拜", "巴厘岛"],
     };
   }
@@ -288,6 +291,29 @@ function modelTurn(text: string) {
       intent: "select_destination",
       reply: "好的，已记录你选择的国家：波兰和德国。",
       operations: [],
+    };
+  }
+  if (
+    text === "Plan a 5-day trip to Warsaw and Krakow" ||
+    text === "Create an itinerary for Warsaw and Krakow"
+  ) {
+    return {
+      ...base,
+      intent: "generate_itinerary",
+      reply: "我会先整理这两个城市的行程。",
+      // Deliberately return a non-explicit partial guess. The server must
+      // recover the complete explicit facts from the user's sentence.
+      operations: [
+        {
+          op: "add",
+          path: "cities",
+          value_text: "Warsaw and Krakow",
+          value_number: null,
+          value_boolean: null,
+          explicit: false,
+          evidence: "Warsaw",
+        },
+      ],
     };
   }
   if (text === "我选择了城市：华沙、克拉科夫。") {
@@ -354,9 +380,7 @@ function modelTurn(text: string) {
       ],
     };
   }
-  if (
-    text === "Actually 还是罗马吧，4天，2个人，预算一万人民币，节奏轻快"
-  ) {
+  if (text === "Actually 还是罗马吧，4天，2个人，预算一万人民币，节奏轻快") {
     return {
       ...base,
       intent: "record_facts",
@@ -425,7 +449,8 @@ function modelTurn(text: string) {
   if (text === "推荐一下预算") {
     return {
       ...base,
-      reply: "两人短途旅行可以先按 8,000–15,000 元总预算参考，机票旺季需要再上调；这只是建议，我不会替你记录。",
+      reply:
+        "两人短途旅行可以先按 8,000–15,000 元总预算参考，机票旺季需要再上调；这只是建议，我不会替你记录。",
     };
   }
   if (text === "广州出发，2个人去东京玩4天，预算8000，回广州") {
@@ -515,6 +540,54 @@ function modelTurn(text: string) {
       reply: "第 1 天先去一个我临时编出来的地方，第 2 天继续游览。",
     };
   }
+  if (text === "我还没定预算") {
+    return {
+      ...base,
+      intent: "record_facts",
+      reply: "可以先按 8000 元预算规划，你确认后我再记录。",
+      operations: [
+        {
+          op: "set",
+          path: "budget",
+          value_text: null,
+          value_number: 8000,
+          value_boolean: null,
+          explicit: false,
+          evidence: "建议预算 8000 元",
+        },
+      ],
+    };
+  }
+  if (text === "确认这些更改") {
+    return {
+      ...base,
+      intent: "confirm_action",
+      reply: "好的，我来应用这项更改。",
+      // Reproduce a model that repeats the pending scalar as an inference.
+      // The short confirmation text itself contains no number, so the server
+      // must apply the exact persisted proposal instead of revalidating it.
+      operations: [
+        {
+          op: "set",
+          path: "budget",
+          value_text: null,
+          value_number: 8000,
+          value_boolean: null,
+          explicit: false,
+          evidence: "此前建议预算 8000 元",
+        },
+      ],
+    };
+  }
+  if (text === "取消这些更改") {
+    return {
+      ...base,
+      // The deterministic coordinator must recognize the visible UI action
+      // even when the model under-classifies the short reply.
+      intent: "answer_question",
+      reply: "好的，不应用这项更改。",
+    };
+  }
   return base;
 }
 
@@ -538,8 +611,9 @@ describe("Travel Agent server coordinator", () => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         testState.openAIRequests.push(body);
         const input = body.input as Array<{ role: string; content: string }>;
-        const text = [...input].reverse().find((item) => item.role === "user")
-          ?.content;
+        const text = [...input]
+          .reverse()
+          .find((item) => item.role === "user")?.content;
         return Response.json({
           id: `resp-${testState.openAIRequests.length}`,
           output_text: JSON.stringify(modelTurn(text ?? "")),
@@ -654,6 +728,164 @@ describe("Travel Agent server coordinator", () => {
     expect(planned.state.cities).toEqual(["华沙", "克拉科夫"]);
     expect(planned.state.travel_days).toBe(5);
     expect(planned.next_missing_field).toBe("destination_confirmation");
+    expect(planned.pending_confirmation).toBe(false);
+    expect(testState.session.pending_actions_json).toEqual([]);
+  });
+
+  it("recovers both English city facts when the model returns only a non-explicit partial guess", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["Poland"],
+      country: "Poland",
+    };
+
+    const body = await (
+      await postTravelChat(
+        request(
+          "Plan a 5-day trip to Warsaw and Krakow",
+          "partial-english-plan",
+          0,
+          "en"
+        )
+      )
+    ).json();
+
+    expect(body.state.cities).toEqual(["Warsaw", "Krakow"]);
+    expect(body.state.travel_days).toBe(5);
+    expect(body.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          op: "add",
+          path: "cities",
+          valueText: "Warsaw",
+          explicit: true,
+        }),
+        expect.objectContaining({
+          op: "add",
+          path: "cities",
+          valueText: "Krakow",
+          explicit: true,
+        }),
+      ])
+    );
+    expect(body.pending_confirmation).toBe(false);
+    expect(testState.session.pending_actions_json).toEqual([]);
+  });
+
+  it("recovers both cities from an English itinerary-for request and does not treat advice questions as selections", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["Poland"],
+      country: "Poland",
+    };
+
+    const itinerary = await (
+      await postTravelChat(
+        request(
+          "Create an itinerary for Warsaw and Krakow",
+          "partial-english-itinerary",
+          0,
+          "en"
+        )
+      )
+    ).json();
+    expect(itinerary.state.cities).toEqual(["Warsaw", "Krakow"]);
+
+    testState.session.state_json = createInitialTravelState();
+    testState.session.state_version = 0;
+    testState.session.pending_actions_json = [];
+    testState.messages.length = 0;
+
+    for (const [index, text] of [
+      "If I plan a trip to Japan, do I need a visa?",
+      "Would a trip to Japan be expensive?",
+    ].entries()) {
+      const body = await (
+        await postTravelChat(request(text, `advice-${index}`, index, "en"))
+      ).json();
+      expect(body.state.countries).toEqual([]);
+      expect(body.state.cities).toEqual([]);
+      expect(body.applied_operations).toEqual([]);
+    }
+  });
+
+  it("treats a direct factual planning question as a destination request", async () => {
+    const body = await (
+      await postTravelChat(
+        request(
+          "Can you plan a trip to Japan?",
+          "factual-planning-question",
+          0,
+          "en"
+        )
+      )
+    ).json();
+
+    expect(body.state.countries).toEqual(["Japan"]);
+    expect(body.state.cities).toEqual([]);
+    expect(body.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          op: "add",
+          path: "countries",
+          valueText: "Japan",
+          explicit: true,
+        }),
+      ])
+    );
+  });
+
+  it("does not infer countries from English words that happen to be ISO codes", async () => {
+    for (const [index, text] of [
+      "Plan a 5-day trip to Warsaw in May",
+      "Plan a 5-day trip to Krakow as usual",
+      "Plan a 5-day trip to Warsaw, no rush",
+    ].entries()) {
+      const body = await (
+        await postTravelChat(request(text, `iso-word-${index}`, index, "en"))
+      ).json();
+      expect(body.state.countries).not.toEqual(
+        expect.arrayContaining(["India", "American Samoa", "Norway"])
+      );
+    }
+  });
+
+  it("does not select shorter country names contained inside the stated country", async () => {
+    const nigeria = await (
+      await postTravelChat(
+        request("Plan a trip to Nigeria", "country-prefix-nigeria", 0, "en")
+      )
+    ).json();
+    expect(nigeria.state.countries).toEqual(["Nigeria"]);
+
+    testState.session.state_json = createInitialTravelState();
+    testState.session.state_version = 0;
+    testState.session.pending_actions_json = [];
+    testState.messages.length = 0;
+
+    const equatorialGuinea = await (
+      await postTravelChat(
+        request(
+          "Plan a trip to Equatorial Guinea",
+          "country-contained-guinea",
+          0,
+          "en"
+        )
+      )
+    ).json();
+    expect(equatorialGuinea.state.countries).toEqual(["Equatorial Guinea"]);
+  });
+
+  it("does not treat a generic plan-to sentence as a travel destination request", async () => {
+    const body = await (
+      await postTravelChat(
+        request("Plan to eat turkey for dinner", "non-travel-plan-to", 0, "en")
+      )
+    ).json();
+
+    expect(body.state.countries).toEqual([]);
+    expect(body.state.cities).toEqual([]);
+    expect(body.applied_operations).toEqual([]);
   });
 
   it("preserves multiple explicit country selections in order", async () => {
@@ -683,6 +915,92 @@ describe("Travel Agent server coordinator", () => {
 
     expect(body.state.cities).toEqual(["华沙", "克拉科夫"]);
     expect(body.next_missing_field).toBe("destination_confirmation");
+  });
+
+  it("coordinates country and multiple city facts from one natural-language turn", async () => {
+    const body = await (
+      await postTravelChat(
+        request("我想去波兰，去华沙和krakow", "country-and-cities")
+      )
+    ).json();
+
+    expect(body.state.countries).toEqual(["波兰"]);
+    expect(body.state.cities).toEqual(["华沙", "克拉科夫"]);
+    expect(body.pending_confirmation).toBe(false);
+  });
+
+  it("does not turn an ambiguous city-only mention into a country", async () => {
+    const body = await (
+      await postTravelChat(request("我想去Victoria", "ambiguous-city-only"))
+    ).json();
+
+    expect(body.state.countries).toEqual([]);
+    expect(body.state.cities).toEqual([]);
+    expect(body.applied_operations).toEqual([]);
+  });
+
+  it("keeps explicit destination replacement and confirmation separate from negation", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["波兰"],
+      country: "波兰",
+      cities: ["华沙", "克拉科夫"],
+      destination_confirmed: true,
+    };
+
+    const replaced = await (
+      await postTravelChat(request("把华沙换成东京", "replace-city"))
+    ).json();
+    expect(replaced.state.cities).toEqual(["克拉科夫", "东京"]);
+    expect(replaced.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          op: "remove",
+          path: "cities",
+          valueText: "华沙",
+          explicit: true,
+        }),
+        expect.objectContaining({
+          op: "add",
+          path: "cities",
+          valueText: "东京",
+          explicit: true,
+        }),
+      ])
+    );
+
+    for (const [index, text] of [
+      "我不是不想去东京",
+      "不要推荐东京",
+    ].entries()) {
+      const body = await (
+        await postTravelChat(request(text, `negated-${index}`))
+      ).json();
+      expect(body.state.cities).toContain("东京");
+      expect(body.applied_operations).toEqual([]);
+    }
+  });
+
+  it("accepts repeated confirmation synonyms only for the selected destinations", async () => {
+    testState.session.state_json = {
+      ...createInitialTravelState(),
+      countries: ["波兰"],
+      country: "波兰",
+      cities: ["华沙", "克拉科夫"],
+    };
+
+    const first = await (
+      await postTravelChat(
+        request("目的地就这些，继续规划后面的行程信息。", "confirm-1")
+      )
+    ).json();
+    expect(first.state.destination_confirmed).toBe(true);
+
+    const repeated = await (
+      await postTravelChat(request("好的，就这些", "confirm-2"))
+    ).json();
+    expect(repeated.state.destination_confirmed).toBe(true);
+    expect(repeated.state.cities).toEqual(["华沙", "克拉科夫"]);
   });
 
   it("removes the selected city when the model only acknowledges the command", async () => {
@@ -727,7 +1045,7 @@ describe("Travel Agent server coordinator", () => {
       )
     ).json();
     expect(mixedFacts.state).toMatchObject({
-      cities: ["Rome"],
+      cities: ["罗马"],
       travel_days: 4,
       travelers: 2,
       budget: 10_000,
@@ -736,14 +1054,12 @@ describe("Travel Agent server coordinator", () => {
     const keepRome = await (
       await postTravelChat(request("我不想去俄罗斯，但保留罗马", "m7"))
     ).json();
-    expect(keepRome.state.cities).toEqual(["Rome"]);
+    expect(keepRome.state.cities).toEqual(["罗马"]);
 
     const departureDate = await (
       await postTravelChat(request("出发时间就定在下周末", "m8"))
     ).json();
-    expect(departureDate.state.departure_date).toMatch(
-      /^\d{4}-\d{2}-\d{2}$/
-    );
+    expect(departureDate.state.departure_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(departureDate.state.date_flexibility).toBe("fixed");
     expect(departureDate.applied_operations).toEqual(
       expect.arrayContaining([
@@ -932,6 +1248,74 @@ describe("Travel Agent server coordinator", () => {
     const secondBody = await second.json();
 
     expect(secondBody).toEqual(firstBody);
+    expect(testState.openAIRequests).toHaveLength(1);
+  });
+
+  it("shows, restores, and applies the exact pending scalar after confirmation", async () => {
+    const proposed = await (
+      await postTravelChat(request("我还没定预算", "pending-budget"))
+    ).json();
+
+    expect(proposed.state.budget).toBeNull();
+    expect(proposed.pending_confirmation).toBe(true);
+    expect(proposed.pending_actions).toEqual([
+      {
+        op: "set",
+        path: "budget",
+        valueText: null,
+        valueNumber: 8000,
+        valueBoolean: null,
+      },
+    ]);
+
+    const restored = await (
+      await getTravelChat(
+        new Request("http://127.0.0.1:3000/api/travel/chat?sessionId=session-1")
+      )
+    ).json();
+    expect(restored.pending_confirmation).toBe(true);
+    expect(restored.pending_actions).toEqual(proposed.pending_actions);
+
+    const confirmed = await (
+      await postTravelChat(request("确认这些更改", "confirm-budget"))
+    ).json();
+    expect(confirmed.state.budget).toBe(8000);
+    expect(confirmed.applied_operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "budget", valueNumber: 8000 }),
+      ])
+    );
+    expect(confirmed.pending_confirmation).toBe(false);
+    expect(confirmed.pending_actions).toEqual([]);
+    expect(testState.session.pending_actions_json).toEqual([]);
+  });
+
+  it("clears a visible pending proposal without applying it when rejected", async () => {
+    await postTravelChat(request("我还没定预算", "pending-budget-reject"));
+
+    const rejected = await (
+      await postTravelChat(request("取消这些更改", "reject-budget"))
+    ).json();
+    expect(rejected.state.budget).toBeNull();
+    expect(rejected.applied_operations).toEqual([]);
+    expect(rejected.pending_confirmation).toBe(false);
+    expect(rejected.pending_actions).toEqual([]);
+    expect(testState.session.pending_actions_json).toEqual([]);
+  });
+
+  it("rejects a stale state version before calling the model or mutating state", async () => {
+    await postTravelChat(request("我想去东京", "version-first"));
+    const before = structuredClone(testState.session.state_json);
+
+    const response = await postTravelChat(
+      request("我想去罗马", "version-stale", 0)
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("state_version_conflict");
+    expect(body.state).toEqual(before);
+    expect(testState.session.state_json).toEqual(before);
     expect(testState.openAIRequests).toHaveLength(1);
   });
 

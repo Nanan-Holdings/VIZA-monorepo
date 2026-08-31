@@ -1,4 +1,5 @@
 import { getCuratedCityLabel } from "@/lib/travel/locations";
+import { countries } from "country-data-list";
 
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
 export const DEFAULT_CITY_DAYS = 2;
@@ -259,15 +260,116 @@ function normalizeString(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
-function normalizeStringArray(value: unknown): string[] {
+function comparableLabel(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+export function getTravelTextKey(value: string): string {
+  return comparableLabel(value);
+}
+
+const COUNTRY_CANONICAL_BY_KEY = new Map<string, string>();
+const COUNTRY_DISPLAY_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
+
+for (const item of countries.all as unknown[]) {
+  if (!item || typeof item !== "object") continue;
+  const record = item as {
+    name?: unknown;
+    alpha2?: unknown;
+    alpha3?: unknown;
+  };
+  const canonical = typeof record.name === "string" ? record.name.trim() : "";
+  const alpha2 =
+    typeof record.alpha2 === "string"
+      ? record.alpha2.trim().toUpperCase()
+      : "";
+  const alpha3 =
+    typeof record.alpha3 === "string"
+      ? record.alpha3.trim().toUpperCase()
+      : "";
+  if (!canonical) continue;
+
+  const aliases = [canonical, alpha2, alpha3];
+  if (alpha2) {
+    try {
+      const localized = COUNTRY_DISPLAY_NAMES.of(alpha2);
+      if (localized) aliases.push(localized);
+    } catch {
+      // Ignore malformed metadata from the dependency; exact names/codes remain valid.
+    }
+  }
+  for (const alias of aliases) {
+    const key = comparableLabel(alias);
+    if (key) COUNTRY_CANONICAL_BY_KEY.set(key, canonical);
+  }
+}
+
+export function getTravelCountryKey(value: string): string {
+  const normalized = value.trim();
+  return comparableLabel(
+    COUNTRY_CANONICAL_BY_KEY.get(comparableLabel(normalized)) ?? normalized
+  );
+}
+
+export function getTravelDestinationKey(value: string): string {
+  const normalized = value.trim();
+  const curatedEnglish = getCuratedCityLabel(normalized, "en");
+  return getTravelTextKey(curatedEnglish ?? normalized);
+}
+
+function normalizeStringArray(
+  value: unknown,
+  keyForValue: (value: string) => string = (value) => value
+): string[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
   const result: string[] = [];
 
   for (const entry of value) {
     const normalized = normalizeString(entry);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
+    const key = normalized ? keyForValue(normalized) : "";
+    if (!normalized || !key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function normalizeDestinationArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const entry of value) {
+    const normalized = normalizeString(entry);
+    if (!normalized) continue;
+    const key = getTravelDestinationKey(normalized);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function normalizeCountryArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const entry of value) {
+    const normalized = normalizeString(entry);
+    if (!normalized) continue;
+    const key = getTravelCountryKey(normalized);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     result.push(normalized);
   }
 
@@ -320,7 +422,7 @@ export function getDefaultFlexibleDepartureDate(baseDate = new Date()): string {
   return toIsoDate(addCalendarMonths(baseDate, 2));
 }
 
-function normalizeIsoDate(value: unknown): string | null {
+export function normalizeIsoDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
@@ -351,11 +453,14 @@ function normalizeCityDays(
 ): Record<string, number> {
   if (!value || typeof value !== "object") return {};
 
-  const citySet = new Set(allowedCities);
+  const cityByKey = new Map(
+    allowedCities.map((city) => [getTravelDestinationKey(city), city])
+  );
   const result: Record<string, number> = {};
 
-  for (const [city, raw] of Object.entries(value)) {
-    if (!citySet.has(city)) continue;
+  for (const [rawCity, raw] of Object.entries(value)) {
+    const city = cityByKey.get(getTravelDestinationKey(rawCity));
+    if (!city) continue;
     const normalized = normalizePositiveInt(raw);
     if (!normalized) continue;
     result[city] = normalized;
@@ -368,10 +473,22 @@ function normalizeTravelOrder(value: unknown, cities: string[]): string[] {
   const order = normalizeStringArray(value);
   if (!order.length) return [];
 
-  const citySet = new Set(cities);
   if (order.length !== cities.length) return [];
-  if (order.some((city) => !citySet.has(city))) return [];
-  return order;
+  const cityByKey = new Map(
+    cities.map((city) => [getTravelDestinationKey(city), city])
+  );
+  const canonicalOrder = order.flatMap((city) => {
+    const canonical = cityByKey.get(getTravelDestinationKey(city));
+    return canonical ? [canonical] : [];
+  });
+  if (canonicalOrder.length !== order.length) return [];
+  if (
+    new Set(canonicalOrder.map(getTravelDestinationKey)).size !==
+    canonicalOrder.length
+  ) {
+    return [];
+  }
+  return canonicalOrder;
 }
 
 function normalizeFlightOption(value: unknown): FlightOptionResult | null {
@@ -406,7 +523,7 @@ function normalizeFlightOption(value: unknown): FlightOptionResult | null {
   return result;
 }
 
-function normalizeSelectedFlights(value: unknown): SelectedFlightOption[] {
+export function normalizeSelectedFlights(value: unknown): SelectedFlightOption[] {
   if (!Array.isArray(value)) return [];
   const byIndex = new Map<number, SelectedFlightOption>();
 
@@ -489,7 +606,7 @@ function normalizeHotelOption(value: unknown): HotelOptionResult | null {
   return result;
 }
 
-function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
+export function normalizeSelectedHotels(value: unknown): SelectedHotelOption[] {
   if (!Array.isArray(value)) return [];
   const byIndex = new Map<string, SelectedHotelOption>();
 
@@ -723,17 +840,23 @@ function isTravelOrderComplete(cities: string[], order: string[]): boolean {
   if (cities.length === 0) return false;
   if (order.length !== cities.length) return false;
 
-  const citySet = new Set(cities);
-  const orderSet = new Set(order);
+  const citySet = new Set(cities.map(getTravelDestinationKey));
+  const orderKeys = order.map(getTravelDestinationKey);
+  const orderSet = new Set(orderKeys);
 
   return (
-    orderSet.size === order.length && order.every((city) => citySet.has(city))
+    orderSet.size === order.length && orderKeys.every((city) => citySet.has(city))
   );
 }
 
 function getOrderedCities(state: TravelState): string[] {
   if (isTravelOrderComplete(state.cities, state.travel_order)) {
-    return state.travel_order;
+    const cityByKey = new Map(
+      state.cities.map((city) => [getTravelDestinationKey(city), city])
+    );
+    return state.travel_order.map(
+      (city) => cityByKey.get(getTravelDestinationKey(city)) ?? city
+    );
   }
   return state.cities;
 }
@@ -743,6 +866,8 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
     Object.assign(state, createInitialTravelState());
     return;
   }
+
+  let invalidateSelections = false;
 
   const seedCountry = normalizeString(payload.seed_country);
   if (seedCountry) {
@@ -754,50 +879,51 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
     state.seed_city = seedCity;
   }
 
-  const countries = normalizeStringArray(payload.countries);
-  if (countries.length > 0) {
+  const hasCountriesPayload = Array.isArray(payload.countries);
+  const countries = normalizeCountryArray(payload.countries);
+  if (hasCountriesPayload) {
     const previousCountryKey = state.countries
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelCountryKey)
       .join("|");
     const nextCountryKey = countries
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelCountryKey)
       .join("|");
+    const countriesChanged = previousCountryKey !== nextCountryKey;
     state.countries = countries;
-    if (!state.country) {
-      state.country = countries.join("、");
-    }
+    state.country = countries.length ? countries.join("、") : null;
     state.seed_country = null;
-    if (previousCountryKey !== nextCountryKey) {
+    if (countriesChanged) {
       state.destination_confirmed = false;
+      invalidateSelections = true;
     }
   }
 
   const country = normalizeString(payload.country);
-  if (country) {
+  if (country && !hasCountriesPayload) {
     state.country = country;
     state.seed_country = null;
   }
 
-  const cities = normalizeStringArray(payload.cities);
-  if (cities.length > 0) {
+  const hasCitiesPayload = Array.isArray(payload.cities);
+  const cities = normalizeDestinationArray(payload.cities);
+  if (hasCitiesPayload) {
     const previousCityKey = state.cities
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelDestinationKey)
       .join("|");
     const nextCityKey = cities
-      .map((item) => item.trim().toLowerCase())
+      .map(getTravelDestinationKey)
       .join("|");
-    state.cities = cities;
+    const citiesChanged = previousCityKey !== nextCityKey;
+    if (citiesChanged) state.cities = cities;
     state.seed_city = null;
 
-    const citySet = new Set(cities);
-    state.city_days = state.travel_days
-      ? distributeTravelDays(cities, state.travel_days)
-      : Object.fromEntries(cities.map((city) => [city, DEFAULT_CITY_DAYS]));
-    state.travel_order = state.travel_order.filter((city) => citySet.has(city));
-    state.selected_flights = [];
-    state.selected_hotels = [];
-    if (previousCityKey !== nextCityKey) {
+    if (citiesChanged) {
+      state.city_days = state.travel_days
+        ? distributeTravelDays(cities, state.travel_days)
+        : Object.fromEntries(cities.map((city) => [city, DEFAULT_CITY_DAYS]));
+      state.travel_order = normalizeTravelOrder(state.travel_order, cities);
       state.destination_confirmed = false;
+      invalidateSelections = true;
     }
   }
 
@@ -807,40 +933,64 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const cityDays = normalizeCityDays(payload.city_days, state.cities);
   if (Object.keys(cityDays).length > 0) {
-    state.city_days = {
+    const mergedCityDays = {
       ...state.city_days,
       ...cityDays,
     };
-    state.travel_days = Object.values(state.city_days).reduce(
+    const completeCityDays = Object.fromEntries(
+      state.cities.map((city) => [
+        city,
+        mergedCityDays[city] ?? DEFAULT_CITY_DAYS,
+      ])
+    );
+    const previousCityDays = JSON.stringify(state.city_days);
+    state.city_days = completeCityDays;
+    state.travel_days = Object.values(completeCityDays).reduce(
       (total, days) => total + days,
       0
     );
+    if (previousCityDays !== JSON.stringify(completeCityDays)) {
+      invalidateSelections = true;
+    }
   }
 
   const dateFlexibility = normalizeDateFlexibility(payload.date_flexibility);
   const departureDate = normalizeIsoDate(payload.departure_date);
   if (dateFlexibility || departureDate) {
-    state.date_flexibility =
+    const nextDateFlexibility =
       dateFlexibility ?? (departureDate ? "fixed" : state.date_flexibility);
-    state.departure_date =
+    const nextDepartureDate =
       departureDate ??
       (dateFlexibility === "flexible"
         ? getDefaultFlexibleDepartureDate()
         : state.departure_date);
-    state.selected_flights = [];
-    state.selected_hotels = [];
+    if (
+      state.date_flexibility !== nextDateFlexibility ||
+      state.departure_date !== nextDepartureDate
+    ) {
+      invalidateSelections = true;
+    }
+    state.date_flexibility = nextDateFlexibility;
+    state.departure_date = nextDepartureDate;
   }
 
   const travelDays = normalizePositiveInt(payload.travel_days);
   if (travelDays !== null) {
-    state.travel_days = Math.max(travelDays, state.cities.length || 1);
+    const nextTravelDays = Math.max(travelDays, state.cities.length || 1);
+    const previousCityDays = JSON.stringify(state.city_days);
+    if (state.travel_days !== nextTravelDays) {
+      invalidateSelections = true;
+    }
+    state.travel_days = nextTravelDays;
     state.city_days = distributeTravelDays(state.cities, state.travel_days);
-    state.selected_flights = [];
-    state.selected_hotels = [];
+    if (previousCityDays !== JSON.stringify(state.city_days)) {
+      invalidateSelections = true;
+    }
   }
 
   const travelers = normalizePositiveInt(payload.travelers);
   if (travelers !== null) {
+    if (state.travelers !== travelers) invalidateSelections = true;
     state.travelers = travelers;
   }
 
@@ -851,39 +1001,52 @@ function applyFormPayload(state: TravelState, payload: TravelFormPayload): void 
 
   const originCountry = normalizeString(payload.origin_country);
   if (originCountry) {
+    if (state.origin_country !== originCountry) invalidateSelections = true;
     state.origin_country = originCountry;
   }
   const originCity = normalizeString(payload.origin_city);
   if (originCity) {
+    if (state.origin_city !== originCity) invalidateSelections = true;
     state.origin_city = originCity;
-    state.selected_flights = [];
   }
 
   const returnCountry = normalizeString(payload.return_country);
   if (returnCountry) {
+    if (state.return_country !== returnCountry) invalidateSelections = true;
     state.return_country = returnCountry;
   }
   const returnCity = normalizeString(payload.return_city);
   if (returnCity) {
+    if (state.return_city !== returnCity) invalidateSelections = true;
     state.return_city = returnCity;
-    state.selected_flights = [];
   }
 
-  const travelOrder = normalizeTravelOrder(payload.travel_order, state.cities);
-  if (travelOrder.length > 0) {
-    state.travel_order = travelOrder;
-    state.selected_flights = [];
-    state.selected_hotels = [];
+  if (Array.isArray(payload.travel_order)) {
+    const travelOrder = normalizeTravelOrder(payload.travel_order, state.cities);
+    if (payload.travel_order.length === 0) {
+      if (state.travel_order.length > 0) invalidateSelections = true;
+      state.travel_order = [];
+    } else if (travelOrder.length > 0) {
+      if (JSON.stringify(state.travel_order) !== JSON.stringify(travelOrder)) {
+        invalidateSelections = true;
+      }
+      state.travel_order = travelOrder;
+    }
   }
 
-  const selectedFlights = normalizeSelectedFlights(payload.selected_flights);
-  if (selectedFlights.length > 0) {
+  if (Array.isArray(payload.selected_flights) && !invalidateSelections) {
+    const selectedFlights = normalizeSelectedFlights(payload.selected_flights);
     state.selected_flights = selectedFlights;
   }
 
-  const selectedHotels = normalizeSelectedHotels(payload.selected_hotels);
-  if (selectedHotels.length > 0) {
+  if (Array.isArray(payload.selected_hotels) && !invalidateSelections) {
+    const selectedHotels = normalizeSelectedHotels(payload.selected_hotels);
     state.selected_hotels = selectedHotels;
+  }
+
+  if (invalidateSelections) {
+    state.selected_flights = [];
+    state.selected_hotels = [];
   }
 
   if ("final_note" in payload) {
@@ -924,10 +1087,20 @@ function hasCompleteDepartureDate(state: TravelState): boolean {
 }
 
 function hasCompleteTravelDays(state: TravelState): boolean {
-  return Boolean(
-    state.travel_days &&
-      Number.isInteger(state.travel_days) &&
-      state.travel_days >= Math.max(1, state.cities.length)
+  if (
+    !state.travel_days ||
+    !Number.isInteger(state.travel_days) ||
+    state.travel_days < Math.max(1, state.cities.length)
+  ) {
+    return false;
+  }
+
+  const cityDays = state.cities.map(
+    (city) => state.city_days[city] ?? DEFAULT_CITY_DAYS
+  );
+  return (
+    cityDays.every((days) => Number.isInteger(days) && days > 0) &&
+    cityDays.reduce((total, days) => total + days, 0) === state.travel_days
   );
 }
 
@@ -989,6 +1162,9 @@ export function toTravelPlanningPayload(
   const travelDays = state.travel_days;
   if (!originCountry || !originCity || !returnCountry || !returnCity) return null;
   if (!travelDays) return null;
+  if (Object.values(cityDays).reduce((total, days) => total + days, 0) !== travelDays) {
+    return null;
+  }
 
   return {
     country,

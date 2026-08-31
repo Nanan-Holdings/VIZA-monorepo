@@ -77,7 +77,19 @@ describe("dynamic review localization", () => {
     expect(within(row).getByRole("rowheader")).toHaveClass("w-full", "sm:w-[56%]", "px-0", "text-left");
     expect(within(row).getByRole("cell")).toHaveTextContent("李");
     expect(within(row).getByRole("cell")).toHaveClass("px-0", "text-right");
-    expect(within(row).getByDisplayValue("LI")).toHaveAttribute("lang", "en");
+    const englishEditor = within(row).getByDisplayValue("LI");
+    expect(englishEditor).toHaveAttribute("lang", "en");
+    expect(englishEditor).toHaveClass(
+      "h-8",
+      "w-auto",
+      "max-w-full",
+      "rounded-md",
+      "text-sm",
+      "leading-5",
+      "text-muted-foreground",
+    );
+    expect(englishEditor).not.toHaveClass("h-12", "w-full", "text-[15px]");
+    expect(englishEditor.style.width).toMatch(/ch$/u);
     expect(screen.getByRole("button", { name: "修改个人信息 / Personal Information" }))
       .toHaveClass("justify-end", "p-0");
     expect(screen.getByRole("heading", { name: "个人信息 / Personal Information" }))

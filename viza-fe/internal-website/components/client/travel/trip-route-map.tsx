@@ -10,7 +10,16 @@ import {
 } from "@/components/client/travel/travel-attraction-knowledge";
 import type { TravelPlaceAttribution } from "@/lib/travel/google-places";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
-import { Bed, CaretRight, Fire, ForkKnife, MapPin, MoonStars, Star, type Icon } from "@phosphor-icons/react";
+import {
+  Bed,
+  CaretRight,
+  Fire,
+  ForkKnife,
+  MapPin,
+  MoonStars,
+  Star,
+  type Icon,
+} from "@phosphor-icons/react";
 
 export type TripMapPoint = {
   id: string;
@@ -532,12 +541,7 @@ const CITY_DETAIL_SAMPLES_BY_KEY: Record<
       tags: ["海港", "市中心", "海滩"],
     },
     nightlife: {
-      items: [
-        "达令港",
-        "岩石区酒吧",
-        "歌剧院夜景",
-        "萨里山小酒馆",
-      ],
+      items: ["达令港", "岩石区酒吧", "歌剧院夜景", "萨里山小酒馆"],
       tip: "海港夜景和晚餐可以连起来，夜间回程也方便。",
       tags: ["海港夜景", "酒吧", "音乐"],
     },
@@ -1101,9 +1105,7 @@ function toScreenPixel(
   };
 }
 
-function getSelectionItemDescriptor(
-  item: TripMapSelectionItem
-): {
+function getSelectionItemDescriptor(item: TripMapSelectionItem): {
   id?: string;
   city?: string;
   label?: string;
@@ -1111,10 +1113,10 @@ function getSelectionItemDescriptor(
 } {
   if (typeof item === "string") return { id: item };
   return {
-    id: "pointId" in item ? item.pointId ?? item.id : item.id,
+    id: "pointId" in item ? (item.pointId ?? item.id) : item.id,
     city: item.city,
-    label: "name" in item ? item.name ?? item.label : item.label,
-    kind: "type" in item ? item.type ?? item.kind : item.kind,
+    label: "name" in item ? (item.name ?? item.label) : item.label,
+    kind: "type" in item ? (item.type ?? item.kind) : item.kind,
   };
 }
 
@@ -1162,7 +1164,9 @@ function resolveSelectedMapPoints(
         const labelMatches = normalizedLabel && names.has(normalizedLabel);
         const cityMatches = normalizedCity && names.has(normalizedCity);
         if (descriptor.kind === "city") {
-          return Boolean(cityMatches || labelMatches) && candidate.kind === "city";
+          return (
+            Boolean(cityMatches || labelMatches) && candidate.kind === "city"
+          );
         }
         return Boolean(labelMatches || cityMatches);
       });
@@ -1203,19 +1207,13 @@ export function calculateTripMapHoverCardPlacement(
   const safeCardWidth = Math.max(1, cardWidth);
   const safeCardHeight = Math.max(1, cardHeight);
   const maxLeft = Math.max(safeMargin, safeWidth - safeCardWidth - safeMargin);
-  const left = clamp(
-    marker.x - safeCardWidth / 2,
-    safeMargin,
-    maxLeft
-  );
+  const left = clamp(marker.x - safeCardWidth / 2, safeMargin, maxLeft);
   const availableAbove = marker.y - safeMargin;
   const availableBelow = safeHeight - marker.y - safeMargin;
   const opensBelow =
-    availableAbove < safeCardHeight + pointerGap && availableBelow > availableAbove;
-  const maxTop = Math.max(
-    safeMargin,
-    safeHeight - safeCardHeight - safeMargin
-  );
+    availableAbove < safeCardHeight + pointerGap &&
+    availableBelow > availableAbove;
+  const maxTop = Math.max(safeMargin, safeHeight - safeCardHeight - safeMargin);
   const preferredTop = opensBelow
     ? marker.y + pointerGap
     : marker.y - safeCardHeight - pointerGap;
@@ -1321,7 +1319,10 @@ function drawRoundedRectPath(
   ctx.closePath();
 }
 
-export function createBubbleMarkerDimensions(iconSize: number, isActive: boolean) {
+export function createBubbleMarkerDimensions(
+  iconSize: number,
+  isActive: boolean
+) {
   const bodySize = isActive ? Math.round(iconSize * 1.08) : iconSize;
   const tailHeight = Math.round(bodySize * 0.26);
   const width = bodySize + 10;
@@ -1622,8 +1623,12 @@ function formatGooglePointRating(
   point: TripMapPoint,
   isZh: boolean
 ): string | null {
-  if (point.source !== "google" || typeof point.rating !== "number") return null;
-  const count = Math.max(0, Math.round(point.reviewCount ?? 0)).toLocaleString();
+  if (point.source !== "google" || typeof point.rating !== "number")
+    return null;
+  const count = Math.max(
+    0,
+    Math.round(point.reviewCount ?? 0)
+  ).toLocaleString();
   return isZh
     ? `${point.rating.toFixed(1)} 分 · ${count} 条评价`
     : `${point.rating.toFixed(1)} · ${count} reviews`;
@@ -1834,7 +1839,11 @@ function buildHoverCardHtml(
     options?.galleryImages && options.galleryImages.length > 0
       ? options.galleryImages
       : [resolveMarkerImageUrl(point.imageSrc)];
-  const imageIndex = clamp(options?.imageIndex ?? 0, 0, Math.max(galleryImages.length - 1, 0));
+  const imageIndex = clamp(
+    options?.imageIndex ?? 0,
+    0,
+    Math.max(galleryImages.length - 1, 0)
+  );
   const imageUrl = galleryImages[imageIndex] ?? galleryImages[0] ?? "";
   const cardWidth = options?.cardWidth ?? 420;
   const imageHeight = options?.imageHeight ?? 260;
@@ -1964,7 +1973,9 @@ async function loadGoogleMaps(
       existingScript.addEventListener(
         "error",
         () => reject(new Error("Failed to load Google Maps script")),
-        { once: true }
+        {
+          once: true,
+        }
       );
       return;
     }
@@ -2117,10 +2128,20 @@ export function TripRouteMap({
     );
     const imageHeight = compact ? 168 : 217;
     const estimatedCardHeight = imageHeight + (compact ? 190 : 220);
-    return { currentWidth, currentHeight, compact, cardWidth, imageHeight, estimatedCardHeight };
+    return {
+      currentWidth,
+      currentHeight,
+      compact,
+      cardWidth,
+      imageHeight,
+      estimatedCardHeight,
+    };
   })();
   const hoverGalleryImages = useMemo(
-    () => (hoverPoint ? getPointGalleryImages(hoverPoint).map(resolveMarkerImageUrl) : []),
+    () =>
+      hoverPoint
+        ? getPointGalleryImages(hoverPoint).map(resolveMarkerImageUrl)
+        : [],
     [hoverPoint]
   );
   const hoverCardIds = useMemo(() => {
@@ -2221,10 +2242,7 @@ export function TripRouteMap({
       clearHoverCloseTimer();
       hoverCloseTimerRef.current = window.setTimeout(() => {
         hoverCloseTimerRef.current = null;
-        if (
-          hoverPointIdRef.current === pointId &&
-          !hoverPinnedRef.current
-        ) {
+        if (hoverPointIdRef.current === pointId && !hoverPinnedRef.current) {
           clearHoverPreview();
         }
       }, delay);
@@ -2282,12 +2300,7 @@ export function TripRouteMap({
     };
     card.addEventListener("click", handleClick);
     return () => card.removeEventListener("click", handleClick);
-  }, [
-    clearHoverPreview,
-    hoverCardIds,
-    hoverGalleryImages.length,
-    hoverPoint,
-  ]);
+  }, [clearHoverPreview, hoverCardIds, hoverGalleryImages.length, hoverPoint]);
 
   useEffect(() => {
     const card = hoverCardRef.current;
@@ -2318,8 +2331,10 @@ export function TripRouteMap({
   const hoverPlacement = (() => {
     if (!hoverPoint) return null;
     const map = mapRef.current;
-    const currentWidth = containerRef.current?.clientWidth ?? hoverCardConfig.currentWidth;
-    const currentHeight = containerRef.current?.clientHeight ?? hoverCardConfig.currentHeight;
+    const currentWidth =
+      containerRef.current?.clientWidth ?? hoverCardConfig.currentWidth;
+    const currentHeight =
+      containerRef.current?.clientHeight ?? hoverCardConfig.currentHeight;
     const currentZoom = map?.getZoom() ?? DEFAULT_ZOOM;
     const centerValue = map?.getCenter();
     const center = centerValue
@@ -2334,7 +2349,8 @@ export function TripRouteMap({
       currentHeight
     );
     const cardWidth = hoverCardMeasuredSize?.width ?? hoverCardConfig.cardWidth;
-    const cardHeight = hoverCardMeasuredSize?.height ?? hoverCardConfig.estimatedCardHeight;
+    const cardHeight =
+      hoverCardMeasuredSize?.height ?? hoverCardConfig.estimatedCardHeight;
     return {
       ...calculateTripMapHoverCardPlacement(
         marker,
@@ -2955,6 +2971,7 @@ export function TripRouteMap({
                     : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/70"
                 }`}
                 data-testid={`trip-map-selected-item-${sanitizeDomId(point.id)}`}
+                key={point.id}
                 onClick={() => {
                   onPointSelectRef.current?.(point.id);
                   openHoverPreview(point, true);
@@ -2968,7 +2985,8 @@ export function TripRouteMap({
                   openHoverPreview(point, false);
                 }}
                 onMouseLeave={() => {
-                  if (!hoverPinnedRef.current) scheduleHoverClose(point.id, 120);
+                  if (!hoverPinnedRef.current)
+                    scheduleHoverClose(point.id, 120);
                 }}
                 type="button"
               >
@@ -3006,7 +3024,9 @@ export function TripRouteMap({
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 overflow-visible"
             data-testid="trip-map-hover-pointer"
-            height={Math.max(hoverPlacement.cardHeight, hoverPlacement.pointerY) + 2}
+            height={
+              Math.max(hoverPlacement.cardHeight, hoverPlacement.pointerY) + 2
+            }
             style={{ width: hoverPlacement.cardWidth }}
           >
             <polygon

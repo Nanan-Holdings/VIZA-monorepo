@@ -10,7 +10,8 @@ export type TravelDestinationCard = {
   image_key?: string | null;
   cover_image_url?: string | null;
   image_status?: "verified" | "enriched" | "placeholder" | "pending";
-  data_quality?: "verified" | "enriched" | "generated" | "placeholder" | "incomplete";
+  data_quality?:
+    "verified" | "enriched" | "generated" | "placeholder" | "incomplete";
   source_status?:
     | "local_verified"
     | "local_cached"
@@ -35,6 +36,11 @@ export type TravelQuickReply = {
   label: string;
   value: string;
 };
+
+export type TravelPendingActionPreview = Pick<
+  TravelStateOperation,
+  "op" | "path" | "valueText" | "valueNumber" | "valueBoolean"
+>;
 
 export type TravelChatTextPart = {
   type: "text";
@@ -90,3 +96,4 @@ export type TravelChatInputMessage = {
 
 export type TravelChatStatus = "ready" | "submitted" | "streaming";
 import type { TravelField } from "@/lib/travel/planner";
+import type { TravelStateOperation } from "@/lib/travel/conversation-state";
