@@ -19,6 +19,7 @@ describe('conversation state request snapshot', () => {
     });
 
     expect(result?.revision).toBe(7);
+    expect(result?.source).toBe('memory');
     expect(result?.state.mainDestination).toBe('japan');
     expect(result?.state.nationality).toBe('China');
   });
@@ -41,6 +42,7 @@ describe('conversation state request snapshot', () => {
     });
 
     expect(result?.state.nationality).toBe('China');
+    expect(result?.source).toBe('legacy');
   });
 
   it('requires the wider fallback only when an empty-memory page is truncated', () => {
@@ -59,5 +61,6 @@ describe('conversation state request snapshot', () => {
     });
     expect(complete?.revision).toBe(2);
     expect(complete?.state.destinationCountries).toEqual([]);
+    expect(complete?.source).toBe('empty');
   });
 });

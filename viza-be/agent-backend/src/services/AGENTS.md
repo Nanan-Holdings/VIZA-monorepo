@@ -15,6 +15,9 @@ conversation state, and other cross-route behavior.
   summarizes VIZA conversation route state. It may reuse a complete
   request-scoped session/message snapshot from the socket bootstrap, while an
   incomplete legacy message page must retain the wider database fallback.
+  Structured memory writes use semantic deduplication that ignores only
+  `updatedAt`; legacy or empty memory still writes once, and changed state
+  retains optimistic revision checks.
 - `visa-entry-rule.service.ts`: deterministic passport/destination eligibility
   lookup, reviewed policy fallbacks, and policy-first prompt generation.
   `visa-entry-rule-cache.ts` coalesces identical public rule lookups in a
