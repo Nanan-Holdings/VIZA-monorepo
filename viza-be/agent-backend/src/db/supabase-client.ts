@@ -22,6 +22,7 @@ const DEFAULT_PROBE_TIMEOUT_MS = 3_000;
 const MAX_PROBE_TIMEOUT_MS = 3_000;
 const MIN_EXPLICIT_PROBE_TIMEOUT_MS = 100;
 const SUCCESSFUL_PROBE_CACHE_TTL_MS = 5_000;
+export const KNOWLEDGE_RELEASE_HEALTH_CACHE_MAX_AGE_MS = 30_000;
 
 type SupabaseEnvironment = NodeJS.ProcessEnv;
 type SupabaseUrlEnvName = "SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_URL";
@@ -263,9 +264,11 @@ async function runActiveKnowledgeReleaseProbe(
 
 export async function testActiveKnowledgeRelease(
 	timeoutMs = Number(process.env.READINESS_DB_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS),
+	maxAgeMs = SUCCESSFUL_PROBE_CACHE_TTL_MS,
 ): Promise<ActiveKnowledgeReleaseCheck> {
-	return knowledgeReleaseProbeCache.getOrCreate(() =>
-		runActiveKnowledgeReleaseProbe(timeoutMs),
+	return knowledgeReleaseProbeCache.getOrCreate(
+		() => runActiveKnowledgeReleaseProbe(timeoutMs),
+		maxAgeMs,
 	);
 }
 

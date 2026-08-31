@@ -3,7 +3,7 @@ type SuccessfulProbeResult = {
 };
 
 type CachedProbe<T> = {
-	expiresAt: number;
+	fetchedAt: number;
 	value: T;
 };
 
@@ -17,16 +17,24 @@ export class SuccessfulProbeCache<T extends SuccessfulProbeResult> {
 	private inFlight: Promise<T> | null = null;
 
 	constructor(
-		private readonly ttlMs: number,
+		private readonly defaultMaxAgeMs: number,
 		private readonly now = () => Date.now(),
 	) {
-		if (!Number.isFinite(ttlMs) || ttlMs < 1) {
+		if (!Number.isFinite(defaultMaxAgeMs) || defaultMaxAgeMs < 1) {
 			throw new Error("Probe cache TTL must be positive");
 		}
 	}
 
-	async getOrCreate(factory: () => Promise<T>): Promise<T> {
-		if (this.cached && this.cached.expiresAt > this.now()) {
+	async getOrCreate(
+		factory: () => Promise<T>,
+		maxAgeMs = this.defaultMaxAgeMs,
+	): Promise<T> {
+		if (!Number.isFinite(maxAgeMs) || maxAgeMs < 1) {
+			throw new Error("Probe cache max age must be positive");
+		}
+
+		const now = this.now();
+		if (this.cached && now - this.cached.fetchedAt < maxAgeMs) {
 			return this.cached.value;
 		}
 		this.cached = null;
@@ -37,7 +45,7 @@ export class SuccessfulProbeCache<T extends SuccessfulProbeResult> {
 			.then((value) => {
 				if (value.success) {
 					this.cached = {
-						expiresAt: this.now() + this.ttlMs,
+						fetchedAt: this.now(),
 						value,
 					};
 				}
