@@ -56,6 +56,8 @@ import {
 import {
   buildChatTurnBootstrapQuery,
   loadChatTurnBootstrap,
+  persistUserMessageAndLoadChatTurnBootstrap,
+  type ChatTurnBootstrap,
   type ChatTurnBootstrapRow,
 } from './chat-turn-bootstrap.js';
 import { persistVisibleVisaChatMessage } from './visible-chat-message.js';
@@ -1031,17 +1033,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
       try {
         releaseCapacity = await getChatConcurrencyGate().acquire(requestController.signal);
 
-        // 1. Save user message to DB (non-fatal)
-        try {
-          await saveVisibleVisaChatMessage(session_id, 'user', message);
-        } catch (dbErr) {
-          logger.warn('Failed to save user message (DB may be unavailable)', dbErr as Error, {
-            sessionId: session_id,
-          });
-        }
-
-        // 2. Load conversation history and session memory in one DB snapshot.
-        // Application context is independent, so overlap it with this read.
+        // 1. Application context is independent from message persistence and
+        // the request-scoped chat snapshot, so overlap all of those reads.
         const applicationContextPromise = buildApplicationContext(user_id);
         const clientHistory = normalizeClientHistory(request.history, message);
         let historySource: 'client' | 'database' | 'current_message' =
@@ -1050,38 +1043,89 @@ export function registerVisaNamespace(nsp: Namespace): void {
           clientHistory.length > 0 ? clientHistory : [{ role: 'user', content: message }];
         let conversationStateSnapshot: VisaConversationStateSnapshot | undefined;
 
-        try {
-          const bootstrap = await loadChatTurnBootstrap(
-            CHAT_HISTORY_LIMIT,
-            async () => {
-              const result = await db.execute(
-                buildChatTurnBootstrapQuery(session_id, CHAT_HISTORY_LIMIT),
-              );
-              return (result.rows ?? result) as unknown as ChatTurnBootstrapRow[];
-            },
-          );
+        const applyBootstrap = (bootstrap: ChatTurnBootstrap): void => {
           const history = bootstrap.messageRows;
           conversationStateSnapshot = bootstrap.conversationStateSnapshot ?? undefined;
 
-          if (history.length > 0) {
-            // Only include user/assistant messages (skip 'block' role for OpenAI API)
-            const databaseHistory = history
-              .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-              .map((msg) => ({
-                role: msg.role as 'user' | 'assistant',
-                content: msg.content,
-              }))
-              .reverse();
+          if (history.length === 0) return;
 
-            if (databaseHistory.length >= clientHistory.length) {
-              chatHistory = databaseHistory;
-              historySource = 'database';
+          // Only include user/assistant messages (skip 'block' role for OpenAI API)
+          const databaseHistory = history
+            .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+            .map((msg) => ({
+              role: msg.role as 'user' | 'assistant',
+              content: msg.content,
+            }))
+            .reverse();
+
+          if (databaseHistory.length >= clientHistory.length) {
+            chatHistory = databaseHistory;
+            historySource = 'database';
+          }
+        };
+
+        const executeBootstrapQuery = async (
+          query: Parameters<typeof db.execute>[0],
+        ): Promise<ChatTurnBootstrapRow[]> => {
+          const result = await db.execute(query);
+          return (result.rows ?? result) as unknown as ChatTurnBootstrapRow[];
+        };
+
+        const loadLegacyBootstrap = (): Promise<ChatTurnBootstrap> =>
+          loadChatTurnBootstrap(CHAT_HISTORY_LIMIT, () =>
+            executeBootstrapQuery(
+              buildChatTurnBootstrapQuery(session_id, CHAT_HISTORY_LIMIT),
+            ),
+          );
+
+        // 2. The normal path persists the user message and loads history plus
+        // session memory in one statement. Keep the old sequence as a
+        // non-fatal availability fallback.
+        try {
+          const bootstrap = await persistUserMessageAndLoadChatTurnBootstrap(
+            session_id,
+            message,
+            CHAT_HISTORY_LIMIT,
+            executeBootstrapQuery,
+          );
+          if (bootstrap) {
+            applyBootstrap(bootstrap);
+          } else {
+            try {
+              await saveVisibleVisaChatMessage(session_id, 'user', message);
+            } catch (dbErr) {
+              logger.warn(
+                'Failed to save empty user message (DB may be unavailable)',
+                dbErr as Error,
+                { sessionId: session_id },
+              );
             }
+            applyBootstrap(await loadLegacyBootstrap());
           }
         } catch (dbErr) {
-          logger.warn('Failed to load chat history (using current message only)', dbErr as Error, {
-            sessionId: session_id,
-          });
+          logger.warn(
+            'Failed combined user-message persistence and chat bootstrap; using legacy path',
+            dbErr as Error,
+            { sessionId: session_id },
+          );
+          try {
+            await saveVisibleVisaChatMessage(session_id, 'user', message);
+          } catch (saveErr) {
+            logger.warn(
+              'Failed to save user message (DB may be unavailable)',
+              saveErr as Error,
+              { sessionId: session_id },
+            );
+          }
+          try {
+            applyBootstrap(await loadLegacyBootstrap());
+          } catch (historyErr) {
+            logger.warn(
+              'Failed to load chat history (using current message only)',
+              historyErr as Error,
+              { sessionId: session_id },
+            );
+          }
         }
 
         // 3. Build structured state, dynamic system prompt, and RAG context.

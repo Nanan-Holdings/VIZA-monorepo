@@ -15,8 +15,11 @@ namespace `/visa` and sends/receives streaming events.
    application context, updates structured conversation state, retrieves RAG
    chunks, emits optional application redirect blocks, and streams OpenAI tokens.
    `chat-turn-bootstrap.ts` must keep recent messages and persisted memory in a
-   single request-scoped database snapshot; never move chat content into a
-   process-shared cache.
+   single request-scoped database snapshot. Its normal path must persist the
+   visible user message and load that snapshot in one parameterized statement,
+   using the inserted row's `RETURNING` data in the history window; retain the
+   legacy save/read sequence only as an availability fallback. Never move chat
+   content into a process-shared cache.
 4. Assistant output is persisted to `visa_chat_messages`.
    `visible-chat-message.ts` keeps exact session/role/content idempotency in one
    parameterized `INSERT ... WHERE NOT EXISTS` statement, rather than a
