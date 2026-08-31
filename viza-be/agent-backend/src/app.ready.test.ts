@@ -61,6 +61,10 @@ describe("GET /ready", () => {
       releaseKey: null,
     });
     await request(app).get("/health").expect(200);
+    expect(readinessMocks.testActiveKnowledgeRelease).toHaveBeenCalledWith(
+      expect.any(Number),
+      30_000,
+    );
 
     readinessMocks.socketStatus.mockReturnValue({
       mode: "redis",

@@ -37,8 +37,10 @@ Supabase service-role client setup for the agent backend.
   single-flight readiness checks. The core relation probe must remain an
   existence-only `HEAD` query with `LIMIT 1`; never restore an exact applicant
   count or log applicant identifiers.
-- `successful-probe-cache.ts`: five-second dependency-probe coalescing that
-  caches only successful results so failures remain immediately retryable.
+- `successful-probe-cache.ts`: caller-freshness-aware dependency-probe
+  coalescing that caches only successful results so failures remain immediately
+  retryable. Release decisions retain a five-second maximum age while the
+  legacy health endpoint may reuse a successful snapshot for 30 seconds.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
 - `../../drizzle/*.sql`: sequential SQL migrations.
 - `../../drizzle/0013_internal_automation_loop.sql`: website automation
