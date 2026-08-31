@@ -1,6 +1,5 @@
 import {
   getClientSession,
-  getClientSessionWithFallback,
   getUserFromSupabaseSession,
   type ClientSession,
 } from "@/lib/client-session";
@@ -61,6 +60,12 @@ export async function getApplicationApiApplicantProfileId(): Promise<string | nu
   const impersonation = await getImpersonationSession();
   if (impersonation) return impersonation.userId;
 
-  const session = await getClientSessionWithFallback();
-  return session?.userId ?? null;
+  const cookieSession = await getClientSession();
+  if (cookieSession) return cookieSession.userId;
+
+  const supabaseSession = await getUserFromSupabaseSession({
+    requestTimeoutMs: 4_000,
+    retryDelaysMs: [],
+  });
+  return supabaseSession?.userId ?? null;
 }

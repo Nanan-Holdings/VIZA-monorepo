@@ -24,6 +24,8 @@ import type {
 } from "@/lib/submission-result";
 import { getAutomatedOnlineSubmissionEvidence } from "@/lib/submission-result-evidence";
 
+const START_AGAIN_REQUEST_TIMEOUT_MS = 15_000;
+
 type AutomatedOnlineResult = JpVisitJapanWebSubmissionResult | KeEtaSubmissionResult;
 
 interface JpVjwPortalCredentials {
@@ -93,10 +95,12 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
     if (!isJapan || !success) return;
     setStartingAgain(true);
     setActionError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), START_AGAIN_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(
         `/api/applications/${encodeURIComponent(result.applicationId)}/arrival-card-new-application`,
-        { method: "POST" },
+        { method: "POST", signal: controller.signal },
       );
       const body = (await response.json().catch(() => null)) as {
         applicationId?: string;
@@ -107,7 +111,20 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
       }
       window.location.href = `/client/application/long-form?country=japan&visaType=JP_VISIT_JAPAN_WEB&applicationId=${encodeURIComponent(body.applicationId)}`;
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : String(error));
+      const aborted =
+        typeof error === "object" &&
+        error !== null &&
+        "name" in error &&
+        error.name === "AbortError";
+      setActionError(
+        aborted
+          ? (isZh ? "无法创建新的日本申报表。" : "Could not create a new Japan declaration.")
+          : error instanceof Error
+            ? error.message
+            : String(error),
+      );
+    } finally {
+      window.clearTimeout(timeout);
       setStartingAgain(false);
     }
   }, [isJapan, isZh, result.applicationId, success]);

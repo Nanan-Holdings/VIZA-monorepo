@@ -2,19 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   getClientSessionMock,
-  getClientSessionWithFallbackMock,
   getUserFromSupabaseSessionMock,
   getImpersonationSessionMock,
 } = vi.hoisted(() => ({
   getClientSessionMock: vi.fn(),
-  getClientSessionWithFallbackMock: vi.fn(),
   getUserFromSupabaseSessionMock: vi.fn(),
   getImpersonationSessionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/client-session", () => ({
   getClientSession: getClientSessionMock,
-  getClientSessionWithFallback: getClientSessionWithFallbackMock,
   getUserFromSupabaseSession: getUserFromSupabaseSessionMock,
 }));
 
@@ -24,6 +21,7 @@ vi.mock("@/lib/impersonation-session", () => ({
 
 import {
   clientSessionOwnsApplicant,
+  getApplicationApiApplicantProfileId,
   getOwnedApplicantSession,
 } from "@/lib/application-api-auth";
 
@@ -36,8 +34,22 @@ describe("application applicant session ownership", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    getImpersonationSessionMock.mockResolvedValue(null);
     getClientSessionMock.mockResolvedValue(null);
     getUserFromSupabaseSessionMock.mockResolvedValue(null);
+  });
+
+  it("bounds the Supabase fallback used by application API ownership checks", async () => {
+    getUserFromSupabaseSessionMock.mockResolvedValue({
+      userId: "profile-owner",
+      email: "owner@example.com",
+    });
+
+    await expect(getApplicationApiApplicantProfileId()).resolves.toBe("profile-owner");
+    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 4_000,
+      retryDelaysMs: [],
+    });
   });
 
   it("accepts profile-id and auth-user-id ownership", () => {

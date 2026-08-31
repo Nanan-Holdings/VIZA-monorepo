@@ -63,12 +63,40 @@ describe("DigitalArrivalCardResultCard", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/applications/jp-application-id/arrival-card-new-application",
-        { method: "POST" },
+        expect.objectContaining({
+          method: "POST",
+          signal: expect.any(AbortSignal),
+        }),
       );
     });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not create a new Visit Japan Web application",
     );
+  });
+
+  it("restores the Visit Japan Web action when draft creation times out", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AutomatedOnlineResultCard result={successfulJapanResult} />);
+    const startAgainButton = screen.getByRole("button", { name: "再次填写" });
+    fireEvent.click(startAgainButton);
+    expect(startAgainButton).toBeDisabled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+      await Promise.resolve();
+    });
+
+    expect(startAgainButton).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("无法创建新的日本申报表。");
   });
 
   it("shows the official QR code directly with a separate download action", () => {

@@ -66,6 +66,10 @@ describe("createNewArrivalCardApplication", () => {
 
     const result = await createNewArrivalCardApplication("user-id", "source-id");
 
+    expect(createAdminClient).toHaveBeenCalledWith({
+      requestTimeoutMs: 5_000,
+      retryDelaysMs: [],
+    });
     expect(result).toEqual({
       applicationId: "new-application-id",
       country: "vietnam",
