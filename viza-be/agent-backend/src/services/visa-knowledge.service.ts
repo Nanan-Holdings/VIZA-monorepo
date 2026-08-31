@@ -9,6 +9,17 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_MATCH_COUNT = 5;
 const DEFAULT_MIN_SIMILARITY = 0.03;
 
+function requestAbortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason;
+  const error = new Error("Request aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfRequestAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw requestAbortError(signal);
+}
+
 export type VisaKnowledgeIntent =
   | "route_recommendation"
   | "requirements"
@@ -150,6 +161,7 @@ function withIntentDocumentTypes(query: VisaKnowledgeQuery): VisaKnowledgeQuery 
 }
 
 async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<number[] | null> {
+  throwIfRequestAborted(requestSignal);
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
     return null;
   }
@@ -175,6 +187,7 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
       };
     }, requestSignal);
 
+    throwIfRequestAborted(requestSignal);
     if (!result.body) {
       logger.warn("Embedding request failed", undefined, {
         status: result.status,
@@ -183,6 +196,7 @@ async function getEmbedding(text: string, requestSignal?: AbortSignal): Promise<
     }
     return result.body.data?.[0]?.embedding ?? null;
   } catch (error) {
+    if (requestSignal?.aborted) throw requestAbortError(requestSignal);
     logger.warn("Embedding request errored", undefined, {
       errorName: error instanceof Error ? error.name : "UnknownError",
     });
@@ -228,7 +242,7 @@ async function retrieveWithVectorSearch(
   minSimilarity: number
 ): Promise<VisaKnowledgeChunk[]> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("match_visa_chunks", {
+  const request = supabase.rpc("match_visa_chunks", {
     query_embedding: embedding,
     match_count: matchCount,
     filter_country: query.country ?? null,
@@ -239,6 +253,11 @@ async function retrieveWithVectorSearch(
         : null,
     min_similarity: minSimilarity,
   });
+  const { data, error } = query.signal
+    ? await request.abortSignal(query.signal)
+    : await request;
+
+  throwIfRequestAborted(query.signal);
 
   if (error) {
     throw new Error(error.message);
@@ -274,7 +293,11 @@ async function retrieveWithFilteredFallback(
     request = request.in("document_type", query.documentTypes);
   }
 
-  const { data, error } = await request;
+  const { data, error } = query.signal
+    ? await request.abortSignal(query.signal)
+    : await request;
+
+  throwIfRequestAborted(query.signal);
 
   if (error) {
     logger.warn("Filtered knowledge fallback failed", error);
@@ -290,6 +313,7 @@ async function retrieveWithFilteredFallback(
 export async function retrieveVisaKnowledge(
   query: VisaKnowledgeQuery
 ): Promise<VisaKnowledgeResult> {
+  throwIfRequestAborted(query.signal);
   const normalizedQuery = normalizeKnowledgeQuery(query);
   const cleanQuery = normalizedQuery.query.trim();
   if (!cleanQuery) {
@@ -303,6 +327,7 @@ export async function retrieveVisaKnowledge(
   const matchCount = clampMatchCount(normalizedQuery.matchCount);
   const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
   const embedding = await getEmbedding(cleanQuery, normalizedQuery.signal);
+  throwIfRequestAborted(normalizedQuery.signal);
   const intentQuery = withIntentDocumentTypes(normalizedQuery);
   const shouldRetryWithoutIntentDocumentTypes =
     !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
@@ -324,6 +349,7 @@ export async function retrieveVisaKnowledge(
       }
 
       if (shouldRetryWithoutIntentDocumentTypes) {
+        throwIfRequestAborted(normalizedQuery.signal);
         const broadChunks = await retrieveWithVectorSearch(
           normalizedQuery,
           embedding,
@@ -339,6 +365,9 @@ export async function retrieveVisaKnowledge(
         }
       }
     } catch (error) {
+      if (normalizedQuery.signal?.aborted) {
+        throw requestAbortError(normalizedQuery.signal);
+      }
       logger.warn("Vector knowledge retrieval failed", error as Error, {
         country: query.country,
         visaType: query.visaType,
@@ -346,6 +375,7 @@ export async function retrieveVisaKnowledge(
     }
   }
 
+  throwIfRequestAborted(normalizedQuery.signal);
   const fallbackChunks = await retrieveWithFilteredFallback(intentQuery, matchCount);
   if (fallbackChunks.length > 0) {
     return {
@@ -355,6 +385,7 @@ export async function retrieveVisaKnowledge(
     };
   }
 
+  throwIfRequestAborted(normalizedQuery.signal);
   const broadFallbackChunks = shouldRetryWithoutIntentDocumentTypes
     ? await retrieveWithFilteredFallback(normalizedQuery, matchCount)
     : [];
