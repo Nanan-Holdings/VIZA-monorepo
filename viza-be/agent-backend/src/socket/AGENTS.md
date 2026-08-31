@@ -26,6 +26,9 @@ namespace `/visa` and sends/receives streaming events.
    assistant output is empty, and falls back to the legacy independent writes
    only when the combined statement fails. Chat content must remain
    request-scoped.
+   Application redirect blocks are emitted in their original order and then
+   persisted by `application-block-persistence.ts` in one batch per turn;
+   retain one-block writes only as the availability fallback.
 5. The frontend listens for `token`, `response_complete`, `error`,
    `application_block`, and diagnostic `app_log` events.
 6. `chat-concurrency.ts` bounds active AI turns and queued requests per backend
@@ -106,6 +109,7 @@ npm run test:socket-scaling-integration
 - `viza-be/agent-backend/src/services/visa-knowledge.service.ts`
 - `viza-be/agent-backend/src/services/visa-conversation-state.service.ts`
 - `viza-be/agent-backend/src/socket/chat-concurrency.ts`
+- `viza-be/agent-backend/src/socket/application-block-persistence.ts`
 - `viza-be/agent-backend/src/socket/chat-turn-completion.ts`
 - `viza-be/agent-backend/src/socket/visible-chat-message.ts`
 - `viza-be/agent-backend/src/socket/socket-scaling.ts`
