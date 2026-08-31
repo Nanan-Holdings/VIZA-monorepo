@@ -53,6 +53,7 @@ import {
   ChatConcurrencyGate,
   readChatCapacityLimits,
 } from './chat-concurrency.js';
+import { persistApplicationBlocksWithFallback } from './application-block-persistence.js';
 import {
   buildChatTurnBootstrapQuery,
   loadChatTurnBootstrap,
@@ -964,22 +965,14 @@ export function buildApplicationRedirectPromptNote(
     .join('\n');
 }
 
-async function emitAndSaveApplicationBlock(
+function emitApplicationBlock(
   socket: Socket,
-  sessionId: string,
   toolInput: ApplicationBlockPayload
-): Promise<void> {
+): void {
   socket.emit('application_block', {
     type: 'application_block',
     payload: toolInput,
     timestamp: Date.now(),
-  });
-
-  await db.insert(visaChatMessages).values({
-    sessionId,
-    role: 'block',
-    content: toolInput.title,
-    blockData: toolInput as unknown as Record<string, unknown>,
   });
 }
 
@@ -1303,15 +1296,37 @@ export function registerVisaNamespace(nsp: Namespace): void {
         )
           ? buildRuleProductRecommendationBlocks(entryRule, responseLocale)
           : [];
-        for (const applicationRedirect of applicationRedirects) {
-          try {
-            await emitAndSaveApplicationBlock(socket, session_id, applicationRedirect);
-          } catch (dbErr) {
-            logger.error('Failed to emit/save application redirect block', dbErr as Error, {
+        applicationRedirects.forEach((applicationRedirect) => {
+          emitApplicationBlock(socket, applicationRedirect);
+        });
+        const blockPersistence = await persistApplicationBlocksWithFallback(
+          session_id,
+          applicationRedirects,
+          (rows) => db.insert(visaChatMessages).values(rows),
+        );
+        if (blockPersistence.mode === 'fallback') {
+          logger.warn(
+            'Failed to persist application redirect block batch; using legacy writes',
+            undefined,
+            {
               sessionId: session_id,
-              blockType: applicationRedirect.blockType,
-              country: applicationRedirect.country,
-            });
+              blockCount: applicationRedirects.length,
+              errorName: blockPersistence.batchErrorName,
+            },
+          );
+
+          for (const failure of blockPersistence.failedBlocks) {
+            const applicationRedirect = applicationRedirects[failure.index];
+            logger.warn(
+              'Failed to save application redirect block',
+              undefined,
+              {
+                sessionId: session_id,
+                blockType: applicationRedirect?.blockType,
+                country: applicationRedirect?.country,
+                errorName: failure.errorName,
+              },
+            );
           }
         }
         const applicationRedirectNote = buildApplicationRedirectPromptNote(
