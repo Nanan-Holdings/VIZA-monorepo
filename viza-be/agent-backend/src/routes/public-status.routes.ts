@@ -15,6 +15,7 @@ import { getLatestChatCapacityStats } from "../socket/chat-concurrency.js";
 import { getSocketScalingStatus } from "../socket/socket-scaling.js";
 import { getLatestProviderCapacityStats } from "../utils/provider-capacity.js";
 import { getRuntimeCapacityMetrics } from "../observability/runtime-capacity.js";
+import { getVisaKnowledgeCapacityMetrics } from "../services/visa-knowledge-capacity.js";
 
 export const publicStatusRouter = Router();
 export const statusOperationsRouter = Router();
@@ -104,6 +105,7 @@ statusOperationsRouter.get("/capacity", requireCapacityStatusSecret, (_req, res)
       instanceId: capacityInstanceId,
       chat: getLatestChatCapacityStats(),
       provider: getLatestProviderCapacityStats(),
+      rag: getVisaKnowledgeCapacityMetrics(),
       runtime: getRuntimeCapacityMetrics(),
       socket: getSocketScalingStatus(),
       database: {

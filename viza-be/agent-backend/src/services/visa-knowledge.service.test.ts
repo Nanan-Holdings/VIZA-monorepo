@@ -64,6 +64,13 @@ async function importService() {
   return import("./visa-knowledge.service.js");
 }
 
+async function readCapacityMetrics() {
+  const { getVisaKnowledgeCapacityMetrics } = await import(
+    "./visa-knowledge-capacity.js"
+  );
+  return getVisaKnowledgeCapacityMetrics();
+}
+
 describe("visa knowledge request cancellation", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -101,6 +108,12 @@ describe("visa knowledge request cancellation", () => {
     expect(mocks.runWithProviderCapacity).not.toHaveBeenCalled();
     expect(mocks.rpc).not.toHaveBeenCalled();
     expect(mocks.from).not.toHaveBeenCalled();
+    expect(await readCapacityMetrics()).toMatchObject({
+      total: 1,
+      aborted: 1,
+      externalRequests: { embedding: 0, vector: 0, rest: 0 },
+      abortedByPhase: { beforeExternal: 1 },
+    });
   });
 
   it("aborts an in-flight vector RPC and does not start filtered fallback", async () => {
@@ -119,6 +132,11 @@ describe("visa knowledge request cancellation", () => {
     await expect(retrieval).rejects.toMatchObject({ name: "AbortError" });
     expect(rpcBuilder.abortSignal).toHaveBeenCalledWith(controller.signal);
     expect(mocks.from).not.toHaveBeenCalled();
+    expect(await readCapacityMetrics()).toMatchObject({
+      aborted: 1,
+      externalRequests: { embedding: 1, vector: 1, rest: 0 },
+      abortedByPhase: { vector: 1 },
+    });
   });
 
   it("does not start Supabase work after an in-flight embedding is cancelled", async () => {
@@ -229,6 +247,15 @@ describe("visa knowledge request cancellation", () => {
 
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
     expect(mocks.from).toHaveBeenCalledTimes(1);
+    expect(await readCapacityMetrics()).toMatchObject({
+      completed: 1,
+      degraded: 1,
+      failed: 0,
+      aborted: 0,
+      externalRequests: { embedding: 1, vector: 1, rest: 1 },
+      externalFailures: { embedding: 0, vector: 1, rest: 0 },
+      results: { vector: 0, rest: 1, empty: 0 },
+    });
   });
 
   it("does not share user query results across concurrent requests", async () => {
