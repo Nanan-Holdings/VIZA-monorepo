@@ -3,6 +3,15 @@ import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-app
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import { getCanonicalVisaDestinationCountry } from "@/lib/visa-destinations";
 
+const ARRIVAL_CARD_DB_REQUEST_TIMEOUT_MS = 5_000;
+
+function createArrivalCardAdminClient() {
+  return createAdminClient({
+    requestTimeoutMs: ARRIVAL_CARD_DB_REQUEST_TIMEOUT_MS,
+    retryDelaysMs: [],
+  });
+}
+
 const ARRIVAL_CARD_CONFIG = {
   SG_ARRIVAL_CARD: {
     country: "singapore",
@@ -100,7 +109,7 @@ function isArrivalCardVisaType(value: string | null): value is ArrivalCardVisaTy
 }
 
 export async function createNewArrivalCardApplication(userId: string, sourceApplicationId: string) {
-  const admin = createAdminClient();
+  const admin = createArrivalCardAdminClient();
   const { data: profile } = await admin
     .from("applicant_profiles")
     .select("id")
@@ -251,7 +260,7 @@ export async function createNewArrivalCardApplicationForApplicant(
   applicantProfileId: string,
   sourceApplicationId: string,
 ) {
-  const admin = createAdminClient();
+  const admin = createArrivalCardAdminClient();
   const { data: profile } = await admin
     .from("applicant_profiles")
     .select("auth_user_id")
