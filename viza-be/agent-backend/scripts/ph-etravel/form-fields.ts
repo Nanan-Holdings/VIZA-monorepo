@@ -600,7 +600,6 @@ const CURRENCY_DETAIL_FIELDS: PhEtravelFieldDef[] = [
 export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "registration_for", label: "Travel Registration", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 1, options: FOR_WHOM_OPTIONS, validation_rules: rules("登记对象", { official: true, e19_live_labels: ["FOR ME (Current User)", "FOR OTHER (Family Member)"], e19_for_other_observed: true, requiredness_evidence: "generic_Required_not_attributable_to_registration_for", launch_gate: "needs_review_not_a_runner_authorization" }) },
   { field_name: "transport_type", label: "Mode of Travel", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 2, options: PH_ETRAVEL_TRANSPORT_TYPES, validation_rules: rules("交通方式", { official: true, official_key: "transportation_type", supported_v1: ["AIR", "SEA"], unsupported_v1: ["LAND"] }) },
-  { field_name: "is_special_flight", label: "Special Flight", field_type: "checkbox", required: false, step_number: 1, step_name: "Travel Registration", display_order: 4, validation_rules: rules("特殊航班", { official: true }) },
   { field_name: "data_privacy_agreement", label: "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.", field_type: "checkbox", required: true, step_number: 1, step_name: "Travel Registration", display_order: 5, validation_rules: rules("点击继续即表示您同意数据隐私政策与承诺书", { official: true, mustBeTrue: true }) },
 
   { field_name: "first_name", label: "First Name", field_type: "text", required: true, step_number: 2, step_name: "Traveller Information", display_order: 1, validation_rules: rules("名", { maxLength: 60, official: true, official_key: "first_name", official_control_type: "text", block_group: "passport_name", selector_evidence_level: "confirmed_live_E19", requiredness_evidence: "E19_empty_Foreigner_validation_First_Name_Required", evidence_level: "verified_live_E19" }) },
@@ -795,6 +794,8 @@ export type PhEtravelSchemaParityManifestEntry = {
 // exclusive AIR/SEA or destination branches. Every other repeated key is a
 // schema drift. Consumers must use this map rather than guessing from labels.
 export const PH_ETRAVEL_OFFICIAL_KEY_REUSE_CONTRACT = {
+  destination_port_code: ["port_of_entry", "sea_port_of_entry"],
+  flight_number: ["flight_number", "voyage_number"],
   origin_port: ["airport_of_origin", "seaport_of_origin"],
   departure_date: ["flight_departure_date", "voyage_departure_date"],
   arrival_date: ["flight_arrival_date", "voyage_arrival_date"],

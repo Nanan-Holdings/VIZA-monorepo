@@ -175,7 +175,15 @@
   },
   "declaredButNotPresent": {
     "drizzle-managed": [
+      "admin_membership_events",
+      "admin_memberships",
+      "admin_registration_invite_events",
+      "admin_registration_invites",
+      "applicant_access_grant_events",
+      "applicant_access_grants",
       "application_profile_snapshots",
+      "application_submission_entitlement_events",
+      "application_submission_entitlements",
       "ds160_interview_records",
       "ds160_lost_passports",
       "ds160_other_names",

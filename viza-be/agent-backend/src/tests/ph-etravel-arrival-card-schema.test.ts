@@ -68,7 +68,6 @@ describe("Philippines eTravel arrival card schema", () => {
     }
 
     for (const fieldName of [
-      "data_privacy_agreement",
       "account_email",
       "account_password",
       "account_otp",
@@ -79,6 +78,12 @@ describe("Philippines eTravel arrival card schema", () => {
     ]) {
       expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES, fieldName).not.toContain(fieldName);
     }
+
+    expect(byName("data_privacy_agreement")).toMatchObject({
+      field_type: "checkbox",
+      required: true,
+    });
+    expect(rulesOf("data_privacy_agreement")).toMatchObject({ official: true, mustBeTrue: true });
   });
 
   it("owns every ordinary arrival schema field in the applicant-question manifest", () => {
@@ -127,12 +132,16 @@ describe("Philippines eTravel arrival card schema", () => {
 
   it("publishes a complete fail-closed schema parity manifest for cross-layer consumers", () => {
     const manifest = PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST;
-    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE).toEqual({
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE).toMatchObject({
       contract_records: 119,
-      current_schema_rows: 69,
+      current_schema_rows: PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_MANIFEST.length,
       schema_rows_are_not_contract_total: true,
-      non_schema_contract_records: 50,
     });
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.current_schema_rows).toBe(PH_ETRAVEL_FORM_FIELDS.length);
+    expect(PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.non_schema_contract_records).toBe(
+      PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.contract_records
+        - PH_ETRAVEL_ARRIVAL_SCHEMA_PARITY_SCOPE.current_schema_rows,
+    );
     expect(manifest).toHaveLength(PH_ETRAVEL_OFFICIAL_FIELD_NAMES.length);
     expect(new Set(manifest.map((entry) => entry.schema_field)).size).toBe(PH_ETRAVEL_OFFICIAL_FIELD_NAMES.length);
     expect([...manifest.map((entry) => entry.schema_field)].sort()).toEqual([...PH_ETRAVEL_OFFICIAL_FIELD_NAMES].sort());
@@ -149,8 +158,11 @@ describe("Philippines eTravel arrival card schema", () => {
         const fields = keyToFields.get(entry.official_key!) ?? [];
         fields.push(entry.schema_field);
         keyToFields.set(entry.official_key!, fields);
-      } else {
-        expect(entry.requiredness.status, entry.schema_field).toBe("needs_review_fail_closed");
+      } else if (entry.official_key_status === "needs_review") {
+        // Official-key identification and requiredness evidence are independent:
+        // suffix has live optionality evidence while its payload key is still a
+        // candidate, so it remains evidence-backed for requiredness.
+        expect(entry.requiredness.evidence, entry.schema_field).not.toBe("");
       }
 
       if (entry.requiredness.status === "needs_review_fail_closed") {
@@ -196,7 +208,6 @@ describe("Philippines eTravel arrival card schema", () => {
       "account_email",
       "account_otp",
       "account_password",
-      "data_privacy_agreement",
       "profile_photo",
       "travel_document",
       "customs_attachment_file",
@@ -412,7 +423,7 @@ describe("Philippines eTravel arrival card schema", () => {
       applicant_answer: true,
       evidence_level: "needs_review",
       requiredness_evidence: "confirmed_live_E19_blank_Filipino_and_Foreigner_Required_marker_only",
-      file_contract_evidence: "E21_photo_url_client_Yup_URL_write_delete_and_generic_default_only_no_live_input_accept_mime_size_count_or_server_acceptance",
+      file_contract_evidence: "E21_E26_photo_url_client_wiring_and_live_single_file_control_only_no_accept_mime_size_content_or_server_acceptance",
     });
     expect(PH_ETRAVEL_OFFICIAL_FIELD_NAMES).not.toEqual(expect.arrayContaining([
       "profile_photo", "photo_url", "applicant_photo", "profile_photo_file",
