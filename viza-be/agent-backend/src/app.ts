@@ -36,6 +36,7 @@ import {
   statusOperationsRouter,
 } from './routes/public-status.routes.js';
 import {
+  KNOWLEDGE_RELEASE_HEALTH_CACHE_MAX_AGE_MS,
   testActiveKnowledgeRelease,
   testSupabaseConnection,
 } from './db/supabase-client.js';
@@ -130,7 +131,10 @@ app.get('/ready', async (_req, res) => {
 // Legacy health endpoint. Keep the 200 response contract used by existing
 // Render probes, but report dependency degradation truthfully in the body.
 app.get('/health', async (_req, res) => {
-  const check = await testActiveKnowledgeRelease(getReadinessTimeoutMs());
+  const check = await testActiveKnowledgeRelease(
+    getReadinessTimeoutMs(),
+    KNOWLEDGE_RELEASE_HEALTH_CACHE_MAX_AGE_MS,
+  );
   const socket = getSocketScalingStatus();
   const adapterHealthy = !socket.multiReplicaEnabled || socket.adapterReady;
   res.status(adapterHealthy ? 200 : 503).json({
