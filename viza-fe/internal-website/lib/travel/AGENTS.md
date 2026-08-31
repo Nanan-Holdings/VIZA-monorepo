@@ -41,6 +41,10 @@ location data.
   application context.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
+- `__tests__/planner.test.ts`: planner reconstruction, alias, reset, dependent
+  selection, and payload consistency regression coverage.
+- `__tests__/conversation-state.test.ts`: persisted-state coercion and
+  idempotent operation invariant coverage.
 
 ## Ownership Boundaries
 

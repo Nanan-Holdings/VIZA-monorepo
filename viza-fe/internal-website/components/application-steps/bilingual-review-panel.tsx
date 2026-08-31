@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,15 @@ function groupRows(rows: ReviewRow[]): Array<{
   });
 }
 
+function compactEditorWidth(value: string, extraCharacters = 2): CSSProperties {
+  const visualLength = Array.from(value).reduce((length, character) => (
+    /[\u2e80-\u9fff]/u.test(character) ? length + 2 : length + 1
+  ), 0);
+  const widthInCharacters = Math.min(Math.max(visualLength + extraCharacters, 4), 36);
+
+  return { width: `${widthInCharacters}ch` };
+}
+
 function BilingualReviewRow({
   row,
   onSaveOfficialValue,
@@ -128,10 +137,27 @@ function BilingualReviewRow({
   };
 
   const editorIssueClassName = row.issueSeverity === "error"
-    ? "border-red-300 text-red-700 focus-visible:border-red-500 focus-visible:ring-red-500"
+    ? "border-red-300 focus-visible:border-red-500 focus-visible:ring-red-500"
     : row.issueSeverity === "warning"
-      ? "border-amber-300 text-amber-900 focus-visible:border-amber-500 focus-visible:ring-amber-500"
+      ? "border-amber-300 focus-visible:border-amber-500 focus-visible:ring-amber-500"
       : undefined;
+  const editorTextClassName = isZh
+    ? row.issueSeverity === "error"
+      ? "text-red-700"
+      : row.missing
+        ? "text-red-600"
+        : row.issueSeverity === "warning"
+          ? "text-amber-800"
+          : "text-muted-foreground"
+    : row.issueSeverity === "error"
+      ? "font-medium text-red-700"
+      : row.missing
+        ? "font-medium text-red-600"
+        : row.optional
+          ? "font-medium text-muted-foreground"
+          : row.issueSeverity === "warning"
+            ? "font-medium text-amber-900"
+            : "font-medium text-foreground";
   const reviewRowClassName = cn(
     "block border-border sm:table-row",
     row.issueSeverity === "error"
@@ -140,9 +166,11 @@ function BilingualReviewRow({
         ? "bg-amber-50 hover:bg-amber-50"
         : "hover:bg-transparent",
   );
+  const selectedOfficialLabel = row.officialOptions
+    ?.find((option) => option.value === draft)?.label ?? draft;
 
   const officialValueEditor = canEditOfficialValue ? (
-    <div className="flex flex-col gap-1.5" lang="en">
+    <div className={cn("flex flex-col items-end gap-1.5", isZh && "mt-0.5")} lang="en">
       {row.officialEditorKind === "select" && row.officialOptions?.length ? (
         <Select
           value={draft}
@@ -155,9 +183,11 @@ function BilingualReviewRow({
           <SelectTrigger
             aria-label={officialLabel}
             className={cn(
-              "h-12 w-full rounded-lg border-input bg-background text-right text-base shadow-xs focus:ring-1 focus:ring-brand-500 focus:border-brand-500 sm:text-sm",
+              "h-8 w-auto min-w-[5rem] max-w-full justify-end gap-1 rounded-md border-input bg-background px-2 py-1 text-right text-sm leading-5 shadow-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500",
+              editorTextClassName,
               editorIssueClassName,
             )}
+            style={compactEditorWidth(selectedOfficialLabel, 5)}
           >
             <SelectValue />
           </SelectTrigger>
@@ -183,10 +213,13 @@ function BilingualReviewRow({
             }
           }}
           disabled={saving}
+          rows={1}
           className={cn(
-            "min-h-20 resize-y rounded-lg border-input bg-background text-right text-base shadow-xs focus-visible:border-brand-500 focus-visible:ring-1 focus-visible:ring-brand-500 sm:text-sm",
+            "min-h-8 h-auto w-auto min-w-[8rem] max-w-full resize-y rounded-md border-input bg-background px-2 py-1 text-right text-sm leading-5 shadow-none [field-sizing:content] focus-visible:border-brand-500 focus-visible:ring-1 focus-visible:ring-brand-500",
+            editorTextClassName,
             editorIssueClassName,
           )}
+          style={compactEditorWidth(draft)}
         />
       ) : (
         <BrandInput
@@ -206,7 +239,12 @@ function BilingualReviewRow({
             }
           }}
           disabled={saving}
-          className={cn("w-full text-right", editorIssueClassName)}
+          className={cn(
+            "h-8 w-auto min-w-[4rem] max-w-full rounded-md border-input bg-background px-2 py-1 text-right text-sm font-normal leading-5 shadow-none focus-visible:border-brand-500 focus-visible:ring-1 focus-visible:ring-brand-500",
+            editorTextClassName,
+            editorIssueClassName,
+          )}
+          style={compactEditorWidth(draft || (row.officialEditorKind === "date" ? "DD/MM/YYYY" : ""))}
         />
       )}
       {saving || saveError ? (
