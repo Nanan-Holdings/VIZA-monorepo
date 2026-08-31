@@ -869,6 +869,7 @@ export function summarizeVisaConversationState(
 export interface PersistedVisaConversationState {
   state: VisaConversationState;
   revision: number;
+  source: 'memory' | 'legacy' | 'empty';
 }
 
 export interface VisaConversationStateSnapshot {
@@ -900,13 +901,15 @@ export function resolveVisaConversationStateSnapshot(
 ): PersistedVisaConversationState | null {
   const revision = Number(snapshot.memoryRevision ?? 0);
   const memory = stateFromMemoryJson(snapshot.memoryJson);
-  if (memory) return { state: memory, revision };
+  if (memory) return { state: memory, revision, source: 'memory' };
   if (!snapshot.legacyHistoryComplete) return null;
 
+  const legacy = stateFromLegacyMessages(snapshot.legacyMessageContents);
+
   return {
-    state: stateFromLegacyMessages(snapshot.legacyMessageContents) ??
-      createEmptyVisaConversationState(),
+    state: legacy ?? createEmptyVisaConversationState(),
     revision,
+    source: legacy ? 'legacy' : 'empty',
   };
 }
 
@@ -931,7 +934,7 @@ export async function loadVisaConversationState(
 
     revision = Number(session?.memory_revision ?? 0);
     const memory = stateFromMemoryJson(session?.memory_json);
-    if (memory) return { state: memory, revision };
+    if (memory) return { state: memory, revision, source: 'memory' };
   }
 
   const { data: rows, error: messagesError } = await supabase
@@ -947,6 +950,59 @@ export async function loadVisaConversationState(
   return {
     state: latest ?? createEmptyVisaConversationState(),
     revision,
+    source: latest ? 'legacy' : 'empty',
+  };
+}
+
+function canonicalVisaConversationState(state: VisaConversationState): string {
+  const normalized = normalizeVisaConversationState(state);
+  const summary = summarizeVisaConversationState(normalized);
+  return JSON.stringify({
+    ...summary,
+    schengenDaySplit: Object.fromEntries(
+      Object.entries(normalized.schengenDaySplit).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ),
+    fieldSources: Object.fromEntries(
+      Object.entries(normalized.fieldSources).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ),
+  });
+}
+
+export function shouldPersistVisaConversationState(
+  previous: PersistedVisaConversationState | null,
+  nextState: VisaConversationState,
+): boolean {
+  return (
+    previous?.source !== 'memory' ||
+    canonicalVisaConversationState(previous.state) !==
+      canonicalVisaConversationState(nextState)
+  );
+}
+
+export type VisaConversationStateSaver = (
+  sessionId: string,
+  state: VisaConversationState,
+  expectedRevision: number,
+) => Promise<number>;
+
+export async function persistVisaConversationStateIfChanged(
+  sessionId: string,
+  state: VisaConversationState,
+  previous: PersistedVisaConversationState | null,
+  saveState: VisaConversationStateSaver = saveVisaConversationState,
+): Promise<{ revision: number; wrote: boolean }> {
+  const expectedRevision = previous?.revision ?? 0;
+  if (!shouldPersistVisaConversationState(previous, state)) {
+    return { revision: expectedRevision, wrote: false };
+  }
+
+  return {
+    revision: await saveState(sessionId, state, expectedRevision),
+    wrote: true,
   };
 }
 
