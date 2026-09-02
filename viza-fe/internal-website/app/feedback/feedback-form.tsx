@@ -128,32 +128,29 @@ export function FeedbackForm({ locale }: FeedbackFormProps) {
           </div>
         </section>
 
-        <div id="feedback-fields" className="space-y-8 px-5 py-7 sm:px-8 sm:py-8">
+        <div id="feedback-fields" className="space-y-7 px-5 py-7 sm:px-8 sm:py-8">
           <section>
-            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">01 · {copy.experience}</p>
-            <div className="mt-5 grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2">
               <RatingField label={copy.experience} value={experienceRating} onChange={setExperienceRating} copy={copy} />
               <RatingField label={copy.ease} value={easeRating} onChange={setEaseRating} copy={copy} />
             </div>
           </section>
 
-          <section className="border-t border-border-hairline pt-8">
-            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">02 · {copy.feedbackType}</p>
-            <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          <section>
+            <div className="grid gap-6 sm:grid-cols-2">
               <FieldSelect id="task" label={copy.task} value={task} onChange={setTask} options={feedbackTasks.map((value) => ({ value, label: copy.tasks[value] }))} />
               <FieldSelect id="feedback-type" label={copy.feedbackType} value={feedbackType} onChange={setFeedbackType} options={feedbackTypes.map((value) => ({ value, label: copy.types[value] }))} />
             </div>
           </section>
 
-          <section className="border-t border-border-hairline pt-8">
-            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">03 · {copy.description}</p>
-            <ApplicationFormField className="mt-5" htmlFor="description" label={copy.description} helperText={copy.descriptionHint} required>
+          <section>
+            <ApplicationFormField htmlFor="description" label={copy.description} helperText={copy.descriptionHint} required>
               <ApplicationFormTextarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} maxLength={4000} rows={6} required className="min-h-36 resize-y text-[15px]" />
             </ApplicationFormField>
           </section>
 
           {feedbackType === "bug" ? (
-            <section className="border-t border-border-hairline pt-8">
+            <section className="rounded-lg bg-brand-50/45 p-5 sm:p-6">
               <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">{copy.bugDetailsTitle}</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.bugDetailsBody}</p>
               <div className="mt-5 grid gap-6 sm:grid-cols-2">
@@ -167,7 +164,7 @@ export function FeedbackForm({ locale }: FeedbackFormProps) {
             </section>
           ) : null}
 
-          <section className="border-t border-border-hairline pt-8">
+          <section>
             <ApplicationFormField htmlFor="environment" label={copy.environment}>
               <ApplicationFormInputGroup className="h-12" filled={Boolean(environment)}>
                 <InputGroupInput id="environment" value={environment} onChange={(event) => setEnvironment(event.target.value)} maxLength={300} className="h-12 text-[15px]" />
@@ -175,15 +172,15 @@ export function FeedbackForm({ locale }: FeedbackFormProps) {
             </ApplicationFormField>
           </section>
 
-          <section className="border-t border-border-hairline pt-8">
-            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">04 · {copy.contact}</p>
-            <div className="mt-5">
+          <section>
+            <p className="mb-4 text-[14px] font-medium tracking-[-0.2px] text-gray-700">{copy.contact}</p>
+            <div>
               <ApplicationCheckbox checked={contactConsent} onCheckedChange={setContactConsent} label={copy.contactYes} />
             </div>
             {contactConsent ? <ApplicationFormField className="mt-5 max-w-md" htmlFor="email" label={copy.email} required><ApplicationFormInputGroup className="h-12" filled={Boolean(email)}><InputGroupInput id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={320} required className="h-12 text-[15px]" /></ApplicationFormInputGroup></ApplicationFormField> : null}
           </section>
 
-          <div className="flex flex-col items-start gap-4 border-t border-border-hairline pt-8">
+          <div className="flex flex-col items-start gap-4 pt-1">
             {error ? <p role="alert" className="text-sm font-medium text-destructive">{error}</p> : null}
             <ActionButton type="submit" loading={isSubmitting} loadingText={copy.submitting}>
               {!isSubmitting ? <PaperPlaneTilt aria-hidden="true" /> : null}
