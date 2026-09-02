@@ -3,6 +3,9 @@ export type FeedbackCopy = {
   title: string;
   intro: string;
   privacy: string;
+  feedbackGuideTitle: string;
+  feedbackGuideBody: string;
+  feedbackGuidePoints: string[];
   identityTitle: string;
   identityDescription: string;
   login: string;
@@ -10,6 +13,8 @@ export type FeedbackCopy = {
   experience: string;
   ease: string;
   ratingHint: string;
+  ratingLow: string;
+  ratingHigh: string;
   task: string;
   feedbackType: string;
   description: string;
@@ -17,6 +22,8 @@ export type FeedbackCopy = {
   reproduce: string;
   expected: string;
   environment: string;
+  bugDetailsTitle: string;
+  bugDetailsBody: string;
   contact: string;
   contactYes: string;
   email: string;
@@ -37,6 +44,9 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     title: "Help us improve VIZA",
     intro: "Your candid feedback helps us make visa applications simpler, clearer, and more reliable.",
     privacy: "Please do not include passport numbers, passwords, payment details, or other sensitive personal information.",
+    feedbackGuideTitle: "A better beta, together",
+    feedbackGuideBody: "A few clear details help us understand the moment that needs attention.",
+    feedbackGuidePoints: ["Takes about two minutes", "Share anonymously or sign in", "Our product team reads every response"],
     identityTitle: "How would you like to share feedback?",
     identityDescription: "Sign in if you would like us to see your VIZA account context, or continue without identifying yourself.",
     login: "Log in",
@@ -44,6 +54,8 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     experience: "Overall, how was your experience?",
     ease: "How easy was VIZA to use?",
     ratingHint: "1 is poor and 5 is excellent.",
+    ratingLow: "Poor",
+    ratingHigh: "Excellent",
     task: "What were you trying to do?",
     feedbackType: "What kind of feedback is this?",
     description: "Tell us what happened or what we should improve",
@@ -51,6 +63,8 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     reproduce: "Steps to reproduce (optional)",
     expected: "What did you expect to happen? (optional)",
     environment: "Device and browser (optional)",
+    bugDetailsTitle: "Help us understand the issue",
+    bugDetailsBody: "These details are optional, but they help us investigate a bug faster.",
     contact: "May we contact you about this feedback?",
     contactYes: "Yes, you can contact me.",
     email: "Your email address",
@@ -85,6 +99,9 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     title: "帮助我们改进 VIZA",
     intro: "您的真实反馈能帮助我们让签证申请更简单、更清晰、更可靠。",
     privacy: "请勿填写护照号码、密码、付款信息或其他敏感个人资料。",
+    feedbackGuideTitle: "一起完善测试版",
+    feedbackGuideBody: "几个清晰的细节，就能帮助我们理解需要改进的使用环节。",
+    feedbackGuidePoints: ["约需两分钟", "可匿名提交，也可登录", "产品团队会阅读每一条反馈"],
     identityTitle: "您想如何提交反馈？",
     identityDescription: "登录后，我们可以结合您的 VIZA 账户背景查看反馈；您也可以匿名继续。",
     login: "登录",
@@ -92,6 +109,8 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     experience: "整体而言，您的使用体验如何？",
     ease: "您觉得 VIZA 使用起来有多容易？",
     ratingHint: "1 分代表很差，5 分代表非常好。",
+    ratingLow: "很差",
+    ratingHigh: "非常好",
     task: "您当时想完成什么？",
     feedbackType: "这是什么类型的反馈？",
     description: "请告诉我们发生了什么，或我们可以如何改进",
@@ -99,6 +118,8 @@ export const feedbackCopy: Record<"en" | "zh", FeedbackCopy> = {
     reproduce: "复现步骤（选填）",
     expected: "您原本期待发生什么？（选填）",
     environment: "设备和浏览器（选填）",
+    bugDetailsTitle: "帮助我们了解这个问题",
+    bugDetailsBody: "这些内容均为选填，但能帮助我们更快排查故障。",
     contact: "我们可以就这条反馈联系您吗？",
     contactYes: "可以，您可以联系我。",
     email: "您的邮箱地址",

@@ -2,11 +2,20 @@
 
 import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle, CircleNotch, PaperPlaneTilt } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ActionButton } from "@/components/ui/action-button";
+import { ApplicationCheckbox, ApplicationRadio } from "@/components/ui/application-checkbox";
+import { ApplicationFormField } from "@/components/ui/application-form-field";
+import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
+import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
+import {
+  ApplicationFormSelectContent,
+  ApplicationFormSelectItem,
+  ApplicationFormSelectTrigger,
+} from "@/components/ui/application-form-select";
+import { ApplicationFormTextarea } from "@/components/ui/application-form-textarea";
+import { InputGroupInput } from "@/components/ui/input-group";
+import { Select, SelectValue } from "@/components/ui/select";
 import { feedbackCopy, feedbackTasks, feedbackTypes } from "./feedback-copy";
 
 type FeedbackFormProps = { locale: string };
@@ -93,73 +102,112 @@ export function FeedbackForm({ locale }: FeedbackFormProps) {
 
   if (sent) {
     return (
-      <section className="rounded-xl border bg-white p-8 text-center shadow-sm sm:p-12">
-        <CheckCircle className="mx-auto size-12 text-emerald-600" weight="fill" aria-hidden="true" />
-        <h2 className="mt-5 text-2xl font-semibold">{copy.successTitle}</h2>
-        <p className="mt-3 text-muted-foreground">{copy.successBody}</p>
-        <Button className="mt-7" variant="outline" onClick={reset}>{copy.sendAnother}</Button>
-      </section>
+      <ApplicationFormPanel className="px-5 py-10 text-center sm:px-10 sm:py-14">
+        <CheckCircle className="mx-auto size-11 text-brand-500" weight="fill" aria-hidden="true" />
+        <h2 className="mt-5 text-[24px] font-medium tracking-[-0.5px] text-foreground">{copy.successTitle}</h2>
+        <p className="mx-auto mt-3 max-w-md text-[15px] leading-7 text-muted-foreground">{copy.successBody}</p>
+        <ActionButton className="mt-7" variant="secondary" onClick={reset}>{copy.sendAnother}</ActionButton>
+      </ApplicationFormPanel>
     );
   }
 
   return (
-    <form id="feedback-form" onSubmit={handleSubmit} className="space-y-8 rounded-xl border bg-white p-6 shadow-sm sm:p-8" noValidate>
+    <form id="feedback-form" onSubmit={handleSubmit} noValidate>
       <input className="sr-only" tabIndex={-1} autoComplete="off" name="company" aria-hidden="true" />
-      <section className="rounded-lg border bg-brand-50/50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-6">
-        <div>
-          <h2 className="text-base font-semibold">{copy.identityTitle}</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy.identityDescription}</p>
+      <ApplicationFormPanel className="overflow-hidden">
+        <section className="border-b border-border-hairline px-5 py-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-8">
+          <div>
+            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">{copy.identityTitle}</p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{copy.identityDescription}</p>
+          </div>
+          <div className="mt-4 flex shrink-0 flex-wrap items-center gap-3 sm:mt-0">
+            <span className="text-sm font-medium text-foreground">{copy.anonymous}</span>
+            <ActionButton asChild size="sm" variant="secondary">
+              <Link href="/client/login?returnTo=%2Ffeedback">{copy.login}</Link>
+            </ActionButton>
+          </div>
+        </section>
+
+        <div id="feedback-fields" className="space-y-8 px-5 py-7 sm:px-8 sm:py-8">
+          <section>
+            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">01 · {copy.experience}</p>
+            <div className="mt-5 grid gap-6 sm:grid-cols-2">
+              <RatingField label={copy.experience} value={experienceRating} onChange={setExperienceRating} copy={copy} />
+              <RatingField label={copy.ease} value={easeRating} onChange={setEaseRating} copy={copy} />
+            </div>
+          </section>
+
+          <section className="border-t border-border-hairline pt-8">
+            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">02 · {copy.feedbackType}</p>
+            <div className="mt-5 grid gap-6 sm:grid-cols-2">
+              <FieldSelect id="task" label={copy.task} value={task} onChange={setTask} options={feedbackTasks.map((value) => ({ value, label: copy.tasks[value] }))} />
+              <FieldSelect id="feedback-type" label={copy.feedbackType} value={feedbackType} onChange={setFeedbackType} options={feedbackTypes.map((value) => ({ value, label: copy.types[value] }))} />
+            </div>
+          </section>
+
+          <section className="border-t border-border-hairline pt-8">
+            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">03 · {copy.description}</p>
+            <ApplicationFormField className="mt-5" htmlFor="description" label={copy.description} helperText={copy.descriptionHint} required>
+              <ApplicationFormTextarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} maxLength={4000} rows={6} required className="min-h-36 resize-y text-[15px]" />
+            </ApplicationFormField>
+          </section>
+
+          {feedbackType === "bug" ? (
+            <section className="border-t border-border-hairline pt-8">
+              <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">{copy.bugDetailsTitle}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.bugDetailsBody}</p>
+              <div className="mt-5 grid gap-6 sm:grid-cols-2">
+                <ApplicationFormField htmlFor="reproduce" label={copy.reproduce}>
+                  <ApplicationFormTextarea id="reproduce" value={reproduceSteps} onChange={(event) => setReproduceSteps(event.target.value)} maxLength={2000} rows={4} className="min-h-28 resize-y text-[15px]" />
+                </ApplicationFormField>
+                <ApplicationFormField htmlFor="expected" label={copy.expected}>
+                  <ApplicationFormTextarea id="expected" value={expectedResult} onChange={(event) => setExpectedResult(event.target.value)} maxLength={2000} rows={4} className="min-h-28 resize-y text-[15px]" />
+                </ApplicationFormField>
+              </div>
+            </section>
+          ) : null}
+
+          <section className="border-t border-border-hairline pt-8">
+            <ApplicationFormField htmlFor="environment" label={copy.environment}>
+              <ApplicationFormInputGroup className="h-12" filled={Boolean(environment)}>
+                <InputGroupInput id="environment" value={environment} onChange={(event) => setEnvironment(event.target.value)} maxLength={300} className="h-12 text-[15px]" />
+              </ApplicationFormInputGroup>
+            </ApplicationFormField>
+          </section>
+
+          <section className="border-t border-border-hairline pt-8">
+            <p className="text-[13px] font-medium uppercase tracking-[0.1em] text-muted-foreground">04 · {copy.contact}</p>
+            <div className="mt-5">
+              <ApplicationCheckbox checked={contactConsent} onCheckedChange={setContactConsent} label={copy.contactYes} />
+            </div>
+            {contactConsent ? <ApplicationFormField className="mt-5 max-w-md" htmlFor="email" label={copy.email} required><ApplicationFormInputGroup className="h-12" filled={Boolean(email)}><InputGroupInput id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={320} required className="h-12 text-[15px]" /></ApplicationFormInputGroup></ApplicationFormField> : null}
+          </section>
+
+          <div className="flex flex-col items-start gap-4 border-t border-border-hairline pt-8">
+            {error ? <p role="alert" className="text-sm font-medium text-destructive">{error}</p> : null}
+            <ActionButton type="submit" loading={isSubmitting} loadingText={copy.submitting}>
+              {!isSubmitting ? <PaperPlaneTilt aria-hidden="true" /> : null}
+              {copy.submit}
+            </ActionButton>
+          </div>
         </div>
-        <div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:mt-0">
-          <Button asChild variant="outline"><Link href="/client/login?returnTo=%2Ffeedback">{copy.login}</Link></Button>
-          <Button asChild variant="secondary"><a href="#feedback-fields">{copy.anonymous}</a></Button>
-        </div>
-      </section>
-      <div id="feedback-fields" className="sr-only">{copy.anonymous}</div>
-      <fieldset className="space-y-4">
-        <legend className="text-base font-semibold">{copy.experience}</legend>
-        <p className="text-sm text-muted-foreground">{copy.ratingHint}</p>
-        <RatingInput label={copy.experience} value={experienceRating} onChange={setExperienceRating} />
-      </fieldset>
-      <fieldset className="space-y-4">
-        <legend className="text-base font-semibold">{copy.ease}</legend>
-        <RatingInput label={copy.ease} value={easeRating} onChange={setEaseRating} />
-      </fieldset>
-      <div className="grid gap-6 sm:grid-cols-2">
-        <FieldSelect id="task" label={copy.task} value={task} onChange={setTask} options={feedbackTasks.map((value) => ({ value, label: copy.tasks[value] }))} />
-        <FieldSelect id="feedback-type" label={copy.feedbackType} value={feedbackType} onChange={setFeedbackType} options={feedbackTypes.map((value) => ({ value, label: copy.types[value] }))} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="description">{copy.description}</Label>
-        <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} maxLength={4000} rows={6} required />
-        <p className="text-sm text-muted-foreground">{copy.descriptionHint}</p>
-      </div>
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div className="space-y-2"><Label htmlFor="reproduce">{copy.reproduce}</Label><Textarea id="reproduce" value={reproduceSteps} onChange={(event) => setReproduceSteps(event.target.value)} maxLength={2000} rows={4} /></div>
-        <div className="space-y-2"><Label htmlFor="expected">{copy.expected}</Label><Textarea id="expected" value={expectedResult} onChange={(event) => setExpectedResult(event.target.value)} maxLength={2000} rows={4} /></div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="environment">{copy.environment}</Label>
-        <Input id="environment" value={environment} onChange={(event) => setEnvironment(event.target.value)} maxLength={300} />
-      </div>
-      <fieldset className="space-y-3 border-t pt-6">
-        <legend className="text-base font-semibold">{copy.contact}</legend>
-        <label className="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" checked={contactConsent} onChange={(event) => setContactConsent(event.target.checked)} className="size-4 rounded border-input text-primary focus:ring-ring" />{copy.contactYes}</label>
-        {contactConsent ? <div className="max-w-md space-y-2"><Label htmlFor="email">{copy.email}</Label><Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={320} required /></div> : null}
-      </fieldset>
-      {error ? <p role="alert" className="text-sm font-medium text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-        {isSubmitting ? <CircleNotch className="animate-spin" aria-hidden="true" /> : <PaperPlaneTilt aria-hidden="true" />}
-        {isSubmitting ? copy.submitting : copy.submit}
-      </Button>
+      </ApplicationFormPanel>
     </form>
   );
 }
 
-function RatingInput({ label, value, onChange }: { label: string; value: Rating | ""; onChange: (value: Rating) => void }) {
-  return <div className="flex gap-2" role="radiogroup" aria-label={label}>{ratingValues.map((rating) => <button key={rating} type="button" role="radio" aria-checked={value === rating} onClick={() => onChange(rating)} className={`flex size-11 items-center justify-center rounded-md border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${value === rating ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background hover:bg-accent"}`}>{rating}</button>)}</div>;
+function RatingField({ label, value, onChange, copy }: { label: string; value: Rating | ""; onChange: (value: Rating) => void; copy: typeof feedbackCopy.en }) {
+  return <ApplicationFormField label={label} helperText={copy.ratingHint} required>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[12px] text-muted-foreground">{copy.ratingLow}</span>
+      <div className="flex flex-wrap justify-end gap-x-3 gap-y-2" role="radiogroup" aria-label={label}>
+        {ratingValues.map((rating) => <ApplicationRadio key={rating} name={label} value={rating} checked={value === rating} label={rating} onCheckedChange={() => onChange(rating)} />)}
+      </div>
+      <span className="text-[12px] text-muted-foreground">{copy.ratingHigh}</span>
+    </div>
+  </ApplicationFormField>;
 }
 
 function FieldSelect({ id, label, value, onChange, options }: { id: string; label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
-  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label><select id={id} value={value} onChange={(event) => onChange(event.target.value)} required className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="" disabled>—</option>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>;
+  return <ApplicationFormField htmlFor={id} label={label} required><Select value={value} onValueChange={onChange}><ApplicationFormSelectTrigger id={id} className="h-12 text-[15px]" filled={Boolean(value)}><SelectValue placeholder="—" /></ApplicationFormSelectTrigger><ApplicationFormSelectContent>{options.map((option) => <ApplicationFormSelectItem key={option.value} value={option.value}>{option.label}</ApplicationFormSelectItem>)}</ApplicationFormSelectContent></Select></ApplicationFormField>;
 }
