@@ -91,6 +91,12 @@ Scope: this file applies to `lib/form-assistant/**`.
 - Knowledge sources and prompts must remain bound to the owned application's
   exact `country + visaType`. Never return the SGAC ICA fallback source for a
   different Singapore product or another country.
+- `knowledge.ts` may cache only public release/document/chunk metadata, keyed
+  by exact release plus normalized country and visa type. Active-release
+  success may be reused for at most five seconds; public content may be reused
+  for 60 seconds only while that gate remains active. Keep both layers bounded,
+  single-flight, negative/failure-retryable, and free of applicant, session,
+  answer, message, credential, or payment data.
 - Networks that require an outbound HTTPS proxy may set
   `OPENAI_FORM_ASSISTANT_PROXY_URL` (or `HTTPS_PROXY`). Keep the request origin
   on official `api.openai.com` so TLS verification remains intact.
@@ -103,6 +109,7 @@ Run from `viza-fe/internal-website`:
 npx vitest run lib/form-assistant/document-extraction-policy.test.ts
 npx vitest run lib/form-assistant/bootstrap.test.ts
 npx vitest run lib/form-assistant/constants.test.ts
+npx vitest run lib/form-assistant/knowledge.test.ts
 npx vitest run lib/form-assistant/review-issues.test.ts
 npx vitest run lib/form-assistant/service.test.ts
 npm run qa:audit-schema-ui -- --summary --assistant
