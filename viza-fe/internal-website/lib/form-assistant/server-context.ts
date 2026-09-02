@@ -21,6 +21,10 @@ import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/ty
 import { isJapanVisitJapanWebApplication } from "@/lib/submission-queue";
 import type { FormAssistantDocumentReadiness } from "@/types/form-assistant";
 import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
+import {
+  getCachedStaticVisaMetadata,
+  PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+} from "@/lib/static-visa-metadata-cache";
 
 export interface OwnedApplicationContext {
   admin: SupabaseClient;
@@ -99,22 +103,38 @@ export async function loadAssistantSchema(
   visaType: string,
 ): Promise<WizardStep[]> {
   const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, country);
-  const { data, error } = await admin
-    .from("visa_form_fields")
-    .select("*")
-    .eq("visa_type", schemaVisaType)
-    .order("step_number", { ascending: true })
-    .order("display_order", { ascending: true });
-  if (error) throw new Error(error.message);
+  const data = await getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
+    `visa-form-fields:v1:${schemaVisaType}`,
+    async () => {
+      const { data: rows, error } = await admin
+        .from("visa_form_fields")
+        .select("*")
+        .eq("visa_type", schemaVisaType)
+        .order("step_number", { ascending: true })
+        .order("display_order", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (rows ?? []) as VisaFormFieldDbRow[];
+    },
+    {
+      // An empty schema can be a transient read/deployment gap. Let the
+      // concurrent burst share that lookup, but retry on the next request.
+      shouldCache: (rows) => rows.length > 0,
+      ttlMs: PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+    },
+  );
 
-  if (!data || data.length === 0) {
+  if (data.length === 0) {
     return shouldUseRagVisitorIntakeFallback(schemaVisaType)
       ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(schemaVisaType))
       : [];
   }
 
   const steps = new Map<number, WizardStep>();
-  for (const row of (data ?? []) as VisaFormFieldDbRow[]) {
+  for (const cachedRow of data) {
+    // Supabase JSON columns are mutable objects. Clone each cached public row
+    // before normalization so one request cannot modify another request's
+    // options, validation rules, or conditional logic.
+    const row = structuredClone(cachedRow);
     if (!steps.has(row.step_number)) {
       steps.set(row.step_number, {
         stepNumber: row.step_number,

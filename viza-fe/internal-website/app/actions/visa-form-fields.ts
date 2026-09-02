@@ -18,7 +18,10 @@ import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 import { compileApplicationSchemaForUi } from "@/lib/application-schema-ui-contract";
 import { getCanonicalApplicationProductCountry } from "@/lib/visa-destinations";
-import { getCachedStaticVisaMetadata } from "@/lib/static-visa-metadata-cache";
+import {
+  getCachedStaticVisaMetadata,
+  PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+} from "@/lib/static-visa-metadata-cache";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -67,6 +70,10 @@ export async function getVisaFormSteps(
             if (error) throw new Error(error.message);
             return (data ?? []) as VisaFormFieldDbRow[];
           },
+          {
+            shouldCache: (schemaRows) => schemaRows.length > 0,
+            ttlMs: PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+          },
         );
 
         if (rows.length === 0) {
@@ -108,6 +115,7 @@ export async function getVisaFormSteps(
 
         return compiled.steps;
       },
+      { shouldCache: (steps) => steps.length > 0 },
     );
   } catch (err) {
     console.error("[getVisaFormSteps] Unexpected error:", err);

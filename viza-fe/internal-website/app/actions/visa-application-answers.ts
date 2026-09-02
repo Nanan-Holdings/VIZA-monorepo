@@ -417,6 +417,9 @@ async function loadUniversalProfileSchemaDefinitions(
           }
           return allRows;
         },
+        {
+          shouldCache: (schemaRows) => schemaRows.length > 0,
+        },
       );
 
       return {
@@ -424,6 +427,9 @@ async function loadUniversalProfileSchemaDefinitions(
           groupUniversalSchemaRows(rows)
         ),
       };
+    },
+    {
+      shouldCache: (schema) => schema.fields.length > 0,
     });
   } catch (error) {
     return {

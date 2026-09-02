@@ -20,6 +20,7 @@ import {
   loadAssistantSchema,
   requireOwnedApplication,
 } from "./server-context";
+import { clearStaticVisaMetadataCache } from "@/lib/static-visa-metadata-cache";
 
 function adminWithFormRows(rows: Array<Record<string, unknown>>): SupabaseClient {
   const result = { data: rows, error: null };
@@ -96,6 +97,10 @@ describe("requireOwnedApplication", () => {
 });
 
 describe("loadAssistantSchema", () => {
+  beforeEach(() => {
+    clearStaticVisaMetadataCache();
+  });
+
   it.each([
     ["germany", "tourist_evisa"],
     ["canada", "visitor_visa_or_evisa"],
@@ -151,8 +156,8 @@ describe("loadAssistantSchema", () => {
       display_order: 1,
       placeholder: null,
       validation_rules: { label_zh: "护照姓名" },
-      options: null,
-      conditional_logic: null,
+      options: [{ value: "passport", text: "Passport" }],
+      conditional_logic: { depends_on: "identity_type", equals: "passport" },
     }]), "singapore", "SG_ARRIVAL_CARD");
 
     expect(steps).toHaveLength(1);
@@ -160,6 +165,49 @@ describe("loadAssistantSchema", () => {
       fieldName: "full_name",
       visaType: "SG_ARRIVAL_CARD",
     });
+  });
+
+  it("coalesces one hundred concurrent assistant schema reads", async () => {
+    const admin = adminWithFormRows([{
+      id: "field-id",
+      visa_type: "SG_ARRIVAL_CARD",
+      field_name: "full_name",
+      field_label: "Full name",
+      field_type: "text",
+      is_required: true,
+      step_number: 1,
+      step_name: "Traveller",
+      display_order: 1,
+      placeholder: null,
+      validation_rules: { label_zh: "护照姓名" },
+      options: [{ value: "passport", text: "Passport" }],
+      conditional_logic: { depends_on: "identity_type", equals: "passport" },
+    }]);
+
+    const results = await Promise.all(Array.from({ length: 100 }, () => (
+      loadAssistantSchema(admin, "singapore", "SG_ARRIVAL_CARD")
+    )));
+
+    expect(admin.from).toHaveBeenCalledTimes(1);
+    expect(results.every((steps) => steps[0]?.fields[0]?.fieldName === "full_name")).toBe(true);
+
+    results[0]!.push({ stepNumber: 99, stepName: "Mutation", fields: [] });
+    results[0]![0]!.fields[0]!.options![0] = "mutated";
+    results[0]![0]!.fields[0]!.conditionalLogic!.equals = "mutated";
+    const warm = await loadAssistantSchema(admin, "singapore", "SG_ARRIVAL_CARD");
+    expect(admin.from).toHaveBeenCalledTimes(1);
+    expect(warm).toHaveLength(1);
+    expect(warm[0]?.fields[0]?.options?.[0]).toMatchObject({ value: "passport" });
+    expect(warm[0]?.fields[0]?.conditionalLogic).toMatchObject({ equals: "passport" });
+  });
+
+  it("retries an empty assistant schema on the next request", async () => {
+    const admin = adminWithFormRows([]);
+
+    await loadAssistantSchema(admin, "united_states", "DS160");
+    await loadAssistantSchema(admin, "united_states", "DS160");
+
+    expect(admin.from).toHaveBeenCalledTimes(2);
   });
 });
 

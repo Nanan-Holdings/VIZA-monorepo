@@ -34,6 +34,28 @@ describe("BoundedSingleFlightCache", () => {
     expect(factory).toHaveBeenCalledTimes(2);
   });
 
+  it("shares but does not retain values rejected by the cache policy", async () => {
+    const cache = new BoundedSingleFlightCache<string[]>(8, 60_000);
+    const factory = vi.fn(async () => {
+      await Promise.resolve();
+      return [];
+    });
+
+    const coldResults = await Promise.all(
+      Array.from({ length: 100 }, () => cache.getOrCreate("schema", factory, {
+        shouldCache: (rows) => rows.length > 0,
+      })),
+    );
+    const retry = await cache.getOrCreate("schema", factory, {
+      shouldCache: (rows) => rows.length > 0,
+    });
+
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(coldResults.filter((result) => result.source === "created")).toHaveLength(1);
+    expect(coldResults.filter((result) => result.source === "shared")).toHaveLength(99);
+    expect(retry.source).toBe("created");
+  });
+
   it("expires entries and refreshes them", async () => {
     let now = 0;
     const cache = new BoundedSingleFlightCache<string>(8, 10, () => now);
@@ -48,6 +70,20 @@ describe("BoundedSingleFlightCache", () => {
     expect(first.source).toBe("created");
     expect(cached.source).toBe("cache");
     expect(refreshed.source).toBe("created");
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it("supports a shorter per-entry freshness window", async () => {
+    let now = 0;
+    const cache = new BoundedSingleFlightCache<string>(8, 100, () => now);
+    const factory = vi.fn(async () => `value-${now}`);
+
+    await cache.getOrCreate("schema", factory, { ttlMs: 10 });
+    now = 9;
+    expect((await cache.getOrCreate("schema", factory, { ttlMs: 10 })).source).toBe("cache");
+    now = 10;
+    expect((await cache.getOrCreate("schema", factory, { ttlMs: 10 })).source).toBe("created");
+
     expect(factory).toHaveBeenCalledTimes(2);
   });
 

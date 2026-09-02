@@ -3,7 +3,10 @@ import { normalizeBilingualFormField, resolveLocalizedFieldLabel } from "@/lib/b
 import { getTaiwanEntryPermitExtraRequirements } from "@/lib/taiwan-entry-permit-document-requirements";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { getFormVisaType } from "@/lib/visa-destinations";
-import { getCachedStaticVisaMetadata } from "@/lib/static-visa-metadata-cache";
+import {
+  getCachedStaticVisaMetadata,
+  PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
+} from "@/lib/static-visa-metadata-cache";
 import { dbRowToFormField, type VisaFormFieldDbRow, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 
 type QueryableClient = {
@@ -541,6 +544,10 @@ export async function loadApplicationCompleteness(input: {
           throw new Error(`Visa form schema lookup failed: ${error.message}`);
         }
         return (data ?? []) as VisaFormFieldDbRow[];
+      },
+      {
+        shouldCache: (rows) => rows.length > 0,
+        ttlMs: PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS,
       },
     ),
     admin
