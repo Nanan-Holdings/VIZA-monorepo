@@ -14,6 +14,9 @@ location data.
   order, form payload messages, itinerary parsing, and backend payloads.
 - `conversation-state.ts`: server-owned state coercion and explicit
   `set/add/remove/unset/reset` operation validation.
+- `archive-hydration.ts`: deterministic local-versus-remote archive selection
+  that restores database history on a new device without overwriting newer
+  local input.
 - `auth.ts`: server-only Travel identity resolver shared by the page and
   authenticated Travel APIs; it mirrors client-portal impersonation, signed
   `client_session`, and Supabase fallback support.

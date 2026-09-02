@@ -23,6 +23,7 @@
     "travel:capture-city-screenshots": "tsx scripts/capture-travel-city-coverage-screenshots.ts",
     "travel:seed-dropdown": "tsx scripts/seed-dropdown-destinations.ts",
     "travel:verify-images": "tsx scripts/verify-travel-image-relevance.ts",
+    "travel:verify-images:production": "tsx scripts/verify-travel-image-relevance.ts --check-remote --base-url=https://app.viza.it.com",
     "travel:qa-prompts": "tsx scripts/qa-travel-agent-prompts.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",

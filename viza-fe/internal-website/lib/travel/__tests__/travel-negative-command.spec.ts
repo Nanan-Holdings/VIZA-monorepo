@@ -732,6 +732,73 @@ describe("Travel Agent server coordinator", () => {
     expect(testState.session.pending_actions_json).toEqual([]);
   });
 
+  it.each([
+    {
+      label: "Japan with a lowercase English city",
+      countryMessage: "我选择了国家：日本。",
+      planMessage: "给我安排，6天左右，去东京和osaka",
+      expectedCountry: "日本",
+      expectedCities: ["东京", "大阪"],
+      expectedDays: 6,
+      locale: "zh" as const,
+    },
+    {
+      label: "France with mixed Chinese and English cities",
+      countryMessage: "我选择了国家：法国。",
+      planMessage: "做个7天计划，巴黎和Lyon",
+      expectedCountry: "法国",
+      expectedCities: ["巴黎", "里昂"],
+      expectedDays: 7,
+      locale: "zh" as const,
+    },
+    {
+      label: "Italy with an English itinerary request",
+      countryMessage: "我选择了国家：意大利。",
+      planMessage: "Plan a 5-day trip to Rome and Milan",
+      expectedCountry: "意大利",
+      expectedCities: ["Rome", "Milan"],
+      expectedDays: 5,
+      locale: "en" as const,
+    },
+  ])(
+    "does not reopen the country step for $label",
+    async ({
+      countryMessage,
+      planMessage,
+      expectedCountry,
+      expectedCities,
+      expectedDays,
+      locale,
+    }) => {
+      const selected = await (
+        await postTravelChat(request(countryMessage, "matrix-country"))
+      ).json();
+
+      expect(selected.state.countries).toEqual([expectedCountry]);
+      expect(selected.next_missing_field).toBe("cities");
+
+      const planned = await (
+        await postTravelChat(
+          request(
+            planMessage,
+            "matrix-plan-after-country",
+            testState.session.state_version,
+            locale
+          )
+        )
+      ).json();
+
+      expect(planned.state.countries).toEqual([expectedCountry]);
+      expect(planned.state.country).toBe(expectedCountry);
+      expect(planned.state.cities).toEqual(expectedCities);
+      expect(planned.state.travel_days).toBe(expectedDays);
+      expect(planned.next_missing_field).toBe("destination_confirmation");
+      expect(planned.ui_action).not.toBe("collect_country");
+      expect(planned.pending_confirmation).toBe(false);
+      expect(testState.session.pending_actions_json).toEqual([]);
+    }
+  );
+
   it("recovers both English city facts when the model returns only a non-explicit partial guess", async () => {
     testState.session.state_json = {
       ...createInitialTravelState(),

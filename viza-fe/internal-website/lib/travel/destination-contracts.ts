@@ -174,7 +174,7 @@ const SUPPLEMENTAL_CITY_CARDS: CuratedTravelCity[] = [
     cityKeys: ["Hong Kong", "香港", "HK"],
     cityLabel: "香港",
     imageSrc:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg/1280px-Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg",
+      "/travel/external-cache/hong-kong-victoria-harbour.webp",
     sourceUrl:
       "https://commons.wikimedia.org/wiki/File:Hong_Kong_Victoria_Harbour_-_Hong_Kong.jpg",
   },

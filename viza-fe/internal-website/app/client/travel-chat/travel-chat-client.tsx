@@ -97,6 +97,7 @@ import {
   type TravelPlaceDetails,
 } from "@/lib/travel/google-places";
 import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places-enrichment-types";
+import { shouldHydrateRemoteTravelArchive } from "@/lib/travel/archive-hydration";
 
 const TravelItineraryExperience = dynamic(
   () =>
@@ -181,7 +182,10 @@ type TravelAgentChatResponse = {
   state_version?: number;
   next_missing_field?: TravelField | null;
   ui_action?:
-    "none" | "collect_field" | "generate_itinerary" | "revise_itinerary";
+    | "none"
+    | "collect_field"
+    | "generate_itinerary"
+    | "revise_itinerary";
   applied_operations?: unknown[];
   pending_confirmation?: boolean;
   pending_actions?: TravelPendingActionPreview[];
@@ -3254,10 +3258,10 @@ function createDestinationAppendPayload(
   const cityChanged = nextCities.length !== existingCities.length;
   const hasTripHintPatch = Boolean(
     destination.travelDays ||
-    destination.travelers ||
-    destination.budget ||
-    destination.finalNote ||
-    Object.keys(destination.cityDays ?? {}).length > 0
+      destination.travelers ||
+      destination.budget ||
+      destination.finalNote ||
+      Object.keys(destination.cityDays ?? {}).length > 0
   );
 
   if (!countryChanged && !cityChanged && !hasTripHintPatch) return null;
@@ -3642,6 +3646,10 @@ export function TravelChatClient({
   const [remoteArchiveHydratedKey, setRemoteArchiveHydratedKey] = useState<
     string | null
   >(null);
+  const [
+    remoteArchivePersistenceReadyKey,
+    setRemoteArchivePersistenceReadyKey,
+  ] = useState<string | null>(null);
   const [canonicalStateHydratedKey, setCanonicalStateHydratedKey] = useState<
     string | null
   >(null);
@@ -3848,8 +3856,8 @@ export function TravelChatClient({
     activeSession?.versions?.[activeSession.versions.length - 1] ?? null;
   const isViewingHistoricalVersion = Boolean(
     activeTravelVersion &&
-    latestTravelVersion &&
-    activeTravelVersion.id !== latestTravelVersion.id
+      latestTravelVersion &&
+      activeTravelVersion.id !== latestTravelVersion.id
   );
   const displayItinerary = activeTravelVersion?.itinerary ?? latestItinerary;
   const displayTravelState = isViewingHistoricalVersion
@@ -4307,7 +4315,8 @@ export function TravelChatClient({
           }
         );
         const payload = (await response.json().catch(() => ({}))) as
-          TravelPlacesSearchResponse | Record<string, unknown>;
+          | TravelPlacesSearchResponse
+          | Record<string, unknown>;
 
         if (!response.ok) {
           throw new Error(
@@ -4395,7 +4404,8 @@ export function TravelChatClient({
           }
         );
         const payload = (await response.json().catch(() => ({}))) as
-          TravelPlaceDetailsResponse | Record<string, unknown>;
+          | TravelPlaceDetailsResponse
+          | Record<string, unknown>;
 
         if (!response.ok) {
           throw new Error(
@@ -4879,7 +4889,16 @@ export function TravelChatClient({
 
   useEffect(() => {
     setRemoteArchiveHydratedKey(null);
+    setRemoteArchivePersistenceReadyKey(null);
     setCanonicalStateHydratedKey(null);
+    let localArchivePresent = false;
+    if (typeof window !== "undefined") {
+      try {
+        localArchivePresent = window.localStorage.getItem(archiveKey) !== null;
+      } catch {
+        localArchivePresent = false;
+      }
+    }
     const localArchive = readArchivedTravelArchive(archiveKey, interfaceLocale);
     let nextSessions = localArchive.sessions;
     let nextActiveSessionId = localArchive.sessions[0].id;
@@ -4926,6 +4945,7 @@ export function TravelChatClient({
 
     if (!shouldFetchRemoteArchive) {
       setRemoteArchiveHydratedKey(archiveKey);
+      setRemoteArchivePersistenceReadyKey(archiveKey);
       return;
     }
 
@@ -4933,6 +4953,7 @@ export function TravelChatClient({
 
     let disposed = false;
     void (async () => {
+      let remoteArchiveReadSucceeded = false;
       try {
         const params = new URLSearchParams();
         if (applicationId) params.set("applicationId", applicationId);
@@ -4940,10 +4961,16 @@ export function TravelChatClient({
           `/api/travel/sessions${params.toString() ? `?${params.toString()}` : ""}`,
           { method: "GET" }
         );
-        if (!response.ok) return;
+        if (!response.ok) {
+          throw new Error("travel_archive_unavailable");
+        }
 
         const payload = (await response.json().catch(() => null)) as unknown;
-        if (!isRecord(payload) || !payload.archive) return;
+        if (!isRecord(payload) || !("archive" in payload)) {
+          throw new Error("travel_archive_invalid");
+        }
+        remoteArchiveReadSucceeded = true;
+        if (!payload.archive) return;
 
         const remoteArchive = parseTravelChatArchivePayload(
           payload.archive,
@@ -4954,8 +4981,12 @@ export function TravelChatClient({
         const localUpdatedAt = getTravelArchiveSessionUpdatedTime(localArchive);
         const localChangedDuringHydration =
           sessionsRef.current !== hydrationBaselineSessions;
-        const shouldUseRemote =
-          !localChangedDuringHydration && remoteUpdatedAt > localUpdatedAt;
+        const shouldUseRemote = shouldHydrateRemoteTravelArchive({
+          localArchivePresent,
+          localChangedDuringHydration,
+          localUpdatedAt,
+          remoteUpdatedAt,
+        });
 
         if (!disposed && shouldUseRemote) {
           sessionsRef.current = remoteArchive.sessions;
@@ -4963,9 +4994,14 @@ export function TravelChatClient({
           setActiveSessionId(remoteArchive.sessions[0].id);
           applyMapArchiveState(remoteArchive.mapState);
         }
+      } catch (error) {
+        console.warn("[travel-chat] remote archive hydration skipped", error);
       } finally {
         if (!disposed) {
           setRemoteArchiveHydratedKey(archiveKey);
+          if (remoteArchiveReadSucceeded) {
+            setRemoteArchivePersistenceReadyKey(archiveKey);
+          }
         }
       }
     })();
@@ -5085,6 +5121,7 @@ export function TravelChatClient({
   useEffect(() => {
     if (archiveLoadedKey !== archiveKey) return;
     if (remoteArchiveHydratedKey !== archiveKey) return;
+    if (remoteArchivePersistenceReadyKey !== archiveKey) return;
     if (canonicalStateHydratedKey !== archiveKey) return;
 
     const mapState: TravelChatArchiveMapState = {
@@ -5121,6 +5158,7 @@ export function TravelChatClient({
     googleCityCoordinates,
     mapModeSessionIds,
     remoteArchiveHydratedKey,
+    remoteArchivePersistenceReadyKey,
     sessions,
   ]);
 
@@ -5401,7 +5439,8 @@ export function TravelChatClient({
               const itineraryResult = (await itineraryResponse
                 .json()
                 .catch(() => ({}))) as
-                TravelItineraryApiResponse | Record<string, unknown>;
+                | TravelItineraryApiResponse
+                | Record<string, unknown>;
               if (!itineraryResponse.ok || itineraryResult.success === false) {
                 throw new Error(
                   extractItineraryApiMessage(
@@ -5739,7 +5778,8 @@ export function TravelChatClient({
         });
 
         const result = (await response.json().catch(() => ({}))) as
-          TravelItineraryApiResponse | Record<string, unknown>;
+          | TravelItineraryApiResponse
+          | Record<string, unknown>;
 
         if (!response.ok || result.success === false) {
           const detail =

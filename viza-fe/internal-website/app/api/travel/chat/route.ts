@@ -1595,10 +1595,27 @@ function explicitPlannerDestinationOperations(
 
 function isItineraryDestinationRequest(text: string): boolean {
   const normalized = text.trim();
-  return [
-    /(?:计划|行程|安排)[\s\S]*?(?:去|前往)\s*\S+/iu,
-    /\b(?:plan|create|make|build|arrange|organize)\b[\s\S]*?\b(?:trip|itinerary|travel\s+plan)\b[\s\S]*?\b(?:to|for)\s+\S+/iu,
-  ].some((pattern) => pattern.test(normalized));
+  if (
+    DESTINATION_HYPOTHETICAL_PATTERN.test(normalized) ||
+    DESTINATION_QUESTION_PATTERN.test(normalized)
+  ) {
+    return false;
+  }
+  const hasKnownCity = DESTINATION_LABELS.some(
+    (label) =>
+      label.path === "cities" &&
+      destinationLabelRanges(normalized, label.label).length > 0
+  );
+  return (
+    [
+      /(?:计划|行程|安排)[\s\S]*?(?:去|前往)\s*\S+/iu,
+      /\b(?:plan|create|make|build|arrange|organize)\b[\s\S]*?\b(?:trip|itinerary|travel\s+plan)\b[\s\S]*?\b(?:to|for)\s+\S+/iu,
+    ].some((pattern) => pattern.test(normalized)) ||
+    (hasKnownCity &&
+      /(?:计划|行程|安排|规划|制定)|\b(?:trip|itinerary|travel\s+plan)\b/iu.test(
+        normalized
+      ))
+  );
 }
 
 function directDestinationOperations(
@@ -1613,6 +1630,15 @@ function directDestinationOperations(
   ) {
     return [];
   }
+  const contextualCities =
+    preferCitiesForItinerary && isItineraryDestinationRequest(normalized)
+      ? knownDestinationOperations(
+          normalized,
+          normalized,
+          locale,
+          false
+        ).filter((operation) => operation.path === "cities")
+      : [];
   const directMatch = normalized.match(
     /^(?:我想去|我要去|想去|就去|去|前往|I\s+want\s+to\s+go\s+to|I\s+would\s+like\s+to\s+go\s+to|go\s+to|travel\s+to)\s*(.+?)(?:[。.!！？?])?$/iu
   );
@@ -1644,9 +1670,9 @@ function directDestinationOperations(
   itineraryMatches.forEach((match) => {
     if (match?.[1]) candidateTexts.add(match[1]);
   });
-  if (!candidateTexts.size) return [];
+  if (!candidateTexts.size) return contextualCities;
 
-  return [...candidateTexts].flatMap((rawCandidate) => {
+  const extracted = [...candidateTexts].flatMap((rawCandidate) => {
     const candidate = rawCandidate
       .replace(/[。.!！？?]+$/u, "")
       .replace(/(?:去)?(?:旅游|旅行|玩|travel|tour)$/iu, "")
@@ -1690,6 +1716,7 @@ function directDestinationOperations(
       ];
     });
   });
+  return appendExplicitDestinationOperations(contextualCities, extracted);
 }
 
 type DestinationReplacementParts = {
