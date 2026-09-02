@@ -97,6 +97,11 @@ Scope: this file applies to `lib/form-assistant/**`.
   for 60 seconds only while that gate remains active. Keep both layers bounded,
   single-flight, negative/failure-retryable, and free of applicant, session,
   answer, message, credential, or payment data.
+- `server-context.ts` shares the bounded `visa_form_fields` metadata cache with
+  the main form loader, keyed by resolved schema visa type and limited to a
+  60-second freshness window. Cache only non-empty public rows; failures and
+  empty reads must remain retryable, and each caller must rebuild deep-cloned
+  step objects so mutations cannot leak between requests.
 - Networks that require an outbound HTTPS proxy may set
   `OPENAI_FORM_ASSISTANT_PROXY_URL` (or `HTTPS_PROXY`). Keep the request origin
   on official `api.openai.com` so TLS verification remains intact.

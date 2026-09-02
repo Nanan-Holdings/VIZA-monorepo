@@ -1,5 +1,6 @@
 const DEFAULT_MAX_ENTRIES = 128;
 const DEFAULT_TTL_MS = 5 * 60 * 1_000;
+export const PUBLIC_VISA_FORM_SCHEMA_CACHE_TTL_MS = 60_000;
 
 type CacheEntry<T> = {
   expiresAt: number;
@@ -11,6 +12,11 @@ export type StaticMetadataCacheSource = "cache" | "created" | "shared";
 export type StaticMetadataCacheResult<T> = {
   source: StaticMetadataCacheSource;
   value: T;
+};
+
+export type StaticMetadataCacheOptions<T> = {
+  shouldCache?: (value: T) => boolean;
+  ttlMs?: number;
 };
 
 /**
@@ -40,7 +46,12 @@ export class BoundedSingleFlightCache<T> {
   async getOrCreate(
     key: string,
     factory: () => Promise<T>,
+    options: StaticMetadataCacheOptions<T> = {},
   ): Promise<StaticMetadataCacheResult<T>> {
+    const ttlMs = options.ttlMs ?? this.ttlMs;
+    if (!Number.isFinite(ttlMs) || ttlMs < 1) {
+      throw new Error("ttlMs must be positive");
+    }
     const cached = this.read(key, this.now());
     if (cached !== undefined) {
       return { source: "cache", value: cached };
@@ -53,7 +64,9 @@ export class BoundedSingleFlightCache<T> {
 
     const pending = factory()
       .then((value) => {
-        this.write(key, value, this.now());
+        if (options.shouldCache?.(value) !== false) {
+          this.write(key, value, this.now(), ttlMs);
+        }
         return value;
       })
       .finally(() => {
@@ -84,9 +97,9 @@ export class BoundedSingleFlightCache<T> {
     return entry.value;
   }
 
-  private write(key: string, value: T, now: number): void {
+  private write(key: string, value: T, now: number, ttlMs: number): void {
     this.entries.delete(key);
-    this.entries.set(key, { expiresAt: now + this.ttlMs, value });
+    this.entries.set(key, { expiresAt: now + ttlMs, value });
 
     while (this.entries.size > this.maxEntries) {
       const oldestKey = this.entries.keys().next().value;
@@ -101,10 +114,12 @@ const staticVisaMetadataCache = new BoundedSingleFlightCache<unknown>();
 export async function getCachedStaticVisaMetadata<T>(
   key: string,
   factory: () => Promise<T>,
+  options: StaticMetadataCacheOptions<T> = {},
 ): Promise<T> {
   const result = await staticVisaMetadataCache.getOrCreate(
     key,
     factory as () => Promise<unknown>,
+    options as StaticMetadataCacheOptions<unknown>,
   );
   return result.value as T;
 }
