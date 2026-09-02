@@ -51,6 +51,10 @@ function getLocalizedAuthError(
 type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
 type ClientAuthResult = { success: boolean; error?: string; code?: string }
 
+function getPostLoginPath(returnTo: string | null) {
+  return returnTo === '/feedback' ? returnTo : '/client/home'
+}
+
 function waitForRetry(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, AUTH_RETRY_DELAY_MS))
 }
@@ -103,6 +107,7 @@ function ClientLoginContent() {
   const t = useTranslations('auth.login')
   const tp = useTranslations('auth.polaroids')
   const searchParams = useSearchParams()
+  const postLoginPath = getPostLoginPath(searchParams.get('returnTo'))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerRef = useRef({ dragging: false, startX: 0, startY: 0, phiStart: 0, thetaStart: 0 })
   const stateRef = useRef({ phi: 0, theta: 0.2 })
@@ -235,7 +240,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = postLoginPath
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -271,7 +276,7 @@ function ClientLoginContent() {
       setError(getLocalizedAuthError(result, t))
       return
     }
-    window.location.href = '/client/home'
+    window.location.href = postLoginPath
   }
 
   const handleResend = async () => {
