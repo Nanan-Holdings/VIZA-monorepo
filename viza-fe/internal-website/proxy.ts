@@ -34,18 +34,21 @@ export async function proxy(request: NextRequest) {
     pathname === "/client/register" ||
     pathname.startsWith("/client/register/")
   ) {
+    const postLoginPath = request.nextUrl.searchParams.get("returnTo") === "/feedback"
+      ? "/feedback"
+      : "/client/home";
     // A valid VIZA session does not need a Supabase network request. This keeps
     // existing local sessions usable while Supabase Auth has a transient outage.
     const jwtSession = await getClientSessionFromRequest(request);
     if (jwtSession) {
-      return NextResponse.redirect(new URL("/client/home", request.url));
+      return NextResponse.redirect(new URL(postLoginPath, request.url));
     }
 
     const supabaseAuth = await getSupabaseUserSession(request);
     if (supabaseAuth.session) {
       return copyResponseCookies(
         supabaseAuth.response,
-        NextResponse.redirect(new URL("/client/home", request.url)),
+        NextResponse.redirect(new URL(postLoginPath, request.url)),
       );
     }
 

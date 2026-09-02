@@ -93,6 +93,17 @@ describe("client Supabase session cookie propagation", () => {
     );
   });
 
+  it("returns authenticated feedback users to the public feedback form", async () => {
+    const response = await proxy(
+      new NextRequest("https://app.viza.it.com/client/login?returnTo=/feedback"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.viza.it.com/feedback",
+    );
+  });
+
   it("copies session cleanup cookies onto an unauthenticated redirect", async () => {
     mocks.createServerClient.mockImplementationOnce((_url, _key, options) => ({
       auth: {
