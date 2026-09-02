@@ -11,7 +11,6 @@ import type {
   FormAssistantAppliedPatch,
   FormAssistantDocumentReadiness,
   FormAssistantMessage,
-  FormAssistantSource,
   FormAssistantState,
   FormAssistantTurnResponse,
 } from "@/types/form-assistant";
@@ -26,6 +25,7 @@ import {
   isFieldClarificationRequest,
   isUsefulFieldClarificationReply,
 } from "./constants";
+import { loadApplicationKnowledge } from "./knowledge";
 import {
   canonicalizeApplicationOptionAnswers,
   getAssistantProgress,
@@ -257,45 +257,6 @@ export function parseDirectYesNoAnswer(
     fieldName: field.fieldName,
     value: hasNegativeSignal ? noValue : yesValue,
     confidence: "high",
-  };
-}
-
-async function loadApplicationKnowledge(params: {
-  admin: SupabaseClient;
-  releaseKey: string | null;
-  country: string;
-  visaType: string;
-}): Promise<{ context: string; sources: FormAssistantSource[] }> {
-  const fallbackSources = getFormAssistantFallbackSources(params.country, params.visaType);
-  if (!params.releaseKey) return { context: "", sources: fallbackSources };
-  const { data: release } = await params.admin
-    .from("visa_knowledge_releases")
-    .select("id")
-    .eq("release_key", params.releaseKey)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!release) return { context: "", sources: fallbackSources };
-  const { data: documents } = await params.admin
-    .from("visa_documents")
-    .select("id, title, source_url")
-    .eq("release_id", release.id)
-    .ilike("country", params.country)
-    .ilike("visa_type", params.visaType)
-    .limit(5);
-  const documentIds = (documents ?? []).map((document) => document.id);
-  if (documentIds.length === 0) return { context: "", sources: fallbackSources };
-  const { data: chunks } = await params.admin
-    .from("visa_chunks")
-    .select("content, document_type")
-    .in("document_id", documentIds)
-    .in("document_type", ["form_requirements", "requirements", "process", "faq"])
-    .limit(8);
-  const sources = (documents ?? [])
-    .map((document) => ({ title: document.title || "Official source", url: document.source_url ?? null }))
-    .filter((source, index, list) => list.findIndex((item) => item.url === source.url && item.title === source.title) === index);
-  return {
-    context: (chunks ?? []).map((chunk) => chunk.content.slice(0, 900)).join("\n\n"),
-    sources: sources.length > 0 ? sources : fallbackSources,
   };
 }
 
