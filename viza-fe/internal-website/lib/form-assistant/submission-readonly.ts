@@ -69,11 +69,17 @@ export function hasSuccessfulFormSubmission(input: {
 export function toSubmittedFormAssistantState(
   state: FormAssistantState,
 ): FormAssistantState {
-  const total = Math.max(0, state.progress.total);
   return {
     ...state,
     missingFields: [],
-    progress: { completed: total, total },
+    progress: toSubmittedFormAssistantProgress(state.progress),
     canRunFinalCheck: false,
   };
+}
+
+export function toSubmittedFormAssistantProgress(
+  progress: FormAssistantState["progress"],
+): FormAssistantState["progress"] {
+  const total = Math.max(0, progress.total);
+  return { completed: total, total };
 }

@@ -144,6 +144,7 @@ import {
 } from "@/lib/application-submission-display";
 import {
   hasSuccessfulFormSubmission,
+  toSubmittedFormAssistantProgress,
   toSubmittedFormAssistantState,
 } from "@/lib/form-assistant/submission-readonly";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
@@ -2639,6 +2640,9 @@ export default function ApplicationPage() {
     showStandaloneDocumentStep,
     tabCompletion.missingFields,
   ]);
+  const formAssistantDisplayProgress = formAssistantReadOnly
+    ? toSubmittedFormAssistantProgress(formAssistantReadinessProgress)
+    : formAssistantReadinessProgress;
   const missingRequiredDocumentKeys = useMemo(
     () => showStandaloneDocumentStep
       ? getMissingRequiredDocumentRequirementKeys(documentCenterData)
@@ -4963,7 +4967,7 @@ export default function ApplicationPage() {
                 applicationId={appState.applicationId!}
                 locale={locale}
                 isZh={isZhInterface}
-                progress={formAssistantReadinessProgress}
+                progress={formAssistantDisplayProgress}
                 messages={formAssistantState?.messages ?? []}
                 missingFields={(formAssistantState?.missingFields ?? []).map((field) => {
                   const schemaField = dbSteps

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { FormAssistantState } from "@/types/form-assistant";
 import {
   hasSuccessfulFormSubmission,
+  toSubmittedFormAssistantProgress,
   toSubmittedFormAssistantState,
 } from "./submission-readonly";
 
@@ -124,7 +126,7 @@ describe("hasSuccessfulFormSubmission", () => {
   });
 
   it("freezes submitted assistant readiness without discarding its history", () => {
-    const state = {
+    const state: FormAssistantState = {
       sessionId: "session-id",
       assistantMessage: "Old current question",
       appliedPatches: [],
@@ -154,6 +156,13 @@ describe("hasSuccessfulFormSubmission", () => {
       missingFields: [],
       progress: { completed: 20, total: 20 },
       canRunFinalCheck: false,
+    });
+  });
+
+  it("marks the separately rendered readiness progress complete after submission", () => {
+    expect(toSubmittedFormAssistantProgress({ completed: 30, total: 32 })).toEqual({
+      completed: 32,
+      total: 32,
     });
   });
 });
