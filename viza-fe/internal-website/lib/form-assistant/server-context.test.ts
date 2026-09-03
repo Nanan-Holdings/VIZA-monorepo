@@ -47,39 +47,38 @@ describe("requireOwnedApplication", () => {
       authUserId: "auth-user-id",
       email: "applicant@example.test",
     });
+    const application = {
+      id: "application-id",
+      applicant_id: "profile-id",
+      country: "malaysia",
+      visa_type: "MY_MDAC_ARRIVAL_CARD",
+      submitted_at: "2026-08-18T00:00:00.000Z",
+      submission_result_status: "submitted",
+      submission_result: {
+        country: "MY",
+        visaType: "MY_MDAC_ARRIVAL_CARD",
+        status: "submitted",
+        submitted: true,
+      },
+    };
     const applicationQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({
         data: {
-          id: "application-id",
-          applicant_id: "profile-id",
-          country: "malaysia",
-          visa_type: "MY_MDAC_ARRIVAL_CARD",
-          submitted_at: "2026-08-18T00:00:00.000Z",
-          submission_result_status: "submitted",
-          submission_result: {
-            country: "MY",
-            visaType: "MY_MDAC_ARRIVAL_CARD",
-            status: "submitted",
-            submitted: true,
+          ...application,
+          applicant_profiles: {
+            id: "profile-id",
+            auth_user_id: "auth-user-id",
+            dependant_of_user_id: null,
           },
         },
+        error: null,
       }),
     };
-    const profileQuery = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({
-        data: {
-          id: "profile-id",
-          auth_user_id: "auth-user-id",
-          dependant_of_user_id: null,
-        },
-      }),
-    };
+    const admin = { from: vi.fn(() => applicationQuery) };
     createAdminClient.mockReturnValue({
-      from: vi.fn((table: string) => table === "applications" ? applicationQuery : profileQuery),
+      from: admin.from,
     });
 
     await expect(requireOwnedApplication("application-id")).resolves.toEqual({
@@ -93,6 +92,247 @@ describe("requireOwnedApplication", () => {
       formAssistantReadOnly: true,
       application: { id: "application-id" },
     });
+    expect(admin.from).toHaveBeenCalledTimes(2);
+    expect(admin.from).toHaveBeenNthCalledWith(1, "applications");
+    expect(admin.from).toHaveBeenNthCalledWith(2, "applications");
+    expect(applicationQuery.select).toHaveBeenCalledWith(expect.stringContaining(
+      "applicant_profiles(id, auth_user_id, dependant_of_user_id)",
+    ));
+  });
+
+  it("uses one ownership query per concurrent authenticated request", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "profile-id",
+      authUserId: "auth-user-id",
+      email: "applicant@example.test",
+    });
+    const applicationQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "application-id",
+          applicant_id: "profile-id",
+          country: "singapore",
+          visa_type: "SG_ARRIVAL_CARD",
+          submitted_at: null,
+          submission_result_status: null,
+          submission_result: null,
+          applicant_profiles: [{
+            id: "profile-id",
+            auth_user_id: "auth-user-id",
+            dependant_of_user_id: null,
+          }],
+        },
+        error: null,
+      }),
+    };
+    const admin = { from: vi.fn(() => applicationQuery) };
+    createAdminClient.mockReturnValue(admin);
+
+    const results = await Promise.all(Array.from({ length: 100 }, () => (
+      requireOwnedApplication("application-id")
+    )));
+
+    expect(results.every((result) => !("status" in result))).toBe(true);
+    expect(admin.from).toHaveBeenCalledTimes(100);
+    expect(applicationQuery.maybeSingle).toHaveBeenCalledTimes(100);
+  });
+
+  it("keeps a fail-closed compatibility fallback for missing embeds", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "profile-id",
+      authUserId: "auth-user-id",
+    });
+    const embeddedQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "Could not find a relationship between applications and applicant_profiles" },
+      }),
+    };
+    const fallbackApplicationQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "application-id",
+          applicant_id: "profile-id",
+          country: "singapore",
+          visa_type: "SG_ARRIVAL_CARD",
+          submitted_at: null,
+          submission_result_status: null,
+          submission_result: null,
+        },
+      }),
+    };
+    const fallbackProfileQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "profile-id",
+          auth_user_id: "auth-user-id",
+          dependant_of_user_id: null,
+        },
+      }),
+    };
+    const admin = {
+      from: vi.fn()
+        .mockReturnValueOnce(embeddedQuery)
+        .mockReturnValueOnce(fallbackApplicationQuery)
+        .mockReturnValueOnce(fallbackProfileQuery),
+    };
+    createAdminClient.mockReturnValue(admin);
+
+    await expect(requireOwnedApplication("application-id")).resolves.toMatchObject({
+      application: { id: "application-id" },
+    });
+    expect(admin.from.mock.calls.map(([table]) => table)).toEqual([
+      "applications",
+      "applications",
+      "applicant_profiles",
+    ]);
+  });
+
+  it("retries the embedded owner without a legacy dependant column", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "profile-id",
+      authUserId: "auth-user-id",
+    });
+    const missingColumnQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "column applicant_profiles.dependant_of_user_id does not exist" },
+      }),
+    };
+    const compatibleEmbeddedQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "application-id",
+          applicant_id: "profile-id",
+          country: "singapore",
+          visa_type: "SG_ARRIVAL_CARD",
+          submitted_at: null,
+          submission_result_status: null,
+          submission_result: null,
+          applicant_profiles: {
+            id: "profile-id",
+            auth_user_id: "auth-user-id",
+          },
+        },
+        error: null,
+      }),
+    };
+    const admin = {
+      from: vi.fn()
+        .mockReturnValueOnce(missingColumnQuery)
+        .mockReturnValueOnce(compatibleEmbeddedQuery),
+    };
+    createAdminClient.mockReturnValue(admin);
+
+    await expect(requireOwnedApplication("application-id")).resolves.toMatchObject({
+      application: { id: "application-id" },
+    });
+    expect(admin.from).toHaveBeenCalledTimes(2);
+    expect(compatibleEmbeddedQuery.select).toHaveBeenCalledWith(expect.stringContaining(
+      "applicant_profiles(id, auth_user_id)",
+    ));
+  });
+
+  it("preserves dependant ownership through the embedded relation", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "parent-profile-id",
+      authUserId: "parent-auth-id",
+    });
+    const applicationQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "application-id",
+          applicant_id: "dependant-profile-id",
+          country: "singapore",
+          visa_type: "SG_ARRIVAL_CARD",
+          submitted_at: null,
+          submission_result_status: null,
+          submission_result: null,
+          applicant_profiles: {
+            id: "dependant-profile-id",
+            auth_user_id: "dependant-auth-id",
+            dependant_of_user_id: "parent-auth-id",
+          },
+        },
+        error: null,
+      }),
+    };
+    createAdminClient.mockReturnValue({ from: vi.fn(() => applicationQuery) });
+
+    await expect(requireOwnedApplication("application-id")).resolves.toMatchObject({
+      application: { applicant_id: "dependant-profile-id" },
+    });
+  });
+
+  it("rejects an embedded profile owned by another user", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "requester-profile-id",
+      authUserId: "requester-auth-id",
+    });
+    const applicationQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "application-id",
+          applicant_id: "other-profile-id",
+          country: "singapore",
+          visa_type: "SG_ARRIVAL_CARD",
+          submitted_at: null,
+          submission_result_status: null,
+          submission_result: null,
+          applicant_profiles: {
+            id: "other-profile-id",
+            auth_user_id: "other-auth-id",
+            dependant_of_user_id: null,
+          },
+        },
+        error: null,
+      }),
+    };
+    createAdminClient.mockReturnValue({ from: vi.fn(() => applicationQuery) });
+
+    await expect(requireOwnedApplication("application-id")).resolves.toEqual({
+      status: 403,
+      error: "Unauthorized",
+    });
+  });
+
+  it("fails closed without compatibility retries on an ordinary query error", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "profile-id",
+      authUserId: "auth-user-id",
+    });
+    const applicationQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "temporary database timeout" },
+      }),
+    };
+    const admin = { from: vi.fn(() => applicationQuery) };
+    createAdminClient.mockReturnValue(admin);
+
+    await expect(requireOwnedApplication("application-id")).resolves.toEqual({
+      status: 404,
+      error: "Application not found",
+    });
+    expect(admin.from).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -44,6 +44,92 @@ export interface OwnedApplicationContext {
   formAssistantReadOnly: boolean;
 }
 
+type ApplicationOwnerProfile = {
+  id: string;
+  auth_user_id: string | null;
+  dependant_of_user_id?: string | null;
+};
+
+type ApplicationWithOwner = OwnedApplicationContext["application"] & {
+  applicant_profiles?: ApplicationOwnerProfile | ApplicationOwnerProfile[] | null;
+};
+
+function getApplicationOwner(
+  relation: ApplicationWithOwner["applicant_profiles"],
+): ApplicationOwnerProfile | null {
+  if (Array.isArray(relation)) return relation[0] ?? null;
+  return relation ?? null;
+}
+
+function isApplicationOwnerEmbedCompatibilityError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("relationship")
+    || normalized.includes("embed")
+    || normalized.includes("applicant_profiles")
+    || normalized.includes("dependant_of_user_id");
+}
+
+async function loadApplicationAndOwner(
+  admin: SupabaseClient,
+  applicationId: string,
+): Promise<{
+  application: OwnedApplicationContext["application"] | null;
+  profile: ApplicationOwnerProfile | null;
+}> {
+  const applicationColumns = "id, applicant_id, country, visa_type, submitted_at, submission_result_status, submission_result";
+  const runEmbeddedQuery = (ownerColumns: string) => admin
+    .from("applications")
+    .select(`${applicationColumns}, applicant_profiles(${ownerColumns})`)
+    .eq("id", applicationId)
+    .maybeSingle();
+  let embedded = await runEmbeddedQuery("id, auth_user_id, dependant_of_user_id");
+  if (embedded.error?.message.toLowerCase().includes("dependant_of_user_id")) {
+    embedded = await runEmbeddedQuery("id, auth_user_id");
+  }
+
+  if (!embedded.error) {
+    const row = (embedded.data as ApplicationWithOwner | null) ?? null;
+    if (!row?.applicant_id) return { application: null, profile: null };
+    const { applicant_profiles: ownerRelation, ...application } = row;
+    return {
+      application: application as OwnedApplicationContext["application"],
+      profile: getApplicationOwner(ownerRelation),
+    };
+  }
+
+  if (!isApplicationOwnerEmbedCompatibilityError(embedded.error.message)) {
+    return { application: null, profile: null };
+  }
+
+  // Older local schemas may not expose the PostgREST relationship or the
+  // dependant column. Preserve the previous fail-closed two-query path there.
+  const { data: fallbackApplication } = await admin
+    .from("applications")
+    .select(applicationColumns)
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (!fallbackApplication?.applicant_id) {
+    return { application: null, profile: null };
+  }
+
+  let fallbackProfileResult = await admin
+    .from("applicant_profiles")
+    .select("id, auth_user_id, dependant_of_user_id")
+    .eq("id", fallbackApplication.applicant_id)
+    .maybeSingle();
+  if (fallbackProfileResult.error?.message.toLowerCase().includes("dependant_of_user_id")) {
+    fallbackProfileResult = await admin
+      .from("applicant_profiles")
+      .select("id, auth_user_id")
+      .eq("id", fallbackApplication.applicant_id)
+      .maybeSingle();
+  }
+  return {
+    application: fallbackApplication as OwnedApplicationContext["application"],
+    profile: (fallbackProfileResult.data as ApplicationOwnerProfile | null) ?? null,
+  };
+}
+
 export async function requireOwnedApplication(
   applicationId: string,
   options: { allowSuccessfulSubmission?: boolean } = {},
@@ -52,18 +138,8 @@ export async function requireOwnedApplication(
   if (!session) return { status: 401, error: "Not authenticated" };
 
   const admin = createAdminClient();
-  const { data: application } = await admin
-    .from("applications")
-    .select("id, applicant_id, country, visa_type, submitted_at, submission_result_status, submission_result")
-    .eq("id", applicationId)
-    .maybeSingle();
+  const { application, profile } = await loadApplicationAndOwner(admin, applicationId);
   if (!application?.applicant_id) return { status: 404, error: "Application not found" };
-
-  const { data: profile } = await admin
-    .from("applicant_profiles")
-    .select("id, auth_user_id, dependant_of_user_id")
-    .eq("id", application.applicant_id)
-    .maybeSingle();
   const ownsProfile = profile && (
     profile.id === session.userId
     || profile.auth_user_id === session.authUserId
