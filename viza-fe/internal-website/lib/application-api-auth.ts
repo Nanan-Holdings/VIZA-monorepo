@@ -11,6 +11,12 @@ export type ApplicantOwnerIdentity = {
   dependant_of_user_id?: string | null;
 };
 
+type ApplicationApiIdentityOptions = {
+  supabaseRequestTimeoutMs?: number;
+};
+
+const DEFAULT_APPLICATION_API_AUTH_TIMEOUT_MS = 4_000;
+
 export function clientSessionOwnsApplicant(
   profile: ApplicantOwnerIdentity | null,
   session: ClientSession,
@@ -56,7 +62,9 @@ export async function getOwnedApplicantSession(
 }
 
 /** Applicant profile id for `/api/applications/*` ownership checks. */
-export async function getApplicationApiApplicantProfileId(): Promise<string | null> {
+export async function getApplicationApiApplicantProfileId(
+  options: ApplicationApiIdentityOptions = {},
+): Promise<string | null> {
   const impersonation = await getImpersonationSession();
   if (impersonation) return impersonation.userId;
 
@@ -64,7 +72,8 @@ export async function getApplicationApiApplicantProfileId(): Promise<string | nu
   if (cookieSession) return cookieSession.userId;
 
   const supabaseSession = await getUserFromSupabaseSession({
-    requestTimeoutMs: 4_000,
+    requestTimeoutMs:
+      options.supabaseRequestTimeoutMs ?? DEFAULT_APPLICATION_API_AUTH_TIMEOUT_MS,
     retryDelaysMs: [],
   });
   return supabaseSession?.userId ?? null;

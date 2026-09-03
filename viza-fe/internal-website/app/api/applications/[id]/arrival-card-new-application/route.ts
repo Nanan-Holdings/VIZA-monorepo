@@ -7,7 +7,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await context.params;
-  const applicantProfileId = await getApplicationApiApplicantProfileId();
+  const applicantProfileId = await getApplicationApiApplicantProfileId({
+    supabaseRequestTimeoutMs: 8_000,
+  });
   if (!applicantProfileId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

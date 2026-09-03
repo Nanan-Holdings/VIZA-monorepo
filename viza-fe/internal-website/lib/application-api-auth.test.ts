@@ -52,6 +52,21 @@ describe("application applicant session ownership", () => {
     });
   });
 
+  it("allows an interactive API to extend the Supabase identity timeout", async () => {
+    getUserFromSupabaseSessionMock.mockResolvedValue({
+      userId: "profile-owner",
+      email: "owner@example.com",
+    });
+
+    await expect(getApplicationApiApplicantProfileId({
+      supabaseRequestTimeoutMs: 8_000,
+    })).resolves.toBe("profile-owner");
+    expect(getUserFromSupabaseSessionMock).toHaveBeenCalledWith({
+      requestTimeoutMs: 8_000,
+      retryDelaysMs: [],
+    });
+  });
+
   it("accepts profile-id and auth-user-id ownership", () => {
     expect(clientSessionOwnsApplicant(owner, {
       userId: "profile-owner",
