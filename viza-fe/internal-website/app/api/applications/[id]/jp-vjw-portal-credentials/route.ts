@@ -3,9 +3,59 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-const AGENT_BACKEND_URL =
-  process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
+const CANONICAL_AGENT_BACKEND_URL = "https://viza-agent-backend-gqix.onrender.com";
 const REVEAL_TIMEOUT_MS = 12_000;
+
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function getAgentBackendUrl(): string {
+  const configured =
+    process.env.AGENT_BACKEND_URL?.trim()
+    || process.env.NEXT_PUBLIC_AGENT_BACKEND_URL?.trim();
+  if (configured) {
+    return normalizeBaseUrl(configured);
+  }
+  return process.env.NODE_ENV === "production"
+    ? CANONICAL_AGENT_BACKEND_URL
+    : "http://localhost:3002";
+}
+
+async function fetchCredentialReveal(
+  applicationId: string,
+  token: string,
+  signal: AbortSignal,
+): Promise<Response> {
+  const primaryUrl = getAgentBackendUrl();
+  const retryUrl =
+    process.env.NODE_ENV === "production" && primaryUrl !== CANONICAL_AGENT_BACKEND_URL
+      ? CANONICAL_AGENT_BACKEND_URL
+      : primaryUrl;
+  const baseUrls = [primaryUrl, retryUrl];
+  let lastError: unknown;
+
+  for (const baseUrl of baseUrls) {
+    try {
+      return await fetch(
+        `${baseUrl}/api/applications/${encodeURIComponent(applicationId)}/jp-vjw/account/reveal`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+          signal,
+        },
+      );
+    } catch (error) {
+      lastError = error;
+      if (signal.aborted) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
 
 function noStoreHeaders() {
   return {
@@ -47,15 +97,7 @@ export async function POST(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REVEAL_TIMEOUT_MS);
   try {
-    const upstream = await fetch(
-      `${AGENT_BACKEND_URL}/api/applications/${encodeURIComponent(applicationId)}/jp-vjw/account/reveal`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-        signal: controller.signal,
-      },
-    );
+    const upstream = await fetchCredentialReveal(applicationId, token, controller.signal);
     const body = (await upstream.json().catch(() => null)) as Record<string, unknown> | null;
     if (!upstream.ok) {
       return NextResponse.json(
