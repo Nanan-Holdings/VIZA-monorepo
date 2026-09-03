@@ -239,18 +239,47 @@ export async function loadAssistantAnswers(
   applicationId: string,
   options: { applicantId?: string; authUserId?: string } = {},
 ): Promise<Record<string, { value: string; source: string | null }>> {
-  let { data, error } = await admin
-    .from("visa_application_answers")
-    .select("field_name, value_text, source")
-    .eq("application_id", applicationId);
-  if (error?.message?.includes("source") && error.message.includes("does not exist")) {
-    const legacy = await admin
+  const applicationAnswerRead = (async () => {
+    const result = await admin
       .from("visa_application_answers")
-      .select("field_name, value_text")
+      .select("field_name, value_text, source")
       .eq("application_id", applicationId);
-    data = (legacy.data ?? []).map((row) => ({ ...row, source: null }));
-    error = legacy.error;
-  }
+    if (result.error?.message?.includes("source") && result.error.message.includes("does not exist")) {
+      const legacy = await admin
+        .from("visa_application_answers")
+        .select("field_name, value_text")
+        .eq("application_id", applicationId);
+      return {
+        data: (legacy.data ?? []).map((row) => ({ ...row, source: null })),
+        error: legacy.error,
+      };
+    }
+    return result;
+  })();
+  const profileRead = options.applicantId
+    ? admin
+        .from("applicant_profiles")
+        .select("full_name, passport_number, passport_expiry_date, date_of_birth, gender, email")
+        .eq("id", options.applicantId)
+        .maybeSingle()
+    : Promise.resolve({ data: null });
+  const reusableAnswerRead = options.applicantId && options.authUserId
+    ? admin
+        .from("universal_profile_answers")
+        .select("canonical_key, value_text")
+        .eq("auth_user_id", options.authUserId)
+        .order("updated_at", { ascending: false })
+    : Promise.resolve({ data: null });
+  const [
+    { data, error },
+    { data: profile },
+    { data: reusableRows },
+  ] = await Promise.all([
+    applicationAnswerRead,
+    profileRead,
+    reusableAnswerRead,
+  ]);
+
   if (error) throw new Error(error.message);
   const answers = Object.fromEntries(
     (data ?? [])
@@ -258,21 +287,6 @@ export async function loadAssistantAnswers(
       .map((row) => [row.field_name, { value: row.value_text, source: row.source ?? null }]),
   );
   if (!options.applicantId) return answers;
-
-  const [{ data: profile }, { data: reusableRows }] = await Promise.all([
-    admin
-      .from("applicant_profiles")
-      .select("full_name, passport_number, passport_expiry_date, date_of_birth, gender, email")
-      .eq("id", options.applicantId)
-      .maybeSingle(),
-    options.authUserId
-      ? admin
-          .from("universal_profile_answers")
-          .select("canonical_key, value_text")
-          .eq("auth_user_id", options.authUserId)
-          .order("updated_at", { ascending: false })
-      : Promise.resolve({ data: null }),
-  ]);
   const profileValues: Record<string, string | null | undefined> = {
     full_name: profile?.full_name,
     passport_number: profile?.passport_number,

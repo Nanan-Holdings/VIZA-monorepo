@@ -106,6 +106,10 @@ Scope: this file applies to `lib/form-assistant/**`.
   60-second freshness window. Cache only non-empty public rows; failures and
   empty reads must remain retryable, and each caller must rebuild deep-cloned
   step objects so mutations cannot leak between requests.
+- After ownership is established, `server-context.ts` starts application
+  answers, applicant profile, and reusable-profile answer reads together.
+  Preserve application-answer precedence and the legacy missing-`source`
+  fallback; never cache these applicant-scoped values.
 - Networks that require an outbound HTTPS proxy may set
   `OPENAI_FORM_ASSISTANT_PROXY_URL` (or `HTTPS_PROXY`). Keep the request origin
   on official `api.openai.com` so TLS verification remains intact.
