@@ -4,6 +4,10 @@ Scope: this file applies to `lib/form-assistant/**`.
 
 ## Responsibilities
 
+- `server-context.ts` must load the owned application and its applicant profile
+  through one PostgREST embedded relationship query on current schemas. Keep a
+  fail-closed compatibility fallback for old local schemas, and never cache
+  application or applicant ownership data.
 - `bootstrap.ts` decides whether a first-time supported form visit must create
   an application-scoped draft before the assistant can render. It must reuse
   existing drafts and require a non-empty DB-driven form schema.
