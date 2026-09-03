@@ -70,6 +70,17 @@ const DOCUMENT_COLUMNS = "id, application_id, document_type, status, created_at,
 
 const PAYMENT_COLUMNS = "id, application_id, visa_package_id, status, created_at, updated_at";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function buildUuidInFilter(column: "application_id" | "visa_package_id", ids: string[]): string {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0 || uniqueIds.some((id) => !UUID_PATTERN.test(id))) {
+    throw new Error(`Cannot build ${column} payment filter from invalid identifiers`);
+  }
+  return `${column}.in.(${uniqueIds.join(",")})`;
+}
+
 function dedupeById<T extends { id: string }>(rows: T[]): T[] {
   return [...new Map(rows.map((row) => [row.id, row])).values()];
 }
@@ -161,33 +172,24 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
         .select(DOCUMENT_COLUMNS)
         .in("application_id", applicationIds);
 
-      const paymentReads: Array<Promise<{ data: PaymentRow[] | null; error: { message: string } | null }>> = [
-        adminClient
-          .from("payment_records")
-          .select(PAYMENT_COLUMNS)
-          .eq("applicant_id", session.userId)
-          .in("application_id", applicationIds) as unknown as Promise<{
-          data: PaymentRow[] | null;
-          error: { message: string } | null;
-        }>,
+      const paymentFilters = [
+        buildUuidInFilter("application_id", applicationIds),
+        ...(packageIds.length > 0
+          ? [buildUuidInFilter("visa_package_id", packageIds)]
+          : []),
       ];
+      const paymentRead = adminClient
+        .from("payment_records")
+        .select(PAYMENT_COLUMNS)
+        .eq("applicant_id", session.userId)
+        .or(paymentFilters.join(",")) as unknown as Promise<{
+        data: PaymentRow[] | null;
+        error: { message: string } | null;
+      }>;
 
-      if (packageIds.length > 0) {
-        paymentReads.push(
-          adminClient
-            .from("payment_records")
-            .select(PAYMENT_COLUMNS)
-            .eq("applicant_id", session.userId)
-            .in("visa_package_id", packageIds) as unknown as Promise<{
-            data: PaymentRow[] | null;
-            error: { message: string } | null;
-          }>,
-        );
-      }
-
-      const [documentResult, paymentResults] = await Promise.all([
+      const [documentResult, paymentResult] = await Promise.all([
         documentRead,
-        Promise.all(paymentReads),
+        paymentRead,
       ]);
       const { data: documentRows, error: documentError } = documentResult;
 
@@ -204,7 +206,7 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
       }
 
       documents = (documentRows ?? []) as DocumentRow[];
-      const paymentError = paymentResults.find((result) => result.error)?.error;
+      const paymentError = paymentResult.error;
       if (paymentError) {
         return {
           authenticated: true,
@@ -217,7 +219,7 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
         };
       }
 
-      payments = dedupeById(paymentResults.flatMap((result) => result.data ?? []));
+      payments = dedupeById(paymentResult.data ?? []);
     }
 
     return {
