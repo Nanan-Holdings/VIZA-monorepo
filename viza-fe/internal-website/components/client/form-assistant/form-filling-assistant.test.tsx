@@ -690,4 +690,53 @@ describe("FormFillingAssistant", () => {
     expect(props.onTranscribe).not.toHaveBeenCalled();
     expect(trackStop).toHaveBeenCalled();
   });
+
+  it("stops and discards an active recording when the application becomes read-only", async () => {
+    const trackStop = vi.fn();
+    const getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: trackStop }] });
+
+    class ReadOnlyMediaRecorder {
+      static isTypeSupported = vi.fn(() => true);
+      state: "inactive" | "recording" = "inactive";
+      mimeType = "audio/webm";
+      onstop: (() => void) | null = null;
+      ondataavailable: ((event: BlobEvent) => void) | null = null;
+
+      constructor(_stream: MediaStream, _options?: MediaRecorderOptions) {}
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.onstop?.();
+      }
+    }
+
+    Object.defineProperty(globalThis, "MediaRecorder", {
+      configurable: true,
+      value: ReadOnlyMediaRecorder,
+      writable: true,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia },
+      writable: true,
+    });
+
+    const view = renderAssistant();
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <FormFillingAssistant {...view.props} readOnly />
+      </NextIntlClientProvider>,
+    );
+
+    await waitFor(() => expect(trackStop).toHaveBeenCalled());
+    expect(view.props.onTranscribe).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Message for the form filling assistant" })).toBeDisabled();
+  });
 });

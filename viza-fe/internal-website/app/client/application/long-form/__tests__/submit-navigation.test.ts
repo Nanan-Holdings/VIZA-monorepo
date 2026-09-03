@@ -115,7 +115,18 @@ describe("application submit navigation", () => {
     expect(pageSource).toContain("readOnly={formAssistantReadOnly}");
     expect(pageSource).toContain("prepareFormAssistantState(state, { readOnly: formAssistantReadOnly })");
     expect(pageSource).toMatch(
+      /if \(formAssistantReadOnly\) \{\s*return \{ completed: formProgress\.total, total: formProgress\.total \};/,
+    );
+    expect(pageSource).toMatch(
       /function prepareFormAssistantState\([\s\S]{0,220}if \(options\.readOnly\) return toSubmittedFormAssistantState\(state\);/,
+    );
+
+    const assistantRouteSource = readFileSync(
+      join(process.cwd(), "app/api/applications/[id]/form-assistant/route.ts"),
+      "utf8",
+    );
+    expect(assistantRouteSource).toMatch(
+      /loadAssistantAnswers\([\s\S]{0,180}owned\.formAssistantReadOnly\s*\? \{\}\s*: \{/,
     );
   });
 });

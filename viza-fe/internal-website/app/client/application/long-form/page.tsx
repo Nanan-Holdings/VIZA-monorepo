@@ -2684,6 +2684,12 @@ export default function ApplicationPage() {
   );
   const formAssistantReadinessProgress = useMemo(() => {
     const formProgress = getAssistantProgress(dbSteps, dynamicAnswerSnapshot);
+    // A durable submission is historical evidence. Do not re-grade it against
+    // today's date or later profile/schema changes, which can make a completed
+    // application appear incomplete after the fact.
+    if (formAssistantReadOnly) {
+      return { completed: formProgress.total, total: formProgress.total };
+    }
     // Required-field progress must not count a non-empty value that final
     // validation already rejects (for example an incomplete Japan address).
     // Otherwise the assistant can show 100% while Submit immediately returns
@@ -2705,6 +2711,7 @@ export default function ApplicationPage() {
     dbSteps,
     documentCenterData,
     dynamicAnswerSnapshot,
+    formAssistantReadOnly,
     showStandaloneDocumentStep,
     tabCompletion.missingFields,
   ]);

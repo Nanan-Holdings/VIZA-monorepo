@@ -334,6 +334,10 @@ export function FormFillingAssistant({
   }, [clearRecordingTimers, stopTracks]);
 
   useEffect(() => {
+    if (readOnly) stopRecording(true);
+  }, [readOnly, stopRecording]);
+
+  useEffect(() => {
     if (!window.localStorage) return;
     if (draft.trim()) {
       window.localStorage.setItem(composerStorageKey, draft);
