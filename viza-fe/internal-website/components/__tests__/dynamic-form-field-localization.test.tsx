@@ -30,6 +30,26 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("DynamicFormField localization", () => {
+  it("gives number controls their localized field label as an accessible name", () => {
+    render(
+      <DynamicFormField
+        field={field({
+          id: "planned-stay",
+          visaType: "JP_VISIT_JAPAN_WEB",
+          fieldName: "planned_stay_days",
+          label: "计划停留天数",
+          fieldType: "number",
+          validationRules: { label_zh: "计划停留天数" },
+        })}
+        value=""
+        onChange={vi.fn()}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("spinbutton", { name: "计划停留天数" })).toBeInTheDocument();
+  });
+
   it("renders an official text autocomplete while preserving free entry", () => {
     const onChange = vi.fn();
     const departureField = field({

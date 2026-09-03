@@ -899,6 +899,7 @@ export function DynamicFormField({
             >
               <InputGroupInput
                 type={fieldType === "text" ? "text" : fieldType}
+                aria-label={label}
                 list={autocompleteListId}
                 autoComplete={autocompleteListId ? "off" : undefined}
                 placeholder={localizedPlaceholder}
