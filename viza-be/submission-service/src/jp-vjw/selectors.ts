@@ -72,6 +72,13 @@ export const JP_VJW_TO_ENTRY_PROCEDURE_NAME =
 
 export const JP_VJW_NEXT_NAME = /^(?:下一步|Next|次へ)$/i;
 
+/** Actions on the trip/declaration dashboard in all supported portal locales. */
+export const JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME =
+  /入境\s*审查.*海关\s*申报|入境\s*審查.*海關\s*申報|入国.*税関申告|Immigration.*Customs/i;
+
+export const JP_VJW_QR_ACTION_NAME =
+  /显示\s*QR\s*码|顯示\s*QR\s*碼|QRコードを表示|Display QR/i;
+
 export const JP_VJW_DECLARATION_COMPLETE_NAME =
   /登记完成|登記完成|Registration complete|登録完了/i;
 
@@ -79,7 +86,7 @@ export const JP_VJW_BACK_TO_ENTRY_PROCEDURE_NAME =
   /返回入境.*回国手续|返回入境.*回國手續|Back to Entry\/Return Procedure|入国・帰国手続に戻る/i;
 
 export const JP_VJW_AGREE_DISPLAY_QR_NAME =
-  /同意并显示QR码|同意並顯示QR碼|Agree and display the QR code|同意してQRコードを表示/i;
+  /同意\s*并\s*显示\s*QR\s*码|同意\s*並\s*顯示\s*QR\s*碼|Agree and display the QR code|同意してQRコードを表示/i;
 
 export const JP_VJW_DECLARATION_NOT_REGISTERED_NAME =
   /未登记|未登記|Not registered|未登録/i;

@@ -9,7 +9,11 @@ import {
   type PreparedJpVjwAccount,
 } from "./account.js";
 import { JpVjwPortalError } from "./errors.js";
-import type { JpVjwPortalPayload, JpVjwYesNo } from "./normalize.js";
+import {
+  resolveJpVjwOccupationCode,
+  type JpVjwPortalPayload,
+  type JpVjwYesNo,
+} from "./normalize.js";
 import {
   JP_VJW_ACCOUNT_CREATED_NAME,
   JP_VJW_AGREE_DISPLAY_QR_NAME,
@@ -25,6 +29,7 @@ import {
   JP_VJW_NEXT_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME,
   JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_NEW_TRIP_NAME,
   JP_VJW_NO_COPY_TRIP_NAME,
@@ -33,6 +38,7 @@ import {
   JP_VJW_TO_ENTRY_PROCEDURE_NAME,
   JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
+  JP_VJW_QR_ACTION_NAME,
 } from "./selectors.js";
 
 const OFFICIAL_ROOT = "https://www.vjw.digital.go.jp/";
@@ -302,6 +308,10 @@ async function selectNative(
   // select as the Angular form control. selectOption still dispatches the
   // native input/change events when forced against that official control.
   await select.selectOption(optionValue, { force: true });
+  const selectedValue = await select.inputValue().catch(() => "");
+  if (selectedValue !== optionValue) {
+    await fail(context, "jp_vjw_option_selection_unconfirmed", `Visit Japan Web select ${name} did not accept the resolved official option.`);
+  }
 }
 
 export function resolveJpVjwNativeOptionValue(
@@ -309,19 +319,34 @@ export function resolveJpVjwNativeOptionValue(
   candidates: string[],
 ): string | null {
   const normalizedCandidates = candidates.map(normalizeOptionText).filter(Boolean);
-  const match = options.find((option) => {
+  if (normalizedCandidates.length === 0) return null;
+  const usable = options.filter((option) => {
     const label = normalizeOptionText(option.label);
     const value = normalizeOptionText(option.value);
     // The VJW placeholder is rendered as "-" with an empty value. Without
     // this guard candidate.includes("") would make it shadow every real item.
-    if (!label && !value) return false;
+    return Boolean(label || value);
+  });
+
+  // Prefer exact official value/label matches. A select can contain labels
+  // with shared prefixes, so a fuzzy match is only safe when it is unique.
+  const exactMatches = usable.filter((option) => {
+    const label = normalizeOptionText(option.label);
+    const value = normalizeOptionText(option.value);
+    return normalizedCandidates.some((candidate) => candidate === value || candidate === label);
+  });
+  const exactValues = new Set(exactMatches.map((option) => option.value));
+  if (exactValues.size === 1) return exactMatches[0]?.value ?? null;
+  if (exactValues.size > 1) return null;
+
+  const fuzzyMatches = usable.filter((option) => {
+    const label = normalizeOptionText(option.label);
     return normalizedCandidates.some((candidate) =>
-      candidate === value || candidate === label ||
       (label.length > 0 && label.includes(candidate)) ||
       (label.length > 0 && candidate.includes(label)),
     );
   });
-  return match?.value ?? null;
+  return fuzzyMatches.length === 1 ? fuzzyMatches[0]?.value ?? null : null;
 }
 
 async function setRadio(
@@ -354,18 +379,17 @@ async function fillDateParts(
   await selectNative(context, `${prefix}Day`, day, [String(Number(day))]);
 }
 
-function occupationCode(value: string): string {
-  const normalized = value.normalize("NFKC").toLowerCase();
-  if (/^\d{4}$/u.test(normalized)) return normalized;
-  if (/student|学生/u.test(normalized)) return "0800";
-  if (/unemployed|无业|無職/u.test(normalized)) return "0900";
-  if (/doctor|physician|医生|醫生/u.test(normalized)) return "0600";
-  if (/teacher|professor|教师|教員/u.test(normalized)) return "0700";
-  if (/public servant|civil servant|公务员|公務員/u.test(normalized)) return "0300";
-  if (/self.?employed|business owner|个体|自雇|自營/u.test(normalized)) return "0500";
-  if (/president|executive|director|总经理|董事/u.test(normalized)) return "0200";
-  if (/employee|engineer|developer|manager|公司职员|工程师|職員/u.test(normalized)) return "0100";
-  return "0990";
+function occupationCode(context: JpVjwLiveAdapterContext): string {
+  const code = resolveJpVjwOccupationCode(context.payload.occupation);
+  if (code) return code;
+  throw new JpVjwPortalError(
+    "Visit Japan Web occupation is not an allowed official option.",
+    {
+      code: "jp_vjw_occupation_not_allowed",
+      screenshotPaths: context.screenshots,
+      logs: context.logs,
+    },
+  );
 }
 
 function sexAliases(value: string): string[] {
@@ -732,7 +756,7 @@ async function registerProfile(context: JpVjwLiveAdapterContext): Promise<void> 
   }
   await fillDateParts(context, "dateOfExpiry", context.payload.passportExpiryDate);
   const optionalOccupation = context.page.locator("select[formcontrolname='occupation']").first();
-  if (await optionalOccupation.count()) await selectNative(context, "occupation", occupationCode(context.payload.occupation));
+  if (await optionalOccupation.count()) await selectNative(context, "occupation", occupationCode(context));
   const profileCountry = context.page.locator("input[formcontrolname='countryName']").first();
   if (await profileCountry.count()) await profileCountry.fill(context.payload.residenceCountry.toUpperCase());
   const profileCity = context.page.locator("input[formcontrolname='cityName']").first();
@@ -911,7 +935,7 @@ async function registerTrip(context: JpVjwLiveAdapterContext, title: string): Pr
 }
 
 export async function clickImmigrationAndCustoms(context: JpVjwLiveAdapterContext): Promise<void> {
-  const action = context.page.getByRole("button", { name: /入境审查.*海关申报|入国.*税関申告|Immigration.*Customs/i }).first();
+  const action = context.page.getByRole("button", { name: JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME }).first();
   if (!(await action.isVisible().catch(() => false))) {
     await fail(context, "jp_vjw_immigration_customs_action_missing", "Immigration and customs action was not visible on the trip dashboard.");
   }
@@ -992,7 +1016,7 @@ function assertSupportedCustomsPath(context: JpVjwLiveAdapterContext): void {
 
 async function completeImmigrationAndCustoms(context: JpVjwLiveAdapterContext): Promise<string> {
   assertSupportedCustomsPath(context);
-  await selectNative(context, "occupation", occupationCode(context.payload.occupation));
+  await selectNative(context, "occupation", occupationCode(context));
   await fillControl(context, "countryName", context.payload.residenceCountry.toUpperCase());
   await fillControl(context, "cityName", context.payload.residenceCity.toUpperCase());
   await fillControl(context, "immigrationDate", context.payload.arrivalDate);
@@ -1055,9 +1079,9 @@ async function completeImmigrationAndCustoms(context: JpVjwLiveAdapterContext): 
   const submittedAt = new Date().toISOString();
   await clickPrimary(context, true);
   await confirmJpVjwDeclarationSave(context);
-  let qrAction = context.page.getByRole("button", { name: /显示QR码|顯示QR碼|QRコードを表示|Display QR/i }).first();
+  let qrAction = context.page.getByRole("button", { name: JP_VJW_QR_ACTION_NAME }).first();
   if (!(await qrAction.isVisible().catch(() => false))) {
-    qrAction = context.page.getByText(/显示QR码|顯示QR碼|QRコードを表示|Display QR/i).first();
+    qrAction = context.page.getByText(JP_VJW_QR_ACTION_NAME).first();
   }
   await openJpVjwQrView(context, qrAction);
   return submittedAt;
@@ -1085,8 +1109,8 @@ export async function submitJpVjwLive(context: JpVjwLiveAdapterContext): Promise
     await navigateRoute(context, "vjwpco001");
     if (!(await openExistingTrip(context, title))) await registerTrip(context, title);
   }
-  const existingQr = context.page.getByRole("button", { name: /显示QR码|QRコードを表示|Display QR/i }).first();
-  const declarationAction = context.page.getByRole("button", { name: /入境审查.*海关申报|入国.*税関申告|Immigration.*Customs/i }).first();
+  const existingQr = context.page.getByRole("button", { name: JP_VJW_QR_ACTION_NAME }).first();
+  const declarationAction = context.page.getByRole("button", { name: JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME }).first();
   const declarationStatus = await declarationAction.innerText().catch(() => "");
   let submittedAt = new Date().toISOString();
   if (

@@ -135,6 +135,64 @@ function canonicalPurpose(value: string): string {
   return ["0", "TOURISM", "旅游", "観光"].includes(normalized) ? "0" : value.trim();
 }
 
+/**
+ * These are the small, stable code sets exposed by the reviewed VJW form.
+ * The full airline and city catalogs are intentionally not duplicated here:
+ * they are owned by the backend schema snapshot and must be checked against
+ * the live official `<select>` controls by the browser adapter (see
+ * `selectNative`).
+ */
+export const JP_VJW_OFFICIAL_PURPOSE_CODES = new Set(["0"]);
+export const JP_VJW_OFFICIAL_OCCUPATION_CODES = new Set([
+  "0100",
+  "0200",
+  "0300",
+  "0400",
+  "0500",
+  "0600",
+  "0700",
+  "0800",
+  "0900",
+  "0990",
+]);
+export const JP_VJW_OFFICIAL_PREFECTURE_CODES = new Set(
+  Array.from({ length: 47 }, (_, index) => String(index + 1).padStart(2, "0")),
+);
+
+function normalizedOccupation(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+/** Resolve a saved occupation label to one of the reviewed VJW codes. */
+export function resolveJpVjwOccupationCode(value: string): string | null {
+  const normalized = normalizedOccupation(value);
+  if (JP_VJW_OFFICIAL_OCCUPATION_CODES.has(normalized)) return normalized;
+  const aliases: Array<[RegExp, string]> = [
+    [/^(?:company employee|employee|engineer|developer|manager|公司职员|工程师|職員)$/u, "0100"],
+    [/^(?:company president or executive|president|executive|director|总经理|董事)$/u, "0200"],
+    [/^(?:public servant|civil servant|公务员|公務員)$/u, "0300"],
+    [/^(?:association staff member|association staff|团体职员|團體職員)$/u, "0400"],
+    [/^(?:self-owned business|self-employed|business owner|个体经营|个体经营（自雇）|自雇|自營)$/u, "0500"],
+    [/^(?:medical doctor|doctor|physician|医生|醫生)$/u, "0600"],
+    [/^(?:teacher|professor|教师|教師|教員)$/u, "0700"],
+    [/^(?:student|学生|學生)$/u, "0800"],
+    [/^(?:unemployed|无业|無業|無職)$/u, "0900"],
+    [/^(?:other|其他|其它|其他职业|其他職業|その他|retired|退休|退休人员|退休人員)$/u, "0990"],
+  ];
+  return aliases.find(([pattern]) => pattern.test(normalized))?.[1] ?? null;
+}
+
+function canonicalOccupation(value: string): string {
+  return resolveJpVjwOccupationCode(value) ?? value.trim();
+}
+
+function canonicalAirline(value: string): string {
+  const normalized = value.normalize("NFKC").trim().toUpperCase();
+  // Accept a legacy official-label value such as `NH: ...` but retain only
+  // the official two-character code for the browser control.
+  return normalized.match(/^([A-Z0-9]{2})(?:\s|[-:：]|$)/u)?.[1] ?? normalized;
+}
+
 function normalizeYesNo(value: unknown, key: string, missing: string[]): JpVjwYesNo {
   const normalized = text(value).toLowerCase();
   if (["yes", "true", "1", "y", "on"].includes(normalized)) return "yes";
@@ -272,11 +330,11 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
     passportNumber: required(firstText([answers.passport_number, personal.passportNumber]), "passport_number", missing),
     passportExpiryDate: required(firstText([answers.passport_expiry_date, personal.passportExpiryDate]), "passport_expiry_date", missing),
     residenceCountry: required(firstText([answers.residence_country, personal.nationality]), "residence_country", missing),
-    occupation: required(firstText([answers.occupation]), "occupation", missing),
+    occupation: canonicalOccupation(required(firstText([answers.occupation]), "occupation", missing)),
     residenceCity: required(firstText([answers.residence_city]), "residence_city", missing),
     arrivalDate,
     departureDate,
-    arrivalAirline: required(firstText([answers.arrival_airline, flight.airlineHint]), "arrival_airline", missing),
+    arrivalAirline: canonicalAirline(required(firstText([answers.arrival_airline, flight.airlineHint]), "arrival_airline", missing)),
     flightNumber: required(flight.number, "flight_number", missing),
     departureCityOrPort: required(firstText([answers.departure_city_or_port]), "departure_city_or_port", missing),
     purposeOfVisit: canonicalPurpose(required(firstText([answers.purpose_of_visit, trip.purpose]), "purpose_of_visit", missing)),
@@ -325,6 +383,16 @@ export function normalizeJpVjwPortalPayload(payload: SubmissionPayload): JpVjwPo
   assertMinimumLength(result.accommodationPrefecture, "accommodation_prefecture", 2, missing);
   assertMinimumLength(result.accommodationCity, "accommodation_city", 2, missing);
   assertMinimumLength(result.accommodationAddress, "accommodation_address", 3, missing);
+
+  // These controls have a reviewed, finite code contract. Airline and city
+  // membership is checked against the official live DOM because their full
+  // catalogs are maintained outside this independently deployed package.
+  if (!/^[A-Z0-9]{2}$/u.test(result.arrivalAirline)) missing.push("arrival_airline");
+  if (!JP_VJW_OFFICIAL_OCCUPATION_CODES.has(result.occupation)) missing.push("occupation");
+  if (!JP_VJW_OFFICIAL_PURPOSE_CODES.has(result.purposeOfVisit)) missing.push("purpose_of_visit");
+  if (!JP_VJW_OFFICIAL_PREFECTURE_CODES.has(result.accommodationPrefecture)) {
+    missing.push("accommodation_prefecture");
+  }
 
   if (missing.length > 0) {
     const uniqueMissing = [...new Set(missing)];

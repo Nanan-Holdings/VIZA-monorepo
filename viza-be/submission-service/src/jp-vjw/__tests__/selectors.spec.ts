@@ -22,12 +22,14 @@ import {
   JP_VJW_MFA_NO_NAME,
   JP_VJW_OPTIONAL_MFA_HEADING,
   JP_VJW_OPTIONAL_MFA_QUESTION,
+  JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME,
   JP_VJW_PROFILE_COMPLETE_NAME,
   JP_VJW_REENTRY_PERMISSION_QUESTION,
   JP_VJW_TAX_FREE_QR_QUESTION,
   JP_VJW_TO_ENTRY_PROCEDURE_NAME,
   JP_VJW_TRIP_REGISTERED_NAME,
   JP_VJW_YOUR_DETAILS_NAME,
+  JP_VJW_QR_ACTION_NAME,
   hasOfficialJpVjwQrEvidence,
   isJpVjwDeclarationRegistered,
   isJpVjwCloudfrontAccessGate,
@@ -73,11 +75,31 @@ test("Visit Japan Web profile selectors accept the observed production wizard", 
   assert.match("入国・帰国手続へ", JP_VJW_TO_ENTRY_PROCEDURE_NAME);
 });
 
+test("Visit Japan Web dashboard selectors accept traditional-Chinese actions", () => {
+  assert.match("顯示QR碼", JP_VJW_QR_ACTION_NAME);
+  assert.match("顯示 QR 碼", JP_VJW_QR_ACTION_NAME);
+  assert.match("入境審查及海關申報 未登記", JP_VJW_IMMIGRATION_CUSTOMS_ACTION_NAME);
+});
+
 test("Visit Japan Web native option matching skips the empty placeholder", () => {
   assert.equal(resolveJpVjwNativeOptionValue([
     { label: "-", value: "" },
     { label: "CHINA (PEOPLE'S REP.)", value: "156" },
   ], ["CHN", "China", "中国"]), "156");
+});
+
+test("Visit Japan Web native option matching fails closed for ambiguous fuzzy labels", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "AIR ASIA (AX)", value: "AX" },
+    { label: "AIR ASIA X (XJ)", value: "XJ" },
+  ], ["AIR ASIA"]), null);
+});
+
+test("Visit Japan Web native option matching fails closed for conflicting exact matches", () => {
+  assert.equal(resolveJpVjwNativeOptionValue([
+    { label: "Shared label", value: "A" },
+    { label: "Shared label", value: "B" },
+  ], ["Shared label"]), null);
 });
 
 test("Visit Japan Web accepts a free-text embarkation point when the official form enables Next", async () => {
