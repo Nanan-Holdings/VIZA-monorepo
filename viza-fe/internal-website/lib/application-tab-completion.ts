@@ -359,8 +359,40 @@ function getAtLeastOneOf(field: VisaFormFieldRow): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
-function isAllowedChoiceValue(field: VisaFormFieldRow, value: string | null | undefined): boolean {
+function normalizeOptionKey(value: string | null | undefined): string {
+  return text(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/[^a-z0-9]+/gu, "_")
+    .replace(/^_+|_+$/gu, "");
+}
+
+function isAllowedChoiceValue(
+  field: VisaFormFieldRow,
+  value: string | null | undefined,
+  values: Record<string, string>,
+  repeatIndex = 0,
+): boolean {
   if (!hasValue(value)) return false;
+  const rules = field.validationRules as {
+    dependent_on?: unknown;
+    depends_on?: unknown;
+    dependsOn?: unknown;
+    dependent_options?: unknown;
+  } | null;
+  const parentFieldName = [rules?.dependent_on, rules?.depends_on, rules?.dependsOn]
+    .find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
+  if (parentFieldName && rules?.dependent_options && typeof rules.dependent_options === "object") {
+    const dependentOptions = rules.dependent_options as Record<string, VisaFormFieldRow["options"]>;
+    const parentValue = values[instanceKey(parentFieldName, repeatIndex)] ?? values[parentFieldName];
+    if (!hasValue(parentValue)) return false;
+    const allowedOptions = dependentOptions[parentValue] ?? dependentOptions[normalizeOptionKey(parentValue)];
+    if (!Array.isArray(allowedOptions)) return false;
+    return allowedOptions.some((option) => (
+      typeof option === "string" ? option : option.value
+    ) === value);
+  }
   if (
     !field.options?.length ||
     field.validationRules?.remote_search === true ||
@@ -388,12 +420,12 @@ function isFieldComplete(
     const value = text(values[field.fieldName]);
     if (!hasValue(value)) return false;
     if (isPastUpcomingTravelDate(field, value, now)) return false;
-    return isAllowedChoiceValue(field, value);
+    return isAllowedChoiceValue(field, value, values);
   }
 
   const count = getMaxItems(field) ?? 1;
   for (let index = 0; index < count; index += 1) {
-    if (isAllowedChoiceValue(field, values[instanceKey(field.fieldName, index)])) return true;
+    if (isAllowedChoiceValue(field, values[instanceKey(field.fieldName, index)], values, index)) return true;
   }
   return false;
 }

@@ -291,6 +291,49 @@ describe("computeAllTabCompletion", () => {
     expect(valid.missingFields).toEqual([]);
   });
 
+  test("requires a Japan accommodation city to belong to the selected prefecture", () => {
+    const prefectureField = {
+      ...field("accommodation_prefecture"),
+      fieldType: "select" as const,
+      options: [
+        { value: "13", label_zh: "东京都", label_en: "TOKYO TO" },
+        { value: "28", label_zh: "兵库县", label_en: "HYOGO KEN" },
+      ],
+    };
+    const cityField = {
+      ...field("accommodation_city"),
+      fieldType: "select" as const,
+      validationRules: {
+        dependent_on: "accommodation_prefecture",
+        dependent_options: {
+          "13": [{ value: "SHINJUKU KU", label_zh: "新宿区", label_en: "SHINJUKU KU" }],
+          "28": [{ value: "KOBE SHI", label_zh: "神户市", label_en: "KOBE SHI" }],
+        },
+      },
+    };
+    const japanSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Arrival and Stay",
+      fields: [prefectureField, cityField],
+    }];
+
+    expect(getMissingDynamicFormFields(japanSteps, {
+      accommodation_prefecture: "13",
+      accommodation_city: "KOBE SHI",
+    }, {
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    })).toMatchObject([{ fieldName: "accommodation_city", reason: "invalid" }]);
+
+    expect(getMissingDynamicFormFields(japanSteps, {
+      accommodation_prefecture: "13",
+      accommodation_city: "SHINJUKU KU",
+    }, {
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+    })).toEqual([]);
+  });
+
   test("counts required document uploads in application readiness", () => {
     const documentData = vietnamDocsWithRequiredUploads();
     expect(getRequiredDocumentProgress(documentData)).toEqual({ completed: 2, total: 2 });
