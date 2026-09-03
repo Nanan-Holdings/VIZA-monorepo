@@ -142,7 +142,10 @@ import {
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
-import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
+import {
+  hasSuccessfulFormSubmission,
+  toSubmittedFormAssistantState,
+} from "@/lib/form-assistant/submission-readonly";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { isKoreaEArrivalCardLiveEnabled } from "@/features/kr-arrival-card/config";
 import {
@@ -206,7 +209,7 @@ function prepareFormAssistantState(
   state: FormAssistantState,
   options: { readOnly?: boolean } = {},
 ): FormAssistantState {
-  if (options.readOnly) return state;
+  if (options.readOnly) return toSubmittedFormAssistantState(state);
   const persistedMessages = state.messages.at(-1)?.role === "assistant"
     ? state.messages.slice(0, -1)
     : state.messages;

@@ -115,7 +115,7 @@ describe("application submit navigation", () => {
     expect(pageSource).toContain("readOnly={formAssistantReadOnly}");
     expect(pageSource).toContain("prepareFormAssistantState(state, { readOnly: formAssistantReadOnly })");
     expect(pageSource).toMatch(
-      /function prepareFormAssistantState\([\s\S]{0,180}if \(options\.readOnly\) return state;/,
+      /function prepareFormAssistantState\([\s\S]{0,220}if \(options\.readOnly\) return toSubmittedFormAssistantState\(state\);/,
     );
   });
 });

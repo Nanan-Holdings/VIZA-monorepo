@@ -4,6 +4,7 @@ import {
   getAutomatedOnlineSubmissionEvidence,
   isAutomatedOnlineVisaType,
 } from "@/lib/submission-result-evidence";
+import type { FormAssistantState } from "@/types/form-assistant";
 
 const SUCCESSFUL_RESULT_STATUSES = new Set([
   "approved",
@@ -56,6 +57,23 @@ export function hasSuccessfulFormSubmission(input: {
 
   const payloadStatus = normalize(result.status);
   const storedStatus = normalize(input.submissionResultStatus);
-  return SUCCESSFUL_RESULT_STATUSES.has(payloadStatus) ||
-    SUCCESSFUL_RESULT_STATUSES.has(storedStatus);
+  if (payloadStatus) return SUCCESSFUL_RESULT_STATUSES.has(payloadStatus);
+  return SUCCESSFUL_RESULT_STATUSES.has(storedStatus);
+}
+
+/**
+ * A successful submission is historical evidence, not a draft that should be
+ * revalidated against today's date. Keep the saved conversation while showing
+ * the readiness that was necessarily reached at submission time.
+ */
+export function toSubmittedFormAssistantState(
+  state: FormAssistantState,
+): FormAssistantState {
+  const total = Math.max(0, state.progress.total);
+  return {
+    ...state,
+    missingFields: [],
+    progress: { completed: total, total },
+    canRunFinalCheck: false,
+  };
 }

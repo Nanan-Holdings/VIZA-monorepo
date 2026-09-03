@@ -1,25 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createAdminClient, getUserFromSupabaseSession } = vi.hoisted(() => ({
-  createAdminClient: vi.fn(),
-  getUserFromSupabaseSession: vi.fn(),
+const { requireOwnedApplication } = vi.hoisted(() => ({
+  requireOwnedApplication: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
-vi.mock("@/lib/client-session", () => ({ getUserFromSupabaseSession }));
+vi.mock("@/lib/form-assistant/server-context", () => ({ requireOwnedApplication }));
 
 import { POST } from "./route";
-
-const application = { id: "application-id", applicant_id: "profile-id" };
-
-function query(result: unknown) {
-  const builder = {
-    select: vi.fn(() => builder),
-    eq: vi.fn(() => builder),
-    maybeSingle: vi.fn(async () => result),
-  };
-  return builder;
-}
 
 function requestWithFile(file?: File, language?: string): Request {
   const input = file
@@ -45,23 +32,25 @@ describe("POST /api/applications/[id]/form-assistant/transcribe", () => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
     vi.stubEnv("OPENAI_API_KEY", "test-key");
-    getUserFromSupabaseSession.mockResolvedValue({ userId: "profile-id", email: "applicant@example.com" });
-    createAdminClient.mockReturnValue({ from: vi.fn(() => query({ data: application, error: null })) });
+    requireOwnedApplication.mockResolvedValue({
+      user: { id: "profile-id", email: "applicant@example.com" },
+      application: { id: "application-id", applicant_id: "profile-id" },
+    });
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("rejects an unauthenticated request before loading the application", async () => {
-    getUserFromSupabaseSession.mockResolvedValue(null);
+  it("returns the shared authentication failure before reading audio", async () => {
+    requireOwnedApplication.mockResolvedValue({ status: 401, error: "Not authenticated" });
 
     const response = await POST(requestWithFile(new File(["hello"], "voice.webm", { type: "audio/webm" })) as never, context());
 
     expect(response.status).toBe(401);
-    expect(createAdminClient).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ error: "Not authenticated" });
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rejects an application the signed-in applicant does not own", async () => {
-    createAdminClient.mockReturnValue({ from: vi.fn(() => query({ data: null, error: null })) });
+    requireOwnedApplication.mockResolvedValue({ status: 403, error: "Unauthorized" });
 
     const response = await POST(requestWithFile(new File(["hello"], "voice.webm", { type: "audio/webm" })) as never, context());
 
@@ -70,21 +59,9 @@ describe("POST /api/applications/[id]/form-assistant/transcribe", () => {
   });
 
   it("does not transcribe for a successfully submitted arrival-card application", async () => {
-    createAdminClient.mockReturnValue({
-      from: vi.fn(() => query({
-        data: {
-          ...application,
-          country: "malaysia",
-          visa_type: "MY_MDAC_ARRIVAL_CARD",
-          submission_result: {
-            country: "MY",
-            visaType: "MY_MDAC_ARRIVAL_CARD",
-            status: "submitted",
-            submitted: true,
-          },
-        },
-        error: null,
-      })),
+    requireOwnedApplication.mockResolvedValue({
+      status: 409,
+      error: "The form assistant is read-only after a successful submission. Start another application to continue.",
     });
 
     const response = await POST(
@@ -97,6 +74,23 @@ describe("POST /api/applications/[id]/form-assistant/transcribe", () => {
       error: "The form assistant is read-only after a successful submission. Start another application to continue.",
     });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("uses the shared VIZA session and ownership boundary", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ text: "Draft answer" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const response = await POST(
+      requestWithFile(new File(["hello"], "voice.webm", { type: "audio/webm" })) as never,
+      context(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(requireOwnedApplication).toHaveBeenCalledExactlyOnceWith("application-id");
   });
 
   it("rejects unsupported audio formats", async () => {
