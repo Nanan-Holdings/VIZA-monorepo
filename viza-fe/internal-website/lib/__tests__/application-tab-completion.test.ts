@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { DocumentCenterData } from "@/app/client/documents/actions";
 import {
   computeAllTabCompletion,
+  getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
   getMissingDynamicFormFields,
   getMissingRequiredDocumentRequirementKeys,
@@ -224,6 +225,70 @@ describe("computeAllTabCompletion", () => {
     expect(result.missingFields.every((item) => item.reason === "invalid")).toBe(true);
     expect(result.completedStepIds).not.toContain(0);
     expect(result.completedStepIds).not.toContain(1);
+  });
+
+  test("keeps Japan VJW values outside the official numeric and format rules incomplete", () => {
+    const japanSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Arrival and Stay",
+      fields: [
+        {
+          ...field("planned_stay_days", {
+            validationRules: { integer: true, min: 1, max: 90 },
+          }),
+          fieldType: "number" as const,
+        },
+        field("accommodation_phone", {
+          validationRules: { pattern: "^[0-9]{10,15}$" },
+        }),
+        field("accommodation_postal_code", {
+          required: false,
+          validationRules: { pattern: "^[0-9]{3}-?[0-9]{4}$" },
+        }),
+      ],
+    }];
+    const input = {
+      dbSteps: japanSteps,
+      effectiveSteps: [{ id: 0, name: "Stay" }],
+      documentCenterData: null,
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      documentStepId: 1,
+      reviewStepId: 1,
+      teamStepId: 2,
+      confirmationStepId: 2,
+      showDocumentStep: false,
+      showTeamStep: false,
+    };
+
+    const invalid = computeAllTabCompletion({
+      ...input,
+      answers: {
+        planned_stay_days: "91",
+        accommodation_phone: "03-1234-5678",
+        accommodation_postal_code: "100",
+      },
+    });
+    expect(invalid.missingFields).toMatchObject([
+      { fieldName: "planned_stay_days", reason: "invalid" },
+      { fieldName: "accommodation_phone", reason: "invalid" },
+      { fieldName: "accommodation_postal_code", reason: "invalid" },
+    ]);
+    expect(getApplicationFieldErrorMessage(invalid.missingFields[0]!, {
+      country: "japan",
+      visaType: "JP_VISIT_JAPAN_WEB",
+      isZh: true,
+    })).toBe("计划停留天数必须是 1 至 90 之间的整数。");
+
+    const valid = computeAllTabCompletion({
+      ...input,
+      answers: {
+        planned_stay_days: "90",
+        accommodation_phone: "0312345678",
+        accommodation_postal_code: "100-0001",
+      },
+    });
+    expect(valid.missingFields).toEqual([]);
   });
 
   test("counts required document uploads in application readiness", () => {

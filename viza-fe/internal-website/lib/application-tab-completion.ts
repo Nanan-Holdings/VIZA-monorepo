@@ -137,6 +137,9 @@ export function getApplicationFieldErrorMessage(
           accommodation_city: "请选择日本住宿所在的市区町村。",
           accommodation_address: "请输入完整的日本住宿町名、丁目和门牌号（英文），至少 3 个字符。",
           flight_number: "航班号仅填写 1–8 位数字（例如 SQ111 填写 111），并确认所选航空公司与实际航班一致。",
+          planned_stay_days: "计划停留天数必须是 1 至 90 之间的整数。",
+          accommodation_postal_code: "日本邮政编码应为 7 位数字，例如 100-0001。",
+          accommodation_phone: "住宿电话必须为 10 至 15 位数字，不含加号、空格或连字符。",
         }
       : {
           residence_country: "Enter a valid country or region of residence.",
@@ -145,6 +148,9 @@ export function getApplicationFieldErrorMessage(
           accommodation_city: "Select the city, ward, town, or village of your accommodation in Japan.",
           accommodation_address: "Enter the complete town, block, and building number of your accommodation in Japan in English (at least 3 characters).",
           flight_number: "Enter only the 1–8 digit numeric part of the flight number (for SQ111, enter 111), and confirm the selected airline matches your flight.",
+          planned_stay_days: "Planned stay must be a whole number from 1 to 90 days.",
+          accommodation_postal_code: "Enter a seven-digit Japanese postal code, for example 100-0001.",
+          accommodation_phone: "Accommodation telephone number must contain 10 to 15 digits without spaces or punctuation.",
         };
     const japanMessage = japanMessages[field.fieldName as keyof typeof japanMessages];
     if (japanMessage) return japanMessage;
@@ -170,16 +176,66 @@ function getInvalidJapanVisitJapanWebFields(
     step.fields.map((field) => ({ stepIndex, field })),
   );
   return fields.filter(({ field }) => {
+    const value = text(answers[field.fieldName]);
+    if (!value) return false;
+
     if (field.fieldName === "flight_number") {
-      const value = text(answers[field.fieldName]);
-      return value.length > 0 && !JP_VJW_FLIGHT_NUMBER_PATTERN.test(value);
+      return !JP_VJW_FLIGHT_NUMBER_PATTERN.test(value);
     }
     const minimum = JP_VJW_MINIMUM_TEXT_LENGTHS[
       field.fieldName as keyof typeof JP_VJW_MINIMUM_TEXT_LENGTHS
     ];
-    if (minimum === undefined) return false;
-    const value = text(answers[field.fieldName]);
-    return value.length > 0 && value.length < minimum;
+    if (minimum !== undefined && value.length < minimum) return true;
+
+    const rules = field.validationRules as {
+      integer?: unknown;
+      min?: unknown;
+      max?: unknown;
+      minLength?: unknown;
+      maxLength?: unknown;
+      pattern?: unknown;
+    } | null;
+    if (typeof rules?.minLength === "number" && value.length < rules.minLength) return true;
+    if (typeof rules?.maxLength === "number" && value.length > rules.maxLength) return true;
+    if (typeof rules?.pattern === "string") {
+      try {
+        if (!new RegExp(rules.pattern).test(value)) return true;
+      } catch {
+        // A malformed schema pattern must not make the client crash. The
+        // submission API and runner remain the final fail-closed boundary.
+      }
+    }
+
+    if (field.fieldType === "number") {
+      const numberValue = Number(value);
+      if (!Number.isFinite(numberValue)) return true;
+      if (rules?.integer === true && !Number.isInteger(numberValue)) return true;
+      if (typeof rules?.min === "number" && numberValue < rules.min) return true;
+      if (typeof rules?.max === "number" && numberValue > rules.max) return true;
+    }
+
+    if (field.fieldType === "date") {
+      const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+      if (!isoMatch) return true;
+      const year = Number(isoMatch[1]);
+      const month = Number(isoMatch[2]);
+      const day = Number(isoMatch[3]);
+      const parsed = new Date(Date.UTC(year, month - 1, day));
+      if (
+        parsed.getUTCFullYear() !== year ||
+        parsed.getUTCMonth() !== month - 1 ||
+        parsed.getUTCDate() !== day
+      ) return true;
+    }
+
+    if (field.fieldType === "select" && field.options?.length) {
+      return !field.options.some((candidate) => {
+        const optionValue = typeof candidate === "string" ? candidate : candidate.value;
+        return optionValue === value;
+      });
+    }
+
+    return false;
   });
 }
 
