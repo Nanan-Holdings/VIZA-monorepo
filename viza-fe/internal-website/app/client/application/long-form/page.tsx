@@ -1978,6 +1978,7 @@ export default function ApplicationPage() {
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
+  const submitCheckInFlightRef = useRef(false);
   const hasLiveSaveActivityRef = useRef(false);
   const applicationContentRef = useRef<HTMLElement | null>(null);
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
@@ -4601,75 +4602,80 @@ export default function ApplicationPage() {
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
-    if (saving || submitCheckState === "checking") return;
+    if (saving || submitCheckInFlightRef.current || submitCheckState === "checking") return;
+    submitCheckInFlightRef.current = true;
 
-    setSubmitCheckState("checking");
-    setError(null);
-
-    // Give React one paint to expose the page-wide checking state before the
-    // synchronous schema walk. No validation state is written to storage, so
-    // a refresh naturally returns the page to its normal state.
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-
-    if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
-      setSubmitCheckState("idle");
-      return;
-    }
-
-    const missing = useDynamic
-      ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
-          (item) => !forceDryRun || item.stepId !== documentStepIndex,
-        )
-      : [];
-
-    setSubmitMissingFields(missing);
-    if (missing.length > 0) {
-      setSubmitCheckState("invalid");
-      focusFirstMissingField(missing);
-      return;
-    }
-
-    if (!appState.applicationId) {
-      setSubmitCheckState("invalid");
-      setError("Application must be saved before submission.");
-      return;
-    }
     try {
-      const ready = await prepareSubmissionAccess(appState.applicationId, isZhInterface);
-      if (!ready) {
+      setSubmitCheckState("checking");
+      setError(null);
+
+      // Give React one paint to expose the page-wide checking state before the
+      // synchronous schema walk. No validation state is written to storage, so
+      // a refresh naturally returns the page to its normal state.
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+      if (showDocumentStep && appState.applicationId && !documentCenterLoaded) {
         setSubmitCheckState("idle");
         return;
       }
-      setSubmitCheckState("idle");
-      await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
-    } catch (submitAccessError) {
-      setSubmitCheckState("invalid");
-      const requestError = submitAccessError as SubmissionQueueRequestError;
-      if (Array.isArray(requestError.missingFields) && requestError.missingFields.length > 0) {
-        const serverMissingFields = requestError.missingFields.map((missingField) => {
-          const stepIndex = dbSteps.findIndex((step) =>
-            step.fields.some((field) => field.fieldName === missingField.field));
-          const field = stepIndex >= 0
-            ? dbSteps[stepIndex]?.fields.find((candidate) => candidate.fieldName === missingField.field)
-            : undefined;
-          return {
-            stepId: stepIndex >= 0 ? stepIndex : reviewStepIndex,
-            stepName: stepIndex >= 0
-              ? dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`
-              : "Review Application",
-            fieldName: missingField.field,
-            label: field?.label ?? missingField.labelZh ?? missingField.field,
-            reason: "invalid" as const,
-          };
-        });
-        setSubmitMissingFields(serverMissingFields);
-        focusFirstMissingField(serverMissingFields);
+
+      const missing = useDynamic
+        ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
+            (item) => !forceDryRun || item.stepId !== documentStepIndex,
+          )
+        : [];
+
+      setSubmitMissingFields(missing);
+      if (missing.length > 0) {
+        setSubmitCheckState("invalid");
+        focusFirstMissingField(missing);
+        return;
       }
-      setError(
-        submitAccessError instanceof Error
-          ? localizeApplicationAuthError(submitAccessError.message, isZhInterface)
-          : "Submission payment eligibility could not be confirmed.",
-      );
+
+      if (!appState.applicationId) {
+        setSubmitCheckState("invalid");
+        setError("Application must be saved before submission.");
+        return;
+      }
+      try {
+        const ready = await prepareSubmissionAccess(appState.applicationId, isZhInterface);
+        if (!ready) {
+          setSubmitCheckState("idle");
+          return;
+        }
+        setSubmitCheckState("idle");
+        await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
+      } catch (submitAccessError) {
+        setSubmitCheckState("invalid");
+        const requestError = submitAccessError as SubmissionQueueRequestError;
+        if (Array.isArray(requestError.missingFields) && requestError.missingFields.length > 0) {
+          const serverMissingFields = requestError.missingFields.map((missingField) => {
+            const stepIndex = dbSteps.findIndex((step) =>
+              step.fields.some((field) => field.fieldName === missingField.field));
+            const field = stepIndex >= 0
+              ? dbSteps[stepIndex]?.fields.find((candidate) => candidate.fieldName === missingField.field)
+              : undefined;
+            return {
+              stepId: stepIndex >= 0 ? stepIndex : reviewStepIndex,
+              stepName: stepIndex >= 0
+                ? dbSteps[stepIndex]?.stepName ?? `Step ${stepIndex + 1}`
+                : "Review Application",
+              fieldName: missingField.field,
+              label: field?.label ?? missingField.labelZh ?? missingField.field,
+              reason: "invalid" as const,
+            };
+          });
+          setSubmitMissingFields(serverMissingFields);
+          focusFirstMissingField(serverMissingFields);
+        }
+        setError(
+          submitAccessError instanceof Error
+            ? localizeApplicationAuthError(submitAccessError.message, isZhInterface)
+            : "Submission payment eligibility could not be confirmed.",
+        );
+      }
+    } finally {
+      submitCheckInFlightRef.current = false;
     }
   };
 

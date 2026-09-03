@@ -81,6 +81,25 @@ describe("application submit navigation", () => {
     ).toHaveLength(2);
   });
 
+  it("uses a synchronous ref lock to reject rapid duplicate submit clicks", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const submitCheck = sourceBetween(
+      pageSource,
+      "const checkAndSubmit = async",
+      "const activeCountry =",
+    );
+
+    expect(pageSource).toContain("const submitCheckInFlightRef = useRef(false);");
+    expect(submitCheck).toContain("if (saving || submitCheckInFlightRef.current");
+    expect(submitCheck).toContain("submitCheckInFlightRef.current = true;");
+    expect(submitCheck).toMatch(
+      /finally \{\s*submitCheckInFlightRef\.current = false;\s*\}/,
+    );
+  });
+
   it("shows specific Chinese Korea queue errors instead of leaking English server copy", () => {
     const pageSource = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),
