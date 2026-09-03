@@ -34,10 +34,16 @@ export async function GET(
     const locale = new URL(request.url).searchParams.get("locale") ?? "en";
     const [steps, answerRows, documentReadiness] = await Promise.all([
       loadAssistantSchema(owned.admin, owned.application.country, owned.application.visa_type),
-      loadAssistantAnswers(owned.admin, id, {
-        applicantId: owned.application.applicant_id,
-        authUserId: owned.user.id,
-      }),
+      loadAssistantAnswers(
+        owned.admin,
+        id,
+        owned.formAssistantReadOnly
+          ? {}
+          : {
+              applicantId: owned.application.applicant_id,
+              authUserId: owned.user.id,
+            },
+      ),
       loadAssistantDocumentReadiness({
         applicationId: id,
         country: owned.application.country,
