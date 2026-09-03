@@ -18,7 +18,7 @@ type AuthOperation = "password" | "send_otp" | "verify_otp";
 // 8-9 seconds, so the previous 6-second deadline reported a false outage and
 // abandoned successful code requests before the UI could advance.
 const SUPABASE_AUTH_TIMEOUT_MS = 20_000;
-const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 500;
+const CLIENT_SESSION_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
 interface ClientAuthRequest {
   operation?: unknown;
@@ -70,6 +70,8 @@ function isSupabaseUnavailable(error: unknown): boolean {
     name === "AuthRetryableFetchError" ||
     code === "unexpected_failure" ||
     message.includes("fetch failed") ||
+    message.includes("unexpected token") ||
+    message.includes("<!doctype") ||
     message.includes("network") ||
     message.includes("timeout") ||
     message.includes("econnreset") ||
