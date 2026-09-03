@@ -16,6 +16,7 @@ vi.mock("@/lib/client-session", () => ({ getClientSessionWithFallback }));
 vi.mock("@/app/client/documents/actions", () => ({ loadDocumentCenterData }));
 
 import {
+  loadAssistantAnswers,
   loadAssistantDocumentReadiness,
   loadAssistantSchema,
   requireOwnedApplication,
@@ -33,6 +34,46 @@ function adminWithFormRows(rows: Array<Record<string, unknown>>): SupabaseClient
     reject: (reason: unknown) => unknown,
   ) => Promise.resolve(result).then(resolve, reject);
   return { from: vi.fn(() => chain) } as unknown as SupabaseClient;
+}
+
+type AssistantReadResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function assistantReadQuery(
+  table: string,
+  pending: Promise<AssistantReadResult>,
+  started: Set<string>,
+  selectedColumns?: string[],
+) {
+  const chain: Record<string, unknown> = {};
+  chain.select = vi.fn((columns: string) => {
+    selectedColumns?.push(columns);
+    return chain;
+  });
+  chain.eq = vi.fn(() => chain);
+  chain.order = vi.fn(() => chain);
+  chain.maybeSingle = vi.fn(() => {
+    started.add(table);
+    return pending;
+  });
+  chain.then = (
+    resolve: (value: AssistantReadResult) => unknown,
+    reject: (reason: unknown) => unknown,
+  ) => {
+    started.add(table);
+    return pending.then(resolve, reject);
+  };
+  return chain;
 }
 
 describe("requireOwnedApplication", () => {
@@ -333,6 +374,118 @@ describe("requireOwnedApplication", () => {
       error: "Application not found",
     });
     expect(admin.from).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("loadAssistantAnswers", () => {
+  it("starts application, profile, and reusable answer reads concurrently", async () => {
+    const started = new Set<string>();
+    const applicationRead = deferred<AssistantReadResult>();
+    const profileRead = deferred<AssistantReadResult>();
+    const reusableRead = deferred<AssistantReadResult>();
+    const admin = {
+      from: vi.fn((table: string) => {
+        const pending = table === "visa_application_answers"
+          ? applicationRead.promise
+          : table === "applicant_profiles"
+            ? profileRead.promise
+            : reusableRead.promise;
+        return assistantReadQuery(table, pending, started);
+      }),
+    } as unknown as SupabaseClient;
+
+    const resultPromise = loadAssistantAnswers(admin, "application-id", {
+      applicantId: "profile-id",
+      authUserId: "auth-user-id",
+    });
+
+    for (let index = 0; index < 4; index += 1) await Promise.resolve();
+    try {
+      expect(started).toEqual(new Set([
+        "visa_application_answers",
+        "applicant_profiles",
+        "universal_profile_answers",
+      ]));
+    } finally {
+      applicationRead.resolve({
+        data: [{ field_name: "full_name", value_text: "Application Name", source: "form_assistant" }],
+        error: null,
+      });
+      profileRead.resolve({
+        data: {
+          full_name: "Profile Name",
+          passport_number: "P1234567",
+          passport_expiry_date: null,
+          date_of_birth: null,
+          gender: null,
+          email: null,
+        },
+        error: null,
+      });
+      reusableRead.resolve({
+        data: [
+          { canonical_key: "full_name", value_text: "Reusable Name" },
+          { canonical_key: "occupation", value_text: "Engineer" },
+        ],
+        error: null,
+      });
+    }
+
+    await expect(resultPromise).resolves.toMatchObject({
+      full_name: { value: "Application Name", source: "form_assistant" },
+      passport_number: { value: "P1234567", source: "universal_profile" },
+      occupation: { value: "Engineer", source: "universal_profile" },
+    });
+  });
+
+  it("keeps the legacy answer read when the source column is unavailable", async () => {
+    const started = new Set<string>();
+    const selectedColumns: string[] = [];
+    const answerReads = [
+      Promise.resolve<AssistantReadResult>({
+        data: null,
+        error: { message: "column visa_application_answers.source does not exist" },
+      }),
+      Promise.resolve<AssistantReadResult>({
+        data: [{ field_name: "full_name", value_text: "Legacy Name" }],
+        error: null,
+      }),
+    ];
+    const admin = {
+      from: vi.fn((table: string) =>
+        assistantReadQuery(
+          table,
+          answerReads.shift() ?? Promise.resolve({ data: [], error: null }),
+          started,
+          selectedColumns,
+        )),
+    } as unknown as SupabaseClient;
+
+    await expect(loadAssistantAnswers(admin, "application-id")).resolves.toEqual({
+      full_name: { value: "Legacy Name", source: null },
+    });
+    expect(selectedColumns).toEqual([
+      "field_name, value_text, source",
+      "field_name, value_text",
+    ]);
+  });
+
+  it("does not read profile data without an applicant id", async () => {
+    const started = new Set<string>();
+    const admin = {
+      from: vi.fn((table: string) =>
+        assistantReadQuery(
+          table,
+          Promise.resolve({ data: [], error: null }),
+          started,
+        )),
+    } as unknown as SupabaseClient;
+
+    await expect(loadAssistantAnswers(admin, "application-id", {
+      authUserId: "auth-user-id",
+    })).resolves.toEqual({});
+    expect(admin.from).toHaveBeenCalledTimes(1);
+    expect(admin.from).toHaveBeenCalledWith("visa_application_answers");
   });
 });
 
