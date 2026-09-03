@@ -1,4 +1,5 @@
 import { matchesSearchText, normalizeSearchText } from "@/lib/utils";
+import { visaFormSchemaVisaTypesMatch } from "@/lib/visa-form-schema-aliases";
 
 export type PopularVisaDestination = {
   id: string;
@@ -17,6 +18,13 @@ export type PopularVisaDestination = {
   href?: string;
   countryCount?: number;
   searchAliases?: string[];
+  /**
+   * Extra country names this entry stands in for, matched exactly like
+   * `countryName` (no minimum query length). Group cards that collapse many
+   * countries -- the Schengen Area card -- use this so searching "France" or
+   * "法国" still finds the group that leads to that country.
+   */
+  countryAliases?: string[];
   /** False for legacy catalogue rows that must remain displayable in history but not recommended. */
   recommendable?: boolean;
 };
@@ -58,6 +66,7 @@ export function matchesVisaDestinationSearch(
     : [];
   return matchesSearchText(normalizedSearch, [
     isChinese ? destinationItem.countryNameZh : destinationItem.countryName,
+    ...(destinationItem.countryAliases ?? []),
     ...productCandidates,
   ]);
 }
@@ -151,6 +160,11 @@ export const SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinat
   schengenDestination("sweden", "Sweden", "瑞典", "🇸🇪"),
   schengenDestination("switzerland", "Switzerland", "瑞士", "🇨🇭"),
 ]);
+
+/** Country codes covered by the single Schengen Area group card. */
+const SCHENGEN_COUNTRY_CODES = new Set(
+  SCHENGEN_VISA_DESTINATIONS.map((destinationItem) => destinationItem.country),
+);
 
 export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
   destination({
@@ -418,10 +432,11 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["Kenya eTA", "Electronic Travel Authorisation", "etakenya"],
   }),
   destination({
+    id: "laos-tourist-evisa",
     country: "laos",
     countryName: "Laos",
     countryNameZh: "老挝",
-    visaType: "tourist_evisa",
+    visaType: "LA_TOURIST_E_VISA",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for short tourism visits.",
@@ -504,10 +519,11 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["NZeTA", "NZTD", "New Zealand Traveller Declaration"],
   }),
   destination({
+    id: "oman-tourist-evisa",
     country: "oman",
     countryName: "Oman",
     countryNameZh: "阿曼",
-    visaType: "tourist_evisa",
+    visaType: "OM_TOURIST_E_VISA",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for Oman visitor travel.",
@@ -679,10 +695,11 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     searchAliases: ["taiwan", "台湾", "entry permit", "COA", "入境许可证"],
   }),
   destination({
+    id: "tanzania-tourist-evisa",
     country: "tanzania",
     countryName: "Tanzania",
     countryNameZh: "坦桑尼亚",
-    visaType: "tourist_evisa",
+    visaType: "TZ_TOURIST_E_VISA",
     visaName: "Tourist eVisa",
     visaNameZh: "旅游电子签证",
     description: "Tourist eVisa intake for Tanzania visitor travel.",
@@ -802,11 +819,11 @@ export const SCHENGEN_GROUP_DESTINATION: PopularVisaDestination = {
   kind: "group",
   href: "/client/destinations/schengen",
   countryCount: SCHENGEN_VISA_DESTINATIONS.length,
-  searchAliases: SCHENGEN_VISA_DESTINATIONS.flatMap((destinationItem) => [
+  countryAliases: SCHENGEN_VISA_DESTINATIONS.flatMap((destinationItem) => [
     destinationItem.countryName,
     destinationItem.countryNameZh,
-    ...(destinationItem.searchAliases ?? []),
   ]),
+  searchAliases: ["Schengen", "Schengen Area", "申根", "申根区"],
 };
 
 const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destinationIds" | "href"> & { countries: string[] }> = [
@@ -1078,7 +1095,18 @@ export type VisaDestinationCountryGroup = {
  */
 export const VISA_DESTINATION_COUNTRY_GROUPS: VisaDestinationCountryGroup[] = (() => {
   const groups = new Map<string, VisaDestinationCountryGroup>();
-  for (const destinationItem of [...SELECTABLE_VISA_DESTINATIONS, SCHENGEN_GROUP_DESTINATION]) {
+  const countryCards = [
+    // The 29 Schengen main-destination countries are deliberately absent: one
+    // shared Type C form behind 29 near-identical cards buried every other
+    // destination in the picker and in search results. The group card below
+    // carries their names as `countryAliases`, so searching a member country
+    // still surfaces it, and picking it drills into the Schengen list.
+    ...SELECTABLE_VISA_DESTINATIONS.filter(
+      (destinationItem) => !SCHENGEN_COUNTRY_CODES.has(destinationItem.country),
+    ),
+    SCHENGEN_GROUP_DESTINATION,
+  ];
+  for (const destinationItem of countryCards) {
     const existing = groups.get(destinationItem.country);
     if (existing) {
       existing.destinations.push(destinationItem);
@@ -1318,11 +1346,17 @@ export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVi
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
+  const requestedCountry = getCanonicalVisaDestinationCountry(country);
+  const countryScopedMatch = SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
+    destinationItem.country === requestedCountry &&
+    visaFormSchemaVisaTypesMatch(destinationItem.visaType, visaType, requestedCountry)
+  );
+  if (countryScopedMatch) return countryScopedMatch;
+
   const normalizedCountry = getCanonicalApplicationProductCountry(country, visaType);
-  const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
   return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
     destinationItem.country === normalizedCountry &&
-    getFormVisaType(destinationItem.visaType).toLowerCase() === normalizedVisaType
+    visaFormSchemaVisaTypesMatch(destinationItem.visaType, visaType, normalizedCountry)
   ) ?? null;
 }
 

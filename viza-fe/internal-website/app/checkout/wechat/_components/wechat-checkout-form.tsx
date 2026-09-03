@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { startWechatCheckout } from "@/app/actions/wechat-checkout";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 
 interface Props {
@@ -236,9 +237,7 @@ export function WechatCheckoutForm({
           {t.submit}
         </button>
         {errMsg && (
-          <p className="text-sm text-destructive" role="alert">
-            {errMsg}
-          </p>
+          <ClientErrorAlert message={errMsg} />
         )}
       </form>
     </Shell>

@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       application_id: null,
       applicant_id: user.id,
       visa_package_id: null,
-      auth_user_id: user.id,
+      auth_user_id: user.authUserId,
       provider: "stripe",
       provider_session_id: null,
       provider_payment_id: null,

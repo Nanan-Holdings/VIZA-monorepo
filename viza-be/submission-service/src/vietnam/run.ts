@@ -256,6 +256,8 @@ export interface FillVietnamOptions {
   tracePath?: string;
   /** Optional final screenshot path for smoke diagnostics. */
   finalScreenshotPath?: string;
+  /** Optional local path for the redacted, verified payment-boundary evidence. */
+  paymentBoundaryScreenshotPath?: string;
   /** Smoke/recon mode: return after the first reliable official checkpoint. */
   stopAtFirstCheckpoint?: boolean;
   /** Queue/UI progress callback for long official-portal runs. */
@@ -324,6 +326,7 @@ export type FillVietnamResult =
       fieldsFilled: number;
       fieldsSkipped: number;
       fieldFallbacks: VnFieldFallbackRecord[];
+      diagnostics?: VietnamDiagnostics;
     }
   | {
       status: "submitted_paid";
@@ -355,12 +358,80 @@ export interface VietnamDiagnostics {
   lastSnapshot?: VietnamPortalSnapshot;
   tracePath?: string;
   finalScreenshotPath?: string;
+  paymentBoundaryScreenshot?: VietnamPaymentBoundaryArtifact;
   browserChannel?: string;
   portalAttempt?: number;
   proxiedPublicRequestCount?: number;
   publicProxyFailures?: string[];
   reviewBlockers?: VietnamReviewBlockerDiagnostics;
 }
+
+export interface VietnamPaymentBoundaryArtifact {
+  kind: "payment_boundary";
+  path: string;
+  url: string;
+  capturedAt: string;
+  redacted: true;
+}
+
+interface PrepareVietnamPaymentBoundaryInput {
+  page: Page;
+  screenshotPath: string;
+  allowFixedCardPayment: boolean;
+  resolveFixedCard: () => Promise<VietnamFixedCard | null>;
+}
+
+async function prepareVietnamPaymentBoundary(
+  input: PrepareVietnamPaymentBoundaryInput,
+): Promise<{ artifact: VietnamPaymentBoundaryArtifact; card: VietnamFixedCard | null }> {
+  const artifact = await captureVietnamPaymentBoundaryScreenshot(
+    input.page,
+    input.screenshotPath,
+  );
+  if (!input.allowFixedCardPayment) {
+    return { artifact, card: null };
+  }
+  return { artifact, card: await input.resolveFixedCard() };
+}
+
+async function captureVietnamPaymentBoundaryScreenshot(
+  page: Page,
+  screenshotPath: string,
+): Promise<VietnamPaymentBoundaryArtifact> {
+  fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+  const mask = page.locator("input, textarea, select, [contenteditable='true']");
+  const buffer = await page.screenshot({
+    fullPage: true,
+    mask: [mask],
+    maskColor: "#d9d9d9",
+    timeout: 10_000,
+  });
+  fs.writeFileSync(screenshotPath, buffer);
+  return {
+    kind: "payment_boundary",
+    path: screenshotPath,
+    url: page.url(),
+    capturedAt: new Date().toISOString(),
+    redacted: true,
+  };
+}
+
+function vietnamPaymentBoundaryPath(
+  options: FillVietnamOptions,
+  runId: string | undefined,
+): string {
+  if (options.paymentBoundaryScreenshotPath) return options.paymentBoundaryScreenshotPath;
+  if (options.finalScreenshotPath) return options.finalScreenshotPath;
+  const safeRunId = (runId ?? "unknown")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "unknown";
+  return path.resolve("diag-out", "vn-live", safeRunId, "payment-boundary.png");
+}
+
+export const __VIETNAM_PAYMENT_BOUNDARY_INTERNALS = {
+  prepareVietnamPaymentBoundary,
+};
 
 const VN_LANDING_URL = process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/";
 const VN_FALLBACK_LANDING_URL =
@@ -487,6 +558,8 @@ async function fillVietnamApplicationOnce(
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
   let reviewBlockers: VietnamReviewBlockerDiagnostics | undefined;
+  let paymentBoundaryScreenshot: VietnamPaymentBoundaryArtifact | undefined;
+  let finalScreenshotCapturedAtBoundary = false;
   let fixedCardPromise: Promise<VietnamFixedCard | null> | null = null;
   const abortListener = (): void => {
     void context?.close().catch(() => undefined);
@@ -503,6 +576,7 @@ async function fillVietnamApplicationOnce(
     lastSnapshot,
     ...(options.tracePath ? { tracePath: options.tracePath } : {}),
     ...(options.finalScreenshotPath ? { finalScreenshotPath: options.finalScreenshotPath } : {}),
+    ...(paymentBoundaryScreenshot ? { paymentBoundaryScreenshot } : {}),
     browserChannel: options.browserChannel ?? "bundled",
     portalAttempt: options.portalAttempt ?? 1,
     proxiedPublicRequestCount,
@@ -934,7 +1008,15 @@ async function fillVietnamApplicationOnce(
           diagnostics: diagnostics(),
         };
       }
-      const fixedCard = await resolveFixedCard();
+      const boundary = await prepareVietnamPaymentBoundary({
+        page,
+        screenshotPath: vietnamPaymentBoundaryPath(options, runId),
+        allowFixedCardPayment: options.allowFixedCardPayment === true,
+        resolveFixedCard,
+      });
+      paymentBoundaryScreenshot = boundary.artifact;
+      finalScreenshotCapturedAtBoundary = options.finalScreenshotPath === boundary.artifact.path;
+      const fixedCard = boundary.card;
       if (fixedCard) {
         options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
@@ -1042,7 +1124,15 @@ async function fillVietnamApplicationOnce(
           diagnostics: diagnostics(),
         };
       }
-      const fixedCard = await resolveFixedCard();
+      const boundary = await prepareVietnamPaymentBoundary({
+        page,
+        screenshotPath: vietnamPaymentBoundaryPath(options, runId),
+        allowFixedCardPayment: options.allowFixedCardPayment === true,
+        resolveFixedCard,
+      });
+      paymentBoundaryScreenshot = boundary.artifact;
+      finalScreenshotCapturedAtBoundary = options.finalScreenshotPath === boundary.artifact.path;
+      const fixedCard = boundary.card;
       if (fixedCard) {
         options.executionContext?.assertOwned();
         await emitProgress("payment_handoff");
@@ -1089,6 +1179,7 @@ async function fillVietnamApplicationOnce(
       fieldsFilled: filled,
       fieldsSkipped: skipped,
       fieldFallbacks,
+      diagnostics: diagnostics(),
     };
   } catch (err) {
     const isAbortError = err instanceof Error && err.name === "AbortError";
@@ -1106,7 +1197,7 @@ async function fillVietnamApplicationOnce(
     };
   } finally {
     options.executionContext?.signal.removeEventListener("abort", abortListener);
-    if (options.finalScreenshotPath && page) {
+    if (options.finalScreenshotPath && page && !finalScreenshotCapturedAtBoundary) {
       try {
         fs.mkdirSync(path.dirname(options.finalScreenshotPath), { recursive: true });
         await page.screenshot({ path: options.finalScreenshotPath, fullPage: true });

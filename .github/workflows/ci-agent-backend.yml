@@ -20,3 +20,7 @@ jobs:
       - run: npm run type-check
       - run: npm run lint
       - run: npm run build
+      # Unit tests only: `npm test` (vitest run) also executes tests/integration,
+      # which requires a live database and would hard-fail in CI. test:unit is a
+      # real package.json script (vitest run tests/unit).
+      - run: npm run test:unit

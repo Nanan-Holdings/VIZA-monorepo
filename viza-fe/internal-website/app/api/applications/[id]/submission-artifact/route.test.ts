@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { isArtifactReferencedBySubmissionResult } from "./route-handler";
 
 describe("isArtifactReferencedBySubmissionResult", () => {
+  it("allows a typed pre-payment screenshot referenced by the current result", () => {
+    const path = "owner/app-1/ID/payment-boundary.png";
+    expect(isArtifactReferencedBySubmissionResult(path, {
+      country: "ID",
+      status: "stopped_at_pay",
+      paymentBoundary: { screenshotStoragePath: path },
+    })).toBe(true);
+  });
+
   const qrPath =
     "jobs/job-id/vn_prearrival/qr/01-confirmation-qr.png";
 

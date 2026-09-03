@@ -62,6 +62,28 @@ function hasVisibleProgress(record: ApplicationListRecord): boolean {
   return Number.isFinite(record.progressPercent) && record.progressPercent > 0;
 }
 
+function isCompletedRecord(record: ApplicationListRecord): boolean {
+  return !record.ongoing;
+}
+
+function withRecords(
+  item: ApplicationListItem,
+  records: ApplicationListRecord[]
+): ApplicationListItem | null {
+  if (records.length === 0) return null;
+
+  const primaryRecord = records.find((record) => record.ongoing) ?? records[0];
+  return {
+    ...item,
+    visaLabel: primaryRecord.visaLabel,
+    stateLabel: primaryRecord.stateLabel,
+    tone: primaryRecord.tone,
+    progressPercent: primaryRecord.progressPercent,
+    continueHref: primaryRecord.continueHref,
+    records,
+  };
+}
+
 const TONE_DOT: Record<ApplicationListTone, string> = {
   brand: "bg-brand-500",
   warn: "bg-amber-500",
@@ -167,6 +189,9 @@ export function ApplicationsList({
   const [expandedCountry, setExpandedCountry] = useState<string | null>(
     initialExpandedCountry ?? null
   );
+  const [completedExpandedCountry, setCompletedExpandedCountry] = useState<
+    string | null
+  >(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -176,31 +201,42 @@ export function ApplicationsList({
     () =>
       items.flatMap((item) => {
         const records = item.records.filter(hasVisibleProgress);
-        if (records.length === 0) return [];
-
-        const primaryRecord =
-          records.find((record) => record.ongoing) ?? records[0];
-        return [
-          {
-            ...item,
-            visaLabel: primaryRecord.visaLabel,
-            stateLabel: primaryRecord.stateLabel,
-            tone: primaryRecord.tone,
-            progressPercent: primaryRecord.progressPercent,
-            continueHref: primaryRecord.continueHref,
-            records,
-          },
-        ];
+        const resolved = withRecords(item, records);
+        return resolved ? [resolved] : [];
       }),
     [items]
   );
 
+  const ongoingItems = useMemo(
+    () =>
+      progressItems.flatMap((item) => {
+        const resolved = withRecords(
+          item,
+          item.records.filter((record) => !isCompletedRecord(record))
+        );
+        return resolved ? [resolved] : [];
+      }),
+    [progressItems]
+  );
+
+  const completedItems = useMemo(
+    () =>
+      progressItems.flatMap((item) => {
+        const resolved = withRecords(
+          item,
+          item.records.filter(isCompletedRecord)
+        );
+        return resolved ? [resolved] : [];
+      }),
+    [progressItems]
+  );
+
   const ongoingRecords = useMemo(
     () =>
-      progressItems.flatMap((item) =>
+      ongoingItems.flatMap((item) =>
         item.records.filter((record) => record.ongoing)
       ),
-    [progressItems]
+    [ongoingItems]
   );
 
   useEffect(() => {
@@ -274,34 +310,29 @@ export function ApplicationsList({
         : Boolean(currentPackageId && record.packageId === currentPackageId)
     ) ?? null;
   const currentItem = currentRecord
-    ? (progressItems.find((item) =>
+    ? (ongoingItems.find((item) =>
         item.records.some(
           (record) => record.selectionKey === currentRecord.selectionKey
         )
       ) ?? null)
     : null;
-  const selectableItems = progressItems.flatMap((item) => {
+  const selectableItems = ongoingItems.flatMap((item) => {
     const records = currentRecord
       ? item.records.filter(
           (record) => record.selectionKey !== currentRecord.selectionKey
         )
       : item.records;
-    if (records.length === 0) return [];
-
-    const primaryRecord =
-      records.find((record) => record.ongoing) ?? records[0];
-    return [
-      {
-        ...item,
-        visaLabel: primaryRecord.visaLabel,
-        stateLabel: primaryRecord.stateLabel,
-        tone: primaryRecord.tone,
-        progressPercent: primaryRecord.progressPercent,
-        continueHref: primaryRecord.continueHref,
-        records,
-      },
-    ];
+    const resolved = withRecords(item, records);
+    return resolved ? [resolved] : [];
   });
+  const ongoingCount = selectableItems.reduce(
+    (count, item) => count + item.records.length,
+    0
+  );
+  const completedCount = completedItems.reduce(
+    (count, item) => count + item.records.length,
+    0
+  );
 
   if (progressItems.length === 0) return null;
 
@@ -342,151 +373,279 @@ export function ApplicationsList({
         </section>
       ) : null}
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
-          {t("yourApplications")}
-        </h2>
-        <p className="text-[14px] text-[#8a94a6]">
-          {t("destinationCount", { count: selectableItems.length })}
-        </p>
-      </div>
+      <section>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+            {t("ongoingApplications")}
+          </h2>
+          <p className="text-[14px] text-[#8a94a6]">
+            {t("ongoingCount", { count: ongoingCount })}
+          </p>
+        </div>
 
-      {switchError ? <ClientErrorAlert className="mb-3" message={switchError} /> : null}
+        {switchError ? (
+          <ClientErrorAlert className="mb-3" message={switchError} />
+        ) : null}
 
-      {selectableItems.length > 0 ? (
-        <ul className={APPLICATION_PANEL_CLASS}>
-          {selectableItems.map((item) => {
-            const hasMultiple = item.records.length > 1;
-            const singleRecord =
-              item.records.length === 1 ? item.records[0] : null;
-            const isOpen = expandedCountry === item.countryKey;
-            const loadingSingle = Boolean(
-              singleRecord &&
-              isPending &&
-              switchingId === singleRecord.selectionKey
-            );
-            const rowContent = (
-              <ApplicationRowContent
-                flag={item.flag}
-                countryLabel={item.countryLabel}
-                secondaryLabel={
-                  hasMultiple
-                    ? t("applicationCount", { count: item.records.length })
-                    : item.visaLabel
-                }
-                stateLabel={item.stateLabel}
-                tone={item.tone}
-                progressPercent={item.progressPercent}
-                progressAriaLabel={t("progressAriaLabel")}
-              />
-            );
-
-            return (
-              <li
-                key={item.key}
-                className="border-t border-[#efefef] first:border-t-0"
-              >
-                <Collapsible
-                  open={isOpen}
-                  onOpenChange={(open) =>
-                    setExpandedCountry(open ? item.countryKey : null)
+        {selectableItems.length > 0 ? (
+          <ul className={APPLICATION_PANEL_CLASS}>
+            {selectableItems.map((item) => {
+              const hasMultiple = item.records.length > 1;
+              const singleRecord =
+                item.records.length === 1 ? item.records[0] : null;
+              const isOpen = expandedCountry === item.countryKey;
+              const loadingSingle = Boolean(
+                singleRecord &&
+                isPending &&
+                switchingId === singleRecord.selectionKey
+              );
+              const rowContent = (
+                <ApplicationRowContent
+                  flag={item.flag}
+                  countryLabel={item.countryLabel}
+                  secondaryLabel={
+                    hasMultiple
+                      ? t("applicationCount", { count: item.records.length })
+                      : item.visaLabel
                   }
+                  stateLabel={item.stateLabel}
+                  tone={item.tone}
+                  progressPercent={item.progressPercent}
+                  progressAriaLabel={t("progressAriaLabel")}
+                />
+              );
+
+              return (
+                <li
+                  key={item.key}
+                  className="border-t border-[#efefef] first:border-t-0"
                 >
-                  {hasMultiple ? (
-                    <CollapsibleTrigger asChild>
+                  <Collapsible
+                    open={isOpen}
+                    onOpenChange={(open) =>
+                      setExpandedCountry(open ? item.countryKey : null)
+                    }
+                  >
+                    {hasMultiple ? (
+                      <CollapsibleTrigger asChild>
+                        <button
+                          aria-label={t("selectApplication")}
+                          className={cn(
+                            APPLICATION_ROW_CLASS,
+                            APPLICATION_ROW_INTERACTIVE_CLASS
+                          )}
+                          type="button"
+                        >
+                          {rowContent}
+                          <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
+                            <ChevronDown
+                              className={cn(
+                                "h-5 w-5 transition-transform",
+                                isOpen && "rotate-180"
+                              )}
+                              data-testid="multi-application-chevron"
+                            />
+                          </span>
+                        </button>
+                      </CollapsibleTrigger>
+                    ) : singleRecord ? (
                       <button
-                        aria-label={t("selectApplication")}
                         className={cn(
                           APPLICATION_ROW_CLASS,
-                          APPLICATION_ROW_INTERACTIVE_CLASS
+                          APPLICATION_ROW_INTERACTIVE_CLASS,
+                          "disabled:cursor-wait disabled:opacity-70"
                         )}
+                        disabled={loadingSingle}
+                        onClick={() => {
+                          if (singleRecord.ongoing)
+                            selectRecord(singleRecord, item.destinationId);
+                          else router.push(singleRecord.detailHref);
+                        }}
                         type="button"
                       >
                         {rowContent}
                         <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
-                          <ChevronDown
-                            className={cn(
-                              "h-5 w-5 transition-transform",
-                              isOpen && "rotate-180"
-                            )}
-                            data-testid="multi-application-chevron"
-                          />
+                          {loadingSingle ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                          ) : (
+                            <ArrowRight
+                              className="h-5 w-5"
+                              data-testid="single-application-arrow"
+                            />
+                          )}
                         </span>
                       </button>
-                    </CollapsibleTrigger>
-                  ) : singleRecord ? (
-                    <button
-                      className={cn(
-                        APPLICATION_ROW_CLASS,
-                        APPLICATION_ROW_INTERACTIVE_CLASS,
-                        "disabled:cursor-wait disabled:opacity-70"
-                      )}
-                      disabled={loadingSingle}
-                      onClick={() => {
-                        if (singleRecord.ongoing)
-                          selectRecord(singleRecord, item.destinationId);
-                        else router.push(singleRecord.detailHref);
-                      }}
-                      type="button"
-                    >
-                      {rowContent}
-                      <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
-                        {loadingSingle ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
-                        ) : (
-                          <ArrowRight
-                            className="h-5 w-5"
-                            data-testid="single-application-arrow"
-                          />
-                        )}
-                      </span>
-                    </button>
-                  ) : null}
+                    ) : null}
 
-                  {hasMultiple ? (
-                    <CollapsibleContent>
-                      <div className="border-t border-[#efefef] bg-white">
-                        {item.records.map((record) => {
-                          const loading =
-                            isPending && switchingId === record.selectionKey;
-                          return (
-                            <button
+                    {hasMultiple ? (
+                      <CollapsibleContent>
+                        <div className="border-t border-[#efefef] bg-white">
+                          {item.records.map((record) => {
+                            const loading =
+                              isPending && switchingId === record.selectionKey;
+                            return (
+                              <button
+                                key={record.selectionKey}
+                                type="button"
+                                onClick={() => {
+                                  if (record.ongoing)
+                                    selectRecord(record, item.destinationId);
+                                  else router.push(record.detailHref);
+                                }}
+                                disabled={loading}
+                                className="flex min-h-[76px] w-full items-center border-t border-[#ececec] py-3 pl-[72px] pr-5 text-left transition-colors first:border-t-0 hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-70 lg:pl-[92px] lg:pr-6"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex items-center gap-2">
+                                    <span className="block truncate text-[14px] font-medium text-[#26364a]">
+                                      {record.visaLabel}
+                                    </span>
+                                    {loading ? (
+                                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand-500" />
+                                    ) : null}
+                                  </span>
+                                  <span className="mt-1 block text-[12px] text-[#66758a]">
+                                    {record.stateLabel} ·{" "}
+                                    {Math.round(record.progressPercent)}%
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    ) : null}
+                  </Collapsible>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-dashed border-[#d9e1ec] bg-[#f8fafc] px-5 py-6 text-[14px] text-[#66758a]">
+            {t("ongoingEmpty")}
+          </p>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+            {t("completedApplications")}
+          </h2>
+          <p className="text-[14px] text-[#8a94a6]">
+            {t("completedCount", { count: completedCount })}
+          </p>
+        </div>
+
+        {completedItems.length > 0 ? (
+          <ul className={APPLICATION_PANEL_CLASS}>
+            {completedItems.map((item) => {
+              const hasMultiple = item.records.length > 1;
+              const singleRecord =
+                item.records.length === 1 ? item.records[0] : null;
+              const isOpen = completedExpandedCountry === item.countryKey;
+              const rowContent = (
+                <ApplicationRowContent
+                  flag={item.flag}
+                  countryLabel={item.countryLabel}
+                  secondaryLabel={
+                    hasMultiple
+                      ? t("applicationCount", { count: item.records.length })
+                      : item.visaLabel
+                  }
+                  stateLabel={item.stateLabel}
+                  tone={item.tone}
+                  progressPercent={item.progressPercent}
+                  progressAriaLabel={t("progressAriaLabel")}
+                />
+              );
+
+              return (
+                <li
+                  key={`completed-${item.key}`}
+                  className="border-t border-[#efefef] first:border-t-0"
+                >
+                  <Collapsible
+                    open={isOpen}
+                    onOpenChange={(open) =>
+                      setCompletedExpandedCountry(open ? item.countryKey : null)
+                    }
+                  >
+                    {hasMultiple ? (
+                      <CollapsibleTrigger asChild>
+                        <button
+                          aria-label={t("viewCompletedApplications")}
+                          className={cn(
+                            APPLICATION_ROW_CLASS,
+                            APPLICATION_ROW_INTERACTIVE_CLASS
+                          )}
+                          type="button"
+                        >
+                          {rowContent}
+                          <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
+                            <ChevronDown
+                              className={cn(
+                                "h-5 w-5 transition-transform",
+                                isOpen && "rotate-180"
+                              )}
+                            />
+                          </span>
+                        </button>
+                      </CollapsibleTrigger>
+                    ) : singleRecord ? (
+                      <Link
+                        className={cn(
+                          APPLICATION_ROW_CLASS,
+                          APPLICATION_ROW_INTERACTIVE_CLASS
+                        )}
+                        href={singleRecord.detailHref}
+                      >
+                        {rowContent}
+                        <span className="col-span-2 flex h-11 w-11 items-center justify-center justify-self-end text-[#8a94a6] lg:col-span-1">
+                          <ArrowRight className="h-5 w-5" />
+                        </span>
+                      </Link>
+                    ) : null}
+
+                    {hasMultiple ? (
+                      <CollapsibleContent>
+                        <div className="border-t border-[#efefef] bg-white">
+                          {item.records.map((record) => (
+                            <Link
                               key={record.selectionKey}
-                              type="button"
-                              onClick={() => {
-                                if (record.ongoing)
-                                  selectRecord(record, item.destinationId);
-                                else router.push(record.detailHref);
-                              }}
-                              disabled={loading}
-                              className="flex min-h-[76px] w-full items-center border-t border-[#ececec] py-3 pl-[72px] pr-5 text-left transition-colors first:border-t-0 hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:cursor-wait disabled:opacity-70 lg:pl-[92px] lg:pr-6"
+                              href={record.detailHref}
+                              className="flex min-h-[76px] w-full items-center border-t border-[#ececec] py-3 pl-[72px] pr-5 text-left transition-colors first:border-t-0 hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 lg:pl-[92px] lg:pr-6"
                             >
                               <span className="min-w-0 flex-1">
-                                <span className="flex items-center gap-2">
-                                  <span className="block truncate text-[14px] font-medium text-[#26364a]">
-                                    {record.visaLabel}
-                                  </span>
-                                  {loading ? (
-                                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand-500" />
-                                  ) : null}
+                                <span className="block truncate text-[14px] font-medium text-[#26364a]">
+                                  {record.visaLabel}
                                 </span>
-                                <span className="mt-1 block text-[12px] text-[#66758a]">
-                                  {record.stateLabel} ·{" "}
-                                  {Math.round(record.progressPercent)}%
+                                <span
+                                  className={cn(
+                                    "mt-1 block text-[12px]",
+                                    TONE_TEXT[record.tone]
+                                  )}
+                                >
+                                  {record.stateLabel} · 100%
                                 </span>
                               </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </CollapsibleContent>
-                  ) : null}
-                </Collapsible>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+                              <ArrowRight className="h-5 w-5 shrink-0 text-[#8a94a6]" />
+                            </Link>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    ) : null}
+                  </Collapsible>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-dashed border-[#d9e1ec] bg-[#f8fafc] px-5 py-6 text-[14px] text-[#66758a]">
+            {t("completedEmpty")}
+          </p>
+        )}
+      </section>
     </>
   );
 }

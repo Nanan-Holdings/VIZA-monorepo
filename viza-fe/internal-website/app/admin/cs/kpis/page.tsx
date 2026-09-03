@@ -1,4 +1,5 @@
 import { loadKpis } from "@/app/actions/admin-cs";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function AdminCsKpisPage() {
     return (
       <main className="min-h-screen bg-[#fafafa] px-6 py-10">
         <div className="mx-auto max-w-3xl rounded-xl border border-input bg-white p-6 shadow-sm">
-          <p className="text-sm text-destructive">{error ?? "No data"}</p>
+          <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error ?? "No data"}</AlertDescription></Alert>
         </div>
       </main>
     );

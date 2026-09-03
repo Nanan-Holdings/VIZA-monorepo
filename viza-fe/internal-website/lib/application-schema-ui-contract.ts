@@ -90,6 +90,7 @@ type UiContractValidationRules = Record<string, unknown> & {
   source?: string;
   inline_group?: string;
   max_items?: number;
+  no_user_input?: boolean;
   remote_search?: boolean;
   repeat_group?: string;
   repeatable?: boolean;
@@ -138,6 +139,10 @@ function optionValue(option: VisaFormFieldOption): string {
 
 function rulesFor(field: VisaFormFieldRow): UiContractValidationRules {
   return (field.validationRules ?? {}) as UiContractValidationRules;
+}
+
+function isDerivedNonApplicantField(field: VisaFormFieldRow): boolean {
+  return (field.fieldType as string) === "computed" && rulesFor(field).no_user_input === true;
 }
 
 function showIfFor(field: VisaFormFieldRow): string | null {
@@ -319,13 +324,14 @@ function groupByRule(
 
 export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledApplicationSchemaUi {
   const fields = steps.flatMap((step) => step.fields);
+  const applicantFields = fields.filter((field) => !isDerivedNonApplicantField(field));
   const visaType = fields[0]?.visaType ?? "UNKNOWN";
   const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
   const issues: ApplicationSchemaUiIssue[] = [];
   const componentUsage = emptyComponentUsage();
 
   const compiledFields = new Map<string, VisaFormFieldRow>();
-  for (const field of fields) {
+  for (const field of applicantFields) {
     const siblingOptionSource = inferOptionsFromSibling(field, fields);
     const effectiveField = siblingOptionSource
       ? { ...field, options: siblingOptionSource.options }
@@ -558,7 +564,7 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
   const conditionalRoot = (field: VisaFormFieldRow) =>
     getCompiledConditionalPanelController(compiledFields.get(field.fieldName) ?? field) ?? "";
 
-  for (const groupFields of groupByRule(fields, "repeat_group").values()) {
+  for (const groupFields of groupByRule(applicantFields, "repeat_group").values()) {
     if (groupFields.some((field) => rulesFor(field).repeatable !== true)) {
       addIssue(issues, {
         code: "repeat_group_missing_repeatable",
@@ -601,7 +607,7 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
     }
   }
 
-  for (const groupFields of groupByRule(fields, "inline_group").values()) {
+  for (const groupFields of groupByRule(applicantFields, "inline_group").values()) {
     if (groupFields.length > 2) {
       addIssue(issues, {
         code: "inline_group_too_large",
@@ -633,7 +639,11 @@ export function compileApplicationSchemaForUi(steps: WizardStep[]): CompiledAppl
     .map((step) => ({
       ...step,
       fields: step.fields
-        .filter((field) => rulesFor(field).sensitive !== true && field.fieldType !== "password")
+        .filter((field) =>
+          rulesFor(field).sensitive !== true &&
+          field.fieldType !== "password" &&
+          !isDerivedNonApplicantField(field)
+        )
         .map((field) => compiledFields.get(field.fieldName) ?? field),
     }))
     .filter((step) => step.fields.length > 0);

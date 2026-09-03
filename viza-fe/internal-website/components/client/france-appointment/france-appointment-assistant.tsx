@@ -21,7 +21,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -592,8 +592,8 @@ export function FranceAppointmentAssistant({
           </CardHeader>
           <CardContent className="space-y-5">
             {snapshot?.pendingManualAction ? (
-              <Alert className="border-amber-200 bg-amber-50">
-                <PauseCircle className="h-4 w-4 text-amber-700" />
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
                 <AlertTitle>{t("checkpoint.title")}</AlertTitle>
                 <AlertDescription>
                   {snapshot.pendingManualAction.instruction ?? t("checkpoint.body")}
@@ -778,10 +778,10 @@ export function FranceAppointmentAssistant({
             ) : null}
 
             {!isAssistedLive ? (
-              <Alert className="border-amber-200 bg-amber-50">
-              <ShieldCheck className="h-4 w-4" />
-              <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
-              <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
+                <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
+                <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
               </Alert>
             ) : null}
             {!isAssistedLive ? (

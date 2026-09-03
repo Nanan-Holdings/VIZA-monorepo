@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any
 
 from tools.http_client import REQUEST_TIMEOUT, request_json
+from tools.serpapi import search_serpapi_flights
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
@@ -254,6 +255,17 @@ async def search_flights(
 
     departure_date = departure_date or date.today().isoformat()
     adults = max(int(adults or 1), 1)
+
+    serpapi_options = await search_serpapi_flights(
+        origin_city=origin_city,
+        destination_city=destination_city,
+        departure_date=departure_date,
+        adults=adults,
+        currency_code=currency_code,
+        max_results=max_results,
+    )
+    if serpapi_options:
+        return serpapi_options
 
     from_id, to_id = await asyncio.gather(
         _resolve_destination_id(origin_city),

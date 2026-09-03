@@ -7,6 +7,7 @@ import {
   parseGoogleError,
   runInFlightDeduped,
 } from "../_google-places-api";
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,16 @@ function toResolvedAddress(place: GoogleAddressPlace): ResolvedAddress {
 }
 
 export async function POST(request: Request) {
+  // Paid Google Places proxy used by address autofill in the application form
+  // (authenticated and guest funnel); guest-safe defense-in-depth. (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "places-resolve-address",
+    limit: 90,
+    windowMs: 60_000,
+    maxBytes: 16 * 1024,
+  });
+  if (blocked) return blocked;
+
   const apiKey = getGooglePlacesApiKey();
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: GOOGLE_PLACES_MISSING_KEY_MESSAGE }, { status: 503 });

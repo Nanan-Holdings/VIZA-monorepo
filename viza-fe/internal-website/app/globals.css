@@ -7,7 +7,12 @@
    Geist Sans -> body, UI, display text (default)
    ============================================================= */
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-switzer), system-ui, sans-serif;
 }
 
@@ -144,7 +149,9 @@ body::-webkit-scrollbar,
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 
@@ -178,7 +185,9 @@ body::-webkit-scrollbar,
 }
 
 .application-form-input[data-filled="true"] {
-  --application-form-input-background: var(--application-control-filled-background);
+  --application-form-input-background: var(
+    --application-control-filled-background
+  );
 }
 
 .application-form-input[data-filled="true"]:hover,
@@ -192,7 +201,8 @@ body::-webkit-scrollbar,
 .application-form-input > input:-webkit-autofill:focus {
   caret-color: #3d3d3d;
   -webkit-text-fill-color: #3d3d3d;
-  -webkit-box-shadow: 0 0 0 1000px var(--application-form-input-background) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--application-form-input-background)
+    inset !important;
 }
 
 .application-form-control[data-filled="true"]:hover,
@@ -308,13 +318,13 @@ textarea.application-form-control[data-filled="true"]:focus,
 }
 
 .rbc-toolbar button.rbc-active {
-  background-color: #03346E;
+  background-color: #03346e;
   color: white;
-  border-color: #03346E;
+  border-color: #03346e;
 }
 
 .rbc-toolbar button.rbc-active:hover {
-  background-color: #022B5C;
+  background-color: #022b5c;
 }
 
 .rbc-event {
@@ -323,7 +333,7 @@ textarea.application-form-control[data-filled="true"]:focus,
 }
 
 .rbc-event:focus {
-  outline: 2px solid #03346E;
+  outline: 2px solid #03346e;
 }
 
 /* Hide default time label in week/day views - show our custom content instead */
@@ -385,7 +395,10 @@ textarea.application-form-control[data-filled="true"]:focus,
 .client-navbar h1,
 .client-navbar button,
 .client-navbar svg path {
-  transition: color 0.6s ease-in-out, stroke 0.6s ease-in-out, fill 0.6s ease-in-out !important;
+  transition:
+    color 0.6s ease-in-out,
+    stroke 0.6s ease-in-out,
+    fill 0.6s ease-in-out !important;
 }
 
 /* Travel map (Leaflet) custom markers */
@@ -433,7 +446,7 @@ textarea.application-form-control[data-filled="true"]:focus,
 }
 
 .travel-map-marker-hotspot {
-  background: #9333ea;
+  background: #3d6dad;
 }
 
 .travel-map-pin-active {
@@ -444,4 +457,76 @@ textarea.application-form-control[data-filled="true"]:focus,
 .travel-map-tooltip {
   font-size: 11px;
   line-height: 1.3;
+}
+
+/* Travel itinerary panels live inside split panes, so their layout must react
+   to the pane width instead of the browser viewport. */
+.travel-itinerary-experience-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 480px) {
+  .travel-itinerary-card-padding {
+    padding: 2rem;
+  }
+
+  .travel-itinerary-cover-title {
+    font-size: 1.875rem;
+  }
+
+  .travel-itinerary-cover-metrics {
+    font-size: 1.125rem;
+  }
+
+  .travel-itinerary-map-cta {
+    right: 1.25rem;
+    bottom: 1.25rem;
+    height: 3.5rem;
+    padding-inline: 1.5rem;
+    font-size: 1rem;
+  }
+
+  .travel-itinerary-city-card {
+    padding: 1.75rem;
+  }
+
+  .travel-itinerary-day-timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 640px) {
+  .travel-itinerary-cover-grid {
+    grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1.1fr);
+  }
+
+  .travel-itinerary-city-gallery {
+    grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.6fr);
+  }
+
+  .travel-itinerary-city-gallery-thumbs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .travel-itinerary-day-card {
+    grid-template-columns: 150px minmax(0, 1fr) auto;
+  }
+
+  .travel-itinerary-day-image {
+    height: 100%;
+  }
+}
+
+@container (min-width: 720px) {
+  .travel-itinerary-cover-title {
+    font-size: 2.25rem;
+  }
+
+  .travel-itinerary-city-section {
+    grid-template-columns: 164px minmax(0, 1fr);
+  }
+
+  .travel-itinerary-city-rail {
+    display: block;
+  }
 }

@@ -19,7 +19,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -869,8 +869,8 @@ export function USAppointmentAssistant({
             ) : (
               <p className="text-sm text-muted-foreground">{t("final.requirement")}</p>
             )}
-            <Alert className="border-amber-200 bg-amber-50">
-              <ShieldCheck className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
               <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
               <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
             </Alert>

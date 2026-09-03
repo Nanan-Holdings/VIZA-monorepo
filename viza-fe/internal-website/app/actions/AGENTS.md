@@ -24,11 +24,18 @@ application lifecycle state.
   initializes applicant inbox aliases, and records explicit forwarding consent.
   Keep its client-facing failures typed and covered by
   `applicant-inbox.test.ts`.
-- `inbox.ts`: lists and downloads applicant email only after resolving the
-  signed Supabase or legacy VIZA session to its exact active inbox alias. Its
-  service-role reads must retain the alias, non-quarantine, and non-retired
-  ownership predicates covered by `inbox.test.ts`; do not rely on anonymous
-  table grants for legacy-session compatibility.
+- `inbox.ts`: the applicant mailbox API behind `/client/settings/inbox`.
+  Beyond listing and `.eml` downloads it owns read/star/archive state,
+  mark-all-read, queued replies and consultant flags (`inbound_email_replies`
+  — replies are staff-reviewed before any outbound send), the cached AI
+  reading pass (`ai_meta`, `lib/inbox/ai-summary.ts`), cached body
+  translations (`translations`, Google v2), and the lazily parsed attachment
+  manifest (`attachments_meta`, `lib/inbox/attachments.ts`). Every read and
+  write resolves the signed Supabase or legacy VIZA session to its exact
+  active inbox alias first and must retain the alias, non-quarantine, and
+  non-retired ownership predicates covered by `inbox.test.ts` and
+  `inbox-mailbox.test.ts`; do not rely on anonymous table grants for
+  legacy-session compatibility.
 - `client-application-status.ts`: customer-safe application timeline, file,
   and update reads shared by the home dashboard and the submitted application
   view.
@@ -79,6 +86,11 @@ application lifecycle state.
   to race an active operator takeover.
 - `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
   auditable publish/retire commands through database functions.
+- `admin-marketing.ts`: authenticated marketing operations for analytics,
+  editorial drafts/publication, grounded AI generation, and per-platform
+  Zernio publication/synchronization plus VIZA short-link management. External
+  mutations must remain admin-only, auditable, idempotent, and fail closed when
+  VIZA provider configuration is absent.
 - `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
   evidence files, and submits the reviewed response without exposing API keys.
 - `admin-appointments.ts`: owns the staff-side appointment case, expires only

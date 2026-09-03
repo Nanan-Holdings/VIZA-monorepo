@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Mail, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { createClient } from "@/lib/supabase/client";
 
 export default function VerifyEmailPage() {
@@ -69,14 +71,13 @@ export default function VerifyEmailPage() {
             Resend verification email
           </Button>
           {resendStatus === "success" ? (
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-500">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Sent again — check spam too.
-            </p>
+            <Alert className="mt-2 text-left" variant="success">
+              <AlertIcon variant="success" />
+              <AlertDescription>Sent again — check spam too.</AlertDescription>
+            </Alert>
           ) : null}
           {resendStatus === "error" ? (
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-destructive">
-              <AlertCircle className="h-3.5 w-3.5" /> {errorMessage}
-            </p>
+            <ClientErrorAlert className="mt-2 text-left" message={errorMessage} />
           ) : null}
         </div>
 

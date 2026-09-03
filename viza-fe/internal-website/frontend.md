@@ -10,6 +10,25 @@
 
 When in doubt, **read neighbouring client components first** — consistency with what already ships beats theoretical best practice.
 
+## 0. Canonical UI reference gate
+
+`/ui-components` is the Edward-approved visual source of truth for reusable
+client controls and patterns. Before creating or changing any `/client/*` UI:
+
+1. Open `/ui-components` and inspect the closest existing pattern.
+2. Reuse the demonstrated component from `components/ui/` or its documented
+   client composite; do not recreate its appearance with local Tailwind classes.
+3. If the gallery does not cover the need, compare the nearest shipped screen
+   before proposing a new pattern. Extend the design system only after that gap
+   is confirmed.
+4. Keep content hierarchical and concise. State each fact once; do not repeat
+   the same status, disclaimer, artifact limitation, or next step in adjacent
+   paragraphs, panels, and footnotes.
+
+Treat divergence from `/ui-components` as a blocking UI regression during
+review. `frontend.md` remains the central written design guide; do not create a
+second competing `design.md`.
+
 ---
 
 ## 1. Design tokens (source of truth)
@@ -132,7 +151,7 @@ avatar, badge, button, calendar, calendar-date-picker, card, checkbox,
 collapsible, command, country-dropdown, date-picker, dialog,
 dropdown-menu, empty, form, input, input-group, input-otp, label,
 popover, region-select, scroll-area, select, separator, sheet,
-skeleton, table, tabs, textarea, toast, tooltip
+skeleton, submission-result-panel, table, tabs, textarea, toast, tooltip
 ```
 
 Style: **shadcn "new-york"** on **zinc** base with CSS variables (`components.json`). To add a missing primitive:
@@ -179,27 +198,27 @@ If you find yourself reaching for a different shape (e.g. a custom country picke
 
 ## 3. Buttons
 
-### 3.1 `BrandActionButton` — the standard flow CTA
+### 3.1 `ActionButton` — the canonical action button
 
-**Use for "Continue", "Submit", "Confirm", "Validate" and any other primary or secondary action on a form step, wizard, or modal.**
+**Use for "Continue", "Submit", "Confirm", "Validate" and any other primary or secondary action on a form step, wizard, modal, or terminal result.**
 
-Source: `components/client/brand-action-button.tsx`. Bakes in the canonical flow-button proportions (`h-12 rounded-full px-6 text-[15px] font-medium`) and the brand palette, so every step in the client portal looks identical.
+Source: `components/ui/action-button.tsx`. It owns the canonical action hierarchy: `lg` for flow CTAs, `sm` for cards and terminal-result actions, and `xs` for inline alert and row actions. `BrandActionButton` is a backward-compatible import alias only; new code must import `ActionButton` directly.
 
 ```tsx
-import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ActionButton } from "@/components/ui/action-button";
 
-<BrandActionButton type="submit" disabled={!canContinue}>
+<ActionButton type="submit" disabled={!canContinue}>
   {t("continue")}
-</BrandActionButton>
+</ActionButton>
 
-<BrandActionButton
+<ActionButton
   variant="secondary"
   onClick={runValidation}
   loading={state === "loading"}
   loadingText={t("review.validation.validating")}
 >
   {t("review.validation.validateButton")}
-</BrandActionButton>
+</ActionButton>
 ```
 
 | Prop | Type | Purpose |
@@ -209,7 +228,29 @@ import { BrandActionButton } from "@/components/client/brand-action-button";
 | `loadingText` | `ReactNode` | Defaults to `children` if omitted |
 | `type`, `disabled`, `onClick`, … | standard `<button>` props | `type` defaults to `"button"` |
 
-**Don't** re-style flow CTAs with `<Button className="h-12 rounded-full bg-[#03346E] …">`. Anything that should *look like* 继续 must use `BrandActionButton` so visual updates propagate in one place.
+**Don't** re-style flow CTAs with `<Button className="h-12 rounded-full bg-[#03346E] …">`. Anything that should *look like* 继续 must use `ActionButton` so visual updates propagate in one place.
+
+### 3.3 Submission results / terminal states
+
+Submission results have one shared composition in
+`components/ui/submission-result-panel.tsx`: `SubmissionStatePanel` for
+pending/action-required/failure states and `TerminalSuccessPanel` for confirmed
+success. A distinct **Confirmation** step appears after Review only when the
+product has verified an official success. Pending, failed, payment, and
+action-required states remain associated with Review so the applicant can
+inspect or correct the submitted answers.
+
+- Keep every shell neutral: use the shared state variant, one success title,
+  optional official reference, optional evidence/artifact region, and canonical
+  `ActionButton` slots (`sm` for card actions).
+- Render every fact once. Do not repeat a status, evidence limitation,
+  disclaimer, or next step in neighbouring cards, footnotes, and actions.
+- Country adapters supply localized facts, official evidence/artifacts, and a
+  next step only when it adds information not already shown. They must not fork
+  the shell with bespoke success-card styling.
+- `components/ui/button` is prohibited in result-card modules by lint. Use
+  `ActionButton`; preserve a documented exception only when a third-party API
+  cannot accept the canonical component.
 
 ### 3.2 When to use the shadcn `<Button>` instead
 

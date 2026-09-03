@@ -17,6 +17,7 @@
  */
 
 import type { Page } from "@playwright/test";
+import * as path from "node:path";
 import { launchStealthBrowser } from "../ceac/stealth-browser";
 import {
   UK_DECLARATION_FILLER,
@@ -27,9 +28,14 @@ import {
 import { ukClickSaveContinue } from "./fillers";
 import {
   payUkWithManagedCard,
+  isUkOfficialPaymentUrl,
   type UkManagedPaymentCard,
   verifyUkPaymentPageAmount,
 } from "./payment";
+import {
+  tryCaptureScreenshot,
+  type UkPaymentBoundaryArtifact,
+} from "./diagnostics";
 
 export interface UkResumeInput {
   resumeUrl: string;
@@ -46,6 +52,10 @@ export interface UkResumeOptions {
   pageTimeoutMs?: number;
   /** Where to write failure screenshots. */
   outputDir?: string;
+  /** Optional override for the local payment-boundary evidence directory. */
+  paymentBoundaryOutputDir?: string;
+  /** Explicit evidence-only mode: capture the pay page without acquiring a card. */
+  stopBeforePayment?: boolean;
   /**
    * Lazily acquires a VIZA-managed card only after the payment page is
    * visible. Omit this callback for prefill-only runs.
@@ -65,6 +75,7 @@ export type UkResumeResult =
       pagesSkipped: string[];
       finalUrl: string;
       applicationReference?: string;
+      paymentBoundaryScreenshot: UkPaymentBoundaryArtifact;
     }
   | {
       status: "halted_before_pay";
@@ -234,26 +245,11 @@ export async function resumeUkApplication(
     // ── Declaration + VIZA-managed payment ────────────────────────────
     if (/Declaration/i.test(await page.title())) {
       const applicationReference = await captureApplicationReference(page);
-      if (!options.takePaymentCard) {
-        await UK_DECLARATION_FILLER(page, input.answers);
-        pagesFilled.push("__declaration__");
-        // Prefill-only runs preserve the payment boundary. No credential or
-        // payment link should be exposed to the applicant by the caller.
-        return {
-          status: "stopped_at_pay",
-          runId,
-          portalUrl: input.resumeUrl,
-          portalUsername: input.email,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-
       // UKVI currently uses two declaration pages. Complete every declaration
-      // page already represented by the applicant's VIZA final confirmation,
-      // then acquire card material only after the official pay page is visible.
+      // page already represented by the applicant's VIZA final confirmation.
+      // This is also required for prefill-only runs: `stopped_at_pay` must mean
+      // the official pay page was actually reached and captured, not merely
+      // that the browser stopped on the preceding declaration page.
       for (let declarationPage = 0; declarationPage < 4; declarationPage += 1) {
         if (!/Declaration/i.test(await page.title())) break;
         await UK_DECLARATION_FILLER(page, input.answers);
@@ -273,80 +269,15 @@ export async function resumeUkApplication(
         };
       }
 
-      const expectedPaymentAmount = options.expectedPaymentAmount;
-      const expectedPaymentCurrency = options.expectedPaymentCurrency;
-      if (
-        typeof expectedPaymentAmount !== "number" ||
-        !Number.isFinite(expectedPaymentAmount) ||
-        expectedPaymentAmount <= 0 ||
-        !expectedPaymentCurrency
-      ) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: "The allocated UK official-fee amount or currency was unavailable",
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      const amountCheck = await verifyUkPaymentPageAmount({
+      return handleVisiblePaymentBoundary(
         page,
-        expectedAmount: expectedPaymentAmount,
-        expectedCurrency: expectedPaymentCurrency,
-      });
-      if (!amountCheck.ok) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: amountCheck.reason,
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-
-      const card = await options.takePaymentCard();
-      if (!card) {
-        return {
-          status: "payment_review_required",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: page.url(),
-          reason: "A VIZA-managed official-fee card was not available",
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      const payment = await payUkWithManagedCard({
-        page,
-        card,
-        expectedAmount: expectedPaymentAmount,
-        expectedCurrency: expectedPaymentCurrency,
-      });
-      if (payment.status === "paid") {
-        return {
-          status: "paid",
-          runId,
-          pagesFilled,
-          pagesSkipped,
-          finalUrl: payment.finalUrl,
-          portalReceiptId: payment.portalReceiptId,
-          ...(applicationReference ? { applicationReference } : {}),
-        };
-      }
-      return {
-        status: "payment_review_required",
+        input,
+        options,
         runId,
         pagesFilled,
         pagesSkipped,
-        finalUrl: payment.finalUrl,
-        reason: payment.reason,
-        paymentOutcome: payment.status,
-        ...(applicationReference ? { applicationReference } : {}),
-      };
+        applicationReference,
+      );
     }
 
     // Couldn't reach Declaration — return whatever we got.
@@ -383,6 +314,7 @@ export async function resumeUkApplication(
 }
 
 async function isStopBoundary(page: Page): Promise<boolean> {
+  if (!isUkOfficialPaymentUrl(page.url())) return false;
   const title = await page.title().catch(() => "");
   if (STOP_TITLE_PATTERNS.some((rx) => rx.test(title))) return true;
   const url = page.url();
@@ -397,9 +329,17 @@ async function handleVisiblePaymentBoundary(
   runId: string | undefined,
   pagesFilled: string[],
   pagesSkipped: string[],
+  knownApplicationReference?: string | null,
 ): Promise<UkResumeResult> {
-  const applicationReference = await captureApplicationReference(page);
-  if (!options.takePaymentCard) {
+  if (!(await isStopBoundary(page))) {
+    throw new Error("UK payment-boundary capture was requested before the official pay page was visible");
+  }
+  const applicationReference = knownApplicationReference ?? await captureApplicationReference(page);
+  const paymentBoundaryScreenshot = await captureUkPaymentBoundaryScreenshot(page, options, runId);
+  if (!paymentBoundaryScreenshot) {
+    throw new Error("UK official payment page was visible but its redacted evidence capture failed");
+  }
+  if (options.stopBeforePayment || !options.takePaymentCard) {
     return {
       status: "stopped_at_pay",
       runId,
@@ -408,6 +348,7 @@ async function handleVisiblePaymentBoundary(
       pagesFilled,
       pagesSkipped,
       finalUrl: page.url(),
+      paymentBoundaryScreenshot,
       ...(applicationReference ? { applicationReference } : {}),
     };
   }
@@ -488,6 +429,35 @@ async function handleVisiblePaymentBoundary(
   };
 }
 
+async function captureUkPaymentBoundaryScreenshot(
+  page: Page,
+  options: UkResumeOptions,
+  runId: string | undefined,
+): Promise<UkPaymentBoundaryArtifact | null> {
+  const safeRunId = slugifyRunId(runId ?? "unknown");
+  const outputDir = options.paymentBoundaryOutputDir
+    ?? options.outputDir
+    ?? path.resolve("diag-out", "uk-live", safeRunId);
+  const screenshot = await tryCaptureScreenshot(page, {
+    outputDir,
+    runId: safeRunId,
+    label: "verified-payment-boundary",
+    redactFormControls: true,
+  });
+  return screenshot
+    ? {
+        ...screenshot,
+        kind: "payment_boundary",
+        capturedAt: new Date().toISOString(),
+        redacted: true,
+      }
+    : null;
+}
+
+function slugifyRunId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "unknown";
+}
+
 async function captureApplicationReference(page: Page): Promise<string | null> {
   // gov.uk shows "Your application reference number is …" on declaration
   // and confirmation surfaces. Best-effort regex over the body text.
@@ -503,3 +473,8 @@ function serializeError(err: unknown): Record<string, unknown> {
   }
   return { value: String(err) };
 }
+
+export const __UK_RESUME_INTERNALS = {
+  handleVisiblePaymentBoundary,
+  isStopBoundary,
+};

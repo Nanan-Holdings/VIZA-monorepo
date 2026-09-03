@@ -17,6 +17,9 @@ be visually inspected without writing QA data to customer applications.
   components; do not maintain a duplicate field inventory.
 - Preview values must remain obviously fictional and must never be exported to
   Universal Profile or Supabase.
+- `scripts/generate-all-application-qa-fixtures.ts` may read the master schemas,
+  but its 75-route fixture report must remain a local, ignored file and must
+  always be marked synthetic and non-submittable.
 
 ## Validation
 

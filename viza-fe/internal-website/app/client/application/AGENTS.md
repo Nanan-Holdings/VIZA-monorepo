@@ -45,6 +45,11 @@ Before changing this route, read:
 - `app/client/application/_components/result-cards/PostSubmissionInfoPanel.tsx`:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
+- `app/client/application/_components/result-cards/SubmissionEvidenceGallery.tsx`:
+  renders application-scoped official-portal screenshots, including the first
+  official payment page reached before payment, through the authenticated
+  submission-artifact route. Never pass external URLs or another application's
+  storage objects into this gallery.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `lib/application-schema-ui-contract.ts`: compiles the complete visa schema to
   canonical `/ui-components` controls and assigns one shared conditional panel
@@ -119,6 +124,14 @@ Before changing this route, read:
     reader. For a dedicated country product, the product code is authoritative
     for country resolution; never combine its schema with an unrelated route,
     active-package, or default country.
+23. Submission results use the shared `SubmissionStatePanel` and
+    `TerminalSuccessPanel` in `components/ui/submission-result-panel.tsx`.
+    Put a distinct Confirmation step after Review only for verified official
+    success; pending, failure, payment, and action-required results stay in
+    Review. Country adapters provide localized facts and official artifacts,
+    not bespoke result-state styling. Result actions use canonical
+    `ActionButton` (`sm` inside cards); raw `components/ui/button` imports are
+    lint-blocked in result-card modules.
 
 ## Validation Checklist
 

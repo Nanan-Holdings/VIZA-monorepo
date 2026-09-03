@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CircleNotch as Loader2, ScanSmiley as ScanFace } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import {
   processApplicantPhoto,
@@ -162,7 +163,7 @@ export function PhotoCropTool({ applicationId, originalImageUrl, onCropped }: Ph
       ) : (
         <p className="text-xs text-muted-foreground">Face detector unavailable — using centered crop.</p>
       )}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <ClientErrorAlert message={error} /> : null}
       <div className="flex justify-end gap-2">
         <Button type="button" onClick={submit} disabled={pending || !region} className="bg-brand-500 hover:bg-brand-400">
           {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

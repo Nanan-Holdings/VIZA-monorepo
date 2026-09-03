@@ -4,6 +4,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSession } from "@/lib/client-session";
+import { endTrace, startTrace, traceStage } from "@/lib/server/perf-trace";
 import {
   getCanonicalApplicationProductCountry,
   getDestinationDisplayName,
@@ -1494,6 +1495,7 @@ async function buildApplicationStatus({
 }
 
 export async function getClientStatusData(): Promise<ClientStatusData> {
+  const trace = startTrace();
   const clientSession = await getClientSession();
   let authUserId = clientSession?.userId ?? null;
   let authEmail = clientSession?.email ?? null;
@@ -1507,12 +1509,13 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     });
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await traceStage(trace, "authGetUser", () => supabase.auth.getUser());
     authUserId = user?.id ?? null;
     authEmail = user?.email ?? null;
   }
 
   if (!authUserId) {
+    endTrace(trace, "client-status(anon)");
     return {
       authenticated: false,
       applications: [],
@@ -1551,7 +1554,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       ),
     );
   }
-  const profileResults = await Promise.all(profileReads);
+  const profileResults = await traceStage(trace, "profiles", () => Promise.all(profileReads));
   partialData = partialData || profileResults.some((result) => result.failed);
   const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
   const profileIds = profiles.map((profile) => profile.id);
@@ -1566,14 +1569,43 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     ),
   ];
 
-  const { rows: userPackageRows, failed: packagesFailed } = await readRows<UserPackageRow>(
-    adminClient
-      .from("user_packages")
-      .select("visa_package_id, application_id, assigned_at, status, visa_packages(id, country, visa_type, name, description, price_cents, currency, metadata)")
-      .eq("auth_user_id", authUserId)
-      .order("assigned_at", { ascending: false }),
+  // The package list, the applicant's applications, and the SGAC owner-email
+  // lookup all key off data the profile read already produced, so they go out
+  // as one round trip instead of three back-to-back ones.
+  const [
+    { rows: userPackageRows, failed: packagesFailed },
+    { rows: baseApplicationRows, failed: applicationsFailed },
+    { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed },
+  ] = await traceStage(trace, "packagesApplicationsSgac", () =>
+    Promise.all([
+      readRows<UserPackageRow>(
+        adminClient
+          .from("user_packages")
+          .select("visa_package_id, application_id, assigned_at, status, visa_packages(id, country, visa_type, name, description, price_cents, currency, metadata)")
+          .eq("auth_user_id", authUserId)
+          .order("assigned_at", { ascending: false }),
+      ),
+      profileIds.length > 0
+        ? readRows<ApplicationRow>(
+            adminClient
+              .from("applications")
+              .select(APPLICATION_STATUS_SELECT)
+              .in("applicant_id", profileIds)
+              .order("created_at", { ascending: false }),
+          )
+        : Promise.resolve<ReadRowsResult<ApplicationRow>>({ rows: [], failed: false }),
+      ownerEmails.length > 0
+        ? readRows<AnswerRow>(
+            adminClient
+              .from("visa_application_answers")
+              .select("application_id, field_name, value_text, value_json")
+              .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
+              .in("value_text", ownerEmails),
+          )
+        : Promise.resolve<ReadRowsResult<AnswerRow>>({ rows: [], failed: false }),
+    ]),
   );
-  partialData = partialData || packagesFailed;
+  partialData = partialData || packagesFailed || applicationsFailed || sgacEmailAnswersFailed;
 
   const userPackages = userPackageRows
     .map((row) => ({
@@ -1588,67 +1620,60 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   const packageApplicationIds = userPackages
     .map((row) => row.applicationId)
     .filter((id): id is string => Boolean(id));
-  let applications: ApplicationRow[] = [];
-  let sgacEmailLinkedApplicationIds = new Set<string>();
+  let applications: ApplicationRow[] = baseApplicationRows.map(withApplicationDefaults);
 
-  if (profileIds.length > 0) {
-    const { rows, failed } = await readRows<ApplicationRow>(
-      adminClient
-        .from("applications")
-        .select(APPLICATION_STATUS_SELECT)
-        .in("applicant_id", profileIds)
-        .order("created_at", { ascending: false }),
-    );
-    applications = rows.map(withApplicationDefaults);
-    partialData = partialData || failed;
-  }
+  // Applications reachable only through a package assignment, and SGAC cards
+  // owned by one of this applicant's e-mail addresses, are two independent
+  // follow-up reads over the ids the first wave produced — one round trip.
+  const knownApplicationIds = new Set(applications.map((application) => application.id));
+  const missingPackageApplicationIds = [
+    ...new Set(packageApplicationIds.filter((id) => !knownApplicationIds.has(id))),
+  ];
+  const sgacEmailApplicationIds = [
+    ...new Set(
+      sgacEmailAnswers
+        .map((row) => row.application_id)
+        .filter(
+          (id): id is string =>
+            Boolean(id) &&
+            !knownApplicationIds.has(id) &&
+            !missingPackageApplicationIds.includes(id),
+        ),
+    ),
+  ];
+  const sgacEmailLinkedApplicationIds = new Set(sgacEmailApplicationIds);
 
-  const missingPackageApplicationIds = packageApplicationIds.filter((id) => !applications.some((application) => application.id === id));
-  if (missingPackageApplicationIds.length > 0) {
-    const { rows: linkedRows, failed: linkedFailed } = await readRows<ApplicationRow>(
-      adminClient
-        .from("applications")
-        .select(APPLICATION_STATUS_SELECT)
-        .in("id", missingPackageApplicationIds),
+  if (missingPackageApplicationIds.length > 0 || sgacEmailApplicationIds.length > 0) {
+    const [
+      { rows: linkedRows, failed: linkedFailed },
+      { rows: sgacEmailApplications, failed: sgacEmailApplicationsFailed },
+    ] = await traceStage(trace, "linkedApplications", () =>
+      Promise.all([
+        missingPackageApplicationIds.length > 0
+          ? readRows<ApplicationRow>(
+              adminClient
+                .from("applications")
+                .select(APPLICATION_STATUS_SELECT)
+                .in("id", missingPackageApplicationIds),
+            )
+          : Promise.resolve<ReadRowsResult<ApplicationRow>>({ rows: [], failed: false }),
+        sgacEmailApplicationIds.length > 0
+          ? readRows<ApplicationRow>(
+              adminClient
+                .from("applications")
+                .select(APPLICATION_STATUS_SELECT)
+                .in("id", sgacEmailApplicationIds)
+                .eq("visa_type", SGAC_VISA_TYPE),
+            )
+          : Promise.resolve<ReadRowsResult<ApplicationRow>>({ rows: [], failed: false }),
+      ]),
     );
-    partialData = partialData || linkedFailed;
+    partialData = partialData || linkedFailed || sgacEmailApplicationsFailed;
     applications = dedupeById([
       ...applications,
       ...linkedRows.map(withApplicationDefaults),
+      ...sgacEmailApplications.map(withApplicationDefaults),
     ]);
-  }
-
-  if (ownerEmails.length > 0) {
-    const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = await readRows<AnswerRow>(
-      adminClient
-        .from("visa_application_answers")
-        .select("application_id, field_name, value_text, value_json")
-        .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
-        .in("value_text", ownerEmails),
-    );
-    partialData = partialData || sgacEmailAnswersFailed;
-    const sgacEmailApplicationIds = [
-      ...new Set(
-        sgacEmailAnswers
-          .map((row) => row.application_id)
-          .filter((id): id is string => Boolean(id) && !applications.some((application) => application.id === id)),
-      ),
-    ];
-    sgacEmailLinkedApplicationIds = new Set(sgacEmailApplicationIds);
-    if (sgacEmailApplicationIds.length > 0) {
-      const { rows: sgacEmailApplications, failed: sgacEmailApplicationsFailed } = await readRows<ApplicationRow>(
-        adminClient
-          .from("applications")
-          .select(APPLICATION_STATUS_SELECT)
-          .in("id", sgacEmailApplicationIds)
-          .eq("visa_type", SGAC_VISA_TYPE),
-      );
-      partialData = partialData || sgacEmailApplicationsFailed;
-      applications = dedupeById([
-        ...applications,
-        ...sgacEmailApplications.map(withApplicationDefaults),
-      ]);
-    }
   }
 
   // The application projection already includes the submission result fields;
@@ -1663,12 +1688,17 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
 
   const applicationIds = applications.map((application) => application.id);
   const liveStatusApplicationIds = getLiveStatusApplicationIds(applications);
-  let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
-  try {
-    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, liveStatusApplicationIds);
-  } catch {
-    partialData = true;
-  }
+  // The live-queue lookup no longer needs its own applications read: this
+  // loader already has country/visa_type for every id it is asked about.
+  const liveSubmissionsRead = loadLiveSubmissionSummaries(
+    adminClient,
+    liveStatusApplicationIds,
+    applications.map((application) => ({
+      id: application.id,
+      country: application.country,
+      visa_type: application.visa_type,
+    })),
+  ).catch(() => null);
   const applicationPackageIds = applications
     .map((application) => application.visa_package_id)
     .filter((id): id is string => Boolean(id));
@@ -1707,9 +1737,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     );
   }
 
-  const paymentResults = await Promise.all(paymentReads);
-  partialData = partialData || paymentResults.some((result) => result.failed);
-  payments = dedupeById(paymentResults.flatMap((result) => result.rows));
+  const paymentsRead = Promise.all(paymentReads);
 
   let consents: ConsentRow[] = [];
   let signatures: SignatureRow[] = [];
@@ -1720,7 +1748,81 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   let notifications: NotificationRow[] = [];
   let officialTracking: OfficialTrackingRow[] = [];
 
-  if (applicationIds.length > 0) {
+  // Last wave: the live-queue lookup, the payment reads, and the per-application
+  // detail tables are all keyed off ids that are final by now, so they resolve
+  // together. Previously each waited for the one before it.
+  const [liveSubmissionResult, paymentResults, detailResults] = await traceStage(
+    trace,
+    "liveSubmissionsPaymentsDetails",
+    () =>
+      Promise.all([
+        liveSubmissionsRead,
+        paymentsRead,
+        applicationIds.length > 0
+          ? Promise.all([
+              readRows<ConsentRow>(
+                adminClient
+                  .from("consent_events")
+                  .select("application_id, accepted, created_at")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<SignatureRow>(
+                adminClient
+                  .from("application_signatures")
+                  .select("application_id, signed_at, created_at")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<DocumentRow>(
+                adminClient
+                  .from("application_documents")
+                  .select("application_id, status, required")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<AnswerRow>(
+                adminClient
+                  .from("visa_application_answers")
+                  .select("application_id, field_name, value_text, value_json")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<PacketRow>(
+                adminClient
+                  .from("application_packets")
+                  .select("application_id, status, storage_path, generated_at, created_at, updated_at")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<EventRow>(
+                adminClient
+                  .from("application_events")
+                  .select("application_id, event_type, created_at")
+                  .in("application_id", applicationIds)
+                  .order("created_at", { ascending: false })
+                  .limit(30),
+              ),
+              readRows<NotificationRow>(
+                adminClient
+                  .from("notification_events")
+                  .select("application_id, status, sent_at, created_at")
+                  .in("application_id", applicationIds),
+              ),
+              readRows<OfficialTrackingRow>(
+                adminClient
+                  .from("official_application_tracking")
+                  .select("application_id, tracking_status, last_successful_check_at, next_daily_check_at, consecutive_failures")
+                  .in("application_id", applicationIds),
+              ),
+          ])
+          : null,
+      ]),
+  );
+
+  const liveSubmissionByApplication =
+    liveSubmissionResult ?? new Map<string, LiveSubmissionSummary>();
+  if (!liveSubmissionResult) partialData = true;
+
+  partialData = partialData || paymentResults.some((result) => result.failed);
+  payments = dedupeById(paymentResults.flatMap((result) => result.rows));
+
+  if (detailResults) {
     const [
       consentResult,
       signatureResult,
@@ -1730,58 +1832,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       eventResult,
       notificationResult,
       trackingResult,
-    ] = await Promise.all([
-      readRows<ConsentRow>(
-        adminClient
-          .from("consent_events")
-          .select("application_id, accepted, created_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<SignatureRow>(
-        adminClient
-          .from("application_signatures")
-          .select("application_id, signed_at, created_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<DocumentRow>(
-        adminClient
-          .from("application_documents")
-          .select("application_id, status, required")
-          .in("application_id", applicationIds),
-      ),
-      readRows<AnswerRow>(
-        adminClient
-          .from("visa_application_answers")
-          .select("application_id, field_name, value_text, value_json")
-          .in("application_id", applicationIds),
-      ),
-      readRows<PacketRow>(
-        adminClient
-          .from("application_packets")
-          .select("application_id, status, storage_path, generated_at, created_at, updated_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<EventRow>(
-        adminClient
-          .from("application_events")
-          .select("application_id, event_type, created_at")
-          .in("application_id", applicationIds)
-          .order("created_at", { ascending: false })
-          .limit(30),
-      ),
-      readRows<NotificationRow>(
-        adminClient
-          .from("notification_events")
-          .select("application_id, status, sent_at, created_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<OfficialTrackingRow>(
-        adminClient
-          .from("official_application_tracking")
-          .select("application_id, tracking_status, last_successful_check_at, next_daily_check_at, consecutive_failures")
-          .in("application_id", applicationIds),
-      ),
-    ]);
+    ] = detailResults;
 
     partialData = partialData || [
       consentResult,
@@ -1825,7 +1876,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     officialTracking.map((row) => [row.application_id, row]),
   );
 
-  const statusApplications = await Promise.all(
+  const statusApplications = await traceStage(trace, "buildStatus", () => Promise.all(
     applications.map((application) =>
       buildApplicationStatus({
         adminClient,
@@ -1846,7 +1897,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         officialTracking: officialTrackingByApplication.get(application.id) ?? null,
       }),
     ),
-  );
+  ));
 
   const applicationKeys = new Set(statusApplications.map((application) => application.key));
   for (const userPackage of userPackages) {
@@ -1866,6 +1917,11 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
     const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
     return bTime - aTime;
+  });
+
+  endTrace(trace, "client-status", {
+    apps: statusApplications.length,
+    partial: partialData,
   });
 
   return {

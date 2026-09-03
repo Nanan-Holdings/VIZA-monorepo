@@ -10,6 +10,7 @@
 import { Router } from "express";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { resolveRequester, type Requester } from "../middleware/user-auth.js";
 
 const logger = new Logger({ serviceName: "ProfilePrefillRoutes" });
 
@@ -67,12 +68,33 @@ function getFieldMap(visaType: string): Record<string, string> {
 
 profilePrefillRouter.get("/", async (req, res) => {
   try {
-    const userId = req.query.userId as string;
+    // The prefill payload is applicant PII. Authenticated applicants may only
+    // read their OWN profile (auth_user_id derived from the token; any query
+    // userId is ignored for them). Internal service callers may pass an
+    // explicit userId query param.
+    let requester: Requester | null = null;
+    try {
+      requester = await resolveRequester(req);
+    } catch {
+      res.status(500).json({ error: true, message: "Authentication is not configured" });
+      return;
+    }
+    if (!requester) {
+      res.status(401).json({ error: true, message: "Bearer token required" });
+      return;
+    }
+
     const visaType = (req.query.visaType as string) ?? "indonesia_b211a";
 
-    if (!userId) {
-      res.status(400).json({ error: true, message: "userId query param required" });
-      return;
+    let userId: string | undefined;
+    if (requester.kind === "user") {
+      userId = requester.authUserId;
+    } else {
+      userId = req.query.userId as string | undefined;
+      if (!userId) {
+        res.status(400).json({ error: true, message: "userId query param required" });
+        return;
+      }
     }
 
     const supabase = getSupabaseClient();

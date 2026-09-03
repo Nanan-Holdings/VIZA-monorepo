@@ -11,6 +11,7 @@ import { BilingualReviewPanel, type ReviewRow } from "@/components/application-s
 import { COUNTRY_OPTIONS } from "@/components/application-steps/bilingual-form-shared";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
 import { ApplicationFormField } from "@/components/ui/application-form-field";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
@@ -352,7 +353,14 @@ export function UniversalProfileExtendedEditor({
         {editing ? <Pencil className="h-4 w-4 shrink-0 text-brand-500" /> : null}
       </div>
 
-      {!schemaAvailable ? <p role="alert" className="mt-4 text-sm font-medium text-amber-700">{isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}</p> : null}
+      {!schemaAvailable ? (
+        <Alert className="mt-4" variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertDescription>
+            {isZh ? "完整资料表尚未安装数据库迁移；现有基础资料仍可正常使用。" : "The expanded profile migration is not installed yet. Existing core profile data still works."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {error ? <ClientErrorAlert className="mt-4" message={error} /> : null}
 
       {savedFields.length > 0 ? (

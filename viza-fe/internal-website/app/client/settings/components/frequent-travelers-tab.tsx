@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { motion } from "motion/react";
 import {
   WarningCircle as AlertCircle,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import {
   createFrequentTraveler,
   deleteFrequentTraveler,
@@ -137,14 +138,18 @@ function obfuscatePassport(value: string | null) {
 
 export function FrequentTravelersTab() {
   const t = useTranslations("settings.travelers");
+  const settingsT = useTranslations("settings");
   const [travelers, setTravelers] = useState<FrequentTravelerSummary[]>([]);
   const [form, setForm] = useState<FrequentTravelerInput>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isPending, startTransition] = useTransition();
+  const formHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const editingTraveler = useMemo(
     () => travelers.find((traveler) => traveler.id === editingId) ?? null,
@@ -156,17 +161,20 @@ export function FrequentTravelersTab() {
 
     async function loadTravelers() {
       setIsLoading(true);
-      const result = await getFrequentTravelers();
-
-      if (!mounted) return;
-
-      if (result.success) {
-        setTravelers(result.travelers);
-      } else {
-        setTravelers([]);
+      setLoadFailed(false);
+      try {
+        const result = await getFrequentTravelers();
+        if (!mounted) return;
+        if (result.success) {
+          setTravelers(result.travelers);
+        } else {
+          setLoadFailed(true);
+        }
+      } catch {
+        if (mounted) setLoadFailed(true);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-
-      setIsLoading(false);
     }
 
     void loadTravelers();
@@ -174,7 +182,11 @@ export function FrequentTravelersTab() {
     return () => {
       mounted = false;
     };
-  }, [t]);
+  }, [loadAttempt]);
+
+  useEffect(() => {
+    if (formOpen) formHeadingRef.current?.focus();
+  }, [formOpen]);
 
   function updateField(field: keyof FrequentTravelerInput, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -204,43 +216,51 @@ export function FrequentTravelersTab() {
 
   function handleSave() {
     startTransition(async () => {
-      const result = editingId
-        ? await updateFrequentTraveler(editingId, form)
-        : await createFrequentTraveler(form);
+      try {
+        const result = editingId
+          ? await updateFrequentTraveler(editingId, form)
+          : await createFrequentTraveler(form);
 
-      if (!result.success) {
+        if (!result.success) {
+          setNotice({ tone: "error", message: t("saveError") });
+          return;
+        }
+
+        setTravelers((current) => {
+          const next = current.filter((traveler) => traveler.id !== result.traveler.id);
+          return [result.traveler, ...next];
+        });
+        setNotice({
+          tone: "success",
+          message: editingId ? t("updated") : t("created"),
+        });
+        setEditingId(null);
+        setForm(EMPTY_FORM);
+        setFormOpen(false);
+      } catch {
         setNotice({ tone: "error", message: t("saveError") });
-        return;
       }
-
-      setTravelers((current) => {
-        const next = current.filter((traveler) => traveler.id !== result.traveler.id);
-        return [result.traveler, ...next];
-      });
-      setNotice({
-        tone: "success",
-        message: editingId ? t("updated") : t("created"),
-      });
-      setEditingId(null);
-      setForm(EMPTY_FORM);
-      setFormOpen(false);
     });
   }
 
   function handleDelete(id: string) {
     setPendingId(id);
     startTransition(async () => {
-      const result = await deleteFrequentTraveler(id);
-      setPendingId(null);
+      try {
+        const result = await deleteFrequentTraveler(id);
+        if (!result.success) {
+          setNotice({ tone: "error", message: t("deleteError") });
+          return;
+        }
 
-      if (!result.success) {
+        setTravelers((current) => current.filter((traveler) => traveler.id !== id));
+        if (editingId === id) closeForm();
+        setNotice({ tone: "success", message: t("deleted") });
+      } catch {
         setNotice({ tone: "error", message: t("deleteError") });
-        return;
+      } finally {
+        setPendingId(null);
       }
-
-      setTravelers((current) => current.filter((traveler) => traveler.id !== id));
-      if (editingId === id) closeForm();
-      setNotice({ tone: "success", message: t("deleted") });
     });
   }
 
@@ -251,16 +271,19 @@ export function FrequentTravelersTab() {
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
             <UsersRound className="h-5 w-5" />
           </span>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
-              {t("title")}
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+          <div className="self-center">
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
               {t("description")}
             </p>
           </div>
         </div>
-        <Button type="button" className="h-11 rounded-full" onClick={openCreateForm}>
+        <Button
+          type="button"
+          className="h-11 rounded-full"
+          onClick={openCreateForm}
+          aria-expanded={formOpen && editingId === null}
+          aria-controls="frequent-traveler-editor"
+        >
           <Plus className="h-4 w-4" />
           {t("add")}
         </Button>
@@ -268,9 +291,10 @@ export function FrequentTravelersTab() {
 
       {notice ? (
         notice.tone === "success" ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
-            {notice.message}
-          </div>
+          <Alert variant="success">
+            <AlertIcon variant="success" />
+            <AlertDescription>{notice.message}</AlertDescription>
+          </Alert>
         ) : (
           <ClientErrorAlert message={notice.message} />
         )
@@ -278,6 +302,7 @@ export function FrequentTravelersTab() {
 
       {formOpen ? (
         <motion.div
+          id="frequent-traveler-editor"
           className="rounded-xl border bg-white p-5 shadow-sm sm:p-6"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -285,9 +310,9 @@ export function FrequentTravelersTab() {
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">
+              <h2 ref={formHeadingRef} tabIndex={-1} className="text-lg font-semibold text-foreground outline-none">
                 {editingTraveler ? t("editTitle") : t("addTitle")}
-              </h3>
+              </h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {t("formHint")}
               </p>
@@ -338,6 +363,13 @@ export function FrequentTravelersTab() {
           <div className="flex min-h-44 flex-col items-center justify-center gap-3 p-6">
             <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
             <p className="text-sm text-muted-foreground">{t("loading")}</p>
+          </div>
+        ) : loadFailed ? (
+          <div className="flex min-h-44 flex-col items-center justify-center gap-4 p-6">
+            <ClientErrorAlert message={t("loadError")} />
+            <Button type="button" variant="outline" onClick={() => setLoadAttempt((value) => value + 1)}>
+              {settingsT("retry")}
+            </Button>
           </div>
         ) : travelers.length === 0 ? (
           <div className="flex min-h-52 flex-col items-center justify-center gap-3 p-6 text-center">
@@ -437,7 +469,7 @@ export function FrequentTravelersTab() {
         )}
       </div>
 
-      {!isLoading && travelers.length > 0 ? (
+      {!isLoading && !loadFailed && travelers.length > 0 ? (
         <div className="flex gap-3 rounded-lg border border-brand-100 bg-brand-50 p-4 text-sm leading-6 text-brand-800">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{t("handoffHint")}</p>

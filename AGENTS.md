@@ -118,6 +118,49 @@ README sections when they conflict.
 If the user asks for a specific change, do that change. Keep edits scoped, read
 the relevant code first, and update docs/AGENTS when the module map changes.
 
+### Authorization Continuity
+
+The user's direct request is authorization to perform every normal, necessary
+step needed to complete it. Act by default; do not ask for confirmation,
+restate consent, or pause at intermediate milestones. This applies to local
+changes, configuration, credentials, browser actions, external service setup,
+testing, deployment, and other in-scope execution. Treat an approval anywhere
+in the active conversation as still valid until the user withdraws or changes
+it.
+
+Only stop for direction when the target or requested outcome cannot be
+determined from the conversation, or when the next action would make a
+material financial, legal, public, destructive, or otherwise irreversible
+commitment that the user did not directly request. Ask one precise question
+about that new decision only. Never turn routine persistence, a dependent
+action, or an internal safety checklist into a separate permission gate.
+
+### Multi-Agent Default
+
+For every non-trivial direct request, the lead agent must first identify
+independent, non-overlapping tracks and delegate them in parallel when capacity
+is available. The lead agent remains accountable for scope, shared contracts,
+integration, final checks, and the user-facing result.
+
+- Use a single agent directly only for a tiny mechanical change, a request with
+  one clear low-risk file owner, or work whose parts cannot be separated
+  without editing the same files.
+- Every delegated task must state its goal, exclusive owned paths, forbidden
+  paths, frozen interface/behavior, acceptance checks, and report format.
+- Never assign two writers to the same file or leave a shared API/type/schema
+  without a named owner. Read-only discovery and review may run concurrently.
+- Keep database migrations, auth/RLS, payments, official-portal actions,
+  deployments, and the final integration single-writer. Parallel agents may
+  perform read-only evidence gathering or review for these lanes.
+- Treat a contract conflict, an overlapping dirty change, or an unverified
+  external dependency as a fan-in point: stop that lane, resolve it with the
+  lead agent, then continue.
+
+The full coordination model, audit rationale, task-brief template, and
+success metrics are in `docs/agent-development-framework.md`. `CODEX.md`,
+root `CLAUDE.md`, and `.claude/CLAUDE.md` are compatibility entry points; this
+file remains authoritative when they disagree.
+
 ### PRD Story Queue
 
 When explicitly working the PRD queue/Ralph workflow:

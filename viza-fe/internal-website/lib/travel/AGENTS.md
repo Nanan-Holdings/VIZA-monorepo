@@ -39,6 +39,9 @@ location data.
   logging helpers.
 - `travel-chat-application.ts`: server-only loader for Travel Chat page
   application context.
+- `application-draft-autofill.ts`: pure, conservative mapping from confirmed
+  Travel facts to empty application draft fields; estimated provider data and
+  existing answers are never used/overwritten.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
 

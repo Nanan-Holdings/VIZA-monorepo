@@ -16,6 +16,7 @@
     "lucide-react": "^0.553.0",
     "next": "^16.0.1",
     "next-intl": "^4.8.3",
+    "posthog-js": "^1.425.1",
     "react": "^19.0.0",
     "react-circle-flags": "^0.0.29",
     "react-dom": "^19.0.0",

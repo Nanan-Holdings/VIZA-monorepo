@@ -50,8 +50,26 @@ import {
   ChatConcurrencyGate,
   readChatCapacityLimits,
 } from './chat-concurrency.js';
+import { authenticateSupabaseUser } from '../middleware/user-auth.js';
 
 const logger = new Logger({ serviceName: 'VisaNamespace' });
+
+/**
+ * Read a Supabase access token from the Socket.IO handshake: preferred
+ * `auth.token`, with an `Authorization: Bearer` header fallback.
+ */
+function readHandshakeToken(socket: Socket): string | null {
+  const authToken = (socket.handshake.auth as { token?: unknown } | undefined)?.token;
+  if (typeof authToken === 'string' && authToken.trim().length > 0) {
+    return authToken.trim();
+  }
+  const header = socket.handshake.headers.authorization;
+  if (typeof header === 'string' && header.startsWith('Bearer ')) {
+    const token = header.slice('Bearer '.length).trim();
+    if (token.length > 0) return token;
+  }
+  return null;
+}
 
 let chatConcurrencyGate: ChatConcurrencyGate | null = null;
 
@@ -987,16 +1005,80 @@ async function emitAndSaveApplicationBlock(
  * Register all event handlers for the /visa Socket.IO namespace.
  */
 export function registerVisaNamespace(nsp: Namespace): void {
+  // Connection auth. A validated Supabase token binds socket.data.authUserId,
+  // which the room/message handlers below enforce against client-supplied ids.
+  //
+  // Transitional by default: the current frontend socket clients do NOT yet
+  // send a token, so token-absence is allowed (and logged) rather than
+  // rejected, to avoid disabling all chat. Once the frontend attaches the
+  // applicant token in the handshake (see HANDOFF), set VISA_SOCKET_REQUIRE_AUTH
+  // =true to reject unauthenticated/invalid connections outright.
+  nsp.use(async (socket: Socket, next: (err?: Error) => void) => {
+    const requireAuth = process.env.VISA_SOCKET_REQUIRE_AUTH === 'true';
+    try {
+      const token = readHandshakeToken(socket);
+      if (!token) {
+        if (requireAuth) {
+          next(new Error('unauthorized'));
+          return;
+        }
+        socket.data.authUserId = null;
+        next();
+        return;
+      }
+      let authUserId: string | null = null;
+      try {
+        authUserId = await authenticateSupabaseUser(token);
+      } catch {
+        // Auth not configured; treat as unauthenticated.
+        authUserId = null;
+      }
+      if (!authUserId) {
+        if (requireAuth) {
+          next(new Error('unauthorized'));
+          return;
+        }
+        // Token present but invalid: do not bind an identity (so ownership
+        // checks cannot be bypassed), but stay connected during rollout.
+        socket.data.authUserId = null;
+        next();
+        return;
+      }
+      socket.data.authUserId = authUserId;
+      next();
+    } catch (err) {
+      logger.error('visa_socket_auth_failed', err instanceof Error ? err : new Error(String(err)), {
+        socketId: socket.id,
+      });
+      next(new Error('socket_auth_failed'));
+    }
+  });
+
   nsp.on('connection', (socket: Socket) => {
     let chatRequestInFlight = false;
+    const authUserId = (socket.data.authUserId as string | null | undefined) ?? null;
 
     logger.info('Client connected to /visa', {
       socketId: socket.id,
       transport: socket.conn.transport.name,
+      authenticated: Boolean(authUserId),
     });
 
     // ---- join_room (for proactive messages) --------------------------------
     socket.on('join_room', (room: string) => {
+      // When the connection is authenticated, a client may only join its own
+      // user room (`user:<authUserId>`); reject any attempt to subscribe to
+      // another user's room.
+      if (authUserId && room !== `user:${authUserId}`) {
+        logger.warn('join_room_denied', undefined, { socketId: socket.id });
+        socket.emit('error', {
+          type: 'error',
+          message: 'You cannot join this room.',
+          code: 'FORBIDDEN',
+          timestamp: Date.now(),
+        });
+        return;
+      }
       socket.join(room);
       logger.debug(`Socket ${socket.id} joined room ${room}`);
     });
@@ -1005,6 +1087,23 @@ export function registerVisaNamespace(nsp: Namespace): void {
     socket.on('visa_chat_message', async (request: VisaChatRequest) => {
       const { user_id, session_id, message } = request;
       const responseLocale = normalizeResponseLocale(request.locale);
+
+      // When the connection is authenticated, the client-supplied user_id must
+      // match the token's user. This blocks a client from reading/writing chat
+      // history or memory under another user's id.
+      if (authUserId && user_id && user_id !== authUserId) {
+        logger.warn('visa_chat_message_user_mismatch', undefined, {
+          socketId: socket.id,
+          sessionId: session_id,
+        });
+        socket.emit('error', {
+          type: 'error',
+          message: 'You cannot send messages for this user.',
+          code: 'FORBIDDEN',
+          timestamp: Date.now(),
+        });
+        return;
+      }
 
       if (chatRequestInFlight) {
         socket.emit('error', {

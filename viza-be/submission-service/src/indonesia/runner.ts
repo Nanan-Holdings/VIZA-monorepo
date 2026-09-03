@@ -127,6 +127,8 @@ export interface IndonesiaPortalProbeResult {
   officialPaymentConfirmed: boolean;
   /** In-memory official result-page PDF. The caller must upload it before returning success. */
   evidencePdf?: Buffer;
+  /** Redacted local screenshot of the verified official payment boundary. */
+  paymentBoundaryScreenshotPath?: string;
 }
 
 function extractIndonesiaOfficialReference(text: string): string | undefined {
@@ -1556,50 +1558,25 @@ async function capturePaymentArtifact(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
   label: "otp" | "payment",
-): Promise<void> {
+): Promise<string | null> {
   try {
     const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
       .replace(/[^a-zA-Z0-9_-]/g, "_");
     const diagnosticRoot = process.env.FLY_APP_NAME ? os.tmpdir() : path.resolve("diag-out");
     const dir = path.join(diagnosticRoot, "indonesia-payment", applicationId);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${label}.html`), await page.content().catch(() => ""));
-    const controls = await page
-      .evaluate(() =>
-        Array.from(document.querySelectorAll<HTMLElement>("a,button,[role='button'],input[type='button'],input[type='submit'],select,input,textarea,iframe"))
-          .filter((element) => {
-            const style = window.getComputedStyle(element);
-            const rect = element.getBoundingClientRect();
-            return style.display !== "none" &&
-              style.visibility !== "hidden" &&
-              rect.width > 0 &&
-              rect.height > 0;
-          })
-          .map((element) => {
-            const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-            return {
-              tag: element.tagName.toLowerCase(),
-              text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 180),
-              id: element.id,
-              name: element.getAttribute("name"),
-              type: control instanceof HTMLInputElement ? control.type : null,
-              classes: element.className,
-              placeholder: element.getAttribute("placeholder"),
-              autocomplete: element.getAttribute("autocomplete"),
-              valueLength: String(control.value ?? "").length,
-              required: "required" in control ? Boolean(control.required) : false,
-              disabled: "disabled" in control ? Boolean(control.disabled) : false,
-              href: element.getAttribute("href"),
-              src: element.getAttribute("src"),
-            };
-          }),
-      )
-      .catch((error: unknown) => [{ error: error instanceof Error ? error.message : String(error) }]);
-    fs.writeFileSync(path.join(dir, `${label}-controls.json`), JSON.stringify(controls, null, 2));
-    await page.screenshot({ path: path.join(dir, `${label}.png`), fullPage: true }).catch(() => undefined);
+    const screenshotPath = path.join(dir, `${label}.png`);
+    await page.screenshot({
+      path: screenshotPath,
+      fullPage: true,
+      mask: [page.locator("input, textarea, select, [contenteditable='true']")],
+      maskColor: "#d9d9d9",
+    });
     diagnostics.push(`indonesia_${label}_artifact ${dir}`);
+    return screenshotPath;
   } catch (error) {
     diagnostics.push(`indonesia_${label}_artifact_failed ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
 }
 
@@ -4981,8 +4958,8 @@ async function waitForUserPaymentCompletion(
     url = activePage.url();
     state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
   } else {
-    diagnostics.push("indonesia_one_time_card_not_available_for_payment_page");
-    return { state: "payment_failed", title, text, url };
+    diagnostics.push("indonesia_payment_boundary_reached_without_card");
+    return { state: "payment_required", title, text, url };
   }
 
   while (Date.now() < deadline) {
@@ -5727,6 +5704,7 @@ export async function probeIndonesiaPortal(
     }
 
     let evidencePdf: Buffer | undefined;
+    let paymentBoundaryScreenshotPath: string | undefined;
     let officialReference: string | undefined;
     const stepThreeReviewIncomplete = hasIndonesiaStepThreeReviewIncompleteDiagnostic(session.diagnostics);
     if (
@@ -5743,7 +5721,8 @@ export async function probeIndonesiaPortal(
         url = paymentPage.url();
         state = classifyIndonesiaPortalSnapshot({ url, title, text });
       }
-      await capturePaymentArtifact(paymentPage, input, session.diagnostics, "payment");
+      paymentBoundaryScreenshotPath =
+        await capturePaymentArtifact(paymentPage, input, session.diagnostics, "payment") ?? undefined;
       const paymentResult = await waitForUserPaymentCompletion(paymentPage, input, session.diagnostics);
       title = paymentResult.title;
       text = paymentResult.text;
@@ -5852,6 +5831,7 @@ export async function probeIndonesiaPortal(
       officialReference,
       officialPaymentConfirmed: hasIndonesiaOfficialSuccessEvidence({ url, title, text }),
       evidencePdf,
+      paymentBoundaryScreenshotPath,
     };
   } finally {
     const closed = await closeIndonesiaProbeBrowser(session.browser);

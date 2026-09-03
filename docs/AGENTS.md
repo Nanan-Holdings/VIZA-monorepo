@@ -23,9 +23,14 @@ reports, and workflow documentation for VIZA.
 - `travel-agent-development-guide.md`: Travel AI guide.
 - `TRAVEL_AGENT_QA.md`: Travel Agent QA findings, smoke prompts,
   destination-index runbook, and known limitations.
+- `travel-unresolved-itinerary-ai-handoff.md`: bounded prompt and route matrix
+  for externally researching unresolved, unbooked itinerary candidates.
 - `infra/1000-user-concurrency-roadmap.md`: measured concurrency assumptions,
   current code baseline, and the infrastructure scaling sequence for a
   1,000-session target; recommendations only, not applied configuration.
+- `infra/marketing-deploy.md`: canonical two-project deployment, credential,
+  migration, cron, and production smoke contract for public marketing and the
+  authenticated marketing-operations backend.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
@@ -34,6 +39,8 @@ reports, and workflow documentation for VIZA.
 - `visa-schema-playbook.md`: adding/maintaining country visa schemas.
 - `application-qa-multithread-testing.md`: authenticated Universal Profile
   completion and six-tab Chrome QA across every DB-driven application schema.
+- `country-parallel-arrival-card-and-visa-test-runbook.md`: operator runbook
+  for a parallel, country-wide live-declaration and pre-payment-boundary test.
 - `SUPABASE_AGENT_SETUP.md`: remote Supabase setup, migration, verification,
   and troubleshooting workflow for agents.
 - `db/database-architecture-governance.md`: metadata-only production database
@@ -48,6 +55,9 @@ reports, and workflow documentation for VIZA.
   evidence-backed public service/portal availability.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
+- `agent-development-framework.md`: accepted multi-agent architecture,
+  ownership protocol, audit findings, and coordination templates shared by
+  Codex and Claude entry-point instructions.
 - `superpowers/plans/*`: implementation plans written before staged feature
   work; keep them aligned with the current module guides and product scope.
 - `superpowers/specs/*`: approved design notes that record scope, alternatives,

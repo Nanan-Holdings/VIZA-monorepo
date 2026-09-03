@@ -15,6 +15,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { confirmPassportOcrExtraction } from "@/app/client/documents/actions";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
@@ -440,14 +441,17 @@ export function StepIdentityScan({
         </div>
 
         {extracted.warnings && extracted.warnings.length > 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            <p className="font-semibold">{t("scanWarningsTitle")}</p>
-            <ul className="mt-1 list-disc pl-5">
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{t("scanWarningsTitle")}</AlertTitle>
+            <AlertDescription>
+              <ul className="mt-1 list-disc pl-5">
               {extracted.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}
-            </ul>
-          </div>
+              </ul>
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-[160px,1fr]">

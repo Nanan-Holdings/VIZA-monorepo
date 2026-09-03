@@ -10,9 +10,8 @@ callbacks that are not tied to an existing visa application checkout.
 ## Key Responsibilities
 
 - Poll authenticated `payment_records` for subscription payment status.
-- Create settings payment-method binding intents for Airwallex card
-  verification, and do not expose wallet QR binding until a real provider
-  wallet-binding flow is configured.
+- Create settings payment-method binding intents for Airwallex card, WeChat
+  Pay, and Alipay payment consents.
 - Receive Stripe webhooks for subscription and pay-per-application checkout
   sessions created from `/client/subscription`.
 - Receive WeChat Pay v3 notifications for subscription/native QR orders.
@@ -22,11 +21,13 @@ callbacks that are not tied to an existing visa application checkout.
 ## Route Handlers
 
 - `bind/qr/route.ts`: authenticated wallet binding entry point for WeChat Pay
-  and Alipay accounts. It returns unavailable unless a real provider
-  wallet-binding flow is enabled; do not generate local callback QR codes as a
-  substitute for provider authorization.
-- `bind/status/[bindingId]/route.ts`: wallet QR completion callback and
-  authenticated status polling for settings.
+  and Alipay accounts. It creates and verifies an Airwallex Payment Consent,
+  then renders only the provider-returned authorization target as a QR code.
+  `bind/qr/route.test.ts` guards that provider-target-only QR contract.
+- `bind/status/[bindingId]/route.ts`: authenticated Airwallex consent polling
+  and durable settings binding synchronization.
+- `bind/route.ts`: authenticated server-backed payment-method listing,
+  nickname/default management, and provider revocation for settings.
 - `bind/airwallex-card/route.ts`: authenticated Airwallex card binding intent
   creation for settings.
 - `bind/airwallex-card/[bindingId]/complete/route.ts`: authenticated card
@@ -42,6 +43,14 @@ callbacks that are not tied to an existing visa application checkout.
 - Keep all displayed commercial prices in CNY for the subscription surface.
 - Do not mix official government portal fees into these records.
 - Verify provider signatures before trusting webhook/notify payloads.
+- Configure Airwallex `payment_consent.*` webhook events to use the signed
+  `/api/webhooks/airwallex` endpoint so revocation and verification remain in
+  sync even when the applicant closes the settings page.
+- Keep WeChat recurring-payments enablement and its merchant plan configured
+  with Airwallex. Settings implements only the single-product Flow 1 and must
+  fail closed unless `AIRWALLEX_WECHAT_RECURRING_FLOW=single_plan`; use the
+  checkout plan-id flow for multi-plan products. Never replace provider consent
+  with a local completion URL.
 
 ## Validation
 

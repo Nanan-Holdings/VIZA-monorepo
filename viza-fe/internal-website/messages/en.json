@@ -1088,6 +1088,12 @@
       "destinationCount": "{count}",
       "current": "Current",
       "currentHandling": "Currently working on",
+      "ongoingApplications": "Ongoing applications",
+      "completedApplications": "Completed applications",
+      "ongoingEmpty": "You have no other ongoing applications.",
+      "completedEmpty": "Applications will appear here after a final result or a successful arrival-card submission.",
+      "completedCount": "{count} completed applications",
+      "viewCompletedApplications": "View completed applications",
       "continue": "Continue",
       "switchTo": "Switch to this",
       "selectApplication": "Choose application",
@@ -1168,6 +1174,7 @@
       "packet_pending": "Packet in preparation",
       "external_pending": "External handoff pending",
       "submitted": "Submitted or waiting",
+      "arrival_card_submitted": "Submitted successfully",
       "needs_attention": "Needs attention",
       "approved": "Approved",
       "rejected": "Rejected"
@@ -4039,13 +4046,77 @@
     "title": "Settings",
     "subtitle": "Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
     "backToSettings": "Back to Settings",
+    "commonBack": "Back to previous page",
     "loading": "Loading your settings...",
+    "loadError": "Your settings could not be loaded. Nothing was changed.",
+    "retry": "Retry",
     "tabs": {
       "billing": "Billing",
       "account": "Account"
     },
     "privacy": {
-      "title": "Privacy and data rights"
+      "title": "Privacy and data rights",
+      "intro": "Request a copy of your VIZA personal data or submit an account cancellation request.",
+      "export": {
+        "title": "Export personal data",
+        "description": "We will prepare a copy of personal data linked to your VIZA account and applications. Sensitive documents may require an identity check before delivery.",
+        "button": "Request export",
+        "pendingButton": "Export requested",
+        "submitted": "Your export request has been received.",
+        "alreadyPending": "You already have an export request in progress."
+      },
+      "deletion": {
+        "title": "Cancel account",
+        "description": "Submit a request to cancel this VIZA account. The team will process account closure while preserving records that must be retained for visa, payment, tax, fraud-prevention, or legal reasons.",
+        "button": "Cancel account",
+        "pendingButton": "Cancellation requested",
+        "submitted": "Your account cancellation request has been received.",
+        "alreadyPending": "You already have an account cancellation request in progress.",
+        "dialogTitle": "Cancel this account?",
+        "dialogDescription": "This submits an account cancellation request. You may lose access after review is completed, while legally required records may be retained.",
+        "dialogCancel": "Keep account",
+        "dialogConfirm": "Cancel account"
+      },
+      "errors": {
+        "submit": "We could not submit this request right now.",
+        "load": "We could not load your privacy request history right now."
+      },
+      "status": {
+        "fulfilled": "Completed",
+        "closed": "Closed",
+        "active": "In progress"
+      },
+      "history": {
+        "title": "Request history",
+        "loading": "Loading request history...",
+        "empty": "You have not submitted any privacy requests.",
+        "request": "Privacy request",
+        "dateUnavailable": "Date unavailable"
+      }
+    },
+    "travelMemory": {
+      "title": "Travel preference memory",
+      "description": "Only stable preferences you explicitly stated are kept here. Destinations, dates, and budgets from a trip are not copied into new chats.",
+      "loadError": "Travel preferences are temporarily unavailable.",
+      "mutationError": "The travel preferences were not updated. Please retry.",
+      "clearAll": "Clear all",
+      "clearDialogTitle": "Clear all travel preferences?",
+      "clearDialogDescription": "This deletes every long-term preference saved by the Travel Advisor and cannot be undone.",
+      "keepPreferences": "Keep preferences",
+      "empty": "No travel preferences are currently saved.",
+      "deleteLabel": "Delete this preference",
+      "deleteDialogTitle": "Delete this travel preference?",
+      "deleteDialogDescription": "The Travel Advisor will no longer reuse this preference in new chats.",
+      "keep": "Keep",
+      "delete": "Delete",
+      "keys": {
+        "interests": "Interests",
+        "pace": "Travel pace",
+        "dietary": "Dietary needs",
+        "accommodation": "Accommodation",
+        "transport": "Transport",
+        "avoid": "Avoid"
+      }
     },
     "profile": {
       "fallbackName": "VIZA applicant",
@@ -4074,10 +4145,11 @@
       "lifetimeEarned": "Lifetime earned",
       "lifetimeSpent": "Lifetime spent",
       "marketplaceTitle": "Points marketplace",
-      "marketplaceDescription": "Redeem points for useful VIZA rewards. Rewards unlock automatically when your balance is high enough.",
+      "marketplaceDescription": "Preview planned VIZA rewards. Redemption is not available yet.",
       "cost": "{points} points",
       "redeem": "Redeem",
       "notEnough": "Need more",
+      "comingSoon": "Coming soon",
       "rewards": {
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
@@ -4120,16 +4192,24 @@
       },
       "pointsCenter": {
         "title": "Points center",
-        "description": "View your VIZA points balance and redeem rewards.",
+        "description": "View your VIZA points balance and preview upcoming rewards.",
         "badge": "Rewards"
       },
       "language": {
-        "title": "Language",
-        "description": "Use the language switcher in the top bar, or read the profile guide."
+        "title": "Language help",
+        "description": "Learn how to use the language switcher in the top bar."
+      },
+      "travelMemory": {
+        "title": "Travel preference memory",
+        "description": "Review or clear preferences the Travel Advisor may reuse."
+      },
+      "privacy": {
+        "title": "Privacy and data rights",
+        "description": "Request a personal-data export or account cancellation."
       },
       "paymentMethods": {
         "title": "Payment method setup",
-        "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+        "description": "Manage Airwallex-authorized cards and wallets, then choose one account-wide default.",
         "badge": "Manage"
       },
       "subscription": {
@@ -4148,6 +4228,10 @@
       "feedback": {
         "title": "Share feedback",
         "description": "Send a support request if something needs human follow-up."
+      },
+      "inbox": {
+        "title": "Inbox",
+        "description": "Mail sent to your VIZA address — official letters, read for you."
       }
     },
     "payment": {
@@ -4156,7 +4240,7 @@
       "setDefault": "Set as default",
       "manage": "Manage accounts",
       "manageSelected": "Managing",
-      "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
+      "managerHint": "Bind multiple payment accounts and choose the one default VIZA will use under billing terms you approve.",
       "managerHints": {
         "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
         "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
@@ -4175,6 +4259,7 @@
       "generateQr": "Generate binding QR",
       "regenerateQr": "Regenerate QR",
       "checkQrStatus": "Check binding status",
+      "openWalletAuthorization": "Open authorization page",
       "saveEdit": "Save changes",
       "cancelEdit": "Cancel edit",
       "edit": "Edit",
@@ -4188,6 +4273,7 @@
       "qrAlt": "Payment account binding QR code",
       "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
       "qrExpires": "QR code expires at {time}.",
+      "walletConsentDisclosure": "By continuing, you authorize VIZA to store this Airwallex payment consent and use it for future VIZA charges covered by billing terms you authorize. You can revoke it here at any time.",
       "qrHint": {
         "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
         "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
@@ -4242,7 +4328,17 @@
         "qrStatusFailed": "Could not check binding status. Please try again later.",
         "qrExpired": "This QR code has expired. Generate a new one.",
         "qrPending": "No scan result has been received yet. Scan first, then check again.",
-        "qrBound": "QR binding completed."
+        "qrBound": "QR binding completed.",
+        "loadFailed": "Could not load your saved payment methods. Refresh and try again.",
+        "updateFailed": "Could not update the payment-method nickname.",
+        "deleteFailed": "Could not remove the payment method.",
+        "defaultFailed": "Could not update the default payment method."
+      },
+      "deleteDialog": {
+        "title": "Remove this payment method?",
+        "description": "This disables {account} with the payment provider and removes it from VIZA.",
+        "cancel": "Keep payment method",
+        "confirm": "Remove payment method"
       },
       "methods": {
         "bank_card": {
@@ -4397,6 +4493,7 @@
       "emailInvalid": "Enter a valid new email address.",
       "emailSame": "The new email must be different from the current email.",
       "emailUpdateFailed": "Could not update the email. Please try again.",
+      "emailUpdatePending": "Check your new email address to confirm the change. Your current email remains active until confirmation.",
       "passwordRequirements": {
         "length": "At least 8 characters",
         "letter": "Includes a letter",
@@ -4408,12 +4505,97 @@
     "signOut": {
       "title": "Sign Out",
       "description": "Sign out of your account on this device.",
-      "button": "Sign out"
+      "button": "Sign out",
+      "failed": "Could not sign out. Please try again."
     },
     "billing": {
       "title": "Billing",
       "noPaymentMethods": "No payment methods",
       "noPaymentDescription": "Billing and payment management will be available here soon. Contact support if you need to update your billing details."
+    },
+    "inbox": {
+      "title": "Inbox",
+      "subtitle": "Everything sent to your VIZA address lands here. VIZA reads official correspondence, pulls out the dates and reference numbers, and tells you what to do next.",
+      "addressLabel": "Your VIZA address",
+      "copyAddress": "Copy address",
+      "addressCopied": "Address copied",
+      "searchPlaceholder": "Search mail or reference",
+      "refresh": "Refresh",
+      "refreshed": "Mailbox up to date",
+      "loading": "Syncing your VIZA mailbox",
+      "loadError": "We couldn't load your mailbox. Please try again.",
+      "retry": "Try again",
+      "tabs": {
+        "all": "All mail",
+        "action": "Needs action",
+        "embassy": "Embassies",
+        "appointment": "Appointments",
+        "documents": "Documents",
+        "payment": "Payments",
+        "archived": "Archived"
+      },
+      "conversationCount": "{count, plural, =0 {No conversations} one {# conversation} other {# conversations}}",
+      "markAllRead": "Mark all read",
+      "allMarkedRead": "All marked read",
+      "emptySearchTitle": "No mail matches that search",
+      "emptySearchBody": "Try a sender, a reference number, or clear the search.",
+      "emptyArchivedTitle": "Nothing archived",
+      "emptyFolderTitle": "This folder is empty",
+      "emptyFolderBody": "New mail sent to {address} will show up here.",
+      "noAliasTitle": "Your VIZA address isn't ready yet",
+      "noAliasBody": "We're setting up your personal mail address. Check back shortly — once it's live, use it on every visa form and embassy portal.",
+      "noSelectionTitle": "Select an email to read",
+      "noSelectionBody": "Everything sent to {address} lands here. VIZA reads official correspondence, pulls out the dates and reference numbers, and tells you what to do next.",
+      "backToList": "Back to inbox",
+      "markRead": "Mark read",
+      "markUnread": "Mark unread",
+      "markedRead": "Marked read",
+      "markedUnread": "Marked unread",
+      "archive": "Archive",
+      "unarchive": "Move to inbox",
+      "archived": "Archived",
+      "unarchived": "Moved back to inbox",
+      "star": "Star",
+      "unstar": "Remove star",
+      "translate": "Translate to English",
+      "showOriginal": "Show original",
+      "translating": "Translating…",
+      "translateFailed": "Translation failed. Please try again.",
+      "aiPanelTitle": "VIZA read this for you",
+      "aiReading": "Reading this email for you…",
+      "aiFailed": "We couldn't read this email automatically.",
+      "to": "to",
+      "attachmentsLabel": "{count, plural, one {# attachment} other {# attachments}}",
+      "downloadOriginal": "Download original (.eml)",
+      "reply": "Reply",
+      "askConsultant": "Ask my consultant",
+      "askConsultantSent": "Your consultant will follow up on this email",
+      "replyTo": "Reply to {name} — from {address}",
+      "replyPlaceholder": "Write your reply",
+      "send": "Send",
+      "discard": "Discard",
+      "replyNote": "VIZA checks replies to embassies before they go out",
+      "replySent": "Reply sent — VIZA will review and deliver it",
+      "replyEmpty": "Write something first",
+      "replyFailed": "We couldn't send that reply. Please try again.",
+      "youReplied": "You · {address}",
+      "pendingReview": "Awaiting VIZA review",
+      "sentLabel": "Sent",
+      "justNow": "just now",
+      "noBody": "This message has no readable body.",
+      "bodyInAttachment": "The full message is stored as a file — download the original to read it.",
+      "categories": {
+        "embassy": "Embassy",
+        "appointment": "Appointment",
+        "documents": "Action needed",
+        "payment": "Payment",
+        "approved": "Approved",
+        "rejected": "Needs review",
+        "travel": "Travel",
+        "viza": "VIZA",
+        "other": "Mail"
+      },
+      "download": "Download"
     }
   },
   "supportCenter": {
@@ -5149,6 +5331,7 @@
     "cancelled": "Cancellation at period end is now set.",
     "resumed": "Auto-renewal has been resumed.",
     "cancel": "Cancel auto-renewal",
+    "keepSubscription": "Keep subscription",
     "resume": "Resume auto-renewal",
     "choosePlan": "Choose a monthly plan",
     "changePlan": "Change plan",

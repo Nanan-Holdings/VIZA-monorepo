@@ -170,20 +170,14 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     country: "indonesia",
     visaType: "ID_B1_EVOA",
     agencyFeeCents: AGENCY_USD,
+    // TODO(ops): confirm official Indonesia e-VoA govt fee
+    // (Rp 500,000 ≈ USD 31); current live value USD 50.
     govtFeeCents: 5000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
     // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
     // ops to revise before launch (mirrors the Indonesia launch note).
     wechatPayTotalFen: 107300,
-  },
-  {
-    country: "indonesia",
-    visaType: "ID_B1_EVOA",
-    agencyFeeCents: AGENCY_USD,
-    govtFeeCents: 3500,
-    currency: "USD",
-    govtFeeChannel: "viza_passthrough",
   },
   {
     country: "south_korea",
@@ -349,17 +343,11 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     // ops to revise before launch (mirrors the Indonesia launch note).
     wechatPayTotalFen: 89300,
   },
-  {
-    country: "russia",
-    visaType: "RU_E_VISA",
-    agencyFeeCents: AGENCY_USD,
-    govtFeeCents: 5200,
-    currency: "USD",
-    govtFeeChannel: "viza_passthrough",
-    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
-    // ops to revise before launch (mirrors the Indonesia launch note).
-    wechatPayTotalFen: 108700,
-  },
+  // Russia (RU_E_VISA) intentionally omitted: the route was removed from the
+  // searchable destination catalogue and every other product surface (see
+  // lib/__tests__/visa-destinations.test.ts). Keeping it priceable would let
+  // guest checkout sell a route no other surface offers. Legacy display labels
+  // for historical rows remain in visa-destinations.ts.
   {
     country: "turkey",
     visaType: "TR_E_VISA",
@@ -393,6 +381,254 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     // ops to revise before launch (mirrors the Indonesia launch note).
     wechatPayTotalFen: 71300,
   },
+  // Remaining Schengen main-destination countries. One shared Type C product:
+  // the same form, the same EUR 90 government fee and the same agency fee as
+  // the france/italy rows above, so the marketing catalogue can offer all 29
+  // rather than the three that happened to be priced first. Ops revises the
+  // placeholder numbers in one pass with the rest of PACKAGE_PRICING.
+  {
+    country: "austria",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "belgium",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "bulgaria",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "croatia",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "czech_republic",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "denmark",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "estonia",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "finland",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "germany",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "greece",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "hungary",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "iceland",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "latvia",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "liechtenstein",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "lithuania",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "luxembourg",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "malta",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "netherlands",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "norway",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "poland",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "portugal",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "romania",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "slovakia",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "slovenia",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "spain",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "sweden",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
+  {
+    country: "switzerland",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 71300,
+  },
   {
     country: "south_africa",
     visaType: "ZA_VISITOR_VISA",
@@ -410,12 +646,22 @@ function normalizePricingKey(value: string): string {
   return value.trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
 
-function canonicalPricingVisaType(visaType: string): string {
+/**
+ * Canonicalise a visa-type code for pricing lookup. Country-aware: the
+ * Vietnam e-visa route aliases below are the Vietnam intake's own generic
+ * route params, so they must only collapse to VN_E_VISA when the country is
+ * Vietnam. Applying them globally corrupts other countries' inputs — e.g.
+ * `canonicalPricingVisaType("tourist_evisa")` used to become VN_E_VISA, so
+ * `pricingFor("cambodia", "tourist_evisa")` matched nothing and guest
+ * checkout showed "This visa isn't available yet".
+ */
+function canonicalPricingVisaType(visaType: string, country?: string): string {
   const normalized = normalizePricingKey(visaType);
   if (["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"].includes(normalized)) {
     return "B1_B2";
   }
   if (
+    normalizePricingKey(country ?? "") === "VIETNAM" &&
     [
       "VIETNAM_E_VISA",
       "E_VISA_TOURISM",
@@ -434,13 +680,13 @@ export function pricingFor(
   visaType: string,
 ): PackagePricing | null {
   const normalizedCountry = normalizePricingKey(country);
-  const normalizedVisaType = canonicalPricingVisaType(visaType);
+  const normalizedVisaType = canonicalPricingVisaType(visaType, country);
 
   return (
     PACKAGE_PRICING.find(
       (p) =>
         normalizePricingKey(p.country) === normalizedCountry &&
-        canonicalPricingVisaType(p.visaType) === normalizedVisaType,
+        canonicalPricingVisaType(p.visaType, p.country) === normalizedVisaType,
     ) ?? null
   );
 }

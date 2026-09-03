@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { signIn } from "@/app/actions/auth";
-import { CircleNotch as Loader2, Envelope as Mail, Lock, WarningCircle as AlertCircle } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, Envelope as Mail, Lock } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
 export function LoginForm() {
   const t = useTranslations("auth.loginForm");
@@ -88,10 +89,7 @@ export function LoginForm() {
 
       {/* Error Message */}
       {error && (
-        <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-[12px]">
-          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-          <p className="text-[14px] text-red-700 font-medium">{error}</p>
-        </div>
+        <ClientErrorAlert message={error} />
       )}
 
       {/* Submit Button */}

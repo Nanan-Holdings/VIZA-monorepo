@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getTravelHealth } from "@/app/api/travel/health/route";
+import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
 
 const activeHealthRequest = () =>
   new Request("http://127.0.0.1:3000/api/travel/health");
@@ -120,6 +121,50 @@ describe("travel service health boundaries", () => {
     expect(payload.services.clientSession).toEqual({
       configured: false,
       reachable: false,
+    });
+  });
+});
+
+describe("travel service proxy authentication", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("forwards the server-only internal token when configured", async () => {
+    vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
+    vi.stubEnv("TRAVEL_SERVICE_TOKEN", "travel-secret");
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await forwardJsonToTravelBackend("/generate", { cities: ["Tokyo"] });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://travel-service.test/generate",
+      expect.objectContaining({
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-token": "travel-secret",
+        },
+      })
+    );
+  });
+
+  it("does not add an empty internal token header", async () => {
+    vi.stubEnv("TRAVEL_BACKEND_URL", "http://travel-service.test");
+    vi.stubEnv("TRAVEL_SERVICE_TOKEN", "");
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await forwardJsonToTravelBackend("/generate", {});
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({
+      "Content-Type": "application/json",
     });
   });
 });

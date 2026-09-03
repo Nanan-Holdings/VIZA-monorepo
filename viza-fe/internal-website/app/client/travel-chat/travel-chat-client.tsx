@@ -30,6 +30,7 @@ import { ChatInput } from "@/components/client/companion/chat-input";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { cn } from "@/lib/utils";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ThinkingIndicator } from "@/components/client/companion/thinking-indicator";
 import type { TravelItineraryStateUpdate } from "@/components/client/travel/travel-itinerary-experience";
@@ -6090,13 +6091,10 @@ export function TravelChatClient({
       }`}
     >
       {travelHealthWarning && (
-        <div
-          className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
-          data-testid="travel-health-warning"
-          role="status"
-        >
-          {travelHealthWarning}
-        </div>
+        <Alert variant="warning" className="mb-2" data-testid="travel-health-warning">
+          <AlertIcon variant="warning" />
+          <AlertDescription>{travelHealthWarning}</AlertDescription>
+        </Alert>
       )}
 
       <div

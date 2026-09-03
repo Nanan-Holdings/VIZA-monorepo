@@ -25,6 +25,7 @@ export interface AirwallexFallbackTokenPayload {
 
 export interface AirwallexPaymentRecord {
   id: string;
+  applicant_id: string | null;
   application_id: string | null;
   auth_user_id: string | null;
   provider: string;
@@ -132,15 +133,20 @@ export async function getAuthorizedAirwallexRecord(paymentId: string): Promise<A
   const { data, error } = await createAdminClient()
     .from("payment_records")
     .select(
-      "id, application_id, auth_user_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, metadata, paid_at",
+      "id, applicant_id, application_id, auth_user_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, metadata, paid_at",
     )
     .eq("id", paymentId)
-    .eq("auth_user_id", user.id)
     .eq("provider", "airwallex")
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data as AirwallexPaymentRecord | null;
+  const record = data as AirwallexPaymentRecord | null;
+  if (!record) return null;
+  const ownsRecord =
+    record.applicant_id === user.id ||
+    (Boolean(user.authUserId) && record.auth_user_id === user.authUserId) ||
+    record.auth_user_id === user.id;
+  return ownsRecord ? record : null;
 }
 
 function mergeMetadata(existing: unknown, next: JsonObject): JsonObject {
@@ -200,7 +206,7 @@ export async function ensureAirwallexIntent(
 export async function updateRecordFromAirwallexIntent(
   recordId: string,
   intentId: string,
-  options: { requestedMethod?: string } = {},
+  options: { requestedMethod?: string; paymentConsentId?: string } = {},
 ) {
   const intent = await retrievePaymentIntent(intentId);
   const latestAttempt =
@@ -240,6 +246,9 @@ export async function updateRecordFromAirwallexIntent(
         expired_at: attemptExpired ? now : null,
         next_action: intent.next_action ?? null,
         ...(options.requestedMethod ? { requested_method: options.requestedMethod } : {}),
+        ...(options.paymentConsentId
+          ? { payment_consent_id: options.paymentConsentId, used_saved_payment_method: true }
+          : {}),
       }),
     })
     .eq("id", recordId);

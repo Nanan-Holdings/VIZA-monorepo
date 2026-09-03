@@ -4,7 +4,7 @@ import { Download, FileText as FileCheck2, CalendarCheck } from "@phosphor-icons
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import type { JpSubmissionResult } from "@/lib/submission-result";
 
 interface JpResultCardProps {

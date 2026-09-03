@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { createClient } from "@/lib/supabase/client";
 import { postTicketMessage, type SupportMessageRow } from "@/app/actions/support";
 
@@ -77,7 +78,7 @@ export function SupportThread({ ticketId, initialMessages, initialBody, initialB
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
-      {error ? <p className="px-4 pb-3 text-sm text-destructive">{error}</p> : null}
+      {error ? <ClientErrorAlert className="mx-4 mb-3" message={error} /> : null}
     </div>
   );
 }

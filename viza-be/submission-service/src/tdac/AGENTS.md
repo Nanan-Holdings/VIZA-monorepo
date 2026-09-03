@@ -9,6 +9,11 @@ Scope: Thailand `TH_TDAC_ARRIVAL_CARD` official TDAC portal automation only.
 - Use Browserbase as the default TDAC provider with a Thailand-targeted managed
   proxy. Do not inherit global Bright Data Browser API endpoints because that
   provider rejects this government portal by policy.
+- When the landing page exposes Cloudflare Turnstile, capture its official
+  render parameters and use the shared 2Captcha token client after managed
+  browser clearance fails. Inject only through the page's captured Turnstile
+  callback/response field, bound retries, and preserve solver/portal failure
+  evidence without logging tokens or provider credentials.
 - `browser-selection.spec.ts` locks the provider default and prevents legacy
   Bright Data endpoint variables from silently taking control of TDAC again.
 - `normalize.spec.ts` locks the current official purpose dropdown contract and

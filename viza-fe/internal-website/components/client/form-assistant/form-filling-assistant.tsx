@@ -9,13 +9,14 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ArrowUp, Robot as Bot, Microphone as Mic, Square, Warning as TriangleAlert } from "@phosphor-icons/react";
+import { ArrowUp, Robot as Bot, Microphone as Mic, Square } from "@phosphor-icons/react";
 import { useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { ChatMessage } from "@/components/client/companion/chat-message";
 import { ScrollToBottomFab } from "@/components/client/companion/scroll-to-bottom-fab";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -627,11 +628,10 @@ export function FormFillingAssistant({
                   />
                 ) : null}
                 {warnings.length > 0 ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-amber-900">
-                      <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-                      <p className="text-sm font-semibold">{t("validation.warnings", { count: warnings.length })}</p>
-                    </div>
+                  <Alert variant="warning">
+                    <AlertIcon variant="warning" />
+                    <AlertTitle>{t("validation.warnings", { count: warnings.length })}</AlertTitle>
+                    <AlertDescription>
                     <ul className="space-y-3">
                       {warnings.map((issue, index) => (
                         <li
@@ -655,10 +655,14 @@ export function FormFillingAssistant({
                         </li>
                       ))}
                     </ul>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 ) : null}
                 {errors.length === 0 && warnings.length === 0 ? (
-                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">{t("validation.pass")}</p>
+                  <Alert variant="success">
+                    <AlertIcon variant="success" />
+                    <AlertDescription>{t("validation.pass")}</AlertDescription>
+                  </Alert>
                 ) : null}
               </section>
             ) : null}

@@ -41,6 +41,19 @@ const application = {
   accommodation_address: null,
 };
 
+const profile = {
+  id: "profile-id",
+  auth_user_id: "auth-user-id",
+  dependant_of_user_id: null,
+  surname: "Kim",
+  given_names: "Mina",
+  date_of_birth: "2001-06-22",
+  nationality: "KR",
+  gender: "F",
+  passport_number: "REDACTED",
+  passport_expiry_date: "2030-01-01",
+};
+
 describe("getTeamApplicationContext", () => {
   beforeEach(() => {
     createAdminClient.mockReset();
@@ -54,33 +67,12 @@ describe("getTeamApplicationContext", () => {
       email: "applicant@example.com",
     });
 
-    const applicationQuery = query({ data: application, error: null });
-    const ownerQuery = query({
-      data: {
-        id: "profile-id",
-        auth_user_id: "auth-user-id",
-        dependant_of_user_id: null,
-      },
+    // The application and its owning profile come back from one query.
+    const applicationQuery = query({
+      data: { ...application, applicant_profiles: profile },
       error: null,
     });
-    const profileQuery = query({
-      data: {
-        id: "profile-id",
-        surname: "Kim",
-        given_names: "Mina",
-        date_of_birth: "2001-06-22",
-        nationality: "KR",
-        gender: "F",
-        passport_number: "REDACTED",
-        passport_expiry_date: "2030-01-01",
-      },
-      error: null,
-    });
-    const from = vi
-      .fn()
-      .mockReturnValueOnce(applicationQuery)
-      .mockReturnValueOnce(ownerQuery)
-      .mockReturnValueOnce(profileQuery);
+    const from = vi.fn().mockReturnValue(applicationQuery);
     createAdminClient.mockReturnValue({ from });
 
     const result = await getTeamApplicationContext("application-id");
@@ -100,7 +92,34 @@ describe("getTeamApplicationContext", () => {
       }),
     }));
     expect(createClient).not.toHaveBeenCalled();
-    expect(ownerQuery.eq).toHaveBeenCalledWith("id", "profile-id");
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(applicationQuery.eq).toHaveBeenCalledWith("id", "application-id");
+  });
+
+  it("falls back to separate reads when the embedded profile is unavailable", async () => {
+    getClientSessionWithFallback.mockResolvedValue({
+      userId: "profile-id",
+      email: "applicant@example.com",
+    });
+
+    const embedQuery = query({ data: null, error: { message: "embed unsupported" } });
+    const applicationQuery = query({ data: application, error: null });
+    const profileQuery = query({ data: profile, error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(embedQuery)
+      .mockReturnValueOnce(applicationQuery)
+      .mockReturnValueOnce(profileQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    const result = await getTeamApplicationContext("application-id");
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      application: expect.objectContaining({ id: "application-id" }),
+      profile: expect.objectContaining({ id: "profile-id", surname: "Kim" }),
+    }));
+    expect(profileQuery.eq).toHaveBeenCalledWith("id", "profile-id");
   });
 
   it("does not authorize a different applicant profile", async () => {
@@ -109,17 +128,17 @@ describe("getTeamApplicationContext", () => {
       email: "other@example.com",
     });
 
-    const applicationQuery = query({ data: application, error: null });
-    const ownerQuery = query({
-      data: {
-        id: "profile-id",
-        auth_user_id: "auth-user-id",
-        dependant_of_user_id: null,
-      },
+    // A profile the session does not own falls through to the group-payer
+    // check on the original path, which then refuses.
+    const embedQuery = query({
+      data: { ...application, applicant_profiles: profile },
       error: null,
     });
+    const applicationQuery = query({ data: application, error: null });
+    const ownerQuery = query({ data: profile, error: null });
     const from = vi
       .fn()
+      .mockReturnValueOnce(embedQuery)
       .mockReturnValueOnce(applicationQuery)
       .mockReturnValueOnce(ownerQuery);
     createAdminClient.mockReturnValue({ from });
@@ -128,7 +147,6 @@ describe("getTeamApplicationContext", () => {
       ok: false,
       reason: "Unauthorized",
     });
-    expect(from).toHaveBeenCalledTimes(2);
   });
 
   it("returns an authentication error when neither client session is available", async () => {

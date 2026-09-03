@@ -8,10 +8,16 @@
 import { Router } from "express";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { requireApplicationOwner } from "../middleware/user-auth.js";
 
 const logger = new Logger({ serviceName: "ApplicationAnswersRoutes" });
 
 export const applicationAnswersRouter = Router();
+
+// Both endpoints read/write applicant answer PII keyed by application id, so
+// every request must be owner-scoped (Supabase applicant token) or carry the
+// internal automation token. No unauthenticated access.
+const requireOwner = requireApplicationOwner("id");
 
 /**
  * GET /api/applications/:id/answers
@@ -19,7 +25,7 @@ export const applicationAnswersRouter = Router();
  * Returns all answers for the application as a flat { field_name: value } map.
  * Uses value_json if present, otherwise value_text.
  */
-applicationAnswersRouter.get("/:id/answers", async (req, res) => {
+applicationAnswersRouter.get("/:id/answers", requireOwner, async (req, res) => {
   try {
     const { id } = req.params;
     const supabase = getSupabaseClient();
@@ -58,7 +64,7 @@ applicationAnswersRouter.get("/:id/answers", async (req, res) => {
  * Body: { answers: { [field_name]: value } }
  * String values go to value_text; objects go to value_json.
  */
-applicationAnswersRouter.post("/:id/answers", async (req, res) => {
+applicationAnswersRouter.post("/:id/answers", requireOwner, async (req, res) => {
   try {
     const { id } = req.params;
     const { answers } = req.body;

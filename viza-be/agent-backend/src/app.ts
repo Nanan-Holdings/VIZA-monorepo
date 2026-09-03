@@ -2,6 +2,7 @@
 import cors from 'cors';
 import type { ErrorRequestHandler } from 'express';
 import { errorHandler } from './middleware/errorHandler.js';
+import { createRateLimiter } from './middleware/rate-limit.js';
 import adminRemindersRouter from './routes/admin-reminders.routes.js';
 import telegramWebhookRouter from './routes/telegram-webhook.js';
 import validateApplicationRouter from './routes/validate-application.js';
@@ -66,11 +67,24 @@ function getReadinessTimeoutMs(): number {
 // Middleware
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
+// Per-IP sliding-window rate limiters for AI / unauthenticated routes. These
+// are a first-line abuse brake, generous by default (60/min/IP) and overridable
+// via RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX. NOTE: in-memory and per-instance —
+// with multiple instances the effective global limit is limit * instanceCount.
+// Each group gets an independent bucket so heavy use of one endpoint does not
+// starve another.
+const passportScanRateLimiter = createRateLimiter({ bucket: 'passport-scan' });
+const chatSaveBlockRateLimiter = createRateLimiter({ bucket: 'chat-save-block' });
+const fieldGuidanceRateLimiter = createRateLimiter({ bucket: 'field-guidance' });
+const validateApplicationRateLimiter = createRateLimiter({ bucket: 'validate-application' });
+
 // Passport scan / OCR receives a base64 image and therefore needs a larger
 // parser than ordinary API requests. Mount this before the 1 MB global parser
-// and retain the route's own ~8 MB base64 validation cap.
+// and retain the route's own ~8 MB base64 validation cap. Rate-limit first so
+// an abusive caller is rejected before a 15 MB body is parsed.
 app.use(
   '/api/passport-scan',
+  passportScanRateLimiter,
   express.json({ limit: '15mb' }),
   express.urlencoded({ extended: true, limit: '15mb' }),
   passportScanRouter,
@@ -148,13 +162,13 @@ app.use('/api/admin/reminders', adminRemindersRouter);
 app.use('/webhook/telegram', telegramWebhookRouter);
 
 // AI validation endpoint
-app.use('/api/validate-application', validateApplicationRouter);
+app.use('/api/validate-application', validateApplicationRateLimiter, validateApplicationRouter);
 
 // Field-level form guidance endpoint
-app.use('/api/field-guidance', fieldGuidanceRouter);
+app.use('/api/field-guidance', fieldGuidanceRateLimiter, fieldGuidanceRouter);
 
 // Chat block save endpoint
-app.use('/api/chat/save-block', chatSaveBlockRouter);
+app.use('/api/chat/save-block', chatSaveBlockRateLimiter, chatSaveBlockRouter);
 
 // User package routes
 app.use('/api/user/package', userPackagesRouter);

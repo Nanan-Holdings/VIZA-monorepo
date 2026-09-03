@@ -47,6 +47,10 @@ export type FlightOptionResult = {
 
 export type HotelOptionResult = {
   provider?: string;
+  estimated?: boolean;
+  provider_status?: string;
+  provider_reason?: string;
+  provider_message?: string;
   city?: string;
   name?: string;
   hotel_id?: string | number;
@@ -88,6 +92,9 @@ export type HotelStayResult = {
   nights: number;
   adults?: number;
   options: HotelOptionResult[];
+  provider_unavailable?: boolean;
+  estimated?: boolean;
+  provider_message?: string;
 };
 
 export type SelectedFlightOption = {

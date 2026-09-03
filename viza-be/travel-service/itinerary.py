@@ -634,15 +634,24 @@ def _sanitize_itinerary(parsed, state):
     }
     allowed_city_keys = _allowed_city_keys(state)
     sanitized = []
+    parsed_by_day = {
+        item.get("day"): item
+        for item in parsed
+        if isinstance(item, dict) and item.get("day") in fallback_by_day
+    }
 
-    for index, item in enumerate(parsed):
-        if not isinstance(item, dict):
-            continue
-
-        fallback_day = fallback_by_day.get(item.get("day")) or (
-            fallback[index] if index < len(fallback) else {}
-        )
-        day = item.get("day") or fallback_day.get("day") or index + 1
+    # Long itineraries can exceed the model's output limit. The model may then
+    # return only an initial prefix even though the structured state contains
+    # every requested day. Iterate the deterministic state-derived fallback so
+    # omitted tail days keep their exact city assignment instead of becoming
+    # frontend "city to confirm" placeholders.
+    for index, fallback_day in enumerate(fallback):
+        day = fallback_day.get("day") or index + 1
+        item = parsed_by_day.get(day)
+        if item is None and index < len(parsed) and isinstance(parsed[index], dict):
+            item = parsed[index]
+        if item is None:
+            item = {}
         fallback_city = str(fallback_day.get("city") or "目的地").strip()
         city = str(item.get("city") or fallback_city).strip()
         city_was_replaced = False

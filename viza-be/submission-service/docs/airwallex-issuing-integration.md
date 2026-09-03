@@ -3,6 +3,13 @@
 Status: implemented, production-disabled until the account controls below are
 verified.
 
+Configuration audit (2026-09-02): the Vercel production project has an
+`AIRWALLEX_ISSUING_ACCOUNT_ID`, but it does not yet have the remote-authorization
+secret or daily limits. The submission worker has no issuing credentials,
+cardholder, currency allowlist, or issuing enablement configured. Keep the
+fallback disabled until the controls in this document are completed; do not
+reuse the demo commercial-checkout credentials for issuing.
+
 ## Decision
 
 PhotonPay is the primary virtual-card issuer. Airwallex is a fallback only for

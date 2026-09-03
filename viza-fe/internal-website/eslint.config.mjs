@@ -115,6 +115,28 @@ export default [
       ],
     },
   },
+  // Result cards are a shared terminal-state surface. Raw shadcn Button usage
+  // here silently forks the visual hierarchy; use ActionButton instead. The
+  // rule is intentionally path-scoped so unrelated legacy UI is unaffected.
+  {
+    files: [
+      "app/client/application/_components/result-cards/**/*.{ts,tsx}",
+      "features/**/*ResultCard.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/components/ui/button",
+              message: "Result-card actions must use the canonical ActionButton (size=\"sm\" for terminal artifact actions).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // These files live under the client route tree but are guaranteed server
   // boundaries (Server Actions, server-only modules, or Server Components).
   // Keep the broad browser-path restriction above and exempt only this audited

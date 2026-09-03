@@ -66,6 +66,26 @@ const PLAN: MigrationPlanItem[] = [
     fileName: "20260801193500_create_universal_profile_answers.sql",
     purpose: "Field-keyed Universal Profile answers, provenance, and future-application reuse",
   },
+  {
+    fileName: "20260828170732_marketing_content_operations.sql",
+    purpose: "VIZA marketing blog, social, provider activity, and privacy-safe short-link tables",
+  },
+  {
+    fileName: "20260828171409_marketing_short_link_click_rpc.sql",
+    purpose: "Atomic service-role-only marketing short-link click recording",
+  },
+  {
+    fileName: "20260828173609_marketing_public_assets.sql",
+    purpose: "Public marketing asset bucket and composition tracking-link relationship",
+  },
+  {
+    fileName: "20260828174521_marketing_automation_runs.sql",
+    purpose: "Durable scheduled marketing job idempotency and failure evidence",
+  },
+  {
+    fileName: "20260828174939_marketing_automation_actor_index.sql",
+    purpose: "Marketing automation actor foreign-key index",
+  },
 ];
 
 function isDirectRun(): boolean {

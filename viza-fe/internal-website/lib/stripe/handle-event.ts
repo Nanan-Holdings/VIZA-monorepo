@@ -27,6 +27,7 @@ export async function applyStripeEvent(
         payment_status?: string;
         payment_intent?: string;
         amount_total?: number;
+        currency?: string;
         total_details?: { amount_tax?: number };
         customer_details?: { address?: { country?: string } | null };
         metadata?: { order_id?: string };
@@ -38,7 +39,7 @@ export async function applyStripeEvent(
       }
       const { data: existingOrder, error: existingOrderError } = await admin
         .from("order")
-        .select("status")
+        .select("status, agency_fee_cents, govt_fee_cents, currency")
         .eq("id", orderId)
         .maybeSingle();
       if (existingOrderError) {
@@ -50,6 +51,35 @@ export async function applyStripeEvent(
       const taxCents = session.total_details?.amount_tax ?? 0;
       const taxCountry = session.customer_details?.address?.country ?? null;
       const amountTotal = session.amount_total ?? 0;
+
+      // Amount integrity (PAY-002): the amount Stripe collected must match the
+      // order we are about to mark paid. Stripe adds tax on top of our line
+      // items, so compare the pre-tax total in exact minor units (no rounding
+      // tolerance is needed — both sides are integer cents) and the currency.
+      // On mismatch we refuse to confirm and log for investigation rather than
+      // marking a wrong-priced order paid.
+      if (existingOrder) {
+        const expectedNet =
+          ((existingOrder.agency_fee_cents as number | null) ?? 0) +
+          ((existingOrder.govt_fee_cents as number | null) ?? 0);
+        const collectedNet = amountTotal - taxCents;
+        const expectedCurrency =
+          (existingOrder.currency as string | null)?.toLowerCase() ?? null;
+        const collectedCurrency = session.currency?.toLowerCase() ?? null;
+        const currencyMismatch =
+          expectedCurrency !== null &&
+          collectedCurrency !== null &&
+          expectedCurrency !== collectedCurrency;
+        if (collectedNet !== expectedNet || currencyMismatch) {
+          console.error(
+            `[stripe] order ${orderId} amount/currency mismatch: collected ` +
+              `${collectedNet} ${collectedCurrency ?? "?"} vs expected ` +
+              `${expectedNet} ${expectedCurrency ?? "?"} — refusing to confirm payment`,
+          );
+          return { kind: "ignored", type: event.type };
+        }
+      }
+
       const taxRateBps =
         amountTotal > taxCents && taxCents > 0
           ? Math.round((taxCents * 10_000) / (amountTotal - taxCents))
@@ -88,6 +118,44 @@ export async function applyStripeEvent(
         .maybeSingle();
       if (lookupErr) throw new Error(`order lookup: ${lookupErr.message}`);
       if (!order) return { kind: "ignored", type: event.type };
+      const { error } = await admin
+        .from("order")
+        .update({
+          status: "refunded",
+          refunded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id);
+      if (error) throw new Error(`order refunded update: ${error.message}`);
+      return { kind: "refunded", orderId: order.id as string };
+    }
+
+    case "refund.created":
+    case "refund.updated": {
+      // PAY-002: Refund-object events (distinct from charge.refunded). Flip the
+      // matching order to refunded so entitlement and the submission runner
+      // follow the money even when the charge.refunded event is missed. A
+      // dispute outranks a refund, so never downgrade a disputed order.
+      const refund = event.data.object as {
+        id?: string;
+        payment_intent?: string;
+        status?: string;
+      };
+      if (refund.status && refund.status !== "succeeded") {
+        return { kind: "ignored", type: event.type };
+      }
+      const pi = refund.payment_intent;
+      if (!pi) return { kind: "ignored", type: event.type };
+      const { data: order, error: lookupErr } = await admin
+        .from("order")
+        .select("id, status")
+        .eq("stripe_payment_intent_id", pi)
+        .maybeSingle();
+      if (lookupErr) throw new Error(`order lookup: ${lookupErr.message}`);
+      if (!order) return { kind: "ignored", type: event.type };
+      if ((order.status as string | null) === "disputed") {
+        return { kind: "ignored", type: event.type };
+      }
       const { error } = await admin
         .from("order")
         .update({

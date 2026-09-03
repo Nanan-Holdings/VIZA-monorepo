@@ -7,12 +7,14 @@ from datetime import date, timedelta
 from typing import Any, Optional
 
 from fastapi import BackgroundTasks
+from fastapi import Depends
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 
+from auth import allowed_origins, require_internal_auth
 from itinerary import (
     _fallback_itinerary,
     _openai_revision_unavailable,
@@ -26,6 +28,7 @@ from export_pdf import export_to_pdf
 from tools.flights import _fallback_flights, search_flights
 from tools.hotels import _fallback_hotels, search_hotels
 from tools.http_client import close_http_client, get_http_client
+from tools.serpapi import is_serpapi_configured
 
 
 def _positive_env_int(name: str, default: int) -> int:
@@ -75,10 +78,15 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Browser CORS: an env-driven allowlist instead of "*". The Next.js proxy
+# reaches this service server-to-server (CORS does not apply there), so this
+# only governs any direct browser access. Credentials are not used (no cookies
+# or Authorization flows), so allow_credentials stays False — which also keeps
+# the config spec-valid (a wildcard origin with credentials is invalid).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -338,10 +346,27 @@ async def ready():
         await get_http_client()
     except Exception as exc:
         return {"status": "not_ready", "service": "travel-service", "error": str(exc)}
-    return {"status": "ready", "service": "travel-service"}
+    return {
+        "status": "ready",
+        "service": "travel-service",
+        "providers": {
+            "flight_hotel": {
+                "configured": is_serpapi_configured()
+                or bool(os.getenv("RAPIDAPI_KEY", "").strip()),
+                "primary": "serpapi-google-travel",
+                "fallback": "rapidapi-booking-com",
+                "serpapi_configured": is_serpapi_configured(),
+                "rapidapi_configured": bool(os.getenv("RAPIDAPI_KEY", "").strip()),
+            },
+            "itinerary": {
+                "configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+                "name": "openai",
+            },
+        },
+    }
 
 
-@app.post("/generate")
+@app.post("/generate", dependencies=[Depends(require_internal_auth)])
 async def generate(data: TravelRequest):
     payload = _travel_payload(data)
     try:
@@ -355,7 +380,7 @@ async def generate(data: TravelRequest):
     return {"reply": itinerary}
 
 
-@app.post("/revise-itinerary")
+@app.post("/revise-itinerary", dependencies=[Depends(require_internal_auth)])
 async def revise(data: TravelRevisionRequest):
     if hasattr(data, "model_dump"):
         payload = data.model_dump()
@@ -373,7 +398,7 @@ async def revise(data: TravelRevisionRequest):
         return _openai_revision_unavailable(timeout_label, current)
 
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(require_internal_auth)])
 async def chat(data: TravelChatRequest):
     try:
         return await asyncio.wait_for(
@@ -393,7 +418,7 @@ async def chat(data: TravelChatRequest):
         )
 
 
-@app.post("/download-word")
+@app.post("/download-word", dependencies=[Depends(require_internal_auth)])
 async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
     if data.itinerary:
@@ -417,7 +442,7 @@ async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
     )
 
 
-@app.post("/download-pdf")
+@app.post("/download-pdf", dependencies=[Depends(require_internal_auth)])
 async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
     payload = _travel_payload(data)
     if data.itinerary:
@@ -441,7 +466,7 @@ async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
     )
 
 
-@app.post("/flight-options")
+@app.post("/flight-options", dependencies=[Depends(require_internal_auth)])
 async def flight_options(data: TravelRequest):
     legs = _build_flight_legs(data)
     result_tasks = [
@@ -496,7 +521,7 @@ async def flight_options(data: TravelRequest):
     return {"legs": results}
 
 
-@app.post("/hotel-options")
+@app.post("/hotel-options", dependencies=[Depends(require_internal_auth)])
 async def hotel_options(data: TravelRequest):
     stays = _build_hotel_stays(data)
     result_tasks = [
@@ -514,7 +539,28 @@ async def hotel_options(data: TravelRequest):
     ]
     options_by_stay = await asyncio.gather(*result_tasks)
     results = [
-        {**stay, "options": options}
+        {
+            **stay,
+            "options": options,
+            "provider_unavailable": any(
+                bool(option.get("provider_status") == "unavailable")
+                for option in options
+                if isinstance(option, dict)
+            ),
+            "estimated": any(
+                bool(option.get("estimated"))
+                for option in options
+                if isinstance(option, dict)
+            ),
+            "provider_message": next(
+                (
+                    option.get("provider_message")
+                    for option in options
+                    if isinstance(option, dict) and option.get("provider_message")
+                ),
+                None,
+            ),
+        }
         for stay, options in zip(stays, options_by_stay)
     ]
 

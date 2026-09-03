@@ -366,7 +366,10 @@
     position: relative;
     aspect-ratio: 4 / 5;
     overflow: hidden;
-    background: var(--brand-100);
+    /* Sits behind .photo, so a destination with no committed hero under
+       public/assets/heroes/ reads as a deliberate brand panel rather than a
+       broken image. Add the file and it simply paints over this. */
+    background: linear-gradient(160deg, var(--brand-100) 0%, var(--brand-200, #cfe0f5) 100%);
   }
   .card-img .photo {
     position: absolute; inset: 0;

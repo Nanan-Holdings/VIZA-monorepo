@@ -6,12 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 interface ApplicantProfileRow {
   id: string;
+  auth_user_id: string | null;
   full_name: string | null;
   email: string | null;
 }
 
 export interface CommercialAuthenticatedUser {
   id: string;
+  authUserId: string | null;
   name: string;
   email: string;
   isImpersonation?: boolean;
@@ -24,7 +26,7 @@ function displayName(profile: ApplicantProfileRow | null, email: string): string
 async function getApplicantProfile(userId: string): Promise<ApplicantProfileRow | null> {
   const { data, error } = await createAdminClient()
     .from("applicant_profiles")
-    .select("id, full_name, email")
+    .select("id, auth_user_id, full_name, email")
     .eq("id", userId)
     .maybeSingle();
 
@@ -44,6 +46,7 @@ export async function getCommercialAuthenticatedUser(): Promise<CommercialAuthen
 
     return {
       id: profile.id,
+      authUserId: profile.auth_user_id,
       name: displayName(profile, profile.email),
       email: profile.email,
       isImpersonation: true,
@@ -58,6 +61,7 @@ export async function getCommercialAuthenticatedUser(): Promise<CommercialAuthen
 
   return {
     id: session.userId,
+    authUserId: session.authUserId ?? null,
     name: displayName(profile, email),
     email,
   };

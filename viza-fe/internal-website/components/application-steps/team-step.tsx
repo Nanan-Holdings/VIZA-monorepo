@@ -14,6 +14,7 @@ import {
   UserCircle as UserRound,
 } from "@phosphor-icons/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -269,17 +270,14 @@ export function TeamStep({
       <p className="text-sm leading-6 text-muted-foreground sm:text-base">{t("subtitle")}</p>
 
       {notice ? (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm font-medium ${
-            notice.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {notice.message}
-        </div>
+        notice.tone === "success" ? (
+          <Alert variant="success">
+            <AlertIcon variant="success" />
+            <AlertDescription>{notice.message}</AlertDescription>
+          </Alert>
+        ) : (
+          <ClientErrorAlert message={notice.message} />
+        )
       ) : null}
 
       <section className="space-y-4">

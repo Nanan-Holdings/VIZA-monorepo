@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, FileCheck2, Map, Package, Tags } from "lucid
 import type { LucideIcon } from "lucide-react";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export default async function CatalogueControlPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-4 md:p-8">
       <div><div className="flex items-center gap-2"><Package className="h-6 w-6 text-brand-500" /><h1 className="text-2xl font-semibold text-[#232323]">{copy.title}</h1></div><p className="mt-1 text-sm text-[#64748b]">{copy.subtitle}</p></div>
-      {errors.length ? <details className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><summary className="cursor-pointer font-semibold">{copy.unavailable}</summary>{errors.map((error) => <p key={error} className="mt-1 font-mono text-xs">{error}</p>)}</details> : null}
+      {errors.length ? <Alert variant="warning"><AlertIcon variant="warning" /><AlertTitle>{copy.unavailable}</AlertTitle><AlertDescription>{errors.map((error) => <p key={error} className="font-mono">{error}</p>)}</AlertDescription></Alert> : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label={copy.packages} value={packages.data?.length ?? 0} icon={Package} /><Metric label={copy.prices} value={prices.data?.length ?? 0} icon={Tags} /><Metric label={copy.fields} value={fields.data?.length ?? 0} icon={FileCheck2} /><Metric label={copy.documents} value={documents.data?.length ?? 0} icon={FileCheck2} /></div>
       <div className="grid gap-4 lg:grid-cols-3">
         <Link href="/admin/packages" className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm transition hover:border-brand-200"><Map className="h-5 w-5 text-brand-500" /><h2 className="mt-3 font-semibold text-[#232323]">{copy.coverage}</h2><p className="mt-2 text-sm leading-6 text-[#64748b]">{copy.coverageBody}</p><span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-600">{copy.open}<ArrowRight className="h-3.5 w-3.5" /></span></Link>

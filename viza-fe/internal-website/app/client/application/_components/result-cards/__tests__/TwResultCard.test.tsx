@@ -93,10 +93,12 @@ describe("TwResultCard", () => {
     render(<TwResultCard result={result} />);
 
     expect(screen.getByText("已向台湾官网提交")).toBeInTheDocument();
-    expect(screen.getByText("已取得官网回执编号")).toBeInTheDocument();
-    expect(screen.getByText(/submitted 只代表官网已收件，不代表已核准，也不代表已缴费/u)).toBeInTheDocument();
-    expect(screen.getAllByText(/后续审核与缴费请以官网通知为准/u).length).toBeGreaterThan(0);
+    expect(screen.getByText(/此状态不代表已核准或已缴费/u)).toBeInTheDocument();
     expect(screen.getByText("TW20260801ABC123")).toBeInTheDocument();
+    expect(screen.getByText("TW20260801ABC123").closest("[data-submission-state]")).toHaveAttribute(
+      "data-submission-state",
+      "success",
+    );
     expect(screen.queryByText(/自动查询/u)).not.toBeInTheDocument();
     expect(screen.queryByText("验证码前停止")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "重新正式提交" })).not.toBeInTheDocument();

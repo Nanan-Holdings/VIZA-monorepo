@@ -1183,6 +1183,12 @@
       "destinationCount": "{count}",
       "current": "当前",
       "currentHandling": "当前办理",
+      "ongoingApplications": "进行中的申请",
+      "completedApplications": "已完成的申请",
+      "ongoingEmpty": "暂无其他进行中的申请。",
+      "completedEmpty": "收到最终结果或入境卡提交成功后，申请会显示在这里。",
+      "completedCount": "{count} 个已完成申请",
+      "viewCompletedApplications": "查看已完成申请",
       "continue": "继续",
       "switchTo": "切换到此申请",
       "selectApplication": "选择申请",
@@ -1263,6 +1269,7 @@
       "packet_pending": "申请包准备中",
       "external_pending": "等待外部交接",
       "submitted": "已提交或等待中",
+      "arrival_card_submitted": "提交成功",
       "needs_attention": "需要处理",
       "approved": "已批准",
       "rejected": "已拒签"
@@ -4134,13 +4141,77 @@
     "title": "设置",
     "subtitle": "在这里管理付款偏好、通用签证资料、账户安全和帮助入口。",
     "backToSettings": "返回设置",
+    "commonBack": "返回上一页",
     "loading": "正在加载您的设置...",
+    "loadError": "无法加载您的设置，未进行任何更改。",
+    "retry": "重试",
     "tabs": {
       "billing": "账单",
       "account": "账户"
     },
     "privacy": {
-      "title": "隐私和数据权利"
+      "title": "隐私和数据权利",
+      "intro": "申请导出您的 VIZA 个人数据，或提交账号注销请求。",
+      "export": {
+        "title": "导出个人数据",
+        "description": "我们会准备与您的 VIZA 账户和申请相关的个人数据副本。敏感文件可能需要完成身份核验后再交付。",
+        "button": "申请导出",
+        "pendingButton": "已申请导出",
+        "submitted": "我们已收到您的数据导出请求。",
+        "alreadyPending": "您已有一个正在处理的数据导出请求。"
+      },
+      "deletion": {
+        "title": "注销账号",
+        "description": "提交 VIZA 账号注销请求。团队会处理账号关闭，同时按签证、付款、税务、防欺诈或法律要求保留必要记录。",
+        "button": "注销账号",
+        "pendingButton": "已申请注销",
+        "submitted": "我们已收到您的账号注销请求。",
+        "alreadyPending": "您已有一个正在处理的账号注销请求。",
+        "dialogTitle": "注销这个账号？",
+        "dialogDescription": "这会提交账号注销请求。审核完成后您可能无法继续访问该账号，但依法需要保留的记录仍会被保留。",
+        "dialogCancel": "保留账户",
+        "dialogConfirm": "注销账号"
+      },
+      "errors": {
+        "submit": "暂时无法提交此请求。",
+        "load": "暂时无法加载隐私请求记录。"
+      },
+      "status": {
+        "fulfilled": "已完成",
+        "closed": "已关闭",
+        "active": "处理中"
+      },
+      "history": {
+        "title": "请求记录",
+        "loading": "正在加载请求记录...",
+        "empty": "您尚未提交隐私请求。",
+        "request": "隐私请求",
+        "dateUnavailable": "日期不可用"
+      }
+    },
+    "travelMemory": {
+      "title": "旅行偏好记忆",
+      "description": "这里只保存您明确说明的长期旅行偏好。当前行程的目的地、日期和预算不会自动带入新的对话。",
+      "loadError": "暂时无法读取旅行偏好，请稍后重试。",
+      "mutationError": "没有成功更新旅行偏好，请重试。",
+      "clearAll": "全部清除",
+      "clearDialogTitle": "清除所有旅行偏好？",
+      "clearDialogDescription": "这会删除旅行顾问保存的所有长期偏好，且无法撤销。",
+      "keepPreferences": "保留偏好",
+      "empty": "目前没有已保存的旅行偏好。",
+      "deleteLabel": "删除这项偏好",
+      "deleteDialogTitle": "删除这项旅行偏好？",
+      "deleteDialogDescription": "旅行顾问将不会再在新对话中复用这项偏好。",
+      "keep": "保留",
+      "delete": "删除",
+      "keys": {
+        "interests": "兴趣",
+        "pace": "旅行节奏",
+        "dietary": "饮食需求",
+        "accommodation": "住宿偏好",
+        "transport": "交通偏好",
+        "avoid": "希望避开"
+      }
     },
     "profile": {
       "fallbackName": "VIZA 申请人",
@@ -4169,10 +4240,11 @@
       "lifetimeEarned": "累计获得",
       "lifetimeSpent": "累计使用",
       "marketplaceTitle": "积分商城",
-      "marketplaceDescription": "使用积分兑换 VIZA 奖励；余额足够时即可兑换。",
+      "marketplaceDescription": "预览计划推出的 VIZA 奖励；积分兑换暂未开放。",
       "cost": "{points} 积分",
       "redeem": "兑换",
       "notEnough": "积分不足",
+      "comingSoon": "即将推出",
       "rewards": {
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
@@ -4215,16 +4287,24 @@
       },
       "pointsCenter": {
         "title": "积分中心",
-        "description": "查看 VIZA 积分总额，并在积分商城兑换奖励。",
+        "description": "查看 VIZA 积分总额，并预览即将推出的奖励。",
         "badge": "奖励"
       },
       "language": {
-        "title": "语言",
-        "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
+        "title": "语言帮助",
+        "description": "了解如何使用顶部栏的语言切换器。"
+      },
+      "travelMemory": {
+        "title": "旅行偏好记忆",
+        "description": "查看或清除旅行顾问可能再次使用的偏好。"
+      },
+      "privacy": {
+        "title": "隐私和数据权利",
+        "description": "申请导出个人数据或注销账号。"
       },
       "paymentMethods": {
         "title": "付款方式设置",
-        "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
+        "description": "管理经 Airwallex 授权的银行卡和钱包，并选择一个账户级默认付款方式。",
         "badge": "管理"
       },
       "subscription": {
@@ -4243,6 +4323,10 @@
       "feedback": {
         "title": "分享反馈",
         "description": "如需人工跟进，可提交客服请求。"
+      },
+      "inbox": {
+        "title": "收件箱",
+        "description": "发送到您 VIZA 专属邮箱的邮件——官方信函，VIZA 帮您解读。"
       }
     },
     "payment": {
@@ -4251,7 +4335,7 @@
       "setDefault": "设为默认",
       "manage": "管理账号",
       "manageSelected": "正在管理",
-      "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+      "managerHint": "可绑定多个付款账号，并选择一个默认账号；VIZA 仅会依据您已同意的计费条款使用它。",
       "managerHints": {
         "bank_card": "银行卡通过托管安全验证完成绑定，VIZA 不会接收完整卡号或 CVV。",
         "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
@@ -4270,6 +4354,7 @@
       "generateQr": "生成绑定二维码",
       "regenerateQr": "重新生成二维码",
       "checkQrStatus": "检查绑定状态",
+      "openWalletAuthorization": "打开授权页面",
       "saveEdit": "保存修改",
       "cancelEdit": "取消编辑",
       "edit": "编辑",
@@ -4283,6 +4368,7 @@
       "qrAlt": "付款账号绑定二维码",
       "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
       "qrExpires": "二维码有效期至 {time}。",
+      "walletConsentDisclosure": "继续即表示您授权 VIZA 保存此 Airwallex 付款授权，并将其用于您已同意之计费条款所涵盖的后续 VIZA 扣款。您可随时在此撤销授权。",
       "qrHint": {
         "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
         "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
@@ -4337,7 +4423,17 @@
         "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
         "qrExpired": "二维码已过期，请重新生成。",
         "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
-        "qrBound": "扫码绑定已完成。"
+        "qrBound": "扫码绑定已完成。",
+        "loadFailed": "无法加载已保存的付款方式，请刷新后重试。",
+        "updateFailed": "无法更新付款方式昵称。",
+        "deleteFailed": "无法移除付款方式。",
+        "defaultFailed": "无法更新默认付款方式。"
+      },
+      "deleteDialog": {
+        "title": "移除此付款方式？",
+        "description": "这会在支付服务商处停用 {account}，并将其从 VIZA 中移除。",
+        "cancel": "保留付款方式",
+        "confirm": "移除付款方式"
       },
       "methods": {
         "bank_card": {
@@ -4492,6 +4588,7 @@
       "emailInvalid": "请输入有效的新邮箱地址。",
       "emailSame": "新邮箱不能与当前邮箱相同。",
       "emailUpdateFailed": "暂时无法更新邮箱，请重试。",
+      "emailUpdatePending": "请前往新邮箱确认更改。在确认前，当前邮箱仍然有效。",
       "passwordRequirements": {
         "length": "至少 8 个字符",
         "letter": "包含字母",
@@ -4503,12 +4600,97 @@
     "signOut": {
       "title": "退出登录",
       "description": "从此设备退出您的账户。",
-      "button": "退出登录"
+      "button": "退出登录",
+      "failed": "无法退出登录，请重试。"
     },
     "billing": {
       "title": "账单",
       "noPaymentMethods": "没有付款方式",
       "noPaymentDescription": "账单和付款管理即将推出。如需更新账单信息，请联系客服。"
+    },
+    "inbox": {
+      "title": "收件箱",
+      "subtitle": "所有发送到您 VIZA 专属邮箱的邮件都会汇总在这里。VIZA 会解读官方信函，提取日期和受理编号，并告诉您下一步该做什么。",
+      "addressLabel": "您的 VIZA 邮箱",
+      "copyAddress": "复制邮箱地址",
+      "addressCopied": "邮箱地址已复制",
+      "searchPlaceholder": "搜索邮件或受理编号",
+      "refresh": "刷新",
+      "refreshed": "邮箱已是最新",
+      "loading": "正在同步您的 VIZA 邮箱",
+      "loadError": "邮箱加载失败，请重试。",
+      "retry": "重试",
+      "tabs": {
+        "all": "全部邮件",
+        "action": "待处理",
+        "embassy": "使领馆",
+        "appointment": "预约",
+        "documents": "材料",
+        "payment": "付款",
+        "archived": "已归档"
+      },
+      "conversationCount": "{count, plural, =0 {暂无会话} other {# 个会话}}",
+      "markAllRead": "全部标为已读",
+      "allMarkedRead": "已全部标为已读",
+      "emptySearchTitle": "没有匹配的邮件",
+      "emptySearchBody": "试试搜索发件人或受理编号，或清除搜索条件。",
+      "emptyArchivedTitle": "暂无归档邮件",
+      "emptyFolderTitle": "此文件夹暂无邮件",
+      "emptyFolderBody": "发送到 {address} 的新邮件会显示在这里。",
+      "noAliasTitle": "您的 VIZA 邮箱尚未开通",
+      "noAliasBody": "我们正在为您开通专属邮箱，请稍后再来。开通后，请在所有签证表格和使领馆网站上使用它。",
+      "noSelectionTitle": "选择一封邮件阅读",
+      "noSelectionBody": "所有发送到 {address} 的邮件都会汇总在这里。VIZA 会解读官方信函，提取日期和受理编号，并告诉您下一步该做什么。",
+      "backToList": "返回收件箱",
+      "markRead": "标为已读",
+      "markUnread": "标为未读",
+      "markedRead": "已标为已读",
+      "markedUnread": "已标为未读",
+      "archive": "归档",
+      "unarchive": "移回收件箱",
+      "archived": "已归档",
+      "unarchived": "已移回收件箱",
+      "star": "星标",
+      "unstar": "取消星标",
+      "translate": "翻译成中文",
+      "showOriginal": "显示原文",
+      "translating": "翻译中…",
+      "translateFailed": "翻译失败，请重试。",
+      "aiPanelTitle": "VIZA 为您解读",
+      "aiReading": "正在为您解读这封邮件…",
+      "aiFailed": "暂时无法自动解读这封邮件。",
+      "to": "发送至",
+      "attachmentsLabel": "{count, plural, other {# 个附件}}",
+      "downloadOriginal": "下载原始邮件（.eml）",
+      "reply": "回复",
+      "askConsultant": "咨询我的顾问",
+      "askConsultantSent": "您的顾问会跟进这封邮件",
+      "replyTo": "回复 {name} — 从 {address} 发出",
+      "replyPlaceholder": "写下您的回复",
+      "send": "发送",
+      "discard": "放弃",
+      "replyNote": "发给使领馆的回复会先经 VIZA 审核再发出",
+      "replySent": "回复已提交——VIZA 审核后将为您发出",
+      "replyEmpty": "请先输入内容",
+      "replyFailed": "回复发送失败，请重试。",
+      "youReplied": "您 · {address}",
+      "pendingReview": "等待 VIZA 审核",
+      "sentLabel": "已发送",
+      "justNow": "刚刚",
+      "noBody": "这封邮件没有可读取的正文。",
+      "bodyInAttachment": "完整内容以文件形式存储——请下载原始邮件查看。",
+      "categories": {
+        "embassy": "使领馆",
+        "appointment": "预约",
+        "documents": "待办材料",
+        "payment": "付款",
+        "approved": "已获批",
+        "rejected": "需复核",
+        "travel": "行程",
+        "viza": "VIZA",
+        "other": "邮件"
+      },
+      "download": "下载"
     }
   },
   "supportCenter": {
@@ -5244,6 +5426,7 @@
     "cancelled": "已设置为到期后取消。",
     "resumed": "已恢复自动续费。",
     "cancel": "取消自动续费",
+    "keepSubscription": "保留订阅",
     "resume": "恢复自动续费",
     "choosePlan": "选择月付方案",
     "changePlan": "更换方案",

@@ -1,6 +1,25 @@
 import { NextRequest } from "next/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
+import { consumeRateLimit, exceedsBodyLimit, getClientIp } from "@/lib/api/rate-limit-ip";
 
 type Message = { role: "user" | "assistant"; content: string };
+
+const MAX_MESSAGES = 120;
+const MAX_MESSAGE_CHARS = 4_000;
+const MAX_BODY_BYTES = 512 * 1024;
+
+/** Validate the client-controlled `messages` array is a well-formed interview transcript. */
+function isValidMessages(value: unknown): value is Message[] {
+  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_MESSAGES) return false;
+  return value.every(
+    (item) =>
+      Boolean(item) &&
+      typeof item === "object" &&
+      ((item as Message).role === "user" || (item as Message).role === "assistant") &&
+      typeof (item as Message).content === "string" &&
+      (item as Message).content.length <= MAX_MESSAGE_CHARS,
+  );
+}
 
 /**
  * Practice-session summary.
@@ -28,9 +47,17 @@ export interface InterviewReport {
   }>;
 }
 
-// OpenAI-compatible endpoint. Defaults to local Ollama; point LLM_BASE_URL at
-// api.openai.com/v1 (with a real LLM_API_KEY) to use a hosted provider instead.
-const LLM_BASE_URL = process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";
+// OpenAI-compatible endpoint. Defaults to local Ollama in development; point
+// LLM_BASE_URL at api.openai.com/v1 (with a real LLM_API_KEY) to use a hosted
+// provider instead. In production an unset LLM_BASE_URL resolves to null so we
+// never silently forward applicant transcripts to a localhost default — the
+// caller falls back to the deterministic local report instead.
+function resolveLlmBaseUrl(): string | null {
+  const configured = process.env.LLM_BASE_URL?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") return null;
+  return "http://localhost:11434/v1";
+}
 // Report = a pure scoring task, so default to a smaller/faster model than the
 // interviewer. Override with LLM_REPORT_MODEL (falls back to the shared model).
 const LLM_MODEL =
@@ -132,6 +159,20 @@ type LlmScore = {
 };
 
 export async function POST(request: NextRequest) {
+  const session = await getClientSessionWithFallback();
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (exceedsBodyLimit(request, MAX_BODY_BYTES)) {
+    return Response.json({ error: "Payload too large" }, { status: 413 });
+  }
+  if (
+    !consumeRateLimit(`interview-report:${session.userId}`, { limit: 20, windowMs: 60_000 }) ||
+    !consumeRateLimit(`interview-report-ip:${getClientIp(request)}`, { limit: 40, windowMs: 60_000 })
+  ) {
+    return Response.json({ error: "Too many requests. Please try again shortly." }, { status: 429 });
+  }
+
   let messages: Message[];
   try {
     ({ messages } = (await request.json()) as { messages: Message[] });
@@ -139,13 +180,20 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!messages || messages.length < 2) {
+  if (!isValidMessages(messages)) {
     return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
   }
 
   const pairs = buildPairs(messages);
   if (pairs.length === 0) {
     return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
+  }
+
+  const llmBaseUrl = resolveLlmBaseUrl();
+  if (!llmBaseUrl) {
+    // Production with no LLM endpoint configured: serve the deterministic local
+    // report instead of reaching out to a localhost default.
+    return Response.json(buildLocalReport(messages));
   }
 
   // The model only scores each numbered Q&A; the question/answer text itself is
@@ -183,7 +231,7 @@ ${numbered}
 评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。`;
 
   try {
-    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+    const res = await fetch(`${llmBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LLM_API_KEY}`,
@@ -191,8 +239,8 @@ ${numbered}
       },
       body: JSON.stringify({
         model: LLM_MODEL,
-        ...(!LLM_BASE_URL.includes("api.openai.com") ? { temperature: 0.3 } : {}),
-        ...(LLM_BASE_URL.includes("api.openai.com")
+        ...(!llmBaseUrl.includes("api.openai.com") ? { temperature: 0.3 } : {}),
+        ...(llmBaseUrl.includes("api.openai.com")
           ? { max_completion_tokens: 1200 }
           : { max_tokens: 1200 }),
         response_format: { type: "json_object" },

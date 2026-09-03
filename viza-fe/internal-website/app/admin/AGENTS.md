@@ -53,6 +53,11 @@ website automation monitoring, coverage, and billing support.
 - `(dashboard)/products/page.tsx`: catalogue control and readiness entry point.
 - `(dashboard)/catalogue-publication/**`: draft, readiness, publish, retire,
   and version visibility for the public marketing catalogue.
+- `(dashboard)/marketing/**`: VIZA marketing control room for GA4/Search
+  Console reporting, blog drafting/generation/publication, managed public
+  assets, campaign short-link attribution, scheduled-run monitoring, and
+  platform-specific Zernio social distribution. It consumes typed server
+  actions and must never expose provider credentials to client components.
 - `(dashboard)/cal-bookings/page.tsx`: appointment case ownership, persisted
   manual-action expiry, and official-confirmation recovery controls.
 - `(dashboard)/takeovers/[id]/**`: protected, AAL2-gated operator takeover

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { translateWithGoogleV2 } from "@/lib/translation/google-translate-v2";
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
 
 interface FieldTranslationRequest {
   text?: unknown;
@@ -19,6 +20,16 @@ function statusForCode(code: "invalid_request" | "provider_unavailable" | "provi
 }
 
 export async function POST(request: Request) {
+  // Paid Google Translate proxy; guest-safe defense-in-depth rather than a hard
+  // session requirement. (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "translations-field",
+    limit: 120,
+    windowMs: 60_000,
+    maxBytes: 32 * 1024,
+  });
+  if (blocked) return blocked;
+
   let payload: FieldTranslationRequest;
   try {
     payload = (await request.json()) as FieldTranslationRequest;

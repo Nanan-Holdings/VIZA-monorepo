@@ -1,3 +1,5 @@
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
+
 type GeocodeRequestItem = {
   key: string;
   query: string;
@@ -132,6 +134,16 @@ async function geocodeItem(
 }
 
 export async function POST(request: Request) {
+  // Paid Google Geocoding proxy used by authenticated travel flows; guest-safe
+  // defense-in-depth (same-origin + size cap + per-IP rate limit). (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "travel-geocode",
+    limit: 90,
+    windowMs: 60_000,
+    maxBytes: 64 * 1024,
+  });
+  if (blocked) return blocked;
+
   try {
     const apiKey =
       process.env.GOOGLE_MAPS_API_KEY ||

@@ -8,6 +8,7 @@ import {
   type AdminWorkItemRow,
 } from "@/app/actions/admin-work-items";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { getWorkItemSop, WORK_ITEM_STATUSES, type WorkItemStatus } from "@/lib/admin/work-item-sops";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -233,10 +234,7 @@ export default async function AdminWorkQueuePage({ searchParams }: PageProps) {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-          <p className="font-semibold">{copy.migration}</p>
-          <p className="mt-1 font-mono text-xs">{error.message}</p>
-        </div>
+        <Alert variant="warning"><AlertIcon variant="warning" /><AlertTitle>{copy.migration}</AlertTitle><AlertDescription><p className="font-mono">{error.message}</p></AlertDescription></Alert>
       ) : allRows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#d7dce3] bg-white p-10 text-center text-sm text-[#64748b]">
           {copy.empty}

@@ -15,7 +15,7 @@ import {
   Star,
   Users,
 } from "@phosphor-icons/react";
-import { toast } from "sonner";
+import { alertToast } from "@/components/ui/alert-toast";
 import { Button } from "@/components/ui/button";
 import {
   TRAVEL_ITINERARY_SHARE_PARAM,
@@ -436,8 +436,8 @@ function Metric({
   label: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#2d1635] shadow-[0_8px_24px_rgba(32,20,43,0.08)]">
-      <Icon className="h-4 w-4 text-[#7b4de8]" />
+    <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-[#01214A] shadow-[0_8px_24px_rgba(3,52,110,0.08)]">
+      <Icon className="h-4 w-4 text-[#3D6DAD]" />
       {label}
     </span>
   );
@@ -490,7 +490,7 @@ export function TravelItineraryShareRenderer() {
 
   if (!hasMounted) {
     return (
-      <main className="min-h-screen bg-[#f7f4f0] px-5 py-8 text-[#2d1635]">
+      <main className="min-h-screen bg-[#F5F8FC] px-5 py-8 text-[#01214A]">
         <div className="mx-auto h-64 max-w-6xl animate-pulse rounded-[30px] bg-white" />
       </main>
     );
@@ -498,10 +498,10 @@ export function TravelItineraryShareRenderer() {
 
   if (!payload || !exportPayload) {
     return (
-      <main className="min-h-screen bg-[#f7f4f0] px-5 py-10 text-[#2d1635]">
-        <section className="mx-auto max-w-3xl rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
+      <main className="min-h-screen bg-[#F5F8FC] px-5 py-10 text-[#01214A]">
+        <section className="mx-auto max-w-3xl rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(3,52,110,0.1)]">
           <h1 className="text-3xl font-bold">行程链接不可用</h1>
-          <p className="mt-3 text-base font-semibold text-[#756a7b]">
+          <p className="mt-3 text-base font-semibold text-[#64748B]">
             请确认分享链接完整，或让分享者重新生成链接。
           </p>
         </section>
@@ -525,7 +525,7 @@ export function TravelItineraryShareRenderer() {
   const handleCopyLink = async () => {
     if (!navigator.clipboard?.writeText) return;
     await navigator.clipboard.writeText(window.location.href);
-    toast.success(isZh ? "分享链接已复制。" : "Share link copied.");
+    alertToast(isZh ? "分享链接已复制。" : "Share link copied.", { variant: "success" });
   };
 
   const handleDownload = async (
@@ -536,16 +536,18 @@ export function TravelItineraryShareRenderer() {
     setBusy(true);
     try {
       await downloadBlob(endpoint, exportPayload, filename);
-      toast.success(
-        isZh ? `${filename} 已开始下载。` : `${filename} download started.`
+      alertToast(
+        isZh ? `${filename} 已开始下载。` : `${filename} download started.`,
+        { variant: "success" },
       );
     } catch (error) {
-      toast.error(
+      alertToast(
         error instanceof Error
           ? error.message
           : isZh
             ? `${filename} 下载失败。`
-            : `${filename} download failed.`
+            : `${filename} download failed.`,
+        { variant: "destructive" },
       );
     } finally {
       setBusy(false);
@@ -553,9 +555,9 @@ export function TravelItineraryShareRenderer() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f4f0] px-4 py-6 text-[#2d1635] md:px-8 md:py-10">
+    <main className="min-h-screen bg-[#F5F8FC] px-4 py-6 text-[#01214A] md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="grid overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(32,20,43,0.12)] md:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="grid overflow-hidden rounded-[30px] bg-white shadow-[0_24px_70px_rgba(3,52,110,0.12)] md:grid-cols-[360px_minmax(0,1fr)]">
           <div className="relative h-[260px] bg-slate-200 md:h-[320px]">
             <Image
               alt={title}
@@ -565,13 +567,13 @@ export function TravelItineraryShareRenderer() {
               src={heroImage}
               width={720}
             />
-            <div className="absolute left-5 top-5 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-[#2d1635] shadow-lg">
+            <div className="absolute left-5 top-5 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-[#01214A] shadow-lg">
               {isZh ? "分享行程" : "Shared itinerary"}
             </div>
           </div>
           <div className="flex flex-col justify-between gap-5 p-6 md:p-8">
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#7b4de8]">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#3D6DAD]">
                 <Sparkles className="h-4 w-4" />
                 {cities
                   .map((city) => getDisplayCityLabel(city, interfaceLocale))
@@ -604,13 +606,13 @@ export function TravelItineraryShareRenderer() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <div className="flex rounded-full bg-[#f6efff] p-1">
+              <div className="flex rounded-full bg-[#EEF3FA] p-1">
                 {exportLanguageOptions.map((option) => (
                   <button
                     className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                       exportLanguage === option.value
-                        ? "bg-white text-[#2d1635] shadow-sm"
-                        : "text-[#7b4de8] hover:bg-white/70"
+                        ? "bg-white text-[#01214A] shadow-sm"
+                        : "text-[#3D6DAD] hover:bg-white/70"
                     }`}
                     key={option.value}
                     onClick={() => setExportLanguage(option.value)}
@@ -621,7 +623,7 @@ export function TravelItineraryShareRenderer() {
                 ))}
               </div>
               <Button
-                className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                className="rounded-full border-[#AABFDF] text-[#03346E] hover:bg-[#EEF3FA]"
                 onClick={handleCopyLink}
                 type="button"
                 variant="outline"
@@ -630,7 +632,7 @@ export function TravelItineraryShareRenderer() {
                 {isZh ? "分享" : "Share"}
               </Button>
               <Button
-                className="rounded-full bg-[#d9c2ff] text-[#2d1635] hover:bg-[#c9acff]"
+                className="rounded-full bg-[#AABFDF] text-[#01214A] hover:bg-[#7A9DCE]"
                 disabled={isDownloadingWord}
                 onClick={() =>
                   handleDownload(
@@ -645,7 +647,7 @@ export function TravelItineraryShareRenderer() {
                 Word
               </Button>
               <Button
-                className="rounded-full bg-[#2d1635] text-white hover:bg-[#42214d]"
+                className="rounded-full bg-[#01214A] text-white hover:bg-[#022B5C]"
                 disabled={isDownloadingPdf}
                 onClick={() =>
                   handleDownload(
@@ -663,18 +665,18 @@ export function TravelItineraryShareRenderer() {
           </div>
         </section>
 
-        <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(32,20,43,0.08)] md:p-6">
+        <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_55px_rgba(3,52,110,0.08)] md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-3xl font-bold">
               {isZh ? "itinery" : "itinerary"}
             </h2>
-            <span className="rounded-full bg-[#f6efff] px-4 py-2 text-sm font-bold text-[#6f40cc]">
+            <span className="rounded-full bg-[#EEF3FA] px-4 py-2 text-sm font-bold text-[#03346E]">
               {rows.length} {isZh ? "项" : "items"}
             </span>
           </div>
-          <div className="mt-5 overflow-auto rounded-2xl border border-[#e6dff0]">
+          <div className="mt-5 overflow-auto rounded-2xl border border-[#D4E0F0]">
             <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
-              <thead className="bg-[#efe5ff] text-[#2d1635]">
+              <thead className="bg-[#D4E0F0] text-[#01214A]">
                 <tr>
                   {[
                     isZh ? "时间" : "Time",
@@ -691,23 +693,23 @@ export function TravelItineraryShareRenderer() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#eee7f5]">
+              <tbody className="divide-y divide-[#EEF3FA]">
                 {rows.map((row, index) => (
                   <tr className="align-top" key={`${row.type}-${row.name}-${index}`}>
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#5f5166]">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#52657A]">
                       {row.time ?? "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 font-bold">
                       {row.type}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#5f5166]">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-[#52657A]">
                       {row.date}
                     </td>
-                    <td className="px-4 py-4 font-semibold text-[#5f5166]">
+                    <td className="px-4 py-4 font-semibold text-[#52657A]">
                       {row.route}
                     </td>
                     <td className="px-4 py-4 font-bold">{row.name}</td>
-                    <td className="px-4 py-4 text-[#5f5166]">{row.details}</td>
+                    <td className="px-4 py-4 text-[#52657A]">{row.details}</td>
                     <td className="px-4 py-4 font-bold">{row.contact}</td>
                   </tr>
                 ))}
@@ -719,16 +721,16 @@ export function TravelItineraryShareRenderer() {
         <section className="grid gap-4 md:grid-cols-2">
           {hotelRows.map((row, index) => (
             <article
-              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(32,20,43,0.08)]"
+              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(3,52,110,0.08)]"
               key={`hotel-${row.name}-${index}`}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#D4E0F0] text-[#03346E]">
                 <Hotel className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#7b4de8]">{row.date}</p>
+                <p className="text-sm font-bold text-[#3D6DAD]">{row.date}</p>
                 <h3 className="mt-1 text-xl font-bold">{row.name}</h3>
-                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#756a7b]">
+                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#64748B]">
                   {row.route} · {row.details}
                 </p>
               </div>
@@ -736,16 +738,16 @@ export function TravelItineraryShareRenderer() {
           ))}
           {flightRows.map((row, index) => (
             <article
-              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(32,20,43,0.08)]"
+              className="flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_14px_45px_rgba(3,52,110,0.08)]"
               key={`flight-${row.route}-${index}`}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2d1635] text-white">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#01214A] text-white">
                 <Plane className="h-6 w-6" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#7b4de8]">{row.date}</p>
+                <p className="text-sm font-bold text-[#3D6DAD]">{row.date}</p>
                 <h3 className="mt-1 text-xl font-bold">{row.route}</h3>
-                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#756a7b]">
+                <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#64748B]">
                   {row.name} · {row.details} · {row.contact}
                 </p>
               </div>
@@ -756,7 +758,7 @@ export function TravelItineraryShareRenderer() {
         <section className="space-y-4 pb-8">
           {payload.itinerary.map((day, index) => (
             <article
-              className="grid gap-4 rounded-[28px] bg-white p-4 shadow-[0_14px_45px_rgba(32,20,43,0.08)] md:grid-cols-[220px_minmax(0,1fr)]"
+              className="grid gap-4 rounded-[28px] bg-white p-4 shadow-[0_14px_45px_rgba(3,52,110,0.08)] md:grid-cols-[220px_minmax(0,1fr)]"
               key={`${day.city}-${day.day}-${index}`}
             >
               <div className="relative h-36 overflow-hidden rounded-[22px] bg-slate-200 md:h-full">
@@ -773,7 +775,7 @@ export function TravelItineraryShareRenderer() {
                 />
               </div>
               <div className="min-w-0 p-2">
-                <p className="text-sm font-bold text-[#7b4de8]">
+                <p className="text-sm font-bold text-[#3D6DAD]">
                   {formatDayTab(day, interfaceLocale)} ·{" "}
                   {getDisplayCityLabel(day.city, interfaceLocale)} · {day.cost}
                 </p>
@@ -790,7 +792,7 @@ export function TravelItineraryShareRenderer() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {day.activities.map((activity) => (
                     <span
-                      className="rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]"
+                      className="rounded-full bg-[#EEF3FA] px-3 py-1 text-sm font-bold text-[#03346E]"
                       key={`${day.day}-${activity}`}
                     >
                       {isZh
@@ -800,7 +802,7 @@ export function TravelItineraryShareRenderer() {
                   ))}
                 </div>
                 {day.food.length ? (
-                  <p className="mt-4 text-sm font-semibold text-[#756a7b]">
+                  <p className="mt-4 text-sm font-semibold text-[#64748B]">
                     {isZh ? "餐饮：" : "Dining: "}
                     {joinList(
                       isZh

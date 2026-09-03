@@ -5,10 +5,11 @@ import { Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Envel
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
+import { TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 
 /**
  * POR-006: generic result card for the standard e-Visa launch countries
@@ -53,7 +54,9 @@ export function GenericEvisaResultCard({
     portalUrl !== undefined &&
     /^https:\/\/evisa\.imigrasi\.go\.id\/?$/i.test(portalUrl.trim());
   const country = (isZh ? COUNTRY_LABEL_ZH[result.country] : COUNTRY_LABEL[result.country]) ?? result.country;
-  const hasArtifact = Boolean(result.artifactStoragePath);
+  const hasArtifact = Boolean(result.artifactStoragePath?.trim());
+  const confirmedSuccess = result.status === "submitted" &&
+    Boolean(result.reference?.trim()) && hasArtifact;
 
   async function locateOfficialPaymentPage(): Promise<void> {
     if (!applicationId) return;
@@ -129,6 +132,41 @@ export function GenericEvisaResultCard({
       : result.status === "form_ready_for_agency"
         ? isZh ? "下载并提交" : "Download & submit"
         : isZh ? "已提交" : "Submitted";
+
+  if (confirmedSuccess) {
+    const artifactAction = hasArtifact && applicationId ? (
+      <Button asChild size="sm">
+        <a href={`/api/applications/${applicationId}/evisa-artifact`}>
+          <Download />
+          {result.country === "ID"
+            ? isZh ? "下载官网成功凭证" : "Download official success evidence"
+            : isZh ? "下载文件" : "Download document"}
+        </a>
+      </Button>
+    ) : undefined;
+
+    return (
+      <TerminalSuccessPanel
+        title={heading}
+        summary={isZh
+          ? `你的${country}申请已提交。我们会继续跟踪结果，并在这里保存获批签证。`
+          : `Your ${country} application has been filed. We're tracking the decision and will store your approved visa here.`}
+        reference={result.reference}
+        referenceLabel={isZh ? "参考号" : "Reference"}
+        artifacts={hasArtifact ? (
+          <p className="text-sm text-muted-foreground">
+            {isZh ? "官网成功凭证已保存。" : "Official success evidence saved."}
+          </p>
+        ) : null}
+        primaryAction={artifactAction}
+        secondaryActions={
+          <Button asChild size="sm" variant={artifactAction ? "outline" : "primary"}>
+            <a href="/client/status">{isZh ? "Track status / 跟踪状态" : "Track status"}</a>
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <Card className="rounded-xl border-input">
@@ -231,25 +269,6 @@ export function GenericEvisaResultCard({
             </p>
           </div>
         )}
-
-        {result.country === "ID" && result.status === "submitted" ? (
-          <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-brand-700">
-              <ShieldCheck className="h-4 w-4" />
-              {isZh ? "官网成功凭证已保存" : "Official success evidence saved"}
-            </div>
-            <p className="text-sm text-foreground">
-              {isZh
-                ? "你现在可以前往状态页跟踪申请；官网状态或电子签证更新后会显示在那里。"
-                : "You can now track the application on the status page, where official status and eVisa updates will appear."}
-            </p>
-            <Button asChild variant="outline" className="w-full bg-white">
-              <a href="/client/status">
-                {isZh ? "Track status / 跟踪状态" : "Track status"}
-              </a>
-            </Button>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

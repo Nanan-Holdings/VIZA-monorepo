@@ -24,6 +24,7 @@ import {
   RECENT_APPLICATION_FORM_STORAGE_KEY,
   type ApplicationFormTarget,
 } from "@/lib/client/recent-application-form";
+import { prefetchApplicationForm } from "@/lib/client/portal-data";
 import {
   ACTIVE_APPLICATION_SELECTION_EVENT,
   ACTIVE_APPLICATION_SELECTION_STORAGE_KEY,
@@ -294,6 +295,27 @@ export function NavBar({
       ? activeTabColor
       : "#000000";
 
+  /**
+   * Warms the destination as soon as the applicant shows intent.
+   *
+   * `router.prefetch` covers the route's code, and for the Application tab the
+   * wizard's reads are started too, so the click lands on data already in
+   * memory instead of on a fresh set of round trips.
+   */
+  const handleTabIntent = (tab: string) => {
+    const href = tab === "Application" ? applicationMenuHref : tabPaths[tab];
+    if (!href) return;
+    router.prefetch(href);
+    if (tab !== "Application") return;
+    const target = readApplicationFormTarget(href);
+    if (!target) return;
+    prefetchApplicationForm({
+      applicationId: target.applicationId,
+      visaType: target.visaType,
+      country: target.country,
+    });
+  };
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     if (tab === "Application") {
@@ -445,7 +467,7 @@ export function NavBar({
 
           {/* Center links */}
           <motion.div className="flex items-center gap-1" animate={{ opacity: 1 }} transition={{ duration: 1.3 }}>
-            <AnimatedTabPill tabs={toItems(leftTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
+            <AnimatedTabPill tabs={toItems(leftTabs)} activeTab={activeTab} onTabChange={handleTabChange} onTabIntent={handleTabIntent} isDark={isDark} />
 
             {/* Logo */}
             <Link href="/client/home" className="block transition-transform duration-200 ml-3 pr-[16px]">
@@ -463,7 +485,7 @@ export function NavBar({
             {/* Chat Trigger Popover */}
             {renderStandaloneChatTab(false)}
 
-            <AnimatedTabPill tabs={toItems(rightTabs)} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} />
+            <AnimatedTabPill tabs={toItems(rightTabs)} activeTab={activeTab} onTabChange={handleTabChange} onTabIntent={handleTabIntent} isDark={isDark} />
           </motion.div>
 
           {/* Live save status and language */}
@@ -528,9 +550,9 @@ export function NavBar({
 
         {/* Mobile Row 2: Scrollable Pills */}
         <div className="overflow-x-auto pb-3 flex items-center gap-1.5 no-scrollbar">
-          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(0, 3))} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} className="pl-4" />
+          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(0, 3))} activeTab={activeTab} onTabChange={handleTabChange} onTabIntent={handleTabIntent} isDark={isDark} className="pl-4" />
           {renderStandaloneChatTab(true)}
-          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(3))} activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} className="pr-4" />
+          <AnimatedTabPill variant="pill" tabs={toItems(mobileTabs.slice(3))} activeTab={activeTab} onTabChange={handleTabChange} onTabIntent={handleTabIntent} isDark={isDark} className="pr-4" />
         </div>
       </div>
     </motion.header>

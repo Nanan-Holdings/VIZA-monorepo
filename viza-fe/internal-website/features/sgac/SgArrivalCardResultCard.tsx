@@ -2,18 +2,22 @@
 
 import { useCallback, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Plus, ShieldCheck } from "@phosphor-icons/react";
+import { Download, ArrowSquareOut as ExternalLink, Plus } from "@phosphor-icons/react";
 import type { SgArrivalCardSubmissionResult } from "@/lib/submission-result";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActionButton } from "@/components/ui/action-button";
+import { SubmissionStatePanel, TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 
 export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
   const [startingAgain, setStartingAgain] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const successful = result.submitted && result.status === "submitted";
-  const confirmationNumber = result.confirmationNumber ?? result.referenceNumber;
+  const authoritativeRead = result.resultEvidence?.authoritativeRead;
+  const successful = result.submitted && result.status === "submitted" &&
+    authoritativeRead?.postSubmitRead === true &&
+    authoritativeRead.stableReference === true &&
+    Boolean(authoritativeRead.referenceNumber?.trim());
+  const confirmationNumber = result.confirmationNumber ?? result.referenceNumber ?? authoritativeRead?.referenceNumber;
   const pdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const pdfUrl = pdfPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`)}`
@@ -37,64 +41,73 @@ export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmi
     }
   }, [result.applicationId]);
 
-  return (
-    <Card className="rounded-lg border-input">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3">
-          {successful ? (
-            <ShieldCheck className="h-6 w-6 text-emerald-600" />
-          ) : (
-            <AlertTriangle className="h-6 w-6 text-amber-600" />
-          )}
-          {successful
-            ? (isZh ? "新加坡入境卡提交成功" : "SG Arrival Card submitted")
-            : (isZh ? "新加坡入境卡未完成" : "SG Arrival Card not completed")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {successful ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="border-l-2 border-emerald-600 pl-3">
-              <div className="text-xs text-muted-foreground">{isZh ? "DE / 确认号" : "DE / confirmation number"}</div>
-              <div className="mt-1 font-mono text-lg font-semibold">{confirmationNumber ?? (isZh ? "已提交" : "Submitted")}</div>
-            </div>
-            {result.payloadSummary?.arrivalDate ? (
-              <div className="border-l-2 border-border pl-3">
-                <div className="text-xs text-muted-foreground">{isZh ? "抵达日期" : "Arrival date"}</div>
-                <div className="mt-1 text-base font-medium">{result.payloadSummary.arrivalDate}</div>
-              </div>
-            ) : null}
-          </div>
-        ) : (
+  if (successful) {
+    return (
+      <TerminalSuccessPanel
+        title={isZh ? "新加坡入境卡提交成功" : "SG Arrival Card submitted"}
+        summary={result.portalResponseSummary}
+        reference={confirmationNumber}
+        referenceLabel={isZh ? "DE / 确认号" : "DE / confirmation number"}
+        artifacts={result.payloadSummary?.arrivalDate ? (
           <p className="text-sm text-muted-foreground">
-            {result.errorDetails?.message || (isZh ? "本次提交未完成，请检查资料后重试。" : "This submission was not completed. Review the information and try again.")}
+            {isZh ? "抵达日期：" : "Arrival date: "}{result.payloadSummary.arrivalDate}
           </p>
-        )}
+        ) : null}
+        primaryAction={pdfUrl ? (
+          <ActionButton asChild size="sm">
+            <a href={pdfUrl} download={`sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`}>
+              <Download />
+              {isZh ? "下载确认 PDF" : "Download confirmation PDF"}
+            </a>
+          </ActionButton>
+        ) : undefined}
+        secondaryActions={
+          <>
+            <ActionButton size="sm" variant={pdfUrl ? "outline" : "primary"} onClick={startAgain} loading={startingAgain} loadingText={isZh ? "正在创建" : "Creating"}>
+              <Plus />
+              {isZh ? "再次提交" : "Submit another SGAC"}
+            </ActionButton>
+            <ActionButton asChild size="sm" variant="ghost">
+              <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
+                {isZh ? "打开 ICA SGAC 官方网站" : "Open the official ICA SGAC website"}
+                <ExternalLink />
+              </a>
+            </ActionButton>
+          </>
+        }
+        nextStep={actionError ? <span className="text-destructive">{actionError}</span> : undefined}
+      />
+    );
+  }
+
+  return (
+    <SubmissionStatePanel
+      state={result.status === "submitted" ? "pending" : "action-required"}
+      title={result.status === "submitted"
+        ? (isZh ? "正在核验新加坡入境卡回执" : "Verifying the SG Arrival Card receipt")
+        : (isZh ? "新加坡入境卡未完成" : "SG Arrival Card not completed")}
+      summary={result.errorDetails?.message || (result.status === "submitted"
+        ? (isZh ? "官网提交记录仍在核验中；核验完成前不会显示成功。" : "The official submission record is still being verified. Success will not appear until that verification finishes.")
+        : (isZh ? "本次提交未完成，请检查资料后重试。" : "This submission was not completed. Review the information and try again."))}
+    >
+      <div className="space-y-5">
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {successful && pdfUrl ? (
-            <Button asChild type="button">
-              <a href={pdfUrl} download={`sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`}>
-                <Download className="mr-2 h-4 w-4" />
-              {isZh ? "下载确认 PDF" : "Download confirmation PDF"}
-              </a>
-            </Button>
-          ) : null}
-          <Button type="button" variant={successful && pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
-            {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+          <ActionButton size="sm" type="button" onClick={startAgain} loading={startingAgain} loadingText={isZh ? "正在创建" : "Creating"}>
+            <Plus />
             {isZh ? "再次提交" : "Submit another SGAC"}
-          </Button>
+          </ActionButton>
         </div>
 
         {actionError ? <p className="text-sm text-red-700">{actionError}</p> : null}
 
-        <Button asChild variant="ghost" className="w-full">
+        <ActionButton asChild size="sm" variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
             {isZh ? "打开 ICA SGAC 官方网站" : "Open the official ICA SGAC website"}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
-        </Button>
-      </CardContent>
-    </Card>
+        </ActionButton>
+      </div>
+    </SubmissionStatePanel>
   );
 }

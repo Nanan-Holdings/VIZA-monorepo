@@ -15,18 +15,24 @@ results and updates from the same data.
 - Render `/client/status` as the application and destination selector. The
   page title block and 1040px content column mirror `/client/settings` for
   consistent top spacing, typography, and muted subtitle treatment. The
-  index lists every non-current application, expands exact application records
-  when a country has more than one, and keeps the current application selection
-  separate from browsing. The current selection is a one-country panel linked
-  to `/client/home` and must reuse the same panel and row styling as the list
-  below it. Single-application countries use a direct right-arrow row, while
+  index separates ongoing records from applications with a terminal result.
+  A 100% progress value alone is not terminal: submitted visa applications
+  remain ongoing until they receive a final state such as approved or rejected.
+  Arrival cards are different: a verified successful official submission is
+  their final outcome and belongs in completed history.
+  Completed records render in their own section below ongoing applications and
+  link directly to the exact result/status step without changing the active
+  application selection. The index expands exact application records when a
+  country has more than one and keeps the current application selection separate
+  from browsing. The current selection is a one-country panel linked to
+  `/client/home` and must reuse the same panel and row styling as the list below
+  it. Single-application countries use a direct right-arrow row, while
   multi-application countries use a down chevron. Choosing an ongoing record
   activates it before opening Home. A `country` query pre-expands that country's
   row. Every interactive application or destination panel must visibly change
-  its background on hover. The full destination-card surface, including the
-  flag and country header, selects its first listed option; specific visa rows
-  remain individually selectable. Disabled coming-soon panels remain
-  non-interactive.
+  its background on hover. The full destination-card surface, including the flag
+  and country header, selects its first listed option; specific visa rows remain
+  individually selectable. Disabled coming-soon panels remain non-interactive.
 - Render destination flags with `react-circle-flags` through the shared
   `DestinationFlag` component so flags do not depend on the operating system's
   emoji coverage. Destination states (`Added`, `Browse`, or `Coming soon`) sit

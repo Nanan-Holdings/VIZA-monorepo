@@ -38,6 +38,7 @@ import { PageBackButton } from "@/components/ui/page-back-button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { Select, SelectValue } from "@/components/ui/select";
 import { SupportingDocumentCard } from "@/components/ui/supporting-document-card";
+import { SubmissionStatePanel, TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 
 const destinations = ["Japan", "Singapore", "France"];
 const fundingProviders = [
@@ -997,6 +998,44 @@ export default function UiComponentsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="md:col-span-2 xl:col-span-3">
+            <div className="mb-4">
+              <h2 className="text-base font-semibold text-foreground">Submission results / terminal states</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Review-associated pending, action-required, and failure states stay separate from the neutral confirmed-success shell.
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <TerminalSuccessPanel
+                title="Application submitted"
+                summary="The official portal confirmed this registration."
+                reference="SG-2026-0142"
+                referenceLabel="Official reference"
+                artifacts={<p className="text-sm text-muted-foreground">Confirmation PDF saved</p>}
+                primaryAction={<ActionButton size="sm">Download confirmation</ActionButton>}
+                secondaryActions={<ActionButton size="sm" variant="outline">Open official portal</ActionButton>}
+              />
+              <SubmissionStatePanel
+                state="pending"
+                title="Pending"
+                summary="Submission is in progress. This stays with Review and has no success reference."
+                actions={<ActionButton size="sm" variant="outline">Refresh status</ActionButton>}
+              />
+              <SubmissionStatePanel
+                state="action-required"
+                title="Action required"
+                summary="An official checkpoint needs attention; show the instruction once."
+                actions={<ActionButton size="sm" variant="warning">Review required action</ActionButton>}
+              />
+              <SubmissionStatePanel
+                state="failure"
+                title="Failed"
+                summary="The result was not confirmed. Keep retry or correction actions in Review."
+                actions={<ActionButton size="sm" variant="destructive">Retry submission</ActionButton>}
+              />
             </div>
           </section>
 

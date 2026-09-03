@@ -31,6 +31,7 @@ import {
   type VizaStripeMetadata,
 } from "../_shared";
 import { applyStripeEvent } from "@/lib/stripe/handle-event";
+import { recordStripeDispute, recordStripeRefund } from "@/lib/stripe/refund-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runPostPaidSideEffects } from "@/lib/checkout/post-paid";
 
@@ -183,6 +184,22 @@ async function queuePaymentOutcome(
   });
 }
 
+/**
+ * Resolve the order-model id for a receipt email. `mailReceiptOnPaid` keys on
+ * `order.id`, but the agency rail only holds a `payment_records` row. The two
+ * rails share the Stripe payment-intent id, so correlate through it. Returns
+ * null when there is no matching order (nothing to mail).
+ */
+async function resolveReceiptOrderId(record: PaymentRecordRow): Promise<string | null> {
+  if (!record.provider_payment_id) return null;
+  const { data } = await createAdminClient()
+    .from("order")
+    .select("id")
+    .eq("stripe_payment_intent_id", record.provider_payment_id)
+    .maybeSingle();
+  return typeof data?.id === "string" ? data.id : null;
+}
+
 async function finalizePaidRecord(
   adminClient: StripeSupabaseClient,
   event: Stripe.Event,
@@ -239,9 +256,13 @@ async function finalizePaidRecord(
   // 4. 发送系统收据邮件（使用 IIFE 异步自执行块 + try-catch 绕过 PromiseLike 局限）
   (async () => {
     try {
-      await mailReceiptOnPaid(record.id);
-    } catch (err: any) {
-      console.error("[receipts] mailReceiptOnPaid failed:", err);
+      const orderId = await resolveReceiptOrderId(record);
+      if (orderId) await mailReceiptOnPaid(orderId);
+    } catch (err) {
+      console.error(
+        "[receipts] mailReceiptOnPaid failed:",
+        err instanceof Error ? err.message : err,
+      );
     }
   })();
 
@@ -557,6 +578,24 @@ async function handleInvoiceEvent(
   }
 }
 
+/**
+ * Route a refund/dispute event through the order ledger (PAY-002/PAY-004).
+ *
+ * The per-provider `payment_records` handlers above only maintain the agency
+ * rail; on a refund or chargeback the canonical `order` must also follow the
+ * money so entitlement flips and — for a dispute — the submission_queue row is
+ * paused before the runner spends more government fees. `applyStripeEvent`
+ * owns those order + queue writes; here we additionally flip the matching
+ * `refund_request` row using ids taken straight from the event object.
+ */
+async function applyOrderRailRefundOrDispute(event: Stripe.Event) {
+  await applyStripeEvent(createAdminClient() as never, {
+    id: event.id,
+    type: event.type,
+    data: { object: event.data.object as unknown as Record<string, unknown> },
+  });
+}
+
 async function handleStripeEvent(adminClient: StripeSupabaseClient, event: Stripe.Event) {
   switch (event.type) {
     case "checkout.session.completed":
@@ -572,13 +611,35 @@ async function handleStripeEvent(adminClient: StripeSupabaseClient, event: Strip
       return;
     case "charge.succeeded":
     case "charge.updated":
-    case "charge.refunded":
       await handleChargeEvent(adminClient, event);
       return;
-    case "refund.created":
-    case "refund.updated":
-      await handleRefundEvent(adminClient, event);
+    case "charge.refunded":
+      await handleChargeEvent(adminClient, event); // agency rail
+      await applyOrderRailRefundOrDispute(event); // order rail: flip order → refunded
       return;
+    case "refund.created":
+    case "refund.updated": {
+      await handleRefundEvent(adminClient, event); // agency rail
+      await applyOrderRailRefundOrDispute(event); // order rail: flip order → refunded
+      const refund = event.data.object as Stripe.Refund;
+      const refundPi = stripeObjectId(refund.payment_intent);
+      if (refundPi) {
+        await recordStripeRefund({ paymentIntentId: refundPi, refundId: refund.id });
+      }
+      return;
+    }
+    case "charge.dispute.created":
+    case "charge.dispute.updated": {
+      // Chargebacks have no agency-rail handler; the order rail marks the order
+      // disputed and pauses the submission_queue row so the runner stops.
+      await applyOrderRailRefundOrDispute(event);
+      const dispute = event.data.object as Stripe.Dispute;
+      const disputePi = stripeObjectId(dispute.payment_intent);
+      if (disputePi) {
+        await recordStripeDispute({ paymentIntentId: disputePi, disputeId: dispute.id });
+      }
+      return;
+    }
     case "invoice.finalized":
     case "invoice.paid":
     case "invoice.payment_succeeded":

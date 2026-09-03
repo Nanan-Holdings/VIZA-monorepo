@@ -8,6 +8,7 @@ import {
   normalizeGooglePhotoName,
   parseBoundedInteger,
 } from "../_google-places-api";
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,16 @@ function fallbackRedirect(request: Request): NextResponse {
 }
 
 export async function GET(request: Request) {
+  // Paid Google Places photo-media proxy loaded via <img>; same-origin guard
+  // (lenient toward referrer-stripped requests) + generous per-IP rate limit to
+  // stop quota-draining hotlinking. (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "places-photo",
+    limit: 300,
+    windowMs: 60_000,
+  });
+  if (blocked) return blocked;
+
   const url = new URL(request.url);
   const photoName = normalizeGooglePhotoName(url.searchParams.get("name"));
   const maxWidth = parseBoundedInteger(url.searchParams.get("maxWidth"), {

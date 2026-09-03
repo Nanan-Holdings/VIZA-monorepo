@@ -6,13 +6,60 @@
  * PATCH /api/applications/:id/translations/:fieldKey — Edit a single translated field
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { v2 } from "@google-cloud/translate";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
+import { requireApplicationOwner } from "../middleware/user-auth.js";
+import { createRateLimiter } from "../middleware/rate-limit.js";
 
 const router = Router();
 const logger = new Logger({ serviceName: "TranslationRoutes" });
+
+// Per-IP abuse brake for the AI translation endpoints (generous default,
+// overridable via RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX; in-memory per-instance).
+const translationRateLimiter = createRateLimiter({ bucket: "translation" });
+
+/**
+ * These endpoints expose applicant PII (source/translated field text) keyed by
+ * application id, so they must be owner-scoped. They are currently reached only
+ * server-to-server from the Next.js translation proxy
+ * (viza-fe/internal-website/app/api/applications/[id]/translation-proxy.ts),
+ * which performs its own Supabase ownership check but forwards NO credential to
+ * this backend. Enforcing ownership here unconditionally would break that live
+ * caller, and fixing the caller is out of this lane. So the ownership gate is
+ * implemented but guarded by TRANSLATION_REQUIRE_AUTH (default off): once the
+ * proxy forwards the applicant bearer token OR the internal automation token,
+ * ops flips TRANSLATION_REQUIRE_AUTH=true to close the direct-call IDOR.
+ * See HANDOFF in the lane report.
+ */
+const ownerGate = requireApplicationOwner("id");
+let loggedTranslationAuthDisabled = false;
+
+function requireTranslationOwner(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (process.env.TRANSLATION_REQUIRE_AUTH === "true") {
+    void ownerGate(req, res, next);
+    return;
+  }
+  if (!loggedTranslationAuthDisabled) {
+    loggedTranslationAuthDisabled = true;
+    logger.warn(
+      "translation_auth_disabled",
+      new Error(
+        "Translation endpoints are unauthenticated (TRANSLATION_REQUIRE_AUTH not set). " +
+          "Set it to 'true' once the frontend proxy forwards a bearer token.",
+      ),
+    );
+  }
+  next();
+}
+
+router.use("/:id/translate", translationRateLimiter, requireTranslationOwner);
+router.use("/:id/translations", translationRateLimiter, requireTranslationOwner);
 
 // Chinese character detection regex (CJK Unified Ideographs + Extension A)
 const HAS_CHINESE = /[\u4E00-\u9FFF\u3400-\u4DBF]/;

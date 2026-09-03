@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import {
-  CheckCircle as CheckCircle2,
   Download,
   CircleNotch as Loader2,
   Trash as Trash2,
 } from "@phosphor-icons/react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,100 +21,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { geist } from "../../../fonts";
 import {
   createDataPrivacyRequest,
+  getDataPrivacyRequests,
+  type DataPrivacyRequestSummary,
   type PrivacyRequestType,
 } from "@/app/actions/client-settings";
 
-type NoticeTone = "success" | "info" | "error";
-
 type Notice = {
-  tone: NoticeTone;
+  tone: "success" | "info" | "error";
   message: string;
 };
 
-const COPY = {
-  en: {
-    title: "Privacy and data rights",
-    intro:
-      "Request a copy of your VIZA personal data or submit an account cancellation request.",
-    export: {
-      title: "Export personal data",
-      description:
-        "We will prepare a copy of personal data linked to your VIZA account and applications. Sensitive documents may require an identity check before delivery.",
-      button: "Request export",
-      pendingButton: "Export requested",
-      submitted: "Your export request has been received.",
-      alreadyPending: "You already have an export request in progress.",
-    },
-    deletion: {
-      title: "Cancel account",
-      description:
-        "Submit a request to cancel this VIZA account. The team will process account closure while preserving records that must be retained for visa, payment, tax, fraud-prevention, or legal reasons.",
-      button: "Cancel account",
-      pendingButton: "Cancellation requested",
-      submitted: "Your account cancellation request has been received.",
-      alreadyPending: "You already have an account cancellation request in progress.",
-      dialogTitle: "Cancel this account?",
-      dialogDescription:
-        "This submits an account cancellation request. You may lose access after review is completed, while legally required records may be retained.",
-      dialogCancel: "Keep account",
-      dialogConfirm: "Cancel account",
-    },
-    errors: {
-      submit: "We could not submit this request right now.",
-    },
-  },
-  zh: {
-    title: "隐私和数据权利",
-    intro: "申请导出您的 VIZA 个人数据，或提交账号注销请求。",
-    export: {
-      title: "导出个人数据",
-      description:
-        "我们会准备与您的 VIZA 账户和申请相关的个人数据副本。敏感文件可能需要完成身份核验后再交付。",
-      button: "申请导出",
-      pendingButton: "已申请导出",
-      submitted: "我们已收到您的数据导出请求。",
-      alreadyPending: "您已有一个正在处理的数据导出请求。",
-    },
-    deletion: {
-      title: "注销账号",
-      description:
-        "提交 VIZA 账号注销请求。团队会处理账号关闭，同时按签证、付款、税务、防欺诈或法律要求保留必要记录。",
-      button: "注销账号",
-      pendingButton: "已申请注销",
-      submitted: "我们已收到您的账号注销请求。",
-      alreadyPending: "您已有一个正在处理的账号注销请求。",
-      dialogTitle: "注销这个账号？",
-      dialogDescription:
-        "这会提交账号注销请求。审核完成后您可能无法继续访问该账号，但依法需要保留的记录仍会被保留。",
-      dialogCancel: "保留账户",
-      dialogConfirm: "注销账号",
-    },
-    errors: {
-      submit: "暂时无法提交此请求。",
-    },
-  },
-};
+const ACTIVE_STATUSES = new Set([
+  "requested",
+  "pending",
+  "queued",
+  "reviewing",
+  "in_review",
+  "in_progress",
+  "processing",
+  "approved",
+]);
 
-function usePrivacyCopy() {
-  const locale = useLocale();
-  return locale.toLowerCase().startsWith("zh") ? COPY.zh : COPY.en;
-}
-
-function SectionHeading({ title }: { title: string }) {
-  return (
-    <motion.p
-      className={`${geist.className} text-[22px] font-medium text-foreground sm:text-[26px] md:text-[32px]`}
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-    >
-      {title}
-    </motion.p>
-  );
+function requestKind(requestType: string): PrivacyRequestType | null {
+  if (["export", "data_export", "personal_data_export", "access", "access_export"].includes(requestType)) {
+    return "export";
+  }
+  if (["deletion", "delete", "data_deletion", "account_deletion", "account_cancellation", "erasure"].includes(requestType)) {
+    return "deletion";
+  }
+  return null;
 }
 
 function RequestActionCard({
@@ -152,11 +90,12 @@ function RequestActionCard({
             "flex h-11 w-11 items-center justify-center rounded-lg",
             variant === "destructive" ? "bg-red-50 text-red-600" : "bg-brand-50 text-brand-500"
           )}
+          aria-hidden="true"
         >
           <Icon className="h-5 w-5" />
         </div>
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
       </div>
@@ -168,7 +107,7 @@ function RequestActionCard({
           disabled={disabled || isSubmitting}
           onClick={onSubmit}
         >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
           {buttonLabel}
         </Button>
       )}
@@ -181,83 +120,129 @@ function NoticeMessage({ notice }: { notice: Notice }) {
     return <ClientErrorAlert message={notice.message} />;
   }
 
-  const Icon = CheckCircle2;
-
   return (
-    <div
-      className={cn(
-        "flex items-start gap-2 rounded-lg border px-4 py-3 text-sm",
-        notice.tone === "success" && "border-green-200 bg-green-50 text-green-700",
-        notice.tone === "info" && "border-brand-100 bg-brand-50 text-brand-700"
-      )}
-      role="status"
-      aria-live="polite"
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>{notice.message}</span>
-    </div>
+    <Alert variant={notice.tone}>
+      <AlertIcon variant={notice.tone} />
+      <AlertDescription>{notice.message}</AlertDescription>
+    </Alert>
   );
 }
 
 export function PrivacyTab() {
-  const copy = usePrivacyCopy();
+  const t = useTranslations("settings.privacy");
+  const settingsT = useTranslations("settings");
+  const locale = useLocale();
   const [pendingType, setPendingType] = useState<PrivacyRequestType | null>(null);
-  const [completedTypes, setCompletedTypes] = useState<Set<PrivacyRequestType>>(new Set());
+  const [requests, setRequests] = useState<DataPrivacyRequestSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [notice, setNotice] = useState<Notice | null>(null);
 
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      setIsLoading(true);
+      setLoadFailed(false);
+      try {
+        const result = await getDataPrivacyRequests();
+        if (!active) return;
+        if (result.success) {
+          setRequests(result.requests);
+          setLoadFailed(false);
+        } else {
+          setLoadFailed(true);
+        }
+      } catch {
+        if (active) setLoadFailed(true);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  const activeTypes = useMemo(() => {
+    const types = new Set<PrivacyRequestType>();
+    for (const request of requests) {
+      const kind = requestKind(request.requestType);
+      if (kind && ACTIVE_STATUSES.has(request.status.toLowerCase())) types.add(kind);
+    }
+    return types;
+  }, [requests]);
+
   async function submitRequest(requestType: PrivacyRequestType) {
+    if (pendingType) return;
     setPendingType(requestType);
     setNotice(null);
 
-    const result = await createDataPrivacyRequest(requestType);
-
-    if (result.success) {
-      setCompletedTypes((currentTypes) => new Set([...currentTypes, requestType]));
-      setNotice({
-        tone: result.alreadyPending ? "info" : "success",
-        message: result.alreadyPending
-          ? copy[requestType].alreadyPending
-          : copy[requestType].submitted,
-      });
-    } else {
-      setNotice({
-        tone: "error",
-        message: copy.errors.submit,
-      });
+    try {
+      const result = await createDataPrivacyRequest(requestType);
+      if (result.success) {
+        setRequests((current) => [
+          result.request,
+          ...current.filter((request) => request.id !== result.request.id),
+        ]);
+        setNotice({
+          tone: result.alreadyPending ? "info" : "success",
+          message: result.alreadyPending
+            ? t(`${requestType}.alreadyPending`)
+            : t(`${requestType}.submitted`),
+        });
+      } else {
+        setNotice({ tone: "error", message: t("errors.submit") });
+      }
+    } catch {
+      setNotice({ tone: "error", message: t("errors.submit") });
+    } finally {
+      setPendingType(null);
     }
+  }
 
-    setPendingType(null);
+  function formatRequestDate(value: string | null) {
+    if (!value) return t("history.dateUnavailable");
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return t("history.dateUnavailable");
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
+  }
+
+  function statusLabel(status: string) {
+    const normalized = status.toLowerCase();
+    if (["fulfilled", "completed"].includes(normalized)) return t("status.fulfilled");
+    if (["rejected", "cancelled", "canceled", "closed"].includes(normalized)) {
+      return t("status.closed");
+    }
+    return t("status.active");
   }
 
   return (
     <div className="flex w-full flex-col gap-6 sm:gap-8">
-      <div className="flex flex-col gap-2">
-        <SectionHeading title={copy.title} />
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-          {copy.intro}
-        </p>
-      </div>
+      <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">{t("intro")}</p>
 
       {notice ? <NoticeMessage notice={notice} /> : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <RequestActionCard
           icon={Download}
-          title={copy.export.title}
-          description={copy.export.description}
-          buttonLabel={completedTypes.has("export") ? copy.export.pendingButton : copy.export.button}
-          disabled={completedTypes.has("export")}
+          title={t("export.title")}
+          description={t("export.description")}
+          buttonLabel={activeTypes.has("export") ? t("export.pendingButton") : t("export.button")}
+          disabled={activeTypes.has("export") || pendingType !== null}
           isSubmitting={pendingType === "export"}
           variant="default"
-          onSubmit={() => submitRequest("export")}
+          onSubmit={() => void submitRequest("export")}
         />
 
         <RequestActionCard
           icon={Trash2}
-          title={copy.deletion.title}
-          description={copy.deletion.description}
-          buttonLabel={completedTypes.has("deletion") ? copy.deletion.pendingButton : copy.deletion.button}
-          disabled={completedTypes.has("deletion")}
+          title={t("deletion.title")}
+          description={t("deletion.description")}
+          buttonLabel={activeTypes.has("deletion") ? t("deletion.pendingButton") : t("deletion.button")}
+          disabled={activeTypes.has("deletion") || pendingType !== null}
           isSubmitting={pendingType === "deletion"}
           variant="destructive"
           action={
@@ -267,28 +252,26 @@ export function PrivacyTab() {
                   type="button"
                   variant="destructive"
                   className="min-h-11 w-full sm:w-fit"
-                  disabled={completedTypes.has("deletion") || pendingType === "deletion"}
+                  disabled={activeTypes.has("deletion") || pendingType !== null}
                 >
                   {pendingType === "deletion" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : null}
-                  {completedTypes.has("deletion") ? copy.deletion.pendingButton : copy.deletion.button}
+                  {activeTypes.has("deletion") ? t("deletion.pendingButton") : t("deletion.button")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>{copy.deletion.dialogTitle}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {copy.deletion.dialogDescription}
-                  </AlertDialogDescription>
+                  <AlertDialogTitle>{t("deletion.dialogTitle")}</AlertDialogTitle>
+                  <AlertDialogDescription>{t("deletion.dialogDescription")}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{copy.deletion.dialogCancel}</AlertDialogCancel>
+                  <AlertDialogCancel>{t("deletion.dialogCancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => submitRequest("deletion")}
+                    onClick={() => void submitRequest("deletion")}
                   >
-                    {copy.deletion.dialogConfirm}
+                    {t("deletion.dialogConfirm")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -296,6 +279,43 @@ export function PrivacyTab() {
           }
         />
       </div>
+
+      <section className="space-y-3" aria-labelledby="privacy-request-history">
+        <h2 id="privacy-request-history" className="text-lg font-semibold text-foreground">
+          {t("history.title")}
+        </h2>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground" role="status">{t("history.loading")}</p>
+        ) : loadFailed ? (
+          <div className="space-y-3">
+            <ClientErrorAlert message={t("errors.load")} />
+            <Button type="button" variant="outline" onClick={() => setLoadAttempt((value) => value + 1)}>
+              {settingsT("retry")}
+            </Button>
+          </div>
+        ) : requests.length === 0 ? (
+          <p className="rounded-xl border bg-white p-5 text-sm text-muted-foreground">{t("history.empty")}</p>
+        ) : (
+          <ul className="divide-y rounded-xl border bg-white" aria-label={t("history.title")}>
+            {requests.map((request) => {
+              const kind = requestKind(request.requestType);
+              return (
+                <li key={request.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">
+                      {kind ? t(`${kind}.title`) : t("history.request")}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{formatRequestDate(request.createdAt)}</p>
+                  </div>
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">
+                    {statusLabel(request.status)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

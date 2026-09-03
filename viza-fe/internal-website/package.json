@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --max-old-space-size=8192 node_modules/next/dist/bin/next dev",
     "build": "next build --webpack",
     "start": "next start",
     "type-check": "tsc --noEmit",
@@ -29,7 +29,8 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test --project=e2e-desktop",
     "test:a11y": "playwright test --project=a11y",
-    "test:mobile": "playwright test --project=mobile-iphone-14 --project=mobile-pixel-7"
+    "test:mobile": "playwright test --project=mobile-iphone-14 --project=mobile-pixel-7",
+    "perf:portal": "playwright test --project=perf"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -74,6 +75,7 @@
     "opencc-js": "^1.4.1",
     "pdf-lib": "^1.17.1",
     "pg": "^8.21.0",
+    "postal-mime": "^2.7.6",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-big-calendar": "^1.19.4",

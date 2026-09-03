@@ -1,9 +1,20 @@
 "use client";
 
 import { CircleNotch as Loader2, Trash as Trash2 } from "@phosphor-icons/react";
-import { useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { PageBackButton } from "@/components/ui/page-back-button";
 
@@ -14,24 +25,20 @@ type TravelPreference = {
   created_at: string;
 };
 
-const KEY_LABELS: Record<string, { zh: string; en: string }> = {
-  interests: { zh: "兴趣", en: "Interests" },
-  pace: { zh: "旅行节奏", en: "Travel pace" },
-  dietary: { zh: "饮食需求", en: "Dietary needs" },
-  accommodation: { zh: "住宿偏好", en: "Accommodation" },
-  transport: { zh: "交通偏好", en: "Transport" },
-  avoid: { zh: "希望避开", en: "Avoid" },
-};
+const KNOWN_KEYS = new Set(["interests", "pace", "dietary", "accommodation", "transport", "avoid"]);
 
 export function TravelMemorySettings() {
-  const isZh = useLocale().toLowerCase().startsWith("zh");
+  const t = useTranslations("settings.travelMemory");
+  const settingsT = useTranslations("settings");
   const [items, setItems] = useState<TravelPreference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     setError("");
     try {
       const response = await fetch("/api/travel/preferences", {
@@ -44,15 +51,12 @@ export function TravelMemorySettings() {
       if (!response.ok) throw new Error(body.error || "request_failed");
       setItems(body.preferences ?? []);
     } catch {
-      setError(
-        isZh
-          ? "暂时无法读取旅行偏好，请稍后重试。"
-          : "Travel preferences are temporarily unavailable."
-      );
+      setLoadFailed(true);
+      setError(t("loadError"));
     } finally {
       setLoading(false);
     }
-  }, [isZh]);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -73,11 +77,7 @@ export function TravelMemorySettings() {
       if (!response.ok) throw new Error(body.error || "request_failed");
       setItems(body.preferences ?? []);
     } catch {
-      setError(
-        isZh
-          ? "没有成功更新旅行偏好，请重试。"
-          : "The travel preferences were not updated. Please retry."
-      );
+      setError(t("mutationError"));
     } finally {
       setBusyId(null);
     }
@@ -87,34 +87,56 @@ export function TravelMemorySettings() {
     <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
       <PageBackButton
         fallbackHref="/client/settings"
-        label={isZh ? "返回上一页" : "Back to previous page"}
+        label={settingsT("commonBack")}
+        className="h-11 w-11"
       />
 
       <div className="mt-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {isZh ? "旅行偏好记忆" : "Travel preference memory"}
+            {t("title")}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {isZh
-              ? "这里只保存你明确说过的长期旅行偏好。当前行程的目的地、日期和预算不会自动带入新的对话。"
-              : "Only stable preferences you explicitly stated are kept here. Destinations, dates, and budgets from a trip are not copied into new chats."}
+            {t("description")}
           </p>
         </div>
-        {items.length > 0 ? (
-          <Button
-            variant="outline"
-            className="rounded-full text-destructive"
-            disabled={busyId !== null}
-            onClick={() => void remove()}
-          >
-            {busyId === "all" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-            {isZh ? "全部清除" : "Clear all"}
-          </Button>
+        {items.length > 0 && !loadFailed ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full text-destructive"
+                disabled={busyId !== null}
+              >
+                {busyId === "all" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {t("clearAll")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("clearDialogTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("clearDialogDescription")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("keepPreferences")}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => void remove()}
+                >
+                  {t("clearAll")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null}
       </div>
 
@@ -123,42 +145,78 @@ export function TravelMemorySettings() {
           <div className="flex min-h-40 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
+        ) : loadFailed ? (
+          <div className="flex min-h-40 flex-col items-center justify-center gap-4 px-6 py-8 text-center">
+            <ClientErrorAlert message={error} />
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void load()}
+            >
+              {settingsT("retry")}
+            </Button>
+          </div>
         ) : items.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-            {isZh
-              ? "目前没有已保存的旅行偏好。"
-              : "No travel preferences are currently saved."}
+            {t("empty")}
           </div>
         ) : (
           items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-4 border-b px-5 py-4 last:border-b-0"
+              className="flex items-start justify-between gap-4 border-b px-5 py-4 last:border-b-0"
             >
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {KEY_LABELS[item.key]?.[isZh ? "zh" : "en"] ?? item.key}
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-xs font-medium uppercase tracking-wide text-muted-foreground [overflow-wrap:anywhere]">
+                  {KNOWN_KEYS.has(item.key) ? t(`keys.${item.key}`) : item.key}
                 </p>
-                <p className="mt-1 text-base text-foreground">{item.value}</p>
+                <p className="mt-1 break-words text-base text-foreground [overflow-wrap:anywhere]">
+                  {item.value}
+                </p>
               </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={isZh ? "删除这项偏好" : "Delete this preference"}
-                disabled={busyId !== null}
-                onClick={() => void remove(item.id)}
-              >
-                {busyId === item.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    aria-label={t("deleteLabel")}
+                    disabled={busyId !== null}
+                  >
+                    {busyId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("deleteDialogTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("deleteDialogDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("keep")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => void remove(item.id)}
+                    >
+                      {t("delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ))
         )}
       </section>
-      {error ? <ClientErrorAlert className="mt-4" message={error} /> : null}
+      {error && !loadFailed ? <ClientErrorAlert className="mt-4" message={error} /> : null}
     </main>
   );
 }

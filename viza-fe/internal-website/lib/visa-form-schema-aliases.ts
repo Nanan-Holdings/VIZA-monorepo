@@ -6,15 +6,26 @@ const VIETNAM_COUNTRY_ALIASES = new Set([
 ]);
 
 const COUNTRY_ALIASES = {
+  australia: new Set(["au", "australia", "澳大利亚"]),
+  cambodia: new Set(["kh", "cambodia", "柬埔寨"]),
   canada: new Set(["ca", "canada", "加拿大"]),
+  egypt: new Set(["eg", "egypt", "埃及"]),
   france: new Set(["fr", "france", "法国"]),
   india: new Set(["in", "india", "印度"]),
   indonesia: new Set(["id", "indonesia", "印尼", "印度尼西亚"]),
+  japan: new Set(["jp", "japan", "日本"]),
+  laos: new Set(["la", "laos", "老挝"]),
   malaysia: new Set(["my", "malaysia", "马来西亚"]),
+  maldives: new Set(["mv", "maldives", "马尔代夫"]),
+  new_zealand: new Set(["nz", "new_zealand", "new zealand", "新西兰"]),
+  oman: new Set(["om", "oman", "阿曼"]),
   philippines: new Set(["ph", "philippines", "菲律宾"]),
   singapore: new Set(["sg", "singapore", "新加坡"]),
   south_korea: new Set(["kr", "korea", "south_korea", "韩国", "南韩"]),
+  south_africa: new Set(["za", "south_africa", "south africa", "南非"]),
+  sri_lanka: new Set(["lk", "sri_lanka", "sri lanka", "斯里兰卡"]),
   taiwan: new Set(["tw", "taiwan", "台湾", "中国台湾", "中國台灣"]),
+  tanzania: new Set(["tz", "tanzania", "坦桑尼亚"]),
   thailand: new Set(["th", "thailand", "泰国"]),
   turkey: new Set(["tr", "turkey", "turkiye", "türkiye", "土耳其"]),
   united_arab_emirates: new Set(["ae", "uae", "united_arab_emirates", "united arab emirates", "阿联酋"]),
@@ -43,14 +54,54 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
   canonicalVisaType: string;
 }> = [
   {
+    countries: COUNTRY_ALIASES.australia,
+    visaTypes: new Set(["au_visitor_600", "visitor_subclass_600"]),
+    canonicalVisaType: "AU_VISITOR_600",
+  },
+  {
+    countries: COUNTRY_ALIASES.cambodia,
+    visaTypes: new Set(["kh_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "KH_TOURIST_E_VISA",
+  },
+  {
     countries: COUNTRY_ALIASES.canada,
     visaTypes: new Set(["ca_trv", "visitor_visa", "visitor_visa_or_evisa"]),
     canonicalVisaType: "CA_TRV",
   },
   {
+    countries: COUNTRY_ALIASES.egypt,
+    visaTypes: new Set(["eg_e_visa", "evisa_tourism", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "EG_E_VISA",
+  },
+  {
     countries: COUNTRY_ALIASES.india,
     visaTypes: new Set(["in_e_visa", "regular_tourist_visa", "tourist_evisa", "tourist_e_visa"]),
     canonicalVisaType: "IN_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.japan,
+    visaTypes: new Set(["jp_tourist", "short_term_tourism_evisa"]),
+    canonicalVisaType: "JP_TOURIST",
+  },
+  {
+    countries: COUNTRY_ALIASES.laos,
+    visaTypes: new Set(["la_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "LA_TOURIST_E_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.maldives,
+    visaTypes: new Set(["mv_imuga", "tourist_visa_on_arrival"]),
+    canonicalVisaType: "MV_IMUGA",
+  },
+  {
+    countries: COUNTRY_ALIASES.new_zealand,
+    visaTypes: new Set(["nz_visitor_visa", "visitor_visa"]),
+    canonicalVisaType: "NZ_VISITOR_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.oman,
+    visaTypes: new Set(["om_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "OM_TOURIST_E_VISA",
   },
   {
     countries: COUNTRY_ALIASES.saudi_arabia,
@@ -128,6 +179,16 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
     canonicalVisaType: "KR_C39_SHORT_TERM_VISIT",
   },
   {
+    countries: COUNTRY_ALIASES.south_africa,
+    visaTypes: new Set(["za_visitor_visa", "visitor_visa_tourism"]),
+    canonicalVisaType: "ZA_VISITOR_VISA",
+  },
+  {
+    countries: COUNTRY_ALIASES.sri_lanka,
+    visaTypes: new Set(["lk_eta", "eta_tourism"]),
+    canonicalVisaType: "LK_ETA",
+  },
+  {
     countries: COUNTRY_ALIASES.south_korea,
     visaTypes: new Set(["kr_e_arrival_card", "kr_arrival_card", "korea_e_arrival_card"]),
     canonicalVisaType: "KR_E_ARRIVAL_CARD",
@@ -136,6 +197,11 @@ const COUNTRY_SCOPED_SCHEMA_ALIASES: ReadonlyArray<{
     countries: COUNTRY_ALIASES.taiwan,
     visaTypes: new Set(["tw_entry_permit", "taiwan_entry_permit", "tw_overseas_cn_tourism_entry_permit"]),
     canonicalVisaType: "TW_ENTRY_PERMIT",
+  },
+  {
+    countries: COUNTRY_ALIASES.tanzania,
+    visaTypes: new Set(["tz_tourist_e_visa", "tourist_evisa", "tourist_e_visa"]),
+    canonicalVisaType: "TZ_TOURIST_E_VISA",
   },
   {
     countries: COUNTRY_ALIASES.uk,

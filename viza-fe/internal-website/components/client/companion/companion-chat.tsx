@@ -10,7 +10,7 @@ import {
   CaretDown as ChevronDown,
   Sparkle,
 } from "@phosphor-icons/react";
-import { toast } from "sonner";
+import { alertToast } from "@/components/ui/alert-toast";
 import dynamic from "next/dynamic";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -171,7 +171,7 @@ export function CompanionChat({
 
               if (newMessages.length > 0) {
                 console.log(`[companion-chat] Added ${newMessages.length} missed messages`);
-                toast.success(`Loaded ${newMessages.length} new message${newMessages.length > 1 ? 's' : ''}`);
+                alertToast(`Loaded ${newMessages.length} new message${newMessages.length > 1 ? 's' : ''}`, { variant: "success" });
               }
 
               // Combine and sort by timestamp
@@ -272,14 +272,14 @@ export function CompanionChat({
   // Show toasts for connection status changes
   useEffect(() => {
     if (status === "error") {
-      toast.error("Connection issue - reconnecting...");
+      alertToast("Connection issue - reconnecting...", { variant: "destructive" });
     } else if (status === "connected" && pendingMessages.length > 0) {
       // Send queued messages on reconnect
       for (const msg of pendingMessages) {
         socketSendMessage(msg);
       }
       setPendingMessages([]);
-      toast.success("Connected - sending queued messages");
+      alertToast("Connected - sending queued messages", { variant: "success" });
     }
   }, [status, pendingMessages, socketSendMessage]);
 
@@ -295,7 +295,7 @@ export function CompanionChat({
       if (!currentSessionId) {
         const newSession = await createSession(userId);
         if (!newSession) {
-          toast.error("Failed to start conversation");
+          alertToast("Failed to start conversation", { variant: "destructive" });
           return;
         }
         currentSessionId = newSession.id;
@@ -306,7 +306,7 @@ export function CompanionChat({
       // If not connected, queue the message
       if (status !== "connected") {
         setPendingMessages((prev) => [...prev, message]);
-        toast.info("Message will be sent when connected");
+        alertToast("Message will be sent when connected", { variant: "info" });
         return;
       }
 
@@ -334,7 +334,7 @@ export function CompanionChat({
         setHistoricalMessages(messages);
       } catch (error) {
         console.error("Error loading messages:", error);
-        toast.error("Failed to load messages");
+        alertToast("Failed to load messages", { variant: "destructive" });
       } finally {
         setIsLoadingMessages(false);
       }
@@ -354,7 +354,7 @@ export function CompanionChat({
 
   // New Care Team chat
   const handleNewCareTeamChat = useCallback(() => {
-    toast.info("Coming soon");
+    alertToast("Coming soon", { variant: "info" });
   }, []);
 
   // Back to selection view
@@ -369,7 +369,7 @@ export function CompanionChat({
 
   // Care Team card click
   const handleCareTeamClick = useCallback(() => {
-    toast.info("Coming soon");
+    alertToast("Coming soon", { variant: "info" });
   }, []);
 
   // Fill input with suggested prompt
@@ -390,7 +390,7 @@ export function CompanionChat({
   useEffect(() => {
     const lastLog = logs[logs.length - 1];
     if (lastLog?.eventType === "escalation") {
-      toast.info("Your support team has been notified about this conversation");
+      alertToast("Your support team has been notified about this conversation", { variant: "info" });
     }
   }, [logs]);
 

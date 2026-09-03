@@ -17,6 +17,35 @@ import type {
 
 export const TRAVEL_ITINERARY_SHARE_PARAM = "travelShare";
 const ITINERY_ROWS_PAYLOAD_PREFIX = "__TRAVEL_ITINERY_ROWS__:";
+const MAX_TRIP_TITLE_CITIES = 3;
+
+export function createTripTitle(
+  totalDays: number,
+  localizedCities: string[],
+  language: "zh" | "en"
+): string {
+  const cities = localizedCities
+    .map((city) => city.trim())
+    .filter((city, index, values) => city && values.indexOf(city) === index);
+  const visibleCities = cities.slice(0, MAX_TRIP_TITLE_CITIES);
+  const remainingCityCount = cities.length - visibleCities.length;
+
+  if (language === "en") {
+    if (!visibleCities.length) return `${totalDays}-day custom trip`;
+
+    const citySummary = visibleCities.join(", ");
+    const overflowSummary = remainingCityCount
+      ? ` +${remainingCityCount} ${remainingCityCount === 1 ? "city" : "cities"}`
+      : "";
+    return `${totalDays}-day ${citySummary}${overflowSummary} classic trip`;
+  }
+
+  if (!visibleCities.length) return `${totalDays}天定制旅行`;
+
+  const citySummary = visibleCities.join("、");
+  const overflowSummary = remainingCityCount ? `等${cities.length}城` : "";
+  return `${totalDays}天${citySummary}${overflowSummary}经典游`;
+}
 
 export type TravelItineryShareRow = {
   time?: string;
@@ -126,7 +155,9 @@ function isTravelState(value: unknown): value is TravelState {
   );
 }
 
-function isTravelItineryShareRow(value: unknown): value is TravelItineryShareRow {
+function isTravelItineryShareRow(
+  value: unknown
+): value is TravelItineryShareRow {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
 
@@ -202,7 +233,9 @@ export function getTravelItineryRowsFromMessages(
   const endIndex = assistantText.indexOf("-->", startIndex + prefix.length);
   if (endIndex <= startIndex) return [];
 
-  const rawJson = assistantText.slice(startIndex + prefix.length, endIndex).trim();
+  const rawJson = assistantText
+    .slice(startIndex + prefix.length, endIndex)
+    .trim();
   if (!rawJson) return [];
 
   try {
@@ -305,7 +338,9 @@ export function createTravelShareMessages(
       parts: [
         {
           type: "text",
-          text: createTravelFormMessage(toShareFormPayload(payload.travelState)),
+          text: createTravelFormMessage(
+            toShareFormPayload(payload.travelState)
+          ),
         },
       ],
     },

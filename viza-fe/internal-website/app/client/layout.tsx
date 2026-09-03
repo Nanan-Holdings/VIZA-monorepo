@@ -12,6 +12,8 @@ import {
   parseClientSessionResponse,
 } from "./session-check-errors";
 import { AliasForwardingConsentGate } from "./_components/alias-forwarding-consent-gate";
+import { PortalPrefetcher } from "@/components/client/portal-prefetcher";
+import { RoutePerfMonitor } from "@/components/client/route-perf-monitor";
 import { Warning } from "@phosphor-icons/react";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
@@ -85,6 +87,8 @@ export default function ClientLayout({
 }) {
   return (
     <SimplifiedFormProvider>
+      <RoutePerfMonitor />
+      <PortalPrefetcher />
       <ClientLayoutContent>{children}</ClientLayoutContent>
     </SimplifiedFormProvider>
   );

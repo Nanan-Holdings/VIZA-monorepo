@@ -1,42 +1,47 @@
-"use client";
+import type { Metadata } from "next";
+import VisaCountryPageClient from "@/components/VisaCountryPageClient";
+import { COUNTRIES } from "@/lib/countries";
+import { getPublishedCatalogue } from "@/lib/public-catalogue";
 
-import { useParams } from "next/navigation";
-import { useLocale } from "next-intl";
-import VisaCountryRich from "@/components/VisaCountryRich";
-import VisaCountryTemplate from "@/components/VisaCountryTemplate";
-import ComingSoon from "@/components/ComingSoon";
-import { useCatalogue } from "@/components/CatalogueProvider";
-import { contentBySlug } from "@/lib/visa-content";
+/** Destination-specific metadata is resolved server-side for search crawlers. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; country: string }>;
+}): Promise<Metadata> {
+  const { locale, country: slug } = await params;
+  const published = await getPublishedCatalogue();
+  const entry = published.find((item) => item.slug === slug);
+  const fallback = COUNTRIES.find((item) => item.slug === slug);
+  const name = entry?.name ?? fallback?.name;
+  const type = entry?.type ?? fallback?.type ?? "visa";
+  const path = `/visa/${slug}`;
+  const localizedPath = locale === "zh-CN" ? `/zh-CN${path}` : path;
 
-/**
- * Dynamic visa destination page (MKT-003/004/005).
- *
- * Resolves the slug against lib/countries.ts + lib/visa-content:
- *   - launched country with rich content → VisaCountryRich (MKT-004)
- *   - launched country without content yet → thin VisaCountryTemplate fallback
- *   - known but unlaunched → ComingSoon (MKT-003)
- *   - unknown slug → ComingSoon fallback (no 404 — never dead-ends a CTA)
- *
- * Every country (including Indonesia) now renders here from data — there is no
- * bespoke per-country page.
- */
+  if (!name) {
+    return {
+      title: "Visa service coming soon",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const isChinese = locale === "zh-CN";
+  const title = isChinese ? `${name}${type}申请` : `${name} ${type} application`;
+  const description = isChinese
+    ? `通过 VIZA 准备${name}${type}申请：AI 指引、材料核对与人工协助。VIZA 是独立签证服务商，并非政府网站。`
+    : `Prepare your ${name} ${type} application with VIZA: AI guidance, document checks, and human support. VIZA is an independent visa service, not a government website.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: localizedPath,
+      languages: { en: path, "zh-CN": `/zh-CN${path}` },
+    },
+    openGraph: { title, description, url: localizedPath },
+  };
+}
+
 export default function VisaCountryPage() {
-  const params = useParams();
-  const locale = useLocale();
-  const slug = String(params.country ?? "");
-  const { countryBySlug } = useCatalogue();
-  const country = countryBySlug(slug);
-
-  if (!country) {
-    return <ComingSoon name={slug.replace(/-/g, " ")} />;
-  }
-  if (!country.launched) {
-    return <ComingSoon name={country.name} />;
-  }
-
-  const content = contentBySlug(slug, locale);
-  if (content) {
-    return <VisaCountryRich country={country} content={content} />;
-  }
-  return <VisaCountryTemplate country={country} />;
+  return <VisaCountryPageClient />;
 }

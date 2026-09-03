@@ -20,12 +20,12 @@ import {
   Eraser,
   ArrowSquareOut as ExternalLink,
   Signature as FileSignature,
-  EnvelopeOpen as MailCheck,
   PencilLine as PenLine,
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { acceptConsentAndSignature } from "./actions";
 import {
   AGENCY_AUTHORISATION_DOCUMENT,
@@ -471,25 +471,17 @@ export function ConsentClient({
       </div>
 
       {isDs160Application && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
-          <div className="flex gap-3">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
-            <p className="text-sm leading-6">
-              {copy.ds160Boundary}
-            </p>
-          </div>
-        </div>
+        <Alert variant="info">
+          <AlertIcon variant="info" />
+          <AlertDescription>{copy.ds160Boundary}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
-        <div className="flex gap-3">
-          <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
-          <div className="space-y-1">
-            <p className="font-medium">{copy.mailboxTitle}</p>
-            <p className="text-sm leading-6">{copy.mailboxBody}</p>
-          </div>
-        </div>
-      </div>
+      <Alert variant="info">
+        <AlertIcon variant="info" />
+        <AlertTitle>{copy.mailboxTitle}</AlertTitle>
+        <AlertDescription>{copy.mailboxBody}</AlertDescription>
+      </Alert>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -620,11 +612,14 @@ export function ConsentClient({
               ) : (
                 <div className="space-y-5">
                   {signatureStatus.signedAt && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-                      {copy.previousSignature(
-                        formatDate(signatureStatus.signedAt, isZh),
-                      )}
-                    </div>
+                    <Alert variant="warning">
+                      <AlertIcon variant="warning" />
+                      <AlertDescription>
+                        {copy.previousSignature(
+                          formatDate(signatureStatus.signedAt, isZh),
+                        )}
+                      </AlertDescription>
+                    </Alert>
                   )}
 
                   <BrandField

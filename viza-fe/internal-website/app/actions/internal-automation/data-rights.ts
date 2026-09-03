@@ -76,6 +76,7 @@ export async function submitCustomerDataRightsRequest(input: {
       .from<DataPrivacyRequestRow>("data_privacy_requests")
       .insert({
         applicant_id: contextResult.data.applicantId,
+        auth_user_id: contextResult.data.userId,
         request_type: requestType,
         status: "requested",
         notes: input.notes?.trim() || null,

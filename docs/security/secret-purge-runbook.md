@@ -27,6 +27,49 @@ git ls-files | grep -E '\.env'                                          # expect
 git ls-files | grep -iE 'service-account|\.p12$|\.pfx$|\.key$|\.pem$'    # expect empty
 ```
 
+## Active incident (2026-08-29) — `internal-website/.env.local.bak`
+
+A pre-launch audit found a **second** leaked file that this runbook did not
+previously cover: `viza-fe/internal-website/.env.local.bak`. It is **not**
+tracked and **not** on disk (now covered by the `.env*.bak` ignore rule), but it
+remains in **git history** in these commits:
+
+```
+25a4c6a7  Add supabase MCP
+79ab783c  Add supabase MCP
+acc8491f  Update general info
+4cf11bd4  Update general info
+```
+
+Secrets present in that blob (rotate ALL of these per
+[`secret-rotation-runbook.md`](./secret-rotation-runbook.md) BEFORE the rewrite):
+
+- `STRIPE_SECRET_KEY` — **live** `sk_live…` key (money movement / refunds)
+- `SUPABASE_SERVICE_ROLE_KEY` — bypasses all RLS on the production DB
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `OPENAI_API_KEY`, `PASSPORT_OCR_OPENAI_API_KEY`
+- `AIRWALLEX_API_KEY`, `AIRWALLEX_CLIENT_ID`
+- `ALIPAY_PRIVATE_KEY`, `ALIPAY_PUBLIC_KEY`
+- `GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+
+Rewrite command for this file (see Step 3 for the full procedure and backup):
+
+```bash
+git filter-repo --path viza-fe/internal-website/.env.local.bak --invert-paths
+```
+
+Verify afterwards:
+
+```bash
+git log --all --full-history -- viza-fe/internal-website/.env.local.bak   # expect empty
+```
+
+> Status: rotation + history rewrite are **operator actions, still pending** as
+> of 2026-08-29 (a coding agent does not rotate dashboard keys or force-push a
+> rewritten history — see the note at the top of this file). Multiple local dev
+> sessions were active at discovery time; do NOT rewrite history until they are
+> committed/pushed and the branch is frozen, or their work will be orphaned.
+
 ## Step 1 — Untrack a currently-tracked secret (working tree)
 
 If the audit above lists a real secret file, untrack it (keeps the local copy,

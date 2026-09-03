@@ -79,6 +79,8 @@ export interface DispatchOutcome {
   outcome: "halted_before_pay" | "submitted_pending_pay" | "paper_ready";
   reachedStep: string;
   artefacts: string[];
+  /** Semantic role for image artefacts whose exact portal checkpoint was verified. */
+  evidenceKind?: "official_success" | "pre_payment" | "review_handoff" | "failure";
 }
 
 export type RunOne = (

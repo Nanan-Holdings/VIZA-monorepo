@@ -16,3 +16,5 @@ payments.
 - Use CNY amounts derived from VIZA's server-side product catalog or database
   rows, never from browser input.
 - Verify webhook signatures against the raw request body before parsing.
+- `payment-consent-record.ts` owns server-side synchronization of Airwallex
+  wallet consent state into applicant-owned `payment_records`.

@@ -5,7 +5,7 @@ import { ArrowSquareOut as ExternalLink, FileText as FileCheck2 } from "@phospho
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import type { AuSubmissionResult } from "@/lib/submission-result";
 
 interface AuResultCardProps {

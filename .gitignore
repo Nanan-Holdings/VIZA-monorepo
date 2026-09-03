@@ -170,3 +170,18 @@ viza-fe/internal-website/.env.local.bak
 .secrets/
 /.env.local
 .env*
+
+# ============================================
+# Repo hygiene (LANE-F): root-level scratch, build-scratch, and generated
+# output artifacts that were accidentally committed. Patterns are
+# root-anchored so nested, legitimately-tracked files (e.g.
+# viza-fe/internal-website/output-*.png) are NOT swept in.
+# ============================================
+/.tmp/
+/tmp-*
+/output*.png
+/bilingual-schema-audit-report.json
+/bilingual-schema-audit-report.md
+*.bak
+.env*.bak
+*.screenshot.png

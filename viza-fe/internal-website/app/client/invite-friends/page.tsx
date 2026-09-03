@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CircleNotch as Loader2, Copy, Envelope as Mail, Gift, Minus, Plus, ShoppingBag, UserCircle as UserRound } from '@phosphor-icons/react';
 import { InviteHistory } from '@/components/client/invite-history';
-import { toast } from 'sonner';
+import { alertToast } from '@/components/ui/alert-toast';
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from '@/lib/supabase/client';
 import { sendReferralInvite } from "@/app/actions/referrals";
@@ -45,7 +45,7 @@ function ReferralSection() {
     if (!referralCode) return;
     navigator.clipboard.writeText(referralCode);
     setCopied(true);
-    toast.success(t("codeCopiedToast"));
+    alertToast(t("codeCopiedToast"), { variant: "success" });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -57,10 +57,10 @@ function ReferralSection() {
     setSendingInvite(false);
 
     if (result.success) {
-      toast.success(t("inviteSentToast", { email }));
+      alertToast(t("inviteSentToast", { email }), { variant: "success" });
       setEmail('');
     } else {
-      toast.error(t(`errors.${result.error}`));
+      alertToast(t(`errors.${result.error}`), { variant: "destructive" });
     }
   };
 

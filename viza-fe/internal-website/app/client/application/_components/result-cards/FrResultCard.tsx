@@ -18,7 +18,8 @@ import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
+import { TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { FrSubmissionResult } from "@/lib/submission-result";
 
@@ -64,6 +65,8 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
     result.officialStatus === "lodged_at_visa_centre" ||
     result.officialStatus === "official_record_confirmed" ||
     Boolean(result.applicationReference && liveAssisted && !result.manualAction);
+  const terminalConfirmed = result.status === "submitted" &&
+    (result.officialStatus === "lodged_at_visa_centre" || Boolean(result.applicationReference?.trim()));
   const lodgedAtVisaCentre = result.status === "submitted" || result.officialStatus === "lodged_at_visa_centre";
   const badgeLabel = officialConfirmed
     ? (isZh ? "提交成功" : "Submitted")
@@ -238,6 +241,54 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
     }
   };
 
+  if (terminalConfirmed) {
+    const title = isZh ? "France-Visas 已提交" : "France-Visas submission completed";
+    const summary = lodgedAtVisaCentre
+      ? (isZh
+          ? "申请已递交到签证中心。线下付款、采集生物信息或递交材料仍以签证中心要求为准。"
+          : "The application was submitted to the visa center. Offline payment, biometrics, and document handoff remain subject to the visa center.")
+      : (isZh
+          ? "France-Visas 官网已确认申请记录。请继续按官网提示完成付款、预约、打印或签署。"
+          : "France-Visas confirmed the application record. Complete any payment, appointment, print, or signature requested by the official site.");
+    const appointmentAction = displayedApplicationReference ? (
+      <Button asChild size="sm" variant={result.printablePdfStoragePath ? "ghost" : "primary"}>
+        <Link href={`/client/applications/${applicationId}/france-appointment`}>
+          {appointmentT("button")}
+        </Link>
+      </Button>
+    ) : undefined;
+
+    return (
+      <TerminalSuccessPanel
+        title={title}
+        summary={summary}
+        reference={displayedApplicationReference}
+        referenceLabel={isZh ? "官方申请编号" : "Official reference"}
+        primaryAction={result.printablePdfStoragePath ? (
+          <Button type="button" size="sm" onClick={() => void handlePdfDownload()} disabled={downloadingPdf}>
+            {downloadingPdf ? <Loader2 className="animate-spin" /> : <FileDown />}
+            {isZh ? "下载可打印申请表 PDF" : "Download printable summary (PDF)"}
+          </Button>
+        ) : appointmentAction}
+        secondaryActions={
+          result.printablePdfStoragePath || officialAccount?.portalUrl ? (
+            <>
+              {appointmentAction}
+              {officialAccount?.portalUrl ? (
+                <Button asChild size="sm" variant="ghost">
+                  <a href={officialAccount.portalUrl} target="_blank" rel="noopener noreferrer">
+                    {isZh ? "打开 France-Visas 官网" : "Open France-Visas"}
+                    <ExternalLink />
+                  </a>
+                </Button>
+              ) : null}
+            </>
+          ) : undefined
+        }
+      />
+    );
+  }
+
   return (
     <Card className="rounded-xl border-input">
       <CardHeader>
@@ -326,7 +377,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="xs"
                           className="h-8 w-8 shrink-0"
                           onClick={() => setShowPassword((value) => !value)}
                           aria-label={showPassword ? "Hide password" : "Show password"}

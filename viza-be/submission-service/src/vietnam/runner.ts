@@ -34,9 +34,30 @@ async function runVietnamCore(
   // structured failed result. Never convert that cancellation into a portal
   // retry or persist a misleading submission outcome.
   executionContext?.assertOwned();
+  const paymentBoundaryPath = result.status !== "submitted_paid"
+    ? result.diagnostics?.paymentBoundaryScreenshot?.path
+    : undefined;
+  const paymentBoundaryArtifacts = paymentBoundaryPath ? [paymentBoundaryPath] : [];
   switch (result.status) {
     case "submitted_pending_pay":
-      return { outcome: "submitted_pending_pay", reachedStep: "submitted", artefacts: [] };
+      return {
+        outcome: "submitted_pending_pay",
+        reachedStep: "payment_page_visible",
+        artefacts: paymentBoundaryArtifacts,
+        evidenceKind: "pre_payment",
+      };
+    case "action_required":
+      if (result.checkpoint === "payment_page_visible" && paymentBoundaryPath) {
+        return {
+          outcome: "halted_before_pay",
+          reachedStep: "payment_page_visible",
+          artefacts: paymentBoundaryArtifacts,
+          evidenceKind: "pre_payment",
+        };
+      }
+      throw new RetryableRunnerError(
+        `vietnam requires action at ${result.checkpoint}: ${result.actionType}`,
+      );
     case "scaffolded_pending_walk":
       return { outcome: "halted_before_pay", reachedStep: "scaffolded", artefacts: [] };
     case "failed":

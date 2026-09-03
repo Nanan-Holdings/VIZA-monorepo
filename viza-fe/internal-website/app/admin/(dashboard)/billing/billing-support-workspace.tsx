@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import type {
   BillingDataNotice,
@@ -363,16 +364,14 @@ function DataNotice({
   notice: BillingDataNotice;
   copy: BillingCopy;
 }) {
-  const classes =
-    notice.tone === "warning"
-      ? "border-amber-200 bg-amber-50 text-amber-800"
-      : "border-red-200 bg-red-50 text-red-700";
   const localizedNotice = localizeNotice(notice, copy);
+  const variant = notice.tone === "warning" ? "warning" : "destructive";
 
   return (
-    <div className={`rounded-lg border p-4 text-sm ${classes}`}>
-      <p className="font-medium">{localizedNotice.title}</p>
-      <p className="mt-1">{localizedNotice.description}</p>
+    <Alert variant={variant}>
+      <AlertIcon variant={variant} />
+      <AlertTitle>{localizedNotice.title}</AlertTitle>
+      <AlertDescription><p>{localizedNotice.description}</p>
       {notice.details && notice.details.length > 0 && (
         <ul className="mt-2 space-y-1">
           {notice.details.map((detail) => (
@@ -380,7 +379,8 @@ function DataNotice({
           ))}
         </ul>
       )}
-    </div>
+      </AlertDescription>
+    </Alert>
   );
 }
 

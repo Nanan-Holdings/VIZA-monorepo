@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle as CheckCircle2, Scan as ScanLine, Keyboard, Info, X } from "@phosphor-icons/react";
+import { Scan as ScanLine, Keyboard, Info, X } from "@phosphor-icons/react";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BrandInput, BrandField } from "@/components/client/brand-field";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -157,10 +158,10 @@ export function StepIdentity({
         <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
       </header>
       {passportUploadSaved ? (
-        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className="text-sm font-medium">{t("scanUploadedSuccess")}</p>
-        </div>
+        <Alert variant="success">
+          <AlertIcon variant="success" />
+          <AlertDescription>{t("scanUploadedSuccess")}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">

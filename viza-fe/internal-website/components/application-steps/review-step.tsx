@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
-import { CheckCircle as CheckCircle2, Warning as AlertTriangle } from "@phosphor-icons/react";
 import type { PersonalInfoData } from "./personal-info-step";
 import type { PassportData } from "./passport-step";
 import type { TravelInfoData } from "./travel-info-step";
@@ -212,25 +212,25 @@ export function ValidationPanel({ applicationId, onProceed, fieldLabels }: Valid
 
       {/* Warnings */}
       {state === "done" && hasWarnings && (
-        <div className="rounded-lg border border-[#e5e7eb] bg-white p-3">
-          <div className="flex items-center gap-2 mb-2 text-amber-700">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <p className="text-sm font-semibold">{t("review.validation.hasWarnings")} / Warnings</p>
-          </div>
-          <ul className="flex flex-col gap-1">
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>{t("review.validation.hasWarnings")} / Warnings</AlertTitle>
+          <AlertDescription>
+            <ul className="flex flex-col gap-1">
             {result!.warnings.map((w, i) => (
-              <li key={i} className="text-xs text-amber-700">• <span className="font-medium">{displayValidationField(w.field, fieldLabels, side)}:</span> {w.message}</li>
+                <li key={i}>• <span className="font-medium">{displayValidationField(w.field, fieldLabels, side)}:</span> {w.message}</li>
             ))}
-          </ul>
-        </div>
+            </ul>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* All good */}
       {state === "done" && !hasErrors && (
-        <div className="flex items-center gap-2 rounded-lg border border-[#e5e7eb] bg-white p-3 text-[#166534]">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <p className="text-sm">{t("review.validation.allGood")} / Ready to submit</p>
-        </div>
+        <Alert variant="success">
+          <AlertIcon variant="success" />
+          <AlertDescription>{t("review.validation.allGood")} / Ready to submit</AlertDescription>
+        </Alert>
       )}
 
       {/* Validation error */}

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyAirwallexWebhookSignature } from "@/lib/airwallex/client";
+import {
+  normalizeAirwallexStatus,
+  retrievePaymentIntent,
+  verifyAirwallexWebhookSignature,
+} from "@/lib/airwallex/client";
+import { syncAirwallexWalletConsent } from "@/lib/airwallex/payment-consent-record";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleAirwallexPaymentSucceeded, updateRecordFromAirwallexIntent } from "../../payments/airwallex/_shared";
 
@@ -43,6 +48,12 @@ export async function POST(request: Request) {
   if (!intentId) return NextResponse.json({ received: true });
 
   try {
+    const eventType = getEventType(payload);
+    if (eventType.toLowerCase().includes("payment_consent")) {
+      await syncAirwallexWalletConsent(intentId);
+      return NextResponse.json({ received: true });
+    }
+
     const { data: record, error } = await createAdminClient()
       .from("payment_records")
       .select("id")
@@ -53,9 +64,17 @@ export async function POST(request: Request) {
     if (error) throw new Error(error.message);
     if (!record) return NextResponse.json({ received: true });
 
-    const eventType = getEventType(payload);
-    if (eventType.includes("succeeded") || eventType.includes("SUCCEEDED")) {
-      await handleAirwallexPaymentSucceeded(record.id, intentId);
+    // Only the intent-level success event credits a record, and only after
+    // re-verifying the intent is genuinely paid. A loose substring match on
+    // "succeeded" also catches unrelated events (e.g. refund.succeeded) and
+    // would wrongly mark the record paid without ever re-checking status.
+    if (eventType.toLowerCase() === "payment_intent.succeeded") {
+      const intent = await retrievePaymentIntent(intentId);
+      if (normalizeAirwallexStatus(intent.status) === "paid") {
+        await handleAirwallexPaymentSucceeded(record.id, intentId);
+      } else {
+        await updateRecordFromAirwallexIntent(record.id, intentId);
+      }
     } else {
       await updateRecordFromAirwallexIntent(record.id, intentId);
     }

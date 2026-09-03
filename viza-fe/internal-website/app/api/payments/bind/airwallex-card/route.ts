@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAirwallexCustomer, isAirwallexConfigured } from "@/lib/airwallex/client";
+import {
+  createAirwallexCustomer,
+  getAirwallexEnvironment,
+  isAirwallexConfigured,
+} from "@/lib/airwallex/client";
 import { getCommercialAuthenticatedUser } from "@/lib/payments/commercial-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
       application_id: null,
       applicant_id: user.id,
       visa_package_id: null,
-      auth_user_id: user.id,
+      auth_user_id: user.authUserId,
       provider: "airwallex",
       provider_session_id: null,
       provider_payment_id: null,
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
       customerId: customer.id,
       clientSecret: customer.client_secret,
       currency: "CNY",
+      environment: getAirwallexEnvironment(),
     });
   } catch (caught) {
     console.error("[payment-binding-airwallex-card] Failed to create Airwallex intent:", caught);

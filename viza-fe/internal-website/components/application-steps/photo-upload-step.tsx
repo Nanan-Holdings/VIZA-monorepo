@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Camera,
-  CheckCircle as CheckCircle2,
   Upload,
   CircleNotch as Loader2,
   ImageIcon,
@@ -403,10 +402,10 @@ export function PhotoUploadStep({
 
         {/* Result message */}
         {passed ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-green-700">{t("passed")}</p>
-          </div>
+          <Alert variant="success">
+            <AlertIcon variant="success" />
+            <AlertDescription>{t("passed")}</AlertDescription>
+          </Alert>
         ) : (
           <Alert variant="destructive">
             <AlertIcon variant="destructive" />

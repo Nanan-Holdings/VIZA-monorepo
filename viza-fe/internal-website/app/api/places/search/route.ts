@@ -16,6 +16,7 @@ import {
   parseGoogleError,
   runInFlightDeduped,
 } from "../_google-places-api";
+import { guardApiAbuse } from "@/lib/api/rate-limit-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,14 @@ async function requestTextSearch(
 }
 
 export async function GET(request: Request) {
+  // Paid Google Places proxy; guest-safe defense-in-depth. (SEC-API-TRANSLATE-PROXY-01)
+  const blocked = guardApiAbuse(request, {
+    routeKey: "places-search",
+    limit: 90,
+    windowMs: 60_000,
+  });
+  if (blocked) return blocked;
+
   const url = new URL(request.url);
   const city = url.searchParams.get("city")?.trim() ?? "";
   const lang = normalizePlacesLanguage(url.searchParams.get("lang"));

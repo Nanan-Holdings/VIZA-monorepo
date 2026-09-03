@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
+import { ArrowSquareOut as ExternalLink, Eye, EyeSlash as EyeOff, ArrowClockwise as RotateCw } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
+import { SubmissionStatePanel } from "@/components/ui/submission-result-panel";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -300,11 +300,9 @@ export function FailureCard({
   };
 
   return (
-    <Card className="rounded-xl border-destructive/40">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-foreground">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-          {vnPrearrivalVisaNumberError
+    <SubmissionStatePanel
+      state="failure"
+      title={vnPrearrivalVisaNumberError
             ? (isZh ? "电子签证号码错误" : "Invalid E-Visa number")
             : vnPrearrivalOtpErrorKind === "consent_required"
             ? (isZh ? "请先授权官方邮件转发" : "Authorize official email forwarding")
@@ -313,9 +311,8 @@ export function FailureCard({
             : workerPickupError
             ? (isZh ? "云端任务没有完成" : "Cloud submission did not complete")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    >
+      <div className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {vnPrearrivalVisaNumberError
             ? (isZh
@@ -479,7 +476,7 @@ export function FailureCard({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SubmissionStatePanel>
   );
 }

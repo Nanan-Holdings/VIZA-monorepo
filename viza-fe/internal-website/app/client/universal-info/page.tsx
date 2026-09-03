@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { At as AtSign, BookOpen, Briefcase as BriefcaseBusiness, CheckCircle as CheckCircle2, CheckIcon, CaretDown as ChevronDown, AddressBook as ContactRound, Database, FileText, HandHeart as HeartHandshake, ClockCounterClockwise as History, IdentificationCard as IdCard, CircleNotch as Loader2, MapPin, Pencil, Phone, ShieldCheck, User, Cards as WalletCards, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { At as AtSign, BookOpen, Briefcase as BriefcaseBusiness, CheckIcon, CaretDown as ChevronDown, AddressBook as ContactRound, Database, FileText, HandHeart as HeartHandshake, ClockCounterClockwise as History, IdentificationCard as IdCard, CircleNotch as Loader2, MapPin, Pencil, Phone, ShieldCheck, User, Cards as WalletCards, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -15,6 +15,7 @@ import {
   loadUniversalProfileReusableDocumentStatuses,
 } from "@/app/client/documents/actions";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
 import { UniversalProfileExtendedEditor } from "@/components/client/universal-profile-extended-editor";
@@ -1884,12 +1885,17 @@ export default function UniversalInfoPage() {
 
           <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6 xl:col-start-2 xl:row-start-2">
             {message ? (
-              <p className="inline-flex items-center gap-2 text-[14px] font-medium text-green-700" role="status">
-                <CheckCircle2 className="h-4 w-4" />
-                {message}
-              </p>
+              <Alert variant="success">
+                <AlertIcon variant="success" />
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
             ) : null}
-            {warning ? <p className="max-w-2xl text-[14px] font-medium text-amber-700">{warning}</p> : null}
+            {warning ? (
+              <Alert variant="warning" className="max-w-2xl">
+                <AlertIcon variant="warning" />
+                <AlertDescription>{warning}</AlertDescription>
+              </Alert>
+            ) : null}
             {error ? <ClientErrorAlert message={error} /> : null}
 
             {activeSection === "documents" ? (

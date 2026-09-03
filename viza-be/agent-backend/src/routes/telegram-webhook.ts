@@ -10,6 +10,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import { timingSafeEqual } from "crypto";
 import axios from "axios";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { Logger } from "../utils/logger.js";
@@ -18,6 +19,24 @@ const logger = new Logger({ serviceName: "TelegramWebhook" });
 const router = Router();
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+/**
+ * Verify Telegram's secret token header. Telegram echoes the secret configured
+ * via setWebhook back in `X-Telegram-Bot-Api-Secret-Token` on every callback.
+ * We reject the request unless TELEGRAM_WEBHOOK_SECRET is configured AND the
+ * header matches it (constant-time). An unset secret rejects everything — fail
+ * closed — so the approval webhook can never be driven by an anonymous caller.
+ */
+function hasValidTelegramSecret(req: Request): boolean {
+  const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!expected) return false;
+  const provided = req.header("X-Telegram-Bot-Api-Secret-Token");
+  if (!provided) return false;
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return timingSafeEqual(providedBuf, expectedBuf);
+}
 
 async function answerCallbackQuery(callbackQueryId: string, text: string): Promise<void> {
   if (!BOT_TOKEN || BOT_TOKEN === "your_telegram_bot_token_here") return;
@@ -44,7 +63,15 @@ async function triggerReingest(articleId: string): Promise<void> {
  * Telegram sends update objects here when users click inline buttons.
  */
 router.post("/", async (req: Request, res: Response) => {
-  // Always return 200 immediately to Telegram
+  // Reject any caller that cannot present the configured secret token before
+  // touching the database or Telegram API.
+  if (!hasValidTelegramSecret(req)) {
+    logger.warn("telegram_webhook_rejected_invalid_secret");
+    res.status(401).json({ ok: false, error: "unauthorized" });
+    return;
+  }
+
+  // Return 200 immediately to Telegram once the caller is verified.
   res.status(200).json({ ok: true });
 
   const update = req.body;

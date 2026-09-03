@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { setPricingOverride, type PricingRow } from "@/app/actions/package-pricing";
 
 interface PricingClientProps {
@@ -77,7 +78,7 @@ export function PricingClient({ initialRows }: PricingClientProps) {
   return (
     <div className="space-y-3">
       {error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+        <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>
       ) : null}
       <div className="overflow-hidden rounded-xl border border-input bg-white shadow-sm">
         <table className="w-full text-sm">

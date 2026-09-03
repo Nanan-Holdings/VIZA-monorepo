@@ -37,6 +37,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "perf",
+      testMatch: /tests\/perf\/.+\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "mobile-iphone-14",
       testMatch: /tests\/mobile\/.+\.spec\.ts/,
       use: { ...devices["iPhone 14"] },

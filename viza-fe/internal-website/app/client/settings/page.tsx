@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { SettingsContent } from "./settings-content";
 
-export const metadata: Metadata = {
-  title: "Settings | VIZA",
-  description: "Manage your VIZA account settings and profile information.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("settings");
+  return { title: `${t("title")} | VIZA`, description: t("subtitle") };
+}
 
 export default function SettingsPage() {
   return <SettingsContent />;

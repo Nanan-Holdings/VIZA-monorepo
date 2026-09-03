@@ -37,7 +37,6 @@ import {
   recordOfficialFeeReview,
 } from "../official-fee/accounting.js";
 import {
-  ensureManagedOfficialFeeCard,
   finalizeManagedOfficialFeeCard,
   type ManagedOfficialFeeCard,
 } from "../issuing/managed-card-provider.js";
@@ -82,10 +81,20 @@ import {
   requirePoolExecutionIdentity,
 } from "./execution-context.js";
 
-const HALTED: (reachedStep: string, artefacts?: string[]) => DispatchOutcome = (
+const HALTED: (
+  reachedStep: string,
+  artefacts?: string[],
+  evidenceKind?: DispatchOutcome["evidenceKind"],
+) => DispatchOutcome = (
   reachedStep,
   artefacts = [],
-) => ({ outcome: "halted_before_pay", reachedStep, artefacts });
+  evidenceKind,
+) => ({
+  outcome: "halted_before_pay",
+  reachedStep,
+  artefacts,
+  ...(evidenceKind ? { evidenceKind } : {}),
+});
 
 /* ----------------------------- loaders ----------------------------- */
 
@@ -255,7 +264,7 @@ async function persistUkStaffReview(input: {
 
 export const runUkHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
-  const { applicantId, profile, application } = await loadProfileAndApp(applicationId);
+  const { applicantId, profile } = await loadProfileAndApp(applicationId);
   const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
 
   // Translate the wizard's answer shape → the seed wire-shape the
@@ -299,7 +308,6 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
   let issuerCard: ManagedOfficialFeeCard | null = null;
   const issuerFailure: { error: Error | null } = { error: null };
   const context = feeReadiness.kind === "ready" ? feeReadiness.context : null;
-  const expectedAmountCents = context ? Number(context.allocation.amount_cents) : null;
   const result = await resumeUkApplication(
     {
       resumeUrl: account.row.resume_url,
@@ -310,29 +318,16 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
     {
       headless: process.env.UK_PLAYWRIGHT_HEADLESS !== "false",
       runId,
-      ...(context && expectedAmountCents !== null
-        ? {
-            expectedPaymentAmount: expectedAmountCents / 100,
-            expectedPaymentCurrency: context.allocation.currency,
-            takePaymentCard: async () => {
-              try {
-                issuerCard = await ensureManagedOfficialFeeCard({
-                  execution: context,
-                  workerId: runId,
-                  country: application.country ?? "united_kingdom",
-                  visaType: application.visa_type ?? "UK_STANDARD_VISITOR",
-                });
-                return issuerCard;
-              } catch (error) {
-                issuerFailure.error = error instanceof Error ? error : new Error(String(error));
-                return null;
-              }
-            },
-          }
-        : {}),
+      // This run is evidence-only at the official fee boundary. Do not pass a
+      // card-acquisition callback: the leaf runner must capture the redacted
+      // pay page and return before any issuer or payment hook can run.
+      stopBeforePayment: true,
     },
   );
   if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
+    const paymentBoundaryArtifacts = "paymentBoundaryScreenshot" in result
+      ? [result.paymentBoundaryScreenshot.path]
+      : [];
     if (feeReadiness.kind === "staff_review") {
       // No card was issued because the financial context failed closed.
       await persistOfficialFeeFundingState(applicationId, "official_fee_payment_manual_review");
@@ -344,7 +339,11 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
         prefillProgress: ukProgress(result),
       };
       await writeSubmissionResult(applicationId, payload, "processing");
-      return HALTED("uk_official_fee_staff_review");
+      return HALTED(
+        "uk_official_fee_staff_review",
+        paymentBoundaryArtifacts,
+        paymentBoundaryArtifacts.length > 0 ? "pre_payment" : undefined,
+      );
     }
     const pendingReadiness = feeReadiness.kind === "ready"
       ? { kind: "payment_pending" as const, code: "official_payment_page_pending" }
@@ -357,7 +356,11 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
     );
     const ukPayload = ukSafePendingResult(pendingReadiness, result);
     await writeSubmissionResult(applicationId, ukPayload, "stopped_at_pay");
-    return HALTED(pendingReadiness.kind);
+    return HALTED(
+      pendingReadiness.kind,
+      paymentBoundaryArtifacts,
+      paymentBoundaryArtifacts.length > 0 ? "pre_payment" : undefined,
+    );
   }
   if (result.status === "paid" && context && issuerCard) {
     let evidence: { attemptId: string; receiptId: string };

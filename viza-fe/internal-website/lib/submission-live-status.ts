@@ -349,26 +349,40 @@ async function loadActionsForTable({
 export async function loadLiveSubmissionSummaries(
   adminClient: AdminClient,
   applicationIds: string[],
+  /**
+   * Country/visa-type for the same applications, when the caller already has
+   * them. Passing them in removes a whole Supabase round trip from the portal's
+   * status load; omitting them keeps the original self-contained behaviour.
+   */
+  knownApplications?: readonly ApplicationProductRow[],
 ): Promise<Map<string, LiveSubmissionSummary>> {
   if (applicationIds.length === 0) return new Map();
 
-  const { data, error } = await adminClient
-    .from("submission_queue")
-    .select(
-      "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, official_application_reference_encrypted, vn_registration_code_encrypted, live_submitted_at, updated_at, created_at",
-    )
-    .in("application_id", applicationIds)
-    .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(500);
+  // The queue read and the product lookup do not depend on each other, so they
+  // go out together rather than one after the other.
+  const [queueResult, applicationResult] = await Promise.all([
+    adminClient
+      .from("submission_queue")
+      .select(
+        "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, official_application_reference_encrypted, vn_registration_code_encrypted, live_submitted_at, updated_at, created_at",
+      )
+      .in("application_id", applicationIds)
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .limit(500),
+    knownApplications
+      ? Promise.resolve({ data: knownApplications as ApplicationProductRow[], error: null })
+      : adminClient
+          .from("applications")
+          .select("id, country, visa_type")
+          .in("id", applicationIds),
+  ]);
 
+  const { data, error } = queueResult;
   if (error && !isSchemaMissingError(error)) {
     throw new Error(error.message);
   }
 
-  const { data: applicationData, error: applicationError } = await adminClient
-    .from("applications")
-    .select("id, country, visa_type")
-    .in("id", applicationIds);
+  const { data: applicationData, error: applicationError } = applicationResult;
   if (applicationError) throw new Error(applicationError.message);
 
   const runnerFlowByApplication = new Map<string, StatusVisibleRunnerFlow>();
@@ -380,31 +394,29 @@ export async function loadLiveSubmissionSummaries(
     if (flow) runnerFlowByApplication.set(application.id, flow);
   }
   const eligibleRunnerApplicationIds = [...runnerFlowByApplication.keys()];
-  const runnerResult = eligibleRunnerApplicationIds.length > 0
-    ? await adminClient
-        .from("runner_job")
-        .select(
-          "id, application_id, country, status, last_error, enqueued_at, started_at, finished_at",
-        )
-        .in("application_id", eligibleRunnerApplicationIds)
-        .in(
-          "country",
-          STATUS_VISIBLE_RUNNER_FLOWS.map((flow) => flow.country),
-        )
-        .order("enqueued_at", { ascending: false, nullsFirst: false })
-        .limit(500)
-    : { data: [], error: null };
-  const { data: runnerData, error: runnerError } = runnerResult;
-  if (runnerError && !isSchemaMissingError(runnerError)) {
-    throw new Error(runnerError.message);
-  }
 
   const liveRows = (error ? [] : ((data ?? []) as QueueRow[])).filter(isLiveQueue);
   const jobIds = liveRows.map((row) => row.id);
   const actionGroups = new Map<string, LiveManualActionSummary[]>();
 
-  const actions = (
-    await Promise.all([
+  // The runner jobs and the four manual-action tables are all keyed off data we
+  // already have, so they share one round trip instead of two.
+  const [runnerResult, actionGroupsResult] = await Promise.all([
+    eligibleRunnerApplicationIds.length > 0
+      ? adminClient
+          .from("runner_job")
+          .select(
+            "id, application_id, country, status, last_error, enqueued_at, started_at, finished_at",
+          )
+          .in("application_id", eligibleRunnerApplicationIds)
+          .in(
+            "country",
+            STATUS_VISIBLE_RUNNER_FLOWS.map((flow) => flow.country),
+          )
+          .order("enqueued_at", { ascending: false, nullsFirst: false })
+          .limit(500)
+      : Promise.resolve({ data: [], error: null }),
+    Promise.all([
       loadActionsForTable({
         adminClient,
         tableName: "submission_manual_actions",
@@ -429,8 +441,15 @@ export async function loadLiveSubmissionSummaries(
         queueColumn: "job_id",
         jobIds,
       }),
-    ])
-  ).flat();
+    ]),
+  ]);
+
+  const { data: runnerData, error: runnerError } = runnerResult;
+  if (runnerError && !isSchemaMissingError(runnerError)) {
+    throw new Error(runnerError.message);
+  }
+
+  const actions = actionGroupsResult.flat();
 
   for (const action of actions) {
     if (!action.jobId) continue;

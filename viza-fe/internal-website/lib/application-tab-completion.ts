@@ -48,6 +48,8 @@ interface ComputeAllTabCompletionInput {
   reviewStepId: number;
   teamStepId: number;
   confirmationStepId: number;
+  /** Confirmation exists only for a verified official success. */
+  showConfirmationStep?: boolean;
   showDocumentStep?: boolean;
   showTeamStep: boolean;
   now?: Date;
@@ -634,7 +636,10 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   const priorStepsReady = missingFields.length === 0 && documentStepComplete;
   if (input.dbSteps.length > 0 && priorStepsReady) completed.add(input.reviewStepId);
   if (input.showTeamStep && priorStepsReady) completed.add(input.teamStepId);
-  if (input.submittedAt || TERMINAL_SUBMISSION_STATUSES.has(input.submissionResultStatus ?? "")) {
+  if (
+    input.showConfirmationStep !== false &&
+    (input.submittedAt || TERMINAL_SUBMISSION_STATUSES.has(input.submissionResultStatus ?? ""))
+  ) {
     completed.add(input.confirmationStepId);
   }
 

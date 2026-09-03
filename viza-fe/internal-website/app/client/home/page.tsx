@@ -18,8 +18,12 @@ import { ApplicationTimelineSection } from "@/components/client/home/Application
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
-import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
-import { getClientApplicationStatuses } from "@/app/actions/client-application-status";
+
+import {
+  loadClientApplicationStatuses,
+  loadClientHomeDashboard,
+} from "@/lib/client/portal-data";
+import { useRouteReady } from "@/lib/client/route-perf";
 import type { StatusApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
@@ -327,7 +331,7 @@ export default function HomePage() {
         // Start the expensive lifecycle read at the same time, but do not keep
         // the whole dashboard behind it. The hero and primary actions only
         // depend on the compact dashboard query.
-        const statusPromise = getClientApplicationStatuses().catch(
+        const statusPromise = loadClientApplicationStatuses().catch(
           (statusError) => {
             if (!isIgnorableDashboardLoadError(statusError)) {
               console.error(
@@ -338,7 +342,7 @@ export default function HomePage() {
             return null;
           },
         );
-        const dashboard = await getClientHomeDashboardData();
+        const dashboard = await loadClientHomeDashboard();
         lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
           if (isLatestRequest()) setIsTimelineLoading(false);
@@ -540,6 +544,8 @@ export default function HomePage() {
       window.removeEventListener("resize", syncNavColor);
     };
   }, [isLoading]);
+
+  useRouteReady(!isLoading);
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;

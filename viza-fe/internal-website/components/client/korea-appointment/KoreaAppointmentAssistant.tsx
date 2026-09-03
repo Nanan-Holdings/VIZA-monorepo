@@ -26,7 +26,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import { ProgressRail } from "@/components/client/simplified-form/progress-rail";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -570,8 +570,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       const ready = manualActionType === "official_cancel_confirmation_required";
       return (
         <div className="space-y-5">
-          <Alert className="border-amber-200 bg-amber-50">
-            <AlertCircle className="h-4 w-4 text-amber-700" />
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
             <AlertTitle>{changeIntent === "reschedule" ? t("management.confirmReschedule") : t("management.confirmCancel")}</AlertTitle>
             <AlertDescription>{ready ? t("management.cancelWarning") : t("management.sessionExpired")}</AlertDescription>
           </Alert>
@@ -828,8 +828,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </CollapsibleContent>
           </Collapsible>
           {!reviewReady ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertCircle className="h-4 w-4 text-amber-700" />
+            <Alert variant="warning">
+              <AlertIcon variant="warning" />
               <AlertTitle>{t("review.missingTitle")}</AlertTitle>
               <AlertDescription>{t("review.missingBody")}</AlertDescription>
             </Alert>
@@ -862,8 +862,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <StageCard stage="account" title={t("account.title")} description={t("account.focus")} icon={<MessageSquareText className="h-5 w-5" />} error={error}>
           {workerUnavailable ? (
             <>
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertCircle className="h-4 w-4 text-amber-700" />
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
                 <AlertTitle>{t("account.workerTitle")}</AlertTitle>
                 <AlertDescription>{t("account.workerBody")}</AlertDescription>
               </Alert>
@@ -1072,8 +1072,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <span className="text-sm leading-6">{t("confirm.authorization")}</span>
             </label>
           ) : (
-            <Alert className="border-emerald-200 bg-emerald-50">
-              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+            <Alert variant="success">
+              <AlertIcon variant="success" />
               <AlertTitle>{t("confirm.approvedTitle")}</AlertTitle>
               <AlertDescription>{t("confirm.approvedBody")}</AlertDescription>
             </Alert>

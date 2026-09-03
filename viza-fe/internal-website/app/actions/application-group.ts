@@ -152,6 +152,12 @@ async function getAuthorizedApplication(
   adminClient: ReturnType<typeof createAdminClient>,
   applicationId: string,
   identity: ApplicationAccessIdentity,
+  /**
+   * Columns to read from the owning profile. Callers that go on to need the
+   * whole profile pass "*" so the ownership check and the profile load are one
+   * query instead of two round trips.
+   */
+  profileSelect = "id, auth_user_id, dependant_of_user_id",
 ) {
   let { data: app, error: appError } = await adminClient
     .from("applications")
@@ -177,20 +183,31 @@ async function getAuthorizedApplication(
   if (appError) return { error: appError.message } as const;
   if (!app) return { error: "Application not found" } as const;
 
-  let { data: profile, error: profileError } = await adminClient
+  // `profileSelect` is chosen by the caller, so the row shape is described here
+  // rather than inferred from the literal.
+  type OwnerProfileRow = {
+    id: string;
+    auth_user_id: string | null;
+    dependant_of_user_id: string | null;
+  } & Record<string, unknown>;
+  type OwnerProfileResult = { data: OwnerProfileRow | null; error: { message: string } | null };
+
+  let { data: profile, error: profileError } = (await adminClient
     .from("applicant_profiles")
-    .select("id, auth_user_id, dependant_of_user_id")
+    .select(profileSelect)
     .eq("id", app.applicant_id)
-    .maybeSingle();
+    .maybeSingle()) as unknown as OwnerProfileResult;
 
   if (profileError && isMissingColumnError(profileError.message, "dependant_of_user_id")) {
-    const fallbackResult = await adminClient
+    const fallbackResult = (await adminClient
       .from("applicant_profiles")
       .select("id, auth_user_id")
       .eq("id", app.applicant_id)
-      .maybeSingle();
+      .maybeSingle()) as unknown as OwnerProfileResult;
 
-    profile = fallbackResult.data ? { ...fallbackResult.data, dependant_of_user_id: null } : null;
+    profile = fallbackResult.data
+      ? { ...fallbackResult.data, dependant_of_user_id: null }
+      : null;
     profileError = fallbackResult.error;
   }
 
@@ -469,24 +486,80 @@ export async function listTeamCompanions(applicationId: string): Promise<TeamCom
   return { ok: true, groupId, companions };
 }
 
+const APPLICATION_WITH_PROFILE_SELECT =
+  "id, applicant_id, group_id, country, visa_type, visa_package_id, status, consent_status, signature_status, confirmation_number, submitted_at, submission_result, submission_result_status, arrival_date, departure_date, port_of_entry, purpose, accommodation_name, accommodation_address, applicant_profiles!inner(*)";
+
+/**
+ * Loads an application together with the full profile of its owner in a single
+ * query, then applies the same ownership rules as `getAuthorizedApplication`.
+ *
+ * Falls back to the two-query path when the embed is unavailable (an older
+ * schema, or a missing foreign key), so behaviour never depends on it.
+ */
+async function getAuthorizedApplicationWithProfile(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  identity: ApplicationAccessIdentity,
+) {
+  type EmbeddedRow = Record<string, unknown> & {
+    applicant_profiles?: (Record<string, unknown> & {
+      id: string;
+      auth_user_id: string | null;
+      dependant_of_user_id: string | null;
+    }) | null;
+  };
+
+  const { data, error } = (await adminClient
+    .from("applications")
+    .select(APPLICATION_WITH_PROFILE_SELECT)
+    .eq("id", applicationId)
+    .maybeSingle()) as unknown as { data: EmbeddedRow | null; error: { message: string } | null };
+
+  if (error || !data?.applicant_profiles) {
+    return getAuthorizedApplication(
+      adminClient,
+      applicationId,
+      identity,
+      FREQUENT_TRAVELER_PROFILE_SELECT,
+    );
+  }
+
+  const { applicant_profiles: profile, ...app } = data;
+  const ownsProfile =
+    (Boolean(identity.profileId) && profile.id === identity.profileId) ||
+    (Boolean(identity.authUserId) && profile.auth_user_id === identity.authUserId) ||
+    (Boolean(identity.authUserId) && profile.dependant_of_user_id === identity.authUserId);
+
+  if (!ownsProfile) {
+    // Group payers are the uncommon case; resolve them on the original path.
+    return getAuthorizedApplication(
+      adminClient,
+      applicationId,
+      identity,
+      FREQUENT_TRAVELER_PROFILE_SELECT,
+    );
+  }
+
+  return { app, profile } as const;
+}
+
 export async function getTeamApplicationContext(applicationId: string): Promise<TeamApplicationContextResult> {
   const session = await getClientSessionWithFallback();
   if (!session) return { ok: false, reason: "Not authenticated" };
 
   const adminClient = createAdminClient();
-  const resolved = await getAuthorizedApplication(adminClient, applicationId, {
-    profileId: session.userId,
-    authUserId: session.authUserId,
-  });
+  // This runs every time the wizard opens, so read the application and its
+  // owning profile in one query. The ownership check and the full profile the
+  // wizard seeds from used to be two more round trips after it.
+  const resolved = await getAuthorizedApplicationWithProfile(
+    adminClient,
+    applicationId,
+    { profileId: session.userId, authUserId: session.authUserId },
+  );
   if ("error" in resolved) return { ok: false, reason: resolved.error };
 
-  const { data: profile, error } = await adminClient
-    .from("applicant_profiles")
-    .select(FREQUENT_TRAVELER_PROFILE_SELECT)
-    .eq("id", resolved.app.applicant_id)
-    .maybeSingle();
-
-  if (error || !profile) return { ok: false, reason: error?.message ?? "Profile not found" };
+  const profile = resolved.profile;
+  if (!profile) return { ok: false, reason: "Profile not found" };
 
   let applicationConsentPresent = false;
   let applicationSignaturePresent = false;

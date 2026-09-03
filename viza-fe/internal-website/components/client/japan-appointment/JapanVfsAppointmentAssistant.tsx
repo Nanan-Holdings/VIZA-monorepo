@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -225,8 +225,8 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
       ) : null}
 
       {snapshot?.account?.accountStatus === "mobile_already_registered" ? (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertCircle className="h-4 w-4 text-amber-700" />
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
           <AlertTitle>{t("account.mobileAlreadyRegisteredTitle")}</AlertTitle>
           <AlertDescription>{t("account.mobileAlreadyRegisteredBody")}</AlertDescription>
         </Alert>
@@ -327,8 +327,8 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
           <CardContent className="space-y-5">
             <Alert className="border-brand-100 bg-brand-50"><ShieldCheck className="h-4 w-4 text-brand-600" /><AlertTitle>{t("workflow.publicOnlyTitle")}</AlertTitle><AlertDescription>{t("workflow.publicOnlyBody")}</AlertDescription></Alert>
             {snapshot?.pendingManualAction ? (
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertCircle className="h-4 w-4 text-amber-700" />
+              <Alert variant="warning">
+                <AlertIcon variant="warning" />
                 <AlertTitle>{t(`checkpoints.${snapshot.pendingManualAction.actionType}`)}</AlertTitle>
                 <AlertDescription>{t(`checkpointBodies.${snapshot.pendingManualAction.actionType}`)}</AlertDescription>
               </Alert>

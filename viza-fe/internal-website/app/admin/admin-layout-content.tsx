@@ -25,6 +25,7 @@ import {
   List as ListTodo,
   SignOut as LogOut,
   MapTrifold as Map,
+  Megaphone,
   List as Menu,
   Chat as MessageSquare,
   Package,
@@ -60,10 +61,10 @@ type AdminNavKey =
   | "support" | "orders" | "products" | "cataloguePublication"
   | "consultations" | "work" | "takeovers" | "chat" | "revenue"
   | "pricing" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
-  | "costs" | "analytics" | "privacy" | "refunds" | "leads" | "audit" | "team";
+  | "costs" | "analytics" | "marketing" | "privacy" | "refunds" | "leads" | "audit" | "team";
 
 type AdminNavSectionKey =
-  | "control" | "cases" | "customers" | "commerce" | "platform" | "catalogue" | "administration";
+  | "control" | "growth" | "cases" | "customers" | "commerce" | "platform" | "catalogue" | "administration";
 
 interface AdminNavSection {
   labelKey: AdminNavSectionKey;
@@ -78,11 +79,11 @@ const ADMIN_COPY = {
       cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue",
       takeovers: "Takeovers", chat: "Live chat", revenue: "Revenue", pricing: "Pricing",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
-      backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests",
+      backups: "Backups", costs: "Costs", analytics: "Analytics", marketing: "Marketing ops", privacy: "Privacy requests",
       refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload",
     },
     sections: {
-      control: "Control tower", cases: "Cases", customers: "Customers", commerce: "Commerce",
+      control: "Control tower", growth: "Growth", cases: "Cases", customers: "Customers", commerce: "Commerce",
       platform: "Platform", catalogue: "Catalogue", administration: "Administration",
     },
     admin: "Admin",
@@ -101,11 +102,11 @@ const ADMIN_COPY = {
       cataloguePublication: "营销发布", consultations: "预约", work: "工作队列",
       takeovers: "人工接管", chat: "在线聊天", revenue: "收入", pricing: "定价",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
-      backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求",
+      backups: "备份", costs: "成本", analytics: "分析", marketing: "营销运营", privacy: "隐私请求",
       refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量",
     },
     sections: {
-      control: "运营控制台", cases: "申请案件", customers: "客户", commerce: "交易",
+      control: "运营控制台", growth: "增长", cases: "申请案件", customers: "客户", commerce: "交易",
       platform: "平台", catalogue: "产品目录", administration: "系统管理",
     },
     admin: "管理后台",
@@ -124,6 +125,9 @@ const adminNavSections: AdminNavSection[] = [
     { labelKey: "dashboard", icon: LayoutDashboard, href: "/admin" },
     { labelKey: "work", icon: ListTodo, href: "/admin/work" },
     { labelKey: "analytics", icon: BarChart3, href: "/admin/analytics" },
+  ] },
+  { labelKey: "growth", routes: [
+    { labelKey: "marketing", icon: Megaphone, href: "/admin/marketing" },
   ] },
   { labelKey: "cases", routes: [
     { labelKey: "applications", icon: ClipboardList, href: "/admin/applications" },

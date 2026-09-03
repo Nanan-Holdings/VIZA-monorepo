@@ -10,16 +10,15 @@ import {
   ArrowSquareOut as ExternalLink,
   Copy,
   Check,
-  ShieldCheck,
   Printer,
   Envelope as Mail,
   ArrowCounterClockwise as RotateCcw,
   CircleNotch as Loader2,
 } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
+import { SubmissionStatePanel, TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import type { Ds160ProofKind } from "@/lib/ds160-proof";
 
@@ -91,6 +90,8 @@ export function UsResultCard({
     ? result.securityAnswer
     : null;
   const submitted = result.status === "submitted";
+  const terminalConfirmed = submitted && result.finalSubmissionMode === "external_verified" &&
+    Boolean(result.confirmationNumber?.trim());
   const [startingNewApplication, setStartingNewApplication] = useState(false);
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
   const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
@@ -233,20 +234,41 @@ export function UsResultCard({
     throw new Error(t("proofTimeout"));
   };
 
+  if (terminalConfirmed) {
+    return (
+      <TerminalSuccessPanel
+        title={t("title")}
+        summary={t("submittedBody")}
+        reference={result.confirmationNumber}
+        referenceLabel={t("confirmationNumber")}
+        artifacts={<p className="text-sm text-muted-foreground">{t("successEvidenceBody")}</p>}
+        primaryAction={
+          <ProofActionButton
+            busy={Boolean(proofBusy.confirmation)}
+            label={t("printConfirmation")}
+            onClick={() => void requestProof("confirmation", "download")}
+          >
+            <Printer className="h-4 w-4 shrink-0" />
+          </ProofActionButton>
+        }
+        secondaryActions={
+          <Button asChild size="sm" variant="ghost">
+            <a href={result.retrievalUrl} target="_blank" rel="noopener noreferrer">
+              {t("openCeac")}
+              <ExternalLink />
+            </a>
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
-    <Card className="rounded-xl border-input">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-3 text-foreground">
-            <ShieldCheck className="h-5 w-5 text-brand-500" />
-            {t("title")}
-          </CardTitle>
+    <SubmissionStatePanel state="action-required" title={t("title")}>
+      <div className="space-y-4">
           <Badge variant={submitted ? "default" : "secondary"}>
             {submitted ? t("submitted") : t("awaitingSignature")}
           </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {submitted ? t("submittedBody") : t("body")}
         </p>
@@ -364,7 +386,7 @@ export function UsResultCard({
         <div className="space-y-2">
           <Button
             type="button"
-            variant={submitted ? "outline" : "default"}
+            variant={submitted ? "outline" : "primary"}
             className="w-full"
             onClick={startNewApplication}
             disabled={!applicationId || startingNewApplication}
@@ -392,7 +414,7 @@ export function UsResultCard({
             </Alert>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SubmissionStatePanel>
   );
 }

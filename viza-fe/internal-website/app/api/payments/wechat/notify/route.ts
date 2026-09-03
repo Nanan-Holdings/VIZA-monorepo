@@ -80,6 +80,28 @@ export async function POST(request: Request) {
   }
 
   const paid = resource.trade_state === "SUCCESS";
+
+  // Never downgrade an already-settled record: a later non-SUCCESS notice
+  // (retry, close, or spurious callback) must not move a 'paid' record back to
+  // 'pending'. Ack it so WeChat stops retrying, but leave the ledger untouched.
+  if (record.status === "paid" && !paid) {
+    return NextResponse.json({ code: "SUCCESS", message: "already paid" });
+  }
+
+  // Amount integrity: a SUCCESS notice must match the amount we recorded, in
+  // exact minor units (both sides are integer fen). On mismatch we refuse to
+  // credit and log for investigation rather than marking the wrong amount paid.
+  if (paid) {
+    const notifiedTotal = resource.amount?.total;
+    if (typeof notifiedTotal === "number" && notifiedTotal !== record.amount_cents) {
+      console.error(
+        `[payments-wechat-notify] amount mismatch for ${resource.out_trade_no}: ` +
+          `notified ${notifiedTotal} vs record ${record.amount_cents}`,
+      );
+      return NextResponse.json({ code: "FAIL", message: "amount mismatch" }, { status: 400 });
+    }
+  }
+
   const paidAt = resource.success_time ?? new Date().toISOString();
   const { error: updateError } = await admin
     .from("payment_records")

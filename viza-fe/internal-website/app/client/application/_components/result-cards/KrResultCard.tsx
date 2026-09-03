@@ -5,7 +5,7 @@ import { CalendarCheck, Download, FileText as FileCheck2, CircleNotch as Loader2
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { resolveKvacCenter } from "@/lib/korea-c39/kvac-routing";

@@ -4,6 +4,7 @@ import { CataloguePublicationCard } from "./catalogue-publication-card";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPublicCataloguePayload, type CatalogueReadiness, type PublicCataloguePayload } from "@/lib/admin/catalogue";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +136,7 @@ export default async function CataloguePublicationPage() {
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
       <header><div className="flex items-center gap-2"><Globe2 className="h-6 w-6 text-brand-500" /><h1 className="text-2xl font-semibold text-[#232323]">{copy.title}</h1></div><p className="mt-2 max-w-4xl text-sm leading-6 text-[#64748b]">{copy.subtitle}</p></header>
       <div className="flex gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm leading-6 text-[#334155]"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" /><p>{copy.guardrail}</p></div>
-      {errors.length ? <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><strong>{copy.unavailable}</strong>{errors.map((error, index) => <p key={index} className="mt-1 font-mono text-xs">{error?.message}</p>)}</div> : null}
+      {errors.length ? <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertTitle>{copy.unavailable}</AlertTitle><AlertDescription>{errors.map((error, index) => <p key={index} className="font-mono">{error?.message}</p>)}</AlertDescription></Alert> : null}
       {!packages.length ? <div className="rounded-xl border border-dashed bg-white p-10 text-center text-sm text-[#64748b]">{copy.empty}</div> : <div className="space-y-5">{packages.map((pkg) => {
         const sourcePrice = pricing.get(pkg.id);
         const publication = publications.get(pkg.id);

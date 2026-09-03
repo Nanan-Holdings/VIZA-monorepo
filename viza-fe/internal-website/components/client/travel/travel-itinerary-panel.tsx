@@ -9,7 +9,7 @@ import {
   WalletIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { alertToast } from "@/components/ui/alert-toast";
 import { type ItineraryDay } from "@/lib/travel/planner";
 import type { TravelChatMessage } from "@/lib/travel/chat-types";
 import { Button } from "@/components/ui/button";
@@ -185,7 +185,7 @@ export function TravelItineraryPanel({
               disabled={!exportPayload || isDownloadingWord}
               onClick={async () => {
                 if (!exportPayload) {
-                  toast.error("Please complete trip information before exporting.");
+                  alertToast("Please complete trip information before exporting.", { variant: "destructive" });
                   return;
                 }
                 setIsDownloadingWord(true);
@@ -200,7 +200,7 @@ export function TravelItineraryPanel({
                     error instanceof Error
                       ? error.message
                       : "Failed to download Word file.";
-                  toast.error(message);
+                  alertToast(message, { variant: "destructive" });
                 } finally {
                   setIsDownloadingWord(false);
                 }
@@ -216,7 +216,7 @@ export function TravelItineraryPanel({
               disabled={!exportPayload || isDownloadingPdf}
               onClick={async () => {
                 if (!exportPayload) {
-                  toast.error("Please complete trip information before exporting.");
+                  alertToast("Please complete trip information before exporting.", { variant: "destructive" });
                   return;
                 }
                 setIsDownloadingPdf(true);
@@ -231,7 +231,7 @@ export function TravelItineraryPanel({
                     error instanceof Error
                       ? error.message
                       : "Failed to download PDF file.";
-                  toast.error(message);
+                  alertToast(message, { variant: "destructive" });
                 } finally {
                   setIsDownloadingPdf(false);
                 }

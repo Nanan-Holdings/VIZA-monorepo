@@ -48,7 +48,10 @@ applicant info, and help pages.
   history.
 - `consent/**`: ToS/privacy/agency authorisation acceptance and e-signature
   workflow.
-- `settings/**`: account settings plus privacy export/deletion request surface.
+- `settings/**`: account settings plus privacy export/deletion request surface
+  and the applicant mailbox at `settings/inbox/**` (mail sent to the VIZA
+  alias: folders, AI reading panel, translation, attachments, queued replies).
+- `inbox/page.tsx`: legacy route — redirects to `/client/settings/inbox`.
 - `subscription/**`: RMB subscription and pay-per-application pricing, plus
   Stripe/WeChat Pay/Alipay payment entry points for commercial plans.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.

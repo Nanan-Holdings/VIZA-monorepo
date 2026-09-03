@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { retryAdminRunnerJob } from "@/app/actions/admin-submission";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
   if (error) {
     return (
       <div className="w-full p-6 md:p-8">
-        <p className="text-sm text-red-600">{error.message}</p>
+        <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error.message}</AlertDescription></Alert>
       </div>
     );
   }

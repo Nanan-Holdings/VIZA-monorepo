@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { type Download, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
+import { reportBadCaptcha, reportGoodCaptcha, solveCaptcha } from "../captcha";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 import type { RunnerExecutionContext } from "../queue/execution-context.js";
 import {
@@ -12,6 +13,12 @@ import {
   launchAbortableResource,
   runOwnedAction,
 } from "../queue/portal-safety.js";
+
+// Public Turnstile site key shipped in the current TDAC Angular bundle. Keep
+// an env override so operations can rotate it immediately if the official
+// portal changes the public widget configuration before a code deployment.
+const TDAC_PUBLIC_TURNSTILE_SITE_KEY =
+  process.env.TDAC_TURNSTILE_SITE_KEY?.trim() || "0x4AAAAAABbWJQZmpwAHs3HA";
 
 export interface TdacPortalSubmissionResult {
   submitted: boolean;
@@ -59,18 +66,23 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   }
 }
 
-async function installTurnstileHook(page: Page): Promise<void> {
+export async function installTurnstileHook(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    type TurnstileApi = {
+      render?: (container: unknown, options?: Record<string, unknown>) => unknown;
+    };
     const w = window as typeof window & {
-      turnstile?: { render?: (container: unknown, options?: Record<string, unknown>) => unknown };
+      turnstile?: TurnstileApi;
       __vizaTurnstileHooked?: boolean;
       __vizaTurnstileParams?: Record<string, unknown>;
       __vizaTurnstileCallback?: (token: string) => void;
+      onloadTurnstileCallback?: (...args: unknown[]) => unknown;
     };
-    const timer = window.setInterval(() => {
-      if (!w.turnstile?.render || w.__vizaTurnstileHooked) return;
-      const originalRender = w.turnstile.render.bind(w.turnstile);
-      w.turnstile.render = (container: unknown, options: Record<string, unknown> = {}) => {
+
+    const hookRender = (api: TurnstileApi | undefined) => {
+      if (!api?.render || w.__vizaTurnstileHooked) return;
+      const originalRender = api.render.bind(api);
+      api.render = (container: unknown, options: Record<string, unknown> = {}) => {
         w.__vizaTurnstileParams = {
           sitekey: options.sitekey,
           cData: options.cData,
@@ -85,9 +97,268 @@ async function installTurnstileHook(page: Page): Promise<void> {
         return originalRender(container, options);
       };
       w.__vizaTurnstileHooked = true;
-      window.clearInterval(timer);
+    };
+
+    // Install before any portal script runs. The previous interval-only hook
+    // could lose the first render call when Cloudflare assigned and rendered
+    // `window.turnstile` within the same event-loop turn.
+    let turnstileApi = w.turnstile;
+    try {
+      Object.defineProperty(w, "turnstile", {
+        configurable: true,
+        enumerable: true,
+        get: () => turnstileApi,
+        set: (value: TurnstileApi | undefined) => {
+          turnstileApi = value;
+          hookRender(value);
+        },
+      });
+    } catch {
+      // The bounded interval below remains the compatibility path if a browser
+      // makes the global property non-configurable before this init script.
+    }
+    hookRender(turnstileApi);
+
+    // ngx-turnstile registers this global before Cloudflare invokes it. Wrap
+    // that boundary so `render` is intercepted synchronously before Angular's
+    // original onload handler creates the first widget.
+    let originalOnload = w.onloadTurnstileCallback;
+    let wrappedOnload: ((...args: unknown[]) => unknown) | undefined;
+    const wrapOnload = (callback: typeof originalOnload) => {
+      if (!callback) return undefined;
+      return (...args: unknown[]) => {
+        hookRender(w.turnstile);
+        return callback(...args);
+      };
+    };
+    wrappedOnload = wrapOnload(originalOnload);
+    try {
+      Object.defineProperty(w, "onloadTurnstileCallback", {
+        configurable: true,
+        enumerable: true,
+        get: () => wrappedOnload,
+        set: (value: typeof originalOnload) => {
+          originalOnload = value;
+          wrappedOnload = wrapOnload(value);
+        },
+      });
+    } catch {
+      // The turnstile global hook and interval remain the compatibility path.
+    }
+
+    const timer = window.setInterval(() => {
+      hookRender(w.turnstile);
+      if (w.__vizaTurnstileHooked) window.clearInterval(timer);
     }, 10);
   });
+}
+
+export interface TdacTurnstileTask {
+  siteKey: string;
+  pageUrl: string;
+  action?: string;
+  cdata?: string;
+  pageData?: string;
+  userAgent?: string;
+}
+
+function optionalTrimmedString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+export function buildTdacTurnstileTask(
+  raw: Record<string, unknown> | null | undefined,
+): TdacTurnstileTask | null {
+  if (!raw) return null;
+  const siteKey = optionalTrimmedString(raw.sitekey);
+  const pageUrl = optionalTrimmedString(raw.pageUrl);
+  if (!siteKey || !pageUrl) return null;
+  return {
+    siteKey,
+    pageUrl,
+    action: optionalTrimmedString(raw.action),
+    cdata: optionalTrimmedString(raw.cData),
+    pageData: optionalTrimmedString(raw.chlPageData),
+    userAgent: optionalTrimmedString(raw.userAgent),
+  };
+}
+
+export async function waitForTdacTurnstileTask(
+  page: Page,
+  timeoutMs = 30_000,
+): Promise<TdacTurnstileTask | null> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const raw = await page.evaluate(() => {
+      const w = window as typeof window & {
+        __vizaTurnstileParams?: Record<string, unknown>;
+      };
+      if (w.__vizaTurnstileParams) return w.__vizaTurnstileParams;
+      const widget = document.querySelector<HTMLElement>(
+        ".cf-turnstile[data-sitekey], [data-sitekey][class*='turnstile']",
+      );
+      const resourceSiteKey = performance.getEntriesByType("resource")
+        .map((entry) => entry.name)
+        .filter((name) => name.includes("challenges.cloudflare.com"))
+        .map((name) => name.match(/(0x[A-Za-z0-9_-]{10,})/u)?.[1])
+        .find(Boolean);
+      const sitekey = widget?.dataset.sitekey ?? resourceSiteKey;
+      return sitekey ? {
+        sitekey,
+        pageUrl: window.location.href,
+        userAgent: navigator.userAgent,
+        action: widget?.dataset.action,
+        cData: widget?.dataset.cdata,
+      } : null;
+    }).catch(() => null);
+    const task = buildTdacTurnstileTask(raw);
+    if (task) return task;
+    await page.waitForTimeout(500);
+  }
+  return null;
+}
+
+async function injectTdacTurnstileToken(page: Page, token: string): Promise<{
+  callbackInvoked: boolean;
+  callbackSource: "captured_render" | "angular_resolved_event" | "none";
+  responseFieldsUpdated: number;
+}> {
+  return page.evaluate((solvedToken) => {
+    const w = window as typeof window & {
+      __vizaTurnstileCallback?: (value: string) => void;
+    };
+    let responseFieldsUpdated = 0;
+    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+    );
+    fields.forEach((field) => {
+      field.value = solvedToken;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      responseFieldsUpdated += 1;
+    });
+    // The production TDAC Angular build currently wires ngx-turnstile's
+    // `resolved` output through Zone.js on the host element instead of leaving
+    // the render callback reachable on window. Invoke that already-registered
+    // official listener with the solved token so Angular runs the same
+    // sendCaptchaResponse(token) path as a normal widget completion.
+    type ZoneResolvedTask = {
+      eventName?: string;
+      callback?: (value: string) => unknown;
+      invoke?: (
+        task: ZoneResolvedTask,
+        target: HTMLElement,
+        args: [string],
+      ) => unknown;
+    };
+    const widget = document.querySelector("ngx-turnstile") as (HTMLElement & {
+      __zone_symbol__resolvedfalse?: ZoneResolvedTask[];
+    }) | null;
+    const resolvedTask = widget?.__zone_symbol__resolvedfalse?.find(
+      (task) => task?.eventName === "resolved" && typeof task.callback === "function",
+    );
+    if (widget && resolvedTask?.invoke) {
+      resolvedTask.invoke(resolvedTask, widget, [solvedToken]);
+      return {
+        callbackInvoked: true,
+        callbackSource: "angular_resolved_event" as const,
+        responseFieldsUpdated,
+      };
+    }
+    if (resolvedTask?.callback) {
+      resolvedTask.callback(solvedToken);
+      return {
+        callbackInvoked: true,
+        callbackSource: "angular_resolved_event" as const,
+        responseFieldsUpdated,
+      };
+    }
+    if (typeof w.__vizaTurnstileCallback === "function") {
+      w.__vizaTurnstileCallback(solvedToken);
+      return {
+        callbackInvoked: true,
+        callbackSource: "captured_render" as const,
+        responseFieldsUpdated,
+      };
+    }
+
+    return {
+      callbackInvoked: false,
+      callbackSource: "none" as const,
+      responseFieldsUpdated,
+    };
+  }, token);
+}
+
+export async function solveTdacTurnstileWithTwoCaptcha(
+  page: Page,
+  logs: string[],
+): Promise<boolean> {
+  let task = await waitForTdacTurnstileTask(page);
+  if (!task) {
+    // TDAC intermittently paints the disabled landing controls without
+    // initializing ngx-turnstile or its Cloudflare resource. A single bounded
+    // reload gives the official SPA another initialization cycle; the init
+    // script installed with addInitScript remains active across this reload.
+    logs.push("tdac_turnstile_solver_reload_missing_widget");
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 120_000 }).catch((error) => {
+      logs.push(
+        `tdac_turnstile_solver_reload_timeout ${error instanceof Error ? error.name : "unknown_error"}`,
+      );
+    });
+    await page.waitForTimeout(8_000);
+    task = await waitForTdacTurnstileTask(page);
+  }
+  if (!task) {
+    logs.push("tdac_turnstile_solver_params_missing");
+    const userAgent = await page.evaluate(() => navigator.userAgent).catch(() => undefined);
+    task = {
+      siteKey: TDAC_PUBLIC_TURNSTILE_SITE_KEY,
+      pageUrl: page.url(),
+      userAgent,
+    };
+    logs.push("tdac_turnstile_solver_public_sitekey_fallback");
+  }
+
+  logs.push("tdac_turnstile_solver_started provider=twocaptcha");
+  const solved = await solveCaptcha({
+    type: "turnstile",
+    siteKey: task.siteKey,
+    pageUrl: task.pageUrl,
+    action: task.action,
+    cdata: task.cdata,
+    pageData: task.pageData,
+    userAgent: task.userAgent,
+    timeoutMs: 150_000,
+  });
+  if (solved.userAgent) {
+    try {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Network.setUserAgentOverride", {
+        userAgent: solved.userAgent,
+      });
+      logs.push("tdac_turnstile_solver_user_agent_applied");
+    } catch {
+      // Browserbase and local Chromium normally expose CDP. Preserve a safe
+      // fallback for another provider so Angular's verification request still
+      // carries the browser identity associated with the solved token.
+      await page.setExtraHTTPHeaders({ "user-agent": solved.userAgent });
+      logs.push("tdac_turnstile_solver_user_agent_header_applied");
+    }
+  }
+  const injected = await injectTdacTurnstileToken(page, solved.text);
+  logs.push(
+    `tdac_turnstile_token_injected callback=${injected.callbackInvoked} source=${injected.callbackSource} fields=${injected.responseFieldsUpdated}`,
+  );
+  const cleared = await waitForTdacCloudflareClearance(page, logs, 60_000);
+  if (cleared) {
+    await reportGoodCaptcha(solved.solveId).catch(() => undefined);
+    logs.push("tdac_turnstile_solver_cleared");
+    return true;
+  }
+  await reportBadCaptcha(solved.solveId).catch(() => undefined);
+  logs.push("tdac_turnstile_solver_token_rejected");
+  return false;
 }
 
 async function arrivalButtonEnabled(page: Page): Promise<boolean> {
@@ -290,7 +561,7 @@ async function openTdacAddRoute(page: Page, logs: string[], screenshots: string[
   return false;
 }
 
-async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
+export async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
   const candidateFrames = page.locator("iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']");
   const count = await candidateFrames.count().catch(() => 0);
   for (let index = 0; index < count; index += 1) {
@@ -328,6 +599,30 @@ async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Prom
       }
     } catch (error) {
       logs.push(`tdac_turnstile_iframe_coordinate_click_failed ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // TDAC's current ngx-turnstile build renders the Cloudflare control inside
+  // an encapsulated widget: there may be no document-level iframe locator even
+  // though the host element has a real, clickable box. Click the checkbox area
+  // on that official host, then use the enabled Arrival Card control—not the
+  // lingering Success overlay—as the authoritative clearance signal.
+  const angularWidget = page.locator("ngx-turnstile").first();
+  const widgetBox = await angularWidget.boundingBox().catch(() => null);
+  if (widgetBox && widgetBox.width > 40 && widgetBox.height > 30) {
+    try {
+      logs.push("tdac_turnstile_angular_widget_click_attempt");
+      await page.mouse.click(
+        widgetBox.x + Math.min(28, widgetBox.width / 4),
+        widgetBox.y + widgetBox.height / 2,
+      );
+      await page.waitForTimeout(10_000);
+      if (await arrivalButtonEnabled(page)) {
+        logs.push("tdac_turnstile_angular_widget_click_enabled_arrival_button");
+        return true;
+      }
+    } catch (error) {
+      logs.push(`tdac_turnstile_angular_widget_click_failed ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return false;
@@ -2074,27 +2369,31 @@ export async function runTdacPortalSubmission(
       logs.push(`tdac_arrival_button_not_found_continue_to_add_route ${text.slice(0, 500).replace(/\s+/g, " ")}`);
     } else if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
+      let captchaCleared = false;
       if (browserSession.provider === "browserbase" || browserSession.nativeCloudflareUnblock) {
         logs.push(`tdac_waiting_for_managed_browser_cloudflare_clearance provider=${browserSession.provider}`);
-        let enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 120_000);
-        if (!enabledAfterManagedWait) {
+        captchaCleared = await waitForTdacCloudflareClearance(page, logs, 120_000);
+        if (!captchaCleared) {
           await clickTurnstileCheckboxIfVisible(page, logs);
-          enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 60_000);
+          captchaCleared = await waitForTdacCloudflareClearance(page, logs, 60_000);
         }
-        if (!enabledAfterManagedWait) {
-          screenshots.push(await saveScreenshot(page, "cloudflare-not-cleared", logs));
-          const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-          throw new TdacPortalError("TDAC Cloudflare challenge was not cleared by the managed browser.", {
-            code: "tdac_cloudflare_not_cleared",
-            screenshotPaths: screenshots,
-            portalSummary: text.slice(0, 500),
-            logs,
-          });
+      }
+      if (!captchaCleared) {
+        await clickTurnstileCheckboxIfVisible(page, logs);
+        captchaCleared = await waitForTdacCloudflareClearance(page, logs, 20_000);
+      }
+      if (!captchaCleared) {
+        try {
+          captchaCleared = await solveTdacTurnstileWithTwoCaptcha(page, logs);
+        } catch (error) {
+          logs.push(`tdac_turnstile_solver_failed ${error instanceof Error ? error.name : "unknown_error"}`);
         }
-      } else {
+      }
+      if (!captchaCleared) {
+        screenshots.push(await saveScreenshot(page, "cloudflare-not-cleared", logs));
         const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-        throw new TdacPortalError("TDAC Cloudflare challenge requires Browser API clearance; 2captcha is disabled for TDAC.", {
-          code: "tdac_browser_api_required",
+        throw new TdacPortalError("TDAC Cloudflare Turnstile was not cleared by the managed browser or configured CAPTCHA solver.", {
+          code: "tdac_cloudflare_not_cleared",
           screenshotPaths: screenshots,
           portalSummary: text.slice(0, 500),
           logs,

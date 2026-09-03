@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // tests/ holds Playwright specs (e2e, a11y, mobile, perf). They are run by
+    // `npm run test:e2e` and friends; Vitest cannot execute them.
+    exclude: ["node_modules/**", "dist/**", ".next/**", "tests/**"],
     globals: true,
     coverage: {
       provider: "v8",

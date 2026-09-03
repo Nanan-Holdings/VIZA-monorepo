@@ -658,7 +658,7 @@ export default function ApplyPage() {
   const pstepClass = (n: Step) =>
     `pstep${n < step ? " done" : ""}${n === step ? " current" : ""}`;
 
-  if (!country.launched || !publishedPricing) {
+  if (!country.launched) {
     return <ComingSoon name={countryName} />;
   }
 
@@ -1105,8 +1105,12 @@ export default function ApplyPage() {
             <div className="sub"><span className="dot"></span> {tA("onTimeRefund")}</div>
           </div>
 
-          <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">{tA("totalAmount", { amount: summaryGovFee.toFixed(2) })}</span></div>
-          <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">{tA("totalAmount", { amount: summaryVizaFee.toFixed(2) })}</span></div>
+          {publishedPricing ? (
+            <>
+              <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">{tA("totalAmount", { amount: summaryGovFee.toFixed(2) })}</span></div>
+              <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">{tA("totalAmount", { amount: summaryVizaFee.toFixed(2) })}</span></div>
+            </>
+          ) : null}
           <div className="price-row" id="sumExpressRow">
             <span className="k">{upgradeParts.length ? upgradeParts.join(" + ") : tA("upgrades")}</span>
             <span className="v">{upgradeParts.length ? tA("upgradeAmount", { amount: (speedAdd + addonsAdd).toFixed(2) }) : "—"}</span>
@@ -1117,7 +1121,7 @@ export default function ApplyPage() {
 
           <div className="price-total">
             <span className="k">{tA("total")}</span>
-            <span className="v" id="sumTotal">{total === 0 ? tA("totalFree") : tA("totalAmount", { amount: total.toFixed(2) })}</span>
+            <span className="v" id="sumTotal">{publishedPricing ? (total === 0 ? tA("totalFree") : tA("totalAmount", { amount: total.toFixed(2) })) : tA("pricingAtCheckout")}</span>
           </div>
 
           <div className="price-foot">

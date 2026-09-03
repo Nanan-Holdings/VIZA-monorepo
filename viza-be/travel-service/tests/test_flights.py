@@ -39,7 +39,13 @@ class FlightProviderContractTests(unittest.TestCase):
         async def no_destination(_query):
             return None
 
-        with patch("tools.flights._resolve_destination_id", new=no_destination):
+        async def no_serpapi(**_kwargs):
+            return []
+
+        with (
+            patch("tools.flights.search_serpapi_flights", new=no_serpapi),
+            patch("tools.flights._resolve_destination_id", new=no_destination),
+        ):
             options = asyncio.run(
                 search_flights("广州", "东京", "2026-10-05", adults=1)
             )
@@ -51,6 +57,9 @@ class FlightProviderContractTests(unittest.TestCase):
         )
 
     def test_provider_offer_is_not_marked_as_estimate(self):
+        async def no_serpapi(**_kwargs):
+            return []
+
         async def destination_id(query):
             return {"广州": "CITY_GZ", "东京": "CITY_TYO"}[query]
 
@@ -90,6 +99,7 @@ class FlightProviderContractTests(unittest.TestCase):
             }
 
         with (
+            patch("tools.flights.search_serpapi_flights", new=no_serpapi),
             patch("tools.flights._resolve_destination_id", new=destination_id),
             patch("tools.flights._request_json", new=provider_payload),
         ):

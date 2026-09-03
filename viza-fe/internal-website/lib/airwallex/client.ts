@@ -41,6 +41,18 @@ export interface AirwallexCustomer {
   email?: string;
 }
 
+export interface AirwallexPaymentConsent {
+  id: string;
+  status: string;
+  customer_id?: string;
+  payment_method?: unknown;
+  next_action?: {
+    qrcode?: string;
+    url?: string;
+    type?: string;
+  };
+}
+
 export type AirwallexPaymentMethodType =
   | "card"
   | "alipaycn_qrcode"
@@ -61,7 +73,11 @@ interface TokenCache {
 let cachedToken: TokenCache | null = null;
 
 function getBaseUrl(): string {
-  return (process.env.AIRWALLEX_BASE_URL?.trim() || "https://api-demo.airwallex.com").replace(/\/+$/, "");
+  const fallback =
+    getAirwallexEnvironment() === "prod"
+      ? "https://api.airwallex.com"
+      : "https://api-demo.airwallex.com";
+  return (process.env.AIRWALLEX_BASE_URL?.trim() || fallback).replace(/\/+$/, "");
 }
 
 export function getAirwallexEnvironment(): "demo" | "prod" {
@@ -69,7 +85,17 @@ export function getAirwallexEnvironment(): "demo" | "prod" {
 }
 
 export function isAirwallexConfigured(): boolean {
-  return Boolean(process.env.AIRWALLEX_CLIENT_ID?.trim() && process.env.AIRWALLEX_API_KEY?.trim());
+  if (!process.env.AIRWALLEX_CLIENT_ID?.trim() || !process.env.AIRWALLEX_API_KEY?.trim()) {
+    return false;
+  }
+  const configuredBase = process.env.AIRWALLEX_BASE_URL?.trim();
+  if (!configuredBase) return true;
+  const isDemoBase = /api-(?:demo|sandbox)\.airwallex\.com/i.test(configuredBase);
+  return getAirwallexEnvironment() === "demo" ? isDemoBase : !isDemoBase;
+}
+
+export function isAirwallexWechatRecurringConfigured(): boolean {
+  return process.env.AIRWALLEX_WECHAT_RECURRING_FLOW?.trim() === "single_plan";
 }
 
 function getRequiredEnv(name: string): string {
@@ -211,6 +237,85 @@ export async function createBindingPaymentIntent(input: {
 
 export async function retrievePaymentIntent(intentId: string): Promise<AirwallexPaymentIntent> {
   return airwallexRequest<AirwallexPaymentIntent>(`/api/v1/pa/payment_intents/${encodeURIComponent(intentId)}`);
+}
+
+export async function disableAirwallexPaymentConsent(input: {
+  paymentConsentId: string;
+  requestId: string;
+}): Promise<AirwallexPaymentConsent> {
+  return airwallexRequest<AirwallexPaymentConsent>(
+    `/api/v1/pa/payment_consents/${encodeURIComponent(input.paymentConsentId)}/disable`,
+    {
+      method: "POST",
+      body: JSON.stringify({ request_id: input.requestId.slice(0, 64) }),
+    },
+  );
+}
+
+export async function retrieveAirwallexPaymentConsent(
+  paymentConsentId: string,
+): Promise<AirwallexPaymentConsent> {
+  return airwallexRequest<AirwallexPaymentConsent>(
+    `/api/v1/pa/payment_consents/${encodeURIComponent(paymentConsentId)}`,
+  );
+}
+
+export async function createAirwallexPaymentConsent(input: {
+  requestId: string;
+  customerId: string;
+}): Promise<AirwallexPaymentConsent> {
+  return airwallexRequest<AirwallexPaymentConsent>("/api/v1/pa/payment_consents/create", {
+    method: "POST",
+    body: JSON.stringify({
+      request_id: input.requestId.slice(0, 64),
+      customer_id: input.customerId,
+      next_triggered_by: "merchant",
+      merchant_trigger_reason: "unscheduled",
+    }),
+  });
+}
+
+export async function verifyAirwallexWalletPaymentConsent(input: {
+  paymentConsentId: string;
+  method: "wechat_pay" | "alipay";
+  requestId: string;
+  returnUrl: string;
+}): Promise<AirwallexPaymentConsent> {
+  const providerMethod = input.method === "wechat_pay" ? "wechatpay" : "alipaycn";
+  return airwallexRequest<AirwallexPaymentConsent>(
+    `/api/v1/pa/payment_consents/${encodeURIComponent(input.paymentConsentId)}/verify`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        request_id: input.requestId.slice(0, 64),
+        payment_method: {
+          type: providerMethod,
+          [providerMethod]: { flow: "qrcode" },
+        },
+        ...(input.method === "wechat_pay"
+          ? { verification_options: { wechatpay: { currency: "CNY" } } }
+          : {}),
+        return_url: input.returnUrl,
+      }),
+    },
+  );
+}
+
+export async function confirmPaymentIntentWithConsent(input: {
+  intentId: string;
+  paymentConsentId: string;
+  requestId: string;
+}): Promise<AirwallexPaymentIntent> {
+  return airwallexRequest<AirwallexPaymentIntent>(
+    `/api/v1/pa/payment_intents/${encodeURIComponent(input.intentId)}/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        payment_consent_id: input.paymentConsentId,
+        request_id: input.requestId.slice(0, 64),
+      }),
+    },
+  );
 }
 
 export async function confirmPaymentIntent(input: {

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
@@ -546,17 +547,10 @@ export default async function AdminPackagesPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-3">
-          <AlertTriangle
-            className="mt-0.5 h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
-          <p>
-            {copy.caution}
-          </p>
-        </div>
-      </section>
+      <Alert variant="warning">
+        <AlertIcon variant="warning" />
+        <AlertDescription>{copy.caution}</AlertDescription>
+      </Alert>
     </div>
   );
 }
@@ -701,11 +695,10 @@ function IssueBanner({
   copy: PackageCoverageCopy;
 }) {
   return (
-    <section className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-900">
-      <div className="flex gap-3">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <div>
-          <h2 className="font-semibold">{copy.issueTitle}</h2>
+    <Alert variant="destructive">
+      <AlertIcon variant="destructive" />
+      <AlertTitle>{copy.issueTitle}</AlertTitle>
+      <AlertDescription>
           <ul className="mt-2 space-y-1">
             {issues.map((issue) => (
               <li key={issue.source}>
@@ -713,9 +706,8 @@ function IssueBanner({
               </li>
             ))}
           </ul>
-        </div>
-      </div>
-    </section>
+      </AlertDescription>
+    </Alert>
   );
 }
 

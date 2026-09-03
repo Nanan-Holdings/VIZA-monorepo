@@ -7,7 +7,7 @@
  * error, which is what happened to the old "活动" tab.
  */
 export interface NavTab {
-  id: "explore" | "product" | "about" | "events";
+  id: "explore" | "product" | "about" | "events" | "blog";
   href: string;
   labelKey: string;
 }
@@ -17,4 +17,5 @@ export const NAV_TABS: NavTab[] = [
   { id: "product", href: "/product", labelKey: "nav.product" },
   { id: "about", href: "/about", labelKey: "nav.about" },
   { id: "events", href: "/events", labelKey: "nav.events" },
+  { id: "blog", href: "/blog", labelKey: "nav.blog" },
 ];

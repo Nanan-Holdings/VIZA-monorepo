@@ -1882,7 +1882,7 @@ function buildHoverCardHtml(
         <span>${escapeHtml(title)}</span>
         <span style="border-radius:6px;background:#fff1f2;color:#fb4d61;font-size:${compact ? 13 : 15}px;font-weight:800;padding:2px 5px;">${isZh ? "热度 10" : "Trending 10"}</span>
       </div>
-      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#f1f0ff;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+      <button id="${summaryButtonId ?? ""}" type="button" style="pointer-events:auto;box-sizing:border-box;margin-top:10px;width:100%;border:0;border-radius:7px;background:#eef3fa;padding:7px 8px;text-align:left;color:#0f3bae;cursor:pointer;font-size:${bodySize}px;line-height:${introLineHeight}px;min-height:${introHeight + 14}px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
         <span style="color:#0f3bae;">${isZh ? "热门景点：" : "Highlights:"}</span> <span style="color:#020617;">${escapeHtml(attractions)}</span>
       </button>
       ${
@@ -2716,7 +2716,7 @@ export function TripRouteMap({
         path: routePath,
         map,
         geodesic: true,
-        strokeColor: "#2d1635",
+        strokeColor: "#01214A",
         strokeOpacity: animateRoute ? 0.32 : 0.78,
         strokeWeight: animateRoute ? 4 : 5,
         zIndex: 1,
@@ -2730,7 +2730,7 @@ export function TripRouteMap({
                   icon: {
                     path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
                     scale: 3,
-                    strokeColor: "#2d1635",
+                    strokeColor: "#01214A",
                     strokeWeight: 2,
                   },
                   offset: "100%",
@@ -2746,7 +2746,7 @@ export function TripRouteMap({
           path: [routePath[0]!],
           map,
           geodesic: true,
-          strokeColor: "#8d5df7",
+          strokeColor: "#3D6DAD",
           strokeOpacity: 0.95,
           strokeWeight: 7,
           zIndex: 2,

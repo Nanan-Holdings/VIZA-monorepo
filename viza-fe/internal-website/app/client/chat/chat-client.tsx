@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
+import { alertToast } from "@/components/ui/alert-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
@@ -1352,14 +1353,14 @@ export function ChatClient({
         socketSendMessage(pending.message, pending.sessionId);
       }
       setPendingMessages([]);
-      toast.success(t("connectedSending"));
+      alertToast(t("connectedSending"), { variant: "success" });
     }
   }, [status, pendingMessages, socketSendMessage]);
 
   useEffect(() => {
     const lastLog = logs[logs.length - 1];
     if (lastLog?.eventType === "escalation") {
-      toast.info(t("agentNotified"));
+      alertToast(t("agentNotified"), { variant: "info" });
     }
   }, [logs]);
 
@@ -1388,7 +1389,7 @@ export function ChatClient({
 
   const handleNewVizaSession = useCallback(() => {
     if (isStreaming) {
-      toast.info("Please wait for the current response to finish.");
+      alertToast("Please wait for the current response to finish.", { variant: "info" });
       return;
     }
 
@@ -1415,7 +1416,7 @@ export function ChatClient({
       }
 
       if (isStreaming) {
-        toast.info("Please wait for the current response to finish.");
+        alertToast("Please wait for the current response to finish.", { variant: "info" });
         return;
       }
 
@@ -1436,7 +1437,7 @@ export function ChatClient({
         resetHistoryState(messages.length >= 50);
       } catch (error) {
         console.error("Error loading VIZA session:", error);
-        toast.error("Failed to load conversation");
+        alertToast("Failed to load conversation", { variant: "destructive" });
       } finally {
         setIsLoadingMessages(false);
       }
@@ -1477,7 +1478,7 @@ export function ChatClient({
       const result = await renameSession(userId, targetSessionId, nextTitle);
 
       if (!result.success) {
-        toast.error(result.error || t("sessionRenameFailed"));
+        alertToast(result.error || t("sessionRenameFailed"), { variant: "destructive" });
         return false;
       }
 
@@ -1493,7 +1494,9 @@ export function ChatClient({
           return nextSession;
         })
       );
-      toast.success(result.title ? t("sessionRenamed") : t("sessionTitleCleared"));
+      alertToast(result.title ? t("sessionRenamed") : t("sessionTitleCleared"), {
+        variant: "success",
+      });
       return true;
     },
     [t, userId]
@@ -1502,14 +1505,14 @@ export function ChatClient({
   const handleDeleteVizaSession = useCallback(
     async (targetSessionId: string) => {
       if (isStreaming) {
-        toast.info(t("sessionWaitForResponse"));
+        alertToast(t("sessionWaitForResponse"), { variant: "info" });
         return false;
       }
 
       const result = await deleteSession(userId, targetSessionId);
 
       if (!result.success) {
-        toast.error(result.error || t("sessionDeleteFailed"));
+        alertToast(result.error || t("sessionDeleteFailed"), { variant: "destructive" });
         return false;
       }
 
@@ -1533,7 +1536,7 @@ export function ChatClient({
         }
       }
 
-      toast.success(t("sessionDeleted"));
+      alertToast(t("sessionDeleted"), { variant: "success" });
       return true;
     },
     [
@@ -1557,7 +1560,7 @@ export function ChatClient({
       if (!effectiveSessionId) {
         const newSession = await createSession(userId, travelApplicationId);
         if (!newSession) {
-          toast.error(t("failedToStart"));
+          alertToast(t("failedToStart"), { variant: "destructive" });
           return;
         }
 
@@ -1577,7 +1580,7 @@ export function ChatClient({
           { message, sessionId: effectiveSessionId },
         ]);
         markSessionUsed(effectiveSessionId, message);
-        toast.info(t("willSendWhenConnected"));
+        alertToast(t("willSendWhenConnected"), { variant: "info" });
         return;
       }
 

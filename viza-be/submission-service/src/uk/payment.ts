@@ -101,7 +101,7 @@ const FIELD_SELECTORS: Record<CardField, readonly string[]> = {
   ],
 };
 
-function isAllowedPaymentUrl(value: string): boolean {
+export function isUkOfficialPaymentUrl(value: string): boolean {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
@@ -115,7 +115,7 @@ function isAllowedPaymentUrl(value: string): boolean {
 }
 
 function paymentFrames(page: Page): Frame[] {
-  return page.frames().filter((frame) => isAllowedPaymentUrl(frame.url()));
+  return page.frames().filter((frame) => isUkOfficialPaymentUrl(frame.url()));
 }
 
 function currencyForToken(token: string): string | null {
@@ -371,6 +371,6 @@ export async function payUkWithManagedCard(input: PayUkInput): Promise<PayUkResu
 
 export const __INTERNALS = {
   extractReceipt,
-  isAllowedPaymentUrl,
+  isAllowedPaymentUrl: isUkOfficialPaymentUrl,
   splitExpiry,
 };

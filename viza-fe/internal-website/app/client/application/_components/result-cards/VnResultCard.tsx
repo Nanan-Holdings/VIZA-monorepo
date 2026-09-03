@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import type { VnSubmissionResult } from "@/lib/submission-result";

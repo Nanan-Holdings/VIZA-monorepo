@@ -42,9 +42,9 @@ export async function POST(request: Request) {
       .from("payment_records")
       .insert({
         application_id: null,
-        applicant_id: null,
+        applicant_id: user.id,
         visa_package_id: null,
-        auth_user_id: user.id,
+        auth_user_id: user.authUserId,
         provider: "airwallex",
         amount_cents: product.amountFen,
         currency: "CNY",
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         created_at: now,
         updated_at: now,
       })
-      .select("id, application_id, auth_user_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, metadata, paid_at")
+      .select("id, applicant_id, application_id, auth_user_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, metadata, paid_at")
       .single();
 
     if (error || !record) throw new Error(error?.message ?? "Payment record insert failed.");

@@ -9,6 +9,7 @@ import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { AddressAutofill, type ResolvedAddressParts } from "@/components/application-steps/address-autofill";
 import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -5026,9 +5027,10 @@ export function DynamicStepForm({
         data-scroll-height-content="true"
       >
       {showTaiwanContactAddressNotice ? (
-        <section className="mb-2 rounded-lg border border-sky-200 bg-sky-50 px-5 py-4 text-[15px] leading-7 text-sky-950">
-          {TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE}
-        </section>
+        <Alert className="mb-2" variant="info">
+          <AlertIcon variant="info" />
+          <AlertDescription>{TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE}</AlertDescription>
+        </Alert>
       ) : null}
       {step.fields.map((field) => {
         // Skip fields handled by an external control (e.g. passport OCR upload

@@ -3,9 +3,11 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { switzer, geist } from "./fonts";
 
-const gtmId = process.env.NEXT_PUBLIC_GTM_ID ?? "GTM-PK9WNC3D";
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
 const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL ?? "https://app.viza.it.com").replace(/\/$/, "");
+const portalHostname = (() => { try { return new URL(portalUrl).hostname; } catch { return ""; } })();
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -84,6 +86,18 @@ export default function RootLayout({
             `}
           </Script>
         ) : null}
+        {gaMeasurementId ? (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`} strategy="afterInteractive" />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
+                window.gtag('js', new Date());
+                window.gtag('config', '${gaMeasurementId}');
+              `}
+            </Script>
+          </>
+        ) : null}
         <Script id="marketing-click-tracking" strategy="afterInteractive">
           {`
             (function () {
@@ -106,7 +120,7 @@ export default function RootLayout({
                   var url = new URL(anchor.href);
                   var label = anchor.getAttribute('aria-label') || (anchor.textContent || '').trim();
                   var country = url.searchParams.get('country') || anchor.dataset.country || undefined;
-                  if (url.hostname === 'app.viza.it.com') {
+                  if (url.hostname === ${JSON.stringify(portalHostname)}) {
                     if (url.pathname.indexOf('/checkout/') === 0) {
                       push('checkout_start', {
                         destination_country: country,

@@ -430,6 +430,15 @@ The current internal automation migrations are:
   bootstraps existing administrators, hardens `handle_new_user`, and installs
   fail-closed queue/application payment fences plus refund/dispute review
   events. Keep the frontend Supabase migration byte-identical.
+- `0188_inbound_email_client_state.sql`: client mailbox state for
+  `/client/settings/inbox` — read/star/archive columns plus cached `ai_meta`,
+  `translations`, and `attachments_meta` jsonb on `inbound_email` (still
+  SELECT-only for `authenticated`; all writes go through server actions), and
+  the service-role-only `inbound_email_replies` table for staff-reviewed
+  applicant replies and consultant flags. Keep the frontend Supabase migration
+  byte-identical. Both tables stay `rest-service-only`; add
+  `inbound_email_replies` to `schema-ownership.manifest.json` only after the
+  next production architecture audit captures it.
 
 ## Guardrails
 

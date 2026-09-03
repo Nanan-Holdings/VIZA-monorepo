@@ -77,6 +77,7 @@ import type {
   VnSubmissionResult,
   SgArrivalCardSubmissionResult,
   DigitalArrivalCardSubmissionResult,
+  SubmissionResult,
 } from "./submission-result";
 import {
   fillFranceVisasApplication,
@@ -3940,10 +3941,9 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     } catch (error) {
       throw error;
     }
-    const stopBeforeCardEntry = readBooleanEnv(
-      "VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY",
-      false,
-    );
+    const stopBeforeCardEntry =
+      readBooleanEnv("VIZA_FORCE_STOP_BEFORE_PAYMENT", true) ||
+      readBooleanEnv("VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY", false);
     const preCardQaMode =
       stopBeforeCardEntry &&
       item.vn_result_payload?.qaMode === "pre_card_only";
@@ -4442,7 +4442,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
-    const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const officialPaymentAutopayEnabled =
+      liveAssisted &&
+      !readBooleanEnv("VIZA_FORCE_STOP_BEFORE_PAYMENT", true) &&
+      readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const managedIssuingEnabled = officialPaymentAutopayEnabled;
     const oneTimeCardPaymentEnabled =
       officialPaymentAutopayEnabled &&
@@ -7167,10 +7170,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       country: application.country ?? "indonesia",
       visaType: application.visa_type ?? (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
     });
-    const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
-      item.application_id,
-      indonesiaCardSessionsEnabled(),
+    const forceStopBeforeOfficialPayment = readBooleanEnv(
+      "VIZA_FORCE_STOP_BEFORE_PAYMENT",
+      true,
     );
+    const oneTimeIndonesiaCard = forceStopBeforeOfficialPayment
+      ? null
+      : await consumeIndonesiaCardSessionWithGrace(
+          item.application_id,
+          indonesiaCardSessionsEnabled(),
+        );
     consumedOneTimeCardAuthorization = Boolean(oneTimeIndonesiaCard);
     console.log(
       `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
@@ -7182,10 +7191,14 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       oneTimeCard: oneTimeIndonesiaCard,
       expectedAmountCents: managedOfficialFeeContext.canonicalAmountCents,
       expectedCurrency: managedOfficialFeeContext.canonicalCurrency,
-      takeOneTimeCard: async () => {
-        managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
-        return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
-      },
+      ...(!forceStopBeforeOfficialPayment
+        ? {
+            takeOneTimeCard: async () => {
+              managedPaymentCard ??= await managedPaymentHooks?.takePaymentCard?.() ?? null;
+              return managedPaymentCard ? managedCardToOneTimeCard(managedPaymentCard) : null;
+            },
+          }
+        : {}),
       beforeCardSubmit: async () => {
         const memory = process.memoryUsage();
         const rssMb = Math.round(memory.rss / 1024 / 1024);
@@ -7411,7 +7424,40 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       });
     }
 
-    const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
+    let resultForPersistence: SubmissionResult = result;
+    let paymentBoundaryStoragePath: string | null = null;
+    if (
+      "paymentBoundaryScreenshotPath" in result &&
+      typeof result.paymentBoundaryScreenshotPath === "string"
+    ) {
+      paymentBoundaryStoragePath = await uploadArtifact({
+        authUserId: profile.auth_user_id,
+        applicationId: item.application_id,
+        country: "ID",
+        kind: "official-payment-boundary",
+        ext: "png",
+        contentType: "image/png",
+        filePath: result.paymentBoundaryScreenshotPath,
+      });
+      const { paymentBoundaryScreenshotPath: _localPath, ...resultWithoutLocalPath } = result;
+      resultForPersistence = {
+        ...resultWithoutLocalPath,
+        checkpointEvidence: [{
+          kind: "pre_payment",
+          screenshotStoragePath: paymentBoundaryStoragePath,
+          capturedAt: new Date().toISOString(),
+          portalUrl: result.portalUrl,
+          authoritative: true,
+        }],
+      } as SubmissionResult;
+    }
+    const resultStatus = paymentBoundaryStoragePath
+      ? "stopped_at_pay"
+      : isPaymentFailed
+        ? "failed"
+        : result.status === "action_required"
+          ? "action_required"
+          : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
       ? paymentPendingStatus
       : isPaymentFailed
@@ -7441,10 +7487,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         diagnostics: "operatorDiagnostics" in result
           ? result.operatorDiagnostics?.slice(-20) ?? []
           : [],
+        paymentBoundaryStoragePath,
+        paymentSubmitted: false,
       },
     };
 
-    await writeSubmissionResult(item.application_id, result, resultStatus);
+    await writeSubmissionResult(item.application_id, resultForPersistence, resultStatus);
     const { error: queueUpdateError } = await supabase
       .from("submission_queue")
       .update({

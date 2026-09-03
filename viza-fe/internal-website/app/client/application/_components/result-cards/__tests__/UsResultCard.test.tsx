@@ -32,6 +32,12 @@ const stoppedAtSignResult: UsSubmissionResult = {
   status: "stopped_at_sign",
 };
 
+const confirmedResult: UsSubmissionResult = {
+  ...submittedResult,
+  confirmationNumber: "AA0020260801",
+  finalSubmissionMode: "external_verified",
+};
+
 describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -78,5 +84,20 @@ describe("UsResultCard", () => {
         }),
       );
     });
+  });
+
+  it("uses the terminal success panel only after CEAC confirmation evidence is verified", () => {
+    const { rerender } = render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    expect(screen.getByText("submitted").closest("[data-submission-state]")).toHaveAttribute(
+      "data-submission-state",
+      "action-required",
+    );
+
+    rerender(<UsResultCard applicationId="viza-application-id" result={confirmedResult} />);
+    expect(screen.getByText("AA0020260801").closest("[data-submission-state]")).toHaveAttribute(
+      "data-submission-state",
+      "success",
+    );
+    expect(screen.getByRole("button", { name: "printConfirmation" })).toBeInTheDocument();
   });
 });

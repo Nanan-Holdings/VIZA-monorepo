@@ -68,4 +68,32 @@ describe("schema QA preview fixtures", () => {
     expect(answers).not.toHaveProperty("has_criminal_history_details");
     expect(getSchemaQaMissingRequiredFields(steps, answers)).toEqual([]);
   });
+
+  it("uses the route destination for destination-scoped country fields", () => {
+    const steps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Travel",
+      fields: [{
+        id: "destination",
+        visaType: "EU_SCHENGEN_C_SHORT_STAY",
+        fieldName: "destination_country",
+        label: "Destination country",
+        fieldType: "country",
+        required: true,
+        stepNumber: 1,
+        stepName: "Travel",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: null,
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const answers = buildSchemaQaPreviewAnswers(steps, "EU_SCHENGEN_C_SHORT_STAY", {
+      destinationCountryCode: "FRA",
+    });
+
+    expect(answers.destination_country).toBe("FRA");
+  });
 });

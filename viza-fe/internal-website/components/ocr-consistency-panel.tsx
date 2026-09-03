@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CheckCircle as CheckCircle2, CircleNotch as Loader2, Warning as AlertTriangle } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Button } from "@/components/ui/button";
 import { runOcrConsistencyCheck, type ConsistencyResult } from "@/app/actions/ocr-consistency";
 import { saveDynamicAnswers } from "@/app/actions/visa-application-answers";
@@ -77,9 +78,7 @@ export function OcrConsistencyPanel({ applicationId, initialResult = null, onApp
         </Button>
       </div>
       {error ? (
-        <p className="mt-2 text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <ClientErrorAlert className="mt-2" message={error} />
       ) : null}
       {!result ? (
         <p className="mt-2 text-sm text-muted-foreground">

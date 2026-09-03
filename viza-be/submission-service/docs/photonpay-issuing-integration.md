@@ -341,7 +341,7 @@ The smoke script is dependency-free and validates auth, signing, signature
 enforcement and connectivity in one run. Nothing else is testable until it
 passes.
 
-### Production account shape (read 2026-07-26)
+### Production account shape (rechecked 2026-09-02)
 
 The live identifiers — app id, funding `accountNo`, BIN, member id — are **not
 recorded here on purpose**. They live in `.secrets/photonpay/prod.env`
@@ -357,7 +357,7 @@ What matters for design, and was true at that date:
 | Currency accounts | seven (USD, GBP, EUR, JPY, CNH, HKD, IDR) |
 | Cardholder | one, approved. Omit `cardholderId` to use it as the account default |
 | Card quota | 300 available, 0 issued |
-| Balance | **0.00 across all seven accounts** |
+| Balance | A small non-zero USD balance is present; it is not sufficient evidence that the account can cover a production fee plus the card-application fee |
 
 Two consequences worth planning around:
 
@@ -371,13 +371,17 @@ Two consequences worth planning around:
 
 Blocking a first real card:
 
-1. **Fund the USD account.** It is at 0.00. Nothing can be loaded until it has
-   money.
+1. **Approve and fund the USD account.** The account is no longer empty, but
+   finance must set and document the production float and replenishment ceiling
+   before it can be used for an applicant fee.
 2. **Allowlist the production backend's egress IP** (§2). Only a workstation IP
    is currently listed, so issuing would work locally and fail on Render/Fly.
 3. **Set the webhook URL.** Developers → Developer settings → Webhook has the
-   subscription toggle ON but an empty URL, so no callback is delivered anywhere.
-   Decide the public endpoint and register it, then subscribe the issuing topics.
+   subscription toggle ON but no verified public URL. The PhotonPay platform
+   public key is now stored in the Vercel Production environment, but the
+   currently deployed application predates the receiver routes; deploy a clean
+   build, verify `/api/webhooks/photonpay/funding`, then register the final URL
+   and subscribe the issuing topics.
 
 To confirm with PhotonPay:
 

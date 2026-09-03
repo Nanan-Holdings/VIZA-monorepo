@@ -452,7 +452,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/uk/**`: UKVI saved-application resume and allocation-bound managed-card
   official-fee flow. It verifies the displayed portal amount/currency before
   card acquisition or PAN entry and sends unsupported/uncertain outcomes to
-  staff review without exposing an applicant portal handoff.
+  staff review without exposing an applicant portal handoff. Boundary-only
+  runs reach the verified official pay page, capture redacted local evidence,
+  and return before invoking any card-acquisition or payment hook; keep the
+  focused contract in `src/uk/payment-boundary.spec.ts`.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. Polls `appointment_assistance_jobs` when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
@@ -767,6 +770,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - Vietnam and Indonesia may acquire a managed issuer card only after the
   official payment page is visible. An uncertain provider or portal result must enter
   `review_required`; never issue a second card while that state is unresolved.
+- `VIZA_FORCE_STOP_BEFORE_PAYMENT` defaults to `true` for boundary-evidence
+  runs. While enabled, Vietnam and Indonesia must capture and persist a
+  redacted official payment-page screenshot without consuming a one-time card,
+  acquiring an issuer card, entering card data, or submitting payment.
 - `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
   memory contract for Indonesia C1/B1 official-fee payments. Local development
   uses `POST /local/indonesia/card-session`; production may use

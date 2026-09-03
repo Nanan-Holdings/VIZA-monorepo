@@ -7,12 +7,30 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const COOKIE_NAME = "client_session";
 const SESSION_DURATION_DAYS = 7;
 
+/**
+ * How long a session minted from a verified Supabase session is trusted before
+ * the applicant is re-verified against Supabase Auth.
+ *
+ * Every server action in the portal starts by resolving the applicant, and
+ * without this cookie that means two remote calls (`auth.getUser()` plus a
+ * profile lookup) on each one — the dominant cost of a portal page that fires
+ * several actions. Ten minutes removes that cost from a browsing session while
+ * keeping the window in which a revoked Supabase session still works short.
+ */
+const DERIVED_SESSION_DURATION_MS = 10 * 60 * 1000;
+
 function getSecret() {
   const secret = process.env.CLIENT_SESSION_SECRET;
   if (!secret || secret.length < 32) {
     throw new Error("CLIENT_SESSION_SECRET must be set and at least 32 characters");
   }
   return new TextEncoder().encode(secret);
+}
+
+/** True when a signed session cookie can be produced in this deployment. */
+function canSignSessions() {
+  const secret = process.env.CLIENT_SESSION_SECRET;
+  return Boolean(secret && secret.length >= 32);
 }
 
 export interface ClientSession {
@@ -98,6 +116,7 @@ export async function clearClientSession(): Promise<void> {
 type ApplicantProfileSessionRow = {
   id: string;
   auth_user_id: string | null;
+  email?: string | null;
 };
 
 type SupabaseSessionOptions = {
@@ -140,9 +159,22 @@ export async function getUserFromSupabaseSession(
     // Try by auth_user_id first
     let { data: profile } = await adminClient
       .from("applicant_profiles")
-      .select("id")
+      .select("id, email")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (profile && profile.email?.toLowerCase() !== user.email.toLowerCase()) {
+      const { error: emailSyncError } = await adminClient
+        .from("applicant_profiles")
+        .update({ email: user.email })
+        .eq("id", profile.id)
+        .eq("auth_user_id", user.id);
+      if (emailSyncError) {
+        console.error("Error synchronizing confirmed applicant email:", emailSyncError);
+        return null;
+      }
+      profile = { ...profile, email: user.email };
+    }
 
     if (!profile) {
       // Try by email
@@ -150,6 +182,8 @@ export async function getUserFromSupabaseSession(
         .from("applicant_profiles")
         .select("id, auth_user_id")
         .ilike("email", user.email)
+        .is("dependant_of_user_id", null)
+        .is("deleted_at", null)
         .limit(2);
 
       if (profileByEmailError) {
@@ -182,13 +216,13 @@ export async function getUserFromSupabaseSession(
           return null;
         }
 
-        profile = { id: resolution.profileId };
+        profile = { id: resolution.profileId, email: user.email };
       } else {
         // Create new profile for first-time OTP login
         const { data: newProfile, error: createError } = await adminClient
           .from("applicant_profiles")
           .insert({ auth_user_id: user.id, email: user.email, language_pref: "en" })
-          .select("id")
+          .select("id, email")
           .single();
 
         if (createError) {
@@ -211,10 +245,49 @@ export async function getUserFromSupabaseSession(
 export async function getClientSessionWithFallback(): Promise<ClientSession | null> {
   const cookieSession = await getClientSession();
   if (cookieSession) return cookieSession;
-  return getUserFromSupabaseSession();
+
+  const supabaseSession = await getUserFromSupabaseSession();
+  if (supabaseSession) await cacheVerifiedSession(supabaseSession);
+  return supabaseSession;
+}
+
+/**
+ * Stores an already-verified applicant identity in the signed session cookie so
+ * the next server action skips the remote Supabase round trips.
+ *
+ * Best effort by design: writing cookies is only allowed from Server Actions
+ * and Route Handlers, and the signing secret is optional, so a failure here
+ * just means the next request verifies against Supabase again.
+ */
+async function cacheVerifiedSession(session: ClientSession): Promise<void> {
+  if (!canSignSessions()) return;
+  try {
+    const secret = getSecret();
+    const expires = new Date(Date.now() + DERIVED_SESSION_DURATION_MS);
+    const token = await new SignJWT({
+      userId: session.userId,
+      email: session.email,
+      authUserId: session.authUserId,
+      type: "client_session",
+      version: 1,
+    })
+      .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setExpirationTime(expires)
+      .setIssuedAt()
+      .sign(secret);
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      expires,
+      path: "/",
+    });
+  } catch {
+    // Read-only cookie store (a Server Component render) or a signing problem.
+  }
 }
 
 export async function getImpersonationSession(): Promise<null> {
   return null;
 }
-

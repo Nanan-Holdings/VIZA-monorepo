@@ -180,6 +180,22 @@ test("stops at payment authorization after the managed alias is prepared", async
   assert.equal(result.implementationStatus, "partial");
 });
 
+test("keeps Indonesia execution truthful and payment-boundary-only by default", () => {
+  const serviceSource = readFileSync(
+    path.resolve(__dirname, "..", "..", "index.ts"),
+    "utf8",
+  );
+  const adapterSource = readFileSync(path.resolve(__dirname, "..", "index.ts"), "utf8");
+  const runnerSource = readFileSync(path.resolve(__dirname, "..", "runner.ts"), "utf8");
+
+  assert.doesNotMatch(adapterSource, /Jalan MH Thamrin No\. 1/);
+  assert.doesNotMatch(adapterSource, /residenceType:[^\n]+\?\?\s*"HOTEL"/);
+  assert.match(serviceSource, /"VIZA_FORCE_STOP_BEFORE_PAYMENT",\s*true/);
+  assert.match(serviceSource, /checkpointEvidence:\s*\[\{/);
+  assert.match(runnerSource, /mask:\s*\[page\.locator\("input, textarea, select/);
+  assert.match(runnerSource, /indonesia_payment_boundary_reached_without_card/);
+});
+
 test("treats VIZA-managed Indonesia alias with a vault password as a reusable portal account", () => {
   assert.equal(
     hasPreparedIndonesiaPortalAccount({

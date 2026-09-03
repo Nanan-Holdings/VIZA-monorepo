@@ -1866,6 +1866,14 @@ export async function loadDynamicAnswers(
       retryDelaysMs: [],
     });
 
+    // The answers themselves do not depend on the ownership check, so that read
+    // goes out at the same time and is simply discarded if the check fails.
+    // This is on the critical path of every wizard open.
+    const answersRead = adminClient
+      .from("visa_application_answers")
+      .select("field_name, value_text")
+      .eq("application_id", applicationId);
+
     const { data: app, error: appError } = await adminClient
       .from("applications")
       .select("applicant_id")
@@ -1902,10 +1910,7 @@ export async function loadDynamicAnswers(
       return { answers: {}, error: "Unauthorized" };
     }
 
-    const { data: rows, error } = await adminClient
-      .from("visa_application_answers")
-      .select("field_name, value_text")
-      .eq("application_id", applicationId);
+    const { data: rows, error } = await answersRead;
 
     if (error) {
       if (isResilienceEligibleError(error.message)) {

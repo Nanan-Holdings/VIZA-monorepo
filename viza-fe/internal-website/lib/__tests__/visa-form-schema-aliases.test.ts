@@ -10,8 +10,9 @@ describe("visa form schema aliases", () => {
     expect(resolveVisaFormSchemaVisaType("evisa_tourism", "VN")).toBe("VN_E_VISA");
   });
 
-  it("does not remap generic evisa_tourism for other countries", () => {
-    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "egypt")).toBe("evisa_tourism");
+  it("maps only explicitly supported country-scoped evisa_tourism routes", () => {
+    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "egypt")).toBe("EG_E_VISA");
+    expect(resolveVisaFormSchemaVisaType("evisa_tourism", "united_states")).toBe("evisa_tourism");
     expect(resolveVisaFormSchemaVisaType("evisa_tourism", null)).toBe("evisa_tourism");
   });
 
@@ -54,6 +55,17 @@ describe("visa form schema aliases", () => {
     ["tourist_evisa", "saudi_arabia", "SA_E_VISA"],
     ["evisa_tourism_business", "turkey", "TR_E_VISA"],
     ["visa_free_or_tourist_visa", "united_arab_emirates", "AE_TOURIST_VISA"],
+    ["visitor_subclass_600", "australia", "AU_VISITOR_600"],
+    ["tourist_evisa", "cambodia", "KH_TOURIST_E_VISA"],
+    ["evisa_tourism", "egypt", "EG_E_VISA"],
+    ["short_term_tourism_evisa", "japan", "JP_TOURIST"],
+    ["tourist_evisa", "laos", "LA_TOURIST_E_VISA"],
+    ["tourist_evisa", "oman", "OM_TOURIST_E_VISA"],
+    ["tourist_evisa", "tanzania", "TZ_TOURIST_E_VISA"],
+    ["tourist_visa_on_arrival", "maldives", "MV_IMUGA"],
+    ["visitor_visa", "new_zealand", "NZ_VISITOR_VISA"],
+    ["visitor_visa_tourism", "south_africa", "ZA_VISITOR_VISA"],
+    ["eta_tourism", "sri_lanka", "LK_ETA"],
   ])("maps legacy %s route aliases for %s to %s", (visaType, country, canonical) => {
     expect(resolveVisaFormSchemaVisaType(visaType, country)).toBe(canonical);
   });

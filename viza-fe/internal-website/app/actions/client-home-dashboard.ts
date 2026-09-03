@@ -8,6 +8,7 @@ import type {
   PaymentRow,
 } from "@/lib/client/application-progress";
 import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
+import { endTrace, startTrace, traceStage } from "@/lib/server/perf-trace";
 
 export interface ClientHomeProfile {
   full_name: string | null;
@@ -75,8 +76,9 @@ function dedupeById<T extends { id: string }>(rows: T[]): T[] {
 }
 
 export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardData> {
+  const trace = startTrace();
   try {
-    const session = await getClientSessionWithFallback();
+    const session = await traceStage(trace, "session", () => getClientSessionWithFallback());
     if (!session) {
       return {
         authenticated: false,
@@ -92,7 +94,7 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
       requestTimeoutMs: 4_000,
       retryDelaysMs: [250],
     });
-    const [profileResult, applicationResult] = await Promise.all([
+    const [profileResult, applicationResult] = await traceStage(trace, "profileAndApplications", () => Promise.all([
       adminClient
         .from("applicant_profiles")
         .select(PROFILE_COLUMNS)
@@ -103,7 +105,7 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
         .select(APPLICATION_COLUMNS)
         .eq("applicant_id", session.userId)
         .order("created_at", { ascending: false }),
-    ]);
+    ]));
     const { data: profile, error: profileError } = profileResult;
 
     if (profileError) {
@@ -185,10 +187,9 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
         );
       }
 
-      const [documentResult, paymentResults] = await Promise.all([
-        documentRead,
-        Promise.all(paymentReads),
-      ]);
+      const [documentResult, paymentResults] = await traceStage(trace, "documentsAndPayments", () =>
+        Promise.all([documentRead, Promise.all(paymentReads)]),
+      );
       const { data: documentRows, error: documentError } = documentResult;
 
       if (documentError) {
@@ -219,6 +220,8 @@ export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardD
 
       payments = dedupeById(paymentResults.flatMap((result) => result.data ?? []));
     }
+
+    endTrace(trace, "client-home", { apps: applications.length });
 
     return {
       authenticated: true,

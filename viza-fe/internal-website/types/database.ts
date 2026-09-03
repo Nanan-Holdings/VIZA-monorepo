@@ -4925,6 +4925,120 @@ export type Database = {
           },
         ]
       }
+      marketing_blog_posts: {
+        Row: {
+          author_name: string
+          body_markdown: string
+          category: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          excerpt: string
+          generated_by_model: string | null
+          generation_brief: string | null
+          id: string
+          locale: string
+          metadata: Json
+          published_at: string | null
+          published_by: string | null
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+          updated_by: string
+          version: number
+        }
+        Insert: {
+          author_name?: string
+          body_markdown?: string
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          excerpt?: string
+          generated_by_model?: string | null
+          generation_brief?: string | null
+          id?: string
+          locale?: string
+          metadata?: Json
+          published_at?: string | null
+          published_by?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+          updated_by: string
+          version?: number
+        }
+        Update: {
+          author_name?: string
+          body_markdown?: string
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          excerpt?: string
+          generated_by_model?: string | null
+          generation_brief?: string | null
+          id?: string
+          locale?: string
+          metadata?: Json
+          published_at?: string | null
+          published_by?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string
+          version?: number
+        }
+        Relationships: [
+          { foreignKeyName: "marketing_blog_posts_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+          { foreignKeyName: "marketing_blog_posts_published_by_fkey"; columns: ["published_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+          { foreignKeyName: "marketing_blog_posts_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+        ]
+      }
+      marketing_provider_activity: {
+        Row: { actor_user_id: string | null; created_at: string; entity_id: string | null; entity_type: string | null; error_code: string | null; error_message: string | null; id: number; operation: string; provider: string; request_metadata: Json; response_metadata: Json; status: string }
+        Insert: { actor_user_id?: string | null; created_at?: string; entity_id?: string | null; entity_type?: string | null; error_code?: string | null; error_message?: string | null; id?: number; operation: string; provider: string; request_metadata?: Json; response_metadata?: Json; status: string }
+        Update: { actor_user_id?: string | null; created_at?: string; entity_id?: string | null; entity_type?: string | null; error_code?: string | null; error_message?: string | null; id?: number; operation?: string; provider?: string; request_metadata?: Json; response_metadata?: Json; status?: string }
+        Relationships: [{ foreignKeyName: "marketing_provider_activity_actor_user_id_fkey"; columns: ["actor_user_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] }]
+      }
+      marketing_automation_runs: {
+        Row: { actor_user_id: string | null; attempts: number; completed_at: string | null; created_at: string; error_message: string | null; heartbeat_at: string; id: string; idempotency_key: string; job_type: string; metadata: Json; output_entity_id: string | null; output_entity_type: string | null; started_at: string; status: string; updated_at: string }
+        Insert: { actor_user_id?: string | null; attempts?: number; completed_at?: string | null; created_at?: string; error_message?: string | null; heartbeat_at?: string; id?: string; idempotency_key: string; job_type: string; metadata?: Json; output_entity_id?: string | null; output_entity_type?: string | null; started_at?: string; status?: string; updated_at?: string }
+        Update: { actor_user_id?: string | null; attempts?: number; completed_at?: string | null; created_at?: string; error_message?: string | null; heartbeat_at?: string; id?: string; idempotency_key?: string; job_type?: string; metadata?: Json; output_entity_id?: string | null; output_entity_type?: string | null; started_at?: string; status?: string; updated_at?: string }
+        Relationships: [{ foreignKeyName: "marketing_automation_runs_actor_user_id_fkey"; columns: ["actor_user_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] }]
+      }
+      marketing_short_links: {
+        Row: { active: boolean; campaign: string | null; click_count: number; code: string; content_key: string | null; created_at: string; created_by: string; destination_url: string; id: string; last_clicked_at: string | null; source: string }
+        Insert: { active?: boolean; campaign?: string | null; click_count?: number; code: string; content_key?: string | null; created_at?: string; created_by: string; destination_url: string; id?: string; last_clicked_at?: string | null; source?: string }
+        Update: { active?: boolean; campaign?: string | null; click_count?: number; code?: string; content_key?: string | null; created_at?: string; created_by?: string; destination_url?: string; id?: string; last_clicked_at?: string | null; source?: string }
+        Relationships: [{ foreignKeyName: "marketing_short_links_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] }]
+      }
+      marketing_short_link_clicks: {
+        Row: { clicked_at: string; country_code: string | null; id: number; referrer_host: string | null; session_hash: string | null; short_link_id: string; user_agent_family: string | null }
+        Insert: { clicked_at?: string; country_code?: string | null; id?: number; referrer_host?: string | null; session_hash?: string | null; short_link_id: string; user_agent_family?: string | null }
+        Update: { clicked_at?: string; country_code?: string | null; id?: number; referrer_host?: string | null; session_hash?: string | null; short_link_id?: string; user_agent_family?: string | null }
+        Relationships: [{ foreignKeyName: "marketing_short_link_clicks_short_link_id_fkey"; columns: ["short_link_id"]; isOneToOne: false; referencedRelation: "marketing_short_links"; referencedColumns: ["id"] }]
+      }
+      marketing_social_compositions: {
+        Row: { blog_post_id: string | null; brief: string; created_at: string; created_by: string; destination_url: string | null; document_url: string | null; id: string; last_synced_at: string | null; media_url: string | null; platform_content: Json; platforms: Json; scheduled_for: string | null; short_link_id: string | null; status: string; title: string; updated_at: string; updated_by: string; zernio_posts: Json }
+        Insert: { blog_post_id?: string | null; brief?: string; created_at?: string; created_by: string; destination_url?: string | null; document_url?: string | null; id?: string; last_synced_at?: string | null; media_url?: string | null; platform_content?: Json; platforms?: Json; scheduled_for?: string | null; short_link_id?: string | null; status?: string; title: string; updated_at?: string; updated_by: string; zernio_posts?: Json }
+        Update: { blog_post_id?: string | null; brief?: string; created_at?: string; created_by?: string; destination_url?: string | null; document_url?: string | null; id?: string; last_synced_at?: string | null; media_url?: string | null; platform_content?: Json; platforms?: Json; scheduled_for?: string | null; short_link_id?: string | null; status?: string; title?: string; updated_at?: string; updated_by?: string; zernio_posts?: Json }
+        Relationships: [
+          { foreignKeyName: "marketing_social_compositions_blog_post_id_fkey"; columns: ["blog_post_id"]; isOneToOne: false; referencedRelation: "marketing_blog_posts"; referencedColumns: ["id"] },
+          { foreignKeyName: "marketing_social_compositions_short_link_id_fkey"; columns: ["short_link_id"]; isOneToOne: false; referencedRelation: "marketing_short_links"; referencedColumns: ["id"] },
+          { foreignKeyName: "marketing_social_compositions_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+          { foreignKeyName: "marketing_social_compositions_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+        ]
+      }
       webhook_error_details: {
         Row: {
           activity_log_id: string
@@ -5039,6 +5153,16 @@ export type Database = {
         Returns: Database["public"]["Tables"]["admin_registration_invites"]["Row"]
       }
       create_pending_checkins: { Args: never; Returns: number }
+      record_marketing_short_link_click: {
+        Args: {
+          p_country_code?: string
+          p_referrer_host?: string
+          p_session_hash?: string
+          p_short_link_id: string
+          p_user_agent_family?: string
+        }
+        Returns: boolean
+      }
       ensure_submission_checkout_order: {
         Args: {
           p_application_id: string

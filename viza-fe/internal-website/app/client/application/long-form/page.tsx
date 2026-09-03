@@ -17,11 +17,19 @@ import {
   loadDocumentCenterData,
   type DocumentCenterData,
 } from "@/app/client/documents/actions";
-import { getVisaFormSteps } from "@/app/actions/visa-form-fields";
+import {
+  loadApplicationAnswers,
+  loadTeamApplicationContext,
+  loadUserVisaPackage,
+  loadVisaFormSteps,
+  invalidateApplicationForm,
+  invalidateClientApplicationStatuses,
+  saveApplicationAnswers as saveDynamicAnswers,
+} from "@/lib/client/portal-data";
 import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
-import { getUserVisaPackage, type UserVisaPackage } from "@/app/actions/user-package";
+import { type UserVisaPackage } from "@/app/actions/user-package";
 import {
   PersonalInfoStep,
   PassportStep,
@@ -47,7 +55,6 @@ import {
 } from "@/components/client/form-assistant";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import {
-  saveDynamicAnswers,
   ensureDraftApplication,
   loadApplicationFormContext,
   loadDynamicAnswers,
@@ -95,6 +102,7 @@ function localizedSubmissionAccessError(
   return rawError;
 }
 import { shouldBootstrapFormAssistantDraft } from "@/lib/form-assistant/bootstrap";
+import { useRouteReady } from "@/lib/client/route-perf";
 import { canUseFormAssistant, isFormAssistantConfirmationField } from "@/lib/form-assistant/constants";
 import {
   buildFormAssistantFieldReviewIssues,
@@ -115,7 +123,6 @@ import {
 import { SubmissionStatusStep } from "../_components/result-cards/SubmissionStatusStep";
 import { UniversalProfileSyncCard } from "@/components/application-steps/universal-profile-sync-card";
 import {
-  getTeamApplicationContext,
   markTeamCompanionReviewed,
 } from "@/app/actions/application-group";
 import {
@@ -136,6 +143,7 @@ import {
 } from "@/lib/application-tab-completion";
 import { getAssistantProgress, validateApplicationAnswers } from "@/lib/form-assistant/validator";
 import {
+  hasConfirmedTerminalSubmissionSuccess,
   shouldShowReviewAlongsideSubmissionStatus,
   shouldShowSubmissionStatusStep,
 } from "@/lib/application-submission-display";
@@ -1846,7 +1854,7 @@ export default function ApplicationPage() {
     const packagePromise: Promise<UserVisaPackage | null> =
       explicitVisaType || isExplicitStatusView
         ? Promise.resolve(null)
-        : getUserVisaPackage().catch((error) => {
+        : loadUserVisaPackage().catch((error) => {
             attemptStaleServerActionReload(error);
             return null;
           });
@@ -1869,11 +1877,10 @@ export default function ApplicationPage() {
     }
 
     const stepsPromise = explicitVisaType
-      ? getVisaFormSteps(explicitVisaType, { country: explicitProductCountry })
-      : packagePromise.then((pkg) => getVisaFormSteps(
-          pkg?.visa_type ?? "ID_C1_TOURIST",
-          { country: pkg?.country ?? null },
-        ));
+      ? loadVisaFormSteps(explicitVisaType, explicitProductCountry ?? null)
+      : packagePromise.then((pkg) =>
+          loadVisaFormSteps(pkg?.visa_type ?? "ID_C1_TOURIST", pkg?.country ?? null),
+        );
 
     void stepsPromise
       .then((steps) => {
@@ -1895,6 +1902,7 @@ export default function ApplicationPage() {
   }, [explicitProductCountry, explicitVisaType, isExplicitStatusView]);
 
   const [loading, setLoading] = useState(true);
+  useRouteReady(!loading && packageLoaded);
   const [currentStep, setCurrentStep] = useState(0);
   const [_completedUpTo, setCompletedUpTo] = useState(0);
   const [appState, setAppState] = useState<ApplicationState>({
@@ -2280,8 +2288,6 @@ export default function ApplicationPage() {
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
-  const preserveIndonesiaReview =
-    isIndonesiaEVisa || isIndonesiaEVisaApplication(explicitCountry, requestedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2366,10 +2372,24 @@ export default function ApplicationPage() {
   const documentStepIndex = dbSteps.length;
   const teamStepIndex = dbSteps.length + (showStandaloneDocumentStep ? 1 : 0);
   const reviewStepIndex = teamStepIndex + (showTeamStep ? 1 : 0);
-  const statusStepIndex = reviewStepIndex;
+  const statusStepIndex = reviewStepIndex + 1;
   const fallbackTeamStepIndex = 4;
   const fallbackReviewStepIndex = showTeamStep ? 5 : 4;
-  const fallbackStatusStepIndex = fallbackReviewStepIndex;
+  const fallbackStatusStepIndex = fallbackReviewStepIndex + 1;
+  const hasSubmissionStatus = shouldShowSubmissionStatusStep({
+    submittedAt: appState.submittedAt,
+    submissionResultStatus: appState.submissionResultStatus,
+    submissionResult: appState.submissionResult,
+  });
+  const showTerminalConfirmation = hasConfirmedTerminalSubmissionSuccess({
+    country: resolvedCountry,
+    visaType: resolvedVisaType,
+    submissionResultStatus: appState.submissionResultStatus,
+    submissionResult: appState.submissionResult,
+  });
+  // The review remains available for every state. Only confirmed official
+  // success earns the separate Confirmation panel after Review.
+  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
 
   const pendingDynamicDrafts = useMemo(
     () => {
@@ -2466,11 +2486,32 @@ export default function ApplicationPage() {
             : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review, confirm, and submit your details",
         },
+        ...(showTerminalConfirmation
+          ? [{
+              id: statusStepIndex,
+              sourceName: "Confirmation",
+              name: isZhInterface ? "提交结果" : "Submission result",
+              description: isZhInterface ? "查看官方提交结果和凭证" : "View the official submission result and artifacts",
+            }]
+          : []),
       ]
-        : [...STEPS],
+        : [
+            ...STEPS,
+            ...(showTerminalConfirmation
+              ? [{
+                  id: fallbackStatusStepIndex,
+                  sourceName: "Confirmation",
+                  name: isZhInterface ? "提交结果" : "Submission result",
+                  description: isZhInterface ? "查看官方提交结果和凭证" : "View the official submission result and artifacts",
+                }]
+              : []),
+          ],
     [
       documentStepIndex,
       reviewStepIndex,
+      statusStepIndex,
+      fallbackStatusStepIndex,
+      showTerminalConfirmation,
       showStandaloneDocumentStep,
       showTeamStep,
       STEPS,
@@ -2554,6 +2595,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
+      showConfirmationStep: showTerminalConfirmation,
       showDocumentStep: showStandaloneDocumentStep,
       showTeamStep,
     }),
@@ -2575,6 +2617,7 @@ export default function ApplicationPage() {
       showStandaloneDocumentStep,
       showTeamStep,
       statusStepIndex,
+      showTerminalConfirmation,
       teamStepIndex,
     ],
   );
@@ -2731,16 +2774,6 @@ export default function ApplicationPage() {
     resolvedVisaType,
     submitCheckState,
   ]);
-  const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
-    submittedAt: appState.submittedAt,
-    submissionResultStatus: appState.submissionResultStatus,
-    submissionResult: appState.submissionResult,
-  });
-  // A submission/status card must never replace the saved application review.
-  // This applies uniformly to pending, payment, handoff, success, retry, and
-  // failure states across every long-form country workflow.
-  const showReviewAlongsideSubmissionStatus = shouldShowReviewAlongsideSubmissionStatus();
-
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
     setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
@@ -2784,8 +2817,16 @@ export default function ApplicationPage() {
       let profile: LoadedApplicantProfile | null = null;
       let application: LoadedApplication | null = null;
 
+      // When the URL already names the application, its answers do not have to
+      // wait for the ownership check to come back — both reads verify the
+      // session themselves, so they go out together. This removes a full
+      // Supabase round trip from every visit to the wizard.
+      const eagerAnswersPromise = explicitApplicationId
+        ? loadApplicationAnswers(explicitApplicationId).catch(() => null)
+        : null;
+
       if (explicitApplicationId) {
-        const context = await getTeamApplicationContext(explicitApplicationId);
+        const context = await loadTeamApplicationContext(explicitApplicationId);
         if (!context.ok || !context.application || !context.profile) {
           if (isLatestRequest()) {
             setError(context.reason ?? t("errors.noApplicationFound"));
@@ -2863,7 +2904,9 @@ export default function ApplicationPage() {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
         let ds160Answers: Record<string, string> = {};
         if (application?.id) {
-          const { answers } = await loadDynamicAnswers(application.id);
+          const eagerAnswers =
+            application.id === explicitApplicationId ? await eagerAnswersPromise : null;
+          const { answers } = eagerAnswers ?? (await loadDynamicAnswers(application.id));
           ds160Answers = answers;
           if (
             isLatestRequest() &&
@@ -2939,8 +2982,9 @@ export default function ApplicationPage() {
         }));
 
         if (!initialStepResolvedRef.current) {
-          const shouldOpenConfirmation = shouldShowSubmissionStatusStep({
-            submittedAt: application?.submitted_at ?? null,
+          const shouldOpenConfirmation = hasConfirmedTerminalSubmissionSuccess({
+            country: resolvedCountry,
+            visaType: resolvedVisaType,
             submissionResultStatus:
               (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
             submissionResult:
@@ -2998,8 +3042,8 @@ export default function ApplicationPage() {
     if ((!jumpToReview && !jumpToTeam && !jumpToConfirmation) || reviewJumpHandled || loading) return;
     const targetId = jumpToConfirmation
       ? (useDynamic
-          ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? statusStepIndex)
-          : fallbackStatusStepIndex)
+          ? (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? reviewStepIndex)
+          : (effectiveSteps.find((s) => s.sourceName === "Confirmation")?.id ?? fallbackReviewStepIndex))
       : jumpToTeam && showTeamStep
       ? (useDynamic
           ? (effectiveSteps.find((s) => s.sourceName === "Team")?.id ?? teamStepIndex)
@@ -3019,11 +3063,9 @@ export default function ApplicationPage() {
     reviewStepIndex,
     showTeamStep,
     fallbackReviewStepIndex,
-    fallbackStatusStepIndex,
     fallbackTeamStepIndex,
     jumpToConfirmation,
     teamStepIndex,
-    statusStepIndex,
     scrollToStepPanel,
     useDynamic,
   ]);
@@ -4059,6 +4101,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
+      showConfirmationStep: showTerminalConfirmation,
       showDocumentStep,
       showTeamStep,
     }).missingFields,
@@ -4079,6 +4122,7 @@ export default function ApplicationPage() {
       showDocumentStep,
       showTeamStep,
       statusStepIndex,
+      showTerminalConfirmation,
       teamStepIndex,
     ],
   );
@@ -4105,7 +4149,7 @@ export default function ApplicationPage() {
     try {
       await saveAllDynamicDrafts();
       const targetTeamStepIndex = useDynamic ? teamStepIndex : fallbackTeamStepIndex;
-      const targetStatusStepIndex = useDynamic ? statusStepIndex : fallbackStatusStepIndex;
+      const targetStatusStepIndex = useDynamic ? reviewStepIndex : fallbackReviewStepIndex;
       const teamStepPosition = getVisibleStepIndex(effectiveSteps, targetTeamStepIndex);
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
       scrollToStepPanel(targetStatusStepIndex);
@@ -4121,11 +4165,11 @@ export default function ApplicationPage() {
     }
   }, [
     effectiveSteps,
-    fallbackStatusStepIndex,
+    fallbackReviewStepIndex,
     fallbackTeamStepIndex,
+    reviewStepIndex,
     saveAllDynamicDrafts,
     scrollToStepPanel,
-    statusStepIndex,
     t,
     teamStepIndex,
     useDynamic,
@@ -4202,7 +4246,7 @@ export default function ApplicationPage() {
       );
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
-        scrollToStepPanel(statusStepIndex);
+        scrollToStepPanel(reviewStepIndex);
         throw new Error(isZhInterface
           ? "请先补齐审核申请页末尾列出的缺失信息。"
           : "Please complete the missing information listed at the end of Review Application.");
@@ -4250,6 +4294,9 @@ export default function ApplicationPage() {
           officialSubmissionPending:
             mode === "live_assisted" && isTaiwanEntryPermit,
         });
+        // Status, documents and the applicant's tab list all change here.
+        invalidateApplicationForm(applicationId);
+        invalidateClientApplicationStatuses();
 
         setAppState((prev) => ({
           ...prev,
@@ -4452,6 +4499,9 @@ export default function ApplicationPage() {
         officialSubmissionPending:
           mode === "live_assisted" && isTaiwanEntryPermit,
       });
+      // Status, documents and the applicant's tab list all change here.
+      invalidateApplicationForm(applicationId);
+      invalidateClientApplicationStatuses();
 
       setAppState((prev) => ({
         ...prev,
@@ -5040,8 +5090,10 @@ export default function ApplicationPage() {
           )}
           {error &&
             !(
-              showSubmissionStatusStep &&
-              (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
+              hasSubmissionStatus &&
+              (showTerminalConfirmation
+                ? (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
+                : (currentStep === reviewStepIndex || currentStep === fallbackReviewStepIndex))
             ) && (
             <ClientErrorAlert className="mb-6" message={error} />
           )}
@@ -5176,11 +5228,8 @@ export default function ApplicationPage() {
 
                         {/* Dynamic review step */}
                         {step.id === reviewStepIndex && appState.applicationId && (
-                          showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
+                          hasSubmissionStatus ? (
+                            <div className="flex flex-col gap-6">
                               {showReviewAlongsideSubmissionStatus ? (
                                 <DynamicReviewStep
                                   applicationId={appState.applicationId}
@@ -5198,15 +5247,17 @@ export default function ApplicationPage() {
                                   reviewIssues={formAssistantFieldReviewIssueMap}
                                 />
                               ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                submissionStarting={saving && submittingMode !== null}
-                                onResubmit={handleDynamicReviewComplete}
-                              />
+                              {!showTerminalConfirmation ? (
+                                <SubmissionStatusStep
+                                  applicationId={appState.applicationId}
+                                  country={activeCountry}
+                                  visaType={activeVisaType}
+                                  status={appState.submissionResultStatus}
+                                  result={appState.submissionResult}
+                                  submissionStarting={saving && submittingMode !== null}
+                                  onResubmit={handleDynamicReviewComplete}
+                                />
+                              ) : null}
                             </div>
                           ) : (
                             <div className="flex flex-col gap-6">
@@ -5248,6 +5299,17 @@ export default function ApplicationPage() {
                             </div>
                           )
                         )}
+                        {step.id === statusStepIndex && appState.applicationId && showTerminalConfirmation ? (
+                          <SubmissionStatusStep
+                            applicationId={appState.applicationId}
+                            country={activeCountry}
+                            visaType={activeVisaType}
+                            status={appState.submissionResultStatus}
+                            result={appState.submissionResult}
+                            submissionStarting={saving && submittingMode !== null}
+                            onResubmit={handleDynamicReviewComplete}
+                          />
+                        ) : null}
 
                         {/* Team management and final submit step */}
                         {step.id === teamStepIndex && showTeamStep && (
@@ -5321,11 +5383,8 @@ export default function ApplicationPage() {
                           />
                         )}
                         {step.id === fallbackReviewStepIndex && (
-                          showSubmissionStatusStep ? (
-                            <div
-                              className="flex flex-col gap-6"
-                              data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
-                            >
+                          hasSubmissionStatus ? (
+                            <div className="flex flex-col gap-6">
                               {showReviewAlongsideSubmissionStatus ? (
                                 <ReviewStep
                                   applicationId={appState.applicationId ?? ""}
@@ -5341,15 +5400,17 @@ export default function ApplicationPage() {
                                   showAction={false}
                                 />
                               ) : null}
-                              <SubmissionStatusStep
-                                applicationId={appState.applicationId}
-                                country={activeCountry}
-                                visaType={activeVisaType}
-                                status={appState.submissionResultStatus}
-                                result={appState.submissionResult}
-                                submissionStarting={saving && submittingMode !== null}
-                                onResubmit={handleReviewComplete}
-                              />
+                              {!showTerminalConfirmation ? (
+                                <SubmissionStatusStep
+                                  applicationId={appState.applicationId}
+                                  country={activeCountry}
+                                  visaType={activeVisaType}
+                                  status={appState.submissionResultStatus}
+                                  result={appState.submissionResult}
+                                  submissionStarting={saving && submittingMode !== null}
+                                  onResubmit={handleReviewComplete}
+                                />
+                              ) : null}
                             </div>
                           ) : (
                             <div className="flex flex-col gap-6">
@@ -5389,6 +5450,17 @@ export default function ApplicationPage() {
                             </div>
                           )
                         )}
+                        {step.id === fallbackStatusStepIndex && showTerminalConfirmation ? (
+                          <SubmissionStatusStep
+                            applicationId={appState.applicationId}
+                            country={activeCountry}
+                            visaType={activeVisaType}
+                            status={appState.submissionResultStatus}
+                            result={appState.submissionResult}
+                            submissionStarting={saving && submittingMode !== null}
+                            onResubmit={handleReviewComplete}
+                          />
+                        ) : null}
                       </>
                     )}
                   </ApplicationFormPanel>

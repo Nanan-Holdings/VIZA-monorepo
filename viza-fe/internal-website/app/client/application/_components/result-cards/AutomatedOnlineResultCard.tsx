@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowSquareOut as ExternalLink, Download, ShieldCheck, Warning as AlertTriangle } from "@phosphor-icons/react";
+import { ArrowSquareOut as ExternalLink, Download, Warning as AlertTriangle } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
+import { TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type {
   JpVisitJapanWebSubmissionResult,
@@ -33,7 +34,9 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
     : null;
   const blocked = result.status === "blocked" || result.status === "validation_failed" || result.status === "official_portal_error";
   const rejected = result.country === "KE" && result.status === "rejected";
-  const success = evidence.qrReady || evidence.approved || (evidence.submitted && !isJapan);
+  const success = isJapan
+    ? evidence.qrReady
+    : result.country === "KE" && evidence.approved && Boolean(result.approvalPdfStoragePath?.trim());
   const safeSummary = success
     ? isZh
       ? isJapan
@@ -59,15 +62,47 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
         ? (isZh ? "肯尼亚电子旅行授权未获批准" : "Kenya eTA was rejected")
         : (isZh ? "正在核验官方结果" : "Verifying the official result");
 
+  if (success) {
+    return (
+      <TerminalSuccessPanel
+        title={title}
+        summary={safeSummary}
+        reference={evidence.reference}
+        referenceLabel={isZh ? "官方申请编号 / 参考号" : "Official application reference"}
+        artifacts={artifactUrl ? undefined : (
+          <p className="text-sm text-muted-foreground">
+            {isJapan
+              ? (isZh ? "官方二维码已保存。" : "The official QR code is saved.")
+              : (isZh ? "官方批准文件已保存。" : "The official approval evidence is saved.")}
+          </p>
+        )}
+        primaryAction={artifactUrl ? (
+          <Button asChild size="sm">
+            <a href={artifactUrl} target="_blank" rel="noopener noreferrer">
+              <Download />
+              {isZh
+                ? artifactIsQr ? "查看官方二维码" : "下载官方批准文件"
+                : artifactIsQr ? "View official QR code" : "Download official approval"}
+            </a>
+          </Button>
+        ) : undefined}
+        secondaryActions={
+          <Button asChild size="sm" variant="ghost">
+            <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
+              {isZh ? "打开官方门户" : "Open official portal"}
+              <ExternalLink />
+            </a>
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <Card className="rounded-lg border-input">
       <CardHeader>
         <CardTitle className="flex items-center gap-3">
-          {success ? (
-            <ShieldCheck className="h-6 w-6 text-emerald-600" />
-          ) : (
-            <AlertTriangle className="h-6 w-6 text-amber-600" />
-          )}
+          <AlertTriangle className="h-6 w-6 text-amber-600" />
           {title}
         </CardTitle>
       </CardHeader>
@@ -98,17 +133,6 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
               : "Kenya's official fee, payment processing fee, and VIZA service fee are recorded separately. VIZA will not ask you to enter an official-portal card number here."}
           </p>
         )}
-
-        {artifactUrl && success ? (
-          <Button asChild type="button">
-            <a href={artifactUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="mr-2 h-4 w-4" />
-              {isZh
-                ? artifactIsQr ? "查看官方二维码" : "下载官方批准文件"
-                : artifactIsQr ? "View official QR code" : "Download official approval"}
-            </a>
-          </Button>
-        ) : null}
 
         <Button asChild variant="ghost" className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">

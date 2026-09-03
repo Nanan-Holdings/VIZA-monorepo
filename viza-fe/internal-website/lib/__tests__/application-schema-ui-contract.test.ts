@@ -267,6 +267,23 @@ describe("application schema UI contract", () => {
     ]));
   });
 
+  it("filters declared non-applicant computed fields without release-gate errors", () => {
+    const visible = field("arrival_date", "date");
+    const derived = field("derived_full_name", "computed" as VisaFormFieldType, {
+      required: false,
+      displayOrder: 2,
+      validationRules: { no_user_input: true },
+      conditionalLogic: { showIf: "false" },
+    });
+
+    const compiled = compileApplicationSchemaForUi(steps(visible, derived));
+
+    expect(compiled.steps[0].fields.map((schemaField) => schemaField.fieldName)).toEqual([
+      "arrival_date",
+    ]);
+    expect(compiled.report.summary.errors).toBe(0);
+  });
+
   it("only flags file fields that lack an application document slot", () => {
     const mappedPhoto = field("profile_photo", "file", {
       validationRules: { document_slot: "applicant_photo" },

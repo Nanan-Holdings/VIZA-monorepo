@@ -14,8 +14,9 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
-import { toast } from "sonner";
 import { useLocale } from "next-intl";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
+import { alertToast } from "@/components/ui/alert-toast";
 import {
   DEFAULT_CITY_DAYS,
   createTravelFormMessage,
@@ -818,12 +819,16 @@ function coerceHotelStays(raw: unknown): HotelStayResult[] {
     const nights = typeof stay.nights === "number" ? stay.nights : null;
     if (!city || !checkIn || !checkOut || !nights) continue;
 
-    const options = Array.isArray(stay.options)
+    const rawOptions = Array.isArray(stay.options)
       ? stay.options.filter(
           (option): option is NonNullable<HotelStayResult["options"][number]> =>
             Boolean(option && typeof option === "object")
         )
       : [];
+    const options = rawOptions.filter(
+      (option) =>
+        option.estimated !== true && option.provider_status !== "unavailable"
+    );
 
     stays.push({
       city,
@@ -832,6 +837,21 @@ function coerceHotelStays(raw: unknown): HotelStayResult[] {
       nights,
       adults: typeof stay.adults === "number" ? stay.adults : undefined,
       options,
+      provider_unavailable:
+        (typeof stay.provider_unavailable === "boolean"
+          ? stay.provider_unavailable
+          : undefined) ??
+        rawOptions.some(
+          (option) =>
+            option.estimated === true ||
+            option.provider_status === "unavailable"
+        ),
+      estimated:
+        typeof stay.estimated === "boolean" ? stay.estimated : undefined,
+      provider_message:
+        typeof stay.provider_message === "string"
+          ? stay.provider_message
+          : undefined,
     });
   }
 
@@ -1804,7 +1824,7 @@ export function TravelPlannerForm({
 
   const submitCountries = useCallback(() => {
     if (!resolvedCountries.length) {
-      toast.error(copy.countryRequired);
+      alertToast(copy.countryRequired, { variant: "destructive" });
       return;
     }
     sendStructuredMessage({
@@ -1819,7 +1839,7 @@ export function TravelPlannerForm({
 
   const submitCities = useCallback(() => {
     if (!resolvedCities.length) {
-      toast.error(copy.cityRequired);
+      alertToast(copy.cityRequired, { variant: "destructive" });
       return;
     }
     sendStructuredMessage({
@@ -1844,11 +1864,11 @@ export function TravelPlannerForm({
 
   const submitAdditionalDestination = useCallback(() => {
     if (!resolvedAdditionalCountries.length) {
-      toast.error(copy.additionalCountryRequired);
+      alertToast(copy.additionalCountryRequired, { variant: "destructive" });
       return;
     }
     if (!resolvedAdditionalCities.length) {
-      toast.error(copy.additionalCityRequired);
+      alertToast(copy.additionalCityRequired, { variant: "destructive" });
       return;
     }
 
@@ -1922,7 +1942,7 @@ export function TravelPlannerForm({
       !resolvedReturnCountry ||
       !resolvedReturnCity
     ) {
-      toast.error(copy.endpointsRequired);
+      alertToast(copy.endpointsRequired, { variant: "destructive" });
       return;
     }
 
@@ -1953,14 +1973,14 @@ export function TravelPlannerForm({
 
   const submitIpDefaultEndpoints = useCallback(() => {
     if (!ipLocation) {
-      toast.error(copy.noIpCity);
+      alertToast(copy.noIpCity, { variant: "destructive" });
       return;
     }
 
     const country = normalizeToken(ipLocation.country);
     const city = normalizeToken(ipLocation.city);
     if (!country || !city) {
-      toast.error(copy.noIpCity);
+      alertToast(copy.noIpCity, { variant: "destructive" });
       return;
     }
 
@@ -1977,7 +1997,7 @@ export function TravelPlannerForm({
         return_city: getLocalLocationDisplayName(city),
       },
     });
-    toast.success(copy.ipConfirmed(displayLabel));
+    alertToast(copy.ipConfirmed(displayLabel), { variant: "success" });
   }, [copy, ipLocation, sendStructuredMessage]);
 
   const showManualEndpointFields = manualEndpointMode || Boolean(ipLocationError);
@@ -2329,7 +2349,7 @@ export function TravelPlannerForm({
                   ? getDefaultFlexibleDepartureDate()
                   : departureDate;
               if (!/^\d{4}-\d{2}-\d{2}$/.test(finalDate)) {
-                toast.error(copy.invalidDate);
+                alertToast(copy.invalidDate, { variant: "destructive" });
                 return;
               }
               setLoadedFlightsKey(null);
@@ -2374,7 +2394,7 @@ export function TravelPlannerForm({
               const value = parsePositiveIntText(travelDays);
               const minimumDays = Math.max(1, travelState.cities.length);
               if (!value || value < minimumDays) {
-                toast.error(copy.minimumDaysError(minimumDays));
+                alertToast(copy.minimumDaysError(minimumDays), { variant: "destructive" });
                 return;
               }
               setLoadedFlightsKey(null);
@@ -2422,7 +2442,7 @@ export function TravelPlannerForm({
             onClick={() => {
               const value = parsePositiveIntText(travelers);
               if (!value) {
-                toast.error(copy.travelersError);
+                alertToast(copy.travelersError, { variant: "destructive" });
                 return;
               }
               sendStructuredMessage({ travelers: value });
@@ -2466,7 +2486,7 @@ export function TravelPlannerForm({
             onClick={() => {
               const value = parsePositiveIntText(budget);
               if (!value) {
-                toast.error(copy.budgetError);
+                alertToast(copy.budgetError, { variant: "destructive" });
                 return;
               }
               sendStructuredMessage({ budget: value });
@@ -2758,13 +2778,13 @@ export function TravelPlannerForm({
             disabled={busy}
             onClick={() => {
               if (travelOrder.length !== cities.length) {
-                toast.error(copy.orderIncomplete);
+                alertToast(copy.orderIncomplete, { variant: "destructive" });
                 return;
               }
 
               for (const city of travelOrder) {
                 if (!citySet.has(city)) {
-                  toast.error(copy.orderInvalid);
+                  alertToast(copy.orderInvalid, { variant: "destructive" });
                   return;
                 }
               }
@@ -2848,9 +2868,10 @@ export function TravelPlannerForm({
                   value={selectedValue}
                 />
                 {leg.provider_unavailable && leg.provider_message && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                    {leg.provider_message}
-                  </div>
+                  <Alert variant="warning">
+                    <AlertIcon variant="warning" />
+                    <AlertDescription>{leg.provider_message}</AlertDescription>
+                  </Alert>
                 )}
                 {selectedValue === "skip" && (
                   <div className="rounded-md border border-border/40 bg-muted/20 p-2 text-xs text-muted-foreground">
@@ -2941,13 +2962,13 @@ export function TravelPlannerForm({
 
                 const optionIndex = Number(selectedValue);
                 if (!Number.isInteger(optionIndex) || optionIndex <= 0) {
-                  toast.error(copy.invalidFlight(legIndex));
+                  alertToast(copy.invalidFlight(legIndex), { variant: "destructive" });
                   return;
                 }
 
                 const chosenOption = leg.options[optionIndex - 1];
                 if (!chosenOption) {
-                  toast.error(copy.expiredFlight(legIndex));
+                  alertToast(copy.expiredFlight(legIndex), { variant: "destructive" });
                   return;
                 }
 
@@ -3022,6 +3043,12 @@ export function TravelPlannerForm({
                     stay.nights,
                   )}
                 </div>
+                {stay.provider_unavailable && stay.provider_message && (
+                  <Alert variant="destructive">
+                    <AlertIcon />
+                    <AlertDescription>{stay.provider_message}</AlertDescription>
+                  </Alert>
+                )}
                 <SearchableSingleSelect
                   disabled={busy}
                   isZh={isZh}
@@ -3170,13 +3197,13 @@ export function TravelPlannerForm({
 
                 const optionIndex = Number(selectedValue);
                 if (!Number.isInteger(optionIndex) || optionIndex <= 0) {
-                  toast.error(copy.invalidHotel(getCityDisplayName(stay.city)));
+                  alertToast(copy.invalidHotel(getCityDisplayName(stay.city)), { variant: "destructive" });
                   return;
                 }
 
                 const chosenOption = stay.options[optionIndex - 1];
                 if (!chosenOption) {
-                  toast.error(copy.expiredHotel(getCityDisplayName(stay.city)));
+                  alertToast(copy.expiredHotel(getCityDisplayName(stay.city)), { variant: "destructive" });
                   return;
                 }
 

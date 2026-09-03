@@ -32,6 +32,14 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, number>) => {
     const labels: Record<string, string> = {
       currentHandling: "Currently working on",
+      ongoingApplications: "Ongoing applications",
+      completedApplications: "Completed applications",
+      ongoingEmpty: "You have no other ongoing applications.",
+      completedEmpty:
+        "Applications will appear here after a final result or a successful arrival-card submission.",
+      completedCount: `${values?.count ?? 0} completed applications`,
+      ongoingCount: `${values?.count ?? 0} ongoing applications`,
+      viewCompletedApplications: "View completed applications",
       yourApplications: "Your applications",
       destinationCount: `${values?.count ?? 0}`,
       current: "Current",
@@ -273,7 +281,9 @@ describe("applications selector", () => {
       />
     );
 
-    await waitFor(() => expect(screen.getByText("0")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("0 ongoing applications")).toBeInTheDocument()
+    );
     expect(screen.getByRole("link", { name: /Taiwan/ })).toHaveAttribute(
       "href",
       "/client/home"
@@ -303,6 +313,71 @@ describe("applications selector", () => {
     expect(screen.queryByText("Taiwan")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Choose application" }));
     expect(screen.queryByText("TDAC · November trip")).not.toBeInTheDocument();
+  });
+
+  it("moves terminal records into completed applications and links to their result", () => {
+    const completedItem: ApplicationListItem = {
+      ...startedTaiwanItem,
+      stateLabel: "Approved",
+      tone: "success",
+      progressPercent: 100,
+      records: startedTaiwanItem.records.map((record) => ({
+        ...record,
+        stateLabel: "Approved",
+        tone: "success",
+        progressPercent: 100,
+        ongoing: false,
+      })),
+    };
+
+    render(
+      <ApplicationsList
+        items={[item, completedItem]}
+        initialExpandedCountry={null}
+      />
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Completed applications" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 completed applications")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Taiwan/ })).toHaveAttribute(
+      "href",
+      "/client/checkout?applicationId=taiwan-one"
+    );
+    expect(
+      screen
+        .getAllByRole("progressbar")
+        .some((bar) => bar.getAttribute("aria-valuenow") === "100")
+    ).toBe(true);
+  });
+
+  it("keeps a submitted 100% visa application in the ongoing section", () => {
+    const submittedItem: ApplicationListItem = {
+      ...startedTaiwanItem,
+      stateLabel: "Submitted or waiting",
+      tone: "brand",
+      progressPercent: 100,
+      records: startedTaiwanItem.records.map((record) => ({
+        ...record,
+        stateLabel: "Submitted or waiting",
+        tone: "brand",
+        progressPercent: 100,
+        ongoing: true,
+      })),
+    };
+
+    render(
+      <ApplicationsList items={[submittedItem]} initialExpandedCountry={null} />
+    );
+
+    expect(screen.getByText("0 completed applications")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Applications will appear here after a final result or a successful arrival-card submission."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Submitted or waiting")).toHaveLength(1);
   });
 
   it("renders Taiwan with a circle flag asset instead of an emoji glyph", () => {

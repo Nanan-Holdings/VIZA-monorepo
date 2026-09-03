@@ -10,6 +10,7 @@ import {
   getTakeoverRemoteDebugUrl,
 } from "@/app/actions/takeover";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 interface Props {
   takeoverId: string;
@@ -78,7 +79,7 @@ export function TakeoverControls({ takeoverId, status, claimedByCurrentUser, cop
 
   return (
     <div className="space-y-4">
-      {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {error ? <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       {!isClosed && status === "queued" ? (
         <Button onClick={() => run(() => claimTakeover(takeoverId))} disabled={pending} className="gap-2">

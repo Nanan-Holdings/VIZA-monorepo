@@ -9,6 +9,7 @@ import {
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { AdminSupportInboxClient } from "./support-inbox-client";
 import { getCurrentUser } from "@/lib/rbac";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -63,9 +64,11 @@ export default async function AdminSupportPage({
       </header>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <span className="font-semibold">{copy.loadError}</span>: {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertIcon variant="destructive" />
+          <AlertTitle>{copy.loadError}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : (
         <AdminSupportInboxClient
           initialTab={tab}

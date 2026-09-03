@@ -9,11 +9,11 @@ import { ActionButton } from "@/components/ui/action-button";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { updatePassword } from "@/app/actions/password-reset";
 import { createBrowserClient } from "@supabase/ssr";
 import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
 import {
-  AlertCircle,
   Loader2,
   Lock,
   ArrowLeft,
@@ -298,10 +298,7 @@ export default function ResetPasswordPage() {
 
                   {/* Error Message */}
                   {error && (
-                    <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
-                      <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-600 font-medium">{error}</p>
-                    </div>
+                    <ClientErrorAlert message={error} />
                   )}
 
                   {/* Submit Button */}

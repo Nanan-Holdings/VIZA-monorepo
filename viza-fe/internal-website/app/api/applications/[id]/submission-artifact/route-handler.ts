@@ -38,6 +38,24 @@ export function isArtifactReferencedBySubmissionResult(
     submissionResult.reviewScreenshotStoragePath,
   ].filter((value): value is string => typeof value === "string");
 
+  const evidence = isStringRecord(submissionResult.evidence) ? submissionResult.evidence : null;
+  const paymentBoundary = isStringRecord(submissionResult.paymentBoundary)
+    ? submissionResult.paymentBoundary
+    : null;
+  const manualAction = isStringRecord(submissionResult.manualAction)
+    ? submissionResult.manualAction
+    : null;
+  const manualEvidence = manualAction && isStringRecord(manualAction.evidence)
+    ? manualAction.evidence
+    : null;
+  const nestedScreenshotPaths = [
+    evidence?.screenshotPath,
+    paymentBoundary?.screenshotStoragePath,
+    manualAction?.screenshotPath,
+    manualAction?.screenshotUrl,
+    manualEvidence?.screenshotPath,
+  ].filter((value): value is string => typeof value === "string");
+
   const artifacts = isStringRecord(submissionResult.artifacts)
     ? submissionResult.artifacts
     : null;
@@ -49,8 +67,14 @@ export function isArtifactReferencedBySubmissionResult(
         ...artifactPaths(artifacts.traces),
       ]
     : [];
+  const checkpointEvidencePaths = Array.isArray(submissionResult.checkpointEvidence)
+    ? submissionResult.checkpointEvidence
+        .filter(isStringRecord)
+        .map((item) => item.screenshotStoragePath)
+        .filter((value): value is string => typeof value === "string")
+    : [];
 
-  return [...directPaths, ...capturedPaths].some(
+  return [...directPaths, ...nestedScreenshotPaths, ...capturedPaths, ...checkpointEvidencePaths].some(
     (value) => normalizeArtifactPath(value) === path,
   );
 }

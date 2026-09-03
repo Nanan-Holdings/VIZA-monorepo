@@ -4,7 +4,10 @@ import { artifact } from "../artifact.js";
 import { buildCountrySubmissionApplication } from "../country-submissions/from-records.js";
 import { getCountrySubmissionProvider } from "../country-submissions/index.js";
 import type { SubmissionPayload } from "../country-submissions/types.js";
-import { ensureApplicantInboxAlias } from "../inbox/alias.js";
+import {
+  ensureApplicantInboxAlias,
+  ensureApplicationInboxAlias,
+} from "../inbox/alias.js";
 import { hasAliasEmailForwardingConsent } from "../inbox/forwarding-consent.js";
 import { assertInboxAliasDomainRoutable } from "../inbox/wait-for-message.js";
 import { MdacPortalValidationError, normalizeMdacPortalPayload } from "../mdac/normalize.js";
@@ -23,7 +26,10 @@ import { normalizeTdacPortalPayload, TdacPortalValidationError } from "../tdac/n
 import { runTdacPortalSubmission, TdacPortalError } from "../tdac/runner.js";
 import { normalizeVnPrearrivalPortalPayload, routeVnPrearrivalEmailAnswers, VnPrearrivalPortalValidationError } from "../vn-prearrival/normalize.js";
 import { runVietnamPrearrivalPortalSubmission, VnPrearrivalPortalError } from "../vn-prearrival/runner.js";
-import { loadCountrySubmissionContext } from "./answers.js";
+import {
+  loadCountrySubmissionContext,
+  type CanonicalRecord,
+} from "./answers.js";
 import { NeedsHumanError, RetryableRunnerError, type DispatchOutcome } from "./types.js";
 import {
   RunnerJobOwnershipLostError,
@@ -32,6 +38,18 @@ import {
 } from "./execution-context.js";
 
 export type ArrivalCardPoolFlow = "mdac" | "tdac" | "vn_prearrival" | "kr_arrival_card";
+
+export function routeApplicationManagedEmailAnswers(
+  answers: CanonicalRecord,
+  managedAlias: string,
+): CanonicalRecord {
+  return {
+    ...answers,
+    // The managed application alias is the only address sent to the
+    // government portal. The profile email remains the forwarding target.
+    email_address: managedAlias,
+  };
+}
 
 interface PortalResult {
   submitted: boolean;
@@ -140,6 +158,23 @@ async function preparePayload(
       context.profile,
       context.application,
       answers,
+    );
+  }
+  if (flow === "mdac" || flow === "tdac") {
+    const managedAlias = await ensureApplicationInboxAlias(
+      applicationId,
+      context.profile.id,
+    );
+    await assertInboxAliasDomainRoutable(managedAlias.alias);
+    if (!(await hasAliasEmailForwardingConsent(context.profile.id))) {
+      throw new NeedsHumanError(
+        `${flow.toUpperCase()} official-email forwarding consent is required.`,
+      );
+    }
+    submissionApplication = buildCountrySubmissionApplication(
+      context.profile,
+      context.application,
+      routeApplicationManagedEmailAnswers(context.answers, managedAlias.alias),
     );
   }
   if (flow === "kr_arrival_card") {

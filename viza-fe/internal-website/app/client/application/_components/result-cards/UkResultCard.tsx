@@ -5,7 +5,7 @@ import { useLocale } from "next-intl";
 import { CircleNotch as Loader2, ArrowClockwise as RotateCw, ShieldCheck } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { UkSubmissionResult } from "@/lib/submission-result";

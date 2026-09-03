@@ -64,3 +64,17 @@ test("every direct pool runner rejects missing and mismatched identity before po
     await assertOwnershipRejected(invoke, `${flow} mismatched identity`);
   }
 });
+
+test("MDAC and TDAC route official correspondence through the application alias", async () => {
+  const { routeApplicationManagedEmailAnswers } = await import("../arrival-card-runners.js");
+  const answers = routeApplicationManagedEmailAnswers(
+    {
+      email_address: "personal@example.com",
+      passport_number: "EXAMPLE123",
+    },
+    "appl-example@viza.it.com",
+  );
+
+  assert.equal(answers.email_address, "appl-example@viza.it.com");
+  assert.equal(answers.passport_number, "EXAMPLE123");
+});

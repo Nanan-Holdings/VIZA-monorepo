@@ -92,7 +92,10 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
 }
 
 export type IndonesiaLiveSubmissionResult =
-  | (GenericSubmissionResult & { operatorDiagnostics?: string[] })
+  | (GenericSubmissionResult & {
+      operatorDiagnostics?: string[];
+      paymentBoundaryScreenshotPath?: string;
+    })
   | (GenericEvisaSubmissionResult & { country: "ID"; status: "submitted"; evidencePdf: Buffer });
 
 function normalizeVisaType(visaType: string): string {
@@ -322,7 +325,7 @@ export async function runIndonesiaLiveSubmission(
         passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"]) ?? input.profile?.passportExpiryDate,
         passportIssuingCountry: readFirst(input.answers, ["passport_issuing_country", "issuing_country"]) ?? input.profile?.passportIssuingCountry,
         passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
-        residenceType: readFirst(input.answers, ["residence_type", "accommodation_type", "stay_type"]) ?? "HOTEL",
+        residenceType: readFirst(input.answers, ["residence_type", "accommodation_type", "stay_type"]),
         addressInIndonesia: normalized.accommodationAddress ??
           readFirst(input.answers, [
             "address_in_indonesia",
@@ -330,8 +333,7 @@ export async function runIndonesiaLiveSubmission(
             "accommodation_address",
             "place_of_stay",
             "indonesia_stay_address",
-          ]) ??
-          "Jalan MH Thamrin No. 1, Menteng, Jakarta Pusat",
+          ]),
         postalCode: readFirst(input.answers, ["postal_code", "indonesia_postal_code"]),
         province: readFirst(input.answers, ["province", "province_name", "indonesia_province"]),
         city: normalized.accommodationName?.match(/jakarta/i) ? "JAKARTA" : readFirst(input.answers, ["city", "city_name", "accommodation_city_or_district", "indonesia_city"]),
@@ -373,6 +375,9 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       operatorDiagnostics: probe.diagnostics.slice(-30),
+      ...(probe.paymentBoundaryScreenshotPath
+        ? { paymentBoundaryScreenshotPath: probe.paymentBoundaryScreenshotPath }
+        : {}),
       message: probe.state === "payment_failed" ||
         probe.actionType === "official_step_2_validation_blocked" ||
         probe.actionType === "official_step_3_review_incomplete"

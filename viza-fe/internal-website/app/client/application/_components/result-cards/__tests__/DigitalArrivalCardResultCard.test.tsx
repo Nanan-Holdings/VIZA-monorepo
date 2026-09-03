@@ -435,9 +435,125 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.queryByAltText("菲律宾 eTravel 官网确认页截图")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "下载官网确认截图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "再次提交" })).not.toBeInTheDocument();
-    expect(screen.getByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).toBeInTheDocument();
+    expect(screen.queryByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).not.toBeInTheDocument();
     expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the canonical clean success presentation for Philippines eTravel", () => {
+    const result: DigitalArrivalCardSubmissionResult & {
+      resultEvidence: {
+        authoritativeRead: {
+          source: "official_registration_result_read";
+          postSubmitRead: true;
+          referenceNumber: string;
+          stableReference: true;
+        };
+        qrRender: {
+          renderer: "official_client_reference_qr";
+          renderedForReference: string;
+          rendered: true;
+          referenceValueValidated: true;
+        };
+      };
+    } = {
+      country: "PH",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      applicationId: "application-id",
+      submitted: true,
+      referenceNumber: "PH-REFERENCE",
+      portalUrl: "https://etravel.gov.ph/",
+      portalResponseSummary: "Official confirmation captured.",
+      resultEvidence: {
+        authoritativeRead: {
+          source: "official_registration_result_read",
+          postSubmitRead: true,
+          referenceNumber: "PH-REFERENCE",
+          stableReference: true,
+        },
+        qrRender: {
+          renderer: "official_client_reference_qr",
+          renderedForReference: "PH-REFERENCE",
+          rendered: true,
+          referenceValueValidated: true,
+        },
+      },
+      artifacts: {
+        screenshots: ["user/application-id/PH/ph-confirmation.png"],
+        qrCodes: ["user/application-id/PH/ph-qr.png"],
+        pdfs: [],
+        logs: [],
+        traces: [],
+      },
+    };
+
+    render(<DigitalArrivalCardResultCard result={result} />);
+
+    expect(screen.getByText("eTravel 提交成功")).toBeInTheDocument();
+    expect(screen.queryByText("菲律宾 eTravel 官网已确认提交。")).not.toBeInTheDocument();
+    expect(screen.queryByText("这是提交时保存的官网原始凭证截图，可能包含二维码、参考号和入境提示。点击图片可查看原图。")).not.toBeInTheDocument();
+    expect(screen.queryByText("菲律宾 eTravel 免费，不是签证，也不保证边检准入。")).not.toBeInTheDocument();
+    expect(screen.queryByText("菲律宾 eTravel 本次没有官方 PDF；官网确认页截图已在上方提供查看和下载。")).not.toBeInTheDocument();
+    expect(screen.queryByText("eTravel 免费，不是签证，也不代表一定获准入境。")).not.toBeInTheDocument();
+
+    const evidencePanel = screen.getByText("菲律宾 eTravel 官网确认页").parentElement?.parentElement;
+    expect(evidencePanel).not.toHaveClass("border-emerald-200", "bg-emerald-50/40");
+    expect(screen.getByRole("link", { name: "下载官方二维码" })).toHaveClass(
+      "rounded-full",
+      "bg-brand-500",
+    );
+    expect(screen.getByRole("link", { name: "下载官网确认截图" })).toHaveClass(
+      "rounded-full",
+      "!border-[#e5e7eb]",
+    );
+  });
+
+  it("shows the final Thailand TDAC confirmation screenshot and PDF", () => {
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "TH",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "thailand_tdac_live",
+      applicationId: "application-id",
+      submitted: true,
+      confirmationNumber: "TH123456789",
+      referenceNumber: "TH123456789",
+      portalUrl: "https://tdac.immigration.go.th/arrival-card/#/home",
+      portalResponseSummary: "Thailand TDAC official portal returned a submission confirmation.",
+      confirmationPdfStoragePath: "user/application-id/TH/tdac-confirmation.pdf",
+      artifacts: {
+        screenshots: [
+          "user/application-id/TH/before-submit.png",
+          "user/application-id/TH/after-submit-success.png",
+        ],
+        qrCodes: [],
+        pdfs: ["user/application-id/TH/tdac-confirmation.pdf"],
+        logs: ["tdac_submitted", "tdac_pdf_downloaded"],
+        traces: [],
+      },
+    };
+
+    render(<DigitalArrivalCardResultCard result={result} />);
+
+    expect(screen.getByText("TDAC 提交成功")).toBeInTheDocument();
+    expect(screen.getByText("TH123456789")).toBeInTheDocument();
+    expect(screen.getByAltText("泰国 TDAC 官网确认页截图")).toHaveAttribute(
+      "src",
+      expect.stringContaining("after-submit-success.png"),
+    );
+    expect(screen.getByRole("link", { name: "查看泰国 TDAC 官网确认页原图" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("inline=1"),
+    );
+    expect(screen.getByRole("link", { name: "下载官网确认截图" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("after-submit-success.png"),
+    );
+    expect(screen.getByRole("button", { name: "下载确认文件" })).toBeInTheDocument();
   });
 
   it("keeps polling an incomplete Vietnam result and switches to the QR download", async () => {

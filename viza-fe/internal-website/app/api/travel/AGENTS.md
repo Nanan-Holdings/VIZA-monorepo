@@ -37,6 +37,9 @@ service URL off the client.
   with localStorage fallback in the client.
 - `preferences/route.ts`: authenticated view, item deletion, and full clearing
   for explicitly saved cross-session Travel preferences.
+- `application-drafts/route.ts`: authenticated preview/commit boundary for
+  confirmed planner facts. It fills only empty local draft fields, excludes
+  estimates, and never starts official submission or payment work.
 
 ## Ownership Boundaries
 

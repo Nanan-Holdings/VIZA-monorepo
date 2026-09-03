@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/rbac";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import {
   deriveConcurrencyAlerts,
   percentile,
@@ -230,13 +231,13 @@ export default async function AdminMetricsPage() {
       </div>
 
       {runtimeErrors.length > 0 ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          <p className="font-semibold">{copy.unavailable}</p>
-          <p className="mt-1">{copy.unavailableDetail}</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-xs">
+        <Alert variant="destructive">
+          <AlertIcon variant="destructive" />
+          <AlertTitle>{copy.unavailable}</AlertTitle>
+          <AlertDescription><p>{copy.unavailableDetail}</p><ul className="mt-2 list-disc space-y-1 pl-5 font-mono">
             {runtimeErrors.map((error) => <li key={error}>{error}</li>)}
-          </ul>
-        </div>
+          </ul></AlertDescription>
+        </Alert>
       ) : null}
 
       <section className="rounded-lg border border-[#efefef] bg-white p-5 shadow-sm">
@@ -260,28 +261,30 @@ export default async function AdminMetricsPage() {
       </section>
 
       {alerts.length > 0 ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <h2 className="font-semibold">{copy.alerts}</h2>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>{copy.alerts}</AlertTitle>
+          <AlertDescription><ul className="list-disc space-y-1 pl-5">
             {alerts.map((alert) => <li key={alert}>{alertCopy[alert]}</li>)}
-          </ul>
-        </section>
+          </ul></AlertDescription>
+        </Alert>
       ) : null}
 
       {weeklyAlerts.length > 0 ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-800">
+        <Alert variant="warning">
+          <AlertIcon variant="warning" />
+          <AlertTitle>
             {copy.below} {(SUCCESS_RATE_THRESHOLD * 100).toFixed(0)}% {copy.currentWeek}
-          </p>
-          <ul className="mt-2 list-disc list-inside text-sm text-amber-800">
+          </AlertTitle>
+          <AlertDescription><ul className="list-disc list-inside">
             {weeklyAlerts.map((alert) => (
               <li key={alert.country}>{alert.country}: {(alert.rate * 100).toFixed(1)}% {copy.over} {alert.total}</li>
             ))}
-          </ul>
-        </div>
+          </ul></AlertDescription>
+        </Alert>
       ) : null}
 
-      {dataError ? <p className="text-sm text-red-600">{dataError}</p> : null}
+      {dataError ? <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{dataError}</AlertDescription></Alert> : null}
       <div className="overflow-x-auto rounded-lg border border-[#efefef] bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>

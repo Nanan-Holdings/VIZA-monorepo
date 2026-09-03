@@ -1,7 +1,7 @@
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import type { VisaFormFieldOption, VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
-export const MOCK_RESIDENTIAL_ADDRESS = "123 Test Street, Mock District, Singapore 119077";
+export const MOCK_RESIDENTIAL_ADDRESS = "17 Harbour Crest Avenue, #12-04, Singapore 018956";
 
 const DESTINATION_COUNTRY: Record<string, string> = {
   AE_TOURIST_VISA: "ARE",
@@ -50,10 +50,14 @@ function chooseOption(field: VisaFormFieldRow): string {
   ]) ?? options[0];
 }
 
-function countryValue(fieldName: string, visaType: string): string {
+function countryValue(
+  fieldName: string,
+  visaType: string,
+  destinationCountryCode?: string,
+): string {
   const name = fieldName.toLowerCase();
   if (/(destination|arrival|visit|host|hotel|accommodation|issuing_the_identity)/.test(name)) {
-    return DESTINATION_COUNTRY[visaType] ?? "SGP";
+    return destinationCountryCode ?? DESTINATION_COUNTRY[visaType] ?? "SGP";
   }
   if (/(residen|present|mailing|application_country)/.test(name)) return "SGP";
   return "CHN";
@@ -73,26 +77,26 @@ function dateValue(fieldName: string): string {
 
 function textValue(field: VisaFormFieldRow): string {
   const name = field.fieldName.toLowerCase();
-  if (/(email)/.test(name)) return "edward.preview@viza.test";
-  if (/(phone|mobile|telephone)/.test(name)) return "+6581234567";
-  if (/(postal|postcode|zip)/.test(name)) return "119077";
+  if (/(email)/.test(name)) return "liwei.chen@harbourmail.example";
+  if (/(phone|mobile|telephone)/.test(name)) return "+6560001234";
+  if (/(postal|postcode|zip)/.test(name)) return "018956";
   if (/(address|street)/.test(name)) return MOCK_RESIDENTIAL_ADDRESS;
   if (/(city|town|village|place_of_birth)/.test(name)) return "Singapore";
   if (/(state|province|district|area|emirate)/.test(name)) return "Singapore";
-  if (/(father.*name|parent_1.*name)/.test(name)) return "Michael Test";
-  if (/(mother.*name|parent_2.*name)/.test(name)) return "Linda Test";
-  if (/(family_name|surname|last_name)/.test(name)) return "Zhang";
-  if (/(given_name|first_name)/.test(name)) return "Edward";
-  if (/(full_name|applicant_name|reference_name|contact_name)/.test(name)) return "Edward Test Zhang";
-  if (/(passport|travel_document).*number/.test(name)) return "TST123456";
-  if (/(national.*id|identity.*number)/.test(name)) return "TEST-NID-001";
+  if (/(father.*name|parent_1.*name)/.test(name)) return "Chen Guowei";
+  if (/(mother.*name|parent_2.*name)/.test(name)) return "Wang Liling";
+  if (/(family_name|surname|last_name)/.test(name)) return "Chen";
+  if (/(given_name|first_name)/.test(name)) return "Li Wei";
+  if (/(full_name|applicant_name|reference_name|contact_name)/.test(name)) return "Li Wei Chen";
+  if (/(passport|travel_document).*number/.test(name)) return "XG4826913";
+  if (/(national.*id|identity.*number)/.test(name)) return "A7492638Q";
   if (/(religion)/.test(name)) return "None";
   if (/(marital|civil_status|relationship_status)/.test(name)) return "Single";
   if (/(education|qualification)/.test(name)) return "Bachelor degree";
   if (/(occupation|profession|position|job_title)/.test(name)) return "Student";
-  if (/(hotel|accommodation_name)/.test(name)) return "Test Harbour Hotel";
-  if (/(company|employer|school|facility)/.test(name)) return "VIZA Test Lab";
-  if (/(purpose|reason|visit_details)/.test(name)) return "Tourism testing preview";
+  if (/(hotel|accommodation_name)/.test(name)) return "Harbour Crest Meridian Hotel";
+  if (/(company|employer|school|facility)/.test(name)) return "Northbridge Digital Solutions Pte. Ltd.";
+  if (/(purpose|reason|visit_details)/.test(name)) return "Independent leisure travel and local sightseeing";
   if (/(funds|amount|budget|cost|expense)/.test(name)) return "5000";
   if (/(duration|length|count|number_of)/.test(name)) return "1";
   if (/(details|explain|description|remarks|mark)/.test(name)) return "None";
@@ -100,10 +104,16 @@ function textValue(field: VisaFormFieldRow): string {
   return `${field.label || field.fieldName} test answer`;
 }
 
-function fixtureValue(field: VisaFormFieldRow, visaType: string): string {
+function fixtureValue(
+  field: VisaFormFieldRow,
+  visaType: string,
+  destinationCountryCode?: string,
+): string {
   if (field.options && field.options.length > 0) return chooseOption(field);
   if (field.fieldType === "checkbox") return "true";
-  if (field.fieldType === "country") return countryValue(field.fieldName, visaType);
+  if (field.fieldType === "country") {
+    return countryValue(field.fieldName, visaType, destinationCountryCode);
+  }
   if (field.fieldType === "date") return dateValue(field.fieldName);
   if (field.fieldType === "file") return "";
   return textValue(field);
@@ -112,27 +122,28 @@ function fixtureValue(field: VisaFormFieldRow, visaType: string): string {
 export function buildSchemaQaPreviewAnswers(
   steps: WizardStep[],
   visaType: string,
+  options: { destinationCountryCode?: string } = {},
 ): Record<string, string> {
   const fields = steps.flatMap((step) => step.fields);
   const answers: Record<string, string> = {
-    full_name: "Edward Test Zhang",
-    surname: "Zhang",
-    family_name: "Zhang",
-    given_name: "Edward",
-    given_names: "Edward",
+    full_name: "Li Wei Chen",
+    surname: "Chen",
+    family_name: "Chen",
+    given_name: "Li Wei",
+    given_names: "Li Wei",
     date_of_birth: "1990-01-15",
     gender: "male",
     sex: "male",
     nationality: "CHN",
-    email: "edward.preview@viza.test",
-    email_address: "edward.preview@viza.test",
-    phone: "+6581234567",
-    phone_number: "+6581234567",
+    email: "liwei.chen@harbourmail.example",
+    email_address: "liwei.chen@harbourmail.example",
+    phone: "+6560001234",
+    phone_number: "+6560001234",
     address: MOCK_RESIDENTIAL_ADDRESS,
     residence_address: MOCK_RESIDENTIAL_ADDRESS,
     residential_address: MOCK_RESIDENTIAL_ADDRESS,
     residential_address_outside_uae: MOCK_RESIDENTIAL_ADDRESS,
-    passport_number: "TST123456",
+    passport_number: "XG4826913",
     passport_issue_date: "2025-01-01",
     passport_expiry_date: "2035-01-01",
     passport_issuing_country: "CHN",
@@ -143,7 +154,7 @@ export function buildSchemaQaPreviewAnswers(
     for (const field of fields) {
       if (!evaluateShowIf(field, answers, fields)) continue;
       if (answers[field.fieldName]?.trim()) continue;
-      const value = fixtureValue(field, visaType);
+      const value = fixtureValue(field, visaType, options.destinationCountryCode);
       if (!value) continue;
       answers[field.fieldName] = value;
       changed = true;

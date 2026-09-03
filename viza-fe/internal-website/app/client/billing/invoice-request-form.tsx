@@ -8,6 +8,7 @@ import { requestInvoice, type InvoiceRequestState } from "./actions";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -116,9 +117,10 @@ export function InvoiceRequestForm({
             state.status === "error" ? (
               <ClientErrorAlert message={state.message} />
             ) : (
-              <p className="text-sm text-emerald-700" role="status" aria-live="polite">
-                {state.message}
-              </p>
+              <Alert variant="success">
+                <AlertIcon variant="success" />
+                <AlertDescription>{state.message}</AlertDescription>
+              </Alert>
             )
           ) : null}
 

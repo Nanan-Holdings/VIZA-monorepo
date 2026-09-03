@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { CircleNotch as Loader2, Lifebuoy as LifeBuoy, PaperPlaneTilt as Send } from "@phosphor-icons/react";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,9 +64,12 @@ export function SupportButton({ applicationId }: SupportButtonProps) {
               </button>
             </div>
             {submitted ? (
-              <p className="mt-3 rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-foreground">
-                Got it — ticket #{submitted.slice(0, 8)}. We&apos;ll reply by email within one business day.
-              </p>
+              <Alert className="mt-3" variant="success">
+                <AlertIcon variant="success" />
+                <AlertDescription>
+                  Got it — ticket #{submitted.slice(0, 8)}. We&apos;ll reply by email within one business day.
+                </AlertDescription>
+              </Alert>
             ) : (
               <form onSubmit={handleSubmit} className="mt-4 space-y-3">
                 <div className="space-y-1">
@@ -93,7 +98,7 @@ export function SupportButton({ applicationId }: SupportButtonProps) {
                     Linked to application #{applicationId.slice(0, 8)}
                   </p>
                 ) : null}
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {error ? <ClientErrorAlert message={error} /> : null}
                 <div className="flex justify-end">
                   <Button type="submit" disabled={pending} className="bg-brand-500 hover:bg-brand-400">
                     {pending ? (

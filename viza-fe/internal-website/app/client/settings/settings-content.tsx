@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Sparkle as Sparkles,
   SealPercent as TicketPercent,
+  Tray,
   Trophy,
   Trash as Trash2,
   Phone,
@@ -37,13 +38,24 @@ import {
   Cards as WalletCards,
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/action-button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PageBackButton } from "@/components/ui/page-back-button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { prepareAuthEmailLocale } from "@/app/actions/client-auth";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/client";
@@ -87,8 +99,14 @@ interface WalletBindingIntent {
   bindingId: string;
   method: Exclude<PaymentMethodId, "bank_card">;
   qrCodeDataUrl: string;
+  authorizationUrl?: string | null;
   expiresAt: string;
 }
+
+type WalletBindingResponse = Omit<WalletBindingIntent, "qrCodeDataUrl"> & {
+  qrCodeDataUrl: string | null;
+  completed?: boolean;
+};
 
 interface CardBindingIntent {
   bindingId: string;
@@ -97,6 +115,7 @@ interface CardBindingIntent {
   clientSecret: string;
   currency: string;
   label: string;
+  environment: "demo" | "prod";
 }
 
 interface AirwallexCardElement {
@@ -153,8 +172,6 @@ interface RewardWalletSummary {
   lifetime_earned: number;
   lifetime_spent: number;
 }
-
-const PAYMENT_STORAGE_KEY = "viza.settings.paymentAccounts.v1";
 
 const paymentMethods: Array<{
   id: PaymentMethodId;
@@ -340,6 +357,13 @@ function getPasswordChecks(password: string) {
   };
 }
 
+function maskPassportNumber(value: string | null | undefined, fallback: string) {
+  const normalized = value?.trim();
+  if (!normalized) return fallback;
+  if (normalized.length <= 4) return `••${normalized}`;
+  return `•••• ${normalized.slice(-4)}`;
+}
+
 function settingsTitleKey(view: SettingsView) {
   if (view === "payment-methods") return "rows.paymentMethods.title";
   if (view === "points") return "rows.pointsCenter.title";
@@ -372,6 +396,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   });
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [activeQrBinding, setActiveQrBinding] = useState<WalletBindingIntent | null>(null);
+  const [returnedWalletBindingId, setReturnedWalletBindingId] = useState<string | null>(null);
   const [activeCardBinding, setActiveCardBinding] = useState<CardBindingIntent | null>(null);
   const [airwallexScriptReady, setAirwallexScriptReady] = useState(false);
   const [cardElement, setCardElement] = useState<AirwallexCardElement | null>(null);
@@ -383,6 +408,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     tone: "success" | "error";
     text: string;
   } | null>(null);
+  const [paymentAccountToDelete, setPaymentAccountToDelete] = useState<PaymentAccount | null>(null);
+  const [pendingPaymentAccountId, setPendingPaymentAccountId] = useState<string | null>(null);
   const [activeSecurityPanel] = useState<SecurityPanel>(initialSecurityPanel(view));
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
@@ -403,18 +430,11 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     lifetime_earned: 0,
     lifetime_spent: 0,
   });
+  const [settingsLoadError, setSettingsLoadError] = useState(false);
+  const [settingsReloadKey, setSettingsReloadKey] = useState(0);
 
   useEffect(() => {
-    const storedAccounts = window.localStorage.getItem(PAYMENT_STORAGE_KEY);
     if (window.AirwallexComponentsSDK) setAirwallexScriptReady(true);
-
-    if (storedAccounts) {
-      try {
-        setPaymentAccounts(normalizePaymentAccounts(JSON.parse(storedAccounts)));
-      } catch {
-        setPaymentAccounts([]);
-      }
-    }
 
     const params = new URLSearchParams(window.location.search);
     const paymentBind = params.get("payment_bind");
@@ -423,48 +443,129 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     } else if (paymentBind === "cancelled") {
       setPaymentMessage({ tone: "error", text: t("payment.messages.stripeCancelled") });
     }
+    if (params.get("wallet_binding") === "return") {
+      setReturnedWalletBindingId(params.get("bindingId"));
+    }
   }, [t]);
+
+  const loadPaymentAccounts = useCallback(async () => {
+    if (view !== "home" && view !== "payment-methods") return;
+    try {
+      const response = await fetch("/api/payments/bind", { cache: "no-store" });
+      const result = (await response.json().catch(() => null)) as {
+        accounts?: unknown;
+        error?: string;
+      } | null;
+      if (!response.ok) throw new Error(result?.error ?? "payment_bindings_unavailable");
+      setPaymentAccounts(normalizePaymentAccounts(result?.accounts));
+    } catch (error) {
+      console.error("[settings-payment-bindings]", error);
+      setPaymentAccounts([]);
+      if (view === "payment-methods") {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.loadFailed") });
+      }
+    }
+  }, [t, view]);
+
+  useEffect(() => {
+    void loadPaymentAccounts();
+  }, [loadPaymentAccounts]);
+
+  useEffect(() => {
+    if (!returnedWalletBindingId || view !== "payment-methods") return;
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/payments/bind/status/${encodeURIComponent(returnedWalletBindingId)}`,
+          { cache: "no-store" },
+        );
+        const result = (await response.json().catch(() => null)) as { status?: string } | null;
+        if (!active) return;
+        if (response.ok && result?.status === "bound") {
+          setPaymentMessage({ tone: "success", text: t("payment.messages.qrBound") });
+          await loadPaymentAccounts();
+        } else {
+          setPaymentMessage({ tone: "error", text: t("payment.messages.qrPending") });
+        }
+      } catch (error) {
+        console.error("[settings-wallet-binding-return]", error);
+        if (active) {
+          setPaymentMessage({ tone: "error", text: t("payment.messages.qrStatusFailed") });
+        }
+      } finally {
+        if (active) setReturnedWalletBindingId(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [loadPaymentAccounts, returnedWalletBindingId, t, view]);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadSettings() {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
+      try {
+        setSettingsLoadError(false);
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const user = session?.user;
 
-      if (!user) {
-        router.replace("/client/login");
-        return;
+        if (!user) {
+          router.replace("/client/login");
+          return;
+        }
+
+        const [profileResult, walletResult] = await Promise.all([
+          supabase
+            .from("applicant_profiles")
+            .select("full_name, email, phone, passport_number")
+            .eq("auth_user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("reward_wallets")
+            .select("balance, lifetime_earned, lifetime_spent")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+
+        if (!mounted) return;
+        if (profileResult.error) {
+          console.error("[settings-load] profile query failed", {
+            message: profileResult.error.message,
+            code: profileResult.error.code,
+            details: profileResult.error.details,
+            hint: profileResult.error.hint,
+          });
+          setSettingsLoadError(true);
+          return;
+        }
+        if (walletResult.error) {
+          // The rewards wallet is a secondary widget: an unreadable or not yet
+          // migrated reward_wallets table must not take down the whole
+          // settings surface. Render it as an unprovisioned (zero) wallet.
+          console.warn("[settings-load] reward wallet unavailable", {
+            message: walletResult.error.message,
+            code: walletResult.error.code,
+          });
+        }
+
+        setEmail(user.email ?? "");
+        setProfile((profileResult.data ?? null) as ApplicantSettingsProfile | null);
+        setRewardWallet({
+          balance: walletResult.data?.balance ?? 0,
+          lifetime_earned: walletResult.data?.lifetime_earned ?? 0,
+          lifetime_spent: walletResult.data?.lifetime_spent ?? 0,
+        });
+      } catch (error) {
+        console.error("[settings-load]", error);
+        if (mounted) setSettingsLoadError(true);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-
-      // These independent reads used to run serially after an extra remote
-      // auth validation. RLS still validates the access token on both queries.
-      const [{ data }, { data: walletData }] = await Promise.all([
-        supabase
-          .from("applicant_profiles")
-          .select("full_name, email, phone, passport_number")
-          .eq("auth_user_id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("reward_wallets")
-          .select("balance, lifetime_earned, lifetime_spent")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-
-      if (!mounted) return;
-
-      setEmail(user.email ?? "");
-      setProfile((data ?? null) as ApplicantSettingsProfile | null);
-      setRewardWallet({
-        balance: walletData?.balance ?? 0,
-        lifetime_earned: walletData?.lifetime_earned ?? 0,
-        lifetime_spent: walletData?.lifetime_spent ?? 0,
-      });
-      setIsLoading(false);
     }
 
     void loadSettings();
@@ -472,7 +573,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, settingsReloadKey]);
 
   const profileCompletion = useMemo(() => {
     const fields = [
@@ -510,7 +611,6 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
   function savePaymentAccounts(nextAccounts: PaymentAccount[]) {
     setPaymentAccounts(nextAccounts);
-    window.localStorage.setItem(PAYMENT_STORAGE_KEY, JSON.stringify(nextAccounts));
   }
 
   function resetPaymentForm() {
@@ -542,9 +642,9 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       if (container) container.innerHTML = "";
 
       await window.AirwallexComponentsSDK?.init({
-        env: "demo",
+        env: binding.environment,
         enabledElements: ["payments"],
-        locale: "zh",
+        locale: isZh ? "zh" : "en",
       });
 
       const element = await window.AirwallexComponentsSDK?.createElement("card", {
@@ -555,7 +655,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
           base: {
             color: "#111827",
             fontSize: "16px",
-            "::placeholder": { color: "#9ca3af" },
+            "::placeholder": { color: "#606a78" },
           },
         },
       });
@@ -575,7 +675,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     return () => {
       cancelled = true;
     };
-  }, [activeCardBinding, airwallexScriptReady, t]);
+  }, [activeCardBinding, airwallexScriptReady, isZh, t]);
 
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -589,61 +689,89 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     if (editingPaymentAccount) {
-      savePaymentAccounts(
-        paymentAccounts.map((account) =>
-          account.id === editingPaymentAccount.id
-            ? { ...account, label }
-            : account
-        )
-      );
-      setPaymentMessage({ tone: "success", text: t("payment.messages.updated") });
-      resetPaymentForm();
+      setPendingPaymentAccountId(editingPaymentAccount.id);
+      try {
+        const response = await fetch("/api/payments/bind", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bindingId: editingPaymentAccount.id,
+            operation: "rename",
+            label,
+          }),
+        });
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (!response.ok) throw new Error(result?.error ?? "rename_failed");
+        savePaymentAccounts(
+          paymentAccounts.map((account) =>
+            account.id === editingPaymentAccount.id ? { ...account, label } : account
+          )
+        );
+        setPaymentMessage({ tone: "success", text: t("payment.messages.updated") });
+        resetPaymentForm();
+      } catch (error) {
+        console.error("[settings-payment-rename]", error);
+        setPaymentMessage({ tone: "error", text: t("payment.messages.updateFailed") });
+      } finally {
+        setPendingPaymentAccountId(null);
+      }
       return;
     }
 
     setIsStartingPaymentBinding(true);
-    const response = await fetch("/api/payments/bind/airwallex-card", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname: label }),
-    });
-    setIsStartingPaymentBinding(false);
+    try {
+      const response = await fetch("/api/payments/bind/airwallex-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: label }),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        bindingId?: string;
+        customerId?: string;
+        intentId?: string;
+        clientSecret?: string | null;
+        currency?: string;
+        environment?: "demo" | "prod";
+        error?: string;
+      } | null;
 
-    const result = (await response.json().catch(() => null)) as {
-      bindingId?: string;
-      customerId?: string;
-      intentId?: string;
-      clientSecret?: string | null;
-      currency?: string;
-      error?: string;
-    } | null;
+      if (
+        !response.ok ||
+        !result?.bindingId ||
+        !result.customerId ||
+        !result.clientSecret ||
+        !result.currency ||
+        (result.environment !== "demo" && result.environment !== "prod")
+      ) {
+        setPaymentMessage({
+          tone: "error",
+          text:
+            response.status === 503
+              ? t("payment.messages.cardUnavailable")
+              : t("payment.messages.cardStartFailed"),
+        });
+        return;
+      }
 
-    if (
-      !response.ok ||
-      !result?.bindingId ||
-      !result.customerId ||
-      !result.clientSecret ||
-      !result.currency
-    ) {
+      setActiveCardBinding({
+        bindingId: result.bindingId,
+        customerId: result.customerId,
+        intentId: result.intentId,
+        clientSecret: result.clientSecret,
+        currency: result.currency,
+        label,
+        environment: result.environment,
+      });
+      setPaymentMessage({ tone: "success", text: t("payment.messages.cardReady") });
+    } catch (error) {
+      console.error("[settings-card-binding-start]", error);
       setPaymentMessage({
         tone: "error",
-        text:
-          response.status === 503
-            ? t("payment.messages.cardUnavailable")
-            : result?.error ?? t("payment.messages.cardStartFailed"),
+        text: t("payment.messages.cardStartFailed"),
       });
-      return;
+    } finally {
+      setIsStartingPaymentBinding(false);
     }
-
-    setActiveCardBinding({
-      bindingId: result.bindingId,
-      customerId: result.customerId,
-      intentId: result.intentId,
-      clientSecret: result.clientSecret,
-      currency: result.currency,
-      label,
-    });
-    setPaymentMessage({ tone: "success", text: t("payment.messages.cardReady") });
   }
 
   async function completeCardBinding() {
@@ -710,7 +838,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         throw new Error(result?.error ?? t("payment.messages.cardBindFailed"));
       }
 
-      const shouldBeDefault = activeMethodAccounts.length === 0;
+      const shouldBeDefault = !paymentAccounts.some((account) => account.isDefault);
       savePaymentAccounts([
         ...paymentAccounts.filter((account) => account.id !== result.bindingId),
         {
@@ -742,35 +870,54 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
     setPaymentMessage(null);
     setIsStartingPaymentBinding(true);
-    const response = await fetch("/api/payments/bind/qr", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: activePaymentMethod }),
-    });
-    setIsStartingPaymentBinding(false);
+    try {
+      const response = await fetch("/api/payments/bind/qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: activePaymentMethod }),
+      });
+      const result = (await response.json().catch(() => null)) as WalletBindingResponse & {
+        error?: string;
+      } | null;
 
-    const result = (await response.json().catch(() => null)) as WalletBindingIntent & {
-      error?: string;
-    } | null;
+      if (!response.ok || !result?.bindingId) {
+        setPaymentMessage({
+          tone: "error",
+          text:
+            response.status === 503
+              ? t("payment.messages.walletBindingUnavailable")
+              : t("payment.messages.qrStartFailed"),
+        });
+        return;
+      }
 
-    if (!response.ok || !result?.bindingId || !result.qrCodeDataUrl) {
+      if (result.completed) {
+        await loadPaymentAccounts();
+        setPaymentMessage({ tone: "success", text: t("payment.messages.qrBound") });
+        return;
+      }
+      if (!result.qrCodeDataUrl) {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.qrStartFailed") });
+        return;
+      }
+
+      setActiveQrBinding({
+        bindingId: result.bindingId,
+        method: result.method,
+        qrCodeDataUrl: result.qrCodeDataUrl,
+        authorizationUrl: result.authorizationUrl,
+        expiresAt: result.expiresAt,
+      });
+      setPaymentMessage({ tone: "success", text: t("payment.messages.qrReady") });
+    } catch (error) {
+      console.error("[settings-wallet-binding-start]", error);
       setPaymentMessage({
         tone: "error",
-        text:
-          response.status === 503
-            ? t("payment.messages.walletBindingUnavailable")
-            : result?.error ?? t("payment.messages.qrStartFailed"),
+        text: t("payment.messages.qrStartFailed"),
       });
-      return;
+    } finally {
+      setIsStartingPaymentBinding(false);
     }
-
-    setActiveQrBinding({
-      bindingId: result.bindingId,
-      method: result.method,
-      qrCodeDataUrl: result.qrCodeDataUrl,
-      expiresAt: result.expiresAt,
-    });
-    setPaymentMessage({ tone: "success", text: t("payment.messages.qrReady") });
   }
 
   async function checkWalletBindingStatus() {
@@ -778,55 +925,61 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
     setPaymentMessage(null);
     setIsCheckingPaymentBinding(true);
-    const response = await fetch(`/api/payments/bind/status/${activeQrBinding.bindingId}`);
-    setIsCheckingPaymentBinding(false);
-
-    const result = (await response.json().catch(() => null)) as {
+    try {
+      const response = await fetch(`/api/payments/bind/status/${activeQrBinding.bindingId}`);
+      const result = (await response.json().catch(() => null)) as {
       bindingId?: string;
       method?: PaymentMethodId;
       status?: string;
       accountLabel?: string;
       identifier?: string | null;
       error?: string;
-    } | null;
+      } | null;
 
-    if (!response.ok || !result?.bindingId) {
-      setPaymentMessage({
-        tone: "error",
-        text: result?.error ?? t("payment.messages.qrStatusFailed"),
-      });
-      return;
-    }
+      if (!response.ok || !result?.bindingId) {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.qrStatusFailed") });
+        return;
+      }
 
-    if (result.status === "expired") {
-      setPaymentMessage({ tone: "error", text: t("payment.messages.qrExpired") });
-      return;
-    }
+      if (result.status === "expired") {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.qrExpired") });
+        return;
+      }
 
-    if (result.status !== "bound" || !result.identifier || !result.method) {
-      setPaymentMessage({ tone: "error", text: t("payment.messages.qrPending") });
-      return;
-    }
+      if (result.status === "failed" || result.status === "cancelled") {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.qrStatusFailed") });
+        return;
+      }
 
-    if (!paymentAccounts.some((account) => account.id === result.bindingId)) {
-      const methodAccounts = paymentAccounts.filter((account) => account.method === result.method);
-      savePaymentAccounts([
+      if (result.status !== "bound" || !result.identifier || !result.method) {
+        setPaymentMessage({ tone: "error", text: t("payment.messages.qrPending") });
+        return;
+      }
+
+      if (!paymentAccounts.some((account) => account.id === result.bindingId)) {
+        savePaymentAccounts([
         ...paymentAccounts,
         {
           id: result.bindingId,
           method: result.method,
           label: result.accountLabel ?? t(`payment.methods.${result.method}.title`),
           identifier: result.identifier,
-          isDefault: methodAccounts.length === 0,
+          isDefault: !paymentAccounts.some((account) => account.isDefault),
           verificationStatus: "bound",
           providerReference: result.bindingId,
         },
-      ]);
-    }
+        ]);
+      }
 
-    setActiveQrBinding(null);
-    setPaymentMessage({ tone: "success", text: t("payment.messages.qrBound") });
-    resetPaymentForm();
+      setActiveQrBinding(null);
+      setPaymentMessage({ tone: "success", text: t("payment.messages.qrBound") });
+      resetPaymentForm();
+    } catch (error) {
+      console.error("[settings-wallet-binding-status]", error);
+      setPaymentMessage({ tone: "error", text: t("payment.messages.qrStatusFailed") });
+    } finally {
+      setIsCheckingPaymentBinding(false);
+    }
   }
 
   function editPaymentAccount(account: PaymentAccount) {
@@ -838,39 +991,56 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     setPaymentMessage(null);
   }
 
-  function deletePaymentAccount(accountId: string) {
+  async function deletePaymentAccount(accountId: string) {
     const deletedAccount = paymentAccounts.find((account) => account.id === accountId);
     if (!deletedAccount) return;
 
-    const remainingAccounts = paymentAccounts.filter((account) => account.id !== accountId);
-    const methodAccounts = remainingAccounts.filter(
-      (account) => account.method === deletedAccount.method
-    );
-
-    const nextAccounts =
-      deletedAccount.isDefault && methodAccounts.length > 0
-        ? remainingAccounts.map((account) =>
-            account.id === methodAccounts[0].id ? { ...account, isDefault: true } : account
-          )
-        : remainingAccounts;
-
-    savePaymentAccounts(nextAccounts);
-    if (editingPaymentId === accountId) resetPaymentForm();
-    setPaymentMessage({ tone: "success", text: t("payment.messages.deleted") });
+    setPendingPaymentAccountId(accountId);
+    try {
+      const response = await fetch(`/api/payments/bind?id=${encodeURIComponent(accountId)}`, {
+        method: "DELETE",
+      });
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "delete_failed");
+      const remainingAccounts = paymentAccounts.filter((account) => account.id !== accountId);
+      const nextAccounts =
+        deletedAccount.isDefault && remainingAccounts.length > 0
+          ? remainingAccounts.map((account, index) => ({ ...account, isDefault: index === 0 }))
+          : remainingAccounts;
+      savePaymentAccounts(nextAccounts);
+      if (editingPaymentId === accountId) resetPaymentForm();
+      setPaymentMessage({ tone: "success", text: t("payment.messages.deleted") });
+      setPaymentAccountToDelete(null);
+    } catch (error) {
+      console.error("[settings-payment-delete]", error);
+      setPaymentMessage({ tone: "error", text: t("payment.messages.deleteFailed") });
+    } finally {
+      setPendingPaymentAccountId(null);
+    }
   }
 
-  function setDefaultPaymentAccount(accountId: string) {
+  async function setDefaultPaymentAccount(accountId: string) {
     const targetAccount = paymentAccounts.find((account) => account.id === accountId);
     if (!targetAccount) return;
 
-    savePaymentAccounts(
-      paymentAccounts.map((account) =>
-        account.method === targetAccount.method
-          ? { ...account, isDefault: account.id === accountId }
-          : account
-      )
-    );
-    setPaymentMessage({ tone: "success", text: t("payment.messages.defaultUpdated") });
+    setPendingPaymentAccountId(accountId);
+    try {
+      const response = await fetch("/api/payments/bind", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bindingId: accountId, operation: "set_default" }),
+      });
+      if (!response.ok) throw new Error("default_failed");
+      savePaymentAccounts(
+        paymentAccounts.map((account) => ({ ...account, isDefault: account.id === accountId }))
+      );
+      setPaymentMessage({ tone: "success", text: t("payment.messages.defaultUpdated") });
+    } catch (error) {
+      console.error("[settings-payment-default]", error);
+      setPaymentMessage({ tone: "error", text: t("payment.messages.defaultFailed") });
+    } finally {
+      setPendingPaymentAccountId(null);
+    }
   }
 
   async function handleSendVerificationCode() {
@@ -882,31 +1052,37 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     setIsSendingVerification(true);
-    const supabase = createClient();
-    const normalizedEmail = email.toLowerCase().trim();
-    const emailLocale = normalizeAuthEmailLocale(locale);
-    await prepareAuthEmailLocale(normalizedEmail, emailLocale);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: {
-        shouldCreateUser: false,
-        data: {
-          locale: emailLocale,
-          language: emailLocale,
-          preferred_language: emailLocale,
+    try {
+      const supabase = createClient();
+      const normalizedEmail = email.toLowerCase().trim();
+      const emailLocale = normalizeAuthEmailLocale(locale);
+      await prepareAuthEmailLocale(normalizedEmail, emailLocale);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          shouldCreateUser: false,
+          data: {
+            locale: emailLocale,
+            language: emailLocale,
+            preferred_language: emailLocale,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/settings`,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/client/settings`,
-      },
-    });
-    setIsSendingVerification(false);
+      });
 
-    if (error) {
+      if (error) {
+        setSecurityMessage({ tone: "error", text: t("security.verificationSendFailed") });
+        return;
+      }
+
+      setVerificationSent(true);
+      setSecurityMessage({ tone: "success", text: t("security.verificationSent") });
+    } catch (error) {
+      console.error("[settings-security-send-code]", error);
       setSecurityMessage({ tone: "error", text: t("security.verificationSendFailed") });
-      return;
+    } finally {
+      setIsSendingVerification(false);
     }
-
-    setVerificationSent(true);
-    setSecurityMessage({ tone: "success", text: t("security.verificationSent") });
   }
 
   async function handleVerifySecurityCode() {
@@ -919,21 +1095,27 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     setIsVerifyingCode(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.toLowerCase().trim(),
-      token: normalizedCode,
-      type: "email",
-    });
-    setIsVerifyingCode(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.toLowerCase().trim(),
+        token: normalizedCode,
+        type: "email",
+      });
 
-    if (error) {
+      if (error) {
+        setSecurityMessage({ tone: "error", text: t("security.codeFailed") });
+        return;
+      }
+
+      setSecurityVerified(true);
+      setSecurityMessage({ tone: "success", text: t("security.verified") });
+    } catch (error) {
+      console.error("[settings-security-verify-code]", error);
       setSecurityMessage({ tone: "error", text: t("security.codeFailed") });
-      return;
+    } finally {
+      setIsVerifyingCode(false);
     }
-
-    setSecurityVerified(true);
-    setSecurityMessage({ tone: "success", text: t("security.verified") });
   }
 
   async function handlePasswordUpdate() {
@@ -955,18 +1137,26 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     setIsUpdatingPassword(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setIsUpdatingPassword(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setSecurityMessage({ tone: "error", text: t("security.failed") });
+        return;
+      }
 
-    if (error) {
+      setNewPassword("");
+      setConfirmPassword("");
+      setSecurityVerified(false);
+      setVerificationSent(false);
+      setVerificationCode("");
+      setSecurityMessage({ tone: "success", text: t("security.updated") });
+    } catch (error) {
+      console.error("[settings-security-password]", error);
       setSecurityMessage({ tone: "error", text: t("security.failed") });
-      return;
+    } finally {
+      setIsUpdatingPassword(false);
     }
-
-    setNewPassword("");
-    setConfirmPassword("");
-    setSecurityMessage({ tone: "success", text: t("security.updated") });
   }
 
   async function handleEmailUpdate() {
@@ -989,37 +1179,37 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     }
 
     setIsUpdatingEmail(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ email: normalizedEmail });
-
-    if (!error) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("applicant_profiles")
-          .update({ email: normalizedEmail })
-          .eq("auth_user_id", user.id);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ email: normalizedEmail });
+      if (error) {
+        setSecurityMessage({ tone: "error", text: t("security.emailUpdateFailed") });
+        return;
       }
-    }
 
-    setIsUpdatingEmail(false);
-
-    if (error) {
+      setNewEmail("");
+      setSecurityVerified(false);
+      setVerificationSent(false);
+      setVerificationCode("");
+      setSecurityMessage({ tone: "success", text: t("security.emailUpdatePending") });
+    } catch (error) {
+      console.error("[settings-security-email]", error);
       setSecurityMessage({ tone: "error", text: t("security.emailUpdateFailed") });
-      return;
+    } finally {
+      setIsUpdatingEmail(false);
     }
-
-    setEmail(normalizedEmail);
-    setNewEmail("");
-    setSecurityMessage({ tone: "success", text: t("security.emailUpdated") });
   }
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/client/login");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.push("/client/login");
+    } catch (error) {
+      console.error("[settings-sign-out]", error);
+      setSecurityMessage({ tone: "error", text: t("signOut.failed") });
+    }
   }
 
   if (isLoading) {
@@ -1031,20 +1221,54 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
     );
   }
 
+  if (settingsLoadError) {
+    return (
+      <div className="mx-auto w-full max-w-[1040px] pb-16 pt-4">
+        {view !== "home" ? (
+          <PageBackButton
+            fallbackHref="/client/settings"
+            label={t("commonBack")}
+            className="h-11 w-11"
+          />
+        ) : null}
+        <h1 className="mt-8 text-3xl font-semibold text-foreground sm:text-4xl">
+          {t(settingsTitleKey(view))}
+        </h1>
+        <div className="mt-6 space-y-3">
+          <ClientErrorAlert message={t("loadError")} />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 rounded-full"
+            onClick={() => {
+              setIsLoading(true);
+              setSettingsReloadKey((current) => current + 1);
+            }}
+          >
+            {t("retry")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-[1040px] pb-16">
-      <Script
-        src="https://static.airwallex.com/components/sdk/v1/index.js"
-        strategy="afterInteractive"
-        onReady={() => setAirwallexScriptReady(true)}
-        onLoad={() => setAirwallexScriptReady(true)}
-        onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
-      />
+      {view === "payment-methods" ? (
+        <Script
+          src="https://static.airwallex.com/components/sdk/v1/index.js"
+          strategy="afterInteractive"
+          onReady={() => setAirwallexScriptReady(true)}
+          onLoad={() => setAirwallexScriptReady(true)}
+          onError={() => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") })}
+        />
+      ) : null}
       {view !== "home" ? (
         <div className="pt-4">
           <PageBackButton
             fallbackHref="/client/settings"
-            label={isZh ? "返回上一页" : "Back to previous page"}
+            label={t("commonBack")}
+            className="h-11 w-11"
           />
         </div>
       ) : null}
@@ -1132,7 +1356,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                   {t("quickSnapshot.passport")}
                 </dt>
                 <dd className="mt-2 break-all text-sm font-semibold text-foreground">
-                  {profile?.passport_number || t("quickSnapshot.notSet")}
+                  {maskPassportNumber(profile?.passport_number, t("quickSnapshot.notSet"))}
                 </dd>
               </div>
               <div className="min-h-[84px] rounded-lg border bg-muted/20 p-3.5">
@@ -1163,6 +1387,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               <motion.button
                 key={method.id}
                 type="button"
+                aria-pressed={selected}
                 onClick={() => {
                   setActivePaymentMethod(method.id);
                   resetPaymentForm();
@@ -1233,9 +1458,10 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
           {paymentMessage ? (
             paymentMessage.tone === "success" ? (
-              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
-                {paymentMessage.text}
-              </p>
+              <Alert variant="success" className="mt-4">
+                <AlertIcon variant="success" />
+                <AlertDescription>{paymentMessage.text}</AlertDescription>
+              </Alert>
             ) : (
               <ClientErrorAlert className="mt-4" message={paymentMessage.text} />
             )
@@ -1277,7 +1503,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                           type="button"
                           variant="outline"
                           className="h-9 rounded-full"
-                          onClick={() => setDefaultPaymentAccount(account.id)}
+                          onClick={() => void setDefaultPaymentAccount(account.id)}
+                          disabled={pendingPaymentAccountId !== null}
                         >
                           <Check className="h-4 w-4" />
                           {t("payment.setDefault")}
@@ -1289,6 +1516,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                           variant="outline"
                           className="h-9 rounded-full"
                           onClick={() => editPaymentAccount(account)}
+                          disabled={pendingPaymentAccountId !== null}
                         >
                           <Pencil className="h-4 w-4" />
                           {t("payment.edit")}
@@ -1298,7 +1526,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                         type="button"
                         variant="outline"
                         className="h-9 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => deletePaymentAccount(account.id)}
+                        onClick={() => setPaymentAccountToDelete(account)}
+                        disabled={pendingPaymentAccountId !== null}
                       >
                         <Trash2 className="h-4 w-4" />
                         {t("payment.delete")}
@@ -1320,12 +1549,13 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                       {t("payment.fields.nickname")}
                     </span>
                     <input
+                      id="settings-payment-nickname"
                       value={paymentForm.label}
                       onChange={(event) =>
                         setPaymentForm((current) => ({ ...current, label: event.target.value }))
                       }
                       placeholder={t("payment.placeholders.bank_card.nickname")}
-                      className="h-11 rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                      className="h-11 rounded-lg border bg-white px-3 text-base outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                     />
                   </label>
                   <p className="text-xs leading-5 text-muted-foreground">
@@ -1391,6 +1621,9 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {t(`payment.qrHint.${activePaymentMethod}`)}
                 </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {t("payment.walletConsentDisclosure")}
+                </p>
 
                 {activeQrBinding ? (
                   <div className="mt-4 grid gap-3">
@@ -1406,9 +1639,17 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">
                       {t("payment.qrExpires", {
-                        time: new Date(activeQrBinding.expiresAt).toLocaleTimeString(),
+                        time: new Date(activeQrBinding.expiresAt).toLocaleTimeString(locale),
                       })}
                     </p>
+                    {activeQrBinding.authorizationUrl ? (
+                      <Button asChild variant="outline" className="h-10 rounded-full">
+                        <a href={activeQrBinding.authorizationUrl} target="_blank" rel="noreferrer">
+                          <ArrowRight className="h-4 w-4" />
+                          {t("payment.openWalletAuthorization")}
+                        </a>
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-4 rounded-lg border border-dashed bg-white p-5 text-sm leading-6 text-muted-foreground">
@@ -1489,14 +1730,22 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               href="/client/help/getting-started/complete-your-profile"
             />
             <SettingsRow
+              icon={Tray}
+              title={t("rows.inbox.title")}
+              description={t("rows.inbox.description")}
+              href="/client/settings/inbox"
+            />
+            <SettingsRow
               icon={MessageCircle}
-              title={isZh ? "旅行偏好记忆" : "Travel preference memory"}
-              description={
-                isZh
-                  ? "查看或清除旅行顾问可在新对话中复用的偏好"
-                  : "Review or clear preferences the Travel Advisor may reuse"
-              }
+              title={t("rows.travelMemory.title")}
+              description={t("rows.travelMemory.description")}
               href="/client/settings/travel-memory"
+            />
+            <SettingsRow
+              icon={ShieldCheck}
+              title={t("rows.privacy.title")}
+              description={t("rows.privacy.description")}
+              href="/client/settings/privacy"
             />
           </SectionCard>
 
@@ -1589,12 +1838,17 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
                 <div className="mt-5 grid gap-3">
                   <div className="grid gap-2">
-                    <span className="text-sm font-medium text-foreground">
+                    <label
+                      htmlFor="settings-security-code"
+                      className="text-sm font-medium text-foreground"
+                    >
                       {t("security.verificationCode")}
-                    </span>
+                    </label>
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <input
+                        id="settings-security-code"
                         inputMode="numeric"
+                        autoComplete="one-time-code"
                         value={verificationCode}
                         onChange={(event) =>
                           setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 8))
@@ -1725,9 +1979,10 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
                   {securityMessage ? (
                     securityMessage.tone === "success" ? (
-                      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
-                        {securityMessage.text}
-                      </p>
+                      <Alert variant="success">
+                        <AlertIcon variant="success" />
+                        <AlertDescription>{securityMessage.text}</AlertDescription>
+                      </Alert>
                     ) : (
                       <ClientErrorAlert message={securityMessage.text} />
                     )
@@ -1888,9 +2143,9 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                         type="button"
                         variant={canRedeem ? "default" : "outline"}
                         className="h-10 rounded-full"
-                        disabled={!canRedeem}
+                        disabled
                       >
-                        {canRedeem ? t("pointsCenter.redeem") : t("pointsCenter.notEnough")}
+                        {canRedeem ? t("pointsCenter.comingSoon") : t("pointsCenter.notEnough")}
                       </Button>
                     </div>
                   </div>
@@ -1912,6 +2167,44 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
         <PrivacyTab />
       </section>
       ) : null}
+
+      <AlertDialog
+        open={paymentAccountToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && pendingPaymentAccountId === null) setPaymentAccountToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("payment.deleteDialog.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("payment.deleteDialog.description", {
+                account: paymentAccountToDelete?.label ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingPaymentAccountId !== null}>
+              {t("payment.deleteDialog.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={pendingPaymentAccountId !== null}
+              onClick={(event) => {
+                event.preventDefault();
+                if (paymentAccountToDelete) {
+                  void deletePaymentAccount(paymentAccountToDelete.id);
+                }
+              }}
+            >
+              {pendingPaymentAccountId === paymentAccountToDelete?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              {t("payment.deleteDialog.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

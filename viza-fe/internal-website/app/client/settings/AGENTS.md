@@ -46,6 +46,12 @@ privacy/data-rights controls.
 - `privacy/page.tsx`: privacy/data-rights page.
 - `travel-memory/page.tsx`: view, delete, and clear explicitly saved
   cross-session Travel Agent preferences.
+- `inbox/page.tsx` + `inbox/inbox-content.tsx`: the applicant mailbox — mail
+  received at the VIZA inbox alias with folder tabs, search, read/star/archive
+  state, the AI reading panel, on-demand translation, attachment downloads,
+  and staff-reviewed queued replies. Server actions live in
+  `app/actions/inbox.ts` (never a local `actions.ts`); `/client/inbox`
+  redirects here.
 - `security/password/page.tsx` and `security/email/page.tsx`: account security
   update entry points.
 

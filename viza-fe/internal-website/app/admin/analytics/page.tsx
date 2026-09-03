@@ -2,6 +2,7 @@ import { getLocale } from "next-intl/server";
 import { BarChart3, ExternalLink } from "lucide-react";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function AdminAnalyticsPage() {
   const max = Math.max(1, ...funnel.map((stage) => stage.count));
   return <div className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-8">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex items-center gap-2"><BarChart3 className="h-6 w-6 text-brand-500" /><h1 className="text-2xl font-semibold text-[#232323]">{copy.title}</h1></div><p className="mt-1 text-sm text-[#64748b]">{copy.subtitle}</p></div><a href={process.env.NEXT_PUBLIC_POSTHOG_DASHBOARD_URL || "https://app.posthog.com"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">{copy.posthog}<ExternalLink className="h-3.5 w-3.5" /></a></div>
-    {errors.length ? <details className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><summary className="cursor-pointer font-semibold">{copy.unavailable}</summary>{errors.map((error) => <p key={error} className="mt-1 font-mono text-xs">{error}</p>)}</details> : null}
+    {errors.length ? <Alert variant="warning"><AlertIcon variant="warning" /><AlertTitle>{copy.unavailable}</AlertTitle><AlertDescription>{errors.map((error) => <p key={error} className="font-mono">{error}</p>)}</AlertDescription></Alert> : null}
     <ol className="space-y-3">{funnel.map((stage) => <li key={stage.label} className="rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#334155]">{stage.label}</span><span className="font-mono text-2xl font-semibold text-brand-600">{stage.count}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#edf0f4]"><div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(stage.count ? 4 : 0, Math.round((stage.count / max) * 100))}%` }} /></div></li>)}</ol>
     <p className="rounded-lg bg-[#fafbfc] p-3 text-xs leading-5 text-[#64748b]">{copy.caveat}</p>
   </div>;

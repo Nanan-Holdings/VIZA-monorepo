@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,7 @@ export default async function AdminStorageBackupsPage() {
         </header>
 
         {alert ? (
-          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            Last successful backup &gt; 36h ago. Investigate before tonight.
-          </p>
+          <Alert variant="warning"><AlertIcon variant="warning" /><AlertDescription>Last successful backup &gt; 36h ago. Investigate before tonight.</AlertDescription></Alert>
         ) : null}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

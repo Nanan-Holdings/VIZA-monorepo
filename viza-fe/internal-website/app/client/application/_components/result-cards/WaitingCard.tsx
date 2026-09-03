@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Clock as Clock3, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
+import { CircleNotch as Loader2, CheckCircle as CheckCircle2, Eye, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, XCircle } from "@phosphor-icons/react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
+import { SubmissionStatePanel } from "@/components/ui/submission-result-panel";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -409,14 +409,11 @@ export function WaitingCard({
 
   if (scheduledStatus) {
     return (
-      <Card className="rounded-xl border-input">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-foreground">
-            <Clock3 className="h-5 w-5 text-brand-500" />
-            {isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <SubmissionStatePanel
+        state="pending"
+        title={isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
+      >
+        <div className="space-y-5">
           <p className="text-sm leading-relaxed text-muted-foreground">
             {message ??
               (isZh
@@ -451,20 +448,17 @@ export function WaitingCard({
             </Button>
             {cancelError ? <ClientErrorAlert message={cancelError} /> : null}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </SubmissionStatePanel>
     );
   }
 
   return (
-    <Card className="rounded-xl border-input">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-foreground">
-          <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
-          {isZh ? "正在提交您的申请" : "Submitting your application"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <SubmissionStatePanel
+      state={waitingForUser ? "action-required" : "pending"}
+      title={isZh ? "正在提交您的申请" : "Submitting your application"}
+    >
+      <div className="space-y-6">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {isZh
             ? "VIZA 正在使用英文版答案处理官网填写流程。遇到验证码、人工检查点或结果准备好后，本页面会自动更新。"
@@ -569,7 +563,7 @@ export function WaitingCard({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SubmissionStatePanel>
   );
 }

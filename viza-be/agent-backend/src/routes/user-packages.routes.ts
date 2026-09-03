@@ -8,6 +8,7 @@
 import { Router } from "express";
 import { Logger } from "../utils/logger.js";
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { resolveRequester, type Requester } from "../middleware/user-auth.js";
 
 const logger = new Logger({ serviceName: "UserPackageRoutes" });
 
@@ -20,10 +21,30 @@ export const userPackagesRouter = Router();
  */
 userPackagesRouter.get("/", async (req, res) => {
   try {
-    const userId = req.query.userId as string;
-    if (!userId) {
-      res.status(400).json({ error: true, message: "userId query param required" });
+    // Authenticated applicants may only read their OWN active package; the
+    // auth_user_id comes from the token, not the query. Service callers may
+    // pass an explicit userId.
+    let requester: Requester | null = null;
+    try {
+      requester = await resolveRequester(req);
+    } catch {
+      res.status(500).json({ error: true, message: "Authentication is not configured" });
       return;
+    }
+    if (!requester) {
+      res.status(401).json({ error: true, message: "Bearer token required" });
+      return;
+    }
+
+    let userId: string | undefined;
+    if (requester.kind === "user") {
+      userId = requester.authUserId;
+    } else {
+      userId = req.query.userId as string | undefined;
+      if (!userId) {
+        res.status(400).json({ error: true, message: "userId query param required" });
+        return;
+      }
     }
 
     const supabase = getSupabaseClient();
@@ -63,7 +84,25 @@ userPackagesRouter.get("/", async (req, res) => {
  */
 userPackagesRouter.post("/", async (req, res) => {
   try {
-    const { userId, visaPackageId, applicationId } = req.body;
+    // Assigning/cancelling packages is a privileged action. Authenticated
+    // applicants may only (re)assign their OWN package — the target user is the
+    // token's auth_user_id and any body userId is ignored. Internal service
+    // callers may assign on behalf of an explicit body userId.
+    let requester: Requester | null = null;
+    try {
+      requester = await resolveRequester(req);
+    } catch {
+      res.status(500).json({ error: true, message: "Authentication is not configured" });
+      return;
+    }
+    if (!requester) {
+      res.status(401).json({ error: true, message: "Bearer token required" });
+      return;
+    }
+
+    const { visaPackageId, applicationId } = req.body;
+    const userId =
+      requester.kind === "user" ? requester.authUserId : (req.body.userId as string | undefined);
 
     if (!userId || !visaPackageId) {
       res.status(400).json({

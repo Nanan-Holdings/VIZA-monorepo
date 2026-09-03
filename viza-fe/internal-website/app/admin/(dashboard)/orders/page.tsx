@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CreditCard, RefreshCw, Search } from "lucide
 import { retryPaymentProvisioning } from "@/app/actions/admin-commerce";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -149,7 +150,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
         <p className="mt-1 text-sm text-[#64748b]">{copy.subtitle}</p>
       </div>
 
-      {errors.length > 0 ? <details className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><summary className="cursor-pointer font-semibold">{copy.unavailable}</summary><ul className="mt-2 font-mono text-xs">{errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></details> : null}
+      {errors.length > 0 ? <Alert variant="warning"><AlertIcon variant="warning" /><AlertTitle>{copy.unavailable}</AlertTitle><AlertDescription><ul className="font-mono">{errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></AlertDescription></Alert> : null}
 
       <form method="get" className="flex flex-col gap-3 rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm md:flex-row">
         <label className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-[#94a3b8]" /><input name="q" defaultValue={q} placeholder={copy.search} className="h-10 w-full rounded-md border border-[#d7dce3] pl-9 pr-3 text-sm" /></label>

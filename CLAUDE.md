@@ -1,83 +1,28 @@
-# Ralph Agent Instructions - VIZA Monorepo
+# VIZA Claude Operating Contract
 
-You are an autonomous coding agent working on the VIZA visa application platform.
+Start with the repository-root `AGENTS.md`, then read the nearest nested
+`AGENTS.md` before editing. It is the authoritative source for current product
+boundaries, module maps, quality gates, and Ralph workflow.
 
-## Your Task
+Use [`CODEX.md`](CODEX.md) and
+[`docs/agent-development-framework.md`](docs/agent-development-framework.md)
+for the shared multi-agent operating model. For non-trivial requests, split
+independent work into exclusive ownership lanes by default and retain one
+orchestrator for shared contracts, integration, and final verification.
 
-1. Read the PRD at `prd.json` (in the repo root - this is the authoritative file)
-2. Read `progress.txt` if it exists (check Codebase Patterns section first)
-3. Pick the **highest priority** user story where `passes: false` AND `onHold` is not `true` (skip on-hold stories — they're blocked on external info)
-4. Implement that single user story
-5. Run quality checks (typecheck, lint)
-6. If checks pass, commit ALL changes with message: `feat(US-XXX): [Story Title]`
-7. Update `prd.json` to set `passes: true` for the completed story
-8. Append progress to `progress.txt`
-9. If ALL stories pass: output `<promise>COMPLETE</promise>`
+## Direct requests vs. Ralph work
 
-## Progress Report Format
+- A direct user request is executed as scoped work; do not select a PRD story
+  unless the user explicitly requests the PRD/Ralph workflow.
+- For explicit PRD/Ralph work, follow the root `AGENTS.md` workflow exactly:
+  one eligible story is the integration unit; update `prd.json` and append to
+  `progress.txt` only after its required checks pass.
 
-APPEND to progress.txt (never replace):
-```
-## [Date] - [Story ID]
-- What was implemented
-- Files changed
-- Learnings for future iterations
----
-```
+## Non-negotiables
 
-## Codebase Overview
-
-**VIZA** is a visa application platform. Monorepo at `D:\Coding-Files\GitHub\VIZA-monorepo`.
-
-```
-viza-fe/internal-website/    - Next.js 16 App Router (client portal + admin)
-viza-be/agent-backend/       - Express + Socket.IO (AI chat backend, port 3002)
-viza-be/submission-service/  - Playwright DS-160 automation
-```
-
-## Tech Stack
-
-- **Frontend**: Next.js 16, TypeScript, Tailwind, shadcn/ui, Supabase client
-- **Backend**: Express, Socket.IO, Drizzle ORM, Supabase (postgres)
-- **Auth**: Supabase Auth (JWT)
-- **DB**: Supabase (PostgreSQL), Drizzle for migrations
-
-## Quality Checks
-
-Run from the relevant package directory:
-```bash
-# Frontend
-cd viza-fe/internal-website && npm run type-check
-
-# Backend
-cd viza-be/agent-backend && npm run type-check
-
-# Submission service
-cd viza-be/submission-service && npm run type-check
-```
-
-Only run type-check for packages you modified. Do NOT run `npm install` unless a new dependency is required.
-
-## Key Conventions
-
-- Supabase service role client: use `getSupabaseClient()` from `src/db/supabase-client.ts` in agent-backend
-- Frontend Supabase: use `createClient()` from `@/lib/supabase/client` (client-side) or `@/lib/supabase/server` (server-side)
-- Admin operations: use `createAdminClient()` from `@/lib/supabase/admin`
-- Socket.IO namespace: `/visa` - all chat events go through here
-- Drizzle migrations: SQL files in `viza-be/agent-backend/drizzle/` - name sequentially (0008_, 0009_, etc.)
-- Server actions: in `viza-fe/internal-website/app/actions/`
-- No `any` types. No unused imports.
-- Follow existing file/component patterns - look at neighbouring files before writing new ones
-
-## Commit Format
-
-feat(US-XXX): Story title
-- What changed
-- Why
-
-## Stop Condition
-
-If ALL stories in prd.json have `passes: true`, output exactly:
-<promise>COMPLETE</promise>
-
-Work on ONE story per iteration. Keep changes minimal and focused.
+- Check the dirty worktree before editing and preserve unrelated changes.
+- Run only the checks for packages actually modified, plus the required smoke
+  test for user-facing work.
+- Keep database, auth/RLS, payment, official-submission, and deployment writes
+  single-owner; parallel review is allowed but not competing implementation.
+- Never commit secrets, environment files, applicant documents, or credentials.

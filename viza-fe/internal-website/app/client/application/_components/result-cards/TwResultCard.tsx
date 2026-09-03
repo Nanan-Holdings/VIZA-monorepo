@@ -14,9 +14,10 @@ import {
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ActionButton as Button } from "@/components/ui/action-button";
 import { ApplicationCheckbox } from "@/components/ui/application-checkbox";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { TerminalSuccessPanel } from "@/components/ui/submission-result-panel";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { TwSubmissionResult, TwSubmissionStatus } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
@@ -356,6 +357,19 @@ export function TwResultCard({
   const recoverableFailure = isRecoverableTwFailure(result, failure);
   const canRetry = Boolean(applicationId && onRetry && !submitted && (stopped || recoverableFailure));
   const termsReady = entryPromptAccepted && termsModalAccepted;
+
+  if (submitted) {
+    return (
+      <TerminalSuccessPanel
+        title={isZh ? "已向台湾官网提交" : "Submitted to the Taiwan official site"}
+        summary={isZh
+          ? "官方已收件并提供申请编号。此状态不代表已核准或已缴费；请继续留意官网通知。"
+          : "The official site received the application and issued a case number. This does not mean approved or paid; follow the official notices."}
+        reference={result.officialReceipt?.caseNumber ?? result.caseNumber}
+        referenceLabel={isZh ? "官方申请/收件编号" : "Official application/receipt number"}
+      />
+    );
+  }
 
   return (
     <Card className="rounded-xl border-input">

@@ -25,6 +25,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
 
+- Public beta feedback lives under `app/feedback/**` and is submitted through
+  the server-only `app/api/feedback/route.ts` boundary into `beta_feedback`.
+  Keep this route public, avoid browser-side Supabase writes, and do not store
+  sensitive application details or request identifiers.
 - Client portal under `app/client/**`.
 - Client dashboard country hero artwork under `public/country-heroes/**`, mapped
   to application country slugs by `lib/client/country-hero-theme.ts`. Germany's
@@ -48,7 +52,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   component study with the complete affected visa-type and field inventory.
 - The development-only `/schema-qa` route under `app/schema-qa/**` renders one
   live master schema with deterministic fictional answers entirely in browser
-  memory. It must never load applicant data or call save/submission APIs.
+  memory. `scripts/generate-all-application-qa-fixtures.ts` applies the same
+  fixture generator to every active catalogue route and writes only an ignored
+  local report. Neither path may load applicant data or call save/submission APIs.
 - Ongoing application identity and terminal-state classification live in
   `lib/applications/ongoing-application.ts`; database migrations enforce one
   in-flight row per applicant, canonical country, and visa type while allowing
@@ -137,6 +143,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   and future forms consume it only as non-overwriting prefill.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
+- Client Settings privacy deduplication, single-owner traveler enforcement,
+  and account-wide payment defaults are enforced by
+  `supabase/migrations/20260829032221_client_settings_integrity.sql` and
+  `supabase/migrations/20260829032432_validate_client_settings_single_owner.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
   is created by `supabase/migrations/*create_support_ticket_queue.sql`.
 - VIZA AI chat under `app/client/chat/**` and
@@ -391,6 +401,20 @@ Before client UI changes, read:
 1. `viza-fe/internal-website/frontend.md`
 2. The nearest route/component `AGENTS.md`
 3. Neighboring components in the same feature directory
+
+For every `/client/*` visual change, also inspect the closest pattern on
+`/ui-components` before writing JSX or Tailwind classes. Reuse the demonstrated
+canonical component when one exists. A visually similar hand-built substitute
+is not acceptable, and repeated status/disclaimer/next-step copy in adjacent
+surfaces is a blocking content-design regression.
+
+Inline application feedback must compose `components/ui/alert.tsx` (or the
+applicant-facing `components/client/client-error-alert.tsx`) instead of local
+semantic-color boxes or blocking browser `alert()` calls. Field-level validation,
+badges, progress/status visualizations, and full workflow/result panels remain
+distinct patterns. `lib/__tests__/ui-alert-contract.test.ts` guards the shared
+Alert boundary and must be updated only when a reviewed design-system exception
+is intentional.
 
 For product behavior, prefer docs under `docs/` and the current code over stale
 comments.
@@ -680,3 +704,52 @@ Smoke URLs:
 - `scripts/seed-dropdown-destinations.ts`
 - `scripts/verify-travel-image-relevance.ts`
 - `types/*`
+
+- `supabase/migrations/20260828170732_marketing_content_operations.sql`:
+  creates the server-only VIZA blog, social composition, provider audit, and
+  privacy-safe short-link tables used by the marketing control room.
+- `supabase/migrations/20260828171409_marketing_short_link_click_rpc.sql`:
+  records anonymous short-link clicks and increments counters atomically.
+- `supabase/migrations/20260828173609_marketing_public_assets.sql`: provisions
+  the public-read, authenticated-admin-write marketing media bucket.
+- `supabase/migrations/20260828174521_marketing_automation_runs.sql`: persists
+  idempotent scheduled generation, reconciliation, and watchdog runs.
+- `supabase/migrations/20260828174939_marketing_automation_actor_index.sql`:
+  indexes the automation actor foreign key for operational queries.
+
+## Client Portal Navigation Performance (PERF-001)
+
+Tab switches inside `/client/*` have a **500 ms budget**, measured as *content
+ready* — the destination page's primary content on screen, not every background
+enrichment.
+
+Measuring it:
+
+- `lib/client/route-perf.ts` records every route transition (intent → commit →
+  paint → ready → settled) plus the fetches each one caused. Recording is always
+  on; `?perf=1` on any portal URL shows the overlay, `?perf=0` hides it.
+- Pages report the "ready" milestone with `useRouteReady(<has content>)`. A new
+  portal page that loads data should call it.
+- `lib/server/perf-trace.ts` prints one `[perf] <loader> <total>ms <stage>=<ms>…`
+  line per data loader. On in development by default; `VIZA_PERF_TRACE=0` mutes
+  it, `VIZA_PERF_TRACE=1` enables it elsewhere.
+- `npm run perf:portal` drives Home ↔ Application against a running server and
+  fails when the median exceeds the budget. It needs `CLIENT_SESSION_SECRET`,
+  `VIZA_PERF_USER_ID`, `VIZA_PERF_USER_EMAIL` (see the spec header).
+
+Keeping it:
+
+- Portal reads go through `lib/client/portal-data.ts`, a keyed
+  stale-while-revalidate cache shared by Home, Application and Status. **Any
+  write that changes an application must invalidate it** —
+  `invalidateApplicationForm(applicationId)` and/or
+  `invalidateClientApplicationStatuses()`. `saveApplicationAnswers` already does.
+- `components/client/portal-prefetcher.tsx` warms the other tabs once the
+  current page is idle, and the navbar warms the Application tab on hover.
+- Data loaders must not grow sequential Supabase waves. `getClientStatusData`
+  is deliberately three waves; adding a fourth `await` between them is a
+  regression the trace line will show.
+- `CLIENT_SESSION_SECRET` must be set in every environment. With it, a verified
+  Supabase session is cached in the signed `client_session` cookie for ten
+  minutes and each server action skips two remote auth round trips; without it
+  the portal works but every action pays them.

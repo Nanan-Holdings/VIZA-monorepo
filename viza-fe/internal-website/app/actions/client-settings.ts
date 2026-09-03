@@ -35,6 +35,7 @@ type DataPrivacyRequestRow = {
   created_at: string | null;
   updated_at: string | null;
   fulfilled_at: string | null;
+  already_pending?: boolean;
 };
 
 type PrivacyRequestResult =
@@ -88,21 +89,6 @@ type DeleteFrequentTravelerResult =
       error: string;
     };
 
-const ACTIVE_REQUEST_STATUSES = new Set([
-  "requested",
-  "pending",
-  "queued",
-  "reviewing",
-  "in_review",
-  "processing",
-  "in_progress",
-]);
-
-const REQUEST_TYPE_ALIASES = {
-  export: ["export", "data_export", "personal_data_export"],
-  deletion: ["deletion", "delete", "data_deletion"],
-} satisfies Record<PrivacyRequestType, string[]>;
-
 function toSummary(row: DataPrivacyRequestRow): DataPrivacyRequestSummary {
   return {
     id: row.id,
@@ -123,24 +109,30 @@ async function getAuthenticatedAuthUser() {
   return user;
 }
 
-async function getApplicantId(): Promise<string | null> {
+async function getApplicantIdentity(): Promise<{
+  applicantId: string;
+  authUserId: string;
+} | null> {
   const session = await getUserFromSupabaseSession();
-  return session?.userId ?? null;
+  if (!session?.userId || !session.authUserId) return null;
+  return {
+    applicantId: session.userId,
+    authUserId: session.authUserId,
+  };
 }
 
 export async function getDataPrivacyRequests(): Promise<PrivacyRequestResult> {
-  const applicantId = await getApplicantId();
-
-  if (!applicantId) {
-    return { success: false, error: "Please sign in again to view privacy requests." };
-  }
-
   try {
+    const identity = await getApplicantIdentity();
+    if (!identity) {
+      return { success: false, error: "Please sign in again to view privacy requests." };
+    }
+
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("data_privacy_requests")
       .select("id, request_type, status, created_at, updated_at, fulfilled_at")
-      .eq("applicant_id", applicantId)
+      .eq("applicant_id", identity.applicantId)
       .order("created_at", { ascending: false })
       .limit(25);
 
@@ -168,59 +160,26 @@ export async function getDataPrivacyRequests(): Promise<PrivacyRequestResult> {
 export async function createDataPrivacyRequest(
   requestType: PrivacyRequestType
 ): Promise<CreatePrivacyRequestResult> {
-  const aliases = REQUEST_TYPE_ALIASES[requestType];
-  if (!aliases) {
+  if (requestType !== "export" && requestType !== "deletion") {
     return { success: false, error: "Unsupported privacy request type." };
   }
 
-  const applicantId = await getApplicantId();
-
-  if (!applicantId) {
-    return { success: false, error: "Please sign in again to submit this request." };
-  }
-
   try {
+    const identity = await getApplicantIdentity();
+    if (!identity) {
+      return { success: false, error: "Please sign in again to submit this request." };
+    }
+
     const adminClient = createAdminClient();
 
-    const { data: existingRequests, error: existingError } = await adminClient
-      .from("data_privacy_requests")
-      .select("id, request_type, status, created_at, updated_at, fulfilled_at")
-      .eq("applicant_id", applicantId)
-      .in("request_type", [...aliases])
-      .order("created_at", { ascending: false })
-      .limit(10);
+    const { data, error } = await adminClient.rpc("submit_client_privacy_request", {
+      p_applicant_id: identity.applicantId,
+      p_auth_user_id: identity.authUserId,
+      p_request_type: requestType,
+    });
+    const row = (Array.isArray(data) ? data[0] : data) as DataPrivacyRequestRow | null;
 
-    if (existingError) {
-      console.error("Failed to check pending data privacy requests:", existingError);
-      return {
-        success: false,
-        error: "We could not submit this request right now.",
-      };
-    }
-
-    const activeRequest = ((existingRequests ?? []) as DataPrivacyRequestRow[]).find(
-      (request) => ACTIVE_REQUEST_STATUSES.has(request.status.toLowerCase())
-    );
-
-    if (activeRequest) {
-      return {
-        success: true,
-        request: toSummary(activeRequest),
-        alreadyPending: true,
-      };
-    }
-
-    const { data, error } = await adminClient
-      .from("data_privacy_requests")
-      .insert({
-        applicant_id: applicantId,
-        request_type: requestType,
-        status: "requested",
-      })
-      .select("id, request_type, status, created_at, updated_at, fulfilled_at")
-      .single();
-
-    if (error || !data) {
+    if (error || !row) {
       console.error("Failed to create data privacy request:", error);
       return {
         success: false,
@@ -232,8 +191,8 @@ export async function createDataPrivacyRequest(
 
     return {
       success: true,
-      request: toSummary(data as DataPrivacyRequestRow),
-      alreadyPending: false,
+      request: toSummary(row),
+      alreadyPending: Boolean(row.already_pending),
     };
   } catch (error) {
     console.error("Unexpected privacy request create error:", error);
@@ -245,20 +204,21 @@ export async function createDataPrivacyRequest(
 }
 
 export async function getFrequentTravelers(): Promise<FrequentTravelerListResult> {
-  const user = await getAuthenticatedAuthUser();
-
-  if (!user) {
-    return { success: false, error: "Please sign in again to view travelers." };
-  }
-
   try {
+    const user = await getAuthenticatedAuthUser();
+    if (!user) {
+      return { success: false, error: "Please sign in again to view travelers." };
+    }
+
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("applicant_profiles")
       .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .eq("dependant_of_user_id", user.id)
+      .is("auth_user_id", null)
       .is("deleted_at", null)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error("Failed to load frequent travelers:", error);
@@ -278,24 +238,35 @@ export async function getFrequentTravelers(): Promise<FrequentTravelerListResult
 export async function createFrequentTraveler(
   input: FrequentTravelerInput
 ): Promise<FrequentTravelerMutationResult> {
-  const user = await getAuthenticatedAuthUser();
-
-  if (!user) {
-    return { success: false, error: "Please sign in again to add a traveler." };
-  }
-
-  const normalized = normalizeFrequentTravelerInput(input);
-  if ("error" in normalized) {
-    return { success: false, error: normalized.error };
-  }
-
   try {
+    const user = await getAuthenticatedAuthUser();
+    if (!user) {
+      return { success: false, error: "Please sign in again to add a traveler." };
+    }
+
+    const normalized = normalizeFrequentTravelerInput(input);
+    if ("error" in normalized) {
+      return { success: false, error: normalized.error };
+    }
+
     const adminClient = createAdminClient();
+    const { data: ownerProfile } = await adminClient
+      .from("applicant_profiles")
+      .select("language_pref")
+      .eq("auth_user_id", user.id)
+      .is("dependant_of_user_id", null)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const languagePreference = ["en", "zh", "es", "vi"].includes(
+      String(ownerProfile?.language_pref ?? "").toLowerCase()
+    )
+      ? String(ownerProfile?.language_pref).toLowerCase()
+      : "en";
     const payload = {
       ...normalized.value,
       dependant_of_user_id: user.id,
       auth_user_id: null,
-      language_pref: "zh",
+      language_pref: languagePreference,
       onboarding_done: true,
     };
     let { data, error } = await adminClient
@@ -335,24 +306,27 @@ export async function updateFrequentTraveler(
   id: string,
   input: FrequentTravelerInput
 ): Promise<FrequentTravelerMutationResult> {
-  const user = await getAuthenticatedAuthUser();
-
-  if (!user) {
-    return { success: false, error: "Please sign in again to update a traveler." };
-  }
-
-  const normalized = normalizeFrequentTravelerInput(input);
-  if ("error" in normalized) {
-    return { success: false, error: normalized.error };
-  }
-
   try {
+    const user = await getAuthenticatedAuthUser();
+    if (!user) {
+      return { success: false, error: "Please sign in again to update a traveler." };
+    }
+    if (!isUuid(id)) {
+      return { success: false, error: "We could not update this traveler right now." };
+    }
+
+    const normalized = normalizeFrequentTravelerInput(input);
+    if ("error" in normalized) {
+      return { success: false, error: normalized.error };
+    }
+
     const adminClient = createAdminClient();
     let { data, error } = await adminClient
       .from("applicant_profiles")
       .update(normalized.value)
       .eq("id", id)
       .eq("dependant_of_user_id", user.id)
+      .is("auth_user_id", null)
       .is("deleted_at", null)
       .select(FREQUENT_TRAVELER_PROFILE_SELECT)
       .single();
@@ -390,24 +364,30 @@ export async function updateFrequentTraveler(
 export async function deleteFrequentTraveler(
   id: string
 ): Promise<DeleteFrequentTravelerResult> {
-  const user = await getAuthenticatedAuthUser();
-
-  if (!user) {
-    return { success: false, error: "Please sign in again to delete a traveler." };
-  }
-
   try {
+    const user = await getAuthenticatedAuthUser();
+    if (!user) {
+      return { success: false, error: "Please sign in again to delete a traveler." };
+    }
+    if (!isUuid(id)) {
+      return { success: false, error: "We could not delete this traveler right now." };
+    }
+
     const adminClient = createAdminClient();
-    const { error } = await adminClient
+    const { data, error } = await adminClient
       .from("applicant_profiles")
       .update({
         deleted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("dependant_of_user_id", user.id);
+      .eq("dependant_of_user_id", user.id)
+      .is("auth_user_id", null)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
       console.error("Failed to delete frequent traveler:", error);
       return { success: false, error: "We could not delete this traveler right now." };
     }
@@ -419,4 +399,10 @@ export async function deleteFrequentTraveler(
     console.error("Unexpected frequent traveler delete error:", error);
     return { success: false, error: "We could not delete this traveler right now." };
   }
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 }

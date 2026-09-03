@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Crown, Prohibit, ShieldCheck } from "@phosphor-icons/react";
 import { grantHighAccess, revokeHighAccess, type HighAccessGrant } from "@/app/actions/admin-access";
 import { ActionButton } from "@/components/ui/action-button";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 type Locale = "en" | "zh";
 
@@ -101,8 +102,8 @@ export default function HighAccessControls({ locale, userId, grants }: { locale:
   return (
     <section className="rounded-2xl border border-[#d4e0f0] bg-white p-6 shadow-[0_14px_45px_rgba(3,52,110,0.06)]">
       <div className="flex items-start gap-3"><div className="rounded-xl bg-[#eef3fa] p-2.5 text-[#03346e]"><Crown className="size-5" weight="duotone" aria-hidden="true" /></div><div><h2 className="font-heading text-xl font-semibold tracking-[-0.025em] text-[#03346e]">{copy.title}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{copy.body}</p></div></div>
-      {notice ? <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700" role="status">{notice}</p> : null}
-      {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}
+      {notice ? <Alert className="mt-4" variant="success"><AlertIcon variant="success" /><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      {error ? <Alert className="mt-4" variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert> : null}
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto]">
         <div className={`rounded-xl border p-4 ${activeGrant ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-[#fafafa]"}`}>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><ShieldCheck className="size-4 text-[#03346e]" weight="duotone" />{activeGrant ? copy.active : copy.noGrant}</div>

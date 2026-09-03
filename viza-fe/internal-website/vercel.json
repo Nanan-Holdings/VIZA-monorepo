@@ -1,4 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["bom1"]
+  "regions": ["bom1"],
+  "crons": [
+    { "path": "/api/internal/marketing/blog/generate", "schedule": "0 1 * * 1,4" },
+    { "path": "/api/internal/marketing/social/reconcile", "schedule": "15 * * * *" },
+    { "path": "/api/internal/marketing/stuck-check", "schedule": "0 5 * * *" }
+  ]
 }

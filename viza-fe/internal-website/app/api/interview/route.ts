@@ -1,6 +1,25 @@
 import { NextRequest } from "next/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
+import { consumeRateLimit, exceedsBodyLimit, getClientIp } from "@/lib/api/rate-limit-ip";
 
 type Message = { role: "user" | "assistant"; content: string };
+
+const MAX_MESSAGES = 60;
+const MAX_MESSAGE_CHARS = 4_000;
+const MAX_BODY_BYTES = 256 * 1024;
+
+/** Validate the client-controlled `messages` array is a well-formed interview transcript. */
+function isValidMessages(value: unknown): value is Message[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_MESSAGES) return false;
+  return value.every(
+    (item) =>
+      Boolean(item) &&
+      typeof item === "object" &&
+      ((item as Message).role === "user" || (item as Message).role === "assistant") &&
+      typeof (item as Message).content === "string" &&
+      (item as Message).content.length <= MAX_MESSAGE_CHARS,
+  );
+}
 type ApplicantProfile = {
   purpose?: string;
   cities?: string;
@@ -110,12 +129,36 @@ function sseText(text: string) {
   });
 }
 
-const LLM_BASE_URL = process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";
+// Resolve the OpenAI-compatible LLM base URL. The localhost Ollama default is
+// only used in development: in production an unset LLM_BASE_URL returns null so
+// we never silently forward applicant messages (with the company key) to
+// localhost. Callers fall back to the deterministic local officer reply.
+function resolveLlmBaseUrl(): string | null {
+  const configured = process.env.LLM_BASE_URL?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") return null;
+  return "http://localhost:11434/v1";
+}
+
 const LLM_MODEL = process.env.LLM_MODEL ?? "qwen2.5:7b";
 const LLM_API_KEY =
   process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? "ollama";
 
 export async function POST(request: NextRequest) {
+  const session = await getClientSessionWithFallback();
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (exceedsBodyLimit(request, MAX_BODY_BYTES)) {
+    return Response.json({ error: "Payload too large" }, { status: 413 });
+  }
+  if (
+    !consumeRateLimit(`interview:${session.userId}`, { limit: 60, windowMs: 60_000 }) ||
+    !consumeRateLimit(`interview-ip:${getClientIp(request)}`, { limit: 120, windowMs: 60_000 })
+  ) {
+    return Response.json({ error: "Too many requests. Please try again shortly." }, { status: 429 });
+  }
+
   let messages: Message[];
   let profile: ApplicantProfile | undefined;
   let directive: TurnDirective | undefined;
@@ -131,8 +174,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  if (!isValidMessages(messages)) {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const llmBaseUrl = resolveLlmBaseUrl();
+  if (!llmBaseUrl) {
+    // Production with no LLM endpoint configured: serve the deterministic local
+    // reply instead of reaching out to a localhost default.
+    return sseText(localOfficerReply(messages, directive));
+  }
+
   try {
-    const upstream = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+    const upstream = await fetch(`${llmBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LLM_API_KEY}`,
@@ -141,8 +195,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: LLM_MODEL,
         stream: true,
-        ...(!LLM_BASE_URL.includes("api.openai.com") ? { temperature: 0.2 } : {}),
-        ...(LLM_BASE_URL.includes("api.openai.com")
+        ...(!llmBaseUrl.includes("api.openai.com") ? { temperature: 0.2 } : {}),
+        ...(llmBaseUrl.includes("api.openai.com")
           ? { max_completion_tokens: 80 }
           : { max_tokens: 80 }),
         messages: [

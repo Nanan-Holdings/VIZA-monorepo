@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, ShieldCheck, WarningCircle } from "@phosphor-icons/react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import {
   acceptAdminRegistrationInvite,
   claimAdminRegistrationInvite,
@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/admin-access";
 import { ActionButton } from "@/components/ui/action-button";
 import { AuthLanguageSwitcher } from "@/components/client/auth-language-switcher";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 type Locale = "en" | "zh";
 
@@ -149,16 +150,10 @@ export default function AdminRegistrationForm({
         <p className="text-sm leading-6 text-slate-600">{copy.intro}</p>
 
         {message ? (
-          <div className="mt-6 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">
-            <CheckCircle className="mt-0.5 size-5 shrink-0" weight="fill" aria-hidden="true" />
-            <p>{message}</p>
-          </div>
+          <Alert className="mt-6" variant="success"><AlertIcon variant="success" /><AlertDescription>{message}</AlertDescription></Alert>
         ) : null}
         {error ? (
-          <div className="mt-6 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
-            <WarningCircle className="mt-0.5 size-5 shrink-0" weight="fill" aria-hidden="true" />
-            <p>{error}</p>
-          </div>
+          <Alert className="mt-6" variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>
         ) : null}
 
         {!invalid && !claimed ? (

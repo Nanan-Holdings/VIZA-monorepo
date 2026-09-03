@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { startCardCheckout } from "@/app/actions/card-checkout";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 
 interface Props {
   country: string;
@@ -132,9 +133,7 @@ export function CardCheckoutForm({
           {submitting ? t.submitting : t.submit}
         </button>
         {errMsg && (
-          <p className="text-sm text-destructive" role="alert">
-            {errMsg}
-          </p>
+          <ClientErrorAlert message={errMsg} />
         )}
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground text-center">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/rbac";
 
 const ALLOWED_KINDS = new Set(["reset_mfa", "force_password_reset", "both"]);
 const REQUIRED_CHECKS = ["passport_match", "email_thread", "selfie_with_passport"] as const;
@@ -43,23 +43,17 @@ export async function performAccountRecovery(args: {
     return { ok: false, reason: "Reason is required (≥10 chars) for the audit log." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user: actor },
-  } = await supabase.auth.getUser();
+  // Use the canonical, revocation-aware identity resolver. Unlike an inline
+  // `users.role` read, `getCurrentUser` returns null for an admin whose
+  // `admin_memberships` grant has been revoked, closing the bypass where a
+  // revoked admin could still perform account recovery.
+  const actor = await getCurrentUser();
   if (!actor) return { ok: false, reason: "Not authenticated" };
-
-  const adminClient = createAdminClient();
-  const { data: actorRow } = await adminClient
-    .from("users")
-    .select("role")
-    .eq("id", actor.id)
-    .is("deleted_at", null)
-    .maybeSingle();
-  const role = actorRow?.role as string | undefined;
-  if (role !== "admin" && role !== "staff") {
+  if (actor.role !== "admin" && actor.role !== "staff") {
     return { ok: false, reason: "Recovery can only be performed by staff/admin roles." };
   }
+
+  const adminClient = createAdminClient();
 
   if (args.actionKind === "reset_mfa" || args.actionKind === "both") {
     const { data: factors, error: listErr } = await adminClient.auth.admin.mfa.listFactors({

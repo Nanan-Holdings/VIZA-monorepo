@@ -76,6 +76,10 @@ Important patterns to mirror in the Playwright runner:
   without an official receipt/reference.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
+- At a verified official payment boundary, capture the redacted local evidence
+  before resolving any managed card. Boundary-only runs must return that typed
+  artifact without invoking card acquisition; keep this invariant covered by
+  `__tests__/payment-boundary.spec.ts`.
 - `country-options.ts` contains the alpha-3 country-name index used to normalize
   Vietnam e-Visa nationality answers before Ant Select filling. Keep it aligned
   with captured official/standard country option text when nationality dropdown

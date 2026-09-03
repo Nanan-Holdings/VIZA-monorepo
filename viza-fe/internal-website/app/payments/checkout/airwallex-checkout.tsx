@@ -15,6 +15,8 @@ import {
   WalletCards,
 } from "lucide-react";
 import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { cn } from "@/lib/utils";
 
 interface AirwallexCheckoutProps {
@@ -439,9 +441,7 @@ export function AirwallexCheckout({
           ) : null}
 
           {error ? (
-            <p className="mt-5 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              {error}
-            </p>
+            <ClientErrorAlert className="mt-5" message={error} />
           ) : null}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -543,10 +543,13 @@ export function AirwallexCheckout({
                       扫码后返回本页或结果页刷新状态，VIZA 会查询最终结果。
                     </p>
                     {isAirwallexDemo ? (
-                      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                        当前连接 Airwallex sandbox，真实支付宝/微信扫码不会完成扣款。生产测试需要切换到
-                        Airwallex prod 密钥并确认对应支付方式已启用。
-                      </p>
+                      <Alert className="mt-2 text-left" variant="warning">
+                        <AlertIcon variant="warning" />
+                        <AlertDescription>
+                          当前连接 Airwallex sandbox，真实支付宝/微信扫码不会完成扣款。生产测试需要切换到
+                          Airwallex prod 密钥并确认对应支付方式已启用。
+                        </AlertDescription>
+                      </Alert>
                     ) : null}
                   </div>
                   <Link

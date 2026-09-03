@@ -13,8 +13,20 @@ import {
 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import type { CurrentSubscriptionState } from "@/lib/payments/commercial-records";
 import { cn } from "@/lib/utils";
@@ -29,11 +41,14 @@ function formatAmount(locale: string, amountFen: number) {
 
 function formatDate(locale: string, value: string | null) {
   if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
   return new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function statusClass(status: CurrentSubscriptionState["status"]) {
@@ -49,8 +64,8 @@ export function SubscriptionManagement({
   initialSubscription: CurrentSubscriptionState;
 }) {
   const t = useTranslations("subscriptionManagement");
+  const settingsT = useTranslations("settings");
   const locale = useLocale();
-  const isZh = locale.toLowerCase().startsWith("zh");
   const [subscription, setSubscription] = useState(initialSubscription);
   const [isSubmitting, setIsSubmitting] = useState<"cancel" | "resume" | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -66,39 +81,46 @@ export function SubscriptionManagement({
 
   async function updateSubscription(action: "cancel" | "resume") {
     setMessage(null);
-    if (action === "cancel" && !window.confirm(t("confirmCancel"))) return;
-
     setIsSubmitting(action);
-    const response = await fetch(`/api/subscription/${action}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    setIsSubmitting(null);
+    try {
+      const response = await fetch(`/api/subscription/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    const result = (await response.json().catch(() => null)) as
-      | (CurrentSubscriptionState & { error?: string })
-      | null;
+      const result = (await response.json().catch(() => null)) as
+        | (CurrentSubscriptionState & { error?: string })
+        | null;
 
-    if (!response.ok || !result || result.error) {
+      if (!response.ok || !result || result.error) {
+        setMessage({
+          tone: "error",
+          text: t(action === "cancel" ? "cancelFailed" : "resumeFailed"),
+        });
+        return;
+      }
+
+      setSubscription(result);
+      setMessage({
+        tone: "success",
+        text: action === "cancel" ? t("cancelled") : t("resumed"),
+      });
+    } catch {
       setMessage({
         tone: "error",
-        text: result?.error ?? t(action === "cancel" ? "cancelFailed" : "resumeFailed"),
+        text: t(action === "cancel" ? "cancelFailed" : "resumeFailed"),
       });
-      return;
+    } finally {
+      setIsSubmitting(null);
     }
-
-    setSubscription(result);
-    setMessage({
-      tone: "success",
-      text: action === "cancel" ? t("cancelled") : t("resumed"),
-    });
   }
 
   return (
     <main className="mx-auto w-full max-w-[1040px] pb-16 pt-4">
       <PageBackButton
         fallbackHref="/client/settings"
-        label={isZh ? "返回上一页" : "Back to previous page"}
+        label={settingsT("commonBack")}
+        className="h-11 w-11"
       />
 
       <section className="mt-8 overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -183,9 +205,10 @@ export function SubscriptionManagement({
 
             {message ? (
               message.tone === "success" ? (
-                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status" aria-live="polite">
-                  {message.text}
-                </p>
+                <Alert variant="success" className="mt-4">
+                  <AlertIcon variant="success" />
+                  <AlertDescription>{message.text}</AlertDescription>
+                </Alert>
               ) : (
                 <ClientErrorAlert className="mt-4" message={message.text} />
               )
@@ -193,20 +216,40 @@ export function SubscriptionManagement({
 
             <div className="mt-5 grid gap-3">
               {canCancel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 justify-start rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => void updateSubscription("cancel")}
-                  disabled={isSubmitting !== null}
-                >
-                  {isSubmitting === "cancel" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <XCircle className="h-4 w-4" />
-                  )}
-                  {t("cancel")}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 justify-start rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      disabled={isSubmitting !== null}
+                    >
+                      {isSubmitting === "cancel" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      {t("cancel")}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t("cancel")}</AlertDialogTitle>
+                      <AlertDialogDescription>{t("confirmCancel")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        {t("keepSubscription")}
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => void updateSubscription("cancel")}
+                      >
+                        {t("cancel")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               ) : null}
               {canResume ? (
                 <Button

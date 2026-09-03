@@ -202,7 +202,8 @@ export function AddDestinationSection({
 
       {selectionError ? <ClientErrorAlert className="mb-4" message={selectionError} /> : null}
 
-      {visibleGroups.length === 0 ? (
+      <div className="min-h-dvh">
+        {visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-[#efefef] bg-white p-10 text-center">
           <p className="font-heading text-[17px] font-medium text-[#26364a]">
             {t("noResultsTitle")}
@@ -340,7 +341,8 @@ export function AddDestinationSection({
             );
           })}
         </ul>
-      )}
+        )}
+      </div>
 
       <p className="mt-5 text-[13px] italic text-[#8a94a6]">
         {t("governmentFeeNote")}

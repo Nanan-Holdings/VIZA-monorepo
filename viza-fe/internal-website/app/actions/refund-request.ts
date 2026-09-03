@@ -6,15 +6,19 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Applicant-initiated refund flow (PRODUCT-001).
  *
- * Three entry points:
+ * Two applicant/staff entry points:
  *   - requestRefund({ applicationId, amountCents, reason })   applicant
  *   - decideRefund({ refundRequestId, approve, staffNote })   staff
- *   - recordStripeDispute({ paymentIntentId, disputeId })     webhook
  *
  * The actual Stripe refund call goes through the existing PAY-004
  * line-based helper (`refundOrderLines` in app/actions/refunds.ts) so
  * we don't duplicate the refundability-rules logic. This file owns
  * only the applicant request + staff decision lifecycle.
+ *
+ * The webhook-only ledger writes (recordStripeRefund / recordStripeDispute)
+ * live in the plain server module `lib/stripe/refund-events.ts` — they must
+ * NOT sit in this `"use server"` file, or they would be exposed as
+ * unauthenticated client-callable server actions.
  */
 
 export interface RefundRequestInput {
@@ -122,29 +126,7 @@ export async function decideRefund(input: {
 
   // After approve, staff still needs to run the line-based Stripe refund
   // (refundOrderLines in app/actions/refunds.ts) — the request row will
-  // flip to 'refunded' from the Stripe webhook (recordStripeRefund below).
+  // flip to 'refunded' from the Stripe webhook, via recordStripeRefund in
+  // lib/stripe/refund-events.ts.
   return { ok: true, refundRequestId: input.refundRequestId };
-}
-
-export async function recordStripeRefund(input: {
-  paymentIntentId: string;
-  refundId: string;
-}): Promise<void> {
-  const adminClient = createAdminClient();
-  await adminClient
-    .from("refund_request")
-    .update({ status: "refunded", stripe_refund_id: input.refundId, updated_at: new Date().toISOString() })
-    .eq("stripe_payment_intent_id", input.paymentIntentId)
-    .eq("status", "approved");
-}
-
-export async function recordStripeDispute(input: {
-  paymentIntentId: string;
-  disputeId: string;
-}): Promise<void> {
-  const adminClient = createAdminClient();
-  await adminClient
-    .from("refund_request")
-    .update({ status: "disputed", stripe_dispute_id: input.disputeId, updated_at: new Date().toISOString() })
-    .eq("stripe_payment_intent_id", input.paymentIntentId);
 }

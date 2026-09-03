@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { saveDynamicAnswers } from "@/app/actions/visa-application-answers";
 import type { QuestionFieldRecord, QuestionSetRecord } from "@/app/actions/question-sets";
 
@@ -185,9 +186,7 @@ export function AnswerForm({ applicationId, questionSet, initialAnswers }: Answe
         </div>
 
         {saveError ? (
-          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            Save failed: {saveError}. Your most recent answer is still in this form — reconnect and blur the field to retry.
-          </p>
+          <ClientErrorAlert message={`Save failed: ${saveError}. Your most recent answer is still in this form — reconnect and blur the field to retry.`} />
         ) : null}
 
         <div className="flex items-center justify-between border-t border-input pt-4">

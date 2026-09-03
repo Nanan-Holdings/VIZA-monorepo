@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from tools.http_client import REQUEST_TIMEOUT, request_json
+from tools.serpapi import search_serpapi_hotels
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
@@ -80,34 +81,31 @@ def _normalize_dates(check_in_date, check_out_date):
     return normalized_check_in, normalized_check_out
 
 
-def _fallback_hotels(destination, adults=1):
-    city_name = str(destination or "目的地").strip() or "目的地"
+def _fallback_hotels(destination, adults=1, *, provider_reason="provider_unavailable"):
+    """Return non-bookable placeholders without inventing a hotel identity.
+
+    The old fallback fabricated hotel names, addresses and telephone numbers.
+    Those values can leak into visa forms, where they would be represented as
+    real accommodation. Preserve the response shape for the UI, but make the
+    absence of a live provider unambiguous and leave official-trip fields blank.
+    """
     return [
         {
-            "provider": "api-default",
+            "provider": "unavailable-estimate",
+            "estimated": True,
+            "provider_status": "unavailable",
+            "provider_reason": provider_reason,
+            "provider_message": "实时酒店供应商暂未返回；此占位项不可用于预订或签证申请。",
             "city": destination,
-            "name": f"{city_name}市中心酒店",
-            "price_per_night": "120.00",
-            "currency": "USD",
-            "rating": 4.5,
+            "name": "酒店待确认",
+            "price_per_night": "-",
+            "currency": None,
+            "rating": None,
             "adults": adults,
-            "address": f"{city_name}市中心区域",
-            "contact_phone": "+1 555 010 1200",
-            "check_in_time": "15:00",
-            "check_out_time": "11:00",
-        },
-        {
-            "provider": "api-default",
-            "city": destination,
-            "name": f"{city_name}舒适酒店",
-            "price_per_night": "60.00",
-            "currency": "USD",
-            "rating": 3.8,
-            "adults": adults,
-            "address": f"{city_name}车站附近",
-            "contact_phone": "+1 555 010 0600",
-            "check_in_time": "15:00",
-            "check_out_time": "11:00",
+            "address": None,
+            "contact_phone": None,
+            "check_in_time": None,
+            "check_out_time": None,
         },
     ]
 
@@ -223,9 +221,22 @@ async def search_hotels(
     check_in_date, check_out_date = _normalize_dates(check_in_date, check_out_date)
     adults = max(int(adults or 1), 1)
 
+    serpapi_options = await search_serpapi_hotels(
+        destination=destination,
+        check_in_date=check_in_date,
+        check_out_date=check_out_date,
+        adults=adults,
+        currency_code=currency_code,
+        max_results=max_results,
+    )
+    if serpapi_options:
+        return serpapi_options
+
     dest_id, search_type = await _resolve_destination(destination)
     if not dest_id or not search_type:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(
+            destination, adults=adults, provider_reason="destination_unresolved"
+        )
 
     payload = await _request_json(
         "/api/v1/hotels/searchHotels",
@@ -244,15 +255,19 @@ async def search_hotels(
         },
     )
     if not payload or payload.get("status") is not True:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(
+            destination, adults=adults, provider_reason="search_request_failed"
+        )
 
     data = payload.get("data")
     if not isinstance(data, dict):
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(
+            destination, adults=adults, provider_reason="invalid_provider_payload"
+        )
 
     hotels = data.get("hotels")
     if not isinstance(hotels, list) or not hotels:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(destination, adults=adults, provider_reason="no_offers")
 
     selected_hotels = hotels[: max(max_results, 1)]
     detail_requests = []
@@ -395,4 +410,6 @@ async def search_hotels(
             }
         )
 
-    return normalized or _fallback_hotels(destination, adults=adults)
+    return normalized or _fallback_hotels(
+        destination, adults=adults, provider_reason="invalid_provider_offers"
+    )

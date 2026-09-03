@@ -226,6 +226,67 @@ function normalizeGender(value?: string | null) {
   return cleanOptional(value);
 }
 
+function isIsoCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function validateFrequentTravelerInput(input: FrequentTravelerInput): string | null {
+  if (!input || typeof input !== "object") return "Traveler details are invalid.";
+
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      return `Traveler field ${key} is invalid.`;
+    }
+    if (typeof value === "string" && value.trim().length > 500) {
+      return `Traveler field ${key} is too long.`;
+    }
+  }
+
+  const email = cleanOptional(input.email);
+  if (email && (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    return "Enter a valid traveler email address.";
+  }
+
+  const gender = normalizeGender(input.gender);
+  if (gender && gender !== "M" && gender !== "F") {
+    return "Select a valid traveler gender.";
+  }
+
+  const dates = [
+    ["date of birth", cleanOptional(input.dateOfBirth)],
+    ["passport issue date", cleanOptional(input.passportIssueDate)],
+    ["passport expiry date", cleanOptional(input.passportExpiryDate)],
+  ] as const;
+  for (const [label, value] of dates) {
+    if (value && !isIsoCalendarDate(value)) return `Enter a valid ${label}.`;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const dateOfBirth = cleanOptional(input.dateOfBirth);
+  const issueDate = cleanOptional(input.passportIssueDate);
+  const expiryDate = cleanOptional(input.passportExpiryDate);
+  if (dateOfBirth && dateOfBirth >= today) return "Date of birth must be in the past.";
+  if (issueDate && issueDate > today) return "Passport issue date cannot be in the future.";
+  if (issueDate && expiryDate && issueDate >= expiryDate) {
+    return "Passport expiry date must be after the issue date.";
+  }
+  if (dateOfBirth && expiryDate && dateOfBirth >= expiryDate) {
+    return "Passport expiry date must be after the date of birth.";
+  }
+
+  return null;
+}
+
 function normalizeCountryName(value?: string | null) {
   const trimmed = cleanOptional(value);
   if (!trimmed) return null;
@@ -259,6 +320,9 @@ export function stripOptionalFrequentTravelerProfileColumns<T extends Record<str
 }
 
 export function normalizeFrequentTravelerInput(input: FrequentTravelerInput): NormalizedFrequentTravelerInput {
+  const validationError = validateFrequentTravelerInput(input);
+  if (validationError) return { error: validationError };
+
   const legacyChineseName = splitChineseFullName(input.fullNameZh || (hasChinese(input.fullName) ? input.fullName : null));
   const legacyEnglishName = splitPassportOrderEnglishName(input.fullNameEn || (!hasChinese(input.fullName) ? input.fullName : null));
   const surnameZh = cleanOptional(input.surnameZh) ?? legacyChineseName.surname;

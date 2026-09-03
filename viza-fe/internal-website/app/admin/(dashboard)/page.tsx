@@ -10,6 +10,7 @@ import {
   ListTodo,
   ShieldAlert,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import {
   AdminEmptyState,
   AdminMetricCard,
@@ -205,10 +206,7 @@ export default async function AdminDashboardPage() {
       <AdminPageHeader title={copy.title} description={copy.subtitle} />
 
       {sourceErrors.length > 0 ? (
-        <details className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <summary className="cursor-pointer font-medium">{copy.dataWarning}</summary>
-          <ul className="mt-2 space-y-1 font-mono text-xs text-amber-800">{sourceErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
-        </details>
+        <Alert variant="warning"><AlertIcon variant="warning" /><AlertTitle>{copy.dataWarning}</AlertTitle><AlertDescription><ul className="space-y-1 font-mono">{sourceErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></AlertDescription></Alert>
       ) : null}
 
       <section className="admin-page-grid sm:grid-cols-2 xl:grid-cols-4">

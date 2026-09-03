@@ -1,0 +1,13 @@
+import Link from "next/link";
+import { getLocale } from "next-intl/server";
+import { getMarketingOperationsDashboard, listMarketingSocialCompositions } from "@/app/actions/admin-marketing";
+import { AdminPage, AdminPageHeader } from "@/components/admin/admin-ui";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { MarketingStatusBadge, MarketingBackLink } from "../_components/marketing-ui";
+import { SocialActions } from "../_components/social-actions";
+import { MARKETING_COPY } from "../copy";
+
+export const dynamic = "force-dynamic";
+export default async function MarketingSocialPage() { const locale = normalizeInterfaceLocale(await getLocale()); const copy = MARKETING_COPY[locale]; const [rows, dashboard] = await Promise.all([listMarketingSocialCompositions(), getMarketingOperationsDashboard()]); return <AdminPage><MarketingBackLink href="/admin/marketing" label={copy.back} /><AdminPageHeader title={copy.socialTitle} description={copy.socialDescription} actions={<Button asChild><Link href="/admin/marketing/social/new">{copy.newSocial}</Link></Button>} />{!rows.length ? <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">{copy.noSocial}</CardContent></Card> : <div className="grid gap-4">{rows.map((row) => { const canPublish = row.platforms.length > 0 && dashboard.providers.zernio.connected && row.platforms.every((platform) => dashboard.providers.zernio.configuredPlatforms.includes(platform)); const canSync = Object.keys(row.zernioPosts).length > 0 && dashboard.providers.zernio.connected; const canStop = canSync && ["scheduled", "publishing", "published", "partial"].includes(row.status); const canEdit = ["draft", "failed", "cancelled"].includes(row.status); return <Card key={row.id}><CardContent className="flex flex-col gap-5 p-5 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0 space-y-2"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold">{canEdit ? <Link className="hover:underline" href={`/admin/marketing/social/${row.id}`}>{row.title}</Link> : row.title}</h2><MarketingStatusBadge status={row.status} copy={copy} /></div><p className="text-sm text-muted-foreground">{row.brief}</p><p className="text-xs text-muted-foreground">{row.platforms.join(", ") || "—"} · {row.scheduledFor ? new Date(row.scheduledFor).toLocaleString(locale === "zh" ? "zh-CN" : "en-SG") : copy.notScheduled}</p></div><SocialActions id={row.id} locale={locale} canPublish={canPublish} canSync={canSync} canStop={canStop} scheduled={row.status === "scheduled"} /></CardContent></Card>; })}</div>}</AdminPage>; }

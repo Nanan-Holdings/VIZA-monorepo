@@ -8,6 +8,7 @@ import {
   type AdminRegistrationInvite,
 } from "@/app/actions/admin-access";
 import { ActionButton } from "@/components/ui/action-button";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 type Locale = "en" | "zh";
 
@@ -133,7 +134,7 @@ export default function InviteManager({ locale, invites }: { locale: Locale; inv
       </div>
 
       {inviteUrl ? <div className="mt-5 rounded-xl border border-[#aabfdf] bg-[#eef3fa] p-4"><p className="text-sm font-medium text-[#03346e]">{notice ?? copy.created}</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} className="h-10 min-w-0 flex-1 rounded-lg border border-[#aabfdf] bg-white px-3 text-xs text-slate-600" aria-label={copy.title} /><ActionButton type="button" variant="outline" size="sm" onClick={copyInvite} className="rounded-full border-[#03346e] text-[#03346e]"><>{copied ? <Check className="size-4" weight="bold" /> : <Copy className="size-4" />} {copied ? copy.copied : copy.copy}</></ActionButton></div></div> : null}
-      {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p> : null}
+      {error ? <Alert className="mt-4" variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-100">
         {invites.length === 0 ? <p className="p-6 text-sm text-slate-500">{copy.noInvites}</p> : <table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-[#fafafa] text-xs uppercase tracking-[0.1em] text-slate-500"><tr><th className="px-4 py-3">{copy.status}</th><th className="px-4 py-3">{copy.claimed}</th><th className="px-4 py-3">{copy.expires}</th><th className="px-4 py-3 text-right">&nbsp;</th></tr></thead><tbody>{invites.map((invite) => <tr key={invite.id} className="border-t border-slate-100"><td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${invite.status === "accepted" ? "bg-emerald-50 text-emerald-700" : invite.status === "revoked" || invite.status === "expired" ? "bg-slate-100 text-slate-500" : invite.status === "claimed" ? "bg-amber-50 text-amber-700" : "bg-[#eef3fa] text-[#03346e]"}`}>{statusLabel(invite.status, copy)}</span></td><td className="px-4 py-3 text-slate-700">{invite.claimedEmail ?? "—"}</td><td className="px-4 py-3 text-slate-500">{formatDate(invite.expiresAt, locale)}</td><td className="px-4 py-3 text-right">{invite.status === "pending" || invite.status === "claimed" ? <button type="button" onClick={() => revoke(invite.id)} disabled={pending} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"><Prohibit className="size-3.5" />{pending ? copy.revoking : copy.revoke}</button> : null}</td></tr>)}</tbody></table>}

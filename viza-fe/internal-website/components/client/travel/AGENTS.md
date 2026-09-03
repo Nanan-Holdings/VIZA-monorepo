@@ -43,7 +43,10 @@ If guidance conflicts, prefer deterministic flow in `planner.ts`.
 
 - Add new entries here whenever a new important Travel AI file is created. Include the path and a one-line purpose.
 - `travel-itinerary-data.ts`: shared itinerary extraction/export payload helpers for final itinerary views.
+- `travel-itinerary-data.test.ts`: regression coverage for concise generated-plan titles across Chinese and English city lists.
 - `travel-itinerary-experience.tsx`: right-side final itinerary card, detail dialog, and full dynamic map experience.
+- `travel-application-draft-autofill.tsx`: guarded Travel-plan preview and
+  confirmation UI for filling empty local VIZA application draft fields.
 - `travel-attraction-knowledge.ts`: curated attraction knowledge base with city aliases, exact map coordinates, image URLs, and source URLs for itinerary editing and route maps.
 - `travel-card-curated-data.json`: local Travel card city/attraction data with image paths, source URLs, descriptions, and verified coordinates.
 - `travel-card-curated-localization-01.json`, `-02.json`, `-03.json`:

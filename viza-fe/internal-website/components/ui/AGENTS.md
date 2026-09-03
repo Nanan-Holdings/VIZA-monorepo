@@ -103,6 +103,12 @@ Smoke at least one route that uses the changed primitive.
 - `review-edit-button.tsx`: canonical icon-only edit action for application
   review sections. Like the field AI robot trigger, its background remains
   transparent on hover and only the brand-colored icon darkens.
+- `submission-result-panel.tsx`: canonical presentation-only composition for
+  application submission states. Use `SubmissionStatePanel` for pending,
+  action-required, and failed states, and `TerminalSuccessPanel` only after
+  verified official success. Consumers supply all localized copy, official
+  evidence, and `ActionButton` slots; this primitive must not add
+  country-specific logic or duplicate status/next-step facts.
 - `animated-tab-pill.tsx`: shared desktop text tabs and mobile pill tabs. Dark
   mobile headers use a white active pill with brand-colored text so the current
   destination remains visible; focused coverage lives in

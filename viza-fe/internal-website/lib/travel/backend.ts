@@ -21,9 +21,13 @@ export async function forwardJsonToTravelBackend(
   body: unknown,
   method: "POST" | "PUT" = "POST"
 ) {
+  const internalToken = process.env.TRAVEL_SERVICE_TOKEN?.trim();
   return fetch(`${getTravelBackendUrl()}${path}`, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(internalToken ? { "x-internal-token": internalToken } : {}),
+    },
     body: JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(getTravelBackendTimeoutMs()),

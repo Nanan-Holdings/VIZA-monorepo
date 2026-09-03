@@ -1,5 +1,6 @@
 import { listPricing } from "@/app/actions/package-pricing";
 import { PricingClient } from "./_components/PricingClient";
+import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function AdminPricingPage() {
           </p>
         </header>
         {error ? (
-          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+          <Alert variant="destructive"><AlertIcon variant="destructive" /><AlertDescription>{error}</AlertDescription></Alert>
         ) : (
           <PricingClient initialRows={rows ?? []} />
         )}
