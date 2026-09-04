@@ -34,8 +34,12 @@ application flow.
 - `page.tsx`: server route entry that redirects to `/client/application`.
 - `actions.ts`: documents-local server actions for authorized checklist reads,
   upload record upserts, and applicant-confirmed passport OCR persistence.
+- `document-preview-urls.ts`: batches unique private Storage paths into one
+  signed-URL request and keeps per-object signing failures isolated.
 - `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
   controls, and the integrated Travel AI itinerary picker/upload entry.
+- `__tests__/document-preview-urls.test.ts`: signed-URL batching, de-duplication,
+  empty-input, and partial/whole-request failure coverage.
 - `__tests__/document-center-client.test.tsx`: embedded application-step layout
   coverage for the responsive document-card grids and direct file fields.
 
@@ -47,6 +51,7 @@ application flow.
 - `application_documents`
 - `ocr_extractions`
 - `visa_application_answers`
+- Supabase Storage bucket `application-documents`
 
 ## Guardrails
 
@@ -73,6 +78,9 @@ application flow.
   `document_requirements`.
 - Do not mark a document approved automatically unless the rule is explicitly
   deterministic. The default upload state is `uploaded`.
+- Generate document preview links with one `createSignedUrls` batch per loaded
+  document set. Do not return to one Storage request per document, cache signed
+  URLs, or let one missing object hide previews that signed successfully.
 - Keep ordinary application uploads application-scoped. Promote a file to
   Universal Profile only when the applicant explicitly selects that scope;
   never infer promotion from a reusable document type.
