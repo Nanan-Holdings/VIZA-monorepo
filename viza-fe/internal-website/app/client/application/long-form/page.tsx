@@ -1378,83 +1378,6 @@ type SubmissionQueueJobResult = {
   submissionResult: SubmissionResult | null;
 };
 
-type ApplicationSubmissionState = {
-  submittedAt: string | undefined;
-  submissionResultStatus: SubmissionResultStatus | null;
-  submissionResult: SubmissionResult | null;
-  confirmationNumber: string | undefined;
-};
-
-const TERMINAL_SUBMISSION_RESULT_STATUSES = [
-  "completed",
-  "submitted",
-  "submitted_mock",
-  "form_ready_for_agency",
-] as const;
-
-function applicationStatusForQueuedSubmission(queueJob: SubmissionQueueJobResult): "processing" | "submitted" {
-  return TERMINAL_SUBMISSION_RESULT_STATUSES.includes(
-    queueJob.submissionResultStatus as (typeof TERMINAL_SUBMISSION_RESULT_STATUSES)[number],
-  )
-    ? "submitted"
-    : "processing";
-}
-
-async function markApplicationSubmissionQueued(
-  supabase: ReturnType<typeof createClient>,
-  input: {
-    applicationId: string;
-    submittedAt: string;
-    queueJob: SubmissionQueueJobResult;
-    officialSubmissionPending?: boolean;
-  },
-): Promise<ApplicationSubmissionState> {
-  const selectColumns = "submitted_at, submission_result_status, submission_result, confirmation_number";
-  const { data: updatedApplication, error: updateError } = await supabase
-    .from("applications")
-    .update({
-      status: applicationStatusForQueuedSubmission(input.queueJob),
-      submitted_at: input.officialSubmissionPending ? null : input.submittedAt,
-      submission_result_status: input.queueJob.submissionResultStatus,
-      submission_result: input.queueJob.submissionResult,
-      confirmation_number: null,
-      submission_result_updated_at: input.submittedAt,
-    })
-    .eq("id", input.applicationId)
-    .or(
-      [
-        "submission_result_status.is.null",
-        `submission_result_status.not.in.(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`,
-      ].join(","),
-    )
-    .select(selectColumns)
-    .maybeSingle();
-  if (updateError) throw new Error(updateError.message);
-
-  const application = updatedApplication ?? (await supabase
-    .from("applications")
-    .select(selectColumns)
-    .eq("id", input.applicationId)
-    .maybeSingle()).data;
-
-  return {
-    submittedAt: application?.submitted_at ??
-      (input.officialSubmissionPending ? undefined : input.submittedAt),
-    submissionResultStatus:
-      (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
-      input.queueJob.submissionResultStatus,
-    submissionResult:
-      (sanitizeCustomerSubmissionResult(application?.submission_result) as
-        | SubmissionResult
-        | null
-        | undefined) ?? input.queueJob.submissionResult,
-    confirmationNumber:
-      typeof application?.confirmation_number === "string" && application.confirmation_number.trim()
-        ? application.confirmation_number
-        : undefined,
-  };
-}
-
 async function insertSubmissionQueueJob(
   input: SubmissionQueueJobInput,
 ): Promise<SubmissionQueueJobResult> {
@@ -4319,29 +4242,17 @@ export default function ApplicationPage() {
         // the review form whenever server validation rejected the request.
         setAppState((prev) => ({
           ...prev,
-          submittedAt: prev.submittedAt ?? submittedAt,
-          submissionResultStatus: queueJob.submissionResultStatus,
-          submissionResult: queueJob.submissionResult,
-        }));
-        const submissionState = await markApplicationSubmissionQueued(supabase, {
-          applicationId,
-          submittedAt,
-          queueJob,
-          officialSubmissionPending:
-            mode === "live_assisted" && isTaiwanEntryPermit,
-        });
-
-        setAppState((prev) => ({
-          ...prev,
-          submittedAt: submissionState.submittedAt,
+          submittedAt:
+            mode === "live_assisted" && isTaiwanEntryPermit
+              ? undefined
+              : (prev.submittedAt ?? submittedAt),
           submissionResultStatus:
-            submissionState.submissionResultStatus === "waiting" &&
+            queueJob.submissionResultStatus === "waiting" &&
             isUkStandardVisitor &&
             prev.submissionResult
               ? (prev.submissionResultStatus ?? "action_required")
-              : submissionState.submissionResultStatus,
-          submissionResult: submissionState.submissionResult,
-          confirmationNumber: submissionState.confirmationNumber,
+              : queueJob.submissionResultStatus,
+          submissionResult: queueJob.submissionResult,
         }));
       }
 
@@ -4465,7 +4376,6 @@ export default function ApplicationPage() {
       if (mode === "live_assisted" && !liveAssistedEnabled) {
         throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
       }
-      const supabase = createClient();
       let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
@@ -4525,20 +4435,14 @@ export default function ApplicationPage() {
           })();
 
       const submittedAt = new Date().toISOString();
-      const submissionState = await markApplicationSubmissionQueued(supabase, {
-        applicationId,
-        submittedAt,
-        queueJob,
-        officialSubmissionPending:
-          mode === "live_assisted" && isTaiwanEntryPermit,
-      });
-
       setAppState((prev) => ({
         ...prev,
-        submittedAt: submissionState.submittedAt,
-        submissionResultStatus: submissionState.submissionResultStatus,
-        submissionResult: submissionState.submissionResult,
-        confirmationNumber: submissionState.confirmationNumber,
+        submittedAt:
+          mode === "live_assisted" && isTaiwanEntryPermit
+            ? undefined
+            : (prev.submittedAt ?? submittedAt),
+        submissionResultStatus: queueJob.submissionResultStatus,
+        submissionResult: queueJob.submissionResult,
       }));
       setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, fallbackReviewStepIndex);

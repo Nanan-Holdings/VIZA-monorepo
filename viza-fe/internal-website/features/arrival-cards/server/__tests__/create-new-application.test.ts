@@ -313,6 +313,8 @@ describe("createNewArrivalCardApplication", () => {
     const answersQuery = query({
       data: [
         { field_name: "full_name", value_text: "Traveller", value_json: null },
+        { field_name: "surname", value_text: "TRAVELLER", value_json: null },
+        { field_name: "given_names", value_text: "TEST", value_json: null },
         { field_name: "passport_number", value_text: "P123", value_json: null },
         { field_name: "occupation", value_text: "Student", value_json: null },
         { field_name: "email_address", value_text: "traveller@example.com", value_json: null },
@@ -341,6 +343,12 @@ describe("createNewArrivalCardApplication", () => {
       "full_name",
       "full_name_zh",
       "full_name_en",
+      "surname",
+      "surname_zh",
+      "surname_en",
+      "given_names",
+      "given_names_zh",
+      "given_names_en",
       "first_name",
       "middle_name",
       "last_name",
@@ -360,6 +368,8 @@ describe("createNewArrivalCardApplication", () => {
     ]);
     expect(copyAnswersQuery.insert).toHaveBeenCalledWith([
       expect.objectContaining({ field_name: "full_name" }),
+      expect.objectContaining({ field_name: "surname" }),
+      expect.objectContaining({ field_name: "given_names" }),
       expect.objectContaining({ field_name: "passport_number" }),
     ]);
     expect(copyAnswersQuery.insert).not.toHaveBeenCalledWith(expect.arrayContaining([

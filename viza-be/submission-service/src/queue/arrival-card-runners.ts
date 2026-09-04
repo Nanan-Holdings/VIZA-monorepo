@@ -335,6 +335,18 @@ export async function runArrivalCardPoolFlow(
       "image/png",
       flow === "vn_prearrival" && portal.submitted,
     );
+    if (flow === "kr_arrival_card" && portal.submitted) {
+      if (!portal.issueNumber?.trim()) {
+        throw new Error(
+          "Korea e-Arrival Card success is missing an official issue number.",
+        );
+      }
+      if (pdfs.length === 0) {
+        throw new Error(
+          "Korea e-Arrival Card official PDF could not be persisted.",
+        );
+      }
+    }
     const result: DigitalArrivalCardSubmissionResult = {
       country: identity.countryCode,
       visaType: identity.visaType,

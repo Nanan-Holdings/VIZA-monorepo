@@ -16,7 +16,10 @@ import {
 import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
-import { canonicalizeSchemaOptionValue } from "@/lib/universal-profile-prefill";
+import {
+  buildUniversalProfileAnswerPatch,
+  canonicalizeSchemaOptionValue,
+} from "@/lib/universal-profile-prefill";
 import { dbRowToFormField, type VisaFormFieldDbRow, type WizardStep } from "@/types/visa-form-fields";
 import { isJapanVisitJapanWebApplication } from "@/lib/submission-queue";
 import type { FormAssistantDocumentReadiness } from "@/types/form-assistant";
@@ -259,7 +262,7 @@ export async function loadAssistantAnswers(
   const profileRead = options.applicantId
     ? admin
         .from("applicant_profiles")
-        .select("full_name, passport_number, passport_expiry_date, date_of_birth, gender, email")
+        .select("*")
         .eq("id", options.applicantId)
         .maybeSingle()
     : Promise.resolve({ data: null });
@@ -287,16 +290,7 @@ export async function loadAssistantAnswers(
       .map((row) => [row.field_name, { value: row.value_text, source: row.source ?? null }]),
   );
   if (!options.applicantId) return answers;
-  const profileValues: Record<string, string | null | undefined> = {
-    full_name: profile?.full_name,
-    passport_number: profile?.passport_number,
-    passport_expiry_date: profile?.passport_expiry_date,
-    date_of_birth: profile?.date_of_birth,
-    sex: profile?.gender?.toLowerCase() === "m" ? "male"
-      : profile?.gender?.toLowerCase() === "f" ? "female"
-        : profile?.gender?.toLowerCase(),
-    email_address: profile?.email,
-  };
+  const profileValues = buildUniversalProfileAnswerPatch(profile);
   for (const [fieldName, value] of Object.entries(profileValues)) {
     if (!answers[fieldName] && value?.trim()) {
       answers[fieldName] = { value: value.trim(), source: "universal_profile" };

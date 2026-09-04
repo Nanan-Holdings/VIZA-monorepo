@@ -68,11 +68,13 @@ describe("application submit navigation", () => {
     expect(dynamicSubmit.indexOf("queueAccepted = true;")).toBeGreaterThan(
       dynamicSubmit.indexOf("await insertSubmissionQueueJob"),
     );
-    expect(dynamicSubmit.indexOf("submissionResultStatus: queueJob.submissionResultStatus")).toBeGreaterThan(
+    expect(dynamicSubmit.indexOf("queueJob.submissionResultStatus")).toBeGreaterThan(
       dynamicSubmit.indexOf("queueAccepted = true;"),
     );
-    expect(dynamicSubmit).toContain("submissionResultStatus: queueJob.submissionResultStatus");
+    expect(dynamicSubmit).toContain("queueJob.submissionResultStatus");
     expect(dynamicSubmit).toContain("if (queueAccepted) return;");
+    expect(dynamicSubmit).not.toContain("markApplicationSubmissionQueued");
+    expect(fallbackSubmit).not.toContain("markApplicationSubmissionQueued");
     expect(fallbackSubmit).toMatch(
       /submissionResultStatus: "waiting",[\s\S]*submissionResult: null,/,
     );

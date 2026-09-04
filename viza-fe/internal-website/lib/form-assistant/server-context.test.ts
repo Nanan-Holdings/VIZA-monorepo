@@ -604,6 +604,51 @@ describe("loadAssistantSchema", () => {
   });
 });
 
+describe("loadAssistantAnswers", () => {
+  it("exposes schema-compatible surname and given names from the applicant profile", async () => {
+    const answerQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    const profileQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          full_name: "ALICE MORGAN",
+          surname: "MORGAN",
+          surname_en: "MORGAN",
+          given_names: "ALICE",
+          given_names_en: "ALICE",
+          passport_number: "A12345678",
+          passport_expiry_date: "2035-01-01",
+          date_of_birth: "2000-01-01",
+          gender: "M",
+          email: "traveller@example.test",
+        },
+      }),
+    };
+    const admin = {
+      from: vi.fn((table: string) => (
+        table === "visa_application_answers" ? answerQuery : profileQuery
+      )),
+    } as unknown as SupabaseClient;
+
+    const answers = await loadAssistantAnswers(admin, "application-id", {
+      applicantId: "profile-id",
+    });
+
+    expect(answers.surname).toEqual({
+      value: "MORGAN",
+      source: "universal_profile",
+    });
+    expect(answers.given_names).toEqual({
+      value: "ALICE",
+      source: "universal_profile",
+    });
+  });
+});
+
 describe("loadAssistantDocumentReadiness", () => {
   beforeEach(() => {
     loadDocumentCenterData.mockReset();
