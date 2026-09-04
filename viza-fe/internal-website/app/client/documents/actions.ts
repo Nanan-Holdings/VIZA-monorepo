@@ -33,6 +33,10 @@ import {
   type DocumentImageSignals,
   type OfficialDocumentImageSlot,
 } from "@/lib/document-image-validation";
+import {
+  loadDocumentPreviewUrls,
+  type CreateSignedUrls,
+} from "./document-preview-urls";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1471,16 +1475,27 @@ async function loadDocuments(applicationId: string): Promise<ApplicationDocument
     "id, application_id, document_type, requirement_key, storage_path, filename, status, rejection_reason, required, review_notes, reviewed_at, created_at, updated_at";
   const baseSelect = "id, application_id, document_type, storage_path, filename, status, rejection_reason, created_at, updated_at";
 
-  const attachPreviewUrls = async (rows: ApplicationDocumentRow[]) => Promise.all(
-    rows.map(async (row) => {
+  const attachPreviewUrls = async (rows: ApplicationDocumentRow[]) => {
+    // Keep the large generated Supabase client type from expanding through
+    // this server-action module. The installed Storage client and official API
+    // both expose this exact batch method.
+    const previewBucket = adminClient.storage
+      .from(APPLICATION_DOCUMENTS_BUCKET) as unknown as {
+        createSignedUrls: CreateSignedUrls;
+      };
+    const previewUrls = await loadDocumentPreviewUrls(
+      rows.map((row) => row.storage_path?.trim() ?? ""),
+      (paths, expiresIn) => previewBucket.createSignedUrls(paths, expiresIn),
+    );
+
+    return rows.map((row) => {
       const storagePath = row.storage_path?.trim();
-      if (!storagePath) return normalizeDocument(row);
-      const { data, error: previewError } = await adminClient.storage
-        .from(APPLICATION_DOCUMENTS_BUCKET)
-        .createSignedUrl(storagePath, 60 * 60);
-      return normalizeDocument(row, previewError ? null : data?.signedUrl ?? null);
-    }),
-  );
+      return normalizeDocument(
+        row,
+        storagePath ? previewUrls.get(storagePath) ?? null : null,
+      );
+    });
+  };
 
   const { data, error } = await adminClient
     .from("application_documents")
