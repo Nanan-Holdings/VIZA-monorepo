@@ -23,8 +23,8 @@ export function CatalogueProvider({ entries, children }: { entries: PublishedCat
     const published = new Map(entries.map((entry) => [entry.slug, entry]));
     const known = COUNTRIES.map<CatalogueCountry>((fallback) => {
       const entry = published.get(fallback.slug);
-      if (!entry) return { ...fallback, launched: false, pricing: null, version: null, publishedAt: null };
-      return { ...entry, launched: true, pricing: entry.pricing, version: entry.version, publishedAt: entry.publishedAt };
+      if (!entry) return { ...fallback, pricing: null, version: null, publishedAt: null };
+      return { ...fallback, ...entry, launched: true, pricing: entry.pricing, version: entry.version, publishedAt: entry.publishedAt };
     });
     const knownSlugs = new Set(known.map((country) => country.slug));
     const additional = entries

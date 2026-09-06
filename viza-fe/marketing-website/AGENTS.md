@@ -17,9 +17,11 @@ pages, and portal checkout links.
 - Visa destination structured data is emitted by
   `components/VisaStructuredData.tsx` and mounted from the rich and fallback visa
   templates.
-- Public availability and display pricing must come from
-  `lib/public-catalogue.ts`. On an unavailable or malformed feed, fail closed:
-  show no destination as purchasable and never restore static prices.
+- Public display pricing must come from `lib/public-catalogue.ts`. On an
+  unavailable or malformed feed, never restore static prices. Known launch
+  destinations may remain available only when their country/visa pair is
+  explicitly backed by the portal's canonical checkout pricing matrix; the
+  portal checkout remains the final purchase gate.
 - Public service availability comes from `lib/public-status.ts`, the
   agent-backend `/api/public/status` snapshot, and the same-site
   `app/api/status/route.ts` refresh proxy. The status UI must show missing or

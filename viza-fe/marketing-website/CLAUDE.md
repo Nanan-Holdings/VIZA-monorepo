@@ -21,11 +21,12 @@ Public marketing site for VIZA. Next.js 16 App Router. Deploys to `viza.com`.
 Every `/visa/<slug>` page renders from data via one rich, shared component — there
 is no bespoke per-country page. The pieces:
 
-- `lib/countries.ts` — static presentation fallback metadata for known routes;
-  every fallback stays browsable but is unavailable for application until
-  overlaid by a published snapshot.
+- `lib/countries.ts` — reviewed presentation and checkout-availability metadata
+  for known routes; a launched entry must match the portal's canonical pricing
+  matrix.
 - `lib/public-catalogue.ts` + `components/CatalogueProvider.tsx` — fail-closed
-  public availability and SGD price snapshots from the portal catalogue API.
+  SGD price snapshots from the portal catalogue API, overlaid onto the reviewed
+  checkout-backed availability list.
 - `lib/visa-content/<slug>.ts` — the rich `VisaContent` (hero, overview, process,
   documents, rejection reasons, entry/exit, extension, reviews, FAQ, sources, price copy).
   `lib/visa-content/types.ts` is the schema; `indonesia.ts` is the reference.
@@ -35,7 +36,9 @@ is no bespoke per-country page. The pieces:
   `VisaCountryRich`; launched without content yet → thin `VisaCountryTemplate` fallback;
   unlaunched/unknown → `ComingSoon`.
 - Price card numbers are computed from the published snapshot by
-  `lib/pricing.ts`; there is no hand-maintained marketing price mirror.
+  `lib/pricing.ts`; there is no hand-maintained marketing price mirror. When a
+  snapshot is unavailable, the known route remains applicable but shows pricing
+  only at checkout.
 
 ### Adding a new visa destination
 

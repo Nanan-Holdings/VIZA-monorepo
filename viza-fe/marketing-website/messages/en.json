@@ -235,6 +235,7 @@
     "totalAmount": "SGD {amount}",
     "payFree": "Free — no payment needed",
     "totalFree": "Free",
+    "pricingAtCheckout": "Shown at checkout",
     "upgradeAmount": "+ SGD {amount}",
     "etaStandard": "12 May 2026, 8:00 AM SGT",
     "etaExpress": "8 May 2026, 3:00 PM SGT",
