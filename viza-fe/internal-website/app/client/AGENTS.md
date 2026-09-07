@@ -22,7 +22,10 @@ applicant info, and help pages.
   render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
   summary, recent activity). Destination selection moved to
-  `destinations/page.tsx`.
+  `destinations/page.tsx`. Load detailed timeline data only after the compact
+  dashboard selects an application, and clear a stale timeline on a null
+  result. `home/__tests__/home-status-loading.test.tsx` covers empty selection,
+  exact selected-ID reads, and clearing an old timeline.
 - `destinations/page.tsx`: country/application switch page — "my applications"
   switcher plus the popular-destinations catalog (featured, region groups,
   search). Reached via the hamburger menu "Change country" item. Progress

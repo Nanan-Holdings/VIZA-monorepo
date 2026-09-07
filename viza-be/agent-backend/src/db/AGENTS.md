@@ -41,6 +41,8 @@ Supabase service-role client setup for the agent backend.
   coalescing that caches only successful results so failures remain immediately
   retryable. Release decisions retain a five-second maximum age while the
   legacy health endpoint may reuse a successful snapshot for 30 seconds.
+  Public portal snapshots also reuse this helper. Clearing the cache must
+  prevent older in-flight factories from restoring invalidated results.
 - `supabase-adapter.ts`: Supabase helper adapter for selected operations.
 - `../../drizzle/*.sql`: sequential SQL migrations.
 - `../../drizzle/0013_internal_automation_loop.sql`: website automation
@@ -76,6 +78,9 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0158_database_access_baseline.sql`: future default-privilege
   deny baseline, targeted RLS/ACL/view/RPC hardening, and the missing
   `application_translations` production contract.
+- `../../drizzle/0190_public_status_aggregate_once.sql`: public-only status
+  history aggregation with unchanged time windows, JSON, and service-only RPC
+  execution. No table, index, applicant row, or access-policy changes.
 - `../../drizzle/0140_prevent_qa_placeholder_submission.sql`: database-level
   rejection of synthetic QA data in customer applications and live queues.
 - `../../drizzle/0141_block_known_qa_account_sentinel.sql`: follow-up protection

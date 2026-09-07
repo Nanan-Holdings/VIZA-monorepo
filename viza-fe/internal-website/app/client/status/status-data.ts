@@ -202,6 +202,22 @@ export interface ClientStatusData {
   partialData: boolean;
 }
 
+export type ClientStatusIndexApplication = Pick<
+  StatusApplication,
+  "id" | "key" | "countryKey" | "packageId" | "country" | "visaType" |
+  "countryName" | "countryNameZh" | "countryFlag" | "visaTypeLabel" |
+  "visaTypeLabelZh" | "state" | "progressPercent"
+> & {
+  applicationRecords: Omit<CountryApplicationRecord, "file" | "confirmationNumber">[];
+};
+
+export interface ClientStatusIndexData {
+  authenticated: boolean;
+  applications: ClientStatusIndexApplication[];
+  detailApplications: Pick<StatusApplication, "id" | "packageId" | "country" | "visaType">[];
+  partialData: boolean;
+}
+
 type ApplicantProfileRow = StatusApplicantProfile;
 
 interface VisaPackageRow {
@@ -268,6 +284,9 @@ interface PaymentRow {
   created_at: string | null;
   updated_at: string | null;
 }
+
+const PAYMENT_STATUS_SELECT =
+  "id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at";
 
 interface ConsentRow {
   application_id: string;
@@ -705,6 +724,46 @@ async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsRes
   }
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function buildPaymentScopeFilter(
+  column: "applicant_id" | "application_id",
+  ids: readonly string[],
+): string | null {
+  const validIds = [...new Set(ids)].filter((id) => UUID_PATTERN.test(id));
+  if (validIds.length === 0) return null;
+  return `${column}.in.(${validIds.join(",")})`;
+}
+
+export function buildStatusPaymentScopeFilter(
+  profileIds: readonly string[],
+  applicationIds: readonly string[],
+): string | null {
+  return [
+    buildPaymentScopeFilter("applicant_id", profileIds),
+    buildPaymentScopeFilter("application_id", applicationIds),
+  ]
+    .filter((filter): filter is string => Boolean(filter))
+    .join(",") || null;
+}
+
+export async function loadStatusPayments(
+  adminClient: ReturnType<typeof createAdminClient>,
+  profileIds: readonly string[],
+  applicationIds: readonly string[],
+): Promise<ReadRowsResult<PaymentRow>> {
+  const scopeFilter = buildStatusPaymentScopeFilter(profileIds, applicationIds);
+  if (!scopeFilter) return { rows: [], failed: false };
+
+  return readRows<PaymentRow>(
+    adminClient
+      .from("payment_records")
+      .select(PAYMENT_STATUS_SELECT)
+      .or(scopeFilter),
+  );
+}
+
 function isTerminalApplication(application: ApplicationRow): boolean {
   const applicationStatus = normalizeStatus(application.status);
   const resultStatus = normalizeStatus(application.submission_result_status);
@@ -1090,17 +1149,30 @@ async function buildFiles({
   application,
   latestPayment,
   latestPacket,
+  includeDetails,
 }: {
   adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
   latestPayment: PaymentRow | null;
   latestPacket: PacketRow | null;
+  includeDetails: boolean;
 }): Promise<StatusFile[]> {
+  // The selector needs file presence/timestamps for its existing state and
+  // ordering rules, but file access belongs to the authenticated detail view.
+  const detailHref = buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: application.country,
+    visaType: application.visa_type,
+    step: "status",
+  });
+  const storageHref = (reference: string) => includeDetails
+    ? resolveStorageHref(adminClient, reference)
+    : detailHref;
   const files: StatusFile[] = [];
   if (application.receipt_url) {
     files.push({
       key: "applicationReceipt",
-      href: await resolveStorageHref(adminClient, application.receipt_url),
+      href: await storageHref(application.receipt_url),
       reference: application.receipt_url,
       createdAt: application.submitted_at ?? application.updated_at,
     });
@@ -1109,7 +1181,7 @@ async function buildFiles({
   if (latestPayment?.receipt_url) {
     files.push({
       key: "paymentReceipt",
-      href: await resolveStorageHref(adminClient, latestPayment.receipt_url),
+      href: await storageHref(latestPayment.receipt_url),
       reference: latestPayment.receipt_url,
       createdAt: latestPayment.updated_at ?? latestPayment.created_at,
     });
@@ -1119,7 +1191,7 @@ async function buildFiles({
   if (packetPath) {
     files.push({
       key: "packet",
-      href: await resolveStorageHref(adminClient, packetPath),
+      href: await storageHref(packetPath),
       reference: packetPath,
       createdAt: latestPacket?.generated_at ?? application.packet_ready_at,
     });
@@ -1145,10 +1217,10 @@ async function buildFiles({
     const artifactRoute = `/api/applications/${application.id}/evisa-artifact`;
     files.push({
       key: resultKey,
-      href: isVietnam
+      href: !includeDetails ? detailHref : isVietnam
         ? `${artifactRoute}?disposition=attachment`
         : await resolveStorageHref(adminClient, application.result_storage_path),
-      printHref: isVietnam ? `${artifactRoute}?disposition=inline` : null,
+      printHref: includeDetails && isVietnam ? `${artifactRoute}?disposition=inline` : null,
       reference: application.result_storage_path,
       createdAt: application.updated_at,
     });
@@ -1161,7 +1233,7 @@ async function buildFiles({
         : getAutomatedOnlineSubmissionEvidence(application.submission_result, application.visa_type).approved
           ? "approvedResult"
           : "resultFile",
-      href: await resolveSubmissionArtifactHref(adminClient, path),
+      href: includeDetails ? await resolveSubmissionArtifactHref(adminClient, path) : detailHref,
       reference: path,
       createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
     });
@@ -1273,6 +1345,7 @@ async function buildApplicationStatus({
   events,
   notifications,
   officialTracking,
+  includeDetails,
 }: {
   adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
@@ -1287,6 +1360,7 @@ async function buildApplicationStatus({
   events: EventRow[];
   notifications: NotificationRow[];
   officialTracking: OfficialTrackingRow | null;
+  includeDetails: boolean;
 }): Promise<StatusApplication> {
   const base = buildPackageBase(application.country, application.visa_type);
   const latestPayment = getLatestPayment(payments);
@@ -1317,7 +1391,7 @@ async function buildApplicationStatus({
   const resultState = getResultState(application, handoffComplete, liveSubmission);
   const latestConsent = sortByNewest(consents, (row) => row.created_at)[0];
   const latestSignature = sortByNewest(signatures, (row) => row.signed_at ?? row.created_at)[0];
-  const files = await buildFiles({ adminClient, application, latestPayment, latestPacket });
+  const files = await buildFiles({ adminClient, application, latestPayment, latestPacket, includeDetails });
 
   const initialSteps: StatusStep[] = [
     {
@@ -1493,7 +1567,90 @@ async function buildApplicationStatus({
   };
 }
 
-export async function getClientStatusData(): Promise<ClientStatusData> {
+export interface ClientStatusDataOptions {
+  /**
+   * Restrict the application and detail reads to one already-selected app.
+   * The caller must still be authenticated; this is only a query-shaping
+   * optimization for views that display one application.
+   */
+  applicationId?: string;
+}
+
+export function isValidClientStatusApplicationId(applicationId: string): boolean {
+  return UUID_PATTERN.test(applicationId.trim());
+}
+
+export async function getClientStatusData(
+  options: ClientStatusDataOptions = {},
+): Promise<ClientStatusData> {
+  return loadClientStatusData(options, true);
+}
+
+/** List projection: no storage signing, event feed, notifications or tracking detail. */
+export async function getClientStatusIndexData(): Promise<ClientStatusIndexData> {
+  const data = await loadClientStatusData({}, false);
+  return {
+    authenticated: data.authenticated,
+    partialData: data.partialData,
+    applications: data.applications.map((application) => ({
+      id: application.id,
+      key: application.key,
+      countryKey: application.countryKey,
+      packageId: application.packageId,
+      country: application.country,
+      visaType: application.visaType,
+      countryName: application.countryName,
+      countryNameZh: application.countryNameZh,
+      countryFlag: application.countryFlag,
+      visaTypeLabel: application.visaTypeLabel,
+      visaTypeLabelZh: application.visaTypeLabelZh,
+      state: application.state,
+      progressPercent: application.progressPercent,
+      applicationRecords: application.applicationRecords.map((record) => ({
+        id: record.id,
+        applicationId: record.applicationId,
+        packageId: record.packageId,
+        country: record.country,
+        visaType: record.visaType,
+        visaTypeLabel: record.visaTypeLabel,
+        visaTypeLabelZh: record.visaTypeLabelZh,
+        state: record.state,
+        progressPercent: record.progressPercent,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        submittedAt: record.submittedAt,
+        detailHref: record.detailHref,
+        continueHref: record.continueHref,
+      })),
+    })),
+    detailApplications: data.detailApplications.map(({ id, packageId, country, visaType }) => ({
+      id, packageId, country, visaType,
+    })),
+  };
+}
+
+async function loadClientStatusData(
+  options: ClientStatusDataOptions,
+  includeDetails: boolean,
+): Promise<ClientStatusData> {
+  const hasApplicationScope = options.applicationId !== undefined;
+  const requestedApplicationId = options.applicationId?.trim() ?? null;
+  const scopedApplicationId = requestedApplicationId && isValidClientStatusApplicationId(requestedApplicationId)
+    ? requestedApplicationId
+    : null;
+
+  // Never turn an invalid caller-supplied selector into an unscoped status
+  // read. The single-application action validates first, while this guard
+  // keeps direct callers fail-closed as well.
+  if (hasApplicationScope && !scopedApplicationId) {
+    return {
+      authenticated: false,
+      applications: [],
+      detailApplications: [],
+      partialData: false,
+    };
+  }
+
   const clientSession = await getClientSession();
   let authUserId = clientSession?.authUserId ?? clientSession?.userId ?? null;
   let authEmail = clientSession?.email ?? null;
@@ -1571,7 +1728,6 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     }))
     .filter((row): row is { assignedAt: string | null; applicationId: string | null; status: string | null; package: VisaPackageRow } => Boolean(row.package));
 
-  const packageIds = userPackages.map((row) => row.package.id);
   const packageApplicationIds = userPackages
     .map((row) => row.applicationId)
     .filter((id): id is string => Boolean(id));
@@ -1579,18 +1735,26 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   let sgacEmailLinkedApplicationIds = new Set<string>();
 
   if (profileIds.length > 0) {
+    let applicationQuery = adminClient
+      .from("applications")
+      .select(APPLICATION_STATUS_SELECT)
+      .in("applicant_id", profileIds)
+      .order("created_at", { ascending: false });
+    if (scopedApplicationId) {
+      applicationQuery = applicationQuery.eq("id", scopedApplicationId);
+    }
     const { rows, failed } = await readRows<ApplicationRow>(
-      adminClient
-        .from("applications")
-        .select(APPLICATION_STATUS_SELECT)
-        .in("applicant_id", profileIds)
-        .order("created_at", { ascending: false }),
+      applicationQuery,
     );
     applications = rows.map(withApplicationDefaults);
     partialData = partialData || failed;
   }
 
-  const missingPackageApplicationIds = packageApplicationIds.filter((id) => !applications.some((application) => application.id === id));
+  const missingPackageApplicationIds = packageApplicationIds.filter(
+    (id) =>
+      (!scopedApplicationId || id === scopedApplicationId) &&
+      !applications.some((application) => application.id === id),
+  );
   if (missingPackageApplicationIds.length > 0) {
     const { rows: linkedRows, failed: linkedFailed } = await readRows<ApplicationRow>(
       adminClient
@@ -1605,30 +1769,45 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     ]);
   }
 
-  if (ownerEmails.length > 0) {
+  const needsScopedEmailFallback =
+    !scopedApplicationId || !applications.some((application) => application.id === scopedApplicationId);
+  if (ownerEmails.length > 0 && needsScopedEmailFallback) {
+    let sgacEmailAnswerQuery = adminClient
+      .from("visa_application_answers")
+      .select("application_id, field_name, value_text, value_json")
+      .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
+      .in("value_text", ownerEmails);
+    if (scopedApplicationId) {
+      sgacEmailAnswerQuery = sgacEmailAnswerQuery.eq("application_id", scopedApplicationId);
+    }
     const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = await readRows<AnswerRow>(
-      adminClient
-        .from("visa_application_answers")
-        .select("application_id, field_name, value_text, value_json")
-        .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
-        .in("value_text", ownerEmails),
+      sgacEmailAnswerQuery,
     );
     partialData = partialData || sgacEmailAnswersFailed;
     const sgacEmailApplicationIds = [
       ...new Set(
         sgacEmailAnswers
           .map((row) => row.application_id)
-          .filter((id): id is string => Boolean(id) && !applications.some((application) => application.id === id)),
+          .filter(
+            (id): id is string =>
+              Boolean(id) &&
+              (!scopedApplicationId || id === scopedApplicationId) &&
+              !applications.some((application) => application.id === id),
+          ),
       ),
     ];
     sgacEmailLinkedApplicationIds = new Set(sgacEmailApplicationIds);
     if (sgacEmailApplicationIds.length > 0) {
+      let sgacEmailApplicationQuery = adminClient
+        .from("applications")
+        .select(APPLICATION_STATUS_SELECT)
+        .in("id", sgacEmailApplicationIds)
+        .eq("visa_type", SGAC_VISA_TYPE);
+      if (scopedApplicationId) {
+        sgacEmailApplicationQuery = sgacEmailApplicationQuery.eq("id", scopedApplicationId);
+      }
       const { rows: sgacEmailApplications, failed: sgacEmailApplicationsFailed } = await readRows<ApplicationRow>(
-        adminClient
-          .from("applications")
-          .select(APPLICATION_STATUS_SELECT)
-          .in("id", sgacEmailApplicationIds)
-          .eq("visa_type", SGAC_VISA_TYPE),
+        sgacEmailApplicationQuery,
       );
       partialData = partialData || sgacEmailApplicationsFailed;
       applications = dedupeById([
@@ -1648,6 +1827,15 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       (!sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application)),
   );
 
+  if (scopedApplicationId && applications.length === 0) {
+    return {
+      authenticated: true,
+      applications: [],
+      detailApplications: [],
+      partialData,
+    };
+  }
+
   const applicationIds = applications.map((application) => application.id);
   const liveStatusApplicationIds = getLiveStatusApplicationIds(applications);
   let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
@@ -1656,47 +1844,9 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   } catch {
     partialData = true;
   }
-  const applicationPackageIds = applications
-    .map((application) => application.visa_package_id)
-    .filter((id): id is string => Boolean(id));
-  const allPackageIds = [...new Set([...packageIds, ...applicationPackageIds])];
-
-  let payments: PaymentRow[] = [];
-  const paymentReads: Array<Promise<ReadRowsResult<PaymentRow>>> = [];
-  if (profileIds.length > 0) {
-    paymentReads.push(
-      readRows<PaymentRow>(
-        adminClient
-          .from("payment_records")
-          .select("id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at")
-          .in("applicant_id", profileIds),
-      ),
-    );
-  }
-  if (applicationIds.length > 0) {
-    paymentReads.push(
-      readRows<PaymentRow>(
-        adminClient
-          .from("payment_records")
-          .select("id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at")
-          .in("application_id", applicationIds),
-      ),
-    );
-  }
-  if (allPackageIds.length > 0) {
-    paymentReads.push(
-      readRows<PaymentRow>(
-        adminClient
-          .from("payment_records")
-          .select("id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at")
-          .in("visa_package_id", allPackageIds),
-      ),
-    );
-  }
-
-  const paymentResults = await Promise.all(paymentReads);
-  partialData = partialData || paymentResults.some((result) => result.failed);
-  payments = dedupeById(paymentResults.flatMap((result) => result.rows));
+  const paymentResult = await loadStatusPayments(adminClient, profileIds, applicationIds);
+  partialData = partialData || paymentResult.failed;
+  const payments = dedupeById(paymentResult.rows);
 
   let consents: ConsentRow[] = [];
   let signatures: SignatureRow[] = [];
@@ -1748,26 +1898,26 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
           .select("application_id, status, storage_path, generated_at, created_at, updated_at")
           .in("application_id", applicationIds),
       ),
-      readRows<EventRow>(
+      includeDetails ? readRows<EventRow>(
         adminClient
           .from("application_events")
           .select("application_id, event_type, created_at")
           .in("application_id", applicationIds)
           .order("created_at", { ascending: false })
           .limit(30),
-      ),
-      readRows<NotificationRow>(
+      ) : { rows: [], failed: false },
+      includeDetails ? readRows<NotificationRow>(
         adminClient
           .from("notification_events")
           .select("application_id, status, sent_at, created_at")
           .in("application_id", applicationIds),
-      ),
-      readRows<OfficialTrackingRow>(
+      ) : { rows: [], failed: false },
+      includeDetails ? readRows<OfficialTrackingRow>(
         adminClient
           .from("official_application_tracking")
           .select("application_id, tracking_status, last_successful_check_at, next_daily_check_at, consecutive_failures")
           .in("application_id", applicationIds),
-      ),
+      ) : { rows: [], failed: false },
     ]);
 
     partialData = partialData || [
@@ -1831,22 +1981,25 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         events: eventsByApplication.get(application.id) ?? [],
         notifications: notificationsByApplication.get(application.id) ?? [],
         officialTracking: officialTrackingByApplication.get(application.id) ?? null,
+        includeDetails,
       }),
     ),
   );
 
-  const applicationKeys = new Set(statusApplications.map((application) => application.key));
-  for (const userPackage of userPackages) {
-    const key = getVisaDestinationKey(userPackage.package.country, userPackage.package.visa_type);
-    if (applicationKeys.has(key)) continue;
-    if (userPackage.status && !["active", "completed"].includes(normalizeStatus(userPackage.status))) continue;
-    statusApplications.push(
-      buildPackageOnlyApplication({
-        assignedAt: userPackage.assignedAt,
-        package: userPackage.package,
-        payment: getLatestPayment(paymentsByPackage.get(userPackage.package.id) ?? []),
-      }),
-    );
+  if (!scopedApplicationId) {
+    const applicationKeys = new Set(statusApplications.map((application) => application.key));
+    for (const userPackage of userPackages) {
+      const key = getVisaDestinationKey(userPackage.package.country, userPackage.package.visa_type);
+      if (applicationKeys.has(key)) continue;
+      if (userPackage.status && !["active", "completed"].includes(normalizeStatus(userPackage.status))) continue;
+      statusApplications.push(
+        buildPackageOnlyApplication({
+          assignedAt: userPackage.assignedAt,
+          package: userPackage.package,
+          payment: getLatestPayment(paymentsByPackage.get(userPackage.package.id) ?? []),
+        }),
+      );
+    }
   }
 
   statusApplications.sort((a, b) => {

@@ -10,6 +10,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from rag import TravelKnowledgeMatch, retrieve_travel_knowledge
+from tools.openai_client import openai_request_slot
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
@@ -471,21 +472,22 @@ async def _generate_openai_chat_response(
     }
 
     try:
-        completion = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=OPENAI_TRAVEL_CHAT_MODEL,
-                temperature=0.2,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": json.dumps(user_payload, ensure_ascii=False),
-                    },
-                ],
-            ),
-            timeout=OPENAI_TIMEOUT_SECONDS,
-        )
+        async with openai_request_slot():
+            completion = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=OPENAI_TRAVEL_CHAT_MODEL,
+                    temperature=0.2,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {
+                            "role": "user",
+                            "content": json.dumps(user_payload, ensure_ascii=False),
+                        },
+                    ],
+                ),
+                timeout=OPENAI_TIMEOUT_SECONDS,
+            )
         content = completion.choices[0].message.content or ""
         parsed = _extract_json_object(content)
     except Exception as exc:

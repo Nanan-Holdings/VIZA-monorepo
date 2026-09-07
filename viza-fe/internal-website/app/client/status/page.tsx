@@ -10,10 +10,10 @@ import {
   type ApplicationListTone,
 } from "./applications-list";
 import {
-  getClientStatusData,
-  type ClientStatusData,
+  getClientStatusIndexData,
+  type ClientStatusIndexData,
+  type ClientStatusIndexApplication,
   type ClientStatusState,
-  type StatusApplication,
 } from "./status-data";
 import {
   getPopularVisaDestinationByPackage,
@@ -76,7 +76,7 @@ function statusLabel(
 }
 
 function toApplicationListItem(
-  application: StatusApplication,
+  application: ClientStatusIndexApplication,
   locale: string,
   t: Awaited<ReturnType<typeof getTranslations>>
 ): ApplicationListItem {
@@ -153,7 +153,7 @@ function ApplicationsIndex({
   t,
   expandedCountry,
 }: {
-  data: ClientStatusData;
+  data: ClientStatusIndexData;
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
   expandedCountry: string | null;
@@ -216,7 +216,7 @@ export default async function ClientStatusPage({
   const [t, locale, data] = await Promise.all([
     getTranslations("clientStatus"),
     getLocale(),
-    getClientStatusData(),
+    getClientStatusIndexData(),
   ]);
   if (!data.authenticated) redirect("/client/login");
 

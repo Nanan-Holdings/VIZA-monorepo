@@ -17,8 +17,11 @@ options, and exports Word/PDF travel plans.
 - `tools/flights.py`: RapidAPI flight search with fallback behavior.
 - `tests/test_flights.py`: provider/fallback contract regressions.
 - `tests/test_export_summary.py`: current-itinerary export and no-placeholder regressions.
+- `tests/test_concurrency.py`: bounded provider admission and single-flight regressions.
 - `tools/hotels.py`: RapidAPI hotel search with fallback behavior.
 - `tools/http_client.py`: Shared bounded async HTTP client and provider request semaphore.
+- `tools/openai_client.py`: Shared bounded OpenAI admission queue for chat and itinerary calls.
+- `tools/export_admission.py`: Shared bounded admission queue for Word/PDF exports.
 - `export_doc.py`, `export_pdf.py`, `export_summary.py`: document export.
 - `rag/retriever.py`: travel RAG helper.
 - `requirements.txt`: Python dependencies.

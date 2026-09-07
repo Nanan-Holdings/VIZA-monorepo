@@ -86,6 +86,10 @@ explicitly reintroduces another provider.
   `src/routes/public-status.routes.ts`, and
   `drizzle/0150_public_status_tracking.sql` own bounded synthetic probes,
   durable observations/incidents, and the redacted public snapshot.
+  `drizzle/0190_public_status_aggregate_once.sql` removes repeated history
+  aggregation. `src/tests/public-status-aggregate-*.test.ts` verifies the
+  mirrored migration plus guarded local database JSON/ACL/OID parity across
+  calendar/rolling boundaries and timezones; it never defaults to production.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Audited tourist-form seeds:
   `scripts/seed-ca-trv-form-fields.ts`,

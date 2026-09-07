@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from tools.flights import (
     _destination_id_cache,
+    _destination_id_inflight,
     _fallback_flights,
     _resolve_destination_id,
     search_flights,
@@ -22,6 +23,7 @@ from tools.flights import (
 class FlightProviderContractTests(unittest.TestCase):
     def tearDown(self):
         _destination_id_cache.clear()
+        _destination_id_inflight.clear()
 
     def test_fallback_is_explicitly_estimated_and_has_no_carrier(self):
         options = _fallback_flights("广州", "东京", "2026-10-05")
@@ -120,6 +122,36 @@ class FlightProviderContractTests(unittest.TestCase):
 
         self.assertEqual(first, "CITY_DPS")
         self.assertEqual(second, "CITY_DPS")
+        self.assertEqual(calls, 1)
+
+    def test_concurrent_cache_misses_share_one_destination_lookup(self):
+        calls = 0
+        lookup_started = asyncio.Event()
+        release_lookup = asyncio.Event()
+
+        async def provider_payload(_path, _params):
+            nonlocal calls
+            calls += 1
+            lookup_started.set()
+            await release_lookup.wait()
+            return {
+                "status": True,
+                "data": [{"id": "CITY_TYO", "cityName": "Tokyo"}],
+            }
+
+        async def run_lookups():
+            tasks = [
+                asyncio.create_task(_resolve_destination_id("Tokyo"))
+                for _ in range(6)
+            ]
+            await lookup_started.wait()
+            release_lookup.set()
+            return await asyncio.gather(*tasks)
+
+        with patch("tools.flights._request_json", new=provider_payload):
+            results = asyncio.run(run_lookups())
+
+        self.assertEqual(results, ["CITY_TYO"] * 6)
         self.assertEqual(calls, 1)
 
 

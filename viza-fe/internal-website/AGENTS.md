@@ -29,6 +29,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
 
+- `supabase/migrations/20260907001027_public_status_aggregate_once.sql` is the
+  byte-identical mirror of backend migration `0190`; it optimizes the public
+  status history RPC without changing JSON/time windows or execution grants.
+
 - Client portal under `app/client/**`.
 - Client dashboard country hero artwork under `public/country-heroes/**`, mapped
   to application country slugs by `lib/client/country-hero-theme.ts`. Germany's

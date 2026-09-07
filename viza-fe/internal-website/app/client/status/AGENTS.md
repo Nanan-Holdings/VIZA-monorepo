@@ -74,6 +74,35 @@ one indexed `applicant_profiles.id` read. Auth-user and email lookups are
 compatibility fallbacks only; preserve their focused query-count tests when
 changing client-session ownership behavior.
 
+`status-data.ts` loads payment records with one owner-scoped OR query over the
+resolved applicant and application IDs. Do not restore a package-wide payment
+read: visa package IDs are shared across applicants. The query budget and
+malformed-ID scope guard live in `status-data.query-budget.test.ts`.
+
+The Home timeline calls `getClientApplicationStatus(applicationId)` after the
+dashboard selects the active application. That path keeps the authenticated
+profile ownership predicate and adds an exact application-ID predicate. Keep
+the authenticated package-link and submitted-SGAC email-link compatibility
+paths, also restricted to that ID. Invalid IDs never fall back to a full read;
+missing or unauthorized targets must return before payment/detail reads. Keep
+the full-detail loader for timeline and submitted-application views.
+`status-data.scoped-query.test.ts` covers the ownership fallbacks, full/scoped
+detail parity, and the target-only filters on eight detail tables plus live
+queue summaries. Payment compatibility still reads within the current user's
+profile/application scope; it is not an application-only cache.
+
+`/client/status` uses `getClientStatusIndexData()`, a narrow list projection
+from the same authenticated loader. It skips `application_events`,
+`notification_events`, `official_application_tracking`, and Storage signing.
+Keep consent, signatures, documents, answers, packets, payments, and live queue
+summaries because they affect list state/progress. Preserve file metadata
+internally for arrival-card state and history ordering; result actions in the
+index lead to the exact authenticated application status route. The exported
+index must not include private file references or unrelated detail payloads.
+`status-data.scoped-query.test.ts` also checks index/full list parity, skipped
+reads, and file signing behavior. `page.test.tsx` checks the index-only load,
+authentication redirects, exact application/package links, and list rendering.
+
 ## Guardrails
 
 - Do not import service-role clients into client components.

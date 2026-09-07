@@ -34,7 +34,10 @@ application lifecycle state.
   table grants for legacy-session compatibility.
 - `client-application-status.ts`: customer-safe application timeline, file,
   and update reads shared by the home dashboard and the submitted application
-  view.
+  view. The single-application action validates and passes an exact ID to the
+  owner-scoped loader; invalid IDs must not trigger a full history read.
+  `client-application-status.test.ts` covers this boundary and the unchanged
+  all-applications action.
 - `application-group.ts`: group application and team companion creation,
   companion review state, and authorized companion application reads. Explicit
   application-form context must accept the signed VIZA client session as well

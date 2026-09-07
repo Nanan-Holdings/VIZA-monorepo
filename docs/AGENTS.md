@@ -26,6 +26,9 @@ reports, and workflow documentation for VIZA.
 - `infra/1000-user-concurrency-roadmap.md`: measured concurrency assumptions,
   current code baseline, and the infrastructure scaling sequence for a
   1,000-session target; recommendations only, not applied configuration.
+- `infra/2026-09-07-free-concurrency-review.md`: current topology, read-only
+  database observations, implemented public-read/Travel concurrency savings,
+  local verification evidence, and remaining production capacity gates.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.

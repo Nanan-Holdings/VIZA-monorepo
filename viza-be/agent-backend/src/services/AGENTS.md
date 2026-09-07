@@ -51,7 +51,10 @@ conversation state, and other cross-route behavior.
   slot observation, explicit user slot selection, and dry-run booking
   confirmation against the shared `appointment_*` data model.
 - `portal-health.service.ts`: bounded synthetic portal checks, transactional
-  observation persistence, and public status snapshot reads.
+  observation persistence, and public status snapshot reads. Public snapshots
+  coalesce per process, cache successful redacted results for ten seconds, and
+  abort the RPC after eight seconds. A finished probe run invalidates cached
+  and in-flight older snapshots; failures remain immediately retryable.
 
 ## Ownership Boundaries
 

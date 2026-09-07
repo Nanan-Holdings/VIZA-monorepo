@@ -43,7 +43,10 @@ export class SuccessfulProbeCache<T extends SuccessfulProbeResult> {
 
 		const pending = factory()
 			.then((value) => {
-				if (value.success) {
+				// clear() can invalidate a lookup while its factory is still running.
+				// Existing callers may finish, but the old lookup must not repopulate
+				// the cache or replace a newer successful result.
+				if (value.success && this.inFlight === pending) {
 					this.cached = {
 						fetchedAt: this.now(),
 						value,

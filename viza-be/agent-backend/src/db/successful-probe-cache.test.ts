@@ -98,4 +98,39 @@ describe("SuccessfulProbeCache", () => {
 			cache.getOrCreate(async () => ({ success: true }), 0),
 		).rejects.toThrow("Probe cache max age must be positive");
 	});
+
+	it("does not restore an invalidated lookup when it finishes after a refresh", async () => {
+		let releaseOld!: (value: { success: boolean; marker: string }) => void;
+		const cache = new SuccessfulProbeCache<{ success: boolean; marker: string }>(5_000);
+		const old = cache.getOrCreate(() => new Promise((resolve) => { releaseOld = resolve; }));
+		cache.clear();
+		const factory = vi.fn(async () => ({ success: true, marker: "current" }));
+		await cache.getOrCreate(factory);
+		releaseOld({ success: true, marker: "old" });
+		await old;
+
+		await expect(cache.getOrCreate(factory)).resolves.toMatchObject({ marker: "current" });
+		expect(factory).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the newer lookup shared when an invalidated factory settles first", async () => {
+		let releaseOld!: (value: { success: boolean; marker: string }) => void;
+		let releaseNew!: (value: { success: boolean; marker: string }) => void;
+		const cache = new SuccessfulProbeCache<{ success: boolean; marker: string }>(5_000);
+		const old = cache.getOrCreate(() => new Promise((resolve) => { releaseOld = resolve; }));
+		cache.clear();
+		const factory = vi.fn(() => new Promise<{ success: boolean; marker: string }>((resolve) => {
+			releaseNew = resolve;
+		}));
+		const current = cache.getOrCreate(factory);
+		releaseOld({ success: true, marker: "old" });
+		await old;
+		const shared = cache.getOrCreate(factory);
+		releaseNew({ success: true, marker: "current" });
+
+		expect(await Promise.all([current, shared])).toEqual([
+			{ success: true, marker: "current" }, { success: true, marker: "current" },
+		]);
+		expect(factory).toHaveBeenCalledTimes(1);
+	});
 });

@@ -19,7 +19,7 @@ import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
 import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
-import { getClientApplicationStatuses } from "@/app/actions/client-application-status";
+import { getClientApplicationStatus } from "@/app/actions/client-application-status";
 import type { StatusApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
@@ -324,20 +324,6 @@ export default function HomePage() {
       setError(null);
 
       try {
-        // Start the expensive lifecycle read at the same time, but do not keep
-        // the whole dashboard behind it. The hero and primary actions only
-        // depend on the compact dashboard query.
-        const statusPromise = getClientApplicationStatuses().catch(
-          (statusError) => {
-            if (!isIgnorableDashboardLoadError(statusError)) {
-              console.error(
-                "Failed to load client home timeline",
-                statusError,
-              );
-            }
-            return null;
-          },
-        );
         const dashboard = await getClientHomeDashboardData();
         lastDashboardLoadAtRef.current = Date.now();
         if (!dashboard.authenticated) {
@@ -406,16 +392,24 @@ export default function HomePage() {
           setIsTimelineLoading(false);
         } else {
           setIsTimelineLoading(true);
-          void statusPromise
+          // The compact dashboard already selected this application. Scope
+          // the lifecycle read to that owner-owned row instead of loading the
+          // complete status history for the home timeline.
+          void getClientApplicationStatus(currentApplication.id)
+            .catch((statusError) => {
+              if (!isIgnorableDashboardLoadError(statusError)) {
+                console.error(
+                  "Failed to load client home timeline",
+                  statusError,
+                );
+              }
+              return null;
+            })
             .then((statusResult) => {
-              if (!isLatestRequest() || !statusResult) return;
-              const currentStatus =
-                statusResult.applications.find(
-                  (application) => application.id === currentApplication.id,
-                ) ?? null;
-              setSelectedApplicationStatus(currentStatus);
+              if (!isLatestRequest()) return;
+              setSelectedApplicationStatus(statusResult);
+              if (!statusResult) return;
               if (
-                currentStatus &&
                 activeSelection?.applicationId !== currentApplication.id
               ) {
                 setActiveApplicationSelection({

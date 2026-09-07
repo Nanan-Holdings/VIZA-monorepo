@@ -215,6 +215,11 @@
       "drizzle": "viza-be/agent-backend/drizzle/0188_jp_vjw_simplified_chinese_admin_labels.sql",
       "supabase": "viza-fe/internal-website/supabase/migrations/20260824173000_jp_vjw_simplified_chinese_admin_labels.sql",
       "sha256": "620607722f5554f3bf0c1eda69b0d768d6455ed372a3dc0a993c4e7d85bd39b4"
+    },
+    {
+      "drizzle": "viza-be/agent-backend/drizzle/0190_public_status_aggregate_once.sql",
+      "supabase": "viza-fe/internal-website/supabase/migrations/20260907001027_public_status_aggregate_once.sql",
+      "sha256": "5e1f5cf6cbf9e17df73d409e900b56440ad6ed95f9d610e3508ca8b067d64de1"
     }
   ],
   "no_mirror": [],

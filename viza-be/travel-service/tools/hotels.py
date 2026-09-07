@@ -10,8 +10,36 @@ RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com
 RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_HOST}").strip().rstrip("/")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
 RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
 DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+DESTINATION_LOOKUP_DEADLINE_SECONDS = _env_float(
+    "TRAVEL_DESTINATION_LOOKUP_DEADLINE_SECONDS", 10.0
+)
+DESTINATION_LOOKUP_MAX_INFLIGHT = _env_int(
+    "TRAVEL_DESTINATION_LOOKUP_MAX_INFLIGHT", 64
+)
+DESTINATION_CACHE_MAX_ENTRIES = _env_int(
+    "TRAVEL_DESTINATION_CACHE_MAX_ENTRIES", 256
+)
 _destination_cache: dict[str, tuple[float, str, str]] = {}
+_destination_inflight: dict[str, asyncio.Task[tuple[str, str] | None]] = {}
 
 
 def _headers():
@@ -36,6 +64,32 @@ async def _request_json(path: str, params: dict[str, Any]):
     )
 
 
+def _cache_destination(query_key: str, dest_id: str, search_type: str):
+    if (
+        query_key not in _destination_cache
+        and len(_destination_cache) >= DESTINATION_CACHE_MAX_ENTRIES
+    ):
+        oldest_key = min(
+            _destination_cache,
+            key=lambda key: _destination_cache[key][0],
+        )
+        _destination_cache.pop(oldest_key, None)
+    _destination_cache[query_key] = (time.monotonic(), dest_id, search_type)
+
+
+def _consume_destination_task(query_key: str, task: asyncio.Task):
+    if _destination_inflight.get(query_key) is task:
+        _destination_inflight.pop(query_key, None)
+    if task.cancelled():
+        return
+    try:
+        task.exception()
+    except BaseException:
+        # Retrieving the exception prevents an abandoned shared task from
+        # producing an unhandled-task warning.
+        return
+
+
 async def _resolve_destination(query: str):
     if not query:
         return None, None
@@ -45,29 +99,54 @@ async def _resolve_destination(query: str):
     if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
         return cached[1], cached[2]
 
-    payload = await _request_json("/api/v1/hotels/searchDestination", {"query": query})
-    if not payload or payload.get("status") is not True:
-        return None, None
+    task = _destination_inflight.get(query_key)
+    if task is None:
+        if len(_destination_inflight) >= DESTINATION_LOOKUP_MAX_INFLIGHT:
+            return None, None
+        task = asyncio.create_task(_fetch_destination(query, query_key))
+        _destination_inflight[query_key] = task
+        task.add_done_callback(
+            lambda finished: _consume_destination_task(query_key, finished)
+        )
 
-    data = payload.get("data")
-    if not isinstance(data, list):
-        return None, None
+    # Keep an in-flight provider lookup alive if one caller is cancelled so
+    # other callers can still share its result.
+    result = await asyncio.shield(task)
+    return result if result is not None else (None, None)
 
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        dest_id = item.get("dest_id")
-        search_type = item.get("search_type")
-        if isinstance(dest_id, str) and isinstance(search_type, str):
-            if dest_id and search_type:
-                _destination_cache[query_key] = (
-                    time.monotonic(),
-                    dest_id,
-                    search_type,
-                )
-                return dest_id, search_type
 
-    return None, None
+async def _fetch_destination(query: str, query_key: str):
+    try:
+        try:
+            payload = await asyncio.wait_for(
+                _request_json(
+                    "/api/v1/hotels/searchDestination", {"query": query}
+                ),
+                timeout=DESTINATION_LOOKUP_DEADLINE_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            return None
+        if not payload or payload.get("status") is not True:
+            return None
+
+        data = payload.get("data")
+        if not isinstance(data, list):
+            return None
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            dest_id = item.get("dest_id")
+            search_type = item.get("search_type")
+            if isinstance(dest_id, str) and isinstance(search_type, str):
+                if dest_id and search_type:
+                    _cache_destination(query_key, dest_id, search_type)
+                    return dest_id, search_type
+
+        return None
+    finally:
+        if _destination_inflight.get(query_key) is asyncio.current_task():
+            _destination_inflight.pop(query_key, None)
 
 
 def _normalize_dates(check_in_date, check_out_date):

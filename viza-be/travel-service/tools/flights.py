@@ -12,8 +12,36 @@ RAPIDAPI_BASE_URL = os.getenv("RAPIDAPI_BOOKING_BASE_URL", f"https://{RAPIDAPI_H
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "").strip()
 # Kept as a module-level alias for callers that imported the old timeout name.
 RAPIDAPI_TIMEOUT = REQUEST_TIMEOUT
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
 DESTINATION_CACHE_TTL_SECONDS = 24 * 60 * 60
+DESTINATION_LOOKUP_DEADLINE_SECONDS = _env_float(
+    "TRAVEL_DESTINATION_LOOKUP_DEADLINE_SECONDS", 10.0
+)
+DESTINATION_LOOKUP_MAX_INFLIGHT = _env_int(
+    "TRAVEL_DESTINATION_LOOKUP_MAX_INFLIGHT", 64
+)
+DESTINATION_CACHE_MAX_ENTRIES = _env_int(
+    "TRAVEL_DESTINATION_CACHE_MAX_ENTRIES", 256
+)
 _destination_id_cache: dict[str, tuple[float, str]] = {}
+_destination_id_inflight: dict[str, asyncio.Task[str | None]] = {}
 
 
 def _headers():
@@ -38,6 +66,32 @@ async def _request_json(path: str, params: dict[str, Any]):
     )
 
 
+def _cache_destination_id(query_key: str, destination_id: str):
+    if (
+        query_key not in _destination_id_cache
+        and len(_destination_id_cache) >= DESTINATION_CACHE_MAX_ENTRIES
+    ):
+        oldest_key = min(
+            _destination_id_cache,
+            key=lambda key: _destination_id_cache[key][0],
+        )
+        _destination_id_cache.pop(oldest_key, None)
+    _destination_id_cache[query_key] = (time.monotonic(), destination_id)
+
+
+def _consume_destination_task(query_key: str, task: asyncio.Task):
+    if _destination_id_inflight.get(query_key) is task:
+        _destination_id_inflight.pop(query_key, None)
+    if task.cancelled():
+        return
+    try:
+        task.exception()
+    except BaseException:
+        # Retrieving the exception prevents an abandoned shared task from
+        # producing an unhandled-task warning.
+        return
+
+
 async def _resolve_destination_id(query: str):
     if not query:
         return None
@@ -47,64 +101,92 @@ async def _resolve_destination_id(query: str):
     if cached and time.monotonic() - cached[0] < DESTINATION_CACHE_TTL_SECONDS:
         return cached[1]
 
-    payload = await _request_json("/api/v1/flights/searchDestination", {"query": query})
-    if not payload or payload.get("status") is not True:
-        return None
+    task = _destination_id_inflight.get(query_key)
+    if task is None:
+        if len(_destination_id_inflight) >= DESTINATION_LOOKUP_MAX_INFLIGHT:
+            return None
+        task = asyncio.create_task(_fetch_destination_id(query, query_key))
+        _destination_id_inflight[query_key] = task
+        task.add_done_callback(
+            lambda finished: _consume_destination_task(query_key, finished)
+        )
 
-    data = payload.get("data")
-    if not isinstance(data, list):
-        return None
+    # A cancelled request should not cancel the shared lookup for other
+    # callers. The lookup task removes itself when it completes.
+    return await asyncio.shield(task)
 
-    best_id = None
-    best_score = -1
 
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        destination_id = item.get("id")
-        if not isinstance(destination_id, str) or not destination_id:
-            continue
+async def _fetch_destination_id(query: str, query_key: str):
+    try:
+        try:
+            payload = await asyncio.wait_for(
+                _request_json(
+                    "/api/v1/flights/searchDestination", {"query": query}
+                ),
+                timeout=DESTINATION_LOOKUP_DEADLINE_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            return None
+        if not payload or payload.get("status") is not True:
+            return None
 
-        score = 0
-        city_name = str(item.get("cityName") or "").strip().lower()
-        region_name = str(item.get("regionName") or "").strip().lower()
-        location_name = str(item.get("name") or "").strip().lower()
-        code = str(item.get("code") or "").strip().lower()
-        country_name = str(item.get("countryName") or "").strip().lower()
+        data = payload.get("data")
+        if not isinstance(data, list):
+            return None
 
-        for value, weight in (
-            (city_name, 100),
-            (region_name, 80),
-            (location_name, 70),
-            (code, 60),
-            (country_name, 40),
-        ):
-            if not value:
+        best_id = None
+        best_score = -1
+
+        for item in data:
+            if not isinstance(item, dict):
                 continue
-            if value == query_key:
-                score = max(score, weight + 100)
-            elif value.startswith(query_key):
-                score = max(score, weight + 70)
-            elif query_key in value:
-                score = max(score, weight + 40)
+            destination_id = item.get("id")
+            if not isinstance(destination_id, str) or not destination_id:
+                continue
 
-        if score > best_score:
-            best_score = score
-            best_id = destination_id
+            score = 0
+            city_name = str(item.get("cityName") or "").strip().lower()
+            region_name = str(item.get("regionName") or "").strip().lower()
+            location_name = str(item.get("name") or "").strip().lower()
+            code = str(item.get("code") or "").strip().lower()
+            country_name = str(item.get("countryName") or "").strip().lower()
 
-    if best_id:
-        _destination_id_cache[query_key] = (time.monotonic(), best_id)
-        return best_id
+            for value, weight in (
+                (city_name, 100),
+                (region_name, 80),
+                (location_name, 70),
+                (code, 60),
+                (country_name, 40),
+            ):
+                if not value:
+                    continue
+                if value == query_key:
+                    score = max(score, weight + 100)
+                elif value.startswith(query_key):
+                    score = max(score, weight + 70)
+                elif query_key in value:
+                    score = max(score, weight + 40)
 
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        destination_id = item.get("id")
-        if isinstance(destination_id, str) and destination_id:
-            _destination_id_cache[query_key] = (time.monotonic(), destination_id)
-            return destination_id
+            if score > best_score:
+                best_score = score
+                best_id = destination_id
 
-    return None
+        if best_id:
+            _cache_destination_id(query_key, best_id)
+            return best_id
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            destination_id = item.get("id")
+            if isinstance(destination_id, str) and destination_id:
+                _cache_destination_id(query_key, destination_id)
+                return destination_id
+
+        return None
+    finally:
+        if _destination_id_inflight.get(query_key) is asyncio.current_task():
+            _destination_id_inflight.pop(query_key, None)
 
 
 def _price_to_string(price_obj):

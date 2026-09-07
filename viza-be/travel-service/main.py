@@ -6,8 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from typing import Any, Optional
 
-from fastapi import BackgroundTasks
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -25,6 +24,7 @@ from export_doc import export_to_word
 from export_pdf import export_to_pdf
 from tools.flights import _fallback_flights, search_flights
 from tools.hotels import _fallback_hotels, search_hotels
+from tools.export_admission import ExportAdmissionTimeout, export_request_slot
 from tools.http_client import close_http_client, get_http_client
 
 
@@ -308,6 +308,59 @@ def _cleanup_file(file_path: str):
     Path(file_path).unlink(missing_ok=True)
 
 
+def _cleanup_completed_export(task: asyncio.Task):
+    """Clean a thread result when its request was cancelled before handoff."""
+
+    if task.cancelled():
+        return
+    try:
+        file_path = task.result()
+    except BaseException:
+        # Retrieving the result consumes failures from abandoned export tasks.
+        return
+    if isinstance(file_path, str):
+        _cleanup_file(file_path)
+
+
+async def _run_export_with_admission(export_fn, itinerary, payload):
+    """Keep the admission slot until the worker thread actually completes."""
+
+    async with export_request_slot():
+        return await asyncio.to_thread(export_fn, itinerary, payload)
+
+
+async def _export_to_file(export_fn, itinerary, payload, background_tasks):
+    """Run one bounded export and register cleanup before returning its path."""
+
+    file_path = None
+    export_task = asyncio.create_task(
+        _run_export_with_admission(export_fn, itinerary, payload)
+    )
+    try:
+        try:
+            file_path = await asyncio.shield(export_task)
+        except asyncio.CancelledError:
+            # to_thread cannot stop an already-running worker. Ensure its
+            # eventual result is deleted if the request goes away first. The
+            # worker task owns the admission slot until it actually finishes.
+            export_task.add_done_callback(_cleanup_completed_export)
+            raise
+    except asyncio.CancelledError:
+        if isinstance(file_path, str):
+            _cleanup_file(file_path)
+        raise
+
+    background_tasks.add_task(_cleanup_file, file_path)
+    return file_path
+
+
+def _export_busy_detail(data: TravelRequest):
+    language = str(data.export_language or data.locale or "zh").lower()
+    if language.startswith("en"):
+        return "Export service is busy. Please retry shortly."
+    return "导出服务当前繁忙，请稍后重试。"
+
+
 async def _run_external_search(search_fn, kwargs: dict[str, Any], fallback):
     """Run one provider search with bounded concurrency and a hard deadline."""
 
@@ -407,8 +460,19 @@ async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
         except asyncio.TimeoutError:
             print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
             itinerary = _fallback_itinerary(payload)
-    file_path = await asyncio.to_thread(export_to_word, itinerary, payload)
-    background_tasks.add_task(_cleanup_file, file_path)
+    try:
+        file_path = await _export_to_file(
+            export_to_word,
+            itinerary,
+            payload,
+            background_tasks,
+        )
+    except ExportAdmissionTimeout as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_export_busy_detail(data),
+            headers={"Retry-After": "5"},
+        ) from exc
 
     return FileResponse(
         path=file_path,
@@ -431,8 +495,19 @@ async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
         except asyncio.TimeoutError:
             print("Travel itinerary generation exceeded the endpoint deadline; using fallback.")
             itinerary = _fallback_itinerary(payload)
-    file_path = await asyncio.to_thread(export_to_pdf, itinerary, payload)
-    background_tasks.add_task(_cleanup_file, file_path)
+    try:
+        file_path = await _export_to_file(
+            export_to_pdf,
+            itinerary,
+            payload,
+            background_tasks,
+        )
+    except ExportAdmissionTimeout as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=_export_busy_detail(data),
+            headers={"Retry-After": "5"},
+        ) from exc
 
     return FileResponse(
         path=file_path,

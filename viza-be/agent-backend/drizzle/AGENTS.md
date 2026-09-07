@@ -443,6 +443,13 @@ The current internal automation migrations are:
 
 ## Guardrails
 
+- `0190_public_status_aggregate_once.sql`: groups visible portal history once
+  before building daily, per-monitor, and overall uptime JSON. Preserve the
+  calendar-day versus rolling-time windows, future observations, weighted
+  ratios, public field whitelist, and service-only RPC ACL/OID. Its preflight
+  rejects a missing or drifted function; keep the timestamped mirror and
+  migration-governance SHA-256 byte-identical.
+
 - Do not add final official-site payment/booking/submission automation to this
   automation scope. DS-160 live assisted tables may store audited handoff,
   review-diff, and manual-checkpoint state only.

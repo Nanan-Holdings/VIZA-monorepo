@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { SuccessfulProbeCache } from "../db/successful-probe-cache.js";
 import { Logger } from "../utils/logger.js";
 
 const logger = new Logger({ serviceName: "PortalHealthService" });
@@ -7,6 +8,15 @@ const DEFAULT_PROBE_INTERVAL_MS = 5 * 60_000;
 const DEFAULT_INITIAL_PROBE_DELAY_MS = 10_000;
 const FAST_THRESHOLD_MS = 5_000;
 const PROBE_CONCURRENCY = 5;
+const PUBLIC_STATUS_CACHE_TTL_MS = 10_000;
+// The 90-day aggregate takes seconds even without contention; allow cold-read
+// headroom while still bounding the single shared upstream request.
+const PUBLIC_STATUS_QUERY_TIMEOUT_MS = 8_000;
+// Only the redacted, public RPC result belongs here; never applicant data.
+const publicStatusCache = new SuccessfulProbeCache<{
+  success: true;
+  snapshot: object;
+}>(PUBLIC_STATUS_CACHE_TTL_MS);
 let activeProbeRun: Promise<PortalProbeRunSummary> | null = null;
 
 export type PortalProbeStatus = "ok" | "degraded" | "down" | "unknown";
@@ -147,11 +157,24 @@ async function mapWithConcurrency<T, R>(
 }
 
 export async function getPublicPortalStatus(): Promise<unknown> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc("get_public_portal_status", { p_days: 90 });
-  if (error) throw new Error(`Public status snapshot failed: ${error.message}`);
-  if (!data || typeof data !== "object") throw new Error("Public status snapshot was empty");
-  return data;
+  const { snapshot } = await publicStatusCache.getOrCreate(async () => {
+    const supabase = getSupabaseClient();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PUBLIC_STATUS_QUERY_TIMEOUT_MS);
+    try {
+      const { data, error } = await supabase
+        .rpc("get_public_portal_status", { p_days: 90 })
+        .abortSignal(controller.signal);
+      if (error) throw new Error(`Public status snapshot failed: ${error.message}`);
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new Error("Public status snapshot was empty");
+      }
+      return { success: true, snapshot: data };
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+  return snapshot;
 }
 
 async function executePortalHealthProbes(): Promise<PortalProbeRunSummary> {
@@ -204,6 +227,9 @@ async function executePortalHealthProbes(): Promise<PortalProbeRunSummary> {
 export function runPortalHealthProbes(): Promise<PortalProbeRunSummary> {
   if (activeProbeRun) return activeProbeRun;
   activeProbeRun = executePortalHealthProbes().finally(() => {
+    // Even a partly persisted probe run can change public observations.
+    // Invalidate any older in-flight snapshot as well as the stored value.
+    publicStatusCache.clear();
     activeProbeRun = null;
   });
   return activeProbeRun;

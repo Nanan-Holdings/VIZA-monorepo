@@ -2,6 +2,7 @@
 
 import {
   getClientStatusData,
+  isValidClientStatusApplicationId,
   type StatusApplication,
 } from "@/app/client/status/status-data";
 
@@ -23,8 +24,9 @@ export async function getClientApplicationStatuses(): Promise<ClientApplicationS
 export async function getClientApplicationStatus(
   applicationId: string,
 ): Promise<StatusApplication | null> {
-  if (!applicationId.trim()) return null;
-  const data = await getClientStatusData();
+  const normalizedApplicationId = applicationId.trim();
+  if (!isValidClientStatusApplicationId(normalizedApplicationId)) return null;
+  const data = await getClientStatusData({ applicationId: normalizedApplicationId });
   if (!data.authenticated) return null;
-  return data.detailApplications.find((application) => application.id === applicationId) ?? null;
+  return data.detailApplications.find((application) => application.id === normalizedApplicationId) ?? null;
 }

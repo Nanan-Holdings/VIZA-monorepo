@@ -1,5 +1,10 @@
 # 1,000-user concurrency infrastructure roadmap
 
+> Current follow-up: [2026-09-07 free concurrency review](2026-09-07-free-concurrency-review.md)
+> records the current `bom1` frontend region, bounded public-read caches, Travel
+> provider admission, and fresh verification. The original topology observations
+> below are historical; they are not a current production configuration audit.
+
 > Reviewed: 2026-08-04. This is a recommendation document only. No plan,
 > region, instance size, deployment setting, or production database object was
 > changed as part of this review.
