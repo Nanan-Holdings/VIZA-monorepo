@@ -199,6 +199,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Supabase client credentials are normalized by `lib/supabase/env.ts` before
   use so BOM or surrounding whitespace from local environment files cannot
   produce invalid HTTP authorization headers.
+- `lib/supabase/circuit-breaker.ts` issues an owned request permit for each
+  admitted fetch. `fetch-with-timeout.ts` must settle or release it in every
+  exit path, including caller cancellation and retry-wait failures. Only the
+  current circuit generation may report recovery; old in-flight responses
+  must not unlock a newer recovery probe. Caller aborts are neutral health
+  outcomes, and both `Request.signal` and `RequestInit.signal` are honored.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
 - Local admin test-account bootstrap through
   `scripts/init-admin-account.mjs`, with password-reset decisions covered by

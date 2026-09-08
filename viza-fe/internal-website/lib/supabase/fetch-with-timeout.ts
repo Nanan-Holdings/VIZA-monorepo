@@ -1,6 +1,7 @@
 import {
   getSupabaseCircuitBreaker,
   SupabaseCircuitOpenError,
+  type SupabaseCircuitRequest,
 } from "./circuit-breaker";
 
 export type FetchWithTimeout = typeof fetch;
@@ -24,6 +25,11 @@ function requestMethod(input: RequestInfo | URL, init?: RequestInit): string {
   if (init?.method) return init.method.toUpperCase();
   if (typeof Request !== "undefined" && input instanceof Request) return input.method.toUpperCase();
   return "GET";
+}
+
+function requestSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | null | undefined {
+  if (init?.signal !== undefined) return init.signal;
+  return typeof Request !== "undefined" && input instanceof Request ? input.signal : undefined;
 }
 
 function isRetryableNetworkError(error: unknown): boolean {
@@ -114,14 +120,11 @@ export function createFetchWithTimeout(timeoutMs: number): FetchWithTimeout {
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const controller = new AbortController();
-    const upstreamSignal = init?.signal;
+    const upstreamSignal = requestSignal(input, init);
+    upstreamSignal?.throwIfAborted();
     const forwardAbort = () => controller.abort(upstreamSignal?.reason);
 
-    if (upstreamSignal?.aborted) {
-      forwardAbort();
-    } else {
-      upstreamSignal?.addEventListener("abort", forwardAbort, { once: true });
-    }
+    upstreamSignal?.addEventListener("abort", forwardAbort, { once: true });
 
     const timeoutId = setTimeout(() => {
       controller.abort(new DOMException("Supabase request timed out", "TimeoutError"));
@@ -150,51 +153,66 @@ export function createFetchWithTransientRetry(
     : (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const upstreamSignal = requestSignal(input, init);
+    upstreamSignal?.throwIfAborted();
     const circuit = options.circuitBreakerScope === null
       ? null
       : getSupabaseCircuitBreaker(options.circuitBreakerScope);
+    let circuitRequest: SupabaseCircuitRequest | undefined;
     try {
-      circuit?.beforeRequest();
+      circuitRequest = circuit?.beforeRequest();
     } catch (error) {
       if (options.returnUnavailableResponse && error instanceof SupabaseCircuitOpenError) {
         return createSupabaseUnavailableResponse(error.retryAfterMs);
       }
       throw error;
     }
-    const method = requestMethod(input, init);
-    const canRetry = method === "GET" || method === "HEAD";
-
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        const response = await fetchOnce(input, init);
-        const retryDelay = retryDelaysMs[attempt];
-        if (!canRetry || retryDelay === undefined || !RETRYABLE_SUPABASE_STATUSES.has(response.status)) {
-          if (CIRCUIT_FAILURE_STATUSES.has(response.status)) {
-            circuit?.recordFailure();
-          } else {
-            circuit?.recordSuccess();
+    try {
+      const method = requestMethod(input, init);
+      const canRetry = method === "GET" || method === "HEAD";
+      for (let attempt = 0; ; attempt += 1) {
+        upstreamSignal?.throwIfAborted();
+        try {
+          const response = await fetchOnce(input, init);
+          if (upstreamSignal?.aborted) {
+            await response.body?.cancel().catch(() => undefined);
+            upstreamSignal.throwIfAborted();
           }
-          return response;
-        }
-
-        await response.body?.cancel().catch(() => undefined);
-        await waitForRetry(retryDelay, init?.signal);
-      } catch (error) {
-        const retryDelay = retryDelaysMs[attempt];
-        if (
-          !canRetry ||
-          retryDelay === undefined ||
-          init?.signal?.aborted ||
-          !isRetryableNetworkError(error)
-        ) {
-          if (isRetryableNetworkError(error)) circuit?.recordFailure();
-          if (options.returnUnavailableResponse && isRetryableNetworkError(error)) {
-            return createSupabaseUnavailableResponse();
+          const retryDelay = retryDelaysMs[attempt];
+          if (!canRetry || retryDelay === undefined || !RETRYABLE_SUPABASE_STATUSES.has(response.status)) {
+            if (CIRCUIT_FAILURE_STATUSES.has(response.status)) {
+              circuitRequest?.recordFailure();
+            } else {
+              circuitRequest?.recordSuccess();
+            }
+            return response;
           }
-          throw error;
+
+          await response.body?.cancel().catch(() => undefined);
+          await waitForRetry(retryDelay, upstreamSignal);
+        } catch (error) {
+          // A caller may cancel with any reason, including TimeoutError or
+          // TypeError. That is not evidence that the database is unhealthy.
+          upstreamSignal?.throwIfAborted();
+          const retryDelay = retryDelaysMs[attempt];
+          if (
+            !canRetry ||
+            retryDelay === undefined ||
+            !isRetryableNetworkError(error)
+          ) {
+            if (isRetryableNetworkError(error)) circuitRequest?.recordFailure();
+            if (options.returnUnavailableResponse && isRetryableNetworkError(error)) {
+              return createSupabaseUnavailableResponse();
+            }
+            throw error;
+          }
+          await waitForRetry(retryDelay, upstreamSignal);
         }
-        await waitForRetry(retryDelay, init?.signal);
       }
+    } finally {
+      // Cancellation during fetch or retry sleep, and unexpected failures,
+      // must release the recovery probe without declaring recovery success.
+      circuitRequest?.release();
     }
   };
 }
