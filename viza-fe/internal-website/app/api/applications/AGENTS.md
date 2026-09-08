@@ -102,6 +102,13 @@ ports directly.
   the client can keep polling without losing the durable submission state. Its
   status derivation helpers live in the adjacent `route-handler.ts` module so
   the Next route exports only HTTP methods/configuration.
+  The 8-second request deadline and client disconnect share one abort signal
+  across Auth, database fetches and retries. Stop between read stages after
+  cancellation; do not restore a response-only `Promise.race` timeout. The
+  Next `after` hook keeps the already-started aborted operation alive only
+  until its fetch/permit cleanup settles when Vercel reclaims the request.
+  Adjacent `request-lifecycle.test.ts` covers GET cancellation, ownership,
+  deadline and normal response behavior with local dependencies.
 - `viza-fe/internal-website/app/api/applications/customer-submission-result.ts`
   creates the browser-safe submission-result projection. UK portal credentials,
   ciphertext, usernames, and force-resume URLs must never cross the customer

@@ -540,6 +540,48 @@ CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文�
 部署 URL：`https://viza-internal-32eoioajp-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_CUP7WmNVsGJqD4pyJMekfCSc8Jh7` 已记录供现有回滚流程使用。
 
+## 第十轮：状态读取的请求级取消与截止时间
+
+状态轮询 API 原来用 `Promise.race` 在 8 秒后返回 503，但认证与数据库读取
+仍可能继续运行。本轮将同一个取消信号传给整个只读请求：浏览器断开或总计
+8 秒截止时间到达时，取消已发出的 Supabase Auth/REST 请求和重试等待，并在
+profile、application、queue/runner 读取之间检查取消，防止启动后续查询。
+
+- `createClient` 和 `createAdminClient` 可选接收 `requestSignal`；共享 fetch
+  包装层将其与每次调用的 signal 合并，单次读取取消不会误取消同一客户端的
+  其他请求。取消不计入数据库故障，也不触发重试；原有熔断 permit 清理保留。
+- Node 原生 signal 合并保持取消信号与响应 body 相连，即使服务器已经返回
+  headers，整体截止时间或浏览器取消仍可中止 body 读取。每次 fetch 的原有
+  独立超时仍止于 headers；旧浏览器缺少 `AbortSignal.any` 时保留原有兼容路径。
+- Vercel 只为 `app/api/applications/*/submission-status/route.ts` 开启
+  `supportsCancellation`，该 glob 在当前仓库只匹配一个状态读取路由。
+  Next `after()` 仅等待已经启动的请求完成取消清理，避免客户端断开后执行环境
+  提前回收；它不会另起查询或后台任务。
+- 客户端取消在应用侧返回 499；整体超时/上游不可用仍返回可重试 503 和
+  `Retry-After: 3`。已取消请求等待实际操作结算，不用响应超时掩盖仍运行的
+  操作。权限检查、状态映射与用户数据不缓存的规则保留。
+
+这是减少无用请求占用的改动，没有提高机器或数据库额度；HTTP 取消不能证明
+PostgreSQL 已经执行的语句立即终止。本地测试也不代表生产持续登录容量认证。
+
+### 第十轮本地验证
+
+相关测试 121 项通过：共享 fetch 30、熔断 9、环境解析 3、真实 SDK/本地 HTTP
+集成 2、实际 GET 生命周期 8、状态映射 40、客户端轮询 29。
+
+真实 SDK 集成测试只连接临时本机 HTTP 服务：服务器先返回 200 headers 和
+部分 JSON，再保持连接；取消信号使单个及两个并行 REST 读取的连接都提前关闭，
+没有继续重试。GET 测试覆盖预先取消、Auth fallback、读取阶段取消、8 秒截止
+时间、并行 queue/runner、ownership 403、正常状态脱敏，以及底层模拟查询忽略
+取消时等待其结算和 `after()` 清理。所有依赖均为虚构数据，无生产服务调用。
+
+本地 Next 运行使用虚构凭据与本机服务地址。浏览器访问
+`/client/application?country=germany&visaType=schengen_c` 正确跳到登录页，
+匿名状态 API 返回结构化 401，验证实际 Next 请求上下文可执行新增的 `after()`。
+临时服务与浏览器页已关闭。前端 `type-check` 通过（Node heap 4 GiB），全量
+lint 为 0 错误、62 项原有警告；本轮修改的 runtime 与新增测试均单独通过
+`eslint --no-ignore`。没有增加依赖或调用真实 provider。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
@@ -563,6 +605,8 @@ CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文�
 
 - [Supabase 连接预算](https://supabase.com/docs/guides/database/connection-management)
 - [Supabase 请求取消](https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal)
+- [Vercel 函数取消与清理](https://vercel.com/docs/functions/functions-api-reference)
+- [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after)
 - [RLS InitPlan advisor](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan)
 - [外键索引 advisor](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys)
 - [PostgreSQL 17 CTE 与物化](https://www.postgresql.org/docs/17/queries-with.html)

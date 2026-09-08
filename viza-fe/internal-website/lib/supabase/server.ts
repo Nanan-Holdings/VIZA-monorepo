@@ -7,6 +7,7 @@ export type SupabaseClientOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
   circuitBreakerScope?: string;
+  requestSignal?: AbortSignal;
 };
 
 export async function createClient(options: SupabaseClientOptions = {}) {
@@ -27,6 +28,7 @@ export async function createClient(options: SupabaseClientOptions = {}) {
           requestTimeoutMs: options.requestTimeoutMs,
           retryDelaysMs: options.retryDelaysMs,
           circuitBreakerScope: options.circuitBreakerScope,
+          requestSignal: options.requestSignal,
         }),
       },
       cookies: {

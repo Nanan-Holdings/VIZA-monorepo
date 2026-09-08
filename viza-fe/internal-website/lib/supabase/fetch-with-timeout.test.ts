@@ -53,6 +53,19 @@ function pendingFetchThatRejectsOnAbort(reason: unknown) {
   );
 }
 
+function pendingFetchThatRejectsWithSignal() {
+  return vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }),
+  );
+}
+
 function requestWithSignal(url: string, signal: AbortSignal): Request {
   const request = new Request(url);
   Object.defineProperty(request, "signal", { configurable: true, value: signal });
@@ -107,6 +120,52 @@ describe("createFetchWithTimeout", () => {
     controller.abort(new DOMException("cancelled", "AbortError"));
 
     await expect(request).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("keeps an upstream abort connected to the response body after headers arrive", async () => {
+    const controller = new AbortController();
+    const reason = new Error("request cancelled while reading body");
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(streamController) {
+          init?.signal?.addEventListener(
+            "abort",
+            () => streamController.error(init.signal?.reason),
+            { once: true },
+          );
+        },
+      });
+      return Promise.resolve(new Response(body));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createFetchWithTimeout(1_000)("https://example.test", {
+      signal: controller.signal,
+    });
+    const body = response.text();
+    controller.abort(reason);
+
+    await expect(body).rejects.toBe(reason);
+  });
+
+  it("preserves per-call cancellation when AbortSignal.any is unavailable", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+    try {
+      const controller = new AbortController();
+      const reason = new DOMException("cancelled", "AbortError");
+      const fetchMock = pendingFetchThatRejectsWithSignal();
+      vi.stubGlobal("fetch", fetchMock);
+      const pending = createFetchWithTimeout(1_000)("https://example.test", {
+        signal: controller.signal,
+      });
+
+      controller.abort(reason);
+      await expect(pending).rejects.toBe(reason);
+      expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+      if (anyDescriptor) Object.defineProperty(AbortSignal, "any", anyDescriptor);
+    }
   });
 
   it("honors a pre-aborted Request signal without invoking fetch", async () => {
@@ -206,6 +265,114 @@ describe("createFetchWithTransientRetry", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     controller.abort(reason);
     await expect(pending).rejects.toBe(reason);
+  });
+
+  it("aborts all requests from a request-wide signal, including an auth request", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("request cancelled", "AbortError");
+    const fetchMock = pendingFetchThatRejectsWithSignal();
+    vi.stubGlobal("fetch", fetchMock);
+    const resilientFetch = createFetchWithTransientRetry({
+      requestSignal: controller.signal,
+      retryDelaysMs: [],
+      circuitBreakerScope: null,
+    });
+
+    const dataRequest = resilientFetch("https://example.test/rest/v1/applications");
+    const authRequest = resilientFetch("https://example.test/auth/v1/token", { method: "POST" });
+    const dataRejected = expect(dataRequest).rejects.toBe(reason);
+    const authRejected = expect(authRequest).rejects.toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    controller.abort(reason);
+    await Promise.all([dataRejected, authRejected]);
+  });
+
+  it("keeps per-call cancellation local while preserving the request-wide signal for siblings", async () => {
+    const requestController = new AbortController();
+    const globalController = new AbortController();
+    const requestReason = new DOMException("one request cancelled", "AbortError");
+    const globalReason = new DOMException("request scope cancelled", "AbortError");
+    const fetchMock = pendingFetchThatRejectsWithSignal();
+    vi.stubGlobal("fetch", fetchMock);
+    const resilientFetch = createFetchWithTransientRetry({
+      requestSignal: globalController.signal,
+      retryDelaysMs: [],
+      circuitBreakerScope: null,
+    });
+
+    const request = resilientFetch("https://example.test/rest/v1/first", {
+      signal: requestController.signal,
+    });
+    const sibling = resilientFetch("https://example.test/rest/v1/second");
+    const requestRejected = expect(request).rejects.toBe(requestReason);
+    const siblingRejected = expect(sibling).rejects.toBe(globalReason);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    requestController.abort(requestReason);
+    await requestRejected;
+    expect(globalController.signal.aborted).toBe(false);
+
+    globalController.abort(globalReason);
+    await siblingRejected;
+  });
+
+  it("composes a Request object's signal with the request-wide signal", async () => {
+    const globalController = new AbortController();
+    const requestController = new AbortController();
+    const reason = new DOMException("request scope cancelled", "AbortError");
+    const fetchMock = pendingFetchThatRejectsWithSignal();
+    vi.stubGlobal("fetch", fetchMock);
+    const resilientFetch = createFetchWithTransientRetry({
+      requestSignal: globalController.signal,
+      retryDelaysMs: [],
+      circuitBreakerScope: null,
+    });
+    const request = requestWithSignal("https://example.test/rest/v1/applications", requestController.signal);
+    const pending = resilientFetch(request);
+    const rejected = expect(pending).rejects.toBe(reason);
+
+    globalController.abort(reason);
+    await rejected;
+    expect(requestController.signal.aborted).toBe(false);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not invoke fetch for a pre-aborted request-wide signal", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("request scope cancelled", "AbortError");
+    controller.abort(reason);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createFetchWithTransientRetry({
+        requestSignal: controller.signal,
+        circuitBreakerScope: null,
+      })("https://example.test/rest/v1/applications"),
+    ).rejects.toBe(reason);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not start another attempt when a request-wide signal aborts during retry wait", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("request scope cancelled", "AbortError");
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resilientFetch = createFetchWithTransientRetry({
+      requestSignal: controller.signal,
+      retryDelaysMs: [20_000],
+      circuitBreakerScope: null,
+    });
+
+    const pending = resilientFetch("https://example.test/rest/v1/applications");
+    const rejected = expect(pending).rejects.toBe(reason);
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    controller.abort(reason);
+
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it.each([

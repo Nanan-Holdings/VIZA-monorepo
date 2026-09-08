@@ -21,6 +21,16 @@ which is the compute region nearest the production Supabase primary in
 primary database is deliberately migrated; static assets remain globally
 served by Vercel's CDN.
 
+Vercel request cancellation is enabled only for the read-only
+`app/api/applications/*/submission-status/route.ts` function. Keep that glob
+narrow: payment, upload, enqueue and other mutation routes must not inherit
+automatic termination on disconnect. Its request-wide abort signal is opt-in
+through `createClient` / `createAdminClient` `requestSignal`, and must remain
+connected to in-progress response body reads after fetch returns headers.
+`lib/supabase/request-cancellation.integration.test.ts` verifies cancellation
+through the actual Supabase SDK against a local HTTP server, including slow
+JSON bodies and parallel reads; it must never use production credentials.
+
 ## Purpose
 
 The internal website is the main VIZA portal. It contains the applicant client

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -1101,8 +1101,11 @@ const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
 async function getSubmissionStatus(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
+  signal: AbortSignal,
 ): Promise<Response> {
+  signal.throwIfAborted();
   const { id: applicationId } = await context.params;
+  signal.throwIfAborted();
   if (!applicationId) {
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
@@ -1110,15 +1113,19 @@ async function getSubmissionStatus(
   // Client routes still support the signed legacy client_session cookie. Prefer
   // it here so status polling keeps working while a Supabase session refreshes.
   const legacySession = await getClientSessionFromRequest(request);
+  signal.throwIfAborted();
   let authUserId: string | null = null;
   if (!legacySession) {
     const supabase = await createClient({
       requestTimeoutMs: 3_000,
       retryDelaysMs: [250],
+      requestSignal: signal,
     });
+    signal.throwIfAborted();
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    signal.throwIfAborted();
     authUserId = user?.id ?? null;
   }
   if (!legacySession && !authUserId) {
@@ -1128,6 +1135,7 @@ async function getSubmissionStatus(
   const admin = createAdminClient({
     requestTimeoutMs: 4_000,
     retryDelaysMs: [250],
+    requestSignal: signal,
   });
   const profileQuery = admin
     .from("applicant_profiles")
@@ -1135,6 +1143,7 @@ async function getSubmissionStatus(
   const { data: profile, error: profileError } = legacySession
     ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
     : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
+  signal.throwIfAborted();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -1150,6 +1159,7 @@ async function getSubmissionStatus(
     )
     .eq("id", applicationId)
     .maybeSingle();
+  signal.throwIfAborted();
 
   if (applicationError) {
     return NextResponse.json({ error: applicationError.message }, { status: 500 });
@@ -1187,6 +1197,7 @@ async function getSubmissionStatus(
     queueQuery,
     runnerQuery ?? Promise.resolve({ data: [], error: null }),
   ]);
+  signal.throwIfAborted();
 
   if (queueError) {
     return NextResponse.json({ error: queueError.message }, { status: 500 });
@@ -1300,19 +1311,33 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(request.signal.reason);
+  if (request.signal.aborted) forwardAbort();
+  else request.signal.addEventListener("abort", forwardAbort, { once: true });
+
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException("Submission status upstream request timed out", "TimeoutError")),
+    SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+  );
   try {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeout = setTimeout(
-        () => reject(new Error("Submission status upstream request timed out")),
-        SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
-      );
-    });
-    return await Promise.race([
-      getSubmissionStatus(request, context),
-      timeoutPromise,
-    ]);
+    controller.signal.throwIfAborted();
+    // The same signal reaches Auth, data fetches and retry sleeps. Await their
+    // actual settlement so a response timeout cannot leave new queries running
+    // through the remainder of the status pipeline in the background.
+    const statusRequest = getSubmissionStatus(request, context, controller.signal);
+    // Vercel may reclaim a cancelled invocation. Keep only this already-started
+    // operation alive long enough to settle aborted fetches and release their
+    // circuit permits; cancellation checks prevent subsequent read stages.
+    after(async () => { await statusRequest.catch(() => undefined); });
+    return await statusRequest;
   } catch (error) {
+    if (request.signal.aborted) {
+      return NextResponse.json(
+        { error: "Submission status request cancelled." },
+        { status: 499, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[submission-status] temporarily unavailable:", message);
     return NextResponse.json(
@@ -1329,6 +1354,7 @@ export async function GET(
       },
     );
   } finally {
-    if (timeout) clearTimeout(timeout);
+    clearTimeout(timeout);
+    request.signal.removeEventListener("abort", forwardAbort);
   }
 }

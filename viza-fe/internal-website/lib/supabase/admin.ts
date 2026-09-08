@@ -8,6 +8,7 @@ type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 type SupabaseAdminClientOptions = {
   requestTimeoutMs?: number;
   retryDelaysMs?: readonly number[];
+  requestSignal?: AbortSignal;
 };
 
 /**
@@ -37,6 +38,7 @@ export function createAdminClient(options: SupabaseAdminClientOptions = {}) {
       fetch: createFetchWithTransientRetry({
         requestTimeoutMs: options.requestTimeoutMs,
         retryDelaysMs: options.retryDelaysMs,
+        requestSignal: options.requestSignal,
       }),
     },
   });
