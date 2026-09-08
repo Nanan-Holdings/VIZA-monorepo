@@ -160,4 +160,174 @@ describe("ProviderConcurrencyGate", () => {
       executionAborted: 1,
     });
   });
+
+  it("keeps a timed-out slot until the provider settles, then grants the FIFO waiter", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = new ProviderConcurrencyGate(1, 1, 1_000, 50);
+      let resolveProvider!: (value: string) => void;
+      const providerResult = new Promise<string>((resolve) => {
+        resolveProvider = resolve;
+      });
+      let providerStarted = false;
+      let waiterStarted = false;
+      const operation = gate.run(() => {
+        providerStarted = true;
+        return providerResult;
+      });
+      const rejection = expect(operation).rejects.toMatchObject<ProviderCapacityError>({
+        code: "EXECUTION_TIMEOUT",
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(providerStarted).toBe(true);
+
+      const waiter = gate.run(async () => {
+        waiterStarted = true;
+        return "waiter";
+      });
+
+      await vi.advanceTimersByTimeAsync(50);
+      await rejection;
+      expect(waiterStarted).toBe(false);
+      expect(gate.getStats()).toMatchObject({
+        active: 1,
+        queued: 1,
+        completed: 0,
+        executionTimedOut: 1,
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(waiterStarted).toBe(false);
+      expect(gate.getStats()).toMatchObject({ active: 1, completed: 0 });
+      resolveProvider("provider-result");
+      await expect(waiter).resolves.toBe("waiter");
+      expect(waiterStarted).toBe(true);
+      expect(gate.getStats()).toMatchObject({
+        active: 0,
+        queued: 0,
+        completed: 2,
+        failed: 1,
+        queueWaitP50Ms: expect.any(Number),
+        executionP95Ms: expect.any(Number),
+      });
+      expect(gate.getStats().queueWaitP50Ms).toBeGreaterThanOrEqual(150);
+      expect(gate.getStats().executionP95Ms).toBeGreaterThanOrEqual(150);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps an aborted slot until a late provider rejection settles and is observed", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = new ProviderConcurrencyGate(1, 1, 1_000, 5_000);
+      const controller = new AbortController();
+      let rejectProvider!: (error: Error) => void;
+      const providerResult = new Promise<never>((_resolve, reject) => {
+        rejectProvider = reject;
+      });
+      let waiterStarted = false;
+      const operation = gate.run(() => providerResult, controller.signal);
+      const rejection = expect(operation).rejects.toMatchObject<ProviderCapacityError>({
+        code: "ABORTED",
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const waiter = gate.run(async () => {
+        waiterStarted = true;
+        return "waiter";
+      });
+
+      controller.abort();
+      await rejection;
+      expect(waiterStarted).toBe(false);
+      expect(gate.getStats()).toMatchObject({
+        active: 1,
+        queued: 1,
+        completed: 0,
+        executionAborted: 1,
+      });
+
+      rejectProvider(new Error("late provider failure"));
+      await expect(waiter).resolves.toBe("waiter");
+      expect(waiterStarted).toBe(true);
+      expect(gate.getStats()).toMatchObject({
+        active: 0,
+        queued: 0,
+        completed: 2,
+        failed: 1,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not start work when a synchronously aborted run has only acquired a slot", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = new ProviderConcurrencyGate(1, 1, 1_000, 5_000);
+      const controller = new AbortController();
+      let workStarted = false;
+      const operation = gate.run(async () => {
+        workStarted = true;
+        return "unexpected";
+      }, controller.signal);
+      const rejection = expect(operation).rejects.toMatchObject<ProviderCapacityError>({
+        code: "ABORTED",
+      });
+
+      controller.abort();
+      await rejection;
+      expect(workStarted).toBe(false);
+      expect(gate.getStats()).toMatchObject({
+        active: 0,
+        queued: 0,
+        completed: 1,
+        failed: 1,
+        executionAborted: 1,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips a waiter aborted after grant and lets the next waiter continue", async () => {
+    vi.useFakeTimers();
+    try {
+      const gate = new ProviderConcurrencyGate(1, 2, 1_000, 5_000);
+      const releaseFirst = await gate.acquire();
+      const grantedController = new AbortController();
+      let grantedWorkStarted = false;
+      let nextWorkStarted = false;
+      const granted = gate.run(async () => {
+        grantedWorkStarted = true;
+        return "unexpected";
+      }, grantedController.signal);
+      const grantedRejection = expect(granted).rejects.toMatchObject<ProviderCapacityError>({
+        code: "ABORTED",
+      });
+      const next = gate.run(async () => {
+        nextWorkStarted = true;
+        return "next";
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      releaseFirst({ failed: false, durationMs: 1 });
+      grantedController.abort();
+      await grantedRejection;
+      expect(grantedWorkStarted).toBe(false);
+
+      await expect(next).resolves.toBe("next");
+      expect(nextWorkStarted).toBe(true);
+      expect(gate.getStats()).toMatchObject({
+        active: 0,
+        queued: 0,
+        completed: 3,
+        failed: 1,
+        aborted: 0,
+        executionAborted: 1,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

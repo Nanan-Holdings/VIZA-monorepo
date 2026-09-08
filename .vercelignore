@@ -8,6 +8,7 @@
 /.dev-logs
 /.git
 /.github
+/.mcp.json
 /.ralph
 /.release
 /.tmp
@@ -22,6 +23,8 @@
 /shared
 /supabase
 /travel-agent
+/tmp
+/Tempcodex-browser-qa
 /vietnam-visa-helper-v1
 /viza-be
 
@@ -35,8 +38,11 @@
 /progress.txt
 **/.env*
 **/.vercel
+**/.dev-logs
+**/.playwright-cli
+**/output
 **/node_modules
-**/.next
+**/.next*
 **/.turbo
 **/__pycache__
 **/*.tsbuildinfo

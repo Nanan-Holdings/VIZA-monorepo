@@ -14,6 +14,7 @@ import chatSaveBlockRouter from './routes/chat-save-block.routes.js';
 import internalAutomationRouter from './routes/internal-automation/index.js';
 import submissionResultRouter from './routes/submission-result.routes.js';
 import passportScanRouter from './routes/passport-scan.routes.js';
+import { createPassportScanAdmission } from './routes/passport-scan-admission.js';
 import ukAccountRouter from './routes/uk-account.routes.js';
 import {
   officialFeeApplicationRouter,
@@ -70,16 +71,18 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // Passport scan / OCR receives a base64 image and therefore needs a larger
 // parser than ordinary API requests. Mount this before the 1 MB global parser
-// and retain the route's own ~8 MB base64 validation cap.
+// and retain the route's own ~8 MB base64 validation cap. Admission must run
+// before either parser so rejected uploads do not enter the large-body parser.
 app.use(
   '/api/passport-scan',
+  createPassportScanAdmission(),
   express.json({ limit: '15mb' }),
   express.urlencoded({ extended: true, limit: '15mb' }),
   passportScanRouter,
 );
 
 // Keep normal API payloads small. The passport OCR endpoint is mounted with
-// its own parser below, before this global parser can reject its larger image.
+// its own parser above, before this global parser can reject its larger image.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

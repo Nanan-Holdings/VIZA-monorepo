@@ -284,8 +284,201 @@ function requestBodies(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) {
 
 describe("passport OCR provider", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+  });
+
+  it("does not start a provider request when the caller is already aborted", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const reason = new Error("client disconnected");
+    controller.abort(reason);
+
+    await expect(
+      extractPassportOcr(
+        {
+          bytes: Buffer.from("synthetic image bytes"),
+          filename: "passport.jpg",
+          mimeType: "image/jpeg",
+        },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(reason);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards cancellation during fetch without starting a retry", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_RETRY_DELAY_MS", "1");
+    const controller = new AbortController();
+    const reason = new DOMException("client disconnected", "AbortError");
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock.mockImplementation((_input, init) => new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const extraction = extractPassportOcr(
+      {
+        bytes: Buffer.from("synthetic image bytes"),
+        filename: "passport.jpg",
+        mimeType: "image/jpeg",
+      },
+      { signal: controller.signal },
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    controller.abort(reason);
+
+    await expect(extraction).rejects.toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the retry delay before another provider request starts", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_RETRY_DELAY_MS", "1000");
+    const controller = new AbortController();
+    const reason = new Error("client disconnected during retry delay");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const extraction = extractPassportOcr(
+      {
+        bytes: Buffer.from("synthetic image bytes"),
+        filename: "passport.jpg",
+        mimeType: "image/jpeg",
+      },
+      { signal: controller.signal },
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    controller.abort(reason);
+
+    await expect(extraction).rejects.toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the request deadline active while the response body is read", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_REQUEST_TIMEOUT_MS", "20");
+    vi.stubEnv("PASSPORT_OCR_REQUEST_ATTEMPTS", "1");
+    let bodyAborted = false;
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock.mockImplementation(async (_input, init) => {
+      const signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        body: null,
+        json: () => new Promise<unknown>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => {
+            bodyAborted = true;
+            reject(signal.reason);
+          }, { once: true });
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+
+    const extraction = extractPassportOcr({
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    });
+    const rejected = expect(extraction).rejects.toMatchObject({
+      code: "provider_unavailable",
+      retryable: true,
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    await rejected;
+    expect(bodyAborted).toBe(true);
+  });
+
+  it("waits for a late successful fetch settlement without retrying after cancellation", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const controller = new AbortController();
+    const reason = new Error("client disconnected");
+    let settleFetch: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(
+      () => new Promise<Response>((resolve) => {
+        settleFetch = resolve;
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const extraction = extractPassportOcr(
+      {
+        bytes: Buffer.from("synthetic image bytes"),
+        filename: "passport.jpg",
+        mimeType: "image/jpeg",
+      },
+      { signal: controller.signal },
+    );
+    let settled = false;
+    void extraction.catch(() => {
+      settled = true;
+    });
+    controller.abort(reason);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    settleFetch?.(successResponse());
+    await expect(extraction).rejects.toBe(reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not accept a late successful body after the request deadline", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    vi.stubEnv("PASSPORT_OCR_REQUEST_TIMEOUT_MS", "20");
+    vi.stubEnv("PASSPORT_OCR_REQUEST_ATTEMPTS", "1");
+    const successfulBody = await successResponse().json();
+    let resolveBody: ((value: unknown) => void) | undefined;
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: null,
+      json: () => new Promise<unknown>((resolve) => {
+        resolveBody = resolve;
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+
+    const extraction = extractPassportOcr({
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    });
+    const rejected = expect(extraction).rejects.toMatchObject({
+      code: "provider_unavailable",
+      retryable: true,
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    resolveBody?.(successfulBody);
+
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a successful response whose JSON body is malformed", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("not-json", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(extractPassportOcr({
+      bytes: Buffer.from("synthetic image bytes"),
+      filename: "passport.jpg",
+      mimeType: "image/jpeg",
+    })).rejects.toBeInstanceOf(SyntaxError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("sends PDFs as data URLs accepted by the OpenAI file input", async () => {

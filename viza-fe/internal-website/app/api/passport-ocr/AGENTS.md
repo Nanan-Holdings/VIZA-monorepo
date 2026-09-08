@@ -29,7 +29,18 @@ confirm extracted data before it updates profile or application answers.
 ## Important Files
 
 - `route.ts`: authenticated POST boundary, ownership validation, storage
-  download, audit metadata, and structured responses.
+  download, audit metadata, and structured responses. Admission happens before
+  database/Storage/provider work; retain exact applicant/application/document
+  ownership checks. Reject oversized/unsupported Blobs before copying bytes.
+- `capacity.ts`: no-queue OCR admission per warm function instance, default 4,
+  configurable through `PASSPORT_OCR_MAX_CONCURRENCY` with a hard maximum of 16.
+  Overflow returns retryable `provider_unavailable` 503 with `Retry-After: 2`.
+  Hold admission until the underlying operation and audit cleanup actually
+  settle, including after caller cancellation. Never cache applicant data here;
+  this is not a distributed limit across Vercel instances.
+- `route.test.ts`: actual POST handler and capacity with simulated auth,
+  ownership-filtered database, Storage and provider work; covers overload,
+  cancellation/draining, file rejection and recovery without real documents.
 - `provider.ts`: server-only OCR adapter. Default provider is `openai_vision`
   and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`. MRZ name
   fields should remain surname/given-name authoritative when available. Calls
@@ -39,6 +50,9 @@ confirm extracted data before it updates profile or application answers.
   that require an outbound HTTPS proxy may set `PASSPORT_OCR_PROXY_URL` (or the
   conventional `HTTPS_PROXY`); TLS still terminates against the official
   `api.openai.com` origin.
+  Pass the request's AbortSignal through all provider calls and retries. Caller
+  cancellation must prevent further retries/model fallbacks; request deadlines
+  must cover response body consumption as well as response headers.
 - `provider.test.ts`: mocked-provider regression tests for request payloads,
   model fallback, and structured parsing.
 - `types.ts`: response, proposal, provider, and error contracts.

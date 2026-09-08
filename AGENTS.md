@@ -17,6 +17,9 @@ D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
 Production Vercel uploads use the root `.vercelignore` because the linked
 project's `rootDirectory` is `viza-fe/internal-website`. Keep local build
 artifacts and non-frontend services out of the deployment bundle.
+Before CLI uploads, inspect `vercel deploy --dry --json`; local browser evidence,
+temporary documents, `.dev-logs`, and `.next*` backup caches must be excluded at
+every directory depth, along with environment files and MCP configuration.
 
 Production Vercel deployments must authenticate with the organization-owned
 VIZA Google account. Never deploy from a personal Google identity or personal

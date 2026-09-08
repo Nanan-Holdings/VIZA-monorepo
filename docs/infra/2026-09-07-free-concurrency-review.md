@@ -268,6 +268,128 @@ Playwright 验证本地首页及移动宽度状态页都跳转登录页，登录
 full detail 仍生成原有签名。类型检查通过，完整 lint 无 error（原有 62 项
 warning），两份新增/扩展测试另行用 `eslint --no-ignore` 检查通过。
 
+## 第五轮：超时任务结束后再归还 AI 并发额度（2026-09-08 继续）
+
+发现 `ProviderConcurrencyGate.run()` 原先在请求超时/取消后立即归还额度。
+底层 provider 如果尚未响应取消，实际请求会继续运行，后续重试却能使用刚归还
+的额度，从而让真实运行任务数超过配置上限。OCR、字段指导、校验和 embedding
+调用都已传递取消信号，但取消信号本身不代表底层任务已经结束。
+
+现在调用方仍按原有超时及时收到错误；运行额度、完成计数和执行耗时等到底层
+Promise 实际结束才更新。迟到的成功/失败都会被观察并只释放一次，排队者按
+先后顺序继续。已获得额度、但执行前被取消的请求不再启动新的 provider 调用。
+请求监听器及 gate 自身的 abort 监听器会清理。没有提高 8 个运行/32 个排队的
+默认额度，也没有新增服务、依赖或跨请求用户数据缓存。
+
+若某底层操作永久不结束，它会持续占用额度，后续排队者按原有上限和超时收到
+拒绝；不能一边释放仍在使用的额度，一边保证真实并发不超限。因此监控的 active
+和 execution latency 现在反映实际占用，包括请求已经结束后的清理阶段。
+
+本地五组回归共 19 项通过：gate 12 项、调用接线 2 项、HTTP 请求取消 2 项、
+OCR 错误响应 2 项，以及新增真实 OCR HTTP 路由 + 真实 gate 的恢复测试 1 项。
+新增 gate 回归包含延迟 resolve/reject、超时后等待、执行前取消和队列交接取消；
+50ms 请求超时、底层在 150ms 结束时，执行与排队耗时仍记录完整 150ms。
+HTTP 用模拟 provider 验证超时返回 503、排队重试仍为 503 且不启动新任务，
+旧任务结束后新请求恢复 200。没有实际 AI 调用、数据库操作或生产流量。
+类型检查通过，lint 无 error（原有 1 项 warning）；未部署。
+
+## 第六轮：在解析 OCR 大请求体之前限制并发（2026-09-08 继续）
+
+后端 `/api/passport-scan/extract` 原有 provider gate 在 JSON 解析之后才运行。
+突发请求即使最终排队失败，仍可能先解析并保留大块 base64 数据。现在
+`src/routes/passport-scan-admission.ts` 在 `src/app.ts` 的两个 OCR 专用解析器
+之前执行：每个进程默认允许 4 个 OCR HTTP 请求，环境变量
+`PASSPORT_SCAN_MAX_IN_FLIGHT` 可调整，硬上限为 16；非法值使用默认值。
+
+满额直接返回 503、`Retry-After: 2`、`Cache-Control: no-store` 和
+`Connection: close`，不进入大请求体解析器，也不增加另一层等待队列。
+普通路由不使用这个额度；原有普通 API 1 MiB、OCR 解析器 15 MiB、OCR 路由
+base64 字段 8 MiB 限制不变。请求处理完、连接提前关闭或上传中断时只释放一次。
+完整上传后的 request `close` 不能提前释放仍在处理的 OCR 请求。
+慢速上传仍会占用额度直到连接结束或服务的请求接收超时；本轮没有新增 OCR
+专属上传超时。多副本各自持有额度，不形成集群共享上限。
+
+这里的 4 个额度限制 HTTP 请求的解析和处理阶段；响应结束后仍未清理完的
+provider 操作继续占用第五轮修复的独立 provider gate。它不是每秒请求额度，
+也不是全站用户人数上限，不会让单次 OCR 变快。预期收益是限制突发大请求的
+解析和持有数量，减少它们挤占其他功能资源的机会；未测量实际堆内存节省值。
+
+本地新增 8 项回归通过。真实 Express app、解析器和 loopback HTTP 使用模拟
+OCR handler，保留 4 个大于 1 MiB 的请求，再发送 96 个重叠请求，验证后者
+即使 JSON 无效也直接收到 503，只有前 4 个进入 handler，`/live` 同时返回
+200。前 4 个完成后均返回 200，新请求也恢复 200。另验证 4 个未传完的上传
+占满额度，中断一个后可进入新请求；格式错误和超限请求不会泄漏额度。
+单元测试覆盖配置、重复完成事件、正常上传完成与响应关闭的区别。
+
+与已有 provider gate、调用接线、取消、OCR 错误响应/延迟清理和 readiness
+回归合并运行，共 8 个文件、30 项测试通过。类型检查通过，完整 lint 无 error
+（原有 1 项 warning）。没有调用真实 AI、数据库或生产接口，没有新增依赖或
+付费资源，代码尚未部署。这是过载保护验证，不能当作 100 个 OCR 请求全部
+成功或 100 个真实登录用户持续访问的容量证明。
+
+```powershell
+# 在 viza-be/agent-backend
+npm test -- --run src/app.passport-admission.test.ts src/routes/passport-scan-admission.test.ts src/routes/passport-scan-capacity.test.ts src/routes/passport-scan-draining.test.ts src/routes/request-abort.test.ts src/utils/provider-capacity.test.ts src/app.ready.test.ts src/utils/provider-capacity-wiring.test.ts
+npm run type-check
+npm run lint
+```
+
+调用链核对发现营销网站申请页的 `/api/passport-scan/extract` 代理会调用这个
+后端接口；该代理目前不转发 `Retry-After`。内部网站当前组件主要使用独立的
+`/api/passport-ocr`，直接读取 Storage 并调用 OpenAI，不经过本轮后端准入层。
+后续应单独优化这条活跃路径，并保持文件所有权验证、取消和本地模拟验证；
+不能把本轮成果描述为所有 OCR 入口都已受保护。
+
+## 第七轮：内部网站 OCR 并发与取消（2026-09-08）
+
+内部网站当前使用的 `/api/passport-ocr` 现在也有独立准入保护。完成登录和
+基本参数验证后，每个 warm function instance 默认允许 4 个请求进入后续
+数据库校验、Storage 下载、provider 和审计更新，配置
+`PASSPORT_OCR_MAX_CONCURRENCY` 的硬上限为 16。满额不创建 admin client、
+不下载文件、不创建提取记录、不启动 AI 调用；直接返回现有错误码
+`provider_unavailable`、503 和 `Retry-After: 2`，保留客户端现有重试/翻译
+兼容性。忙碌和取消的新文案按 `NEXT_LOCALE` 返回中英文。
+
+准入层没有等待队列或用户数据缓存。所有权条件仍同时限制当前用户的申请和
+该申请的证件。下载得到 Blob 后先验证大小和类型，再分配用于 provider 的
+Buffer，避免为不支持或超限文件多复制一次数据；Storage 已下载的 Blob 本身
+仍占内存，因此这不是流式文件大小硬限制。
+
+请求取消会阻止下一阶段和后续 AI 重试；provider 的单次请求期限覆盖响应体
+读取。名额在真实操作和审计清理结束后才归还，不以发出 abort 信号作为完成
+证据。当前 Storage SDK 下载接口没有请求级 signal 参数，取消期间的下载仍
+等待实际结束并继续占用名额，随后不启动 AI。多实例各自计数，不构成整个
+Vercel 项目的共享请求上限，也不保证生产在线人数。
+
+本地 25 项回归通过：provider 19 项、真实 POST handler + 实际 gate 4 项、
+上传组件 2 项。合成 100 个重叠调用时只有 4 个进入后续处理，96 个在任何
+admin client/DB/Storage/provider 工作前收到 503；已进入的 4 个结束后全部
+200，新请求恢复。取消中的 provider 延迟结束时仍占用额度，跨用户申请拒绝、
+超限/不支持文件不分配 ArrayBuffer、成功仍需用户确认都已验证。provider
+覆盖响应头之后的读取超时、取消后无重试、迟到结果丢弃和无效 JSON 不重复
+收费调用。所有数据和外部依赖均为本地替身。
+
+前端类型检查通过（检查进程临时使用 4 GiB Node 堆），完整 lint 无 error
+（原有 62 项 warning），新增/扩展测试用 `eslint --no-ignore` 检查通过。
+真实 Next.js 本地 `/api/passport-ocr` 未登录 POST 返回 401/private no-store，
+浏览器 `/client/application` 跳转并正常渲染登录页；本地服务使用 loopback
+Supabase 和合成 key，OCR provider 关闭，随后停止。后端生产 build 通过，
+第五、六轮对应的 30 项测试和类型/lint 证据见上文。未执行真实登录持续压测。
+
+### 发布准备
+
+本轮用户已明确要求部署。只读核验确认 Vercel CLI 使用 VIZA 组织账号，目标
+为 `viza-internal`、team `team_pC3NgoVZbeD6QxTuS1o2E6Hg`，项目根目录
+`viza-fe/internal-website`，生产函数区域仍为 `bom1`。发布前的生产 deployment
+为 `dpl_jL72fmuhv27xjEeqo4HeWbgBLS1p`，别名 `app.viza.it.com`。
+Render `/health` 已报告 `7fc62a9e2c7b0e6320ceacc42d4be6382e8bc23a`，证明前四轮
+已提交的后端版本已上线；第五、六轮后端改动仍需本次发布。
+
+CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文件和旧 `.next`
+缓存。根 `.vercelignore` 现已排除这些目录及 MCP 配置，在任何层级排除
+`.dev-logs`、`.playwright-cli`、`output`、`.next*`；再次 dry run 验证相关
+本地产物和环境文件在清单中为零。没有删除这些本地文件。
+
 ## 下一步容量验收
 
 1. 通过现有发布流程上线这些代码，先观察错误率、缓存首读、DB 等待、事件循环和内存。
@@ -296,5 +418,6 @@ warning），两份新增/扩展测试另行用 `eslint --no-ignore` 检查通�
 - [PostgreSQL 17 执行计划与 BUFFERS](https://www.postgresql.org/docs/17/using-explain.html)
 - [PostgreSQL Windows 二进制入口](https://www.postgresql.org/download/windows/)
 - [EDB PostgreSQL 二进制下载](https://www.enterprisedb.com/download-postgresql-binaries?lang=en)
+- [Node.js HTTP 请求与响应生命周期](https://nodejs.org/docs/latest-v24.x/api/http.html)
 - 仓库：`docs/infra/1000-user-concurrency-roadmap.md`、
   `viza-be/agent-backend/AGENTS.md`、`viza-be/submission-service/AGENTS.md`。

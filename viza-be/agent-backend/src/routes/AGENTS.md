@@ -44,6 +44,18 @@ and internal admin flows.
   applicant bearer-token verification in browser-facing backend routes.
 - `request-abort.ts`: converts HTTP upload aborts and premature response closes
   into a request-scoped `AbortSignal` for bounded provider operations.
+- `passport-scan-admission.ts`: instance-local admission before the OCR JSON
+  and URL-encoded parsers. `PASSPORT_SCAN_MAX_IN_FLIGHT` defaults to 4 and is
+  capped at 16. Overflow receives 503, `Retry-After: 2`, and a closing connection
+  without entering a parser or another queue. Release once on response finish,
+  response close, or upload abort; a complete request's `close` event alone
+  must not release admission while OCR is running. Lifecycle and configuration
+  regressions live in `passport-scan-admission.test.ts`; full app HTTP/parser
+  coverage lives in `../app.passport-admission.test.ts`.
+- `passport-scan-draining.test.ts`: local HTTP smoke of the real OCR route and
+  provider gate with a simulated delayed provider. A timed-out operation must
+  retain capacity until it settles; retries receive redacted 503 responses and
+  OCR recovers after the old work finishes. Never call a live provider here.
 - `chat-save-block.routes.ts`: chat block persistence. Application identity
   fields are rejected by `chat-save-block-application-identity.ts`; country,
   product, package, and ownership changes must use the canonical application

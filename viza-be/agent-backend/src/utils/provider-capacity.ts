@@ -169,6 +169,14 @@ export class ProviderConcurrencyGate {
     let executionTimedOut = false;
     let executionAborted = false;
     let failed = true;
+    let workSettled = false;
+    let callerFinished = false;
+
+    const releaseSettledWork = () => {
+      if (workSettled && callerFinished) {
+        release({ failed, durationMs: Date.now() - startedAt });
+      }
+    };
 
     const abortExecution = (code: "ABORTED" | "EXECUTION_TIMEOUT") => {
       if (!executionController.signal.aborted) {
@@ -186,25 +194,42 @@ export class ProviderConcurrencyGate {
       executionTimedOut = true;
       abortExecution("EXECUTION_TIMEOUT");
     }, this.executionTimeoutMs);
+    const abortReason = () => {
+      const reason = executionController.signal.reason;
+      return reason instanceof ProviderCapacityError ? reason : new ProviderCapacityError("ABORTED");
+    };
+    let rejectForAbort: () => void;
     const aborted = new Promise<never>((_resolve, reject) => {
-      const rejectForAbort = () => {
-        const reason = executionController.signal.reason;
-        reject(reason instanceof ProviderCapacityError ? reason : new ProviderCapacityError("ABORTED"));
-      };
+      rejectForAbort = () => reject(abortReason());
       if (executionController.signal.aborted) rejectForAbort();
       else executionController.signal.addEventListener("abort", rejectForAbort, { once: true });
     });
 
+    const operation = (async () => {
+      // acquire() yields even when capacity is immediately available. A
+      // cancelled caller must not start new provider work after that yield.
+      if (executionController.signal.aborted) throw abortReason();
+      return work(executionController.signal);
+    })().finally(() => {
+      workSettled = true;
+      releaseSettledWork();
+    });
+
     try {
-      const result = await Promise.race([work(executionController.signal), aborted]);
+      const result = await Promise.race([operation, aborted]);
       failed = false;
       return result;
     } finally {
       clearTimeout(executionTimer);
       signal?.removeEventListener("abort", callerAbortListener);
+      executionController.signal.removeEventListener("abort", rejectForAbort!);
       if (executionTimedOut) this.executionTimedOut += 1;
       if (executionAborted) this.executionAborted += 1;
-      release({ failed, durationMs: Date.now() - startedAt });
+      // Aborting is cooperative: the response deadline must not advertise a
+      // free slot while the underlying operation is still draining. The race
+      // also observes late rejections, even after the caller has returned.
+      callerFinished = true;
+      releaseSettledWork();
     }
   }
 

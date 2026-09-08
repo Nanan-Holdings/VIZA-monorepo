@@ -20,7 +20,10 @@ explicitly reintroduces another provider.
   timeout defaults on three fresh connections before readiness, creates the HTTP server, attaches
   Socket.IO, registers `/visa`, and checks Supabase. `src/server-shutdown.ts`
   owns the bounded Socket.IO/HTTP/database shutdown order.
-- Express app: `src/app.ts` mounts REST routes and error handling.
+- Express app: `src/app.ts` mounts REST routes and error handling. OCR admission
+  must precede both large-body parsers; `src/app.passport-admission.test.ts`
+  exercises the actual app over loopback HTTP with a simulated OCR handler,
+  including overlapping requests, partial uploads, parser errors, and recovery.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
   `src/agent/application-context.ts` owns the request-scoped applicant profile
   and latest-application read. Keep its normal path as one nested Supabase
@@ -207,6 +210,22 @@ explicitly reintroduces another provider.
   Chat keeps its separate turn-level gate. The protected capacity route may
   expose only aggregate gate counts and bounded latency percentiles, never
   prompts, responses, request identities, model input, or provider errors.
+  Caller cancellation/deadlines reject promptly, but active slots and execution
+  latency track the underlying operation until it actually settles. Never
+  release an occupied slot merely because an abort signal was sent. Work
+  cancelled between admission and execution must not start a provider call;
+  late resolution/rejection must release exactly once and remain observed.
+  An operation that never settles retains its slot rather than admitting
+  unlimited replacement work. `src/utils/provider-capacity.test.ts` covers
+  delayed cleanup and admission cancellation; the route-level regression is
+  `src/routes/passport-scan-draining.test.ts`.
+- `src/routes/passport-scan-admission.ts` separately bounds OCR HTTP requests
+  before body parsing (default 4 per process, configurable up to 16 with
+  `PASSPORT_SCAN_MAX_IN_FLIGHT`). It has no waiting queue and returns 503 with
+  `Retry-After` on overflow. This bounds body parsing and request handling;
+  provider work draining after a response still occupies the provider gate.
+  The internal website's independent `/api/passport-ocr` route does not use
+  this backend admission middleware.
 - `src/observability/runtime-capacity.ts` owns low-cardinality process metrics
   for the secret-protected capacity endpoint. It samples event-loop delay and
   utilization plus aggregate process memory/uptime; never add PID, hostname,

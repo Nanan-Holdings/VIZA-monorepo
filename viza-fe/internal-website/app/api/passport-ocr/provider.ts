@@ -24,6 +24,12 @@ interface OpenAIExtractionOptions {
   documentKind?: "passport" | "national_identity_card";
 }
 
+interface OpenAIResponseResult {
+  response: Response;
+  body: unknown;
+  bodyError?: unknown;
+}
+
 interface RawProviderFields {
   full_name: string | null;
   native_full_name: string | null;
@@ -610,9 +616,32 @@ function positiveIntegerSetting(value: string | undefined, fallback: number): nu
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-async function waitBeforeProviderRetry(attempt: number): Promise<void> {
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException("The request was aborted", "AbortError");
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+async function waitBeforeProviderRetry(attempt: number, signal?: AbortSignal): Promise<void> {
   const delayMs = positiveIntegerSetting(process.env.PASSPORT_OCR_RETRY_DELAY_MS, 250) * attempt;
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  throwIfAborted(signal);
+  if (delayMs <= 0) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort);
+      resolve();
+    }, delayMs);
+    const handleAbort = () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener("abort", handleAbort);
+      reject(signal ? abortReason(signal) : new DOMException("The request was aborted", "AbortError"));
+    };
+
+    signal?.addEventListener("abort", handleAbort, { once: true });
+  });
 }
 
 function getOpenAIProxyDispatcher(): Dispatcher | undefined {
@@ -648,7 +677,11 @@ function getOpenAIProxyDispatcher(): Dispatcher | undefined {
   return proxyAgent;
 }
 
-async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Response> {
+async function fetchOpenAIResponse(
+  apiKey: string,
+  body: unknown,
+  upstreamSignal?: AbortSignal,
+): Promise<OpenAIResponseResult> {
   const timeoutMs = positiveIntegerSetting(
     process.env.PASSPORT_OCR_REQUEST_TIMEOUT_MS,
     DEFAULT_OPENAI_TIMEOUT_MS,
@@ -659,9 +692,24 @@ async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Respo
   );
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    throwIfAborted(upstreamSignal);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const forwardAbort = () => {
+      if (upstreamSignal?.aborted) controller.abort(abortReason(upstreamSignal));
+    };
+    const timeout = setTimeout(
+      () => controller.abort(new DOMException("Passport OCR request timed out", "TimeoutError")),
+      timeoutMs,
+    );
+
+    if (upstreamSignal?.aborted) {
+      forwardAbort();
+    } else {
+      upstreamSignal?.addEventListener("abort", forwardAbort, { once: true });
+    }
+
     try {
+      throwIfAborted(upstreamSignal);
       const response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
@@ -674,11 +722,28 @@ async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Respo
       } as RequestInit & { dispatcher?: Dispatcher });
       if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
         await response.body?.cancel().catch(() => undefined);
-        await waitBeforeProviderRetry(attempt);
+        if (controller.signal.aborted) throw controller.signal.reason;
+        await waitBeforeProviderRetry(attempt, upstreamSignal);
         continue;
       }
-      return response;
+
+      let responseBody: unknown;
+      try {
+        responseBody = await response.json();
+      } catch (error) {
+        if (response.ok) {
+          if (upstreamSignal?.aborted) throw abortReason(upstreamSignal);
+          if (controller.signal.aborted) throw error;
+          return { response, body: null, bodyError: error };
+        }
+        responseBody = null;
+      }
+
+      if (controller.signal.aborted) throw controller.signal.reason;
+
+      return { response, body: responseBody };
     } catch {
+      if (upstreamSignal?.aborted) throw abortReason(upstreamSignal);
       if (attempt >= attempts) {
         throw new PassportOcrProviderError(
           "provider_unavailable",
@@ -686,9 +751,10 @@ async function fetchOpenAIResponse(apiKey: string, body: unknown): Promise<Respo
           true,
         );
       }
-      await waitBeforeProviderRetry(attempt);
+      await waitBeforeProviderRetry(attempt, upstreamSignal);
     } finally {
       clearTimeout(timeout);
+      upstreamSignal?.removeEventListener("abort", forwardAbort);
     }
   }
 
@@ -712,13 +778,8 @@ function getOpenAIModelCandidates(): string[] {
   );
 }
 
-async function parseOpenAIErrorBody(response: Response): Promise<OpenAIErrorBody | null> {
-  try {
-    const body: unknown = await response.json();
-    return isRecord(body) ? (body as OpenAIErrorBody) : null;
-  } catch {
-    return null;
-  }
+function parseOpenAIErrorBody(body: unknown): OpenAIErrorBody | null {
+  return isRecord(body) ? (body as OpenAIErrorBody) : null;
 }
 
 function isOpenAIModelAccessError(response: Response, body: OpenAIErrorBody | null): boolean {
@@ -749,6 +810,7 @@ function isOpenAIConfigurationError(response: Response, body: OpenAIErrorBody | 
 async function extractWithOpenAI(
   file: PassportOcrFile,
   documentKind: "passport" | "national_identity_card" = "passport",
+  signal?: AbortSignal,
 ): Promise<PassportOcrProviderResult> {
   const apiKey = process.env.PASSPORT_OCR_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "your_openai_api_key_here") {
@@ -764,7 +826,8 @@ async function extractWithOpenAI(
   for (let index = 0; index < modelCandidates.length; index += 1) {
     const model = modelCandidates[index];
     for (const unreadableRetry of [false, true]) {
-      const response = await fetchOpenAIResponse(apiKey, {
+      throwIfAborted(signal);
+      const result = await fetchOpenAIResponse(apiKey, {
         model,
         input: buildOpenAIInput(file, { unreadableRetry, documentKind }),
         max_output_tokens: 900,
@@ -776,12 +839,18 @@ async function extractWithOpenAI(
             schema: PASSPORT_SCHEMA,
           },
         },
-      });
+      }, signal);
+      const { response, body: responseBody } = result;
+      throwIfAborted(signal);
+      if ("bodyError" in result) throw result.bodyError;
 
       if (!response.ok) {
-        const errorBody = await parseOpenAIErrorBody(response);
+        const errorBody = parseOpenAIErrorBody(responseBody);
         const isModelError = isOpenAIModelAccessError(response, errorBody);
-        if (isModelError && index < modelCandidates.length - 1) break;
+        if (isModelError && index < modelCandidates.length - 1) {
+          throwIfAborted(signal);
+          break;
+        }
 
         if (isOpenAIConfigurationError(response, errorBody)) {
           throw new PassportOcrProviderError(
@@ -803,7 +872,6 @@ async function extractWithOpenAI(
         );
       }
 
-      const responseBody: unknown = await response.json();
       const outputText = extractOutputText(responseBody);
       if (!outputText) {
         throw new PassportOcrProviderError("unreadable", "The passport could not be read.", false);
@@ -825,9 +893,11 @@ async function extractWithOpenAI(
           fields: EMPTY_FIELDS,
           warnings: ["document_unreadable"],
         };
+        throwIfAborted(signal);
         continue;
       }
 
+      throwIfAborted(signal);
       const normalized = normalizeFields(raw);
       return {
         provider: "openai_vision",
@@ -854,12 +924,16 @@ export function getPassportOcrProviderName(): string {
 
 export async function extractPassportOcr(
   file: PassportOcrFile,
-  options: { documentKind?: "passport" | "national_identity_card" } = {},
+  options: {
+    documentKind?: "passport" | "national_identity_card";
+    signal?: AbortSignal;
+  } = {},
 ): Promise<PassportOcrProviderResult> {
+  throwIfAborted(options.signal);
   const provider = getPassportOcrProviderName();
 
   if (provider === "openai_vision") {
-    return extractWithOpenAI(file, options.documentKind);
+    return extractWithOpenAI(file, options.documentKind, options.signal);
   }
 
   if (provider === "disabled") {
