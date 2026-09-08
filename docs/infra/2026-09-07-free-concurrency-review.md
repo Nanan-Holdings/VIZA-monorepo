@@ -582,6 +582,30 @@ PostgreSQL 已经执行的语句立即终止。本地测试也不代表生产持
 lint 为 0 错误、62 项原有警告；本轮修改的 runtime 与新增测试均单独通过
 `eslint --no-ignore`。没有增加依赖或调用真实 provider。
 
+### 第十轮发布完成
+
+- 实现提交 `eec4d1234d0114c89bab04b37c0cb624ba9196bf` 已推送 `upstream/main`。
+  再次核验组织账号 `nanan.viza2016@gmail.com`、VIZA 团队下的
+  `viza-internal`、项目 ID、frontend rootDirectory 和 Node 24.x 均正确。
+- 上传 dry run 共 1,982 个文件，本轮 runtime 和 `vercel.json` 在清单中；
+  环境文件、MCP 配置、本地日志、临时产物与构建缓存的泄漏项为零。
+- Candidate `dpl_5oJ5RU25du2jD9HUtfofvQV8rP4P` 完成生产构建和 127 个页面
+  生成，达到 `READY`。切换前登录页 200、匿名状态读取 401，随后成功 promote。
+  新配置通过 Vercel 构建；检查返回的状态路由 runtime 为 `nodejs24.x`。
+  CLI 部署元数据不暴露 `supportsCancellation`，本轮没有用真实生产申请执行
+  断开连接实验；实际 SDK 的传输取消证据来自上述本地 HTTP 测试。
+- 从正式域名 `app.viza.it.com` 再次解析确认 deployment 正是
+  `dpl_5oJ5RU25du2jD9HUtfofvQV8rP4P`，`target=production`、`readyState=READY`。
+  线上登录页 200，匿名状态读取为结构化 401；浏览器现有登录会话正常进入
+  `/client/home`，加载结束、申请导航可见、没有未处理错误页面。没有触发提交、
+  支付或输出申请人资料；临时浏览器页已关闭。
+- 本轮没有修改 agent-backend；其 Render `/health` 为 `ok`，SHA 仍是
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。没有新增付费资源、数据库迁移
+  或生产压测。现有容量验收边界保持不变。
+
+部署 URL：`https://viza-internal-77fo0ee79-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_Hs1HUfPGisac6yZgRcA6nojcD2iB` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
