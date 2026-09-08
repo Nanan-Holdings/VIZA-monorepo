@@ -1838,20 +1838,27 @@ export function SubmissionStatusStep({
     let cancelled = false;
     let pollingStoppedForAuth = false;
     let pollInFlight = false;
+    let visibilityRefreshPending = false;
     let consecutiveFailures = 0;
+    let stablePollCount = 0;
+    let lastSnapshotFingerprint: string | null = null;
     let timer: number | null = null;
     const controller = new AbortController();
 
     const scheduleNextPoll = () => {
-      if (cancelled || pollingStoppedForAuth) return;
+      if (cancelled || pollingStoppedForAuth || document.visibilityState !== "visible") return;
+      if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(
-        () => void poll(),
-        getSubmissionStatusPollDelay(consecutiveFailures),
+        () => {
+          timer = null;
+          void poll();
+        },
+        getSubmissionStatusPollDelay(consecutiveFailures, stablePollCount),
       );
     };
 
     const poll = async () => {
-      if (cancelled || pollingStoppedForAuth || pollInFlight) return;
+      if (cancelled || pollingStoppedForAuth || pollInFlight || document.visibilityState !== "visible") return;
       pollInFlight = true;
 
       try {
@@ -1923,7 +1930,7 @@ export function SubmissionStatusStep({
           return;
         }
         if (!cancelled) {
-          setSnapshot({
+          const nextSnapshot: SubmissionStatusSnapshot = {
             status: body.status,
             stage: body.stage,
             progress: body.progress,
@@ -1956,7 +1963,27 @@ export function SubmissionStatusStep({
                     typeof body.queue.updatedAt === "string" ? body.queue.updatedAt : null,
                 }
               : null,
+          };
+          // Worker heartbeats and row timestamps do not change what the
+          // applicant sees. Real progress, queue changes and result artifacts
+          // reset the delay, including a QR/result that arrives later.
+          const fingerprint = JSON.stringify({
+            ...nextSnapshot,
+            updatedAt: undefined,
+            queue: nextSnapshot.queue
+              ? {
+                  ...nextSnapshot.queue,
+                  heartbeatAt: undefined,
+                  createdAt: undefined,
+                  updatedAt: undefined,
+                }
+              : null,
           });
+          stablePollCount = fingerprint === lastSnapshotFingerprint
+            ? Math.min(stablePollCount + 1, 3)
+            : 0;
+          lastSnapshotFingerprint = fingerprint;
+          setSnapshot(nextSnapshot);
         }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
@@ -1975,15 +2002,36 @@ export function SubmissionStatusStep({
         }
       } finally {
         pollInFlight = false;
-        scheduleNextPoll();
+        if (visibilityRefreshPending && document.visibilityState === "visible") {
+          visibilityRefreshPending = false;
+          void poll();
+        } else {
+          scheduleNextPoll();
+        }
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      visibilityRefreshPending = false;
+      if (document.visibilityState !== "visible") return;
+      stablePollCount = 0;
+      lastSnapshotFingerprint = null;
+      if (pollInFlight) {
+        visibilityRefreshPending = true;
+      } else {
+        void poll();
       }
     };
 
     void poll();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       cancelled = true;
       controller.abort();
       if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [
     actionWithResult,

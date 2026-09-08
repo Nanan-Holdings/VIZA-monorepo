@@ -49,6 +49,11 @@ Before changing this route, read:
   bounded retry policy for final-step status polling. Network failures and
   retryable upstream responses must reconnect without marking the durable
   submission job failed or creating another submission.
+  `SubmissionStatusStep.tsx` applies the stable-snapshot 5–30 second backoff,
+  ignores heartbeat-only timestamp changes for that delay, pauses requests in
+  hidden tabs, and refreshes on visibility return. Component-level coverage
+  lives in `__tests__/SubmissionStatusStepPolling.test.tsx`; preserve late
+  result/QR updates and the existing terminal/retry rules.
 - `app/client/application/_components/result-cards/PostSubmissionInfoPanel.tsx`:
   shows customer-safe receipts/results and application updates only after the
   application has crossed a reliable submission boundary.
