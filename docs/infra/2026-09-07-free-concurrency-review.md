@@ -517,7 +517,28 @@ CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文�
 底层请求忽略取消时仍持有探测名额、100 个请求的恢复竞争和随后恢复成功。
 所有依赖均使用本地 fake fetch，没有调用生产服务。前端 `type-check` 通过
 （Node heap 4 GiB），全量 lint 为 0 错误、62 项原有警告，修改的 runtime 与
-测试文件单独使用 `eslint --no-ignore` 检查。
+测试文件单独使用 `eslint --no-ignore` 检查通过。
+
+### 第九轮发布完成
+
+- 实现提交 `b51b20511a76c36fab748b57edc0acb7ce86988b` 已推送 `upstream/main`。
+  已核验 Vercel 当前组织账号为 `nanan.viza2016@gmail.com`，项目仍是 VIZA
+  团队下的 `viza-internal`，根目录仍为 `viza-fe/internal-website`。
+- 上传前 dry run 共 1,980 个文件，两份修改的 runtime 均在清单中，环境文件、
+  MCP 配置、本地测试产物、日志和构建缓存的泄漏项为零。
+- Candidate `dpl_Hs1HUfPGisac6yZgRcA6nojcD2iB` 完成生产构建及 127 个页面
+  生成，达到 `READY`。切换前登录页 200、匿名状态接口 401，随后完成 promote。
+- 从正式域名 `app.viza.it.com` 重新解析确认 deployment 正是
+  `dpl_Hs1HUfPGisac6yZgRcA6nojcD2iB`、`target=production`、`readyState=READY`。
+  线上登录页 200、匿名状态读取仍为结构化 401。浏览器现有登录会话正常转到
+  `/client/home`，数据加载结束、申请导航可见，没有未处理错误页面。没有输出
+  申请人资料或触发提交/支付，临时浏览器页已关闭。
+- 本轮没有修改 agent-backend；Render `/health` 为 `ok`，仍报告其当前实现
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。未新增付费资源或应用数据库迁移，
+  未对生产注入故障、触发恢复竞争测试或执行持续压测。
+
+部署 URL：`https://viza-internal-32eoioajp-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_CUP7WmNVsGJqD4pyJMekfCSc8Jh7` 已记录供现有回滚流程使用。
 
 ## 下一步容量验收
 
