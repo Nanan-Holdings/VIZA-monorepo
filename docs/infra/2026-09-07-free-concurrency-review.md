@@ -457,6 +457,29 @@ CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文�
 匿名状态 API 返回 401。本地运行使用虚构凭据和本机服务地址，没有访问生产
 数据库或官方提交服务。测试服务器与临时标签页已关闭。
 
+### 第八轮发布完成
+
+- 实现提交 `0e67800e1b0a544ab587c01d9478014cf31e21a8` 已推送 `upstream/main`。
+  发布前再次通过 Vercel `/v2/user` 确认组织账号 `nanan.viza2016@gmail.com`，
+  项目 `viza-internal`、团队 `team_pC3NgoVZbeD6QxTuS1o2E6Hg` 和 frontend
+  rootDirectory 均与现有配置一致。自动化提交使用同一已验证组织发布身份。
+- CLI 上传 dry run 共 1,980 个文件，受排除规则保护的环境文件、MCP 配置、
+  本地浏览器产物、测试日志、临时目录和构建缓存均为零；实际组件已包含。
+- Vercel deployment `dpl_CUP7WmNVsGJqD4pyJMekfCSc8Jh7` 完成生产构建和
+  127 个页面生成，达到 `READY`。切换前登录页为 200，匿名状态读取为 401。
+  已执行 promote；从正式域名 `app.viza.it.com` 再次解析确认就是该 deployment，
+  `target=production`、`readyState=READY`。
+- 线上匿名登录页 200、状态接口结构化 401。浏览器现有登录会话成功转到
+  `/client/home` 并完成加载，申请导航可见，没有未处理错误页面；没有创建申请、
+  执行提交或读取/输出申请人资料。临时浏览器页已关闭。
+- 本轮只改客户端轮询，后端服务没有代码变化；Render `/health` 为 `ok`，
+  仍报告上轮实现 SHA `967f03251efff1a931120a72007fcdce4dc75e5d`。
+- 沿用现有资源与套餐，没有数据库迁移、生产压测或真实 provider 调用。
+  持续登录并发与真实在途提交的容量验收仍须隔离测试环境。
+
+部署 URL：`https://viza-internal-gx6p4x83r-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_8vmDESv87x64Ya9dgfDCWRfThsLL` 保留用于现有回滚流程。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
