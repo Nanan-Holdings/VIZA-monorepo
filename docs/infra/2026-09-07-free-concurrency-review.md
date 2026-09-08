@@ -397,6 +397,30 @@ CLI dry run 发现原上传清单包含本地浏览器测试产物、临时文�
 组织身份创建独立发布记录后再发布。该记录是自动化发布操作，不代表人工审阅；
 不改写历史、不调整团队成员权限，也不修改本机持久 Git 身份设置。
 
+### 发布完成与线上验证
+
+- 实现提交：`967f03251efff1a931120a72007fcdce4dc75e5d`；组织身份发布记录：
+  `f4092d24`。二者均已推送 `upstream/main`。
+- Vercel candidate `dpl_8vmDESv87x64Ya9dgfDCWRfThsLL` 通过身份校验、生产
+  构建和页面生成，达到 `READY`。切换前验证 `/client/login` 为 200，匿名
+  `/api/passport-ocr` POST 为结构化 `unauthorized` 401。
+- 已执行 `vercel promote`。再次从 `app.viza.it.com` 解析部署，确认目标就是
+  `dpl_8vmDESv87x64Ya9dgfDCWRfThsLL`、`production`、`READY`；部署 URL 为
+  `https://viza-internal-18ifyz7yj-viza-gmail-s-projects.vercel.app`。线上匿名
+  登录页为 200，OCR POST 为 401，响应包含 `Cache-Control: private, no-store`。
+- 浏览器现有登录会话访问生产登录页后转到 `/client/home`，首页完成加载，
+  申请导航可见，无未处理错误页面。仅检查页面状态，没有输出用户资料、
+  上传文件、启动 OCR 或修改申请；临时浏览器页已关闭。
+- Render `/health` 报告实现 SHA `967f03251efff1a931120a72007fcdce4dc75e5d`；
+  `/live`、`/ready` 均为 200，空 `/api/passport-scan/extract` POST 为 400。
+  这确认第五、六轮后端改动已上线；文档提交不影响该服务的实现内容。
+- 沿用已有套餐、实例和函数配置，没有新购资源或升级。没有应用数据库迁移，
+  也没有执行生产并发压测或真实 provider 调用。当前上线证据仍不等于 100 个
+  登录用户持续访问或大规模真实 OCR 的容量认证。
+
+上一版前端 deployment `dpl_jL72fmuhv27xjEeqo4HeWbgBLS1p` 已记录，可用于
+现有回滚流程。首次被阻止的 candidate 未进入生产。
+
 ## 下一步容量验收
 
 1. 通过现有发布流程上线这些代码，先观察错误率、缓存首读、DB 等待、事件循环和内存。
