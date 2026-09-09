@@ -907,6 +907,53 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 部署 URL：`https://viza-internal-oxaiuxpgs-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_FWnqyXik4FnSBXL5VLhk26fHDUq5` 保留供现有回滚流程使用。
 
+## 第十六轮：可复用材料的 Storage 检查限制并发
+
+申请表和材料中心读取 `universal_profile_documents` 后，原先用无上限的
+`Promise.all` 为每行发出 Storage `exists()` 检查。本轮在同一次加载中按
+完全相同的原始路径去重，最多同时执行 4 个检查。候选查询仍按 applicant
+和原有 usable status 限定，最终按原始记录顺序映射文件名/类型；同一路径
+对应的不同记录仍保留。路径不 trim、不改写，没有跨请求缓存。
+
+安装的 `@supabase/storage-js` 2.93.3 使用 HEAD 检查文件。400/404 的
+`data:false,error` 仍只省略该材料；其他抛出的错误仍交由 action 返回
+`server_error`。发现抛错后停止启动剩余检查，等待已在途检查结束，再抛出
+第一个错误，避免调用结束后继续启动排队工作。没有修改 SDK 重试/超时。
+
+这限制的是单次材料加载的瞬时请求数，并非整个网站的全局并发上限。大量
+不同文件需要分批等待，单次加载可能增加等待时间；同一路径的重复记录则
+减少 HEAD 总数。显式复用 action 仍重新查询、检查 Storage 并清理原有审核
+字段，不依赖列表快照。没有更改 UI、权限、审核规则、数据库或付费资源。
+
+### 第十六轮本地验证
+
+- 真实 SDK + loopback HTTP fixture 直接调用 `loadDocumentCenterData()`：
+  12 个存在路径、一个重复 metadata 行和一个缺失路径共发出 13 次 HEAD，
+  峰值恰为 4。保留原顺序、重复行和 null filename；无效状态、空路径和
+  rejected 的同路径记录均不会返回。确认 applicant/status/order/select
+  查询形状，匿名调用为零 HTTP 请求，所有 fixture 请求只有 GET/HEAD。
+- 真实 SDK 503 测试关闭 fixture 重试，确认首批 4 个检查之后不启动排队
+  路径，拒绝返回时在途数为零；helper 单测同时覆盖精确路径身份、SDK
+  返回错误、空输入、同路径下一次读取变成不存在，以及 undefined 拒绝。
+- 本地 Next 使用 loopback 服务地址与合成凭据；浏览器访问
+  `/client/application`、`/client/documents` 均正常跳转登录页，未见运行
+  错误。临时服务器和标签页已关闭。没有本地已登录数据库会话，因此实际
+  材料数据行为以 SDK fixture 验证，未声称真实数据库或生产持续压测通过。
+- type-check 通过；全量 lint 为 0 错误、62 项原有警告，修改源码和新增
+  测试单独 eslint 为 0 错误、1 项已有 action 未使用函数警告。后端 health
+  为 `ok`，SHA 仍是 `967f03251efff1a931120a72007fcdce4dc75e5d`。
+- 6 份测试共 50 项：47 通过、3 项已有 UI 断言失败。本轮 helper 5、SDK
+  3、preview 5、材料组件 9、form-assistant context 20 项全部通过；额外
+  Taiwan eligibility 测试为 5 通过、3 失败，单独重跑结果相同。该测试
+  mock 了 documents actions，未执行本轮 helper，测试和 UI 相对发布前
+  HEAD 均无差异。失败原因是高亮断言查错 DOM 层、旧总标题已经移除、
+  conditional fixture 却期待 optional 标题；未为满足过期断言修改冻结
+  UI。此基线问题仍待单独修正，本轮不声称整套回归全绿。
+
+### 第十六轮发布状态
+
+本轮实现和本地检查已完成，发布记录将在候选版本验证及生产切换后补齐。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

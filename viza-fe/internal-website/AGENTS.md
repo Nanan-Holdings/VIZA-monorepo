@@ -45,6 +45,9 @@ the latest 50 messages and blocks, and fails closed for other users or errors.
 `lib/supabase/applicant-inbox-read.integration.test.ts` verifies that portal
 inbox initialization reuses active alias data from the current authenticated
 profile read, including legacy identity and explicit-consent fallback paths.
+`lib/supabase/reusable-document-existence.integration.test.ts` verifies the
+document loader's applicant/status filters and ordered metadata through the
+actual SDK against loopback HTTP, plus bounded HEAD checks and error draining.
 
 ## Purpose
 

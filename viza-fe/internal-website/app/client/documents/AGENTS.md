@@ -36,10 +36,15 @@ application flow.
   upload record upserts, and applicant-confirmed passport OCR persistence.
 - `document-preview-urls.ts`: batches unique private Storage paths into one
   signed-URL request and keeps per-object signing failures isolated.
+- `reusable-document-existence.ts`: checks each exact reusable Storage path
+  once per load, with at most four concurrent checks; stops queued work and
+  drains in-flight checks before propagating an unexpected failure.
 - `document-center-client.tsx`: embeddable checklist UI, upload/re-upload
   controls, and the integrated Travel AI itinerary picker/upload entry.
 - `__tests__/document-preview-urls.test.ts`: signed-URL batching, de-duplication,
   empty-input, and partial/whole-request failure coverage.
+- `__tests__/reusable-document-existence.test.ts`: exact-path de-duplication,
+  per-load concurrency, missing objects, request isolation, and failure cleanup.
 - `__tests__/document-center-client.test.tsx`: embedded application-step layout
   coverage for the responsive document-card grids and direct file fields.
 
@@ -87,6 +92,10 @@ application flow.
 - Reuse only explicitly usable source statuses. Any application replacement or
   reuse returns the row to `uploaded` and clears prior review, rejection,
   reviewer, hash, and evidence metadata so stale approval cannot carry over.
+- Reusable-material list reads must retain applicant/status filters, candidate
+  order, and per-row metadata while bounding Storage existence checks. Do not
+  cache existence across requests or replace the explicit reuse action's fresh
+  Storage validation with the list result.
 - Do not put full application status timelines here; keep the embedded form
   experience focused on document completion.
 - Do not touch `viza-be/submission-service` or official portal automation.

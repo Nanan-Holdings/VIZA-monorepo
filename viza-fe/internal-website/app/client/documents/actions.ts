@@ -37,6 +37,7 @@ import {
   loadDocumentPreviewUrls,
   type CreateSignedUrls,
 } from "./document-preview-urls";
+import { loadExistingDocumentPaths } from "./reusable-document-existence";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1750,21 +1751,25 @@ async function loadReusableProfileDocuments(applicantId: string): Promise<Reusab
   const candidates = (data ?? []) as Array<
     Pick<UniversalProfileDocumentRow, "document_type" | "storage_path" | "filename" | "status">
   >;
-  const verified = await Promise.all(
-    candidates.map(async (candidate) => {
-      if (!candidate.storage_path || !isReusableDocumentStatus(candidate.status)) return null;
-      const { data: exists, error: storageError } = await adminClient.storage
-        .from(APPLICATION_DOCUMENTS_BUCKET)
-        .exists(candidate.storage_path);
-      if (storageError || !exists) return null;
-      return {
-        documentType: candidate.document_type,
-        filename: candidate.filename,
-      } satisfies ReusableProfileDocument;
-    }),
+  const candidatePaths = candidates
+    .filter((candidate) => candidate.storage_path && isReusableDocumentStatus(candidate.status))
+    .map((candidate) => candidate.storage_path);
+  const existingPaths = await loadExistingDocumentPaths(
+    candidatePaths,
+    (path) => adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).exists(path),
   );
 
-  return verified.filter((document): document is ReusableProfileDocument => document !== null);
+  return candidates
+    .filter(
+      (candidate) =>
+        candidate.storage_path &&
+        isReusableDocumentStatus(candidate.status) &&
+        existingPaths.has(candidate.storage_path),
+    )
+    .map((candidate) => ({
+      documentType: candidate.document_type,
+      filename: candidate.filename,
+    } satisfies ReusableProfileDocument));
 }
 
 function mergeVirtualDocuments(documents: ApplicationDocument[], virtualDocuments: ApplicationDocument[]) {
