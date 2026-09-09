@@ -1066,6 +1066,26 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   VIZA 团队的 `viza-internal`。dry run 共 1,999 个文件，包含两个
   运行时组件，环境文件、MCP 配置、日志和构建缓存泄漏项为零。
 
+### 第十八轮发布完成
+
+- 实现提交 `39aba077b504aa738adf78fbc4a0c122e9d480c1` 已推送
+  `upstream/main`，使用上述 nananviza 组织凭据发布。
+- Candidate `dpl_Urjf8iApmuSqz17arqnpkxg8pDVN` 构建成功并达到
+  `READY`。切换前登录页 200，匿名申请入口 307 到登录页，合成
+  application ID 的状态 API 返回 401；随后成功 promote。
+- `app.viza.it.com` 已确认指向该 deployment，`target=production`、
+  `readyState=READY`。正式域名登录页 200，匿名申请入口 307，状态
+  API 返回 `{"error":"Not authenticated"}` / 401。浏览器现有登录
+  会话正常进入首页并完成加载，申请导航可见，没有邮箱初始化错误或
+  未处理错误；测试标签页已关闭。
+- 后端 health 为 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`，本轮没有改动后端服务。
+  未执行生产压测或真实付款/官方提交，持续登录会话容量仍待独立环境
+  验收。
+
+部署 URL：`https://viza-internal-1meoc0k9p-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_k9qVMWNMNvG5a6GtXJwxJnUSsZwn` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
