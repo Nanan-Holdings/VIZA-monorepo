@@ -823,6 +823,27 @@ action 的请求数量变化，不代表整页请求或数据库 CPU 降低 50%�
   `967f03251efff1a931120a72007fcdce4dc75e5d`。没有真实聊天发送、生产压测
   或独立环境的已登录端到端测试；消息内容/授权边界使用合成数据验证。
 
+### 第十四轮发布完成
+
+- 实现提交 `fb8a10a707cf12ecc22cbbfe749d729b039f6c86` 已推送 `upstream/main`。
+  发布账号核验为组织邮箱 `nanan.viza2016@gmail.com`，项目为 VIZA 团队下的
+  `viza-internal`；project/org ID、frontend rootDirectory 和 Node 24.x 均符合
+  当前配置。
+- CLI dry run 共 1,991 个文件，包含本轮 action；环境文件、MCP 配置、日志、
+  临时产物与构建缓存泄漏项为零。
+- Candidate `dpl_FWnqyXik4FnSBXL5VLhk26fHDUq5` 编译并生成 127 个页面成功，
+  达到 `READY`。登录页 200，匿名聊天页 307 到登录页，匿名状态 API 为结构化
+  401；通过后成功 promote。
+- 正式域名 `app.viza.it.com` 已确认指向此 deployment，`target=production`、
+  `readyState=READY`。切换后 HTTP 检查结果一致，浏览器现有登录会话正常
+  进入 `/client/home` 并加载完成，导航可见，无未处理错误；临时标签页已关闭。
+- 未执行生产聊天发送、会话修改或并发压测。消息加载与切换的内容/权限行为
+  使用本地合成测试验证，线上只做匿名路由保护和已登录首页冒烟；未进行
+  真实数据库下的已登录聊天端到端容量验收。
+
+部署 URL：`https://viza-internal-4pt7licf0-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_BQNHofF76vytfjdpSd6bW3gs15Ks` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
