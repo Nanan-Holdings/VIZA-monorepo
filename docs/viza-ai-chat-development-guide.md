@@ -88,6 +88,15 @@ flowchart TD
 5. 用 `createAdminClient()` 查当前用户最新 application 的 `id/status`。
 6. 渲染 `ChatClient`。
 
+`getUserSessions()` 先读取当前用户最近 30 条 session 的必要字段，再通过一次
+嵌套读取为这些已授权 session 各取最早一条 `role='user'` 消息；别名
+`first_user_message` 的排序与 limit 作用于每个 session，不是整批只取一条。
+标题 marker 仍单独读取，跳过无效/空白的新 marker 后使用最近的有效标题。
+首消息查询失败时标题仍可用；标题失败时预览仍可用。最终过滤空会话并返回
+最多 10 条。保持左关联、身份校验和每次请求的数据隔离，不添加跨用户缓存。
+测试见 `app/actions/companion-sessions.test.ts` 与
+`lib/supabase/companion-session-preview.integration.test.ts`。
+
 ### 4.2 Client route: `chat-client.tsx`
 
 它同时管理 UI、Socket.IO、streaming、scroll 和 Travel tab。
@@ -228,7 +237,7 @@ RAG 知识源与写入：
 Session rename：
 
 - 为避免依赖新的 DB column，rename 目前写入 `visa_chat_messages` 的隐藏 marker：`role='system'` 且 `content` 以 `__viza_session_title__:` 开头。
-- `getUserSessions()` 会读取最新 marker 作为 `Session.title`。
+- `getUserSessions()` 会跳过无效/空白 marker，读取最近的有效 marker 作为 `Session.title`。
 - `getSessionMessages()`、history load、search、recent messages、backend `/visa` chat history 都不能把这些 system marker 当作用户可见消息或 LLM 上下文。
 
 ## 7. Application redirect 链路

@@ -36,6 +36,9 @@ including bounded batch concurrency and partial failures with synthetic paths.
 `lib/supabase/user-package-read.integration.test.ts` verifies owner-scoped
 latest-package reads through the actual SDK against loopback HTTP, including
 inner embedding before the one-row limit and unchanged full-list reads.
+`lib/supabase/companion-session-preview.integration.test.ts` verifies aliased
+chat preview limits through the actual SDK against loopback HTTP: at most one
+user message per owned session, with title reads surviving preview failures.
 
 ## Purpose
 

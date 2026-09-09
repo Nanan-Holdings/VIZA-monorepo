@@ -66,6 +66,11 @@ application lifecycle state.
   ownership are deterministic across countries.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
+  Sidebar history reads 30 owned session candidates with precise columns, then
+  batches first-user-message previews through a left embedding with a per-session
+  limit of one. Keep title-marker decoding and partial read failure behavior;
+  an invalid newest marker must not hide an older valid title. Coverage lives
+  in `companion-sessions.test.ts` and the SDK loopback test under `lib/supabase`.
 - `user-package.ts`: package/destination assignment and active package reads.
   The latest-only getter filters missing embedded packages with an inner join
   before limiting to one row; the full-list getter must retain all valid active

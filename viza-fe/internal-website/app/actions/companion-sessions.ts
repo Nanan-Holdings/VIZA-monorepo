@@ -162,7 +162,7 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
     // Fetch extra rows so empty draft sessions do not crowd out real history.
     const { data: sessions, error } = await adminClient
       .from("visa_chat_sessions")
-      .select("*")
+      .select("id, applicant_id, created_at, updated_at")
       .eq("applicant_id", userId)
       .order("updated_at", { ascending: false })
       .order("created_at", { ascending: false })
@@ -176,21 +176,30 @@ export async function getUserSessions(userId: string): Promise<Session[]> {
       return [];
     }
 
-    // Get first message for each session (for preview)
+    // Bound each session's preview without dropping title-only sessions. Keep
+    // this separate from the title read so a preview failure still shows titles.
     const sessionIds = sessions.map((s) => s.id);
     const { data: firstMessages } = await adminClient
-      .from("visa_chat_messages")
-      .select("session_id, content")
-      .in("session_id", sessionIds)
-      .eq("role", "user")
-      .order("created_at", { ascending: true });
+      .from("visa_chat_sessions")
+      .select("id, first_user_message:visa_chat_messages(content)")
+      .eq("applicant_id", userId)
+      .in("id", sessionIds)
+      .eq("first_user_message.role", "user")
+      .order("created_at", {
+        ascending: true,
+        referencedTable: "first_user_message",
+      })
+      .limit(1, { referencedTable: "first_user_message" });
 
     // Create a map of session_id -> first user message
     const firstMessageMap = new Map<string, string>();
     if (firstMessages) {
-      for (const msg of firstMessages) {
-        if (!firstMessageMap.has(msg.session_id)) {
-          firstMessageMap.set(msg.session_id, msg.content);
+      for (const row of firstMessages) {
+        const nestedMessage = Array.isArray(row.first_user_message)
+          ? row.first_user_message[0]
+          : row.first_user_message;
+        if (nestedMessage && !firstMessageMap.has(row.id)) {
+          firstMessageMap.set(row.id, nestedMessage.content ?? "");
         }
       }
     }

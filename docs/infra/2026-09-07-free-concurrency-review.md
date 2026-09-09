@@ -726,6 +726,44 @@ marker，直接对最新标题加 limit 会改变结果；本轮未修改该路�
 部署 URL：`https://viza-internal-e6g3y4ptn-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_6kZZMDFyiR9DeFB9RhWNzSxBXYmo` 保留供现有回滚流程使用。
 
+## 第十三轮：聊天侧栏按会话限制首消息预览
+
+`getUserSessions()` 为侧栏读取最近 30 个会话后，原先会拉取这些会话的全部
+用户消息，再在 Node 中各取第一条。本轮改为一次按已授权 session IDs 和
+当前 applicant 筛选的嵌套读取：`first_user_message:visa_chat_messages(content)`，
+只筛选 user 角色，并对该别名按创建时间升序、每会话限制一条。会话元数据
+也改为只读取 id、applicant_id、created_at、updated_at。
+
+仍保留三次批量请求和原有授权链，没有逐会话请求、跨请求缓存、数据库迁移
+或付费资源。首消息预览仍为原文前 30 个字符；最早一条内容为空时不会改用
+后续消息。候选 30 条、按活动时间排序、过滤空会话后最多返回 10 条的规则
+不变。预览查询使用左关联，标题查询单独执行，因此预览错误时仍可显示标题，
+标题错误时仍可显示预览。标题 marker 的无效/空白跳过规则完整保留。
+
+现有 FK 支持反向嵌套；已有 `(session_id, created_at DESC)` 索引可以支持
+按会话关联和时间排序，但不包含 role。本轮限制的是传输消息数量和 Node
+映射开销，没有实测 SQL 执行计划，不能声称底层只扫描 30 行。标题 marker
+读取仍未设置数量上限，后续优化需要保留“最近有效标题”的规则。
+
+### 第十三轮本地验证
+
+- 14 项相关测试通过：action 单元测试 12、实际 SDK HTTP 回环测试 2。
+  覆盖登录/impersonation 所有权、未授权零数据库读取、跨请求隔离、候选和
+  最终上限、每会话首条消息、空首消息、空会话、无效标题回退与部分读取失败。
+- SDK 测试使用本机临时 HTTP fixture 和合成身份：32 个本人会话加其他用户
+  会话，每会话 100 条 user 消息；进入最近 30 条候选的 3,000 条用户消息仅
+  返回 30 条预览。实际发出三次 GET，别名 role/order/limit 参数正确，第二次
+  读取同时包含 owner 和 session IDs 条件，最终显示 10 条历史。另一个测试
+  模拟预览查询 400，仍能显示旧有效标题且不增加请求。
+- 这些是 SDK 协议与合成数据验证，不是真实 PostgREST/数据库性能或同时
+  在线人数测试。本轮没有 staging，未对生产执行持续压测或聊天发送。
+- 本地 Next 使用 loopback 服务地址与虚构凭据，浏览器 `/client/chat` 正确
+  跳转登录并渲染；临时标签页和服务器已关闭。Render agent-backend `/health`
+  为 `ok`，代码 SHA 仍为 `967f03251efff1a931120a72007fcdce4dc75e5d`。
+- 前端 type-check 通过，全量 lint 为 0 错误、62 项原有警告，修改的 action
+  和两份测试通过单独 `eslint --no-ignore`。独立审查确认修改仅在历史读取，
+  未发现发布阻碍；没有修改消息发送、重命名、删除或 Socket.IO 协议。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

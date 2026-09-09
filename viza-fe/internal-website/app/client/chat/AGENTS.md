@@ -75,6 +75,13 @@ New empty VIZA chats render a localized centered start state from `messages/*/ch
 
 Session rename uses hidden system marker rows instead of a `visa_chat_sessions.title` column. `getUserSessions()` turns the latest marker into `Session.title`; `getSessionMessages()` and history helpers must keep those markers hidden.
 
+Sidebar history limits first-user-message previews to one per owned session via
+an aliased left embedding. Keep 30 recent session candidates and the final 10
+non-empty results; do not replace the title read with a naive latest-row limit,
+because invalid/blank title markers must be skipped. Action and SDK loopback
+coverage lives in `app/actions/companion-sessions.test.ts` and
+`lib/supabase/companion-session-preview.integration.test.ts`.
+
 ## Validation Checklist
 
 For frontend-only changes:
