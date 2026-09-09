@@ -1006,17 +1006,34 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   测试的单独 eslint 无错误。独立审查确认读取和写入权限边界保持一致。
 - 本地 Next 使用 loopback 服务地址与合成凭据，浏览器访问
   `/client/billing` 及合成 `/support/<ticketId>` 均正常进入登录页。
-  实际已登录数据路径由本地 fixture 验证，未访问生产账单、工单或发送
+  实际已登录数据路径由本地 fixture 验证，未读取生产账单、工单数据或发送
   邮件；这些测试不等于真实 PostgreSQL 执行计划或持续容量验收。
   临时服务器和标签页已关闭；后端 health 为 `ok`，SHA 仍为
   `967f03251efff1a931120a72007fcdce4dc75e5d`。
 
-### 第十七轮发布状态
+### 第十七轮发布完成
 
-发布准备已完成，候选及生产验证记录将在切换后补齐。本轮固定使用
-Vercel CLI 59.14.0，已通过 `/v2/user` 确认发布身份为
-`nananviza2016-8879` / `nanan.viza2016@gmail.com`（VIZA 组织账号）。
-此前浏览器误开的个人登录页已关闭，未授权 CLI、未用于本轮发布。
+- 实现提交 `6156d990f4a8142522b6758638c9d95933a3f230` 已推送
+  `upstream/main`。本轮固定使用 Vercel CLI 59.14.0，通过 `/v2/user`
+  再次确认发布身份为 `nananviza2016-8879` /
+  `nanan.viza2016@gmail.com`（VIZA 组织账号）；项目为 VIZA 团队下的
+  `viza-internal`，frontend rootDirectory 和 Node 24.x 配置正确。
+  组织账号信息已补入根 AGENTS，浏览器误开的个人登录页已关闭，未授权
+  CLI、未用于本轮发布。
+- 上传 dry run 共 1,997 个文件，包含 billing data 和 support action；
+  环境文件、MCP 配置、本地日志、临时产物和构建缓存泄漏项为零。
+- Candidate `dpl_k9qVMWNMNvG5a6GtXJwxJnUSsZwn` 编译和 127 个页面生成
+  成功，状态 `READY`。切换前登录页 200，匿名账单页和合成工单详情
+  均 307 到登录页，状态 API 返回结构化 401，随后成功 promote。
+- `app.viza.it.com` 已确认指向该 deployment，`target=production`、
+  `readyState=READY`。正式域名的四项 HTTP 检查结果一致；浏览器现有
+  登录会话正常进入首页并完成加载，申请导航可见，没有邮箱初始化错误
+  或未处理错误。临时标签页已关闭，没有提交发票、工单或消息。
+- 本轮没有新增服务、升配或执行生产压测，真实多人持续容量仍需独立
+  环境验收。前一轮记录的三个旧 UI 测试基线问题未在本轮修改或复测。
+
+部署 URL：`https://viza-internal-bgjo7lyal-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_CE4vao9AvEknFKJ6HvqgTVUzzkRs` 保留供现有回滚流程使用。
 
 ## 下一步容量验收
 
