@@ -887,6 +887,26 @@ SHA 仍为 `967f03251efff1a931120a72007fcdce4dc75e5d`。独立审查确认快路
 type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 action 和两份
 测试通过单独 `eslint --no-ignore`。源码仅改变 profile 投影和初始化快路径。
 
+### 第十五轮发布完成
+
+- 实现提交 `a23ea02ad4a4f3e469fb398b6f398beab3b16fe4` 已推送 `upstream/main`。
+  发布账号确认为组织邮箱 `nanan.viza2016@gmail.com`，项目为 VIZA 团队下的
+  `viza-internal`，frontend rootDirectory 与 Node 24.x 配置正确。
+- 上传 dry run 共 1,992 个文件，包含本轮 action；环境文件、MCP 配置、本地
+  日志、临时产物和构建缓存泄漏项为零。
+- Candidate `dpl_DiPigxuotg4TXTQS4tVS6auH8cDN` 编译及 127 个页面生成成功，
+  状态 `READY`。切换前登录页 200、匿名首页 307 到登录页、匿名状态 API 为
+  结构化 401，随后成功 promote。
+- `app.viza.it.com` 已确认指向此 deployment，`target=production`、
+  `readyState=READY`。切换后 HTTP 检查结果一致；浏览器现有登录会话正常
+  进入首页并完成加载，申请导航可见，未见邮箱初始化错误、重复授权弹窗或
+  未处理错误页面。仅检查显示状态，未点击授权、发送邮件或输出申请人信息。
+- 临时标签页已关闭。没有生产压测或付费资源变化，DB 请求数量及异常分支
+  的证据来自本地测试；线上检查不替代独立环境的持续容量验收。
+
+部署 URL：`https://viza-internal-oxaiuxpgs-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_FWnqyXik4FnSBXL5VLhk26fHDUq5` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
