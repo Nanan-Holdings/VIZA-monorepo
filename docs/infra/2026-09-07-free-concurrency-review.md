@@ -1035,6 +1035,37 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 部署 URL：`https://viza-internal-bgjo7lyal-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_CE4vao9AvEknFKJ6HvqgTVUzzkRs` 保留供现有回滚流程使用。
 
+## 第十八轮：防止法国账户和越南付款状态轮询重叠
+
+- `WaitingCard` 的法国账户查询与 `VnResultCard` 的官方费用状态查询，
+  原先在请求未完成时切回可见标签页会再次查询；共享可变 controller
+  还可能让旧 deadline 取消后来发起的请求。
+- 两个 effect 各自增加 `inFlight`，从请求开始到响应体解析结束只允许
+  一个在途轮询。每次请求使用独立 controller 和 5 秒 deadline，卸载
+  取消当前请求，晚到响应不会重新排程。可见性恢复复用已有请求，结束
+  后继续原有间隔：法国 10 秒、越南 5 秒；隐藏页暂停和终态规则保留。
+- 没有变更付款授权、提交、状态映射、表单或界面设计，也没有新增
+  服务或付费资源。此限制是每个组件 effect 的请求上限，不是全站
+  并发容量保证，也不保证浏览器取消后服务端已立即停止处理。
+
+### 第十八轮本地验证
+
+- 新增 `WaitingCardPolling.test.tsx` 5 项与 `VnResultCardPolling.test.tsx`
+  3 项，覆盖慢 fetch、慢响应体、重复可见性事件、deadline、卸载和
+  晚到响应，以及取得账户/付款成功后停止轮询。均使用合成数据和
+  mocked fetch，不连接生产数据库或真实官方门户。
+- 连同提交状态轮询和既有结果卡回归，5 个测试文件、80 项测试全部
+  通过；前端 type-check 通过。完整 lint 为 0 errors / 62 个既有
+  warnings，变更文件 ESLint 和 `git diff --check` 通过。
+- 使用 loopback 服务配置运行本地 Next，浏览器打开越南申请长表单和
+  申请入口，均正常重定向登录页，没有未处理错误。缺少独立认证测试
+  环境，因此实际登录后的付款/账户卡状态由本地组件测试覆盖；未在
+  生产创建申请或执行付款。临时服务器和标签页已关闭。
+- 发布前用固定 Vercel CLI 59.14.0 确认组织身份
+  `nananviza2016-8879` / `nanan.viza2016@gmail.com`，链接项目为
+  VIZA 团队的 `viza-internal`。dry run 共 1,999 个文件，包含两个
+  运行时组件，环境文件、MCP 配置、日志和构建缓存泄漏项为零。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
@@ -1056,6 +1087,8 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 
 ## 参考
 
+- [React effect 的独立生命周期与清理](https://react.dev/reference/react/useEffect)
+- [AbortController 取消请求及响应体读取](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort)
 - [Supabase 连接预算](https://supabase.com/docs/guides/database/connection-management)
 - [Supabase 请求取消](https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal)
 - [Supabase 批量签名 URL](https://supabase.com/docs/reference/javascript/file-buckets-createsignedurls)

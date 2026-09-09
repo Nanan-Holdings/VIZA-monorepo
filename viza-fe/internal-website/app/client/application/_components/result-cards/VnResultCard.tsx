@@ -259,27 +259,33 @@ export function VnResultCard({
     if (!applicationId || !isPaymentCheckpoint || paymentPaid) return;
     let cancelled = false;
     let timer: number | undefined;
+    let inFlight = false;
     let controller: AbortController | null = null;
 
     const schedule = (delayMs: number) => {
       if (cancelled) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void loadPaymentStatus(), delayMs);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void loadPaymentStatus();
+      }, delayMs);
     };
 
     const loadPaymentStatus = async () => {
-      if (cancelled) return;
+      if (cancelled || inFlight) return;
       if (document.visibilityState !== "visible") {
         schedule(15_000);
         return;
       }
 
-      controller = new AbortController();
-      const deadline = window.setTimeout(() => controller?.abort(), 5_000);
+      inFlight = true;
+      const requestController = new AbortController();
+      controller = requestController;
+      const deadline = window.setTimeout(() => requestController.abort(), 5_000);
       try {
         const response = await fetch(`/api/applications/${applicationId}/official-fee/status`, {
           cache: "no-store",
-          signal: controller.signal,
+          signal: requestController.signal,
         });
         const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
         if (!response.ok) {
@@ -295,7 +301,8 @@ export function VnResultCard({
         }
       } finally {
         window.clearTimeout(deadline);
-        controller = null;
+        if (controller === requestController) controller = null;
+        inFlight = false;
         schedule(5_000);
       }
     };
@@ -309,7 +316,7 @@ export function VnResultCard({
     return () => {
       cancelled = true;
       controller?.abort();
-      if (timer) window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [applicationId, isPaymentCheckpoint, paymentPaid]);

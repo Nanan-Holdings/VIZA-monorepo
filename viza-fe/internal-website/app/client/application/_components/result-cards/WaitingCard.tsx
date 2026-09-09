@@ -297,27 +297,33 @@ export function WaitingCard({
     if (!applicationId || !isFrance || officialAccount) return;
     let cancelled = false;
     let timer: number | undefined;
+    let inFlight = false;
     let controller: AbortController | null = null;
 
     const schedule = (delayMs: number) => {
       if (cancelled) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void loadAccount(), delayMs);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void loadAccount();
+      }, delayMs);
     };
 
     const loadAccount = async () => {
-      if (cancelled) return;
+      if (cancelled || inFlight) return;
       if (document.visibilityState !== "visible") {
         schedule(30_000);
         return;
       }
 
-      controller = new AbortController();
-      const deadline = window.setTimeout(() => controller?.abort(), 5_000);
+      inFlight = true;
+      const requestController = new AbortController();
+      controller = requestController;
+      const deadline = window.setTimeout(() => requestController.abort(), 5_000);
       try {
         const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
           cache: "no-store",
-          signal: controller.signal,
+          signal: requestController.signal,
         });
         const payload = (await response.json().catch(() => null)) as {
           account?: FvOfficialAccount | null;
@@ -331,7 +337,8 @@ export function WaitingCard({
         }
       } finally {
         window.clearTimeout(deadline);
-        controller = null;
+        if (controller === requestController) controller = null;
+        inFlight = false;
         schedule(10_000);
       }
     };
@@ -345,7 +352,7 @@ export function WaitingCard({
     return () => {
       cancelled = true;
       controller?.abort();
-      if (timer) window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [applicationId, isFrance, officialAccount]);
