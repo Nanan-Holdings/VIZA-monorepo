@@ -764,6 +764,26 @@ marker，直接对最新标题加 limit 会改变结果；本轮未修改该路�
   和两份测试通过单独 `eslint --no-ignore`。独立审查确认修改仅在历史读取，
   未发现发布阻碍；没有修改消息发送、重命名、删除或 Socket.IO 协议。
 
+### 第十三轮发布完成
+
+- 实现提交 `f9680fcffaca0b80852f60281de9b3561faf36e0` 已推送 `upstream/main`。
+  发布前确认账号为组织邮箱 `nanan.viza2016@gmail.com`，项目为 VIZA 团队下的
+  `viza-internal`，frontend rootDirectory 和 Node 24.x 与现有配置一致。
+- 上传 dry run 共 1,989 个文件，包含本轮 action；环境文件、MCP 配置、日志、
+  临时产物和构建缓存的泄漏项为零。
+- Candidate `dpl_BQNHofF76vytfjdpSd6bW3gs15Ks` 编译成功并生成 127 个页面，
+  状态 `READY`。切换前登录页 200、匿名 `/client/chat` 307 到登录页、匿名
+  状态 API 为结构化 401，随后成功 promote。
+- 正式域名 `app.viza.it.com` 已核验指向该 deployment，状态为 `READY`、
+  `target=production`。切换后上述 HTTP 检查结果一致；浏览器现有登录会话
+  正常进入首页并完成加载，申请导航可见，无未处理错误。临时标签页已关闭。
+- 未执行生产聊天发送、消息修改、申请创建或并发压测。已登录聊天内容与
+  查询边界的验证来自本地合成测试；线上验证覆盖匿名聊天保护和现有会话
+  首页，不能替代真实数据库下的已登录聊天端到端容量验收。
+
+部署 URL：`https://viza-internal-cspq14ch5-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_HeKb3k9C2GpLUnFYCot4wgimQjNP` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
