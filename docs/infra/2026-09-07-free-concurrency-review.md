@@ -1086,6 +1086,40 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 部署 URL：`https://viza-internal-1meoc0k9p-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_k9qVMWNMNvG5a6GtXJwxJnUSsZwn` 保留供现有回滚流程使用。
 
+## 第十九轮：订阅付款终态停止后台读取
+
+- 订阅微信付款页的 `PaymentStatusPoller` 原先收到 `paid` / `failed`
+  后不再安排下一次 timer，但仍响应可见性事件重新发出 GET。支付完成
+  后切换标签页会增加无效读取，后续网络错误还可能将已确认 UI 改回
+  `pending`。
+- 增加每个 payment ID / effect 独立的终态标记：成功响应中的 `paid`
+  或 `failed` 会清除已排程 timer，同时阻止后续可见性事件和已排队
+  callback 再次查询。切换 payment ID 会建立新的轮询生命周期。
+- 保留 pending 3 秒轮询、失败 6/12/24/30 秒退避、隐藏页暂停、
+  单请求串行和 5 秒超时；不改变 API 状态映射、付款创建或微信回调。
+  本轮没有更改布局或文案，也没有新增依赖、资源或费用。
+- 审查发现 `OfficialStatusAutoPoller` 当前没有源码调用方，不会造成
+  线上读取；本轮未修改这个未挂载组件。
+
+### 第十九轮本地验证
+
+- 新增 `subscription/__tests__/payment-status-poller.test.tsx`，使用
+  mocked fetch 和合成付款 ID 验证终态、可见性、退避、慢响应体、
+  取消、旧响应隔离和更换付款记录。实际付款、生产数据库和支付商
+  API 均未用于测试。
+- 最终订阅轮询 9 项测试通过，上一轮法国账户/越南付款轮询 8 项回归
+  也通过；最终前端 type-check 通过，完整 lint 为 0 errors / 62 个
+  既有 warnings，变更文件
+  ESLint 和 `git diff --check` 通过。
+- 使用 loopback 服务配置启动本地 Next，访问带合成 payment ID 的
+  `/client/subscription/pay` 正常重定向登录页；首次编译导致浏览器
+  等待超时，编译完成后确认登录表单正常。测试服务器及标签页已关闭。
+  独立认证测试环境仍缺失，付款卡状态通过本地组件测试验证。
+- 发布前固定使用 Vercel CLI 59.14.0，确认组织身份为
+  `nananviza2016-8879` / `nanan.viza2016@gmail.com`，项目为 VIZA
+  团队的 `viza-internal`。上传 dry run 共 2,000 个文件，包含修改的
+  付款轮询组件，环境文件、MCP 配置、日志和缓存泄漏项为零。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

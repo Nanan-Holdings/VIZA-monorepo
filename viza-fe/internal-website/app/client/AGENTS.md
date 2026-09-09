@@ -54,6 +54,10 @@ applicant info, and help pages.
 - `settings/**`: account settings plus privacy export/deletion request surface.
 - `subscription/**`: RMB subscription and pay-per-application pricing, plus
   Stripe/WeChat Pay/Alipay payment entry points for commercial plans.
+  `subscription/payment-status-poller.tsx` stops background reads after a paid
+  or failed result for the current payment ID, including visibility returns.
+  `subscription/__tests__/payment-status-poller.test.tsx` guards terminal
+  results, pending/error retry delays, request serialization and cleanup.
 - `chat/page.tsx` and `chat/chat-client.tsx`: VIZA AI and Travel AI tabbed chat.
 - `support/**`: customer service help center, self-service support bot, and
   human/email handoff. This must remain separate from the visa/travel AI chat.

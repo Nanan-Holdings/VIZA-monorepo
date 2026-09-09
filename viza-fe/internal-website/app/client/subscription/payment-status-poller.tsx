@@ -21,19 +21,23 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let terminal = false;
     let inFlight = false;
     let timer: number | undefined;
     let currentController: AbortController | null = null;
     let consecutiveFailures = 0;
 
     const schedule = (delayMs: number) => {
-      if (cancelled) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void poll(), delayMs);
+      if (cancelled || terminal) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void poll();
+      }, delayMs);
     };
 
     async function poll() {
-      if (cancelled || inFlight) return;
+      if (cancelled || terminal || inFlight) return;
       if (document.visibilityState !== "visible") {
         schedule(15_000);
         return;
@@ -52,6 +56,11 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
         const payload = (await response.json()) as { status?: PollStatus };
         if (cancelled) return;
         consecutiveFailures = 0;
+        if (payload.status === "paid" || payload.status === "failed") {
+          terminal = true;
+          if (timer !== undefined) window.clearTimeout(timer);
+          timer = undefined;
+        }
         if (payload.status) setStatus(payload.status);
         if (!payload.status || payload.status === "pending") schedule(3_000);
       } catch {
@@ -75,7 +84,7 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
     return () => {
       cancelled = true;
       currentController?.abort();
-      if (timer) window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [paymentId]);
