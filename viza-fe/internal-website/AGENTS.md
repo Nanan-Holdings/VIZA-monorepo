@@ -42,6 +42,9 @@ user message per owned session, with title reads surviving preview failures.
 `lib/supabase/companion-session-messages.integration.test.ts` verifies that
 loading a conversation uses one SDK read with an inner ownership join, preserves
 the latest 50 messages and blocks, and fails closed for other users or errors.
+`lib/supabase/applicant-inbox-read.integration.test.ts` verifies that portal
+inbox initialization reuses active alias data from the current authenticated
+profile read, including legacy identity and explicit-consent fallback paths.
 
 ## Purpose
 

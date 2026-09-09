@@ -844,6 +844,49 @@ action 的请求数量变化，不代表整页请求或数据库 CPU 降低 50%�
 部署 URL：`https://viza-internal-4pt7licf0-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_BQNHofF76vytfjdpSd6bW3gs15Ks` 保留供现有回滚流程使用。
 
+## 第十五轮：门户邮箱初始化复用已读取的别名
+
+门户 layout 在本标签页 session 验证通过后调用
+`initializeAuthenticatedApplicantInbox()`。原实现先读取用户资料，再为取得
+已有别名重复查询同一 profile，之后读取同意记录。本轮让已鉴权 profile
+查询一并选择 `inbox_alias`、`inbox_alias_retired_at`；只有别名存在、退休时间
+明确为 null、且不需旧域名迁移时，初始化才复用本次请求的快照并执行原有
+trim/lowercase 规范化。
+
+普通已分配有效别名且已有 account consent 的路径由 3 次数据库读降到 2 次；
+legacy auth-ID 身份回退为 4→3 次。缺少 account consent 时仍查询原有
+application consent，校验版本、hash 和 accepted；没有新增授权或跳过同意。
+未分配、已停用、旧域名、退休字段缺失的情况仍走原 assignment。显式授权
+action 仍重新执行原 assignment/consent 流程，alias 创建、迁移、重新启用、
+停用与历史邮件处理均未改动。没有跨请求缓存、依赖、迁移或付费资源。
+
+初始化返回的是该次 profile 查询时的快照。如果后台随后立即更换或停用别名，
+界面可能短暂显示旧值；显式授权仍重新检查，收件/转发的服务端权限检查未改。
+该快照优化不用于替代邮箱授权。正常 SPA 路由切换不会重新挂载 layout，收益
+主要作用于门户首次加载、刷新和新标签页，而不是每次导航。
+
+### 第十五轮本地验证
+
+真实 Supabase SDK 回环测试先在旧实现复现了普通/legacy identity/旧同意回退
+路径的 3/4/4 次 GET；改动后同样的合成 fixture 验证为 2/3/3 次 GET，三项
+测试均通过。fixture 只返回实际 select 的列，确认没有依赖未选择的 alias
+字段；所有请求均为 GET，未创建别名、写同意记录或发送邮件。
+
+保留完整旧同意查询：account consent 不存在时，仍检查 application consent
+的 applicant、类型、版本、hash 和 accepted=true。未使用真实 PostgREST、
+生产身份或并发压测，该结果验证的是请求形状与本地行为。
+
+本地浏览器访问 `/client/home` 正确跳转登录页且正常渲染，临时服务器和标签页
+已关闭。Next 使用 loopback 服务地址与合成凭据；后端 `/health` 为 `ok`，
+SHA 仍为 `967f03251efff1a931120a72007fcdce4dc75e5d`。独立审查确认快路径
+仅复用本次已鉴权资料，未绕过同意检查或改动授权 action。
+
+最终 24 项回归通过：邮箱初始化 action 12、SDK 3、收件箱读取/下载隔离 5、
+授权弹窗 4。覆盖停用/旧域/未分配/缺失退休字段回退、当前与旧身份、错误、
+跨用户、显式授权重新 assignment、checkbox 必须确认，以及本轮读取预算。
+type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 action 和两份
+测试通过单独 `eslint --no-ignore`。源码仅改变 profile 投影和初始化快路径。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

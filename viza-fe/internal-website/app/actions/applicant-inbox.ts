@@ -91,6 +91,14 @@ export type ApplicantInboxActionResult =
   | { ok: true; data: ApplicantInboxSetupState }
   | { ok: false; error: { code: ApplicantInboxActionErrorCode } };
 
+interface AuthenticatedApplicantProfile {
+  id: string;
+  authUserId: string | null;
+  email: string;
+  inboxAlias: string | null | undefined;
+  inboxAliasRetiredAt: string | null | undefined;
+}
+
 class ApplicantInboxActionFailure extends Error {
   constructor(
     readonly code: Exclude<ApplicantInboxActionErrorCode, "SERVICE_UNAVAILABLE">,
@@ -228,7 +236,7 @@ async function readForensics() {
   }
 }
 
-async function getAuthenticatedApplicantProfile() {
+async function getAuthenticatedApplicantProfile(): Promise<AuthenticatedApplicantProfile> {
   const session = await getClientSessionWithFallback();
   if (!session) {
     throw new ApplicantInboxActionFailure(
@@ -240,7 +248,7 @@ async function getAuthenticatedApplicantProfile() {
   return withAdmin("system", "actions/applicant-inbox:profile", async (admin) => {
     const { data: profileById, error: profileByIdError } = await admin
       .from("applicant_profiles")
-      .select("id, auth_user_id, email")
+      .select("id, auth_user_id, email, inbox_alias, inbox_alias_retired_at")
       .eq("id", session.userId)
       .maybeSingle();
     if (profileByIdError) {
@@ -252,7 +260,7 @@ async function getAuthenticatedApplicantProfile() {
       const legacyAuthUserId = session.authUserId ?? session.userId;
       const { data: profileByAuthUserId, error: profileByAuthUserIdError } = await admin
         .from("applicant_profiles")
-        .select("id, auth_user_id, email")
+        .select("id, auth_user_id, email, inbox_alias, inbox_alias_retired_at")
         .eq("auth_user_id", legacyAuthUserId)
         .maybeSingle();
       if (profileByAuthUserIdError) {
@@ -273,8 +281,23 @@ async function getAuthenticatedApplicantProfile() {
       id: data.id as string,
       authUserId: (data.auth_user_id as string | null) ?? null,
       email: String(data.email).trim().toLowerCase(),
+      inboxAlias: data.inbox_alias as string | null | undefined,
+      inboxAliasRetiredAt: data.inbox_alias_retired_at as string | null | undefined,
     };
   });
+}
+
+function getReusableInboxAlias(
+  profile: AuthenticatedApplicantProfile,
+): string | null {
+  if (
+    !profile.inboxAlias ||
+    profile.inboxAliasRetiredAt !== null ||
+    replacementForLegacyAlias(profile.inboxAlias) !== null
+  ) {
+    return null;
+  }
+  return profile.inboxAlias.trim().toLowerCase();
 }
 
 async function hasAccountForwardingConsent(applicantId: string): Promise<boolean> {
@@ -321,8 +344,10 @@ async function hasAccountForwardingConsent(applicantId: string): Promise<boolean
 export async function initializeAuthenticatedApplicantInbox(): Promise<ApplicantInboxActionResult> {
   return runApplicantInboxAction("initialize", async () => {
     const profile = await getAuthenticatedApplicantProfile();
-    const [{ alias }, forwardingAuthorized] = await Promise.all([
-      assignApplicantInboxAlias(profile.id),
+    const reusableAlias = getReusableInboxAlias(profile);
+    const [alias, forwardingAuthorized] = await Promise.all([
+      reusableAlias ??
+        assignApplicantInboxAlias(profile.id).then(({ alias: assignedAlias }) => assignedAlias),
       hasAccountForwardingConsent(profile.id),
     ]);
     return {

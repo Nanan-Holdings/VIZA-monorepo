@@ -25,6 +25,10 @@ application lifecycle state.
   reads; payment and applicant data must remain uncached.
 - `applicant-inbox.ts`: resolves current and legacy client-session identities,
   initializes applicant inbox aliases, and records explicit forwarding consent.
+  Initialization may reuse an active, non-legacy alias from that call's profile
+  read; missing, retired, legacy, or incomplete alias state must use the original
+  assignment path. Explicit authorization always reruns assignment and consent
+  checks. Do not cache alias state across requests or bypass the consent lookup.
   Keep its client-facing failures typed and covered by
   `applicant-inbox.test.ts`.
 - `inbox.ts`: lists and downloads applicant email only after resolving the
