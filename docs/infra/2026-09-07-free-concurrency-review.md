@@ -1109,8 +1109,7 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   API 均未用于测试。
 - 最终订阅轮询 9 项测试通过，上一轮法国账户/越南付款轮询 8 项回归
   也通过；最终前端 type-check 通过，完整 lint 为 0 errors / 62 个
-  既有 warnings，变更文件
-  ESLint 和 `git diff --check` 通过。
+  既有 warnings，变更文件 ESLint 和 `git diff --check` 通过。
 - 使用 loopback 服务配置启动本地 Next，访问带合成 payment ID 的
   `/client/subscription/pay` 正常重定向登录页；首次编译导致浏览器
   等待超时，编译完成后确认登录表单正常。测试服务器及标签页已关闭。
@@ -1119,6 +1118,25 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   `nananviza2016-8879` / `nanan.viza2016@gmail.com`，项目为 VIZA
   团队的 `viza-internal`。上传 dry run 共 2,000 个文件，包含修改的
   付款轮询组件，环境文件、MCP 配置、日志和缓存泄漏项为零。
+
+### 第十九轮发布完成
+
+- 实现提交 `03c9ddfc32668786ea1b8f02934cd3a26f67cfd7` 已推送
+  `upstream/main`，使用已核验的 nananviza 组织身份发布。
+- Candidate `dpl_ERCcBgDFqk1ANAvDkALt3rzS6Htv` 构建成功，状态为
+  `READY`。候选地址登录页 200、匿名付款页 307 到登录页、合成 ID
+  的付款状态 API 为 401，检查通过后成功 promote。
+- 正式域名 `app.viza.it.com` 已指向该 deployment，
+  `target=production`、`readyState=READY`。正式域名对应检查为
+  200 / 307 / 401，匿名付款状态 body 为 `{"status":"failed"}`。
+  浏览器已有会话正常进入首页并加载完毕，申请导航可见，无邮箱初始化
+  错误或未处理异常。临时标签页已关闭，没有创建或支付真实订单。
+- 后端 health 为 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。本轮未执行生产压测，
+  真实持续在线人数仍需独立环境验证。
+
+部署 URL：`https://viza-internal-cx7irfauh-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_Urjf8iApmuSqz17arqnpkxg8pDVN` 保留供现有回滚流程使用。
 
 ## 下一步容量验收
 
