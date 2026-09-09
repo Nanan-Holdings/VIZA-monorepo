@@ -705,6 +705,27 @@ Storage 签名，签名有效期仍为一小时。
 marker，直接对最新标题加 limit 会改变结果；本轮未修改该路径，后续需要
 先验证保留此行为的查询方案。
 
+### 第十二轮发布完成
+
+- 实现提交 `4bd2bfa88d750187e9983970b92b0549d1a40379` 已推送 `upstream/main`。
+  发布前确认组织账号 `nanan.viza2016@gmail.com`、VIZA 团队的 `viza-internal`
+  项目、project/org ID、frontend rootDirectory 与 Node 24.x 均符合现有配置。
+- CLI 上传 dry run 共 1,987 个文件，包含本轮 runtime；环境文件、MCP 配置、
+  日志、临时产物和构建缓存泄漏项为零。
+- Candidate `dpl_HeKb3k9C2GpLUnFYCot4wgimQjNP` 编译成功并生成 127 个页面，
+  状态达到 `READY`。切换前登录页 200、匿名状态 API 为结构化 401，长表单
+  匿名访问 307 到登录页；随后成功 promote。
+- `app.viza.it.com` 解析确认就是该 deployment，`target=production`、
+  `readyState=READY`。正式域名登录页 200、匿名状态 API 401；浏览器现有
+  登录会话正常进入 `/client/home` 并完成加载，申请导航可见，无未处理错误。
+  未创建申请、触发付款/提交或输出申请人信息；临时标签页已关闭。
+- agent-backend 未变，Render `/health` 返回 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。未增加付费资源，未执行生产
+  压测；最新套餐的查询形状和兼容性证据来自本地验证，线上仅执行轻量冒烟。
+
+部署 URL：`https://viza-internal-e6g3y4ptn-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_6kZZMDFyiR9DeFB9RhWNzSxBXYmo` 保留供现有回滚流程使用。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
