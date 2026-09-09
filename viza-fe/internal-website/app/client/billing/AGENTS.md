@@ -29,6 +29,10 @@ requests, refund eligibility, and government-fee display notes.
 - `page.tsx`: authenticated applicant billing route with agency-fee history,
   receipts, invoice/refund visibility, and government-fee disclosure.
 - `data.ts`: billing-only server reads through authenticated applicant context.
+  Filter `payment_records` by both applicant and `fee_type=agency_fee` before
+  transfer; keep the defensive fee-type filter. Applications, invoice/refund
+  records and package sources remain independent, including unpaid applicants.
+  SDK request-shape coverage lives in `lib/supabase/billing-read.integration.test.ts`.
 - `actions.ts`: billing-local server mutations such as invoice requests.
 - `invoice-request-form.tsx`: client dialog for request-based invoice intake.
 - `copy.ts`: route-scoped English/Chinese billing, invoice, refund, and status

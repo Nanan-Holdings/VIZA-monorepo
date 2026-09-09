@@ -148,16 +148,20 @@ export async function loadTicketThread(
   if (isSupportTableMissing(ticketErr)) {
     const storedTicket = await readStoredSupportTicket(ticketId);
     if (!storedTicket) return { error: "Not found" };
-    const staff = me.userId ? await isStaff(me.userId) : false;
-    if (!staff && storedTicket.applicant_id !== me.id) return { error: "Unauthorized" };
+    if (storedTicket.applicant_id !== me.id) {
+      const staff = me.userId ? await isStaff(me.userId) : false;
+      if (!staff) return { error: "Unauthorized" };
+    }
     return {
       ticket: storedTicket as SupportTicketRow,
       messages: await listStoredTicketMessages(ticketId),
     };
   }
   if (ticketErr || !ticket) return { error: ticketErr?.message ?? "Not found" };
-  const staff = me.userId ? await isStaff(me.userId) : false;
-  if (!staff && ticket.applicant_id !== me.id) return { error: "Unauthorized" };
+  if (ticket.applicant_id !== me.id) {
+    const staff = me.userId ? await isStaff(me.userId) : false;
+    if (!staff) return { error: "Unauthorized" };
+  }
 
   const { data: messages, error: msgErr } = await adminClient
     .from("support_message")

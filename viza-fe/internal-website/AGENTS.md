@@ -48,6 +48,9 @@ profile read, including legacy identity and explicit-consent fallback paths.
 `lib/supabase/reusable-document-existence.integration.test.ts` verifies the
 document loader's applicant/status filters and ordered metadata through the
 actual SDK against loopback HTTP, plus bounded HEAD checks and error draining.
+`lib/supabase/billing-read.integration.test.ts` verifies that billing filters
+agency fees before transfer through the actual SDK against loopback HTTP,
+preserving owner isolation, application/package sources and error handling.
 
 ## Purpose
 

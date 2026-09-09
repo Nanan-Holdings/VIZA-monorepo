@@ -972,6 +972,52 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 部署 URL：`https://viza-internal-9xkptfdaj-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_DiPigxuotg4TXTQS4tVS6auH8cDN` 保留供现有回滚流程使用。
 
+## 第十七轮：减少账单传输与工单角色查询
+
+账单 `getBillingOverview()` 在已有 applicant predicate 之后增加
+`fee_type=agency_fee`。保留原有 Node 防御过滤、所有 payment status、
+历史关联缺失记录以及原排序，没有增加 limit。此前已被页面过滤的政府
+费用、submission checkout、订阅、一次性产品和支付方式绑定记录，不再
+先传输到 Next.js 再丢弃。application、invoice、refund 和 package 读取
+未改，未支付申请和政府费用披露继续来自原有 application/package 数据。
+查询次数保持不变，主要减少返回行、JSON 传输与 SSR 处理；未声称数据库
+扫描或实际页面耗时已有固定比例提升。
+
+客服 `loadTicketThread()` 保留 Supabase Auth 验证和 applicant profile
+解析，在已读取 ticket 属于该 applicant 时省去一次 `users` 角色查询。
+普通 owner 路径由 4 次数据库读取降为 3 次，不计原有 Auth `getUser()`。
+非 owner 仍实时校验 staff/admin 与 `deleted_at IS NULL`，失败时在消息
+读取前返回 Unauthorized。Storage 缺表回退执行相同 owner 判断；回退
+读取本身及消息表缺失处理均未改变。发消息、创建工单等写路径仍执行原
+权限逻辑，staff 的 author_kind 未改，没有跨请求身份或财务数据缓存。
+
+### 第十七轮本地验证
+
+- 真实 Supabase SDK + loopback HTTP fixture 在改动前确认账单两个样本
+  分别传输 8 行和 1 行付款记录；增加 predicate 后变为 2 行和 0 行，
+  付款展示结果保持一致。验证 agency pending 历史、两位用户隔离、没有
+  agency payment 的申请及 package、独立 invoice/refund 数据、双语
+  错误和匿名零 HTTP 请求，5 项测试通过。
+- 客服 action mock 回归覆盖 owner 3 次读取、staff/admin、普通用户、
+  软删除和角色查询失败拒绝、缺失认证/profile/ticket、Storage 与消息
+  表缺失回退等，11 项通过。owner 测试使用不同 auth ID 与 profile ID，
+  验证按 profile 所有权判断；非 owner 拒绝不会读取消息。
+- type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改源码和新增
+  测试的单独 eslint 无错误。独立审查确认读取和写入权限边界保持一致。
+- 本地 Next 使用 loopback 服务地址与合成凭据，浏览器访问
+  `/client/billing` 及合成 `/support/<ticketId>` 均正常进入登录页。
+  实际已登录数据路径由本地 fixture 验证，未访问生产账单、工单或发送
+  邮件；这些测试不等于真实 PostgreSQL 执行计划或持续容量验收。
+  临时服务器和标签页已关闭；后端 health 为 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。
+
+### 第十七轮发布状态
+
+发布准备已完成，候选及生产验证记录将在切换后补齐。本轮固定使用
+Vercel CLI 59.14.0，已通过 `/v2/user` 确认发布身份为
+`nananviza2016-8879` / `nanan.viza2016@gmail.com`（VIZA 组织账号）。
+此前浏览器误开的个人登录页已关闭，未授权 CLI、未用于本轮发布。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

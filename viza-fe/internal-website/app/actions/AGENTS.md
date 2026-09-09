@@ -94,6 +94,11 @@ application lifecycle state.
   ticket submission, admin P2 support inbox reads/replies, and the temporary
   Storage fallback used when a Supabase project has not applied
   `support_ticket` migrations yet.
+  `loadTicketThread()` skips the staff-role read only for the authenticated
+  applicant who owns the ticket. Non-owner reads must freshly check staff role
+  and soft deletion before loading messages, including the Storage fallback.
+  `support.test.ts` covers this query budget, authorization and legacy fallback;
+  posting messages still resolves staff role to preserve the author kind.
 - `takeover.ts`: admin 2FA-gated operator takeover listing, claims, and
   bounded answer capture. Claims use `claim_takeover_session`; completion and
   abandonment settle the session and runner job only through the guarded

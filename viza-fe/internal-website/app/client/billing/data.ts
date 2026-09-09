@@ -167,6 +167,7 @@ export async function getBillingOverview(locale?: string | null): Promise<Billin
           "id, application_id, applicant_id, visa_package_id, amount_cents, currency, status, fee_type, receipt_url, created_at, updated_at",
         )
         .eq("applicant_id", applicant.applicantId)
+        .eq("fee_type", "agency_fee")
         .order("created_at", { ascending: false }),
       adminClient
         .from("applications")

@@ -26,6 +26,10 @@ VIZA Google account. Never deploy from a personal Google identity or personal
 Vercel account. Before releasing, verify the linked project is `viza-internal`
 under the configured VIZA team, and do not persist Google credentials or Vercel
 tokens in the repository, shell history, logs, screenshots, or agent output.
+The expected release identity is `nananviza2016-8879` with organization email
+`nanan.viza2016@gmail.com` (`viza-gmail`). Verify it through the CLI account API
+before deploying; a browser's existing personal Google session is not evidence
+of the correct release account. The linked team is `viza-gmail-s-projects`.
 
 ## Local Test Admin
 
