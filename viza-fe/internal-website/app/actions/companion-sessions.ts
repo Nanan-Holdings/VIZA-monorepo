@@ -281,27 +281,22 @@ export async function getSessionMessages(
 
   const adminClient = createAdminClient();
 
-  // Verify session belongs to user
-  const { data: session, error: sessionError } = await adminClient
-    .from("visa_chat_sessions")
-    .select("id, applicant_id")
-    .eq("id", sessionId)
-    .single();
-
-  if (sessionError || !session || session.applicant_id !== userId) {
-    console.error("Session not found or doesn't belong to user", {
-      sessionId,
-      userId,
-      sessionUserId: session?.applicant_id,
-    });
-    return [];
-  }
-
-  // Fetch messages
+  // The !inner join and joined owner filter enforce session ownership in the
+  // database query. Keep both predicates here; do not move this check into
+  // client-side filtering after loading another user's messages.
   const { data: messages, error } = await adminClient
     .from("visa_chat_messages")
-    .select("*")
+    .select(`
+      id,
+      session_id,
+      role,
+      content,
+      created_at,
+      block_data,
+      visa_chat_sessions!inner(applicant_id)
+    `)
     .eq("session_id", sessionId)
+    .eq("visa_chat_sessions.applicant_id", userId)
     .neq("role", "system")
     .order("created_at", { ascending: false })
     .limit(50);

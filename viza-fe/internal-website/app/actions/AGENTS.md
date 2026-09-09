@@ -71,6 +71,10 @@ application lifecycle state.
   limit of one. Keep title-marker decoding and partial read failure behavior;
   an invalid newest marker must not hide an older valid title. Coverage lives
   in `companion-sessions.test.ts` and the SDK loopback test under `lib/supabase`.
+  `getSessionMessages()` combines ownership and message selection in one
+  `visa_chat_sessions!inner(applicant_id)` query. Preserve the joined owner
+  predicate, selected session, hidden system messages, limit 50, and block data.
+  `companion-session-messages.test.ts` covers this action's isolation and DTO.
 - `user-package.ts`: package/destination assignment and active package reads.
   The latest-only getter filters missing embedded packages with an inner join
   before limiting to one row; the full-list getter must retain all valid active

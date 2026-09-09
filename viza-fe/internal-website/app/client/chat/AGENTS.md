@@ -82,6 +82,11 @@ because invalid/blank title markers must be skipped. Action and SDK loopback
 coverage lives in `app/actions/companion-sessions.test.ts` and
 `lib/supabase/companion-session-preview.integration.test.ts`.
 
+Loading or switching a conversation uses one ownership-filtered message query
+in `getSessionMessages()`. Keep the inner session join and applicant filter
+together with the requested session ID; the latest 50 non-system messages must
+remain chronological in the returned DTO and preserve application block data.
+
 ## Validation Checklist
 
 For frontend-only changes:

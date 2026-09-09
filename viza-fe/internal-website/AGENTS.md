@@ -39,6 +39,9 @@ inner embedding before the one-row limit and unchanged full-list reads.
 `lib/supabase/companion-session-preview.integration.test.ts` verifies aliased
 chat preview limits through the actual SDK against loopback HTTP: at most one
 user message per owned session, with title reads surviving preview failures.
+`lib/supabase/companion-session-messages.integration.test.ts` verifies that
+loading a conversation uses one SDK read with an inner ownership join, preserves
+the latest 50 messages and blocks, and fails closed for other users or errors.
 
 ## Purpose
 

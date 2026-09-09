@@ -784,6 +784,45 @@ marker，直接对最新标题加 limit 会改变结果；本轮未修改该路�
 部署 URL：`https://viza-internal-cspq14ch5-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_HeKb3k9C2GpLUnFYCot4wgimQjNP` 保留供现有回滚流程使用。
 
+## 第十四轮：聊天会话消息与所有权合并读取
+
+`/client/chat` 初次加载和切换会话都会调用 `getSessionMessages()`。原实现先
+查询会话归属，再查询消息；本轮将其合并为一次带
+`visa_chat_sessions!inner(applicant_id)` 的消息读取，同时按请求的 session ID
+和前置鉴权得到的 applicant ID 筛选。`!inner` 与 owner 条件必须一起保留，
+否则 service-role 查询可能读取不属于当前用户的消息。
+
+消息投影仅包含 DTO 所需字段及归属关联，保留 system 隐藏、最近 50 条、
+恢复时间正序、assistant→agent 映射与 `block_data`。空会话、不存在、他人
+会话和数据库错误都继续返回空列表；impersonation 与前置身份校验未变。
+没有改动发送、重命名、删除、搜索计数或其他聊天函数。
+
+每次正常会话消息加载的数据库请求由 2 次降到 1 次，节省一次往返；这是该
+action 的请求数量变化，不代表整页请求或数据库 CPU 降低 50%。未新增缓存、
+依赖、迁移或付费资源。本轮还核对了两个 exact-count 候选：申请进度实际
+需要文档数量，不能改为 exists；账户导出/删除的计数仅用于存在性，但频率
+较低，暂未修改。旧聊天 recent helper 的计数也未改动。
+
+### 第十四轮本地验证
+
+- 34 项测试通过：新 action 10、SDK 消息读取 2、原侧栏 action 12、原预览
+  SDK 2、连续聊天 hook 8。覆盖未授权零 DB 请求、impersonation、跨用户/
+  跨会话隔离、一次查询、最新 50 条、角色/卡片数据、空值与错误结果。
+- 本机临时 HTTP fixture 配合真实 Supabase SDK，100 条合成消息中过滤 system
+  后正确返回最新 50 条，顺序与卡片完整；实际只有一次 GET，包含 `!inner`、
+  owner/session 条件、role 排除、排序和 limit50。查询其他用户或不存在的
+  会话均为空，模拟 400 时也不新增归属或 fallback 请求。此验证模拟了数据
+  执行行为，不能替代真实 PostgREST/RLS/SQL 计划或并发容量验收。
+- type-check 通过，全量 lint 为 0 错误、62 项原有警告，修改 action 和两份
+  新测试通过 `eslint --no-ignore`。独立审查确认 FK、投影、所有权和 DTO
+  行为，无发布阻碍。
+- 本地 Next 使用 loopback 服务地址和虚构凭据。首个浏览器导航因冷编译
+  超时，日志随后记录登录页 200；编译完成后再次访问 `/client/chat` 正确
+  跳转登录并渲染，无未处理错误。临时服务器与标签页已关闭。
+- agent-backend `/health` 为 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。没有真实聊天发送、生产压测
+  或独立环境的已登录端到端测试；消息内容/授权边界使用合成数据验证。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

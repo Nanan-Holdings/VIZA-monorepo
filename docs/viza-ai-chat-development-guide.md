@@ -97,6 +97,13 @@ flowchart TD
 测试见 `app/actions/companion-sessions.test.ts` 与
 `lib/supabase/companion-session-preview.integration.test.ts`。
 
+开页与会话切换的 `getSessionMessages()` 将会话归属和消息读取合并为一次
+数据库请求：消息关联 `visa_chat_sessions!inner(applicant_id)`，同时筛选当前
+已鉴权 applicant 和请求的 session ID。保留最近 50 条非 system 消息、返回
+时的时间正序和 `block_data`；不属于本人、会话不存在或查询错误均返回空列表。
+相关覆盖见 `app/actions/companion-session-messages.test.ts` 和
+`lib/supabase/companion-session-messages.integration.test.ts`。
+
 ### 4.2 Client route: `chat-client.tsx`
 
 它同时管理 UI、Socket.IO、streaming、scroll 和 Travel tab。
