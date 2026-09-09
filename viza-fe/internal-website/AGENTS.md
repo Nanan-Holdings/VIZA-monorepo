@@ -33,6 +33,9 @@ JSON bodies and parallel reads; it must never use production credentials.
 `lib/supabase/status-storage-urls.integration.test.ts` verifies the status
 loader's batched Storage signing through the actual SDK against loopback HTTP,
 including bounded batch concurrency and partial failures with synthetic paths.
+`lib/supabase/user-package-read.integration.test.ts` verifies owner-scoped
+latest-package reads through the actual SDK against loopback HTTP, including
+inner embedding before the one-row limit and unchanged full-list reads.
 
 ## Purpose
 

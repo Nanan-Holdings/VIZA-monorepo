@@ -1,8 +1,9 @@
 # 2026-09-07 并发架构检查与免费优化
 
-本次完成代码优化与本地验证，没有部署生产、修改生产数据库、增加实例、
-购买服务或对生产执行并发压测。目标是在现有资源上减少重复工作，保护普通
-页面请求；整站 1,000 人容量仍需按实际业务负载验收。
+本文记录多轮并发检查、代码优化、本地验证和后续发布。首轮初始检查没有部署；
+已上线内容以各轮“发布完成”记录为准。目标是在现有资源上减少重复工作，
+保护普通页面请求，不增加付费资源，也不对生产执行并发压测。整站 1,000 人
+容量仍需按实际业务负载验收。
 
 ## 当前架构和容量边界
 
@@ -667,6 +668,43 @@ Storage 签名，签名有效期仍为一小时。
 部署 URL：`https://viza-internal-m39cpsa6p-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_5oJ5RU25du2jD9HUtfofvQV8rP4P` 保留供现有回滚流程使用。
 
+## 第十二轮：最新套餐读取限制为一条有效记录
+
+申请向导、长表单、onboarding 和 application journey 只需要最新套餐，但原先
+`getUserVisaPackage()` 会先读取所有 active 套餐再取第一条。本轮将此入口改为
+在数据库请求中按 `assigned_at DESC` 排序并限制一条，通过
+`visa_packages!inner(...)` 在 limit 前排除缺失关联，保留“最新有效套餐”的
+原有含义。需要完整列表的 `getUserVisaPackages()` 继续返回所有有效 active
+套餐，分配/选择套餐的写入逻辑未改动。
+
+两个读取入口共用原有 session/profile 身份解析和 DTO 规范化；每次调用重新
+取得当前用户，保留 profile auth ID、legacy session ID fallback、4 秒超时和
+250 ms 重试。没有增加用户数据缓存、数据库迁移、依赖或付费资源。请求次数
+仍为一次 profile 和一次套餐查询；改善的是最新套餐查询的返回行数、传输量
+与 Node 端映射工作，不能据此声称数据库扫描量或整站容量按同一比例改善。
+
+### 第十二轮本地验证
+
+- 相关回归 13 项通过：套餐读取单元测试 9、真实 SDK 回环测试 1、profile
+  identity 回归 3。覆盖所有权与跨请求用户隔离、legacy fallback、缺失关联、
+  object/array 关系、完整列表、空结果与读取失败。
+- 实际 Supabase SDK 请求临时本机 HTTP fixture；50 个有效套餐加一条无关联
+  assignment，最新入口实际发送 owner/status 条件、inner embedding 和
+  顶层 `limit=1`，返回一条；完整入口无 limit、返回 51 条 assignment 并映射
+  出 50 个有效套餐，两者最新结果一致。fixture 还含其他用户与 inactive 行。
+  这验证 SDK 发出的请求及本地行为，未运行真实 PostgREST/SQL 执行计划或
+  持续并发测试；inner embedding 语义已核对官方文档。
+- 前端 type-check 通过，全量 lint 为 0 错误、62 项原有警告；改动 runtime
+  和新增测试通过单独 `eslint --no-ignore`，独立代码审查无阻碍项。
+- 本地 Next 使用 loopback 服务地址和合成凭据，浏览器访问
+  `/client/application` 与 `/client/application/long-form` 均跳转登录页并正常
+  渲染。已登录套餐行为通过上述合成身份测试验证；没有独立环境下的真实
+  登录数据库端到端验收。临时服务器与标签页已关闭，没有生产压测。
+
+聊天历史也存在读取过多消息的候选优化，但标题读取会跳过空白/无效的较新
+marker，直接对最新标题加 limit 会改变结果；本轮未修改该路径，后续需要
+先验证保留此行为的查询方案。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
@@ -691,6 +729,8 @@ Storage 签名，签名有效期仍为一小时。
 - [Supabase 连接预算](https://supabase.com/docs/guides/database/connection-management)
 - [Supabase 请求取消](https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal)
 - [Supabase 批量签名 URL](https://supabase.com/docs/reference/javascript/file-buckets-createsignedurls)
+- [Supabase 关系嵌套读取](https://supabase.com/docs/guides/database/joins-and-nesting)
+- [PostgREST inner embedding](https://docs.postgrest.org/en/v13/references/api/resource_embedding.html)
 - [Vercel 函数取消与清理](https://vercel.com/docs/functions/functions-api-reference)
 - [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after)
 - [RLS InitPlan advisor](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan)

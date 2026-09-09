@@ -67,6 +67,11 @@ application lifecycle state.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
 - `user-package.ts`: package/destination assignment and active package reads.
+  The latest-only getter filters missing embedded packages with an inner join
+  before limiting to one row; the full-list getter must retain all valid active
+  packages. Both resolve the authenticated owner independently on every call.
+  `user-package.test.ts` covers ownership, legacy sessions, query limits,
+  missing relationships, normalization, and read failures.
 - `internal-automation/**`: trusted mutations and reads for payment, consent,
   document readiness, packet lifecycle, status events, notifications, and
   admin/customer status summaries.
