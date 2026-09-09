@@ -950,9 +950,27 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   conditional fixture 却期待 optional 标题；未为满足过期断言修改冻结
   UI。此基线问题仍待单独修正，本轮不声称整套回归全绿。
 
-### 第十六轮发布状态
+### 第十六轮发布完成
 
-本轮实现和本地检查已完成，发布记录将在候选版本验证及生产切换后补齐。
+- 实现提交 `fa93a9524384773e232b1aa60da07b91e0d9c3e4` 已推送
+  `upstream/main`。发布账号确认为组织邮箱 `nanan.viza2016@gmail.com`，
+  项目为 VIZA 团队下的 `viza-internal`，frontend rootDirectory 与
+  Node 24.x 配置正确。
+- 上传 dry run 共 1,995 个文件，包含 action 和 existence helper；
+  环境文件、MCP 配置、本地日志、临时产物和构建缓存泄漏项为零。
+- Candidate `dpl_CE4vao9AvEknFKJ6HvqgTVUzzkRs` 编译和 127 个页面生成
+  成功，状态 `READY`。切换前登录页 200、匿名材料页面 307 到登录页、
+  匿名状态 API 为结构化 401，随后成功 promote。
+- `app.viza.it.com` 已确认指向该 deployment，`target=production`、
+  `readyState=READY`。正式域名登录页 200、匿名申请/材料页面 307 到
+  登录页、状态 API 401；浏览器现有登录会话进入首页并完成加载，申请
+  导航可见，没有邮箱初始化错误或未处理错误。临时标签页已关闭。
+- 没有执行生产材料 action、创建申请、上传/下载文件或进行生产压测。
+  材料检查请求数量及异常处理证据来自本地合成 SDK fixture，线上烟测
+  不替代独立环境中的已登录持续容量验收。
+
+部署 URL：`https://viza-internal-9xkptfdaj-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_DiPigxuotg4TXTQS4tVS6auH8cDN` 保留供现有回滚流程使用。
 
 ## 下一步容量验收
 
