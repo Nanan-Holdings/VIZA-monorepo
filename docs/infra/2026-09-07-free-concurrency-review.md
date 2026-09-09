@@ -606,6 +606,44 @@ lint 为 0 错误、62 项原有警告；本轮修改的 runtime 与新增测试
 部署 URL：`https://viza-internal-77fo0ee79-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_Hs1HUfPGisac6yZgRcA6nojcD2iB` 保留供现有回滚流程使用。
 
+## 第十一轮：申请详情的 Storage 签名批量化
+
+首页已只读取选中的申请，但详情 loader 仍为收据、付款凭证、材料包、结果文件
+和官方提交附件逐个请求签名 URL。同一申请内这些请求串行等待，重复路径也会
+重复签名；全详情读取多个申请时又会并发启动多条签名链。
+
+本轮在原有登录、profile 和申请所有权筛选后，先收集实际需要返回的文件，
+再按 bucket/path 去重并调用 Supabase `createSignedUrls`。每批最多 100 个
+路径，同一次 loader 调用最多同时运行两批。签名结果只在该次请求内使用，
+不跨用户或跨请求缓存；批次失败不再拆成逐文件重试。
+
+文件顺序、reference、时间戳、状态与操作链接保持原有规则；绝对 URL 直接
+保留，越南 e-Visa 结果仍走原有鉴权下载/打印路由，提交附件仍解析到原来的
+存储桶。缺失或失败文件的 href 为 null，成功文件仍可用。列表模式继续零
+Storage 签名，签名有效期仍为一小时。
+
+### 第十一轮本地验证
+
+最终相关回归共 67 项通过：批处理 helper 5、真实 SDK 2、共享 loader 17，
+以及首页、列表、action、profile 与查询预算等 43 项。覆盖授权文件范围、
+选中申请、列表零签名、跨应用去重、分桶、文件顺序与下载按钮、绝对 URL、
+越南原有下载路由，以及 application_id 缺失/不匹配但通过本人套餐兼容关联
+的最新付款凭证。没有为满足测试改变原有国家路由或状态映射。
+
+真实 Supabase SDK 对临时本机 HTTP 服务的两项集成测试通过：204 个合成文件
+引用包含 202 个唯一 bucket/path，实际产生 4 个批量 POST，单批不超过 100
+个路径、实测最多两个请求同时进行。测试也验证 SDK 从 Storage 的 `signedURL`
+响应生成完整链接，单项不存在或另一存储桶返回 503 时保留其他成功结果，
+没有逐文件重试。所有地址、密钥、文件路径均为本地合成数据。
+
+本地浏览器访问 `/client/status` 与 `/client/home` 均正确跳转登录页，页面
+正常渲染；Next 运行使用 loopback 服务地址与虚构凭据，临时服务器和标签页已
+关闭。前端 `type-check` 通过（Node heap 4 GiB），全量 lint 为 0 错误、62 项
+原有警告，修改的 runtime 和测试单独通过 `eslint --no-ignore`。
+
+该结果证明签名请求数量与并发上界，不代表有 204 个用户同时在线，也不构成
+真实数据库、Storage 或整站持续容量验收。没有修改存储权限或新增付费资源。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
@@ -629,6 +667,7 @@ lint 为 0 错误、62 项原有警告；本轮修改的 runtime 与新增测试
 
 - [Supabase 连接预算](https://supabase.com/docs/guides/database/connection-management)
 - [Supabase 请求取消](https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal)
+- [Supabase 批量签名 URL](https://supabase.com/docs/reference/javascript/file-buckets-createsignedurls)
 - [Vercel 函数取消与清理](https://vercel.com/docs/functions/functions-api-reference)
 - [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after)
 - [RLS InitPlan advisor](https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan)

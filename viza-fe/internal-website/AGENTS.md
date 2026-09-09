@@ -30,6 +30,9 @@ connected to in-progress response body reads after fetch returns headers.
 `lib/supabase/request-cancellation.integration.test.ts` verifies cancellation
 through the actual Supabase SDK against a local HTTP server, including slow
 JSON bodies and parallel reads; it must never use production credentials.
+`lib/supabase/status-storage-urls.integration.test.ts` verifies the status
+loader's batched Storage signing through the actual SDK against loopback HTTP,
+including bounded batch concurrency and partial failures with synthetic paths.
 
 ## Purpose
 

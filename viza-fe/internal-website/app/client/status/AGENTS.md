@@ -103,6 +103,17 @@ index must not include private file references or unrelated detail payloads.
 reads, and file signing behavior. `page.test.tsx` checks the index-only load,
 authentication redirects, exact application/package links, and list rendering.
 
+`status-storage-urls.ts` signs only file targets collected from the loader's
+already-authorized applications. Deduplicate bucket/path pairs within that
+invocation, use batches of at most 100 paths, and allow at most two in-flight
+batch requests. Never keep signed URLs in a module-level or cross-user cache.
+Preserve file ordering, absolute URLs, Vietnam's authenticated artifact route,
+the one-hour signing lifetime, and null URLs for failed/missing objects. Index
+mode must still make zero Storage requests. `status-storage-urls.test.ts`
+covers batch scheduling and isolation; `lib/supabase/status-storage-urls.integration.test.ts`
+uses the actual Supabase SDK with a loopback HTTP fixture and synthetic keys
+only. The scoped loader tests cover authorization and result/action parity.
+
 ## Guardrails
 
 - Do not import service-role clients into client components.

@@ -68,6 +68,15 @@ const APPROVED_PACKAGE_ID = "aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
 const REJECTED_APPLICATION_ID = "bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbb1";
 const REJECTED_PACKAGE_ID = "bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2";
 const QA_APPLICATION_ID = "ccccccc1-cccc-4ccc-8ccc-ccccccccccc1";
+const STORAGE_APPLICATION_ID = "ddddddd1-dddd-4ddd-8ddd-ddddddddddd1";
+const STORAGE_SECOND_APPLICATION_ID = "ddddddd2-dddd-4ddd-8ddd-ddddddddddd2";
+const STORAGE_ABSOLUTE_APPLICATION_ID = "ddddddd3-dddd-4ddd-8ddd-ddddddddddd3";
+const STORAGE_VIETNAM_APPLICATION_ID = "ddddddd4-dddd-4ddd-8ddd-ddddddddddd4";
+const STORAGE_FOREIGN_APPLICATION_ID = "ddddddd5-dddd-4ddd-8ddd-ddddddddddd5";
+const STORAGE_PACKAGE_ID = "eeeeeee1-eeee-4eee-8eee-eeeeeeeeeee1";
+const STORAGE_SECOND_PACKAGE_ID = "eeeeeee2-eeee-4eee-8eee-eeeeeeeeeee2";
+const STORAGE_ABSOLUTE_PACKAGE_ID = "eeeeeee3-eeee-4eee-8eee-eeeeeeeeeee3";
+const STORAGE_VIETNAM_PACKAGE_ID = "eeeeeee4-eeee-4eee-8eee-eeeeeeeeeee4";
 
 type Row = Record<string, unknown>;
 type TableRows = Record<string, Row[]>;
@@ -85,6 +94,14 @@ interface FakeAdmin {
   client: SupabaseClient;
   calls: QueryCall[];
   storageSignatures: Array<{ bucket: string; path: string; expiresIn: number }>;
+  storageBatches: Array<{ bucket: string; paths: string[]; expiresIn: number }>;
+  storageSingleCalls: Array<{ bucket: string; path: string; expiresIn: number }>;
+}
+
+interface FakeAdminOptions {
+  failedTables?: ReadonlySet<string>;
+  failedStorageBuckets?: ReadonlySet<string>;
+  failedStorageTargets?: ReadonlySet<string>;
 }
 
 function applicationRow(overrides: Row): Row {
@@ -199,11 +216,15 @@ function matchesFilters(row: Row, filters: Filter[]): boolean {
 
 function createFakeAdmin(
   tableRows: TableRows,
-  options: { failedTables?: ReadonlySet<string> } = {},
+  options: FakeAdminOptions = {},
 ): FakeAdmin {
   const calls: QueryCall[] = [];
   const storageSignatures: Array<{ bucket: string; path: string; expiresIn: number }> = [];
+  const storageBatches: Array<{ bucket: string; paths: string[]; expiresIn: number }> = [];
+  const storageSingleCalls: Array<{ bucket: string; path: string; expiresIn: number }> = [];
   const failedTables = options.failedTables ?? new Set<string>();
+  const failedStorageBuckets = options.failedStorageBuckets ?? new Set<string>();
+  const failedStorageTargets = options.failedStorageTargets ?? new Set<string>();
   const admin = {
     from(table: string) {
       const call: QueryCall = { table, filters: [] };
@@ -237,19 +258,52 @@ function createFakeAdmin(
     },
     storage: {
       from(bucket: string) {
-        return {
-          createSignedUrl: vi.fn(async (path: string, expiresIn: number) => {
-            storageSignatures.push({ bucket, path, expiresIn });
+        const createSignedUrl = vi.fn(async (path: string, expiresIn: number) => {
+          storageSingleCalls.push({ bucket, path, expiresIn });
+          storageSignatures.push({ bucket, path, expiresIn });
+          return {
+            data: { signedUrl: `https://signed.example.test/${bucket}/${path}` },
+            error: null,
+          };
+        });
+        const createSignedUrls = vi.fn(async (paths: string[], expiresIn: number) => {
+          const normalizedPaths = [...paths];
+          storageBatches.push({ bucket, paths: normalizedPaths, expiresIn });
+          const failed =
+            failedStorageBuckets.has(bucket) ||
+            normalizedPaths.some((path) => failedStorageTargets.has(`${bucket}/${path}`));
+          if (failed) {
             return {
-              data: { signedUrl: `https://signed.example.test/${bucket}/${path}` },
-              error: null,
+              data: null,
+              error: { message: `synthetic storage failure for ${bucket}` },
             };
-          }),
+          }
+          for (const path of normalizedPaths) {
+            storageSignatures.push({ bucket, path, expiresIn });
+          }
+          return {
+            data: normalizedPaths.map((path) => ({
+              path,
+              signedUrl: `https://signed.example.test/${bucket}/${path}`,
+              error: null,
+            })),
+            error: null,
+          };
+        });
+        return {
+          createSignedUrl,
+          createSignedUrls,
         };
       },
     },
   };
-  return { client: admin as unknown as SupabaseClient, calls, storageSignatures };
+  return {
+    client: admin as unknown as SupabaseClient,
+    calls,
+    storageSignatures,
+    storageBatches,
+    storageSingleCalls,
+  };
 }
 
 function baseFixture(): TableRows {
@@ -432,6 +486,105 @@ function richFixture(): TableRows {
   };
 }
 
+function storageFixture(): TableRows {
+  return {
+    applicant_profiles: [{
+      id: PROFILE_ID,
+      email: "owner@example.test",
+      auth_user_id: AUTH_USER_ID,
+    }],
+    user_packages: [
+      userPackageRow(STORAGE_PACKAGE_ID, STORAGE_APPLICATION_ID, "japan", "JP_TOURIST"),
+      userPackageRow(STORAGE_SECOND_PACKAGE_ID, STORAGE_SECOND_APPLICATION_ID, "france", "FR_VISIT"),
+      userPackageRow(STORAGE_ABSOLUTE_PACKAGE_ID, STORAGE_ABSOLUTE_APPLICATION_ID, "canada", "CA_VISIT"),
+      userPackageRow(STORAGE_VIETNAM_PACKAGE_ID, STORAGE_VIETNAM_APPLICATION_ID, "vietnam", "evisa_tourism"),
+    ],
+    applications: [
+      applicationRow({
+        id: STORAGE_APPLICATION_ID,
+        country: "japan",
+        visa_type: "JP_TOURIST",
+        status: "approved",
+        result_status: "approved",
+        receipt_url: "application-documents/shared.pdf",
+        result_storage_path: "application-results/other.pdf",
+        submitted_at: "2026-09-01T10:00:00.000Z",
+        updated_at: "2026-09-01T11:00:00.000Z",
+        visa_package_id: STORAGE_PACKAGE_ID,
+      }),
+      applicationRow({
+        id: STORAGE_SECOND_APPLICATION_ID,
+        country: "france",
+        visa_type: "FR_VISIT",
+        status: "approved",
+        result_status: "approved",
+        receipt_url: "application-documents/shared.pdf",
+        result_storage_path: "application-results/shared.pdf",
+        packet_status: "ready",
+        external_status: "approved",
+        submitted_at: "2026-09-02T10:00:00.000Z",
+        updated_at: "2026-09-02T11:00:00.000Z",
+        visa_package_id: STORAGE_SECOND_PACKAGE_ID,
+      }),
+      applicationRow({
+        id: STORAGE_ABSOLUTE_APPLICATION_ID,
+        country: "canada",
+        visa_type: "CA_VISIT",
+        status: "draft",
+        receipt_url: "https://files.example.test/client-receipt.pdf",
+        updated_at: "2026-09-03T11:00:00.000Z",
+        visa_package_id: STORAGE_ABSOLUTE_PACKAGE_ID,
+      }),
+      applicationRow({
+        id: STORAGE_VIETNAM_APPLICATION_ID,
+        country: "vietnam",
+        visa_type: "evisa_tourism",
+        status: "approved",
+        result_status: "approved",
+        result_storage_path: "application-results/vietnam.pdf",
+        submitted_at: "2026-09-04T10:00:00.000Z",
+        updated_at: "2026-09-04T11:00:00.000Z",
+        visa_package_id: STORAGE_VIETNAM_PACKAGE_ID,
+      }),
+      applicationRow({
+        id: STORAGE_FOREIGN_APPLICATION_ID,
+        applicant_id: OTHER_PROFILE_ID,
+        country: "germany",
+        visa_type: "DE_VISIT",
+        status: "approved",
+        result_status: "approved",
+        result_storage_path: "application-results/foreign.pdf",
+        updated_at: "2026-09-05T11:00:00.000Z",
+        visa_package_id: STORAGE_PACKAGE_ID,
+      }),
+    ],
+    payment_records: [paymentRow({
+      id: "storage-second-payment",
+      application_id: STORAGE_SECOND_APPLICATION_ID,
+      visa_package_id: STORAGE_SECOND_PACKAGE_ID,
+      applicant_id: PROFILE_ID,
+      status: "paid",
+      receipt_url: null,
+    })],
+    consent_events: [{
+      application_id: STORAGE_SECOND_APPLICATION_ID,
+      accepted: true,
+      created_at: "2026-09-02T09:00:00.000Z",
+    }],
+    application_signatures: [{
+      application_id: STORAGE_SECOND_APPLICATION_ID,
+      signed_at: "2026-09-02T09:01:00.000Z",
+      created_at: "2026-09-02T09:01:00.000Z",
+    }],
+    application_documents: [],
+    visa_application_answers: [],
+    application_packets: [],
+    application_events: [],
+    notification_events: [],
+    official_application_tracking: [],
+  };
+}
+
 function applicationIdsReadFromDependentTables(calls: QueryCall[]): Map<string, string[]> {
   const dependentTables = new Set([
     "consent_events",
@@ -459,8 +612,12 @@ async function runLoader(
   tableRows: TableRows,
   applicationId?: string,
   failedTables: readonly string[] = [],
+  storageOptions: Omit<FakeAdminOptions, "failedTables"> = {},
 ): Promise<{ data: ClientStatusData; fake: FakeAdmin }> {
-  const fake = createFakeAdmin(tableRows, { failedTables: new Set(failedTables) });
+  const fake = createFakeAdmin(tableRows, {
+    ...storageOptions,
+    failedTables: new Set(failedTables),
+  });
   createAdminClient.mockReturnValue(fake.client);
   const data = await getClientStatusData(applicationId === undefined ? {} : { applicationId });
   return { data, fake };
@@ -648,6 +805,193 @@ describe("getClientStatusData application scope", () => {
   );
 });
 
+describe("getClientStatusData package-linked payment files", () => {
+  it("keeps the newest owner-linked receipt when its application id is legacy or mismatched", async () => {
+    const fixture = baseFixture();
+    fixture.applications = [applicationRow({
+      receipt_url: null,
+      submitted_at: null,
+    })];
+    fixture.payment_records = [
+      paymentRow({
+        id: "older-application-payment",
+        application_id: PROFILE_APPLICATION_ID,
+        visa_package_id: PACKAGE_ID,
+        receipt_url: "application-documents/older-payment.pdf",
+        updated_at: "2026-09-01T12:00:00.000Z",
+      }),
+      paymentRow({
+        id: "newer-legacy-package-payment",
+        // Legacy payment rows may point at a previous application while the
+        // applicant/package ownership remains valid for the selected record.
+        application_id: FOREIGN_APPLICATION_ID,
+        visa_package_id: PACKAGE_ID,
+        receipt_url: "application-documents/legacy-payment.pdf",
+        updated_at: "2026-09-03T12:00:00.000Z",
+      }),
+    ];
+
+    const { data, fake } = await runLoader(fixture, PROFILE_APPLICATION_ID);
+    const application = data.detailApplications[0];
+
+    expect(application?.files).toEqual([
+      {
+        key: "paymentReceipt",
+        href: "https://signed.example.test/application-documents/legacy-payment.pdf",
+        reference: "application-documents/legacy-payment.pdf",
+        createdAt: "2026-09-03T12:00:00.000Z",
+      },
+    ]);
+    expect(fake.storageBatches).toEqual([
+      {
+        bucket: "application-documents",
+        paths: ["legacy-payment.pdf"],
+        expiresIn: 60 * 60,
+      },
+    ]);
+    expect(fake.storageSignatures).toEqual([
+      {
+        bucket: "application-documents",
+        path: "legacy-payment.pdf",
+        expiresIn: 60 * 60,
+      },
+    ]);
+    expect(fake.storageSingleCalls).toHaveLength(0);
+  });
+});
+
+describe("getClientStatusData storage URL resolution", () => {
+  it("signs only authorized targets, deduplicates paths, preserves file metadata and action links", async () => {
+    const { data, fake } = await runLoader(storageFixture());
+
+    expect(fake.storageSingleCalls).toHaveLength(0);
+    expect(fake.storageBatches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        bucket: "application-documents",
+        paths: ["shared.pdf"],
+        expiresIn: 60 * 60,
+      }),
+      expect.objectContaining({
+        bucket: "application-results",
+        paths: expect.arrayContaining(["other.pdf", "shared.pdf"]),
+        expiresIn: 60 * 60,
+      }),
+    ]));
+
+    expect(fake.storageSignatures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bucket: "application-documents", path: "shared.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "other.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "shared.pdf" }),
+    ]));
+    expect(fake.storageSignatures.filter(({ bucket, path }) =>
+      bucket === "application-documents" && path === "shared.pdf",
+    )).toHaveLength(1);
+    expect(fake.storageSignatures).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ bucket: "application-results", path: "foreign.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "vietnam.pdf" }),
+    ]));
+
+    const second = data.detailApplications.find(
+      (application) => application.id === STORAGE_SECOND_APPLICATION_ID,
+    );
+    expect(second?.files).toEqual([
+      {
+        key: "applicationReceipt",
+        href: "https://signed.example.test/application-documents/shared.pdf",
+        reference: "application-documents/shared.pdf",
+        createdAt: "2026-09-02T10:00:00.000Z",
+      },
+      {
+        key: "approvedResult",
+        href: "https://signed.example.test/application-results/shared.pdf",
+        printHref: null,
+        reference: "application-results/shared.pdf",
+        createdAt: "2026-09-02T11:00:00.000Z",
+      },
+    ]);
+    expect(second?.actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "downloadResult",
+        href: "https://signed.example.test/application-results/shared.pdf",
+        primary: true,
+      }),
+    ]));
+
+    const absolute = data.detailApplications.find(
+      (application) => application.id === STORAGE_ABSOLUTE_APPLICATION_ID,
+    );
+    expect(absolute?.files).toEqual([
+      expect.objectContaining({
+        key: "applicationReceipt",
+        href: "https://files.example.test/client-receipt.pdf",
+        reference: "https://files.example.test/client-receipt.pdf",
+      }),
+    ]);
+
+    const vietnam = data.detailApplications.find(
+      (application) => application.id === STORAGE_VIETNAM_APPLICATION_ID,
+    );
+    expect(vietnam?.files).toEqual([
+      {
+        key: "approvedResult",
+        href: `/api/applications/${STORAGE_VIETNAM_APPLICATION_ID}/evisa-artifact?disposition=attachment`,
+        printHref: `/api/applications/${STORAGE_VIETNAM_APPLICATION_ID}/evisa-artifact?disposition=inline`,
+        reference: "application-results/vietnam.pdf",
+        createdAt: "2026-09-04T11:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("keeps selected loading inside its target's storage scope", async () => {
+    const { data, fake } = await runLoader(storageFixture(), STORAGE_SECOND_APPLICATION_ID);
+
+    expect(data.detailApplications).toHaveLength(1);
+    expect(data.detailApplications[0]?.id).toBe(STORAGE_SECOND_APPLICATION_ID);
+    expect(fake.storageSingleCalls).toHaveLength(0);
+    expect(fake.storageSignatures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bucket: "application-documents", path: "shared.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "shared.pdf" }),
+    ]));
+    expect(fake.storageSignatures).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ bucket: "application-results", path: "other.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "vietnam.pdf" }),
+      expect.objectContaining({ bucket: "application-results", path: "foreign.pdf" }),
+    ]));
+    expect(fake.storageSignatures).toHaveLength(2);
+  });
+
+  it("returns null for a failed storage batch while keeping other files available", async () => {
+    const { data, fake } = await runLoader(
+      storageFixture(),
+      undefined,
+      [],
+      { failedStorageBuckets: new Set(["application-documents"]) },
+    );
+
+    const second = data.detailApplications.find(
+      (application) => application.id === STORAGE_SECOND_APPLICATION_ID,
+    );
+    expect(second?.files).toEqual([
+      expect.objectContaining({
+        key: "applicationReceipt",
+        href: null,
+        reference: "application-documents/shared.pdf",
+      }),
+      expect.objectContaining({
+        key: "approvedResult",
+        href: "https://signed.example.test/application-results/shared.pdf",
+        reference: "application-results/shared.pdf",
+      }),
+    ]);
+    expect(data.partialData).toBe(false);
+    expect(fake.storageSingleCalls).toHaveLength(0);
+    expect(fake.storageBatches).toEqual(expect.arrayContaining([
+      expect.objectContaining({ bucket: "application-documents" }),
+      expect.objectContaining({ bucket: "application-results" }),
+    ]));
+  });
+});
+
 describe("getClientStatusIndexData projection", () => {
   it("preserves list state, progress, ordering and links while skipping detail fan-out and storage signing", async () => {
     const fixture = richFixture();
@@ -762,7 +1106,10 @@ describe("getClientStatusIndexData projection", () => {
       ]),
     );
     expect(index.fake.storageSignatures).toHaveLength(0);
+    expect(index.fake.storageBatches).toHaveLength(0);
+    expect(index.fake.storageSingleCalls).toHaveLength(0);
     expect(full.fake.storageSignatures.length).toBeGreaterThan(0);
+    expect(full.fake.storageSingleCalls).toHaveLength(0);
     expect(full.fake.storageSignatures).toEqual(expect.arrayContaining([
       expect.objectContaining({ bucket: "submission-artifacts", path: "sgac/confirmation.pdf" }),
       expect.objectContaining({ bucket: "application-results", path: "approved.pdf" }),

@@ -28,6 +28,10 @@ import {
   loadStatusApplicantProfiles,
   type StatusApplicantProfile,
 } from "./status-profile-lookup";
+import {
+  loadStatusStorageUrls,
+  type StatusStorageTarget,
+} from "./status-storage-urls";
 
 export type StatusStepKey =
   | "payment"
@@ -1116,85 +1120,75 @@ function parseStoragePath(reference: string): { bucket: string; path: string } {
   return { bucket: "application-documents", path: normalized };
 }
 
-async function resolveStorageHref(adminClient: ReturnType<typeof createAdminClient>, reference: string | null): Promise<string | null> {
-  if (!reference) return null;
-  if (isAbsoluteUrl(reference)) return reference;
+type StatusFilePlan = {
+  key: StatusFileKey;
+  reference: string;
+  createdAt: string | null;
+  target: StatusStorageTarget | null;
+  kind: "storage" | "submissionArtifact" | "vietnamResult";
+  printHref?: string | null;
+};
 
+function storageTargetForReference(reference: string): StatusStorageTarget | null {
+  if (isAbsoluteUrl(reference)) return null;
   const { bucket, path } = parseStoragePath(reference);
-  const { data, error } = await adminClient.storage.from(bucket).createSignedUrl(path, 60 * 60);
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
+  return { bucket, path };
 }
 
-async function resolveSubmissionArtifactHref(adminClient: ReturnType<typeof createAdminClient>, reference: string | null): Promise<string | null> {
-  if (!reference) return null;
-  if (isAbsoluteUrl(reference)) return reference;
-
+function submissionArtifactTargetForReference(reference: string): StatusStorageTarget | null {
+  if (isAbsoluteUrl(reference)) return null;
   const { bucket, path } = parseStoragePath(reference);
   const artifactPath = bucket === "submission-artifacts" ? path : reference.replace(/^\/+/, "");
-  const { data, error } = await adminClient.storage.from("submission-artifacts").createSignedUrl(artifactPath, 60 * 60);
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
+  return { bucket: "submission-artifacts", path: artifactPath };
 }
 
-function buildNotificationSummary(rows: NotificationRow[]): StatusApplication["notifications"] {
-  return {
-    total: rows.length,
-    lastSentAt: getLatestDate(rows.map((row) => row.sent_at ?? row.created_at)),
-  };
-}
-
-async function buildFiles({
-  adminClient,
+function buildFilePlans({
   application,
   latestPayment,
   latestPacket,
-  includeDetails,
 }: {
-  adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
   latestPayment: PaymentRow | null;
   latestPacket: PacketRow | null;
-  includeDetails: boolean;
-}): Promise<StatusFile[]> {
-  // The selector needs file presence/timestamps for its existing state and
-  // ordering rules, but file access belongs to the authenticated detail view.
-  const detailHref = buildApplicationLongFormHref({
-    applicationId: application.id,
-    country: application.country,
-    visaType: application.visa_type,
-    step: "status",
-  });
-  const storageHref = (reference: string) => includeDetails
-    ? resolveStorageHref(adminClient, reference)
-    : detailHref;
-  const files: StatusFile[] = [];
-  if (application.receipt_url) {
-    files.push({
-      key: "applicationReceipt",
-      href: await storageHref(application.receipt_url),
-      reference: application.receipt_url,
-      createdAt: application.submitted_at ?? application.updated_at,
+}): StatusFilePlan[] {
+  const plans: StatusFilePlan[] = [];
+  const addStoragePlan = (
+    key: StatusFileKey,
+    reference: string,
+    createdAt: string | null,
+  ) => {
+    plans.push({
+      key,
+      reference,
+      createdAt,
+      target: storageTargetForReference(reference),
+      kind: "storage",
     });
+  };
+
+  if (application.receipt_url) {
+    addStoragePlan(
+      "applicationReceipt",
+      application.receipt_url,
+      application.submitted_at ?? application.updated_at,
+    );
   }
 
   if (latestPayment?.receipt_url) {
-    files.push({
-      key: "paymentReceipt",
-      href: await storageHref(latestPayment.receipt_url),
-      reference: latestPayment.receipt_url,
-      createdAt: latestPayment.updated_at ?? latestPayment.created_at,
-    });
+    addStoragePlan(
+      "paymentReceipt",
+      latestPayment.receipt_url,
+      latestPayment.updated_at ?? latestPayment.created_at,
+    );
   }
 
   const packetPath = latestPacket?.storage_path ?? application.packet_storage_path;
   if (packetPath) {
-    files.push({
-      key: "packet",
-      href: await storageHref(packetPath),
-      reference: packetPath,
-      createdAt: latestPacket?.generated_at ?? application.packet_ready_at,
-    });
+    addStoragePlan(
+      "packet",
+      packetPath,
+      latestPacket?.generated_at ?? application.packet_ready_at,
+    );
   }
 
   if (application.result_storage_path) {
@@ -1215,31 +1209,90 @@ async function buildFiles({
         "tourist_evisa",
       ].includes(normalizeStatus(application.visa_type));
     const artifactRoute = `/api/applications/${application.id}/evisa-artifact`;
-    files.push({
+    plans.push({
       key: resultKey,
-      href: !includeDetails ? detailHref : isVietnam
-        ? `${artifactRoute}?disposition=attachment`
-        : await resolveStorageHref(adminClient, application.result_storage_path),
-      printHref: includeDetails && isVietnam ? `${artifactRoute}?disposition=inline` : null,
       reference: application.result_storage_path,
       createdAt: application.updated_at,
+      target: isVietnam ? null : storageTargetForReference(application.result_storage_path),
+      kind: isVietnam ? "vietnamResult" : "storage",
+      printHref: isVietnam ? `${artifactRoute}?disposition=inline` : null,
     });
   }
 
   for (const path of getSubmissionResultArtifactPaths(application)) {
-    files.push({
+    plans.push({
       key: isArrivalCardVisaType(application.visa_type)
         ? "arrivalCardConfirmation"
         : getAutomatedOnlineSubmissionEvidence(application.submission_result, application.visa_type).approved
           ? "approvedResult"
           : "resultFile",
-      href: includeDetails ? await resolveSubmissionArtifactHref(adminClient, path) : detailHref,
       reference: path,
       createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
+      target: submissionArtifactTargetForReference(path),
+      kind: "submissionArtifact",
     });
   }
 
-  return files;
+  return plans;
+}
+
+function resolvePlannedFileHref(
+  plan: StatusFilePlan,
+  detailHref: string,
+  includeDetails: boolean,
+  storageUrls: Map<string, Map<string, string>>,
+  applicationId: string,
+): string | null {
+  if (!includeDetails) return detailHref;
+  if (plan.kind === "vietnamResult") {
+    return `/api/applications/${applicationId}/evisa-artifact?disposition=attachment`;
+  }
+  if (!plan.target) return plan.reference;
+  return storageUrls.get(plan.target.bucket)?.get(plan.target.path) ?? null;
+}
+
+function buildNotificationSummary(rows: NotificationRow[]): StatusApplication["notifications"] {
+  return {
+    total: rows.length,
+    lastSentAt: getLatestDate(rows.map((row) => row.sent_at ?? row.created_at)),
+  };
+}
+
+function buildFiles({
+  application,
+  plans,
+  includeDetails,
+  storageUrls,
+}: {
+  application: ApplicationRow;
+  plans: StatusFilePlan[];
+  includeDetails: boolean;
+  storageUrls: Map<string, Map<string, string>>;
+}): StatusFile[] {
+  // The selector needs file presence/timestamps for its existing state and
+  // ordering rules, but file access belongs to the authenticated detail view.
+  const detailHref = buildApplicationLongFormHref({
+    applicationId: application.id,
+    country: application.country,
+    visaType: application.visa_type,
+    step: "status",
+  });
+  return plans.map((plan) => {
+    const file: StatusFile = {
+      key: plan.key,
+      href: resolvePlannedFileHref(
+        plan,
+        detailHref,
+        includeDetails,
+        storageUrls,
+        application.id,
+      ),
+      reference: plan.reference,
+      createdAt: plan.createdAt,
+    };
+    if (plan.printHref !== undefined) file.printHref = includeDetails ? plan.printHref : null;
+    return file;
+  });
 }
 
 function buildPackageOnlyApplication(userPackage: {
@@ -1332,7 +1385,6 @@ function buildPackageOnlyApplication(userPackage: {
 }
 
 async function buildApplicationStatus({
-  adminClient,
   application,
   visaPackage,
   liveSubmission,
@@ -1345,9 +1397,10 @@ async function buildApplicationStatus({
   events,
   notifications,
   officialTracking,
+  filePlans,
+  storageUrls,
   includeDetails,
 }: {
-  adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
   visaPackage: VisaPackageRow | null;
   liveSubmission: LiveSubmissionSummary | null;
@@ -1360,6 +1413,8 @@ async function buildApplicationStatus({
   events: EventRow[];
   notifications: NotificationRow[];
   officialTracking: OfficialTrackingRow | null;
+  filePlans: StatusFilePlan[];
+  storageUrls: Map<string, Map<string, string>>;
   includeDetails: boolean;
 }): Promise<StatusApplication> {
   const base = buildPackageBase(application.country, application.visa_type);
@@ -1391,7 +1446,12 @@ async function buildApplicationStatus({
   const resultState = getResultState(application, handoffComplete, liveSubmission);
   const latestConsent = sortByNewest(consents, (row) => row.created_at)[0];
   const latestSignature = sortByNewest(signatures, (row) => row.signed_at ?? row.created_at)[0];
-  const files = await buildFiles({ adminClient, application, latestPayment, latestPacket, includeDetails });
+  const files = buildFiles({
+    application,
+    plans: filePlans,
+    includeDetails,
+    storageUrls,
+  });
 
   const initialSteps: StatusStep[] = [
     {
@@ -1962,17 +2022,54 @@ async function loadClientStatusData(
     officialTracking.map((row) => [row.application_id, row]),
   );
 
+  const paymentsForApplication = (application: ApplicationRow): PaymentRow[] => [
+    ...(paymentsByApplication.get(application.id) ?? []),
+    ...(application.visa_package_id ? paymentsByPackage.get(application.visa_package_id) ?? [] : []),
+  ];
+
+  const filePlansByApplication = new Map<string, StatusFilePlan[]>();
+  const storageTargets: StatusStorageTarget[] = [];
+  for (const application of applications) {
+    const plans = buildFilePlans({
+      application,
+      latestPayment: getLatestPayment(paymentsForApplication(application)),
+      latestPacket: getLatestPacket(packetsByApplication.get(application.id) ?? []),
+    });
+    filePlansByApplication.set(application.id, plans);
+    if (includeDetails) {
+      for (const plan of plans) {
+        if (plan.target) storageTargets.push(plan.target);
+      }
+    }
+  }
+
+  const storageUrls = includeDetails
+    ? await loadStatusStorageUrls(
+        storageTargets,
+        async (bucket, paths, expiresIn) => {
+          const { data, error } = await adminClient
+            .storage
+            .from(bucket)
+            .createSignedUrls(paths, expiresIn);
+          return {
+            data: data?.map((entry) => ({
+              path: entry.path ?? null,
+              signedUrl: entry.signedUrl ?? null,
+              error: entry.error ?? null,
+            })) ?? null,
+            error,
+          };
+        },
+      )
+    : new Map<string, Map<string, string>>();
+
   const statusApplications = await Promise.all(
     applications.map((application) =>
       buildApplicationStatus({
-        adminClient,
         application,
         visaPackage: application.visa_package_id ? packagesById.get(application.visa_package_id) ?? null : null,
         liveSubmission: liveSubmissionByApplication.get(application.id) ?? null,
-        payments: [
-          ...(paymentsByApplication.get(application.id) ?? []),
-          ...(application.visa_package_id ? paymentsByPackage.get(application.visa_package_id) ?? [] : []),
-        ],
+        payments: paymentsForApplication(application),
         consents: consentsByApplication.get(application.id) ?? [],
         signatures: signaturesByApplication.get(application.id) ?? [],
         documents: documentsByApplication.get(application.id) ?? [],
@@ -1981,6 +2078,8 @@ async function loadClientStatusData(
         events: eventsByApplication.get(application.id) ?? [],
         notifications: notificationsByApplication.get(application.id) ?? [],
         officialTracking: officialTrackingByApplication.get(application.id) ?? null,
+        filePlans: filePlansByApplication.get(application.id) ?? [],
+        storageUrls,
         includeDetails,
       }),
     ),
