@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
 	evaluateOnlineCapacityRun,
+	ONLINE_CAPACITY_RELEASE_PACING_MS,
 	percentile,
 	type OnlineCapacityDatabaseTelemetry,
 	type OnlineCapacityScenarioResult,
@@ -185,7 +186,11 @@ async function startFixtureServer(
 	};
 }
 
-function localEnvironment(baseUrl: string, users = "100"): NodeJS.ProcessEnv {
+function localEnvironment(
+	baseUrl: string,
+	users = "100",
+	pacingMs = "0",
+): NodeJS.ProcessEnv {
 	return {
 		ONLINE_CAPACITY_CONFIRM: "local-test",
 		ONLINE_CAPACITY_BASE_URL: baseUrl,
@@ -193,6 +198,7 @@ function localEnvironment(baseUrl: string, users = "100"): NodeJS.ProcessEnv {
 		ONLINE_CAPACITY_PROJECT_REF: "local-test",
 		ONLINE_CAPACITY_SUPABASE_URL: "http://127.0.0.1:54321",
 		ONLINE_CAPACITY_USERS: users,
+		ONLINE_CAPACITY_PACING_MS: pacingMs,
 	};
 }
 
@@ -336,10 +342,13 @@ describe("online capacity release gate", () => {
 
 	it("runs 100 concurrent synthetic users through every read-only scenario", async () => {
 		const fixture = await startFixtureServer();
-		const config = validateOnlineCapacityGuards(localEnvironment(fixture.baseUrl));
+		const config = validateOnlineCapacityGuards(
+			localEnvironment(fixture.baseUrl, "100", "10000"),
+		);
 		const summary = await executeOnlineCapacityRun(config);
 
 		expect(summary.users).toBe(100);
+		expect(summary.pacingMs).toBe(10_000);
 		expect(summary.scope).toBe("public_edge_read_only");
 		expect(summary.totalRequests).toBe(300);
 		expect(summary.failedRequests).toBe(0);
@@ -375,6 +384,7 @@ describe("online capacity release gate", () => {
 		);
 
 		expect(summary.scope).toBe("authenticated_sustained_read_only");
+		expect(summary.pacingMs).toBe(0);
 		expect(summary.completedUsers).toBe(100);
 		expect(summary.releaseMatrixComplete).toBe(false);
 		expect(summary.failures).toContain("release_matrix_incomplete");
@@ -435,6 +445,7 @@ describe("online capacity release gate", () => {
 			users: 100,
 			sustainedForMs: 0,
 			rampUpMs: 0,
+			pacingMs: 0,
 			completedUsers: 100,
 			scenarios,
 		});
@@ -447,6 +458,7 @@ describe("online capacity release gate", () => {
 				users: 1,
 				sustainedForMs: 0,
 				rampUpMs: 0,
+				pacingMs: 0,
 				completedUsers: 1,
 				scenarios: scenarios.map((scenario) => ({
 					...scenario,
@@ -458,7 +470,7 @@ describe("online capacity release gate", () => {
 		).toContain("release_matrix_incomplete");
 	});
 
-	it("requires the full authenticated duration, ramp, and completed user count", () => {
+	it("requires the full authenticated duration, ramp, user count, and release pacing", () => {
 		const scenarios = ([
 			"client_home",
 			"client_status",
@@ -478,17 +490,24 @@ describe("online capacity release gate", () => {
 				maxMs: 60,
 			}),
 		);
-		expect(
-			evaluateOnlineCapacityRun({
-				scope: "authenticated_sustained_read_only",
-				users: 100,
-				sustainedForMs: 300_000,
-				rampUpMs: 30_000,
-				completedUsers: 100,
-				scenarios,
-				databaseTelemetry: healthyDatabaseTelemetry(),
-			}).passed,
-		).toBe(true);
+		const canonicalRun = evaluateOnlineCapacityRun({
+			scope: "authenticated_sustained_read_only",
+			users: 100,
+			sustainedForMs: 300_000,
+			rampUpMs: 30_000,
+			pacingMs: ONLINE_CAPACITY_RELEASE_PACING_MS,
+			completedUsers: 100,
+			scenarios,
+			databaseTelemetry: healthyDatabaseTelemetry(),
+		});
+		expect(canonicalRun.passed).toBe(true);
+
+		const slowerRun = evaluateOnlineCapacityRun({
+			...canonicalRun,
+			pacingMs: 10_000,
+		});
+		expect(slowerRun.passed).toBe(false);
+		expect(slowerRun.failures).toContain("release_pacing_mismatch");
 	});
 
 	it.each([
@@ -523,6 +542,7 @@ describe("online capacity release gate", () => {
 			users: 100,
 			sustainedForMs: 300_000,
 			rampUpMs: 30_000,
+			pacingMs: ONLINE_CAPACITY_RELEASE_PACING_MS,
 			completedUsers: 100,
 			scenarios,
 			databaseTelemetry: healthyDatabaseTelemetry(overrides),
@@ -594,6 +614,7 @@ describe("online capacity release gate", () => {
 			users: 100,
 			sustainedForMs: 300_000,
 			rampUpMs: 30_000,
+			pacingMs: ONLINE_CAPACITY_RELEASE_PACING_MS,
 			completedUsers: 100,
 			scenarios,
 			databaseTelemetry: healthyDatabaseTelemetry({
@@ -628,6 +649,7 @@ describe("online capacity release gate", () => {
 				users: 100,
 				sustainedForMs: 0,
 				rampUpMs: 0,
+				pacingMs: 0,
 				completedUsers: 100,
 				scenarios: [
 					invalid,

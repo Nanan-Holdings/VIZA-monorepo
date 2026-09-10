@@ -54,6 +54,7 @@ scheduled recovery workflows.
   40-character reviewed commit SHA and checks out that SHA only as migration
   input; the current default-branch script and manifest remain the trust root.
 - `online-capacity-gate.yml` is a manual, single-flight, read-only staging gate.
+  Run it on Node.js 24 to match the agent-backend package engine and normal CI.
   It checks out one full reviewed SHA, requires exact project confirmation, and
   may run only through the `staging-online-capacity` Environment. The deployed
   frontend and agent must both expose the default-off target marker bound to

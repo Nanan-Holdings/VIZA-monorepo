@@ -182,7 +182,9 @@ explicitly reintroduces another provider.
   that Cookie belongs to the exact configured synthetic user UUID and is not an
   impersonation session. It ramps 100 sessions for 30 seconds and then
   holds read-only `/client/home`, `/client/status`, and `/ready` traffic for at
-  least five minutes; the Cookie must never be logged or written to artifacts.
+  least five minutes at the canonical `ONLINE_CAPACITY_RELEASE_PACING_MS`
+  (5 seconds); other pacing values remain diagnostics and fail authenticated
+  release eligibility. The Cookie must never be logged or written to artifacts.
 - The harness also samples `/api/internal/status/capacity` once per second using
   a step-scoped telemetry secret and fails closed on incomplete/malformed
   samples, non-open pool state, a cumulative wait peak above one, any wait that

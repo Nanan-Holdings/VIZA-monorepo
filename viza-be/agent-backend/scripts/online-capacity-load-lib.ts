@@ -5,6 +5,7 @@ export { percentile };
 export const ONLINE_CAPACITY_RELEASE_USERS = 100;
 export const ONLINE_CAPACITY_RELEASE_DURATION_MS = 300_000;
 export const ONLINE_CAPACITY_RELEASE_RAMP_MS = 30_000;
+export const ONLINE_CAPACITY_RELEASE_PACING_MS = 5_000;
 
 export type OnlineCapacityScope =
 	| "public_edge_read_only"
@@ -36,6 +37,7 @@ export interface OnlineCapacityRunInput {
 	users: number;
 	sustainedForMs: number;
 	rampUpMs: number;
+	pacingMs: number;
 	completedUsers: number;
 	scenarios: readonly OnlineCapacityScenarioResult[];
 	databaseTelemetry?: OnlineCapacityDatabaseTelemetry;
@@ -191,7 +193,8 @@ export function evaluateOnlineCapacityRun(
 		input.completedUsers === input.users &&
 		(!authenticated ||
 			(input.sustainedForMs >= ONLINE_CAPACITY_RELEASE_DURATION_MS &&
-				input.rampUpMs >= ONLINE_CAPACITY_RELEASE_RAMP_MS));
+				input.rampUpMs >= ONLINE_CAPACITY_RELEASE_RAMP_MS &&
+				input.pacingMs === ONLINE_CAPACITY_RELEASE_PACING_MS));
 
 	if (!Number.isInteger(input.users) || input.users < 1) {
 		failures.push("invalid_users");
@@ -201,6 +204,10 @@ export function evaluateOnlineCapacityRun(
 	}
 	if (!isNonNegativeFinite(input.sustainedForMs) || !isNonNegativeFinite(input.rampUpMs)) {
 		failures.push("invalid_timing");
+	}
+	if (!isNonNegativeFinite(input.pacingMs)) failures.push("invalid_pacing");
+	if (authenticated && input.pacingMs !== ONLINE_CAPACITY_RELEASE_PACING_MS) {
+		failures.push("release_pacing_mismatch");
 	}
 	if (!releaseMatrixComplete) {
 		failures.push("release_matrix_incomplete");

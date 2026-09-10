@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
 	evaluateOnlineCapacityRun,
 	ONLINE_CAPACITY_RELEASE_DURATION_MS,
+	ONLINE_CAPACITY_RELEASE_PACING_MS,
 	ONLINE_CAPACITY_RELEASE_RAMP_MS,
 	ONLINE_CAPACITY_RELEASE_USERS,
 	percentile,
@@ -257,7 +258,7 @@ export function validateOnlineCapacityGuards(
 	const pacingMs = parseBoundedInteger(
 		envValue(env, "ONLINE_CAPACITY_PACING_MS"),
 		"ONLINE_CAPACITY_PACING_MS",
-		authenticated ? 5_000 : 0,
+		authenticated ? ONLINE_CAPACITY_RELEASE_PACING_MS : 0,
 		0,
 		10_000,
 	);
@@ -928,6 +929,7 @@ export async function executeOnlineCapacityRun(
 		users: config.users,
 		sustainedForMs,
 		rampUpMs: config.rampUpMs,
+		pacingMs: config.pacingMs,
 		completedUsers,
 		scenarios: scenarios.map(({ name }) => summarizeScenario(name, observations)),
 		...(databaseTelemetry ? { databaseTelemetry } : {}),
@@ -972,6 +974,7 @@ async function main(): Promise<void> {
 		JSON.stringify({
 			runId: summary.runId,
 			users: summary.users,
+			pacingMs: summary.pacingMs,
 			totalRequests: summary.totalRequests,
 			failedRequests: summary.failedRequests,
 			passed: summary.passed,
