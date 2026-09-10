@@ -7,6 +7,9 @@ Scope: this file applies to `viza-fe/internal-website/lib/us-appointment/**`.
 Typed browser helpers for the U.S. B1/B2 appointment assistant API in
 `viza-be/agent-backend/src/routes/us-appointment.routes.ts`.
 
+`getAppointmentStatus` accepts an optional abort signal for read-only polling.
+Keep cancellation opt-in; mutation helpers must not inherit poll cancellation.
+
 ## Guardrails
 
 - Use the applicant's Supabase access token only; never expose service-role

@@ -19,3 +19,7 @@ France Schengen appointment assistant API in
 - API helpers may trigger only explicit user actions: consent, job creation,
   user-triggered slot checks, choosing an observed slot, recording redacted
   payment authorization, final approval, booking request, and cancellation.
+- `getFranceAppointmentStatus` may receive an optional `AbortSignal` for the
+  assistant's read-only polling lifecycle. Pass that signal through the
+  existing request helper so fetch cancellation covers the complete response;
+  mutation helpers retain their existing request behavior.

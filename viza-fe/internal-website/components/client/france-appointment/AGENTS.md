@@ -34,3 +34,7 @@ France-Visas official reference capture.
 - `france-appointment-assistant.test.tsx` covers the assisted-live read-only
   slot observation boundary; keep selection, payment, and final-booking
   controls absent from that mode.
+- The assistant's status refresh is read-only and must keep one request in
+  flight. Use the per-request abort signal for cleanup, pause at the existing
+  hidden-tab cadence, and preserve the persisted terminal-status boundary;
+  visibility refreshes must never invoke appointment mutations.

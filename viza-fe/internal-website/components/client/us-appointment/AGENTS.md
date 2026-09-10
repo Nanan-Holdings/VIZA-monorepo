@@ -7,6 +7,10 @@ Scope: this file applies to
 
 Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
 
+`us-appointment-polling.test.tsx` covers single in-flight background reads,
+visibility pauses, cancellation on cleanup, retry cadence and terminal states.
+Polling must only read status and must never invoke appointment mutations.
+
 ## Guardrails
 
 - Opening the page must only read VIZA DB status; do not create, rerun, or

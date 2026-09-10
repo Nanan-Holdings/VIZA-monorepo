@@ -90,9 +90,11 @@ export interface CreateAppointmentJobPayload {
 
 export function getAppointmentStatus(
   applicationId: string,
+  signal?: AbortSignal,
 ): Promise<AppointmentStatusSnapshot> {
   return requestUSAppointment<AppointmentStatusSnapshot>(
     `/api/applications/${applicationId}/us-appointment/status`,
+    { signal },
   );
 }
 

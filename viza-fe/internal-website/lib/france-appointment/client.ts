@@ -86,9 +86,11 @@ export interface CreateFranceAppointmentJobPayload {
 
 export function getFranceAppointmentStatus(
   applicationId: string,
+  signal?: AbortSignal,
 ): Promise<FranceAppointmentStatusSnapshot> {
   return requestFranceAppointment<FranceAppointmentStatusSnapshot>(
     `/api/applications/${applicationId}/france-appointment/status`,
+    signal ? { signal } : {},
   );
 }
 

@@ -351,24 +351,35 @@ export function USAppointmentAssistant({
   useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
     let cancelled = false;
+    let inFlight = false;
     let timer: number | undefined;
+    let controller: AbortController | null = null;
 
     const schedule = (delayMs: number) => {
       if (cancelled) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void poll(), delayMs);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void poll();
+      }, delayMs);
     };
     const poll = async () => {
+      if (cancelled || inFlight) return;
       if (document.visibilityState !== "visible") {
         schedule(30_000);
         return;
       }
+      inFlight = true;
+      const requestController = new AbortController();
+      controller = requestController;
       try {
-        const next = await getAppointmentStatus(applicationId);
+        const next = await getAppointmentStatus(applicationId, requestController.signal);
         if (!cancelled) setSnapshot(next);
       } catch {
         // Keep the last persisted snapshot and retry with the normal cadence.
       } finally {
+        if (controller === requestController) controller = null;
+        inFlight = false;
         schedule(7_000);
       }
     };
@@ -380,7 +391,8 @@ export function USAppointmentAssistant({
     document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      controller?.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [applicationId, job]);

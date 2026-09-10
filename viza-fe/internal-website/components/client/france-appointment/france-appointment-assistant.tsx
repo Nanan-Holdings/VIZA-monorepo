@@ -262,24 +262,35 @@ export function FranceAppointmentAssistant({
   useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
     let cancelled = false;
+    let inFlight = false;
     let timer: number | undefined;
+    let currentController: AbortController | null = null;
 
     const schedule = (delayMs: number) => {
       if (cancelled) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => void poll(), delayMs);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void poll();
+      }, delayMs);
     };
     const poll = async () => {
+      if (cancelled || inFlight) return;
       if (document.visibilityState !== "visible") {
         schedule(30_000);
         return;
       }
+      inFlight = true;
+      const controller = new AbortController();
+      currentController = controller;
       try {
-        const next = await getFranceAppointmentStatus(applicationId);
+        const next = await getFranceAppointmentStatus(applicationId, controller.signal);
         if (!cancelled) setSnapshot(next);
       } catch {
         // Keep the last persisted snapshot and retry with the normal cadence.
       } finally {
+        if (currentController === controller) currentController = null;
+        inFlight = false;
         schedule(7_000);
       }
     };
@@ -291,7 +302,8 @@ export function FranceAppointmentAssistant({
     document.addEventListener("visibilitychange", pollWhenVisible);
     return () => {
       cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      currentController?.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", pollWhenVisible);
     };
   }, [applicationId, job]);
