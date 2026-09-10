@@ -1198,6 +1198,67 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
 部署 URL：`https://viza-internal-5qzw2b6pg-viza-gmail-s-projects.vercel.app`。
 上一版 `dpl_ERCcBgDFqk1ANAvDkALt3rzS6Htv` 保留供现有回滚流程使用。
 
+## 2026-09-10：用户请求的容量确认
+
+本次针对第二十轮已发布代码重新验证；测试时 `main` 为文档提交
+`c73d53f6`，运行时代码提交为 `a89d69e8`。未修改运行时代码，
+因此没有创建新的生产部署。结论是并发保护回归和线上轻量检查通过，
+尚不能确认生产可承载 100 个真实登录用户持续操作。
+
+### 已执行的验证
+
+| 检查 | 结果 | 证据范围 |
+| --- | --- | --- |
+| 本地前端正式构建 | `npm run build` 成功，退出码 0 | Next.js 16.1.6 / webpack；Supabase 和后端地址显式指向 loopback；构建配置跳过类型检查，本次构建不能另作类型检查证据 |
+| 后端并发保护回归 | 9 个文件、68 项测试通过，退出码 0 | 100 用户压测脚本的 loopback fixture、非生产目标检查、就绪探针合并与缓存、provider 容量、OCR admission/draining 和运行时容量遥测 |
+| 前端请求与轮询回归 | 5 个文件、32 项测试通过，退出码 0 | 美国预约 8 项、法国预约轮询 5 项、法国既有行为 4 项、订阅付款轮询 9 项、真实 Node fetch 取消 6 项 |
+| 正式域名登录页 | HTTP 200 | 一次匿名 GET；不作为并发性能数据 |
+| 正式域名申请入口 | HTTP 307 到 `/client/login` | 一次匿名 GET；不创建申请或登录会话 |
+| 生产后端 `/health` | HTTP 200 / `status=ok` | 一次 GET；SHA 仍为 `967f03251efff1a931120a72007fcdce4dc75e5d`；不是依赖就绪或数据库容量证明 |
+
+后端测试命令（目录 `viza-be/agent-backend`）：
+
+```powershell
+npm test -- --run src/tests/online-capacity-load.test.ts src/online-capacity-target.test.ts src/services/portal-health.service.test.ts src/db/successful-probe-cache.test.ts src/app.ready.test.ts src/utils/provider-capacity.test.ts src/app.passport-admission.test.ts src/routes/passport-scan-draining.test.ts src/observability/runtime-capacity.test.ts
+```
+
+前端测试命令（目录 `viza-fe/internal-website`）：
+
+```powershell
+npm test -- --run components/client/us-appointment/us-appointment-polling.test.tsx components/client/france-appointment/france-appointment-polling.test.tsx components/client/france-appointment/france-appointment-assistant.test.tsx lib/__tests__/appointment-status-cancellation.test.ts app/client/subscription/__tests__/payment-status-poller.test.tsx
+```
+
+测试依赖使用 mock 或 loopback fixture；真实 HTTP 取消测试仅 auth session
+使用合成 mock，验证了读取响应体期间取消会关闭未完成响应，以及 auth 等待
+期间取消后不再发送后端请求。不能由此推断已经到达数据库的工作立即终止。
+
+具体并发断言包括：1,000 次并发公共状态读取合并为一次 mock RPC、100 次
+本地 HTTP 状态读取共享快照、100 次并发 probe 合并；真实 loopback Express
+上传测试中，100 个重叠 OCR 请求仅放行 4 个，其余 96 个按容量规则拒绝，
+中止上传后回收名额。后者证明过载保护生效，不代表可同时完成 100 次 OCR。
+
+原始记录保存在被 Git 忽略的本地 `.dev-logs/`：
+`capacity-confirm-build.log`、`capacity-confirm-backend-tests.log`、
+`capacity-confirm-frontend-tests.log`、`capacity-confirm-production-smoke.json`。
+线上三次检查完成时间为 `2026-09-10T08:52:32.637Z`，没有运行生产压测。
+
+### 未完成的容量门槛
+
+- 没有独立测试 Supabase，Docker 引擎未运行，也没有可用的本地 PostgreSQL
+  集群；此前 Windows 应用控制阻止 `initdb.exe`，本次没有规避该限制。
+  因此没有执行真实数据库连接池或登录后的持续读取压测。
+- 原计划在新构建上运行 100 个虚拟用户、持续五分钟的本地公共入口测试，
+  但启动 `next start` 的命令被自动审批拒绝，仅返回 `blocked by policy`，
+  未提供具体原因。服务器未启动、该压测未执行，没有可报告的真实网站
+  100 用户成功率或 p95/p99；没有通过更换工具或伪造就绪状态绕过限制。
+- 已有 100 用户 fixture 测试验证的是压测工具及请求模型，不是真实 Next、
+  Supabase 或生产网站容量；该 fixture 仅断言峰值并发大于 1，不能证明
+  100 个请求同时占用服务器资源。authenticated fixture 使用零持续时间，
+  不能替代五分钟验收。已有 authenticated harness 复用一个合成账号的
+  Cookie，未来即使通过，也应标明不等同于 100 个独立真实账号。
+- 没有执行 runner claim/settlement 压测，也没有测试 AI、付款、官方门户
+  或其他外部服务在真实并发下的容量。原有非生产标记和发布门槛保持不变。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
