@@ -1590,13 +1590,137 @@ claim、未知身份、匿名角色均不可读，以及 SQL 除零错误后的�
 迁移，原网站发布容量门禁保持不变。真实登录网站、HTTP、Auth、PostgREST、
 完整业务 schema 与生产并发能力仍需单独验证。
 
+## 2026-09-11：真实网站、Auth 与业务数据完整本地验收
+
+**验收执行完成，100 会话持续容量未通过。** 本次实际启动了 Next、后端、
+Supabase Auth、PostgREST 和 PostgreSQL，完成至少五分钟的持续测试；不再
+受此前网站启动问题阻塞。普通浏览器读流程通过，但高并发下延迟、连接池
+排队及业务数据校验未达标，不能据此承诺生产网站可稳定承载 100 人。
+
+### 环境和覆盖
+
+测试源码来自 `010312fd` 的独立 Git archive，没有复制工作区环境文件。
+Next 16.1.6 production build 成功，build ID 为 `MZA1N2oSaRXsFQ8a3KqT5`；
+后端 TypeScript 编译成功，以 `NODE_ENV=test` 和三连接池运行，保留生产
+数据库目标保护。Node 为 24.11.1，前后端使用本机资源及 4 GiB heap 上限。
+数据库为本地 Supabase PostgreSQL 17.6，限制为 **1 CPU / 512 MiB**；Auth、
+PostgREST 等容器没有独立资源限制。因此这不是生产机器规格的容量复刻。
+
+从生产项目 `oyjxdzsoejraedqghndi` 仅以只读连接导出 `public`、`private`、
+`runner_private` 的 schema，未导出任何生产业务行、修改生产数据库或执行
+生产压测。导出文件 898,407 bytes，SHA-256 为
+`2968252e2e568578ede6a8e899762e376a3cab085ed397a49b220ad5c25edade`。
+本地恢复后核对 172 张 public 表、130 条策略，初始申请人和申请均为 0；
+仅从仓库 `drizzle/0011_eu_schengen_c_short_stay_package.sql` 导入一个目录套餐。
+本地对象默认由 `postgres` 拥有，默认权限收尾以 `supabase_admin` 完成，
+不能声称对象所有者与生产完全一致。
+
+仓库现有前端迁移链不能直接从空库恢复：存在重复版本前缀、先引用后创建的
+业务表，以及旧版 `payment_records` 缺少 `auth_user_id` 的历史结构冲突。
+本次没有改写正式迁移；临时桥接尝试停止后，最终独立项目关闭自动 migration/
+seed，使用上述 schema-only 快照。这次结果不等于从零迁移链验收通过。
+
+每轮建立 100 个真实、已确认的合成 Auth 用户，每人各一条 profile、application、
+application_document 和 user_package。文件仅为待处理元数据，没有上传证件、
+创建支付或提交任务、发送邮件。先逐个通过真实 Next 密码登录接口和会话证明
+接口核对 Auth UUID，再使用独立 Chrome 上下文完成登录、`/client/home` 的
+dashboard 和 timeline Server Action、`/client/status` 的申请读取。浏览器
+没有 page error 或本地 HTTP 错误；邮箱转发授权弹窗保持未授权，未测试该
+后续流程。四张业务表另以一个 owner 和一个 foreign 身份执行 RLS 读取：
+本人各可见一行、他人各不可见，共八项检查，并非全部 100 身份两两验证。
+
+业务 API、Auth 和数据库请求均在 loopback；浏览器仅额外允许既有国旗 CDN
+`react-circle-flags.pages.dev` 的指定静态 SVG，实际返回 200。运行时阻止其他
+外网业务请求，关闭状态探测调度与 runner cutover，不调用 AI 或官方门户。
+
+### 测试方法和失败记录
+
+原 `online-capacity-load.ts` 及 `online-capacity-load-lib.ts` 与主仓库 SHA-256
+一致，未修改 100 worker、30 秒 ramp、300 秒 steady、每周期后 5 秒 pacing
+及性能门槛。临时适配器为 Home 和 Status 分别轮转 100 个真实 cookie，并
+要求两个入口各覆盖全部身份；不是每个 worker 固定绑定一个 cookie，也不是
+100 个真实浏览器。Home 在页面 GET 后执行浏览器捕获的 dashboard 和当前
+身份申请的 timeline POST；原始 GET Response 仍交回原门禁。Home 延迟因而
+包含这三个真实请求，Status 延迟是页面读取和响应体校验。
+
+除 HTTP 状态外，还校验登录身份、本人申请、文件归属及状态页申请标记。
+独立 PostgreSQL 观察器每秒读取聚合活动/锁/事务指标；后端原有 telemetry
+保持真实且不变。临时脚本在启动时记录哈希并在负载前复核，最终运行未改写。
+
+保留的失败尝试包括：
+
+- 同时发起 100 个会话证明请求时，96 个未通过；日志显示该证明接口内部
+  1.5 秒 Auth 请求超时。逐个真实登录和证明成功。后续把重复身份预检改为
+  顺序执行，仍逐个检查全部身份，再按原门禁 ramp 加压；未删除此突发失败
+  证据，也不能把它解读为已经测过 100 个同时密码登录。
+- 初版适配器对正常约 410 KB 的状态页使用了 256 KiB 上限，且等待取消
+  `Response.clone()` 的单侧流，导致 15 秒超时与未处理拒绝。独立 512 KiB
+  本地 HTTP 复现确认问题；改为非等待取消并处理拒绝、释放 reader，Status
+  单独限制 2 MiB，两个 action 保持 256 KiB。性能门槛没有改变。10 项反假阳性
+  自测通过；最终运行没有 unexpected async rejection。
+
+### 最终实测结果
+
+完整负载 run ID 为 `fd6b4d5e-ac01-4c4f-b651-d19d426c68ac`，UTC 时间
+`2026-09-10T23:06:37.968Z` 至 `23:12:19.180Z`；100/100 worker 完成，
+稳定阶段 308,792.84ms，总负载时间 341,211.89ms。
+
+| 检查 | 实测 | 判定 |
+| --- | --- | --- |
+| Home / Status 独立身份覆盖 | 各 100；每身份合计分配 30–32 次页面读取 | 完成 |
+| 原门禁四类 GET | 各 1,553，共 6,212；HTTP 失败 / 5xx / 请求超时均 0 | HTTP 可用 |
+| Home 完整读取 p50 / p95 | 9,420.61 / 11,783.94ms | p95 超过 1,500ms |
+| Status 读取 p50 / p95 | 6,584.83 / 11,395.81ms | p95 超过 1,500ms |
+| 后端 ready / DB read p95 | 480.69 / 276.75ms | 均低于 500ms |
+| Dashboard 业务数据校验 | 1,041 成功 / 512 失败 | 未通过 |
+| Timeline 业务数据校验 | 1,008 成功 / 545 失败 | 未通过 |
+| Status 业务数据校验 | 569 成功 / 984 失败 | 未通过 |
+| 后端池连接 / 等待峰值 | 3 / 44；334 个采样中 1 个有等待 | 未通过 |
+| 后端池利用率峰值 | 100% | 超过 80% 门槛 |
+| 后端新增失败 / 慢 SQL | 0 / 0 | 通过 |
+| 后端事件循环 p95 延迟峰值 / 利用率峰值 | 85.79ms / 25.03% | 通过 |
+| 后端 heap 利用率峰值 / RSS 峰值 | 1.17% / 112,533,504 bytes | 本地配置下通过 |
+| PostgreSQL 连接峰值（不含 observer） | 17 / max_connections 100 | 记录值 |
+| PostgreSQL idle-in-transaction 峰值 | 3；345 个采样中 17 个非零 | 补充条件未通过 |
+| PostgreSQL 新死锁 / 未授予锁峰值 | 0 / 0 | 通过 |
+| 原门禁 / 业务校验 / 最终退出码 | `false` / `false` / 1 | 容量未通过 |
+
+额外执行 dashboard 与 timeline 共 3,106 次 POST，它们不在原门禁 6,212 个
+GET 的统计分母内。HTTP 200 不能代表业务成功；业务校验失败的聚合计数没有
+保存细分响应原因，不能据此断言跨用户泄露、某条 SQL 出错或全部属于 Auth
+超时。idle-in-transaction 只有采样计数，没有事务年龄，不能据此断言长期
+事务泄漏。下一轮应补充有界、脱敏的失败原因及阶段耗时，定位 Auth、Next
+渲染/数据读取与短时连接池排队的关系，然后按同样门槛复测。
+
+### 清理、证据和发布状态
+
+最终 `finally` 清理成功；独立只读复核合成 Auth、profile、application、
+document、user_package 均为 0，目录套餐保留 1。本次 Supabase 容器已停止，
+3000、3002、54321、54322 无监听；本地数据库卷备份保留。生产在 UTC
+`23:14:45Z` 仅做一次登录页与 `/ready` 可用性检查，均为 200；这不是生产
+负载验收。本轮没有产品源码、生产配置或数据库迁移变更，无需重复部署。
+
+证据位于忽略目录 `.dev-logs/website-acceptance-20260910/`：
+`runtime-summary.json`、`browser-summary.json`、`postgresql-observation.json`、
+`final-evidence.json`、`shutdown-verification.json`、脱敏进程日志及
+`output/playwright/`。最终失败结果另保存在
+`attempts/07-completed-capacity-failed/`，早期尝试独立留档。最终 runtime summary
+SHA-256 为 `0060816520b813e93c65c2c4c8e4589bf19f902dfcbd8aa8c3b7c8380c2721cd`；
+其中包含六个实际执行脚本的哈希，`final-evidence.json` 同时记录原门禁源码
+未变的对照哈希。临时凭据仅在进程内传递，原始 schema 与浏览器证据未加入
+版本管理。
+
+本轮完成的是**本地登录后读取验收，并得到未通过结果**。它没有证明生产
+100/1,000 人容量，也没有覆盖 AI、导出、支付、官方提交或 100 人突发登录。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
    DB 等待、事件循环和内存。
-2. 在隔离环境执行已有 `npm run load:online-capacity`，先测 100 个在线会话；
-   登录后的读路径使用 `authenticated_sustained_read_only` 场景，至少持续五分钟。
-   不应移除该脚本的非生产标记和 synthetic account 检查来压测生产。
+2. 本地 100 个独立登录会话的五分钟 `authenticated_sustained_read_only` 已于
+   2026-09-11 完整执行但未通过，见上节。优先定位页面/业务数据延迟、软失败
+   和短时池排队后按原门槛复测；不应移除非生产标记和 synthetic account
+   检查来压测生产。
 3. 单独验证 100/300/600/1,000 的 runner claim/settlement 场景
    `npm run load:concurrency`；这测试数据库队列，不等于有 1,000 个浏览器同时提交。
 4. 第二轮已完成公共状态 90 天聚合的 `EXPLAIN` 分析与候选 SQL；迁移上线后
