@@ -22,12 +22,14 @@ migration alone is not evidence of a safe public release.
   public site must no longer expose the `viza-test` SKU; `/product` and
   `/events` must return 200 in both supported locales; the desktop header must
   show a localized Login/登录 action that opens the portal login route.
-- [ ] Configure the portal's server-only production values:
-  `BETA_IDENTITY_HMAC_KEY`, `CHECKOUT_HANDOFF_ENCRYPTION_KEY`,
-  `CRON_SECRET`, and the exact live `VIZA_ENABLED_PAYMENT_PROVIDERS` list.
-  Verify the authenticated payment-provider readiness endpoint after the
-  deployment; do not place values in source control or browser-visible env
-  variables.
+- [x] Provision the portal's server-only Production secrets:
+  `BETA_IDENTITY_HMAC_KEY`, `CHECKOUT_HANDOFF_ENCRYPTION_KEY`, and
+  `CRON_SECRET`. They are Vercel Secret values, generated on 2026-09-10, and
+  are not present in source control or browser-visible configuration.
+- [ ] Configure the exact live `VIZA_ENABLED_PAYMENT_PROVIDERS` list and its
+  provider credentials. Verify the authenticated payment-provider readiness
+  endpoint after deployment. Do not enable a rail from placeholder or
+  unverified credentials.
 - [ ] Approve a bounded launch catalogue. Finance/operations must approve each
   published product's VIZA service fee, government-fee amount and official
   currency, tax treatment, payment rail, and WeChat fen total. Current source
