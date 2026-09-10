@@ -6,6 +6,7 @@ import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
 import { visaHref } from "@/lib/countries";
 import { displayFeeSGD, totalSgd } from "@/lib/pricing";
+import { portalUrl } from "@/lib/utils";
 import { useCatalogue } from "@/components/CatalogueProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import SiteFooter from "@/components/SiteFooter";
@@ -333,7 +334,9 @@ export default function ExplorePage() {
             <button className="icon-btn" title={t("explore.help")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
             </button>
-            <div className="avatar">CL</div>
+            <a className="login-btn" href={portalUrl("/client/login")}>
+              {t("nav.signIn")}
+            </a>
           </div>
         </div>
       </nav>
