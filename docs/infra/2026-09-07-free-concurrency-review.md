@@ -1320,6 +1320,94 @@ lint 为 0 errors / 1 个既有 `sentry-init.ts` warning，`git diff --check`
 工作流及说明，无需重新部署 Vercel 网站；GitHub 工作流配置随主分支更新，
 实际认证容量验收仍需隔离环境就绪后才能运行。
 
+## 2026-09-10：恢复本地数据库测试环境
+
+Docker Desktop 命令行启动超时后，读取本次启动日志定位到旧运行时 socket
+导致进程退出：先是 `Docker/run/sailor-ingest.sock`，随后是
+`docker-secrets-engine/engine.sock`，均返回 Windows Error 1920。
+本机为 Windows 11 build 26200、Docker Desktop 4.87.0；该表现与 Docker
+公开问题 [#554](https://github.com/docker/desktop-feedback/issues/554) 中的
+旧 socket 故障相符。这是本地容器引擎启动故障，与此前网站服务器命令的
+自动审批拒绝是两项不同问题。
+
+确认 Docker 进程全部停止、父目录不是 reparse point、目标只含已识别的
+零字节运行时文件后，将旧目录在原父目录内改名备份，并让 Docker 重建。
+没有删除或重置容器、镜像、数据卷、账号设置，也没有修改 Windows 安全策略。
+本机备份为 `%LOCALAPPDATA%/Docker/run.capacity-backup-20260910-123559`、
+`%LOCALAPPDATA%/Docker/run.capacity-backup-20260910-123838` 和
+`%LOCALAPPDATA%/docker-secrets-engine.capacity-backup-20260910-123838`。
+
+修复后 Docker Engine 29.7.2 正常响应，容器清单为空。使用已缓存官方
+PostgreSQL 17 镜像创建了临时测试库，实际版本为 17.11；镜像固定到
+`postgres@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73`。
+测试容器只绑定 `127.0.0.1:55432`，限制 1 CPU / 256 MiB，运行时生成随机
+临时密码，未写入仓库或测试输出，也未挂载宿主目录。配置 `--rm` 且不自动重启，
+在 `finally` 校验容器归属标记后停止并移除。
+
+### 首次真实 PostgreSQL 检查
+
+空白数据库仅设置了本地环境 marker，没有加载 VIZA schema 或生产数据。
+`src/tests/online-capacity-db.integration.test.ts` 实际执行 1 项测试并通过，
+不是 skipped：三连接池在五秒内均匀执行 100 次 `SELECT 1`，验证连接数
+不超过 3、等待队列峰值不超过 1、p95 小于 500ms。测试耗时 4,979ms，
+Vitest 总耗时 5.66 秒，退出码 0；临时数据库随后成功移除。
+
+首次短测记录保存在 `.dev-logs/capacity-pg17-short-first.log`；后续运行的记录为
+`.dev-logs/capacity-pg17-short-test.log` 和
+`.dev-logs/capacity-pg17-runtime.json`，可复查的临时启动/清理脚本为
+`.dev-logs/capacity-pg17-run.ps1`。这些文件均被 Git 忽略，不包含临时密码。
+这一结果首次补充了真实 PostgreSQL 与应用查询观测包装的本地连接池证据，
+但不覆盖 Supabase HTTP/事务池、RLS、应用表查询或登录后网站容量。
+
+### 100 虚拟用户、五分钟真实数据库持续诊断
+
+在重新创建的同配置空白 PostgreSQL 17.11 上，先再次通过上述短测，再执行
+100 个虚拟用户的数据库读取诊断：30 秒分批启动，每个用户先执行一次读取，
+随后共同进入至少 300 秒的稳定阶段。稳定阶段的首轮读取分散到五秒内，
+后续每次查询完成后等待 5,000ms；这不是 100 个请求同时查询，也不是固定
+RPS 的开环负载。实际使用 `pg.Pool`（上限 3）与仓库的查询观测包装，
+查询为 `SELECT 1`，没有执行应用接口、认证、RLS 或生产查询。
+
+| 实测指标 | 结果 |
+| --- | --- |
+| 完成的虚拟用户 | 100 / 100 |
+| 稳定阶段 / 总测量时间 | 300,014.71ms / 330,063.57ms |
+| ramp / 稳定阶段读取 | 100 / 5,987 |
+| 成功读取 / 失败读取 | 6,087 / 0 |
+| 查询超时 / 连接超时 / 池错误事件 | 0 / 0 / 0 |
+| 延迟 p50 / p95 / p99 | 2.60ms / 5.25ms / 14.40ms |
+| 最大查询延迟 | 202.59ms |
+| 连接数峰值 / 等待队列峰值 | 3 / 2 |
+| 诊断结论 / 进程退出码 | `passed: false`，`pool_waiting` / 1 |
+
+延迟涵盖全部 6,087 次被测读取（ramp 与稳定阶段合计），包含连接池等待与
+查询往返；身份检查和一次预热不计入。所有查询成功、延迟符合阈值，但
+等待队列峰值 2 超过保守门槛 1，因此保留失败结果，没有放宽门槛来得到
+通过。当前记录只有队列峰值，没有等待持续时间，不能判断超标是否持续，
+也不能据此直接认定生产连接池需要扩容。后续应先补充等待持续时间，
+再结合隔离应用环境的真实查询判断瓶颈。
+
+运行前确认目标为 loopback、无 URL 查询参数覆盖、双重 `local-test` 确认、
+数据库环境 marker 和 PostgreSQL 主版本 17。错误确认标记的拒绝测试在
+建立连接前退出，读取计数为 0。独立复核检查了目标隔离、实际耗时与失败
+统计、聚合输出和容器清理；未发现将模拟结果冒充真实查询的路径。临时
+启动脚本另已补齐全部进程环境变量的原值恢复，包含 Supabase/OpenAI
+占位值；测量脚本和结果未因此改变。
+
+证据保存在 Git 忽略的 `.dev-logs/capacity-pg17-sustained-summary.json`、
+`.dev-logs/capacity-pg17-sustained.log` 和
+`.dev-logs/capacity-pg17-guard-refusal-summary.json`。对应测量脚本为
+`.dev-logs/capacity-pg17-sustained.mts`，SHA-256 为
+`72AF674893E3C7FDA04A4427919331FF8DED54068D35237EA2D77BEEDF96B8A5`。
+该一次性脚本的严格 TypeScript 检查通过。临时容器在测试失败后仍由
+`finally` 成功停止并自动移除，复核容器不存在且 55432 端口没有监听。
+
+这轮结果只支持本地数据库连接池诊断，明确标记
+`authenticatedUserCapacityClaim: false`、`releaseCapacityClaim: false`。
+Docker 已可用于后续隔离验证，但不代表此前网站服务器启动的自动审批
+阻塞已解除。本轮没有连接生产数据库、启动收费资源或修改线上配置；
+提交内容仅为验证记录，无需重新部署网站。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、
