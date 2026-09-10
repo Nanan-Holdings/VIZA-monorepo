@@ -50,3 +50,56 @@ export function validateProviderConfig(
   }
   return issues;
 }
+
+export interface PaymentProviderConfigReport {
+  ready: boolean;
+  environment: string;
+  selectionExplicit: boolean;
+  enabledProviders: Provider[];
+  providers: Array<{
+    provider: Provider;
+    configured: boolean;
+    ready: boolean;
+    issues: ProviderConfigIssue[];
+  }>;
+  issues: ProviderConfigIssue[];
+}
+
+/**
+ * Build a secret-free payment readiness response for internal health checks.
+ * Explicit selection is required in production so unused credentials cannot
+ * silently activate a payment rail.
+ */
+export function getPaymentProviderConfigReport(
+  env: NodeJS.ProcessEnv = process.env,
+): PaymentProviderConfigReport {
+  const raw = env.VIZA_ENABLED_PAYMENT_PROVIDERS;
+  const known = new Set<Provider>(["stripe", "airwallex", "alipay", "wechat"]);
+  const requested = raw?.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) ?? ["stripe"];
+  const enabledProviders = [...new Set(requested.filter((value): value is Provider => known.has(value as Provider)))];
+  const issues: ProviderConfigIssue[] = validateProviderConfig(enabledProviders, env);
+
+  for (const provider of [...new Set(requested.filter((value) => !known.has(value as Provider)))]) {
+    issues.push({ provider: "stripe", severity: "error", message: `Unknown payment provider: ${provider}` });
+  }
+
+  const providers = enabledProviders.map((provider) => {
+    const providerIssues = issues.filter((issue) => issue.provider === provider);
+    const configured = !providerIssues.some((issue) => issue.message.startsWith("Missing env:"));
+    return {
+      provider,
+      configured,
+      ready: configured && !providerIssues.some((issue) => issue.severity === "error"),
+      issues: providerIssues,
+    };
+  });
+
+  return {
+    ready: !issues.some((issue) => issue.severity === "error") && enabledProviders.length > 0,
+    environment: env.NODE_ENV ?? "development",
+    selectionExplicit: raw !== undefined,
+    enabledProviders,
+    providers,
+    issues,
+  };
+}

@@ -222,7 +222,43 @@
       "sha256": "5e1f5cf6cbf9e17df73d409e900b56440ad6ed95f9d610e3508ca8b067d64de1"
     }
   ],
-  "no_mirror": [],
+  "no_mirror": [
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908170543_beta_launch_invites.sql",
+      "sha256": "9b035a47ad5b7c4ed0276eb1374a282f72b0e20b2935db67bb389912f22ca684",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908173446_harden_beta_access_claims.sql",
+      "sha256": "b70e59473c065e781f446ece5a7858c45b2d3e2319553befa12c88cd61e83b4f",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908174327_prevent_duplicate_beta_waivers.sql",
+      "sha256": "c16a3c9107618695a35e34d4811319f840f2d9825329c84ef8afd1e1a2fcab6e",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908180511_enforce_beta_social_cohort.sql",
+      "sha256": "a863a8585e48b2117146d94ed073b60b3d210412f7ba1892c319bc1b88e297fd",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908180919_fix_beta_social_issue_ambiguity.sql",
+      "sha256": "68a8a4563640e3e756e79e3815831333043ff2b7cb0412094c1ee8cce2d1a57c",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908185111_accurate_beta_delivery_identity.sql",
+      "sha256": "fdde9df2e1cd6f6907014206c41e842f27bad2f61df61418da331be375ae13c3",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260908185400_fix_social_claim_return_type.sql",
+      "sha256": "60e0437664f33268a5f80a1be6bf445c453ff8155705db552268e1266961f6fa",
+      "reason": "Supabase-owned portal beta access schema has no Drizzle mirror."
+    }
+  ],
   "unapplied_migration_renames": [
     {
       "from": "viza-be/agent-backend/drizzle/0149_uae_tourist_document_contract.sql",

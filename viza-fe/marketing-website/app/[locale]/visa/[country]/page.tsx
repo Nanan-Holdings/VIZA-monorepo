@@ -1,12 +1,5 @@
-"use client";
-
-import { useParams } from "next/navigation";
-import { useLocale } from "next-intl";
-import VisaCountryRich from "@/components/VisaCountryRich";
-import VisaCountryTemplate from "@/components/VisaCountryTemplate";
-import ComingSoon from "@/components/ComingSoon";
-import { useCatalogue } from "@/components/CatalogueProvider";
-import { contentBySlug } from "@/lib/visa-content";
+import { notFound } from "next/navigation";
+import VisaCountryPageClient from "@/components/VisaCountryPageClient";
 
 /**
  * Dynamic visa destination page (MKT-003/004/005).
@@ -20,23 +13,9 @@ import { contentBySlug } from "@/lib/visa-content";
  * Every country (including Indonesia) now renders here from data — there is no
  * bespoke per-country page.
  */
-export default function VisaCountryPage() {
-  const params = useParams();
-  const locale = useLocale();
-  const slug = String(params.country ?? "");
-  const { countryBySlug } = useCatalogue();
-  const country = countryBySlug(slug);
+export default async function VisaCountryPage({ params }: { params: Promise<{ country: string }> }) {
+  const { country } = await params;
+  if (country === "viza-test") notFound();
 
-  if (!country) {
-    return <ComingSoon name={slug.replace(/-/g, " ")} />;
-  }
-  if (!country.launched) {
-    return <ComingSoon name={country.name} />;
-  }
-
-  const content = contentBySlug(slug, locale);
-  if (content) {
-    return <VisaCountryRich country={country} content={content} />;
-  }
-  return <VisaCountryTemplate country={country} />;
+  return <VisaCountryPageClient />;
 }

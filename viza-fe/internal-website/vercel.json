@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["bom1"],
+  "crons": [
+    { "path": "/api/payment-provisioning/worker", "schedule": "*/5 * * * *" }
+  ],
   "functions": {
     "app/api/applications/*/submission-status/route.ts": {
       "supportsCancellation": true

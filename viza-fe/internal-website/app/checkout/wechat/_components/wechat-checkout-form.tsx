@@ -17,6 +17,7 @@ interface Props {
   initialName?: string;
   /** Opaque wizard payload, forwarded to the server action verbatim. */
   prefill?: string;
+  betaLinkToken?: string;
 }
 
 type Step = "form" | "qr" | "paid" | "error";
@@ -35,6 +36,10 @@ const COPY = {
     paidTitle: "Payment received",
     paidBody: "Check your inbox for a sign-in link.",
     error: "Something went wrong. Try again.",
+    promoLabel: "Beta promo code (optional)",
+    promoPlaceholder: "Enter your one-time code",
+    linkOffer: "Your private beta invitation is attached to this link.",
+    betaInvalid: "This beta invitation is invalid, already used, expired, or belongs to the other test group.",
   },
   "zh-CN": {
     title: "微信支付",
@@ -49,6 +54,10 @@ const COPY = {
     paidTitle: "支付成功",
     paidBody: "请前往邮箱查收登录链接。",
     error: "出错了，请重试。",
+    promoLabel: "内测优惠码（选填）",
+    promoPlaceholder: "输入一次性优惠码",
+    linkOffer: "此链接已包含您的专属内测资格。",
+    betaInvalid: "该内测资格无效、已使用、已过期，或不属于当前测试组。",
   },
 } as const;
 
@@ -65,6 +74,7 @@ export function WechatCheckoutForm({
   initialEmail = "",
   initialName = "",
   prefill = "",
+  betaLinkToken = "",
 }: Props) {
   const t = COPY[locale];
   const router = useRouter();
@@ -74,6 +84,7 @@ export function WechatCheckoutForm({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const {
     displayedProgress,
     isVisuallyComplete,
@@ -126,7 +137,14 @@ export function WechatCheckoutForm({
         fullName: name,
         locale,
         prefill: prefill || undefined,
+        betaToken: betaLinkToken || promoCode || undefined,
+        betaDeliveryMethod: betaLinkToken ? "link_suffix" : promoCode ? "promo_code" : undefined,
       });
+      if (out.errorCode) {
+        setErrMsg(t.betaInvalid);
+        setStep("error");
+        return;
+      }
       // Free demo package: the order is already paid — no QR to scan.
       if (out.redirectUrl) {
         router.push(out.redirectUrl);
@@ -140,7 +158,8 @@ export function WechatCheckoutForm({
       setQrDataUrl(dataUrl);
       setStep("qr");
     } catch (err) {
-      setErrMsg(err instanceof Error ? err.message : t.error);
+      const message = err instanceof Error ? err.message : "";
+      setErrMsg(["invalid", "used", "wrong_channel"].includes(message) ? t.betaInvalid : message || t.error);
       setStep("error");
     }
   };
@@ -219,6 +238,14 @@ export function WechatCheckoutForm({
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </label>
+        {betaLinkToken ? (
+          <p className="rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm leading-6 text-brand-700">{t.linkOffer}</p>
+        ) : (
+          <label className="block">
+            <span className="text-sm text-foreground">{t.promoLabel}</span>
+            <input value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder={t.promoPlaceholder} autoComplete="off" className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-ring" />
+          </label>
+        )}
         <label className="block">
           <span className="text-sm text-foreground">{t.emailLabel}</span>
           <input

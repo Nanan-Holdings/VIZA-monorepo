@@ -22,6 +22,7 @@ import {
   jsonError,
   normalizeCurrency,
   paymentIntentReceiptUrl,
+  settleLinkedOrderAfterConfirmedPayment,
   stripeObjectId,
   upsertPaymentRecord,
   type JsonObject,
@@ -189,6 +190,11 @@ async function finalizePaidRecord(
   record: PaymentRecordRow,
   recipient: string | null,
 ) {
+  // The browser return is optional. Settle the linked canonical order from the
+  // verified webhook so beta conversion and provisioning remain accurate even
+  // when the customer closes Stripe after payment.
+  await settleLinkedOrderAfterConfirmedPayment(adminClient, record);
+
   // 1. 执行 HEAD 原有的通知队列记录
   await queuePaymentOutcome(adminClient, {
     event,

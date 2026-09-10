@@ -15,15 +15,16 @@ interface Props {
   /** Prefill for the portal checkout form (collected by the /apply wizard). */
   email?: string;
   fullName?: string;
-  /** Base64url wizard payload (passport OCR, arrival date, tier) — opaque here,
-   *  decoded server-side by the portal (lib/checkout/prefill.ts). */
+  /** Wizard payload posted to the portal handoff endpoint. It must never be
+   *  placed in a URL because it contains applicant PII. */
   prefill?: string;
+  betaToken?: string;
 }
 
 /**
- * Marketing-side CTA that deep-links into the portal's guest card
- * checkout (Stripe). Plain <a> — by design, this file has zero payment
- * or auth SDK imports (per marketing-website CLAUDE.md non-negotiables).
+ * Marketing-side CTA POSTs applicant state to the portal's encrypted handoff
+ * endpoint before guest card checkout. This file has zero payment or auth SDK
+ * imports (per marketing-website CLAUDE.md non-negotiables).
  *
  * The actual checkout flow lives in
  * `viza-fe/internal-website/app/checkout/card`. On payment the portal
@@ -37,17 +38,11 @@ export function PayByCardButton({
   email,
   fullName,
   prefill,
+  betaToken,
 }: Props) {
   const locale = useLocale();
   const t = useTranslations("cta");
-  const href = portalUrl(
-    `/checkout/card?country=${encodeURIComponent(country)}` +
-      `&visa=${encodeURIComponent(visaType)}` +
-      `&locale=${encodeURIComponent(locale)}` +
-      (email ? `&email=${encodeURIComponent(email)}` : "") +
-      (fullName ? `&name=${encodeURIComponent(fullName)}` : "") +
-      (prefill ? `&prefill=${encodeURIComponent(prefill)}` : ""),
-  );
+  const action = portalUrl("/api/checkout/handoff");
 
   const base =
     variant === "block"
@@ -55,15 +50,25 @@ export function PayByCardButton({
       : "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium";
 
   return (
-    <a
-      href={href}
-      data-country={country}
-      data-payment-method="card"
-      className={`${base} bg-brand-500 text-white hover:bg-brand-400 transition-colors ${className ?? ""}`}
-    >
-      <CardGlyph />
-      <span>{t("payByCard")}</span>
-    </a>
+    <form action={action} method="post">
+      <input type="hidden" name="paymentMethod" value="card" />
+      <input type="hidden" name="country" value={country} />
+      <input type="hidden" name="visaType" value={visaType} />
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="email" value={email ?? ""} />
+      <input type="hidden" name="fullName" value={fullName ?? ""} />
+      <input type="hidden" name="prefill" value={prefill ?? ""} />
+      <input type="hidden" name="betaToken" value={betaToken ?? ""} />
+      <button
+        type="submit"
+        data-country={country}
+        data-payment-method="card"
+        className={`${base} bg-brand-500 text-white hover:bg-brand-400 transition-colors ${className ?? ""}`}
+      >
+        <CardGlyph />
+        <span>{t("payByCard")}</span>
+      </button>
+    </form>
   );
 }
 

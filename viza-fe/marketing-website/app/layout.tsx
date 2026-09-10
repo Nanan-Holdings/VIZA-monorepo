@@ -60,6 +60,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <Script id="redact-beta-url" strategy="beforeInteractive">
+          {`(function () {
+            var url = new URL(window.location.href);
+            var token = (url.searchParams.get('betaToken') || url.searchParams.get('beta') || '').trim();
+            if (token) window.__vizaPendingBetaToken = token.slice(0, 128);
+            url.searchParams.delete('beta');
+            url.searchParams.delete('betaToken');
+            if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url.toString());
+          })();`}
+        </Script>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
