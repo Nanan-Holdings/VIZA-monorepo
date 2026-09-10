@@ -1163,7 +1163,8 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   6 项真实 Node fetch + loopback HTTP 测试，分别验证两国正常读取、
   响应体开始读取后的取消/连接关闭，以及 auth 等待期间取消后不再
   请求后端。仅 auth session 使用合成 mock，没有真实令牌或生产连接。
-  最终统一运行 4 个测试文件，共 23 项全部通过。
+  最终统一运行 4 个测试文件，共 23 项全部通过；完整前端 type-check
+  通过，测试与类型检查的最终退出码均为 0。
 - 完整前端 lint 为 0 errors / 62 个既有 warnings；变更代码文件
   ESLint 和 `git diff --check` 通过。上传 dry run 共 2,003 个文件，
   四个修改的运行时文件都在清单内，敏感文件和本地产物泄漏项为零。
@@ -1175,6 +1176,27 @@ type-check 通过，全量 lint 为 0 错误、62 项原有警告；修改 actio
   `nananviza2016-8879` / `nanan.viza2016@gmail.com`，项目为
   `viza-gmail-s-projects` 团队的 `viza-internal`，根目录和 Node 24.x
   配置正确。未使用个人账号、新增收费资源或执行生产压测。
+
+### 第二十轮发布完成
+
+- 实现提交 `a89d69e8d65e4f2ae03f42e0fbc0f7e46c21af87` 已推送
+  `upstream/main`，独立代码复核未发现发布阻塞；使用再次核验的
+  nananviza 组织账号完成发布。
+- Candidate `dpl_2gtTKjN4q3Riu8eeaHyQRuADtE9A` 构建成功并达到
+  `READY`。切换前登录页 200、美国及法国匿名预约入口均 307 到登录页，
+  随后成功 promote。
+- 正式域名 `app.viza.it.com` 已确认指向该 deployment，
+  `target=production`、`readyState=READY`。对应 HTTP 检查为
+  200 / 307 / 307；后端两国 status API 对无凭证合成请求均返回
+  `unauthorized` / 401。浏览器现有会话进入首页并加载完成，申请导航
+  可见，无邮箱初始化错误或未处理异常，临时标签页已关闭。
+- 后端 health 为 `ok`，SHA 仍为
+  `967f03251efff1a931120a72007fcdce4dc75e5d`。本轮未部署后端，未创建
+  真实预约、执行付款或访问官方门户，也未执行生产压测；持续在线人数
+  仍需独立环境验证。
+
+部署 URL：`https://viza-internal-5qzw2b6pg-viza-gmail-s-projects.vercel.app`。
+上一版 `dpl_ERCcBgDFqk1ANAvDkALt3rzS6Htv` 保留供现有回滚流程使用。
 
 ## 下一步容量验收
 
