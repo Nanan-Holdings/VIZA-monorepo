@@ -9,9 +9,45 @@ import {
   getAboutMeRedirectTarget,
   isRetiredAboutMeRoute,
 } from "@/app/client/about-me-form/redirect-target";
+import {
+  CLIENT_CHECKOUT_BETA_COOKIE,
+  CLIENT_CHECKOUT_BETA_TTL_SECONDS,
+  betaFromCheckoutUrl,
+  openCheckoutBeta,
+  removeBetaFromCheckoutUrl,
+  sealCheckoutBeta,
+} from "@/lib/auth/client-checkout-return";
+import {
+  checkoutReturnTarget,
+  safeClientReturnTarget,
+} from "@/lib/auth/safe-client-return-target";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (pathname === "/client/checkout") {
+    const beta = betaFromCheckoutUrl(request.nextUrl);
+    if (beta) {
+      const cleanUrl = removeBetaFromCheckoutUrl(request.nextUrl);
+      const response = NextResponse.redirect(cleanUrl);
+      try {
+        response.cookies.set(CLIENT_CHECKOUT_BETA_COOKIE, await sealCheckoutBeta({
+          ...beta,
+          returnTo: checkoutReturnTarget(cleanUrl),
+        }), {
+          httpOnly: true,
+          maxAge: CLIENT_CHECKOUT_BETA_TTL_SECONDS,
+          path: "/client",
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+        });
+      } catch {
+        return NextResponse.redirect(new URL("/client/login", request.url));
+      }
+      response.headers.set("Cache-Control", "private, no-store, max-age=0");
+      return response;
+    }
+  }
 
   // Retire the legacy health questionnaire at the earliest server boundary.
   // Keeping this redirect in the proxy as well as the page prevents an old
@@ -34,9 +70,16 @@ export async function proxy(request: NextRequest) {
     pathname === "/client/register" ||
     pathname.startsWith("/client/register/")
   ) {
-    const postLoginPath = request.nextUrl.searchParams.get("returnTo") === "/feedback"
-      ? "/feedback"
-      : "/client/home";
+    const requestedReturnTo = request.nextUrl.searchParams.get("returnTo");
+    const storedBeta = requestedReturnTo
+      ? null
+      : await openCheckoutBeta(request.cookies.get(CLIENT_CHECKOUT_BETA_COOKIE)?.value ?? "");
+    const postLoginPath = safeClientReturnTarget(requestedReturnTo ?? storedBeta?.returnTo);
+    if (!requestedReturnTo && storedBeta && pathname.startsWith("/client/login")) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.searchParams.set("returnTo", postLoginPath);
+      return NextResponse.redirect(loginUrl);
+    }
     // A valid VIZA session does not need a Supabase network request. This keeps
     // existing local sessions usable while Supabase Auth has a transient outage.
     const jwtSession = await getClientSessionFromRequest(request);
@@ -117,10 +160,11 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
   }
 
   // No valid session - redirect to new client login portal
-  return copyResponseCookies(
-    supabaseAuth.response,
-    NextResponse.redirect(new URL("/client/login", request.url)),
-  );
+  const loginUrl = new URL("/client/login", request.url);
+  if (pathname === "/client/checkout") {
+    loginUrl.searchParams.set("returnTo", checkoutReturnTarget(request.nextUrl));
+  }
+  return copyResponseCookies(supabaseAuth.response, NextResponse.redirect(loginUrl));
 }
 
 function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {

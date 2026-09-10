@@ -6,7 +6,7 @@ import {
   applyCheckoutPrefill,
   decodeCheckoutPrefill,
 } from "@/lib/checkout/prefill";
-import { isFreePackage, pricingFor } from "@/lib/pricing";
+import { pricingFor } from "@/lib/pricing";
 import { completeFreeOrder } from "@/lib/checkout/free-order";
 import { createCheckoutSession } from "@/lib/stripe/client";
 import { stripeCheckoutPaymentMethodsFor } from "@/lib/payments/method-availability";
@@ -17,6 +17,11 @@ import {
 } from "@/lib/photonpay/client";
 import { encodeReqId } from "@/lib/photonpay/reqid";
 import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-application";
+import {
+  applyBetaAccess,
+  BetaAccessError,
+  type BetaDeliveryMethod,
+} from "@/lib/checkout/beta-access";
 
 /**
  * Pre-authentication guest card checkout (Stripe Checkout).
@@ -41,6 +46,9 @@ export interface StartCardCheckoutInput {
   locale: "en" | "zh-CN";
   /** Base64url wizard payload from the marketing /apply funnel (see lib/checkout/prefill.ts). */
   prefill?: string;
+  /** Single-use launch-beta value, entered as a code or carried by a unique link. */
+  betaToken?: string;
+  betaDeliveryMethod?: BetaDeliveryMethod;
 }
 
 export interface StartCardCheckoutOutput {
@@ -48,6 +56,7 @@ export interface StartCardCheckoutOutput {
   url: string;
   amountCents: number;
   currency: string;
+  errorCode?: "beta_invalid" | "beta_used" | "beta_wrong_channel";
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +111,7 @@ export async function startCardCheckout(
   }
   const passthroughGovt =
     pricing.govtFeeChannel === "viza_passthrough" ? pricing.govtFeeCents : 0;
-  const totalCents = pricing.agencyFeeCents + passthroughGovt;
+  const baseTotalCents = pricing.agencyFeeCents + passthroughGovt;
 
   return withAdmin("system", "actions/card-checkout:start", async (admin) => {
     // 1. Upsert applicant profile by email. auth_user_id stays null —
@@ -250,6 +259,90 @@ export async function startCardCheckout(
       if (lineErr) throw new Error(`order_line insert: ${lineErr.message}`);
     }
 
+    let betaAccess: Awaited<ReturnType<typeof applyBetaAccess>>;
+    try {
+      betaAccess = await applyBetaAccess(admin, {
+        token: input.betaToken,
+        deliveryMethod: input.betaDeliveryMethod,
+        applicantId,
+        applicationId,
+        orderId,
+        country: input.country,
+        baseAgencyFeeCents: pricing.agencyFeeCents,
+      });
+    } catch (error) {
+      if (error instanceof BetaAccessError) {
+        return {
+          orderId,
+          url: "",
+          amountCents: baseTotalCents,
+          currency: pricing.currency,
+          errorCode: `beta_${error.code}`,
+        };
+      }
+      throw error;
+    }
+    const totalCents = Math.max(0, baseTotalCents - (betaAccess?.discountCents ?? 0));
+
+    if (betaAccess) {
+      const { data: currentOrder } = await admin
+        .from("order")
+        .select("metadata")
+        .eq("id", orderId)
+        .maybeSingle();
+      const metadata = currentOrder?.metadata && typeof currentOrder.metadata === "object" && !Array.isArray(currentOrder.metadata)
+        ? currentOrder.metadata as Record<string, unknown>
+        : {};
+      const { error: betaMetadataError } = await admin
+        .from("order")
+        .update({
+          metadata: {
+            ...metadata,
+            beta: {
+              grant_id: betaAccess.grantId,
+              audience: betaAccess.audience,
+              delivery_method: betaAccess.deliveryMethod,
+              access_scope: betaAccess.accessScope,
+              discount_percent: betaAccess.discountPercent,
+              discount_cents: betaAccess.discountCents,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+      if (betaMetadataError) throw new Error(`beta order metadata: ${betaMetadataError.message}`);
+    }
+
+    // Persist the exact amount sent to the selected provider. `order` keeps the
+    // official fee for accounting even when it is paid directly at the portal,
+    // so a webhook must not reconstruct the collected total by blindly adding
+    // every accounting column.
+    const { data: pricedOrder } = await admin
+      .from("order")
+      .select("metadata")
+      .eq("id", orderId)
+      .maybeSingle();
+    const pricedMetadata = pricedOrder?.metadata && typeof pricedOrder.metadata === "object" && !Array.isArray(pricedOrder.metadata)
+      ? pricedOrder.metadata as Record<string, unknown>
+      : {};
+    const provider = totalCents === 0 ? "free" : isPhotonPayEnabled() ? "photonpay" : "stripe";
+    const { error: checkoutMetadataError } = await admin
+      .from("order")
+      .update({
+        metadata: {
+          ...pricedMetadata,
+          checkout_payment: {
+            provider,
+            expected_amount_minor: minorUnits(totalCents, pricing.currency),
+            currency: pricing.currency.toUpperCase(),
+            government_fee_passthrough_cents: passthroughGovt,
+          },
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+    if (checkoutMetadataError) throw new Error(`checkout order metadata: ${checkoutMetadataError.message}`);
+
     // 3b. Persist wizard prefill (passport OCR, arrival date, tier) —
     //     best-effort, never blocks the payment redirect.
     const prefill = decodeCheckoutPrefill(input.prefill);
@@ -273,12 +366,12 @@ export async function startCardCheckout(
     // Free demo package — nothing to collect: mark the order paid and run
     // the post-paid side-effects the webhook would, then send the visitor
     // straight to the check-your-email page.
-    if (isFreePackage(pricing)) {
+    if (totalCents === 0) {
       await completeFreeOrder(admin, orderId);
       return {
         orderId,
         url: successUrl,
-        amountCents: 0,
+        amountCents: totalCents,
         currency: pricing.currency,
       };
     }

@@ -14,6 +14,8 @@ interface Props {
   initialName?: string;
   /** Opaque wizard payload, forwarded to the server action verbatim. */
   prefill?: string;
+  /** Present only for the unique-link A/B cohort. */
+  betaLinkToken?: string;
 }
 
 const COPY = {
@@ -27,6 +29,10 @@ const COPY = {
     submitting: "Redirecting to payment…",
     error: "Something went wrong. Try again.",
     secure: "Payments are processed securely by Stripe.",
+    promoLabel: "Beta promo code (optional)",
+    promoPlaceholder: "Enter your one-time code",
+    linkOffer: "Your private beta invitation is attached to this link and will be verified at checkout.",
+    betaInvalid: "This beta invitation is invalid, already used, expired, or belongs to the other test group.",
   },
   "zh-CN": {
     title: "银行卡支付",
@@ -38,6 +44,10 @@ const COPY = {
     submitting: "正在跳转至支付页面…",
     error: "出错了，请重试。",
     secure: "支付由 Stripe 安全处理。",
+    promoLabel: "内测优惠码（选填）",
+    promoPlaceholder: "输入一次性优惠码",
+    linkOffer: "此链接已包含您的专属内测资格，结账时会自动验证。",
+    betaInvalid: "该内测资格无效、已使用、已过期，或不属于当前测试组。",
   },
 } as const;
 
@@ -50,12 +60,14 @@ export function CardCheckoutForm({
   initialEmail = "",
   initialName = "",
   prefill = "",
+  betaLinkToken = "",
 }: Props) {
   const t = COPY[locale];
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
 
   const amount =
     amountCents === 0
@@ -79,11 +91,19 @@ export function CardCheckoutForm({
         fullName: name,
         locale,
         prefill: prefill || undefined,
+        betaToken: betaLinkToken || promoCode || undefined,
+        betaDeliveryMethod: betaLinkToken ? "link_suffix" : promoCode ? "promo_code" : undefined,
       });
+      if (out.errorCode) {
+        setErrMsg(t.betaInvalid);
+        setSubmitting(false);
+        return;
+      }
       // Hand off to Stripe's hosted checkout page.
       window.location.href = out.url;
     } catch (err) {
-      setErrMsg(err instanceof Error ? err.message : t.error);
+      const message = err instanceof Error ? err.message : "";
+      setErrMsg(["invalid", "used", "wrong_channel"].includes(message) ? t.betaInvalid : message || t.error);
       setSubmitting(false);
     }
   };
@@ -114,6 +134,22 @@ export function CardCheckoutForm({
             className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </label>
+        {betaLinkToken ? (
+          <p className="rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm leading-6 text-brand-700">
+            {t.linkOffer}
+          </p>
+        ) : (
+          <label className="block">
+            <span className="text-sm text-foreground">{t.promoLabel}</span>
+            <input
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              placeholder={t.promoPlaceholder}
+              autoComplete="off"
+              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </label>
+        )}
         <label className="block">
           <span className="text-sm text-foreground">{t.emailLabel}</span>
           <input

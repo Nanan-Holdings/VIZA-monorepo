@@ -14,6 +14,7 @@ import {
 import { completeFreeOrder } from "@/lib/checkout/free-order";
 import { createNativeOrder, generateOutTradeNo } from "@/lib/wechatpay/client";
 import { findOngoingApplicationByIdentity } from "@/lib/applications/ongoing-application";
+import { applyBetaAccess, BetaAccessError, type BetaDeliveryMethod } from "@/lib/checkout/beta-access";
 
 /**
  * Pre-authentication WeChat Pay Native checkout (WeChat Pay direct).
@@ -35,6 +36,8 @@ export interface StartWechatCheckoutInput {
   locale: "en" | "zh-CN";
   /** Base64url wizard payload from the marketing /apply funnel (see lib/checkout/prefill.ts). */
   prefill?: string;
+  betaToken?: string;
+  betaDeliveryMethod?: BetaDeliveryMethod;
 }
 
 export interface StartWechatCheckoutOutput {
@@ -46,6 +49,7 @@ export interface StartWechatCheckoutOutput {
    * is already paid and the form should navigate here instead.
    */
   redirectUrl?: string;
+  errorCode?: "beta_invalid" | "beta_used" | "beta_wrong_channel";
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -222,6 +226,81 @@ export async function startWechatCheckout(
       ]);
     }
 
+    let betaAccess: Awaited<ReturnType<typeof applyBetaAccess>>;
+    try {
+      betaAccess = await applyBetaAccess(admin, {
+        token: input.betaToken,
+        deliveryMethod: input.betaDeliveryMethod,
+        applicantId,
+        applicationId,
+        orderId,
+        country: input.country,
+        baseAgencyFeeCents: pricing.agencyFeeCents,
+      });
+    } catch (error) {
+      if (error instanceof BetaAccessError) {
+        return {
+          orderId,
+          codeUrl: "",
+          amountFen: totalFen,
+          errorCode: `beta_${error.code}`,
+        };
+      }
+      throw error;
+    }
+    const passthroughGovernmentCents = pricing.govtFeeChannel === "viza_passthrough"
+      ? pricing.govtFeeCents
+      : 0;
+    const pricedBaseCents = pricing.agencyFeeCents + passthroughGovernmentCents;
+    const agencyFen = pricedBaseCents > 0
+      ? Math.round((totalFen * pricing.agencyFeeCents) / pricedBaseCents)
+      : 0;
+    const betaDiscountFen = betaAccess
+      ? Math.round((agencyFen * betaAccess.discountPercent) / 100)
+      : 0;
+    totalFen = Math.max(0, totalFen - betaDiscountFen);
+    if (betaAccess) {
+      const { data: currentOrder } = await admin.from("order").select("metadata").eq("id", orderId).maybeSingle();
+      const metadata = currentOrder?.metadata && typeof currentOrder.metadata === "object" && !Array.isArray(currentOrder.metadata)
+        ? currentOrder.metadata as Record<string, unknown>
+        : {};
+      const { error: betaMetadataError } = await admin.from("order").update({
+        metadata: {
+          ...metadata,
+          beta: {
+            grant_id: betaAccess.grantId,
+            audience: betaAccess.audience,
+            delivery_method: betaAccess.deliveryMethod,
+            access_scope: betaAccess.accessScope,
+            discount_percent: betaAccess.discountPercent,
+            discount_cents: betaAccess.discountCents,
+            provider_discount_minor: betaDiscountFen,
+            provider_currency: "CNY",
+          },
+        },
+        updated_at: new Date().toISOString(),
+      }).eq("id", orderId);
+      if (betaMetadataError) throw new Error(`beta order metadata: ${betaMetadataError.message}`);
+    }
+
+    const { data: pricedOrder } = await admin.from("order").select("metadata").eq("id", orderId).maybeSingle();
+    const pricedMetadata = pricedOrder?.metadata && typeof pricedOrder.metadata === "object" && !Array.isArray(pricedOrder.metadata)
+      ? pricedOrder.metadata as Record<string, unknown>
+      : {};
+    const { error: checkoutMetadataError } = await admin.from("order").update({
+      metadata: {
+        ...pricedMetadata,
+        checkout_payment: {
+          provider: totalFen === 0 ? "free" : "wechat",
+          expected_amount_minor: totalFen,
+          currency: "CNY",
+          government_fee_passthrough_cents: passthroughGovernmentCents,
+        },
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", orderId);
+    if (checkoutMetadataError) throw new Error(`checkout order metadata: ${checkoutMetadataError.message}`);
+
     // 3b. Persist wizard prefill (passport OCR, arrival date, tier) —
     //     best-effort, never blocks the payment redirect.
     const prefill = decodeCheckoutPrefill(input.prefill);
@@ -236,7 +315,7 @@ export async function startWechatCheckout(
     // 4a. Free demo package — nothing to collect: mark the order paid,
     //     run the post-paid side-effects, and send the visitor straight
     //     to the check-your-email page (no QR).
-    if (free) {
+    if (totalFen === 0) {
       await completeFreeOrder(admin, orderId);
       return {
         orderId,

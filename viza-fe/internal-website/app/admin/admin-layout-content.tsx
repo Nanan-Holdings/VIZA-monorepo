@@ -59,7 +59,7 @@ type AdminNavKey =
   | "dashboard" | "accounts" | "applications" | "coverage" | "billing"
   | "support" | "orders" | "products" | "cataloguePublication"
   | "consultations" | "work" | "takeovers" | "chat" | "revenue"
-  | "pricing" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
+  | "pricing" | "betaLaunch" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
   | "costs" | "analytics" | "privacy" | "refunds" | "leads" | "audit" | "team";
 
 type AdminNavSectionKey =
@@ -78,7 +78,7 @@ const ADMIN_COPY = {
       cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue",
       takeovers: "Takeovers", chat: "Live chat", revenue: "Revenue", pricing: "Pricing",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
-      backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests",
+      backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests", betaLaunch: "Beta launch",
       refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload",
     },
     sections: {
@@ -101,7 +101,7 @@ const ADMIN_COPY = {
       cataloguePublication: "营销发布", consultations: "预约", work: "工作队列",
       takeovers: "人工接管", chat: "在线聊天", revenue: "收入", pricing: "定价",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
-      backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求",
+      backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求", betaLaunch: "内测发布",
       refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量",
     },
     sections: {
@@ -142,6 +142,7 @@ const adminNavSections: AdminNavSection[] = [
     { labelKey: "billing", icon: CreditCard, href: "/admin/billing" },
     { labelKey: "refunds", icon: Undo2, href: "/admin/refunds" },
     { labelKey: "revenue", icon: CircleDollarSign, href: "/admin/revenue" },
+    { labelKey: "betaLaunch", icon: Tags, href: "/admin/marketing/beta" },
   ] },
   { labelKey: "platform", routes: [
     { labelKey: "portalHealth", icon: Activity, href: "/admin/portal-health" },
