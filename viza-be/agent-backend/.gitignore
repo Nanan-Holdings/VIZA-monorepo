@@ -26,9 +26,10 @@ Thumbs.db
 # Logs
 logs/
 *.log
+load-test-results/online-capacity/
 
 # Coverage
 coverage/
 
 # Build
-build/ 
+build/

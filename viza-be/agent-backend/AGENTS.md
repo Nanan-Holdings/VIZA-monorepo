@@ -202,6 +202,22 @@ explicitly reintroduces another provider.
   PostgreSQL gate for the matching paced load shape. It requires a loopback URL,
   `ONLINE_CAPACITY_DB_CONFIRM=local-test`, a non-production marker, and the DB
   GUC `app.viza_environment=local-test`; without all four it must skip safely.
+- `scripts/local-capacity-rls.ts` (`npm run load:local-rls`) is a separate,
+  database-only diagnostic for 100 synthetic identities sharing three clients.
+  It requires `ONLINE_CAPACITY_RLS_CONFIRM=local-test`,
+  `ONLINE_CAPACITY_RLS_NONPRODUCTION=local-test`, an explicit dedicated
+  `ONLINE_CAPACITY_RLS_DATABASE_URL` on a literal loopback address, and the
+  database environment marker. It never falls back to `DATABASE_URL`.
+  `scripts/local-capacity-rls-fixture.ts` refuses existing objects/roles before
+  creating a minimal four-table fixture and applying the actual `0168` policy
+  migration. Use only a disposable empty PostgreSQL 17 database; the container
+  owner must remove it afterward. It creates local `auth.uid()` claim emulation,
+  not Supabase login sessions, and never runs the website. Each read cycle owns
+  one client, uses `SET LOCAL ROLE` and a transaction-local claim, verifies RLS
+  ownership, and checks identity reset after COMMIT or ROLLBACK. Aggregate output
+  lives under ignored `load-test-results/online-capacity/`. Its result cannot
+  satisfy or weaken the separate website release gate. Target refusal tests:
+  `src/tests/local-capacity-rls.test.ts`.
 - `src/online-capacity-target.ts` owns the default-off target marker returned at
   `/api/health/online-capacity-target`. It derives the project ref from the
   service's actual Supabase URL and must never return keys or connection URLs.

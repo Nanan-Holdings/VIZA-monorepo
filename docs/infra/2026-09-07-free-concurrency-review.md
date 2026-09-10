@@ -1493,6 +1493,103 @@ Git 忽略，旧脚本与旧摘要未被覆盖。独立复核确认原查询路�
 后续实际网站容量验证应覆盖业务表查询与权限校验；当前结果不能替代
 100 个登录会话的完整网站测试，也没有解除此前网站服务器启动的审批阻塞。
 
+## 2026-09-10：业务表与跨身份 RLS 并发验证
+
+新增可重复运行的本地命令 `npm run load:local-rls`，由
+`viza-be/agent-backend/scripts/local-capacity-rls.ts` 和
+`scripts/local-capacity-rls-fixture.ts` 实现。与此前 `SELECT 1` 不同，
+本轮读取真实 PostgreSQL 表并执行行级权限，但仍是最小业务夹具，未启动
+Next、Supabase Auth 或 PostgREST，不是网站登录会话验收。
+
+### 数据、权限和执行边界
+
+夹具沿用现有 `core-rls-initplan-db.integration.test.ts` 的四表关系：
+`applicant_profiles → applications → application_documents`，另保留
+`submission_queue` 以便完整执行原迁移。建立原始 11 条策略后，实际读取
+并执行 `drizzle/0168_core_rls_initplan.sql`，没有复制优化后的策略来代替
+迁移。数据全部为合成数据：100 个不同身份、100 个申请人、500 份申请、
+2,500 条文件记录。只有最小字段、主键与外键，没有加载完整生产 schema、
+生产资料或新增性能索引；`submission_queue` 没有任务，也没有运行提交。
+
+脚本要求独立的 `ONLINE_CAPACITY_RLS_CONFIRM=local-test`、
+`ONLINE_CAPACITY_RLS_NONPRODUCTION=local-test` 及
+`ONLINE_CAPACITY_RLS_DATABASE_URL`，从不回退到应用的 `DATABASE_URL`。
+URL 必须使用字面量 loopback 地址、显式端口、专用 `capacity_test` 数据库
+及用户，拒绝 URL 参数、fragment 和缺失密码。任何 DDL 前再次检查数据库
+环境 marker、PostgreSQL 17、空 public 对象、无 auth schema 及无同名角色。
+碰撞或检查失败只回滚并退出，不覆盖现有对象。
+
+本地 `auth.uid()` 读取事务内的合成 claim，明确属于身份模拟，不验证 JWT
+或登录密码。负载角色为无超级用户、无 BYPASSRLS 权限的 `authenticated`；
+每轮额外断言三张读取表的 RLS 实际生效。每个身份独占一个 `PoolClient`
+完成一轮事务，使用 `BEGIN READ ONLY`、`SET LOCAL ROLE` 和 transaction-local
+claim；申请人、申请和文件查询没有附加 owner WHERE 条件，必须由 RLS
+自身过滤为恰好 1 / 5 / 25 条当前身份记录。另显式查询下一身份的申请，
+要求返回 0 条。
+
+稳定阶段每个身份交替提交和回滚只读事务，归还连接前及下一次使用前均验证数据库
+角色恢复、`auth.uid()` 为 NULL、原始 claim 为空或 NULL。SQL 或权限检查
+失败时回滚并销毁该客户端，不把异常状态放回共享池。启动控制覆盖无
+claim、未知身份、匿名角色均不可读，以及 SQL 除零错误后的回滚和身份恢复；
+控制事务和预热不计入负载统计。
+
+与前轮保持相同资源预算：缓存的 PostgreSQL 17.11 镜像、1 CPU / 256 MiB、
+三连接池、100 身份、30 秒 ramp、至少五分钟稳定阶段，每轮完成后等待
+5,000ms。每个“周期”包含多条真实 SQL，不能把周期数标成 SQL 查询次数。
+通过条件为完整执行、零隔离/事务错误、连接数不超 3、周期 p95 小于 500ms。
+排队峰值仅记录诊断，本脚本通过不表示没有排队，也不能满足或放宽原网站
+发布门禁。
+
+### 检查与执行记录
+
+目标拒绝单元测试 14 项通过，完整 CLI 在错误确认值下也拒绝执行，未建立
+夹具、完成周期数为 0。后端 type-check、脚本/测试的单独严格 TypeScript
+检查均通过；完整 lint 为 0 errors / 1 个既有 `sentry-init.ts` warning，
+新增文件的聚焦 lint 无警告。独立复核确认了同一客户端事务、身份清除、
+环境保护及失败连接销毁。已安装 `pg-pool` 3.10.1 的连接超时同时覆盖新
+连接和池满排队，本脚本设为 2,000ms；没有另建会遗留迟到客户端的超时层。
+
+真实运行从 `2026-09-10T21:23:26Z` 的临时数据库启动开始，结束后保存聚合
+结果并移除数据库。负载统计如下，均排除了建表、控制事务和两次预热：
+
+| 指标 | 实测 |
+| --- | --- |
+| 完成身份 | 100 / 100 |
+| 稳定阶段 / 总运行时间 | 300,014.67ms / 330,480.07ms |
+| ramp / 稳定阶段成功周期 | 100 / 5,962 |
+| 成功周期 / 失败周期 / 池错误 | 6,062 / 0 / 0 |
+| 提交 / 回滚的成功只读周期 | 3,012 / 3,050 |
+| 申请人 / 申请 / 文件隔离检查 | 各 6,062 次 |
+| 他人申请拒绝检查 / 身份清除检查 | 6,062 / 12,124 次 |
+| 周期 p50 / p95 / p99 / 最大值 | 25.43 / 33.18 / 43.24 / 71.85ms |
+| 取连接 p95 | 4.07ms |
+| 连接数峰值 / 排队峰值 | 3 / 3 |
+| 本地 RLS 诊断 / 进程退出码 | `passed: true` / 0 |
+
+这里“通过”只代表上述身份隔离、事务清理、周期延迟和连接预算检查通过。
+队列峰值为 3，不能声称没有排队；按原网站门禁的峰值条件也不能判为通过。
+本次未测排队持续时间，不能套用上一轮 `SELECT 1` 的等待时长。本轮没有
+改变生产连接上限或权限策略，没有用这组夹具的性能外推生产容量。
+
+执行的原始迁移 SHA-256 为
+`e1a97dde6a7868dcba950a7cf3848cb907c4a16fb6ba1ca9578c745b08ea2d40`。
+脚本与夹具的运行版本 SHA-256 分别为
+`8912bd87e16a2f6ea632ac6c0dbc6267e0c7c180c58848a7494d5681a55b2272`、
+`3e145dee2b42da2754d1e25bad0f9a04f280f334750df8c5ee50e22743dccc0f`。
+完整结果保存在
+`viza-be/agent-backend/load-test-results/online-capacity/local-rls-2026-09-10T21-29-00-174Z/summary.json`；
+该目录已加入后端 `.gitignore`。本地启动/清理脚本、聚合日志、配置和 CLI
+拒绝日志分别为 `.dev-logs/capacity-pg17-rls-run.ps1`、
+`.dev-logs/capacity-pg17-rls-sustained.log`、
+`.dev-logs/capacity-pg17-rls-runtime.json`、
+`.dev-logs/capacity-pg17-rls-guard-refusal.log`。没有输出临时密码或用户行数据。
+
+容器在 `finally` 成功停止并自动移除，复核目标容器不存在且 55432 没有
+监听。可复用的源码与保护测试纳入版本管理；临时数据和原始结果留在
+忽略目录。改动仅涉及本地验证工具，不需要部署网站或运行生产数据库
+迁移，原网站发布容量门禁保持不变。真实登录网站、HTTP、Auth、PostgREST、
+完整业务 schema 与生产并发能力仍需单独验证。
+
 ## 下一步容量验收
 
 1. 按每轮发布记录区分已上线实现与尚未应用的候选 SQL，观察错误率、缓存首读、

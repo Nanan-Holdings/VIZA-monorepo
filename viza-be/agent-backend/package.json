@@ -25,6 +25,7 @@
 		"test:coverage": "vitest run --coverage",
 		"load:concurrency": "tsx scripts/concurrency-load.ts",
 		"load:online-capacity": "tsx scripts/online-capacity-load.ts",
+		"load:local-rls": "tsx scripts/local-capacity-rls.ts",
 		"test:db": "tsx src/db/migrate.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
