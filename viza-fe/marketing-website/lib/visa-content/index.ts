@@ -27,7 +27,6 @@ import { unitedArabEmirates } from "./united-arab-emirates";
 import { france } from "./france";
 import { italy } from "./italy";
 import { india } from "./india";
-import { vizaTest } from "./viza-test";
 
 const CONTENT: Record<string, VisaContent> = {
   indonesia,
@@ -46,7 +45,6 @@ const CONTENT: Record<string, VisaContent> = {
   france,
   italy,
   india,
-  "viza-test": vizaTest,
 };
 
 /**
