@@ -158,6 +158,15 @@
   cursor: pointer;
 }
 .site-nav .icon-btn:hover { background: var(--brand-50); color: var(--brand-500); }
+.site-nav a.login-btn { text-decoration: none; }
+.site-nav .login-btn {
+  min-height: 40px; padding: 0 16px; border-radius: 999px;
+  background: var(--brand-500); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font: 600 13px/1 var(--font-sans); white-space: nowrap;
+  box-shadow: 0 4px 12px -2px rgba(3,52,110,.22);
+}
+.site-nav .login-btn:hover { background: var(--brand-600); }
 .site-nav .avatar {
   width: 40px; height: 40px; border-radius: 999px;
   background: linear-gradient(135deg, var(--brand-400), var(--brand-600));
@@ -230,4 +239,6 @@
 @media (max-width: 560px) {
   /* Drop the low-priority help button to make room for the search field */
   .site-nav .icon-btn { display: none; }
+  .site-nav .login-btn { width: 40px; padding: 0; }
+  .site-nav .login-btn span { display: none; }
 }
