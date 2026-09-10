@@ -43,17 +43,6 @@ const AGENCY_USD = 9900;
  */
 export const PACKAGE_PRICING: PackagePricing[] = [
   {
-    // Free demo flow: marketing advertises /visa/viza-test as Free, so
-    // checkout collects nothing — both rails skip the payment provider
-    // for zero-total packages (see isFreePackage + completeFreeOrder).
-    country: "viza_test",
-    visaType: "TEST_CHECKOUT",
-    agencyFeeCents: 0,
-    govtFeeCents: 0,
-    currency: "USD",
-    govtFeeChannel: "portal_direct",
-  },
-  {
     // The Korea e-Arrival Card is a free declaration. VIZA currently does not
     // collect a separate service fee for this product, so both fee rails are
     // explicitly zero instead of falling through to the unconfigured-price
@@ -458,9 +447,8 @@ export function pricingFor(
 }
 
 /**
- * True when the package collects nothing at checkout (free demo flows,
- * e.g. viza_test). Both guest checkout rails skip the payment provider
- * for these and mark the order paid directly.
+ * True when the package collects nothing at checkout. Both guest checkout
+ * rails skip the payment provider for these and mark the order paid directly.
  */
 export function isFreePackage(pricing: PackagePricing): boolean {
   return pricing.agencyFeeCents === 0 && pricing.govtFeeCents === 0;

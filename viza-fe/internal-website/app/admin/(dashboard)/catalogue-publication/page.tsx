@@ -81,7 +81,7 @@ interface PublicationRow {
 const FLAG_BY_COUNTRY: Record<string, string> = {
   australia: "au", canada: "ca", egypt: "eg", france: "fr", india: "in", indonesia: "id",
   italy: "it", japan: "jp", malaysia: "my", saudi_arabia: "sa", thailand: "th", turkey: "tr",
-  united_arab_emirates: "ae", united_kingdom: "gb", united_states: "us", vietnam: "vn", viza_test: "sg",
+  united_arab_emirates: "ae", united_kingdom: "gb", united_states: "us", vietnam: "vn",
 };
 
 function defaultPayload(pkg: PackageRow, pricing?: PricingRow): PublicCataloguePayload {
