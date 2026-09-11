@@ -462,32 +462,12 @@ function deriveContactRepeatableAnswers(answers: Record<string, string>): void {
     if (handle) answers[repeatKey("social_media_handle", index)] = handle;
   });
 
-  const hasOtherSocialArray = hasOwnAnswer(answers, "other_social_media[]");
-  const legacyOtherSocial = collectLegacyRows(answers, [
-    "other_social_media_name",
-    "other_social_media_identifier",
-  ]).map((row) => ({
-    platform: row.other_social_media_name ?? "",
-    handle: row.other_social_media_identifier ?? "",
-  }));
-  const otherSocialArray = hasOtherSocialArray
-    ? parseJsonArray(answers["other_social_media[]"])
-    : legacyOtherSocial;
-  if (!hasOtherSocialArray && legacyOtherSocial.length > 0) {
-    answers["other_social_media[]"] = JSON.stringify(legacyOtherSocial);
-  }
+  // The verified AddressPhone page has one repeatable provider/identifier
+  // list, not a separate “other social media” Yes/No branch. Drop legacy
+  // speculative keys so they cannot leak into CEAC filling.
+  delete answers.has_other_social_media;
+  delete answers["other_social_media[]"];
   clearRepeatKeys(answers, ["other_social_media_name", "other_social_media_identifier"]);
-  (otherSocialArray ?? []).forEach((item, index) => {
-    if (!item || typeof item !== "object") return;
-    const row = item as Record<string, unknown>;
-    const platform = String(row.platform ?? row.name ?? "").trim();
-    const identifier = String(row.handle ?? row.identifier ?? "").trim();
-    if (platform) answers[repeatKey("other_social_media_name", index)] = platform;
-    if (identifier) answers[repeatKey("other_social_media_identifier", index)] = identifier;
-  });
-  if ((otherSocialArray?.length ?? 0) > 0 && answers.has_other_social_media === undefined) {
-    answers.has_other_social_media = "yes";
-  }
 }
 
 function applyAliases(answers: Record<string, string>): void {
@@ -715,17 +695,7 @@ function deriveContactConditionalBranches(answers: Record<string, string>): void
     clearRepeatKeys(answers, ["additional_email"]);
   }
 
-  if (normalizedGate(answers.has_social_media) === false) {
-    answers["social_media[]"] = "[]";
-    clearRepeatKeys(answers, ["social_media_platform", "social_media_handle"]);
-    answers.social_media_provider = "NONE";
-    delete answers.social_media_identifier;
-  }
 
-  if (normalizedGate(answers.has_other_social_media) === false) {
-    answers["other_social_media[]"] = "[]";
-    clearRepeatKeys(answers, ["other_social_media_name", "other_social_media_identifier"]);
-  }
 }
 
 function derivePreviousEducationGate(answers: Record<string, string>): void {
@@ -758,25 +728,25 @@ function deriveUsContactNameNa(answers: Record<string, string>): void {
 }
 
 function deriveSocialMediaPresence(answers: Record<string, string>): void {
-  const provider = answers.social_media_provider?.trim();
-  const handle = answers.social_media_identifier?.trim();
+  // The verified AddressPhone page models social media as provider/identifier
+  // rows, not as a separate Yes/No gate. Canonical arrays have already been
+  // expanded into first-row aliases by deriveContactRepeatableAnswers.
+  delete answers.has_social_media;
+  const provider = answers.social_media_provider?.trim() ?? answers.social_media_platform?.trim();
+  const handle = answers.social_media_identifier?.trim() ?? answers.social_media_handle?.trim();
 
   if (provider) {
     const normalizedProvider = provider.toUpperCase();
     answers.social_media_provider = normalizedProvider;
-    if (answers.has_social_media === undefined) {
-      answers.has_social_media = normalizedProvider === "NONE" ? "N" : "Y";
-    }
     if (normalizedProvider === "NONE" && !handle) {
       delete answers.social_media_identifier;
+    } else if (handle) {
+      answers.social_media_identifier = handle;
     }
     return;
   }
 
-  if (!handle && answers.has_social_media === undefined) {
-    answers.has_social_media = "N";
-  }
-  if (!handle && answers.has_social_media === "N" && answers.social_media_provider === undefined) {
+  if (!handle && answers.social_media_provider === undefined) {
     answers.social_media_provider = "NONE";
   }
 }

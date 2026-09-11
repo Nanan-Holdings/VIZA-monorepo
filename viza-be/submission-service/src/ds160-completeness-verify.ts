@@ -82,7 +82,6 @@ const SAMPLE_DYNAMIC: Record<string, string> = {
   has_other_emails: "no",
   social_media_platform: "INSTAGRAM",
   social_media_handle: "zhangwei1990",
-  has_other_social_media: "no",
   // US Contact
   us_contact_surname: "SMITH",
   us_contact_given_names: "JOHN",
@@ -418,15 +417,17 @@ export function findMissingDs160RuntimeAnswers(
     }
   }
 
-  const hasSocialMedia = normalizedBoolean(answers.has_social_media);
   const hasCanonicalSocialRows = hasOwnAnswer(answers, "social_media[]");
   const strictSocialRows = hasCanonicalSocialRows
     ? parseStrictObjectArray(answers["social_media[]"])
     : null;
   const socialRows = strictSocialRows ?? parseObjectArray(answers["social_media[]"]);
-  if (hasSocialMedia === true && hasCanonicalSocialRows && (!strictSocialRows || strictSocialRows.length === 0)) {
+  if (hasCanonicalSocialRows && !strictSocialRows) {
     missing.push("social_media[]");
   } else if (socialRows.length > 0) {
+    if (socialRows.length > 1 && socialRows.some((row) => String(row.platform ?? "").trim().toUpperCase() === "NONE")) {
+      missing.push("social_media[]");
+    }
     socialRows.forEach((row, index) => {
       const platform = String(row.platform ?? "").trim();
       if (!platform) missing.push(`social_media[${index}].platform`);
@@ -438,34 +439,6 @@ export function findMissingDs160RuntimeAnswers(
     missing.push("social_media_provider");
   } else if (answers.social_media_provider !== "NONE" && !hasAnswer(answers, "social_media_identifier")) {
     missing.push("social_media_identifier");
-  }
-
-  const hasOtherSocial = normalizedBoolean(answers.has_other_social_media);
-  if (hasOtherSocial === null) {
-    missing.push("has_other_social_media");
-  } else if (hasOtherSocial) {
-    const hasCanonicalRows = hasOwnAnswer(answers, "other_social_media[]");
-    const strictOtherRows = hasCanonicalRows
-      ? parseStrictObjectArray(answers["other_social_media[]"])
-      : null;
-    const otherRows = strictOtherRows ?? [];
-    if (hasCanonicalRows && (!strictOtherRows || strictOtherRows.length === 0)) {
-      missing.push("other_social_media[]");
-    } else if (otherRows.length > 0) {
-      otherRows.forEach((row, index) => {
-        if (!String(row.platform ?? row.name ?? "").trim()) {
-          missing.push(`other_social_media[${index}].platform`);
-        }
-        if (!String(row.handle ?? row.identifier ?? "").trim()) {
-          missing.push(`other_social_media[${index}].handle`);
-        }
-      });
-    } else if (
-      !hasAnswer(answers, "other_social_media_name") ||
-      !hasAnswer(answers, "other_social_media_identifier")
-    ) {
-      missing.push("other_social_media[]");
-    }
   }
 
   const hasCompanions = normalizedBoolean(

@@ -387,11 +387,6 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Has other email addresses",
   },
-  has_other_social_media: {
-    selector: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
-    type: "radio",
-    label: "Has other social media presence",
-  },
   social_media_provider: {
     selector: 'select[id*="dtlSocial"][id*="ddlSocialMedia"]',
     type: "select",

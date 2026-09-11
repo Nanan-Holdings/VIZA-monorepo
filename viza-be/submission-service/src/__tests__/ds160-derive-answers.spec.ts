@@ -3,11 +3,11 @@ import { describe, it } from "node:test";
 import { deriveDS160Answers } from "../ds160-derive-answers";
 
 describe("deriveDS160Answers", () => {
-  it("maps a no-social-media answer to the CEAC NONE provider option", () => {
-    const answers = deriveDS160Answers({ has_social_media: "N" });
+  it("maps an empty social-media list to the CEAC NONE provider option", () => {
+    const answers = deriveDS160Answers({ "social_media[]": "[]" });
 
     assert.equal(answers.social_media_provider, "NONE");
-    assert.equal(answers.has_social_media, "N");
+    assert.equal(answers.has_social_media, undefined);
     assert.equal(answers.social_media_identifier, undefined);
   });
 
@@ -19,10 +19,6 @@ describe("deriveDS160Answers", () => {
         { platform: "INSTAGRAM", handle: "first" },
         { platform: "REDDIT", handle: "second" },
       ]),
-      "other_social_media[]": JSON.stringify([
-        { platform: "WeChat", handle: "wx-one" },
-        { platform: "TikTok", handle: "tt-two" },
-      ]),
     });
 
     assert.equal(answers.additional_phone, "+86 111");
@@ -30,13 +26,12 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.additional_email, "one@example.com");
     assert.equal(answers.additional_email__2, "two@example.com");
     assert.equal(answers.social_media_provider, "INSTAGRAM");
+    assert.equal(answers.social_media_identifier, "first");
     assert.equal(answers.social_media_platform__2, "REDDIT");
     assert.equal(answers.social_media_handle__2, "second");
-    assert.equal(answers.other_social_media_name__2, "TikTok");
-    assert.equal(answers.other_social_media_identifier__2, "tt-two");
     assert.equal(answers.has_other_phone, "Y");
     assert.equal(answers.has_other_email, "Y");
-    assert.equal(answers.has_other_social_media, "Y");
+    assert.equal(answers.has_other_social_media, undefined);
   });
 
   it("upgrades legacy repeat rows into canonical arrays without losing order", () => {
@@ -47,7 +42,6 @@ describe("deriveDS160Answers", () => {
       has_other_emails: "yes",
       additional_email: "one@example.com",
       additional_email__2: "two@example.com",
-      has_social_media: "yes",
       social_media_platform: "INSTAGRAM",
       social_media_handle: "first",
       social_media_platform__2: "REDDIT",
@@ -62,7 +56,7 @@ describe("deriveDS160Answers", () => {
     ]);
   });
 
-  it("removes stale repeat rows when arrays shrink or a conditional branch closes", () => {
+  it("removes stale gated rows when arrays shrink or a conditional branch closes", () => {
     const shrunk = deriveDS160Answers({
       has_other_phones: "yes",
       "additional_phones[]": JSON.stringify(["+86 111"]),
@@ -81,7 +75,6 @@ describe("deriveDS160Answers", () => {
       additional_phone: "+86 111",
       has_other_emails: "no",
       additional_email: "stale@example.com",
-      has_social_media: "no",
       social_media_platform: "INSTAGRAM",
       social_media_handle: "stale",
       has_other_social_media: "no",
@@ -95,10 +88,13 @@ describe("deriveDS160Answers", () => {
     assert.equal(closed["additional_phones[]"], "[]");
     assert.equal(closed.additional_email, undefined);
     assert.equal(closed["additional_emails[]"], "[]");
-    assert.equal(closed.social_media_provider, "NONE");
-    assert.equal(closed.social_media_identifier, undefined);
+    // `has_social_media` was a speculative gate. A supported provider row is
+    // retained and the obsolete gate itself is removed.
+    assert.equal(closed.social_media_provider, "INSTAGRAM");
+    assert.equal(closed.social_media_identifier, "stale");
+    assert.equal(closed.has_social_media, undefined);
     assert.equal(closed.other_social_media_name, undefined);
-    assert.equal(closed["other_social_media[]"], "[]");
+    assert.equal(closed["other_social_media[]"], undefined);
   });
 
   it("aliases legacy mobile phone answers and lets explicit NA clear stale text", () => {

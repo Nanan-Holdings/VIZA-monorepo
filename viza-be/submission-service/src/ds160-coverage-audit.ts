@@ -170,11 +170,8 @@ const DS160_FIELDS: DS160Field[] = [
   { fieldName: "email_address", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.email", lossy: false } },
   { fieldName: "has_other_emails", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.hasOtherEmails", lossy: false } },
   { fieldName: "additional_email", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.additionalEmails[]", lossy: false } },
-  { fieldName: "social_media_platform", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialPlatforms[]", lossy: false } },
-  { fieldName: "social_media_handle", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialHandles", lossy: false } },
-  { fieldName: "has_other_social_media", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.hasOtherSocialMedia", lossy: false } },
-  { fieldName: "other_social_media_name", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.otherSocialEntries[].platform", lossy: false } },
-  { fieldName: "other_social_media_identifier", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.otherSocialEntries[].handle", lossy: false } },
+  { fieldName: "social_media_platform", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialMediaEntries[].platform", lossy: false } },
+  { fieldName: "social_media_handle", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialMediaEntries[].handle", lossy: false } },
 
   // ── Step 8: Passport ───────────────────────────────────────────────────
   { fieldName: "passport_document_type", step: "Passport", simplifiedSource: null },

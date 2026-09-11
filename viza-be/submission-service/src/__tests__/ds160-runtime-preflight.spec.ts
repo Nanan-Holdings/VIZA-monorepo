@@ -22,8 +22,6 @@ const BASE_ANSWERS: Record<string, string> = {
   has_other_phones: "no",
   email_address: "test@example.com",
   has_other_emails: "no",
-  has_social_media: "no",
-  has_other_social_media: "no",
   has_companions: "no",
   primary_occupation: "retired",
 };
@@ -74,24 +72,19 @@ describe("DS-160 runtime completeness preflight", () => {
     assert.equal(findMissingDs160RuntimeAnswers(BASE_ANSWERS).includes("employer_name"), false);
   });
 
-  it("rejects incomplete phone, email, and social repeat rows without changing no branches", () => {
+  it("rejects incomplete phone, email, and social repeat rows", () => {
     const incomplete = findMissingDs160RuntimeAnswers({
       ...BASE_ANSWERS,
       has_other_phones: "yes",
       "additional_phones[]": JSON.stringify([""]),
       has_other_emails: "yes",
       "additional_emails[]": JSON.stringify([""]),
-      has_social_media: "yes",
       "social_media[]": JSON.stringify([{ platform: "INSTAGRAM", handle: "" }]),
-      has_other_social_media: "yes",
-      "other_social_media[]": JSON.stringify([{ platform: "", handle: "" }]),
     });
 
     assert.ok(incomplete.includes("additional_phones[]"));
     assert.ok(incomplete.includes("additional_emails[]"));
     assert.ok(incomplete.includes("social_media[0].handle"));
-    assert.ok(incomplete.includes("other_social_media[0].platform"));
-    assert.ok(incomplete.includes("other_social_media[0].handle"));
     assert.deepEqual(findMissingDs160RuntimeAnswers(BASE_ANSWERS), []);
   });
 
@@ -102,15 +95,9 @@ describe("DS-160 runtime completeness preflight", () => {
       "additional_phones[]": JSON.stringify(["+86 111", "+65 222"]),
       has_other_emails: "yes",
       "additional_emails[]": JSON.stringify(["one@example.com"]),
-      has_social_media: "yes",
       "social_media[]": JSON.stringify([
         { platform: "INSTAGRAM", handle: "first" },
         { platform: "REDDIT", handle: "second" },
-      ]),
-      has_other_social_media: "yes",
-      "other_social_media[]": JSON.stringify([
-        { platform: "WeChat", handle: "wx-one" },
-        { platform: "TikTok", handle: "tt-two" },
       ]),
     };
     assert.deepEqual(findMissingDs160RuntimeAnswers(complete), []);
@@ -140,11 +127,22 @@ describe("DS-160 runtime completeness preflight", () => {
       ...BASE_ANSWERS,
       has_other_phones: "yes",
       "additional_phones[]": "not-json",
-      has_social_media: "yes",
       "social_media[]": JSON.stringify([{ platform: "INSTAGRAM", handle: "ok" }, "bad-row"]),
     });
     assert.ok(malformed.includes("additional_phones[]"));
     assert.ok(malformed.includes("social_media[]"));
+  });
+
+  it("rejects a NONE row mixed with actual social-media rows", () => {
+    const missing = findMissingDs160RuntimeAnswers({
+      ...BASE_ANSWERS,
+      "social_media[]": JSON.stringify([
+        { platform: "NONE", handle: "" },
+        { platform: "INSTAGRAM", handle: "first" },
+      ]),
+    });
+
+    assert.ok(missing.includes("social_media[]"));
   });
 
   it("stops at the orchestrator boundary before touching a CEAC page", async () => {
