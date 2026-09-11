@@ -218,6 +218,7 @@ export default async function ClientStatusPage({
     getLocale(),
     getClientStatusIndexData(),
   ]);
+  if (data.unavailable) throw new Error("Client status is temporarily unavailable");
   if (!data.authenticated) redirect("/client/login");
 
   const selectedApplicationId = getParam(params.applicationId);

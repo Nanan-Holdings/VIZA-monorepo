@@ -16,6 +16,7 @@ export type SupabaseFetchOptions = {
   circuitBreakerScope?: string | null;
   returnUnavailableResponse?: boolean;
   requestSignal?: AbortSignal;
+  fetchImplementation?: typeof fetch;
 };
 
 type SupabaseResultWithError = {
@@ -158,7 +159,10 @@ export async function retryTransientSupabaseResult<T extends SupabaseResultWithE
  * Wrap fetch with a real AbortController deadline. Promise.race only stops the
  * caller from waiting; it leaves the underlying socket and server work alive.
  */
-export function createFetchWithTimeout(timeoutMs: number): FetchWithTimeout {
+export function createFetchWithTimeout(
+  timeoutMs: number,
+  fetchImplementation?: typeof fetch,
+): FetchWithTimeout {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error("timeoutMs must be a positive finite number");
   }
@@ -182,7 +186,8 @@ export function createFetchWithTimeout(timeoutMs: number): FetchWithTimeout {
     }, timeoutMs);
 
     try {
-      return await fetch(input, { ...init, signal });
+      const baseFetch = fetchImplementation ?? globalThis.fetch;
+      return await baseFetch(input, { ...init, signal });
     } finally {
       clearTimeout(timeoutId);
       if (forwardAbort) upstreamSignal?.removeEventListener("abort", forwardAbort);
@@ -200,8 +205,9 @@ export function createFetchWithTransientRetry(
 ): FetchWithTimeout {
   const retryDelaysMs = options.retryDelaysMs ?? DEFAULT_TRANSIENT_RETRY_DELAYS_MS;
   const fetchOnce = options.requestTimeoutMs
-    ? createFetchWithTimeout(options.requestTimeoutMs)
-    : (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
+    ? createFetchWithTimeout(options.requestTimeoutMs, options.fetchImplementation)
+    : (input: RequestInfo | URL, init?: RequestInit) =>
+      (options.fetchImplementation ?? globalThis.fetch)(input, init);
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const perCallSignal = requestSignal(input, init);

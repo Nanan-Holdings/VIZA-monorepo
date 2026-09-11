@@ -3,19 +3,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const {
   createAdminClient,
-  createClient,
-  getClientSession,
+  getClientSessionReadResult,
   loadLiveSubmissionSummaries,
 } = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
-  createClient: vi.fn(),
-  getClientSession: vi.fn(),
+  getClientSessionReadResult: vi.fn(),
   loadLiveSubmissionSummaries: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
-vi.mock("@/lib/supabase/server", () => ({ createClient }));
-vi.mock("@/lib/client-session", () => ({ getClientSession }));
+vi.mock("@/lib/client-session", () => ({ getClientSessionReadResult }));
 vi.mock("@/lib/submission-live-status", () => ({ loadLiveSubmissionSummaries }));
 vi.mock("@/lib/applications/qa-safety", () => ({
   isQaDryRunPurpose: (purpose: string | null) => purpose === "VIZA_PLACEHOLDER_DRY_RUN",
@@ -635,13 +632,16 @@ async function runIndexLoader(
 
 beforeEach(() => {
   createAdminClient.mockReset();
-  createClient.mockReset();
-  getClientSession.mockReset();
+  getClientSessionReadResult.mockReset();
   loadLiveSubmissionSummaries.mockReset();
-  getClientSession.mockResolvedValue({
-    userId: PROFILE_ID,
-    authUserId: AUTH_USER_ID,
-    email: "owner@example.test",
+  getClientSessionReadResult.mockResolvedValue({
+    status: "authenticated",
+    source: "cookie",
+    session: {
+      userId: PROFILE_ID,
+      authUserId: AUTH_USER_ID,
+      email: "owner@example.test",
+    },
   });
   loadLiveSubmissionSummaries.mockResolvedValue(new Map());
 });
@@ -769,7 +769,15 @@ describe("getClientStatusData application scope", () => {
     expect(scopedApplicationRows).toEqual(expect.arrayContaining([
       expect.objectContaining({ value: PROFILE_APPLICATION_ID }),
     ]));
-    expect(loadLiveSubmissionSummaries).toHaveBeenCalledWith(expect.anything(), [PROFILE_APPLICATION_ID]);
+    expect(loadLiveSubmissionSummaries).toHaveBeenCalledWith(
+      expect.anything(),
+      [PROFILE_APPLICATION_ID],
+      [{
+        id: PROFILE_APPLICATION_ID,
+        country: "singapore",
+        visa_type: "SG_ARRIVAL_CARD",
+      }],
+    );
   });
 
   it("preserves the full loader's package-only history entry", async () => {
@@ -1104,6 +1112,12 @@ describe("getClientStatusIndexData projection", () => {
         REJECTED_APPLICATION_ID,
         SGAC_APPLICATION_ID,
       ]),
+      expect.arrayContaining([
+        expect.objectContaining({ id: NORMAL_APPLICATION_ID }),
+        expect.objectContaining({ id: APPROVED_APPLICATION_ID }),
+        expect.objectContaining({ id: REJECTED_APPLICATION_ID }),
+        expect.objectContaining({ id: SGAC_APPLICATION_ID }),
+      ]),
     );
     expect(index.fake.storageSignatures).toHaveLength(0);
     expect(index.fake.storageBatches).toHaveLength(0);
@@ -1168,9 +1182,11 @@ describe("getClientStatusIndexData projection", () => {
   });
 
   it("returns unauthenticated without creating an admin client", async () => {
-    getClientSession.mockResolvedValue(null);
-    const getUser = vi.fn().mockResolvedValue({ data: { user: null } });
-    createClient.mockReturnValue({ auth: { getUser } });
+    getClientSessionReadResult.mockResolvedValue({
+      status: "unauthenticated",
+      session: null,
+      reason: "missing_auth_session",
+    });
 
     const data = await getClientStatusIndexData();
 
@@ -1180,7 +1196,27 @@ describe("getClientStatusIndexData projection", () => {
       detailApplications: [],
       partialData: false,
     });
-    expect(createClient).toHaveBeenCalledOnce();
+    expect(getClientSessionReadResult).toHaveBeenCalledOnce();
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("keeps a session provider outage distinct from an unauthenticated session", async () => {
+    getClientSessionReadResult.mockResolvedValue({
+      status: "unavailable",
+      session: null,
+      reason: "timeout",
+    });
+
+    const data = await getClientStatusIndexData();
+
+    expect(data).toEqual({
+      authenticated: false,
+      applications: [],
+      detailApplications: [],
+      partialData: false,
+      unavailable: true,
+    });
+    expect(getClientSessionReadResult).toHaveBeenCalledOnce();
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 });

@@ -18,9 +18,8 @@ import { ApplicationTimelineSection } from "@/components/client/home/Application
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
-import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
-import { getClientApplicationStatus } from "@/app/actions/client-application-status";
-import type { StatusApplication } from "@/app/client/status/status-data";
+import { getClientHomeDashboardWithTimeline } from "@/app/actions/client-home-dashboard";
+import type { ClientHomeTimelineApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
@@ -256,7 +255,7 @@ export default function HomePage() {
 
   // 核心业务状态
   const [selectedApplicationStatus, setSelectedApplicationStatus] =
-    useState<StatusApplication | null>(null);
+    useState<ClientHomeTimelineApplication | null>(null);
   const [isTimelineLoading, setIsTimelineLoading] = useState(true);
   const [universalInfoProgress, setUniversalInfoProgress] =
     useState<UniversalInfoProgress>({
@@ -324,15 +323,23 @@ export default function HomePage() {
       setError(null);
 
       try {
-        const dashboard = await getClientHomeDashboardData();
+        const activeSelection = readActiveApplicationSelection();
+        const formTarget = readApplicationFormTarget(
+          getRecentApplicationFormHref(),
+        );
+        const dashboard = await getClientHomeDashboardWithTimeline({
+          applicationId:
+            activeSelection?.applicationId ?? formTarget?.applicationId ?? null,
+          country: activeSelection?.country ?? formTarget?.country ?? null,
+          visaType: activeSelection?.visaType ?? formTarget?.visaType ?? null,
+        });
         lastDashboardLoadAtRef.current = Date.now();
+        if (dashboard.error) throw new Error(dashboard.error);
         if (!dashboard.authenticated) {
           if (isLatestRequest()) setIsTimelineLoading(false);
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
-
-        if (dashboard.error) throw new Error(dashboard.error);
 
         const profile = dashboard.profile;
         const authName = dashboard.authEmail?.split("@")[0] ?? null;
@@ -364,10 +371,6 @@ export default function HomePage() {
 
         // Current application = explicit active selection, then last-visited
         // form context, then the newest ongoing application.
-        const activeSelection = readActiveApplicationSelection();
-        const formTarget = readApplicationFormTarget(
-          getRecentApplicationFormHref()
-        );
         const currentApplication =
           loadedApplications.find((application) =>
             activeSelection?.applicationId
@@ -391,42 +394,24 @@ export default function HomePage() {
           setSelectedApplicationStatus(null);
           setIsTimelineLoading(false);
         } else {
-          setIsTimelineLoading(true);
-          // The compact dashboard already selected this application. Scope
-          // the lifecycle read to that owner-owned row instead of loading the
-          // complete status history for the home timeline.
-          void getClientApplicationStatus(currentApplication.id)
-            .catch((statusError) => {
-              if (!isIgnorableDashboardLoadError(statusError)) {
-                console.error(
-                  "Failed to load client home timeline",
-                  statusError,
-                );
-              }
-              return null;
-            })
-            .then((statusResult) => {
-              if (!isLatestRequest()) return;
-              setSelectedApplicationStatus(statusResult);
-              if (!statusResult) return;
-              if (
-                activeSelection?.applicationId !== currentApplication.id
-              ) {
-                setActiveApplicationSelection({
-                  applicationId: currentApplication.id,
-                  packageId: currentApplication.visa_package_id,
-                  country: currentApplication.country,
-                  visaType: currentApplication.visa_type,
-                  href: getNextApplicationHref(
-                    currentApplication,
-                    loadedPayments,
-                  ),
-                });
-              }
-            })
-            .finally(() => {
-              if (isLatestRequest()) setIsTimelineLoading(false);
+          const statusResult =
+            dashboard.timelineApplicationId === currentApplication.id
+              ? dashboard.timeline
+              : null;
+          if (isLatestRequest()) setSelectedApplicationStatus(statusResult);
+          setIsTimelineLoading(false);
+          if (statusResult && activeSelection?.applicationId !== currentApplication.id) {
+            setActiveApplicationSelection({
+              applicationId: currentApplication.id,
+              packageId: currentApplication.visa_package_id,
+              country: currentApplication.country,
+              visaType: currentApplication.visa_type,
+              href: getNextApplicationHref(
+                currentApplication,
+                loadedPayments,
+              ),
             });
+          }
         }
         setHeroCountry(currentApplication?.country ?? null);
         setActiveVisa(

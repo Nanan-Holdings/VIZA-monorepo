@@ -2,18 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createAdminClient: vi.fn(),
-  getClientSessionWithFallback: vi.fn(),
+  getClientSessionReadResult: vi.fn(),
 }));
 
 vi.mock("@/lib/client-session", () => ({
-  getClientSessionWithFallback: mocks.getClientSessionWithFallback,
+  getClientSessionReadResult: mocks.getClientSessionReadResult,
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mocks.createAdminClient,
 }));
 
-import { getClientHomeDashboardData } from "./client-home-dashboard";
+import {
+  getClientHomeDashboardData,
+  getClientHomeDashboardWithTimeline,
+} from "./client-home-dashboard";
 
 type QueryCall = {
   table: string;
@@ -99,6 +102,9 @@ function createAdminClientMock(
         order() {
           return query;
         },
+        limit() {
+          return query;
+        },
         maybeSingle() {
           return Promise.resolve(response);
         },
@@ -117,11 +123,15 @@ function createAdminClientMock(
 describe("getClientHomeDashboardData query budget", () => {
   beforeEach(() => {
     mocks.createAdminClient.mockReset();
-    mocks.getClientSessionWithFallback.mockReset();
-    mocks.getClientSessionWithFallback.mockResolvedValue({
-      userId: USER_ID,
-      authUserId: USER_ID,
-      email: "load-test@viza.test",
+    mocks.getClientSessionReadResult.mockReset();
+    mocks.getClientSessionReadResult.mockResolvedValue({
+      status: "authenticated",
+      source: "cookie",
+      session: {
+        userId: USER_ID,
+        authUserId: USER_ID,
+        email: "load-test@viza.test",
+      },
     });
   });
 
@@ -184,5 +194,46 @@ describe("getClientHomeDashboardData query budget", () => {
     });
     expect(result.applications).toHaveLength(1);
     expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+  });
+
+  it("includes the selected timeline without repeating owner, document, or payment reads", async () => {
+    const calls: QueryCall[] = [];
+    mocks.createAdminClient.mockImplementation(() => createAdminClientMock(calls));
+
+    const result = await getClientHomeDashboardWithTimeline({
+      applicationId: APPLICATION_ID,
+    });
+
+    expect(result.authenticated).toBe(true);
+    expect(result.timelineApplicationId).toBe(APPLICATION_ID);
+    expect(result.timeline?.id).toBe(APPLICATION_ID);
+    expect(result.timeline?.documents).toEqual({
+      total: 0,
+      uploaded: 0,
+      validated: 0,
+      missing: 0,
+      rejected: 0,
+    });
+    expect(calls.filter((call) => call.table === "applications")).toHaveLength(1);
+    expect(calls.filter((call) => call.table === "application_documents")).toHaveLength(1);
+    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+    expect(calls.filter((call) => call.table === "submission_queue")).toHaveLength(1);
+  });
+
+  it("keeps an unavailable identity read distinct from an unauthenticated session", async () => {
+    mocks.getClientSessionReadResult.mockResolvedValue({
+      status: "unavailable",
+      session: null,
+      reason: "provider",
+    });
+
+    const result = await getClientHomeDashboardWithTimeline();
+
+    expect(result).toMatchObject({
+      authenticated: false,
+      unavailable: true,
+      error: "Client session unavailable",
+    });
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 });

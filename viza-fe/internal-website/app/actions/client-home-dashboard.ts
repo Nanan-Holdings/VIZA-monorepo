@@ -1,244 +1,46 @@
 "use server";
 
-import { getClientSessionWithFallback } from "@/lib/client-session";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type {
-  ApplicationRow,
-  DocumentRow,
-  PaymentRow,
-} from "@/lib/client/application-progress";
-import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
+import {
+  loadClientHomeDashboard,
+  recordHomeDashboardReadOutcome,
+  type ClientHomeApplicationSelectionHint,
+  type ClientHomeDashboardData,
+  type ClientHomeDashboardWithTimelineData,
+} from "@/lib/client/home-dashboard-reader.server";
+import { withPortalReadTrace } from "@/lib/observability/portal-read";
 
-export interface ClientHomeProfile {
-  full_name: string | null;
-  surname: string | null;
-  given_names: string | null;
-  date_of_birth: string | null;
-  place_of_birth: string | null;
-  birth_country: string | null;
-  birth_province_or_state: string | null;
-  birth_city: string | null;
-  gender: string | null;
-  nationality: string | null;
-  occupation: string | null;
-  address: string | null;
-  passport_number: string | null;
-  passport_issue_date: string | null;
-  passport_expiry_date: string | null;
-  passport_issuing_country: string | null;
-  email: string | null;
-  phone: string | null;
-  wechat: string | null;
-}
-
-export interface ClientHomeDashboardData {
-  authenticated: boolean;
-  authEmail: string | null;
-  profile: ClientHomeProfile | null;
-  applications: ApplicationRow[];
-  documents: DocumentRow[];
-  payments: PaymentRow[];
-  error?: string;
-}
-
-const PROFILE_COLUMNS = [
-  "full_name",
-  "surname",
-  "given_names",
-  "date_of_birth",
-  "place_of_birth",
-  "birth_country",
-  "birth_province_or_state",
-  "birth_city",
-  "gender",
-  "nationality",
-  "occupation",
-  "address",
-  "passport_number",
-  "passport_issue_date",
-  "passport_expiry_date",
-  "passport_issuing_country",
-  "email",
-  "phone",
-  "wechat",
-].join(", ");
-
-const APPLICATION_COLUMNS =
-  "id, status, country, visa_type, purpose, visa_package_id, submission_result_status, submitted_at, created_at, updated_at";
-
-const DOCUMENT_COLUMNS = "id, application_id, document_type, status, created_at, updated_at";
-
-const PAYMENT_COLUMNS = "id, application_id, visa_package_id, status, created_at, updated_at";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function buildUuidInFilter(column: "application_id" | "visa_package_id", ids: string[]): string {
-  const uniqueIds = [...new Set(ids)];
-  if (uniqueIds.length === 0 || uniqueIds.some((id) => !UUID_PATTERN.test(id))) {
-    throw new Error(`Cannot build ${column} payment filter from invalid identifiers`);
-  }
-  return `${column}.in.(${uniqueIds.join(",")})`;
-}
-
-function dedupeById<T extends { id: string }>(rows: T[]): T[] {
-  return [...new Map(rows.map((row) => [row.id, row])).values()];
-}
+export type {
+  ClientHomeApplicationSelectionHint,
+  ClientHomeDashboardData,
+  ClientHomeDashboardWithTimelineData,
+} from "@/lib/client/home-dashboard-reader.server";
 
 export async function getClientHomeDashboardData(): Promise<ClientHomeDashboardData> {
-  try {
-    const session = await getClientSessionWithFallback();
-    if (!session) {
-      return {
-        authenticated: false,
-        authEmail: null,
-        profile: null,
-        applications: [],
-        documents: [],
-        payments: [],
-      };
-    }
+  return withPortalReadTrace("home", async () => {
+    const result = await loadClientHomeDashboard();
+    recordHomeDashboardReadOutcome(result);
+    return result.data;
+  });
+}
 
-    const adminClient = createAdminClient({
-      requestTimeoutMs: 4_000,
-      retryDelaysMs: [250],
+/**
+ * One authenticated Home read containing the compact dashboard and the
+ * selected application's customer-safe timeline projection.
+ */
+export async function getClientHomeDashboardWithTimeline(
+  selection?: ClientHomeApplicationSelectionHint | null,
+): Promise<ClientHomeDashboardWithTimelineData> {
+  return withPortalReadTrace("home", async () => {
+    const result = await loadClientHomeDashboard({
+      includeTimeline: true,
+      selection,
     });
-    const [profileResult, applicationResult] = await Promise.all([
-      adminClient
-        .from("applicant_profiles")
-        .select(PROFILE_COLUMNS)
-        .eq("id", session.userId)
-        .maybeSingle(),
-      adminClient
-        .from("applications")
-        .select(APPLICATION_COLUMNS)
-        .eq("applicant_id", session.userId)
-        .order("created_at", { ascending: false }),
-    ]);
-    const { data: profile, error: profileError } = profileResult;
-
-    if (profileError) {
-      return {
-        authenticated: true,
-        authEmail: session.email,
-        profile: null,
-        applications: [],
-        documents: [],
-        payments: [],
-        error: profileError.message,
-      };
-    }
-
-    if (!profile) {
-      return {
-        authenticated: true,
-        authEmail: session.email,
-        profile: null,
-        applications: [],
-        documents: [],
-        payments: [],
-      };
-    }
-    const homeProfile = profile as unknown as ClientHomeProfile;
-
-    const { data: applicationRows, error: applicationError } = applicationResult;
-
-    if (applicationError) {
-      return {
-        authenticated: true,
-        authEmail: session.email,
-        profile: homeProfile,
-        applications: [],
-        documents: [],
-        payments: [],
-        error: applicationError.message,
-      };
-    }
-
-    const applications = ((applicationRows ?? []) as ApplicationRow[]).filter(
-      (application) => !isQaDryRunPurpose(application.purpose)
-    );
-    const applicationIds = applications.map((application) => application.id);
-    const packageIds = applications
-      .map((application) => application.visa_package_id)
-      .filter((id): id is string => Boolean(id));
-
-    let documents: DocumentRow[] = [];
-    let payments: PaymentRow[] = [];
-
-    if (applicationIds.length > 0) {
-      const documentRead = adminClient
-        .from("application_documents")
-        .select(DOCUMENT_COLUMNS)
-        .in("application_id", applicationIds);
-
-      const paymentFilters = [
-        buildUuidInFilter("application_id", applicationIds),
-        ...(packageIds.length > 0
-          ? [buildUuidInFilter("visa_package_id", packageIds)]
-          : []),
-      ];
-      const paymentRead = adminClient
-        .from("payment_records")
-        .select(PAYMENT_COLUMNS)
-        .eq("applicant_id", session.userId)
-        .or(paymentFilters.join(",")) as unknown as Promise<{
-        data: PaymentRow[] | null;
-        error: { message: string } | null;
-      }>;
-
-      const [documentResult, paymentResult] = await Promise.all([
-        documentRead,
-        paymentRead,
-      ]);
-      const { data: documentRows, error: documentError } = documentResult;
-
-      if (documentError) {
-        return {
-          authenticated: true,
-          authEmail: session.email,
-          profile: homeProfile,
-          applications,
-          documents: [],
-          payments: [],
-          error: documentError.message,
-        };
-      }
-
-      documents = (documentRows ?? []) as DocumentRow[];
-      const paymentError = paymentResult.error;
-      if (paymentError) {
-        return {
-          authenticated: true,
-          authEmail: session.email,
-          profile: homeProfile,
-          applications,
-          documents,
-          payments: [],
-          error: paymentError.message,
-        };
-      }
-
-      payments = dedupeById(paymentResult.data ?? []);
-    }
-
+    recordHomeDashboardReadOutcome(result);
     return {
-      authenticated: true,
-      authEmail: session.email,
-      profile: homeProfile,
-      applications,
-      documents,
-      payments,
+      ...result.data,
+      timeline: result.timeline,
+      timelineApplicationId: result.timelineApplicationId,
+      timelinePartialData: result.timelinePartialData,
     };
-  } catch (error) {
-    return {
-      authenticated: false,
-      authEmail: null,
-      profile: null,
-      applications: [],
-      documents: [],
-      payments: [],
-      error: error instanceof Error ? error.message : "Failed to load client home dashboard",
-    };
-  }
+  });
 }

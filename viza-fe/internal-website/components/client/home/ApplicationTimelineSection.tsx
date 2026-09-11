@@ -11,7 +11,7 @@ import { getCountryHeroTheme, heroGradientCss } from "@/lib/client/country-hero-
 import { cn } from "@/lib/utils";
 import type {
   StatusAction,
-  StatusApplication,
+  ClientHomeTimelineApplication,
   StatusStep,
   StatusStepKey,
 } from "@/app/client/status/status-data";
@@ -57,13 +57,13 @@ function formatRelative(date: Date, locale: string, t: TimelineTranslator): stri
   return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
-function getAction(application: StatusApplication, step: StatusStep): StatusAction | null {
+function getAction(application: ClientHomeTimelineApplication, step: StatusStep): StatusAction | null {
   const keys = STEP_ACTIONS[step.key] ?? [];
   return application.actions.find((action) => keys.includes(action.key)) ?? null;
 }
 
 function getDescription(
-  application: StatusApplication,
+  application: ClientHomeTimelineApplication,
   step: StatusStep,
   t: TimelineTranslator,
 ) {
@@ -100,7 +100,7 @@ function TaskCard({
   step,
   index,
 }: {
-  application: StatusApplication;
+  application: ClientHomeTimelineApplication;
   step: StatusStep;
   index: number;
 }) {
@@ -195,7 +195,7 @@ function TaskGroup({
 }: {
   title: string;
   emptyText: string;
-  application: StatusApplication;
+  application: ClientHomeTimelineApplication;
   steps: StatusStep[];
 }) {
   return (
@@ -227,7 +227,7 @@ function TaskGroup({
   );
 }
 
-export function ApplicationTimelineSection({ application }: { application: StatusApplication | null }) {
+export function ApplicationTimelineSection({ application }: { application: ClientHomeTimelineApplication | null }) {
   const t = useTranslations("home.timeline");
 
   if (!application) {

@@ -55,6 +55,12 @@ export type LiveSubmissionSummary = {
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+export interface LiveSubmissionApplicationProduct {
+  id: string;
+  country: string;
+  visa_type: string;
+}
+
 type QueueRow = {
   id: string;
   application_id: string;
@@ -349,6 +355,7 @@ async function loadActionsForTable({
 export async function loadLiveSubmissionSummaries(
   adminClient: AdminClient,
   applicationIds: string[],
+  applicationProducts?: readonly LiveSubmissionApplicationProduct[],
 ): Promise<Map<string, LiveSubmissionSummary>> {
   if (applicationIds.length === 0) return new Map();
 
@@ -365,14 +372,21 @@ export async function loadLiveSubmissionSummaries(
     throw new Error(error.message);
   }
 
-  const { data: applicationData, error: applicationError } = await adminClient
-    .from("applications")
-    .select("id, country, visa_type")
-    .in("id", applicationIds);
-  if (applicationError) throw new Error(applicationError.message);
+  let applicationData: ApplicationProductRow[];
+  if (applicationProducts !== undefined) {
+    const requestedIds = new Set(applicationIds);
+    applicationData = applicationProducts.filter((application) => requestedIds.has(application.id));
+  } else {
+    const { data: queriedApplicationData, error: applicationError } = await adminClient
+      .from("applications")
+      .select("id, country, visa_type")
+      .in("id", applicationIds);
+    if (applicationError) throw new Error(applicationError.message);
+    applicationData = (queriedApplicationData ?? []) as ApplicationProductRow[];
+  }
 
   const runnerFlowByApplication = new Map<string, StatusVisibleRunnerFlow>();
-  for (const application of (applicationData ?? []) as ApplicationProductRow[]) {
+  for (const application of applicationData) {
     const flow = statusVisibleRunnerFlowForApplication(
       application.country,
       application.visa_type,

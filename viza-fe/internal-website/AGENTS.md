@@ -63,6 +63,13 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
 
+- `lib/observability/portal-read.ts` records opt-in, bounded, server-only read
+  timings and process samples without user data. Supabase factories observe real
+  fetch attempts through the injected fetch implementation; stage timing also
+  includes SDK body parsing. `VIZA_PORTAL_READ_METRICS` defaults to false.
+  `lib/supabase/portal-read-observability.integration.test.ts` verifies real SDK
+  retries and chunked-response cancellation with diagnostics enabled.
+
 - `supabase/migrations/20260907001027_public_status_aggregate_once.sql` is the
   byte-identical mirror of backend migration `0190`; it optimizes the public
   status history RPC without changing JSON/time windows or execution grants.

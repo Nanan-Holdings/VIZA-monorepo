@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
-  getClientHomeDashboardData: vi.fn(),
-  getClientApplicationStatus: vi.fn(),
+  getClientHomeDashboardWithTimeline: vi.fn(),
   translate: (key: string) => key,
   readActiveApplicationSelection: vi.fn(),
   setActiveApplicationSelection: vi.fn(),
@@ -23,11 +22,7 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 vi.mock("@/app/actions/client-home-dashboard", () => ({
-  getClientHomeDashboardData: mocks.getClientHomeDashboardData,
-}));
-
-vi.mock("@/app/actions/client-application-status", () => ({
-  getClientApplicationStatus: mocks.getClientApplicationStatus,
+  getClientHomeDashboardWithTimeline: mocks.getClientHomeDashboardWithTimeline,
 }));
 
 vi.mock("@/lib/client/active-application-selection", () => ({
@@ -80,7 +75,10 @@ vi.mock("@/components/client/home/ActiveVisaCard", () => ({
   ActiveVisaCard: () => <div data-testid="active-visa" />,
 }));
 
-import type { ClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
+import type {
+  ClientHomeDashboardWithTimelineData,
+} from "@/app/actions/client-home-dashboard";
+import type { ClientHomeTimelineApplication } from "@/app/client/status/status-data";
 import type { ApplicationRow } from "@/lib/client/application-progress";
 import HomePage from "../page";
 
@@ -102,9 +100,23 @@ function application(id: string, updatedAt: string): ApplicationRow {
   };
 }
 
+function timeline(applicationId: string): ClientHomeTimelineApplication {
+  return {
+    id: applicationId,
+    country: "singapore",
+    officialReference: null,
+    formAnswerCount: 0,
+    documents: { total: 0, uploaded: 0, validated: 0, missing: 0, rejected: 0 },
+    steps: [],
+    actions: [],
+  };
+}
+
 function dashboard(
   applications: ApplicationRow[],
-): ClientHomeDashboardData {
+  timelineApplicationId: string | null = null,
+  timeline: ClientHomeTimelineApplication | null = null,
+): ClientHomeDashboardWithTimelineData {
   return {
     authenticated: true,
     authEmail: "test@example.com",
@@ -132,6 +144,9 @@ function dashboard(
     applications,
     documents: [],
     payments: [],
+    timelineApplicationId,
+    timeline,
+    timelinePartialData: false,
   };
 }
 
@@ -148,8 +163,7 @@ describe("HomePage status loading", () => {
         setSession: vi.fn(),
       },
     });
-    mocks.getClientHomeDashboardData.mockReset();
-    mocks.getClientApplicationStatus.mockReset();
+    mocks.getClientHomeDashboardWithTimeline.mockReset();
     mocks.readActiveApplicationSelection.mockReset();
     mocks.setActiveApplicationSelection.mockReset();
     mocks.getRecentApplicationFormHref.mockReset();
@@ -168,19 +182,23 @@ describe("HomePage status loading", () => {
     window.localStorage.clear();
   });
 
-  it("does not request application status when the compact dashboard has no application", async () => {
-    mocks.getClientHomeDashboardData.mockResolvedValue(dashboard([]));
+  it("keeps the timeline empty when the aggregate dashboard has no application", async () => {
+    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(dashboard([]));
 
     render(<HomePage />);
     await waitForDashboardToSettle();
 
-    expect(mocks.getClientApplicationStatus).not.toHaveBeenCalled();
+    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith({
+      applicationId: null,
+      country: null,
+      visaType: null,
+    });
     await waitFor(() => {
       expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
     });
   });
 
-  it("requests status for only the exact selected application after dashboard resolution", async () => {
+  it("passes only the exact selected application hint to the aggregate dashboard", async () => {
     const first = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
     const second = application(SECOND_APPLICATION_ID, "2026-09-02T00:00:00.000Z");
     mocks.readActiveApplicationSelection.mockReturnValue({
@@ -190,44 +208,39 @@ describe("HomePage status loading", () => {
       visaType: second.visa_type,
       href: "/client/destinations",
     });
-    mocks.getClientHomeDashboardData.mockResolvedValue(dashboard([first, second]));
-    mocks.getClientApplicationStatus.mockResolvedValue({
-      applicationId: SECOND_APPLICATION_ID,
-      timeline: [],
-    });
+    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+      dashboard([first, second], SECOND_APPLICATION_ID, timeline(SECOND_APPLICATION_ID)),
+    );
 
     render(<HomePage />);
     await waitForDashboardToSettle();
 
     await waitFor(() => {
-      expect(mocks.getClientApplicationStatus).toHaveBeenCalledTimes(1);
+      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
     });
-    expect(mocks.getClientApplicationStatus).toHaveBeenCalledWith(
-      SECOND_APPLICATION_ID,
-    );
-    expect(mocks.getClientApplicationStatus).not.toHaveBeenCalledWith(
-      FIRST_APPLICATION_ID,
+    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationId: SECOND_APPLICATION_ID,
+        country: second.country,
+        visaType: second.visa_type,
+      }),
     );
   });
 
-  it("clears stale timeline state when a later status refresh returns null", async () => {
+  it("clears stale timeline state when a later aggregate refresh returns null", async () => {
     const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
-    mocks.getClientHomeDashboardData
-      .mockResolvedValueOnce(dashboard([selected]))
-      .mockResolvedValueOnce(dashboard([selected]));
-    mocks.getClientApplicationStatus
-      .mockResolvedValueOnce({
-        applicationId: FIRST_APPLICATION_ID,
-        timeline: [],
-      })
-      .mockResolvedValueOnce(null);
+    mocks.getClientHomeDashboardWithTimeline
+      .mockResolvedValueOnce(
+        dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)),
+      )
+      .mockResolvedValueOnce(dashboard([selected], FIRST_APPLICATION_ID, null));
 
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(mocks.getClientApplicationStatus).toHaveBeenCalledWith(
-        FIRST_APPLICATION_ID,
+      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith(
+        { applicationId: null, country: null, visaType: null },
       );
     });
     await waitFor(() => {
@@ -241,8 +254,7 @@ describe("HomePage status loading", () => {
     });
 
     await waitFor(() => {
-      expect(mocks.getClientHomeDashboardData).toHaveBeenCalledTimes(2);
-      expect(mocks.getClientApplicationStatus).toHaveBeenCalledTimes(2);
+      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
       expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");

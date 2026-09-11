@@ -80,6 +80,29 @@ describe("createFetchWithTimeout", () => {
     await expect(createFetchWithTimeout(100)("https://example.test")).resolves.toBe(response);
   });
 
+  it("uses an explicitly injected fetch implementation", async () => {
+    const response = new Response("ok");
+    const injectedFetch = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", vi.fn(() => {
+      throw new Error("global fetch should not be used");
+    }));
+
+    await expect(
+      createFetchWithTimeout(100, injectedFetch)("https://example.test"),
+    ).resolves.toBe(response);
+    expect(injectedFetch).toHaveBeenCalledOnce();
+  });
+
+  it("resolves the global fetch implementation at call time when none is injected", async () => {
+    const response = new Response("ok");
+    const fetcher = createFetchWithTimeout(100);
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetcher("https://example.test")).resolves.toBe(response);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("aborts the underlying request when the deadline expires", async () => {
     vi.stubGlobal(
       "fetch",
@@ -182,6 +205,24 @@ describe("createFetchWithTimeout", () => {
 });
 
 describe("createFetchWithTransientRetry", () => {
+  it("uses the injected fetch implementation for every retry attempt", async () => {
+    const fetchImplementation = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", vi.fn(() => {
+      throw new Error("global fetch should not be used");
+    }));
+
+    const response = await createFetchWithTransientRetry({
+      retryDelaysMs: [0],
+      fetchImplementation,
+    })("https://example.test/rest/v1/applications");
+
+    expect(response.status).toBe(200);
+    expect(fetchImplementation).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a transient PostgREST 503 response for an idempotent read", async () => {
     const fetchMock = vi
       .fn()
