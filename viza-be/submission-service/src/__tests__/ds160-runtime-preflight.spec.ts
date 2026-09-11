@@ -25,6 +25,43 @@ const BASE_ANSWERS: Record<string, string> = {
   has_other_social_media: "no",
   has_companions: "no",
   primary_occupation: "retired",
+  has_clan_tribe: "no",
+  language_name: "ENGLISH",
+  has_traveled_last_five_years: "no",
+  has_belonged_to_organization: "no",
+  has_specialized_skills: "no",
+  has_served_military: "no",
+  has_served_paramilitary: "no",
+  has_communicable_disease: "no",
+  has_physical_mental_disorder: "no",
+  is_drug_abuser: "no",
+  has_arrest_conviction: "no",
+  has_violated_controlled_substance: "no",
+  has_prostitution: "no",
+  has_money_laundering: "no",
+  has_human_trafficking: "no",
+  has_aided_human_trafficking: "no",
+  has_trafficking_beneficiary: "no",
+  intend_illegal_activity: "no",
+  intend_terrorist_activity: "no",
+  has_provided_terrorist_support: "no",
+  is_terrorist_member: "no",
+  is_terrorist_family: "no",
+  has_genocide: "no",
+  has_torture: "no",
+  has_extrajudicial_killings: "no",
+  has_child_soldier: "no",
+  has_religious_freedom_violation: "no",
+  has_population_control: "no",
+  has_coercive_transplant: "no",
+  has_immigration_fraud: "no",
+  has_removal_deportation_hearing: "no",
+  has_failed_removal_hearing: "no",
+  has_overstayed: "no",
+  has_removal_order: "no",
+  has_withheld_child_custody: "no",
+  has_voted_illegally: "no",
+  has_renounced_citizenship: "no",
 };
 
 describe("DS-160 runtime completeness preflight", () => {
@@ -38,7 +75,7 @@ describe("DS-160 runtime completeness preflight", () => {
   });
 
   it("accepts every complete individual companion and rejects incomplete rows", () => {
-    const complete = {
+    const complete: Record<string, string> = {
       ...BASE_ANSWERS,
       has_companions: "yes",
       companion_group_travel: "no",
@@ -174,6 +211,119 @@ describe("DS-160 runtime completeness preflight", () => {
         { platform: "Example portfolio", handle: "profile-name" },
       ]),
     }), []);
+  });
+
+  it("requires every Additional and Security gate before CEAC is touched", () => {
+    const missingAdditional = { ...BASE_ANSWERS };
+    delete missingAdditional.has_clan_tribe;
+    delete missingAdditional.language_name;
+    delete missingAdditional.has_served_paramilitary;
+    const missingAdditionalKeys = findMissingDs160RuntimeAnswers(missingAdditional);
+    assert.ok(missingAdditionalKeys.includes("has_clan_tribe"));
+    assert.ok(missingAdditionalKeys.includes("language_name"));
+    assert.ok(missingAdditionalKeys.includes("has_served_paramilitary"));
+
+    const missingSecurity = { ...BASE_ANSWERS };
+    delete missingSecurity.has_communicable_disease;
+    delete missingSecurity.has_renounced_citizenship;
+    const missingSecurityKeys = findMissingDs160RuntimeAnswers(missingSecurity);
+    assert.ok(missingSecurityKeys.includes("has_communicable_disease"));
+    assert.ok(missingSecurityKeys.includes("has_renounced_citizenship"));
+  });
+
+  it("requires complete Additional Yes branches and every military row", () => {
+    const complete = {
+      ...BASE_ANSWERS,
+      has_clan_tribe: "yes",
+      clan_tribe_name: "EXAMPLE CLAN",
+      language_name__2: "MANDARIN",
+      has_traveled_last_five_years: "yes",
+      traveled_country: "JPN",
+      traveled_country__2: "SING",
+      has_belonged_to_organization: "yes",
+      organization_name: "EXAMPLE ORGANIZATION",
+      has_specialized_skills: "yes",
+      specialized_skills_explain: "EXAMPLE TRAINING",
+      has_served_military: "yes",
+      military_country: "CHIN",
+      military_branch: "EXAMPLE BRANCH",
+      military_rank: "EXAMPLE RANK",
+      military_specialty: "EXAMPLE SPECIALTY",
+      military_date_from: "2010-01-02",
+      military_date_to: "2011-03-04",
+      military_country__2: "CHIN",
+      military_branch__2: "EXAMPLE BRANCH 2",
+      military_rank__2: "EXAMPLE RANK 2",
+      military_specialty__2: "EXAMPLE SPECIALTY 2",
+      military_date_from__2: "2012-05-06",
+      military_date_to__2: "2013-07-08",
+      has_served_paramilitary: "yes",
+      paramilitary_explain: "EXAMPLE EXPLANATION",
+    };
+    assert.deepEqual(findMissingDs160RuntimeAnswers(complete), []);
+
+    const partial: Record<string, string> = { ...complete };
+    delete partial.organization_name;
+    delete partial.military_rank__2;
+    partial.military_date_to = "not-a-date";
+    const missing = findMissingDs160RuntimeAnswers(partial);
+    assert.ok(missing.includes("organization_name"));
+    assert.ok(missing.includes("military_rank__2"));
+    assert.ok(missing.includes("military_date_to"));
+  });
+
+  it("requires an explanation for every Security answer of Yes", () => {
+    const oneYes: Record<string, string> = {
+      ...BASE_ANSWERS,
+      has_communicable_disease: "yes",
+      has_arrest_conviction: "yes",
+      intend_illegal_activity: "yes",
+      has_immigration_fraud: "yes",
+      has_removal_deportation_hearing: "yes",
+      has_failed_removal_hearing: "yes",
+      has_overstayed: "yes",
+      has_voted_illegally: "yes",
+    };
+    const missing = findMissingDs160RuntimeAnswers(oneYes);
+    assert.deepEqual(missing.filter((key) => key.endsWith("_explain")), [
+      "has_communicable_disease_explain",
+      "has_arrest_conviction_explain",
+      "intend_illegal_activity_explain",
+      "has_immigration_fraud_explain",
+      "has_removal_deportation_hearing_explain",
+      "has_failed_removal_hearing_explain",
+      "has_overstayed_explain",
+      "has_voted_illegally_explain",
+    ]);
+
+    for (const key of missing) oneYes[key] = "EXAMPLE EXPLANATION";
+    assert.deepEqual(findMissingDs160RuntimeAnswers(oneYes), []);
+  });
+
+  it("accepts legacy Security aliases without emitting obsolete keys", () => {
+    const legacy = { ...BASE_ANSWERS };
+    delete legacy.has_removal_deportation_hearing;
+    delete legacy.has_failed_removal_hearing;
+    delete legacy.has_overstayed;
+    legacy.subject_to_removal_order = "no";
+    legacy.failed_removal_hearing = "no";
+    legacy.has_unlawful_presence = "no";
+
+    assert.deepEqual(findMissingDs160RuntimeAnswers(legacy), []);
+  });
+
+  it("does not let obsolete detained or polygamy answers satisfy official gates", () => {
+    const obsolete = { ...BASE_ANSWERS };
+    delete obsolete.has_removal_deportation_hearing;
+    delete obsolete.has_failed_removal_hearing;
+    delete obsolete.has_overstayed;
+    obsolete.has_been_detained = "no";
+    obsolete.practicing_polygamy = "no";
+
+    const missing = findMissingDs160RuntimeAnswers(obsolete);
+    assert.ok(missing.includes("has_removal_deportation_hearing"));
+    assert.ok(missing.includes("has_failed_removal_hearing"));
+    assert.ok(missing.includes("has_overstayed"));
   });
 
   it("stops at the orchestrator boundary before touching a CEAC page", async () => {

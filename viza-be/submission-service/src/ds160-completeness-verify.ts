@@ -17,6 +17,8 @@ import {
   ds160WorkMappings,
 } from "./ds160-form-mappings";
 import { deriveDS160Answers } from "./ds160-derive-answers";
+import { findMissingDs160SecurityBackgroundAnswers } from "./ceac/security-background";
+import { findMissingDs160WorkAdditionalAnswers } from "./ceac/work-education-additional";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. COMPLETE SIMPLIFIED FORM PAYLOAD (simulates a fully filled form)
@@ -149,9 +151,10 @@ const SAMPLE_DYNAMIC: Record<string, string> = {
   has_population_control: "no",
   has_coercive_transplant: "no",
   has_immigration_fraud: "no",
+  has_removal_deportation_hearing: "no",
+  has_failed_removal_hearing: "no",
+  has_overstayed: "no",
   has_removal_order: "no",
-  has_failed_to_attend_removal: "no",
-  has_unlawful_presence: "no",
   has_withheld_child_custody: "no",
   has_voted_illegally: "no",
   has_renounced_citizenship: "no",
@@ -347,11 +350,7 @@ function parseObjectArray(value: string | undefined): Array<Record<string, unkno
   }
 }
 
-/**
- * Runtime gate for the answer contracts covered by the current DS-160 round.
- * It intentionally validates only unconditional fields and branches whose
- * applicability is known from the submitted answers.
- */
+/** Runtime gate for every mapped conditional branch before CEAC is touched. */
 export function findMissingDs160RuntimeAnswers(
   intakeAnswers: Record<string, string>,
 ): string[] {
@@ -502,6 +501,9 @@ export function findMissingDs160RuntimeAnswers(
       }
     }
   }
+
+  missing.push(...findMissingDs160WorkAdditionalAnswers(answers));
+  missing.push(...findMissingDs160SecurityBackgroundAnswers(answers));
 
   const occupation = answers.primary_occupation?.trim().toUpperCase();
   if (!occupation) {

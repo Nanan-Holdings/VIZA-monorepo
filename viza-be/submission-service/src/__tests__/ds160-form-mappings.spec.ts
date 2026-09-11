@@ -6,7 +6,14 @@ import {
   ds160ContactMappings,
   ds160TravelMappings,
   ds160UsContactMappings,
+  ds160WorkAdditionalMappings,
+  ds160SecurityBackground1Mappings,
+  ds160SecurityBackground2Mappings,
+  ds160SecurityBackground3Mappings,
+  ds160SecurityBackground4Mappings,
+  ds160SecurityBackground5Mappings,
 } from "../ds160-form-mappings";
+import { DS160_SECURITY_BACKGROUND_KEYS } from "../ceac/security-background";
 import { CEAC_NAV_SELECTORS } from "../ceac/selectors";
 
 test("travel payer aliases both target the current CEAC payer dropdown", () => {
@@ -45,6 +52,57 @@ test("AddressPhone maps both verified CEAC social-media groups", () => {
   assert.match(ds160ContactMappings.has_other_social_media.selector, /rblAddSocial/);
   assert.match(ds160ContactMappings.other_social_media_platform.selector, /AddSocial/);
   assert.match(ds160ContactMappings.other_social_media_handle.selector, /AddSocial/);
+});
+
+test("Work/Education Additional maps every Yes-branch detail", () => {
+  for (const key of [
+    "clan_tribe_name",
+    "language_name",
+    "traveled_country",
+    "organization_name",
+    "specialized_skills_explain",
+    "military_country",
+    "military_branch",
+    "military_rank",
+    "military_specialty",
+    "military_date_from",
+    "military_date_to",
+    "paramilitary_explain",
+  ]) {
+    assert.ok(ds160WorkAdditionalMappings[key], `missing Additional mapping for ${key}`);
+  }
+  assert.match(ds160WorkAdditionalMappings.language_name.selector, /dtlLANGUAGES/);
+  assert.match(ds160WorkAdditionalMappings.military_country.selector, /MILITARY_SVC_CNTRY/);
+  assert.match(ds160WorkAdditionalMappings.paramilitary_explain.selector, /INSURGENT_ORG_EXPL/);
+});
+
+test("every Security gate has a conditional explanation selector", () => {
+  const allMappings = {
+    ...ds160SecurityBackground1Mappings,
+    ...ds160SecurityBackground2Mappings,
+    ...ds160SecurityBackground3Mappings,
+    ...ds160SecurityBackground4Mappings,
+    ...ds160SecurityBackground5Mappings,
+  };
+  for (const key of DS160_SECURITY_BACKGROUND_KEYS) {
+    assert.equal(allMappings[key]?.type, "radio", `missing Security gate mapping for ${key}`);
+    assert.equal(allMappings[`${key}_explain`]?.type, "text", `missing Security explanation mapping for ${key}`);
+    assert.match(allMappings[`${key}_explain`].selector, /tbx|_EXPL/);
+  }
+});
+
+test("Security Part 4 maps the three official hearing and overstay questions", () => {
+  for (const [key, selectorFragment] of [
+    ["has_removal_deportation_hearing", "RemovalHearing"],
+    ["has_failed_removal_hearing", "FailToAttend"],
+    ["has_overstayed", "UnlawfulPresence"],
+  ] as const) {
+    assert.equal(ds160SecurityBackground4Mappings[key]?.type, "radio");
+    assert.match(ds160SecurityBackground4Mappings[key].selector, new RegExp(selectorFragment));
+    assert.equal(ds160SecurityBackground4Mappings[`${key}_explain`]?.type, "text");
+  }
+  assert.equal(ds160SecurityBackground4Mappings.has_been_detained, undefined);
+  assert.equal(ds160SecurityBackground4Mappings.practicing_polygamy, undefined);
 });
 
 test("CEAC next selector excludes the passport page-complete modal button", () => {

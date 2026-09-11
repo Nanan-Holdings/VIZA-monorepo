@@ -339,8 +339,8 @@ const DS160_FIELDS: DS160Field[] = [
     "is_terrorist_member", "is_terrorist_family",
     "has_genocide", "has_torture", "has_extrajudicial_killings", "has_child_soldier",
     "has_religious_freedom_violation", "has_population_control", "has_coercive_transplant",
-    "has_immigration_fraud", "has_removal_order", "has_failed_to_attend_removal",
-    "has_unlawful_presence",
+    "has_immigration_fraud", "has_removal_deportation_hearing",
+    "has_failed_removal_hearing", "has_overstayed", "has_removal_order",
     "has_withheld_child_custody", "has_voted_illegally", "has_renounced_citizenship",
   ] as const).flatMap((fn): DS160Field[] => [
     { fieldName: fn, step: "Security and Background", simplifiedSource: null },

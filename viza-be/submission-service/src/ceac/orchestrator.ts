@@ -80,6 +80,8 @@ import { signAndSubmitApplication } from "./final-submit";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
 import { assertDs160ReadyForCeac } from "../ds160-completeness-verify";
+import { fillSecurityBackgroundPage } from "./security-background";
+import { fillWorkEducationAdditionalPage } from "./work-education-additional";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -553,6 +555,14 @@ export async function orchestrateFill(
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillPageFields(page, DS160_CONTACT_SCALAR_MAPPINGS, answers, profile);
         await fillSocialMediaPage(page, answers, profile);
+        sectionsFilled.push(currentPageId);
+      } else if (currentPageId === "work_education_additional") {
+        console.log(`[orchestrator] Filling page: ${currentPageId}`);
+        await fillWorkEducationAdditionalPage(page, answers, profile);
+        sectionsFilled.push(currentPageId);
+      } else if (currentPageId.startsWith("security_background_") && mappings) {
+        console.log(`[orchestrator] Filling page: ${currentPageId}`);
+        await fillSecurityBackgroundPage(page, mappings, answers, profile);
         sectionsFilled.push(currentPageId);
       } else if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);

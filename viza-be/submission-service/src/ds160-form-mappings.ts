@@ -945,16 +945,70 @@ export const ds160WorkPreviousMappings: Record<string, FormFieldMapping> = {
 
 // ---------------------------------------------------------------------------
 // Work/Education: Additional (step 16)
-// Mostly yes/no + conditional explainers. Minimal mapping.
+// The repeaters are filled by the dedicated Additional-page planner. Keep all
+// selectors here so coverage audits and mock-DOM tests share one contract.
 // ---------------------------------------------------------------------------
+export const ds160WorkAdditionalRepeaterSelectors = {
+  clanTribeName: 'input[id*="tbxCLAN_TRIBE_NAME"], textarea[id*="tbxCLAN_TRIBE_NAME"]',
+  languageName: 'input[id*="dtlLANGUAGES"][id*="tbxLANGUAGE_NAME"], input[id*="tbxLANGUAGE_NAME"]',
+  languageAddAnother: [
+    '[id*="dtlLANGUAGES"][id*="InsertButtonLANGUAGE"]',
+    '[id*="dtlLANGUAGES"][id*="InsertButton"]',
+  ].join(", "),
+  traveledCountry: [
+    'select[id*="dtlCountriesVisited"][id*="ddlCOUNTRIES_VISITED"]',
+    'select[id*="dtlCOUNTRIES_VISITED"][id*="ddlCOUNTRIES_VISITED"]',
+    'select[id*="ddlCOUNTRIES_VISITED"]',
+  ].join(", "),
+  traveledCountryAddAnother: [
+    '[id*="dtlCountriesVisited"][id*="InsertButton"]',
+    '[id*="dtlCOUNTRIES_VISITED"][id*="InsertButton"]',
+  ].join(", "),
+  organizationName: [
+    'input[id*="dtlORGANIZATIONS"][id*="tbxORGANIZATION_NAME"]',
+    'input[id*="tbxORGANIZATION_NAME"]',
+  ].join(", "),
+  organizationAddAnother: [
+    '[id*="dtlORGANIZATIONS"][id*="InsertButtonORGANIZATION"]',
+    '[id*="dtlORGANIZATIONS"][id*="InsertButton"]',
+  ].join(", "),
+  specializedSkillsExplain: [
+    'textarea[id*="tbxSPECIALIZED_SKILLS_EXPL"]',
+    'input[id*="tbxSPECIALIZED_SKILLS_EXPL"]',
+  ].join(", "),
+  militaryCountry: 'select[id*="dtlMILITARY"][id*="ddlMILITARY_SVC_CNTRY"], select[id*="ddlMILITARY_SVC_CNTRY"]',
+  militaryBranch: 'input[id*="dtlMILITARY"][id*="tbxMILITARY_SVC_BRANCH"], input[id*="tbxMILITARY_SVC_BRANCH"]',
+  militaryRank: 'input[id*="dtlMILITARY"][id*="tbxMILITARY_SVC_RANK"], input[id*="tbxMILITARY_SVC_RANK"]',
+  militarySpecialty: 'input[id*="dtlMILITARY"][id*="tbxMILITARY_SVC_SPECIALTY"], input[id*="tbxMILITARY_SVC_SPECIALTY"]',
+  militaryFromDay: 'select[id*="dtlMILITARY"][id*="ddlMILITARY_SVC_FROMDay"], select[id*="ddlMILITARY_SVC_FROMDay"]',
+  militaryFromMonth: 'select[id*="dtlMILITARY"][id*="ddlMILITARY_SVC_FROMMonth"], select[id*="ddlMILITARY_SVC_FROMMonth"]',
+  militaryFromYear: 'input[id*="dtlMILITARY"][id*="tbxMILITARY_SVC_FROMYear"], input[id*="tbxMILITARY_SVC_FROMYear"]',
+  militaryToDay: 'select[id*="dtlMILITARY"][id*="ddlMILITARY_SVC_TODay"], select[id*="ddlMILITARY_SVC_TODay"]',
+  militaryToMonth: 'select[id*="dtlMILITARY"][id*="ddlMILITARY_SVC_TOMonth"], select[id*="ddlMILITARY_SVC_TOMonth"]',
+  militaryToYear: 'input[id*="dtlMILITARY"][id*="tbxMILITARY_SVC_TOYear"], input[id*="tbxMILITARY_SVC_TOYear"]',
+  militaryAddAnother: [
+    '[id*="dtlMILITARY"][id*="InsertButtonMILITARY"]',
+    '[id*="dtlMILITARY"][id*="InsertButton"]',
+  ].join(", "),
+  paramilitaryExplain: [
+    'textarea[id*="tbxINSURGENT_ORG_EXPL"]',
+    'input[id*="tbxINSURGENT_ORG_EXPL"]',
+  ].join(", "),
+} as const;
+
 export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
   has_clan_tribe: {
     selector: 'input[name*="rblCLAN_TRIBE_IND"], input[id*="rblCLAN_TRIBE_IND"]',
     type: "radio",
     label: "Belongs to clan/tribe",
   },
+  clan_tribe_name: {
+    selector: ds160WorkAdditionalRepeaterSelectors.clanTribeName,
+    type: "text",
+    label: "Clan/Tribe Name",
+  },
   language_name: {
-    selector: 'input[id*="tbxLANGUAGE_NAME"]',
+    selector: ds160WorkAdditionalRepeaterSelectors.languageName,
     type: "text",
     label: "Language Name",
   },
@@ -963,27 +1017,98 @@ export const ds160WorkAdditionalMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Visited countries in last 5 years",
   },
+  traveled_country: {
+    selector: ds160WorkAdditionalRepeaterSelectors.traveledCountry,
+    type: "select",
+    label: "Country/Region Visited",
+  },
   has_organization: {
     selector: 'input[name*="rblORGANIZATION_IND"], input[id*="rblORGANIZATION_IND"]',
     type: "radio",
     label: "Belonged to any organization",
+  },
+  organization_name: {
+    selector: ds160WorkAdditionalRepeaterSelectors.organizationName,
+    type: "text",
+    label: "Organization Name",
   },
   has_specialized_skills: {
     selector: 'input[name*="rblSPECIALIZED_SKILLS_IND"], input[id*="rblSPECIALIZED_SKILLS_IND"]',
     type: "radio",
     label: "Specialized skills",
   },
+  specialized_skills_explain: {
+    selector: ds160WorkAdditionalRepeaterSelectors.specializedSkillsExplain,
+    type: "text",
+    label: "Specialized Skills Explanation",
+  },
   has_served_military: {
     selector: 'input[name*="rblMILITARY_SERVICE_IND"], input[id*="rblMILITARY_SERVICE_IND"]',
     type: "radio",
     label: "Served military",
+  },
+  military_country: {
+    selector: ds160WorkAdditionalRepeaterSelectors.militaryCountry,
+    type: "select",
+    label: "Military Country/Region",
+  },
+  military_branch: {
+    selector: ds160WorkAdditionalRepeaterSelectors.militaryBranch,
+    type: "text",
+    label: "Military Branch of Service",
+  },
+  military_rank: {
+    selector: ds160WorkAdditionalRepeaterSelectors.militaryRank,
+    type: "text",
+    label: "Military Rank/Position",
+  },
+  military_specialty: {
+    selector: ds160WorkAdditionalRepeaterSelectors.militarySpecialty,
+    type: "text",
+    label: "Military Specialty",
+  },
+  military_date_from: {
+    selector: [
+      ds160WorkAdditionalRepeaterSelectors.militaryFromDay,
+      ds160WorkAdditionalRepeaterSelectors.militaryFromMonth,
+      ds160WorkAdditionalRepeaterSelectors.militaryFromYear,
+    ].join(", "),
+    type: "date",
+    label: "Military Service From",
+  },
+  military_date_to: {
+    selector: [
+      ds160WorkAdditionalRepeaterSelectors.militaryToDay,
+      ds160WorkAdditionalRepeaterSelectors.militaryToMonth,
+      ds160WorkAdditionalRepeaterSelectors.militaryToYear,
+    ].join(", "),
+    type: "date",
+    label: "Military Service To",
   },
   has_served_insurgent: {
     selector: 'input[name*="rblINSURGENT_ORG_IND"], input[id*="rblINSURGENT_ORG_IND"]',
     type: "radio",
     label: "Served in insurgent org",
   },
+  paramilitary_explain: {
+    selector: ds160WorkAdditionalRepeaterSelectors.paramilitaryExplain,
+    type: "text",
+    label: "Paramilitary/Insurgent Organization Explanation",
+  },
 };
+
+function securityExplanationMapping(fragment: string, fallback: string, label: string): FormFieldMapping {
+  return {
+    selector: [
+      `textarea[id*="tbx${fragment}"]`,
+      `input[id*="tbx${fragment}"]`,
+      `textarea[id*="${fallback}_EXPL"]`,
+      `input[id*="${fallback}_EXPL"]`,
+    ].join(", "),
+    type: "text",
+    label: `${label} Explanation`,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Security and Background Parts 1–5 (steps 17–21)
@@ -997,16 +1122,19 @@ export const ds160SecurityBackground1Mappings: Record<string, FormFieldMapping> 
     type: "radio",
     label: "Communicable Disease",
   },
+  has_communicable_disease_explain: securityExplanationMapping("Disease", "SECURITY_PART1_Q1", "Communicable Disease"),
   has_physical_mental_disorder: {
     selector: 'input[name*="rblDisorder"], input[id*="rblDisorder"], input[id*="rblSECURITY_PART1_Q2"]',
     type: "radio",
     label: "Physical/Mental Disorder",
   },
+  has_physical_mental_disorder_explain: securityExplanationMapping("Disorder", "SECURITY_PART1_Q2", "Physical/Mental Disorder"),
   is_drug_abuser: {
     selector: 'input[name*="rblDruguser"], input[id*="rblDruguser"], input[id*="rblSECURITY_PART1_Q3"]',
     type: "radio",
     label: "Drug Abuser",
   },
+  is_drug_abuser_explain: securityExplanationMapping("Druguser", "SECURITY_PART1_Q3", "Drug Abuser"),
 };
 
 export const ds160SecurityBackground2Mappings: Record<string, FormFieldMapping> = {
@@ -1015,36 +1143,43 @@ export const ds160SecurityBackground2Mappings: Record<string, FormFieldMapping> 
     type: "radio",
     label: "Arrest/Conviction",
   },
+  has_arrest_conviction_explain: securityExplanationMapping("Arrested", "SECURITY_PART2_Q1", "Arrest/Conviction"),
   has_violated_controlled_substance: {
     selector: 'input[name*="rblControlledSubstances"], input[id*="rblControlledSubstances"], input[id*="rblSECURITY_PART2_Q2"]',
     type: "radio",
     label: "Controlled Substance Violation",
   },
+  has_violated_controlled_substance_explain: securityExplanationMapping("ControlledSubstances", "SECURITY_PART2_Q2", "Controlled Substance Violation"),
   has_prostitution: {
     selector: 'input[name*="rblProstitution"], input[id*="rblProstitution"], input[id*="rblSECURITY_PART2_Q3"]',
     type: "radio",
     label: "Prostitution",
   },
+  has_prostitution_explain: securityExplanationMapping("Prostitution", "SECURITY_PART2_Q3", "Prostitution"),
   has_money_laundering: {
     selector: 'input[name*="rblMoneyLaundering"], input[id*="rblMoneyLaundering"], input[id*="rblSECURITY_PART2_Q4"]',
     type: "radio",
     label: "Money Laundering",
   },
+  has_money_laundering_explain: securityExplanationMapping("MoneyLaundering", "SECURITY_PART2_Q4", "Money Laundering"),
   has_human_trafficking: {
     selector: 'input[name*="rblHumanTrafficking_"], input[id*="rblHumanTrafficking_"], input[id*="rblSECURITY_PART2_Q5"]',
     type: "radio",
     label: "Human Trafficking",
   },
+  has_human_trafficking_explain: securityExplanationMapping("HumanTrafficking_", "SECURITY_PART2_Q5", "Human Trafficking"),
   has_aided_human_trafficking: {
     selector: 'input[name*="rblAssistedSevereTrafficking"], input[id*="rblAssistedSevereTrafficking"], input[id*="rblSECURITY_PART2_Q6"]',
     type: "radio",
     label: "Aided Human Trafficking",
   },
+  has_aided_human_trafficking_explain: securityExplanationMapping("AssistedSevereTrafficking", "SECURITY_PART2_Q6", "Aided Human Trafficking"),
   has_trafficking_beneficiary: {
     selector: 'input[name*="rblHumanTraffickingRelated"], input[id*="rblHumanTraffickingRelated"], input[id*="rblSECURITY_PART2_Q7"]',
     type: "radio",
     label: "Trafficking Beneficiary",
   },
+  has_trafficking_beneficiary_explain: securityExplanationMapping("HumanTraffickingRelated", "SECURITY_PART2_Q7", "Trafficking Beneficiary"),
 };
 
 export const ds160SecurityBackground3Mappings: Record<string, FormFieldMapping> = {
@@ -1053,61 +1188,73 @@ export const ds160SecurityBackground3Mappings: Record<string, FormFieldMapping> 
     type: "radio",
     label: "Illegal Activity",
   },
+  intend_illegal_activity_explain: securityExplanationMapping("IllegalActivity", "SECURITY_PART3_Q1", "Illegal Activity"),
   intend_terrorist_activity: {
     selector: 'input[name*="rblTerroristActivity"], input[id*="rblTerroristActivity"], input[id*="rblSECURITY_PART3_Q2"]',
     type: "radio",
     label: "Terrorist Activity",
   },
+  intend_terrorist_activity_explain: securityExplanationMapping("TerroristActivity", "SECURITY_PART3_Q2", "Terrorist Activity"),
   has_provided_terrorist_support: {
     selector: 'input[name*="rblTerroristSupport"], input[id*="rblTerroristSupport"], input[id*="rblSECURITY_PART3_Q3"]',
     type: "radio",
     label: "Terrorist Support",
   },
+  has_provided_terrorist_support_explain: securityExplanationMapping("TerroristSupport", "SECURITY_PART3_Q3", "Terrorist Support"),
   is_terrorist_member: {
     selector: 'input[name*="rblTerroristOrg"], input[id*="rblTerroristOrg"], input[id*="rblSECURITY_PART3_Q4"]',
     type: "radio",
     label: "Terrorist Organization Member",
   },
+  is_terrorist_member_explain: securityExplanationMapping("TerroristOrg", "SECURITY_PART3_Q4", "Terrorist Organization Member"),
   is_terrorist_family: {
     selector: 'input[name*="rblTerroristRel"], input[id*="rblTerroristRel"], input[id*="rblSECURITY_PART3_Q5"]',
     type: "radio",
     label: "Terrorist Family",
   },
+  is_terrorist_family_explain: securityExplanationMapping("TerroristRel", "SECURITY_PART3_Q5", "Terrorist Family"),
   has_genocide: {
     selector: 'input[name*="rblGenocide"], input[id*="rblGenocide"], input[id*="rblSECURITY_PART3_Q6"]',
     type: "radio",
     label: "Genocide",
   },
+  has_genocide_explain: securityExplanationMapping("Genocide", "SECURITY_PART3_Q6", "Genocide"),
   has_torture: {
     selector: 'input[name*="rblTorture"], input[id*="rblTorture"], input[id*="rblSECURITY_PART3_Q7"]',
     type: "radio",
     label: "Torture",
   },
+  has_torture_explain: securityExplanationMapping("Torture", "SECURITY_PART3_Q7", "Torture"),
   has_extrajudicial_killings: {
     selector: 'input[name*="rblExViolence"], input[id*="rblExViolence"], input[id*="rblSECURITY_PART3_Q8"]',
     type: "radio",
     label: "Extrajudicial Violence",
   },
+  has_extrajudicial_killings_explain: securityExplanationMapping("ExViolence", "SECURITY_PART3_Q8", "Extrajudicial Violence"),
   has_child_soldier: {
     selector: 'input[name*="rblChildSoldier"], input[id*="rblChildSoldier"], input[id*="rblSECURITY_PART3_Q9"]',
     type: "radio",
     label: "Child Soldier",
   },
+  has_child_soldier_explain: securityExplanationMapping("ChildSoldier", "SECURITY_PART3_Q9", "Child Soldier"),
   has_religious_freedom_violation: {
     selector: 'input[name*="rblReligiousFreedom"], input[id*="rblReligiousFreedom"], input[id*="rblSECURITY_PART3_Q10"]',
     type: "radio",
     label: "Religious Freedom Violation",
   },
+  has_religious_freedom_violation_explain: securityExplanationMapping("ReligiousFreedom", "SECURITY_PART3_Q10", "Religious Freedom Violation"),
   has_population_control: {
     selector: 'input[name*="rblPopulationControls"], input[id*="rblPopulationControls"], input[id*="rblSECURITY_PART3_Q11"]',
     type: "radio",
     label: "Population Control",
   },
+  has_population_control_explain: securityExplanationMapping("PopulationControls", "SECURITY_PART3_Q11", "Population Control"),
   has_coercive_transplant: {
     selector: 'input[name*="rblTransplant"], input[id*="rblTransplant"], input[id*="rblSECURITY_PART3_Q12"]',
     type: "radio",
     label: "Coercive Transplant",
   },
+  has_coercive_transplant_explain: securityExplanationMapping("Transplant", "SECURITY_PART3_Q12", "Coercive Transplant"),
 };
 
 export const ds160SecurityBackground4Mappings: Record<string, FormFieldMapping> = {
@@ -1116,11 +1263,64 @@ export const ds160SecurityBackground4Mappings: Record<string, FormFieldMapping> 
     type: "radio",
     label: "Immigration Fraud",
   },
+  has_immigration_fraud_explain: securityExplanationMapping("ImmigrationFraud", "SECURITY_PART4_Q1", "Immigration Fraud"),
+  has_removal_deportation_hearing: {
+    selector: [
+      'input[name*="rblRemovalHearing"]',
+      'input[id*="rblRemovalHearing"]',
+      'input[name*="rblDeportationHearing"]',
+      'input[id*="rblDeportationHearing"]',
+      'input[name*="rblREMOVAL_HEARING"]',
+      'input[id*="rblREMOVAL_HEARING"]',
+    ].join(", "),
+    type: "radio",
+    label: "Removal or Deportation Hearing",
+  },
+  has_removal_deportation_hearing_explain: securityExplanationMapping(
+    "RemovalHearing",
+    "REMOVAL_HEARING",
+    "Removal or Deportation Hearing",
+  ),
+  has_failed_removal_hearing: {
+    selector: [
+      'input[name*="rblFailToAttend"]',
+      'input[id*="rblFailToAttend"]',
+      'input[name*="rblFailedToAttend"]',
+      'input[id*="rblFailedToAttend"]',
+      'input[name*="rblFAIL_TO_ATTEND"]',
+      'input[id*="rblFAIL_TO_ATTEND"]',
+    ].join(", "),
+    type: "radio",
+    label: "Failed to Attend Removal or Inadmissibility Hearing",
+  },
+  has_failed_removal_hearing_explain: securityExplanationMapping(
+    "FailToAttend",
+    "FAIL_TO_ATTEND",
+    "Failed to Attend Removal or Inadmissibility Hearing",
+  ),
+  has_overstayed: {
+    selector: [
+      'input[name*="rblUnlawfulPresence"]',
+      'input[id*="rblUnlawfulPresence"]',
+      'input[name*="rblOverstay"]',
+      'input[id*="rblOverstay"]',
+      'input[name*="rblUNLAWFUL_PRESENCE"]',
+      'input[id*="rblUNLAWFUL_PRESENCE"]',
+    ].join(", "),
+    type: "radio",
+    label: "Unlawful Presence, Overstay, or Visa Terms Violation",
+  },
+  has_overstayed_explain: securityExplanationMapping(
+    "UnlawfulPresence",
+    "UNLAWFUL_PRESENCE",
+    "Unlawful Presence, Overstay, or Visa Terms Violation",
+  ),
   has_removal_order: {
     selector: 'input[name*="rblDeport"], input[id*="rblDeport"], input[id*="rblSECURITY_PART4_Q2"]',
     type: "radio",
-    label: "Deportation Order",
+    label: "Removed or Deported from Any Country",
   },
+  has_removal_order_explain: securityExplanationMapping("Deport", "SECURITY_PART4_Q2", "Removed or Deported from Any Country"),
 };
 
 export const ds160SecurityBackground5Mappings: Record<string, FormFieldMapping> = {
@@ -1129,16 +1329,19 @@ export const ds160SecurityBackground5Mappings: Record<string, FormFieldMapping> 
     type: "radio",
     label: "Withheld Child Custody",
   },
+  has_withheld_child_custody_explain: securityExplanationMapping("ChildCustody", "SECURITY_PART5_Q1", "Withheld Child Custody"),
   has_voted_illegally: {
     selector: 'input[name*="rblVotingViolation"], input[id*="rblVotingViolation"], input[id*="rblSECURITY_PART5_Q2"]',
     type: "radio",
     label: "Voted Illegally",
   },
+  has_voted_illegally_explain: securityExplanationMapping("VotingViolation", "SECURITY_PART5_Q2", "Voted Illegally"),
   has_renounced_citizenship: {
     selector: 'input[name*="rblRenounceExp"], input[id*="rblRenounceExp"], input[id*="rblSECURITY_PART5_Q3"]',
     type: "radio",
     label: "Renounced Citizenship",
   },
+  has_renounced_citizenship_explain: securityExplanationMapping("RenounceExp", "SECURITY_PART5_Q3", "Renounced Citizenship"),
 };
 
 // All DS-160 mapping groups in page order
