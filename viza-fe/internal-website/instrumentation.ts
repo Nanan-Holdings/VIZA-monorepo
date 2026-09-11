@@ -40,7 +40,7 @@ export async function register(): Promise<void> {
       };
       mod.init(opts as Record<string, unknown>);
     }
-  } catch (err) {
-    console.error("[sentry] failed to init:", err instanceof Error ? err.message : String(err));
+  } catch {
+    console.error("[sentry] initialization_failed");
   }
 }

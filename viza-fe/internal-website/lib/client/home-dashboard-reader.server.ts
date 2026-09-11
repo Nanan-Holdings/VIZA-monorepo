@@ -236,7 +236,7 @@ function buildDashboardReadResult(
   };
 }
 
-export async function loadClientHomeDashboard(
+async function loadClientHomeDashboardInternal(
   options: ClientHomeDashboardReadOptions = {},
 ): Promise<ClientHomeDashboardReadResult> {
   const sessionResult = await tracePortalReadStage(
@@ -403,6 +403,26 @@ export async function loadClientHomeDashboard(
       timelineApplicationId: selectedApplication.id,
       timelinePartialData: true,
     };
+  }
+}
+
+/**
+ * Keep provider/configuration failures inside the typed read contract. The
+ * action must never serialize a Supabase or runtime error message to a
+ * browser, and an unavailable identity read must not look like a logout.
+ */
+export async function loadClientHomeDashboard(
+  options: ClientHomeDashboardReadOptions = {},
+): Promise<ClientHomeDashboardReadResult> {
+  try {
+    return await loadClientHomeDashboardInternal(options);
+  } catch {
+    recordPortalReadOutcome("unavailable");
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.dashboardRead,
+      unavailable: true,
+    });
   }
 }
 

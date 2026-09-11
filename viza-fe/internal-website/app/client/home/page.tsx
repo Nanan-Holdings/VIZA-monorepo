@@ -245,6 +245,7 @@ function buildUniversalInfoProgress(
 
 export default function HomePage() {
   const t = useTranslations("home");
+  const tClientStatus = useTranslations("clientStatus");
   const locale = useLocale();
   const PAGE_SCALE = 1;
   const heroRef = useRef<HTMLDivElement>(null);
@@ -257,6 +258,7 @@ export default function HomePage() {
   const [selectedApplicationStatus, setSelectedApplicationStatus] =
     useState<ClientHomeTimelineApplication | null>(null);
   const [isTimelineLoading, setIsTimelineLoading] = useState(true);
+  const [isTimelinePartial, setIsTimelinePartial] = useState(false);
   const [universalInfoProgress, setUniversalInfoProgress] =
     useState<UniversalInfoProgress>({
       completedCount: 0,
@@ -320,6 +322,7 @@ export default function HomePage() {
       const isLatestRequest = () => latestLoadRequestId.current === requestId;
       let keepLoadingForRetry = false;
       if (showLoading) setIsLoading(true);
+      if (showLoading) setIsTimelinePartial(false);
       setError(null);
 
       try {
@@ -336,6 +339,7 @@ export default function HomePage() {
         lastDashboardLoadAtRef.current = Date.now();
         if (dashboard.error) throw new Error(dashboard.error);
         if (!dashboard.authenticated) {
+          if (isLatestRequest()) setIsTimelinePartial(false);
           if (isLatestRequest()) setIsTimelineLoading(false);
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
@@ -359,6 +363,7 @@ export default function HomePage() {
           if (authName) setApplicantName(authName);
           setActiveVisa(null);
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(false);
           setIsTimelineLoading(false);
           return;
         }
@@ -392,6 +397,7 @@ export default function HomePage() {
           null;
         if (!currentApplication) {
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(false);
           setIsTimelineLoading(false);
         } else {
           const statusResult =
@@ -399,6 +405,12 @@ export default function HomePage() {
               ? dashboard.timeline
               : null;
           if (isLatestRequest()) setSelectedApplicationStatus(statusResult);
+          setIsTimelinePartial(
+            Boolean(
+              dashboard.timelinePartialData &&
+                dashboard.timelineApplicationId === currentApplication.id,
+            ),
+          );
           setIsTimelineLoading(false);
           if (statusResult && activeSelection?.applicationId !== currentApplication.id) {
             setActiveApplicationSelection({
@@ -439,6 +451,7 @@ export default function HomePage() {
             )
           );
           setSelectedApplicationStatus(null);
+          setIsTimelinePartial(false);
           setIsTimelineLoading(false);
           return;
         }
@@ -496,6 +509,13 @@ export default function HomePage() {
       document.removeEventListener("visibilitychange", refreshIfStale);
     };
   }, [authChecked, fetchData]);
+
+  // A Server Action cannot receive the browser AbortSignal. Keep the action
+  // in-flight until it really settles, while preventing an unmounted page
+  // from applying its result when the request eventually completes.
+  useEffect(() => () => {
+    latestLoadRequestId.current += 1;
+  }, []);
 
   // Keep the immersive navigation white until the hero has fully left the viewport.
   useEffect(() => {
@@ -612,7 +632,17 @@ export default function HomePage() {
           {isTimelineLoading ? (
             <TimelineLoadingState />
           ) : (
-            <ApplicationTimelineSection application={selectedApplicationStatus} />
+            <>
+              {isTimelinePartial ? (
+                <p
+                  className="mx-auto mb-4 w-full max-w-[1090px] rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                  role="status"
+                >
+                  {tClientStatus("partialData")}
+                </p>
+              ) : null}
+              <ApplicationTimelineSection application={selectedApplicationStatus} />
+            </>
           )}
         </div>
       </div>

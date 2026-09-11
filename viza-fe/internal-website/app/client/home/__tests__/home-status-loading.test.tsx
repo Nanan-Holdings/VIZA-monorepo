@@ -116,6 +116,7 @@ function dashboard(
   applications: ApplicationRow[],
   timelineApplicationId: string | null = null,
   timeline: ClientHomeTimelineApplication | null = null,
+  timelinePartialData = false,
 ): ClientHomeDashboardWithTimelineData {
   return {
     authenticated: true,
@@ -146,7 +147,7 @@ function dashboard(
     payments: [],
     timelineApplicationId,
     timeline,
-    timelinePartialData: false,
+    timelinePartialData,
   };
 }
 
@@ -259,5 +260,19 @@ describe("HomePage status loading", () => {
     await waitFor(() => {
       expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
     });
+  });
+
+  it("shows the existing localized partial-data notice for a degraded timeline", async () => {
+    const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
+    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+      dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID), true),
+    );
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("partialData")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("timeline")).toHaveTextContent("status-loaded");
   });
 });

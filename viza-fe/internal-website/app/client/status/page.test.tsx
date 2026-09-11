@@ -263,6 +263,22 @@ describe("client status index page", () => {
     expect(mocks.getClientStatusData).not.toHaveBeenCalled();
   });
 
+  it("surfaces a status provider outage instead of redirecting it as a login", async () => {
+    mocks.getClientStatusIndexData.mockResolvedValueOnce(
+      makeIndexData({
+        authenticated: false,
+        unavailable: true,
+        applications: [],
+        detailApplications: [],
+      }),
+    );
+
+    await expect(
+      ClientStatusPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("Client status is temporarily unavailable");
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
   it("redirects an application selector with the exact application identity and status step", async () => {
     await expect(
       ClientStatusPage({

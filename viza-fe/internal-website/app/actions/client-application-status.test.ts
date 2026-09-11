@@ -66,6 +66,21 @@ describe("getClientApplicationStatus", () => {
     expect(getClientStatusData).toHaveBeenCalledWith({ applicationId: APPLICATION_ID });
   });
 
+  it("does not turn a scoped provider outage into an empty result", async () => {
+    isValidClientStatusApplicationId.mockReturnValue(true);
+    getClientStatusData.mockResolvedValue({
+      authenticated: false,
+      partialData: false,
+      unavailable: true,
+      applications: [],
+      detailApplications: [],
+    });
+
+    await expect(getClientApplicationStatus(APPLICATION_ID)).rejects.toThrow(
+      "Client status is temporarily unavailable",
+    );
+  });
+
   it("returns the full status list through the unscoped action", async () => {
     getClientStatusData.mockResolvedValue({
       authenticated: true,
@@ -80,5 +95,22 @@ describe("getClientApplicationStatus", () => {
       applications: [application],
     });
     expect(getClientStatusData).toHaveBeenCalledWith();
+  });
+
+  it("preserves provider outage state through the unscoped action", async () => {
+    getClientStatusData.mockResolvedValue({
+      authenticated: false,
+      partialData: false,
+      unavailable: true,
+      applications: [],
+      detailApplications: [],
+    });
+
+    await expect(getClientApplicationStatuses()).resolves.toEqual({
+      authenticated: false,
+      partialData: false,
+      applications: [],
+      unavailable: true,
+    });
   });
 });

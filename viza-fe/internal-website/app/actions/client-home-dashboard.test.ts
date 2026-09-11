@@ -236,4 +236,19 @@ describe("getClientHomeDashboardData query budget", () => {
     });
     expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
+
+  it("returns a fixed error code when the dashboard provider throws", async () => {
+    mocks.createAdminClient.mockImplementation(() => {
+      throw new Error("secret provider details");
+    });
+
+    const result = await getClientHomeDashboardData();
+
+    expect(result).toMatchObject({
+      authenticated: false,
+      unavailable: true,
+      error: "dashboard_read_failed",
+    });
+    expect(JSON.stringify(result)).not.toContain("secret provider details");
+  });
 });
