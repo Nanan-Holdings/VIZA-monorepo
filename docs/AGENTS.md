@@ -59,6 +59,9 @@ reports, and workflow documentation for VIZA.
   exact frontend-only rollback boundary for the shared dynamic-form UI changed
   by `958d69d6`, preserving that commit's submission-service fixes.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
+- `runners/ds160-resumable-submission-handoff.md`: sanitized teammate/AI review,
+  verification, runtime, privacy, and remaining-work packet for the resumable
+  DS-160 background submission branch.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
   assistant provider mapping, China gated assisted-live scope, dry-run fallback,
   and compliance boundaries.
