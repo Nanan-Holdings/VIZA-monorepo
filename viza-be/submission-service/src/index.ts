@@ -42,6 +42,7 @@ import {
   waitForDs160ConfirmationPage,
   selectDs160PhotoDocument,
   buildPhotoFileFromDownloadedDocument,
+  ds160RecoverySecretKey,
   type CeacRunResult,
   type ConfirmApplicationResult,
   resolveCeacStartLocationCode,
@@ -1850,6 +1851,24 @@ async function updateDs160Metadata(
     .eq("id", dbApplicationId);
 }
 
+async function persistDs160RecoveryMetadata(
+  dbApplicationId: string,
+  ds160AppId: string,
+): Promise<void> {
+  const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${ds160AppId}`;
+  const { error } = await supabase
+    .from("applications")
+    .update({
+      ds160_application_id: ds160AppId,
+      ds160_retrieval_url: retrievalUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", dbApplicationId);
+  if (error) {
+    throw new Error("Failed to persist the DS-160 recovery metadata.");
+  }
+}
+
 function buildDs160ActionRequiredResult(
   applicationId: string,
   actionType: string,
@@ -2105,6 +2124,17 @@ async function processDs160Item(
         securityQuestionValue: "3",
       },
     );
+    await applicantVault.set(
+      profile.id,
+      ds160RecoverySecretKey(item.application_id),
+      confirm.securityAnswer,
+      {
+        actor: "ceac-live@submission-service",
+        correlationId: runId,
+        note: "Encrypted CEAC draft-recovery credential",
+      },
+    );
+    await persistDs160RecoveryMetadata(item.application_id, confirm.applicationId);
     console.log(
       `[ceac] confirm-application checkpoint captured applicationId=${redactIdentifier(confirm.applicationId)}`,
     );

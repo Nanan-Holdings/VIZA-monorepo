@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { deriveDS160Answers } from "../ds160-derive-answers";
+import {
+  applyDs160NationalityProfileFallback,
+  deriveDS160Answers,
+} from "../ds160-derive-answers";
 
 describe("deriveDS160Answers", () => {
   it("maps an empty social-media list to the CEAC NONE provider option", () => {
@@ -224,6 +227,33 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.us_taxpayer_id, undefined);
   });
 
+  it("maps the canonical not_applicable token to the U.S. SSN NA checkbox", () => {
+    const answers = deriveDS160Answers({
+      us_social_security_number: "not_applicable",
+    });
+
+    assert.equal(answers.us_social_security_number, undefined);
+    assert.equal(answers.us_social_security_number_na, "Y");
+  });
+
+  it("recovers a legacy numeric nationality answer from the canonical profile", () => {
+    const answers = applyDs160NationalityProfileFallback(
+      { nationality_country: "1" },
+      { nationality: "CHN" },
+    );
+
+    assert.equal(deriveDS160Answers(answers).nationality_country, "CHIN");
+  });
+
+  it("does not overwrite an existing non-numeric nationality answer", () => {
+    const answers = applyDs160NationalityProfileFallback(
+      { nationality_country: "CAN" },
+      { nationality: "CHN" },
+    );
+
+    assert.equal(answers.nationality_country, "CAN");
+  });
+
   it("normalizes parent-in-US yes/no answers to CEAC radio values", () => {
     const answers = deriveDS160Answers({
       father_in_us: "no",
@@ -264,6 +294,16 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.has_served_insurgent, "N");
     assert.equal(answers.purpose_of_trip_specify, "B1-B2");
     assert.equal(answers.intended_length_of_stay_unit, "D");
+  });
+
+  it("uses a saved B-visa subtype to repair an incompatible parent purpose", () => {
+    const answers = deriveDS160Answers({
+      purpose_of_trip: "A",
+      purpose_of_trip_specify: "B1/B2",
+    });
+
+    assert.equal(answers.purpose_of_trip, "B");
+    assert.equal(answers.purpose_of_trip_specify, "B1-B2");
   });
 
   it("does not fabricate present education answers when required intake is missing", () => {

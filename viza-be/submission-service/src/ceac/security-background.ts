@@ -29,9 +29,6 @@ export const DS160_SECURITY_BACKGROUND_KEYS = [
   "has_population_control",
   "has_coercive_transplant",
   "has_immigration_fraud",
-  "has_removal_deportation_hearing",
-  "has_failed_removal_hearing",
-  "has_overstayed",
   "has_removal_order",
   "has_withheld_child_custody",
   "has_voted_illegally",
@@ -42,11 +39,7 @@ export type Ds160SecurityBackgroundKey = typeof DS160_SECURITY_BACKGROUND_KEYS[n
 
 const SECURITY_BACKGROUND_INPUT_ALIASES: Partial<
   Record<Ds160SecurityBackgroundKey, readonly string[]>
-> = {
-  has_removal_deportation_hearing: ["subject_to_removal_order"],
-  has_failed_removal_hearing: ["failed_removal_hearing", "has_failed_to_attend_removal"],
-  has_overstayed: ["has_unlawful_presence"],
-};
+> = {};
 
 export interface Ds160SecurityBackgroundAnswer {
   key: Ds160SecurityBackgroundKey;

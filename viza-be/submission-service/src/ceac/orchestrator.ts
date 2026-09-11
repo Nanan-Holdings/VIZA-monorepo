@@ -80,6 +80,7 @@ import { signAndSubmitApplication } from "./final-submit";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
 import { assertDs160ReadyForCeac } from "../ds160-completeness-verify";
+import { applyDs160NationalityProfileFallback } from "../ds160-derive-answers";
 import { fillSecurityBackgroundPage } from "./security-background";
 import { fillWorkEducationAdditionalPage } from "./work-education-additional";
 
@@ -147,6 +148,8 @@ export interface OrchestrateOptions {
   runId?: string;
   /** Directory for .dat and screenshot artifacts. */
   outputDir?: string;
+  /** Disable applicant-page screenshots for privacy-sensitive live assists. */
+  captureFailureScreenshot?: boolean;
   /**
    * Credentials needed to auto-resume after a mid-fill session timeout.
    * Required if the run may take longer than CEAC's ~10-minute idle
@@ -209,7 +212,11 @@ export async function orchestrateFill(
 ): Promise<OrchestrateResult> {
   // Fail before reading or mutating the CEAC page. This keeps an incomplete
   // intake from partially filling an official application.
-  const answers = assertDs160ReadyForCeac(options.answers);
+  const intakeAnswers = applyDs160NationalityProfileFallback(
+    { ...options.answers },
+    options.profile,
+  );
+  const answers = assertDs160ReadyForCeac(intakeAnswers);
   const { profile, tracker, runId } = options;
   const outputDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "ceac-orch-"));
   const maxResumeAttempts = options.maxResumeAttempts ?? 2;
@@ -560,6 +567,21 @@ export async function orchestrateFill(
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillWorkEducationAdditionalPage(page, answers, profile);
         sectionsFilled.push(currentPageId);
+      } else if (currentPageId === "us_contact" && mappings) {
+        console.log(`[orchestrator] Filling page: ${currentPageId}`);
+        await fillPageFields(page, mappings, answers, profile);
+        if ((await detectPage(page)).id === "session_expired") {
+          continue;
+        }
+        try {
+          await verifyUsContactPageValues(page, answers);
+        } catch (error) {
+          if ((await detectPage(page)).id === "session_expired") {
+            continue;
+          }
+          throw error;
+        }
+        sectionsFilled.push(currentPageId);
       } else if (currentPageId.startsWith("security_background_") && mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillSecurityBackgroundPage(page, mappings, answers, profile);
@@ -647,7 +669,7 @@ export async function orchestrateFill(
       tracker,
       error: err,
       page: session.page,
-      screenshotDir: outputDir,
+      screenshotDir: options.captureFailureScreenshot === false ? undefined : outputDir,
     });
 
     const result = buildFailureResult(recovery, {
@@ -663,37 +685,250 @@ export async function orchestrateFill(
  * Fill fields on the current page using the provided mappings and answer data.
  * Fields without matching answers are silently skipped.
  */
-async function selectCeacOption(el: Locator, value: string): Promise<void> {
-  try {
-    await el.selectOption(value, { timeout: 5_000 });
-    return;
-  } catch (firstError) {
-    const normalizedTarget = value.trim().toLowerCase();
-    const matchedValue = await el.evaluate((select, target) => {
+export async function selectCeacOption(el: Locator, value: string): Promise<void> {
+  const normalizedTarget = value.trim().toLowerCase();
+  const deadline = Date.now() + 10_000;
+  let matchedValue: string | null = null;
+
+  while (!matchedValue && Date.now() < deadline) {
+    matchedValue = await el.evaluate((select, target) => {
       if (!(select instanceof HTMLSelectElement)) return null;
-      const options = Array.from(select.options);
-      const match = options.find((option) => {
-        if (option.disabled) return false;
-        const optionValue = option.value.trim().toLowerCase();
-        const optionText = option.text.trim().toLowerCase();
-        return optionValue === target || optionText === target || optionText.includes(target);
-      });
-      return match?.value ?? null;
+      const options = Array.from(select.options).filter((option) => !option.disabled);
+      const exactValue = options.find(
+        (option) => option.value.trim().toLowerCase() === target,
+      );
+      if (exactValue) return exactValue.value;
+
+      const exactText = options.find(
+        (option) => option.text.trim().toLowerCase() === target,
+      );
+      if (exactText) return exactText.value;
+
+      const partialText = options.filter((option) =>
+        option.text.trim().toLowerCase().includes(target),
+      );
+      return partialText.length === 1 ? partialText[0].value : null;
     }, normalizedTarget).catch(() => null);
 
-    if (!matchedValue) throw firstError;
-    try {
-      await el.selectOption(matchedValue, { timeout: 5_000 });
-      return;
-    } catch {
-      await el.evaluate((node, nextValue) => {
-        const select = node as HTMLSelectElement;
-        select.value = nextValue;
-        select.dispatchEvent(new Event("input", { bubbles: true }));
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }, matchedValue);
+    if (!matchedValue) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
+
+  if (!matchedValue) {
+    throw new Error("CEAC select option did not become available before timeout");
+  }
+
+  try {
+    await el.selectOption(matchedValue, { timeout: 5_000 });
+  } catch {
+    await el.evaluate((node, nextValue) => {
+      const select = node as HTMLSelectElement;
+      select.value = nextValue;
+      select.dispatchEvent(new Event("input", { bubbles: true }));
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }, matchedValue);
+  }
+}
+
+export async function verifyUsContactPageValues(
+  page: Page,
+  answers: Record<string, string>,
+): Promise<void> {
+  const selectFields = ["us_contact_relationship", "us_contact_state"] as const;
+  for (const fieldName of selectFields) {
+    const expected = answers[fieldName];
+    if (!expected) continue;
+    const selector = ds160UsContactMappings[fieldName].selector;
+    let control = page.locator(selector).first();
+    if ((await control.count()) === 0) {
+      throw new Error(`CEAC ${fieldName} control was not found`);
+    }
+
+    const selectionMatches = async () => {
+      const selectedValue = (await control.inputValue()).trim().toLowerCase();
+      const selectedText = String(
+        await control.locator("option:checked").textContent().catch(() => ""),
+      ).trim().toLowerCase();
+      const normalizedExpected = expected.trim().toLowerCase();
+      return selectedValue === normalizedExpected || selectedText === normalizedExpected;
+    };
+
+    if (!(await selectionMatches())) {
+      await selectCeacOption(control, expected);
+      await waitForAspNetPostback(page, 8_000);
+      control = page.locator(selector).first();
+    }
+    if (!(await selectionMatches())) {
+      throw new Error(`CEAC ${fieldName} did not retain its selected value`);
+    }
+  }
+
+  const checkboxFields = [
+    "us_contact_name_na",
+    "us_contact_organization_na",
+    "us_contact_email_na",
+  ] as const;
+  for (const fieldName of checkboxFields) {
+    const expected = answers[fieldName];
+    if (!expected) continue;
+    const shouldCheck = /^(Y|1|true|yes)$/i.test(expected);
+    const selector = ds160UsContactMappings[fieldName].selector;
+    let control = page.locator(selector).first();
+    if ((await control.count()) === 0) {
+      throw new Error(`CEAC ${fieldName} control was not found`);
+    }
+    if ((await control.isChecked()) !== shouldCheck) {
+      await control.setChecked(shouldCheck, { timeout: 5_000 });
+      await waitForAspNetPostback(page, 8_000);
+      control = page.locator(selector).first();
+    }
+    if ((await control.isChecked()) !== shouldCheck) {
+      throw new Error(`CEAC ${fieldName} did not retain its checkbox value`);
+    }
+  }
+
+  const textAnswers = { ...answers };
+  const street1 = answers.us_contact_address_street1?.trim() ?? "";
+  const street2 = answers.us_contact_address_street2?.trim() ?? "";
+  if (street1 || street2) {
+    const street1Control = page.locator(
+      ds160UsContactMappings.us_contact_address_street1.selector,
+    ).first();
+    const street2Control = page.locator(
+      ds160UsContactMappings.us_contact_address_street2.selector,
+    ).first();
+    if ((await street1Control.count()) > 0 && (await street2Control.count()) > 0) {
+      const maxLine1 = readPositiveMaxLength(await street1Control.getAttribute("maxlength"));
+      const maxLine2 = readPositiveMaxLength(await street2Control.getAttribute("maxlength"));
+      const fitted = fitUsContactAddressLines(street1, street2, maxLine1, maxLine2);
+      textAnswers.us_contact_address_street1 = fitted.line1;
+      textAnswers.us_contact_address_street2 = fitted.line2;
+    }
+  }
+
+  const textFields = [
+    "us_contact_surname",
+    "us_contact_given_names",
+    "us_contact_organization",
+    "us_contact_address_street1",
+    "us_contact_address_street2",
+    "us_contact_city",
+    "us_contact_zip",
+    "us_contact_phone",
+    "us_contact_email",
+  ] as const;
+  for (const fieldName of textFields) {
+    const expected = textAnswers[fieldName];
+    if (!expected) continue;
+    const selector = ds160UsContactMappings[fieldName].selector;
+    const control = page.locator(selector).first();
+    if ((await control.count()) === 0) {
+      throw new Error(`CEAC ${fieldName} control was not found`);
+    }
+    if ((await control.inputValue()) !== expected) {
+      await control.fill(expected, { timeout: 5_000 });
+    }
+    if ((await control.inputValue()) !== expected) {
+      throw new Error(`CEAC ${fieldName} did not retain its value`);
+    }
+  }
+}
+
+function readPositiveMaxLength(value: string | null): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : Number.POSITIVE_INFINITY;
+}
+
+export function fitUsContactAddressLines(
+  rawLine1: string,
+  rawLine2: string,
+  maxLine1: number,
+  maxLine2: number,
+): { line1: string; line2: string } {
+  const line1 = rawLine1.trim();
+  const line2 = rawLine2.trim();
+  if (line1.length <= maxLine1 && line2.length <= maxLine2) {
+    return { line1, line2 };
+  }
+
+  const combined = line1 && line2 && line1.localeCompare(line2, undefined, {
+    sensitivity: "base",
+  }) === 0
+    ? line1
+    : [line1, line2].filter(Boolean).join(" ");
+  const firstBreak = combined.length <= maxLine1
+    ? combined.length
+    : Math.max(combined.lastIndexOf(" ", maxLine1 + 1), 0);
+  const splitAt = firstBreak > 0 ? firstBreak : Math.min(maxLine1, combined.length);
+  const fittedLine1 = combined.slice(0, splitAt).trimEnd();
+  const fittedLine2 = combined.slice(splitAt).trimStart();
+
+  if (fittedLine1.length > maxLine1 || fittedLine2.length > maxLine2) {
+    throw new Error("CEAC U.S. contact address exceeds the two official address-line limits");
+  }
+
+  return { line1: fittedLine1, line2: fittedLine2 };
+}
+
+export async function resolveTravelAddressFieldStrategy(
+  page: Page,
+  fieldName: string,
+  sourceValue: string | null,
+): Promise<"fill" | "preserve"> {
+  if (fieldName === "us_address_state") {
+    const state = page
+      .locator('select[id*="ddlTravelState"], select[id*="ddlTRAVEL_ADDR_STATE"]')
+      .first();
+    if ((await state.count()) === 0) return "fill";
+
+    const validation = await state.evaluate((node, source) => {
+      const select = node as HTMLSelectElement;
+      const options = Array.from(select.options).filter((option) => !option.disabled);
+      const normalizedSource = (source ?? "").trim().toLowerCase();
+      const sourceMappable = Boolean(normalizedSource) && options.some((option) =>
+        option.value.trim().toLowerCase() === normalizedSource ||
+        option.text.trim().toLowerCase() === normalizedSource
+      );
+      const selected = select.selectedOptions[0];
+      const existingValid = Boolean(
+        selected &&
+        !selected.disabled &&
+        /^[A-Z]{2}$/.test(select.value.trim()),
+      );
+      return { sourceMappable, existingValid };
+    }, sourceValue);
+
+    if (validation.sourceMappable) return "fill";
+    if (validation.existingValid) return "preserve";
+    throw new Error(
+      "CEAC Travel State is empty or invalid while the VIZA source is not mappable",
+    );
+  }
+
+  if (fieldName === "us_address_zip") {
+    const zip = page
+      .locator('input[id*="tbZIPCode"], input[id*="tbxZIPCode"], input[id*="tbxTRAVEL_ADDR_ZIP"]')
+      .first();
+    if ((await zip.count()) === 0) return "fill";
+
+    const validation = await zip.evaluate((node, source) => {
+      const input = node as HTMLInputElement;
+      const zipPattern = /^\d{5}(?:-\d{4})?$/;
+      return {
+        sourceValid: zipPattern.test((source ?? "").trim()),
+        existingValid: !input.disabled && zipPattern.test(input.value.trim()),
+      };
+    }, sourceValue);
+
+    if (validation.sourceValid) return "fill";
+    if (validation.existingValid) return "preserve";
+    throw new Error(
+      "CEAC Travel ZIP is empty or invalid while the VIZA source is not valid",
+    );
+  }
+
+  return "fill";
 }
 
 async function certifySignAndSubmitPage(
@@ -1659,6 +1894,16 @@ async function fillPageFields(
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
       ?? null;
+
+    const travelAddressStrategy = await resolveTravelAddressFieldStrategy(
+      page,
+      fieldName,
+      value,
+    );
+    if (travelAddressStrategy === "preserve") {
+      if (debug) console.log(`[fill] ${fieldName} preserved from verified CEAC DOM state`);
+      continue;
+    }
 
     if (!value) continue;
 

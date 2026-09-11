@@ -44,9 +44,6 @@ const SECURITY_FIXTURE: ReadonlyArray<{
   { key: "has_population_control", fragment: "PopulationControls", part: 3 },
   { key: "has_coercive_transplant", fragment: "Transplant", part: 3 },
   { key: "has_immigration_fraud", fragment: "ImmigrationFraud", part: 4 },
-  { key: "has_removal_deportation_hearing", fragment: "RemovalHearing", part: 4 },
-  { key: "has_failed_removal_hearing", fragment: "FailToAttend", part: 4 },
-  { key: "has_overstayed", fragment: "UnlawfulPresence", part: 4 },
   { key: "has_removal_order", fragment: "Deport", part: 4 },
   { key: "has_withheld_child_custody", fragment: "ChildCustody", part: 5 },
   { key: "has_voted_illegally", fragment: "VotingViolation", part: 5 },
@@ -114,11 +111,8 @@ describe("DS-160 Security and Background planning", () => {
     );
   });
 
-  it("reads legacy aliases but emits only canonical Part 4 keys", () => {
+  it("ignores legacy Part 4 answers that have no current CEAC control", () => {
     const answers = allSecurityAnswers("no");
-    delete answers.has_removal_deportation_hearing;
-    delete answers.has_failed_removal_hearing;
-    delete answers.has_overstayed;
     answers.subject_to_removal_order = "yes";
     answers.subject_to_removal_order_explain = "EXAMPLE HEARING";
     answers.failed_removal_hearing = "yes";
@@ -127,31 +121,25 @@ describe("DS-160 Security and Background planning", () => {
     answers.has_unlawful_presence_explain = "EXAMPLE OVERSTAY";
 
     const plan = buildDs160SecurityBackgroundPlan(ds160SecurityBackground4Mappings, answers);
-    const byKey = new Map(plan.map((item) => [item.key, item]));
-    assert.equal(byKey.get("has_removal_deportation_hearing")?.explanation, "EXAMPLE HEARING");
-    assert.equal(byKey.get("has_failed_removal_hearing")?.explanation, "EXAMPLE MISSED HEARING");
-    assert.equal(byKey.get("has_overstayed")?.explanation, "EXAMPLE OVERSTAY");
-    assert.equal(plan.some((item) => item.key === ("subject_to_removal_order" as never)), false);
-    assert.equal(plan.some((item) => item.key === ("failed_removal_hearing" as never)), false);
-    assert.equal(plan.some((item) => item.key === ("has_unlawful_presence" as never)), false);
+    assert.deepEqual(plan.map((item) => item.key), [
+      "has_immigration_fraud",
+      "has_removal_order",
+    ]);
   });
 
-  it("fails closed on missing Part 4 answers or Yes explanations", () => {
+  it("fails closed on missing current Part 4 answers or Yes explanations", () => {
     const answers = allSecurityAnswers("no");
-    delete answers.has_removal_deportation_hearing;
-    answers.has_failed_removal_hearing = "yes";
-    answers.has_overstayed = "yes";
+    delete answers.has_immigration_fraud;
+    answers.has_removal_order = "yes";
 
     assert.deepEqual(
       findMissingDs160SecurityBackgroundAnswers(answers).filter((key) =>
-        key.startsWith("has_removal_deportation_hearing")
-        || key.startsWith("has_failed_removal_hearing")
-        || key.startsWith("has_overstayed")
+        key.startsWith("has_immigration_fraud")
+        || key.startsWith("has_removal_order")
       ),
       [
-        "has_removal_deportation_hearing",
-        "has_failed_removal_hearing_explain",
-        "has_overstayed_explain",
+        "has_immigration_fraud",
+        "has_removal_order_explain",
       ],
     );
   });
@@ -159,6 +147,9 @@ describe("DS-160 Security and Background planning", () => {
   it("rejects obsolete non-official Security mappings", () => {
     assert.equal(DS160_SECURITY_BACKGROUND_KEYS.includes("has_been_detained" as never), false);
     assert.equal(DS160_SECURITY_BACKGROUND_KEYS.includes("practicing_polygamy" as never), false);
+    assert.equal(DS160_SECURITY_BACKGROUND_KEYS.includes("has_removal_deportation_hearing" as never), false);
+    assert.equal(DS160_SECURITY_BACKGROUND_KEYS.includes("has_failed_removal_hearing" as never), false);
+    assert.equal(DS160_SECURITY_BACKGROUND_KEYS.includes("has_overstayed" as never), false);
     const obsoleteMapping = {
       ...ds160SecurityBackground4Mappings,
       has_been_detained: {

@@ -253,11 +253,8 @@ const FIELD_VALUE_CODES: Readonly<Record<string, Readonly<Record<string, string>
 
 const NA_VALUE_TOKENS: ReadonlySet<string> = new Set([
   "DOES_NOT_APPLY",
-  "does_not_apply",
-  "DOES NOT APPLY",
   "DO_NOT_KNOW",
-  "do_not_know",
-  "DO NOT KNOW",
+  "NOT_APPLICABLE",
   "N/A",
 ]);
 
@@ -290,7 +287,8 @@ const MONTH_ABBREVS = [
 
 function isNaToken(value: string | undefined): boolean {
   if (!value) return false;
-  return NA_VALUE_TOKENS.has(value.trim());
+  const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return NA_VALUE_TOKENS.has(normalized);
 }
 
 function parseIsoDate(value: string): { day: string; month: number; year: string } | null {
@@ -570,6 +568,29 @@ function normalizeCountryValue(value: string): string {
   return CEAC_COUNTRY_CODES[normalizedLookupKey(value)] ?? value;
 }
 
+/**
+ * Recover nationality from the applicant profile when an older answer row
+ * contains a numeric UI option index instead of an ISO/name value. The
+ * returned object is the caller-owned answer map; no persisted data changes.
+ */
+export function applyDs160NationalityProfileFallback(
+  answers: Record<string, string>,
+  profile: Record<string, unknown>,
+): Record<string, string> {
+  const current = answers.nationality_country?.trim();
+  if (current && !/^\d+$/.test(current)) return answers;
+
+  const fallback = [
+    profile.nationality_country,
+    profile.nationality,
+    profile.current_nationality,
+  ].find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim();
+  if (!fallback || /^\d+$/.test(fallback)) return answers;
+
+  answers.nationality_country = normalizeCountryValue(fallback);
+  return answers;
+}
+
 function shouldNormalizeCountryKey(key: string): boolean {
   const normalized = key.toLowerCase();
   return normalized.includes("country") || normalized.endsWith("_nationality") || normalized === "nationality";
@@ -600,6 +621,16 @@ function normalizeCeacValueCodes(answers: Record<string, string>): void {
     if (shouldNormalizeCountryKey(key)) {
       answers[key] = normalizeCountryValue(trimmed);
     }
+  }
+}
+
+function derivePurposeHierarchy(answers: Record<string, string>): void {
+  const specify = normalizedLookupKey(answers.purpose_of_trip_specify ?? "");
+  if (["B1/B2", "B1-B2", "B1", "B2"].includes(specify)) {
+    // CEAC loads the B1/B2, B1, and B2 options only after its parent B class
+    // is selected. The more specific saved answer is authoritative when an
+    // older draft retained an incompatible parent option.
+    answers.purpose_of_trip = "B";
   }
 }
 
@@ -685,6 +716,7 @@ export function deriveDS160Answers(
   applyEnglishAliases(answers);
   deriveContactRepeatableAnswers(answers);
   applyAliases(answers);
+  derivePurposeHierarchy(answers);
   normalizeCeacValueCodes(answers);
   normalizeCeacTextFields(answers);
   derivePassportPageConsistency(answers);

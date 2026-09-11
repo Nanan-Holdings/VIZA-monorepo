@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   ds160PassportMappings,
   ds160PersonalInfoMappings,
+  ds160PersonalInfo2Mappings,
   ds160ContactMappings,
   ds160TravelMappings,
   ds160UsContactMappings,
@@ -29,6 +30,13 @@ test("passport no-expiration checkbox uses the inverse CEAC-derived field", () =
 test("Personal1 birth-state NA uses the live CEAC checkbox id", () => {
   assert.equal(ds160PersonalInfoMappings.state_of_birth_na.type, "checkbox");
   assert.match(ds160PersonalInfoMappings.state_of_birth_na.selector, /cbexAPP_POB_ST_PROVINCE_NA/);
+});
+
+test("Personal2 uses the live nationality select and SSN NA checkbox ids", () => {
+  assert.equal(ds160PersonalInfo2Mappings.nationality_country.type, "select");
+  assert.match(ds160PersonalInfo2Mappings.nationality_country.selector, /ddlAPP_NATL/);
+  assert.equal(ds160PersonalInfo2Mappings.us_social_security_number_na.type, "checkbox");
+  assert.match(ds160PersonalInfo2Mappings.us_social_security_number_na.selector, /cbexAPP_SSN_NA/);
 });
 
 test("passport-book and U.S. contact NA keys target CEAC checkboxes", () => {
@@ -91,16 +99,18 @@ test("every Security gate has a conditional explanation selector", () => {
   }
 });
 
-test("Security Part 4 maps the three official hearing and overstay questions", () => {
+test("Security Part 4 maps only the controls present on current CEAC", () => {
   for (const [key, selectorFragment] of [
-    ["has_removal_deportation_hearing", "RemovalHearing"],
-    ["has_failed_removal_hearing", "FailToAttend"],
-    ["has_overstayed", "UnlawfulPresence"],
+    ["has_immigration_fraud", "ImmigrationFraud"],
+    ["has_removal_order", "Deport"],
   ] as const) {
     assert.equal(ds160SecurityBackground4Mappings[key]?.type, "radio");
     assert.match(ds160SecurityBackground4Mappings[key].selector, new RegExp(selectorFragment));
     assert.equal(ds160SecurityBackground4Mappings[`${key}_explain`]?.type, "text");
   }
+  assert.equal(ds160SecurityBackground4Mappings.has_removal_deportation_hearing, undefined);
+  assert.equal(ds160SecurityBackground4Mappings.has_failed_removal_hearing, undefined);
+  assert.equal(ds160SecurityBackground4Mappings.has_overstayed, undefined);
   assert.equal(ds160SecurityBackground4Mappings.has_been_detained, undefined);
   assert.equal(ds160SecurityBackground4Mappings.practicing_polygamy, undefined);
 });

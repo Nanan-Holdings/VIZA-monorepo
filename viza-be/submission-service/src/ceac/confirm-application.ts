@@ -65,6 +65,7 @@ async function dumpConfirmPageDiagnostics(
   page: Page,
   label: string,
 ): Promise<void> {
+  if (process.env.CEAC_CONFIRM_DIAGNOSTICS !== "1") return;
   const outDir = process.env.CEAC_DIAG_OUT_DIR ?? "./e2e-out";
   try {
     const fs = await import("node:fs");
@@ -88,7 +89,7 @@ async function dumpConfirmPageDiagnostics(
             id: el.id,
             name: el.name || "",
             type: el.type || "",
-            value: (el.value || "").slice(0, 100),
+            value: "<redacted>",
             disabled: !!el.disabled,
             disabledAttr: el.hasAttribute("disabled"),
             checked: !!el.checked,
@@ -114,10 +115,8 @@ async function dumpConfirmPageDiagnostics(
       pathMod.join(outDir, `confirm-${stamp}-dom.json`),
       JSON.stringify(dom, null, 2),
     );
-    await page.screenshot({
-      path: pathMod.join(outDir, `confirm-${stamp}.png`),
-      fullPage: true,
-    });
+    // Screenshots on this page contain the official Application ID and must
+    // never be captured by routine runner diagnostics.
   } catch {
     // diagnostic is best-effort — never let it shadow the original error
   }

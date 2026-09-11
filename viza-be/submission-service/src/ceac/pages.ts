@@ -56,6 +56,7 @@ export type CeacPageId =
  * section.
  */
 const PAGE_URL_PATTERNS: ReadonlyArray<[CeacPageId, RegExp]> = [
+  ["retrieve_application", /\/GenNIV\/common\/Recovery\.aspx/i],
   ["personal_information_1", /complete_personal\.aspx/i],
   ["personal_information_2", /complete_personalcont\.aspx/i],
   ["travel_information", /complete_travel\.aspx/i],

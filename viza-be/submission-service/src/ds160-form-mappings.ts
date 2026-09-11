@@ -739,6 +739,11 @@ export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "US Contact Street Address",
   },
+  us_contact_address_street2: {
+    selector: 'input[id*="tbxUS_POC_ADDR_LN2"]',
+    type: "text",
+    label: "US Contact Street Address Line 2",
+  },
   us_contact_city: {
     selector: 'input[id*="tbxUS_POC_ADDR_CITY"]',
     type: "text",
@@ -1264,57 +1269,6 @@ export const ds160SecurityBackground4Mappings: Record<string, FormFieldMapping> 
     label: "Immigration Fraud",
   },
   has_immigration_fraud_explain: securityExplanationMapping("ImmigrationFraud", "SECURITY_PART4_Q1", "Immigration Fraud"),
-  has_removal_deportation_hearing: {
-    selector: [
-      'input[name*="rblRemovalHearing"]',
-      'input[id*="rblRemovalHearing"]',
-      'input[name*="rblDeportationHearing"]',
-      'input[id*="rblDeportationHearing"]',
-      'input[name*="rblREMOVAL_HEARING"]',
-      'input[id*="rblREMOVAL_HEARING"]',
-    ].join(", "),
-    type: "radio",
-    label: "Removal or Deportation Hearing",
-  },
-  has_removal_deportation_hearing_explain: securityExplanationMapping(
-    "RemovalHearing",
-    "REMOVAL_HEARING",
-    "Removal or Deportation Hearing",
-  ),
-  has_failed_removal_hearing: {
-    selector: [
-      'input[name*="rblFailToAttend"]',
-      'input[id*="rblFailToAttend"]',
-      'input[name*="rblFailedToAttend"]',
-      'input[id*="rblFailedToAttend"]',
-      'input[name*="rblFAIL_TO_ATTEND"]',
-      'input[id*="rblFAIL_TO_ATTEND"]',
-    ].join(", "),
-    type: "radio",
-    label: "Failed to Attend Removal or Inadmissibility Hearing",
-  },
-  has_failed_removal_hearing_explain: securityExplanationMapping(
-    "FailToAttend",
-    "FAIL_TO_ATTEND",
-    "Failed to Attend Removal or Inadmissibility Hearing",
-  ),
-  has_overstayed: {
-    selector: [
-      'input[name*="rblUnlawfulPresence"]',
-      'input[id*="rblUnlawfulPresence"]',
-      'input[name*="rblOverstay"]',
-      'input[id*="rblOverstay"]',
-      'input[name*="rblUNLAWFUL_PRESENCE"]',
-      'input[id*="rblUNLAWFUL_PRESENCE"]',
-    ].join(", "),
-    type: "radio",
-    label: "Unlawful Presence, Overstay, or Visa Terms Violation",
-  },
-  has_overstayed_explain: securityExplanationMapping(
-    "UnlawfulPresence",
-    "UNLAWFUL_PRESENCE",
-    "Unlawful Presence, Overstay, or Visa Terms Violation",
-  ),
   has_removal_order: {
     selector: 'input[name*="rblDeport"], input[id*="rblDeport"], input[id*="rblSECURITY_PART4_Q2"]',
     type: "radio",

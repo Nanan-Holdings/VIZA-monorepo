@@ -11,7 +11,7 @@
  * throw RetryableRunnerError; missing portal accounts / unmappable data throw
  * NeedsHumanError.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { supabase } from "../supabase.js";
 import {
   startCeacSession,
@@ -19,12 +19,22 @@ import {
   recordBootstrapCheckpoint,
   handleConfirmApplicationPage,
   orchestrateFill,
+  requiresAttachedCeacResume,
+  resolveStoredCeacRecoveryCredentials,
+  ds160RecoverySecretKey,
+  resumeAttachedCeacApplication,
+  startAttachedCeacNewApplication,
+  selectStartPageLocation,
+  resolveCeacStartLocationCode,
+  requiresCeacConfirmApplication,
   isSuccessResult,
   isFailureResult,
 } from "../ceac/index.js";
+import { applicantVault } from "../applicant-vault.js";
 import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
 import { registerUkAccount } from "../uk/register.js";
 import { writeRunnerPoolSubmissionResult, writeSubmissionResult } from "../result-writer.js";
+import { decryptSecret, encryptSecret } from "../secret-cipher.js";
 import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
 import {
   loadManagedOfficialFeeExecutionContext,
@@ -144,41 +154,108 @@ function requireAnswer(map: Record<string, string | null>, key: string): string 
 
 /* --------------------------- US / CEAC --------------------------- */
 
+const CEAC_MANUAL_START_WAIT_MS = 10 * 60_000;
+
 export const runUsHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
-  const { profile } = await loadProfileAndApp(applicationId);
+  const { applicantId, profile, application } = await loadProfileAndApp(applicationId);
   const answers = await loadFieldAnswers(applicationId);
+  const recoverySecurityAnswer = await applicantVault.get(
+    applicantId,
+    ds160RecoverySecretKey(applicationId),
+    {
+      actor: "ceac-runner@submission-service",
+      correlationId: runId,
+    },
+  );
+  const storedRecovery = resolveStoredCeacRecoveryCredentials({
+    application: application as unknown as {
+      ds160_application_id?: unknown;
+      submission_result?: unknown;
+    },
+    answers,
+    profile: profile as unknown as Record<string, unknown>,
+    securityAnswer: recoverySecurityAnswer,
+    decryptSecurityAnswer: decryptSecret,
+  });
+  if (storedRecovery.status === "invalid") {
+    throw new NeedsHumanError(
+      `CEAC stored-application recovery metadata is invalid (${storedRecovery.reason}); refusing to attach or launch a browser.`,
+    );
+  }
+  const storedRecoveryCredentials =
+    storedRecovery.status === "ready" ? storedRecovery.credentials : undefined;
+  const storedOfficialApplicationId =
+    storedRecovery.status === "ready"
+      ? storedRecovery.credentials.applicationId
+      : storedRecovery.applicationId;
+  if (!storedOfficialApplicationId) {
+    throw new NeedsHumanError(
+      "CEAC existing-session recovery requires a stored official Application ID before the runner can select an attached form tab.",
+    );
+  }
 
   const session = await startCeacSession({
     headless: process.env.CEAC_PLAYWRIGHT_HEADLESS !== "false",
     acceptDownloads: true,
     runId,
+    attachExistingFormFromEnvironment: true,
+    requireExistingFormFromEnvironment: true,
+    resumeApplicationId: storedOfficialApplicationId,
+    manualStartWaitMs: CEAC_MANUAL_START_WAIT_MS,
   });
   try {
     const tracker = createRecoveryTracker({ runId });
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
 
-    const securityAnswer =
-      answers["ds160_security_answer"] ?? answers["mother_surname"] ?? "VIZAREDOC";
-    const confirm = await handleConfirmApplicationPage(session.page, {
-      securityAnswer,
-      securityQuestionValue: "3",
-    });
+    let recoveryCredentials:
+      | {
+          applicationId: string;
+          surnameFirstFive: string;
+          yearOfBirth: string;
+          securityAnswer: string;
+        }
+      | undefined;
+    if (requiresAttachedCeacResume(session)) {
+      if (!storedRecoveryCredentials) {
+        throw new NeedsHumanError(
+          "CEAC stored-application recovery requires a saved official application ID, surname, year of birth, and applicant-provided security answer.",
+        );
+      }
+      await resumeAttachedCeacApplication(session, storedRecoveryCredentials);
+      recoveryCredentials = storedRecoveryCredentials;
+    } else if (requiresCeacConfirmApplication(session)) {
+      const securityAnswer = answers["ds160_security_answer"]?.trim();
+      if (!securityAnswer) {
+        throw new NeedsHumanError(
+          "CEAC new-application setup requires an applicant-provided DS-160 security answer.",
+        );
+      }
+      const confirm = await handleConfirmApplicationPage(session.page, {
+        securityAnswer,
+        securityQuestionValue: "3",
+      });
 
-    const profileRec = profile as unknown as Record<string, unknown>;
-    const surname = (answers["surname"] ?? String(profileRec.surname ?? "")).toUpperCase();
-    const dob = answers["date_of_birth"] ?? String(profileRec.date_of_birth ?? "");
+      const profileRec = profile as unknown as Record<string, unknown>;
+      const surname = (answers["surname"] ?? String(profileRec.surname ?? "")).toUpperCase();
+      const dob = answers["date_of_birth"] ?? String(profileRec.date_of_birth ?? "");
+      recoveryCredentials = {
+        applicationId: confirm.applicationId,
+        surnameFirstFive: surname.replace(/[^A-Z]/g, "").slice(0, 5),
+        yearOfBirth: dob.slice(0, 4),
+        securityAnswer: confirm.securityAnswer,
+      };
+    } else if (storedRecoveryCredentials) {
+      recoveryCredentials = storedRecoveryCredentials;
+    }
+
     const { result } = await orchestrateFill(session, {
       answers,
       profile: profile as unknown as Record<string, unknown>,
       tracker,
       runId,
-      recoveryCredentials: {
-        applicationId: confirm.applicationId,
-        surnameFirstFive: surname.replace(/[^A-Z]/g, "").slice(0, 5),
-        yearOfBirth: dob.slice(0, 4),
-        securityAnswer: confirm.securityAnswer,
-      },
+      recoveryCredentials,
+      captureFailureScreenshot: false,
     });
     if (isSuccessResult(result)) {
       return HALTED("handoff_ready");
@@ -192,6 +269,190 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
     }
     }
     throw new RetryableRunnerError(`ceac ended with unsupported status: ${JSON.stringify(result)}`);
+  } finally {
+    await session.close();
+  }
+};
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+async function persistAndVerifyNewDs160RecoveryBinding(input: {
+  applicationId: string;
+  applicantId: string;
+  previousOfficialApplicationId: string | null;
+  previousSubmissionResult: unknown;
+  officialApplicationId: string;
+  securityQuestion: string;
+  securityAnswer: string;
+  runId: string;
+}): Promise<void> {
+  const securityAnswerCipher = encryptSecret(input.securityAnswer);
+  const nextSubmissionResult = {
+    ...recordValue(input.previousSubmissionResult),
+    securityQuestion: input.securityQuestion,
+    securityAnswerCipher,
+  };
+  const retrievalUrl =
+    `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${input.officialApplicationId}`;
+
+  let update = supabase
+    .from("applications")
+    .update({
+      ds160_application_id: input.officialApplicationId,
+      ds160_retrieval_url: retrievalUrl,
+      submission_result: nextSubmissionResult,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.applicationId);
+  update = input.previousOfficialApplicationId
+    ? update.eq("ds160_application_id", input.previousOfficialApplicationId)
+    : update.is("ds160_application_id", null);
+
+  const { data: rebound, error: reboundError } = await update
+    .select("ds160_application_id,submission_result")
+    .maybeSingle();
+  if (reboundError || !rebound) {
+    throw new Error(
+      "CEAC recovery binding changed concurrently; refusing to continue the new official draft.",
+    );
+  }
+
+  const reboundResult = recordValue(rebound.submission_result);
+  const reboundCipher = typeof reboundResult.securityAnswerCipher === "string"
+    ? reboundResult.securityAnswerCipher
+    : "";
+  if (
+    rebound.ds160_application_id !== input.officialApplicationId ||
+    !reboundCipher ||
+    decryptSecret(reboundCipher) !== input.securityAnswer
+  ) {
+    throw new Error("CEAC recovery binding verification failed; refusing to fill the official draft.");
+  }
+
+  await applicantVault.set(
+    input.applicantId,
+    ds160RecoverySecretKey(input.applicationId),
+    input.securityAnswer,
+    {
+      actor: "ceac-new-application@submission-service",
+      correlationId: input.runId,
+      note: "Encrypted CEAC draft-recovery credential",
+    },
+  );
+  const [vaultAnswer, verifiedApplication] = await Promise.all([
+    applicantVault.get(
+      input.applicantId,
+      ds160RecoverySecretKey(input.applicationId),
+      {
+        actor: "ceac-new-application@submission-service",
+        correlationId: input.runId,
+      },
+    ),
+    supabase
+      .from("applications")
+      .select("ds160_application_id")
+      .eq("id", input.applicationId)
+      .maybeSingle(),
+  ]);
+  if (
+    vaultAnswer !== input.securityAnswer ||
+    verifiedApplication.error ||
+    verifiedApplication.data?.ds160_application_id !== input.officialApplicationId
+  ) {
+    throw new Error("CEAC encrypted recovery vault verification failed; refusing to fill the official draft.");
+  }
+}
+
+/**
+ * Explicit live-assisted path for replacing a legacy CEAC binding with one
+ * newly created in the applicant's already-open loopback CDP browser.
+ * CAPTCHA remains entirely manual and the orchestrator receives no final
+ * submission credentials, so it must stop before Sign and Submit.
+ */
+export const runUsNewApplicationHalt: RunOne = async (applicationId) => {
+  const runId = `ceac-new-${randomUUID()}`;
+  const { applicantId, profile, application } = await loadProfileAndApp(applicationId);
+  const answers = await loadFieldAnswers(applicationId);
+  const startLocationCode = resolveCeacStartLocationCode(answers);
+  const previousOfficialApplicationId =
+    typeof (application as unknown as Record<string, unknown>).ds160_application_id === "string"
+      ? String((application as unknown as Record<string, unknown>).ds160_application_id)
+      : null;
+
+  const session = await startCeacSession({
+    headless: false,
+    acceptDownloads: true,
+    runId,
+    attachExistingFormFromEnvironment: true,
+    requireExistingFormFromEnvironment: true,
+    allowNewApplicationFromStart: true,
+    manualStartWaitMs: CEAC_MANUAL_START_WAIT_MS,
+  });
+  try {
+    const tracker = createRecoveryTracker({ runId });
+    await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
+
+    const location = await selectStartPageLocation(session.page, {
+      locationCode: startLocationCode,
+    });
+    if (["missing_selector", "missing_option", "failed"].includes(location.status)) {
+      throw new NeedsHumanError(
+        "CEAC start location could not be prepared; choose the approved location before CAPTCHA.",
+      );
+    }
+
+    await startAttachedCeacNewApplication(session);
+    const securityAnswer =
+      answers.ds160_security_answer?.trim() || randomBytes(24).toString("base64url");
+    const confirm = await handleConfirmApplicationPage(session.page, {
+      securityAnswer,
+      securityQuestionValue: "3",
+    });
+
+    await persistAndVerifyNewDs160RecoveryBinding({
+      applicationId,
+      applicantId,
+      previousOfficialApplicationId,
+      previousSubmissionResult:
+        (application as unknown as Record<string, unknown>).submission_result,
+      officialApplicationId: confirm.applicationId,
+      securityQuestion: confirm.securityQuestionText,
+      securityAnswer: confirm.securityAnswer,
+      runId,
+    });
+
+    const profileRec = profile as unknown as Record<string, unknown>;
+    const surname = (answers.surname ?? String(profileRec.surname ?? ""))
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 5)
+      .toUpperCase();
+    const dob = answers.date_of_birth ?? String(profileRec.date_of_birth ?? "");
+    const recoveryCredentials = {
+      applicationId: confirm.applicationId,
+      surnameFirstFive: surname,
+      yearOfBirth: dob.slice(0, 4),
+      securityAnswer: confirm.securityAnswer,
+    };
+    const { result } = await orchestrateFill(session, {
+      answers,
+      profile: profileRec,
+      tracker,
+      runId,
+      recoveryCredentials,
+      captureFailureScreenshot: false,
+    });
+    if (isSuccessResult(result)) return HALTED("handoff_ready");
+    if (result.status === "submitted") {
+      throw new Error("CEAC new-application run crossed the prohibited final-submit boundary.");
+    }
+    if (isFailureResult(result)) {
+      throw new NeedsHumanError("CEAC stopped before handoff because saved draft data is incomplete or invalid.");
+    }
+    throw new RetryableRunnerError("CEAC new-application run ended before a supported handoff state.");
   } finally {
     await session.close();
   }

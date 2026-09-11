@@ -279,9 +279,7 @@ describe("DS-160 runtime completeness preflight", () => {
       has_arrest_conviction: "yes",
       intend_illegal_activity: "yes",
       has_immigration_fraud: "yes",
-      has_removal_deportation_hearing: "yes",
-      has_failed_removal_hearing: "yes",
-      has_overstayed: "yes",
+      has_removal_order: "yes",
       has_voted_illegally: "yes",
     };
     const missing = findMissingDs160RuntimeAnswers(oneYes);
@@ -290,9 +288,7 @@ describe("DS-160 runtime completeness preflight", () => {
       "has_arrest_conviction_explain",
       "intend_illegal_activity_explain",
       "has_immigration_fraud_explain",
-      "has_removal_deportation_hearing_explain",
-      "has_failed_removal_hearing_explain",
-      "has_overstayed_explain",
+      "has_removal_order_explain",
       "has_voted_illegally_explain",
     ]);
 
@@ -300,11 +296,8 @@ describe("DS-160 runtime completeness preflight", () => {
     assert.deepEqual(findMissingDs160RuntimeAnswers(oneYes), []);
   });
 
-  it("accepts legacy Security aliases without emitting obsolete keys", () => {
+  it("ignores legacy Security answers that are absent from current CEAC", () => {
     const legacy = { ...BASE_ANSWERS };
-    delete legacy.has_removal_deportation_hearing;
-    delete legacy.has_failed_removal_hearing;
-    delete legacy.has_overstayed;
     legacy.subject_to_removal_order = "no";
     legacy.failed_removal_hearing = "no";
     legacy.has_unlawful_presence = "no";
@@ -312,7 +305,7 @@ describe("DS-160 runtime completeness preflight", () => {
     assert.deepEqual(findMissingDs160RuntimeAnswers(legacy), []);
   });
 
-  it("does not let obsolete detained or polygamy answers satisfy official gates", () => {
+  it("does not require obsolete Security fields that current CEAC does not expose", () => {
     const obsolete = { ...BASE_ANSWERS };
     delete obsolete.has_removal_deportation_hearing;
     delete obsolete.has_failed_removal_hearing;
@@ -321,9 +314,9 @@ describe("DS-160 runtime completeness preflight", () => {
     obsolete.practicing_polygamy = "no";
 
     const missing = findMissingDs160RuntimeAnswers(obsolete);
-    assert.ok(missing.includes("has_removal_deportation_hearing"));
-    assert.ok(missing.includes("has_failed_removal_hearing"));
-    assert.ok(missing.includes("has_overstayed"));
+    assert.equal(missing.includes("has_removal_deportation_hearing"), false);
+    assert.equal(missing.includes("has_failed_removal_hearing"), false);
+    assert.equal(missing.includes("has_overstayed"), false);
   });
 
   it("stops at the orchestrator boundary before touching a CEAC page", async () => {

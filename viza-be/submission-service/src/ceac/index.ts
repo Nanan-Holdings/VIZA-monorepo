@@ -27,9 +27,36 @@ export {
 
 export {
   startCeacSession,
+  attachToExistingCeacSession,
+  isAttachableCeacFormPage,
+  isCeacResumeEntryPage,
+  isOfficialCeacFormUrl,
+  readCeacPageApplicationId,
+  requiresCeacConfirmApplication,
+  resolveCeacLocalCdpEndpoint,
   type CeacSession,
   type CeacSessionOptions,
+  type CeacCdpAttachOptions,
+  type CeacCdpAttachDependencies,
 } from "./session";
+
+export {
+  resolveStoredCeacRecoveryCredentials,
+  ds160RecoverySecretKey,
+  type StoredCeacRecoveryInput,
+  type StoredCeacRecoveryResolution,
+} from "./stored-recovery";
+
+export {
+  requiresAttachedCeacResume,
+  resumeAttachedCeacApplication,
+  type AttachedCeacResumeDependencies,
+} from "./resume-entry";
+
+export {
+  startAttachedCeacNewApplication,
+  type AttachedNewApplicationDependencies,
+} from "./attached-new-application";
 
 export {
   gotoCeacStartPage,
@@ -38,6 +65,12 @@ export {
 export {
   resolveCeacStartLocationCode,
 } from "./start-location";
+
+export {
+  selectStartPageLocation,
+  type StartPageLocationOutcome,
+  type SelectStartPageLocationOptions,
+} from "./start-page-location";
 
 export {
   advance,
