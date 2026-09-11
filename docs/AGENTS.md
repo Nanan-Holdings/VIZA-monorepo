@@ -29,6 +29,10 @@ reports, and workflow documentation for VIZA.
 - `infra/2026-09-07-free-concurrency-review.md`: current topology, read-only
   database observations, implemented public-read/Travel concurrency savings,
   local verification evidence, and remaining production capacity gates.
+- `infra/2026-09-11-100-session-backend-optimization-plan.md`: evidence-backed
+  follow-up plan for the failed 100-session local gate, covering Next server
+  reads, authentication, failure visibility, cancellation, and connection budgets;
+  proposed work must not be presented as deployed optimization.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.
