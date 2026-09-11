@@ -189,7 +189,7 @@ describe("getClientHomeDashboardData query budget", () => {
 
     expect(result).toMatchObject({
       authenticated: true,
-      error: "payment read failed",
+      error: "payments_read_failed",
       payments: [],
     });
     expect(result.applications).toHaveLength(1);
@@ -232,7 +232,7 @@ describe("getClientHomeDashboardData query budget", () => {
     expect(result).toMatchObject({
       authenticated: false,
       unavailable: true,
-      error: "Client session unavailable",
+      error: "session_unavailable",
     });
     expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });

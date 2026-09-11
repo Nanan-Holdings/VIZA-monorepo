@@ -111,6 +111,15 @@ const PAYMENT_COLUMNS =
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const HOME_READ_ERROR_CODES = {
+  sessionUnavailable: "session_unavailable",
+  profileRead: "profile_read_failed",
+  applicationsRead: "applications_read_failed",
+  documentsRead: "documents_read_failed",
+  paymentsRead: "payments_read_failed",
+  dashboardRead: "dashboard_read_failed",
+} as const;
+
 type HomeDocumentRow = ClientStatusDocumentRow & {
   id: string;
   application_id: string;
@@ -243,7 +252,7 @@ export async function loadClientHomeDashboard(
     );
     return buildDashboardReadResult({
       ...emptyDashboard(false),
-      error: "Client session unavailable",
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
       unavailable: true,
     });
   }
@@ -277,7 +286,7 @@ export async function loadClientHomeDashboard(
   const { data: profile, error: profileError } = profileResult;
   if (profileError) {
     return buildDashboardReadResult(
-      emptyDashboard(true, session.email, profileError.message),
+      emptyDashboard(true, session.email, HOME_READ_ERROR_CODES.profileRead),
     );
   }
   if (!profile) {
@@ -295,7 +304,7 @@ export async function loadClientHomeDashboard(
       applications: [],
       documents: [],
       payments: [],
-      error: applicationError.message,
+      error: HOME_READ_ERROR_CODES.applicationsRead,
     });
   }
 
@@ -340,7 +349,7 @@ export async function loadClientHomeDashboard(
         applications: rawApplications.map(toDashboardApplication),
         documents: [],
         payments: [],
-        error: documentError.message,
+        error: HOME_READ_ERROR_CODES.documentsRead,
       });
     }
     const paymentError = paymentResult.error;
@@ -352,7 +361,7 @@ export async function loadClientHomeDashboard(
         applications: rawApplications.map(toDashboardApplication),
         documents: ((documentRows ?? []) as unknown as HomeDocumentRow[]).map(toDashboardDocument),
         payments: [],
-        error: paymentError.message,
+        error: HOME_READ_ERROR_CODES.paymentsRead,
       });
     }
     rawDocuments = (documentRows ?? []) as unknown as HomeDocumentRow[];
