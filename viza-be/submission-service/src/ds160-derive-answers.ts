@@ -50,6 +50,7 @@ const DATE_SPLITS: ReadonlyArray<DateSplit> = [
   { source: "arrival_date", targetPrefix: "arrival_date", monthAsAbbrev: true },
   { source: "intended_arrival_date", targetPrefix: "intended_arrival_date", monthAsAbbrev: true },
   { source: "departure_date", targetPrefix: "departure_date", monthAsAbbrev: true },
+  { source: "employment_start_date", targetPrefix: "employment_start_date", monthAsAbbrev: true },
 ];
 
 interface NaPair {
@@ -60,6 +61,7 @@ interface NaPair {
 }
 
 const NA_PAIRS: ReadonlyArray<NaPair> = [
+  { source: "state_of_birth", naKey: "state_of_birth_na" },
   { source: "national_id_number", naKey: "national_id_number_na" },
   { source: "us_social_security_number", naKey: "us_social_security_number_na" },
   { source: "us_taxpayer_id", naKey: "us_taxpayer_id_na" },
@@ -70,10 +72,15 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "home_address_state", naKey: "home_address_state_na" },
   { source: "home_address_postal_code", naKey: "home_address_postal_na" },
   { source: "home_address_postal", naKey: "home_address_postal_na" },
+  { source: "mailing_address_state", naKey: "mailing_address_state_na" },
+  { source: "mailing_address_postal", naKey: "mailing_address_postal_na" },
   { source: "mobile_phone", naKey: "mobile_phone_na" },
   { source: "work_phone", naKey: "work_phone_na" },
   { source: "secondary_phone", naKey: "secondary_phone_na" },
   { source: "full_name_native_alphabet", naKey: "full_name_native_alphabet_na" },
+  { source: "employer_address_state", naKey: "employer_address_state_na" },
+  { source: "employer_address_postal", naKey: "employer_address_postal_na" },
+  { source: "monthly_income", naKey: "monthly_income_na" },
   // Parent-relative "unknown" flags. CEAC names these *_unknown rather than
   // *_na but the trigger is identical — a "Do Not Know" checkbox on the
   // form sets the source value to DO_NOT_KNOW.
@@ -114,6 +121,16 @@ const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
   { from: "trip_payer_type", to: "who_is_paying" },
   { from: "home_address_state_province", to: "home_address_state" },
   { from: "home_address_postal_code", to: "home_address_postal" },
+  { from: "mailing_address_state_province", to: "mailing_address_state" },
+  { from: "mailing_address_postal_code", to: "mailing_address_postal" },
+  // Older DS-160 answer sets called CEAC's Secondary Phone control "mobile".
+  { from: "mobile_phone", to: "secondary_phone" },
+  { from: "mobile_phone_na", to: "secondary_phone_na" },
+  { from: "employer_city", to: "employer_address_city" },
+  { from: "employer_state_province", to: "employer_address_state" },
+  { from: "employer_postal_code", to: "employer_address_postal" },
+  { from: "employer_country", to: "employer_address_country" },
+  { from: "monthly_salary", to: "monthly_income" },
   { from: "us_address_street1", to: "us_address_street" },
   { from: "intended_length_of_stay_value", to: "intended_length_of_stay" },
   { from: "us_contact_address_street1", to: "us_address_street" },
@@ -322,6 +339,12 @@ function deriveNaFlags(answers: Record<string, string>): void {
 
   for (const { source, naKey } of NA_PAIRS) {
     const value = answers[source];
+    const explicitNa = answers[naKey]?.trim().toLowerCase();
+    if (["y", "yes", "true", "1"].includes(explicitNa ?? "")) {
+      answers[naKey] = "Y";
+      delete answers[source];
+      continue;
+    }
     if ((value === undefined || value.trim() === "") && DEFAULT_NA_SOURCES.has(source) && answers[naKey] === undefined) {
       answers[naKey] = "Y";
       if (value !== undefined) delete answers[source];
@@ -333,6 +356,137 @@ function deriveNaFlags(answers: Record<string, string>): void {
     // into the underlying CEAC text field. The NA checkbox handles disabling
     // the input on CEAC's side.
     delete answers[source];
+  }
+}
+
+function parseJsonArray(value: string | undefined): unknown[] | null {
+  if (!value?.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function repeatKey(baseKey: string, index: number): string {
+  return index === 0 ? baseKey : `${baseKey}__${index + 1}`;
+}
+
+function clearRepeatKeys(answers: Record<string, string>, baseKeys: string[]): void {
+  for (const key of Object.keys(answers)) {
+    if (baseKeys.some((baseKey) => key === baseKey || key.startsWith(`${baseKey}__`))) {
+      delete answers[key];
+    }
+  }
+}
+
+function collectLegacyRows(
+  answers: Record<string, string>,
+  baseKeys: string[],
+): Array<Record<string, string>> {
+  const rows = new Map<number, Record<string, string>>();
+  baseKeys.forEach((baseKey) => {
+    for (const [key, value] of Object.entries(answers)) {
+      if (key !== baseKey && !key.startsWith(`${baseKey}__`)) continue;
+      const suffix = key === baseKey ? 1 : Number(key.slice(`${baseKey}__`.length));
+      if (!Number.isInteger(suffix) || suffix < 1) continue;
+      const row = rows.get(suffix) ?? {};
+      row[baseKey] = value.trim();
+      rows.set(suffix, row);
+    }
+  });
+  return [...rows.entries()].sort(([left], [right]) => left - right).map(([, row]) => row);
+}
+
+function normalizedGate(value: string | undefined): boolean | null {
+  const normalized = value?.trim().toLowerCase();
+  if (["y", "yes", "true", "1"].includes(normalized ?? "")) return true;
+  if (["n", "no", "false", "0"].includes(normalized ?? "")) return false;
+  return null;
+}
+
+function hasOwnAnswer(answers: Record<string, string>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(answers, key);
+}
+
+/**
+ * Preserve all repeat rows collected by VIZA. Only the first row is consumed
+ * by today's confirmed CEAC selector mapping; later rows stay canonical until
+ * their live Add Another DOM has been verified.
+ */
+function deriveContactRepeatableAnswers(answers: Record<string, string>): void {
+  const hasPhoneArray = hasOwnAnswer(answers, "additional_phones[]");
+  const legacyPhones = collectLegacyRows(answers, ["additional_phone"])
+    .map((row) => row.additional_phone ?? "");
+  const phoneArray = hasPhoneArray ? parseJsonArray(answers["additional_phones[]"]) : legacyPhones;
+  const phones = phoneArray?.map((item) => typeof item === "string" ? item.trim() : "") ?? [];
+  if (!hasPhoneArray && legacyPhones.length > 0) answers["additional_phones[]"] = JSON.stringify(legacyPhones);
+  clearRepeatKeys(answers, ["additional_phone"]);
+  phones.forEach((phone, index) => {
+    if (phone) answers[repeatKey("additional_phone", index)] = phone;
+  });
+  if (phones.some(Boolean) && answers.has_other_phones === undefined && answers.has_other_phone === undefined) {
+    answers.has_other_phones = "yes";
+  }
+
+  const hasEmailArray = hasOwnAnswer(answers, "additional_emails[]");
+  const legacyEmails = collectLegacyRows(answers, ["additional_email"])
+    .map((row) => row.additional_email ?? "");
+  const emailArray = hasEmailArray ? parseJsonArray(answers["additional_emails[]"]) : legacyEmails;
+  const emails = emailArray?.map((item) => typeof item === "string" ? item.trim() : "") ?? [];
+  if (!hasEmailArray && legacyEmails.length > 0) answers["additional_emails[]"] = JSON.stringify(legacyEmails);
+  clearRepeatKeys(answers, ["additional_email"]);
+  emails.forEach((email, index) => {
+    if (email) answers[repeatKey("additional_email", index)] = email;
+  });
+  if (emails.some(Boolean) && answers.has_other_emails === undefined && answers.has_other_email === undefined) {
+    answers.has_other_emails = "yes";
+  }
+
+  const hasSocialArray = hasOwnAnswer(answers, "social_media[]");
+  const legacySocial = collectLegacyRows(answers, ["social_media_platform", "social_media_handle"])
+    .map((row) => ({
+      platform: row.social_media_platform ?? "",
+      handle: row.social_media_handle ?? "",
+    }));
+  const socialArray = hasSocialArray ? parseJsonArray(answers["social_media[]"]) : legacySocial;
+  if (!hasSocialArray && legacySocial.length > 0) answers["social_media[]"] = JSON.stringify(legacySocial);
+  clearRepeatKeys(answers, ["social_media_platform", "social_media_handle"]);
+  (socialArray ?? []).forEach((item, index) => {
+    if (!item || typeof item !== "object") return;
+    const row = item as Record<string, unknown>;
+    const platform = String(row.platform ?? "").trim();
+    const handle = String(row.handle ?? row.identifier ?? "").trim();
+    if (platform) answers[repeatKey("social_media_platform", index)] = platform;
+    if (handle) answers[repeatKey("social_media_handle", index)] = handle;
+  });
+
+  const hasOtherSocialArray = hasOwnAnswer(answers, "other_social_media[]");
+  const legacyOtherSocial = collectLegacyRows(answers, [
+    "other_social_media_name",
+    "other_social_media_identifier",
+  ]).map((row) => ({
+    platform: row.other_social_media_name ?? "",
+    handle: row.other_social_media_identifier ?? "",
+  }));
+  const otherSocialArray = hasOtherSocialArray
+    ? parseJsonArray(answers["other_social_media[]"])
+    : legacyOtherSocial;
+  if (!hasOtherSocialArray && legacyOtherSocial.length > 0) {
+    answers["other_social_media[]"] = JSON.stringify(legacyOtherSocial);
+  }
+  clearRepeatKeys(answers, ["other_social_media_name", "other_social_media_identifier"]);
+  (otherSocialArray ?? []).forEach((item, index) => {
+    if (!item || typeof item !== "object") return;
+    const row = item as Record<string, unknown>;
+    const platform = String(row.platform ?? row.name ?? "").trim();
+    const identifier = String(row.handle ?? row.identifier ?? "").trim();
+    if (platform) answers[repeatKey("other_social_media_name", index)] = platform;
+    if (identifier) answers[repeatKey("other_social_media_identifier", index)] = identifier;
+  });
+  if ((otherSocialArray?.length ?? 0) > 0 && answers.has_other_social_media === undefined) {
+    answers.has_other_social_media = "yes";
   }
 }
 
@@ -478,6 +632,7 @@ export function deriveDS160Answers(
   // then NA flags (NA may delete source keys, so do it last to avoid losing
   // data needed by date-split source resolution).
   applyEnglishAliases(answers);
+  deriveContactRepeatableAnswers(answers);
   applyAliases(answers);
   normalizeCeacValueCodes(answers);
   normalizeCeacTextFields(answers);
@@ -526,45 +681,51 @@ function derivePassportPageConsistency(answers: Record<string, string>): void {
 }
 
 function deriveContactPageConsistency(answers: Record<string, string>): void {
+  deriveContactConditionalBranches(answers);
   deriveUsContactNameNa(answers);
   deriveSocialMediaPresence(answers);
   deriveDuplicatePhoneNaFlags(answers);
-  derivePresentWorkEducationFallbacks(answers);
   derivePreviousEducationGate(answers);
 }
 
-function derivePresentWorkEducationFallbacks(answers: Record<string, string>): void {
-  const occupation = normalizedLookupKey(answers.primary_occupation ?? "");
-  if (occupation !== "EDUCATION" && occupation !== "ED" && occupation !== "STUDENT") return;
+function deriveContactConditionalBranches(answers: Record<string, string>): void {
+  if (normalizedGate(answers.mailing_same_as_home) === true) {
+    for (const key of Object.keys(answers)) {
+      if (key.startsWith("mailing_address_")) delete answers[key];
+    }
+  }
 
-  if (isNaToken(answers.employer_name) || !answers.employer_name?.trim()) {
-    answers.employer_name = "UNKNOWN";
+  const phoneGate = normalizedGate(answers.has_other_phones) ?? normalizedGate(answers.has_other_phone);
+  if (phoneGate !== null) {
+    answers.has_other_phones = phoneGate ? "Y" : "N";
+    answers.has_other_phone = phoneGate ? "Y" : "N";
   }
-  if (!answers.employer_address_line1?.trim()) {
-    answers.employer_address_line1 = answers.home_address_line1 ?? answers.home_address ?? "UNKNOWN";
+  if (phoneGate === false) {
+    answers["additional_phones[]"] = "[]";
+    clearRepeatKeys(answers, ["additional_phone"]);
   }
-  if (!answers.employer_address_city?.trim()) {
-    answers.employer_address_city = answers.home_address_city ?? "UNKNOWN";
+
+  const emailGate = normalizedGate(answers.has_other_emails) ?? normalizedGate(answers.has_other_email);
+  if (emailGate !== null) {
+    answers.has_other_emails = emailGate ? "Y" : "N";
+    answers.has_other_email = emailGate ? "Y" : "N";
   }
-  if (!answers.employer_address_country?.trim()) {
-    answers.employer_address_country = answers.home_address_country ?? answers.country_of_birth ?? "CHIN";
+  if (emailGate === false) {
+    answers["additional_emails[]"] = "[]";
+    clearRepeatKeys(answers, ["additional_email"]);
   }
-  if (!answers.employer_address_state?.trim()) {
-    answers.employer_address_state_na = "Y";
+
+  if (normalizedGate(answers.has_social_media) === false) {
+    answers["social_media[]"] = "[]";
+    clearRepeatKeys(answers, ["social_media_platform", "social_media_handle"]);
+    answers.social_media_provider = "NONE";
+    delete answers.social_media_identifier;
   }
-  if (!answers.employer_address_postal?.trim()) {
-    answers.employer_address_postal_na = "Y";
+
+  if (normalizedGate(answers.has_other_social_media) === false) {
+    answers["other_social_media[]"] = "[]";
+    clearRepeatKeys(answers, ["other_social_media_name", "other_social_media_identifier"]);
   }
-  if (!answers.employer_phone?.trim()) {
-    answers.employer_phone = answers.primary_phone ?? answers.phone ?? "0000000000";
-  }
-  if (!answers.employment_start_date_day) answers.employment_start_date_day = "01";
-  if (!answers.employment_start_date_month) answers.employment_start_date_month = "SEP";
-  if (!answers.employment_start_date_year) answers.employment_start_date_year = "2024";
-  if (!answers.monthly_income?.trim()) answers.monthly_income_na = "Y";
-  if (!answers.job_duties?.trim()) answers.job_duties = "STUDENT";
-  normalizeCeacTextFields(answers);
-  answers.employer_address_country = normalizeCountryValue(answers.employer_address_country);
 }
 
 function derivePreviousEducationGate(answers: Record<string, string>): void {
@@ -624,7 +785,6 @@ function deriveDuplicatePhoneNaFlags(answers: Record<string, string>): void {
   const seen: string[] = [];
   const phoneFields: Array<{ key: string; naKey?: string }> = [
     { key: "primary_phone" },
-    { key: "mobile_phone", naKey: "mobile_phone_na" },
     { key: "work_phone", naKey: "work_phone_na" },
     { key: "secondary_phone", naKey: "secondary_phone_na" },
   ];
@@ -678,6 +838,13 @@ const CUSTOM_DERIVATIONS: ReadonlyArray<{ requires: string[]; produces: string[]
       "intended_length_of_stay_value",
       "intended_length_of_stay_unit",
     ],
+  },
+  // Passport and U.S. contact consistency are value-gated at runtime, but
+  // these source fields can deterministically produce the CEAC checkbox keys.
+  { requires: ["passport_has_expiry"], produces: ["passport_expiry_na"] },
+  {
+    requires: ["us_contact_surname", "us_contact_given_names"],
+    produces: ["us_contact_name_na"],
   },
 ];
 

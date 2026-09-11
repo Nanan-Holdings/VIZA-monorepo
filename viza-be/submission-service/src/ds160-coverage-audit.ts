@@ -23,7 +23,7 @@ interface DS160Field {
 
 interface SimplifiedSource {
   /** Which simplified-form surface provides the data */
-  origin: "profile" | "personalInfoStep" | "passportStep" | "travelInfoStep" | "application_table";
+  origin: "profile" | "personalInfoStep" | "passportStep" | "travelInfoStep" | "dynamicForm" | "application_table";
   /** The field name in the source surface */
   sourceField: string;
   /** Whether the mapping is lossy and needs restructuring */
@@ -149,32 +149,32 @@ const DS160_FIELDS: DS160Field[] = [
   { fieldName: "immigrant_petition_explain", step: "Previous US Travel", simplifiedSource: null },
 
   // ── Step 7: Address and Phone ───────────────────────────────────────────
-  { fieldName: "home_address_line1", step: "Address and Phone", simplifiedSource: { origin: "personalInfoStep", sourceField: "address", lossy: true, notes: "address is a single text field — needs structured line1 extraction" } },
-  { fieldName: "home_address_line2", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "home_address_city", step: "Address and Phone", simplifiedSource: { origin: "personalInfoStep", sourceField: "address", lossy: true, notes: "address is unstructured — city cannot be reliably extracted" } },
-  { fieldName: "home_address_state_province", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "home_address_postal_code", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "home_address_country", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_same_as_home", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_line1", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_line2", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_city", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_state", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_postal", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "mailing_address_country", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "primary_phone", step: "Address and Phone", simplifiedSource: { origin: "profile", sourceField: "phone", lossy: false } },
-  { fieldName: "secondary_phone", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "work_phone", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "has_other_phones", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "additional_phone", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "email_address", step: "Address and Phone", simplifiedSource: { origin: "profile", sourceField: "email", lossy: false } },
-  { fieldName: "has_other_emails", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "additional_email", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "social_media_platform", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "social_media_handle", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "has_other_social_media", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "other_social_media_name", step: "Address and Phone", simplifiedSource: null },
-  { fieldName: "other_social_media_identifier", step: "Address and Phone", simplifiedSource: null },
+  { fieldName: "home_address_line1", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.street1", lossy: false } },
+  { fieldName: "home_address_line2", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.street2", lossy: false } },
+  { fieldName: "home_address_city", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.city", lossy: false } },
+  { fieldName: "home_address_state_province", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.state", lossy: false } },
+  { fieldName: "home_address_postal_code", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.postalCode", lossy: false } },
+  { fieldName: "home_address_country", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.homeCountry", lossy: false } },
+  { fieldName: "mailing_same_as_home", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingSame", lossy: false } },
+  { fieldName: "mailing_address_line1", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingStreet1", lossy: false } },
+  { fieldName: "mailing_address_line2", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingStreet2", lossy: false } },
+  { fieldName: "mailing_address_city", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingCity", lossy: false } },
+  { fieldName: "mailing_address_state", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingState", lossy: false } },
+  { fieldName: "mailing_address_postal", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingPostalCode", lossy: false } },
+  { fieldName: "mailing_address_country", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.mailingCountry", lossy: false } },
+  { fieldName: "primary_phone", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.phone", lossy: false } },
+  { fieldName: "secondary_phone", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.secondaryPhoneNumber", lossy: false } },
+  { fieldName: "work_phone", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.workPhone", lossy: false } },
+  { fieldName: "has_other_phones", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.hasOtherPhones", lossy: false } },
+  { fieldName: "additional_phone", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.additionalPhones[]", lossy: false } },
+  { fieldName: "email_address", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.email", lossy: false } },
+  { fieldName: "has_other_emails", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.hasOtherEmails", lossy: false } },
+  { fieldName: "additional_email", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.additionalEmails[]", lossy: false } },
+  { fieldName: "social_media_platform", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialPlatforms[]", lossy: false } },
+  { fieldName: "social_media_handle", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.socialHandles", lossy: false } },
+  { fieldName: "has_other_social_media", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.hasOtherSocialMedia", lossy: false } },
+  { fieldName: "other_social_media_name", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.otherSocialEntries[].platform", lossy: false } },
+  { fieldName: "other_social_media_identifier", step: "Address and Phone", simplifiedSource: { origin: "dynamicForm", sourceField: "contact.otherSocialEntries[].handle", lossy: false } },
 
   // ── Step 8: Passport ───────────────────────────────────────────────────
   { fieldName: "passport_document_type", step: "Passport", simplifiedSource: null },
@@ -275,14 +275,14 @@ const DS160_FIELDS: DS160Field[] = [
   { fieldName: "employer_name", step: "Work/Education", simplifiedSource: null },
   { fieldName: "employer_address_line1", step: "Work/Education", simplifiedSource: null },
   { fieldName: "employer_address_line2", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "employer_city", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "employer_state_province", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "employer_postal_code", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "employer_country", step: "Work/Education", simplifiedSource: null },
+  { fieldName: "employer_address_city", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "employer_city", lossy: false, notes: "Deterministic compatibility alias" } },
+  { fieldName: "employer_address_state", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "employer_state_province", lossy: false, notes: "Deterministic compatibility alias; explicit NA token maps to employer_address_state_na" } },
+  { fieldName: "employer_address_postal", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "employer_postal_code", lossy: false, notes: "Deterministic compatibility alias; explicit NA token maps to employer_address_postal_na" } },
+  { fieldName: "employer_address_country", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "employer_country", lossy: false, notes: "Deterministic compatibility alias with CEAC country normalization" } },
   { fieldName: "employer_phone", step: "Work/Education", simplifiedSource: null },
   { fieldName: "job_title", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "employment_start_date", step: "Work/Education", simplifiedSource: null },
-  { fieldName: "monthly_salary", step: "Work/Education", simplifiedSource: null },
+  { fieldName: "employment_start_date", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "employment_start_date", lossy: false, notes: "ISO date deterministically splits into CEAC day/month/year fields" } },
+  { fieldName: "monthly_income", step: "Work/Education", simplifiedSource: { origin: "dynamicForm", sourceField: "monthly_salary", lossy: false, notes: "Deterministic compatibility alias; explicit NA token maps to monthly_income_na" } },
   { fieldName: "job_duties", step: "Work/Education", simplifiedSource: null },
   { fieldName: "has_previous_employer", step: "Work/Education", simplifiedSource: null },
   { fieldName: "prev_employer_name", step: "Work/Education", simplifiedSource: null },
@@ -452,7 +452,7 @@ function pct(n: number, total: number): string {
 }
 
 // Run audit when executed directly
-runAudit();
+if (require.main === module) runAudit();
 
 export { DS160_FIELDS, runAudit };
 export type { DS160Field, SimplifiedSource, CoverageStatus };

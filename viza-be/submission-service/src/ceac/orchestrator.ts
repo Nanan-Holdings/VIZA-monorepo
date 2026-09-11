@@ -24,6 +24,7 @@ import {
   ds160PersonalInfo2Mappings,
   ds160TravelMappings,
   ds160TravelCompanionsMappings,
+  ds160TravelCompanionRepeaterSelectors,
   ds160PreviousUsTravelMappings,
   ds160PassportMappings,
   ds160ContactMappings,
@@ -77,6 +78,7 @@ import {
 import { signAndSubmitApplication } from "./final-submit";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
+import { assertDs160ReadyForCeac } from "../ds160-completeness-verify";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -191,7 +193,10 @@ export async function orchestrateFill(
   session: CeacSession,
   options: OrchestrateOptions,
 ): Promise<OrchestrateResult> {
-  const { answers, profile, tracker, runId } = options;
+  // Fail before reading or mutating the CEAC page. This keeps an incomplete
+  // intake from partially filling an official application.
+  const answers = assertDs160ReadyForCeac(options.answers);
+  const { profile, tracker, runId } = options;
   const outputDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "ceac-orch-"));
   const maxResumeAttempts = options.maxResumeAttempts ?? 2;
 
@@ -528,7 +533,11 @@ export async function orchestrateFill(
         ? PAGE_FILL_MAP[currentPageId]
         : undefined;
 
-      if (mappings) {
+      if (currentPageId === "travel_companions") {
+        console.log(`[orchestrator] Filling page: ${currentPageId}`);
+        await fillTravelCompanionsPage(page, answers, profile);
+        sectionsFilled.push(currentPageId);
+      } else if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillPageFields(page, mappings, answers, profile);
         sectionsFilled.push(currentPageId);
@@ -936,6 +945,330 @@ const RADIO_FIELDS_REQUIRING_CLICK: ReadonlySet<string> = new Set([
   // does not run the control's click handler, so Next can remain on Passport.
   "passport_lost_or_stolen",
 ]);
+
+export interface Ds160TravelCompanion {
+  surname: string;
+  givenNames: string;
+  relationship: string;
+}
+
+export interface Ds160TravelCompanionsPlan {
+  hasCompanions: boolean;
+  groupTravel: boolean | null;
+  groupName: string | null;
+  companions: Ds160TravelCompanion[];
+}
+
+const COMPANION_RELATIONSHIP_CODES: Readonly<Record<string, string>> = {
+  spouse: "SPOUSE",
+  child: "CHILD",
+  parent: "PARENT",
+  sibling: "SIBLING",
+  relative: "OTHER RELATIVE",
+  other_relative: "OTHER RELATIVE",
+  "other relative": "OTHER RELATIVE",
+  business_partner: "BUSINESS ASSOCIATE",
+  business_associate: "BUSINESS ASSOCIATE",
+  "business associate": "BUSINESS ASSOCIATE",
+  friend: "FRIEND",
+  schoolmate: "SCHOOLMATES",
+  schoolmates: "SCHOOLMATES",
+  other: "OTHER",
+};
+
+function parseJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || (!trimmed.startsWith("[") && !trimmed.startsWith("{"))) return value;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  const parsed = parseJson(value);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : null;
+}
+
+function firstDefined(values: unknown[]): unknown {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function requiredBoolean(value: unknown, fieldName: string): boolean {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["y", "yes", "true", "1"].includes(normalized)) return true;
+  if (["n", "no", "false", "0"].includes(normalized)) return false;
+  throw new Error(`DS-160 travel companions missing or invalid ${fieldName}`);
+}
+
+function normalizeCompanionRelationship(value: unknown, index: number): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) throw new Error(`DS-160 companions[${index}].relationship is required`);
+  const normalized = raw.toLowerCase().replace(/[\s-]+/g, "_");
+  const code = COMPANION_RELATIONSHIP_CODES[normalized]
+    ?? COMPANION_RELATIONSHIP_CODES[raw.toLowerCase()];
+  if (!code) {
+    throw new Error(`DS-160 companions[${index}].relationship is unsupported: ${raw}`);
+  }
+  return code;
+}
+
+function normalizeCompanion(value: unknown, index: number): Ds160TravelCompanion {
+  const record = asRecord(value);
+  if (!record) throw new Error(`DS-160 companions[${index}] must be an object`);
+  const surname = String(firstDefined([
+    record.surname,
+    record.lastName,
+    record.last_name,
+    record.familyName,
+  ]) ?? "").trim();
+  const givenNames = String(firstDefined([
+    record.givenNames,
+    record.given_names,
+    record.firstName,
+    record.first_name,
+  ]) ?? "").trim();
+  if (!surname) throw new Error(`DS-160 companions[${index}].surname is required`);
+  if (!givenNames) throw new Error(`DS-160 companions[${index}].givenNames is required`);
+  return {
+    surname,
+    givenNames,
+    relationship: normalizeCompanionRelationship(record.relationship, index),
+  };
+}
+
+function collectIndexedCompanions(answers: Record<string, unknown>): unknown[] {
+  const rows = new Map<number, Record<string, unknown>>();
+  const assign = (index: number, key: string, value: unknown) => {
+    const row = rows.get(index) ?? {};
+    row[key] = value;
+    rows.set(index, row);
+  };
+
+  for (const [key, value] of Object.entries(answers)) {
+    const nested = key.match(/^companions(?:\[(\d+)\]|\.(\d+))\.(firstName|first_name|givenNames|given_names|lastName|last_name|surname|relationship)$/);
+    if (nested) {
+      assign(Number(nested[1] ?? nested[2]), nested[3], value);
+      continue;
+    }
+    const flat = key.match(/^(companion_surname|companion_given_names|companion_relationship)(?:__(\d+))?$/);
+    if (!flat) continue;
+    const index = flat[2] ? Number(flat[2]) - 1 : 0;
+    const property = flat[1] === "companion_surname"
+      ? "surname"
+      : flat[1] === "companion_given_names"
+        ? "givenNames"
+        : "relationship";
+    assign(index, property, value);
+  }
+
+  return [...rows.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, row]) => row);
+}
+
+/** Build and validate the complete CEAC companion branch before touching DOM. */
+export function buildTravelCompanionsPlan(
+  rawAnswers: Record<string, unknown>,
+  rawProfile: Record<string, unknown> = {},
+): Ds160TravelCompanionsPlan {
+  const travel = asRecord(firstDefined([rawAnswers.travel, rawProfile.travel])) ?? {};
+  const hasCompanions = requiredBoolean(firstDefined([
+    rawAnswers["travel.hasCompanions"],
+    travel.hasCompanions,
+    rawAnswers.has_companions,
+    rawProfile.has_companions,
+  ]), "travel.hasCompanions");
+
+  const companionSource = firstDefined([
+    rawAnswers["companions[]"],
+    rawAnswers["travel.companions"],
+    travel.companions,
+    rawAnswers.companions,
+    rawProfile.companions,
+  ]);
+  const parsedCompanions = parseJson(companionSource);
+  const rawCompanions = Array.isArray(parsedCompanions)
+    ? parsedCompanions
+    : collectIndexedCompanions(rawAnswers);
+
+  if (!hasCompanions) {
+    if (rawCompanions.length > 0) {
+      throw new Error("DS-160 travel.hasCompanions is no but companions[] is not empty");
+    }
+    return { hasCompanions: false, groupTravel: null, groupName: null, companions: [] };
+  }
+
+  const groupTravel = requiredBoolean(firstDefined([
+    rawAnswers["travel.companionGroupTravel"],
+    travel.companionGroupTravel,
+    rawAnswers.companion_group_travel,
+    rawProfile.companion_group_travel,
+  ]), "travel.companionGroupTravel");
+
+  if (groupTravel) {
+    const groupName = String(firstDefined([
+      rawAnswers["travel.companionGroupName"],
+      travel.companionGroupName,
+      rawAnswers.companion_group_name,
+      rawProfile.companion_group_name,
+    ]) ?? "").trim();
+    if (!groupName) throw new Error("DS-160 travel.companionGroupName is required for group travel");
+    return { hasCompanions: true, groupTravel: true, groupName, companions: [] };
+  }
+
+  if (rawCompanions.length === 0) {
+    throw new Error("DS-160 companions[] requires at least one person when not traveling as a group");
+  }
+  return {
+    hasCompanions: true,
+    groupTravel: false,
+    groupName: null,
+    companions: rawCompanions.map(normalizeCompanion),
+  };
+}
+
+async function clickBooleanRadio(
+  page: Page,
+  selector: string,
+  value: boolean,
+  label: string,
+): Promise<void> {
+  const expected = value ? new Set(["y", "yes", "true", "1"]) : new Set(["n", "no", "false", "0"]);
+  const candidates = page.locator(selector);
+  const count = await candidates.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const candidateValue = String(await candidate.getAttribute("value") ?? "").trim().toLowerCase();
+    if (!expected.has(candidateValue)) continue;
+    await candidate.click({ timeout: 5_000 });
+    await waitForAspNetPostback(page, 8_000);
+    // WebForms postbacks can replace the entire RadioButtonList. Re-query
+    // after the postback instead of checking the now-detached locator.
+    const refreshed = page.locator(selector);
+    let checked = false;
+    for (let refreshedIndex = 0; refreshedIndex < await refreshed.count(); refreshedIndex += 1) {
+      const refreshedCandidate = refreshed.nth(refreshedIndex);
+      const refreshedValue = String(await refreshedCandidate.getAttribute("value") ?? "").trim().toLowerCase();
+      if (!expected.has(refreshedValue)) continue;
+      checked = await refreshedCandidate.isChecked().catch(() => false);
+      if (checked) break;
+    }
+    if (!checked) throw new Error(`CEAC ${label} radio did not remain selected`);
+    return;
+  }
+  throw new Error(`CEAC ${label} radio option ${value ? "yes" : "no"} was not found`);
+}
+
+async function visibleEnabledLocators(page: Page, selector: string): Promise<Locator[]> {
+  const all = page.locator(selector);
+  const result: Locator[] = [];
+  for (let index = 0; index < await all.count(); index += 1) {
+    const candidate = all.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    if (!(await candidate.isEnabled().catch(() => false))) continue;
+    result.push(candidate);
+  }
+  return result;
+}
+
+async function fillCompanionRow(page: Page, index: number, companion: Ds160TravelCompanion): Promise<void> {
+  const surnames = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.surname);
+  const givenNames = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.givenNames);
+  const relationships = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.relationship);
+  if (!surnames[index] || !givenNames[index] || !relationships[index]) {
+    throw new Error(`CEAC companion row ${index + 1} is incomplete or unavailable`);
+  }
+  await surnames[index].fill(companion.surname);
+  await givenNames[index].fill(companion.givenNames);
+  await selectCeacOption(relationships[index], companion.relationship);
+  if ((await surnames[index].inputValue()).trim() !== companion.surname) {
+    throw new Error(`CEAC companion row ${index + 1} surname was not retained`);
+  }
+  if ((await givenNames[index].inputValue()).trim() !== companion.givenNames) {
+    throw new Error(`CEAC companion row ${index + 1} given names were not retained`);
+  }
+}
+
+async function assertCompanionRowsRetained(
+  page: Page,
+  companions: Ds160TravelCompanion[],
+): Promise<void> {
+  const surnames = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.surname);
+  const givenNames = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.givenNames);
+  const relationships = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.relationship);
+  if (surnames.length !== companions.length || givenNames.length !== companions.length || relationships.length !== companions.length) {
+    throw new Error("CEAC travel companion row count changed after filling");
+  }
+  for (let index = 0; index < companions.length; index += 1) {
+    const companion = companions[index];
+    if ((await surnames[index].inputValue()).trim() !== companion.surname) {
+      throw new Error(`CEAC companion row ${index + 1} surname was lost after adding another person`);
+    }
+    if ((await givenNames[index].inputValue()).trim() !== companion.givenNames) {
+      throw new Error(`CEAC companion row ${index + 1} given names were lost after adding another person`);
+    }
+    const selectedRelationship = await relationships[index].locator("option:checked").textContent().catch(() => null);
+    if (String(selectedRelationship ?? "").trim().toUpperCase() !== companion.relationship) {
+      throw new Error(`CEAC companion row ${index + 1} relationship was not retained`);
+    }
+  }
+}
+
+async function addCompanionRow(page: Page, previousCount: number): Promise<void> {
+  const buttons = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.addAnother);
+  if (!buttons[0]) throw new Error("CEAC Add Another travel companion control was not found");
+  await buttons[0].click({ timeout: 5_000 });
+  await waitForAspNetPostback(page, 8_000);
+  const deadline = Date.now() + 8_000;
+  while (Date.now() < deadline) {
+    const rows = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.surname);
+    if (rows.length > previousCount) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error("CEAC Add Another did not create a new travel companion row");
+}
+
+/** Fill the conditional/repeatable Travel Companions page without overwriting rows. */
+export async function fillTravelCompanionsPage(
+  page: Page,
+  answers: Record<string, string>,
+  profile: Record<string, unknown> = {},
+): Promise<void> {
+  const plan = buildTravelCompanionsPlan(answers as Record<string, unknown>, profile);
+  await clickBooleanRadio(page, ds160TravelCompanionsMappings.has_companions.selector, plan.hasCompanions, "travel companions");
+  if (!plan.hasCompanions) return;
+
+  await clickBooleanRadio(page, ds160TravelCompanionsMappings.companion_group_travel.selector, Boolean(plan.groupTravel), "group travel");
+  if (plan.groupTravel) {
+    const groupNames = await visibleEnabledLocators(page, ds160TravelCompanionsMappings.companion_group_name.selector);
+    if (!groupNames[0]) throw new Error("CEAC group name field was not found");
+    await groupNames[0].fill(plan.groupName!);
+    if ((await groupNames[0].inputValue()).trim() !== plan.groupName) {
+      throw new Error("CEAC group name was not retained");
+    }
+    return;
+  }
+
+  const existingRows = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.surname);
+  if (existingRows.length > plan.companions.length) {
+    throw new Error(`CEAC has ${existingRows.length} companion rows but VIZA only has ${plan.companions.length}; refusing to leave stale people`);
+  }
+  if (existingRows.length === 0) {
+    await addCompanionRow(page, 0);
+  }
+  for (let index = 0; index < plan.companions.length; index += 1) {
+    const rows = await visibleEnabledLocators(page, ds160TravelCompanionRepeaterSelectors.surname);
+    if (rows.length <= index) await addCompanionRow(page, rows.length);
+    await fillCompanionRow(page, index, plan.companions[index]);
+  }
+  await assertCompanionRowsRetained(page, plan.companions);
+}
 
 async function fillPageFields(
   page: Page,

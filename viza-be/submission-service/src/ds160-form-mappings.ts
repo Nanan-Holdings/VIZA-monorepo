@@ -83,6 +83,11 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "State/Province of Birth",
   },
+  state_of_birth_na: {
+    selector: 'input[id*="cbexAPP_POB_ST_PROVINCE_NA"], input[id*="cbxAPP_POB_ST_PROVINCE_NA"]',
+    type: "checkbox",
+    label: "State/Province of Birth Does Not Apply",
+  },
   country_of_birth: {
     selector: 'select[id*="ddlAPP_POB_CNTRY"]',
     type: "select",
@@ -347,15 +352,15 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Primary Phone",
   },
-  mobile_phone: {
+  secondary_phone: {
     selector: 'input[id*="tbxAPP_MOBILE_TEL"]',
     type: "text",
-    label: "Mobile Phone",
+    label: "Secondary Phone",
   },
-  mobile_phone_na: {
+  secondary_phone_na: {
     selector: 'input[id*="cbexAPP_MOBILE_TEL_NA"]',
     type: "checkbox",
-    label: "Mobile Phone Does Not Apply",
+    label: "Secondary Phone Does Not Apply",
   },
   work_phone: {
     selector: 'input[id*="tbxAPP_BUS_TEL"]',
@@ -382,10 +387,10 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Has other email addresses",
   },
-  has_social_media: {
+  has_other_social_media: {
     selector: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
     type: "radio",
-    label: "Has additional social media presence",
+    label: "Has other social media presence",
   },
   social_media_provider: {
     selector: 'select[id*="dtlSocial"][id*="ddlSocialMedia"]',
@@ -552,9 +557,43 @@ export const ds160PersonalInfo2Mappings: Record<string, FormFieldMapping> = {
 
 // ---------------------------------------------------------------------------
 // Travel Companions (step 4)
-// Mostly conditional/repeatable fields. Minimal mapping for the initial
-// radio and group name.
+// CEAC renders individual companions through an ASP.NET DataList. The
+// selectors intentionally match every visible repeater row; the orchestrator
+// owns row indexing and the Add Another flow so one person never overwrites
+// another.
 // ---------------------------------------------------------------------------
+export const ds160TravelCompanionRepeaterSelectors = {
+  surname: [
+    'input[id*="dlPrincipalPOT"][id*="tbxSurname"]',
+    'input[id*="dtlPrincipalPOT"][id*="tbxSurname"]',
+    'input[id*="dlPrincipalPOT"][id*="tbxPOT_SURNAMES"]',
+    'input[id*="dlTravelCompanions"][id*="tbxSurname"]',
+    'input[id*="dtlTravelCompanions"][id*="tbxSurname"]',
+    'input[id*="dlTravelCompanions"][id*="tbxPOT_SURNAMES"]',
+  ].join(", "),
+  givenNames: [
+    'input[id*="dlPrincipalPOT"][id*="tbxGivenName"]',
+    'input[id*="dtlPrincipalPOT"][id*="tbxGivenName"]',
+    'input[id*="dlPrincipalPOT"][id*="tbxPOT_GIVEN_NAMES"]',
+    'input[id*="dlTravelCompanions"][id*="tbxGivenName"]',
+    'input[id*="dtlTravelCompanions"][id*="tbxGivenName"]',
+    'input[id*="dlTravelCompanions"][id*="tbxPOT_GIVEN_NAMES"]',
+  ].join(", "),
+  relationship: [
+    'select[id*="dlPrincipalPOT"][id*="ddlTCRelationship"]',
+    'select[id*="dtlPrincipalPOT"][id*="ddlTCRelationship"]',
+    'select[id*="dlTravelCompanions"][id*="ddlTCRelationship"]',
+    'select[id*="dtlTravelCompanions"][id*="ddlTCRelationship"]',
+    'select[id*="dlTravelCompanions"][id*="ddlRelationship"]',
+  ].join(", "),
+  addAnother: [
+    'input[id*="InsertButtonPrincipalPOT"]',
+    'button[id*="InsertButtonPrincipalPOT"]',
+    'input[id*="btnAddTravelCompanion"]',
+    'button[id*="btnAddTravelCompanion"]',
+  ].join(", "),
+} as const;
+
 export const ds160TravelCompanionsMappings: Record<string, FormFieldMapping> = {
   // Live CEAC: `rblOtherPersonsTravelingWithYou`.
   has_companions: {
@@ -571,6 +610,21 @@ export const ds160TravelCompanionsMappings: Record<string, FormFieldMapping> = {
     selector: 'input[id*="tbxGroupName"], input[id*="tbxGROUP_NAME"]',
     type: "text",
     label: "Group Name",
+  },
+  companion_surname: {
+    selector: ds160TravelCompanionRepeaterSelectors.surname,
+    type: "text",
+    label: "Companion Surnames",
+  },
+  companion_given_names: {
+    selector: ds160TravelCompanionRepeaterSelectors.givenNames,
+    type: "text",
+    label: "Companion Given Names",
+  },
+  companion_relationship: {
+    selector: ds160TravelCompanionRepeaterSelectors.relationship,
+    type: "select",
+    label: "Companion Relationship",
   },
 };
 
