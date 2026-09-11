@@ -82,6 +82,7 @@ const SAMPLE_DYNAMIC: Record<string, string> = {
   has_other_emails: "no",
   social_media_platform: "INSTAGRAM",
   social_media_handle: "zhangwei1990",
+  has_other_social_media: "no",
   // US Contact
   us_contact_surname: "SMITH",
   us_contact_given_names: "JOHN",
@@ -439,6 +440,27 @@ export function findMissingDs160RuntimeAnswers(
     missing.push("social_media_provider");
   } else if (answers.social_media_provider !== "NONE" && !hasAnswer(answers, "social_media_identifier")) {
     missing.push("social_media_identifier");
+  }
+
+  const hasOtherSocialMedia = normalizedBoolean(answers.has_other_social_media);
+  if (hasOtherSocialMedia === null) {
+    missing.push("has_other_social_media");
+  } else if (hasOtherSocialMedia) {
+    const hasCanonicalRows = hasOwnAnswer(answers, "other_social_media[]");
+    const strictRows = hasCanonicalRows
+      ? parseStrictObjectArray(answers["other_social_media[]"])
+      : null;
+    const rows = strictRows ?? parseObjectArray(answers["other_social_media[]"]);
+    if (!hasCanonicalRows || !strictRows || rows.length === 0) {
+      missing.push("other_social_media[]");
+    } else {
+      rows.forEach((row, index) => {
+        const platform = String(row.platform ?? row.name ?? "").trim();
+        const handle = String(row.handle ?? row.identifier ?? row.username ?? "").trim();
+        if (!platform) missing.push(`other_social_media[${index}].platform`);
+        if (!handle) missing.push(`other_social_media[${index}].handle`);
+      });
+    }
   }
 
   const hasCompanions = normalizedBoolean(

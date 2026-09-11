@@ -164,6 +164,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   has_social_media: "no",
   social_media_provider: "NONE",
   social_media_identifier: "N/A",
+  has_other_social_media: "no",
 };
 
 export const TEST_DS160_PROFILE = {

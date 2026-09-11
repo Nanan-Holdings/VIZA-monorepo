@@ -9,6 +9,9 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.social_media_provider, "NONE");
     assert.equal(answers.has_social_media, undefined);
     assert.equal(answers.social_media_identifier, undefined);
+    assert.deepEqual(JSON.parse(answers["social_media[]"]), [
+      { platform: "NONE", identifier: "" },
+    ]);
   });
 
   it("preserves every contact repeat row while keeping legacy first-row keys", () => {
@@ -34,6 +37,53 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.has_other_social_media, undefined);
   });
 
+  it("preserves both official social-media groups and normalizes their row shapes", () => {
+    const answers = deriveDS160Answers({
+      "social_media[]": JSON.stringify([
+        { platform: "INSTAGRAM", identifier: "first" },
+        { platform: "REDDIT", handle: "second" },
+      ]),
+      has_other_social_media: "yes",
+      "other_social_media[]": JSON.stringify([
+        { platform: "Example portfolio", handle: "profile-one" },
+        { name: "Example video site", identifier: "profile-two" },
+      ]),
+    });
+
+    assert.equal(answers.has_other_social_media, "Y");
+    assert.deepEqual(JSON.parse(answers["other_social_media[]"]), [
+      { platform: "Example portfolio", handle: "profile-one" },
+      { platform: "Example video site", handle: "profile-two" },
+    ]);
+    assert.equal(answers.other_social_media_platform, "Example portfolio");
+    assert.equal(answers.other_social_media_handle, "profile-one");
+    assert.equal(answers.other_social_media_platform__2, "Example video site");
+    assert.equal(answers.other_social_media_handle__2, "profile-two");
+  });
+
+  it("reads legacy social-media gates and username aliases without emitting them", () => {
+    const none = deriveDS160Answers({
+      has_social_media: "no",
+      social_media_username: "stale-legacy-value",
+    });
+    assert.equal(none.social_media_provider, "NONE");
+    assert.equal(none.social_media_identifier, undefined);
+    assert.equal(none.has_social_media, undefined);
+    assert.equal(none.social_media_username, undefined);
+
+    const provider = deriveDS160Answers({
+      has_social_media: "yes",
+      social_media_provider: "INSTAGRAM",
+      social_media_username: "legacy-account",
+    });
+    assert.deepEqual(JSON.parse(provider["social_media[]"]), [
+      { platform: "INSTAGRAM", identifier: "legacy-account" },
+    ]);
+    assert.equal(provider.social_media_identifier, "legacy-account");
+    assert.equal(provider.has_social_media, undefined);
+    assert.equal(provider.social_media_username, undefined);
+  });
+
   it("upgrades legacy repeat rows into canonical arrays without losing order", () => {
     const answers = deriveDS160Answers({
       has_other_phones: "yes",
@@ -51,8 +101,8 @@ describe("deriveDS160Answers", () => {
     assert.deepEqual(JSON.parse(answers["additional_phones[]"]), ["+86 111", "+65 222"]);
     assert.deepEqual(JSON.parse(answers["additional_emails[]"]), ["one@example.com", "two@example.com"]);
     assert.deepEqual(JSON.parse(answers["social_media[]"]), [
-      { platform: "INSTAGRAM", handle: "first" },
-      { platform: "REDDIT", handle: "second" },
+      { platform: "INSTAGRAM", identifier: "first" },
+      { platform: "REDDIT", identifier: "second" },
     ]);
   });
 
@@ -93,8 +143,12 @@ describe("deriveDS160Answers", () => {
     assert.equal(closed.social_media_provider, "INSTAGRAM");
     assert.equal(closed.social_media_identifier, "stale");
     assert.equal(closed.has_social_media, undefined);
+    assert.equal(closed.has_other_social_media, "N");
     assert.equal(closed.other_social_media_name, undefined);
-    assert.equal(closed["other_social_media[]"], undefined);
+    assert.equal(closed.other_social_media_identifier, undefined);
+    assert.equal(closed.other_social_media_platform, undefined);
+    assert.equal(closed.other_social_media_handle, undefined);
+    assert.equal(closed["other_social_media[]"], "[]");
   });
 
   it("aliases legacy mobile phone answers and lets explicit NA clear stale text", () => {

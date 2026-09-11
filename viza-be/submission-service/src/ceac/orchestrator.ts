@@ -28,6 +28,7 @@ import {
   ds160PreviousUsTravelMappings,
   ds160PassportMappings,
   ds160ContactMappings,
+  ds160SocialMediaRepeaterSelectors,
   ds160UsContactMappings,
   ds160FamilyRelativesMappings,
   ds160FamilySpouseMappings,
@@ -105,6 +106,17 @@ const PAGE_FILL_MAP: Partial<Record<CeacPageId, Record<string, FormFieldMapping>
   security_background_4: ds160SecurityBackground4Mappings,
   security_background_5: ds160SecurityBackground5Mappings,
 };
+
+const CONTACT_SOCIAL_MAPPING_KEYS = new Set([
+  "social_media_provider",
+  "social_media_identifier",
+  "has_other_social_media",
+  "other_social_media_platform",
+  "other_social_media_handle",
+]);
+const DS160_CONTACT_SCALAR_MAPPINGS = Object.fromEntries(
+  Object.entries(ds160ContactMappings).filter(([key]) => !CONTACT_SOCIAL_MAPPING_KEYS.has(key)),
+) as Record<string, FormFieldMapping>;
 
 /**
  * Pages that the orchestrator navigates through in order. The DS-160 flow
@@ -536,6 +548,11 @@ export async function orchestrateFill(
       if (currentPageId === "travel_companions") {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         await fillTravelCompanionsPage(page, answers, profile);
+        sectionsFilled.push(currentPageId);
+      } else if (currentPageId === "address_and_phone") {
+        console.log(`[orchestrator] Filling page: ${currentPageId}`);
+        await fillPageFields(page, DS160_CONTACT_SCALAR_MAPPINGS, answers, profile);
+        await fillSocialMediaPage(page, answers, profile);
         sectionsFilled.push(currentPageId);
       } else if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
@@ -1003,7 +1020,129 @@ function requiredBoolean(value: unknown, fieldName: string): boolean {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["y", "yes", "true", "1"].includes(normalized)) return true;
   if (["n", "no", "false", "0"].includes(normalized)) return false;
-  throw new Error(`DS-160 travel companions missing or invalid ${fieldName}`);
+  throw new Error(`DS-160 missing or invalid ${fieldName}`);
+}
+
+export interface Ds160SocialMediaRow {
+  platform: string;
+  identifier: string;
+}
+
+export interface Ds160OtherSocialMediaRow {
+  platform: string;
+  handle: string;
+}
+
+export interface Ds160SocialMediaPlan {
+  socialMedia: Ds160SocialMediaRow[];
+  hasOtherSocialMedia: boolean;
+  otherSocialMedia: Ds160OtherSocialMediaRow[];
+}
+
+function indexedAnswerRows(
+  answers: Record<string, unknown>,
+  leftKey: string,
+  rightKeys: string[],
+): Array<Record<string, unknown>> {
+  const indexes = new Set<number>();
+  for (const key of Object.keys(answers)) {
+    const match = key.match(new RegExp(`^${leftKey}(?:__(\\d+))?$`));
+    if (match) indexes.add(match[1] ? Number(match[1]) : 1);
+  }
+  return [...indexes].sort((a, b) => a - b).map((index) => {
+    const suffix = index === 1 ? "" : `__${index}`;
+    return {
+      left: answers[`${leftKey}${suffix}`],
+      right: firstDefined(rightKeys.map((key) => answers[`${key}${suffix}`])),
+    };
+  });
+}
+
+/** Build the two official AddressPhone social-media repeater groups. */
+export function buildDs160SocialMediaPlan(
+  rawAnswers: Record<string, unknown>,
+  rawProfile: Record<string, unknown> = {},
+): Ds160SocialMediaPlan {
+  const socialSource = parseJson(firstDefined([
+    rawAnswers["social_media[]"],
+    rawProfile["social_media[]"],
+  ]));
+  const socialRows = Array.isArray(socialSource)
+    ? socialSource
+    : indexedAnswerRows(rawAnswers, "social_media_platform", [
+      "social_media_handle",
+      "social_media_identifier",
+      "social_media_username",
+    ]).map((row) => ({ platform: row.left, identifier: row.right }));
+  if (socialRows.length === 0) {
+    const provider = firstDefined([
+      rawAnswers.social_media_provider,
+      rawProfile.social_media_provider,
+    ]);
+    if (provider !== undefined) {
+      socialRows.push({
+        platform: provider,
+        identifier: firstDefined([
+          rawAnswers.social_media_identifier,
+          rawAnswers.social_media_username,
+          rawProfile.social_media_identifier,
+        ]),
+      });
+    }
+  }
+  if (socialRows.length === 0) {
+    throw new Error("DS-160 social_media[] requires at least one provider row or NONE");
+  }
+
+  const socialMedia = socialRows.map((entry, index) => {
+    const row = asRecord(entry);
+    if (!row) throw new Error(`DS-160 social_media[${index}] must be an object`);
+    const platform = String(row.platform ?? row.provider ?? "").trim().toUpperCase();
+    const identifier = String(row.identifier ?? row.handle ?? row.username ?? "").trim();
+    if (!platform) throw new Error(`DS-160 social_media[${index}].platform is required`);
+    if (platform !== "NONE" && !identifier) {
+      throw new Error(`DS-160 social_media[${index}].identifier is required`);
+    }
+    return { platform, identifier: platform === "NONE" ? "" : identifier };
+  });
+  if (socialMedia.length > 1 && socialMedia.some((row) => row.platform === "NONE")) {
+    throw new Error("DS-160 social_media[] cannot mix NONE with provider rows");
+  }
+
+  const hasOtherSocialMedia = requiredBoolean(
+    firstDefined([
+      rawAnswers.has_other_social_media,
+      rawProfile.has_other_social_media,
+    ]),
+    "has_other_social_media",
+  );
+  const otherSource = parseJson(firstDefined([
+    rawAnswers["other_social_media[]"],
+    rawProfile["other_social_media[]"],
+  ]));
+  const otherRows = Array.isArray(otherSource)
+    ? otherSource
+    : indexedAnswerRows(rawAnswers, "other_social_media_platform", [
+      "other_social_media_handle",
+      "other_social_media_identifier",
+    ]).map((row) => ({ platform: row.left, handle: row.right }));
+
+  if (!hasOtherSocialMedia) {
+    return { socialMedia, hasOtherSocialMedia: false, otherSocialMedia: [] };
+  }
+  if (otherRows.length === 0) {
+    throw new Error("DS-160 other_social_media[] requires at least one row when has_other_social_media is yes");
+  }
+  const otherSocialMedia = otherRows.map((entry, index) => {
+    const row = asRecord(entry);
+    if (!row) throw new Error(`DS-160 other_social_media[${index}] must be an object`);
+    const platform = String(row.platform ?? row.name ?? "").trim();
+    const handle = String(row.handle ?? row.identifier ?? row.username ?? "").trim();
+    if (!platform) throw new Error(`DS-160 other_social_media[${index}].platform is required`);
+    if (!handle) throw new Error(`DS-160 other_social_media[${index}].handle is required`);
+    return { platform, handle };
+  });
+  return { socialMedia, hasOtherSocialMedia: true, otherSocialMedia };
 }
 
 function normalizeCompanionRelationship(value: unknown, index: number): string {
@@ -1175,6 +1314,206 @@ async function visibleEnabledLocators(page: Page, selector: string): Promise<Loc
     result.push(candidate);
   }
   return result;
+}
+
+async function visibleEnabledLocatorsWithLabel(
+  page: Page,
+  selector: string,
+  label: string,
+): Promise<Locator[]> {
+  const matched = await visibleEnabledLocators(page, selector);
+  if (matched.length > 0) return matched;
+
+  const labeled = page.getByLabel(label, { exact: true });
+  const result: Locator[] = [];
+  for (let index = 0; index < await labeled.count(); index += 1) {
+    const candidate = labeled.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    if (!(await candidate.isEnabled().catch(() => false))) continue;
+    result.push(candidate);
+  }
+  return result;
+}
+
+async function addSocialMediaRepeaterRow(
+  page: Page,
+  addAnotherSelector: string,
+  rowCount: () => Promise<number>,
+  previousCount: number,
+  label: string,
+): Promise<void> {
+  const buttons = await visibleEnabledLocators(page, addAnotherSelector);
+  if (!buttons[0]) throw new Error(`CEAC Add Another ${label} control was not found`);
+  await buttons[0].click({ timeout: 5_000 });
+  await waitForAspNetPostback(page, 8_000);
+  const deadline = Date.now() + 8_000;
+  while (Date.now() < deadline) {
+    if (await rowCount() > previousCount) return;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`CEAC Add Another did not create a new ${label} row`);
+}
+
+async function socialProviderRows(page: Page): Promise<Locator[]> {
+  return visibleEnabledLocatorsWithLabel(
+    page,
+    ds160SocialMediaRepeaterSelectors.provider,
+    "Social Media Provider/Platform",
+  );
+}
+
+async function socialIdentifierRows(page: Page): Promise<Locator[]> {
+  return visibleEnabledLocatorsWithLabel(
+    page,
+    ds160SocialMediaRepeaterSelectors.identifier,
+    "Social Media Identifier",
+  );
+}
+
+async function otherSocialPlatformRows(page: Page): Promise<Locator[]> {
+  return visibleEnabledLocatorsWithLabel(
+    page,
+    ds160SocialMediaRepeaterSelectors.otherPlatform,
+    "Additional Social Media Platform",
+  );
+}
+
+async function otherSocialHandleRows(page: Page): Promise<Locator[]> {
+  return visibleEnabledLocatorsWithLabel(
+    page,
+    ds160SocialMediaRepeaterSelectors.otherHandle,
+    "Additional Social Media Handle",
+  );
+}
+
+async function ensureSocialProviderRowCount(page: Page, expected: number): Promise<void> {
+  let rows = await socialProviderRows(page);
+  if (rows.length > expected) {
+    throw new Error(`CEAC has ${rows.length} social-media rows but VIZA only has ${expected}; refusing to leave stale rows`);
+  }
+  if (rows.length === 0) throw new Error("CEAC social-media provider row was not found");
+  while (rows.length < expected) {
+    await addSocialMediaRepeaterRow(
+      page,
+      ds160SocialMediaRepeaterSelectors.addAnother,
+      async () => (await socialProviderRows(page)).length,
+      rows.length,
+      "social-media provider",
+    );
+    rows = await socialProviderRows(page);
+  }
+}
+
+async function ensureOtherSocialRowCount(page: Page, expected: number): Promise<void> {
+  let rows = await otherSocialPlatformRows(page);
+  if (rows.length > expected) {
+    throw new Error(`CEAC has ${rows.length} additional-social rows but VIZA only has ${expected}; refusing to leave stale rows`);
+  }
+  if (rows.length === 0) {
+    await page.getByLabel("Additional Social Media Platform", { exact: true })
+      .first()
+      .waitFor({ state: "visible", timeout: 8_000 })
+      .catch(() => undefined);
+    rows = await otherSocialPlatformRows(page);
+  }
+  if (rows.length === 0) throw new Error("CEAC additional social-media row was not found after selecting Yes");
+  while (rows.length < expected) {
+    await addSocialMediaRepeaterRow(
+      page,
+      ds160SocialMediaRepeaterSelectors.otherAddAnother,
+      async () => (await otherSocialPlatformRows(page)).length,
+      rows.length,
+      "additional social-media",
+    );
+    rows = await otherSocialPlatformRows(page);
+  }
+}
+
+async function fillSocialProviderRow(
+  page: Page,
+  index: number,
+  row: Ds160SocialMediaRow,
+): Promise<void> {
+  let providers = await socialProviderRows(page);
+  if (!providers[index]) throw new Error(`CEAC social-media row ${index + 1} is unavailable`);
+  await selectCeacOption(providers[index], row.platform);
+  await waitForAspNetPostback(page, 8_000);
+
+  providers = await socialProviderRows(page);
+  const provider = providers[index];
+  if (!provider) throw new Error(`CEAC social-media row ${index + 1} disappeared after selecting its provider`);
+  const selectedText = String(
+    await provider.locator("option:checked").textContent().catch(() => "")
+      ?? await provider.inputValue().catch(() => ""),
+  ).trim().toUpperCase();
+  if (selectedText !== row.platform && !selectedText.includes(row.platform)) {
+    throw new Error(`CEAC social-media row ${index + 1} provider was not retained`);
+  }
+
+  const allIdentifiers = page.locator(ds160SocialMediaRepeaterSelectors.identifier);
+  if (row.platform === "NONE") {
+    const identifier = allIdentifiers.nth(index);
+    if ((await identifier.count()) > 0 && (await identifier.inputValue().catch(() => "")).trim()) {
+      throw new Error("CEAC NONE social-media row retained an identifier");
+    }
+    return;
+  }
+
+  const identifiers = await socialIdentifierRows(page);
+  if (!identifiers[index]) throw new Error(`CEAC social-media row ${index + 1} identifier is unavailable`);
+  await identifiers[index].fill(row.identifier);
+  if ((await identifiers[index].inputValue()).trim() !== row.identifier) {
+    throw new Error(`CEAC social-media row ${index + 1} identifier was not retained`);
+  }
+}
+
+async function fillOtherSocialRow(
+  page: Page,
+  index: number,
+  row: Ds160OtherSocialMediaRow,
+): Promise<void> {
+  const platforms = await otherSocialPlatformRows(page);
+  const handles = await otherSocialHandleRows(page);
+  if (!platforms[index] || !handles[index]) {
+    throw new Error(`CEAC additional social-media row ${index + 1} is incomplete or unavailable`);
+  }
+  await platforms[index].fill(row.platform);
+  await handles[index].fill(row.handle);
+  if ((await platforms[index].inputValue()).trim() !== row.platform) {
+    throw new Error(`CEAC additional social-media row ${index + 1} platform was not retained`);
+  }
+  if ((await handles[index].inputValue()).trim() !== row.handle) {
+    throw new Error(`CEAC additional social-media row ${index + 1} handle was not retained`);
+  }
+}
+
+/** Fill both official AddressPhone social-media repeaters without advancing. */
+export async function fillSocialMediaPage(
+  page: Page,
+  answers: Record<string, string>,
+  profile: Record<string, unknown> = {},
+): Promise<void> {
+  const plan = buildDs160SocialMediaPlan(answers as Record<string, unknown>, profile);
+  await ensureSocialProviderRowCount(page, plan.socialMedia.length);
+  for (let index = 0; index < plan.socialMedia.length; index += 1) {
+    await fillSocialProviderRow(page, index, plan.socialMedia[index]);
+  }
+
+  await clickBooleanRadio(
+    page,
+    ds160SocialMediaRepeaterSelectors.hasOther,
+    plan.hasOtherSocialMedia,
+    "additional social media",
+  );
+  if (!plan.hasOtherSocialMedia) return;
+
+  // The Yes postback replaces the social-media UpdatePanel. Confirm the first
+  // provider group survived before adding conditional rows.
+  await ensureSocialProviderRowCount(page, plan.socialMedia.length);
+  await ensureOtherSocialRowCount(page, plan.otherSocialMedia.length);
+  for (let index = 0; index < plan.otherSocialMedia.length; index += 1) {
+    await fillOtherSocialRow(page, index, plan.otherSocialMedia[index]);
+  }
 }
 
 async function fillCompanionRow(page: Page, index: number, companion: Ds160TravelCompanion): Promise<void> {

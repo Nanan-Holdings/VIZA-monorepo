@@ -22,6 +22,7 @@ const BASE_ANSWERS: Record<string, string> = {
   has_other_phones: "no",
   email_address: "test@example.com",
   has_other_emails: "no",
+  has_other_social_media: "no",
   has_companions: "no",
   primary_occupation: "retired",
 };
@@ -143,6 +144,36 @@ describe("DS-160 runtime completeness preflight", () => {
     });
 
     assert.ok(missing.includes("social_media[]"));
+  });
+
+  it("requires the official other-social question and complete rows when answered yes", () => {
+    const missingGate: Record<string, string> = { ...BASE_ANSWERS };
+    delete missingGate.has_other_social_media;
+    assert.ok(findMissingDs160RuntimeAnswers(missingGate).includes("has_other_social_media"));
+
+    const missingRows = findMissingDs160RuntimeAnswers({
+      ...BASE_ANSWERS,
+      has_other_social_media: "yes",
+      "other_social_media[]": "[]",
+    });
+    assert.ok(missingRows.includes("other_social_media[]"));
+
+    const partialRows = findMissingDs160RuntimeAnswers({
+      ...BASE_ANSWERS,
+      has_other_social_media: "yes",
+      "other_social_media[]": JSON.stringify([
+        { platform: "Example portfolio", handle: "" },
+      ]),
+    });
+    assert.ok(partialRows.includes("other_social_media[0].handle"));
+
+    assert.deepEqual(findMissingDs160RuntimeAnswers({
+      ...BASE_ANSWERS,
+      has_other_social_media: "yes",
+      "other_social_media[]": JSON.stringify([
+        { platform: "Example portfolio", handle: "profile-name" },
+      ]),
+    }), []);
   });
 
   it("stops at the orchestrator boundary before touching a CEAC page", async () => {

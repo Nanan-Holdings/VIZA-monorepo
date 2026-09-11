@@ -445,29 +445,100 @@ function deriveContactRepeatableAnswers(answers: Record<string, string>): void {
   }
 
   const hasSocialArray = hasOwnAnswer(answers, "social_media[]");
-  const legacySocial = collectLegacyRows(answers, ["social_media_platform", "social_media_handle"])
-    .map((row) => ({
-      platform: row.social_media_platform ?? "",
-      handle: row.social_media_handle ?? "",
-    }));
-  const socialArray = hasSocialArray ? parseJsonArray(answers["social_media[]"]) : legacySocial;
-  if (!hasSocialArray && legacySocial.length > 0) answers["social_media[]"] = JSON.stringify(legacySocial);
-  clearRepeatKeys(answers, ["social_media_platform", "social_media_handle"]);
-  (socialArray ?? []).forEach((item, index) => {
-    if (!item || typeof item !== "object") return;
+  const legacySocialGate = normalizedGate(answers.has_social_media);
+  const legacySocial = collectLegacyRows(answers, [
+    "social_media_platform",
+    "social_media_handle",
+    "social_media_provider",
+    "social_media_identifier",
+    "social_media_username",
+  ]).map((row) => ({
+    platform: row.social_media_platform ?? row.social_media_provider ?? "",
+    identifier:
+      row.social_media_handle
+      ?? row.social_media_identifier
+      ?? row.social_media_username
+      ?? "",
+  }));
+  const parsedSocial = hasSocialArray ? parseJsonArray(answers["social_media[]"]) : legacySocial;
+  let socialRows = parsedSocial?.map((item) => {
+    if (!item || typeof item !== "object") return null;
     const row = item as Record<string, unknown>;
-    const platform = String(row.platform ?? "").trim();
-    const handle = String(row.handle ?? row.identifier ?? "").trim();
-    if (platform) answers[repeatKey("social_media_platform", index)] = platform;
-    if (handle) answers[repeatKey("social_media_handle", index)] = handle;
-  });
+    const platform = String(row.platform ?? row.provider ?? "").trim().toUpperCase();
+    const identifier = platform === "NONE"
+      ? ""
+      : String(row.identifier ?? row.handle ?? row.username ?? "").trim();
+    return { platform, identifier };
+  }) ?? null;
 
-  // The verified AddressPhone page has one repeatable provider/identifier
-  // list, not a separate “other social media” Yes/No branch. Drop legacy
-  // speculative keys so they cannot leak into CEAC filling.
-  delete answers.has_other_social_media;
-  delete answers["other_social_media[]"];
-  clearRepeatKeys(answers, ["other_social_media_name", "other_social_media_identifier"]);
+  // Older forms stored a separate yes/no gate. CEAC does not: its NONE
+  // provider option is the negative answer. Canonical arrays take precedence
+  // over the old gate, while an old explicit "no" clears stale username rows.
+  if (!hasSocialArray && legacySocialGate === false) {
+    socialRows = [{ platform: "NONE", identifier: "" }];
+  } else if (socialRows?.length === 0) {
+    socialRows = [{ platform: "NONE", identifier: "" }];
+  }
+
+  clearRepeatKeys(answers, [
+    "social_media_platform",
+    "social_media_handle",
+    "social_media_provider",
+    "social_media_identifier",
+    "social_media_username",
+  ]);
+  delete answers.has_social_media;
+  if (socialRows && socialRows.every(Boolean)) {
+    const canonicalRows = socialRows as Array<{ platform: string; identifier: string }>;
+    answers["social_media[]"] = JSON.stringify(canonicalRows);
+    canonicalRows.forEach((row, index) => {
+      if (row.platform) answers[repeatKey("social_media_platform", index)] = row.platform;
+      if (row.identifier) answers[repeatKey("social_media_handle", index)] = row.identifier;
+    });
+  }
+
+  const hasOtherSocialArray = hasOwnAnswer(answers, "other_social_media[]");
+  const legacyOtherRows = collectLegacyRows(answers, [
+    "other_social_media_platform",
+    "other_social_media_handle",
+    "other_social_media_name",
+    "other_social_media_identifier",
+  ]).map((row) => ({
+    platform: row.other_social_media_platform ?? row.other_social_media_name ?? "",
+    handle: row.other_social_media_handle ?? row.other_social_media_identifier ?? "",
+  }));
+  const parsedOtherRows = hasOtherSocialArray
+    ? parseJsonArray(answers["other_social_media[]"])
+    : legacyOtherRows;
+  let otherRows = parsedOtherRows?.map((item) => {
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    return {
+      platform: String(row.platform ?? row.name ?? "").trim(),
+      handle: String(row.handle ?? row.identifier ?? row.username ?? "").trim(),
+    };
+  }) ?? null;
+  let hasOtherSocialMedia = normalizedGate(answers.has_other_social_media);
+  if (hasOtherSocialMedia === null && otherRows?.length) hasOtherSocialMedia = true;
+  if (hasOtherSocialMedia === false) otherRows = [];
+
+  clearRepeatKeys(answers, [
+    "other_social_media_platform",
+    "other_social_media_handle",
+    "other_social_media_name",
+    "other_social_media_identifier",
+  ]);
+  if (hasOtherSocialMedia !== null) {
+    answers.has_other_social_media = hasOtherSocialMedia ? "Y" : "N";
+  }
+  if (otherRows && otherRows.every(Boolean)) {
+    const canonicalRows = otherRows as Array<{ platform: string; handle: string }>;
+    answers["other_social_media[]"] = JSON.stringify(canonicalRows);
+    canonicalRows.forEach((row, index) => {
+      if (row.platform) answers[repeatKey("other_social_media_platform", index)] = row.platform;
+      if (row.handle) answers[repeatKey("other_social_media_handle", index)] = row.handle;
+    });
+  }
 }
 
 function applyAliases(answers: Record<string, string>): void {

@@ -299,6 +299,39 @@ export const ds160PassportMappings: Record<string, FormFieldMapping> = {
   },
 };
 
+// Address/Phone Social Media controls verified against the current CEAC DOM.
+// The second repeater is conditionally rendered after rblAddSocial=Yes, so its
+// text-input selectors include both current naming patterns and label-based
+// fallback is handled by the orchestrator.
+export const ds160SocialMediaRepeaterSelectors = {
+  provider: 'select[id*="dtlSocial"][id*="ddlSocialMedia"]',
+  identifier: 'input[id*="dtlSocial"][id*="tbxSocialMediaIdent"]',
+  addAnother: [
+    'a[id*="dtlSocial"][id*="InsertButtonSOCIAL_MEDIA_INFO"]',
+    'input[id*="dtlSocial"][id*="InsertButtonSOCIAL_MEDIA_INFO"]',
+    'button[id*="dtlSocial"][id*="InsertButtonSOCIAL_MEDIA_INFO"]',
+  ].join(", "),
+  hasOther: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
+  otherPlatform: [
+    'input[id*="dtlAddSocial"][id*="Platform"]',
+    'input[id*="dtlAddSocial"][id*="Name"]',
+    'input[id*="AddSocial"][id*="Platform"]',
+  ].join(", "),
+  otherHandle: [
+    'input[id*="dtlAddSocial"][id*="Handle"]',
+    'input[id*="dtlAddSocial"][id*="Ident"]',
+    'input[id*="AddSocial"][id*="Handle"]',
+  ].join(", "),
+  otherAddAnother: [
+    'a[id*="dtlAddSocial"][id*="InsertButton"]',
+    'input[id*="dtlAddSocial"][id*="InsertButton"]',
+    'button[id*="dtlAddSocial"][id*="InsertButton"]',
+    'a[id*="AddSocial"][id*="InsertButton"]',
+    'input[id*="AddSocial"][id*="InsertButton"]',
+    'button[id*="AddSocial"][id*="InsertButton"]',
+  ].join(", "),
+} as const;
+
 export const ds160ContactMappings: Record<string, FormFieldMapping> = {
   home_address_line1: {
     selector: 'input[id*="tbxAPP_ADDR_LN1"]',
@@ -388,14 +421,29 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     label: "Has other email addresses",
   },
   social_media_provider: {
-    selector: 'select[id*="dtlSocial"][id*="ddlSocialMedia"]',
+    selector: ds160SocialMediaRepeaterSelectors.provider,
     type: "select",
     label: "Social Media Provider",
   },
   social_media_identifier: {
-    selector: 'input[id*="dtlSocial"][id*="tbxSocialMediaIdent"]',
+    selector: ds160SocialMediaRepeaterSelectors.identifier,
     type: "text",
     label: "Social Media Identifier",
+  },
+  has_other_social_media: {
+    selector: ds160SocialMediaRepeaterSelectors.hasOther,
+    type: "radio",
+    label: "Has additional social media presence",
+  },
+  other_social_media_platform: {
+    selector: ds160SocialMediaRepeaterSelectors.otherPlatform,
+    type: "text",
+    label: "Additional Social Media Platform",
+  },
+  other_social_media_handle: {
+    selector: ds160SocialMediaRepeaterSelectors.otherHandle,
+    type: "text",
+    label: "Additional Social Media Handle",
   },
 };
 

@@ -38,10 +38,13 @@ test("AddressPhone uses the canonical Secondary Phone keys", () => {
   assert.match(ds160ContactMappings.secondary_phone_na.selector, /cbexAPP_MOBILE_TEL_NA/);
 });
 
-test("AddressPhone maps the verified social provider field without a speculative other-social branch", () => {
+test("AddressPhone maps both verified CEAC social-media groups", () => {
   assert.equal(ds160ContactMappings.has_social_media, undefined);
-  assert.equal(ds160ContactMappings.has_other_social_media, undefined);
   assert.match(ds160ContactMappings.social_media_provider.selector, /ddlSocialMedia/);
+  assert.match(ds160ContactMappings.social_media_identifier.selector, /tbxSocialMediaIdent/);
+  assert.match(ds160ContactMappings.has_other_social_media.selector, /rblAddSocial/);
+  assert.match(ds160ContactMappings.other_social_media_platform.selector, /AddSocial/);
+  assert.match(ds160ContactMappings.other_social_media_handle.selector, /AddSocial/);
 });
 
 test("CEAC next selector excludes the passport page-complete modal button", () => {
