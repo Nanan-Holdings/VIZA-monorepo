@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Check } from "@phosphor-icons/react";
-
-const LOCALE_COOKIE = "NEXT_LOCALE";
+import { setInterfaceLocalePreference } from "@/lib/i18n/locale";
 
 const languages = [
   { code: "en", label: "English", short: "EN" },
@@ -32,7 +31,7 @@ export function AuthLanguageSwitcher() {
 
   const handleSelect = (code: string) => {
     setOpen(false);
-    document.cookie = `${LOCALE_COOKIE}=${code}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    setInterfaceLocalePreference(code);
     router.refresh();
   };
 

@@ -443,7 +443,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
               Appointment slot
             </div>
             <div className="mt-2 text-sm font-medium text-foreground">
-              {new Date(result.appointment.atIso).toLocaleString()}
+              {new Date(result.appointment.atIso).toLocaleString(isZh ? "zh-CN" : "en-US")}
             </div>
             <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
               <MapPin className="mt-0.5 h-3 w-3 shrink-0" />

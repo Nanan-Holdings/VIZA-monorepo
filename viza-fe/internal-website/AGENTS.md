@@ -30,9 +30,18 @@ connected to in-progress response body reads after fetch returns headers.
 `lib/supabase/request-cancellation.integration.test.ts` verifies cancellation
 through the actual Supabase SDK against a local HTTP server, including slow
 JSON bodies and parallel reads; it must never use production credentials.
+`lib/supabase/next-fetch-retry.integration.test.ts` exercises retry recovery
+through the installed Next fetch memoizer and Supabase SDK against loopback
+HTTP. The retry transport must always pass an explicit per-call signal, even
+without a configured timeout, so Next cannot retain an unread response clone
+that blocks cancellation or replay the same failed response on a retry.
 `lib/supabase/status-storage-urls.integration.test.ts` verifies the status
 loader's batched Storage signing through the actual SDK against loopback HTTP,
 including bounded batch concurrency and partial failures with synthetic paths.
+`lib/supabase/status-related-rows.integration.test.ts` verifies the Home/Status
+embedded relation read through the actual SDK against loopback HTTP, including
+exact application filters, parent/child isolation, empty relations, bounded
+per-table fallback, and cancellation without additional network requests.
 `lib/supabase/user-package-read.integration.test.ts` verifies owner-scoped
 latest-package reads through the actual SDK against loopback HTTP, including
 inner embedding before the one-row limit and unchanged full-list reads.
@@ -62,6 +71,45 @@ portal, admin operations portal, dynamic visa application forms, VIZA AI chat,
 Travel AI UI, Supabase auth, and Next.js API proxy routes.
 
 ## Key Flows
+
+- `i18n/client-provider.tsx` delivers the active full translation catalog
+  through a locale-specific SSR-enabled
+  client chunk. The root provider retains server formatting configuration
+  without serializing messages into every Flight response. Preserve all
+  namespaces across client navigation and cookie-based language refresh.
+
+- `lib/client/home-dashboard-reader.server.ts` resolves the read-only client
+  session and owns the Home aggregate. It reuses authorized application,
+  document, and payment rows for the selected timeline; browser selection is
+  only a hint and must match an owned application. Never cache these rows
+  across requests. For a single owned application, the timeline relationship
+  read may supply the complete Home document projection. Validate every row,
+  cap the embedded documents at 1,000, and retain the standalone document read
+  if the cap is reached or embedding fails. Resolve that fallback before
+  awaiting unrelated compatibility reads. Multiple applications retain the
+  original document query and its global limit. `lib/client-session.test.ts` covers read-only identity
+  resolution, total deadlines, cancellation, and profile conflicts.
+
+- `lib/client/home-profile-applications.server.ts` reads one authenticated
+  profile with its left-embedded, owner-filtered applications. Preserve the
+  complete selected columns, descending creation order, empty-profile behavior,
+  and one bounded compatibility fallback under the shared Home/Status cancellation
+  budget. The profile/application stage durations overlap for this single GET;
+  use fetch attempt counts for request totals, never sum those stage durations.
+  `lib/supabase/home-profile-applications.integration.test.ts` exercises the
+  real SDK against loopback HTTP for query shape, isolation and cancellation.
+
+- `lib/client-session.crypto.test.ts` exercises real JWT signing/verification
+  and the single-entry HS256 CryptoKey cache: concurrent imports, expiry,
+  tampering, invalid payloads, secret rotation, failed imports, and legacy
+  HMAC compatibility. Cache cryptographic key material only, never session
+  verification results or applicant identities.
+
+- `lib/client/portal-read-budget.server.ts` provides the shared eight-second
+  cancellation budget for the Home and Status server-side aggregates. Create
+  it before authentication, pass its signal to the session and service-role
+  Supabase clients, and dispose it in `finally` so expired response bodies and
+  retries are cancelled without leaving timers or listeners behind.
 
 - `lib/observability/portal-read.ts` records opt-in, bounded, server-only read
   timings and process samples without user data. Supabase factories observe real
@@ -220,6 +268,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   and final booking remain separate explicit user approvals.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
+- `app/travel-map/**` is a same-origin map-only document. It isolates the
+  Google Maps SDK language so locale changes reload only the map, preserving
+  parent form drafts and active Travel requests. It reads no applicant data.
+- `app/travel-chat-preview/page.tsx` is the existing development-only Travel
+  smoke route and includes the shared language selector for state-preservation
+  checks. Production continues to return `notFound()`.
+- `app/api/interview/**` supplies localized officer questions and scoring
+  reports to `app/client/interview-practice/**`; follow its module guide.
 - The default-off `/api/health/online-capacity-target` endpoint derives a
   non-sensitive project ref from the deployment's actual Supabase URL so the
   read-only capacity harness can reject misbound production targets. It must
@@ -274,6 +330,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; exact runner-job product visibility and its
   conservative terminal mapping live in `lib/status/runner-job-visibility.ts`.
+  A validated single-application queue projection from the status related-row
+  helper may replace its queue read. Multiple targets and failed/malformed
+  prefetches keep the original globally capped read and result selection.
   Focused coverage lives beside both modules in their `.test.ts` files.
   Keep service-role access server-only and expose customer/staff actions
   through route handlers or server actions.

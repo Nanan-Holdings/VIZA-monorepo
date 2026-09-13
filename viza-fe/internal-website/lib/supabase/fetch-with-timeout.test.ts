@@ -205,6 +205,31 @@ describe("createFetchWithTimeout", () => {
 });
 
 describe("createFetchWithTransientRetry", () => {
+  it("owns an independent explicit signal for each default call without consuming responses", async () => {
+    const first = new Response("first");
+    const second = new Response("second");
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second);
+    const fetcher = createFetchWithTransientRetry({
+      fetchImplementation,
+      circuitBreakerScope: null,
+    });
+
+    expect(await fetcher("https://example.test/rest/v1/applications")).toBe(first);
+    expect(await fetcher("https://example.test/rest/v1/applications")).toBe(second);
+    const firstSignal = fetchImplementation.mock.calls[0][1]?.signal;
+    const secondSignal = fetchImplementation.mock.calls[1][1]?.signal;
+    expect(firstSignal).toBeInstanceOf(AbortSignal);
+    expect(secondSignal).toBeInstanceOf(AbortSignal);
+    expect(secondSignal).not.toBe(firstSignal);
+    expect(firstSignal?.aborted).toBe(false);
+    expect(secondSignal?.aborted).toBe(false);
+    expect(first.bodyUsed).toBe(false);
+    expect(second.bodyUsed).toBe(false);
+    await Promise.all([first.text(), second.text()]);
+  });
+
   it("uses the injected fetch implementation for every retry attempt", async () => {
     const fetchImplementation = vi
       .fn()

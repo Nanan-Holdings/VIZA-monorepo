@@ -14,10 +14,17 @@ import {
 } from "@/lib/observability/portal-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFormVisaType } from "@/lib/visa-destinations";
+import { loadHomeProfileApplications } from "./home-profile-applications.server";
+import {
+  createPortalReadBudget,
+  type PortalReadBudget,
+} from "./portal-read-budget.server";
 import {
   CLIENT_STATUS_APPLICATION_SELECT,
-  loadClientHomeTimeline,
+  assembleClientHomeTimeline,
+  loadClientHomeTimelinePreload,
   type ClientHomeTimelineApplication,
+  type ClientHomeTimelineDocumentRow,
   type ClientStatusApplicationRow,
   type ClientStatusDocumentRow,
   type ClientStatusPaymentRow,
@@ -128,6 +135,7 @@ type HomeDocumentRow = ClientStatusDocumentRow & {
   created_at: string;
   updated_at: string;
 };
+type HomeDocumentReadResult = { data: unknown; error: unknown };
 
 type HomePaymentRow = ClientStatusPaymentRow;
 
@@ -238,17 +246,21 @@ function buildDashboardReadResult(
 
 async function loadClientHomeDashboardInternal(
   options: ClientHomeDashboardReadOptions = {},
+  readBudget: PortalReadBudget,
 ): Promise<ClientHomeDashboardReadResult> {
   const sessionResult = await tracePortalReadStage(
     "auth",
     () => getClientSessionReadResult({
       requestTimeoutMs: 3_000,
       retryDelaysMs: [250],
+      requestSignal: readBudget.signal,
     }),
   );
   if (sessionResult.status === "unavailable") {
     recordPortalReadOutcome(
-      sessionResult.reason === "cancelled" ? "cancelled" : "unavailable",
+      sessionResult.reason === "cancelled" && !readBudget.didTimeout()
+        ? "cancelled"
+        : "unavailable",
     );
     return buildDashboardReadResult({
       ...emptyDashboard(false),
@@ -265,23 +277,17 @@ async function loadClientHomeDashboardInternal(
   const adminClient = createAdminClient({
     requestTimeoutMs: 4_000,
     retryDelaysMs: [250],
+    requestSignal: readBudget.signal,
   });
-  const [profileResult, applicationResult] = await Promise.all([
-    tracePortalReadStage("profile", () =>
-      adminClient
-        .from("applicant_profiles")
-        .select(PROFILE_COLUMNS)
-        .eq("id", session.userId)
-        .maybeSingle(),
-    ),
-    tracePortalReadStage("applications", () =>
-      adminClient
-        .from("applications")
-        .select(CLIENT_STATUS_APPLICATION_SELECT)
-        .eq("applicant_id", session.userId)
-        .order("created_at", { ascending: false }),
-    ),
-  ]);
+  const { profileResult, applicationResult } = await loadHomeProfileApplications(
+    adminClient,
+    session.userId,
+    {
+      profileColumns: PROFILE_COLUMNS,
+      applicationColumns: CLIENT_STATUS_APPLICATION_SELECT,
+      signal: readBudget.signal,
+    },
+  );
 
   const { data: profile, error: profileError } = profileResult;
   if (profileError) {
@@ -316,93 +322,141 @@ async function loadClientHomeDashboardInternal(
     .map((application) => application.visa_package_id)
     .filter((id): id is string => Boolean(id));
 
-  let rawDocuments: HomeDocumentRow[] = [];
-  let rawPayments: HomePaymentRow[] = [];
-  if (applicationIds.length > 0) {
-    const paymentFilters = [
-      buildUuidInFilter("application_id", applicationIds),
-      ...(packageIds.length > 0
-        ? [buildUuidInFilter("visa_package_id", packageIds)]
-        : []),
-    ];
-    const [documentResult, paymentResult] = await Promise.all([
-      tracePortalReadStage("documents", () =>
-        adminClient
-          .from("application_documents")
-          .select(DOCUMENT_COLUMNS)
-          .in("application_id", applicationIds),
-      ),
-      tracePortalReadStage("payments", () =>
-        adminClient
-          .from("payment_records")
-          .select(PAYMENT_COLUMNS)
-          .eq("applicant_id", session.userId)
-          .or(paymentFilters.join(",")),
-      ),
-    ]);
-    const { data: documentRows, error: documentError } = documentResult;
-    if (documentError) {
-      return buildDashboardReadResult({
-        authenticated: true,
-        authEmail: session.email,
-        profile: profile as unknown as ClientHomeProfile,
-        applications: rawApplications.map(toDashboardApplication),
-        documents: [],
-        payments: [],
-        error: HOME_READ_ERROR_CODES.documentsRead,
-      });
-    }
-    const paymentError = paymentResult.error;
-    if (paymentError) {
-      return buildDashboardReadResult({
-        authenticated: true,
-        authEmail: session.email,
-        profile: profile as unknown as ClientHomeProfile,
-        applications: rawApplications.map(toDashboardApplication),
-        documents: ((documentRows ?? []) as unknown as HomeDocumentRow[]).map(toDashboardDocument),
-        payments: [],
-        error: HOME_READ_ERROR_CODES.paymentsRead,
-      });
-    }
-    rawDocuments = (documentRows ?? []) as unknown as HomeDocumentRow[];
-    rawPayments = dedupeById(
-      (paymentResult.data ?? []) as unknown as HomePaymentRow[],
-    );
-  }
-
-  const data: ClientHomeDashboardData = {
-    authenticated: true,
-    authEmail: session.email,
-    profile: profile as unknown as ClientHomeProfile,
-    applications: rawApplications.map(toDashboardApplication),
-    documents: rawDocuments.map(toDashboardDocument),
-    payments: rawPayments.map(toDashboardPayment),
+  const selectedApplication = options.includeTimeline
+    ? selectHomeApplication(rawApplications, options.selection)
+    : null;
+  const shouldPrefetchHomeDocuments = Boolean(
+    selectedApplication && rawApplications.length === 1,
+  );
+  let documentPrefetchResolved = false;
+  let resolveDocumentPrefetch: (documents?: ClientHomeTimelineDocumentRow[]) => void = () => undefined;
+  const documentPrefetchRead = new Promise<ClientHomeTimelineDocumentRow[] | undefined>((resolve) => {
+    resolveDocumentPrefetch = (documents) => {
+      if (documentPrefetchResolved) return;
+      documentPrefetchResolved = true;
+      resolve(documents);
+    };
+  });
+  const timelinePreload = selectedApplication
+    ? loadClientHomeTimelinePreload(
+        adminClient,
+        selectedApplication,
+        {
+          documentColumns: shouldPrefetchHomeDocuments ? DOCUMENT_COLUMNS : undefined,
+          signal: readBudget.signal,
+          onPrefetchedDocuments: shouldPrefetchHomeDocuments
+            ? resolveDocumentPrefetch
+            : undefined,
+        },
+      )
+    : null;
+  const drainTimelinePreload = async (): Promise<void> => {
+    if (timelinePreload) await timelinePreload.catch(() => undefined);
   };
-  const result = buildDashboardReadResult(data);
-  if (!options.includeTimeline) return result;
-
-  const selectedApplication = selectHomeApplication(rawApplications, options.selection);
-  if (!selectedApplication) return result;
 
   try {
-    const timelineResult = await loadClientHomeTimeline(adminClient, {
-      application: selectedApplication,
-      documents: rawDocuments,
-      payments: rawPayments,
-    });
-    return {
-      ...result,
-      timeline: timelineResult.application,
-      timelineApplicationId: selectedApplication.id,
-      timelinePartialData: timelineResult.partialData,
+    let rawDocuments: HomeDocumentRow[] = [];
+    let rawPayments: HomePaymentRow[] = [];
+    if (applicationIds.length > 0) {
+      const paymentFilters = [
+        buildUuidInFilter("application_id", applicationIds),
+        ...(packageIds.length > 0
+          ? [buildUuidInFilter("visa_package_id", packageIds)]
+          : []),
+      ];
+      const readStandaloneDocuments = async (): Promise<HomeDocumentReadResult> => {
+        if (readBudget.signal.aborted) return { data: [], error: null };
+        return tracePortalReadStage("documents", () =>
+          adminClient
+            .from("application_documents")
+            .select(DOCUMENT_COLUMNS)
+            .in("application_id", applicationIds),
+        );
+      };
+      const documentRead: Promise<HomeDocumentReadResult> = shouldPrefetchHomeDocuments && timelinePreload
+        ? documentPrefetchRead.then((prefetchedDocuments) => {
+            if (prefetchedDocuments !== undefined) {
+              return { data: prefetchedDocuments, error: null };
+            }
+            return readStandaloneDocuments();
+          })
+        : readStandaloneDocuments();
+      const detailReads = Promise.all([
+        documentRead,
+        tracePortalReadStage("payments", () =>
+          adminClient
+            .from("payment_records")
+            .select(PAYMENT_COLUMNS)
+            .eq("applicant_id", session.userId)
+            .or(paymentFilters.join(",")),
+        ),
+      ]);
+      const [documentResult, paymentResult] = await detailReads;
+      const { data: documentRows, error: documentError } = documentResult;
+      if (documentError) {
+        return buildDashboardReadResult({
+          authenticated: true,
+          authEmail: session.email,
+          profile: profile as unknown as ClientHomeProfile,
+          applications: rawApplications.map(toDashboardApplication),
+          documents: [],
+          payments: [],
+          error: HOME_READ_ERROR_CODES.documentsRead,
+        });
+      }
+      const paymentError = paymentResult.error;
+      if (paymentError) {
+        return buildDashboardReadResult({
+          authenticated: true,
+          authEmail: session.email,
+          profile: profile as unknown as ClientHomeProfile,
+          applications: rawApplications.map(toDashboardApplication),
+          documents: ((documentRows ?? []) as unknown as HomeDocumentRow[]).map(toDashboardDocument),
+          payments: [],
+          error: HOME_READ_ERROR_CODES.paymentsRead,
+        });
+      }
+      rawDocuments = (documentRows ?? []) as unknown as HomeDocumentRow[];
+      rawPayments = dedupeById(
+        (paymentResult.data ?? []) as unknown as HomePaymentRow[],
+      );
+    }
+
+    const data: ClientHomeDashboardData = {
+      authenticated: true,
+      authEmail: session.email,
+      profile: profile as unknown as ClientHomeProfile,
+      applications: rawApplications.map(toDashboardApplication),
+      documents: rawDocuments.map(toDashboardDocument),
+      payments: rawPayments.map(toDashboardPayment),
     };
-  } catch {
-    recordPortalReadOutcome("unavailable");
-    return {
-      ...result,
-      timelineApplicationId: selectedApplication.id,
-      timelinePartialData: true,
-    };
+    const result = buildDashboardReadResult(data);
+    if (!options.includeTimeline || !selectedApplication || !timelinePreload) return result;
+
+    try {
+      const timelineResult = await assembleClientHomeTimeline({
+        application: selectedApplication,
+        documents: rawDocuments,
+        payments: rawPayments,
+      }, await timelinePreload);
+      return {
+        ...result,
+        timeline: timelineResult.application,
+        timelineApplicationId: selectedApplication.id,
+        timelinePartialData: timelineResult.partialData,
+      };
+    } catch {
+      recordPortalReadOutcome("unavailable");
+      return {
+        ...result,
+        timelineApplicationId: selectedApplication.id,
+        timelinePartialData: true,
+      };
+    }
+  } finally {
+    // Every started timeline read is settled before any early dashboard return
+    // or unexpected synchronous failure can escape this function.
+    await drainTimelinePreload();
   }
 }
 
@@ -414,8 +468,9 @@ async function loadClientHomeDashboardInternal(
 export async function loadClientHomeDashboard(
   options: ClientHomeDashboardReadOptions = {},
 ): Promise<ClientHomeDashboardReadResult> {
+  const readBudget = createPortalReadBudget();
   try {
-    return await loadClientHomeDashboardInternal(options);
+    return await loadClientHomeDashboardInternal(options, readBudget);
   } catch {
     recordPortalReadOutcome("unavailable");
     return buildDashboardReadResult({
@@ -423,6 +478,8 @@ export async function loadClientHomeDashboard(
       error: HOME_READ_ERROR_CODES.dashboardRead,
       unavailable: true,
     });
+  } finally {
+    readBudget.dispose();
   }
 }
 

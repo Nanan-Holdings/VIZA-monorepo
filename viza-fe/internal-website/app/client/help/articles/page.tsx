@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 // eslint-disable-next-line no-restricted-imports -- Server Component: user auth is verified before the service-role read is scoped to that user's applicant profile.
 import { withAdmin } from "@/lib/auth/with-admin";
@@ -30,13 +31,28 @@ async function loadApplicantApplications(authUserId: string): Promise<Applicatio
 }
 
 export default async function HelpArticlesPage() {
+  const locale = await getLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const copy = isZh
+    ? {
+        back: "返回帮助中心",
+        title: "方案常见问题",
+        filtered: (count: number) => `正在显示你当前 ${count} 个有效方案的文章。`,
+        all: "浏览全部方案帮助文章。",
+      }
+    : {
+        back: "Back to Help",
+        title: "Package FAQs",
+        filtered: (count: number) => `Showing articles for your ${count} active package${count === 1 ? "" : "s"}.`,
+        all: "Browse all package help articles.",
+      };
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/client/login");
 
-  const articles: LoadedArticle[] = loadAllHelpArticles();
+  const articles: LoadedArticle[] = loadAllHelpArticles(locale);
   const applications = await loadApplicantApplications(user.id);
   const activeKeys = new Set(
     applications.map((a) => `${a.country}|${a.visa_type}`),
@@ -53,13 +69,13 @@ export default async function HelpArticlesPage() {
           href="/client/help"
           className="text-sm text-brand-500 hover:underline mb-1 inline-block"
         >
-          &larr; Help
+          &larr; {copy.back}
         </Link>
-        <h1 className="text-2xl font-semibold text-[#232323]">Package FAQs</h1>
+        <h1 className="text-2xl font-semibold text-[#232323]">{copy.title}</h1>
         <p className="text-sm text-[#6b6b6b]">
           {filtered.length > 0
-            ? `Showing articles for your ${filtered.length} active package${filtered.length === 1 ? "" : "s"}.`
-            : "Browse all package help articles."}
+            ? copy.filtered(filtered.length)
+            : copy.all}
         </p>
       </div>
       <HelpClient articles={initial} />

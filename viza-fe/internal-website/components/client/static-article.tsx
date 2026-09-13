@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useLocale } from "next-intl";
 
 export interface StaticArticleSection {
   heading: string;
@@ -18,6 +19,9 @@ interface StaticArticleProps {
 }
 
 export function StaticArticle({ title, subtitle, sections }: StaticArticleProps) {
+  const locale = useLocale();
+  const noteLabel = locale.toLowerCase().startsWith("zh") ? "注意：" : "Note: ";
+
   return (
     <div className="font-sofia-pro bg-[#fbfbf9] relative min-h-screen overflow-x-hidden w-full">
       {/* Hero */}
@@ -93,7 +97,7 @@ export function StaticArticle({ title, subtitle, sections }: StaticArticleProps)
                         className="rounded-[12px] border border-[#efefef] bg-white px-5 py-4"
                       >
                         <p className="text-[16px] lg:text-[18px] leading-[1.6] tracking-[-0.24px] text-[#6f6f6f]">
-                          <span className="font-medium text-[#2b2b2b]">Note: </span>
+                          <span className="font-medium text-[#2b2b2b]">{noteLabel}</span>
                           {block.text}
                         </p>
                       </div>

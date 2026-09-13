@@ -5,9 +5,9 @@ import {
   type ApplicationListItem,
 } from "./applications-list";
 import {
-  AddDestinationSection,
+  AddDestinationContent as AddDestinationSection,
   getGroupSortRank,
-} from "./add-destination-section";
+} from "./add-destination-content";
 import { DestinationFlag } from "@/components/client/home/DestinationFlag";
 import { selectUserVisaDestination } from "@/app/actions/user-package";
 import { readActiveApplicationSelection } from "@/lib/client/active-application-selection";

@@ -1,6 +1,8 @@
 import "server-only";
 
 import Stripe from "stripe";
+import { getLocale, getTranslations } from "next-intl/server";
+import { localizeSubscriptionState } from "./subscription-display";
 import { isAirwallexConfigured } from "@/lib/airwallex/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAlipayConfigReady } from "@/lib/alipay/client";
@@ -259,7 +261,8 @@ async function getLatestSubscriptionRecordForCurrentUser(): Promise<PaymentRecor
 }
 
 export async function getCurrentSubscriptionForCurrentUser(): Promise<CurrentSubscriptionState> {
-  return buildCurrentSubscriptionState(await getLatestSubscriptionRecordForCurrentUser());
+  const [record, locale] = await Promise.all([getLatestSubscriptionRecordForCurrentUser(), getLocale()]);
+  return localizeSubscriptionState(buildCurrentSubscriptionState(record), locale);
 }
 
 export async function setCurrentSubscriptionCancelAtPeriodEnd(
@@ -267,7 +270,7 @@ export async function setCurrentSubscriptionCancelAtPeriodEnd(
 ): Promise<CurrentSubscriptionState> {
   const record = await getLatestSubscriptionRecordForCurrentUser();
   if (!record || record.status !== "paid") {
-    return buildCurrentSubscriptionState(record);
+    return localizeSubscriptionState(buildCurrentSubscriptionState(record), await getLocale());
   }
 
   const metadata = asJsonObject(record.metadata);
@@ -315,13 +318,14 @@ export async function reconcileStripeSubscriptionReturn(
   sessionId: string | null,
 ): Promise<SubscriptionReturnState> {
   if (!paymentId || !sessionId) return null;
+  const t = await getTranslations("subscriptionReturn");
 
   const user = await getCommercialAuthenticatedUser();
   if (!user) {
     return {
       tone: "error",
-      title: "请先登录以确认支付",
-      description: "Stripe 已返回 VIZA，但当前浏览器会话已失效。",
+      title: t("loginTitle"),
+      description: t("loginDescription"),
     };
   }
 
@@ -329,8 +333,8 @@ export async function reconcileStripeSubscriptionReturn(
   if (!stripe) {
     return {
       tone: "warning",
-      title: "Stripe 尚未配置",
-      description: "本地环境无法自动核验 Stripe 支付，请配置密钥后重试。",
+      title: t("unavailableTitle"),
+      description: t("unavailableDescription"),
     };
   }
 
@@ -338,8 +342,8 @@ export async function reconcileStripeSubscriptionReturn(
   if (!record || record.provider !== "stripe") {
     return {
       tone: "error",
-      title: "未找到匹配的支付记录",
-      description: "为了安全，VIZA 没有把这次 Stripe 返回写入你的账户。",
+      title: t("missingTitle"),
+      description: t("missingDescription"),
     };
   }
 
@@ -347,8 +351,8 @@ export async function reconcileStripeSubscriptionReturn(
   if (session.id !== record.provider_session_id || session.metadata?.paymentRecordId !== record.id) {
     return {
       tone: "error",
-      title: "支付会话不匹配",
-      description: "Stripe 返回的会话与当前订阅订单不一致。",
+      title: t("mismatchTitle"),
+      description: t("mismatchDescription"),
     };
   }
 
@@ -401,12 +405,12 @@ export async function reconcileStripeSubscriptionReturn(
   return paid
     ? {
         tone: "success",
-        title: "支付已确认",
-        description: "VIZA 已记录这笔人民币支付。订阅权益开通逻辑已预留，可在接入账户体系后启用。",
+        title: t("paidTitle"),
+        description: t("paidDescription"),
       }
     : {
         tone: "warning",
-        title: "支付仍在处理中",
-        description: "Stripe 已返回，但支付状态尚未最终确认。请稍后刷新页面。",
+        title: t("pendingTitle"),
+        description: t("pendingDescription"),
       };
 }

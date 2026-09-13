@@ -25,6 +25,8 @@ explicitly reintroduces another provider.
   exercises the actual app over loopback HTTP with a simulated OCR handler,
   including overlapping requests, partial uploads, parser errors, and recovery.
 - VIZA AI chat: `src/socket/visa-namespace.ts` plus `src/agent/index.ts`.
+  `src/agent/index.test.ts` covers locale-aware fallback replies when the
+  generation provider is not configured; the socket passes its response locale.
   `src/agent/application-context.ts` owns the request-scoped applicant profile
   and latest-application read. Keep its normal path as one nested Supabase
   request, retain the legacy lookup as an availability fallback, and never

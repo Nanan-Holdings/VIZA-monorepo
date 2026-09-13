@@ -26,6 +26,7 @@ from tools.flights import _fallback_flights, search_flights
 from tools.hotels import _fallback_hotels, search_hotels
 from tools.export_admission import ExportAdmissionTimeout, export_request_slot
 from tools.http_client import close_http_client, get_http_client
+from travel_locale import is_english_locale, normalize_travel_locale
 
 
 def _positive_env_int(name: str, default: int) -> int:
@@ -104,7 +105,7 @@ class TravelRequest(BaseModel):
     attached_files: list[str] = Field(default_factory=list)
     itinerary: list[dict] = Field(default_factory=list)
     itinery_rows: list[dict] = Field(default_factory=list)
-    export_language: Optional[str] = "zh"
+    export_language: Optional[str] = None
     locale: str = "zh-CN"
 
 
@@ -203,6 +204,8 @@ def _travel_payload(data: TravelRequest):
     normalized_country = _normalized_country(data)
     start_date = _travel_start_date(data.departure_date)
 
+    locale = normalize_travel_locale(data.locale)
+    export_language = data.export_language or locale
     return {
         **_payload(data),
         "country": normalized_country,
@@ -211,6 +214,8 @@ def _travel_payload(data: TravelRequest):
         "travel_days": data.travel_days or sum(city_days.values()),
         "departure_date": start_date.isoformat(),
         "date_flexibility": data.date_flexibility or "flexible",
+        "locale": locale,
+        "export_language": export_language,
     }
 
 
@@ -355,8 +360,7 @@ async def _export_to_file(export_fn, itinerary, payload, background_tasks):
 
 
 def _export_busy_detail(data: TravelRequest):
-    language = str(data.export_language or data.locale or "zh").lower()
-    if language.startswith("en"):
+    if is_english_locale(data.export_language or data.locale):
         return "Export service is busy. Please retry shortly."
     return "导出服务当前繁忙，请稍后重试。"
 
@@ -414,6 +418,13 @@ async def revise(data: TravelRevisionRequest):
         payload = data.model_dump()
     else:
         payload = data.dict()
+    locale = normalize_travel_locale(data.locale)
+    payload["locale"] = locale
+    state = payload.get("state")
+    if isinstance(state, dict):
+        payload["state"] = {**state, "locale": locale}
+    else:
+        payload["state"] = {"locale": locale}
     try:
         return await asyncio.wait_for(
             revise_itinerary(payload),
@@ -422,8 +433,8 @@ async def revise(data: TravelRevisionRequest):
     except asyncio.TimeoutError:
         print("Travel itinerary revision exceeded the endpoint deadline; preserving current version.")
         current = _sanitize_itinerary(payload.get("current_itinerary"), payload.get("state"))
-        timeout_label = "OpenAI request timed out" if data.locale.lower().startswith("en") else "OpenAI 请求超时"
-        return _openai_revision_unavailable(timeout_label, current)
+        timeout_label = "OpenAI request timed out" if is_english_locale(locale) else "OpenAI 请求超时"
+        return _openai_revision_unavailable(timeout_label, current, locale)
 
 
 @app.post("/chat")
@@ -435,7 +446,7 @@ async def chat(data: TravelChatRequest):
         )
     except asyncio.TimeoutError:
         print("Travel chat exceeded the endpoint deadline; returning a safe fallback.")
-        is_english = data.locale.lower().startswith("en")
+        is_english = is_english_locale(data.locale)
         return TravelChatResponse(
             reply=(
                 "Travel chat timed out. Please try again, or tell me your destination and trip length."
@@ -476,7 +487,7 @@ async def download_word(data: TravelRequest, background_tasks: BackgroundTasks):
 
     return FileResponse(
         path=file_path,
-        filename=f"travel_plan_{data.export_language or 'zh'}.docx",
+        filename=f"travel_plan_{payload.get('export_language', 'zh')}.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
@@ -511,7 +522,7 @@ async def download_pdf(data: TravelRequest, background_tasks: BackgroundTasks):
 
     return FileResponse(
         path=file_path,
-        filename=f"travel_plan_{data.export_language or 'zh'}.pdf",
+        filename=f"travel_plan_{payload.get('export_language', 'zh')}.pdf",
         media_type="application/pdf",
     )
 
@@ -527,11 +538,13 @@ async def flight_options(data: TravelRequest):
                 "destination_city": leg["to"],
                 "departure_date": leg["departure_date"],
                 "adults": leg["adults"],
+                "locale": data.locale,
             },
             lambda leg=leg: _fallback_flights(
                 leg["from"],
                 leg["to"],
                 leg["departure_date"],
+                locale=data.locale,
             ),
         )
         for leg in legs
@@ -582,8 +595,11 @@ async def hotel_options(data: TravelRequest):
                 "check_in_date": stay["check_in"],
                 "check_out_date": stay["check_out"],
                 "adults": stay["adults"],
+                "locale": data.locale,
             },
-            lambda stay=stay: _fallback_hotels(stay["city"], adults=stay["adults"]),
+            lambda stay=stay: _fallback_hotels(
+                stay["city"], adults=stay["adults"], locale=data.locale
+            ),
         )
         for stay in stays
     ]

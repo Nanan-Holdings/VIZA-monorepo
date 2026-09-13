@@ -124,8 +124,8 @@ export function getCommercialProduct(productId: string): CommercialProduct | nul
   return COMMERCIAL_PRODUCTS.find((product) => product.id === productId) ?? null;
 }
 
-export function formatCny(amountFen: number): string {
-  return new Intl.NumberFormat("zh-CN", {
+export function formatCny(amountFen: number, locale = "zh"): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "CNY",
     maximumFractionDigits: amountFen % 100 === 0 ? 0 : 2,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "next-intl";
 
 /**
  * EU cookie-consent banner (PRODUCT-008).
@@ -42,6 +43,24 @@ export function getConsent(): Choice | null {
 }
 
 export function CookieConsentBanner() {
+  const locale = useLocale();
+  const copy = locale.toLowerCase().startsWith("zh")
+    ? {
+        title: "Cookie 设置",
+        description: "必要 Cookie 始终启用。只有获得您的同意后才会启用分析和会话回放。",
+        details: "详情",
+        reject: "拒绝",
+        configure: "设置",
+        accept: "接受",
+      }
+    : {
+        title: "Cookies",
+        description: "Essential cookies always on. Analytics + session-replay only with your consent.",
+        details: "Details",
+        reject: "Reject",
+        configure: "Configure",
+        accept: "Accept",
+      };
   const [choice, setChoice] = useState<Choice | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -66,22 +85,22 @@ export function CookieConsentBanner() {
       <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-foreground">
           <p id="cookie-consent-heading" className="font-medium">
-            Cookies
+            {copy.title}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Essential cookies always on. Analytics + session-replay only with your consent.{" "}
+            {copy.description}{" "}
             <Link href="/legal/cookies" className="font-medium text-brand-500 hover:underline">
-              Details
+              {copy.details}
             </Link>
             .
           </p>
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => decide("reject")}>
-            Reject
+            {copy.reject}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => decide("configure")}>
-            Configure
+            {copy.configure}
           </Button>
           <Button
             type="button"
@@ -89,7 +108,7 @@ export function CookieConsentBanner() {
             onClick={() => decide("accept")}
             className="bg-brand-500 hover:bg-brand-400"
           >
-            Accept
+            {copy.accept}
           </Button>
         </div>
       </div>

@@ -32,7 +32,12 @@ reports, and workflow documentation for VIZA.
 - `infra/2026-09-11-100-session-backend-optimization-plan.md`: evidence-backed
   follow-up plan for the failed 100-session local gate, covering Next server
   reads, authentication, failure visibility, cancellation, and connection budgets;
-  proposed work must not be presented as deployed optimization.
+  implementation progress, local verification, the user-directed 2026-09-12
+  release, next-round profiling strategy, and the rejected time-zone candidate's
+  paired local results, subsequent HTTP connection diagnostics, and the
+  profile/queue read-consolidation candidate. Record deployment status separately
+  from capacity acceptance; unfinished gates must not be presented as proven
+  100-session capacity.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,
   payment/consent/document/packet/status boundaries, and process assignment
   notes.

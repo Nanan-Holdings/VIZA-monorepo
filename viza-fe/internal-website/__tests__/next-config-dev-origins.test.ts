@@ -12,4 +12,18 @@ describe("next dev origins", () => {
       ]),
     });
   });
+
+  it("allows only the isolated map document to be framed by the same origin", async () => {
+    const rules = await config.headers?.();
+    const baseline = rules?.find((rule) => rule.source === "/:path*");
+    const map = rules?.find((rule) => rule.source === "/travel-map");
+    expect(baseline?.headers).toEqual(expect.arrayContaining([
+      { key: "X-Frame-Options", value: "DENY" },
+      expect.objectContaining({ key: "Content-Security-Policy", value: expect.stringContaining("frame-ancestors 'none'") }),
+    ]));
+    expect(map?.headers).toEqual(expect.arrayContaining([
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      expect.objectContaining({ key: "Content-Security-Policy", value: expect.stringContaining("frame-ancestors 'self'") }),
+    ]));
+  });
 });

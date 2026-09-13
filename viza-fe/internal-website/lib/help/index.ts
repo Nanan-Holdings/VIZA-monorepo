@@ -4,7 +4,8 @@ import { join } from "node:path";
 /**
  * Help-article registry (CS-004).
  *
- * Maps the canonical country slug to a lib/help/articles/<cc>.mdx file.
+ * Maps the canonical country slug to a maintained local
+ * lib/help/articles/<cc>.mdx file (and its `<cc>.zh.mdx` translation).
  * Body is loaded lazily; rendered by `lib/help/render.ts` to a tiny
  * subset of markdown (H1/H2/H3, paragraphs, ordered + unordered
  * lists, links).
@@ -17,11 +18,17 @@ import { join } from "node:path";
  */
 
 const ARTICLE_VN_PATH = join(process.cwd(), "lib/help/articles/vn.mdx");
+const ARTICLE_VN_ZH_PATH = join(process.cwd(), "lib/help/articles/vn.zh.mdx");
 const ARTICLE_US_PATH = join(process.cwd(), "lib/help/articles/us.mdx");
+const ARTICLE_US_ZH_PATH = join(process.cwd(), "lib/help/articles/us.zh.mdx");
 const ARTICLE_UK_PATH = join(process.cwd(), "lib/help/articles/uk.mdx");
+const ARTICLE_UK_ZH_PATH = join(process.cwd(), "lib/help/articles/uk.zh.mdx");
 const ARTICLE_EU_PATH = join(process.cwd(), "lib/help/articles/eu.mdx");
+const ARTICLE_EU_ZH_PATH = join(process.cwd(), "lib/help/articles/eu.zh.mdx");
 const ARTICLE_AU_PATH = join(process.cwd(), "lib/help/articles/au.mdx");
+const ARTICLE_AU_ZH_PATH = join(process.cwd(), "lib/help/articles/au.zh.mdx");
 const ARTICLE_IN_PATH = join(process.cwd(), "lib/help/articles/in.mdx");
+const ARTICLE_IN_ZH_PATH = join(process.cwd(), "lib/help/articles/in.zh.mdx");
 
 interface ArticleSpec {
   /** Internal slug used on `applications.country`. */
@@ -30,32 +37,41 @@ interface ArticleSpec {
   visaType?: string;
   /** Display title shown in the picker. */
   title: string;
+  /** Simplified Chinese display title shown in the picker. */
+  titleZh: string;
 }
 
 export const HELP_ARTICLES: ReadonlyArray<ArticleSpec> = [
-  { country: "vietnam", visaType: "VN_E_VISA", title: "Vietnam e-Visa" },
-  { country: "united_states", visaType: "B1_B2", title: "US DS-160 B1/B2" },
-  { country: "united_kingdom", visaType: "UK_STANDARD_VISITOR", title: "UK Standard Visitor" },
-  { country: "european_union", visaType: "EU_SCHENGEN_C_SHORT_STAY", title: "Schengen Short-Stay (Type C)" },
-  { country: "australia", visaType: "AU_VISITOR_600", title: "Australia Subclass 600" },
-  { country: "india", visaType: "IN_E_VISA", title: "India e-Visa" },
+  { country: "vietnam", visaType: "VN_E_VISA", title: "Vietnam e-Visa", titleZh: "越南电子签证" },
+  { country: "united_states", visaType: "B1_B2", title: "US DS-160 B1/B2", titleZh: "美国 DS-160 B1/B2" },
+  { country: "united_kingdom", visaType: "UK_STANDARD_VISITOR", title: "UK Standard Visitor", titleZh: "英国标准访客签证" },
+  { country: "european_union", visaType: "EU_SCHENGEN_C_SHORT_STAY", title: "Schengen Short-Stay (Type C)", titleZh: "申根短期停留（C 类）" },
+  { country: "australia", visaType: "AU_VISITOR_600", title: "Australia Subclass 600", titleZh: "澳大利亚 600 类访客签证" },
+  { country: "india", visaType: "IN_E_VISA", title: "India e-Visa", titleZh: "印度电子签证" },
 ];
 
 /** Read an article body; each branch passes a literal const to readFileSync (see header comment). */
-function readArticleBody(country: string): string | null {
+function readArticleBody(country: string, locale: string): string | null {
+  const isZh = locale.toLowerCase().startsWith("zh");
   try {
     switch (country) {
       case "vietnam":
+        if (isZh) return readFileSync(ARTICLE_VN_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_VN_PATH, "utf8");
       case "united_states":
+        if (isZh) return readFileSync(ARTICLE_US_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_US_PATH, "utf8");
       case "united_kingdom":
+        if (isZh) return readFileSync(ARTICLE_UK_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_UK_PATH, "utf8");
       case "european_union":
+        if (isZh) return readFileSync(ARTICLE_EU_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_EU_PATH, "utf8");
       case "australia":
+        if (isZh) return readFileSync(ARTICLE_AU_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_AU_PATH, "utf8");
       case "india":
+        if (isZh) return readFileSync(ARTICLE_IN_ZH_PATH, "utf8");
         return readFileSync(ARTICLE_IN_PATH, "utf8");
       default:
         return null;
@@ -73,25 +89,34 @@ export interface LoadedArticle {
   body: string;
 }
 
-export function loadHelpArticle(country: string, visaType?: string): LoadedArticle | null {
+export function loadHelpArticle(
+  country: string,
+  visaType?: string,
+  locale = "en",
+): LoadedArticle | null {
   const spec = HELP_ARTICLES.find(
     (a) => a.country === country && (visaType ? a.visaType === visaType : true),
   );
   if (!spec) return null;
-  const body = readArticleBody(spec.country);
+  const body = readArticleBody(spec.country, locale);
   if (body === null) return null;
-  return { country: spec.country, visaType: spec.visaType, title: spec.title, body };
+  return {
+    country: spec.country,
+    visaType: spec.visaType,
+    title: locale.toLowerCase().startsWith("zh") ? spec.titleZh : spec.title,
+    body,
+  };
 }
 
-export function loadAllHelpArticles(): LoadedArticle[] {
+export function loadAllHelpArticles(locale = "en"): LoadedArticle[] {
   const out: LoadedArticle[] = [];
   for (const spec of HELP_ARTICLES) {
-    const body = readArticleBody(spec.country);
+    const body = readArticleBody(spec.country, locale);
     if (body === null) continue;
     out.push({
       country: spec.country,
       visaType: spec.visaType,
-      title: spec.title,
+      title: locale.toLowerCase().startsWith("zh") ? spec.titleZh : spec.title,
       body,
     });
   }
@@ -99,10 +124,10 @@ export function loadAllHelpArticles(): LoadedArticle[] {
 }
 
 /** Cheap substring search for chat suggested-replies + the page filter. */
-export function searchHelpArticles(query: string): LoadedArticle[] {
+export function searchHelpArticles(query: string, locale = "en"): LoadedArticle[] {
   const q = query.toLowerCase().trim();
   if (q.length < 2) return [];
-  return loadAllHelpArticles().filter(
+  return loadAllHelpArticles(locale).filter(
     (a) => a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q),
   );
 }

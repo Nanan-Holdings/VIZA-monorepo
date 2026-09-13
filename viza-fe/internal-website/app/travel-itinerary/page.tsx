@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getLocale } from "next-intl/server";
 import { TravelItineraryShareRenderer } from "@/components/client/travel/travel-itinerary-share-renderer";
 
-export const metadata: Metadata = {
-  title: "Travel Itinery",
-  description: "Shared travel itinery",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const isZh = (await getLocale()).startsWith("zh");
+  return { title: isZh ? "旅行行程" : "Travel Itinerary", description: isZh ? "分享的旅行行程" : "Shared travel itinerary" };
+}
 
 export default function TravelItineraryPage() {
   return (

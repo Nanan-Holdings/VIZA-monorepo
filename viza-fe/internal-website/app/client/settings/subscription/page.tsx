@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { getCurrentSubscriptionForCurrentUser } from "@/lib/payments/commercial-records";
 import { SubscriptionManagement } from "./subscription-management";
 
-export const metadata: Metadata = {
-  title: "Subscription Management | VIZA",
-  description: "Manage your VIZA monthly subscription plan.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("subscriptionManagement");
+  return { title: `${t("title")} | VIZA`, description: t("subtitle") };
+}
 
 export default async function SettingsSubscriptionPage() {
   const subscription = await getCurrentSubscriptionForCurrentUser();

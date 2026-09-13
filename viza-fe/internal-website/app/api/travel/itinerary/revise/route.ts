@@ -1,5 +1,6 @@
 import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
 import { getCuratedCityLabel } from "@/lib/travel/locations";
+import { resolveRequestLocale } from "@/lib/travel/travel-locale";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -24,7 +25,13 @@ type RevisionResponse = {
 type ResponseLocale = "zh" | "en";
 
 function normalizeResponseLocale(locale: unknown): ResponseLocale {
-  return typeof locale === "string" && locale.toLowerCase().startsWith("zh") ? "zh" : "en";
+  return resolveResponseLocale(locale);
+}
+
+function resolveResponseLocale(locale: unknown): ResponseLocale {
+  return typeof locale === "string" && locale.toLowerCase().startsWith("zh")
+    ? "zh"
+    : "en";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -445,9 +452,13 @@ async function reviseWithTravelBackend(
 }
 
 export async function POST(request: Request) {
+  let locale = resolveResponseLocale(resolveRequestLocale(request, undefined));
   try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    const locale = normalizeResponseLocale(payload.locale);
+    const rawPayload = (await request.json()) as Record<string, unknown>;
+    locale = normalizeResponseLocale(
+      resolveRequestLocale(request, rawPayload.locale)
+    );
+    const payload: Record<string, unknown> = { ...rawPayload, locale };
     const currentItinerary = normalizeItinerary(payload.current_itinerary);
     const clarification = buildAmbiguousReductionClarification(
       payload,
@@ -472,7 +483,11 @@ export async function POST(request: Request) {
     return Response.json(backendRevision, { status: 200 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to revise itinerary.";
+      error instanceof Error
+        ? error.message
+        : locale === "zh"
+          ? "行程修改失败。"
+          : "Failed to revise itinerary.";
     return Response.json({ error: message }, { status: 500 });
   }
 }

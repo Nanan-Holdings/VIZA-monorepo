@@ -4,6 +4,10 @@ import {
   getCuratedCitiesForCountry,
   type CuratedCity,
 } from "@/lib/travel/locations";
+import {
+  normalizeTravelLocale,
+  type TravelLocale,
+} from "@/lib/travel/travel-locale";
 
 export type CountryOption = {
   value: string;
@@ -49,7 +53,7 @@ const COUNTRIES_SOURCE_URLS = [
   "https://cdn.jsdelivr.net/gh/mledoze/countries@master/countries.json",
 ];
 
-let countriesPromise: Promise<CountryOption[]> | null = null;
+let countriesPromise: Promise<CountryMeta[]> | null = null;
 let countryCodeLookupPromise: Promise<Map<string, string>> | null = null;
 let countriesSourcePromise: Promise<CountriesRepoItem[]> | null = null;
 let countriesByCodePromise: Promise<Map<string, CountryMeta>> | null = null;
@@ -163,43 +167,43 @@ function toCountryMeta(item: CountriesRepoItem): CountryMeta | null {
   };
 }
 
-export async function getCountryOptions(): Promise<CountryOption[]> {
+export async function getCountryOptions(
+  requestedLocale: TravelLocale = "zh"
+): Promise<CountryOption[]> {
   if (!countriesPromise) {
     countriesPromise = (async () => {
       const records = await fetchCountriesFromSource();
-      const options: CountryOption[] = [];
-
-      for (const item of records) {
+      return records.flatMap((item) => {
         const meta = toCountryMeta(item);
-        if (!meta) continue;
-
-        const label = meta.nameZh || meta.nameEn;
-        const search = buildSearchText([
-          meta.nameEn,
-          meta.nameZh,
-          meta.code,
-          ...meta.altSpellings,
-        ]);
-
-        options.push({
-          value: meta.nameEn,
-          label,
-          labelEn: meta.nameEn,
-          labelZh: meta.nameZh,
-          code: meta.code,
-          search,
-        });
-      }
-
-      options.sort((a, b) => a.labelEn.localeCompare(b.labelEn));
-      return options;
+        return meta ? [meta] : [];
+      });
     })().catch((error) => {
       countriesPromise = null;
       throw error;
     });
   }
 
-  return countriesPromise;
+  const locale = normalizeTravelLocale(requestedLocale);
+  const metas = await countriesPromise;
+  return metas
+    .map((meta) => {
+      const label = locale === "en" ? meta.nameEn : meta.nameZh || meta.nameEn;
+      const search = buildSearchText([
+        meta.nameEn,
+        meta.nameZh,
+        meta.code,
+        ...meta.altSpellings,
+      ]);
+      return {
+        value: meta.nameEn,
+        label,
+        labelEn: meta.nameEn,
+        labelZh: meta.nameZh,
+        code: meta.code,
+        search,
+      } satisfies CountryOption;
+    })
+    .sort((a, b) => a.labelEn.localeCompare(b.labelEn));
 }
 
 async function getCountryCodeLookup(): Promise<Map<string, string>> {
@@ -265,10 +269,14 @@ function resolveCountryCodeFromLookup(
   return lookup.get(normalized) ?? null;
 }
 
-function toCityOption(city: CuratedCity): CityOption {
+function toCityOption(
+  city: CuratedCity,
+  requestedLocale: TravelLocale = "zh"
+): CityOption {
   const labelEn = city.en.trim();
   const labelZh = city.zh?.trim();
-  const label = labelZh || labelEn;
+  const locale = normalizeTravelLocale(requestedLocale);
+  const label = locale === "en" ? labelEn : labelZh || labelEn;
   const search = buildSearchText([labelEn, labelZh, ...(city.aliases ?? [])]);
 
   return {
@@ -295,8 +303,10 @@ function getCapitalCityOptions(country: CountryMeta): CityOption[] {
 }
 
 export async function getCitiesForCountries(
-  countryNames: string[]
+  countryNames: string[],
+  requestedLocale: TravelLocale = "zh"
 ): Promise<Record<string, CityOption[]>> {
+  const locale = normalizeTravelLocale(requestedLocale);
   const [lookup, countriesByCode] = await Promise.all([
     getCountryCodeLookup(),
     getCountriesByCode(),
@@ -317,7 +327,9 @@ export async function getCitiesForCountries(
       continue;
     }
 
-    const curated = getCuratedCitiesForCountry(country.nameEn).map(toCityOption);
+    const curated = getCuratedCitiesForCountry(country.nameEn).map((city) =>
+      toCityOption(city, locale)
+    );
     const fallback = curated.length > 0 ? [] : getCapitalCityOptions(country);
 
     result[countryName] = uniqueByValue([...curated, ...fallback]).sort((a, b) =>

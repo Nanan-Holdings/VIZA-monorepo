@@ -27,6 +27,11 @@ import type {
   TravelQuickReply,
 } from "@/lib/travel/chat-types";
 import { nextMissingField, type TravelField } from "@/lib/travel/planner";
+import {
+  normalizeTravelLocale,
+  resolveRequestLocale,
+  type TravelLocale,
+} from "@/lib/travel/travel-locale";
 import type { Json } from "@/types/database";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
@@ -36,7 +41,7 @@ const TRAVEL_AGENT_OPENAI_TIMEOUT_MS = 60_000;
 const MAX_USER_TEXT_LENGTH = 8_000;
 let activeTravelAgentModel = TRAVEL_AGENT_MODEL;
 
-type InterfaceLocale = "zh" | "en";
+type InterfaceLocale = TravelLocale;
 type TravelAgentIntent =
   | "answer_question"
   | "recommend_destinations"
@@ -528,7 +533,10 @@ function toJson(value: unknown): Json {
   return JSON.parse(JSON.stringify(value)) as Json;
 }
 
-function parseRequest(value: unknown): TravelChatRequest | null {
+function parseRequest(
+  value: unknown,
+  requestLocale: InterfaceLocale = "zh"
+): TravelChatRequest | null {
   if (!isRecord(value)) return null;
   const sessionId =
     typeof value.sessionId === "string" ? value.sessionId.trim() : "";
@@ -558,7 +566,7 @@ function parseRequest(value: unknown): TravelChatRequest | null {
     sessionId,
     messageId,
     text,
-    locale: value.locale === "en" ? "en" : "zh",
+    locale: normalizeTravelLocale(value.locale, requestLocale),
     expectedStateVersion,
     applicationId:
       typeof value.applicationId === "string" && value.applicationId.trim()
@@ -1473,12 +1481,18 @@ function stabilizeExplicitEndpointOperations(
   text: string,
   operations: TravelStateOperation[]
 ): TravelStateOperation[] {
-  const explicitPair = text.match(
-    /出发地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)；\s*返程地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)[。.]?/u
-  );
-  const legacySameEndpoint = text.match(
-    /出发和返程城市都设为\s+(\S+)\s+(.+?)[。.]?$/u
-  );
+  const explicitPair =
+    text.match(
+      /出发地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)；\s*返程地(?:设为|：)\s*([^｜；。]+)｜([^；。]+)[。.]?/u
+    ) ??
+    text.match(
+      /departure(?:\s+location)?(?:\s+set\s+to)?\s*:\s*([^|;.]+)\|([^;.]*)\s*;\s*return(?:\s+location)?(?:\s+set\s+to)?\s*:\s*([^|;.]+)\|([^;.]+)[.]?/iu
+    );
+  const legacySameEndpoint =
+    text.match(/出发和返程城市都设为\s+(\S+)\s+(.+?)[。.]?$/u) ??
+    text.match(
+      /(?:set\s+both\s+)?(?:departure|outbound)\s+and\s+return\s+(?:locations?|cities?)\s+to\s+([^,;.]+)[,;]\s*(.+?)[.]?$/iu
+    );
   const values = explicitPair
     ? {
         originCountry: explicitPair[1].trim(),
@@ -1948,11 +1962,18 @@ function stabilizeExplicitPlannerOperations(
   if (days) setNumber("travel_days", days[1], days[0]);
   const travelers = text.match(
     /(?:出行人数是|人数先灵活，?\s*暂按)\s*(\d+)\s*(?:个)?人/u
+  ) ?? text.match(
+    /(?:travellers?|travelers?)\s*:\s*(\d+)|(?:there\s+will\s+be)\s+(\d+)\s+travellers?/iu
   );
-  if (travelers) setNumber("travelers", travelers[1], travelers[0]);
+  if (travelers) {
+    const travelerCount = travelers[1] ?? travelers[2];
+    if (travelerCount) {
+      setNumber("travelers", travelerCount, travelers[0]);
+    }
+  }
   const budget = text.match(
     /(?:预算是|预算先灵活，?\s*暂按)\s*(\d+)\s*(?:RMB|人民币|元)/iu
-  );
+  ) ?? text.match(/(?:budget\s+is|the\s+budget\s+is)\s*(?:RMB\s*)?(\d+)/iu);
   if (budget) setNumber("budget", budget[1], budget[0]);
 
   if (isExplicitDestinationConfirmation(text, currentState)) {
@@ -1967,7 +1988,9 @@ function stabilizeExplicitPlannerOperations(
     });
   }
 
-  const travelOrder = text.match(/^游玩顺序：(.+?)[。.]?$/u);
+  const travelOrder =
+    text.match(/^游玩顺序：(.+?)[。.]?$/u) ??
+    text.match(/^travel\s+order:\s*(.+?)[.]?$/iu);
   if (travelOrder) {
     next = replaceExplicitOperation(next, {
       op: "set",
@@ -1980,7 +2003,10 @@ function stabilizeExplicitPlannerOperations(
     });
   }
 
-  if (/^我没有额外备注，直接生成行程。?$/u.test(text)) {
+  if (
+    /^我没有额外备注，直接生成行程。?$/u.test(text) ||
+    /^I have no extra notes\.\s*Generate the itinerary directly\.?$/iu.test(text)
+  ) {
     next = replaceExplicitOperation(next, {
       op: "set",
       path: "final_note",
@@ -1988,10 +2014,11 @@ function stabilizeExplicitPlannerOperations(
       valueNumber: null,
       valueBoolean: null,
       explicit: true,
-      evidence: "没有额外备注",
+      evidence: /no extra notes/iu.test(text) ? "no extra notes" : "没有额外备注",
     });
   } else {
-    const finalNote = text.match(/^备注：(.+)$/u);
+    const finalNote =
+      text.match(/^备注：(.+)$/u) ?? text.match(/^note:\s*(.+)$/iu);
     if (finalNote) {
       next = replaceExplicitOperation(next, {
         op: "set",
@@ -2360,7 +2387,9 @@ async function saveExplicitPreferences(
 }
 
 export async function POST(request: Request) {
-  const input = parseRequest(await request.json().catch(() => null));
+  const body = await request.json().catch(() => null);
+  const bodyLocale = isRecord(body) ? body.locale : undefined;
+  const input = parseRequest(body, resolveRequestLocale(request, bodyLocale));
   if (!input) {
     return Response.json(
       { error: "Invalid Travel Agent request." },

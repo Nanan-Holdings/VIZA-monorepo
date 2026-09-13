@@ -1,3 +1,5 @@
+import { resolveRequestLocale, type TravelLocale } from "@/lib/travel/travel-locale";
+
 type GeocodeRequestItem = {
   key: string;
   query: string;
@@ -59,8 +61,8 @@ function parseRequestItems(payload: unknown): GeocodeRequestItem[] {
     .slice(0, 40);
 }
 
-function normalizeCacheKey(query: string): string {
-  return query.trim().toLowerCase().replace(/\s+/g, " ");
+function normalizeCacheKey(query: string, locale: TravelLocale): string {
+  return `${locale}:${query.trim().toLowerCase().replace(/\s+/g, " ")}`;
 }
 
 function isFiniteLocation(location: GoogleGeocodeLocation | undefined): location is GoogleGeocodeLocation {
@@ -73,9 +75,10 @@ function isFiniteLocation(location: GoogleGeocodeLocation | undefined): location
 
 async function geocodeItem(
   item: GeocodeRequestItem,
-  apiKey: string
+  apiKey: string,
+  locale: TravelLocale
 ): Promise<TravelGeocodeResult> {
-  const cacheKey = normalizeCacheKey(item.query);
+  const cacheKey = normalizeCacheKey(item.query, locale);
   const cached = geocodeCache.get(cacheKey);
   if (cached) {
     return { ...cached, key: item.key, query: item.query };
@@ -84,7 +87,7 @@ async function geocodeItem(
   const params = new URLSearchParams({
     address: item.query,
     key: apiKey,
-    language: "zh-CN",
+    language: locale === "en" ? "en" : "zh-CN",
   });
   const response = await fetch(`${GOOGLE_GEOCODE_ENDPOINT}?${params.toString()}`, {
     cache: "force-cache",
@@ -146,13 +149,17 @@ export async function POST(request: Request) {
     }
 
     const payload = await request.json();
+    const locale = resolveRequestLocale(
+      request,
+      isRecord(payload) ? payload.locale : undefined
+    );
     const items = parseRequestItems(payload);
     if (items.length === 0) {
       return Response.json({ results: [] }, { status: 200 });
     }
 
     const results = await Promise.all(
-      items.map((item) => geocodeItem(item, apiKey))
+      items.map((item) => geocodeItem(item, apiKey, locale))
     );
 
     return Response.json({ results }, { status: 200 });

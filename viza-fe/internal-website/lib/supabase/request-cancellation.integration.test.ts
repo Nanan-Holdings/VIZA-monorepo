@@ -10,6 +10,7 @@ vi.mock("@/lib/rbac", () => ({
 }));
 
 import { createAdminClient } from "./admin";
+import { createPortalReadBudget } from "@/lib/client/portal-read-budget.server";
 
 type HangingSupabaseServer = {
   baseUrl: string;
@@ -190,6 +191,36 @@ describe("Supabase request cancellation", () => {
         expect.arrayContaining(["/rest/v1/applications", "/rest/v1/applicant_profiles"]),
       );
     } finally {
+      await fixture.close();
+    }
+  });
+
+  it("cancels a slow response body at the shared budget without starting another HTTP request", async () => {
+    const fixture = await startHangingSupabaseServer();
+    const budget = createPortalReadBudget(30);
+    try {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", fixture.baseUrl);
+      vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "local-test-service-role-key");
+
+      const admin = createAdminClient({
+        requestSignal: budget.signal,
+        requestTimeoutMs: 10_000,
+        retryDelaysMs: [0, 20],
+      });
+      const read = admin.from("applications").select("id").then((result) => result);
+
+      await fixture.waitFor(() => fixture.requestCount() === 1, "the SDK request");
+      const result = await settleWithin(read);
+
+      expect(budget.didTimeout()).toBe(true);
+      expect(result.data).toBeNull();
+      expect(result.error).toBeTruthy();
+      await fixture.waitFor(() => fixture.responseCloseCount() === 1, "the timed-out response to close");
+      expect(fixture.responseFinishCount()).toBe(0);
+      expect(fixture.abortedRequestCount()).toBe(1);
+      expect(fixture.requestCount()).toBe(1);
+    } finally {
+      budget.dispose();
       await fixture.close();
     }
   });

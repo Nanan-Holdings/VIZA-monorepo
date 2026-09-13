@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { CircleAlert } from "lucide-react";
+import { WarningCircle as CircleAlert } from "@phosphor-icons/react";
+import { useTranslations } from "next-intl";
 import {
   Empty,
   EmptyDescription,
@@ -22,6 +23,7 @@ export default function RootErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("pageError");
   const isAbortError = isIgnorableRuntimeAbortError(error);
   const isStaleActionError = isStaleServerActionError(error);
 
@@ -39,11 +41,11 @@ export default function RootErrorBoundary({
           <EmptyMedia variant="icon">
             <CircleAlert />
           </EmptyMedia>
-          <EmptyTitle>页面加载失败</EmptyTitle>
+          <EmptyTitle>{t("title")}</EmptyTitle>
           <EmptyDescription>
             {isStaleActionError
-              ? "页面版本已更新，系统正在刷新。若页面没有自动恢复，请手动刷新后继续。"
-              : "页面加载时出现问题，请刷新后重试。"}
+              ? t("updated")
+              : t("description")}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

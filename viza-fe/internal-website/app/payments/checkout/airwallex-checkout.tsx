@@ -3,6 +3,7 @@
 import Script from "next/script";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "next-intl";
 import QRCode from "qrcode";
 import {
   ArrowLeft,
@@ -16,6 +17,13 @@ import {
 } from "lucide-react";
 import { SmoothProgressMeter } from "@/components/smooth-progress";
 import { cn } from "@/lib/utils";
+import {
+  getPaymentCopy,
+  formatPaymentCny,
+  toPaymentLocale,
+  type PaymentErrorKey,
+  type PaymentMethodId,
+} from "../payment-copy";
 
 interface AirwallexCheckoutProps {
   paymentId: string | null;
@@ -38,8 +46,6 @@ interface CreateIntentResponse {
   productName: string | null;
   productKind: "monthly" | "pay_per_application" | null;
 }
-
-type PaymentMethodId = "card" | "wechatpay_qrcode" | "alipaycn_qrcode";
 
 interface AirwallexCardElement {
   mount(containerId: string): void;
@@ -91,40 +97,6 @@ declare global {
   }
 }
 
-const methodOptions: Array<{
-  id: PaymentMethodId;
-  label: string;
-  description: string;
-  icon: typeof CreditCard;
-}> = [
-  {
-    id: "card",
-    label: "银行卡",
-    description: "使用托管卡组件完成安全支付。",
-    icon: CreditCard,
-  },
-  {
-    id: "wechatpay_qrcode",
-    label: "微信支付",
-    description: "生成二维码后使用微信扫码支付。",
-    icon: MessageCircle,
-  },
-  {
-    id: "alipaycn_qrcode",
-    label: "支付宝",
-    description: "生成二维码后使用支付宝扫码支付。",
-    icon: WalletCards,
-  },
-];
-
-function formatCny(amountFen: number): string {
-  return new Intl.NumberFormat("zh-CN", {
-    style: "currency",
-    currency: "CNY",
-    maximumFractionDigits: amountFen % 100 === 0 ? 0 : 2,
-  }).format(amountFen / 100);
-}
-
 function normalizePreferredMethod(value: string | null): PaymentMethodId | null {
   if (value === "card") return "card";
   if (value === "wechat" || value === "wechatpay_qrcode") return "wechatpay_qrcode";
@@ -132,9 +104,11 @@ function normalizePreferredMethod(value: string | null): PaymentMethodId | null 
   return null;
 }
 
-function safeErrorMessage(message: string): string {
-  return message.replace(/Airwallex/gi, "在线支付服务").replace(/Provider/gi, "支付服务");
-}
+const methodOptions: Array<{ id: PaymentMethodId; icon: typeof CreditCard }> = [
+  { id: "card", icon: CreditCard },
+  { id: "wechatpay_qrcode", icon: MessageCircle },
+  { id: "alipaycn_qrcode", icon: WalletCards },
+];
 
 function findRedirectUrl(value: unknown): string | null {
   if (!value || typeof value !== "object") return null;
@@ -189,9 +163,12 @@ export function AirwallexCheckout({
   billing,
   backHref,
 }: AirwallexCheckoutProps) {
+  const locale = useLocale();
+  const paymentLocale = toPaymentLocale(locale);
+  const copy = getPaymentCopy(locale);
   const [scriptReady, setScriptReady] = useState(false);
   const [intent, setIntent] = useState<CreateIntentResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<PaymentErrorKey | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodId | null>(() =>
     normalizePreferredMethod(preferredMethod),
   );
@@ -210,6 +187,17 @@ export function AirwallexCheckout({
   const isMonthly = billing === "monthly" || intent?.productKind === "monthly";
   const canChooseMethod = !isMonthly || agreementAccepted;
   const isAirwallexDemo = intent?.environment === "demo";
+  const productNameMatchesLocale = intent?.productName
+    ? paymentLocale === "zh"
+      ? /[\u3400-\u9fff]/u.test(intent.productName)
+      : !/[\u3400-\u9fff]/u.test(intent.productName)
+    : false;
+  const displayProductName =
+    intent?.productName && productNameMatchesLocale
+      ? intent.productName
+      : isMonthly
+        ? copy.monthlyPlan
+        : copy.serviceFee;
 
   useEffect(() => {
     setApplePayAvailable(Boolean(window.ApplePaySession?.canMakePayments?.()));
@@ -218,13 +206,13 @@ export function AirwallexCheckout({
 
   useEffect(() => {
     if (!createPayload) {
-      setError("缺少支付订单，请从订阅页面重新选择方案。");
+      setErrorKey("missingOrder");
       return;
     }
 
     let cancelled = false;
     async function createIntent() {
-      setError(null);
+      setErrorKey(null);
       const response = await fetch("/api/payments/airwallex/create-intent", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -232,13 +220,13 @@ export function AirwallexCheckout({
       });
       const body = (await response.json()) as CreateIntentResponse | { error?: string };
       if (!response.ok) {
-        throw new Error("error" in body && body.error ? safeErrorMessage(body.error) : "创建支付订单失败。");
+        throw new Error("payment-intent-failed");
       }
       if (!cancelled) setIntent(body as CreateIntentResponse);
     }
 
-    createIntent().catch((caught) => {
-      if (!cancelled) setError(caught instanceof Error ? caught.message : "创建支付订单失败。");
+    createIntent().catch(() => {
+      if (!cancelled) setErrorKey("createOrderFailed");
     });
 
     return () => {
@@ -258,7 +246,7 @@ export function AirwallexCheckout({
     if (intent.providerStatus !== "REQUIRES_PAYMENT_METHOD") {
       setCardElement(null);
       setCardReady(false);
-      setError("当前订单已进入其他支付方式确认流程，请返回订阅页面重新生成订单后选择银行卡。");
+      setErrorKey("cardOtherFlow");
       return;
     }
 
@@ -273,7 +261,7 @@ export function AirwallexCheckout({
       await window.AirwallexComponentsSDK?.init({
         env: activeIntent.environment ?? "demo",
         enabledElements: ["payments"],
-        locale: "zh",
+        locale: paymentLocale,
       });
       const element = await window.AirwallexComponentsSDK?.createElement("card", {
         intent_id: activeIntent.intentId,
@@ -289,26 +277,32 @@ export function AirwallexCheckout({
       });
       if (cancelled || !element) return;
       element.mount("airwallex-card-element");
-      element.on("ready", () => setCardReady(true));
-      element.on("success", () => {
-        window.location.assign(`/payments/result?paymentId=${encodeURIComponent(activeIntent.paymentId)}`);
+      element.on("ready", () => {
+        if (!cancelled) setCardReady(true);
       });
-      element.on("error", () => setError("银行卡支付组件返回错误，请重试或换一种支付方式。"));
+      element.on("success", () => {
+        if (!cancelled) {
+          window.location.assign(`/payments/result?paymentId=${encodeURIComponent(activeIntent.paymentId)}`);
+        }
+      });
+      element.on("error", () => {
+        if (!cancelled) setErrorKey("cardComponentError");
+      });
       setCardElement(element);
     }
 
-    mountCardElement().catch((caught) => {
-      if (!cancelled) setError(caught instanceof Error ? safeErrorMessage(caught.message) : "银行卡支付组件加载失败。");
+    mountCardElement().catch(() => {
+      if (!cancelled) setErrorKey("cardComponentLoadFailed");
     });
 
     return () => {
       cancelled = true;
     };
-  }, [canChooseMethod, intent, scriptReady, selectedMethod]);
+  }, [canChooseMethod, intent, paymentLocale, scriptReady, selectedMethod]);
 
   function requireAgreement(): boolean {
     if (canChooseMethod) return true;
-    setError("请先勾选自动续费授权，再选择支付方式。");
+    setErrorKey("agreementRequired");
     return false;
   }
 
@@ -316,15 +310,15 @@ export function AirwallexCheckout({
     if (!intent?.clientSecret || !cardElement?.confirm || !requireAgreement()) return;
 
     setConfirmingMethod("card");
-    setError(null);
+    setErrorKey(null);
     try {
       await cardElement.confirm({
         intent_id: intent.intentId,
         client_secret: intent.clientSecret,
       });
       window.location.assign(`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`);
-    } catch (caught) {
-      setError(caught instanceof Error ? safeErrorMessage(caught.message) : "银行卡支付未完成，请检查卡信息后重试。");
+    } catch {
+      setErrorKey("cardPaymentFailed");
     } finally {
       setConfirmingMethod(null);
     }
@@ -334,7 +328,7 @@ export function AirwallexCheckout({
     if (!intent || !requireAgreement()) return;
     setSelectedMethod(methodType);
     setConfirmingMethod(methodType);
-    setError(null);
+    setErrorKey(null);
     setQrCodeDataUrl(null);
     setQrCodeValue(null);
     try {
@@ -349,7 +343,7 @@ export function AirwallexCheckout({
         environment?: "demo" | "prod";
         error?: string;
       };
-      if (!response.ok) throw new Error(body.error ? safeErrorMessage(body.error) : "确认支付方式失败。");
+      if (!response.ok) throw new Error("wallet-confirmation-failed");
 
       const qrCode = findQrCodeValue(body.nextAction);
       if (qrCode) {
@@ -363,8 +357,8 @@ export function AirwallexCheckout({
         return;
       }
       window.location.assign(`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "确认支付方式失败。");
+    } catch {
+      setErrorKey("walletConfirmationFailed");
     } finally {
       setConfirmingMethod(null);
     }
@@ -372,7 +366,7 @@ export function AirwallexCheckout({
 
   function selectMethod(method: PaymentMethodId) {
     if (!requireAgreement()) return;
-    setError(null);
+    setErrorKey(null);
     setQrCodeDataUrl(null);
     setQrCodeValue(null);
     if (method === "card") {
@@ -389,7 +383,7 @@ export function AirwallexCheckout({
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
         onLoad={() => setScriptReady(true)}
-        onError={() => setError("支付组件脚本加载失败。")}
+        onError={() => setErrorKey("scriptLoadFailed")}
       />
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -398,25 +392,25 @@ export function AirwallexCheckout({
           className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium text-brand-500 shadow-sm transition hover:border-brand-500"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回订阅页面
+          {copy.backToSubscription}
         </Link>
 
         <section className="rounded-xl border bg-white p-5 shadow-sm sm:p-7">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
             <div>
-              <p className="text-sm font-semibold text-brand-500">VIZA 在线支付</p>
-              <h1 className="mt-2 text-3xl font-semibold text-foreground">确认付款方式</h1>
+              <p className="text-sm font-semibold text-brand-500">{copy.brand}</p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">{copy.checkoutTitle}</h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                本页仅收取 VIZA 服务费。银行卡、微信支付和支付宝会在安全支付环境中完成确认。
+                {copy.checkoutDescription}
               </p>
             </div>
             <div className="rounded-lg border bg-brand-50 px-4 py-3 text-right">
-              <p className="text-xs font-medium text-muted-foreground">应付金额</p>
+              <p className="text-xs font-medium text-muted-foreground">{copy.amountDue}</p>
               <p className="mt-1 text-2xl font-semibold text-brand-500">
-                {intent ? formatCny(intent.amountFen) : "准备中"}
+                {intent ? formatPaymentCny(intent.amountFen, locale) : copy.preparing}
               </p>
               <p className="mt-1 text-xs leading-5 text-brand-700">
-                {intent?.productName ?? (isMonthly ? "月付方案" : "VIZA 服务费")}
+                {displayProductName}
               </p>
             </div>
           </div>
@@ -428,30 +422,31 @@ export function AirwallexCheckout({
                 checked={agreementAccepted}
                 onChange={(event) => {
                   setAgreementAccepted(event.target.checked);
-                  if (event.target.checked) setError(null);
+                  if (event.target.checked) setErrorKey(null);
                 }}
                 className="mt-1 h-4 w-4 rounded border-brand-300 text-brand-500 focus:ring-brand-500"
               />
               <span>
-                我已阅读并同意开通月付自动续费。当前方案将按月扣费，可在订阅管理中取消，到期前取消则当前周期结束后失效。
+                {copy.monthlyAgreement}
               </span>
             </label>
           ) : null}
 
-          {error ? (
+          {errorKey ? (
             <p className="mt-5 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              {error}
+              {copy.errors[errorKey]}
             </p>
           ) : null}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
             <aside className="rounded-lg border bg-white p-4">
-              <p className="text-sm font-semibold text-foreground">选择支付方式</p>
+              <p className="text-sm font-semibold text-foreground">{copy.chooseMethod}</p>
               <div className="mt-3 grid gap-2">
                 {methodOptions.map((method) => {
                   const Icon = method.icon;
                   const selected = selectedMethod === method.id;
                   const busy = confirmingMethod === method.id;
+                  const methodCopy = copy.methods[method.id];
                   return (
                     <button
                       key={method.id}
@@ -469,9 +464,9 @@ export function AirwallexCheckout({
                         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold">{method.label}</span>
+                        <span className="block text-sm font-semibold">{methodCopy.label}</span>
                         <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                          {method.description}
+                          {methodCopy.description}
                         </span>
                       </span>
                       {selected ? <Check className="h-4 w-4 shrink-0 text-brand-500" /> : null}
@@ -482,7 +477,7 @@ export function AirwallexCheckout({
               {applePayAvailable ? (
                 <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
                   <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Apple Pay 需要完成支付服务域名验证后启用，当前 sandbox 暂不展示。
+                  {copy.applePayUnavailable}
                 </p>
               ) : null}
             </aside>
@@ -491,7 +486,7 @@ export function AirwallexCheckout({
               {!selectedMethod ? (
                 <div className="flex min-h-[340px] flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
                   <ShieldCheck className="h-8 w-8 text-brand-500" />
-                  <p>请选择一种支付方式继续。</p>
+                  <p>{copy.chooseMethodPrompt}</p>
                 </div>
               ) : null}
 
@@ -501,13 +496,13 @@ export function AirwallexCheckout({
                     <div className="mx-auto w-full max-w-sm space-y-3 text-sm text-muted-foreground">
                       <div className="flex items-center justify-center">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        正在准备银行卡安全组件
+                        {copy.cardPreparing}
                       </div>
                       <SmoothProgressMeter
                         serverProgress={62}
                         status="running"
                         intervalMs={120}
-                        label="准备进度"
+                        label={copy.progressPreparing}
                       />
                     </div>
                   ) : null}
@@ -523,7 +518,7 @@ export function AirwallexCheckout({
                     ) : (
                       <CreditCard className="h-4 w-4" />
                     )}
-                    {isMonthly ? "开通并同意自动续费" : "支付"}
+                    {isMonthly ? copy.authorizeAndPay : copy.pay}
                   </button>
                 </div>
               ) : null}
@@ -532,20 +527,19 @@ export function AirwallexCheckout({
                 <div className="flex min-h-[340px] flex-col items-center justify-center gap-4 text-center">
                   <img
                     src={qrCodeDataUrl}
-                    alt={selectedMethod === "alipaycn_qrcode" ? "支付宝二维码" : "微信支付二维码"}
+                    alt={selectedMethod === "alipaycn_qrcode" ? copy.alipayQrAlt : copy.wechatQrAlt}
                     className="h-60 w-60 rounded-lg border bg-white p-3 shadow-sm"
                   />
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      {selectedMethod === "alipaycn_qrcode" ? "请使用支付宝扫码支付" : "请使用微信扫码支付"}
+                      {selectedMethod === "alipaycn_qrcode" ? copy.alipayScanPrompt : copy.wechatScanPrompt}
                     </p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      扫码后返回本页或结果页刷新状态，VIZA 会查询最终结果。
+                      {copy.qrStatusHint}
                     </p>
                     {isAirwallexDemo ? (
                       <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                        当前连接 Airwallex sandbox，真实支付宝/微信扫码不会完成扣款。生产测试需要切换到
-                        Airwallex prod 密钥并确认对应支付方式已启用。
+                        {copy.demoPaymentWarning}
                       </p>
                     ) : null}
                   </div>
@@ -553,7 +547,7 @@ export function AirwallexCheckout({
                     href={`/payments/result?paymentId=${encodeURIComponent(intent.paymentId)}`}
                     className="inline-flex min-h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold text-brand-500 transition hover:bg-brand-50"
                   >
-                    查看支付状态
+                    {copy.viewPaymentStatus}
                   </Link>
                   <span className="sr-only">{qrCodeValue}</span>
                 </div>
@@ -563,13 +557,13 @@ export function AirwallexCheckout({
                 <div className="mx-auto flex min-h-[340px] w-full max-w-sm flex-col justify-center gap-3 text-sm text-muted-foreground">
                   <div className="flex items-center justify-center">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    正在打开安全支付页面
+                    {copy.walletOpening}
                   </div>
                   <SmoothProgressMeter
                     serverProgress={88}
                     status="running"
                     intervalMs={120}
-                    label="处理进度"
+                    label={copy.progressProcessing}
                   />
                 </div>
               ) : null}

@@ -10,6 +10,12 @@ Supabase failures never reach the login UI.
 `session/route.ts` validates the active applicant or impersonation session only.
 Keep it free of optional onboarding/database bootstrap side effects so opening
 a new client tab never redirects the applicant away from the requested page.
+Its Supabase fallback has a 1.5-second total deadline, zero retries, and honors
+the request abort signal. A verified fallback establishes the existing signed
+client cookie once; a valid cookie read neither slides expiry nor writes the
+continuity cache. Optional fallback continuity caching uses `after()`.
+`session/route.test.ts` covers private no-store responses, fixed 503 errors,
+cookie issuance, cancellation, and the impersonation boundary.
 
 `auth/dev-session` is an outage-only local testing escape hatch. It must require
 development mode, an explicit server-side enable flag, and a localhost host.

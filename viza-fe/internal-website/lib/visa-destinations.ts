@@ -1318,11 +1318,15 @@ export function getDisplayVisaDestinationsForRegion(regionId: string): PopularVi
 }
 
 export function getPopularVisaDestinationByPackage(country: string, visaType: string): PopularVisaDestination | null {
-  const normalizedCountry = getCanonicalApplicationProductCountry(country, visaType);
-  const normalizedVisaType = getFormVisaType(visaType).toLowerCase();
-  return SELECTABLE_VISA_DESTINATIONS.find((destinationItem) =>
-    destinationItem.country === normalizedCountry &&
-    getFormVisaType(destinationItem.visaType).toLowerCase() === normalizedVisaType
+  const formVisaType = getFormVisaType(visaType);
+  const normalizedVisaType = formVisaType.toLowerCase();
+  const normalizedCountry = getCanonicalApplicationProductCountryForVisaType(
+    country,
+    formVisaType.trim().toLowerCase(),
+  );
+  return getIndexedValue(
+    VISA_DESTINATION_BY_PACKAGE_INDEX,
+    `${normalizedCountry}::${normalizedVisaType}`,
   ) ?? null;
 }
 
@@ -1400,6 +1404,101 @@ export function getFormVisaType(visaType: string): string {
   return visaType;
 }
 
+function normalizeCountryLookup(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function normalizeCountryNameLookup(value: string): string {
+  return value.toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function hasOwnProperty<T>(record: Readonly<Record<string, T>>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function buildFirstValueIndex<T>(entries: readonly (readonly [string, T])[]): Readonly<Record<string, T>> {
+  const index = Object.create(null) as Record<string, T>;
+  for (const [key, value] of entries) {
+    if (!hasOwnProperty(index, key)) index[key] = value;
+  }
+  return Object.freeze(index);
+}
+
+function getIndexedValue<T>(index: Readonly<Record<string, T>>, key: string): T | undefined {
+  return hasOwnProperty(index, key) ? index[key] : undefined;
+}
+
+// The catalogue is static at runtime. Keep these lookup records frozen so
+// repeated status/home reads do not rescan every destination or recreate Sets.
+const VISA_DESTINATION_BY_PACKAGE_INDEX = buildFirstValueIndex<PopularVisaDestination>(
+  SELECTABLE_VISA_DESTINATIONS
+    .map((destinationItem) => [
+      `${destinationItem.country}::${getFormVisaType(destinationItem.visaType).toLowerCase()}`,
+      destinationItem,
+    ] as const),
+);
+
+const VISA_TYPE_DESTINATION_COUNTRY_INDEX = (() => {
+  const countriesByVisaType = new Map<string, Set<string>>();
+
+  for (const destinationItem of SELECTABLE_VISA_DESTINATIONS) {
+    if (destinationItem.kind === "group") continue;
+    const normalizedVisaType = getFormVisaType(destinationItem.visaType).trim().toLowerCase();
+    if (!normalizedVisaType) continue;
+
+    const countries = countriesByVisaType.get(normalizedVisaType) ?? new Set<string>();
+    countries.add(destinationItem.country);
+    countriesByVisaType.set(normalizedVisaType, countries);
+  }
+
+  const index = Object.create(null) as Record<string, string | null>;
+  for (const [visaType, countries] of countriesByVisaType) {
+    // A product may identify its country only when it is unambiguous.
+    index[visaType] = countries.size === 1 ? [...countries][0] ?? null : null;
+  }
+  return Object.freeze(index);
+})();
+
+const CANONICAL_COUNTRY_ALIASES = buildFirstValueIndex<string>([
+  ["america", "united_states"],
+  ["england", "united_kingdom"],
+  ["great_britain", "united_kingdom"],
+  ["u_k", "united_kingdom"],
+  ["uk", "united_kingdom"],
+  ["united_states_of_america", "united_states"],
+  ["us", "united_states"],
+  ["usa", "united_states"],
+  ["viet_nam", "vietnam"],
+  ["vn", "vietnam"],
+  ["越南", "vietnam"],
+  ["巴西", "brazil"],
+  ["brazil", "brazil"],
+  ["俄罗斯", "russia"],
+  ["russia", "russia"],
+]);
+
+const CANONICAL_COUNTRY_NAME_INDEX = buildFirstValueIndex<string>(
+  SELECTABLE_VISA_DESTINATIONS.flatMap((destinationItem) => [
+    [destinationItem.country, destinationItem.country] as const,
+    [normalizeCountryNameLookup(destinationItem.countryName), destinationItem.country] as const,
+    [normalizeCountryNameLookup(destinationItem.countryNameZh), destinationItem.country] as const,
+  ]),
+);
+
+function getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType: string): string | null {
+  return getIndexedValue(VISA_TYPE_DESTINATION_COUNTRY_INDEX, normalizedVisaType) ?? null;
+}
+
+function getCanonicalApplicationProductCountryForVisaType(
+  country: string,
+  normalizedVisaType: string,
+): string {
+  return (
+    getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType) ??
+    getCanonicalVisaDestinationCountry(country)
+  );
+}
+
 /**
  * Resolve a product code to its country only when the catalogue contains that
  * exact visa type for one country. Dedicated products such as Philippines
@@ -1409,67 +1508,34 @@ export function getFormVisaType(visaType: string): string {
 export function getVisaTypeDestinationCountry(visaType: string): string | null {
   const normalizedVisaType = getFormVisaType(visaType).trim().toLowerCase();
   if (!normalizedVisaType) return null;
-
-  const countries = new Set(
-    SELECTABLE_VISA_DESTINATIONS
-      .filter((destinationItem) => destinationItem.kind !== "group")
-      .filter(
-        (destinationItem) =>
-          getFormVisaType(destinationItem.visaType).trim().toLowerCase() ===
-          normalizedVisaType,
-      )
-      .map((destinationItem) => destinationItem.country),
-  );
-
-  return countries.size === 1 ? [...countries][0] : null;
+  return getVisaTypeDestinationCountryFromNormalizedVisaType(normalizedVisaType);
 }
 
 export function getCanonicalApplicationProductCountry(
   country: string,
   visaType: string,
 ): string {
-  return (
-    getVisaTypeDestinationCountry(visaType) ??
-    getCanonicalVisaDestinationCountry(country)
+  return getCanonicalApplicationProductCountryForVisaType(
+    country,
+    getFormVisaType(visaType).trim().toLowerCase(),
   );
 }
 
 export function getCanonicalVisaDestinationCountry(country: string): string {
-  const normalized = country.trim().toLowerCase().replace(/[\s/-]+/g, "_");
-  const aliases: Record<string, string> = {
-    america: "united_states",
-    england: "united_kingdom",
-    great_britain: "united_kingdom",
-    u_k: "united_kingdom",
-    uk: "united_kingdom",
-    united_states_of_america: "united_states",
-    us: "united_states",
-    usa: "united_states",
-    viet_nam: "vietnam",
-    vn: "vietnam",
-    越南: "vietnam",
-    巴西: "brazil",
-    brazil: "brazil",
-    俄罗斯: "russia",
-    russia: "russia",
-  };
-  if (aliases[normalized]) return aliases[normalized];
-
-  const destination = SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => {
-    const normalizedCountryName = destinationItem.countryName.toLowerCase().replace(/[\s/-]+/g, "_");
-    const normalizedCountryNameZh = destinationItem.countryNameZh.toLowerCase().replace(/[\s/-]+/g, "_");
-    return (
-      destinationItem.country === normalized ||
-      normalizedCountryName === normalized ||
-      normalizedCountryNameZh === normalized
-    );
-  });
-
-  return destination?.country ?? normalized;
+  const normalized = normalizeCountryLookup(country);
+  return (
+    getIndexedValue(CANONICAL_COUNTRY_ALIASES, normalized) ??
+    getIndexedValue(CANONICAL_COUNTRY_NAME_INDEX, normalized) ??
+    normalized
+  );
 }
 
 export function getVisaDestinationKey(country: string, visaType: string): string {
-  return `${getCanonicalApplicationProductCountry(country, visaType)}::${getFormVisaType(visaType).toLowerCase()}`;
+  const formVisaType = getFormVisaType(visaType);
+  return `${getCanonicalApplicationProductCountryForVisaType(
+    country,
+    formVisaType.trim().toLowerCase(),
+  )}::${formVisaType.toLowerCase()}`;
 }
 
 /**

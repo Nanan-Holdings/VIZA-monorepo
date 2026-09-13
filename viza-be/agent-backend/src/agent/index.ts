@@ -257,12 +257,15 @@ export async function streamChat(
   messages: ChatMessage[],
   callbacks: StreamCallbacks,
   systemPrompt?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  locale: ResponseLocale = "en"
 ): Promise<void> {
   const client = getOpenAIClient();
   if (!client) {
     const fallback =
-      "I'm sorry, the AI service is not configured yet. Please contact support.";
+      locale === "zh"
+        ? "抱歉，AI 服务尚未配置。请联系支持团队。"
+        : "I'm sorry, the AI service is not configured yet. Please contact support.";
     callbacks.onToken(fallback);
     await callbacks.onComplete(fallback, []);
     return;

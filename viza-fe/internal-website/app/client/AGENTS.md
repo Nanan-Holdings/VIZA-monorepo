@@ -21,11 +21,12 @@ applicant info, and help pages.
   links. It may return only to a safe internal `/client/*` route and must never
   render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
-  summary, recent activity). Destination selection moved to
-  `destinations/page.tsx`. Load detailed timeline data only after the compact
-  dashboard selects an application, and clear a stale timeline on a null
-  result. `home/__tests__/home-status-loading.test.tsx` covers empty selection,
-  exact selected-ID reads, and clearing an old timeline.
+  summary, recent activity) loads dashboard and selected task timeline through
+  one authorized `getClientHomeDashboardWithTimeline` action. The server checks
+  the requested selection against owned applications and returns a slim task
+  projection. Clear stale timelines, surface partial/unavailable states, and
+  retain the in-flight guard until the action actually settles.
+  `home/__tests__/home-status-loading.test.tsx` covers these loading states.
 - `destinations/page.tsx`: country/application switch page — "my applications"
   switcher plus the popular-destinations catalog (featured, region groups,
   search). Reached via the hamburger menu "Change country" item. Progress
@@ -67,6 +68,9 @@ applicant info, and help pages.
   boxes or standalone red paragraphs.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
+- `interview-practice/**`: interview preparation, officer choice, bilingual
+  practice questions and reports; follow its module guide for locale and voice
+  behavior.
 - `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2
   appointment assistant entry after DS-160 capture/submission. It may use China
   USVisaScheduling gated assisted-live from explicit user actions, while other

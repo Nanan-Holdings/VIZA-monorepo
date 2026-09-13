@@ -897,7 +897,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <>
               <p className="text-sm leading-6 text-muted-foreground">{t("account.smsBody", { phone: phoneMasked || t("common.maskedPhone") })}</p>
               {manualAction?.expires_at ? (
-                <p className="text-xs text-muted-foreground">{t("account.expires", { time: new Date(manualAction.expires_at).toLocaleTimeString() })}</p>
+                <p className="text-xs text-muted-foreground">{t("account.expires", { time: new Date(manualAction.expires_at).toLocaleTimeString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</p>
               ) : null}
               <BrandField label={t("account.codeLabel")} htmlFor="korea-sms-code">
                 <BrandInput
@@ -990,7 +990,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600"><CalendarCheck className="h-6 w-6" /></div>
               <h2 className="mt-4 font-heading text-lg font-medium">{t("slots.emptyTitle")}</h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t("slots.emptyBody")}</p>
-              {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString() })}</p> : null}
+              {noSlots.lastCheckedAt ? <p className="mt-2 text-xs text-muted-foreground">{t("slots.checkedAt", { time: new Date(noSlots.lastCheckedAt).toLocaleString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</p> : null}
               <BrandActionButton
                 className="mt-5 w-full"
                 loading={busy === "request-live-booking"}
@@ -1010,7 +1010,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <>
               <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
                 <span>{centerName}</span>
-                {snapshot.job?.updated_at ? <span>{t("slots.checkedAt", { time: new Date(snapshot.job.updated_at).toLocaleString() })}</span> : null}
+                {snapshot.job?.updated_at ? <span>{t("slots.checkedAt", { time: new Date(snapshot.job.updated_at).toLocaleString(t("locale") === "zh" ? "zh-CN" : "en-US") })}</span> : null}
               </div>
               <div className="space-y-3" role="radiogroup" aria-label={t("slots.title")}>
                 {observedSlots.map((slot) => (

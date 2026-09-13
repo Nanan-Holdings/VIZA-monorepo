@@ -1,6 +1,15 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render as renderComponent, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactElement } from "react";
+import zh from "@/messages/zh.json";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PaymentStatusPoller } from "../payment-status-poller";
+
+function render(ui: ReactElement) {
+  return renderComponent(ui, { wrapper: ({ children }) => (
+    <NextIntlClientProvider locale="zh" messages={zh}>{children}</NextIntlClientProvider>
+  ) });
+}
 
 vi.mock("@/hooks/use-smooth-progress", () => ({
   useSmoothProgress: () => ({

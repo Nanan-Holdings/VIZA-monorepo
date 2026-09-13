@@ -31,6 +31,16 @@ The expected release identity is `nananviza2016-8879` with organization email
 before deploying; a browser's existing personal Google session is not evidence
 of the correct release account. The linked team is `viza-gmail-s-projects`.
 
+Always use the nananviza organization Google account for VIZA authentication
+and deployment. Never select a personal Google account or continue a default
+CLI/browser login flow without first selecting nananviza. On this workstation,
+use the organization Vercel CLI config at
+`%LOCALAPPDATA%\VizaVercelCodex` explicitly with `--global-config`; do not fall
+back to the default CLI account. Before any release, call `/v2/user` through
+that CLI configuration and require the exact username and email above. If the
+organization credentials are missing or expired, authenticate nananviza only;
+never substitute another account to unblock deployment.
+
 ## Local Test Admin
 
 Use this admin account for local portal smoke testing:

@@ -19,9 +19,16 @@ import {
 import { buildPayPerGroups } from "./pay-per-data";
 import { PayPerApplicationBrowser } from "./pay-per-application-browser";
 import {
+  getAlipayReturnState,
+  getCancelledReturnState,
+  getErrorReturnState,
+  getSubscriptionPageCopy,
+} from "./subscription-copy";
+import {
   formatCny,
   getCommercialProduct,
 } from "@/lib/payments/commercial-products";
+import { localizeSubscriptionState } from "@/lib/payments/subscription-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -71,57 +78,10 @@ function getParam(params: SubscriptionSearchParams | undefined, key: keyof Subsc
   return value ?? null;
 }
 
-function getErrorReturnState(error: string | null): SubscriptionReturnState {
-  if (!error) return null;
-
-  const messages: Record<string, SubscriptionReturnState> = {
-    invalid_product: {
-      tone: "error",
-      title: "无法识别该方案",
-      description: "请选择页面上展示的月付或次付方案后再发起支付。",
-    },
-    payment_record_failed: {
-      tone: "error",
-      title: "支付记录创建失败",
-      description: "VIZA 未能准备订单，请稍后重试或联系客服。",
-    },
-    stripe_unconfigured: {
-      tone: "warning",
-      title: "银行卡支付尚未配置",
-      description: "请先配置托管银行卡验证和应用回调地址。",
-    },
-    wechat_unconfigured: {
-      tone: "warning",
-      title: "微信支付尚未配置",
-      description: "请先配置微信支付商户号、AppID、API v3 Key、商户证书序列号和私钥。",
-    },
-    alipay_unconfigured: {
-      tone: "warning",
-      title: "支付宝尚未配置",
-      description: "请先配置支付宝 AppID、应用私钥和支付宝公钥。",
-    },
-    airwallex_unconfigured: {
-      tone: "warning",
-      title: "在线支付尚未配置",
-      description: "请先配置 sandbox 支付服务的 Client ID、API Key 和应用地址。",
-    },
-    app_url_missing: {
-      tone: "error",
-      title: "应用地址缺失",
-      description: "需要 NEXT_PUBLIC_APP_URL 或请求 Host 才能生成支付回调地址。",
-    },
-  };
-
-  return (
-    messages[error] ?? {
-      tone: "error",
-      title: "支付暂时不可用",
-      description: "支付页面未能打开，请稍后重试。",
-    }
-  );
-}
-
-async function getReturnState(params: SubscriptionSearchParams | undefined): Promise<SubscriptionReturnState> {
+async function getReturnState(
+  params: SubscriptionSearchParams | undefined,
+  locale: string,
+): Promise<SubscriptionReturnState> {
   const payment = getParam(params, "payment");
   const provider = getParam(params, "provider");
 
@@ -130,22 +90,14 @@ async function getReturnState(params: SubscriptionSearchParams | undefined): Pro
   }
 
   if (payment === "cancelled") {
-    return {
-      tone: "warning",
-      title: "支付已取消",
-      description: "当前方案没有扣费，你可以重新选择在线支付。",
-    };
+    return getCancelledReturnState(locale);
   }
 
   if (payment === "return" && provider === "alipay") {
-    return {
-      tone: "warning",
-      title: "支付宝已返回",
-      description: "最终支付状态以支付宝异步通知为准。如已付款，请稍后刷新页面。",
-    };
+    return getAlipayReturnState(locale);
   }
 
-  return getErrorReturnState(getParam(params, "error"));
+  return getErrorReturnState(getParam(params, "error"), locale);
 }
 
 function ReturnStateAlert({ state }: { state: SubscriptionReturnState }) {
@@ -169,9 +121,11 @@ function ReturnStateAlert({ state }: { state: SubscriptionReturnState }) {
 function OnlinePayCta({
   productId,
   featured,
+  label,
 }: {
   productId: string;
   featured?: boolean;
+  label: string;
 }) {
   return (
     <Link
@@ -184,19 +138,21 @@ function OnlinePayCta({
       )}
     >
       <ShieldCheck className="h-4 w-4" />
-      在线付
+      {label}
     </Link>
   );
 }
 
 export default async function SubscriptionPage({ searchParams }: SubscriptionPageProps) {
   const params = await searchParams;
-  const [t, locale, returnState, currentSubscription] = await Promise.all([
+  const [t, locale, currentSubscription] = await Promise.all([
     getTranslations("subscription"),
     getLocale(),
-    getReturnState(params),
     getCurrentSubscriptionForCurrentUser(),
   ]);
+  const returnState = await getReturnState(params, locale);
+  const copy = getSubscriptionPageCopy(locale);
+  const localizedCurrentSubscription = localizeSubscriptionState(currentSubscription, locale);
   const isZh = locale.toLowerCase().startsWith("zh");
   const payPerGroups = buildPayPerGroups();
 
@@ -235,24 +191,24 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t("current.label")}</p>
                   <p className="mt-1 text-2xl font-semibold text-brand-500">
-                    {currentSubscription.planName}
+                    {localizedCurrentSubscription.planName}
                   </p>
                 </div>
                 <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-500">
-                  {currentSubscription.statusLabel}
+                  {localizedCurrentSubscription.statusLabel}
                 </span>
               </div>
               <div className="mt-5 grid gap-3">
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">{t("current.renewalLabel")}</span>
                   <span className="text-right font-semibold text-foreground">
-                    {currentSubscription.renewalLabel}
+                    {localizedCurrentSubscription.renewalLabel}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">{t("current.paymentLabel")}</span>
                   <span className="font-semibold text-foreground">
-                    {currentSubscription.paymentMethodLabel}
+                    {localizedCurrentSubscription.paymentMethodLabel}
                   </span>
                 </div>
                 {currentSubscription.countryLimitPerMonth ? (
@@ -311,7 +267,7 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                         </div>
                         <div className="shrink-0">
                           <div className="flex items-end gap-1">
-                            <span className="text-4xl font-semibold leading-none">{formatCny(product.amountFen)}</span>
+                          <span className="text-4xl font-semibold leading-none">{formatCny(product.amountFen, locale)}</span>
                             <span className={plan.featured ? "pb-1 text-sm font-medium text-white/70" : "pb-1 text-sm font-medium text-muted-foreground"}>
                               {t("monthly.cadence")}
                             </span>
@@ -341,7 +297,7 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                       </div>
 
                       <div className="mt-auto pt-6">
-                        <OnlinePayCta productId={product.id} featured={plan.featured} />
+                        <OnlinePayCta productId={product.id} featured={plan.featured} label={copy.onlinePay} />
                       </div>
                     </article>
                   );
@@ -402,10 +358,10 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
                 href="/client/settings/subscription"
                 className="inline-flex min-h-10 items-center justify-center text-sm font-semibold text-brand-500 transition hover:text-brand-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                管理订阅方案
+                {copy.manageTitle}
               </Link>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                查看当前月付方案、续费日期，或取消月付。
+                {copy.manageDescription}
               </p>
             </section>
           </div>

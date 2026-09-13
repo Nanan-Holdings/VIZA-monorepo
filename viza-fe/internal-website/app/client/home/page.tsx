@@ -70,9 +70,7 @@ function ErrorState({ message }: { message: string }) {
             <CircleAlert />
           </EmptyMedia>
           <EmptyTitle>{message}</EmptyTitle>
-          <EmptyDescription>
-            加载仪表板时出现问题，请刷新页面后重试。
-          </EmptyDescription>
+          <EmptyDescription>{message}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </div>
@@ -270,6 +268,7 @@ export default function HomePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const latestLoadRequestId = useRef(0);
   const dashboardLoadInFlightRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
   const lastDashboardLoadAtRef = useRef(0);
 
   // Handle magic link auth callback
@@ -316,6 +315,10 @@ export default function HomePage() {
       retryOnAbort?: boolean;
     } = {}) => {
       if (dashboardLoadInFlightRef.current) return;
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       dashboardLoadInFlightRef.current = true;
       const requestId = latestLoadRequestId.current + 1;
       latestLoadRequestId.current = requestId;
@@ -374,9 +377,21 @@ export default function HomePage() {
         const loadedApplications = dashboard.applications as ApplicationRow[];
         const loadedPayments = dashboard.payments as PaymentRow[];
 
-        // Current application = explicit active selection, then last-visited
-        // form context, then the newest ongoing application.
-        const currentApplication =
+        // The server selects from the owner-scoped rows it just read. Prefer
+        // that verified identity so an expired client hint cannot make the
+        // cards and timeline describe different applications.
+        const serverSelectedApplication = dashboard.timelineApplicationId
+          ? loadedApplications.find(
+              (application) => application.id === dashboard.timelineApplicationId,
+            ) ?? null
+          : null;
+        const serverSelectionMismatch = Boolean(
+          dashboard.timelineApplicationId && !serverSelectedApplication,
+        );
+
+        // Fallback selection is used only when the server did not return a
+        // timeline identity (for example, there are no ongoing applications).
+        const clientSelectedApplication =
           loadedApplications.find((application) =>
             activeSelection?.applicationId
               ? application.id === activeSelection.applicationId
@@ -395,24 +410,29 @@ export default function HomePage() {
           }) ??
           loadedApplications.find((application) => isOngoingApplicationState(application.status)) ??
           null;
+        const currentApplication = serverSelectedApplication ?? clientSelectedApplication;
         if (!currentApplication) {
           setSelectedApplicationStatus(null);
-          setIsTimelinePartial(false);
+          setIsTimelinePartial(serverSelectionMismatch);
           setIsTimelineLoading(false);
         } else {
-          const statusResult =
-            dashboard.timelineApplicationId === currentApplication.id
-              ? dashboard.timeline
-              : null;
+          const timelineMatchesApplication = Boolean(
+            dashboard.timelineApplicationId === currentApplication.id &&
+              dashboard.timeline?.id === currentApplication.id,
+          );
+          const statusResult = timelineMatchesApplication ? dashboard.timeline : null;
           if (isLatestRequest()) setSelectedApplicationStatus(statusResult);
           setIsTimelinePartial(
             Boolean(
-              dashboard.timelinePartialData &&
-                dashboard.timelineApplicationId === currentApplication.id,
+              dashboard.timelinePartialData ||
+                serverSelectionMismatch ||
+                !dashboard.timelineApplicationId ||
+                dashboard.timelineApplicationId !== currentApplication.id ||
+                !timelineMatchesApplication,
             ),
           );
           setIsTimelineLoading(false);
-          if (statusResult && activeSelection?.applicationId !== currentApplication.id) {
+          if (serverSelectedApplication && activeSelection?.applicationId !== currentApplication.id) {
             setActiveApplicationSelection({
               applicationId: currentApplication.id,
               packageId: currentApplication.visa_package_id,
@@ -451,7 +471,7 @@ export default function HomePage() {
             )
           );
           setSelectedApplicationStatus(null);
-          setIsTimelinePartial(false);
+          setIsTimelinePartial(serverSelectionMismatch);
           setIsTimelineLoading(false);
           return;
         }
@@ -475,7 +495,9 @@ export default function HomePage() {
         if (isIgnorableDashboardLoadError(loadError)) {
           if (retryOnAbort) {
             keepLoadingForRetry = true;
-            window.setTimeout(() => {
+            retryTimerRef.current = window.setTimeout(() => {
+              retryTimerRef.current = null;
+              if (!isLatestRequest()) return;
               void fetchData({ showLoading, retryOnAbort: false });
             }, 100);
           }
@@ -515,6 +537,10 @@ export default function HomePage() {
   // from applying its result when the request eventually completes.
   useEffect(() => () => {
     latestLoadRequestId.current += 1;
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
   }, []);
 
   // Keep the immersive navigation white until the hero has fully left the viewport.

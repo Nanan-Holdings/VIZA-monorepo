@@ -228,6 +228,49 @@ describe("HomePage status loading", () => {
     );
   });
 
+  it("uses the server-selected owned application when client hints disagree", async () => {
+    const first = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
+    const second = application(SECOND_APPLICATION_ID, "2026-09-02T00:00:00.000Z");
+    mocks.readActiveApplicationSelection.mockReturnValue({
+      applicationId: "99999999-9999-4999-8999-999999999999",
+      packageId: null,
+      country: first.country,
+      visaType: first.visa_type,
+      href: "/client/destinations",
+    });
+    mocks.readApplicationFormTarget.mockReturnValue({
+      applicationId: SECOND_APPLICATION_ID,
+      country: second.country,
+      visaType: second.visa_type,
+    });
+    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+      dashboard([first, second], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)),
+    );
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("timeline")).toHaveTextContent("status-loaded");
+    });
+    expect(mocks.setActiveApplicationSelection).toHaveBeenCalledWith(
+      expect.objectContaining({ applicationId: FIRST_APPLICATION_ID }),
+    );
+  });
+
+  it("marks an unknown server timeline identity as partial instead of showing another app as complete", async () => {
+    const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
+    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+      dashboard([selected], "99999999-9999-4999-8999-999999999999", timeline("99999999-9999-4999-8999-999999999999")),
+    );
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
+    });
+    expect(screen.getByText("partialData")).toBeInTheDocument();
+  });
+
   it("clears stale timeline state when a later aggregate refresh returns null", async () => {
     const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
@@ -274,5 +317,21 @@ describe("HomePage status loading", () => {
       expect(screen.getByText("partialData")).toBeInTheDocument();
     });
     expect(screen.getByTestId("timeline")).toHaveTextContent("status-loaded");
+  });
+
+  it("clears an abort retry timer when the page unmounts", async () => {
+    mocks.getClientHomeDashboardWithTimeline.mockRejectedValueOnce(
+      new DOMException("The operation was aborted.", "AbortError"),
+    );
+
+    const { unmount } = render(<HomePage />);
+    await waitFor(() => {
+      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    unmount();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
   });
 });

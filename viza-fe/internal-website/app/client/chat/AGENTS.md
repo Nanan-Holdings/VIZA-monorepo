@@ -29,6 +29,8 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
 
 - `page.tsx`: server route entry; resolves the user, creates/loads the chat session, and passes latest application context.
 - `chat-client.tsx`: main client UI; owns tab switching, Socket.IO connection, streaming state, scroll behavior, and embedded Travel AI.
+- `chat-client.test.tsx`: Socket.IO response lifecycle regression coverage for
+  hidden token fragments, immediate finalized text, failures, and queued turns.
 - `legacy-application-blocks.ts`: upgrades pre-block historical Singapore
   arrival-card handoffs into the same VIZA form card used by current messages.
 - `components/client/companion/chat-input.tsx`: shared bottom composer used by the VIZA AI chat surface.
@@ -66,6 +68,11 @@ If behavior conflicts, prefer the authenticated route and Socket.IO contract doc
     keep that flag synchronized with the backend topology flag. Preserve
     `tryAllTransports` so a rolling deployment can recover from a brief flag
     mismatch by trying WebSocket after polling is rejected.
+25. While a VIZA reply is generating, show only `ThinkingIndicator`. Do not
+    render or replay `token` fragments: their whitespace/formatting may be
+    incomplete. Render `response_complete.fullResponse` immediately through
+    `ChatMessage`; errors must replace the placeholder with a localized failure
+    message and must never expose partial response text. Preserve queued turns.
 
 ## Session Model
 
@@ -96,7 +103,8 @@ For frontend-only changes:
 3. Manually verify `/client/chat`:
    - unauthenticated users redirect to login
    - `VIZA AI` tab connects and sends a message
-   - streamed tokens become one finalized assistant message
+   - loading dots stay visible during token events; only the finalized response
+     becomes one assistant message, without a character-reveal delay
    - the VIZA session panel can start a new chat and switch back to an older chat
    - the last selected VIZA process survives a page refresh
    - process rename persists after Save and exits cleanly on Cancel

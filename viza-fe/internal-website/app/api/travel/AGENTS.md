@@ -41,6 +41,9 @@ service URL off the client.
 ## Ownership Boundaries
 
 - Use `lib/travel/backend.ts` for backend URL and JSON forwarding.
+- Use `lib/travel/travel-locale.ts` for explicit request locale and cookie
+  fallback. Propagate the current language through generation, revision,
+  location/provider requests and exports, including localized failure messages.
 - Do not duplicate itinerary generation directly in route handlers. Use the
   server-only `lib/travel/itinerary-fallback.ts` pipeline for Travel Service,
   Google Places, and OpenAI fallback orchestration.

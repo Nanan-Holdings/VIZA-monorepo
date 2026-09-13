@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -40,6 +41,15 @@ const FLAG_LABELS: Record<"strong" | "neutral" | "weak", string> = {
   neutral: "中性",
   weak: "需要注意",
 };
+const ENGLISH_FLAG_LABELS: typeof FLAG_LABELS = {
+  strong: "Strong answer",
+  neutral: "Satisfactory",
+  weak: "Needs attention",
+};
+
+function flagLabel(flag: LlmScore["flag"], locale: InterfaceLocale) {
+  return (locale === "en" ? ENGLISH_FLAG_LABELS : FLAG_LABELS)[flag];
+}
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -56,38 +66,40 @@ function clampScore(score: number): number {
   return Math.max(35, Math.min(92, Math.round(score)));
 }
 
-function localScore(question: string, answer: string): LlmScore {
+function localScore(question: string, answer: string, locale: InterfaceLocale): LlmScore {
   const text = answer.trim();
   let score = 50;
   if (text.length >= 8) score += 8;
   if (text.length >= 18) score += 8;
   if (text.length >= 36) score += 6;
   if (/\d/.test(text)) score += 6;
-  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市/i.test(text)) score += 6;
-  if (/美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text)) score += 6;
-  if (/天|周|月|号|日期|时间|行程|回程|机票/.test(text)) score += 5;
-  if (/工作|公司|单位|机构|职位|上班|请假|学生|学校|业务|生意/.test(text)) score += 5;
-  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|回国|回来|项目/.test(text)) score += 5;
-  if (/不知道|随便|没有|不清楚|还没想|无所谓|^1$|^好$/.test(text)) score -= 18;
+  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|new york|los angeles|san francisco|chicago|boston|las vegas|seattle|washington|miami|orlando|hawaii|city/i.test(text)) score += 6;
+  if (/美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱|dollars?|budget|savings?|bank|salary|income|sponsor|self.funded|money/i.test(text)) score += 6;
+  if (/天|周|月|号|日期|时间|行程|回程|机票|days?|weeks?|months?|dates?|itinerary|return|flight/i.test(text)) score += 5;
+  if (/工作|公司|单位|机构|职位|上班|请假|学生|学校|业务|生意|work|company|organization|job|leave|student|school|business/i.test(text)) score += 5;
+  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|回国|回来|项目|family|parents?|children|wife|husband|spouse|home|return|project/i.test(text)) score += 5;
+  if (/不知道|随便|没有|不清楚|还没想|无所谓|^1$|^好$|don.t know|whatever|not sure|^okay$/i.test(text)) score -= 18;
 
   const finalScore = clampScore(score);
   const flag = finalScore >= 78 ? "strong" : finalScore < 62 ? "weak" : "neutral";
-  const topic = /费用|预算|资助/.test(question) ? "资金"
-    : /工作|公司|机构/.test(question) ? "工作"
-    : /家里|牵挂|回国/.test(question) ? "约束"
-    : /城市|住宿|行程/.test(question) ? "行程"
-    : /多长|回程|时间/.test(question) ? "时间"
-    : "目的";
-  const note = flag === "strong" ? "细节较具体"
-    : flag === "weak" ? "缺少关键事实"
-    : "可再补充细节";
+  const en = locale === "en";
+  const topic = /费用|预算|资助|cost|budget|pay|sponsor/i.test(question) ? (en ? "Funding" : "资金")
+    : /工作|公司|机构|work|company|organization/i.test(question) ? (en ? "Work" : "工作")
+    : /家里|牵挂|回国|family|ties|home/i.test(question) ? (en ? "Home ties" : "约束")
+    : /城市|住宿|行程|cities|city|accommodation|itinerary/i.test(question) ? (en ? "Itinerary" : "行程")
+    : /多长|回程|时间|how long|return|time/i.test(question) ? (en ? "Timing" : "时间")
+    : (en ? "Purpose" : "目的");
+  const note = flag === "strong" ? (en ? "Specific details provided" : "细节较具体")
+    : flag === "weak" ? (en ? "Key facts are missing" : "缺少关键事实")
+    : (en ? "Add more specific details" : "可再补充细节");
 
   return { index: 0, score: finalScore, flag, note, topic };
 }
 
-function buildLocalReport(messages: Message[]): InterviewReport {
-  const pairs = buildPairs(messages).filter((pair) => pair.question !== "好的，今天的面试到这里就结束了，感谢您的配合。");
-  const scored = pairs.map((pair, i) => ({ pair, i, score: localScore(pair.question, pair.answer) }));
+function buildLocalReport(messages: Message[], locale: InterfaceLocale): InterviewReport {
+  const en = locale === "en";
+  const pairs = buildPairs(messages).filter((pair) => !["好的，今天的面试到这里就结束了，感谢您的配合。", "That concludes today's interview. Thank you for your time."].includes(pair.question));
+  const scored = pairs.map((pair, i) => ({ pair, i, score: localScore(pair.question, pair.answer, locale) }));
   const avg = scored.length
     ? scored.reduce((sum, item) => sum + item.score.score, 0) / scored.length
     : 60;
@@ -107,19 +119,19 @@ function buildLocalReport(messages: Message[]): InterviewReport {
       narrativeAlignment: clampScore(avg + (strong ? 2 : -2)),
     },
     strengths: [
-      strong ? `第${strong.i + 1}题细节较具体：${truncate(strong.pair.answer, 18)}` : "暂未看到特别突出的回答",
-      "能够完成主要面试问题",
+      strong ? (en ? `Answer ${strong.i + 1} gives specific details: ${truncate(strong.pair.answer, 60)}` : `第${strong.i + 1}题细节较具体：${truncate(strong.pair.answer, 18)}`) : (en ? "No particularly strong answers identified yet" : "暂未看到特别突出的回答"),
+      en ? "Completed the main interview questions" : "能够完成主要面试问题",
     ],
     improvements: [
-      weak ? `第${weak.i + 1}题需要补充具体事实` : "建议每题补充城市、时间或金额",
-      "准备一版一分钟行程概括",
+      weak ? (en ? `Add specific facts to answer ${weak.i + 1}` : `第${weak.i + 1}题需要补充具体事实`) : (en ? "Include specific places, dates or amounts in each answer" : "建议每题补充城市、时间或金额"),
+      en ? "Prepare a one-minute summary of your itinerary" : "准备一版一分钟行程概括",
     ],
     questionAnalysis: scored.map(({ pair, i, score }) => ({
       question: truncate(pair.question, 60),
       answer: truncate(pair.answer, 60),
       score: score.score,
       flag: score.flag,
-      flagLabel: FLAG_LABELS[score.flag],
+      flagLabel: flagLabel(score.flag, locale),
       note: score.note,
       timestamp: timestampForIndex(i),
       topic: score.topic,
@@ -150,20 +162,23 @@ type LlmScore = {
 };
 
 export async function POST(request: NextRequest) {
+  let locale = normalizeInterfaceLocale(request.cookies.get("NEXT_LOCALE")?.value ?? "zh");
   let messages: Message[];
   try {
-    ({ messages } = (await request.json()) as { messages: Message[] });
+    const body = (await request.json()) as { messages: Message[]; locale?: string };
+    messages = body.messages;
+    if (body.locale) locale = normalizeInterfaceLocale(body.locale);
   } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
+    return Response.json({ error: locale === "en" ? "Invalid interview request." : "面试请求无效。" }, { status: 400 });
   }
 
-  if (!messages || messages.length < 2) {
-    return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
+  if (!Array.isArray(messages) || messages.length < 2) {
+    return Response.json({ error: locale === "en" ? "There are not enough answers to generate a report." : "对话记录不足，无法生成报告" }, { status: 400 });
   }
 
   const pairs = buildPairs(messages);
   if (pairs.length === 0) {
-    return Response.json({ error: "对话记录不足，无法生成报告" }, { status: 400 });
+    return Response.json({ error: locale === "en" ? "There are not enough answers to generate a report." : "对话记录不足，无法生成报告" }, { status: 400 });
   }
 
   // The model only scores each numbered Q&A; the question/answer text itself is
@@ -208,7 +223,9 @@ ${numbered}
   ]
 }
 
-评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。`;
+评分维度：clarity 表达清晰度、confidence 回答的置信感、consistency 前后一致性、narrativeAlignment 与真实情况的符合度。
+
+${locale === "en" ? "The user selected English. Write every strengths, improvements, note and topic value in English, regardless of the transcript language. Use short sentences instead of the Chinese character limits above. Preserve the specified JSON keys and enums, including passLikelihood values, exactly; the interface localizes those values." : "用户选择中文。所有 strengths、improvements、note 和 topic 内容必须使用中文，即使对话记录是其他语言。保留指定的 JSON 字段和枚举。"}`;
 
   try {
     const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
@@ -229,8 +246,7 @@ ${numbered}
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      return Response.json({ error: text }, { status: res.status });
+      return Response.json(buildLocalReport(messages, locale));
     }
 
     const payload = (await res.json()) as {
@@ -252,7 +268,7 @@ ${numbered}
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return Response.json(buildLocalReport(messages));
+      return Response.json(buildLocalReport(messages, locale));
     }
 
     const scoreByIndex = new Map<number, LlmScore>();
@@ -270,10 +286,10 @@ ${numbered}
           answer: truncate(pair.answer, 60),
           score: s?.score ?? 70,
           flag,
-          flagLabel: FLAG_LABELS[flag] ?? "中性",
-          note: s?.note ?? "回答基本符合要求",
+          flagLabel: flagLabel(flag, locale) ?? flagLabel("neutral", locale),
+          note: s?.note ?? (locale === "en" ? "The answer meets the basic expectations" : "回答基本符合要求"),
           timestamp: timestampForIndex(i),
-          topic: s?.topic ?? "综合评估",
+          topic: s?.topic ?? (locale === "en" ? "Overall assessment" : "综合评估"),
         };
       }
     );
@@ -294,6 +310,6 @@ ${numbered}
 
     return Response.json(report);
   } catch {
-    return Response.json(buildLocalReport(messages));
+    return Response.json(buildLocalReport(messages, locale));
   }
 }

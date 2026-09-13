@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface DateDividerProps {
   date: Date;
+  locale?: string;
   className?: string;
 }
 
@@ -15,34 +16,35 @@ interface DateDividerProps {
  * - This year: "Jan 15"
  * - Other: "Jan 15, 2024"
  */
-function formatDividerDate(date: Date): string {
+function formatDividerDate(date: Date, locale = "en"): string {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   const diffDays = Math.floor((today.getTime() - targetDay.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
+  const isZh = locale.toLowerCase().startsWith("zh");
+  if (diffDays === 0) return isZh ? "今天" : "Today";
+  if (diffDays === 1) return isZh ? "昨天" : "Yesterday";
   if (diffDays < 7) {
-    return date.toLocaleDateString("en-US", { weekday: "long" });
+    return date.toLocaleDateString(locale, { weekday: "long" });
   }
   if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
   }
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 /**
  * Subtle date divider between messages from different days
  */
-export function DateDivider({ date, className }: DateDividerProps) {
+export function DateDivider({ date, locale = "en", className }: DateDividerProps) {
   return (
     <div className={cn("flex items-center justify-center py-4", className)}>
       <div className="flex items-center gap-3 w-full max-w-[200px]">
         <div className="flex-1 h-px bg-gray-200" />
         <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
-          {formatDividerDate(date)}
+          {formatDividerDate(date, locale)}
         </span>
         <div className="flex-1 h-px bg-gray-200" />
       </div>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ActionButton } from "@/components/ui/action-button";
 import { ApplicationFormInputGroup } from "@/components/ui/application-form-input";
 import { InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
@@ -24,9 +25,10 @@ import {
 } from "lucide-react";
 
 export default function ResetPasswordPage() {
+  const t = useTranslations("passwordReset");
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"shortPassword" | "mismatch" | "failed" | "compromised" | "samePassword" | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
@@ -76,10 +78,10 @@ export default function ResetPasswordPage() {
 
   const validatePassword = () => {
     if (password.length < 8) {
-      return "Password must be at least 8 characters";
+      return "shortPassword" as const;
     }
     if (password !== confirmPassword) {
-      return "Passwords do not match";
+      return "mismatch" as const;
     }
     return null;
   };
@@ -100,7 +102,9 @@ export default function ResetPasswordPage() {
       const result = await updatePassword(password);
 
       if (result.error) {
-        setError(result.error);
+        const message = result.error.toLowerCase();
+        setError(/compromised|commonly used|data breaches/.test(message) ? "compromised"
+          : /same password|different from|different password/.test(message) ? "samePassword" : "failed");
       } else {
         setIsSuccess(true);
         // Redirect to login after a short delay
@@ -109,7 +113,7 @@ export default function ResetPasswordPage() {
         }, 2000);
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +125,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-brand mx-auto mb-4" />
-          <p className="text-sm text-gray-500">Verifying reset link...</p>
+          <p className="text-sm text-gray-500">{t("verifying")}</p>
         </div>
       </div>
     );
@@ -142,7 +146,7 @@ export default function ResetPasswordPage() {
                 <Image src="/logo/viza-logo-blue.svg" alt="VIZA" width={100} height={30} priority />
               </div>
               <p className="text-sm text-gray-500 font-medium">
-                VIZA Operations Access
+                {t("access")}
               </p>
             </div>
 
@@ -151,21 +155,21 @@ export default function ResetPasswordPage() {
                 <AlertTriangle className="h-6 w-6 text-amber-600" />
               </div>
               <h1 className="text-xl font-semibold text-gray-900 mb-2">
-                Invalid or expired link
+                {t("invalidTitle")}
               </h1>
               <p className="text-sm text-gray-500 mb-6">
-                This password reset link has expired or is invalid. Please request a new one.
+                {t("invalidDescription")}
               </p>
               <div className="space-y-3">
                 <ActionButton asChild className="w-full">
                   <Link href="/forgot-password">
-                    Request new link
+                    {t("requestLink")}
                   </Link>
                 </ActionButton>
                 <ActionButton asChild variant="secondary" className="w-full">
                   <Link href="/client/login">
                     <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to login
+                    {t("back")}
                   </Link>
                 </ActionButton>
               </div>
@@ -198,7 +202,7 @@ export default function ResetPasswordPage() {
 
             {/* Subtitle */}
             <p className="text-sm text-gray-500 font-medium">
-              VIZA Operations Access
+              {t("access")}
             </p>
           </div>
 
@@ -210,10 +214,10 @@ export default function ResetPasswordPage() {
                   <CheckCircle className="h-6 w-6 text-green-600" />
                 </div>
                 <h1 className="text-xl font-semibold text-gray-900 mb-2">
-                  Password updated
+                  {t("updatedTitle")}
                 </h1>
                 <p className="text-sm text-gray-500 mb-4">
-                  Your password has been successfully updated. Redirecting to login...
+                  {t("updatedDescription")}
                 </p>
                 <Loader2 className="h-5 w-5 animate-spin text-brand mx-auto" />
               </div>
@@ -221,10 +225,10 @@ export default function ResetPasswordPage() {
               <>
                 <div className="mb-6">
                   <h1 className="text-xl font-semibold text-gray-900 mb-1">
-                    Set new password
+                    {t("title")}
                   </h1>
                   <p className="text-sm text-gray-500">
-                    Enter your new password below.
+                    {t("description")}
                   </p>
                 </div>
 
@@ -235,7 +239,7 @@ export default function ResetPasswordPage() {
                       htmlFor="password"
                       className="text-sm font-medium text-gray-700"
                     >
-                      New password
+                      {t("newPassword")}
                     </Label>
                     <ApplicationFormInputGroup className="h-12" filled={Boolean(password)} forceWhiteBackground>
                       <InputGroupAddon align="inline-start">
@@ -246,7 +250,7 @@ export default function ResetPasswordPage() {
                         name="password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="new-password"
-                        placeholder="Enter new password"
+                        placeholder={t("newPlaceholder")}
                         required
                         disabled={isSubmitting}
                         value={password}
@@ -254,13 +258,13 @@ export default function ResetPasswordPage() {
                         className="h-full min-h-0 text-[15px] text-gray-900 placeholder:text-gray-400"
                       />
                       <InputGroupAddon align="inline-end" className="pr-4">
-                        <InputGroupButton size="icon-sm" onClick={() => setShowPassword(!showPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showPassword ? "Hide password" : "Show password"}>
+                        <InputGroupButton size="icon-sm" onClick={() => setShowPassword(!showPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showPassword ? t("hidePassword") : t("showPassword")}>
                           {showPassword ? <EyeOff /> : <Eye />}
                         </InputGroupButton>
                       </InputGroupAddon>
                     </ApplicationFormInputGroup>
                     <p className="text-xs text-gray-400 mt-1">
-                      Must be at least 8 characters
+                      {t("minimum")}
                     </p>
                   </div>
 
@@ -270,7 +274,7 @@ export default function ResetPasswordPage() {
                       htmlFor="confirmPassword"
                       className="text-sm font-medium text-gray-700"
                     >
-                      Confirm password
+                      {t("confirmPassword")}
                     </Label>
                     <ApplicationFormInputGroup className="h-12" filled={Boolean(confirmPassword)} forceWhiteBackground>
                       <InputGroupAddon align="inline-start">
@@ -281,7 +285,7 @@ export default function ResetPasswordPage() {
                         name="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
                         autoComplete="new-password"
-                        placeholder="Confirm new password"
+                        placeholder={t("confirmPlaceholder")}
                         required
                         disabled={isSubmitting}
                         value={confirmPassword}
@@ -289,7 +293,7 @@ export default function ResetPasswordPage() {
                         className="h-full min-h-0 text-[15px] text-gray-900 placeholder:text-gray-400"
                       />
                       <InputGroupAddon align="inline-end" className="pr-4">
-                        <InputGroupButton size="icon-sm" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"}>
+                        <InputGroupButton size="icon-sm" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="rounded-full text-gray-400 hover:text-gray-600" aria-label={showConfirmPassword ? t("hideConfirmation") : t("showConfirmation")}>
                           {showConfirmPassword ? <EyeOff /> : <Eye />}
                         </InputGroupButton>
                       </InputGroupAddon>
@@ -300,7 +304,7 @@ export default function ResetPasswordPage() {
                   {error && (
                     <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
                       <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-600 font-medium">{error}</p>
+                      <p className="text-sm text-red-600 font-medium">{t(error)}</p>
                     </div>
                   )}
 
@@ -308,11 +312,11 @@ export default function ResetPasswordPage() {
                   <ActionButton
                     type="submit"
                     loading={isSubmitting}
-                    loadingText="Updating..."
+                    loadingText={t("updating")}
                     disabled={isSubmitting}
                     className="w-full"
                   >
-                    Update password
+                    {t("update")}
                   </ActionButton>
 
                   {/* Back to Login */}
@@ -322,7 +326,7 @@ export default function ResetPasswordPage() {
                       className="text-sm text-gray-500 hover:text-brand transition-colors inline-flex items-center gap-1.5"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" />
-                      Back to login
+                      {t("back")}
                     </Link>
                   </div>
                 </form>
@@ -334,7 +338,7 @@ export default function ResetPasswordPage() {
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-400">
-            Secure access for authorized personnel only
+            {t("secureAccess")}
           </p>
         </div>
       </div>

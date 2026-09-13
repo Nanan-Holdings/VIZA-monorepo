@@ -9,6 +9,7 @@ interface ScrollToBottomFabProps {
   onClick: () => void;
   hasNewMessage?: boolean;
   className?: string;
+  locale?: string;
   label?: string;
   newMessageLabel?: string;
 }
@@ -22,10 +23,15 @@ export function ScrollToBottomFab({
   onClick,
   hasNewMessage = false,
   className,
+  locale = "en",
   label = "Scroll to bottom",
   newMessageLabel = "New message",
 }: ScrollToBottomFabProps) {
-  const visibleLabel = hasNewMessage ? newMessageLabel : label;
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const resolvedLabel = label === "Scroll to bottom" && isZh ? "滚动到底部" : label;
+  const resolvedNewMessageLabel =
+    newMessageLabel === "New message" && isZh ? "新消息" : newMessageLabel;
+  const visibleLabel = hasNewMessage ? resolvedNewMessageLabel : resolvedLabel;
   return (
     <AnimatePresence>
       {show && (

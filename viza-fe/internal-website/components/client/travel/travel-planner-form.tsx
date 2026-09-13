@@ -17,21 +17,23 @@ import { CircleFlag } from "react-circle-flags";
 import { toast } from "sonner";
 import { useLocale } from "next-intl";
 import {
-  DEFAULT_CITY_DAYS,
-  createTravelFormMessage,
-  getDefaultFlexibleDepartureDate,
-  nextMissingField,
-  toTravelPlanningPayload,
-  type FlightLegResult,
-  type HotelStayResult,
-  type SelectedFlightOption,
-  type SelectedHotelOption,
-  type TravelFormPayload,
-  type TravelPlanningPayload,
-  type TravelDateFlexibility,
-  type TravelField,
-  type TravelState,
+ DEFAULT_CITY_DAYS,
+  FORM_PAYLOAD_PREFIX,
+ createTravelFormMessage,
+ getDefaultFlexibleDepartureDate,
+ nextMissingField,
+ toTravelPlanningPayload,
+ type FlightLegResult,
+ type HotelStayResult,
+ type SelectedFlightOption,
+ type SelectedHotelOption,
+ type TravelFormPayload,
+ type TravelPlanningPayload,
+ type TravelDateFlexibility,
+ type TravelField,
+ type TravelState,
 } from "@/lib/travel/planner";
+import { getCuratedCityLabel } from "@/lib/travel/locations";
 import {
   getTravelFieldQuestion,
   getTravelPlannerCopy,
@@ -59,6 +61,8 @@ import { ClientErrorAlert } from "@/components/client/client-error-alert";
 type Option = {
   value: string;
   label: string;
+  labelEn?: string;
+  labelZh?: string;
   keywords?: string[];
   flagCode?: string;
   featured?: boolean;
@@ -154,11 +158,16 @@ function removeSpecialValue(values: string[], specialValue: string): string[] {
 }
 
 function getOptionDisplayLabel(
-  option: Pick<Option, "value" | "label"> | CountryApiOption | CityApiOption
+  option:
+    | Pick<Option, "value" | "label" | "labelEn" | "labelZh">
+    | CountryApiOption
+    | CityApiOption,
+  isZh = true
 ): string {
-  if ("labelZh" in option && typeof option.labelZh === "string") {
-    const labelZh = option.labelZh.trim();
-    if (labelZh) return labelZh;
+  const preferredKey = isZh ? "labelZh" : "labelEn";
+  const preferred = option[preferredKey];
+  if (typeof preferred === "string" && preferred.trim()) {
+    return preferred.trim();
   }
 
   if ("label" in option && typeof option.label === "string") {
@@ -171,6 +180,10 @@ function getOptionDisplayLabel(
   }
 
   return "";
+}
+
+function getOptionLabel(option: Option, isZh: boolean): string {
+  return getOptionDisplayLabel(option, isZh) || option.value;
 }
 
 function withOtherOption(
@@ -234,7 +247,7 @@ function SelectOptionContent({
     <>
       <OptionFlagIcon option={option} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate">{option.label}</span>
+        <span className="block truncate">{getOptionLabel(option, isZh)}</span>
         {option.secondaryLabel && (
           <span className="block truncate text-xs text-slate-400">
             {option.secondaryLabel}
@@ -299,7 +312,11 @@ function SearchableSingleSelect({
   const [open, setOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
   const selectedLabel =
-    selectedOption?.label ?? (value ? getLocalLocationDisplayName(value) : "");
+    selectedOption
+      ? getOptionLabel(selectedOption, isZh)
+      : value
+        ? getLocationDisplayName(value, isZh)
+        : "";
   const optionGroups = getOptionGroups(options, isZh);
 
   return (
@@ -346,7 +363,7 @@ function SearchableSingleSelect({
                       onChange(option.value);
                       setOpen(false);
                     }}
-                    value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
+                    value={`${option.value} ${getOptionLabel(option, isZh)} ${option.keywords?.join(" ") ?? ""}`}
                   >
                     <SelectOptionContent
                       option={option}
@@ -388,12 +405,14 @@ function SearchableMultiSelect({
 
   const summary = useMemo(() => {
     if (!values.length) return "";
-    const optionMap = new Map(options.map((option) => [option.value, option.label]));
+    const optionMap = new Map(
+      options.map((option) => [option.value, getOptionLabel(option, isZh)])
+    );
     const labels = values.map(
-      (value) => optionMap.get(value) ?? getLocalLocationDisplayName(value)
+      (value) => optionMap.get(value) ?? getLocationDisplayName(value, isZh)
     );
     return labels.join(" / ");
-  }, [options, values]);
+  }, [isZh, options, values]);
   const optionGroups = getOptionGroups(options, isZh);
 
   const toggleValue = (value: string) => {
@@ -453,7 +472,7 @@ function SearchableMultiSelect({
                     onSelect={() => {
                       toggleValue(option.value);
                     }}
-                    value={`${option.value} ${option.label} ${option.keywords?.join(" ") ?? ""}`}
+                    value={`${option.value} ${getOptionLabel(option, isZh)} ${option.keywords?.join(" ") ?? ""}`}
                   >
                     <SelectOptionContent
                       option={option}
@@ -572,12 +591,42 @@ const LOCAL_LOCATION_NAME_BY_KEY: Record<string, string> = {
   unitedstates: "美国",
 };
 
-function getLocalLocationDisplayName(value: string): string {
-  const key = value.trim().toLowerCase().replace(/\s+/g, "");
-  return LOCAL_LOCATION_NAME_BY_KEY[key] ?? value;
+const ENGLISH_LOCATION_NAME_BY_KEY: Record<string, string> = {
+  australia: "Australia",
+  beijing: "Beijing",
+  china: "China",
+  france: "France",
+  hongkong: "Hong Kong",
+  italy: "Italy",
+  japan: "Japan",
+  kyoto: "Kyoto",
+  london: "London",
+  newyork: "New York",
+  osaka: "Osaka",
+  paris: "Paris",
+  pisa: "Pisa",
+  rome: "Rome",
+  sanfrancisco: "San Francisco",
+  seoul: "Seoul",
+  singapore: "Singapore",
+  southkorea: "South Korea",
+  sydney: "Sydney",
+  thailand: "Thailand",
+  tokyo: "Tokyo",
+  unitedkingdom: "United Kingdom",
+  unitedstates: "United States",
+};
+
+function getLocationDisplayName(value: string, isZh: boolean): string {
+ const key = value.trim().toLowerCase().replace(/\s+/g, "");
+ return (
+    getCuratedCityLabel(value, isZh ? "zh" : "en") ??
+    (isZh ? LOCAL_LOCATION_NAME_BY_KEY : ENGLISH_LOCATION_NAME_BY_KEY)[key] ??
+    value
+ );
 }
 
-function coerceCountryOptions(raw: unknown): Option[] {
+function coerceCountryOptions(raw: unknown, isZh: boolean): Option[] {
   if (!raw || typeof raw !== "object") return [];
   const record = raw as Record<string, unknown>;
   if (!Array.isArray(record.countries)) return [];
@@ -594,7 +643,7 @@ function coerceCountryOptions(raw: unknown): Option[] {
       typeof option.labelZh === "string" ? option.labelZh.trim() : "";
     const code = typeof option.code === "string" ? option.code.trim() : "";
     const search = typeof option.search === "string" ? option.search.trim() : "";
-    const displayLabel = getOptionDisplayLabel(option);
+    const displayLabel = getOptionDisplayLabel(option, isZh);
     if (!value || !displayLabel) continue;
     const normalizedCode = code.toUpperCase();
     const isFeatured = POPULAR_COUNTRY_CODE_ORDER.has(normalizedCode);
@@ -602,9 +651,12 @@ function coerceCountryOptions(raw: unknown): Option[] {
     options.push({
       value,
       label: displayLabel,
+      labelEn: labelEn || label || value,
+      labelZh: labelZh || label || value,
       flagCode: normalizedCode || undefined,
       featured: isFeatured,
-      secondaryLabel: labelEn && labelEn !== displayLabel ? labelEn : undefined,
+      secondaryLabel:
+        isZh && labelEn && labelEn !== displayLabel ? labelEn : undefined,
       sortLabel: labelEn || displayLabel,
       keywords: buildOptionKeywords(search, label, value, labelEn, labelZh, code),
     });
@@ -630,7 +682,10 @@ function coerceCountryOptions(raw: unknown): Option[] {
   });
 }
 
-function coerceCitiesByCountry(raw: unknown): Record<string, Option[]> {
+function coerceCitiesByCountry(
+  raw: unknown,
+  isZh: boolean
+): Record<string, Option[]> {
   if (!raw || typeof raw !== "object") return {};
   const record = raw as Record<string, unknown>;
   if (!record.citiesByCountry || typeof record.citiesByCountry !== "object") return {};
@@ -652,6 +707,8 @@ function coerceCitiesByCountry(raw: unknown): Record<string, Option[]> {
         options.push({
           value: name,
           label: name,
+          labelEn: name,
+          labelZh: name,
           keywords: [name],
         });
         continue;
@@ -669,12 +726,14 @@ function coerceCitiesByCountry(raw: unknown): Record<string, Option[]> {
         typeof cityOption.labelZh === "string" ? cityOption.labelZh.trim() : "";
       const search =
         typeof cityOption.search === "string" ? cityOption.search.trim() : "";
-      const displayLabel = getOptionDisplayLabel(cityOption);
+      const displayLabel = getOptionDisplayLabel(cityOption, isZh);
       if (!value || !displayLabel) continue;
 
       options.push({
         value,
         label: displayLabel,
+        labelEn: labelEn || label || value,
+        labelZh: labelZh || label || value,
         keywords: buildOptionKeywords(search, label, value, labelEn, labelZh),
       });
     }
@@ -733,21 +792,27 @@ function cityOptionsFromCountries(
 
 function optionLabelFromMap(
   value: string,
-  labelMap: ReadonlyMap<string, string>
+  labelMap: ReadonlyMap<string, string>,
+  isZh: boolean
 ): string {
-  return labelMap.get(value) ?? getLocalLocationDisplayName(value);
+  return labelMap.get(value) ?? getLocationDisplayName(value, isZh);
 }
 
 function optionLabelsFromValues(
   values: string[],
-  labelMap: ReadonlyMap<string, string>
+  labelMap: ReadonlyMap<string, string>,
+  isZh: boolean
 ): string[] {
-  return values.map((value) => optionLabelFromMap(value, labelMap));
+  return values.map((value) => optionLabelFromMap(value, labelMap, isZh));
 }
 
-function formatCountryCityLabel(country: string, city: string): string {
-  const countryLabel = getLocalLocationDisplayName(country);
-  const cityLabel = getLocalLocationDisplayName(city);
+function formatCountryCityLabel(
+  country: string,
+  city: string,
+  isZh: boolean
+): string {
+  const countryLabel = getLocationDisplayName(country, isZh);
+  const cityLabel = getLocationDisplayName(city, isZh);
   return countryLabel === cityLabel ? cityLabel : `${countryLabel} ${cityLabel}`;
 }
 
@@ -1152,7 +1217,7 @@ export function TravelPlannerForm({
         payload = {};
       }
 
-      const nextCitiesByCountry = coerceCitiesByCountry(payload);
+      const nextCitiesByCountry = coerceCitiesByCountry(payload, isZh);
       const nextCityCountByCountry = coerceCityCountByCountry(payload);
       setCitiesByCountry((current) => ({
         ...current,
@@ -1168,7 +1233,7 @@ export function TravelPlannerForm({
     } finally {
       setIsLoadingCityOptions(false);
     }
-  }, [copy.loadingCity]);
+  }, [copy.loadingCity, isZh]);
 
   useEffect(() => {
     const nextCountries =
@@ -1328,7 +1393,7 @@ export function TravelPlannerForm({
       })
       .then((payload) => {
         if (disposed) return;
-        setCountryOptions(coerceCountryOptions(payload));
+        setCountryOptions(coerceCountryOptions(payload, isZh));
       })
       .catch((error) => {
         if (disposed) return;
@@ -1343,7 +1408,7 @@ export function TravelPlannerForm({
     return () => {
       disposed = true;
     };
-  }, [copy.loadingCountry]);
+  }, [copy.loadingCountry, isZh]);
 
   useEffect(() => {
     if (missingField !== "destination_confirmation") {
@@ -1649,8 +1714,14 @@ export function TravelPlannerForm({
   }, [returnCountryForCityLookup, cityOptions, citiesByCountry, copy.otherCity]);
 
   const countryLabelMap = useMemo(
-    () => new Map(countryOptionsWithOther.map((option) => [option.value, option.label])),
-    [countryOptionsWithOther]
+    () =>
+      new Map(
+        countryOptionsWithOther.map((option) => [
+          option.value,
+          getOptionLabel(option, isZh),
+        ])
+      ),
+    [countryOptionsWithOther, isZh]
   );
   const cityLabelMap = useMemo(
     () =>
@@ -1660,55 +1731,56 @@ export function TravelPlannerForm({
           ...additionalCityOptions,
           ...originCityOptions,
           ...returnCityOptions,
-        ].map((option) => [option.value, option.label])
+        ].map((option) => [option.value, getOptionLabel(option, isZh)])
       ),
     [
       additionalCityOptions,
       cityOptionsWithOther,
+      isZh,
       originCityOptions,
       returnCityOptions,
     ]
   );
   const getCountryDisplayName = useCallback(
-    (value: string) => optionLabelFromMap(value, countryLabelMap),
-    [countryLabelMap]
+    (value: string) => optionLabelFromMap(value, countryLabelMap, isZh),
+    [countryLabelMap, isZh]
   );
   const getCityDisplayName = useCallback(
-    (value: string) => optionLabelFromMap(value, cityLabelMap),
-    [cityLabelMap]
+    (value: string) => optionLabelFromMap(value, cityLabelMap, isZh),
+    [cityLabelMap, isZh]
   );
   const resolvedCountryDisplayNames = useMemo(() => {
     const selected = removeSpecialValue(countries, OTHER_COUNTRY_VALUE);
     const custom = splitCustomValues(customCountriesInput);
     return dedupeValues([
-      ...optionLabelsFromValues(selected, countryLabelMap),
+      ...optionLabelsFromValues(selected, countryLabelMap, isZh),
       ...custom,
     ]);
-  }, [countries, countryLabelMap, customCountriesInput]);
+  }, [countries, countryLabelMap, customCountriesInput, isZh]);
   const resolvedCityDisplayNames = useMemo(() => {
     const selected = removeSpecialValue(cities, OTHER_CITY_VALUE);
     const custom = splitCustomValues(customCitiesInput);
     return dedupeValues([
-      ...optionLabelsFromValues(selected, cityLabelMap),
+      ...optionLabelsFromValues(selected, cityLabelMap, isZh),
       ...custom,
     ]);
-  }, [cities, cityLabelMap, customCitiesInput]);
+  }, [cities, cityLabelMap, customCitiesInput, isZh]);
   const resolvedAdditionalCountryDisplayNames = useMemo(() => {
     const selected = removeSpecialValue(additionalCountries, OTHER_COUNTRY_VALUE);
     const custom = splitCustomValues(customAdditionalCountriesInput);
     return dedupeValues([
-      ...optionLabelsFromValues(selected, countryLabelMap),
+      ...optionLabelsFromValues(selected, countryLabelMap, isZh),
       ...custom,
     ]);
-  }, [additionalCountries, countryLabelMap, customAdditionalCountriesInput]);
+  }, [additionalCountries, countryLabelMap, customAdditionalCountriesInput, isZh]);
   const resolvedAdditionalCityDisplayNames = useMemo(() => {
     const selected = removeSpecialValue(additionalCities, OTHER_CITY_VALUE);
     const custom = splitCustomValues(customAdditionalCitiesInput);
     return dedupeValues([
-      ...optionLabelsFromValues(selected, cityLabelMap),
+      ...optionLabelsFromValues(selected, cityLabelMap, isZh),
       ...custom,
     ]);
-  }, [additionalCities, cityLabelMap, customAdditionalCitiesInput]);
+  }, [additionalCities, cityLabelMap, customAdditionalCitiesInput, isZh]);
   const selectedCityLabelMap = useMemo(
     () =>
       Object.fromEntries(
@@ -1792,14 +1864,20 @@ export function TravelPlannerForm({
       flexibleTravelers *
       1200
   );
-  const sendStructuredMessage = useCallback(
-    (payload: TravelFormPayload) => {
-      sendMessage({
-        role: "user",
-        parts: [{ type: "text", text: createTravelFormMessage(payload) }],
-      });
-    },
-    [sendMessage]
+ const sendStructuredMessage = useCallback(
+   (payload: TravelFormPayload) => {
+      const message = createTravelFormMessage(payload, isZh ? "zh" : "en");
+     sendMessage({
+       role: "user",
+       parts: [
+         {
+           type: "text",
+            text: `${message}\n\n<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`,
+         },
+       ],
+     });
+   },
+    [isZh, sendMessage]
   );
 
   const submitCountries = useCallback(() => {
@@ -1964,25 +2042,25 @@ export function TravelPlannerForm({
       return;
     }
 
-    const displayLabel = formatCountryCityLabel(country, city);
+    const displayLabel = formatCountryCityLabel(country, city, isZh);
     sendStructuredMessage({
       origin_country: country,
       origin_city: city,
       return_country: country,
       return_city: city,
       display: {
-        origin_country: getLocalLocationDisplayName(country),
-        origin_city: getLocalLocationDisplayName(city),
-        return_country: getLocalLocationDisplayName(country),
-        return_city: getLocalLocationDisplayName(city),
+        origin_country: getLocationDisplayName(country, isZh),
+        origin_city: getLocationDisplayName(city, isZh),
+        return_country: getLocationDisplayName(country, isZh),
+        return_city: getLocationDisplayName(city, isZh),
       },
     });
     toast.success(copy.ipConfirmed(displayLabel));
-  }, [copy, ipLocation, sendStructuredMessage]);
+  }, [copy, ipLocation, isZh, sendStructuredMessage]);
 
   const showManualEndpointFields = manualEndpointMode || Boolean(ipLocationError);
   const ipEndpointDisplay = ipLocation
-    ? formatCountryCityLabel(ipLocation.country, ipLocation.city)
+    ? formatCountryCityLabel(ipLocation.country, ipLocation.city, isZh)
     : "";
 
   if (!missingField) {

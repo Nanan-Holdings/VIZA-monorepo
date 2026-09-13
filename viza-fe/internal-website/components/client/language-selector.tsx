@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { AnimatedDropdown } from "@/components/ui/animated-dropdown";
-import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { normalizeInterfaceLocale, setInterfaceLocalePreference } from "@/lib/i18n/locale";
 import { Globe } from "@phosphor-icons/react";
 
 const languages = [
@@ -28,10 +28,7 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
   }, []);
 
   const handleSelect = (code: string) => {
-    const nextLocale = normalizeInterfaceLocale(code);
-    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-    window.localStorage.setItem(LOCALE_COOKIE, nextLocale);
-    window.dispatchEvent(new CustomEvent("viza:locale-change", { detail: nextLocale }));
+    setInterfaceLocalePreference(code);
     router.refresh();
   };
 
@@ -45,7 +42,7 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
     <motion.button
       className={buttonClass}
       type="button"
-      aria-label="Select language"
+      aria-label={t("selectLanguage")}
       whileHover={{ scale: 1.1 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >

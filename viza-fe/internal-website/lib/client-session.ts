@@ -1,4 +1,4 @@
-﻿import { SignJWT, jwtVerify } from "jose";
+﻿import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -7,12 +7,67 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const COOKIE_NAME = "client_session";
 const SESSION_DURATION_DAYS = 7;
 
-function getSecret() {
+type ClientSessionKeyCacheEntry = {
+  secret: string;
+  key?: CryptoKey;
+  pending: Promise<CryptoKey>;
+};
+
+let clientSessionKeyCache: ClientSessionKeyCacheEntry | null = null;
+
+function getSecretValue(): string {
   const secret = process.env.CLIENT_SESSION_SECRET;
   if (!secret || secret.length < 32) {
+    clientSessionKeyCache = null;
     throw new Error("CLIENT_SESSION_SECRET must be set and at least 32 characters");
   }
-  return new TextEncoder().encode(secret);
+  return secret;
+}
+
+function importClientSessionKey(secret: string): Promise<CryptoKey> {
+  if (!globalThis.crypto?.subtle) {
+    return Promise.reject(new Error("Web Crypto is unavailable"));
+  }
+
+  return globalThis.crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+function getClientSessionKey(secret = getSecretValue()): Promise<CryptoKey> {
+  const cached = clientSessionKeyCache;
+
+  if (cached?.secret === secret) {
+    if (cached.key) return Promise.resolve(cached.key);
+    return cached.pending;
+  }
+
+  const entry: ClientSessionKeyCacheEntry = {
+    secret,
+    pending: Promise.resolve().then(() => importClientSessionKey(secret)),
+  };
+  clientSessionKeyCache = entry;
+
+  entry.pending = entry.pending.then(
+    (key) => {
+      // A rotation may have installed a newer entry while this import was in
+      // flight. Only the current entry may publish its key.
+      if (clientSessionKeyCache === entry) entry.key = key;
+      return key;
+    },
+    (error: unknown) => {
+      // A failed import must not poison future requests. Preserve a newer
+      // entry if the secret rotated while this one was pending.
+      if (clientSessionKeyCache === entry) clientSessionKeyCache = null;
+      throw error;
+    },
+  );
+
+  return entry.pending;
 }
 
 export interface ClientSession {
@@ -25,18 +80,50 @@ export interface ClientSession {
   auditLogId?: string;
 }
 
+function clientSessionFromPayload(payload: JWTPayload): ClientSession | null {
+  if (
+    typeof payload.userId !== "string" ||
+    typeof payload.email !== "string" ||
+    (payload.type !== undefined && payload.type !== "client_session")
+  ) {
+    return null;
+  }
+
+  return {
+    userId: payload.userId,
+    email: payload.email,
+    authUserId: typeof payload.authUserId === "string" ? payload.authUserId : undefined,
+  };
+}
+
+async function verifyClientSessionToken(token: string): Promise<ClientSession | null> {
+  try {
+    const secret = getSecretValue();
+    const { payload } = await jwtVerify(token, ({ alg }) =>
+      alg === "HS256"
+        ? getClientSessionKey(secret)
+        // Preserve verification of legacy HMAC algorithms accepted by jose's
+        // raw-secret path; the application still only issues HS256 sessions.
+        : new TextEncoder().encode(secret),
+    );
+    return clientSessionFromPayload(payload);
+  } catch {
+    return null;
+  }
+}
+
 export async function createClientSession(
   userId: string,
   email: string,
   authUserId?: string,
 ): Promise<void> {
-  const secret = getSecret();
+  const key = await getClientSessionKey();
   const expires = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
   const token = await new SignJWT({ userId, email, authUserId, type: "client_session", version: 1 })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setExpirationTime(expires)
     .setIssuedAt()
-    .sign(secret);
+    .sign(key);
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -51,43 +138,13 @@ export async function getClientSession(): Promise<ClientSession | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  try {
-    const secret = getSecret();
-    const { payload } = await jwtVerify(token, secret);
-    if (
-      typeof payload.userId !== "string" ||
-      typeof payload.email !== "string" ||
-      (payload.type !== undefined && payload.type !== "client_session")
-    ) return null;
-    return {
-      userId: payload.userId,
-      email: payload.email,
-      authUserId: typeof payload.authUserId === "string" ? payload.authUserId : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return verifyClientSessionToken(token);
 }
 
 export async function getClientSessionFromRequest(request: NextRequest): Promise<ClientSession | null> {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  try {
-    const secret = getSecret();
-    const { payload } = await jwtVerify(token, secret);
-    if (
-      typeof payload.userId !== "string" ||
-      typeof payload.email !== "string" ||
-      (payload.type !== undefined && payload.type !== "client_session")
-    ) return null;
-    return {
-      userId: payload.userId,
-      email: payload.email,
-      authUserId: typeof payload.authUserId === "string" ? payload.authUserId : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return verifyClientSessionToken(token);
 }
 
 export async function clearClientSession(): Promise<void> {

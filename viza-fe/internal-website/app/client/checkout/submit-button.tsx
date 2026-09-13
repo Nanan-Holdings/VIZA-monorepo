@@ -7,9 +7,11 @@ import { BrandActionButton } from "@/components/client/brand-action-button";
 export function CheckoutSubmitButton({
   children,
   disabled,
+  loadingText,
 }: {
   children: ReactNode;
   disabled: boolean;
+  loadingText: string;
 }) {
   const { pending } = useFormStatus();
 
@@ -19,7 +21,7 @@ export function CheckoutSubmitButton({
       className="w-full"
       disabled={disabled}
       loading={pending}
-      loadingText="Opening Stripe Checkout"
+      loadingText={loadingText}
     >
       {children}
     </BrandActionButton>

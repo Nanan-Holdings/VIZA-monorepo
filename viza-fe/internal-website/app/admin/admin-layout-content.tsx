@@ -46,7 +46,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { normalizeInterfaceLocale, setInterfaceLocalePreference } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
 interface Route {
@@ -226,7 +226,7 @@ function AdminLanguageSwitcher() {
   const router = useRouter();
   const copy = ADMIN_COPY[locale];
   const setLocale = (nextLocale: "en" | "zh") => {
-    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    setInterfaceLocalePreference(nextLocale);
     router.refresh();
   };
 

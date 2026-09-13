@@ -182,7 +182,7 @@ function pushMissingField(
   steps: WizardStep[],
   fieldName: string,
   fallbackLabelZh: string,
-  fallbackLabelEn = fallbackLabelZh,
+  fallbackLabelEn: string,
 ) {
   if (output.some((item) => item.fieldName === fieldName)) return;
   const context = findFieldContext(steps, fieldName);
@@ -386,21 +386,22 @@ function addTaiwanEntryPermitCompletenessChecks(
   for (const group of ["father", "mother"] as const) {
     if (!isTaiwanLivingStatus(answers[`kin_${group}_status`])) continue;
     const labelPrefix = group === "father" ? "父亲" : "母亲";
-    for (const [suffix, label] of [
-      ["name", "姓名"],
-      ["date_of_birth", "生日"],
-      ["phone", "电话"],
-      ["occupation", "现职"],
-      ["service_unit", "服务单位"],
-      ["job_title", "职称"],
+    const labelPrefixEn = group === "father" ? "Father" : "Mother";
+    for (const [suffix, label, labelEn] of [
+      ["name", "姓名", "Name"],
+      ["date_of_birth", "生日", "Date of birth"],
+      ["phone", "电话", "Phone number"],
+      ["occupation", "现职", "Occupation"],
+      ["service_unit", "服务单位", "Employer or organization"],
+      ["job_title", "职称", "Job title"],
     ] as const) {
       const fieldName = `kin_${group}_${suffix}`;
       if (!hasAnswerValue(answers[fieldName])) {
-        pushMissingField(output, steps, fieldName, `${labelPrefix} — ${label}`);
+        pushMissingField(output, steps, fieldName, `${labelPrefix} — ${label}`, `${labelPrefixEn} — ${labelEn}`);
       }
     }
     if (!isTruthyAnswer(answers[`kin_${group}_current_address_same_as_overseas`]) && !hasAnswerValue(answers[`kin_${group}_current_address`])) {
-      pushMissingField(output, steps, `kin_${group}_current_address`, `${labelPrefix} — 现住址`);
+      pushMissingField(output, steps, `kin_${group}_current_address`, `${labelPrefix} — 现住址`, `${labelPrefixEn} — Current address`);
     }
   }
 

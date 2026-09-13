@@ -33,10 +33,20 @@ import {
   type StatusStorageTarget,
 } from "./status-storage-urls";
 import {
+  loadStatusRelatedRows,
+  type HomeDocumentRow,
+  type SubmissionQueueResult,
+} from "./status-related-rows";
+import {
   recordPortalReadOutcome,
   tracePortalReadStage,
   withPortalReadTrace,
 } from "@/lib/observability/portal-read";
+import {
+  createPortalReadBudget,
+  type PortalReadBudget,
+} from "@/lib/client/portal-read-budget.server";
+import { loadHomeProfileApplications } from "@/lib/client/home-profile-applications.server";
 
 export type StatusStepKey =
   | "payment"
@@ -343,6 +353,9 @@ interface DocumentRow {
 /** Server-only raw rows shared with the Home aggregate reader. */
 export type ClientStatusDocumentRow = DocumentRow;
 
+/** Full document rows returned by the Home single-application preload. */
+export type ClientHomeTimelineDocumentRow = HomeDocumentRow;
+
 interface AnswerRow {
   application_id: string;
   field_name: string;
@@ -382,7 +395,7 @@ interface OfficialTrackingRow {
 
 interface QueryResult {
   data: unknown;
-  error: { message: string } | null;
+  error: unknown;
 }
 
 interface ReadRowsResult<T> {
@@ -713,7 +726,9 @@ function groupCountryApplications(applications: StatusApplication[]): StatusAppl
 
   for (const application of applications) {
     const key = application.countryKey;
-    grouped.set(key, [...(grouped.get(key) ?? []), application]);
+    const existing = grouped.get(key);
+    if (existing) existing.push(application);
+    else grouped.set(key, [application]);
   }
 
   return [...grouped.values()]
@@ -1419,7 +1434,7 @@ function buildPackageOnlyApplication(userPackage: {
   };
 }
 
-async function buildApplicationStatus({
+function buildApplicationStatus({
   application,
   visaPackage,
   liveSubmission,
@@ -1451,7 +1466,7 @@ async function buildApplicationStatus({
   filePlans: StatusFilePlan[];
   storageUrls: Map<string, Map<string, string>>;
   includeDetails: boolean;
-}): Promise<StatusApplication> {
+}): StatusApplication {
   const base = buildPackageBase(application.country, application.visa_type);
   const latestPayment = getLatestPayment(payments);
   const latestPacket = getLatestPacket(packets);
@@ -1665,9 +1680,37 @@ async function buildApplicationStatus({
 export interface ClientHomeTimelineSeed {
   /** The row was already selected from the authenticated applicant's apps. */
   application: ClientStatusApplicationRow;
-  /** Documents and payments come from the same Home snapshot. */
+  /** Payments and the validated document snapshot supplied by Home. */
   documents: ClientStatusDocumentRow[];
   payments: ClientStatusPaymentRow[];
+}
+
+interface ClientHomeTimelineRelatedRows {
+  consents: ConsentRow[];
+  signatures: SignatureRow[];
+  answers: AnswerRow[];
+  packets: PacketRow[];
+}
+
+export interface ClientHomeTimelinePreloadOptions {
+  /** Enables the full document relation only for the single-app Home path. */
+  documentColumns?: string;
+  signal?: AbortSignal;
+  /** Resolves as soon as the optional relation is validated or rejected. */
+  onPrefetchedDocuments?: (documents: ClientHomeTimelineDocumentRow[] | undefined) => void;
+}
+
+/**
+ * Detail rows that can be started as soon as Home has selected an owned app.
+ * Payments remain in the authenticated dashboard snapshot; a single-app Home
+ * caller may also supply a validated full document relation here.
+ */
+export interface ClientHomeTimelinePreload {
+  relatedRows: ClientHomeTimelineRelatedRows;
+  /** Present only after a full Home document relation passed validation. */
+  prefetchedDocuments?: ClientHomeTimelineDocumentRow[];
+  liveSubmission: LiveSubmissionSummary | null;
+  partialData: boolean;
 }
 
 function projectClientHomeTimeline(
@@ -1685,6 +1728,182 @@ function projectClientHomeTimeline(
 }
 
 /**
+ * Start Home timeline reads that only require the already-authenticated
+ * application identity. Every child promise resolves to a bounded result so
+ * an early dashboard return cannot leave a query rejection unhandled.
+ */
+export function loadClientHomeTimelinePreload(
+  adminClient: ReturnType<typeof createAdminClient>,
+  application: ClientStatusApplicationRow,
+  options: ClientHomeTimelinePreloadOptions = {},
+): Promise<ClientHomeTimelinePreload> {
+  const shouldPrefetchDocuments = Boolean(options.documentColumns?.trim());
+  let queueResultResolved = false;
+  let resolveQueueResult: (result?: SubmissionQueueResult) => void = () => undefined;
+  const queueResultRead = new Promise<SubmissionQueueResult | undefined>((resolve) => {
+    resolveQueueResult = (result) => {
+      if (queueResultResolved) return;
+      queueResultResolved = true;
+      resolve(result);
+    };
+  });
+  let documentsCallbackResolved = false;
+  const resolvePrefetchedDocuments = (documents?: ClientHomeTimelineDocumentRow[]): void => {
+    if (documentsCallbackResolved) return;
+    documentsCallbackResolved = true;
+    options.onPrefetchedDocuments?.(documents);
+  };
+  const preload = tracePortalReadStage("timeline", async () => {
+    const applicationId = application.id;
+    const relatedRowsRead = (async (): Promise<{
+      relatedRows: ClientHomeTimelineRelatedRows;
+      partialData: boolean;
+      prefetchedDocuments?: ClientHomeTimelineDocumentRow[];
+    }> => {
+      try {
+        const relatedRows = await loadStatusRelatedRows(
+          adminClient,
+          [applicationId],
+          {
+            includeDocuments: shouldPrefetchDocuments,
+            documentColumns: options.documentColumns,
+            prefetchDocuments: shouldPrefetchDocuments,
+            submissionQueueApplicationId: applicationId,
+            onSubmissionQueueResult: resolveQueueResult,
+            onDocumentsPrefetchResult: resolvePrefetchedDocuments,
+          },
+        );
+        return {
+          relatedRows: {
+            consents: relatedRows.consents,
+            signatures: relatedRows.signatures,
+            answers: relatedRows.answers,
+            packets: relatedRows.packets,
+          },
+          partialData: relatedRows.partialData,
+          prefetchedDocuments: relatedRows.documentsPrefetched
+            ? relatedRows.documents as ClientHomeTimelineDocumentRow[]
+            : undefined,
+        };
+      } catch {
+        resolveQueueResult();
+        resolvePrefetchedDocuments();
+        return {
+          relatedRows: {
+            consents: [],
+            signatures: [],
+            answers: [],
+            packets: [],
+          },
+          partialData: true,
+        };
+      }
+    })();
+    const liveSubmissionRead = (async (): Promise<{
+      liveSubmission: LiveSubmissionSummary | null;
+      partialData: boolean;
+    }> => {
+      try {
+        const prefetchedQueueResult = await queueResultRead;
+        if (options.signal?.aborted) {
+          throw new Error("Home timeline preload cancelled");
+        }
+        const liveSubmissions = await loadLiveSubmissionSummaries(
+          adminClient,
+          [applicationId],
+          [{
+            id: applicationId,
+            country: application.country,
+            visa_type: application.visa_type,
+          } satisfies LiveSubmissionApplicationProduct],
+          { prefetchedQueueResult },
+        );
+        return {
+          liveSubmission: liveSubmissions.get(applicationId) ?? null,
+          partialData: false,
+        };
+      } catch {
+        return { liveSubmission: null, partialData: true };
+      }
+    })();
+    const [relatedRowsResult, liveResult] = await Promise.all([
+      relatedRowsRead,
+      liveSubmissionRead,
+    ]);
+    return {
+      relatedRows: relatedRowsResult.relatedRows,
+      prefetchedDocuments: relatedRowsResult.prefetchedDocuments,
+      liveSubmission: liveResult.liveSubmission,
+      partialData: relatedRowsResult.partialData || liveResult.partialData,
+    };
+  });
+  return preload.catch(() => {
+    resolvePrefetchedDocuments();
+    return {
+      relatedRows: {
+        consents: [],
+        signatures: [],
+        answers: [],
+        packets: [],
+      },
+      prefetchedDocuments: undefined,
+      liveSubmission: null,
+      partialData: true,
+    };
+  });
+}
+
+/**
+ * Assemble the Home timeline from an already-authenticated Home snapshot and
+ * a completed timeline preload. This performs no additional REST reads.
+ */
+export async function assembleClientHomeTimeline(
+  seed: ClientHomeTimelineSeed,
+  preload: ClientHomeTimelinePreload,
+): Promise<ClientHomeTimelineResult> {
+  const applicationId = seed.application.id;
+  const payments = seed.payments.filter(
+    (payment) =>
+      payment.application_id === applicationId ||
+      Boolean(
+        seed.application.visa_package_id &&
+          payment.visa_package_id === seed.application.visa_package_id,
+      ),
+  );
+  const documents = (preload.prefetchedDocuments ?? seed.documents).filter(
+    (document) => document.application_id === applicationId,
+  );
+  const latestPayment = getLatestPayment(payments);
+  const latestPacket = getLatestPacket(preload.relatedRows.packets);
+  const statusApplication = buildApplicationStatus({
+    application: seed.application,
+    visaPackage: null,
+    liveSubmission: preload.liveSubmission,
+    payments,
+    consents: preload.relatedRows.consents,
+    signatures: preload.relatedRows.signatures,
+    documents,
+    answers: preload.relatedRows.answers,
+    packets: preload.relatedRows.packets,
+    events: [],
+    notifications: [],
+    officialTracking: null,
+    filePlans: buildFilePlans({
+      application: seed.application,
+      latestPayment,
+      latestPacket,
+    }),
+    storageUrls: new Map(),
+    includeDetails: false,
+  });
+
+  return {
+    application: projectClientHomeTimeline(statusApplication),
+    partialData: preload.partialData,
+  };
+}
+
+/**
  * Build the Home timeline from an already-authenticated Home snapshot.
  *
  * This deliberately does not resolve a session, profile, applications,
@@ -1695,98 +1914,8 @@ export async function loadClientHomeTimeline(
   adminClient: ReturnType<typeof createAdminClient>,
   seed: ClientHomeTimelineSeed,
 ): Promise<ClientHomeTimelineResult> {
-  return tracePortalReadStage("timeline", async () => {
-    const applicationId = seed.application.id;
-    const [consentResult, signatureResult, answerResult, packetResult] = await Promise.all([
-      readRows<ConsentRow>(
-        adminClient
-          .from("consent_events")
-          .select("application_id, accepted, created_at")
-          .eq("application_id", applicationId),
-      ),
-      readRows<SignatureRow>(
-        adminClient
-          .from("application_signatures")
-          .select("application_id, signed_at, created_at")
-          .eq("application_id", applicationId),
-      ),
-      readRows<AnswerRow>(
-        adminClient
-          .from("visa_application_answers")
-          .select("application_id, field_name, value_text, value_json")
-          .eq("application_id", applicationId),
-      ),
-      readRows<PacketRow>(
-        adminClient
-          .from("application_packets")
-          .select("application_id, status, storage_path, generated_at, created_at, updated_at")
-          .eq("application_id", applicationId),
-      ),
-    ]);
-
-    let partialData = [
-      consentResult,
-      signatureResult,
-      answerResult,
-      packetResult,
-    ].some((result) => result.failed);
-
-    let liveSubmission: LiveSubmissionSummary | null = null;
-    try {
-      const liveSubmissions = await loadLiveSubmissionSummaries(
-        adminClient,
-        [applicationId],
-        [{
-          id: applicationId,
-          country: seed.application.country,
-          visa_type: seed.application.visa_type,
-        } satisfies LiveSubmissionApplicationProduct],
-      );
-      liveSubmission = liveSubmissions.get(applicationId) ?? null;
-    } catch {
-      partialData = true;
-    }
-
-    const payments = seed.payments.filter(
-      (payment) =>
-        payment.application_id === applicationId ||
-        Boolean(
-          seed.application.visa_package_id &&
-            payment.visa_package_id === seed.application.visa_package_id,
-        ),
-    );
-    const documents = seed.documents.filter(
-      (document) => document.application_id === applicationId,
-    );
-    const latestPayment = getLatestPayment(payments);
-    const latestPacket = getLatestPacket(packetResult.rows);
-    const statusApplication = await buildApplicationStatus({
-      application: seed.application,
-      visaPackage: null,
-      liveSubmission,
-      payments,
-      consents: consentResult.rows,
-      signatures: signatureResult.rows,
-      documents,
-      answers: answerResult.rows,
-      packets: packetResult.rows,
-      events: [],
-      notifications: [],
-      officialTracking: null,
-      filePlans: buildFilePlans({
-        application: seed.application,
-        latestPayment,
-        latestPacket,
-      }),
-      storageUrls: new Map(),
-      includeDetails: false,
-    });
-
-    return {
-      application: projectClientHomeTimeline(statusApplication),
-      partialData,
-    };
-  });
+  const preload = await loadClientHomeTimelinePreload(adminClient, seed.application);
+  return assembleClientHomeTimeline(seed, preload);
 }
 
 export interface ClientStatusDataOptions {
@@ -1805,76 +1934,87 @@ export function isValidClientStatusApplicationId(applicationId: string): boolean
 export async function getClientStatusData(
   options: ClientStatusDataOptions = {},
 ): Promise<ClientStatusData> {
-  return withPortalReadTrace("status", async () => {
-    const data = await loadClientStatusData(options, true);
-    recordPortalReadOutcome(
-      data.unavailable
-        ? "unavailable"
-        : data.authenticated
-          ? (data.partialData ? "partial" : "ok")
-          : "unauthenticated",
-    );
-    return data;
-  });
+  const readBudget = createPortalReadBudget();
+  try {
+    return await withPortalReadTrace("status", async () => {
+      const data = await loadClientStatusData(options, true, readBudget);
+      recordPortalReadOutcome(
+        data.unavailable
+          ? "unavailable"
+          : data.authenticated
+            ? (data.partialData ? "partial" : "ok")
+            : "unauthenticated",
+      );
+      return data;
+    });
+  } finally {
+    readBudget.dispose();
+  }
 }
 
 /** List projection: no storage signing, event feed, notifications or tracking detail. */
 export async function getClientStatusIndexData(): Promise<ClientStatusIndexData> {
-  return withPortalReadTrace("status", async () => {
-    const data = await loadClientStatusData({}, false);
-    const result = {
-      authenticated: data.authenticated,
-      partialData: data.partialData,
-      applications: data.applications.map((application) => ({
-        id: application.id,
-        key: application.key,
-        countryKey: application.countryKey,
-        packageId: application.packageId,
-        country: application.country,
-        visaType: application.visaType,
-        countryName: application.countryName,
-        countryNameZh: application.countryNameZh,
-        countryFlag: application.countryFlag,
-        visaTypeLabel: application.visaTypeLabel,
-        visaTypeLabelZh: application.visaTypeLabelZh,
-        state: application.state,
-        progressPercent: application.progressPercent,
-        applicationRecords: application.applicationRecords.map((record) => ({
-          id: record.id,
-          applicationId: record.applicationId,
-          packageId: record.packageId,
-          country: record.country,
-          visaType: record.visaType,
-          visaTypeLabel: record.visaTypeLabel,
-          visaTypeLabelZh: record.visaTypeLabelZh,
-          state: record.state,
-          progressPercent: record.progressPercent,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
-          submittedAt: record.submittedAt,
-          detailHref: record.detailHref,
-          continueHref: record.continueHref,
+  const readBudget = createPortalReadBudget();
+  try {
+    return await withPortalReadTrace("status", async () => {
+      const data = await loadClientStatusData({}, false, readBudget);
+      const result = {
+        authenticated: data.authenticated,
+        partialData: data.partialData,
+        applications: data.applications.map((application) => ({
+          id: application.id,
+          key: application.key,
+          countryKey: application.countryKey,
+          packageId: application.packageId,
+          country: application.country,
+          visaType: application.visaType,
+          countryName: application.countryName,
+          countryNameZh: application.countryNameZh,
+          countryFlag: application.countryFlag,
+          visaTypeLabel: application.visaTypeLabel,
+          visaTypeLabelZh: application.visaTypeLabelZh,
+          state: application.state,
+          progressPercent: application.progressPercent,
+          applicationRecords: application.applicationRecords.map((record) => ({
+            id: record.id,
+            applicationId: record.applicationId,
+            packageId: record.packageId,
+            country: record.country,
+            visaType: record.visaType,
+            visaTypeLabel: record.visaTypeLabel,
+            visaTypeLabelZh: record.visaTypeLabelZh,
+            state: record.state,
+            progressPercent: record.progressPercent,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+            submittedAt: record.submittedAt,
+            detailHref: record.detailHref,
+            continueHref: record.continueHref,
+          })),
         })),
-      })),
-      detailApplications: data.detailApplications.map(({ id, packageId, country, visaType }) => ({
-        id, packageId, country, visaType,
-      })),
-      ...(data.unavailable ? { unavailable: true } : {}),
-    };
-    recordPortalReadOutcome(
-      result.unavailable
-        ? "unavailable"
-        : result.authenticated
-          ? (result.partialData ? "partial" : "ok")
-          : "unauthenticated",
-    );
-    return result;
-  });
+        detailApplications: data.detailApplications.map(({ id, packageId, country, visaType }) => ({
+          id, packageId, country, visaType,
+        })),
+        ...(data.unavailable ? { unavailable: true } : {}),
+      };
+      recordPortalReadOutcome(
+        result.unavailable
+          ? "unavailable"
+          : result.authenticated
+            ? (result.partialData ? "partial" : "ok")
+            : "unauthenticated",
+      );
+      return result;
+    });
+  } finally {
+    readBudget.dispose();
+  }
 }
 
 async function loadClientStatusData(
   options: ClientStatusDataOptions,
   includeDetails: boolean,
+  readBudget: PortalReadBudget,
 ): Promise<ClientStatusData> {
   const hasApplicationScope = options.applicationId !== undefined;
   const requestedApplicationId = options.applicationId?.trim() ?? null;
@@ -1899,6 +2039,7 @@ async function loadClientStatusData(
     () => getClientSessionReadResult({
       requestTimeoutMs: 3_000,
       retryDelaysMs: [250],
+      requestSignal: readBudget.signal,
     }),
   );
   if (sessionResult.status === "unavailable") {
@@ -1920,25 +2061,54 @@ async function loadClientStatusData(
   }
   const clientSession = sessionResult.session;
   let authUserId = clientSession?.authUserId ?? clientSession?.userId ?? null;
-  let authEmail = clientSession?.email ?? null;
+  const authEmail = clientSession?.email ?? null;
 
   const adminClient = createAdminClient({
     requestTimeoutMs: 4_000,
     retryDelaysMs: [250],
+    requestSignal: readBudget.signal,
   });
   let partialData = false;
 
+  // The index can read its signed profile and owned applications together.
+  // Keep this request-local and retain the full/scoped and legacy paths below.
+  const primaryOwnerRead: { applications: ReadRowsResult<ApplicationRow> | null } = {
+    applications: null,
+  };
   const profileLookup = await loadStatusApplicantProfiles({
     sessionProfileId: clientSession?.userId ?? null,
     authUserId,
     authEmail,
-    read: (column, value) =>
-      readRows<ApplicantProfileRow>(
+    read: async (column, value) => {
+      if (!includeDetails && !scopedApplicationId && column === "id" && value === clientSession.userId) {
+        try {
+          const { profileResult, applicationResult } = await loadHomeProfileApplications(
+            adminClient,
+            value,
+            {
+              profileColumns: "id,email,auth_user_id",
+              applicationColumns: APPLICATION_STATUS_SELECT,
+              signal: readBudget.signal,
+            },
+          );
+          primaryOwnerRead.applications = await readRows<ApplicationRow>(Promise.resolve(applicationResult));
+          return readRows<ApplicantProfileRow>(Promise.resolve({
+            data: profileResult.data ? [profileResult.data] : [],
+            error: profileResult.error,
+          }));
+        } catch {
+          // Match readRows: cancellation/read failure remains partial data;
+          // the request signal prevents compatibility reads from doing new IO.
+          return { rows: [], failed: true };
+        }
+      }
+      return readRows<ApplicantProfileRow>(
         adminClient
           .from("applicant_profiles")
           .select("id, email, auth_user_id")
           .eq(column, value),
-      ),
+      );
+    },
   });
   partialData = partialData || profileLookup.failed;
   const profiles = profileLookup.profiles;
@@ -1954,6 +2124,22 @@ async function loadClientStatusData(
     ),
   ];
 
+  // The unscoped history loader may need the legacy SGAC email link to find
+  // applications that are absent from the profile-owned list. Start that
+  // compatibility read as soon as the complete owner email set is known so
+  // it overlaps the independent package/application reads below. A scoped
+  // request keeps the old on-demand query because a profile-owned target must
+  // not trigger an unrelated full-history answer scan.
+  const eagerSgacEmailAnswersRead = !scopedApplicationId && ownerEmails.length > 0
+    ? readRows<AnswerRow>(
+        adminClient
+          .from("visa_application_answers")
+          .select("application_id, field_name, value_text, value_json")
+          .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
+          .in("value_text", ownerEmails),
+      )
+    : null;
+
   const userPackagesRead = tracePortalReadStage(
     "packages",
     () => readRows<UserPackageRow>(
@@ -1965,7 +2151,11 @@ async function loadClientStatusData(
     ),
   );
 
-  let applicationQuery = profileIds.length > 0
+  const preloadedApplications = !profileLookup.failed && profileIds.length === 1 &&
+    profileIds[0] === clientSession.userId
+    ? primaryOwnerRead.applications
+    : null;
+  let applicationQuery = !preloadedApplications && profileIds.length > 0
     ? adminClient
         .from("applications")
         .select(APPLICATION_STATUS_SELECT)
@@ -1977,7 +2167,9 @@ async function loadClientStatusData(
   }
   const applicationsRead = tracePortalReadStage(
     "applications",
-    () => applicationQuery
+    () => preloadedApplications
+      ? Promise.resolve(preloadedApplications)
+      : applicationQuery
       ? readRows<ApplicationRow>(applicationQuery)
       : Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<ApplicationRow>),
   );
@@ -1985,7 +2177,12 @@ async function loadClientStatusData(
   const [
     { rows: userPackageRows, failed: packagesFailed },
     { rows: ownerApplicationRows, failed: ownerApplicationsFailed },
-  ] = await Promise.all([userPackagesRead, applicationsRead]);
+    eagerSgacEmailAnswersResult,
+  ] = await Promise.all([
+    userPackagesRead,
+    applicationsRead,
+    eagerSgacEmailAnswersRead ?? Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<AnswerRow>),
+  ]);
   partialData = partialData || packagesFailed;
 
   const userPackages = userPackageRows
@@ -2026,17 +2223,17 @@ async function loadClientStatusData(
   const needsScopedEmailFallback =
     !scopedApplicationId || !applications.some((application) => application.id === scopedApplicationId);
   if (ownerEmails.length > 0 && needsScopedEmailFallback) {
-    let sgacEmailAnswerQuery = adminClient
-      .from("visa_application_answers")
-      .select("application_id, field_name, value_text, value_json")
-      .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
-      .in("value_text", ownerEmails);
-    if (scopedApplicationId) {
-      sgacEmailAnswerQuery = sgacEmailAnswerQuery.eq("application_id", scopedApplicationId);
-    }
-    const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = await readRows<AnswerRow>(
-      sgacEmailAnswerQuery,
-    );
+    const sgacEmailAnswerResult = eagerSgacEmailAnswersRead
+      ? eagerSgacEmailAnswersResult
+      : await readRows<AnswerRow>(
+          adminClient
+            .from("visa_application_answers")
+            .select("application_id, field_name, value_text, value_json")
+            .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
+            .in("value_text", ownerEmails)
+            .eq("application_id", scopedApplicationId),
+        );
+    const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = sgacEmailAnswerResult;
     partialData = partialData || sgacEmailAnswersFailed;
     const sgacEmailApplicationIds = [
       ...new Set(
@@ -2099,13 +2296,55 @@ async function loadClientStatusData(
       country: application.country,
       visa_type: application.visa_type,
     }));
+  const submissionQueueApplicationId = liveStatusApplicationIds.length === 1
+    ? liveStatusApplicationIds[0]
+    : undefined;
+  let submissionQueueResultResolved = false;
+  let resolveSubmissionQueueResult: (result?: SubmissionQueueResult) => void = () => undefined;
+  const submissionQueueResultRead = new Promise<SubmissionQueueResult | undefined>((resolve) => {
+    resolveSubmissionQueueResult = (result) => {
+      if (submissionQueueResultResolved) return;
+      submissionQueueResultResolved = true;
+      resolve(result);
+    };
+  });
+  if (!submissionQueueApplicationId) resolveSubmissionQueueResult();
+  const relatedRowsRead = applicationIds.length > 0
+    ? loadStatusRelatedRows(adminClient, applicationIds, {
+        includeDocuments: true,
+        submissionQueueApplicationId,
+        onSubmissionQueueResult: resolveSubmissionQueueResult,
+      }).catch(() => {
+        resolveSubmissionQueueResult();
+        return {
+          consents: [] as ConsentRow[],
+          signatures: [] as SignatureRow[],
+          answers: [] as AnswerRow[],
+          packets: [] as PacketRow[],
+          documents: [] as DocumentRow[],
+          submissionQueueResult: undefined,
+          partialData: true,
+        };
+      })
+    : Promise.resolve({
+        consents: [] as ConsentRow[],
+        signatures: [] as SignatureRow[],
+        answers: [] as AnswerRow[],
+        packets: [] as PacketRow[],
+        documents: [] as DocumentRow[],
+        submissionQueueResult: undefined,
+        partialData: false,
+      });
   const liveSubmissionRead = tracePortalReadStage("timeline", async () => {
     try {
+      const prefetchedQueueResult = await submissionQueueResultRead;
+      if (readBudget.signal.aborted) throw new Error("Status timeline read cancelled");
       return {
         rows: await loadLiveSubmissionSummaries(
           adminClient,
           liveStatusApplicationIds,
           liveProducts,
+          { prefetchedQueueResult },
         ),
         failed: false,
       };
@@ -2120,104 +2359,55 @@ async function loadClientStatusData(
     "payments",
     () => loadStatusPayments(adminClient, profileIds, applicationIds),
   );
-  const [liveResult, paymentResult] = await Promise.all([liveSubmissionRead, paymentRead]);
-  const liveSubmissionByApplication = liveResult.rows;
-  partialData = partialData || liveResult.failed;
-  partialData = partialData || paymentResult.failed;
-  const payments = dedupeById(paymentResult.rows);
-
-  let consents: ConsentRow[] = [];
-  let signatures: SignatureRow[] = [];
-  let documents: DocumentRow[] = [];
-  let answers: AnswerRow[] = [];
-  let packets: PacketRow[] = [];
-  let events: EventRow[] = [];
-  let notifications: NotificationRow[] = [];
-  let officialTracking: OfficialTrackingRow[] = [];
-
-  if (applicationIds.length > 0) {
-    const [
-      consentResult,
-      signatureResult,
-      documentResult,
-      answerResult,
-      packetResult,
-      eventResult,
-      notificationResult,
-      trackingResult,
-    ] = await Promise.all([
-      readRows<ConsentRow>(
-        adminClient
-          .from("consent_events")
-          .select("application_id, accepted, created_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<SignatureRow>(
-        adminClient
-          .from("application_signatures")
-          .select("application_id, signed_at, created_at")
-          .in("application_id", applicationIds),
-      ),
-      readRows<DocumentRow>(
-        adminClient
-          .from("application_documents")
-          .select("application_id, status, required")
-          .in("application_id", applicationIds),
-      ),
-      readRows<AnswerRow>(
-        adminClient
-          .from("visa_application_answers")
-          .select("application_id, field_name, value_text, value_json")
-          .in("application_id", applicationIds),
-      ),
-      readRows<PacketRow>(
-        adminClient
-          .from("application_packets")
-          .select("application_id, status, storage_path, generated_at, created_at, updated_at")
-          .in("application_id", applicationIds),
-      ),
-      includeDetails ? readRows<EventRow>(
+  const eventRead = applicationIds.length > 0 && includeDetails
+    ? readRows<EventRow>(
         adminClient
           .from("application_events")
           .select("application_id, event_type, created_at")
           .in("application_id", applicationIds)
           .order("created_at", { ascending: false })
           .limit(30),
-      ) : { rows: [], failed: false },
-      includeDetails ? readRows<NotificationRow>(
+      )
+    : Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<EventRow>);
+  const notificationRead = applicationIds.length > 0 && includeDetails
+    ? readRows<NotificationRow>(
         adminClient
           .from("notification_events")
           .select("application_id, status, sent_at, created_at")
           .in("application_id", applicationIds),
-      ) : { rows: [], failed: false },
-      includeDetails ? readRows<OfficialTrackingRow>(
+      )
+    : Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<NotificationRow>);
+  const trackingRead = applicationIds.length > 0 && includeDetails
+    ? readRows<OfficialTrackingRow>(
         adminClient
           .from("official_application_tracking")
           .select("application_id, tracking_status, last_successful_check_at, next_daily_check_at, consecutive_failures")
           .in("application_id", applicationIds),
-      ) : { rows: [], failed: false },
-    ]);
+      )
+    : Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<OfficialTrackingRow>);
+  const [liveResult, paymentResult, relatedRows, eventResult, notificationResult, trackingResult] = await Promise.all([
+    liveSubmissionRead,
+    paymentRead,
+    relatedRowsRead,
+    eventRead,
+    notificationRead,
+    trackingRead,
+  ]);
+  const liveSubmissionByApplication = liveResult.rows;
+  partialData = partialData || liveResult.failed;
+  partialData = partialData || paymentResult.failed;
+  partialData = partialData || relatedRows.partialData;
+  const payments = dedupeById(paymentResult.rows);
 
-    partialData = partialData || [
-      consentResult,
-      signatureResult,
-      documentResult,
-      answerResult,
-      packetResult,
-      eventResult,
-      notificationResult,
-      trackingResult,
-    ].some((result) => result.failed);
-
-    consents = consentResult.rows;
-    signatures = signatureResult.rows;
-    documents = documentResult.rows;
-    answers = answerResult.rows;
-    packets = packetResult.rows;
-    events = eventResult.rows;
-    notifications = notificationResult.rows;
-    officialTracking = trackingResult.rows;
-  }
+  partialData = partialData || [eventResult, notificationResult, trackingResult].some((result) => result.failed);
+  const consents = relatedRows.consents;
+  const signatures = relatedRows.signatures;
+  const documents = relatedRows.documents;
+  const answers = relatedRows.answers;
+  const packets = relatedRows.packets;
+  const events = eventResult.rows;
+  const notifications = notificationResult.rows;
+  const officialTracking = trackingResult.rows;
 
   const packagesById = new Map(userPackages.map((row) => [row.package.id, row.package]));
   const paymentsByApplication = groupByApplication(payments);
@@ -2281,26 +2471,24 @@ async function loadClientStatusData(
       )
     : new Map<string, Map<string, string>>();
 
-  const statusApplications = await Promise.all(
-    applications.map((application) =>
-      buildApplicationStatus({
-        application,
-        visaPackage: application.visa_package_id ? packagesById.get(application.visa_package_id) ?? null : null,
-        liveSubmission: liveSubmissionByApplication.get(application.id) ?? null,
-        payments: paymentsForApplication(application),
-        consents: consentsByApplication.get(application.id) ?? [],
-        signatures: signaturesByApplication.get(application.id) ?? [],
-        documents: documentsByApplication.get(application.id) ?? [],
-        answers: answersByApplication.get(application.id) ?? [],
-        packets: packetsByApplication.get(application.id) ?? [],
-        events: eventsByApplication.get(application.id) ?? [],
-        notifications: notificationsByApplication.get(application.id) ?? [],
-        officialTracking: officialTrackingByApplication.get(application.id) ?? null,
-        filePlans: filePlansByApplication.get(application.id) ?? [],
-        storageUrls,
-        includeDetails,
-      }),
-    ),
+  const statusApplications = applications.map((application) =>
+    buildApplicationStatus({
+      application,
+      visaPackage: application.visa_package_id ? packagesById.get(application.visa_package_id) ?? null : null,
+      liveSubmission: liveSubmissionByApplication.get(application.id) ?? null,
+      payments: paymentsForApplication(application),
+      consents: consentsByApplication.get(application.id) ?? [],
+      signatures: signaturesByApplication.get(application.id) ?? [],
+      documents: documentsByApplication.get(application.id) ?? [],
+      answers: answersByApplication.get(application.id) ?? [],
+      packets: packetsByApplication.get(application.id) ?? [],
+      events: eventsByApplication.get(application.id) ?? [],
+      notifications: notificationsByApplication.get(application.id) ?? [],
+      officialTracking: officialTrackingByApplication.get(application.id) ?? null,
+      filePlans: filePlansByApplication.get(application.id) ?? [],
+      storageUrls,
+      includeDetails,
+    }),
   );
 
   if (!scopedApplicationId) {

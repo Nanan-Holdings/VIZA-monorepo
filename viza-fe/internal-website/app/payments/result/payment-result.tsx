@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
 import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { SmoothProgressMeter } from "@/components/smooth-progress";
+import { getAttemptStatusLabel, getPaymentCopy, getProviderStatusLabel } from "../payment-copy";
 
 interface PaymentResultProps {
   paymentId: string | null;
@@ -12,6 +14,8 @@ interface PaymentResultProps {
 type Status = "pending" | "paid" | "failed";
 
 export function PaymentResult({ paymentId }: PaymentResultProps) {
+  const locale = useLocale();
+  const copy = getPaymentCopy(locale);
   const [status, setStatus] = useState<Status>("pending");
   const [providerStatus, setProviderStatus] = useState<string | null>(null);
   const [attemptStatus, setAttemptStatus] = useState<string | null>(null);
@@ -64,7 +68,7 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
           className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium text-brand-500 shadow-sm transition hover:border-brand-500"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回订阅页面
+          {copy.resultBackToSubscription}
         </Link>
 
         <section className="rounded-xl border bg-white p-8 text-center shadow-sm">
@@ -72,36 +76,50 @@ export function PaymentResult({ paymentId }: PaymentResultProps) {
             <Icon className={status === "pending" ? "h-6 w-6 animate-spin" : "h-6 w-6"} />
           </div>
           <h1 className="mt-4 text-3xl font-semibold text-foreground">
-            {paid ? "支付已确认" : failed ? "支付未完成" : "正在确认支付"}
+            {paid ? copy.resultPaidTitle : failed ? copy.resultFailedTitle : copy.resultPendingTitle}
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             {paid
-              ? "VIZA 已记录这笔人民币服务费，月付方案会同步到你的订阅状态。"
+              ? copy.resultPaidDescription
               : failed
                 ? expiresAt
-                  ? "这次扫码支付没有在二维码有效期内完成，你可以返回订阅页面重新生成订单。"
-                  : "在线支付服务未能确认本次支付，你可以返回订阅页面重新选择支付方式。"
-                : "如果你刚完成扫码或验证，页面会自动刷新最终状态。"}
+                  ? copy.resultExpiredDescription
+                  : copy.resultFailedDescription
+                : copy.resultPendingDescription}
           </p>
           <SmoothProgressMeter
             serverProgress={serverProgress}
             status={progressStatus}
             intervalMs={120}
-            label={paid ? "确认完成" : failed ? "确认已停止" : "确认进度"}
+            label={
+              paid
+                ? copy.resultProgressComplete
+                : failed
+                  ? copy.resultProgressStopped
+                  : copy.resultProgressPending
+            }
             className="mx-auto mt-6 max-w-md"
           />
           {providerStatus ? (
-            <p className="mt-5 text-xs font-medium text-muted-foreground">支付服务状态：{providerStatus}</p>
+            <p className="mt-5 text-xs font-medium text-muted-foreground">
+              {copy.resultProviderStatus}
+              {copy.statusSeparator}
+              {getProviderStatusLabel(providerStatus, locale)}
+            </p>
           ) : null}
           {attemptStatus ? (
-            <p className="mt-2 text-xs font-medium text-muted-foreground">支付尝试状态：{attemptStatus}</p>
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              {copy.resultAttemptStatus}
+              {copy.statusSeparator}
+              {getAttemptStatusLabel(attemptStatus, locale)}
+            </p>
           ) : null}
           {paid ? (
             <Link
               href="/client/settings/subscription"
               className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
             >
-              管理订阅方案
+              {copy.manageSubscription}
             </Link>
           ) : null}
         </section>

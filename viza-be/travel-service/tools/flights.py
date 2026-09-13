@@ -5,6 +5,7 @@ from datetime import date
 
 from typing import Any
 
+from travel_locale import is_english_locale, localize_travel_place
 from tools.http_client import REQUEST_TIMEOUT, request_json
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
@@ -217,12 +218,13 @@ def _stable_route_number(origin_city, destination_city, prefix):
     return f"{prefix}{(seed % 900) + 100}"
 
 
-def _fallback_airlines(_origin_city, _destination_city):
+def _fallback_airlines(_origin_city, _destination_city, *, locale="zh"):
     # A fallback result is an estimate, not a real carrier quote. Never infer a
     # carrier from the route: doing so makes an unavailable provider look like
     # a live booking result (for example, Singapore routes used to show
     # Singapore Airlines even when RapidAPI had returned 403/429).
-    return [("待确认航司", None), ("待确认航司", None)]
+    pending_label = "To be confirmed" if is_english_locale(locale) else "待确认航司"
+    return [(pending_label, None), (pending_label, None)]
 
 
 def _fallback_flights(
@@ -231,6 +233,7 @@ def _fallback_flights(
     departure_date,
     *,
     provider_reason="provider_unavailable",
+    locale="zh",
 ):
     """Return clearly labelled time estimates when no provider quote exists.
 
@@ -239,21 +242,28 @@ def _fallback_flights(
     metadata prevents the client from presenting estimates as live flights.
     """
 
-    airlines = _fallback_airlines(origin_city, destination_city)
+    airlines = _fallback_airlines(origin_city, destination_city, locale=locale)
+    display_origin = localize_travel_place(origin_city, locale) or origin_city
+    display_destination = localize_travel_place(destination_city, locale) or destination_city
+    provider_message = (
+        "Live flight data is temporarily unavailable. These are time estimates only and cannot be booked."
+        if is_english_locale(locale)
+        else "实时航班供应商暂未返回，以下仅为时间估算，不可预订。"
+    )
     return [
         {
             "provider": "unavailable-estimate",
             "estimated": True,
             "provider_status": "unavailable",
             "provider_reason": provider_reason,
-            "provider_message": "实时航班供应商暂未返回，以下仅为时间估算，不可预订。",
+            "provider_message": provider_message,
             "airline": airlines[0][0],
             "price": "500.00",
             "currency": "USD",
             "departure": f"{departure_date}T08:00:00",
             "arrival": f"{departure_date}T14:30:00",
-            "from": origin_city,
-            "to": destination_city,
+            "from": display_origin,
+            "to": display_destination,
             "duration": "6h 30m",
             "stops": 0,
             "flight_number": (
@@ -261,8 +271,8 @@ def _fallback_flights(
                 if airlines[0][1]
                 else None
             ),
-            "departure_airport": origin_city,
-            "arrival_airport": destination_city,
+            "departure_airport": display_origin,
+            "arrival_airport": display_destination,
             "cabin_class": "ECONOMY",
         },
         {
@@ -270,14 +280,14 @@ def _fallback_flights(
             "estimated": True,
             "provider_status": "unavailable",
             "provider_reason": provider_reason,
-            "provider_message": "实时航班供应商暂未返回，以下仅为时间估算，不可预订。",
+            "provider_message": provider_message,
             "airline": airlines[1][0],
             "price": "200.00",
             "currency": "USD",
             "departure": f"{departure_date}T18:00:00",
             "arrival": f"{departure_date}T23:50:00",
-            "from": origin_city,
-            "to": destination_city,
+            "from": display_origin,
+            "to": display_destination,
             "duration": "5h 50m",
             "stops": 0,
             "flight_number": (
@@ -285,8 +295,8 @@ def _fallback_flights(
                 if airlines[1][1]
                 else None
             ),
-            "departure_airport": origin_city,
-            "arrival_airport": destination_city,
+            "departure_airport": display_origin,
+            "arrival_airport": display_destination,
             "cabin_class": "ECONOMY",
         },
     ]
@@ -330,6 +340,8 @@ async def search_flights(
     adults=1,
     currency_code="CNY",
     max_results=5,
+    *,
+    locale="zh",
 ):
     if not origin_city or not destination_city:
         return []
@@ -352,6 +364,7 @@ async def search_flights(
             destination_city,
             departure_date,
             provider_reason=reason,
+            locale=locale,
         )
 
     payload = await _request_json(
@@ -377,6 +390,7 @@ async def search_flights(
             destination_city,
             departure_date,
             provider_reason=reason,
+            locale=locale,
         )
 
     data = payload.get("data")
@@ -390,6 +404,7 @@ async def search_flights(
             destination_city,
             departure_date,
             provider_reason="invalid_provider_payload",
+            locale=locale,
         )
 
     offers = data.get("flightOffers")
@@ -403,6 +418,7 @@ async def search_flights(
             destination_city,
             departure_date,
             provider_reason="no_offers",
+            locale=locale,
         )
 
     normalized = []
@@ -417,7 +433,7 @@ async def search_flights(
 
         departure_time = first_segment.get("departureTime") or departure_date
         arrival_time = first_segment.get("arrivalTime")
-        carrier_name = "待确认航司"
+        carrier_name = "To be confirmed" if is_english_locale(locale) else "待确认航司"
         departure_airport = _airport_label(first_segment.get("departureAirport"))
         arrival_airport = _airport_label(first_segment.get("arrivalAirport"))
         duration = _format_duration(first_segment.get("totalTime"))
@@ -495,4 +511,5 @@ async def search_flights(
         destination_city,
         departure_date,
         provider_reason="invalid_provider_offers",
+        locale=locale,
     )

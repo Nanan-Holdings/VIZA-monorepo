@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import type { CurrentSubscriptionState } from "@/lib/payments/commercial-records";
+import { localizeSubscriptionState } from "@/lib/payments/subscription-display";
 import { cn } from "@/lib/utils";
 
 function formatAmount(locale: string, amountFen: number) {
@@ -54,6 +55,10 @@ export function SubscriptionManagement({
   const [subscription, setSubscription] = useState(initialSubscription);
   const [isSubmitting, setIsSubmitting] = useState<"cancel" | "resume" | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const localizedSubscription = useMemo(
+    () => localizeSubscriptionState(subscription, locale),
+    [locale, subscription],
+  );
 
   const amountLabel = useMemo(
     () => formatAmount(locale, subscription.amountFen),
@@ -82,7 +87,7 @@ export function SubscriptionManagement({
     if (!response.ok || !result || result.error) {
       setMessage({
         tone: "error",
-        text: result?.error ?? t(action === "cancel" ? "cancelFailed" : "resumeFailed"),
+        text: t(action === "cancel" ? "cancelFailed" : "resumeFailed"),
       });
       return;
     }
@@ -120,7 +125,7 @@ export function SubscriptionManagement({
               statusClass(subscription.status),
             )}
           >
-            {subscription.statusLabel}
+            {localizedSubscription.statusLabel}
           </span>
         </div>
 
@@ -130,7 +135,7 @@ export function SubscriptionManagement({
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{t("currentPlan")}</p>
                 <h2 className="mt-2 text-3xl font-semibold text-foreground">
-                  {subscription.planName}
+                  {localizedSubscription.planName}
                 </h2>
               </div>
               <div className="text-left sm:text-right">
@@ -157,7 +162,7 @@ export function SubscriptionManagement({
                   {t("paymentMethod")}
                 </dt>
                 <dd className="mt-2 text-sm font-semibold text-foreground">
-                  {subscription.paymentMethodLabel}
+                  {localizedSubscription.paymentMethodLabel}
                 </dd>
               </div>
               <div className="rounded-lg bg-muted/40 p-4">
@@ -171,7 +176,7 @@ export function SubscriptionManagement({
               <div className="rounded-lg bg-muted/40 p-4">
                 <dt className="text-sm font-medium text-muted-foreground">{t("renewal")}</dt>
                 <dd className="mt-2 text-sm font-semibold text-foreground">
-                  {subscription.renewalLabel}
+                  {localizedSubscription.renewalLabel}
                 </dd>
               </div>
             </dl>

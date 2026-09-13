@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
+import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
+import { getCuratedCityLabel } from "@/lib/travel/locations";
 import {
   Calendar as CalendarDays,
   Download,
@@ -166,11 +169,11 @@ function hashString(value: string): number {
 function getLocalCityLabel(city: string): string {
   const localized = LOCAL_CITY_LABELS[normalizeLookupKey(city)];
   if (localized) return localized;
-  return /[A-Za-z]/.test(city) ? "待确认城市" : city;
+  return city;
 }
 
 function getDisplayCityLabel(city: string, locale: "zh" | "en"): string {
-  return locale === "zh" ? getLocalCityLabel(city) : city;
+  return getCuratedCityLabel(city, locale) ?? (locale === "zh" ? getLocalCityLabel(city) : city);
 }
 
 function getChineseShareName(
@@ -198,23 +201,57 @@ function getChineseShareAirline(value: string): string {
     normalizeLookupKey(source).includes(normalizeLookupKey(candidate))
   )?.[1];
   if (exact) return exact;
-  return /[A-Za-z]/.test(source) ? "待确认航司" : source || "待确认航司";
+  return source || "待确认航司";
 }
+
+function getEnglishShareName(city: string, value: string): string {
+  const known = findTravelAttraction(city, value);
+  const alias = [known?.name, ...(known?.aliases ?? [])].find(
+    (candidate): candidate is string => Boolean(candidate) && !/[\p{Script=Han}]/u.test(candidate ?? "")
+  );
+  if (alias) return alias;
+  const mapped = Object.entries({ ...LOCAL_SHARE_TEXT, ...LOCAL_SHARE_AIRLINES })
+    .find(([, translated]) => translated === value)?.[0];
+  if (mapped) return mapped.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return getCuratedCityLabel(value, "en") ?? value;
+}
+
+function getShareRoute(route: string, locale: "zh" | "en"): string {
+  return route.split(/(\s*(?:→|↔|\||–|—)\s*)/).map((part) =>
+    getCuratedCityLabel(part.trim(), locale) ?? part
+  ).join("");
+}
+
+const SHARE_ROW_TYPES = [
+  ["Flight", "航班"], ["Hotel", "酒店"], ["Attraction", "景点"], ["Dining", "餐饮"],
+] as const;
 
 function localizeShareRows(
   rows: TravelItineryShareRow[],
   locale: "zh" | "en"
 ): TravelItineryShareRow[] {
-  if (locale === "en") return rows;
   return rows.map((row) => {
-    const route = row.route
+    const rowType = SHARE_ROW_TYPES.find(([en, zh]) => row.type.toLowerCase() === en.toLowerCase() || row.type === zh);
+    const normalized = {
+      ...row,
+      type: rowType ? rowType[locale === "en" ? 0 : 1] : row.type,
+      date: locale === "en" ? row.date.replace(/(?:第\s*)?(\d+)\s*天/g, "Day $1").replace(/天\s*(\d+)/g, "Day $1") : row.date.replace(/Day\s*(\d+)/gi, "第$1天"),
+      time: locale === "en" ? row.time?.replace(/上午/g, "Morning").replace(/下午/g, "Afternoon").replace(/午餐/g, "Lunch").replace(/晚餐/g, "Dinner") : row.time?.replace(/Morning/gi, "上午").replace(/Afternoon/gi, "下午").replace(/Lunch/gi, "午餐").replace(/Dinner/gi, "晚餐"),
+    };
+    if (locale === "en") return {
+      ...normalized,
+      route: getShareRoute(row.route, locale),
+      name: getEnglishShareName(row.route, row.name),
+      details: row.details.replace(/经济舱/g, "Economy").replace(/(\d+)小时/g, "$1h ").replace(/(\d+)分钟/g, "$1m"),
+    };
+    const route = getShareRoute(row.route, locale)
       .replace(/Koto-ku/gi, "东京江东区")
       .replace(/San Francisco/gi, "旧金山")
       .replace(/Tokyo/gi, "东京")
       .replace(/Paris/gi, "巴黎");
     if (/航班|flight/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareAirline(row.name),
         details: row.details
@@ -225,20 +262,19 @@ function localizeShareRows(
     }
     if (/景点|attraction/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareName(route, row.name, "attraction"),
       };
     }
     if (/餐饮|dining/i.test(row.type)) {
       return {
-        ...row,
+        ...normalized,
         route,
         name: getChineseShareName(route, row.name, "dining"),
       };
     }
-    if (/酒店|hotel/i.test(row.type)) return { ...row, route };
-    return { ...row, route };
+    return { ...normalized, route };
   });
 }
 
@@ -292,11 +328,11 @@ function buildRowsFromItinerary(
     const firstActivity =
       locale === "zh"
         ? getChineseShareName(day.city, firstActivityRaw, "attraction")
-        : firstActivityRaw;
+        : getEnglishShareName(day.city, firstActivityRaw);
     const secondActivity =
       locale === "zh"
         ? getChineseShareName(day.city, secondActivityRaw, "attraction")
-        : secondActivityRaw;
+        : getEnglishShareName(day.city, secondActivityRaw);
 
     rows.push({
       time: locale === "zh" ? "09:00 上午" : "09:00 Morning",
@@ -320,11 +356,11 @@ function buildRowsFromItinerary(
         name:
           locale === "zh"
             ? getChineseShareName(day.city, day.food[0], "dining")
-            : day.food[0],
+            : getEnglishShareName(day.city, day.food[0]),
         details:
           locale === "zh"
             ? `午餐：${getChineseShareName(day.city, day.food[0], "dining")}。`
-            : `Lunch: ${day.food[0]}.`,
+            : `Lunch: ${getEnglishShareName(day.city, day.food[0])}.`,
         contact: "-",
       });
     }
@@ -351,11 +387,11 @@ function buildRowsFromItinerary(
         name:
           locale === "zh"
             ? getChineseShareName(day.city, day.food[1], "dining")
-            : day.food[1],
+            : getEnglishShareName(day.city, day.food[1]),
         details:
           locale === "zh"
             ? `晚餐：${getChineseShareName(day.city, day.food[1], "dining")}。`
-            : `Dinner: ${day.food[1]}.`,
+            : `Dinner: ${getEnglishShareName(day.city, day.food[1])}.`,
         contact: "-",
       });
     }
@@ -444,12 +480,14 @@ function Metric({
 }
 
 export function TravelItineraryShareRenderer() {
+  const interfaceLocale = normalizeInterfaceLocale(useLocale());
   const searchParams = useSearchParams();
   const encoded = searchParams.get(TRAVEL_ITINERARY_SHARE_PARAM);
   const [hasMounted, setHasMounted] = useState(false);
   const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [exportLanguage, setExportLanguage] = useState<TravelExportLanguage>("zh");
+  const [chosenExportLanguage, setExportLanguage] = useState<TravelExportLanguage | null>(null);
+  const exportLanguage = interfaceLocale === "en" ? "en" : chosenExportLanguage ?? interfaceLocale;
   const payload = useMemo(
     () => (hasMounted ? decodeTravelItinerarySharePayload(encoded) : null),
     [encoded, hasMounted]
@@ -459,7 +497,6 @@ export function TravelItineraryShareRenderer() {
     setHasMounted(true);
   }, []);
 
-  const interfaceLocale = payload?.locale === "en" ? "en" : "zh";
   const isZh = interfaceLocale === "zh";
   const exportLanguageOptions = useMemo(
     () =>
@@ -468,10 +505,6 @@ export function TravelItineraryShareRenderer() {
         : EXPORT_LANGUAGE_OPTIONS,
     [interfaceLocale]
   );
-
-  useEffect(() => {
-    setExportLanguage(interfaceLocale === "en" ? "en" : "zh");
-  }, [interfaceLocale]);
 
   const rows = useMemo(
     () => {
@@ -500,9 +533,9 @@ export function TravelItineraryShareRenderer() {
     return (
       <main className="min-h-screen bg-[#f7f4f0] px-5 py-10 text-[#2d1635]">
         <section className="mx-auto max-w-3xl rounded-[28px] bg-white p-8 text-center shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
-          <h1 className="text-3xl font-bold">行程链接不可用</h1>
+          <h1 className="text-3xl font-bold">{isZh ? "行程链接不可用" : "Itinerary link unavailable"}</h1>
           <p className="mt-3 text-base font-semibold text-[#756a7b]">
-            请确认分享链接完整，或让分享者重新生成链接。
+            {isZh ? "请确认分享链接完整，或让分享者重新生成链接。" : "Check that the full link was copied, or ask the sender to share it again."}
           </p>
         </section>
       </main>
@@ -539,13 +572,9 @@ export function TravelItineraryShareRenderer() {
       toast.success(
         isZh ? `${filename} 已开始下载。` : `${filename} download started.`
       );
-    } catch (error) {
+    } catch {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : isZh
-            ? `${filename} 下载失败。`
-            : `${filename} download failed.`
+        isZh ? `${filename} 下载失败，请稍后重试。` : `${filename} download failed. Please try again.`
       );
     } finally {
       setBusy(false);
@@ -764,7 +793,7 @@ export function TravelItineraryShareRenderer() {
                   alt={
                     isZh
                       ? `${getLocalCityLabel(day.city)}第${day.day}天`
-                      : `${day.city} day ${day.day}`
+                      : `${getDisplayCityLabel(day.city, interfaceLocale)} day ${day.day}`
                   }
                   className="h-full w-full object-cover"
                   height={220}
@@ -783,7 +812,7 @@ export function TravelItineraryShareRenderer() {
                     .map((activity) =>
                       isZh
                         ? getChineseShareName(day.city, activity, "attraction")
-                        : activity
+                        : getEnglishShareName(day.city, activity)
                     )
                     .join(" · ")}
                 </h3>
@@ -795,7 +824,7 @@ export function TravelItineraryShareRenderer() {
                     >
                       {isZh
                         ? getChineseShareName(day.city, activity, "attraction")
-                        : activity}
+                        : getEnglishShareName(day.city, activity)}
                     </span>
                   ))}
                 </div>
@@ -807,7 +836,7 @@ export function TravelItineraryShareRenderer() {
                         ? day.food.map((food) =>
                             getChineseShareName(day.city, food, "dining")
                           )
-                        : day.food,
+                        : day.food.map((food) => getEnglishShareName(day.city, food)),
                       interfaceLocale
                     )}
                   </p>

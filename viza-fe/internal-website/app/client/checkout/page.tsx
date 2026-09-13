@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { startStripeCheckout } from "./actions";
 import { CheckoutSubmitButton } from "./submit-button";
+import {
+  getCheckoutCopy,
+  getCheckoutReturnState,
+  localizeCheckoutStatus,
+  localizeCheckoutNextStep,
+  localizeGovernmentFee,
+  type CheckoutCopy,
+} from "./checkout-copy";
 import {
   type CheckoutPackageSummary,
   type CheckoutReturnState,
@@ -16,10 +25,10 @@ import { Button } from "@/components/ui/button";
 import { ApplicationFormPanel } from "@/components/ui/application-form-panel";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Checkout | VIZA",
-  description: "Pay the VIZA agency fee through Stripe Checkout.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = getCheckoutCopy(await getLocale());
+  return { title: copy.metadataTitle, description: copy.metadataDescription };
+}
 
 type CheckoutSearchParams = {
   applicationId?: string | string[];
@@ -39,52 +48,10 @@ function getParam(params: CheckoutSearchParams | undefined, key: keyof CheckoutS
   return value ?? null;
 }
 
-function getErrorReturnState(error: string | null): CheckoutReturnState {
-  if (!error) return null;
-
-  const messages: Record<string, CheckoutReturnState> = {
-    checkout_unavailable: {
-      tone: "error",
-      title: "Checkout is temporarily unavailable",
-      description: "Stripe Checkout could not be opened. Please try again or contact support.",
-    },
-    missing_package: {
-      tone: "error",
-      title: "Choose a visa package first",
-      description: "We need an active package before starting agency-fee payment.",
-    },
-    package_not_found: {
-      tone: "error",
-      title: "Package not found",
-      description: "This package is not active on your account. Please choose another package.",
-    },
-    payment_record_failed: {
-      tone: "error",
-      title: "Payment record was not created",
-      description: "VIZA did not start Stripe Checkout because the payment record could not be prepared.",
-    },
-    pricing_missing: {
-      tone: "warning",
-      title: "Agency fee is not configured",
-      description: "This package needs a VIZA agency fee before Stripe Checkout can be started.",
-    },
-    stripe_unconfigured: {
-      tone: "warning",
-      title: "Stripe Checkout is not configured",
-      description: "Production payment requires STRIPE_SECRET_KEY (sk_...), STRIPE_WEBHOOK_SECRET, and an app URL. No card details are collected here.",
-    },
-  };
-
-  return (
-    messages[error] ?? {
-      tone: "error",
-      title: "Checkout needs attention",
-      description: "Something interrupted checkout. Please try again or contact support.",
-    }
-  );
-}
-
-async function getReturnState(params: CheckoutSearchParams | undefined): Promise<CheckoutReturnState> {
+async function getReturnState(
+  params: CheckoutSearchParams | undefined,
+  locale: string,
+): Promise<CheckoutReturnState> {
   const status = getParam(params, "status");
   if (status === "success") {
     return reconcileStripeCheckoutSession(getParam(params, "session_id"));
@@ -93,12 +60,12 @@ async function getReturnState(params: CheckoutSearchParams | undefined): Promise
   if (status === "cancelled") {
     return {
       tone: "warning",
-      title: "Stripe Checkout was cancelled",
-      description: "No VIZA agency fee was recorded. You can review the package and restart Stripe Checkout.",
+      title: getCheckoutCopy(locale).cancelledTitle,
+      description: getCheckoutCopy(locale).cancelledDescription,
     };
   }
 
-  return getErrorReturnState(getParam(params, "error"));
+  return getCheckoutReturnState(getParam(params, "error"), locale);
 }
 
 function ReturnStateAlert({ state }: { state: CheckoutReturnState }) {
@@ -132,15 +99,15 @@ function DetailRow({
   );
 }
 
-function EmptyCheckoutState() {
+function EmptyCheckoutState({ copy }: { copy: CheckoutCopy }) {
   return (
     <ApplicationFormPanel className="flex min-h-[320px] flex-col items-center justify-center p-6 text-center">
-      <h2 className="text-xl font-semibold text-foreground">No active package ready for checkout</h2>
+      <h2 className="text-xl font-semibold text-foreground">{copy.emptyTitle}</h2>
       <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-        Select a destination or ask the VIZA team to assign a package before starting agency-fee payment.
+        {copy.emptyDescription}
       </p>
       <Button asChild className="mt-6 h-11 rounded-full bg-brand-500 px-5 hover:bg-brand-600">
-        <Link href="/client/application">Choose a visa route</Link>
+        <Link href="/client/application">{copy.chooseRoute}</Link>
       </Button>
     </ApplicationFormPanel>
   );
@@ -150,14 +117,20 @@ function CheckoutContent({
   selectedPackage,
   stripeConfigured,
   returnState,
+  locale,
+  copy,
 }: {
   selectedPackage: CheckoutPackageSummary;
   stripeConfigured: boolean;
   returnState: CheckoutReturnState;
+  locale: string;
+  copy: CheckoutCopy;
 }) {
   const canStartPayment = Boolean(selectedPackage.agencyFee) && stripeConfigured && !selectedPackage.isPaid;
-  const agencyFeeLabel = selectedPackage.agencyFee?.label ?? "Not configured";
+  const agencyFeeLabel = selectedPackage.agencyFee?.label ?? copy.notConfigured;
   const paidAt = selectedPackage.latestPayment?.updated_at ?? selectedPackage.latestPayment?.created_at ?? null;
+  const governmentFee = localizeGovernmentFee(selectedPackage.governmentFee, locale);
+  const nextStep = localizeCheckoutNextStep(selectedPackage.nextStep, locale);
 
   return (
     <div className="space-y-6">
@@ -165,9 +138,9 @@ function CheckoutContent({
 
       {!stripeConfigured ? (
         <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-          <AlertTitle>Stripe Checkout needs configuration</AlertTitle>
+          <AlertTitle>{copy.stripeNeedsConfiguration}</AlertTitle>
           <AlertDescription>
-            The page is safe to review, but payment is disabled until Stripe environment variables are configured.
+            {copy.stripeDisabledDescription}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -194,19 +167,21 @@ function CheckoutContent({
 
               <div className="grid border-y sm:grid-cols-3 sm:divide-x">
                 <div className="py-4 sm:pr-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Agency fee</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{copy.agencyFee}</p>
                   <p className="mt-2 text-xl font-semibold text-foreground">{agencyFeeLabel}</p>
                 </div>
                 <div className="border-t py-4 sm:border-t-0 sm:px-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Application</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{copy.application}</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
-                    {selectedPackage.applicationStatus?.replace(/_/g, " ") ?? "Not started"}
+                    {localizeCheckoutStatus(selectedPackage.applicationStatus, locale, copy.notStarted)}
                   </p>
                 </div>
                 <div className="border-t py-4 sm:border-t-0 sm:pl-4">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Payment</p>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{copy.payment}</p>
                   <p className="mt-2 text-sm font-medium capitalize text-foreground">
-                    {selectedPackage.isPaid ? "Paid" : selectedPackage.latestPayment?.status ?? "Not paid"}
+                    {selectedPackage.isPaid
+                      ? copy.paid
+                      : localizeCheckoutStatus(selectedPackage.latestPayment?.status, locale, copy.notPaid)}
                   </p>
                 </div>
               </div>
@@ -215,29 +190,28 @@ function CheckoutContent({
 
           <ApplicationFormPanel className="p-5 sm:p-6">
             <div>
-              <h2 className="text-base font-semibold text-foreground">Official fee payment</h2>
+              <h2 className="text-base font-semibold text-foreground">{copy.officialFeePayment}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                VIZA pays the official portal on your behalf with a secure virtual card created for this application.
+                {copy.officialFeeIntro}
               </p>
             </div>
             <div className="mt-5 space-y-4">
               <div className="border-y py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-foreground">{selectedPackage.governmentFee.label}</p>
+                    <p className="text-sm font-medium text-foreground">{governmentFee.label}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {selectedPackage.governmentFee.description}
+                      {governmentFee.description}
                     </p>
                   </div>
                   <p className="text-right text-sm font-semibold text-foreground">
-                    {selectedPackage.governmentFee.amountLabel}
+                    {governmentFee.amountLabel}
                   </p>
                 </div>
               </div>
-              <p className="leading-7 text-muted-foreground">{selectedPackage.governmentFee.detail}</p>
+              <p className="leading-7 text-muted-foreground">{governmentFee.detail}</p>
               <div className="rounded-lg bg-brand-50 p-4 text-sm leading-6 text-brand-900">
-                You will never need to enter card details on the government portal. When the official fee is due,
-                VIZA creates a limited virtual card for this application, pays the portal, and records the result.
+                {copy.noGovernmentCard}
               </div>
             </div>
           </ApplicationFormPanel>
@@ -245,42 +219,44 @@ function CheckoutContent({
 
         <aside className="space-y-6">
           <ApplicationFormPanel className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-foreground">Order summary</h2>
+            <h2 className="text-base font-semibold text-foreground">{copy.orderSummary}</h2>
             <div className="mt-5 space-y-5">
               <div>
-                <DetailRow label="Package" value={selectedPackage.packageName} />
-                <DetailRow label="Destination" value={selectedPackage.countryName} />
-                <DetailRow label="Visa type" value={selectedPackage.visaTypeLabel} />
-                <DetailRow label="VIZA agency fee" value={agencyFeeLabel} />
-                <DetailRow label="Official fee" value="Paid by VIZA with a virtual card" muted />
+                <DetailRow label={copy.package} value={selectedPackage.packageName} />
+                <DetailRow label={copy.destination} value={selectedPackage.countryName} />
+                <DetailRow label={copy.visaType} value={selectedPackage.visaTypeLabel} />
+                <DetailRow label={copy.vizaAgencyFee} value={agencyFeeLabel} />
+                <DetailRow label={copy.officialFee} value={copy.officialFeePaid} muted />
               </div>
 
               <div className="rounded-lg bg-muted/40 p-4">
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-sm font-medium text-muted-foreground">Due today</span>
+                  <span className="text-sm font-medium text-muted-foreground">{copy.dueToday}</span>
                   <span className="text-2xl font-semibold text-foreground">
                     {selectedPackage.agencyFee
-                      ? formatMoney(selectedPackage.agencyFee.cents, selectedPackage.agencyFee.currency)
-                      : "Unavailable"}
+                      ? formatMoney(selectedPackage.agencyFee.cents, selectedPackage.agencyFee.currency, locale)
+                      : copy.unavailable}
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Paid through Stripe-hosted Checkout for VIZA's agency fee only.
+                  {copy.stripeOnly}
                 </p>
               </div>
 
               {selectedPackage.isPaid ? (
                 <div className="space-y-4">
                   <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
-                    <AlertTitle>Agency fee recorded</AlertTitle>
+                    <AlertTitle>{copy.agencyFeeRecorded}</AlertTitle>
                     <AlertDescription>
-                      {paidAt ? `Latest confirmation: ${new Date(paidAt).toLocaleString()}` : "Payment is on file."}
+                      {paidAt
+                        ? copy.latestConfirmation(new Date(paidAt).toLocaleString(locale))
+                        : copy.paymentOnFile}
                     </AlertDescription>
                   </Alert>
                   <Button asChild className="h-12 w-full rounded-full bg-brand-500 hover:bg-brand-600">
-                    <a href={selectedPackage.nextStep.href}>{selectedPackage.nextStep.label}</a>
+                    <a href={nextStep.href}>{nextStep.label}</a>
                   </Button>
-                  <p className="text-sm leading-6 text-muted-foreground">{selectedPackage.nextStep.description}</p>
+                  <p className="text-sm leading-6 text-muted-foreground">{nextStep.description}</p>
                 </div>
               ) : (
                 <form action={startStripeCheckout} className="space-y-4">
@@ -288,14 +264,16 @@ function CheckoutContent({
                   {selectedPackage.applicationId ? (
                     <input type="hidden" name="applicationId" value={selectedPackage.applicationId} />
                   ) : null}
-                  <CheckoutSubmitButton disabled={!canStartPayment}>Pay agency fee with Stripe</CheckoutSubmitButton>
+                  <CheckoutSubmitButton disabled={!canStartPayment} loadingText={copy.openingStripe}>
+                    {copy.payAgencyFee}
+                  </CheckoutSubmitButton>
                   {!selectedPackage.agencyFee ? (
                     <p className="text-sm leading-6 text-muted-foreground">
-                      Checkout is disabled because this package does not have an agency fee configured.
+                      {copy.checkoutDisabled}
                     </p>
                   ) : (
                     <p className="text-sm leading-6 text-muted-foreground">
-                      You will enter card details only on Stripe's hosted checkout page.
+                      {copy.stripeHosted}
                     </p>
                   )}
                 </form>
@@ -304,12 +282,11 @@ function CheckoutContent({
           </ApplicationFormPanel>
 
           <ApplicationFormPanel className="p-5 sm:p-6">
-            <h2 className="text-base font-semibold text-foreground">After payment</h2>
+            <h2 className="text-base font-semibold text-foreground">{copy.afterPayment}</h2>
             <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
-              <p>{selectedPackage.nextStep.description}</p>
+              <p>{nextStep.description}</p>
               <p>
-                When an official portal fee becomes due, VIZA will create an application-specific virtual card and pay
-                it on your behalf. No government-portal card entry is required from you.
+                {copy.noGovernmentCard}
               </p>
             </div>
           </ApplicationFormPanel>
@@ -321,7 +298,9 @@ function CheckoutContent({
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const params = await searchParams;
-  const returnState = await getReturnState(params);
+  const locale = await getLocale();
+  const copy = getCheckoutCopy(locale);
+  const returnState = await getReturnState(params, locale);
   const context = await getCheckoutContext({
     packageId: getParam(params, "packageId"),
     applicationId: getParam(params, "applicationId"),
@@ -335,16 +314,15 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     <div className="mx-auto max-w-[1090px] space-y-8 pb-16">
       <header className="space-y-3">
         <div className="max-w-3xl space-y-3">
-          <h1 className="text-3xl font-semibold text-foreground md:text-4xl">Checkout</h1>
+          <h1 className="text-3xl font-semibold text-foreground md:text-4xl">{copy.title}</h1>
           <p className="text-base leading-7 text-muted-foreground">
-            Confirm the visa application selected on your Home page and pay VIZA's agency fee through Stripe Checkout.
-            When the official fee is due, VIZA creates a secure virtual card and pays the government portal for you.
+            {copy.intro}
           </p>
         </div>
       </header>
 
       {context.error ? (
-        <ClientErrorAlert message={context.error} title="Checkout could not load" />
+        <ClientErrorAlert message={copy.loadError} title={copy.loadError} />
       ) : null}
 
       {context.selectedPackage ? (
@@ -352,11 +330,13 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           selectedPackage={context.selectedPackage}
           stripeConfigured={context.stripeConfigured}
           returnState={returnState}
+          locale={locale}
+          copy={copy}
         />
       ) : (
         <div className="space-y-6">
           <ReturnStateAlert state={returnState} />
-          <EmptyCheckoutState />
+          <EmptyCheckoutState copy={copy} />
         </div>
       )}
     </div>

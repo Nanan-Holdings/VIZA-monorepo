@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
+from travel_locale import is_english_locale, normalize_travel_locale
 from tools.openai_client import openai_request_slot
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
@@ -79,6 +80,60 @@ CITY_ALIASES = {
     "denpasar": "denpasar",
     "那不勒斯": "naples",
     "naples": "naples",
+}
+
+CITY_EN_LABELS_BY_KEY = {
+    "tokyo": "Tokyo",
+    "kyoto": "Kyoto",
+    "osaka": "Osaka",
+    "paris": "Paris",
+    "lyon": "Lyon",
+    "marseille": "Marseille",
+    "nice": "Nice",
+    "singapore": "Singapore",
+    "sydney": "Sydney",
+    "london": "London",
+    "rome": "Rome",
+    "seoul": "Seoul",
+    "bangkok": "Bangkok",
+    "hongkong": "Hong Kong",
+    "beijing": "Beijing",
+    "changsha": "Changsha",
+    "guangzhou": "Guangzhou",
+    "hangzhou": "Hangzhou",
+    "zhangjiajie": "Zhangjiajie",
+    "sanfrancisco": "San Francisco",
+    "pisa": "Pisa",
+    "bali": "Bali",
+    "denpasar": "Denpasar",
+    "naples": "Naples",
+}
+
+CITY_ZH_LABELS_BY_KEY = {
+    "tokyo": "东京",
+    "kyoto": "京都",
+    "osaka": "大阪",
+    "paris": "巴黎",
+    "lyon": "里昂",
+    "marseille": "马赛",
+    "nice": "尼斯",
+    "singapore": "新加坡",
+    "sydney": "悉尼",
+    "london": "伦敦",
+    "rome": "罗马",
+    "seoul": "首尔",
+    "bangkok": "曼谷",
+    "hongkong": "香港",
+    "beijing": "北京",
+    "changsha": "长沙",
+    "guangzhou": "广州",
+    "hangzhou": "杭州",
+    "zhangjiajie": "张家界",
+    "sanfrancisco": "旧金山",
+    "pisa": "比萨",
+    "bali": "巴厘岛",
+    "denpasar": "登巴萨",
+    "naples": "那不勒斯",
 }
 
 
@@ -539,12 +594,27 @@ def _rotated_values(values, start_index, count):
 
 
 def _is_english_state(state):
-    locale = str((state or {}).get("locale") or (state or {}).get("export_language") or "").lower()
-    return locale.startswith("en")
+    value = (state or {}).get("locale") or (state or {}).get("export_language")
+    return is_english_locale(value)
+
+
+def _display_city(city, language="zh"):
+    raw = str(city or "").strip()
+    key = _canonical_city_key(raw)
+    labels = CITY_EN_LABELS_BY_KEY if is_english_locale(language) else CITY_ZH_LABELS_BY_KEY
+    if key in labels:
+        return labels[key]
+    return raw or ("destination" if is_english_locale(language) else "目的地")
+
+
+def _text_matches_language(value, language="zh"):
+    text = str(value or "")
+    has_cjk = bool(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff]", text))
+    return not has_cjk if is_english_locale(language) else has_cjk
 
 
 def _specific_attractions_for_city(city, day_index=0, count=2, language="zh"):
-    is_english = str(language).lower().startswith("en")
+    is_english = is_english_locale(language)
     city_text = str(city).strip() or ("destination" if is_english else "目的地")
     key = _canonical_city_key(city_text)
     attractions = (
@@ -574,7 +644,7 @@ def _specific_attractions_for_city(city, day_index=0, count=2, language="zh"):
 
 
 def _specific_food_for_city(city, day_index=0, language="zh"):
-    is_english = str(language).lower().startswith("en")
+    is_english = is_english_locale(language)
     city_text = str(city).strip() or ("destination" if is_english else "目的地")
     key = _canonical_city_key(city_text)
     food = SPECIFIC_FOOD_EN_BY_KEY.get(key) if is_english else SPECIFIC_FOOD_BY_KEY.get(key)
@@ -587,14 +657,16 @@ def _specific_food_for_city(city, day_index=0, language="zh"):
     return _rotated_values(food, day_index, 2)
 
 
-def _reordered_activities_for_day(day, day_index):
-    city = day.get("city") or "目的地"
+def _reordered_activities_for_day(day, day_index, language="zh"):
+    city = day.get("city") or ("destination" if is_english_locale(language) else "目的地")
     activities = [
         item
         for item in _clean_string_list(day.get("activities"))
         if not _is_vague_activity(item)
     ]
-    for fallback_activity in _specific_attractions_for_city(city, day_index + 1, 4):
+    for fallback_activity in _specific_attractions_for_city(
+        city, day_index + 1, 4, language
+    ):
         if fallback_activity not in activities:
             activities.append(fallback_activity)
         if len(activities) >= 3:
@@ -644,10 +716,14 @@ def _sanitize_itinerary(parsed, state):
             fallback[index] if index < len(fallback) else {}
         )
         day = item.get("day") or fallback_day.get("day") or index + 1
-        fallback_city = str(fallback_day.get("city") or "目的地").strip()
-        city = str(item.get("city") or fallback_city).strip()
+        fallback_city = str(
+            fallback_day.get("city")
+            or ("destination" if language == "en" else "目的地")
+        ).strip()
+        raw_city = str(item.get("city") or fallback_city).strip()
+        city = _display_city(raw_city, language)
         city_was_replaced = False
-        if allowed_city_keys and _canonical_city_key(city) not in allowed_city_keys:
+        if allowed_city_keys and _canonical_city_key(raw_city) not in allowed_city_keys:
             city = fallback_city
             city_was_replaced = True
 
@@ -658,6 +734,8 @@ def _sanitize_itinerary(parsed, state):
             )
             if not _is_vague_activity(activity)
         ]
+        if any(not _text_matches_language(activity, language) for activity in activities):
+            activities = []
         if len(activities) < 2:
             for fallback_activity in _specific_attractions_for_city(
                 city, index, 3, language
@@ -668,7 +746,11 @@ def _sanitize_itinerary(parsed, state):
                     break
 
         food = [] if city_was_replaced else _clean_string_list(item.get("food"))
-        if not food or any(_is_vague_activity(food_item) for food_item in food):
+        if (
+            not food
+            or any(_is_vague_activity(food_item) for food_item in food)
+            or any(not _text_matches_language(food_item, language) for food_item in food)
+        ):
             food = _specific_food_for_city(city, index, language)
 
         cost = str(item.get("cost") or fallback_day.get("cost") or "¥800").strip()
@@ -691,7 +773,8 @@ def _fallback_itinerary(state):
     cities = state.get("travel_order") or state.get("cities") or []
     if not isinstance(cities, list):
         cities = []
-    cities = [str(city).strip() for city in cities if str(city).strip()]
+    raw_cities = [str(city).strip() for city in cities if str(city).strip()]
+    cities = [_display_city(city, language) for city in raw_cities]
     if not cities:
         cities = ["destination" if language == "en" else "目的地"]
 
@@ -700,21 +783,30 @@ def _fallback_itinerary(state):
 
     total_days = 0
     daily_plan = []
-    for city in cities:
-        days_in_city = _safe_positive_int(city_days.get(city), default=1)
+    for raw_city, city in zip(raw_cities, cities):
+        days_in_city = _safe_positive_int(
+            city_days.get(raw_city)
+            or city_days.get(city)
+            or city_days.get(_canonical_city_key(raw_city)),
+            default=1,
+        )
         for _ in range(days_in_city):
-            daily_plan.append(city)
+            daily_plan.append((city, _canonical_city_key(raw_city)))
         total_days += days_in_city
 
     if not daily_plan:
-        daily_plan = [cities[0]]
+        daily_plan = [(cities[0], _canonical_city_key(cities[0]))]
         total_days = 1
 
     per_day_budget = max(150, budget // total_days) if budget > 0 else 800
 
     fallback = []
-    for day_index, city in enumerate(daily_plan, start=1):
-        city_day_index = sum(1 for previous_city in daily_plan[: day_index - 1] if previous_city == city)
+    for day_index, (city, city_key) in enumerate(daily_plan, start=1):
+        city_day_index = sum(
+            1
+            for previous_city, previous_key in daily_plan[: day_index - 1]
+            if previous_key == city_key
+        )
         fallback.append(
             {
                 "day": day_index,
@@ -763,6 +855,14 @@ REVISION_QUICK_REPLIES = [
     {"label": "换4星酒店", "value": "把酒店换成4星酒店"},
     {"label": "加本地美食", "value": "每天加更多本地美食"},
     {"label": "重排行程", "value": "重新安排每天的顺序"},
+]
+
+REVISION_QUICK_REPLIES_EN = [
+    {"label": "Make it cheaper", "value": "Make this trip cheaper"},
+    {"label": "Remove flights", "value": "Remove the flights and use other transport where possible"},
+    {"label": "Use four-star hotels", "value": "Change the hotels to four-star hotels"},
+    {"label": "Add local food", "value": "Add more local food each day"},
+    {"label": "Reorder the itinerary", "value": "Reorder the itinerary for a smoother route"},
 ]
 
 
@@ -833,27 +933,42 @@ def _plain_text_reply(value):
     return text.strip()
 
 
-def _clean_revision_quick_replies(value, action):
-    source = value if isinstance(value, list) and value else REVISION_QUICK_REPLIES
+def _clean_revision_quick_replies(value, action, language="zh"):
+    is_english = is_english_locale(language)
+    default_replies = REVISION_QUICK_REPLIES_EN if is_english else REVISION_QUICK_REPLIES
+    source = value if isinstance(value, list) and value else default_replies
     replies = []
     for item in source:
         if not isinstance(item, dict):
             continue
         label = _plain_text_reply(item.get("label") or "")
         reply_value = _plain_text_reply(item.get("value") or label)
-        if label and reply_value:
+        if (
+            label
+            and reply_value
+            and _text_matches_language(label, language)
+            and _text_matches_language(reply_value, language)
+        ):
             replies.append({"label": label, "value": reply_value})
         if len(replies) >= 5:
             break
 
     if action == "restart":
-        return [
-            {"label": "想去日本", "value": "想去日本"},
-            {"label": "想去欧洲", "value": "想去欧洲"},
-            {"label": "我不知道去哪", "value": "我不知道去哪"},
-        ]
+        return (
+            [
+                {"label": "I want to visit Japan", "value": "I want to visit Japan"},
+                {"label": "I want to visit Europe", "value": "I want to visit Europe"},
+                {"label": "I am not sure where to go", "value": "I don't know where to go"},
+            ]
+            if is_english
+            else [
+                {"label": "想去日本", "value": "想去日本"},
+                {"label": "想去欧洲", "value": "想去欧洲"},
+                {"label": "我不知道去哪", "value": "我不知道去哪"},
+            ]
+        )
 
-    return replies or REVISION_QUICK_REPLIES
+    return replies or default_replies
 
 
 def _revision_response(
@@ -864,6 +979,7 @@ def _revision_response(
     module_patch=None,
     edit_summary="",
     quick_replies=None,
+    language="zh",
 ):
     return {
         "action": action,
@@ -872,7 +988,9 @@ def _revision_response(
         "state_patch": state_patch if isinstance(state_patch, dict) else {},
         "module_patch": module_patch if isinstance(module_patch, dict) else {},
         "edit_summary": _plain_text_reply(edit_summary),
-        "quick_replies": _clean_revision_quick_replies(quick_replies, action),
+        "quick_replies": _clean_revision_quick_replies(
+            quick_replies, action, language
+        ),
     }
 
 
@@ -913,14 +1031,26 @@ def _has_revision_patch(value):
     return isinstance(value, dict) and bool(value)
 
 
-def _coerce_revision_response(parsed, state, current_itinerary):
+def _coerce_revision_response(parsed, state, current_itinerary, language="zh"):
+    language = normalize_travel_locale(language)
+    is_english = language == "en"
     current = _sanitize_itinerary(current_itinerary, state)
     if not isinstance(parsed, dict):
         return _revision_response(
             "clarify",
-            "我还没完全理解要怎么改这份行程。你可以告诉我是要改哪一天、预算、酒店、航班，还是想整份重来。",
+            (
+                "I’m not completely sure how you would like to change this itinerary. "
+                "Tell me the day, budget, hotel, or flight to change, or ask me to start over."
+                if is_english
+                else "我还没完全理解要怎么改这份行程。你可以告诉我是要改哪一天、预算、酒店、航班，还是想整份重来。"
+            ),
             current,
-            edit_summary="需要用户补充修改方向",
+            edit_summary=(
+                "Please specify the revision."
+                if is_english
+                else "需要用户补充修改方向"
+            ),
+            language=language,
         )
 
     action = str(parsed.get("action") or "").strip().lower()
@@ -928,7 +1058,11 @@ def _coerce_revision_response(parsed, state, current_itinerary):
         action = "clarify"
 
     reply = str(parsed.get("reply") or "").strip()
+    if not _text_matches_language(reply, language):
+        reply = ""
     edit_summary = str(parsed.get("edit_summary") or "").strip()
+    if edit_summary and not _text_matches_language(edit_summary, language):
+        edit_summary = ""
     state_patch = parsed.get("state_patch") if isinstance(parsed.get("state_patch"), dict) else {}
     module_patch = parsed.get("module_patch") if isinstance(parsed.get("module_patch"), dict) else {}
     quick_replies = parsed.get("quick_replies")
@@ -937,24 +1071,37 @@ def _coerce_revision_response(parsed, state, current_itinerary):
         return _revision_response(
             "restart",
             reply
-            or "可以，我们保留旧版本，先回到地图重新规划。你可以重新选国家、城市、天数、预算和偏好。",
+            or (
+                "Sure. I’ll keep the old version and return to the map so you can plan again. "
+                "Choose new countries, cities, dates, budget, and preferences."
+                if is_english
+                else "可以，我们保留旧版本，先回到地图重新规划。你可以重新选国家、城市、天数、预算和偏好。"
+            ),
             current,
             state_patch={"reset": True},
             module_patch=module_patch,
-            edit_summary=edit_summary or "用户要求重新规划",
+            edit_summary=edit_summary
+            or ("The user asked to start over." if is_english else "用户要求重新规划"),
             quick_replies=quick_replies,
+            language=language,
         )
 
     if action == "clarify":
         return _revision_response(
             "clarify",
             reply
-            or "我可以继续改这份行程。你想改哪一天、哪个城市、预算、酒店，还是交通方式？",
+            or (
+                "I can keep revising this itinerary. Which day, city, budget, hotel, or transport would you like to change?"
+                if is_english
+                else "我可以继续改这份行程。你想改哪一天、哪个城市、预算、酒店，还是交通方式？"
+            ),
             current,
             state_patch=state_patch,
             module_patch=module_patch,
-            edit_summary=edit_summary or "需要用户确认修改范围",
+            edit_summary=edit_summary
+            or ("Please confirm the revision scope." if is_english else "需要用户确认修改范围"),
             quick_replies=quick_replies,
+            language=language,
         )
 
     raw_itinerary = parsed.get("itinerary")
@@ -962,9 +1109,17 @@ def _coerce_revision_response(parsed, state, current_itinerary):
     if not revised:
         return _revision_response(
             "clarify",
-            "我尝试修改了，但返回的行程格式不稳定。请再说一次要修改的点，我会保留当前版本不变。",
+            (
+                "I tried to apply that change, but the itinerary format was unstable. "
+                "Please describe the change again; I’ll keep the current version unchanged."
+                if is_english
+                else "我尝试修改了，但返回的行程格式不稳定。请再说一次要修改的点，我会保留当前版本不变。"
+            ),
             current,
-            edit_summary="revision schema invalid",
+            edit_summary=(
+                "Revision schema invalid" if is_english else "revision schema invalid"
+            ),
+            language=language,
         )
 
     if (
@@ -974,19 +1129,36 @@ def _coerce_revision_response(parsed, state, current_itinerary):
     ):
         return _revision_response(
             "clarify",
-            "可以，我能帮你增加一天。你想把这一天加在哪个城市？也可以告诉我想加入的景点，比如长城、迪士尼或某个街区；如果你不确定，我可以按当前路线帮你放到最顺的一站。",
+            (
+                "I can add a day. Which city should it go in? You can also name a place or neighbourhood; "
+                "if you are unsure, I can place it at the most practical stop on the current route."
+                if is_english
+                else "可以，我能帮你增加一天。你想把这一天加在哪个城市？也可以告诉我想加入的景点，比如长城、迪士尼或某个街区；如果你不确定，我可以按当前路线帮你放到最顺的一站。"
+            ),
             current,
-            edit_summary="OpenAI returned unchanged itinerary",
+            edit_summary=(
+                "OpenAI returned unchanged itinerary"
+                if is_english
+                else "OpenAI returned unchanged itinerary"
+            ),
+            language=language,
         )
 
     return _revision_response(
         "revise",
-        reply or "已更新行程，并尽量保留没有被你提到的城市、酒店和交通安排。",
+        reply
+        or (
+            "I updated the itinerary while preserving cities, hotels, and transport you did not mention."
+            if is_english
+            else "已更新行程，并尽量保留没有被你提到的城市、酒店和交通安排。"
+        ),
         revised,
         state_patch=state_patch,
         module_patch=module_patch,
-        edit_summary=edit_summary or "已按用户要求更新行程",
+        edit_summary=edit_summary
+        or ("Updated the itinerary as requested." if is_english else "已按用户要求更新行程"),
         quick_replies=quick_replies,
+        language=language,
     )
 
 
@@ -1076,7 +1248,12 @@ def _with_cheaper_cost(cost):
 
 
 def _fallback_revision(request):
-    state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    raw_state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    language = normalize_travel_locale(
+        request.get("locale") or raw_state.get("locale") or raw_state.get("export_language")
+    )
+    state = {**raw_state, "locale": language}
+    is_english = language == "en"
     prompt = str(request.get("user_prompt") or "").strip()
     current_itinerary = request.get("current_itinerary")
     current = _sanitize_itinerary(current_itinerary, state)
@@ -1084,18 +1261,32 @@ def _fallback_revision(request):
     if not prompt:
         return _revision_response(
             "clarify",
-            "你想怎么修改这份行程？可以说要改哪一天、降低预算、去掉航班，或重新规划。",
+            (
+                "How would you like to change this itinerary? You can name a day, lower the budget, remove flights, or start over."
+                if is_english
+                else "你想怎么修改这份行程？可以说要改哪一天、降低预算、去掉航班，或重新规划。"
+            ),
             current,
-            edit_summary="等待用户说明修改方向",
+            edit_summary=(
+                "Waiting for the requested change."
+                if is_english
+                else "等待用户说明修改方向"
+            ),
+            language=language,
         )
 
     if _prompt_requests_restart(prompt):
         return _revision_response(
             "restart",
-            "可以，我们保留当前版本，先回到地图重新规划。你可以重新选择目的地或告诉我新的旅行偏好。",
+            (
+                "Sure. I’ll keep the current version and return to the map so you can choose new destinations or preferences."
+                if is_english
+                else "可以，我们保留当前版本，先回到地图重新规划。你可以重新选择目的地或告诉我新的旅行偏好。"
+            ),
             current,
             state_patch={"reset": True},
-            edit_summary="用户要求重新规划",
+            edit_summary=("The user asked to start over." if is_english else "用户要求重新规划"),
+            language=language,
         )
 
     revised = [dict(day) for day in current]
@@ -1108,21 +1299,31 @@ def _fallback_revision(request):
 
     if _prompt_requests_reorder(prompt):
         for index in target_indexes[: max(1, len(target_indexes))]:
-            revised[index]["activities"] = _reordered_activities_for_day(revised[index], index)
+            revised[index]["activities"] = _reordered_activities_for_day(
+                revised[index], index, language
+            )
 
     if _prompt_requests_shopping(prompt):
         for index in target_indexes[: max(1, len(target_indexes))]:
-            city = revised[index].get("city") or "目的地"
-            revised[index]["activities"] = [
-                f"{city} 核心商圈与百货购物",
-                f"{city} 本地设计店与生活方式街区",
-                f"{city} 伴手礼市场",
-            ]
+            city = revised[index].get("city") or ("destination" if is_english else "目的地")
+            revised[index]["activities"] = (
+                [
+                    f"{city} central shopping district and department stores",
+                    f"{city} independent design shops and lifestyle neighbourhoods",
+                    f"{city} souvenir market",
+                ]
+                if is_english
+                else [
+                    f"{city} 核心商圈与百货购物",
+                    f"{city} 本地设计店与生活方式街区",
+                    f"{city} 伴手礼市场",
+                ]
+            )
 
     if _prompt_requests_food(prompt):
         for index in target_indexes[: max(1, len(target_indexes))]:
-            city = revised[index].get("city") or "目的地"
-            revised[index]["food"] = _specific_food_for_city(city, index)
+            city = revised[index].get("city") or ("destination" if is_english else "目的地")
+            revised[index]["food"] = _specific_food_for_city(city, index, language)
 
     if _prompt_requests_cheaper(prompt):
         for day in revised:
@@ -1134,55 +1335,156 @@ def _fallback_revision(request):
         module_patch["flight_policy"] = "skip_all"
 
     if _prompt_requests_four_star_hotels(prompt):
-        module_patch["hotel_note"] = "用户要求酒店调整为4星级。"
+        module_patch["hotel_note"] = (
+            "The user asked for four-star hotels."
+            if is_english
+            else "用户要求酒店调整为4星级。"
+        )
 
     summary_parts = []
     if _prompt_requests_reorder(prompt):
-        summary_parts.append("已重排每天景点顺序，让路线更顺")
+        summary_parts.append(
+            "Reordered daily attractions for a smoother route"
+            if is_english
+            else "已重排每天景点顺序，让路线更顺"
+        )
     if _prompt_requests_shopping(prompt):
-        summary_parts.append("已把相关日期调整为购物和街区探索")
+        summary_parts.append(
+            "Adjusted the selected days for shopping and neighbourhoods"
+            if is_english
+            else "已把相关日期调整为购物和街区探索"
+        )
     if _prompt_requests_food(prompt):
-        summary_parts.append("已增加本地美食安排")
+        summary_parts.append(
+            "Added local food stops"
+            if is_english
+            else "已增加本地美食安排"
+        )
     if _prompt_requests_cheaper(prompt):
-        summary_parts.append("已降低每日预算文案")
+        summary_parts.append(
+            "Lowered the daily budget wording" if is_english else "已降低每日预算文案"
+        )
     if module_patch.get("remove_flights"):
-        summary_parts.append("已标记航班可移除或跳过")
+        summary_parts.append(
+            "Marked flights to be removed or skipped"
+            if is_english
+            else "已标记航班可移除或跳过"
+        )
     if module_patch.get("hotel_note"):
-        summary_parts.append("已记录4星酒店偏好")
+        summary_parts.append(
+            "Recorded the four-star hotel preference"
+            if is_english
+            else "已记录4星酒店偏好"
+        )
 
     if not summary_parts:
-        summary_parts.append("已按你的要求保留原路线并轻量调整行程说明")
+        summary_parts.append(
+            "Kept the original route and made a light adjustment"
+            if is_english
+            else "已按你的要求保留原路线并轻量调整行程说明"
+        )
 
     return _revision_response(
         "revise",
-        "已更新行程：" + "；".join(summary_parts) + "。没有提到的城市、天数和酒店我会尽量保留。",
+        (
+            "Updated the itinerary: " + "; ".join(summary_parts) + ". I’ll preserve cities, dates, and hotels you did not mention."
+            if is_english
+            else "已更新行程：" + "；".join(summary_parts) + "。没有提到的城市、天数和酒店我会尽量保留。"
+        ),
         revised,
         module_patch=module_patch,
-        edit_summary="；".join(summary_parts),
+        edit_summary="; ".join(summary_parts) if is_english else "；".join(summary_parts),
+        language=language,
     )
 
 
-def _openai_revision_unavailable(reason, current):
+def _openai_revision_unavailable(reason, current, language="zh"):
+    is_english = is_english_locale(language)
     return _revision_response(
         "clarify",
-        f"这次行程修改需要智能服务来理解并重排行程，但{reason}。我没有改动当前行程，请稍后再试一次。",
+        (
+            f"This revision needs the travel service to understand and reorder the itinerary, but {reason}. "
+            "I did not change the current itinerary. Please try again shortly."
+            if is_english
+            else f"这次行程修改需要智能服务来理解并重排行程，但{reason}。我没有改动当前行程，请稍后再试一次。"
+        ),
         current,
-        edit_summary="OpenAI revision unavailable",
+        edit_summary=(
+            "OpenAI revision unavailable" if is_english else "OpenAI revision unavailable"
+        ),
+        language=language,
     )
 
 
 async def revise_itinerary(request):
-    state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    raw_state = request.get("state") if isinstance(request.get("state"), dict) else {}
+    language = normalize_travel_locale(
+        request.get("locale") or raw_state.get("locale") or raw_state.get("export_language")
+    )
+    state = {**raw_state, "locale": language}
+    is_english = language == "en"
     current_itinerary = request.get("current_itinerary")
     prompt_text = str(request.get("user_prompt") or "").strip()
     current = _sanitize_itinerary(current_itinerary, state)
 
     if client is None:
         print("OPENAI_API_KEY 未配置，无法执行 OpenAI itinerary revision。")
-        return _openai_revision_unavailable("OPENAI_API_KEY 未配置", current)
+        return _openai_revision_unavailable(
+            "OPENAI_API_KEY is not configured" if is_english else "OPENAI_API_KEY 未配置",
+            current,
+            language,
+        )
 
     active_modules = request.get("active_modules") if isinstance(request.get("active_modules"), dict) else {}
-    prompt = f"""
+    prompt = (
+        f"""
+You are the VIZA Travel AI itinerary revision engine. Decide whether the user wants a local change, a full restart, or clarification.
+
+Return one JSON object only. Do not use Markdown or add explanations.
+The reply field must be plain English for the user; do not use headings, list markers, tables, code, JSON, XML, or HTML.
+
+Action rules:
+- action = "revise": the request is an executable small or medium change. Return the complete updated itinerary.
+- action = "restart": the user clearly asks to start over, replan, or return to the map. Keep the old version.
+- action = "clarify": the request is not safe to apply without more detail.
+
+Revision rules:
+- Preserve cities, dates, hotels, flights, and existing arrangements the user did not mention.
+- Every requested change must be reflected in itinerary, state_patch, or module_patch.
+- When trip days change, synchronize itinerary, state_patch.travel_days, and state_patch.city_days.
+- Add a named city or attraction to a suitable day; put it on the final day when the user says “last day”.
+- Place attractions in their sensible city and country. If a new city is outside state.cities, add it to state_patch.cities, state_patch.countries, state_patch.travel_order, and state_patch.city_days.
+- Return a complete itinerary array; each day has day, city, activities, food, and cost.
+- activities must use real, specific attractions, neighbourhoods, markets, museums, temples, or food areas.
+- For a flight removal request, return {{"remove_flights": true, "flight_policy": "skip_all"}} in module_patch.
+- For a hotel preference without a verified provider result, use module_patch.hotel_note and do not invent a supplier result.
+- For restart or clarify, return the current itinerary unchanged.
+
+Output schema:
+{{
+  "action": "revise | restart | clarify",
+  "reply": "plain English reply for the user",
+  "itinerary": [],
+  "state_patch": {{}},
+  "module_patch": {{}},
+  "edit_summary": "one-sentence summary",
+  "quick_replies": [{{"label": "Make it cheaper", "value": "Make this trip cheaper"}}]
+}}
+
+Current travel state:
+{json.dumps(state, ensure_ascii=False)}
+
+Current module snapshot:
+{json.dumps(active_modules, ensure_ascii=False)}
+
+Current itinerary:
+{json.dumps(current, ensure_ascii=False)}
+
+User revision request:
+{prompt_text}
+"""
+        if is_english
+        else f"""
 你是 VIZA Travel AI 的行程修订引擎。你需要判断用户是在局部修改当前行程、要求整份重来，还是需要澄清。
 
 必须只输出 JSON object，不要 Markdown，不要额外解释。
@@ -1230,6 +1532,7 @@ reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列�
 用户修改 prompt:
 {prompt_text}
 """
+    )
 
     try:
         async with openai_request_slot():
@@ -1242,9 +1545,15 @@ reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列�
                         {
                             "role": "system",
                             "content": (
-                                "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
-                                "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
-                                "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
+                                (
+                                    "You are a strict JSON schema generator. Output one JSON object only. "
+                                    "The reply must be plain English for the user, without Markdown, code, or JSON. "
+                                    "Do not expand a local change to cities, hotels, flights, or dates the user did not mention."
+                                    if is_english
+                                    else "你是严格的 JSON schema 输出器。只能输出一个 JSON object。"
+                                    "reply 字段必须是给用户看的中文纯文本，不能包含 Markdown、代码块或 JSON。"
+                                    "不要把局部修改扩散到未被用户提到的城市、酒店、航班或天数。"
+                                )
                             ),
                         },
                         {"role": "user", "content": prompt},
@@ -1255,25 +1564,36 @@ reply 字段必须是自然中文纯文本，不能包含 Markdown 标题、列�
         text = response.choices[0].message.content
     except Exception as exc:
         print("OpenAI itinerary revision failed:", exc)
-        return _openai_revision_unavailable("OpenAI 调用失败", current)
+        return _openai_revision_unavailable(
+            "the OpenAI request failed" if is_english else "OpenAI 调用失败",
+            current,
+            language,
+        )
 
     parsed = _parse_revision_json(text or "")
     if not parsed:
         print("Revision JSON解析失败:", text)
         return _revision_response(
             "clarify",
-            "我尝试理解这次修改，但返回格式不稳定。请再发一次修改要求，我会保留当前版本不变。",
+            (
+                "I tried to understand that change, but the response format was unstable. "
+                "Please send the request again; I’ll keep the current version unchanged."
+                if is_english
+                else "我尝试理解这次修改，但返回格式不稳定。请再发一次修改要求，我会保留当前版本不变。"
+            ),
             current,
             edit_summary="revision schema invalid",
+            language=language,
         )
 
-    return _coerce_revision_response(parsed, state, current)
+    return _coerce_revision_response(parsed, state, current, language)
 
 
-def _format_selected_flights(state):
+def _format_selected_flights(state, language="zh"):
+    is_english = is_english_locale(language)
     flights = state.get("selected_flights") or []
     if not isinstance(flights, list) or not flights:
-        return "无"
+        return "none" if is_english else "无"
 
     lines = []
     for flight in flights:
@@ -1288,7 +1608,11 @@ def _format_selected_flights(state):
 
         if skip:
             lines.append(
-                f"航段{leg_index}：{from_city} 到 {to_city}（{departure_date}），用户选择其他交通方式"
+                (
+                    f"Leg {leg_index}: {from_city} to {to_city} ({departure_date}); the user chose another form of transport"
+                    if is_english
+                    else f"航段{leg_index}：{from_city} 到 {to_city}（{departure_date}），用户选择其他交通方式"
+                )
             )
             continue
 
@@ -1298,16 +1622,21 @@ def _format_selected_flights(state):
         currency = option.get("currency", "CNY")
         departure_time = option.get("departure", departure_date)
         lines.append(
-            f"航段{leg_index}：{from_city} 到 {to_city}，{airline}，{price} {currency}，出发 {departure_time}"
+            (
+                f"Leg {leg_index}: {from_city} to {to_city}, {airline}, {price} {currency}, departure {departure_time}"
+                if is_english
+                else f"航段{leg_index}：{from_city} 到 {to_city}，{airline}，{price} {currency}，出发 {departure_time}"
+            )
         )
 
-    return "\n".join(lines) if lines else "无"
+    return "\n".join(lines) if lines else ("none" if is_english else "无")
 
 
-def _format_selected_hotels(state):
+def _format_selected_hotels(state, language="zh"):
+    is_english = is_english_locale(language)
     hotels = state.get("selected_hotels") or []
     if not isinstance(hotels, list) or not hotels:
-        return "无"
+        return "none" if is_english else "无"
 
     lines = []
     for hotel in hotels:
@@ -1326,16 +1655,21 @@ def _format_selected_hotels(state):
         rating = option.get("rating", "暂无")
 
         lines.append(
-            f"城市{stay_index}：{city}，{check_in} 到 {check_out}，{nights}晚，{name}，{price} {currency}/晚，评分 {rating}"
+            (
+                f"Stay {stay_index}: {city}, {check_in} to {check_out}, {nights} nights, {name}, {price} {currency}/night, rating {rating}"
+                if is_english
+                else f"城市{stay_index}：{city}，{check_in} 到 {check_out}，{nights}晚，{name}，{price} {currency}/晚，评分 {rating}"
+            )
         )
 
-    return "\n".join(lines) if lines else "无"
+    return "\n".join(lines) if lines else ("none" if is_english else "无")
 
 
-def _format_attached_files(state):
+def _format_attached_files(state, language="zh"):
+    is_english = is_english_locale(language)
     files = state.get("attached_files") or []
     if not isinstance(files, list) or not files:
-        return "无"
+        return "none" if is_english else "无"
 
     lines = []
     for file_item in files:
@@ -1346,20 +1680,23 @@ def _format_attached_files(state):
             continue
         lines.append(normalized)
 
-    return "\n".join(lines) if lines else "无"
+    return "\n".join(lines) if lines else ("none" if is_english else "无")
 
 
 async def generate_itinerary(state):
+    language = normalize_travel_locale(
+        (state or {}).get("locale") or (state or {}).get("export_language")
+    )
+    state = {**(state if isinstance(state, dict) else {}), "locale": language}
+    is_english = language == "en"
     if client is None:
         print("OPENAI_API_KEY 未配置，使用 fallback itinerary。")
         return _fallback_itinerary(state)
 
-    locale = str(state.get("locale") or state.get("export_language") or "zh-CN").lower()
-    is_english = locale.startswith("en")
     language_requirement = (
-        "- Use English for every user-facing itinerary field, including city names, activities, food, and cost notes"
+        "- Use English for every user-facing itinerary field, including city names, activities, food, and cost notes."
         if is_english
-        else "- 使用中文"
+        else "- 使用简体中文填写所有用户可见的行程字段，包括城市、活动、美食和费用说明。"
     )
     date_mode_label = (
         "flexible dates" if is_english and state.get("date_flexibility") == "flexible"
@@ -1392,32 +1729,69 @@ async def generate_itinerary(state):
 ]
 """
     )
-    selected_flights = _format_selected_flights(state)
-    selected_hotels = _format_selected_hotels(state)
-    attached_files = _format_attached_files(state)
-    final_note = (state.get("final_note") or "").strip() or "无"
-    departure_date = (state.get("departure_date") or "").strip() or "未指定"
+    selected_flights = _format_selected_flights(state, language)
+    selected_hotels = _format_selected_hotels(state, language)
+    attached_files = _format_attached_files(state, language)
+    final_note = (state.get("final_note") or "").strip() or ("none" if is_english else "无")
+    departure_date = (state.get("departure_date") or "").strip() or ("not specified" if is_english else "未指定")
     date_flexibility = state.get("date_flexibility") or "flexible"
     travel_days = _safe_positive_int(state.get("travel_days"), default=0)
 
-    prompt = f"""
+    prompt = (
+        f"""
+You are a professional travel planner. Generate a detailed itinerary from the user's request.
+
+Requirements:
+{language_requirement}
+- Use Chinese yuan (¥) for costs.
+- Use only the supplied cities; never add another country or city.
+- Stay within the budget and make the route practical.
+- Prefer the user's selected flights and hotels.
+- If a leg is marked as another form of transport, follow the city order without adding a flight.
+- Match each day to its city, travel date, and stay length.
+- Each day's activities must contain 2-4 real, specific, identifiable attractions, neighbourhoods, museums, markets, temples, or food areas.
+- Do not use vague descriptions such as “city landmarks”, “local culture”, “local experience”, “city walk”, or “free time”.
+- Food must name a real food area, market, restaurant type, or dish location.
+- Do not mix Chinese into an English response. Preserve official/API names for hotels, airlines, and providers.
+
+User information:
+Country: {state.get("country")}
+Cities: {state.get("cities")}
+Departure date: {departure_date}
+Date mode: {date_mode_label}
+Total trip days: {travel_days if travel_days > 0 else "not specified"}
+City stay lengths: {state.get("city_days")}
+Travellers: {state.get("travelers")}
+Budget: {state.get("budget")}
+Travel order: {state.get("travel_order")}
+Selected flights:
+{selected_flights}
+Selected hotels:
+{selected_hotels}
+User notes:
+{final_note}
+Attached file names or descriptions:
+{attached_files}
+
+Return JSON only (no Markdown, code fence, or explanation):
+
+{output_example}
+"""
+        if is_english
+        else f"""
 你是一位专业旅行规划师，请根据用户需求生成详细行程。
 
 要求：
 {language_requirement}
 - 使用人民币（¥）
-- 严格只使用给定城市
-- 不要生成其他国家或城市
-- 控制在预算范围内
-- 行程合理
+- 严格只使用给定城市，不要生成其他国家或城市
+- 控制在预算范围内并确保路线合理
 - 必须优先参考用户已选择的航班和酒店
-- 如果航段被标记为“其他交通方式”，请按该城市顺序安排，不要强行添加航班
+- 如果航段被标记为“其他交通方式”，请按城市顺序安排，不要强行添加航班
 - 每天活动安排要与所选城市、出行日期和停留节奏匹配
-- 每天 activities 必须给出 2-4 个真实、具体、可定位的景点/街区/博物馆/市场/寺社/餐饮区域名称
+- 每天 activities 必须给出 2-4 个真实、具体、可定位的景点、街区、博物馆、市场、寺社或餐饮区域名称
 - 禁止输出“城市地标打卡”“本地文化体验”“当地特色体验”“城市漫步”“自由活动”等泛泛描述
-- 如果城市有当地名称，请尽量使用具体中文名和常见英文/原文名，例如“埃菲尔铁塔与战神广场”“浅草寺与仲见世商店街”
-- food 也要具体到餐饮区域或餐厅类型地点，例如“筑地场外市场寿司”“玛黑区小酒馆晚餐”
-- 如果语言要求是 English，不要把城市、景点、酒店、航司或说明混入中文；酒店和航班名称优先保留官方/API 原名
+- food 也要具体到餐饮区域、市场、餐厅类型或菜品地点
 
 用户信息：
 国家：{state.get("country")}
@@ -1442,6 +1816,7 @@ async def generate_itinerary(state):
 
 {output_example}
 """
+    )
 
     try:
         async with openai_request_slot():
@@ -1453,12 +1828,12 @@ async def generate_itinerary(state):
                         {
                             "role": "system",
                             "content": (
-                                "你只输出 JSON 数组，不要 Markdown 或代码块。所有景点必须是具体地名，"
-                                "不能使用泛泛的旅行活动描述。"
+                                "Output a JSON array only, without Markdown or a code block. "
+                                "Every attraction must be a specific place; do not use vague travel activity descriptions. "
                                 + (
-                                    " All user-facing itinerary text must be English."
+                                    "All user-facing itinerary text must be English."
                                     if is_english
-                                    else ""
+                                    else "所有用户可见的行程文字必须使用简体中文。"
                                 )
                             ),
                         },

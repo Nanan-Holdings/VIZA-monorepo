@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle as CheckCircle2, CircleNotch as Loader2 } from "@phosphor-icons/react";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { SmoothProgressBar } from "@/components/smooth-progress";
@@ -10,6 +11,7 @@ import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 type PollStatus = "pending" | "paid" | "failed";
 
 export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
+  const t = useTranslations("subscriptionPayment");
   const [status, setStatus] = useState<PollStatus>("pending");
   const progressStatus = status === "paid" ? "completed" : status === "failed" ? "failed" : "running";
   const serverProgress = status === "paid" ? 100 : status === "failed" ? 0 : 92;
@@ -94,9 +96,9 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
           <CheckCircle2 className="h-4 w-4" />
-          支付已确认，可以返回订阅页查看状态。
+          {t("paid")}
         </div>
-        <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" transitionMs={760} />
+        <SmoothProgressBar displayedProgress={displayedProgress} label={t("progress")} transitionMs={760} />
       </div>
     );
   }
@@ -104,10 +106,10 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
   if (status === "failed") {
     return (
       <div className="space-y-3">
-        <ClientErrorAlert message="支付记录不可用，请返回订阅页重新发起。" />
+        <ClientErrorAlert message={t("failed")} />
         <SmoothProgressBar
           displayedProgress={displayedProgress}
-          label="确认进度"
+          label={t("progress")}
           barClassName="bg-destructive"
           transitionMs={760}
         />
@@ -119,16 +121,16 @@ export function PaymentStatusPoller({ paymentId }: { paymentId: string }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2 rounded-lg border bg-brand-50 px-4 py-3 text-sm font-medium text-brand-900">
         <Loader2 className="h-4 w-4 animate-spin" />
-        等待微信支付确认，页面会自动刷新状态。
+        {t("pending")}
       </div>
-      <SmoothProgressBar displayedProgress={displayedProgress} label="确认进度" transitionMs={760} />
+      <SmoothProgressBar displayedProgress={displayedProgress} label={t("progress")} transitionMs={760} />
       <Button
         type="button"
         variant="outline"
         className="h-11 rounded-full"
         onClick={() => window.location.reload()}
       >
-        手动刷新
+        {t("refresh")}
       </Button>
     </div>
   );

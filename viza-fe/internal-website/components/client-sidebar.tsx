@@ -8,13 +8,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ClipboardText as ClipboardList, FileText, FolderOpen, Headphones, House as Home, SignOut as LogOut } from "@phosphor-icons/react";
 import { signOut } from "@/app/actions/auth";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 const navigation = [
-  { name: "Home", href: "/client/home", icon: Home },
-  { name: "Application", href: "/client/application", icon: FolderOpen },
-  { name: "Status", href: "/client/status", icon: ClipboardList },
-  { name: "Documents", href: "/client/documents", icon: FileText },
-  { name: "Support", href: "/client/support", icon: Headphones },
+  { labelKey: "home", href: "/client/home", icon: Home },
+  { labelKey: "application", href: "/client/application", icon: FolderOpen },
+  { labelKey: "status", href: "/client/status", icon: ClipboardList },
+  { labelKey: "documents", href: "/client/documents", icon: FileText },
+  { labelKey: "support", href: "/client/support", icon: Headphones },
 ];
 
 function isActiveRoute(pathname: string, href: string): boolean {
@@ -24,6 +25,8 @@ function isActiveRoute(pathname: string, href: string): boolean {
 
 export function ClientSidebar() {
   const pathname = usePathname();
+  const tNav = useTranslations("nav");
+  const tMenu = useTranslations("menu");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -67,7 +70,7 @@ export function ClientSidebar() {
                   )}
                 />
                 <span className="transition-all duration-200 group-hover:font-medium">
-                  {route.name}
+                  {tNav(route.labelKey)}
                 </span>
                 {isActiveRoute(pathname, route.href) && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full animate-in slide-in-from-left-2 duration-300" />
@@ -90,7 +93,7 @@ export function ClientSidebar() {
               !isLoggingOut && "group-hover:translate-x-0.5"
             )}
           />
-          {isLoggingOut ? "Logging out..." : "Logout"}
+          {isLoggingOut ? tMenu("loggingOut") : tMenu("logout")}
         </Button>
       </div>
     </div>

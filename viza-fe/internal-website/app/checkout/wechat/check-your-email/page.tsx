@@ -2,6 +2,8 @@ import {
   CHECK_EMAIL_COPY,
   CheckEmailCard,
 } from "../../_components/check-email-card";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE, normalizeInterfaceLocale } from "@/lib/i18n/locale";
 
 interface PageProps {
   searchParams: Promise<{ locale?: string }>;
@@ -20,7 +22,8 @@ const TITLE_BODY = {
 
 export default async function CheckYourEmailPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const locale = params.locale === "zh-CN" ? "zh-CN" : "en";
+  const selected = (await cookies()).get(LOCALE_COOKIE)?.value ?? params.locale ?? "zh";
+  const locale = normalizeInterfaceLocale(selected) === "zh" ? "zh-CN" : "en";
   return (
     <CheckEmailCard copy={{ ...CHECK_EMAIL_COPY[locale], ...TITLE_BODY[locale] }} />
   );

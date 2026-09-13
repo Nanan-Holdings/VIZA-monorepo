@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Mail, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Envelope as Mail, CircleNotch as Loader2, CheckCircle as CheckCircle2, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 export default function VerifyEmailPage() {
+  const t = useTranslations("emailVerification");
   const searchParams = useSearchParams();
   const initialEmail = searchParams.get("email") || "";
   const [email, setEmail] = useState(initialEmail);
   const [resending, setResending] = useState(false);
   const [resendStatus, setResendStatus] = useState<"idle" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<"failed" | "rateLimited" | null>(null);
 
   useEffect(() => {
     if (!initialEmail) {
@@ -27,19 +29,19 @@ export default function VerifyEmailPage() {
   const handleResend = async (): Promise<void> => {
     setResending(true);
     setResendStatus("idle");
-    setErrorMessage(null);
+    setErrorKey(null);
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.resend({ type: "signup", email });
       if (error) {
         setResendStatus("error");
-        setErrorMessage(error.message);
+        setErrorKey(error.status === 429 ? "rateLimited" : "failed");
       } else {
         setResendStatus("success");
       }
-    } catch (err) {
+    } catch {
       setResendStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Resend failed");
+      setErrorKey("failed");
     } finally {
       setResending(false);
     }
@@ -51,13 +53,13 @@ export default function VerifyEmailPage() {
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
           <Mail className="h-6 w-6 text-brand-500" />
         </div>
-        <h1 className="text-2xl font-semibold text-foreground">Verify your email</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{t("title")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          We sent a magic link to <span className="font-medium text-foreground">{email || "your inbox"}</span>. Click it to finish creating your account — you&apos;ll land on /home.
+          {t.rich("sentTo", { email: email || t("inbox"), strong: (chunks) => <span className="font-medium text-foreground">{chunks}</span> })}
         </p>
 
         <div className="mt-6 w-full rounded-xl border border-input bg-white p-5 shadow-sm">
-          <p className="text-xs text-muted-foreground">Didn&apos;t receive it?</p>
+          <p className="text-xs text-muted-foreground">{t("notReceived")}</p>
           <Button
             type="button"
             variant="outline"
@@ -66,24 +68,24 @@ export default function VerifyEmailPage() {
             className="mt-3 w-full"
           >
             {resending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Resend verification email
+            {t("resend")}
           </Button>
           {resendStatus === "success" ? (
             <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-500">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Sent again — check spam too.
+              <CheckCircle2 className="h-3.5 w-3.5" /> {t("resent")}
             </p>
           ) : null}
           {resendStatus === "error" ? (
             <p className="mt-2 inline-flex items-center gap-1 text-xs text-destructive">
-              <AlertCircle className="h-3.5 w-3.5" /> {errorMessage}
+              <AlertCircle className="h-3.5 w-3.5" /> {t(errorKey ?? "failed")}
             </p>
           ) : null}
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Already verified?{" "}
+          {t("verified")}{" "}
           <Link href="/login" className="font-medium text-brand-500 hover:underline">
-            Sign in
+            {t("signIn")}
           </Link>
         </p>
       </div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { getLocale } from "next-intl/server";
 import { searchHelpArticles, type LoadedArticle } from "@/lib/help";
 
 /**
@@ -30,7 +31,8 @@ function snippetOf(body: string): string {
 }
 
 export async function searchHelp(query: string): Promise<HelpSuggestion[]> {
-  const hits: LoadedArticle[] = searchHelpArticles(query);
+  const locale = await getLocale();
+  const hits: LoadedArticle[] = searchHelpArticles(query, locale);
   return hits.slice(0, 3).map((a) => ({
     country: a.country,
     visaType: a.visaType,

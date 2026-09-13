@@ -8,6 +8,10 @@ This module holds shared payment-domain helpers used by client and API routes.
 
 ## Key Files
 
+- `subscription-display.ts`: derives subscription labels from current interface
+  locale and persisted status/dates, including legacy payment-method labels.
+  `subscription-display.test.ts` verifies locale switching without state loss.
+
 - `commercial-products.ts`: CNY subscription and pay-per-application product
   catalog used by `/client/subscription`.
 - `commercial-session.ts`: resolves the current client portal applicant session

@@ -361,6 +361,8 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   const t = useTranslations("settings");
   const locale = useLocale();
   const isZh = locale.toLowerCase().startsWith("zh");
+  const airwallexLocale = isZh ? "zh" : "en";
+  const cardElementFailedMessage = t("payment.messages.cardElementFailed");
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<ApplicantSettingsProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -544,7 +546,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
       await window.AirwallexComponentsSDK?.init({
         env: "demo",
         enabledElements: ["payments"],
-        locale: "zh",
+        locale: airwallexLocale,
       });
 
       const element = await window.AirwallexComponentsSDK?.createElement("card", {
@@ -562,20 +564,24 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
 
       if (cancelled || !element) return;
       element.mount("airwallex-settings-card-element");
-      element.on("ready", () => setIsCardElementReady(true));
-      element.on("error", () => setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") }));
+      element.on("ready", () => {
+        if (!cancelled) setIsCardElementReady(true);
+      });
+      element.on("error", () => {
+        if (!cancelled) setPaymentMessage({ tone: "error", text: cardElementFailedMessage });
+      });
       setCardElement(element);
     }
 
     mountCardElement().catch((caught) => {
       console.error("[settings-card-binding]", caught);
-      if (!cancelled) setPaymentMessage({ tone: "error", text: t("payment.messages.cardElementFailed") });
+      if (!cancelled) setPaymentMessage({ tone: "error", text: cardElementFailedMessage });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeCardBinding, airwallexScriptReady, t]);
+  }, [activeCardBinding, airwallexLocale, airwallexScriptReady, cardElementFailedMessage]);
 
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1406,7 +1412,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">
                       {t("payment.qrExpires", {
-                        time: new Date(activeQrBinding.expiresAt).toLocaleTimeString(),
+                        time: new Date(activeQrBinding.expiresAt).toLocaleTimeString(locale),
                       })}
                     </p>
                   </div>

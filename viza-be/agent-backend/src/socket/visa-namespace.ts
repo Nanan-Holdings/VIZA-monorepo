@@ -1518,7 +1518,8 @@ export function registerVisaNamespace(nsp: Namespace): void {
             },
           },
           dynamicSystemPrompt,
-          requestController.signal
+          requestController.signal,
+          responseLocale
         );
       } catch (err) {
         if (err instanceof ChatCapacityError) {

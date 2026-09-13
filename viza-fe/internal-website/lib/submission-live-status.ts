@@ -75,8 +75,6 @@ type QueueRow = {
   official_portal_url?: string | null;
   official_status?: string | null;
   payment_status?: string | null;
-  official_application_reference_encrypted?: string | null;
-  vn_registration_code_encrypted?: string | null;
   live_submitted_at?: string | null;
   updated_at: string | null;
   created_at: string | null;
@@ -119,6 +117,14 @@ type QueryErrorLike = {
   details?: string;
   hint?: string;
 };
+
+type PrefetchedQueueResult = {
+  data: unknown;
+  error: unknown;
+};
+
+const SUBMISSION_QUEUE_SELECT =
+  "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, live_submitted_at, updated_at, created_at";
 
 const LIVE_PROVIDERS = new Set([
   "vietnam_evisa_live",
@@ -235,6 +241,38 @@ function isSchemaMissingError(error: QueryErrorLike | null | undefined): boolean
 
 function isLiveQueue(row: QueueRow): boolean {
   return row.mode === "live_assisted" || (row.provider ? LIVE_PROVIDERS.has(row.provider) : false);
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function getPrefetchedQueueRows(
+  result: PrefetchedQueueResult | undefined,
+  applicationIds: readonly string[],
+): QueueRow[] | null {
+  if (applicationIds.length !== 1 || !result || result.error !== null && result.error !== undefined) {
+    return null;
+  }
+  if (!Array.isArray(result.data)) return null;
+  const applicationId = applicationIds[0].toLowerCase();
+  const rows: QueueRow[] = [];
+  for (const item of result.data) {
+    const row = record(item);
+    if (
+      !row ||
+      typeof row.id !== "string" ||
+      row.id.trim().length === 0 ||
+      typeof row.application_id !== "string" ||
+      row.application_id.toLowerCase() !== applicationId
+    ) {
+      return null;
+    }
+    rows.push(row as unknown as QueueRow);
+  }
+  return rows;
 }
 
 function compareByNewest(a: { updated_at?: string | null; created_at?: string | null }, b: { updated_at?: string | null; created_at?: string | null }): number {
@@ -356,17 +394,20 @@ export async function loadLiveSubmissionSummaries(
   adminClient: AdminClient,
   applicationIds: string[],
   applicationProducts?: readonly LiveSubmissionApplicationProduct[],
+  options: { prefetchedQueueResult?: PrefetchedQueueResult } = {},
 ): Promise<Map<string, LiveSubmissionSummary>> {
   if (applicationIds.length === 0) return new Map();
 
-  const { data, error } = await adminClient
-    .from("submission_queue")
-    .select(
-      "id, application_id, status, mode, provider, current_stage, live_checkpoint, manual_action_status, error_code, error_message, official_portal_url, official_status, payment_status, official_application_reference_encrypted, vn_registration_code_encrypted, live_submitted_at, updated_at, created_at",
-    )
-    .in("application_id", applicationIds)
-    .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(500);
+  const prefetchedQueueRows = getPrefetchedQueueRows(options.prefetchedQueueResult, applicationIds);
+  const queueResult = prefetchedQueueRows
+    ? { data: prefetchedQueueRows, error: null }
+    : await adminClient
+        .from("submission_queue")
+        .select(SUBMISSION_QUEUE_SELECT)
+        .in("application_id", applicationIds)
+        .order("created_at", { ascending: false, nullsFirst: false })
+        .limit(500);
+  const { data, error } = queueResult;
 
   if (error && !isSchemaMissingError(error)) {
     throw new Error(error.message);

@@ -3,7 +3,8 @@
     "loading": "正在加载您的仪表板...",
     "error": "发生错误",
     "searchLanguage": "搜索语言...",
-    "noLanguagesFound": "未找到语言"
+    "noLanguagesFound": "未找到语言",
+    "selectLanguage": "选择语言"
   },
   "nav": {
     "home": "首页",
@@ -88,7 +89,10 @@
       "choose": "选择签证"
     },
     "timeline": {
-      "groups": { "todo": "待办事项", "completed": "已完成任务" },
+      "groups": {
+        "todo": "待办事项",
+        "completed": "已完成任务"
+      },
       "states": {
         "complete": "已完成",
         "current": "当前步骤",
@@ -613,12 +617,12 @@
       "openOfficial": "打开官方办理入口",
       "workerTitle": "预约查询服务暂时不可用",
       "workerBody": "本次官网查询没有完成，因此目前无法判断是否有时段。请稍后重新查询。",
-      "retry": "重新查询官网时间"
-      ,"vfsTerms": "我授权 VIZA 使用已确认的申请资料，在 VFS Global 韩国签证预约系统创建并安全保存加密账号、勾选官网必需条款、接收账号激活邮件并登录查询沈阳时段。验证码、实名、付款和最终提交仍需我单独确认。"
-      ,"vfsStart": "创建账号并查询官网时间"
-      ,"vfsEmailTitle": "正在等待官网账号激活"
-      ,"vfsEmailBody": "VFS 已进入邮箱验证阶段。VIZA 只读取发往专用别名的官方激活邮件，不会在页面或日志中显示激活链接。"
-      ,"vfsEmailRetry": "继续验证并查询"
+      "retry": "重新查询官网时间",
+      "vfsTerms": "我授权 VIZA 使用已确认的申请资料，在 VFS Global 韩国签证预约系统创建并安全保存加密账号、勾选官网必需条款、接收账号激活邮件并登录查询沈阳时段。验证码、实名、付款和最终提交仍需我单独确认。",
+      "vfsStart": "创建账号并查询官网时间",
+      "vfsEmailTitle": "正在等待官网账号激活",
+      "vfsEmailBody": "VFS 已进入邮箱验证阶段。VIZA 只读取发往专用别名的官方激活邮件，不会在页面或日志中显示激活链接。",
+      "vfsEmailRetry": "继续验证并查询"
     },
     "slots": {
       "title": "选择预约时间",
@@ -720,7 +724,10 @@
     "edit": "编辑",
     "postSubmission": {
       "title": "提交后信息",
-      "tabs": { "results": "回执与结果", "updates": "申请更新" },
+      "tabs": {
+        "results": "回执与结果",
+        "updates": "申请更新"
+      },
       "officialReference": "官方参考号",
       "download": "下载",
       "resultsEmpty": "生成或收到回执和结果文件后，会显示在这里。",
@@ -1805,7 +1812,7 @@
       "extraUsSocialSecurityOrTaxId": "您是否曾拥有美国社会安全号码或税务编号?",
       "extraNationalityCardTitle": "国籍 {index}",
       "extraNationalityCountry": "国家",
-      "extraNationalityCountryPlaceholder": "Select",
+      "extraNationalityCountryPlaceholder": "请选择",
       "extraNationalityHasPassport": "您是否持有该国护照?",
       "extraNationalityPassportNumber": "护照号码",
       "extraNationalityPassportNumberPlaceholder": "护照号码",
@@ -2028,7 +2035,7 @@
       "internationalTravelTitle": "国际旅行记录",
       "hasVisitedOtherCountriesLast5Years": "过去五年内您是否去过其他国家?",
       "visitedCountries": "访问过的国家",
-      "countryPlaceholder": "Select",
+      "countryPlaceholder": "请选择",
       "addCountry": "添加国家",
       "previousUsTravelTitle": "以前的美国旅行",
       "previousVisits": "以前的访问",
@@ -4063,7 +4070,7 @@
     "heroSubtitle": "赚取 VIZA 积分",
     "referHeading": "分享推荐码，赚取 99 积分",
     "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
-    "referralCode": "Referral code",
+    "referralCode": "邀请码",
     "loadingLink": "正在加载您的 code...",
     "copyCode": "复制 code",
     "copied": "已复制！",
@@ -4171,7 +4178,11 @@
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
           "description": "1000 积分可兑换一次入境卡免费提交服务。",
-          "countries": ["新加坡", "马来西亚", "泰国"]
+          "countries": [
+            "新加坡",
+            "马来西亚",
+            "泰国"
+          ]
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",
@@ -4396,36 +4407,36 @@
       "placeholders": {
         "fullName": "例如：张小明 / ZHANG XIAOMING",
         "surnameZh": "如：李",
-        "surnameEn": "For example: LI",
+        "surnameEn": "例如：LI",
         "givenNamesZh": "如：晓明",
-        "givenNamesEn": "For example: XIAOMING",
+        "givenNamesEn": "例如：XIAOMING",
         "dateOfBirthZh": "选择出生日期",
-        "dateOfBirthEn": "Select date of birth",
+        "dateOfBirthEn": "选择出生日期",
         "birthCountryZh": "选择出生国家...",
-        "birthCountryEn": "Select country of birth...",
+        "birthCountryEn": "选择出生国家或地区…",
         "birthProvinceOrStateZh": "如：湖南",
-        "birthProvinceOrStateEn": "For example: Hunan",
+        "birthProvinceOrStateEn": "例如：Hunan",
         "birthCityZh": "如：长沙",
-        "birthCityEn": "For example: Changsha",
+        "birthCityEn": "例如：Changsha",
         "genderZh": "请选择",
-        "genderEn": "Select...",
+        "genderEn": "请选择…",
         "nationality": "例如：中国 / China",
         "nationalityZh": "选择国家...",
-        "nationalityEn": "Select country...",
+        "nationalityEn": "选择国籍…",
         "occupationZh": "如：软件工程师",
-        "occupationEn": "For example: Software engineer",
+        "occupationEn": "例如：Software engineer",
         "passportNumber": "按护照填写",
         "passportIssuingCountryZh": "选择签发国家...",
-        "passportIssuingCountryEn": "Select issuing country...",
+        "passportIssuingCountryEn": "选择护照签发国家或地区…",
         "passportIssueDateZh": "选择签发日期",
-        "passportIssueDateEn": "Select issue date",
+        "passportIssueDateEn": "选择签发日期",
         "passportExpiryDateZh": "选择有效期",
-        "passportExpiryDateEn": "Select expiry date",
+        "passportExpiryDateEn": "选择到期日期",
         "email": "name@example.com",
         "phone": "包含国家/地区号码",
         "wechat": "可选",
         "addressZh": "如：北京市朝阳区翻斗花园",
-        "addressEn": "For example: 1 Example Road"
+        "addressEn": "例如：1 Example Road"
       },
       "deleteDialog": {
         "title": "删除这个出行人？",
@@ -4916,7 +4927,7 @@
     "monthly": {
       "title": "月付方案",
       "subtitle": "月付适合同时规划多个目的地的用户。两个方案都可以访问所有国家，区别在每月申请额度和高级能力。",
-      "badge": "Global Access",
+      "badge": "全球通行",
       "recommended": "推荐",
       "countryLimit": "每月最多 {count} 个国家",
       "cadence": "/月",
@@ -5288,9 +5299,9 @@
       "successEvidence": "成功证据",
       "successEvidenceBody": "CEAC 官方确认页已显示提交成功，并生成确认号码。",
       "officialActions": "官方确认页文件",
-      "printConfirmation": "Print Confirmation",
-      "printApplication": "Print Application",
-      "emailConfirmation": "Email Confirmation",
+      "printConfirmation": "打印确认页",
+      "printApplication": "打印申请表",
+      "emailConfirmation": "发送确认邮件",
       "artifactUnavailable": "本次提交未保存该 PDF；系统会从 CEAC 官方网站找回。",
       "proofPreparing": "正在准备 DS-160 官方证明文件...",
       "proofQueued": "已开始从 CEAC 官方网站找回证明文件，请稍候。",
@@ -5306,7 +5317,7 @@
       "newApplicationError": "创建新的申请草稿失败",
       "continueAutomaticSubmission": "继续自动提交",
       "continuingAutomaticSubmission": "正在启动自动提交",
-      "applicationId": "Application ID",
+      "applicationId": "申请编号",
       "surnameFirst5": "姓氏前 5 个字母",
       "yearOfBirth": "出生年份",
       "embassyOrConsulate": "使领馆",
@@ -5319,7 +5330,7 @@
       "title": "下一步：预约设置",
       "body": "继续进入中国 USVisaScheduling assisted-live 预约设置，保留明确选位、最终批准和官方证据记录。",
       "button": "打开预约助手",
-      "badge": "Assisted live"
+      "badge": "实时协助"
     }
   },
   "franceAppointment": {
@@ -5655,12 +5666,12 @@
     },
     "passTypes": {
       "pr": "永久居民 PR",
-      "employment_pass": "Employment Pass",
-      "s_pass": "S Pass",
-      "work_permit": "Work Permit",
-      "dependent_pass": "Dependent Pass",
-      "long_term_visit_pass": "Long-Term Visit Pass",
-      "student_pass": "Student Pass"
+      "employment_pass": "就业准证（EP）",
+      "s_pass": "S 准证",
+      "work_permit": "工作准证（WP）",
+      "dependent_pass": "家属准证（DP）",
+      "long_term_visit_pass": "长期探访准证（LTVP）",
+      "student_pass": "学生准证"
     },
     "documents": {
       "title": "2. 材料预检",
@@ -5787,5 +5798,89 @@
       "finalRequired": "提交前请批准最终预约。",
       "sessionRequired": "登录会话已过期，请重新登录后继续。"
     }
+  },
+  "subscriptionReturn": {
+    "loginTitle": "请先登录以确认支付",
+    "loginDescription": "Stripe 已返回 VIZA，但当前浏览器会话已失效。",
+    "unavailableTitle": "Stripe 尚未配置",
+    "unavailableDescription": "暂时无法核验支付，请稍后重试或联系客服。",
+    "missingTitle": "未找到匹配的支付记录",
+    "missingDescription": "为了安全，VIZA 没有把这次 Stripe 返回写入你的账户。",
+    "mismatchTitle": "支付会话不匹配",
+    "mismatchDescription": "Stripe 返回的会话与当前订阅订单不一致。",
+    "paidTitle": "支付已确认",
+    "paidDescription": "VIZA 已记录你的支付，你可以在订阅设置中查看方案。",
+    "pendingTitle": "支付仍在处理中",
+    "pendingDescription": "Stripe 已返回，但支付状态尚未最终确认。请稍后刷新页面。"
+  },
+  "pageError": {
+    "title": "页面加载失败",
+    "updated": "页面版本已更新，系统正在刷新。若页面没有自动恢复，请手动刷新后继续。",
+    "description": "页面加载时出现问题，请刷新后重试。"
+  },
+  "subscriptionPayment": {
+    "back": "返回订阅方案",
+    "title": "微信支付",
+    "description": "请使用微信扫码完成支付。VIZA 仅收取页面展示的人民币服务费，官方签证费和第三方费用会单独说明。",
+    "qrAlt": "微信支付二维码",
+    "notice": "支付结果由微信支付异步通知写回 VIZA。请勿重复支付同一个二维码；如支付后状态未刷新，请稍等片刻。",
+    "missingQr": "未找到可用的微信支付二维码，请返回订阅页重新发起。",
+    "paid": "支付已确认，可以返回订阅页查看状态。",
+    "progress": "确认进度",
+    "failed": "支付记录不可用，请返回订阅页重新发起。",
+    "pending": "等待微信支付确认，页面会自动刷新状态。",
+    "refresh": "手动刷新"
+  },
+  "emailVerification": {
+    "title": "验证您的邮箱",
+    "sentTo": "我们已向 <strong>{email}</strong> 发送登录链接，请打开链接完成账户创建。",
+    "inbox": "您的邮箱",
+    "notReceived": "没有收到邮件？",
+    "resend": "重新发送验证邮件",
+    "resent": "已重新发送，请同时检查垃圾邮件文件夹。",
+    "failed": "验证邮件发送失败，请稍后重试。",
+    "rateLimited": "发送请求过于频繁，请等待几分钟后重试。",
+    "verified": "已完成验证？",
+    "signIn": "登录"
+  },
+  "accountRecovery": {
+    "title": "账户恢复",
+    "description": "如果您的验证器设备和恢复代码都已丢失，我们可以在人工核实您的身份后协助恢复账户。",
+    "steps": "操作步骤",
+    "emailSupport": "请使用账户绑定的邮箱联系 <link>support@viza.app</link>。",
+    "details": "请提供您的姓名、申请编号（如有）、护照号码及手持护照的自拍照，以便客服团队核实您的身份。",
+    "response": "我们会在一个工作日内回复。身份核实后，工作人员将重置多重身份验证，并向您发送新的密码重置链接。",
+    "why": "为什么需要人工核实",
+    "whyDescription": "人工身份核实可防止他人在获取您的邮箱访问权限后，进一步接管您的账户。",
+    "alternative": "如果您仍记得密码并且能够登录，请前往<link>账户安全</link>管理验证方式。"
+  },
+  "passwordReset": {
+    "shortPassword": "密码至少需要 8 个字符",
+    "mismatch": "两次输入的密码不一致",
+    "failed": "密码更新失败，请重试。",
+    "compromised": "此密码曾出现在数据泄露记录中，请选择其他密码。",
+    "samePassword": "新密码不能与当前密码相同。",
+    "verifying": "正在验证重置链接…",
+    "access": "VIZA 账户访问",
+    "invalidTitle": "链接无效或已过期",
+    "invalidDescription": "此密码重置链接无效或已过期，请重新申请。",
+    "requestLink": "获取新链接",
+    "back": "返回登录",
+    "updatedTitle": "密码已更新",
+    "updatedDescription": "您的密码已更新，正在跳转至登录页面…",
+    "title": "设置新密码",
+    "description": "请在下方输入您的新密码。",
+    "newPassword": "新密码",
+    "newPlaceholder": "请输入新密码",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "minimum": "至少需要 8 个字符",
+    "confirmPassword": "确认密码",
+    "confirmPlaceholder": "请再次输入新密码",
+    "showConfirmation": "显示确认密码",
+    "hideConfirmation": "隐藏确认密码",
+    "updating": "正在更新…",
+    "update": "更新密码",
+    "secureAccess": "安全访问您的 VIZA 账户"
   }
 }

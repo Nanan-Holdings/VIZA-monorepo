@@ -52,9 +52,13 @@ import { isOngoingApplicationState } from "@/lib/client/active-application-selec
 const PROFILE_ID = "11111111-1111-4111-8111-111111111111";
 const AUTH_USER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OTHER_PROFILE_ID = "99999999-9999-4999-8999-999999999999";
+const LEGACY_PROFILE_ID = "12111111-1111-4111-8111-111111111111";
+const LEGACY_SECONDARY_PROFILE_ID = "13111111-1111-4111-8111-111111111111";
 const PROFILE_APPLICATION_ID = "22222222-2222-4222-8222-222222222222";
 const LINKED_APPLICATION_ID = "33333333-3333-4333-8333-333333333333";
 const SGAC_APPLICATION_ID = "44444444-4444-4444-8444-444444444444";
+const LEGACY_APPLICATION_ID = "12122222-2222-4222-8222-222222222222";
+const LEGACY_SECOND_APPLICATION_ID = "13133333-3333-4333-8333-333333333333";
 const PACKAGE_ID = "55555555-5555-4555-8555-555555555555";
 const PACKAGE_ONLY_ID = "66666666-6666-4666-8666-666666666666";
 const FOREIGN_APPLICATION_ID = "77777777-7777-4777-8777-777777777777";
@@ -77,6 +81,7 @@ const STORAGE_VIETNAM_PACKAGE_ID = "eeeeeee4-eeee-4eee-8eee-eeeeeeeeeee4";
 
 type Row = Record<string, unknown>;
 type TableRows = Record<string, Row[]>;
+type FakeQueryResponse = { data: Row[] | Row | null; error: { message: string } | null };
 type Filter =
   | { kind: "eq"; column: string; value: unknown }
   | { kind: "in"; column: string; values: readonly unknown[] }
@@ -85,6 +90,8 @@ type Filter =
 interface QueryCall {
   table: string;
   filters: Filter[];
+  select: string | null;
+  maybeSingle: boolean;
 }
 
 interface FakeAdmin {
@@ -97,8 +104,22 @@ interface FakeAdmin {
 
 interface FakeAdminOptions {
   failedTables?: ReadonlySet<string>;
+  failedProfileApplicationRelation?: boolean;
   failedStorageBuckets?: ReadonlySet<string>;
   failedStorageTargets?: ReadonlySet<string>;
+  deferredResponses?: Partial<Record<string, PromiseLike<FakeQueryResponse>>>;
+  onQueryStart?: (call: QueryCall) => void;
+}
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 function applicationRow(overrides: Row): Row {
@@ -224,10 +245,13 @@ function createFakeAdmin(
   const failedStorageTargets = options.failedStorageTargets ?? new Set<string>();
   const admin = {
     from(table: string) {
-      const call: QueryCall = { table, filters: [] };
+      const call: QueryCall = { table, filters: [], select: null, maybeSingle: false };
       calls.push(call);
       const chain: Record<string, unknown> = {};
-      chain.select = vi.fn(() => chain);
+      chain.select = vi.fn((projection: string) => {
+        call.select = projection;
+        return chain;
+      });
       chain.eq = vi.fn((column: string, value: unknown) => {
         call.filters.push({ kind: "eq", column, value });
         return chain;
@@ -242,15 +266,101 @@ function createFakeAdmin(
       });
       chain.order = vi.fn(() => chain);
       chain.limit = vi.fn(() => chain);
+      chain.maybeSingle = vi.fn(() => {
+        call.maybeSingle = true;
+        return chain;
+      });
       chain.then = (
-        resolve: (result: { data: Row[]; error: { message: string } | null }) => unknown,
+        resolve: (result: FakeQueryResponse) => unknown,
         reject: (reason: unknown) => unknown,
-      ) => Promise.resolve(failedTables.has(table)
-        ? { data: [], error: { message: `synthetic ${table} failure` } }
-        : {
-            data: (tableRows[table] ?? []).filter((row) => matchesFilters(row, call.filters)),
-            error: null,
-          }).then(resolve, reject);
+      ) => {
+        options.onQueryStart?.(call);
+        const isEmbeddedApplicationRead =
+          table === "applications" && call.select?.includes("consents:consent_events");
+        const isEmbeddedProfileApplicationRead =
+          table === "applicant_profiles" &&
+          call.select?.includes("owned_applications:applications!applications_applicant_id_fkey");
+        const deferredResponse = !isEmbeddedApplicationRead && !isEmbeddedProfileApplicationRead
+          ? options.deferredResponses?.[table]
+          : undefined;
+        const response: PromiseLike<FakeQueryResponse> = deferredResponse ?? Promise.resolve((() => {
+          const parentFilters = isEmbeddedProfileApplicationRead || isEmbeddedApplicationRead
+            ? call.filters.filter((filter) =>
+                filter.kind !== "eq" || !filter.column.includes("."),
+              )
+            : call.filters;
+          const queryRows = (tableRows[table] ?? []).filter((row) => matchesFilters(row, parentFilters));
+          if (failedTables.has(table) ||
+              (isEmbeddedProfileApplicationRead && failedTables.has("applications"))) {
+            return {
+              data: call.maybeSingle ? null : [],
+              error: {
+                message: isEmbeddedProfileApplicationRead
+                  ? "synthetic applications relation failure"
+                  : `synthetic ${table} failure`,
+              },
+            };
+          }
+
+          if (isEmbeddedProfileApplicationRead) {
+            if (options.failedProfileApplicationRelation) {
+              return {
+                data: null,
+                error: { message: "synthetic applications relation failure" },
+              };
+            }
+            const parent = queryRows[0] ?? null;
+            if (!parent) return { data: null, error: null };
+            const childOwnerFilter = call.filters.find(
+              (filter): filter is Extract<Filter, { kind: "eq" }> =>
+                filter.kind === "eq" && filter.column === "owned_applications.applicant_id",
+            )?.value;
+            const ownerId = childOwnerFilter ?? parent.id;
+            const ownedApplications = (tableRows.applications ?? [])
+              .filter((application) => application.applicant_id === ownerId)
+              .sort((left, right) => String(right.created_at ?? "").localeCompare(String(left.created_at ?? "")));
+            return {
+              data: { ...parent, owned_applications: ownedApplications },
+              error: null,
+            };
+          }
+
+          const data = queryRows.map((row) => {
+            if (!isEmbeddedApplicationRead) return row;
+
+            const applicationId = String(row.id ?? "");
+            const related = (tableName: string) =>
+              failedTables.has(tableName)
+                ? null
+                : (tableRows[tableName] ?? []).filter(
+                    (child) => child.application_id === applicationId,
+                  );
+            const liveQueueTarget = call.filters.find(
+              (filter): filter is Extract<Filter, { kind: "eq" }> =>
+                filter.kind === "eq" && filter.column === "live_queue.application_id",
+            )?.value;
+            return {
+              ...row,
+              consents: related("consent_events"),
+              signatures: related("application_signatures"),
+              answers: related("visa_application_answers"),
+              packets: related("application_packets"),
+              documents: related("application_documents"),
+              ...(call.select?.includes("live_queue:submission_queue")
+                ? {
+                    live_queue: failedTables.has("submission_queue")
+                      ? null
+                      : (tableRows.submission_queue ?? []).filter(
+                          (child) => child.application_id === (liveQueueTarget ?? applicationId),
+                        ),
+                  }
+                : {}),
+            };
+          });
+          return { data: call.maybeSingle ? data[0] ?? null : data, error: null };
+        })());
+        return response.then(resolve, reject);
+      };
       return chain;
     },
     storage: {
@@ -584,25 +694,32 @@ function storageFixture(): TableRows {
 
 function applicationIdsReadFromDependentTables(calls: QueryCall[]): Map<string, string[]> {
   const dependentTables = new Set([
-    "consent_events",
-    "application_signatures",
-    "application_documents",
-    "visa_application_answers",
-    "application_packets",
     "application_events",
     "notification_events",
     "official_application_tracking",
   ]);
-  return new Map(
-    calls
+  const relatedRowsCall = calls.find(
+    (call) =>
+      call.table === "applications" &&
+      call.select?.includes("consents:consent_events"),
+  );
+  const relatedRowsIds = relatedRowsCall?.filters
+    .filter((filter): filter is Extract<Filter, { kind: "in" }> => filter.kind === "in" && filter.column === "id")
+    .flatMap((filter) => filter.values.map(String)) ?? [];
+  const relatedRows = relatedRowsCall
+    ? [["related_rows", relatedRowsIds] as const]
+    : [];
+  return new Map([
+    ...relatedRows,
+    ...calls
       .filter((call) => dependentTables.has(call.table))
       .map((call) => [
         call.table,
         call.filters
           .filter((filter): filter is Extract<Filter, { kind: "in" }> => filter.kind === "in" && filter.column === "application_id")
           .flatMap((filter) => filter.values.map(String)),
-      ]),
-  );
+      ] as const),
+  ]);
 }
 
 async function runLoader(
@@ -623,8 +740,9 @@ async function runLoader(
 async function runIndexLoader(
   tableRows: TableRows,
   failedTables: readonly string[] = [],
+  options: Omit<FakeAdminOptions, "failedTables"> = {},
 ): Promise<{ data: Awaited<ReturnType<typeof getClientStatusIndexData>>; fake: FakeAdmin }> {
-  const fake = createFakeAdmin(tableRows, { failedTables: new Set(failedTables) });
+  const fake = createFakeAdmin(tableRows, { ...options, failedTables: new Set(failedTables) });
   createAdminClient.mockReturnValue(fake.client);
   const data = await getClientStatusIndexData();
   return { data, fake };
@@ -664,6 +782,7 @@ describe("getClientStatusData application scope", () => {
     );
     expect(scopedApplicationQuery).toBeDefined();
     expect(scoped.fake.calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+    expect(scoped.fake.calls.filter((call) => call.table === "visa_application_answers")).toHaveLength(0);
   });
 
   it("keeps an authenticated application linked through user_packages", async () => {
@@ -721,6 +840,46 @@ describe("getClientStatusData application scope", () => {
     );
   });
 
+  it("starts the unscoped SGAC email compatibility read with package and owner reads", async () => {
+    const fixture = baseFixture();
+    const packagesDeferred = createDeferred<FakeQueryResponse>();
+    const applicationsDeferred = createDeferred<FakeQueryResponse>();
+    const answerStarted = createDeferred<void>();
+    const startedTables: string[] = [];
+    const fake = createFakeAdmin(fixture, {
+      deferredResponses: {
+        user_packages: packagesDeferred.promise,
+        applications: applicationsDeferred.promise,
+      },
+      onQueryStart: (call) => {
+        startedTables.push(call.table);
+        if (call.table === "visa_application_answers") answerStarted.resolve();
+      },
+    });
+    createAdminClient.mockReturnValue(fake.client);
+
+    const resultPromise = getClientStatusData();
+    await answerStarted.promise;
+
+    expect(startedTables.indexOf("visa_application_answers")).toBeGreaterThanOrEqual(0);
+    expect(startedTables.indexOf("visa_application_answers")).toBeLessThan(
+      startedTables.indexOf("user_packages"),
+    );
+    expect(startedTables.indexOf("visa_application_answers")).toBeLessThan(
+      startedTables.indexOf("applications"),
+    );
+
+    packagesDeferred.resolve({ data: [userPackageRow(PACKAGE_ID, PROFILE_APPLICATION_ID)], error: null });
+    applicationsDeferred.resolve({ data: [applicationRow({})], error: null });
+    const result = await resultPromise;
+    expect(result.authenticated).toBe(true);
+    expect(result.detailApplications).toHaveLength(1);
+    const sessionOptions = getClientSessionReadResult.mock.calls[0]?.[0] as { requestSignal?: AbortSignal };
+    const adminOptions = createAdminClient.mock.calls[0]?.[0] as { requestSignal?: AbortSignal };
+    expect(sessionOptions.requestSignal).toBeInstanceOf(AbortSignal);
+    expect(adminOptions.requestSignal).toBe(sessionOptions.requestSignal);
+  });
+
   it("fails closed for a foreign application before live or detail fan-out reads", async () => {
     const fixture = baseFixture();
     fixture.applications = [applicationRow({
@@ -761,7 +920,7 @@ describe("getClientStatusData application scope", () => {
     const { fake } = await runLoader(fixture, PROFILE_APPLICATION_ID);
     const dependentReads = applicationIdsReadFromDependentTables(fake.calls);
 
-    expect(dependentReads.size).toBe(8);
+    expect(dependentReads.size).toBe(4);
     for (const ids of dependentReads.values()) expect(ids).toEqual([PROFILE_APPLICATION_ID]);
     const scopedApplicationRows = fake.calls
       .filter((call) => call.table === "applications")
@@ -777,6 +936,7 @@ describe("getClientStatusData application scope", () => {
         country: "singapore",
         visa_type: "SG_ARRIVAL_CARD",
       }],
+      { prefetchedQueueResult: { data: [], error: null } },
     );
   });
 
@@ -1000,6 +1160,243 @@ describe("getClientStatusData storage URL resolution", () => {
   });
 });
 
+describe("getClientStatusIndexData primary profile/application read", () => {
+  it("uses one profile-owned application join without a duplicate owner application read", async () => {
+    const fixture = baseFixture();
+    fixture.applications = [
+      applicationRow({
+        id: PROFILE_APPLICATION_ID,
+        updated_at: "2026-09-01T00:00:00.000Z",
+      }),
+      applicationRow({
+        id: LEGACY_APPLICATION_ID,
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        visa_package_id: null,
+        created_at: "2026-09-02T00:00:00.000Z",
+        updated_at: "2026-09-02T00:00:00.000Z",
+      }),
+    ];
+
+    const { data, fake } = await runIndexLoader(fixture);
+    const combinedReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const topLevelOwnerReads = fake.calls.filter(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            (filter.kind === "in" &&
+              filter.column === "applicant_id" &&
+              filter.values.includes(PROFILE_ID)) ||
+            (filter.kind === "eq" &&
+              filter.column === "applicant_id" &&
+              filter.value === PROFILE_ID),
+        ),
+      );
+
+    expect(combinedReads).toHaveLength(1);
+    expect(combinedReads[0]?.maybeSingle).toBe(true);
+    expect(topLevelOwnerReads).toHaveLength(0);
+    expect(data.detailApplications.map((application) => application.id)).toEqual([
+      LEGACY_APPLICATION_ID,
+      PROFILE_APPLICATION_ID,
+    ]);
+  });
+
+  it("retains every legacy profile returned by auth-user and email fallbacks", async () => {
+    const fixture = baseFixture();
+    fixture.applicant_profiles = [
+      {
+        id: LEGACY_PROFILE_ID,
+        email: "owner@example.test",
+        auth_user_id: AUTH_USER_ID,
+      },
+      {
+        id: LEGACY_SECONDARY_PROFILE_ID,
+        email: "owner@example.test",
+        auth_user_id: null,
+      },
+    ];
+    fixture.user_packages = [];
+    fixture.payment_records = [];
+    fixture.applications = [
+      applicationRow({
+        id: LEGACY_APPLICATION_ID,
+        applicant_id: LEGACY_PROFILE_ID,
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        visa_package_id: null,
+        updated_at: "2026-09-01T00:00:00.000Z",
+      }),
+      applicationRow({
+        id: LEGACY_SECOND_APPLICATION_ID,
+        applicant_id: LEGACY_SECONDARY_PROFILE_ID,
+        country: "france",
+        visa_type: "FR_VISIT",
+        visa_package_id: null,
+        updated_at: "2026-09-02T00:00:00.000Z",
+      }),
+    ];
+
+    const { data, fake } = await runIndexLoader(fixture);
+    const combinedReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const legacyProfileReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        !call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const ownerApplicationReads = fake.calls.filter(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            filter.kind === "in" &&
+            filter.column === "applicant_id" &&
+            filter.values.some((value) => [LEGACY_PROFILE_ID, LEGACY_SECONDARY_PROFILE_ID].includes(String(value))),
+        ),
+    );
+
+    expect(data.authenticated).toBe(true);
+    expect(data.partialData).toBe(false);
+    expect(data.detailApplications.map((application) => application.id)).toEqual([
+      LEGACY_SECOND_APPLICATION_ID,
+      LEGACY_APPLICATION_ID,
+    ]);
+    expect(combinedReads).toHaveLength(1);
+    expect(legacyProfileReads).toHaveLength(2);
+    expect(ownerApplicationReads).toHaveLength(1);
+  });
+
+  it("falls back once after a relation failure and keeps recovered data non-partial", async () => {
+    const { data, fake } = await runIndexLoader(
+      baseFixture(),
+      [],
+      { failedProfileApplicationRelation: true },
+    );
+    const combinedReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const fallbackProfileReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        !call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const ownerApplicationReads = fake.calls.filter(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            (filter.kind === "in" &&
+              filter.column === "applicant_id" &&
+              filter.values.includes(PROFILE_ID)) ||
+            (filter.kind === "eq" &&
+              filter.column === "applicant_id" &&
+              filter.value === PROFILE_ID),
+        ),
+    );
+
+    expect(data.authenticated).toBe(true);
+    expect(data.partialData).toBe(false);
+    expect(data.detailApplications.map((application) => application.id)).toContain(PROFILE_APPLICATION_ID);
+    expect(combinedReads).toHaveLength(1);
+    expect(fallbackProfileReads).toHaveLength(1);
+    expect(ownerApplicationReads).toHaveLength(1);
+  });
+
+  it("keeps package-linked and SGAC email-linked applications when the profile owns none", async () => {
+    const fixture = baseFixture();
+    fixture.applications = [
+      applicationRow({
+        id: LINKED_APPLICATION_ID,
+        applicant_id: OTHER_PROFILE_ID,
+        country: "japan",
+        visa_type: "JP_VISIT_JAPAN_WEB",
+        visa_package_id: PACKAGE_ID,
+        updated_at: "2026-09-01T00:00:00.000Z",
+      }),
+      applicationRow({
+        id: SGAC_APPLICATION_ID,
+        applicant_id: OTHER_PROFILE_ID,
+        visa_type: "SG_ARRIVAL_CARD",
+        visa_package_id: null,
+        submission_result: { submitted: true, reference: "SGAC-123" },
+        submission_result_status: "submitted",
+        submitted_at: "2026-09-02T00:00:00.000Z",
+        updated_at: "2026-09-02T00:00:00.000Z",
+      }),
+    ];
+    fixture.user_packages = [userPackageRow(PACKAGE_ID, LINKED_APPLICATION_ID, "japan", "JP_VISIT_JAPAN_WEB")];
+    fixture.payment_records = [paymentRow({
+      application_id: LINKED_APPLICATION_ID,
+      visa_package_id: PACKAGE_ID,
+      applicant_id: PROFILE_ID,
+    })];
+    fixture.visa_application_answers = [{
+      application_id: SGAC_APPLICATION_ID,
+      field_name: "email_address",
+      value_text: "owner@example.test",
+      value_json: null,
+    }];
+
+    const { data, fake } = await runIndexLoader(fixture);
+    const combinedReads = fake.calls.filter(
+      (call) =>
+        call.table === "applicant_profiles" &&
+        call.select?.includes("owned_applications:applications!applications_applicant_id_fkey"),
+    );
+    const ownerApplicationReads = fake.calls.filter(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            filter.kind === "in" &&
+            filter.column === "applicant_id" &&
+            filter.values.includes(PROFILE_ID),
+        ),
+    );
+    const linkedApplicationRead = fake.calls.find(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            filter.kind === "in" &&
+            filter.column === "id" &&
+            filter.values.includes(LINKED_APPLICATION_ID),
+        ),
+    );
+    const emailApplicationRead = fake.calls.find(
+      (call) =>
+        call.table === "applications" &&
+        call.filters.some(
+          (filter) =>
+            filter.kind === "in" &&
+            filter.column === "id" &&
+            filter.values.includes(SGAC_APPLICATION_ID),
+        ),
+    );
+
+    expect(data.authenticated).toBe(true);
+    expect(data.partialData).toBe(false);
+    expect(data.detailApplications.map((application) => application.id)).toEqual(
+      expect.arrayContaining([LINKED_APPLICATION_ID, SGAC_APPLICATION_ID]),
+    );
+    expect(combinedReads).toHaveLength(1);
+    expect(ownerApplicationReads).toHaveLength(0);
+    expect(linkedApplicationRead).toBeDefined();
+    expect(emailApplicationRead).toBeDefined();
+  });
+});
+
 describe("getClientStatusIndexData projection", () => {
   it("preserves list state, progress, ordering and links while skipping detail fan-out and storage signing", async () => {
     const fixture = richFixture();
@@ -1101,7 +1498,7 @@ describe("getClientStatusIndexData projection", () => {
     ]);
     expect(index.fake.calls.filter((call) => skippedDetailTables.has(call.table))).toHaveLength(0);
     expect(full.fake.calls.filter((call) => skippedDetailTables.has(call.table))).toHaveLength(3);
-    expect(full.fake.calls.length - index.fake.calls.length).toBe(3);
+    expect(full.fake.calls.length - index.fake.calls.length).toBe(4);
     expect(loadLiveSubmissionSummaries).toHaveBeenCalledTimes(2);
     expect(loadLiveSubmissionSummaries).toHaveBeenNthCalledWith(
       2,
@@ -1118,6 +1515,7 @@ describe("getClientStatusIndexData projection", () => {
         expect.objectContaining({ id: REJECTED_APPLICATION_ID }),
         expect.objectContaining({ id: SGAC_APPLICATION_ID }),
       ]),
+      { prefetchedQueueResult: undefined },
     );
     expect(index.fake.storageSignatures).toHaveLength(0);
     expect(index.fake.storageBatches).toHaveLength(0);

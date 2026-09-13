@@ -1,5 +1,9 @@
 import { getCuratedCityLabel } from "@/lib/travel/locations";
 import { countries } from "country-data-list";
+import {
+  normalizeTravelLocale,
+  type TravelLocale,
+} from "@/lib/travel/travel-locale";
 
 export const FORM_PAYLOAD_PREFIX = "__TRAVEL_FORM__:";
 export const DEFAULT_CITY_DAYS = 2;
@@ -152,6 +156,7 @@ export type TravelPlanningPayload = {
   origin_city: string;
   return_country: string;
   return_city: string;
+  locale?: TravelLocale;
 };
 
 export type TravelPayload = TravelPlanningPayload & {
@@ -176,6 +181,7 @@ export type ChatLikeMessage = {
 };
 
 export type TravelFormDisplayPayload = {
+  locale?: TravelLocale;
   seed_country?: string;
   seed_city?: string;
   country?: string;
@@ -197,6 +203,7 @@ export type TravelFormDisplayPayload = {
 };
 
 export type TravelFormPayload = Partial<TravelPayload> & {
+  locale?: TravelLocale;
   reset?: boolean;
   country?: string;
   countries?: string[];
@@ -239,19 +246,41 @@ export const FIELD_QUESTIONS: Record<TravelField, string> = {
     "最后一步：可填写备注并附上文件说明（可留空），然后生成最终行程。",
 };
 
+const FIELD_QUESTIONS_EN: Record<TravelField, string> = {
+  country: "Which countries would you like to visit? You can search and select more than one.",
+  cities: "Which cities would you like to visit? You can search and select more than one.",
+  destination_confirmation: "Would you like to add another country or city?",
+  departure_date: "What are your travel dates? You can keep them flexible or choose a specific date.",
+  travel_days: "How many days will this trip last? You can keep the duration flexible for now.",
+  travelers: "How many people are travelling? You can keep this flexible for now.",
+  budget: "What is your total budget in RMB? You can keep this flexible for now.",
+  origin: "Please confirm your departure and return cities.",
+  travel_order: "Please adjust the order of your destinations.",
+  flight_selection:
+    "Choose a flight for each leg in travel order (or skip a leg if you will use another form of transport).",
+  hotel_selection: "Choose a hotel for each city in travel order.",
+  final_note:
+    "Final step: add any notes or file references (optional), then generate your itinerary.",
+};
+
 export function getFieldQuestionForState(
   state: Pick<TravelState, "seed_country" | "seed_city">,
-  field: TravelField
+  field: TravelField,
+  locale: TravelLocale = "zh"
 ): string {
   if (field === "country" && state.seed_country) {
-    return "还有哪些国家想去吗？请选择国家（可搜索、可多选）。如果没有别的国家，可点击“没有别的国家了”。";
+    return locale === "en"
+      ? "Which other countries would you like to visit? Search and select them, or choose ‘No other countries’ if you are done."
+      : "还有哪些国家想去吗？请选择国家（可搜索、可多选）。如果没有别的国家，可点击“没有别的国家了”。";
   }
 
   if (field === "cities" && state.seed_city) {
-    return "还有哪些城市想去吗？请选择城市（可搜索、可多选）。如果没有别的城市，可点击“没有别的城市了”。";
+    return locale === "en"
+      ? "Which other cities would you like to visit? Search and select them, or choose ‘No other cities’ if you are done."
+      : "还有哪些城市想去吗？请选择城市（可搜索、可多选）。如果没有别的城市，可点击“没有别的城市了”。";
   }
 
-  return FIELD_QUESTIONS[field];
+  return locale === "en" ? FIELD_QUESTIONS_EN[field] : FIELD_QUESTIONS[field];
 }
 
 function normalizeString(value: unknown): string | null {
@@ -720,77 +749,214 @@ function parseTravelFormMessage(message: ChatLikeMessage): TravelFormPayload | n
   return null;
 }
 
-export function describeTravelFormPayload(payload: TravelFormPayload): string {
+const COUNTRY_EN_DISPLAY_NAMES = new Intl.DisplayNames(["en"], {
+  type: "region",
+});
+const COUNTRY_ZH_DISPLAY_NAMES = new Intl.DisplayNames(["zh-CN"], {
+  type: "region",
+});
+
+function localizedCountryLabel(value: string, locale: TravelLocale): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+  const record = (countries.all as unknown[]).find((item) => {
+    if (!item || typeof item !== "object") return false;
+    const candidate = item as {
+      name?: unknown;
+      alpha2?: unknown;
+      alpha3?: unknown;
+    };
+    return [candidate.name, candidate.alpha2, candidate.alpha3].some(
+      (entry) =>
+        typeof entry === "string" &&
+        comparableLabel(entry) === comparableLabel(normalized)
+    );
+  }) as
+    | {
+        name?: unknown;
+        alpha2?: unknown;
+        alpha3?: unknown;
+      }
+    | undefined;
+  if (!record) return normalized;
+
+  const englishName = typeof record.name === "string" ? record.name : normalized;
+  const alpha2 =
+    typeof record.alpha2 === "string" ? record.alpha2.trim().toUpperCase() : "";
+  if (!alpha2) return englishName;
+  try {
+    const displayNames =
+      locale === "en" ? COUNTRY_EN_DISPLAY_NAMES : COUNTRY_ZH_DISPLAY_NAMES;
+    return displayNames.of(alpha2) ?? englishName;
+  } catch {
+    return englishName;
+  }
+}
+
+function localizedCityLabel(value: string, locale: TravelLocale): string {
+  return getCuratedCityLabel(value, locale) ?? value.trim();
+}
+
+function displayTextForLocale(
+  value: unknown,
+  locale: TravelLocale
+): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const hasCjk = /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(value);
+  if (locale === "en" && hasCjk) return null;
+  if (locale === "zh" && !hasCjk) return null;
+  return value.trim();
+}
+
+function displayListForLocale(
+  values: unknown,
+  locale: TravelLocale
+): string[] | null {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const localized = values.map((value) => displayTextForLocale(value, locale));
+  return localized.every((value): value is string => Boolean(value))
+    ? localized
+    : null;
+}
+
+function localizedList(
+  values: string[],
+  locale: TravelLocale,
+  kind: "country" | "city"
+): string[] {
+  return values.map((value) =>
+    kind === "country"
+      ? localizedCountryLabel(value, locale)
+      : localizedCityLabel(value, locale)
+  );
+}
+
+export function describeTravelFormPayload(
+  payload: TravelFormPayload,
+  requestedLocale?: TravelLocale
+): string {
+  const locale = normalizeTravelLocale(
+    requestedLocale ?? payload.locale ?? payload.display?.locale
+  );
+  const isEnglish = locale === "en";
   const display = payload.display;
   const seedCountry = normalizeString(payload.seed_country);
   const seedCity = normalizeString(payload.seed_city);
-  const seedCountryLabel = display?.seed_country ?? seedCountry;
-  const seedCityLabel = display?.seed_city ?? seedCity;
+  const seedCountryLabel =
+    displayTextForLocale(display?.seed_country, locale) ??
+    (seedCountry ? localizedCountryLabel(seedCountry, locale) : seedCountry);
+  const seedCityLabel =
+    displayTextForLocale(display?.seed_city, locale) ??
+    (seedCity ? localizedCityLabel(seedCity, locale) : seedCity);
   if (seedCity || seedCountry) {
     if (seedCountryLabel && seedCityLabel) {
-      return `我想从 ${seedCountryLabel} 的 ${seedCityLabel} 开始规划旅行。`;
+      return isEnglish
+        ? `I’d like to start planning from ${seedCityLabel}, ${seedCountryLabel}.`
+        : `我想从 ${seedCountryLabel} 的 ${seedCityLabel} 开始规划旅行。`;
     }
     if (seedCityLabel) {
-      return `我想把 ${seedCityLabel} 加入旅行计划。`;
+      return isEnglish
+        ? `I’d like to add ${seedCityLabel} to the trip.`
+        : `我想把 ${seedCityLabel} 加入旅行计划。`;
     }
-    return `我想先去 ${seedCountryLabel} 旅行。`;
+    return isEnglish
+      ? `I’d like to visit ${seedCountryLabel} first.`
+      : `我想先去 ${seedCountryLabel} 旅行。`;
   }
 
   if (payload.countries?.length && payload.cities?.length) {
-    const countries = display?.countries?.length
-      ? display.countries
-      : payload.countries;
-    const cities = display?.cities?.length ? display.cities : payload.cities;
-    return `我更新了目的地：城市 ${cities.join("、")}；国家 ${countries.join("、")}。`;
+    const countries = displayListForLocale(display?.countries, locale) ??
+      localizedList(payload.countries, locale, "country");
+    const cities = displayListForLocale(display?.cities, locale) ??
+      localizedList(payload.cities, locale, "city");
+    return isEnglish
+      ? `I updated the destinations: cities ${cities.join(", ")}; countries ${countries.join(", ")}.`
+      : `我更新了目的地：城市 ${cities.join("、")}；国家 ${countries.join("、")}。`;
   }
 
   if (payload.destination_confirmed === true) {
-    return "目的地就这些，继续规划后面的行程信息。";
+    return isEnglish
+      ? "Those are all my destinations. Continue with the rest of the trip details."
+      : "目的地就这些，继续规划后面的行程信息。";
   }
 
   if (payload.destination_confirmed === false) {
-    return "我还想继续添加其他国家或城市。";
+    return isEnglish
+      ? "I’d like to add another country or city."
+      : "我还想继续添加其他国家或城市。";
   }
 
   if (payload.countries?.length) {
-    const countries = display?.countries?.length
-      ? display.countries
-      : payload.countries;
-    return `我选择了国家：${countries.join("、")}。`;
+    const countries =
+      displayListForLocale(display?.countries, locale) ??
+      localizedList(payload.countries, locale, "country");
+    return isEnglish
+      ? `I selected these countries: ${countries.join(", ")}.`
+      : `我选择了国家：${countries.join("、")}。`;
   }
   if (payload.cities?.length) {
-    const cities = display?.cities?.length ? display.cities : payload.cities;
-    return `我选择了城市：${cities.join("、")}。`;
+    const cities =
+      displayListForLocale(display?.cities, locale) ??
+      localizedList(payload.cities, locale, "city");
+    return isEnglish
+      ? `I selected these cities: ${cities.join(", ")}.`
+      : `我选择了城市：${cities.join("、")}。`;
   }
   if (payload.departure_date) {
     if (payload.date_flexibility === "flexible") {
-      return `出行日期先按灵活出行：${payload.departure_date}（默认两个月后）。`;
+      return isEnglish
+        ? `I’ll keep the travel dates flexible, starting around ${payload.departure_date}.`
+        : `出行日期先按灵活出行：${payload.departure_date}（默认两个月后）。`;
     }
-    return `出行日期是 ${payload.departure_date}。`;
+    return isEnglish
+      ? `The travel date is ${payload.departure_date}.`
+      : `出行日期是 ${payload.departure_date}。`;
   }
   if (typeof payload.travel_days === "number") {
-    if (display?.travel_days_label) {
-      return display.travel_days_label;
+    const travelDaysLabel = displayTextForLocale(
+      display?.travel_days_label,
+      locale
+    );
+    if (travelDaysLabel) {
+      return travelDaysLabel;
     }
-    return `出行天数是 ${payload.travel_days} 天。`;
+    return isEnglish
+      ? `The trip will last ${payload.travel_days} days.`
+      : `出行天数是 ${payload.travel_days} 天。`;
   }
   if (payload.city_days && Object.keys(payload.city_days).length > 0) {
     const summary = Object.entries(payload.city_days)
-      .map(([city, days]) => `${display?.city_labels?.[city] ?? city}${days}天`)
-      .join("，");
-    return `我设置了停留天数：${summary}。`;
+      .map(([city, days]) => {
+        const label =
+          displayTextForLocale(display?.city_labels?.[city], locale) ??
+          localizedCityLabel(city, locale);
+        return isEnglish ? `${label}: ${days} days` : `${label}${days}天`;
+      })
+      .join(isEnglish ? ", " : "，");
+    return isEnglish
+      ? `I set the stay length: ${summary}.`
+      : `我设置了停留天数：${summary}。`;
   }
   if (typeof payload.travelers === "number") {
-    if (display?.travelers_label) {
-      return display.travelers_label;
+    const travelersLabel = displayTextForLocale(
+      display?.travelers_label,
+      locale
+    );
+    if (travelersLabel) {
+      return travelersLabel;
     }
-    return `出行人数是 ${payload.travelers} 人。`;
+    return isEnglish
+      ? `There will be ${payload.travelers} travellers.`
+      : `出行人数是 ${payload.travelers} 人。`;
   }
   if (typeof payload.budget === "number") {
-    if (display?.budget_label) {
-      return display.budget_label;
+    const budgetLabel = displayTextForLocale(display?.budget_label, locale);
+    if (budgetLabel) {
+      return budgetLabel;
     }
-    return `预算是 ${payload.budget} RMB。`;
+    return isEnglish
+      ? `The budget is RMB ${payload.budget}.`
+      : `预算是 ${payload.budget} RMB。`;
   }
   if (
     payload.origin_country ||
@@ -798,42 +964,71 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
     payload.return_country ||
     payload.return_city
   ) {
-    const originCountry = display?.origin_country ?? payload.origin_country ?? "-";
-    const originCity = display?.origin_city ?? payload.origin_city ?? "-";
-    const returnCountry = display?.return_country ?? payload.return_country ?? "-";
-    const returnCity = display?.return_city ?? payload.return_city ?? "-";
-    const localizedOriginCity = getCuratedCityLabel(originCity, "zh") ?? originCity;
-    const localizedReturnCity = getCuratedCityLabel(returnCity, "zh") ?? returnCity;
-    return `出发地设为 ${originCountry}｜${localizedOriginCity}；返程地设为 ${returnCountry}｜${localizedReturnCity}。`.trim();
+    const originCountry =
+      displayTextForLocale(display?.origin_country, locale) ??
+      (payload.origin_country
+        ? localizedCountryLabel(payload.origin_country, locale)
+        : "-");
+    const originCity =
+      displayTextForLocale(display?.origin_city, locale) ??
+      (payload.origin_city
+        ? localizedCityLabel(payload.origin_city, locale)
+        : "-");
+    const returnCountry =
+      displayTextForLocale(display?.return_country, locale) ??
+      (payload.return_country
+        ? localizedCountryLabel(payload.return_country, locale)
+        : "-");
+    const returnCity =
+      displayTextForLocale(display?.return_city, locale) ??
+      (payload.return_city
+        ? localizedCityLabel(payload.return_city, locale)
+        : "-");
+    return isEnglish
+      ? `Departure: ${originCountry} | ${originCity}; Return: ${returnCountry} | ${returnCity}.`
+      : `出发地设为 ${originCountry}｜${originCity}；返程地设为 ${returnCountry}｜${returnCity}。`;
   }
   if (payload.travel_order?.length) {
-    const travelOrder = display?.travel_order?.length
-      ? display.travel_order
-      : payload.travel_order;
-    return `游玩顺序：${travelOrder.join(" → ")}。`;
+    const travelOrder =
+      displayListForLocale(display?.travel_order, locale) ??
+      localizedList(payload.travel_order, locale, "city");
+    return isEnglish
+      ? `Travel order: ${travelOrder.join(" → ")}.`
+      : `游玩顺序：${travelOrder.join(" → ")}。`;
   }
   if (payload.selected_flights?.length) {
-    return "我已确认航班选择。";
+    return isEnglish ? "I confirmed the flight selections." : "我已确认航班选择。";
   }
   if (payload.selected_hotels?.length) {
-    return "我已确认酒店选择。";
+    return isEnglish ? "I confirmed the hotel selections." : "我已确认酒店选择。";
   }
   if ("final_note" in payload || "attached_files" in payload) {
     const note = payload.final_note?.trim();
     const files = payload.attached_files ?? [];
     if (note && files.length) {
-      return `备注：${note}（附 ${files.length} 个文件）`;
+      return isEnglish
+        ? `Note: ${note} (${files.length} file${files.length === 1 ? "" : "s"} attached).`
+        : `备注：${note}（附 ${files.length} 个文件）`;
     }
-    if (note) return `备注：${note}`;
-    if (files.length) return `我附上了 ${files.length} 个文件供参考。`;
-    return "我没有额外备注，直接生成行程。";
+    if (note) return isEnglish ? `Note: ${note}` : `备注：${note}`;
+    if (files.length) {
+      return isEnglish
+        ? `I attached ${files.length} file${files.length === 1 ? "" : "s"} for reference.`
+        : `我附上了 ${files.length} 个文件供参考。`;
+    }
+    return isEnglish
+      ? "I have no extra notes. Generate the itinerary directly."
+      : "我没有额外备注，直接生成行程。";
   }
 
-  return "我更新了旅行信息。";
+  return isEnglish ? "I updated my travel information." : "我更新了旅行信息。";
 }
 
-export function createTravelFormMessage(payload: TravelFormPayload): string {
-  return describeTravelFormPayload(payload);
+export function createTravelFormMessage(
+  payload: TravelFormPayload,
+  requestedLocale?: TravelLocale
+): string {
+  return describeTravelFormPayload(payload, requestedLocale);
 }
 
 function isTravelOrderComplete(cities: string[], order: string[]): boolean {
@@ -1131,7 +1326,8 @@ export function nextMissingField(state: TravelState): TravelField | null {
 }
 
 export function toTravelPlanningPayload(
-  state: TravelState
+  state: TravelState,
+  requestedLocale?: TravelLocale
 ): TravelPlanningPayload | null {
   if (!state.cities.length) return null;
   if (!hasCompleteCityDays(state)) return null;
@@ -1181,13 +1377,17 @@ export function toTravelPlanningPayload(
     origin_city: originCity,
     return_country: returnCountry,
     return_city: returnCity,
+    ...(requestedLocale ? { locale: requestedLocale } : {}),
   };
 }
 
-export function toTravelPayload(state: TravelState): TravelPayload | null {
+export function toTravelPayload(
+  state: TravelState,
+  requestedLocale?: TravelLocale
+): TravelPayload | null {
   if (nextMissingField(state) !== null) return null;
 
-  const basePayload = toTravelPlanningPayload(state);
+  const basePayload = toTravelPlanningPayload(state, requestedLocale);
   if (!basePayload) return null;
 
   return {

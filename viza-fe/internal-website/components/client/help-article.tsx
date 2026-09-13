@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { motion } from "motion/react";
+import { useLocale } from "next-intl";
 import { ArrowLeft } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -21,6 +22,12 @@ interface HelpArticleProps {
 }
 
 export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
+  const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const copy = isZh
+    ? { helpCenter: "帮助中心", tip: "提示：", back: "返回帮助中心" }
+    : { helpCenter: "Help Center", tip: "Tip: ", back: "Back to Help Center" };
+
   useEffect(() => {
     const handleScroll = () => {
       const scrollThreshold = 195;
@@ -61,7 +68,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
             className="inline-flex items-center gap-1.5 text-[rgba(255,255,255,0.75)] hover:text-white text-[14px] font-medium transition-colors"
           >
             <ArrowLeft className="size-4" />
-            Help Center
+            {copy.helpCenter}
           </Link>
         </motion.div>
 
@@ -130,7 +137,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
                         className="rounded-[12px] border border-[#efefef] bg-white px-5 py-4"
                       >
                         <p className="text-[16px] lg:text-[18px] leading-[1.6] tracking-[-0.24px] text-[#6f6f6f]">
-                          <span className="font-medium text-[#2b2b2b]">Tip: </span>
+                          <span className="font-medium text-[#2b2b2b]">{copy.tip}</span>
                           {block.text}
                         </p>
                       </div>
@@ -154,7 +161,7 @@ export function HelpArticle({ title, subtitle, sections }: HelpArticleProps) {
               className="inline-flex items-center gap-1.5 text-[#c1785d] hover:text-[#a5604a] text-[15px] font-medium transition-colors"
             >
               <ArrowLeft className="size-4" />
-              Back to Help Center
+              {copy.back}
             </Link>
           </motion.div>
         </div>

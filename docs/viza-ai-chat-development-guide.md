@@ -44,7 +44,7 @@
 - 左侧/移动端抽屉 `VIZA chats`：`chat-client.tsx` 读取 `visa_chat_sessions`，允许像 Travel AI 一样维护多个独立 conversation process；桌面默认显示为与页面融合的无边框 rail，收起或展开都不推动或重排中间的 AI 输出。
 - 顶部 `VIZA AI / Travel AI` pills：`chat-client.tsx` 的 chat view tab controls。
 - 右侧深蓝色 `hi` 气泡：`ChatMessage` 渲染 user message。
-- 左侧大段 `Hi there...`：不是前端固定文案，而是从聊天历史或后端 AI streaming response 进入 `ChatMessage`。
+- 左侧大段 `Hi there...`：不是前端固定文案，而是从聊天历史或后端 AI 完整响应进入 `ChatMessage`；生成期间仅显示加载动画。
 - 底部 `Ask anything...`：`ChatInput` 默认 placeholder。
 - `Travel AI` 点击后：同一个页面内渲染 `TravelChatClient applicationId={travelApplicationId} embedded`。
 
@@ -69,7 +69,7 @@ flowchart TD
   M --> N["emit token events"]
   M --> O["emit response_complete"]
   M --> P["optional application_block tool event"]
-  N --> Q["ChatClient buffers tokens"]
+  N --> Q["ChatClient keeps loading indicator; token fragments stay hidden"]
   O --> R["finalize assistant message"]
   P --> S["BlockMessage renders application form CTA"]
   S --> T["User continues on /client/application"]
@@ -132,9 +132,11 @@ flowchart TD
 
 1. 用户发送后，`socketSendMessage()` 先把 user message 加到 `socketMessages`。
 2. 同时插入一个空的 streaming assistant message。
-3. 后端 `token` event 到达时先进入 buffer，每 500ms flush 到当前 assistant message。
-4. `response_complete` 到达时，用 `fullResponse` 覆盖并结束 streaming。
+3. 生成期间仅显示 `ThinkingIndicator`，不消费或逐字显示 `token` event 中尚未完成解析的片段，避免空格丢失和半成品格式直接暴露给用户。
+4. `response_complete` 到达时，立即用完整、已清理的 `fullResponse` 替换占位消息并结束 streaming，再交给 `ChatMessage` 做纯文本显示；不等待逐字动画。错误事件将占位消息替换为本地化的失败提示，不显示残缺回复。
 5. `useEffect` 监听 `socketMessages`，再把变化同步进 `useContinuousChat` 的 `chatMessages`。
+
+`app/client/chat/chat-client.test.tsx` 验证生成期间隐藏片段、完成后立即显示、失败提示和下一条消息排队的 Socket.IO 生命周期。
 
 多 conversation process：
 
@@ -309,7 +311,7 @@ polling 被多副本后端拒绝后仍会尝试 WebSocket。多副本运行时�
 `/health` 返回 503，Render 会停止把该实例视为健康；单副本仍保留原有 200
 健康检查契约。
 
-如果 `OPENAI_API_KEY` 没配，`streamChat()` 会返回固定 fallback：AI 服务还没配置。`OPENAI_API_KEY` 用于 VIZA chat 生成、field guidance、application validation、passport OCR 和 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
+如果 `OPENAI_API_KEY` 没配，`streamChat()` 会按请求的界面语言返回 fallback：中文为“抱歉，AI 服务尚未配置。请联系支持团队。”，英文为“I’m sorry, the AI service is not configured yet. Please contact support.”。未传 `locale` 时保留英文 fallback 兼容行为。`OPENAI_API_KEY` 用于 VIZA chat 生成、field guidance、application validation、passport OCR 和 `text-embedding-3-small` embedding；不要把真实 key 提交进 git。
 
 ## 10. 做到什么程度了
 

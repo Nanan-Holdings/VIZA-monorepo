@@ -48,3 +48,12 @@
 **/*.tsbuildinfo
 **/test-results
 **/playwright-report
+**/screenshots
+**/browser-evidence
+**/.mcp*
+**/.agents
+**/.claude
+**/.codex
+**/.tmp
+**/tmp
+**/.release

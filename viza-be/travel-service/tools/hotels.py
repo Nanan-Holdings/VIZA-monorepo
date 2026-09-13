@@ -4,6 +4,7 @@ import time
 from datetime import date, timedelta
 from typing import Any
 
+from travel_locale import is_english_locale, localize_travel_place
 from tools.http_client import REQUEST_TIMEOUT, request_json
 
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_BOOKING_HOST", "booking-com15.p.rapidapi.com").strip()
@@ -159,31 +160,45 @@ def _normalize_dates(check_in_date, check_out_date):
     return normalized_check_in, normalized_check_out
 
 
-def _fallback_hotels(destination, adults=1):
-    city_name = str(destination or "目的地").strip() or "目的地"
+def _fallback_hotels(destination, adults=1, *, locale="zh"):
+    is_english = is_english_locale(locale)
+    raw_city_name = str(destination or "").strip()
+    city_name = localize_travel_place(raw_city_name, locale)
+    if not city_name:
+        city_name = "the destination" if is_english else "目的地"
+    if is_english:
+        hotel_options = (
+            (f"{city_name} city-centre hotel", f"{city_name} city centre"),
+            (f"{city_name} comfort hotel", f"near {city_name} station"),
+        )
+    else:
+        hotel_options = (
+            (f"{city_name}市中心酒店", f"{city_name}市中心区域"),
+            (f"{city_name}舒适酒店", f"{city_name}车站附近"),
+        )
     return [
         {
             "provider": "api-default",
-            "city": destination,
-            "name": f"{city_name}市中心酒店",
+            "city": city_name,
+            "name": hotel_options[0][0],
             "price_per_night": "120.00",
             "currency": "USD",
             "rating": 4.5,
             "adults": adults,
-            "address": f"{city_name}市中心区域",
+            "address": hotel_options[0][1],
             "contact_phone": "+1 555 010 1200",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
         },
         {
             "provider": "api-default",
-            "city": destination,
-            "name": f"{city_name}舒适酒店",
+            "city": city_name,
+            "name": hotel_options[1][0],
             "price_per_night": "60.00",
             "currency": "USD",
             "rating": 3.8,
             "adults": adults,
-            "address": f"{city_name}车站附近",
+            "address": hotel_options[1][1],
             "contact_phone": "+1 555 010 0600",
             "check_in_time": "15:00",
             "check_out_time": "11:00",
@@ -265,6 +280,8 @@ async def _fetch_hotel_details(
     check_out_date,
     adults,
     currency_code,
+    *,
+    locale="zh",
 ):
     if hotel_id in (None, ""):
         return None
@@ -277,7 +294,7 @@ async def _fetch_hotel_details(
             "departure_date": check_out_date,
             "adults": adults,
             "room_qty": 1,
-            "languagecode": "en-us",
+            "languagecode": "en-us" if is_english_locale(locale) else "zh-cn",
             "currency_code": currency_code,
         },
     )
@@ -295,6 +312,8 @@ async def search_hotels(
     adults=1,
     currency_code="CNY",
     max_results=5,
+    *,
+    locale="zh",
 ):
     if not destination:
         return []
@@ -304,7 +323,7 @@ async def search_hotels(
 
     dest_id, search_type = await _resolve_destination(destination)
     if not dest_id or not search_type:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     payload = await _request_json(
         "/api/v1/hotels/searchHotels",
@@ -318,20 +337,20 @@ async def search_hotels(
             "page_number": 1,
             "units": "metric",
             "temperature_unit": "c",
-            "languagecode": "en-us",
+            "languagecode": "en-us" if is_english_locale(locale) else "zh-cn",
             "currency_code": currency_code,
         },
     )
     if not payload or payload.get("status") is not True:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     data = payload.get("data")
     if not isinstance(data, dict):
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     hotels = data.get("hotels")
     if not isinstance(hotels, list) or not hotels:
-        return _fallback_hotels(destination, adults=adults)
+        return _fallback_hotels(destination, adults=adults, locale=locale)
 
     selected_hotels = hotels[: max(max_results, 1)]
     detail_requests = []
@@ -349,6 +368,7 @@ async def search_hotels(
                 check_out_date=check_out_date,
                 adults=adults,
                 currency_code=currency_code,
+                locale=locale,
             )
         )
 
@@ -383,10 +403,14 @@ async def search_hotels(
             or raw_details.get("hotel_name")
             or property_data.get("name")
             or entry.get("accessibilityLabel")
-            or "酒店名称待确认"
+            or ("Hotel name to be confirmed" if is_english_locale(locale) else "酒店名称待确认")
         )
         if isinstance(name, str):
-            name = _repair_mojibake_text(name).strip() or "酒店名称待确认"
+            name = _repair_mojibake_text(name).strip() or (
+                "Hotel name to be confirmed"
+                if is_english_locale(locale)
+                else "酒店名称待确认"
+            )
 
         average_price_per_night = None
         total_price = None
@@ -451,7 +475,7 @@ async def search_hotels(
         normalized.append(
             {
                 "provider": "rapidapi-booking-com",
-                "city": destination,
+                "city": localize_travel_place(destination, locale) or destination,
                 "name": name,
                 "hotel_id": hotel_id,
                 "price_per_night": gross_price or "-",
@@ -474,4 +498,4 @@ async def search_hotels(
             }
         )
 
-    return normalized or _fallback_hotels(destination, adults=adults)
+    return normalized or _fallback_hotels(destination, adults=adults, locale=locale)

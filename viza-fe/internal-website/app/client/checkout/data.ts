@@ -253,9 +253,9 @@ export function createStripeClient(): Stripe | null {
   return new Stripe(secretKey);
 }
 
-export function formatMoney(cents: number, currency: string): string {
+export function formatMoney(cents: number, currency: string, locale = "en"): string {
   try {
-    return new Intl.NumberFormat("en", {
+    return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,
       maximumFractionDigits: cents % 100 === 0 ? 0 : 2,

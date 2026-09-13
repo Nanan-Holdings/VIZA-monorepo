@@ -1238,6 +1238,18 @@ function getAttractionNameForLanguage(
   fallback = "-"
 ): string {
   if (language === "en") {
+    const knownAttraction = value ? findTravelAttraction(city, value) : null;
+    const englishAlias = [
+      ...(knownAttraction?.aliases ?? []),
+      knownAttraction?.name,
+   ].find(
+     (candidate): candidate is string =>
+        typeof candidate === "string" &&
+        Boolean(candidate.trim()) &&
+       containsLatinLetters(candidate) &&
+       !containsCjk(candidate)
+   );
+    if (englishAlias) return englishAlias.trim();
     return getTravelTextForLanguage(value, language, fallback);
   }
 
@@ -1283,7 +1295,17 @@ function getDurationForLanguage(
 ): string {
   const raw = value?.trim();
   if (!raw) return fallback;
-  if (language === "en") return raw;
+  if (language === "en") {
+    const english = raw
+      .replace(/小时/g, " hours")
+      .replace(/分钟/g, " minutes")
+      .replace(/天/g, " days")
+      .replace(/，/g, ", ")
+      .replace(/。/g, ".")
+      .replace(/\s+/g, " ")
+      .trim();
+    return containsCjk(english) ? fallback : english;
+  }
   return raw
     .replace(/(\d+)\s*h(?:ours?)?/gi, "$1小时")
     .replace(/(\d+)\s*m(?:in(?:utes?)?)?/gi, "$1分钟")
@@ -1296,7 +1318,9 @@ function getCabinClassForLanguage(
   language: TravelInterfaceLocale
 ): string {
   const raw = value?.trim() ?? "";
-  if (language === "en") return raw;
+  if (language === "en") {
+    return raw && !containsCjk(raw) ? raw : "Cabin pending";
+  }
   const labels: Record<string, string> = {
     ECONOMY: "经济舱",
     PREMIUM_ECONOMY: "高级经济舱",
@@ -2284,7 +2308,7 @@ function getAttractionChoicesForCity(
     .filter((name) => !knownKeys.has(normalizeLookupKey(name)))
     .map((name, index) => ({
       name,
-      location: `${getLocalCityLabel(city)} · Google Maps 精准定位`,
+      location: `${city} · Google Maps location`,
       imageSrc: getAttractionImage(
         city,
         name,
@@ -3246,10 +3270,16 @@ function buildAttractionMapPoints(
     }
     const [lat, lng] = coordinate;
     const locationText =
-      googleCoordinate?.formattedAddress ??
-      enrichedAttraction?.googleMapsUri ??
-      attraction?.location ??
-      cityLabel;
+      language === "zh"
+        ? cityLabel
+        : googleCoordinate?.formattedAddress ??
+          enrichedAttraction?.googleMapsUri ??
+          attraction?.location ??
+          cityLabel;
+    const localizedAttractionDescription =
+      language === "zh"
+        ? enrichedAttraction?.descriptionZh ?? attraction?.description
+        : enrichedAttraction?.descriptionEn;
     return {
       id: `${seedPrefix}-${cityKey}-${index}`,
       kind: "hotspot",
@@ -3260,8 +3290,7 @@ function buildAttractionMapPoints(
           : `${cityLabel} stop ${index + 1}`,
       localName: cityLabel,
       intro:
-        enrichedAttraction?.descriptionZh ??
-        attraction?.description ??
+        localizedAttractionDescription ??
         (language === "zh"
           ? `${activityLabel} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`
           : `${activityLabel} is near ${locationText}. The map follows the day order.`),
@@ -3541,9 +3570,17 @@ function buildSelectedFlightRows(
                       ? `arrival: ${arrivalTime}`
                       : "",
                   airports ? `airports: ${airports}` : "",
-                  option?.duration ? `duration: ${option.duration}` : "",
+                  option?.duration
+                    ? `duration: ${getDurationForLanguage(
+                        option.duration,
+                        language,
+                        copy.durationPending
+                      )}`
+                    : "",
                   `stops: ${stops}`,
-                  option?.cabin_class ? `cabin: ${option.cabin_class}` : "",
+                  option?.cabin_class
+                    ? `cabin: ${getCabinClassForLanguage(option.cabin_class, language)}`
+                    : "",
                   option?.price
                     ? `price: ${option.price} ${option.currency ?? ""}`.trim()
                     : "",
@@ -5206,12 +5243,19 @@ export function TravelItineraryExperience({
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url.toString());
-        toast.success("分享链接已复制。");
+        toast.success(isZh ? "分享链接已复制。" : "Share link copied.");
       } else {
-        window.prompt("复制分享链接", url.toString());
+        window.prompt(
+          isZh ? "复制分享链接" : "Copy share link",
+          url.toString()
+        );
       }
     } catch {
-      toast.error("分享链接生成失败，请稍后再试。");
+      toast.error(
+        isZh
+          ? "分享链接生成失败，请稍后再试。"
+          : "Could not create the share link. Please try again."
+      );
     } finally {
       setIsSharingLink(false);
     }
@@ -5225,13 +5269,22 @@ export function TravelItineraryExperience({
     setBusy(true);
     try {
       await downloadBlob(endpoint, exportPayload, fallbackFilename);
-      toast.success(`${fallbackFilename} 已开始下载。`);
+      toast.success(
+        isZh
+          ? `${fallbackFilename} 已开始下载。`
+          : `${fallbackFilename} download started.`
+      );
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : `${fallbackFilename} 下载失败。`;
-      toast.error(message);
+      toast.error(
+        message ||
+          (isZh
+            ? `${fallbackFilename} 下载失败。`
+            : `Could not download ${fallbackFilename}.`)
+      );
     } finally {
       setBusy(false);
     }
@@ -6133,13 +6186,13 @@ export function TravelItineraryExperience({
                         key={`${row.type}-${index}`}
                       >
                         {(
-                          [
-                            ["time", "时间"],
-                            ["type", "类型"],
-                            ["date", "日期/天数"],
-                            ["route", "城市/路线"],
-                            ["name", "名称"],
-                            ["details", "详情"],
+                         [
+                            ["time", copy.tableHeaders[0]],
+                            ["type", copy.tableHeaders[1]],
+                            ["date", copy.tableHeaders[2]],
+                            ["route", copy.tableHeaders[3]],
+                            ["name", copy.tableHeaders[4]],
+                            ["details", copy.tableHeaders[5]],
                             ["contact", copy.tableHeaders[6]],
                           ] as const
                         ).map(([field, label]) => (
@@ -6182,7 +6235,7 @@ export function TravelItineraryExperience({
                         ))}
                         <td className="whitespace-nowrap px-4 py-3">
                           <Button
-                            aria-label={`删除第 ${index + 1} 项`}
+                            aria-label={`${copy.delete} ${index + 1}`}
                             className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
                             onClick={() => removeItineryRow(index)}
                             size="icon"
@@ -6995,7 +7048,7 @@ export function TravelItineraryExperience({
                                 >
                                   {customizeDayEditor ? (
                                     <input
-                                      aria-label={`餐饮 ${index + 1}`}
+                                      aria-label={`${copy.dining} ${index + 1}`}
                                       className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#6f40cc] outline-none"
                                       onChange={(event) =>
                                         updateItineraryFood(
@@ -7017,7 +7070,7 @@ export function TravelItineraryExperience({
                                     </span>
                                   )}
                                   <Button
-                                    aria-label={`删除餐饮 ${index + 1}`}
+                                    aria-label={`${copy.delete} ${copy.dining} ${index + 1}`}
                                     className="h-8 w-8 rounded-full text-[#b42348] hover:bg-white"
                                     onClick={() =>
                                       removeItineraryFood(activeDayIndex, index)

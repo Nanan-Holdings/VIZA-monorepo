@@ -1,8 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLocale } from "next-intl";
 import type { InterviewReport } from "@/app/api/interview/report/route";
+import { normalizeInterfaceLocale, type InterfaceLocale } from "@/lib/i18n/locale";
 import { useLiveTalking, type LiveTalkingStatus } from "./_hooks/use-live-talking";
+import {
+  buildInterviewPlan,
+  getInterviewCopy,
+  getOfficerProfile,
+  OFFICER_IDS,
+  type InterviewCopy,
+  type InterviewOfficer,
+  type InterviewRequired,
+  type OfficerId,
+} from "./copy";
 
 const TRANSCRIPT_KEY = "viza_interview_transcript";
 
@@ -22,81 +34,12 @@ type ApplicantProfile = {
 type InterviewStep = {
   topic: string;
   question: string;
-  required: Array<"city" | "time" | "money" | "work" | "ties" | "detail">;
+  required: InterviewRequired[];
   followUp: string;
 };
-type OfficerProfile = {
-  id: string;
-  name: string;
-  title: string;
-  style: string;
-  pressure: string;
-  description: string;
-  image: string;
-  avatarId: string;
-  voice: string;
-  voiceGender: "male" | "female";
-  speechRate: number;
-};
+type OfficerProfile = InterviewOfficer;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const OFFICER_IMAGE =
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=560&h=800&fit=crop&crop=top";
-
-const OFFICERS: OfficerProfile[] = [
-  {
-    id: "miller", name: "Miller", title: "标准型", pressure: "标准",
-    style: "沉稳、中性、按真实窗口节奏核实核心事实",
-    description: "节奏均衡，适合第一次练习",
-    image: OFFICER_IMAGE, avatarId: "officer_miller", voice: "zh-CN-YunxiNeural", voiceGender: "male", speechRate: 0.88,
-  },
-  {
-    id: "chen", name: "Chen", title: "快速型", pressure: "较高",
-    style: "语速较快、问题极短、回答含糊时立即追问",
-    description: "问题短而快，训练临场反应",
-    image: "https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_chen", voice: "zh-CN-XiaoxiaoNeural", voiceGender: "female", speechRate: 1.02,
-  },
-  {
-    id: "williams", name: "Williams", title: "核验型", pressure: "较高",
-    style: "关注时间、金额、工作年限和前后陈述是否一致",
-    description: "重视细节和材料一致性",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_williams", voice: "zh-CN-YunjianNeural", voiceGender: "male", speechRate: 0.93,
-  },
-  {
-    id: "garcia", name: "Garcia", title: "自然型", pressure: "较低",
-    style: "语气自然但保持专业，通过简短对话了解旅行真实性",
-    description: "氛围自然，适合建立信心",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=560&h=800&fit=crop&crop=top",
-    avatarId: "officer_garcia", voice: "zh-CN-XiaoyiNeural", voiceGender: "female", speechRate: 0.84,
-  },
-  {
-    id: "obama", name: "Obama", title: "总统风格", pressure: "标准",
-    style: "沉着、自信、善于用简短追问核实回答的逻辑和真实性；不模仿政治演讲",
-    description: "特别体验形象，沉着而有逻辑",
-    image: "/images/interview-officers/obama-simulation.png",
-    avatarId: "officer_obama", voice: "zh-CN-YunyangNeural", voiceGender: "male", speechRate: 0.9,
-  },
-];
-
-const QUESTIONS = [
-  "这次去美国主要是什么打算？",
-  "具体去做什么？",
-  "为什么选这个时间去？",
-  "计划去哪些城市？",
-  "打算在美国待多长时间？",
-  "回程机票订了吗？",
-  "住宿安排好了吗？",
-  "这次费用自己出还是有人资助？",
-  "大概预算多少？",
-  "目前在国内做什么工作？",
-  "在哪家公司或机构？",
-  "家里还有什么牵挂，回国后有什么安排？",
-];
-
-const ENDING_MESSAGE = "好的，今天的面试到这里就结束了，感谢您的配合。";
 
 const DEFAULT_PROFILE: ApplicantProfile = {
   purpose: "",
@@ -108,59 +51,14 @@ const DEFAULT_PROFILE: ApplicantProfile = {
   familyTies: "",
 };
 
-function compact(value: string, fallback: string) {
-  return value.trim() || fallback;
-}
-
-function buildInterviewPlan(profile: ApplicantProfile): InterviewStep[] {
-  const cities = compact(profile.cities, "美国");
-  const duration = compact(profile.duration, "这段时间");
-  const funding = compact(profile.funding, "这次费用");
-  const occupation = compact(profile.occupation, "目前的工作或身份");
-  const ties = compact(profile.familyTies, "国内安排");
-  const purpose = profile.purpose.toLowerCase();
-
-  const opening: InterviewStep = {
-    topic: "赴美目的",
-    question: "你去美国做什么？",
-    required: ["detail"],
-    followUp: "具体做什么？",
-  };
-
-  const purposeQuestions: InterviewStep[] = /探亲|访友|看望|亲戚|家人/.test(purpose)
-    ? [
-        { topic: "邀请关系", question: "你去看谁？", required: ["detail"], followUp: "你们是什么关系？" },
-        { topic: "邀请人情况", question: "他在美国做什么？", required: ["detail"], followUp: "他现在是什么身份？" },
-      ]
-    : /商务|会议|展会|客户|公司|培训/.test(purpose)
-    ? [
-        { topic: "商务事项", question: "你去参加什么商务活动？", required: ["detail"], followUp: "活动或对方公司的名称是什么？" },
-        { topic: "职位关联", question: "为什么必须由你去？", required: ["work", "detail"], followUp: "这和你的职责有什么关系？" },
-      ]
-    : [
-        { topic: "旅行安排", question: `你准备去${cities}哪些地方？`, required: ["city", "detail"], followUp: "最主要去哪个城市？" },
-        { topic: "同行人员", question: "谁和你一起去？", required: ["detail"], followUp: "你是一个人去吗？" },
-      ];
-
-  return [
-    opening,
-    ...purposeQuestions,
-    { topic: "停留时间", question: `你准备在美国待${duration}？`, required: ["time"], followUp: "具体待多少天？" },
-    { topic: "费用来源", question: `${funding}，谁承担费用？`, required: ["money"], followUp: "这次大约准备多少预算？" },
-    { topic: "工作情况", question: `${occupation}，你具体做什么工作？`, required: ["work", "detail"], followUp: "你在那里工作多久了？" },
-    { topic: "回国安排", question: `旅行结束后你回来做什么？`, required: ["ties", "detail"], followUp: `你提到${ties}，具体是什么安排？` },
-    { topic: "出境记录", question: "你以前出过国吗？", required: ["detail"], followUp: "最近一次去了哪里？" },
-  ];
-}
-
 function answerHasRequirement(answer: string, requirement: InterviewStep["required"][number]) {
   const text = answer.trim();
   if (requirement === "detail") return text.length >= 14;
-  if (requirement === "city") return /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|city/i.test(text);
-  if (requirement === "time") return /\d|天|周|月|号|日期|时间|行程|回程|机票/.test(text);
-  if (requirement === "money") return /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱/.test(text);
-  if (requirement === "work") return /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|业务|生意/.test(text);
-  return /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|工作|公司|学校|回国|回来|项目/.test(text);
+  if (requirement === "city") return /纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|new york|los angeles|san francisco|chicago|boston|las vegas|seattle|washington|miami|orlando|hawaii|city|cities/i.test(text);
+  if (requirement === "time") return /\d|天|周|月|号|日期|时间|行程|回程|机票|day|days|week|weeks|month|months|date|itinerary|return flight|ticket|stay/i.test(text);
+  if (requirement === "money") return /\d|美元|美金|人民币|费用|预算|存款|银行|流水|工资|收入|资助|自费|钱|usd|dollar|money|budget|savings|bank|income|salary|fund|self[- ]?funded|pay/i.test(text);
+  if (requirement === "work") return /工作|公司|单位|机构|职位|老板|上班|请假|学生|学校|业务|生意|work|company|organization|position|boss|employed|leave|student|school|business|job/i.test(text);
+  return /家人|父母|孩子|妻子|丈夫|配偶|家庭|房子|工作|公司|学校|回国|回来|项目|family|parents|children|wife|husband|spouse|home|house|work|company|school|return|project|responsibilit|career/i.test(text);
 }
 
 function needsFollowUp(answer: string, step: InterviewStep) {
@@ -172,6 +70,7 @@ async function requestOfficerTurn(
   messages: Message[],
   profile: ApplicantProfile,
   officer: OfficerProfile,
+  locale: InterfaceLocale,
   directive: { question: string; topic: string; isFollowUp?: boolean; shouldEnd?: boolean }
 ) {
   const response = await fetch("/api/interview", {
@@ -180,6 +79,7 @@ async function requestOfficerTurn(
     body: JSON.stringify({
       messages,
       profile,
+      locale,
       directive,
       officer: { name: officer.name, style: officer.style, pressure: officer.pressure },
     }),
@@ -231,27 +131,27 @@ function MetricBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function getAnswerTags(answer: string): { type: "good" | "warn"; text: string }[] {
+function getAnswerTags(answer: string, copy: InterviewCopy["interview"]["answerTags"]): { type: "good" | "warn"; text: string }[] {
   const tags: { type: "good" | "warn"; text: string }[] = [];
-  if (answer.length >= 20) tags.push({ type: "good", text: "回答完整" });
-  if (answer.length < 8)   tags.push({ type: "warn", text: "回答过于简短" });
-  if (/\d/.test(answer))   tags.push({ type: "good", text: "提及具体数字" });
-  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|城市/.test(answer))
-    tags.push({ type: "good", text: "有明确目的地" });
-  if (/美元|费用|预算|花|存款|银行|资金|钱/.test(answer))
-    tags.push({ type: "good", text: "提及费用安排" });
-  if (/天|周|月|号|日期|时间|行程/.test(answer))
-    tags.push({ type: "good", text: "说明时间安排" });
-  if (/工作|公司|单位|职位|上班/.test(answer))
-    tags.push({ type: "good", text: "说明工作情况" });
-  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭/.test(answer))
-    tags.push({ type: "good", text: "提及家庭牵挂" });
+  if (answer.length >= 20) tags.push({ type: "good", text: copy.complete });
+  if (answer.length < 8) tags.push({ type: "warn", text: copy.tooShort });
+  if (/\d/.test(answer)) tags.push({ type: "good", text: copy.specificNumber });
+  if (/纽约|洛杉矶|旧金山|芝加哥|波士顿|拉斯维加斯|西雅图|华盛顿|迈阿密|奥兰多|夏威夷|城市|new york|los angeles|san francisco|chicago|boston|las vegas|seattle|washington|miami|orlando|hawaii|city|cities/i.test(answer))
+    tags.push({ type: "good", text: copy.clearDestination });
+  if (/美元|美金|人民币|费用|预算|花|存款|银行|资金|钱|usd|dollar|money|budget|savings|bank|fund/i.test(answer))
+    tags.push({ type: "good", text: copy.funding });
+  if (/天|周|月|号|日期|时间|行程|day|days|week|weeks|month|months|date|itinerary|stay/i.test(answer))
+    tags.push({ type: "good", text: copy.timing });
+  if (/工作|公司|单位|职位|上班|work|company|organization|position|employed|job/i.test(answer))
+    tags.push({ type: "good", text: copy.work });
+  if (/家人|父母|孩子|妻子|丈夫|配偶|家庭|family|parents|children|wife|husband|spouse|home|return/i.test(answer))
+    tags.push({ type: "good", text: copy.family });
   return tags.slice(0, 3);
 }
 
 // ─── Start Page ──────────────────────────────────────────────────────────────
 
-function StartPage({ onStart }: { onStart: () => void }) {
+function StartPage({ copy, onStart }: { copy: InterviewCopy; onStart: () => void }) {
   return (
     <div className="min-h-screen bg-[#fafafa]">
       <style>{`
@@ -263,7 +163,7 @@ function StartPage({ onStart }: { onStart: () => void }) {
       {/* Nav */}
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <span className="text-white text-[12px] font-semibold border-b border-white pb-0.5">模拟面试</span>
+        <span className="text-white text-[12px] font-semibold border-b border-white pb-0.5">{copy.start.navLabel}</span>
       </nav>
 
       {/* Hero */}
@@ -272,28 +172,24 @@ function StartPage({ onStart }: { onStart: () => void }) {
         <div className="pb-10">
           <div className="inline-flex items-center gap-1.5 bg-white/12 border border-white/20 rounded-full px-3 py-1 mb-5">
             <div className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ animation: "hud-blink 2s infinite" }} />
-            <span className="text-white/85 text-[11px] font-medium">B1/B2 · AI 签证面试仿真</span>
+            <span className="text-white/85 text-[11px] font-medium">{copy.start.badge}</span>
           </div>
           <h1 className="text-[32px] font-extrabold text-white leading-[1.18] tracking-tight mb-4">
-            一次模拟，<br /><span className="text-[#93c5fd]">少一份意外</span>
+            {copy.start.titleLead}<br /><span className="text-[#93c5fd]">{copy.start.titleAccent}</span>
           </h1>
           <p className="text-white/60 text-[13px] leading-relaxed mb-7 max-w-[380px]">
-            与 AI 领事官进行仿真对话练习，考察真实签证场景问题，面试结束后给出逐题评分与改进建议。
+            {copy.start.description}
           </p>
           <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full shadow-md hover:bg-blue-50 transition-colors">
-            ▶ 开始模拟面试
+            {copy.start.startButton}
           </button>
           {/* Stats */}
           <div className="flex gap-6 mt-8 pt-6 border-t border-white/10">
-            {[
-              { val: "AI", label: "仿真领事官" },
-              { val: "逐题", label: "评估报告" },
-              { val: "免费", label: "无限练习" },
-            ].map((s, i) => (
+            {copy.start.stats.map((s, i) => (
               <div key={i} className="flex items-center gap-3">
                 {i > 0 && <div className="w-px h-7 bg-white/15" />}
                 <div>
-                  <div className="text-[20px] font-extrabold text-white leading-none">{s.val}</div>
+                  <div className="text-[20px] font-extrabold text-white leading-none">{s.value}</div>
                   <div className="text-[10px] text-white/40 mt-0.5">{s.label}</div>
                 </div>
               </div>
@@ -311,10 +207,10 @@ function StartPage({ onStart }: { onStart: () => void }) {
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-[4px] px-2 py-1">
                     <div className="w-[5px] h-[5px] rounded-full bg-red-400" style={{ animation: "hud-blink 1s infinite" }} />
-                    <span className="text-[8px] font-bold text-white/70 tracking-[.07em] font-mono">LIVE · CONSULAR OFFICER</span>
+                    <span className="text-[8px] font-bold text-white/70 tracking-[.07em] font-mono">{copy.start.liveOfficer}</span>
                   </div>
                   <div className="flex items-center bg-white/10 border border-white/15 rounded-[4px] px-2 py-1">
-                    <span className="text-[8px] font-bold text-white/60 tracking-[.07em] font-mono">PROTOCOL: B1/B2</span>
+                    <span className="text-[8px] font-bold text-white/60 tracking-[.07em] font-mono">{copy.start.protocol}</span>
                   </div>
                 </div>
                 {/* Audio wave */}
@@ -334,8 +230,8 @@ function StartPage({ onStart }: { onStart: () => void }) {
               </div>
               {/* Question card */}
               <div className="bg-black/25 rounded-[10px] px-3 py-3">
-                <p className="text-[8px] font-bold text-white/40 tracking-[.12em] uppercase font-mono mb-2">Current Question</p>
-                <p className="text-[17px] font-extrabold text-white leading-tight">去美国做什么？</p>
+                <p className="text-[8px] font-bold text-white/40 tracking-[.12em] uppercase font-mono mb-2">{copy.start.currentQuestion}</p>
+                <p className="text-[17px] font-extrabold text-white leading-tight">{copy.start.previewQuestion}</p>
               </div>
             </div>
           </div>
@@ -346,34 +242,26 @@ function StartPage({ onStart }: { onStart: () => void }) {
       <div className="px-8 py-8">
 
         {/* Feature cards */}
-        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">核心功能</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">{copy.start.featuresLabel}</p>
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { icon: "👨‍💼", t: "真实口吻提问", d: "AI 采用领事官极简短句风格，模拟签证窗口真实问答压力，不引导、不解释、直接追问。" },
-            { icon: "🎙️", t: "语音双向交互", d: "支持语音作答与 AI 朗读提问，全程沉浸练习，口语表达与反应速度同步提升。" },
-            { icon: "📊", t: "逐题评估报告", d: "面试结束自动生成报告：综合评分、通过概率及每道题的优劣分析与改进建议。" },
-          ].map((f) => (
-            <div key={f.t} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          {copy.start.features.map((f) => (
+            <div key={f.title} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
               <div className="w-[40px] h-[40px] rounded-[10px] bg-[#EEF3FA] flex items-center justify-center text-[18px] mb-4">{f.icon}</div>
-              <div className="text-[14px] font-bold text-[#1a1a1a] mb-2">{f.t}</div>
-              <div className="text-[12px] text-[rgba(0,0,0,0.45)] leading-[1.7]">{f.d}</div>
+              <div className="text-[14px] font-bold text-[#1a1a1a] mb-2">{f.title}</div>
+              <div className="text-[12px] text-[rgba(0,0,0,0.45)] leading-[1.7]">{f.description}</div>
             </div>
           ))}
         </div>
 
         {/* Steps */}
-        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">使用流程</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[.07em] text-[#989898] mb-4">{copy.start.stepsLabel}</p>
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { n: 1, t: "点击开始", d: "无需注册，直接进入 AI 仿真面试，全程免费使用。" },
-            { n: 2, t: "语音 / 文字作答", d: "AI 按真实节奏逐题提问，支持语音回答。" },
-            { n: 3, t: "查看详细报告", d: "自动生成综合评分报告，逐题分析并给出针对性改进建议。" },
-          ].map((s, i) => (
+          {copy.start.steps.map((s, i) => (
             <div key={i} className="bg-white border border-[#efefef] rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex gap-4 items-start">
-              <div className="w-[36px] h-[36px] rounded-full bg-[#03346E] text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0">{s.n}</div>
+              <div className="w-[36px] h-[36px] rounded-full bg-[#03346E] text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0">{s.number}</div>
               <div>
-                <div className="text-[14px] font-bold text-[#1a1a1a] mb-1.5">{s.t}</div>
-                <div className="text-[12px] text-[rgba(0,0,0,0.4)] leading-[1.65]">{s.d}</div>
+                <div className="text-[14px] font-bold text-[#1a1a1a] mb-1.5">{s.title}</div>
+                <div className="text-[12px] text-[rgba(0,0,0,0.4)] leading-[1.65]">{s.description}</div>
               </div>
             </div>
           ))}
@@ -382,21 +270,21 @@ function StartPage({ onStart }: { onStart: () => void }) {
         {/* CTA */}
         <div className="bg-[#03346E] rounded-[16px] px-8 py-7 flex items-center justify-between gap-6">
           <div>
-            <div className="text-white font-bold text-[18px] mb-1.5">准备好了吗？</div>
-            <div className="text-white/50 text-[13px]">面试只有一次机会，练习可以无数次。</div>
+            <div className="text-white font-bold text-[18px] mb-1.5">{copy.start.readyTitle}</div>
+            <div className="text-white/50 text-[13px]">{copy.start.readyDescription}</div>
           </div>
           <button onClick={onStart} className="bg-white text-[#03346E] text-[13px] font-bold px-7 py-3 rounded-full whitespace-nowrap hover:bg-blue-50 transition-colors shadow-md">
-            立即开始 →
+            {copy.start.readyButton}
           </button>
         </div>
       </div>
 
       <footer className="border-t border-[#efefef] bg-white px-6 py-2 flex justify-between items-center">
         <div className="flex gap-4">
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />系统正常</span>
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
+          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />{copy.start.systemNormal}</span>
+          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />{copy.start.engineRunning}</span>
         </div>
-        <span className="text-[10px] text-[#989898]">B1/B2 旅游签证</span>
+        <span className="text-[10px] text-[#989898]">{copy.start.footerLabel}</span>
       </footer>
     </div>
   );
@@ -404,23 +292,16 @@ function StartPage({ onStart }: { onStart: () => void }) {
 
 // ─── Checklist Page ──────────────────────────────────────────────────────────
 
-const CHECKLIST_ITEMS = [
-  { label: "护照（有效期 6 个月以上）", desc: "确保护照在签证有效期内不会过期" },
-  { label: "DS-160 非移民签证申请表", desc: "已在线填写并打印确认页" },
-  { label: "面试预约确认函", desc: "大使馆或领事馆出具的预约确认文件" },
-  { label: "近期白底彩色证件照", desc: "符合美国签证照片要求（5×5cm）" },
-  { label: "银行流水 / 资金证明", desc: "近 3–6 个月的存款或收入证明" },
-  { label: "在职证明 / 营业执照", desc: "证明您在国内有稳定的工作或业务" },
-];
-
 function ChecklistPage({
+  copy,
   onConfirm,
   onBack,
 }: {
+  copy: InterviewCopy;
   onConfirm: () => void;
   onBack: () => void;
 }) {
-  const [checked, setChecked] = useState<boolean[]>(CHECKLIST_ITEMS.map(() => false));
+  const [checked, setChecked] = useState<boolean[]>(copy.checklist.items.map(() => false));
   const allChecked = checked.every(Boolean);
 
   function toggle(i: number) {
@@ -431,7 +312,7 @@ function ChecklistPage({
     <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">← 返回</button>
+        <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">{copy.checklist.back}</button>
       </nav>
 
       <main className="flex-1 px-5 py-10 sm:py-14">
@@ -439,16 +320,16 @@ function ChecklistPage({
           <div className="mb-7">
             <div className="flex items-center gap-2 text-[11px] font-semibold text-[#537295] mb-3">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">1</span>
-              <span>面试准备</span>
+              <span>{copy.checklist.stepOne}</span>
               <span className="h-px flex-1 bg-[#d8e1ec]" />
-              <span className="text-[#9aa8b8]">2 选择面试官</span>
+              <span className="text-[#9aa8b8]">{copy.checklist.stepTwo}</span>
             </div>
-            <h1 className="text-[28px] font-bold text-[#10253f]">确认随身材料</h1>
-            <p className="mt-2 text-[13px] text-[#6b7b8f]">勾选你会带去领事馆的文件。这里只做准备确认，不需要填写个人档案。</p>
+            <h1 className="text-[28px] font-bold text-[#10253f]">{copy.checklist.title}</h1>
+            <p className="mt-2 text-[13px] text-[#6b7b8f]">{copy.checklist.description}</p>
           </div>
 
           <div className="overflow-hidden rounded-lg border border-[#dfe6ef] bg-white shadow-[0_10px_30px_rgba(20,45,75,0.06)]">
-            {CHECKLIST_ITEMS.map((item, i) => (
+            {copy.checklist.items.map((item, i) => (
               <button
                 key={item.label}
                 onClick={() => toggle(i)}
@@ -459,21 +340,21 @@ function ChecklistPage({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className={`text-[14px] font-semibold ${checked[i] ? "text-[#176b4f]" : "text-[#22364e]"}`}>{item.label}</div>
-                  <div className="mt-1 text-[11px] text-[#8190a1]">{item.desc}</div>
+                  <div className="mt-1 text-[11px] text-[#8190a1]">{item.description}</div>
                 </div>
-                <span className={`hidden sm:block text-[11px] font-medium ${checked[i] ? "text-[#16865c]" : "text-[#a4afbc]"}`}>{checked[i] ? "已确认" : "待确认"}</span>
+                <span className={`hidden sm:block text-[11px] font-medium ${checked[i] ? "text-[#16865c]" : "text-[#a4afbc]"}`}>{checked[i] ? copy.checklist.checked : copy.checklist.pending}</span>
               </button>
             ))}
           </div>
 
           <div className="mt-5 flex items-center justify-between gap-4">
-            <span className="text-[12px] text-[#6f7f91]">已确认 {checked.filter(Boolean).length} / {CHECKLIST_ITEMS.length} 项</span>
+            <span className="text-[12px] text-[#6f7f91]">{copy.checklist.checkedCount} {checked.filter(Boolean).length} / {copy.checklist.items.length}</span>
             <button
               onClick={onConfirm}
               disabled={!allChecked}
               className="min-w-[190px] rounded-md bg-[#03346E] px-6 py-3 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#022b5c] disabled:cursor-not-allowed disabled:bg-[#cbd4df]"
             >
-              下一步：选择面试官
+              {copy.checklist.nextButton}
             </button>
           </div>
         </div>
@@ -482,9 +363,11 @@ function ChecklistPage({
   );
 }
 
-function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
+function OfficerSelectionPage({ copy, officers, officer, onChange, onConfirm, onBack }: {
+  copy: InterviewCopy;
+  officers: OfficerProfile[];
   officer: OfficerProfile;
-  onChange: (officer: OfficerProfile) => void;
+  onChange: (officerId: OfficerId) => void;
   onConfirm: () => void;
   onBack: () => void;
 }) {
@@ -492,7 +375,7 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
     <div className="min-h-screen bg-[#f4f7fb] flex flex-col">
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
-        <button onClick={onBack} className="text-white/65 text-[12px] hover:text-white">← 返回材料确认</button>
+        <button onClick={onBack} className="text-white/65 text-[12px] hover:text-white">{copy.officer.back}</button>
       </nav>
       <main className="flex-1 px-5 py-10 sm:py-14">
         <div className="mx-auto max-w-[1180px]">
@@ -500,25 +383,25 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
             <div>
               <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[#537295]">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#e2e9f2] text-[#537295]">✓</span>
-                <span>材料已确认</span><span className="h-px w-12 bg-[#cfd9e5]" />
+                <span>{copy.officer.materialsConfirmed}</span><span className="h-px w-12 bg-[#cfd9e5]" />
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#03346E] text-white">2</span>
-                <span>选择面试官</span>
+                <span>{copy.checklist.stepTwo.replace(/^2\s*/, "")}</span>
               </div>
-              <h1 className="text-[30px] font-bold text-[#10253f]">你想和谁练习？</h1>
-              <p className="mt-2 text-[13px] text-[#6b7b8f]">每位面试官拥有不同节奏和追问习惯，报告使用同一套标准。</p>
+              <h1 className="text-[30px] font-bold text-[#10253f]">{copy.officer.title}</h1>
+              <p className="mt-2 text-[13px] text-[#6b7b8f]">{copy.officer.description}</p>
             </div>
             <div className="rounded-md border border-[#d7e0ea] bg-white px-4 py-3 text-[12px] text-[#536579]">
-              当前选择：<span className="font-bold text-[#123a68]">{officer.name} · {officer.title}</span>
+              {copy.officer.currentSelection}<span className="font-bold text-[#123a68]">{officer.name} · {officer.title}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {OFFICERS.map((item) => {
+            {officers.map((item) => {
               const selected = item.id === officer.id;
               return (
-                <button key={item.id} onClick={() => onChange(item)} className={`group overflow-hidden rounded-lg border bg-white text-left transition-all ${selected ? "border-[#185FA5] shadow-[0_12px_28px_rgba(24,95,165,0.18)] ring-2 ring-[#185FA5]/20" : "border-[#dfe6ee] shadow-[0_6px_18px_rgba(20,45,75,0.06)] hover:-translate-y-1 hover:border-[#91a9c4]"}`}>
+                <button key={item.id} onClick={() => onChange(item.id)} className={`group overflow-hidden rounded-lg border bg-white text-left transition-all ${selected ? "border-[#185FA5] shadow-[0_12px_28px_rgba(24,95,165,0.18)] ring-2 ring-[#185FA5]/20" : "border-[#dfe6ee] shadow-[0_6px_18px_rgba(20,45,75,0.06)] hover:-translate-y-1 hover:border-[#91a9c4]"}`}>
                   <div className="relative aspect-[4/5] overflow-hidden bg-[#dfe7f0]">
-                    <img src={item.image} alt={`${item.name} 面试官`} className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]" />
+                    <img src={item.image} alt={`${item.name} ${copy.officer.interviewerSuffix}`} className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]" />
                     <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#071b31]/85 to-transparent" />
                     <span className="absolute bottom-3 left-3 rounded-[4px] bg-white/92 px-2 py-1 text-[10px] font-bold text-[#143e6c]">{item.title}</span>
                     {selected && <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#16865c] text-[13px] font-bold text-white">✓</span>}
@@ -527,9 +410,9 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
                     <h2 className="text-[17px] font-bold text-[#172b43]">{item.name}</h2>
                     <p className="mt-1.5 min-h-[36px] text-[11px] leading-[1.6] text-[#718195]">{item.description}</p>
                     <div className="mt-3 flex items-center justify-between border-t border-[#edf1f5] pt-3 text-[10px]">
-                      <span className="text-[#8b98a7]">压力</span><span className="font-semibold text-[#3c5f83]">{item.pressure}</span>
+                      <span className="text-[#8b98a7]">{copy.officer.pressure}</span><span className="font-semibold text-[#3c5f83]">{item.pressure}</span>
                     </div>
-                    {item.id === "obama" && <p className="mt-2 text-[9px] text-[#8a5a13]">AI 模拟形象，非本人或官方内容</p>}
+                    {item.id === "obama" && <p className="mt-2 text-[9px] text-[#8a5a13]">{copy.officer.simulationNotice}</p>}
                   </div>
                 </button>
               );
@@ -541,7 +424,7 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
               <p className="text-[13px] font-bold text-[#21364e]">{officer.name} · {officer.title}</p>
               <p className="mt-1 text-[11px] text-[#718195]">{officer.style}</p>
             </div>
-            <button onClick={onConfirm} className="w-full rounded-md bg-[#03346E] px-7 py-3 text-[13px] font-bold text-white hover:bg-[#022b5c] sm:w-auto">开始模拟面试</button>
+            <button onClick={onConfirm} className="w-full rounded-md bg-[#03346E] px-7 py-3 text-[13px] font-bold text-white hover:bg-[#022b5c] sm:w-auto">{copy.officer.startButton}</button>
           </div>
         </div>
       </main>
@@ -552,9 +435,11 @@ function OfficerSelectionPage({ officer, onChange, onConfirm, onBack }: {
 // ─── Interview Page ───────────────────────────────────────────────────────────
 
 function InterviewPage({
-  messages, isStreaming, isSpeaking, isMuted, input, interviewDone,
+  copy, locale, messages, isStreaming, isSpeaking, isMuted, input, interviewDone,
   officer, avatarStream, avatarStatus, onInputChange, onSend, onEnd, onAbandon, onToggleMute, onStartListening,
 }: {
+  copy: InterviewCopy;
+  locale: InterfaceLocale;
   messages: Message[]; isStreaming: boolean; isSpeaking: boolean; isMuted: boolean;
   input: string; interviewDone: boolean;
   officer: OfficerProfile;
@@ -671,7 +556,7 @@ function InterviewPage({
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const recognition = new SR();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    recognition.lang = "zh-CN";
+    recognition.lang = locale === "zh" ? "zh-CN" : "en-US";
     // continuous:true = recognition runs until explicitly stopped; no mid-sentence gaps
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     recognition.continuous = true;
@@ -730,7 +615,7 @@ function InterviewPage({
   function toggleListening() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("您的浏览器不支持语音识别，请使用 Chrome 或 Edge。"); return; }
+    if (!SR) { alert(copy.interview.unsupportedSpeechRecognition); return; }
     if (isListeningRef.current) {
       // User clicked again — stop and auto-send
       isListeningRef.current = false;
@@ -760,13 +645,13 @@ function InterviewPage({
         <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
         <div className="flex items-center gap-1.5 bg-white/12 border border-white/20 rounded-full px-3 py-1">
           <div className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_#4ade80]" />
-          <span className="text-white/90 text-[10px] font-medium">B1/B2 旅游签证 · 模拟进行中</span>
+          <span className="text-white/90 text-[10px] font-medium">{copy.interview.statusPill}</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onToggleMute} className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white/80 text-[10px] font-medium hover:bg-white/15 transition-colors">
-            {isMuted ? "🔇 已静音" : "🔊 朗读开启"}
+            {isMuted ? copy.interview.muted : copy.interview.readingEnabled}
           </button>
-          <button onClick={onAbandon} className="bg-red-500/20 border border-red-300/30 text-red-300 text-[10px] font-semibold px-3 py-1.5 rounded-full hover:bg-red-500/30 transition-colors">结束面试</button>
+          <button onClick={onAbandon} className="bg-red-500/20 border border-red-300/30 text-red-300 text-[10px] font-semibold px-3 py-1.5 rounded-full hover:bg-red-500/30 transition-colors">{copy.interview.endButton}</button>
         </div>
       </nav>
 
@@ -777,7 +662,7 @@ function InterviewPage({
           <div className="bg-white border border-[#efefef] rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             {/* Header row */}
             <div className="flex items-center justify-between mb-[14px]">
-              <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898]">实时分析</span>
+              <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898]">{copy.interview.realtimeAnalysis}</span>
               {isListening && (
                 <div className="flex items-center gap-1.5">
                   <div className="flex gap-[2px] items-end" style={{ height: 14 }}>
@@ -786,24 +671,24 @@ function InterviewPage({
                         style={{ height: h, animation: `wave-bar 0.55s ease-in-out ${i * 0.1}s infinite` }} />
                     ))}
                   </div>
-                  <span className="text-[11px] font-medium text-[#185FA5] tracking-[.06em]">AI 扫描中</span>
+                  <span className="text-[11px] font-medium text-[#185FA5] tracking-[.06em]">{copy.interview.aiScanning}</span>
                 </div>
               )}
             </div>
 
-            <MetricBar label="表达置信度" value={Math.round(metrics.confidence)} />
-            <MetricBar label="流利程度"   value={Math.round(metrics.fluency)} />
-            <MetricBar label="情绪检测"   value={Math.round(metrics.emotion)} />
+            <MetricBar label={copy.interview.metrics.confidence} value={Math.round(metrics.confidence)} />
+            <MetricBar label={copy.interview.metrics.fluency} value={Math.round(metrics.fluency)} />
+            <MetricBar label={copy.interview.metrics.emotion} value={Math.round(metrics.emotion)} />
 
             {/* 答题快评 — shown only after answer, not while listening */}
             {(() => {
               const lastAnswer = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
               if (!lastAnswer || isListening) return null;
-              const tags = getAnswerTags(lastAnswer);
+              const tags = getAnswerTags(lastAnswer, copy.interview.answerTags);
               if (tags.length === 0) return null;
               return (
                 <div className="mt-[14px] pt-[14px] border-t border-[#efefef]">
-                  <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898] block mb-[10px]">答题快评</span>
+                  <span className="text-[11px] font-medium uppercase tracking-[.08em] text-[#989898] block mb-[10px]">{copy.interview.quickReview}</span>
                   <div className="flex flex-col gap-[6px]">
                     {tags.map((tag, i) => (
                       <div key={i} className="flex items-center gap-1.5 text-[11px] font-medium px-2 py-[5px] rounded-lg border"
@@ -820,45 +705,19 @@ function InterviewPage({
             })()}
           </div>
           <div className="bg-white border border-[#efefef] rounded-xl p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898] mb-3">答题小贴士</p>
+            <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898] mb-3">{copy.interview.tipsTitle}</p>
             {(() => {
               const lastMsg = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
-              type Tip = { icon: string; text: string };
               // ordered from most-specific to least — prevents false matches on common words
-              const tips: Tip[] =
-                /费用|预算|资助|银行流水|资金证明/.test(lastMsg) ? [
-                  { icon: "💰", text: "建议提及具体金额和资金来源" },
-                  { icon: "📄", text: "如有银行流水或存款证明，主动说明" },
-                  { icon: "✅", text: "说清是自费还是家人资助" },
-                ] : /工作|公司|机构|收入|请假/.test(lastMsg) ? [
-                  { icon: "🏢", text: "说出具体公司名称和您的职位" },
-                  { icon: "📅", text: "提一句请假已经获批" },
-                  { icon: "💼", text: "稳定的工作是回国意愿的有力证明" },
-                ] : /家里|配偶|子女|牵挂|回国|回来/.test(lastMsg) ? [
-                  { icon: "👨‍👩‍👧", text: "提及具体家庭成员，越真实越有说服力" },
-                  { icon: "🏠", text: "说明回国后有明确的工作或生活安排" },
-                  { icon: "🔗", text: "具体的责任牵挂比泛泛而谈更有效" },
-                ] : /多长时间|多久|回程|机票|停留/.test(lastMsg) ? [
-                  { icon: "✈️", text: "给出明确天数，例如：打算待三周" },
-                  { icon: "🎫", text: "已订好回程机票的话，主动提出来" },
-                  { icon: "⏱️", text: "停留时间要和旅行目的匹配" },
-                ] : /酒店|朋友家|住宿|预订|住哪/.test(lastMsg) ? [
-                  { icon: "🏨", text: "说出具体住宿区域或酒店名称" },
-                  { icon: "📋", text: "有预订记录会大大增加可信度" },
-                  { icon: "📍", text: "住宿地点最好与行程城市一致" },
-                ] : /城市|跟团|路线|待几天/.test(lastMsg) ? [
-                  { icon: "🗺️", text: "列出具体城市，说明大概路线" },
-                  { icon: "📅", text: "说明每个地方大概待几天" },
-                  { icon: "🎯", text: "有主题的行程更有说服力，例如文化游" },
-                ] : /打算|旅游|旅行|目的|规划|做什么|时间/.test(lastMsg) ? [
-                  { icon: "🎯", text: "说清楚旅行的主要目的，越具体越好" },
-                  { icon: "📋", text: "提前做过规划会显得更有备而来" },
-                  { icon: "💬", text: "避免只说【就是去玩】，给出真实细节" },
-                ] : [
-                  { icon: "💬", text: "回答要简洁直接，不要绕弯子" },
-                  { icon: "👁️", text: "保持自然，不要背稿子" },
-                  { icon: "📌", text: "回答要与您的签证材料保持一致" },
-                ];
+              const tips =
+                /费用|预算|资助|银行流水|资金证明|fund|budget|bank|savings|pay/i.test(lastMsg) ? copy.interview.tips.funding
+                : /工作|公司|机构|收入|请假|work|company|organization|income|leave|job/i.test(lastMsg) ? copy.interview.tips.work
+                : /家里|配偶|子女|牵挂|回国|回来|family|spouse|children|home|return/i.test(lastMsg) ? copy.interview.tips.ties
+                : /多长时间|多久|回程|机票|停留|how long|return|flight|ticket|stay/i.test(lastMsg) ? copy.interview.tips.time
+                : /酒店|朋友家|住宿|预订|住哪|hotel|lodging|reservation|stay/i.test(lastMsg) ? copy.interview.tips.lodging
+                : /城市|跟团|路线|待几天|city|cities|route|itinerary|days/i.test(lastMsg) ? copy.interview.tips.cities
+                : /打算|旅游|旅行|目的|规划|做什么|时间|plan|travel|trip|purpose|doing|time/i.test(lastMsg) ? copy.interview.tips.purpose
+                : copy.interview.tips.general;
               return tips.map((tip) => (
                 <div key={tip.text} className="flex items-start gap-2.5 mb-2.5">
                   <span className="text-[14px] flex-shrink-0 mt-0.5">{tip.icon}</span>
@@ -877,7 +736,7 @@ function InterviewPage({
               {!imgLoaded && !imgError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <div className="w-8 h-8 border-[3px] border-white/20 border-t-white/80 rounded-full animate-spin" />
-                  <span className="text-white/60 text-[11px] font-medium">加载中…</span>
+                  <span className="text-white/60 text-[11px] font-medium">{copy.interview.loading}</span>
                 </div>
               )}
               {imgError && (
@@ -887,7 +746,7 @@ function InterviewPage({
                     <rect x="10" y="52" width="52" height="36" rx="26" fill="rgba(255,255,255,0.14)" />
                     <ellipse cx="36" cy="26" rx="12" ry="14" fill="rgba(255,255,255,0.28)" />
                   </svg>
-                  <span className="text-white/40 text-[10px]">CONSULAR OFFICER</span>
+                  <span className="text-white/40 text-[10px]">{copy.interview.consularOfficer}</span>
                 </div>
               )}
             </div>
@@ -903,7 +762,7 @@ function InterviewPage({
             ) : !imgError && (
               <img
                 src={officer.image}
-                alt="Consular Officer"
+                alt={copy.interview.consularOfficer}
                 className="absolute inset-0 w-full h-full object-contain object-bottom"
                 style={{
                   opacity: imgLoaded ? 1 : 0,
@@ -920,7 +779,7 @@ function InterviewPage({
                 {[8, 14, 20, 12, 18, 9, 15].map((height, index) => (
                   <span key={index} className="w-[3px] rounded-full bg-white" style={{ height, animation: `wave-bar .55s ease-in-out ${index * .08}s infinite` }} />
                 ))}
-                <span className="ml-1 text-[9px] font-semibold text-white/85">语音动画</span>
+                <span className="ml-1 text-[9px] font-semibold text-white/85">{copy.interview.avatarAnimation}</span>
               </div>
             )}
             <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(3,52,110,0.9) 100%)" }} />
@@ -932,11 +791,11 @@ function InterviewPage({
               <div className="flex items-center gap-1.5 bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
                 <div className="w-[7px] h-[7px] rounded-full bg-red-500" style={{ boxShadow: "0 0 5px #ef4444", animation: "live-blink 1s infinite" }} />
                 <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">
-                  {avatarStatus === "connected" ? `LIVE: OFFICER ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? "CONNECTING OFFICER" : `OFFICER ${officer.name.toUpperCase()}`}
+                  {avatarStatus === "connected" ? `LIVE: ${copy.interview.officerLabel.toUpperCase()} ${officer.name.toUpperCase()}` : avatarStatus === "connecting" ? `${copy.interview.connectingStatus} ${officer.name}` : `${copy.interview.officerLabel.toUpperCase()} ${officer.name.toUpperCase()}`}
                 </span>
               </div>
               <div className="flex items-center bg-white/92 border border-[rgba(3,52,110,0.18)] rounded-[4px] px-2.5 py-1 shadow-sm">
-                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">PROTOCOL: B1/B2</span>
+                <span className="text-[9px] font-bold text-[#03346E] tracking-[.08em] font-mono">{copy.start.protocol}</span>
               </div>
             </div>
 
@@ -951,9 +810,9 @@ function InterviewPage({
 
             {/* Question + progress */}
             <div className="absolute bottom-0 left-0 right-0 p-4 z-10" style={{ paddingRight: 120 }}>
-              <p className="text-[9px] font-bold text-white/55 tracking-[.12em] uppercase mb-1.5 font-mono">Current Question</p>
+              <p className="text-[9px] font-bold text-white/55 tracking-[.12em] uppercase mb-1.5 font-mono">{copy.interview.currentQuestion}</p>
               <p className="text-[18px] font-extrabold text-white leading-[1.35] tracking-tight">
-                {messages.length === 0 ? "面试即将开始…" : (lastOfficerMsg?.content ?? "")}
+                {messages.length === 0 ? copy.interview.starting : (lastOfficerMsg?.content ?? "")}
               </p>
             </div>
 
@@ -963,7 +822,8 @@ function InterviewPage({
                 {/* Mic button */}
                 <button
                   onClick={toggleListening}
-                  title={isListening ? "停止录音" : "开始说话"}
+                  title={isListening ? copy.interview.stopRecording : copy.interview.startSpeaking}
+                  aria-label={isListening ? copy.interview.stopRecording : copy.interview.startSpeaking}
                   style={{
                     width: 52, height: 52,
                     borderRadius: 14,
@@ -986,7 +846,8 @@ function InterviewPage({
                 {/* End call button */}
                 <button
                   onClick={onAbandon}
-                  title="结束面试"
+                  title={copy.interview.endButton}
+                  aria-label={copy.interview.endButton}
                   style={{
                     width: 52, height: 52,
                     borderRadius: 14,
@@ -1010,13 +871,13 @@ function InterviewPage({
           {isStreaming && (
             <div className="bg-[#EEF3FA] border border-[#D4E0F0] rounded-xl px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
               {[0, 0.15, 0.3].map((d, i) => <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#03346E] animate-bounce" style={{ animationDelay: `${d}s` }} />)}
-              <span className="text-[11px] text-[#03346E] font-medium">官员正在回应…</span>
+              <span className="text-[11px] text-[#03346E] font-medium">{copy.interview.responding}</span>
             </div>
           )}
 
           {interviewDone && (
             <button onClick={onEnd} className="bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors flex-shrink-0">
-              查看面试报告 →
+              {copy.interview.viewReport}
             </button>
           )}
 
@@ -1024,7 +885,7 @@ function InterviewPage({
           {isListening && (
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 flex-shrink-0">
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-[11px] text-blue-600 font-medium">录音中，请说话…点击麦克风停止</span>
+              <span className="text-[11px] text-blue-600 font-medium">{copy.interview.recordingStatus}</span>
             </div>
           )}
         </div>
@@ -1033,11 +894,11 @@ function InterviewPage({
         <div className="bg-white border border-[#efefef] rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col min-h-0">
           <div className="px-4 py-3 border-b border-[#efefef] flex items-center justify-between flex-shrink-0">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898]">面试记录</p>
-              <p className="text-[11px] text-[rgba(0,0,0,0.42)] mt-0.5">文字和语音回答都会保留</p>
+              <p className="text-[10px] font-bold uppercase tracking-[.07em] text-[#989898]">{copy.interview.transcriptTitle}</p>
+              <p className="text-[11px] text-[rgba(0,0,0,0.42)] mt-0.5">{copy.interview.transcriptDescription}</p>
             </div>
             <span className="text-[10px] font-semibold text-[#3D6DAD] bg-[#EEF3FA] rounded-full px-2 py-1">
-              {messages.filter((m) => m.role === "user").length} 答
+              {messages.filter((m) => m.role === "user").length} {copy.interview.answerCountSuffix}
             </span>
           </div>
 
@@ -1045,7 +906,7 @@ function InterviewPage({
             {messages.length === 0 ? (
               <div className="h-full flex items-center justify-center text-center px-5">
                 <p className="text-[12px] text-[rgba(0,0,0,0.38)] leading-relaxed">
-                  面试开始后，问题和你的回答会显示在这里。
+                  {copy.interview.transcriptEmpty}
                 </p>
               </div>
             ) : messages.map((message, i) => (
@@ -1058,7 +919,7 @@ function InterviewPage({
                 }`}
               >
                 <div className={`text-[9px] font-semibold uppercase tracking-[.08em] mb-1 ${message.role === "assistant" ? "text-[#718096]" : "text-white/55"}`}>
-                  {message.role === "assistant" ? "Officer" : "You"}
+                  {message.role === "assistant" ? copy.interview.officerLabel : copy.interview.applicantLabel}
                 </div>
                 {message.content || "…"}
               </div>
@@ -1073,20 +934,21 @@ function InterviewPage({
                 onChange={(event) => onInputChange(event.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isStreaming || isListening}
-                placeholder={isListening ? "正在听你说话…" : "输入回答，Enter 发送，Shift+Enter 换行"}
+                placeholder={isListening ? copy.interview.listeningPlaceholder : copy.interview.answerPlaceholder}
                 className="w-full min-h-[96px] resize-none rounded-xl border border-[#dfe7f1] bg-[#fbfcfe] px-3 py-2.5 text-[13px] leading-relaxed text-[#1a1a1a] outline-none transition-colors placeholder:text-[#a8b0bd] focus:border-[#3D6DAD] focus:bg-white disabled:bg-[#f5f7fa]"
               />
               <div className="flex items-center justify-between gap-2 mt-2">
                 <button
                   onClick={toggleListening}
                   type="button"
+                  aria-label={isListening ? copy.interview.stopAndSend : copy.interview.voiceAnswer}
                   className={`text-[11px] font-semibold px-3 py-2 rounded-full border transition-colors ${
                     isListening
                       ? "bg-blue-50 border-blue-200 text-blue-700"
                       : "bg-white border-[#dfe7f1] text-[#3D6DAD] hover:bg-[#EEF3FA]"
                   }`}
                 >
-                  {isListening ? "停止录音并发送" : "语音回答"}
+                  {isListening ? copy.interview.stopAndSend : copy.interview.voiceAnswer}
                 </button>
                 <button
                   onClick={() => onSend()}
@@ -1094,14 +956,14 @@ function InterviewPage({
                   type="button"
                   className="bg-[#03346E] text-white text-[12px] font-bold px-4 py-2 rounded-full disabled:bg-[#d4dae4] disabled:text-white/80 hover:bg-[#022B5C] transition-colors"
                 >
-                  发送回答
+                  {copy.interview.sendAnswer}
                 </button>
               </div>
             </div>
           ) : (
             <div className="border-t border-[#efefef] p-3 flex-shrink-0">
               <button onClick={onEnd} className="w-full bg-[#03346E] text-white font-bold text-[13px] py-3 rounded-xl hover:bg-[#022B5C] transition-colors">
-                查看面试报告 →
+                {copy.interview.viewReport}
               </button>
             </div>
           )}
@@ -1112,11 +974,11 @@ function InterviewPage({
         <div className="flex gap-4">
           <span className="text-[10px] text-[#989898] flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full inline-block ${avatarStatus === "connected" ? "bg-green-500" : avatarStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-[#9aa7b8]"}`} />
-            {avatarStatus === "connected" ? "实时数字人已连接" : avatarStatus === "connecting" ? "正在连接数字人" : "语音动画模式"}
+            {avatarStatus === "connected" ? copy.interview.connectedStatus : avatarStatus === "connecting" ? copy.interview.connectingStatus : copy.interview.fallbackStatus}
           </span>
-          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />AI 引擎运行中</span>
+          <span className="text-[10px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />{copy.interview.engineRunning}</span>
         </div>
-        <span className="text-[10px] text-[#989898]">B1/B2 签证模拟</span>
+        <span className="text-[10px] text-[#989898]">{copy.interview.footerLabel}</span>
       </footer>
     </div>
   );
@@ -1124,7 +986,7 @@ function InterviewPage({
 
 // ─── Report Page ──────────────────────────────────────────────────────────────
 
-function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () => void }) {
+function ReportPage({ copy, report, onRetry }: { copy: InterviewCopy; report: InterviewReport; onRetry: () => void }) {
   const passLikelihoodColor = report.passLikelihood === "高"
     ? { dot: "#4ADE80", bg: "#15803D", text: "#BBF7D0" }
     : report.passLikelihood === "中"
@@ -1134,11 +996,17 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
   const scoreCircumference = 2 * Math.PI * 38;
   const scoreDash = scoreCircumference * (report.overallScore / 100);
 
+  const passLabel = report.passLikelihood === "高"
+    ? copy.report.passLikelihood.high
+    : report.passLikelihood === "中"
+    ? copy.report.passLikelihood.medium
+    : copy.report.passLikelihood.low;
+
   const dims = [
-    { label: "清晰度", value: report.dimensions.clarity },
-    { label: "置信度", value: report.dimensions.confidence },
-    { label: "一致性", value: report.dimensions.consistency, danger: report.dimensions.consistency < 75 },
-    { label: "叙述对齐", value: report.dimensions.narrativeAlignment },
+    { label: copy.report.dimensions.clarity, value: report.dimensions.clarity },
+    { label: copy.report.dimensions.confidence, value: report.dimensions.confidence },
+    { label: copy.report.dimensions.consistency, value: report.dimensions.consistency, danger: report.dimensions.consistency < 75 },
+    { label: copy.report.dimensions.narrativeAlignment, value: report.dimensions.narrativeAlignment },
   ];
 
   return (
@@ -1148,7 +1016,7 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
         {/* nav */}
         <div className="flex items-center justify-between mb-7">
           <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-4 w-auto" />
-          <span className="text-[rgba(255,255,255,0.45)] text-[12px]">B1/B2 签证模拟面试</span>
+          <span className="text-[rgba(255,255,255,0.45)] text-[12px]">{copy.report.title}</span>
         </div>
         {/* hero body */}
         <div className="flex items-center gap-8 flex-wrap">
@@ -1162,15 +1030,15 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
           </svg>
           {/* verdict */}
           <div className="flex-shrink-0">
-            <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">综合评分</div>
+            <div className="text-[rgba(255,255,255,0.5)] text-[11px] tracking-[1px] mb-2">{copy.report.overallScore}</div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-1.5 rounded-full"
                 style={{ background: passLikelihoodColor.bg, color: passLikelihoodColor.text }}>
                 <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: passLikelihoodColor.dot }} />
-                通过概率：{report.passLikelihood}
+                {copy.report.passProbability} {passLabel}
               </span>
             </div>
-            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">共完成 {report.questionAnalysis.length} 道问题 · 7 个模块</div>
+            <div className="text-[rgba(255,255,255,0.35)] text-[11px] mt-2">{copy.report.completed} {report.questionAnalysis.length} · 7 {copy.report.modules}</div>
           </div>
           {/* divider */}
           <div className="w-px self-stretch bg-[rgba(255,255,255,0.12)] flex-shrink-0 hidden sm:block" style={{ minHeight: 64 }} />
@@ -1187,7 +1055,7 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
           <div className="ml-auto">
             <button onClick={onRetry}
               className="flex items-center gap-1.5 text-[12px] text-white border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] transition-colors px-5 py-2 rounded-full">
-              ↺ 重新模拟
+              {copy.report.retry}
             </button>
           </div>
         </div>
@@ -1199,7 +1067,7 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
         <div className="flex flex-col gap-4">
           {/* Dimensions */}
           <div className="bg-white border border-[#e8e8e8] rounded-xl p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">能力维度</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">{copy.report.dimensionsTitle}</p>
             <div className="flex flex-col gap-3">
               {dims.map((d) => (
                 <div key={d.label} className="flex items-center gap-3">
@@ -1215,15 +1083,15 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
 
           {/* AI Insights */}
           <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">AI 洞察</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4">{copy.report.insightsTitle}</p>
             <div className="mb-4">
-              <div className="text-[11px] font-semibold text-green-700 mb-2.5">✓ 关键优势</div>
+              <div className="text-[11px] font-semibold text-green-700 mb-2.5">{copy.report.strengthsTitle}</div>
               {report.strengths.map((s, i) => (
                 <div key={i} className="border-l-[2.5px] border-green-600 rounded-[0_6px_6px_0] bg-green-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{s}</div>
               ))}
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-red-600 mb-2.5">! 需要改进</div>
+              <div className="text-[11px] font-semibold text-red-600 mb-2.5">{copy.report.improvementsTitle}</div>
               {report.improvements.map((imp, i) => (
                 <div key={i} className="border-l-[2.5px] border-red-500 rounded-[0_6px_6px_0] bg-red-50 px-3 py-2.5 mb-2 text-[12px] text-[#3d3d3d] leading-relaxed">{imp}</div>
               ))}
@@ -1233,7 +1101,7 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
 
         {/* Right col — question analysis */}
         <div className="bg-white border border-[#e8e8e8] rounded-xl p-5 flex flex-col min-h-0" style={{ maxHeight: 580 }}>
-          <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">逐题分析</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[1px] text-[#989898] mb-4 flex-shrink-0">{copy.report.analysisTitle}</p>
           <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#D4E0F0 transparent" }}>
             {report.questionAnalysis.map((qa, i) => {
               const badgeClass = qa.flag === "strong"
@@ -1241,16 +1109,21 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
                 : qa.flag === "weak"
                 ? "bg-red-100 text-red-700"
                 : "bg-[#f0f0f0] text-[#888]";
+              const flagLabel = qa.flag === "strong"
+                ? copy.report.flagLabels.strong
+                : qa.flag === "weak"
+                ? copy.report.flagLabels.weak
+                : copy.report.flagLabels.neutral;
               return (
                 <div key={i} className="bg-[#f7f8fa] border border-[#efefef] rounded-xl p-3.5">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[11px] text-[#3D6DAD]">{qa.timestamp} · {qa.topic}</span>
-                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>{qa.flagLabel}</span>
+                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>{flagLabel}</span>
                   </div>
                   <p className="text-[12px] text-[#999] italic mb-1.5">「{qa.question}」</p>
                   <p className="text-[12px] text-[#3d3d3d] leading-relaxed mb-2">{qa.answer}</p>
-                  <div className="bg-white border border-[#efefef] rounded px-2.5 py-2 text-[11px] text-[rgba(0,0,0,0.45)] leading-relaxed italic">
-                    分析：{qa.note}
+                    <div className="bg-white border border-[#efefef] rounded px-2.5 py-2 text-[11px] text-[rgba(0,0,0,0.45)] leading-relaxed italic">
+                    {copy.report.analysisPrefix} {qa.note}
                   </div>
                 </div>
               );
@@ -1261,10 +1134,10 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
 
       <footer className="border-t border-[#e8e8e8] bg-white px-6 py-2 flex justify-between items-center">
         <div className="flex gap-4">
-          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />系统正常</span>
-          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />报告已生成</span>
+          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />{copy.report.systemNormal}</span>
+          <span className="text-[11px] text-[#989898] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#3D6DAD] inline-block" />{copy.report.reportGenerated}</span>
         </div>
-        <span className="text-[11px] text-[#989898]">B1/B2 签证模拟</span>
+        <span className="text-[11px] text-[#989898]">{copy.report.footerLabel}</span>
       </footer>
     </div>
   );
@@ -1272,12 +1145,12 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 
-function LoadingReport() {
+function LoadingReport({ copy }: { copy: InterviewCopy }) {
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center gap-4">
       <div className="w-12 h-12 border-4 border-[#EEF3FA] border-t-[#03346E] rounded-full animate-spin" />
-      <p className="text-[14px] font-medium text-[#3d3d3d]">正在生成面试报告…</p>
-      <p className="text-[12px] text-[rgba(0,0,0,0.45)]">AI 正在分析您的回答，请稍候</p>
+      <p className="text-[14px] font-medium text-[#3d3d3d]">{copy.loadingReport.title}</p>
+      <p className="text-[12px] text-[rgba(0,0,0,0.45)]">{copy.loadingReport.description}</p>
     </div>
   );
 }
@@ -1285,9 +1158,13 @@ function LoadingReport() {
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function InterviewPracticePage() {
+  const locale = normalizeInterfaceLocale(useLocale());
+  const copy = getInterviewCopy(locale);
   const [pageState, setPageState] = useState<PageState>("start");
   const profile = DEFAULT_PROFILE;
-  const [officer, setOfficer] = useState<OfficerProfile>(OFFICERS[0]);
+  const [officerId, setOfficerId] = useState<OfficerId>("miller");
+  const officer = getOfficerProfile(officerId, locale);
+  const officers = OFFICER_IDS.map((id) => getOfficerProfile(id, locale));
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -1298,7 +1175,7 @@ export default function InterviewPracticePage() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [followUpCounts, setFollowUpCounts] = useState<Record<number, number>>({});
   const [interviewCompleted, setInterviewCompleted] = useState(false);
-  const interviewPlan = buildInterviewPlan(profile);
+  const interviewPlan = buildInterviewPlan(profile, locale);
   const interviewDone = interviewCompleted;
   const {
     status: avatarStatus,
@@ -1327,15 +1204,18 @@ export default function InterviewPracticePage() {
   const speakText = useCallback((text: string) => {
     if (isMutedRef.current || typeof window === "undefined") return;
     const fallback = () => {
-      if (!window.speechSynthesis) return;
+      if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") return;
       window.speechSynthesis.cancel();
       const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = "zh-CN"; utt.rate = officer.speechRate; utt.pitch = 0.95;
+      utt.lang = locale === "zh" ? "zh-CN" : "en-US";
+      utt.rate = officer.speechRate;
+      utt.pitch = 0.95;
       const voices = window.speechSynthesis.getVoices();
       const matchingVoice = voices.find((voice) => {
-        const chinese = voice.lang.toLowerCase().startsWith("zh");
-        if (!chinese) return false;
-        const likelyFemale = /xiaoxiao|xiaoyi|tingting|meijia|female|女/i.test(voice.name);
+        const isChinese = voice.lang.toLowerCase().startsWith("zh");
+        const isEnglish = voice.lang.toLowerCase().startsWith("en");
+        if (locale === "zh" ? !isChinese : !isEnglish) return false;
+        const likelyFemale = /xiaoxiao|xiaoyi|tingting|meijia|aria|jenny|samantha|female|女/i.test(voice.name);
         return officer.voiceGender === "female" ? likelyFemale : !likelyFemale;
       });
       if (matchingVoice) utt.voice = matchingVoice;
@@ -1349,7 +1229,14 @@ export default function InterviewPracticePage() {
     } else {
       fallback();
     }
-  }, [avatarStatus, speakThroughAvatar, officer.speechRate]);
+  }, [avatarStatus, locale, officer.speechRate, officer.voiceGender, speakThroughAvatar]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.speechSynthesis?.cancel();
+    void interruptAvatar();
+    setIsSpeaking(false);
+  }, [interruptAvatar, locale, officer.voice]);
 
   useEffect(() => {
     if (pageState === "interview") void connectAvatar();
@@ -1370,7 +1257,7 @@ export default function InterviewPracticePage() {
       setQuestionIndex(0);
       setInterviewCompleted(false);
       setFollowUpCounts({});
-      setTimeout(() => addOfficerMessage(interviewPlan[0]?.question ?? QUESTIONS[0]), 300);
+      setTimeout(() => addOfficerMessage(interviewPlan[0]?.question ?? copy.plan.fallbackQuestions[0]), 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageState]);
@@ -1408,15 +1295,15 @@ export default function InterviewPracticePage() {
       } else {
         setQuestionIndex(interviewPlan.length);
         setInterviewCompleted(true);
-        directive = { question: ENDING_MESSAGE, topic: "结束", shouldEnd: true };
+        directive = { question: copy.plan.endingMessage, topic: copy.plan.endingTopic, shouldEnd: true };
       }
-      const reply = await requestOfficerTurn(turnMessages, profile, officer, directive).catch(() => directive.question);
+      const reply = await requestOfficerTurn(turnMessages, profile, officer, locale, directive).catch(() => directive.question);
       addOfficerMessage(reply);
     } finally {
       isSendingRef.current = false;
       setIsStreaming(false);
     }
-  }, [input, isStreaming, interviewDone, interviewPlan, questionIndex, followUpCounts, messages, profile, officer, addOfficerMessage]);
+  }, [copy.plan.endingMessage, copy.plan.endingTopic, input, isStreaming, interviewDone, interviewPlan, questionIndex, followUpCounts, locale, messages, officer, profile, addOfficerMessage]);
 
   // Abandon: user manually quits mid-interview → back to start, no report
   const handleAbandon = useCallback(() => {
@@ -1438,7 +1325,7 @@ export default function InterviewPracticePage() {
     try { window.localStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(messages)); } catch { void 0; }
     setIsGeneratingReport(true); setPageState("report");
     try {
-      const res = await fetch("/api/interview/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
+      const res = await fetch("/api/interview/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, locale }) });
       if (!res.ok) throw new Error("Report generation failed");
       setReport((await res.json()) as InterviewReport);
     } catch (err) {
@@ -1446,43 +1333,46 @@ export default function InterviewPracticePage() {
       setReport({
         overallScore: 72, passLikelihood: "中",
         dimensions: { clarity: 75, confidence: 70, consistency: 68, narrativeAlignment: 76 },
-        strengths: ["回答基本流畅，能够正常沟通", "部分问题回答较为直接清晰"],
-        improvements: ["建议提前准备具体的行程安排细节", "资金来源说明需更加明确具体"],
-        questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== ENDING_MESSAGE).slice(0, 8).map((m, i) => ({
-          question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? "(未回答)",
-          score: 70, flag: "neutral" as const, flagLabel: "中性", note: "回答基本符合要求", timestamp: `0${i + 1}:00`, topic: "综合评估",
+        strengths: copy.report.fallback.strengths,
+        improvements: copy.report.fallback.improvements,
+        questionAnalysis: messages.filter((m) => m.role === "assistant" && m.content !== copy.plan.endingMessage).slice(0, 8).map((m, i) => ({
+          question: m.content, answer: messages.find((msg, idx) => msg.role === "user" && idx > messages.indexOf(m))?.content ?? copy.report.fallback.unanswered,
+          score: 70, flag: "neutral" as const, flagLabel: copy.report.flagLabels.neutral, note: copy.report.fallback.note, timestamp: `0${i + 1}:00`, topic: copy.report.fallback.topic,
         })),
       });
     } finally { setIsGeneratingReport(false); }
-  }, [messages]);
+  }, [copy.plan.endingMessage, copy.report.fallback, copy.report.flagLabels.neutral, locale, messages]);
 
   const handleRetry = useCallback(() => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     setMessages([]); setReport(null); setInput(""); setIsStreaming(false); setIsSpeaking(false); setIsGeneratingReport(false); setQuestionIndex(0); setFollowUpCounts({}); setInterviewCompleted(false); setPageState("start");
   }, []);
 
-  if (pageState === "start") return <StartPage onStart={() => setPageState("checklist")} />;
+  if (pageState === "start") return <StartPage copy={copy} onStart={() => setPageState("checklist")} />;
   if (pageState === "checklist") return (
     <ChecklistPage
+      copy={copy}
       onConfirm={() => setPageState("officer")}
       onBack={() => setPageState("start")}
     />
   );
   if (pageState === "officer") return (
     <OfficerSelectionPage
+      copy={copy}
+      officers={officers}
       officer={officer}
-      onChange={setOfficer}
+      onChange={setOfficerId}
       onConfirm={() => setPageState("interview")}
       onBack={() => setPageState("checklist")}
     />
   );
   if (pageState === "interview") return (
-    <InterviewPage messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking || avatarSpeaking} isMuted={isMuted}
+    <InterviewPage copy={copy} locale={locale} messages={messages} isStreaming={isStreaming} isSpeaking={isSpeaking || avatarSpeaking} isMuted={isMuted}
       officer={officer}
       input={input} interviewDone={interviewDone} avatarStream={avatarStream} avatarStatus={avatarStatus}
       onInputChange={setInput} onSend={handleSend} onEnd={handleEndInterview} onAbandon={handleAbandon}
       onToggleMute={handleToggleMute} onStartListening={() => { void interruptAvatar(); }} />
   );
-  if (isGeneratingReport || !report) return <LoadingReport />;
-  return <ReportPage report={report} onRetry={handleRetry} />;
+  if (isGeneratingReport || !report) return <LoadingReport copy={copy} />;
+  return <ReportPage copy={copy} report={report} onRetry={handleRetry} />;
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { setCurrentSubscriptionCancelAtPeriodEnd } from "@/lib/payments/commercial-records";
 
 export const runtime = "nodejs";
@@ -9,6 +10,7 @@ export async function POST() {
     return NextResponse.json(await setCurrentSubscriptionCancelAtPeriodEnd(false));
   } catch (error) {
     console.error("[subscription-resume]", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "Unable to resume subscription." }, { status: 500 });
+    const t = await getTranslations("subscriptionManagement");
+    return NextResponse.json({ error: t("resumeFailed") }, { status: 500 });
   }
 }

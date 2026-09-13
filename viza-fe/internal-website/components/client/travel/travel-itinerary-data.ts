@@ -2,12 +2,10 @@
 
 import {
   buildTravelStateFromMessages,
-  createTravelFormMessage,
   parseItineraryText,
   toTravelPayload,
   type ChatLikeMessage,
   type ItineraryDay,
-  type TravelFormPayload,
   type TravelState,
 } from "@/lib/travel/planner";
 import type {
@@ -141,30 +139,36 @@ function isTravelItineryShareRow(value: unknown): value is TravelItineryShareRow
   );
 }
 
-function toShareFormPayload(state: TravelState): TravelFormPayload {
-  return {
-    country: state.country ?? "",
-    countries: state.countries,
-    cities: state.cities,
-    seed_country: state.seed_country ?? undefined,
-    seed_city: state.seed_city ?? undefined,
-    city_days: state.city_days,
-    destination_confirmed: state.destination_confirmed,
-    departure_date: state.departure_date ?? undefined,
-    date_flexibility: state.date_flexibility ?? undefined,
-    travel_days: state.travel_days ?? undefined,
-    travelers: state.travelers ?? undefined,
-    budget: state.budget ?? undefined,
-    origin_country: state.origin_country ?? undefined,
-    origin_city: state.origin_city ?? undefined,
-    return_country: state.return_country ?? undefined,
-    return_city: state.return_city ?? undefined,
-    travel_order: state.travel_order,
-    selected_flights: state.selected_flights,
-    selected_hotels: state.selected_hotels,
-    final_note: state.final_note ?? "",
-    attached_files: state.attached_files,
-  };
+function createShareUserMessage(payload: TravelItinerarySharePayload): string {
+  if (payload.locale !== "en") {
+    // The Chinese planner sentence is also the canonical parser-compatible
+    // representation used by older shared links.
+    const state = payload.travelState;
+    const destinations = state.cities.length
+      ? `我选择了城市：${state.cities.join("、")}。`
+      : state.countries.length
+        ? `我选择了国家：${state.countries.join("、")}。`
+        : "我更新了旅行信息。";
+    return destinations;
+  }
+
+  const state = payload.travelState;
+  if (state.origin_city || state.return_city) {
+    const originCity = state.origin_city ?? "the departure city";
+    const originCountry = state.origin_country
+      ? `, ${state.origin_country}`
+      : "";
+    const returnCity = state.return_city ?? "the return city";
+    const returnCountry = state.return_country ? `, ${state.return_country}` : "";
+    return `Departure: ${originCity}${originCountry}; return: ${returnCity}${returnCountry}.`;
+  }
+  if (state.cities.length) {
+    return `I selected these cities: ${state.cities.join(", ")}.`;
+  }
+  if (state.countries.length) {
+    return `I selected these countries: ${state.countries.join(", ")}.`;
+  }
+  return "I updated the travel details.";
 }
 
 export function getTravelItineraryFromMessages(
@@ -305,7 +309,7 @@ export function createTravelShareMessages(
       parts: [
         {
           type: "text",
-          text: createTravelFormMessage(toShareFormPayload(payload.travelState)),
+          text: createShareUserMessage(payload),
         },
       ],
     },

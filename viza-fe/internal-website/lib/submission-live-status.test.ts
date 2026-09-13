@@ -1,8 +1,80 @@
 import { describe, expect, it } from "vitest";
-import { runnerJobToLiveSubmissionSummary } from "./submission-live-status";
+import {
+  loadLiveSubmissionSummaries,
+  runnerJobToLiveSubmissionSummary,
+} from "./submission-live-status";
 import { statusVisibleRunnerFlowForApplication } from "./status/runner-job-visibility";
 
 const finishedAt = "2026-08-18T00:02:00.000Z";
+
+type QueryResponse = { data: unknown; error: unknown };
+
+class MockQuery implements PromiseLike<QueryResponse> {
+  constructor(
+    private readonly response: QueryResponse,
+    private readonly onSelect?: (columns: string | undefined) => void,
+  ) {}
+
+  select(columns?: string): this {
+    this.onSelect?.(columns);
+    return this;
+  }
+
+  in(): this {
+    return this;
+  }
+
+  order(): this {
+    return this;
+  }
+
+  limit(): this {
+    return this;
+  }
+
+  then<TResult1 = QueryResponse, TResult2 = never>(
+    onfulfilled?: ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2> {
+    return Promise.resolve(this.response).then(onfulfilled, onrejected);
+  }
+}
+
+function createMockAdminClient(responses: Record<string, QueryResponse> = {}) {
+  const calls: string[] = [];
+  const selections: Array<{ tableName: string; columns: string | undefined }> = [];
+  const client = {
+    from(tableName: string) {
+      calls.push(tableName);
+      return new MockQuery(
+        responses[tableName] ?? { data: [], error: null },
+        (columns) => selections.push({ tableName, columns }),
+      );
+    },
+  } as unknown as Parameters<typeof loadLiveSubmissionSummaries>[0];
+  return { client, calls, selections };
+}
+
+const applicationId = "00000000-0000-0000-0000-000000000001";
+const secondApplicationId = "00000000-0000-0000-0000-000000000002";
+const queueRow = {
+  id: "queue-1",
+  application_id: applicationId,
+  status: "running",
+  mode: "live_assisted",
+  provider: null,
+  current_stage: null,
+  live_checkpoint: null,
+  manual_action_status: null,
+  error_code: null,
+  error_message: null,
+  official_portal_url: null,
+  official_status: null,
+  payment_status: null,
+  live_submitted_at: null,
+  updated_at: "2026-08-18T00:02:00.000Z",
+  created_at: "2026-08-18T00:01:00.000Z",
+};
 
 describe("runner_job live-submission summaries", () => {
   it.each([
@@ -87,5 +159,72 @@ describe("runner_job live-submission summaries", () => {
       officialStatus: "submitted",
       liveSubmittedAt: finishedAt,
     });
+  });
+});
+
+describe("prefetched submission queue summaries", () => {
+  it("reuses a validated single-application prefetch and keeps manual-action reads", async () => {
+    const { client, calls, selections } = createMockAdminClient();
+
+    const summaries = await loadLiveSubmissionSummaries(
+      client,
+      [applicationId],
+      [],
+      { prefetchedQueueResult: { data: [queueRow], error: null } },
+    );
+
+    expect(summaries.get(applicationId)).toMatchObject({
+      jobId: "queue-1",
+      state: "running",
+    });
+    expect(calls).not.toContain("submission_queue");
+    expect(calls).toEqual(expect.arrayContaining([
+      "submission_manual_actions",
+      "vietnam_live_manual_actions",
+      "france_live_manual_actions",
+      "ds160_live_manual_actions",
+    ]));
+    expect(selections.every(({ columns }) => !columns?.match(
+      /official_application_reference_encrypted|vn_registration_code_encrypted/,
+    ))).toBe(true);
+  });
+
+  it("falls back to the bounded queue GET for a foreign child row", async () => {
+    const { client, calls, selections } = createMockAdminClient({
+      submission_queue: { data: [queueRow], error: null },
+    });
+
+    const summaries = await loadLiveSubmissionSummaries(
+      client,
+      [applicationId],
+      [],
+      {
+        prefetchedQueueResult: {
+          data: [{ ...queueRow, application_id: secondApplicationId }],
+          error: null,
+        },
+      },
+    );
+
+    expect(summaries.get(applicationId)?.jobId).toBe("queue-1");
+    expect(calls.filter((tableName) => tableName === "submission_queue")).toHaveLength(1);
+    expect(selections.find(({ tableName }) => tableName === "submission_queue")?.columns).not.toMatch(
+      /official_application_reference_encrypted|vn_registration_code_encrypted/,
+    );
+  });
+
+  it("does not reuse a prefetch when the loader has multiple application targets", async () => {
+    const { client, calls } = createMockAdminClient({
+      submission_queue: { data: [queueRow], error: null },
+    });
+
+    await loadLiveSubmissionSummaries(
+      client,
+      [applicationId, secondApplicationId],
+      [],
+      { prefetchedQueueResult: { data: [queueRow], error: null } },
+    );
+
+    expect(calls.filter((tableName) => tableName === "submission_queue")).toHaveLength(1);
   });
 });

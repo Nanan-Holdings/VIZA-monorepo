@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCanonicalApplicationProductCountry,
+  getCanonicalVisaDestinationCountry,
   getDestinationDisplayName,
   getDestinationDisplayNameZh,
+  getFormVisaType,
   getPopularVisaDestinationByPackage,
+  getVisaDestinationKey,
+  getVisaTypeDestinationCountry,
   getVisaPackageTitle,
   SEARCHABLE_VISA_DESTINATIONS,
   VISA_DESTINATION_COUNTRY_GROUPS,
@@ -44,5 +49,30 @@ describe("automated online destination catalogue", () => {
   it("keeps legacy country labels available for historical status rows", () => {
     expect(getDestinationDisplayName("brazil")).toBe("Brazil");
     expect(getDestinationDisplayNameZh("russia")).toBe("俄罗斯");
+  });
+
+  it("preserves aliases and normalized fallbacks for unknown or empty countries", () => {
+    expect(getCanonicalVisaDestinationCountry(" USA ")).toBe("united_states");
+    expect(getCanonicalVisaDestinationCountry("United States of America")).toBe("united_states");
+    expect(getCanonicalVisaDestinationCountry(" 越南 ")).toBe("vietnam");
+    expect(getCanonicalVisaDestinationCountry("Unknown Place")).toBe("unknown_place");
+    expect(getCanonicalVisaDestinationCountry("   ")).toBe("");
+  });
+
+  it("preserves unique, ambiguous, empty and aliased visa-type ownership", () => {
+    expect(getFormVisaType(" B1/B2 ")).toBe("DS160");
+    expect(getVisaTypeDestinationCountry(" DS-160 ")).toBe("united_states");
+    expect(getVisaTypeDestinationCountry("tourist_evisa")).toBeNull();
+    expect(getVisaTypeDestinationCountry("   ")).toBeNull();
+    expect(
+      getCanonicalApplicationProductCountry("vietnam", "PH_ETRAVEL_DEPARTURE_CARD"),
+    ).toBe("philippines");
+  });
+
+  it("keeps destination keys stable across product and country aliases", () => {
+    expect(getVisaDestinationKey("stale-country", "PH_ETRAVEL_DEPARTURE_CARD")).toBe(
+      "philippines::ph_etravel_departure_card",
+    );
+    expect(getVisaDestinationKey("United States", " B1/B2 ")).toBe("united_states::ds160");
   });
 });

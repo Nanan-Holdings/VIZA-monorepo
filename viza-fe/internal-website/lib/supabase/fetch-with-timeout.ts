@@ -212,12 +212,15 @@ export function createFetchWithTransientRetry(
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const perCallSignal = requestSignal(input, init);
     const combinedSignal = combineAbortSignals(options.requestSignal, perCallSignal);
-    const effectiveSignal = combinedSignal.signal;
+    const effectiveSignal = combinedSignal.signal ?? new AbortController().signal;
     try {
-      effectiveSignal?.throwIfAborted();
-      const fetchInit = options.requestSignal
-        ? { ...init, signal: effectiveSignal ?? undefined }
-        : init;
+      effectiveSignal.throwIfAborted();
+      // This transport owns retries and response cancellation. An explicit
+      // signal opts out of Next's fetch memoization, which otherwise tees GET
+      // responses: cancelling our branch can wait forever for its unread cached
+      // sibling. It also prevents a retry from reusing the failed response.
+      // Use a signal per logical call; never share cancellation across callers.
+      const fetchInit = { ...init, signal: effectiveSignal };
       const circuit = options.circuitBreakerScope === null
         ? null
         : getSupabaseCircuitBreaker(options.circuitBreakerScope);

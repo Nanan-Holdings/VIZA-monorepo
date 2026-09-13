@@ -20,6 +20,10 @@ application lifecycle state.
   application, answer, document, and queue tables.
 - `client-home-dashboard.ts`: server-side home dashboard reads using the same
   client session/profile identity resolution as authenticated customer routes.
+  `getClientHomeDashboardWithTimeline()` is the Home page's single aggregate
+  action; its server-only reader reuses authorized rows for a slim timeline.
+  Keep the legacy dashboard-only export for existing callers. Required read
+  errors use fixed codes; timeline degradation remains explicit to the UI.
   Keep application- and package-linked payment discovery in one owner-scoped,
   sanitized PostgREST OR query so a dashboard load does not spend two payment
   reads; payment and applicant data must remain uncached.
@@ -37,8 +41,8 @@ application lifecycle state.
   ownership predicates covered by `inbox.test.ts`; do not rely on anonymous
   table grants for legacy-session compatibility.
 - `client-application-status.ts`: customer-safe application timeline, file,
-  and update reads shared by the home dashboard and the submitted application
-  view. The single-application action validates and passes an exact ID to the
+  and update reads for the submitted application view. Home uses its own
+  aggregate action. The single-application action validates and passes an exact ID to the
   owner-scoped loader; invalid IDs must not trigger a full history read.
   `client-application-status.test.ts` covers this boundary and the unchanged
   all-applications action.
