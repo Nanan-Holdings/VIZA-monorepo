@@ -1250,6 +1250,186 @@ consent 和 answer 记录均为 0。六个专用本地 Supabase 容器已停止�
 [server-launcher.ts](https://github.com/vercel/vercel/blob/main/packages/next/src/server-launcher.ts#L35-L56)
 及 [Next 压缩配置](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress#disabling-compression)。
 
+## 2026-09-13：首页私有 GET 与取消传播验证
+
+本轮以线上 `dpl_7jsZNxo5UBjwBLhYN7h4P3fPxbHY` 的已验证源码为对照，
+不将当前工作区其他已提交功能混入发布。候选只覆盖 14 个相关文件：
+首页聚合读取改用 `/api/client/home-dashboard` 私有 GET，仍调用同一 server-only
+reader，保留旧 Server Action 导出及全部身份校验、归属过滤、查询回退和 DTO。
+响应显式 `private, no-store, max-age=0`；浏览器使用 same-origin/no-store，
+不缓存用户数据。申请 ID/国家/签证类型仅是有长度限制的选择提示，不能授权访问。
+
+页面卸载会中止正在进行的 GET，Route Handler 将 `request.signal` 传入原有
+8 秒读取预算，连接到现有 Supabase 取消链路；预先取消的请求不创建数据客户端。
+Vercel cancellation 只增加这个精确只读路径。语言切换保留语义状态，在 render
+时按当前语言生成签证名称和错误文本，避免旧请求回写旧语言，也不为语言切换
+追加首页读取。未登录/无 profile 刷新会清理之前的申请人卡片状态。
+
+冻结候选 SHA256：
+`f220c6105fa58ab38dedea98a387ee0ef4ba74cfa9ae0d808a433f52cbfbef93`。
+11 个针对性测试文件共 106 项通过；完整 type-check 通过；lint 为 0 errors /
+58 条既有 warnings。新增检查覆盖接口 DTO、取消传播、查询提示、固定错误码、
+浏览器响应读取取消、语言切换中的在途请求及登录失效后的旧状态清理。
+
+本地 harness 从真实浏览器捕获新 GET，候选必须使用 `get`，对照必须使用 `post`。
+两种传输保持原始身份/文档/时间线检查与 100 身份、30 秒爬升、300 秒稳态、
+5 秒节奏及严格门槛。GET 捕获响应 Content-Type 的来源及运行器环境传递曾发现
+两处测试工具错误，均在开始负载前修正；独立自检覆盖 100 个不同身份的查询替换、
+完整 JSON/Flight 数据合同及外来身份拒绝。原 `homeAction*` 指标名保留兼容性，
+通过 transport 元数据区分 GET 和 POST；Home 总时延仍包括页面 GET 与聚合读取。
+不能因传输名称改变而将仅 API 时延当作首页总时延。
+
+第一次浏览器预检在持续负载前因测试脚本错误退出：对同步的 Playwright
+`response.headers()` 调用了 `.catch()`。已修正并复用同一成功构建，失败产物
+`candidate-a/` 保留；该次种子清理成功，不作为性能样本。重跑 `candidate-a2`
+已通过实际 GET/状态页/语言/目录恢复预检。
+
+发布清单独立复核还纠正了上一轮“无诊断产物”的范围结论：旧 manifest 含 5 张
+前端根目录的 `output-*.png` 验收截图，旧 `/output-*.png` 只匹配仓库根目录。
+本轮把规则改为 `**/output-*.png`，作为独立上传配置修正，不修改压测中的业务源码；
+发布前须确认这些图片从 dry upload 清单消失，其余未涉及业务文件继续逐文件保留。
+
+完整三组结果如下。每组 100 个身份均覆盖首页、状态页和 session；页面、聚合
+读取、底层 HTTP、时间线 partial/error、运行时故障和外来身份检查均为 0 错误。
+所有组仍保留原始 30 秒爬升、300 秒稳态和 5 秒节奏。
+
+| 运行 | 每场景请求数 | Home p95 | Status p95 | 聚合 API p95 | HTTP 读取数 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| candidate-a2（GET） | 2,796 | 5,406.93 ms | 4,700.71 ms | 2,570.18 ms | 22,395 |
+| control-a2（POST） | 3,223 | 4,327.06 ms | 3,873.34 ms | 2,625.10 ms | 25,817 |
+| candidate-b2（同一 GET 构建） | 3,874 | 2,214.36 ms | 1,766.88 ms | 1,090.59 ms | 31,019 |
+
+候选本地构建为 `JXi1vFuahOhAKKRCsBPyR`，对照为 `EtBqNyyd0ANZcjPI6M5Mr`。
+对应 runId 依次为 `22c3c173-e719-4a6b-aeec-7ce789caa464`、
+`9d32fa97-d3ce-4690-81e8-0a4737fe9946`、
+`632ee154-624a-400e-aabb-ab1f82cc1795`。三组正常单申请 Home/Status 循环仍约
+8 次 HTTP 读取，独立 documents/queue GET 均为 0。本轮没有再降低这些业务查询数。
+
+**不声称稳定端到端提速，也不宣称 100 人容量通过。** 同一候选的两次时延相差
+很大，第一次 Home/Status 比对照慢，第二次更快，无法据此认定固定改善比例。
+桌面进程抽样显示后台 CPU 负载持续变化：对照时编辑器约占单核 60%、Next 约
+56.6%；候选 B 抽样时邮件客户端约 49.7%，桌面应用两个进程约 37.2%/23.8%，
+Next 约 27.5%。这些只是时点抽样，不足以把所有波动归因于某个进程。未关闭或
+调整用户的其他程序。第一组 Postgres 连接峰值 17/100、最大观察事务约 3 ms、
+新增死锁 0，没有证据支持扩大数据库 pool。
+
+三组都未通过 Home/Status p95 与 probe pool waiting/utilization；候选 A 和
+对照还未通过 runtime event-loop，候选 A 另未通过 readiness p95。原失败项和
+原始结果全部保留。三组 100 会话负载没有主动取消请求，因此负载结果本身不证明
+取消节省了多少资源；取消收益的证据来自预取消零客户端/查询启动、在途 signal
+传播、浏览器卸载与响应体取消等独立测试。发布理由限于释放已取消读取、避免
+语言切换重复读取和修复旧用户状态，不以噪声较大的最佳一次时延作为发布依据。
+
+发布前 alias 检查发现生产已更新为 GitHub 部署
+`dpl_Ecp2byRNssCYPyAvsraKLw9GXR14`，提交
+`7eb7a074c4eee830d9a83b799128a8d1b98eb7a4`。已停止使用旧生产发布包，改从该提交
+重新归档，核验 2,062 个 Git 文件后叠加本轮 14 个文件及 `.vercelignore`。
+独立审计确认 Home/Status/auth/i18n 的非 overlay 运行代码与已压测基线一致，
+其他差异为文档/测试和候选源归档排除项，因此保留这三组相关运行证据。
+
+最终组合的 106 项针对性测试、完整 type-check 和 lint 均通过。第一次重新检查
+缺少前端测试引用的 backend/root scripts，已从同一生产提交补齐后重跑 type-check；
+这些测试依赖仍被上传规则排除。typegen 生成的未跟踪 `next-env.d.ts` 已从上传目录
+移除，交由 Vercel 构建生成。最终 dry upload 为 1,882 个文件，1,867 个与当前
+生产 Git 内容一致，15 个为本轮 overlay，禁止上传路径命中 0。没有覆盖另一轮发布。
+
+三组种子清理均成功。再次查询确认合成 Auth 用户、profile、consent、answer 记录
+均为 0；六个专用本地 Supabase 容器已停止、数据卷保留，3300/3002 无监听。
+证据目录：`.dev-logs/website-optimization-20260913-home-get/`，发布证据目录：
+`.release/capacity-home-get-20260913/`。
+
+组织 CLI 通过 `/v2/user` 验证 `nananviza2016-8879` /
+`nanan.viza2016@gmail.com`，项目 `viza-internal`、团队和 rootDirectory 均匹配。
+暂存部署 `dpl_Be6hq1MNbp23dTFm7XSxi8RMwGsA` 已 Ready。CLI 等待构建时曾发生
+网络 `fetch failed`，API 确认远端仍为 BUILDING 后继续等待同一部署，最终成功，
+没有重复上传或把网络中断当作代码构建失败。
+
+中英文登录页 200、未登录 session/Home GET API/Home/Status → login 的 307，
+共 6 项暂存 smoke 通过。2026-09-13 10:45:25 UTC 已 promote 到
+[app.viza.it.com](https://app.viza.it.com)，alias API 确认同一部署 ID。切换前再次
+验证组织身份及生产 alias 未变化。上线后浏览器中文→英文→中文切换、邮箱输入
+保留、Home/Status 登录跳转均通过，pageErrors=0；未提交生产登录、邮件或付款。
+生产登录后数据正确性依据本地同运行代码的验证，未进行生产负载。
+
+目前继续审查未发现新的明显、已证实的低成本服务器端收益。导航栏的客户端
+重复挂载候选未实施，因为没有服务端容量改善证据。后续容量结论需要先取得更稳定、
+接近部署运行方式的隔离测量，区分 SSR/传输/事件循环成本，再决定较大的拆分或
+查询改造；当前不继续任意调大 pool、延长超时或放宽验收门槛。
+
+本轮无生产负载、无新增资源、无数据库迁移。环境启动曾遇到 Docker Desktop 的
+旧 IPC socket，已通过可逆重命名
+临时 socket 目录恢复；没有重置 Docker、删除数据库卷或升级数据库服务。
+
+设计依据：[Next.js Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)、
+[Next.js Server Functions](https://nextjs.org/docs/app/getting-started/mutating-data) 和
+[Vercel Functions cancellation](https://vercel.com/docs/functions/functions-api-reference)。
+这些文档支持接口与取消机制选择，不作为吞吐改善的实测证据。
+
+## 2026-09-13：消除语言切换引发的收件箱重复初始化
+
+继续审计发现一个可复现的后台重复调用：全站 client layout 挂载的
+`AliasForwardingConsentGate` 将显示语言 `isZh` 放进初始化 effect 依赖，
+切换语言会再次调用 `initializeAuthenticatedApplicantInbox()`。清理函数只忽略
+旧结果，不会取消已经发送的 Server Action。已有有效 alias 且已存在账户同意记录的
+正常路径，每次初始化仍包含 profile 和 consent 两次查询；回退或新 alias 路径
+可能更多，因此这不是单纯的文案重新渲染。
+
+本轮只让初始化依赖 `enabled`，错误保存为固定 `ApplicantInboxActionErrorCode`，
+在 render 时按当前语言生成提示。保留首次初始化、关闭再启用后的重新初始化、
+旧结果隔离和用户显式勾选/授权流程；不引入跨用户或跨请求缓存，不改认证、同意
+记录和数据库。登录/登出进入 auth 页面时 layout 会卸载该 gate。若未来新增
+同一页面内直接切换账户功能，需另行把 gate 生命周期绑定到身份；本轮未扩展此功能。
+
+冻结发布包以当前生产 `dpl_Be6hq1MNbp23dTFm7XSxi8RMwGsA` 的上传清单为基线。
+35 项针对性测试、完整 type-check 通过，lint 为 0 errors / 58 条既有 warnings。
+dry upload 仍为 1,882 个文件：1,879 个与前一生产上传内容完全相同，3 个 overlay
+为 gate、组件测试和 client 模块说明；禁止路径命中 0。没有依赖、资源或迁移新增。
+
+本地实际组件 + NextIntl/Radix 的浏览器 fixture 在 1440×900 和 390×844
+两种尺寸通过：在途初始化时切换语言、完成后的错误翻译、勾选后显式授权、
+关闭再启用、授权请求未完成时切换语言。初始化期间 zh→en→zh→en 的对照中，
+旧版共调用 4 次 initializer，新版仅 1 次；用户主动授权仍为 1 次调用。
+这里统计的是被 mock 的 action 函数调用，不是实测数据库 SQL 或真实 Server Action
+网络时延；只验证真实组件的触发行为。没有外部请求，测试服务已关闭。
+组件 SHA256 `96fbca2d3e44f9343577d612507e844cabf5c0480b377b14bb01237e40eb3485`
+与冻结发布内容一致。
+
+首次 fixture 比较因 Vite 自动合并默认配置、旧版地址误加载新版组件而断言失败
+（1≠4），且原脚本在断言后才写结果，未留下完整 JSON。已单独保留失败说明，
+关闭自动配置加载、显式允许旧版文件目录，并将结果保存放入清理流程后重跑通过。
+这是测试工具修正，没有再改生产代码。首次结果不计入有效前后对照。
+
+2026-09-13 16:39:43 UTC 已通过 nananviza 组织 CLI 将
+`dpl_52aTsardunGTUhfRjQiPVpEphPNi` promote 到
+[app.viza.it.com](https://app.viza.it.com)，alias API 确认同一部署 ID；
+部署前及切换前均重新核验精确组织账号、旧主站部署未变。
+生产构建成功，暂存 6 项 HTTP smoke 通过；上线后实际浏览器中文→英文→中文、
+邮箱输入保留、Home/Status 未登录跳转均通过，pageErrors=0。
+未提交生产登录、邮件、付款或压力请求。未做生产登录后的完整收件箱验收，
+该交互的证据范围为本地组件 fixture、action 测试和既有认证边界检查。
+
+本次审计也校正测量口径：上一轮 `browser-summary.statusDocumentBytes` 记录的是
+hydration 后 `page.content()` 的约 175 KB DOM，不是 SSR 响应大小。
+`candidate-b2/destination-catalog-smoke.json` 记录的实际初始 HTML 为 28,449 bytes，
+对照为 28,448 bytes。目的地目录已在客户端挂载，不能把 hydration 后 DOM 大小
+当成服务器发送了完整 71 张目录卡片的证据，因此没有实施基于该误读的 SSR 改造。
+
+导航栏子组件重复挂载未发现后台读取或订阅；请求内 JWT key 已缓存，现有 CPU
+证据不能证明签名验证是热点，因此保留 proxy 和 reader 各自的认证边界。
+另对状态页仅保留主结果文件的构造路径做了单次 warmed Node 合成基准：
+4/20/100 个申请的 fixture 每请求节省约 0.136/0.646/2.633 微秒。
+这只测文件对象构造与扫描，不代表完整 assembler、实际堆分配或网站响应，
+且受 JIT 与机器状态影响。绝对成本不足以支持改造复杂状态拼装逻辑；保留代码，
+相关 23 项既有测试通过，证据在
+`.dev-logs/website-optimization-20260913-status-assembly/`。
+本轮不重复运行不能覆盖语言切换的 100 会话 Home/Status 循环，也不改变上轮
+严格容量验收仍未通过的结论。证据分别保存在
+`.dev-logs/website-optimization-20260913-alias-consent/` 和
+`.release/capacity-alias-consent-20260913/`。
+
+设计依据：[React useEffect](https://react.dev/reference/react/useEffect) 和
+[Effect 同步与清理](https://react.dev/learn/synchronizing-with-effects)。
+
 ## 官方依据
 
 - [Next.js 请求内去重与并行读取](https://nextjs.org/docs/app/getting-started/fetching-data)：

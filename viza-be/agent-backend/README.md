@@ -37,18 +37,35 @@ CORS_ORIGINS=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
-ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
+# Required only when using application translation routes (one of these is enough).
 GOOGLE_AI_API_KEY=
-LANGSMITH_API_KEY=
+GOOGLE_TRANSLATE_API_KEY=
+# Optional; only Telegram webhook/news-monitor paths need this.
 TELEGRAM_BOT_TOKEN=
 ```
 
 Notes:
 
-- `ANTHROPIC_API_KEY` powers streaming VIZA AI and AI-backed field guidance.
-- `OPENAI_API_KEY` powers embeddings for RAG retrieval.
-- `GOOGLE_AI_API_KEY` or `GOOGLE_TRANSLATE_API_KEY` powers translation routes.
+- `OPENAI_API_KEY` powers VIZA chat, field guidance, application validation,
+  passport OCR, and RAG embeddings. The chat default is `gpt-4o-mini`; field
+  guidance defaults to `gpt-5.5`; validation defaults to `gpt-4o-mini`.
+  The model override order is route-specific and uses the corresponding
+  `OPENAI_*_MODEL`, then `OPENAI_CHAT_MODEL`, then `OPENAI_MODEL`.
+- `GOOGLE_AI_API_KEY` or `GOOGLE_TRANSLATE_API_KEY` powers translation routes;
+  neither is required for chat/RAG startup. `TELEGRAM_BOT_TOKEN` is optional
+  and is used only by the Telegram webhook/news-monitor path.
+- `LANGSMITH_API_KEY` is read by an unused configuration helper; the current
+  chat/RAG paths do not create LangSmith runs. `SENTRY_DSN` enables the
+  best-effort lazy Sentry initializer when the optional `@sentry/node`
+  package is available.
+- The chat OpenAI client has `maxRetries=0` and a default request timeout of
+  `60,000ms` (configurable by `OPENAI_REQUEST_TIMEOUT_MS`, clamped to
+  `120,000ms`). Streaming has a separate default deadline of `75,000ms`,
+  clamped to `180,000ms` by `OPENAI_STREAM_DEADLINE_MS`. Field-guidance and
+  validation construct the OpenAI client without explicit retry/timeout
+  options, so their SDK defaults apply; RAG embeddings use direct fetch and no
+  application-level retry. All provider work is bounded by the gate below.
 - `DATABASE_URL` is required for Drizzle and must use the Supabase transaction
   pooler at runtime. Direct database connections are operator-only for
   migrations and diagnostics. `DB_POOL_MAX` defaults to 3 per service instance
@@ -83,6 +100,9 @@ npm run test:unit
 npm run test:integration
 npm run test:visa-agent-evals
 npm run test:field-guidance-copilot
+npm run load:concurrency
+npm run load:online-capacity
+npm run load:local-rls
 npm run db:migrate
 npm run ingest:all-visa-rag
 npm run ingest:country-visa-rag -- --country japan
@@ -117,7 +137,7 @@ src/socket/visa-namespace.ts
 src/agent/index.ts
   -> base system prompt
   -> application context builder
-  -> Anthropic streaming helper
+  -> OpenAI streaming helper (no model tools or tool loop)
 ```
 
 ## REST Endpoints
@@ -133,6 +153,7 @@ Mounted in `src/app.ts`:
 - `/api/user/package`
 - `/api/applications`
 - `/api/profile/prefill`
+- `/api/public/status` and secret-protected `/api/internal/status`
 
 ## Database And RAG
 
@@ -148,6 +169,10 @@ Important files:
   visitor visa types, Schengen membership, and RAG routing metadata.
 - `scripts/ingest-country-visa-rag.ts`: country seed ingestion.
 - `scripts/ingest-photo-requirements-rag.ts`: photo requirements ingestion.
+- `scripts/enrich-field-answer-norms-rag.ts`: optional official-URL enrichment
+  of JSON seed chunks.
+- `scripts/stage-visa-knowledge-supplements.ts` and
+  `scripts/promote-visa-knowledge-release.ts`: staged release governance.
 - `scripts/seed-*-form-fields.ts`: dynamic form field seed scripts.
 
 Runtime tables include:
@@ -165,6 +190,35 @@ Runtime tables include:
 - `user_packages`
 - `visa_application_answers`
 - `application_translations`
+
+The current repository contains 61 country seed files, 159 seed documents and
+559 seed chunks (including 70 `form_requirements` documents). The backend
+registry contains 61 destinations, while `VISA_SERVICE_COUNTRIES` currently
+opens 56 of them; `mexico`, `morocco`, `nepal`, `qatar`, and `russia` remain
+dormant reference seeds. These are repository inventory counts, not a claim
+about the contents of a deployed database.
+
+RAG runtime uses `text-embedding-3-small` with 1536-dimensional vectors. The
+request default is top-k 5, clamped to 1..12, and runtime `minSimilarity`
+defaults to 0.03. The SQL RPC itself has a 0.5 default, but the service passes
+0.03 explicitly. It first tries intent-filtered `match_visa_chunks()` vector
+search, then a broader vector query when intent document types have no match,
+then active-release country/visa/document filters through REST. The REST
+fallback has no similarity ordering or reranker; it returns the limited rows
+from the filtered query. There is no generic runtime chunker, fixed chunk size,
+or overlap: JSON seed chunks are ingested as supplied and embedding input is
+truncated to 8,000 characters.
+
+The SQL release gate requires active release metadata, chunks, embeddings,
+official-source reachability and reviewed entry-rule coverage before promotion.
+`visa-entry-rule.service.ts`
+decides deterministic eligibility/routing before RAG; RAG must not override an
+unknown or conditional entry-rule result. `/api/validate-application` is a
+local Indonesia B211A/C1 validation path with hard checks plus optional
+structured OpenAI review and fixed Indonesia knowledge context, not a generic
+cross-country contextual validator. `/api/field-guidance` combines metadata
+checks, public RAG and optional structured OpenAI guidance; translation is a
+separate Google `zh` to `en` batch route.
 
 ## Frontend Contracts
 
@@ -189,6 +243,24 @@ The frontend expects:
 - Do not log PII, service-role keys, API keys, or full raw applicant payloads.
 - Keep browser automation in `viza-be/submission-service`.
 
+The current Express app has no global authentication middleware. The AI,
+field-guidance, validation and translation routes are mounted directly, and
+the `/visa` Socket.IO handler currently trusts the `user_id` and `session_id`
+payload; it does not verify a Supabase bearer token or session ownership.
+Applicant ownership checks are implemented separately on selected appointment,
+fee and submission routes. Direct exposure of the AI routes therefore requires
+a trusted server-side proxy or external perimeter that both authenticates the
+caller and checks applicant/session ownership before forwarding; a frontend
+login state by itself does not protect the backend.
+
+Non-chat provider calls share an instance-local FIFO gate with defaults of
+8 active calls, 32 queued calls, a 5,000ms queue timeout and a 60,000ms
+execution timeout (each is environment-configurable within code clamps).
+Chat has its separate 16-active/64-queued/8,000ms-turn gate. Capacity and RAG
+metrics are aggregate-only; `/api/internal/status/capacity` requires its own
+`CAPACITY_STATUS_SECRET`. Sentry initialization is optional and best effort;
+LangSmith configuration exists but is not connected to these runtime paths.
+
 ## Validation
 
 ```powershell
@@ -210,7 +282,9 @@ Smoke:
 Invoke-RestMethod http://localhost:3002/health
 ```
 
-For Socket.IO changes, run the frontend and smoke `/client/chat`.
+For Socket.IO changes, run the frontend and smoke `/client/chat`. A passing
+local type-check, smoke or capacity harness does not certify production AI
+provider, authenticated route, RAG release, or multi-replica capacity.
 
 ## Related Docs
 

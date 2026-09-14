@@ -3,6 +3,7 @@
 import {
   loadClientHomeDashboard,
   recordHomeDashboardReadOutcome,
+  toClientHomeDashboardWithTimelineData,
   type ClientHomeApplicationSelectionHint,
   type ClientHomeDashboardData,
   type ClientHomeDashboardWithTimelineData,
@@ -36,11 +37,6 @@ export async function getClientHomeDashboardWithTimeline(
       selection,
     });
     recordHomeDashboardReadOutcome(result);
-    return {
-      ...result.data,
-      timeline: result.timeline,
-      timelineApplicationId: result.timelineApplicationId,
-      timelinePartialData: result.timelinePartialData,
-    };
+    return toClientHomeDashboardWithTimelineData(result);
   });
 }

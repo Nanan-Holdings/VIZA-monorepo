@@ -4,6 +4,9 @@
   "functions": {
     "app/api/applications/*/submission-status/route.ts": {
       "supportsCancellation": true
+    },
+    "app/api/client/home-dashboard/route.ts": {
+      "supportsCancellation": true
     }
   }
 }

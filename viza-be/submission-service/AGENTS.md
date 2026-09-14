@@ -7,10 +7,13 @@ Scope: this file applies to `viza-be/submission-service/**`.
 
 ## Purpose
 
-The submission service is a long-running Node/TypeScript worker that polls
-`submission_queue` and drives official portal automation with Playwright. Its
-product contract is reliable official-portal automation that completes form
-filling and one-shot submission for the applicant.
+The submission service is a Node/TypeScript worker with two explicit transports:
+the shared `runner_job` pool, drained at startup and after an authenticated
+enqueue wake, and separately enabled legacy/country `submission_queue` workers.
+It drives country-specific official-portal automation with Playwright. Its
+product contract is persisted, ownership-fenced form filling and one logical
+one-shot submission when the applicant's explicit action and provider gates are
+satisfied, followed by official result/evidence verification.
 
 ## Concurrency phase-two strict cutover
 
@@ -75,12 +78,65 @@ and must fail closed; callers must not perform a direct table settlement.
   API/CDP，其次是显式允许的全局 Browser API。不得静默降级，必须保留官方阻断与
   放行证据。端点凭证不得入日志。
 
+## Current runtime and browser contract
+
+- `runner_job` is the normal shared-pool transport. Startup performs one
+  explicit drain; later enqueues use authenticated `/internal/runner-job/wake`.
+  The compatibility `/internal/submission-queue/wake` invokes both configured
+  drain callbacks. Legacy `submission_queue` polling,
+  Vietnam cloud polling, and Indonesia polling are separate environment-gated
+  consumers; there is no fixed 30-second polling contract.
+- Code defaults are fail-closed for live work: DS-160 mode is `dry_run` and
+  `DS160_LIVE_SUBMISSION_ENABLED` is false; US appointment assisted-live and
+  real Playwright are both false; France mode is `dry_run`, with live payment and
+  appointment flags false. These are repository defaults, not proof of any
+  production runtime value. `.env.example` is illustrative and currently has a
+  legacy-queue value that differs from the `src/index.ts` code default.
+- The important default bounds are 3 ordinary queue attempts, a 900-second
+  submission lease with a 60-second minimum, a 10-minute generic stale cutoff,
+  a 35-minute default DS-160 live cutoff (`1800 + 300` seconds), 30-minute stale
+  maintenance with a batch of 100 capped at 500, and a 120-second Fly idle
+  grace when idle exit is enabled. Runner machine slots use a 30-minute lease
+  renewed every 60 seconds. The active DS-160 heartbeat is every 60 seconds.
+- DS-160 browser state is an ephemeral CEAC Browserbase or Chromium context.
+  Mid-flow expiry creates a fresh context and retrieves the application with
+  the persisted Application ID, surname prefix, birth year, and security answer.
+  Captured `.dat` Save-to-File artifacts, checkpoints, screenshots and result
+  metadata support operator-driven recovery; the trace flag alone does not
+  establish trace capture. The current module does not replay
+  `.dat` into a new CEAC session. `DS160_KEEP_TEMP=1` is the explicit diagnostic
+  retention switch.
+- DS-160 selectors, page identities, field mappings, conditional navigation,
+  retry limits, and success classification are deterministic; the browser
+  runner does not call an LLM. A missing mapping/value must surface as a data or
+  schema issue. The final CEAC click has no database idempotency key: queue
+  isolation prevents competing active jobs, but an accepted click followed by a
+  delayed/ambiguous confirmation can still enter the bounded final-CAPTCHA retry
+  loop and must be reviewed before another submission.
+- US appointment browser selection is Browserbase, authorized CDP, or local
+  Playwright. An explicit storage-state path may load/save cookies. A job
+  fixture, or `playwrightEnabled=false`, selects the fixture client and is never
+  official-portal evidence. The real client is restricted to the configured
+  provider/country allowlist, retries only retryable Cloudflare Browser API
+  sessions, and closes the browser in `finally`.
+- US appointment state remains persisted and user-gated: consent/review,
+  account or verification checkpoint, observed slots, selected slot, final
+  approval, booking, confirmation, and status check. The official confirmation
+  number is required; the real Playwright client currently returns null PDF and
+  screenshot fields, so consumers must not claim artifact evidence that was not
+  captured.
+- Production flags, Browser API endpoints, cookies, tokens, and provider
+  credentials cannot be inferred from this file, startup logs, Fly templates, or
+  the frontend readiness probe. Verify deployment state through the authorized
+  release/runbook process before claiming a live flow is enabled.
+
 ## Key Flows
 
 - `src/kr-arrival-card/confirmation.ts`: pure Korea e-Arrival Card issue-number parsing. It rejects unloaded completion-table labels such as `country/region`; keep runner success and PDF evidence gated on a digit-bearing official issue token after the portal loading overlay has cleared.
 - `src/korea-vfs-shenyang/runner.ts`: Browserbase-backed Shenyang VFS account FSM. It requires explicit portal-term authorization, stores only an encrypted portal password, uses the managed alias for official activation email, preserves a five-minute SMS OTP session, records only current official slot observations, revalidates the exact user-selected slot, and requires a real confirmation number plus stored screenshot before success. The South Korea Fly machine and `/deploy-ready` protect active OTP sessions. `src/korea-vfs-shenyang/applicant-details.ts` is fail-closed: validate the complete required answer set before any Browserbase call; the runner then uses typed field mappings and visible duplicate-selector/evidence checks without retaining raw applicant data. Only the selected Shenyang center may invoke this helper; other centers must not fall through to it.
-- `src/index.ts`: polling loop, Supabase data loading, document download,
-  per-country dispatch, retry/failure handling, queue status transitions.
+- `src/index.ts`: startup/wake queue consumers, optional legacy polling,
+  Supabase data loading, document download, per-country dispatch, retry/failure
+  handling, stale maintenance, and queue status transitions.
 - `src/documents/reusable-document-aliases.ts` and
   `src/documents/resolve-application-documents.ts`: map private Universal
   Profile passport, portrait, bank-statement, insurance, signature, and
@@ -256,11 +312,15 @@ and must fail closed; callers must not perform a direct table settlement.
   assisted is visible-browser only and blocks final validation/payment/booking;
   TLS appointment/payment require separate explicit
   `FRANCE_TLS_APPOINTMENT_ENABLED` and `FRANCE_TLS_PAYMENT_ENABLED` gates.
-- `src/form-mappings.ts`: Indonesian e-visa portal selectors.
+- `src/form-mappings.ts`: Indonesia-specific legacy e-visa selectors. Do not
+  treat this file as the generic submission schema; DS-160, appointment, and
+  France mappings remain package-specific.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
   coverage/verification utilities.
-- `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
+- `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill and live-assisted
+  one-shot submission, including page identity, deterministic mappings,
+  CAPTCHA, session recovery, `.dat` checkpoints, and official proof handling.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
   reference capture, optional CERFA PDF finalization, Browserbase-only launch,
   VIZA-alias account registration,
@@ -454,16 +514,19 @@ and must fail closed; callers must not perform a direct table settlement.
   card acquisition or PAN entry and sends unsupported/uncertain outcomes to
   staff review without exposing an applicant portal handoff.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
-  appointment runner. Polls `appointment_assistance_jobs` when
+  appointment runner. It processes `appointment_assistance_jobs` only when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
-  `appointment_accounts` credentials, uses the Cloudflare-backed
+  `appointment_accounts` credentials, uses the managed alias/
   `inbound_email` path for verification mail helpers, automates supported
-  official login/account-prep steps, writes official slot observations to
-  `appointment_slots`, books only after a user-selected slot and payment/final
-  VIZA approval, captures confirmation artifacts in `appointment_confirmations`,
-  and writes follow-up checks to `appointment_status_checks`. Keep the DB state
-  machine in `runner.ts` and official-page selectors/page interactions in
-  `usvisascheduling-portal.ts`.
+  official login/account-prep steps, and writes only current official slot
+  observations to `appointment_slots`. Booking requires the applicant's exact
+  selected slot and a separate persisted final VIZA approval. The real
+  Playwright client currently requires a confirmation number but may return
+  null PDF/screenshot fields; never claim an artifact that was not captured.
+  Keep the DB state machine in `runner.ts` and official-page selectors/page
+  interactions in `usvisascheduling-portal.ts`. When `portalFixture` is present
+  or `US_APPOINTMENT_PLAYWRIGHT_ENABLED` is not exactly `true`, the runner uses
+  its fixture client and must not be described as an official portal run.
 - `scripts/run-us-appointment-registration-recon.ts`: Browserbase Developer
   single-session registration-entry recon. It clicks the official B2C
   `Sign up now` control, verifies the empty registration form, saves masked

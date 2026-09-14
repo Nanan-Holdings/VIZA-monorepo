@@ -20,8 +20,9 @@ application lifecycle state.
   application, answer, document, and queue tables.
 - `client-home-dashboard.ts`: server-side home dashboard reads using the same
   client session/profile identity resolution as authenticated customer routes.
-  `getClientHomeDashboardWithTimeline()` is the Home page's single aggregate
-  action; its server-only reader reuses authorized rows for a slim timeline.
+  `getClientHomeDashboardWithTimeline()` retains its aggregate action contract
+  for existing callers; Home uses the private GET route backed by the same
+  server-only reader and authorized rows for a slim timeline.
   Keep the legacy dashboard-only export for existing callers. Required read
   errors use fixed codes; timeline degradation remains explicit to the UI.
   Keep application- and package-linked payment discovery in one owner-scoped,

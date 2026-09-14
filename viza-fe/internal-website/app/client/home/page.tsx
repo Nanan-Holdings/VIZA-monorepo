@@ -18,7 +18,7 @@ import { ApplicationTimelineSection } from "@/components/client/home/Application
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { ActiveVisaCard } from "@/components/client/home/ActiveVisaCard";
-import { getClientHomeDashboardWithTimeline } from "@/app/actions/client-home-dashboard";
+import { fetchClientHomeDashboard } from "@/lib/client/home-dashboard-client";
 import type { ClientHomeTimelineApplication } from "@/app/client/status/status-data";
 import {
   getDestinationDisplayNameForLocale,
@@ -130,8 +130,11 @@ interface UniversalInfoProgress {
 interface ActiveVisaSummary {
   href: string;
   status: string;
-  visaName: string;
+  country: string;
+  visaType: string;
 }
+
+type HomeErrorKey = "authError" | "dashboardError";
 
 const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
   "surname",
@@ -264,10 +267,11 @@ export default function HomePage() {
     });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<HomeErrorKey | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const latestLoadRequestId = useRef(0);
   const dashboardLoadInFlightRef = useRef(false);
+  const dashboardAbortRef = useRef<AbortController | null>(null);
   const retryTimerRef = useRef<number | null>(null);
   const lastDashboardLoadAtRef = useRef(0);
 
@@ -289,7 +293,7 @@ export default function HomePage() {
           })
           .then(({ data, error: authError }) => {
             if (authError) {
-              setError(t("authError"));
+              setError("authError");
               setIsLoading(false);
               return;
             }
@@ -304,7 +308,7 @@ export default function HomePage() {
     } else {
       setAuthChecked(true);
     }
-  }, [t]);
+  }, []);
 
   const fetchData = useCallback(
     async ({
@@ -320,6 +324,8 @@ export default function HomePage() {
         retryTimerRef.current = null;
       }
       dashboardLoadInFlightRef.current = true;
+      const controller = new AbortController();
+      dashboardAbortRef.current = controller;
       const requestId = latestLoadRequestId.current + 1;
       latestLoadRequestId.current = requestId;
       const isLatestRequest = () => latestLoadRequestId.current === requestId;
@@ -333,17 +339,27 @@ export default function HomePage() {
         const formTarget = readApplicationFormTarget(
           getRecentApplicationFormHref(),
         );
-        const dashboard = await getClientHomeDashboardWithTimeline({
+        const dashboard = await fetchClientHomeDashboard({
           applicationId:
             activeSelection?.applicationId ?? formTarget?.applicationId ?? null,
           country: activeSelection?.country ?? formTarget?.country ?? null,
           visaType: activeSelection?.visaType ?? formTarget?.visaType ?? null,
-        });
+        }, { signal: controller.signal });
         lastDashboardLoadAtRef.current = Date.now();
         if (dashboard.error) throw new Error(dashboard.error);
         if (!dashboard.authenticated) {
-          if (isLatestRequest()) setIsTimelinePartial(false);
-          if (isLatestRequest()) setIsTimelineLoading(false);
+          if (isLatestRequest()) {
+            setApplicantName(null);
+            setHeroCountry(null);
+            setActiveVisa(null);
+            setSelectedApplicationStatus(null);
+            setUniversalInfoProgress({
+              completedCount: 0,
+              totalCount: UNIVERSAL_PROFILE_FIELDS.length,
+            });
+            setIsTimelinePartial(false);
+            setIsTimelineLoading(false);
+          }
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
@@ -363,7 +379,8 @@ export default function HomePage() {
           full_name: string | null;
         } | null;
         if (!profileTyped) {
-          if (authName) setApplicantName(authName);
+          setApplicantName(authName);
+          setHeroCountry(null);
           setActiveVisa(null);
           setSelectedApplicationStatus(null);
           setIsTimelinePartial(false);
@@ -454,11 +471,8 @@ export default function HomePage() {
                   loadedPayments
                 ),
                 status: currentApplication.status,
-                visaName: getVisaPackageTitle(
-                  currentApplication.country,
-                  currentApplication.visa_type,
-                  locale
-                ),
+                country: currentApplication.country,
+                visaType: currentApplication.visa_type,
               }
             : null
         );
@@ -504,14 +518,15 @@ export default function HomePage() {
           return;
         }
         console.error("Failed to load client home dashboard", loadError);
-        setError(t("dashboardError"));
+        setError("dashboardError");
       } finally {
+        if (dashboardAbortRef.current === controller) dashboardAbortRef.current = null;
         dashboardLoadInFlightRef.current = false;
         if (showLoading && isLatestRequest() && !keepLoadingForRetry)
           setIsLoading(false);
       }
     },
-    [locale, t]
+    []
   );
 
   useEffect(() => {
@@ -532,11 +547,11 @@ export default function HomePage() {
     };
   }, [authChecked, fetchData]);
 
-  // A Server Action cannot receive the browser AbortSignal. Keep the action
-  // in-flight until it really settles, while preventing an unmounted page
-  // from applying its result when the request eventually completes.
+  // Abort the private read when leaving Home. Keep its in-flight guard until
+  // settlement and prevent a late response from applying after unmount.
   useEffect(() => () => {
     latestLoadRequestId.current += 1;
+    dashboardAbortRef.current?.abort();
     if (retryTimerRef.current !== null) {
       window.clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
@@ -567,7 +582,7 @@ export default function HomePage() {
   }, [isLoading]);
 
   if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={t(error)} />;
 
   // The hero keeps the shared blue gradient and reflects the country through its artwork.
   const heroTheme = getCountryHeroTheme(heroCountry);
@@ -647,7 +662,15 @@ export default function HomePage() {
             <ActiveVisaCard
               href={activeVisa?.href ?? "/client/destinations"}
               status={activeVisa?.status ?? null}
-              visaName={activeVisa?.visaName ?? null}
+              visaName={
+                activeVisa
+                  ? getVisaPackageTitle(
+                      activeVisa.country,
+                      activeVisa.visaType,
+                      locale,
+                    )
+                  : null
+              }
             />
             <UniversalInfoCard {...universalInfoProgress} />
             <QuickActionsCard />

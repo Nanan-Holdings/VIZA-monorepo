@@ -17,6 +17,7 @@ import {
   getClientHomeDashboardData,
   getClientHomeDashboardWithTimeline,
 } from "./client-home-dashboard";
+import { loadClientHomeDashboard } from "@/lib/client/home-dashboard-reader.server";
 
 type QueryCall = {
   table: string;
@@ -641,5 +642,53 @@ describe("getClientHomeDashboardData query budget", () => {
       error: "dashboard_read_failed",
     });
     expect(JSON.stringify(result)).not.toContain("secret provider details");
+  });
+
+  it("does not start an identity or admin read for a pre-aborted caller", async () => {
+    const upstream = new AbortController();
+    upstream.abort(new DOMException("caller cancelled", "AbortError"));
+
+    const result = await loadClientHomeDashboard({ includeTimeline: true }, upstream.signal);
+
+    expect(result).toMatchObject({
+      data: {
+        authenticated: false,
+        unavailable: true,
+        error: "session_unavailable",
+      },
+      timeline: null,
+      timelineApplicationId: null,
+      timelinePartialData: false,
+    });
+    expect(mocks.getClientSessionReadResult).not.toHaveBeenCalled();
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("propagates caller cancellation through the shared eight-second read budget", async () => {
+    const upstream = new AbortController();
+    const readStarted = createDeferred<void>();
+    mocks.getClientSessionReadResult.mockImplementation(({ requestSignal }: SupabaseReadOptions) =>
+      new Promise((resolve) => {
+        readStarted.resolve();
+        requestSignal?.addEventListener("abort", () => resolve({
+          status: "unavailable",
+          session: null,
+          reason: "cancelled",
+        }), { once: true });
+      }),
+    );
+
+    const pendingRead = loadClientHomeDashboard({}, upstream.signal);
+    await readStarted.promise;
+    upstream.abort(new DOMException("caller cancelled", "AbortError"));
+
+    const result = await pendingRead;
+
+    expect(result.data).toMatchObject({
+      authenticated: false,
+      unavailable: true,
+      error: "session_unavailable",
+    });
+    expect(mocks.createAdminClient).not.toHaveBeenCalled();
   });
 });

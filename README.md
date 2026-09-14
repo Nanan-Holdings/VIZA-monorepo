@@ -1,202 +1,160 @@
 ﻿# VIZA Monorepo
 
-VIZA is an AI-powered visa operations platform. This repository contains the core product surfaces used by clients and operations teams, plus backend services for dynamic visa-form generation and submission workflows.
+VIZA combines applicant and admin portals, visa consultation, dynamic application
+forms, travel planning, and queued browser workflows for official portals.
 
-## Repository scope
+Documentation baseline: source reviewed on **2026-09-13**. This describes
+repository implementations and code defaults. Configuration files, fixture tests
+and dated reports do not prove that a feature is currently enabled in production.
 
-This monorepo currently includes:
+## Runtime architecture
 
-- Client, staff, and admin web portals (Next.js app with role-based surfaces) — `viza-fe/internal-website`
-- Public marketing website — `viza-fe/marketing-website` (Next.js, SEO-first, deploys to `viza.com`)
-- Agent backend (chat, data APIs, form schema services)
-- Submission service (Playwright automation and runtime validation tooling)
-- Knowledge-base ingestion and research artifacts
-- Country visa schema playbooks, scope docs, and gap reports
+```text
+Applicant / Admin
+  -> Next.js portal (viza-fe/internal-website)
+       +-> Supabase Auth / signed client session / ownership checks
+       +-> Server Actions and API routes -> Postgres / Storage
+       +-> Visa Chat -> Socket.IO /visa -> Express agent-backend
+       |                                +-> memory / entry rules
+       |                                +-> pgvector RAG -> OpenAI response
+       +-> Travel Chat -> Next Responses coordinator -> state commit RPC
+       |                +-> itinerary / flight / hotel / export routes
+       |                     -> FastAPI travel-service -> external providers
+       +-> Form Assistant / OCR -> validated proposals -> application answers
+       +-> Payment webhooks -> durable provisioning jobs / fee allocations
+       +-> Explicit review/submit -> Postgres queue + runner leases
+                                      -> Playwright submission-service
+                                      -> official portal / results / artifacts
 
-## Current highlights
-
-- Frontend upgraded to Next.js 16 + React 19
-- Dynamic visa-form pipeline expanded beyond DS-160 to:
-  - UK Standard Visitor
-  - EU Schengen Type C (short-stay)
-  - Vietnam E-Visa (live-portal alignment pass completed)
-- Country rollout pattern standardized: seed script + package migration + scope/gap docs
-- DS-160 CEAC runtime-validation and CAPTCHA solve path documented and implemented in submission-service
-
-## Monorepo structure
-
-```
-viza-fe/
-  internal-website/           Next.js 16 app (client + staff + admin surfaces) — deploys to app.viza.com
-  marketing-website/          Next.js 16 marketing site (public, SEO-first)     — deploys to viza.com
-
-viza-be/                  Backend services
-  agent-backend/          AI chat server — Express, Socket.io, pgvector RAG，Express + Socket.IO + Drizzle + Supabase
-  submission-service/     Playwright-based submission and runtime validation tools
-  travel-service/         FastAPI travel planner backend for travel chatbot
-
-knowledge-base/               Ingestion and scraping utilities
-research/                     Competitor + immigration research
-shared/                       Shared assets/utilities
-docs/                         PRDs, scope docs, gap reports, QA notes, playbooks
-scripts/                      Runner scripts and automation helpers
-vietnam-visa-helper-v1/       Vietnam form helper extension research artifact
+Cloudflare email-worker: inbound email -> R2 / Postgres -> forwarding/retry
+Cloudflare resilience-worker: encrypted outbox -> Durable Objects / Queues
+Optional Socket.IO Redis adapter: multi-replica mode, disabled by default
 ```
 
-## Tech stack
+Next.js is also a backend-for-frontend: Travel coordination, form assistance,
+OCR, payment webhooks and many database operations run in its server routes.
+These requests do not all pass through Express.
 
-| Layer | Tech |
-|---|---|
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind |
-| Backend | Node.js, Express, Socket.IO, TypeScript |
-| Database | Supabase Postgres + Storage |
-| ORM/Migrations | Drizzle |
-| Automation | Playwright (+ stealth tooling where needed) |
-| AI/LLM integrations | Anthropic + other provider SDKs in backend workflows |
+## Repository map
 
-## Getting started
+| Path | Responsibility |
+| --- | --- |
+| [viza-fe/internal-website](viza-fe/README.md) | Next.js 16 / React 19 portal, Server Actions and API routes |
+| [viza-fe/marketing-website](viza-fe/marketing-website/AGENTS.md) | Separate public marketing app |
+| [viza-be/agent-backend](viza-be/agent-backend/README.md) | Express, Socket.IO, RAG, field guidance, application APIs and Drizzle migrations |
+| [viza-be/submission-service](viza-be/submission-service/README.md) | Playwright runners, queue consumers, health/wake HTTP server and artifacts |
+| [viza-be/travel-service](viza-be/travel-service/README.md) | FastAPI itinerary generation/revision, provider search and export |
+| [viza-be/email-worker](viza-be/email-worker/README.md) | Email routing, R2 retention, database ingestion and forwarding |
+| [viza-be/resilience-worker](viza-be/resilience-worker/README.md) | Encrypted continuity/outbox gateway, Durable Objects and Queues |
+| [knowledge-base/visa-rag-seeds](knowledge-base/visa-rag-seeds/README.md) | Country knowledge JSON and source metadata |
+| [travel-agent](travel-agent/DG.md) | Historical CLI/prototype; not the current Web conversation entry |
+| docs / scripts | Developer guides, dated evidence, runbooks and local tooling |
 
-### Prerequisites
+## AI and workflow boundaries
 
-- Node.js 20+
-- npm
-- Supabase project credentials (service and client envs)
+- Visa Chat uses OpenAI, with `gpt-4o-mini` as the code default. It combines
+  deterministic conversation memory and entry rules with retrieved context.
+  Its current LLM request has no registered tools or autonomous tool loop.
+- RAG uses `text-embedding-3-small`, `vector(1536)` in Supabase Postgres, cosine
+  retrieval, default top-k 5 (maximum 12), and runtime threshold 0.03. Main
+  ingestion reads pre-authored JSON chunks; that path has no universal fixed
+  token chunk size/overlap, reranker, or BM25/vector fusion.
+- Current Travel Chat runs in Next `app/api/travel/chat/route.ts`. Structured
+  Responses output is validated and applied by deterministic state operations.
+  The default model is `gpt-5.6-luna`; a specific model-not-found failure can
+  switch the process to `gpt-5.5`. It invokes neither the old LangGraph CLI nor
+  Python `/chat` for normal Web conversation turns.
+- Form Assistant combines schema-driven questions, deterministic parsing and
+  validated LLM patches. Its default model is `gpt-5.5`, with a separate
+  DeepSeek fallback. Passport OCR returns proposed fields for confirmation.
+- Official browser runners use deterministic mappings and persisted business
+  state. DS-160 defaults to dry-run/live disabled; an enabled live path can
+  reach final submission. Other products have independent flags and approvals.
+- Commercial payment and official-fee allocation are separate records.
+  Provisioning does not itself enqueue official submission; review, consent
+  and submission-entitlement checks remain separate.
 
-### 1) Frontend — internal portal
+See module guides for environment overrides, timeouts, fallbacks and ownership
+checks. Rule checks and source context are not comprehensive factual or legal
+verification. The code alone does not establish a measured reduction in input
+errors.
 
-```bash
-cd viza-fe/internal-website
-cp .env.template .env.local
-npm install
-npm run dev
+## Local development
+
+Use **Node.js 24.x** for agent-backend (`engines: >=24 <25`), npm, and a Python
+environment compatible with `viza-be/travel-service/requirements.txt`. Install
+dependencies only when missing or intentionally changed.
+
+From the repository root on Windows:
+
+```powershell
+.\scripts\start-viza-dev.ps1
+# Stop processes managed by this script:
+.\scripts\start-viza-dev.ps1 -Stop
 ```
 
-### 1b) Frontend — public marketing site
+The script starts the portal and agent backend, and starts Travel when its
+configured Python environment is available. Runner startup is separate and can
+consume durable jobs; follow its module guide and use a scoped test environment.
 
-```bash
-cd viza-fe/marketing-website
-cp .env.example .env.local
-npm install
-npm run dev
-```
+Manual startup and environment examples:
 
-### 2) Agent backend
+- [Frontend setup](viza-fe/README.md)
+- [Backend setup](viza-be/README.md)
+- [Travel setup](viza-be/travel-service/README.md)
+- [Submission setup and live gates](viza-be/submission-service/README.md)
 
-```bash
-cd viza-be/agent-backend
-cp .env.template .env
-npm install
-npm run dev
-```
+Use the existing `.env.example` files where provided. Never overwrite a working
+environment just to refresh documentation, or commit credentials. The current
+Travel page requires authentication; it does not require the latest visa
+application to be submitted or approved.
 
-### 3) Submission service (optional local run)
+## Validation and evidence
 
-```bash
-cd viza-be/submission-service
-cp .env.template .env
-npm install
-npm run dev
-```
+Run each command from its package directory:
 
-For browser automation setup:
+| Package | Static checks | Behavior verification |
+| --- | --- | --- |
+| `viza-fe/internal-website` | `npm run type-check`, `npm run lint` | Focused tests and changed browser route |
+| `viza-be/agent-backend` | `npm run type-check`, `npm run lint` | Focused tests, `/health`, relevant REST/Socket flow |
+| `viza-be/submission-service` | `npm run type-check` | Fixtures and the product-specific smoke runbook |
+| `viza-be/travel-service` | No package-level TypeScript command | Focused Python tests and changed FastAPI route |
+| Documentation only | Diff, links, commands and source checks | No service startup required |
 
-```bash
-cd viza-be/submission-service
-npm run install-browsers
-```
+The repository contains local load tests and a dated 100-session investigation.
+The [optimization report](docs/infra/2026-09-11-100-session-backend-optimization-plan.md)
+records failed capacity acceptance and variable local results. It is not a
+production benchmark or a proven concurrency guarantee. Keep deployment status,
+functional verification and capacity acceptance separate.
 
-## Quality checks
+Structured logs, local request/run IDs, bounded DB/RAG/runtime metrics, persisted
+events and some browser artifacts exist. LangSmith configuration and optional
+Sentry bootstraps do not establish working end-to-end tracing.
 
-Run checks in packages you changed:
+## Deployment configuration
 
-```bash
-# 0) Prerequisites
-# - Node.js 20+
-# - Python 3.11+ (or any version supported by travel-service dependencies)
-# - A reachable Supabase project URL + service role key
+The portal has Vercel configuration; agent-backend has Render configuration and
+older Cloud Build configuration; runners have Fly topology files; Cloudflare
+workers have Wrangler configuration. These express deployment intent, not a
+verified inventory of running services.
 
-# Frontend
-cd viza-fe/internal-website
-npm run type-check
-npm run lint
+Follow [AGENTS.md](AGENTS.md) for organization-owned Vercel authentication and
+upload rules. Runner deployment must preserve on-demand startup, bounded slots,
+lease renewal, terminal cleanup and idle exit. Use the applicable release
+runbook and actual environment verification before deploying.
 
-# Agent backend
-cd viza-be/agent-backend
-cp .env.template .env
-npm install && npm run dev        # http://localhost:3002
+## Development guides
 
-# Submission service (DS-160 queue worker)
-cd viza-be/submission-service
-cp .env.example .env
-# IMPORTANT: replace placeholder values in .env before running
-npm install && npm run dev
+- [Visa Chat and RAG](docs/viza-ai-chat-development-guide.md)
+- [Travel coordination and services](docs/travel-agent-development-guide.md)
+- [Application forms and assistant](docs/application/DG.md)
+- [Visa schema playbook](docs/visa-schema-playbook.md)
+- [Database governance](docs/db/database-architecture-governance.md)
+- [Internal automation boundaries](docs/internal-automation/AGENTS.md)
+- [CEAC smoke runbook](viza-be/submission-service/docs/ceac-smoke-test.md)
+- Product queue: `prd.json`; append-only implementation history: `progress.txt`
 
-# Travel service (for travel chatbot after application submission)
-cd viza-be/travel-service
-cp .env.example .env
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Travel chatbot integration flow
-
-- The travel chatbot UI lives at `/client/travel-chat`.
-- It is unlocked only after the visa application form flow is complete (submitted/approved).
-- Frontend `app/api/travel/*` routes proxy to `viza-be/travel-service` (`TRAVEL_BACKEND_URL`, default `http://127.0.0.1:8000`).
-
-### Common startup issues
-
-- `submission-service` keeps printing `Failed to fetch submission_queue: TypeError: fetch failed`
-  - Usually `.env` still has placeholders (`https://your-project.supabase.co`, `your-service-role-key`).
-  - Fill real `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-- `agent-backend` shows `supabase_connection_test_failed` / `TypeError: fetch failed`
-  - Check DNS/network can resolve your full Supabase subdomain, e.g. `xxxx.supabase.co`.
-  - If `Resolve-DnsName <your-project>.supabase.co` fails, fix DNS/network first.
-
-Never commit `.env` or `.env.local`. See `.env.template` in each service for required variables.
-npm run type-check
-npm run lint
-
-# Submission service
-cd viza-be/submission-service
-npm run type-check
-```
-
-## Dynamic visa schema workflow
-
-The current country rollout pattern is:
-
-1. Define canonical source scope in docs
-2. Add or update seed script in `viza-be/agent-backend/scripts/`
-3. Register visa package via Drizzle migration in `viza-be/agent-backend/drizzle/`
-4. Validate dynamic rendering path in frontend
-5. Publish scope and gap reports in `docs/`
-
-Reference playbook: `docs/visa-schema-playbook.md`
-
-## Key documentation map
-
-- Product and roadmap:
-  - `prd.json`
-  - `progress.txt`
-- DS-160 and CEAC:
-  - `docs/prd-ds160-ceac-runtime-validation.md`
-  - `viza-be/submission-service/docs/ceac-smoke-test.md`
-- UK visa:
-  - `docs/uk-visa-scope.md`
-  - `docs/uk-visa-gap-report.md`
-- Schengen visa:
-  - `docs/schengen-visa-scope.md`
-  - `docs/schengen-visa-gap-report.md`
-- Vietnam visa:
-  - `docs/vietnam-visa-scope.md`
-  - `docs/vietnam-visa-gap-report.md`
-  - `docs/vietnam-visa-qa-report-2026-04-24.md`
-
-## Notes
-
-- Do not commit `.env` files.
-- Keep schema parity claims truthful; document gaps explicitly in `docs/*-gap-report.md`.
-- Prefer extending dynamic schema flow over hardcoded country-specific frontend forms.
+Dated reports and prototypes retain their historical meaning. Prefer current
+entry points and module guides over historical implementation notes. Keep
+official-source parity, authorization and live-submission claims limited to
+evidence for the exact product and route.

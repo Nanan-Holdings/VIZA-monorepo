@@ -35,7 +35,9 @@ reports, and workflow documentation for VIZA.
   implementation progress, local verification, the user-directed 2026-09-12
   release, next-round profiling strategy, and the rejected time-zone candidate's
   paired local results, subsequent HTTP connection diagnostics, and the
-  profile/queue read-consolidation candidate. Record deployment status separately
+  profile/queue read-consolidation candidate, and the 2026-09-13 private Home GET
+  transport/cancellation comparison and alias-consent locale deduplication.
+  Record deployment status separately
   from capacity acceptance; unfinished gates must not be presented as proven
   100-session capacity.
 - `internal-automation/**`: VIZA website automation lifecycle, module plans,

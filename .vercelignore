@@ -30,7 +30,7 @@
 
 *.log
 *.zip
-/output-*.png
+**/output-*.png
 /tmp-*
 /bilingual-schema-audit-report.*
 /architecture.payment

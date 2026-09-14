@@ -1,346 +1,267 @@
-# VIZA Travel Agent Development Guide (DG)
-
-## 1. 目标与范围
-
-本指南用于在 `VIZA-monorepo` 内开发与维护 Travel AI 模块（前端对话 + 地图 + 行程生成 + 航班/酒店候选 + 导出文档）。
-
-当前 Travel 能力主要由以下三块组成：
-
-1. `viza-fe/internal-website`：用户可见的 Travel Chat UI 与 API 代理层  
-2. `viza-be/travel-service`：Python FastAPI 旅行规划后端  
-3. `viza-be/agent-backend` / `viza-be/submission-service`：同一套本地开发常用依赖服务（非 Travel 核心逻辑，但通常一起启动）
-
----
-
-## 2. 高层架构（请求链路）
-
-1. 用户在 `/client/travel-chat` 发起输入；浏览器只提交
-   `sessionId`、`messageId`、可见文本、语言和预期状态版本
-2. `/api/travel/chat` 是唯一对话协调器：鉴权、幂等检查、加载会话状态与
-   偏好、调用 OpenAI Responses API、验证结构化操作，再原子提交消息和状态
-3. 模型用 `previous_response_id` 维持多轮上下文；状态只接受显式的
-   `set/add/remove/unset/reset` 操作。推荐卡只展示，不改变目的地或进度
-4. 需要生成或修改行程时，客户端依据协调器返回的意图和已提交状态调用
-   `/api/travel/itinerary` 或 `/api/travel/itinerary/revise`，一轮只渲染一条回复
-5. `travel-service` 调用：
-   - `itinerary.py`（OpenAI 生成行程，失败时 fallback）
-   - `tools/flights.py`（RapidAPI 航班）
-   - `tools/hotels.py`（RapidAPI 酒店）
-6. 前端渲染：
-   - 聊天与选择流程
-   - 行程卡片与导出按钮
-   - Google Maps 地图与路线/热点标记
-
----
-
-## 3. 关键文件地图（路径 + 作用）
-
-### 3.1 Frontend（Next.js）
-
-#### 页面入口与整合点
-
-- `viza-fe/internal-website/app/client/travel-chat/page.tsx`  
-  Travel 页面路由入口；做登录态检查并加载当前用户最新 application id。
-
-- `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`  
-  Travel 主容器；组织左侧聊天/表单、右侧地图、热点卡片、进度状态。
-
-- `viza-fe/internal-website/app/client/chat/chat-client.tsx`  
-  主聊天页中 `VIZA AI / Travel AI` 切换入口；`Travel AI` 标签会渲染 `TravelChatClient`。
-
-#### Travel UI 组件
-
-- `viza-fe/internal-website/components/client/travel/travel-planner-form.tsx`  
-  分步骤收集旅行参数（国家、城市、天数、人数、预算、往返、航班/酒店选择、备注）。
-
-- `viza-fe/internal-website/components/client/travel/travel-itinerary-panel.tsx`  
-  行程展示与导出（Word/PDF）面板。
-
-- `viza-fe/internal-website/components/client/travel/trip-route-map.tsx`  
-  Google Maps 地图渲染（中文地图、地点 marker、路线 polyline、点击联动）。
-
-#### 前端业务逻辑与类型
-
-- `viza-fe/internal-website/lib/travel/planner.ts`  
-  Travel 的核心状态机与数据标准化规则（deterministic transform，不依赖 AI 猜测）。
-
-- `viza-fe/internal-website/lib/travel/conversation-state.ts`
-  服务端状态版本的标准化，以及 `set/add/remove/unset/reset` 显式操作验证。
-
-- `viza-fe/internal-website/lib/travel/chat-types.ts`  
-  聊天消息类型定义。
-
-- `viza-fe/internal-website/lib/travel/backend.ts`  
-  到 `travel-service` 的转发基础函数；读取 `TRAVEL_BACKEND_URL`。
-
-- `viza-fe/internal-website/lib/travel/locations-provider.ts`  
-  国家/城市选项 provider，含缓存与外部数据拉取。
-
-- `viza-fe/internal-website/lib/travel/locations.ts`  
-  手工维护的常用国家城市映射（中英文、别名）。
-
-#### 前端 API 代理（Next Route Handlers）
-
-- `viza-fe/internal-website/app/api/travel/chat/route.ts`
-  Travel 对话唯一协调器；使用 Structured Outputs、`previous_response_id`、
-  消息幂等和乐观状态版本。`gpt-5.6-luna` 为首选；当 OpenAI 明确返回当前项目
-  无模型权限时，可使用 `TRAVEL_AGENT_OPENAI_FALLBACK_MODEL`。
-
-- `viza-fe/internal-website/app/api/travel/sessions/route.ts`
-  当前聊天、地图和行程版本的跨设备归档。
-
-- `viza-fe/internal-website/app/api/travel/preferences/route.ts`
-  查看、逐项删除和全部清除明确保存的跨会话旅行偏好。
-
-- `viza-fe/internal-website/app/api/travel/health/route.ts`
-  分别报告 OpenAI、Python Travel Service、会话数据库和 Places 状态。
-
-- `viza-fe/internal-website/app/api/travel/itinerary/route.ts`  
-  转发行程生成请求（支持候选后端路径 fallback）。
-
-- `viza-fe/internal-website/app/api/travel/flights/route.ts`  
-  转发航班候选查询。
-
-- `viza-fe/internal-website/app/api/travel/hotels/route.ts`  
-  转发酒店候选查询。
-
-- `viza-fe/internal-website/app/api/travel/download-word/route.ts`  
-  转发并回传 `.docx` 文件流。
-
-- `viza-fe/internal-website/app/api/travel/download-pdf/route.ts`  
-  转发并回传 `.pdf` 文件流。
-
-- `viza-fe/internal-website/app/api/travel/locations/countries/route.ts`  
-  国家选项 API。
-
-- `viza-fe/internal-website/app/api/travel/locations/cities/route.ts`  
-  城市选项 API（按国家）。
-
-#### 前端静态资源与环境变量
-
-- `viza-fe/internal-website/public/globe/*`  
-  地图 marker 与热点卡片所用图片资源。
-
-- `viza-fe/internal-website/.env.local`  
-  前端运行配置（Supabase、Agent Backend、Travel Backend、Google Maps key）。
-
----
-
-### 3.2 Travel 后端（Python FastAPI）
-
-- `viza-be/travel-service/main.py`  
-  FastAPI 入口；定义以下核心接口：  
-  `POST /generate`、`POST /flight-options`、`POST /hotel-options`、`POST /download-word`、`POST /download-pdf`。
-
-- `viza-be/travel-service/itinerary.py`  
-  行程生成逻辑；优先调用 OpenAI，失败时使用 deterministic fallback itinerary。
-
-- `viza-be/travel-service/tools/flights.py`  
-  航班搜索工具；通过 RapidAPI 查询，失败时返回 mock 数据。
-
-- `viza-be/travel-service/tools/hotels.py`  
-  酒店搜索工具；通过 RapidAPI 查询，失败时返回 mock 数据。
-
-- `viza-be/travel-service/export_doc.py`  
-  Word 导出实现。
-
-- `viza-be/travel-service/export_pdf.py`  
-  PDF 导出实现。
-
-- `viza-be/travel-service/.env.example`  
-  后端环境变量模板（OpenAI + RapidAPI）。
-
-- `viza-be/travel-service/requirements.txt`  
-  Python 依赖列表。
-
----
-
-### 3.3 常一起启动的服务（协作开发用）
-
-#### Agent Backend（Socket + 主 AI）
-
-- `viza-be/agent-backend/src/index.ts`  
-  服务入口（默认 3002），挂载 Socket.IO 命名空间 `/visa`。
-
-- `viza-be/agent-backend/src/socket/visa-namespace.ts`  
-  处理 `visa_chat_message`、消息持久化、流式 token 返回、工具回调等。
-
-#### Submission Service（自动化提交）
-
-- `viza-be/submission-service/src/index.ts`  
-  轮询 `submission_queue`、触发 Playwright 自动提交流程。
-
-- `viza-be/submission-service/src/alert.ts`  
-  失败告警邮件（Resend）；若未配置 key 会跳过并打印 warning。
-
----
-
-## 4. 环境变量清单（开发常用）
-
-> 不要把真实 key 提交到 git。建议仅在本地 `.env` / `.env.local` 保留。
-
-### 4.1 Frontend `viza-fe/internal-website/.env.local`
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_AGENT_BACKEND_URL=http://localhost:3002
-TRAVEL_BACKEND_URL=http://127.0.0.1:8000
-OPENAI_API_KEY=
-TRAVEL_AGENT_OPENAI_FALLBACK_MODEL=gpt-5.5
-GOOGLE_MAPS_API_KEY=
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
-```
-
-### 4.2 Travel Service `viza-be/travel-service/.env`
-
-```env
-OPENAI_API_KEY=
-RAPIDAPI_KEY=
-RAPIDAPI_BOOKING_HOST=booking-com15.p.rapidapi.com
-RAPIDAPI_BOOKING_BASE_URL=https://booking-com15.p.rapidapi.com
-```
-
-### 4.3 Agent Backend `viza-be/agent-backend/.env`
-
-至少保证 Supabase + 运行端口可用（其余按业务需要补齐）。
-
-### 4.4 Submission Service `viza-be/submission-service/.env`
-
-```env
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-RESEND_API_KEY=
-TWOCAPTCHA_API_KEY=
-```
-
----
-
-## 5. 启动与开发（可直接 copy & paste）
-
-## 一次性初始化（每台机器只做一次）
-
-```powershell
-# 0) 进入仓库根目录
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
-
-# 1) Frontend
-cd .\viza-fe\internal-website
-npm install
-
-# 2) Agent Backend
-cd ..\..\viza-be\agent-backend
-npm install
-
-# 3) Submission Service
-cd ..\submission-service
-npm install
-npm run install-browsers
-
-# 4) Travel Service (Python)
-cd ..\travel-service
-if (!(Test-Path .venv)) { python -m venv .venv }
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-deactivate
-```
-
-## 每次开发启动（开 4 个终端）
-
-### 终端 1 - Frontend (Next.js)
-
-```powershell
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-fe\internal-website
-npm run dev
-```
-
-### 终端 2 - Agent Backend (3002)
-
-```powershell
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\agent-backend
-npm run dev
-```
-
-### 终端 3 - Travel Service (8000)
-
-```powershell
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\travel-service
-.\.venv\Scripts\activate
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 终端 4 - Submission Service（需要轮询自动提交时再开）
-
-```powershell
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\submission-service
-npm run dev
-```
-
-## 一键启动脚本（已提供）
-
-脚本位置：
-
-- `scripts/start-travel-dev.ps1`
-
-使用方式：
-
-```powershell
-# 默认启动：Frontend + Agent Backend + Travel Service
-cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
-powershell -ExecutionPolicy Bypass -File .\scripts\start-travel-dev.ps1
-
-# 若你也要启动 submission-service
-powershell -ExecutionPolicy Bypass -File .\scripts\start-travel-dev.ps1 -WithSubmissionService
-```
-
----
-
-## 6. 快速访问地址
-
-```text
-Frontend: http://localhost:3000
-Agent Backend: http://localhost:3002
-Travel Service: http://127.0.0.1:8000
-Travel Chat 页面: http://localhost:3000/client/travel-chat
-```
-
----
-
-## 7. 日常开发建议
-
-1. 只改 UI：优先改 `travel-chat-client.tsx` + `components/client/travel/*`。  
-2. 改数据流程：优先改 `lib/travel/planner.ts`（确保 deterministic）。  
-3. 改后端能力：改 `travel-service/main.py` 与 `tools/*`。  
-4. 改接口转发：改 `app/api/travel/*/route.ts`。  
-5. 改地图：改 `trip-route-map.tsx` + `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`。
-
----
-
-## 8. 常见问题排查
-
-1. 地图空白或灰块  
-   检查 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`，重启前端，浏览器强刷（Ctrl+F5）。
-
-2. `/api/travel/*` 返回 500  
-   先确认 `travel-service` 是否在 `8000` 启动；再看 `TRAVEL_BACKEND_URL`。
-
-3. 行程始终 fallback  
-   说明 `OPENAI_API_KEY` 缺失或调用失败，检查 `viza-be/travel-service/.env`。
-
-4. submission-service 启动报 `Missing API key`  
-   检查 `RESEND_API_KEY`；若仅本地调 Travel，可暂不启动 submission-service。
-
-5. agent-backend 连库失败（Supabase / DNS）  
-   先排查网络，再确认 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`DATABASE_URL`。
-
----
-
-## 9. 最小化 Travel-only 开发模式（更轻量）
-
-如果只开发 travel 模块，通常只需开两个服务：
-
-1. `viza-fe/internal-website`（3000）  
-2. `viza-be/travel-service`（8000）
-
-只有当你要联调主聊天 Socket 或自动化提交流程时，再启动 3002 / submission-service。
+# VIZA Travel AI Development Guide
+
+本指南只描述当前 VIZA Travel AI 的实际代码路径。实现事实以源码为准；
+旧的根目录 travel-agent/ 说明见该目录自己的历史文档，不应当被当作当前
+Web 产品入口。
+
+## 1. 当前运行边界
+
+当前用户入口是 /client/travel-chat。页面入口
+viza-fe/internal-website/app/client/travel-chat/page.tsx:12-20 负责登录态
+和 application id，主容器是
+viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx。
+统一聊天页的 Travel 标签在
+viza-fe/internal-website/app/client/chat/chat-client.tsx:188-192,1985-1987
+嵌入同一个主容器。
+
+浏览器的真实对话调用是：
+
+~~~text
+/client/travel-chat
+  -> POST /api/travel/chat
+  -> POST /api/travel/itinerary（生成时）
+     或 POST /api/travel/itinerary/revise（修改时）
+  -> viza-be/travel-service 的生成、provider、导出接口
+~~~
+
+浏览器不把对话 turn 转发到 Python POST /chat。Python /chat 是可直接调用的
+独立接口，返回协议也不同；它不是当前 Next Travel UI 的对话入口。
+旧 travel-agent/agent/graph.py 是历史 LangGraph CLI，当前 VIZA 启动脚本
+不会启动它。
+
+## 2. 当前对话协调器
+
+当前协调器是 Next route handler，不是 LangGraph、LangChain graph，也不是
+带函数工具循环的 Agent SDK。实现位于
+viza-fe/internal-website/app/api/travel/chat/route.ts。
+
+浏览器在 travel-chat-client.tsx:5616-5874 提交
+sessionId、messageId、可见文本、locale、expectedStateVersion 和
+applicationId。服务端先鉴权和检查请求，随后读取 canonical session、最近
+历史与偏好，再调用 Responses API。
+
+模型协议和限制如下：
+
+- route.ts:37-42 的首选模型是 gpt-5.6-luna；一次请求的默认 OpenAI
+  超时是 60,000 ms，可由 TRAVEL_AGENT_OPENAI_TIMEOUT_MS 覆盖。
+- route.ts:881-894 使用 Responses API Structured Outputs，schema 名称为
+  travel_agent_turn，strict 为 true；reasoning effort 固定为 medium。
+- route.ts:901-916 仅在首选模型返回 403/404 且内容含 model_not_found 时
+  重试一次备用模型。备用模型是 TRAVEL_AGENT_OPENAI_FALLBACK_MODEL 或
+  gpt-5.5。进程级 activeTravelAgentModel 一旦切换到备用模型，后续请求
+  不会自动切回首选。
+- route.ts:869-872 没有 previous_response_id 时最多附加最近 12 条历史；
+  有该 id 时由 Responses API 继续上下文。请求最后总会追加当前用户输入。
+- 输入文本上限是 8,000 字符；session/message id 的解析也有长度和非空
+  校验。没有 max_steps 配置；正常一轮为一次模型请求，符合上述模型权限
+  错误时最多两次模型请求。
+- request body 没有 tools 或 tool_choice。当前 LLM function-tool 数量是
+  0；航班、酒店、Google Places 和本地 destination resolver 都由普通服务
+  代码调用，不由模型选择工具。
+
+模型返回 10 类 intent（回答、推荐、记录事实、选择/删除目的地、确认/拒绝、
+生成、修改、澄清）和 4 类 UI action（none、collect_field、
+generate_itinerary、revise_itinerary），定义在 route.ts:45-79。
+
+## 3. State、版本、恢复和确认门
+
+viza-fe/internal-website/lib/travel/planner.ts:120-142 的 TravelState
+包含 countries/cities、city days、目的地确认、日期/灵活性、天数、人数、
+预算、起点/返程、travel order、selected flights/hotels、final note 和
+文件等。planner.ts:8-23 固定 TravelField 顺序；DEFAULT_CITY_DAYS 为 2；
+flexible departure 默认约为当前日期后 2 个日历月。
+
+lib/travel/conversation-state.ts:14-47 只允许 14 个 state path 和
+set/add/remove/unset/reset 五类 operation。:289-520 验证正数、ISO 日期、
+城市、完整 travel order、explicit/evidence，并在目的地、日期或起终点变化时
+清掉依赖性的航班/酒店选择。
+
+服务端 session row 在 route.ts:81-97 中包含 state_json、state_version、
+memory_summary、openai_previous_response_id 和 pending_actions_json。
+ensureSession 在 route.ts:2147-2182 创建 version 0 的 session。
+
+幂等和并发保护的真实顺序是：
+
+1. route.ts:2426-2435 先按 external messageId 查询已保存 response；只有请求
+   到达时已有已完成、已持久化的结果，才直接 replay 并避免再次调用模型。
+2. route.ts:2436-2448 比较 expectedStateVersion；过期请求返回 409，在
+   模型调用前停止。
+3. 模型成功后，deterministic operation validation 产生新 state。
+4. route.ts:2661-2695 将新 version、用户/assistant 内容、state、memory、
+   Responses id、pending actions 和 response 传入
+   commit_travel_agent_turn；RPC conflict 在 :2698-2710 返回 409。
+
+两个相同 messageId 的并发首次请求仍可能都在结果保存前进入模型调用；当前
+没有覆盖这段区间的 in-flight lock。RPC 保护最终状态提交，但不能据此声称
+并发重复请求只消耗一次 LLM 调用或费用。RPC 实现见
+viza-be/agent-backend/drizzle/0158_database_access_baseline.sql 的
+commit_travel_agent_turn。
+
+这套机制是数据库版本/idempotency/Responses continuity，不是 LangGraph
+MemorySaver。前端还会在 travel-chat-client.tsx:5247-5515 使用 localStorage、
+/api/travel/sessions archive 和 /api/travel/chat?sessionId=... canonical
+state 做跨页恢复。
+
+Human gate 是显式用户确认门，没有独立人工 staff 审核：
+
+- route.ts:817-840 要求建议和推断事实不能直接变更状态，事实必须有用户
+  本轮 evidence；模型猜测会成为 pending action preview。
+- route.ts:1379-1402 用确定性确认/拒绝解析；只有用户确认后 pending
+  operation 才会进入 applyTravelStateOperations。
+- 推荐卡只展示，不自动选择目的地；不完整的生成请求被改为 deterministic
+  collect-field 回复。
+- 没有独立 human approval API、max-step runner、checkpoint worker 或自动
+  resume loop。
+
+## 4. 前端 planner 和 API 代理
+
+lib/travel/planner.ts:1270-1400 做 deterministic state completeness、
+city-day 总和、日期、人数、预算、起终点和 travel order 校验。表单组件
+components/client/travel/travel-planner-form.tsx:1202,1380,1465,1511,1563
+分别调用城市、国家、IP location、航班和酒店 API。表单结构化消息由
+planner.ts:703-750 解析，而不是让模型猜测字段格式。
+
+lib/travel/backend.ts:1-30 的 Python backend 默认是
+http://127.0.0.1:8000，proxy timeout 默认 35,000 ms，由
+TRAVEL_BACKEND_TIMEOUT_MS 覆盖。该 timeout 比 Python itinerary endpoint
+的 50 秒 deadline 短，慢的生成请求可能先被 Next proxy 取消。
+
+当前 Next Travel route 主要包括：
+
+- /api/travel/chat：唯一当前 Web 对话协调器。
+- /api/travel/itinerary：调用 generateItineraryWithFallback。
+- /api/travel/itinerary/revise：澄清或修改现有行程。
+- /api/travel/flights、/api/travel/hotels：Python provider proxy。
+- /api/travel/download-word、/api/travel/download-pdf：文件流 proxy。
+- /api/travel/locations/countries、/api/travel/locations/cities、
+  /api/travel/ip-location、/api/travel/geocode：选项和地图辅助 API。
+
+## 5. Python FastAPI 服务的真实接口
+
+viza-be/travel-service/main.py:387-612 当前定义九个接口：
+
+| Method | Path | 实际行为 |
+| --- | --- | --- |
+| GET | /health | 固定 liveness response，不验证所有 provider。 |
+| GET | /ready | 初始化/检查共享 HTTP client。 |
+| POST | /generate | 生成结构化 itinerary。 |
+| POST | /revise-itinerary | 修改 itinerary；不可用时保留原 itinerary。 |
+| POST | /chat | 独立 Python chat；当前 Web 不调用。 |
+| POST | /download-word | 生成或导出 Word。 |
+| POST | /download-pdf | 生成或导出 PDF。 |
+| POST | /flight-options | RapidAPI 航班查询和估算 fallback。 |
+| POST | /hotel-options | RapidAPI 酒店查询和 deterministic fallback。 |
+
+main.py:87-201 的 TravelRequest 接收国家、城市、city_days、日期、天数、
+人数、预算、起终点、travel order、航班/酒店选择、备注和 locale；这些请求
+本身没有 Python 持久化 session 或 state version。
+
+agent.py:60-96,605-868 的 Python /chat 使用 Chat Completions 的
+gpt-4o-mini，temperature 0.2，client timeout 45 秒，最多携带最近 8 条消息；
+OpenAI 失败后走 welcome/inspiration/destination/detail/collect-slots 等
+deterministic fallback。它不是当前 Responses coordinator 的兼容实现。
+
+## 6. 行程生成、修改和 provider fallback
+
+lib/travel/itinerary-fallback.ts:296-401,432-520,522-717 的当前 Next
+生成管线会检查本地 destination 数据；本地完整性要求坐标、真实 cover image、
+至少 5 个 attractions、至少 5 个带坐标和描述的 attraction、至少 3 张非占位
+照片以及 completeness score 至少 85。不足时可调用 Google Places enrichment，
+将事实 context 传给主生成流程。
+
+主 Python backend 候选路径是 /generate、/generate-itinerary、
+/api/generate；只有 404 才尝试下一个候选，其他错误直接进入失败处理。
+主结果规范化时每一天最多 4 个 activities 和 3 个 food。主服务失败后才使用
+text-only LLM fallback；该 fallback 使用 gpt-4o-mini 或
+OPENAI_TRAVEL_ITINERARY_MODEL，temperature 0.25，要求只使用请求城市，并
+禁止虚构营业时间、价格和预约。所有路径失败则返回带 debug id 的 retryable
+structured error。
+
+Python /generate 在 main.py:401-412 有 50 秒 endpoint deadline；
+itinerary.py:1686-1860 的 OpenAI generation 使用 gpt-4o-mini、
+temperature 0.4、client timeout 45 秒，无 key、超时、异常、空结果或解析失败
+时使用 deterministic _fallback_itinerary。
+
+修改有两层：
+
+1. 当前浏览器先调用 Next /api/travel/itinerary/revise。若 Next 能取得
+   OpenAI key，revise/route.ts:346-391 直接使用 Chat Completions
+   gpt-4o-mini、temperature 0.2；有歧义（例如“少一天”但未指明城市）时
+   :114-200 先返回澄清。
+2. 只有 Next revision route 没有 key 时才尝试 Python /revise-itinerary，
+   候选为 /revise-itinerary 和 /api/revise-itinerary，只在 404 时换候选。
+   Python itinerary.py:1419-1589 使用 gpt-4o-mini、temperature 0.2、
+   timeout 45 秒；不可用时返回 unchanged itinerary 和
+   _openai_revision_unavailable。
+
+itinerary.py:1250 的 _fallback_revision 仍存在并被
+tests/test_locale_alignment.py:32-35 直接导入，但 main.py 生产路径不调用
+它；不能把它写成当前 revision fallback。
+
+Provider boundary：
+
+- main.py:48-65 将 provider search concurrency 默认限制为 4，每个 search
+  deadline 为 30 秒。
+- tools/http_client.py:18-128 的 connect/read/write/pool timeout 是
+  5/15/5/5 秒；只对第一次 HTTP 429 按 Retry-After 重试，并将等待限制为
+  0.1-2 秒；没有通用 5xx retry/backoff。
+- tools/flights.py 和 tools/hotels.py 的 destination lookup cache TTL
+  为 86,400 秒，lookup deadline 10 秒，max in-flight 64，cache max 256。
+- 航班 provider 失败最多返回 2 条 estimated 选项并标出 unavailable；
+  不伪造航空公司或 booking offer。酒店 provider 失败返回 2 条
+  api-default 选项；它们是展示估算，不是已确认预订。
+
+## 7. Reliability、health 和 observability
+
+当前 chat 失败边界是：没有 OpenAI key 返回 503；OpenAI timeout/HTTP/结构化
+输出失败返回 502，发生在 turn commit 之前。数据库 commit 错误返回 503，
+但网络响应丢失可能使调用方无法判断事务是否已经提交；应使用同一 messageId
+查询或重试来恢复已保存结果，不能把传输失败直接等同于数据库未变更。
+状态版本冲突为 409，已完成的重复 messageId replay 已保存结果。
+
+app/api/travel/health/route.ts:4-127 的 health timeout 为 2,500 ms；
+session DB transient retry 延时为 150 ms、500 ms。passive probe 不访问
+OpenAI，active probe 才 GET /v1/models。整体 ok 只依赖 OpenAI、session
+database 和 client-session，虽然 response 同时报告 Python service 和 Places。
+Python /health 固定返回 ok，因此不能单独证明 OpenAI、RapidAPI 或 Google
+可用。
+
+pipeline observability 主要是 structured diagnostics 和日志：
+
+- lib/travel/travel-errors.ts:1-79 定义 parse_intent、resolve_destination、
+  local lookup、Google search/details/photos、LLM itinerary、primary service、
+  render/save 等 stage，并生成 retryable、fallback 和 debugId。
+- itinerary-fallback.ts:30-74 返回 local/Google/primary/LLM 状态、warnings
+  和 fallbackUsed。
+- chat route 记录 [travel-chat] OpenAI failure 和 coordinator failure；
+  开发环境才回传内部 debug 字段。
+- tools/openai_client.py:25-111 有 bounded admission helper：concurrency
+  默认 8、max waiters 32、acquire timeout 5 秒，上限为 64/256/30；它没有
+  retry/backoff/circuit breaker。
+- tools/export_admission.py:38-102 的导出 concurrency 默认 2、max waiters
+  16、acquire timeout 5 秒，并处理取消和临时文件清理。
+
+当前仓库没有发现 Travel load benchmark 或 production latency benchmark；
+现有测试是 provider、状态协议、fallback、locale、export 和 concurrency
+回归测试。
+
+## 8. 测试与本地验证
+
+前端 Travel 测试包括：
+lib/travel/__tests__/travel-negative-command.spec.ts:594-1402 的推荐不自动
+选择、state 恢复、显式 add/remove、多事实、pending confirm/reject、幂等、
+409 和 OpenAI failure；travel-llm-connectivity.spec.ts:7-195 的 OpenAI、
+Python、session DB、Places 独立 health 和 DB retry；
+itinerary-fallback.test.ts:96-218,227-397 的本地/Google/LLM fallback、
+规范化、缓存和地理边界。
+
+Python 测试包括 tests/test_flights.py provider contract、
+tests/test_locale_alignment.py locale/fallback、
+tests/test_export_summary.py export，以及
+tests/test_concurrency.py:36-486 single-flight、取消、bounded OpenAI/export
+admission 和文件清理。
+
+只启动当前 Travel service 时使用 uvicorn main:app；仓库一键脚本中的真实
+Travel service 路径是 viza-be/travel-service，见
+scripts/start-viza-dev.ps1:22,434-471 和 scripts/start-all.ps1:26,865-899。
+不要把根目录 travel-agent/chat.py 当作当前 VIZA smoke entry。

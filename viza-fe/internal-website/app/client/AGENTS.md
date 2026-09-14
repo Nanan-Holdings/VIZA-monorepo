@@ -16,16 +16,20 @@ applicant info, and help pages.
   or redirect applicants away from their requested route. The shell mounts
   `_components/alias-forwarding-consent-gate.tsx` after a valid session so
   applicants can explicitly authorize alias-email forwarding before protected
-  submission flows use it.
+  submission flows use it. The gate initializes when enabled, not when the
+  display locale changes; retain semantic error codes and localize at render.
+  `_components/__tests__/alias-forwarding-consent-gate.test.tsx` covers pending
+  reads, locale changes, re-enabling, and explicit forwarding authorization.
 - `about-me-form/`: compatibility redirect for retired health-questionnaire
   links. It may return only to a safe internal `/client/*` route and must never
   render or reintroduce the old Profile/Habits/Diet/Recovery questionnaire.
 - `home/page.tsx`: dashboard (hero, subscription entry, universal information
   summary, recent activity) loads dashboard and selected task timeline through
-  one authorized `getClientHomeDashboardWithTimeline` action. The server checks
+  one private `GET /api/client/home-dashboard` read. The server checks
   the requested selection against owned applications and returns a slim task
   projection. Clear stale timelines, surface partial/unavailable states, and
-  retain the in-flight guard until the action actually settles.
+  retain the in-flight guard until the read actually settles. Forward browser
+  cancellation on unmount, and keep focus refreshes serialized and stale-gated.
   `home/__tests__/home-status-loading.test.tsx` covers these loading states.
 - `destinations/page.tsx`: country/application switch page — "my applications"
   switcher plus the popular-destinations catalog (featured, region groups,

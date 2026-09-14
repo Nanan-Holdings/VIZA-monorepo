@@ -2,10 +2,15 @@
 
 This guide explains where the application-form content lives and how the current form, RAG, and field-AI pieces connect.
 
+Source baseline: **2026-09-13**. This is an implementation guide, not evidence
+of production enablement or measured input-error reduction. Verify model
+defaults, limits and confirmation gates at the owning entry point when changing
+a workflow.
+
 ## Local Startup And Page Entry
 
-Start the VIZA portal from the Next.js app directory, not from the monorepo
-root:
+Use the repository startup helper from the monorepo root. For manual Next.js
+startup, use the app directory as shown below:
 
 ```powershell
 cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo
@@ -62,7 +67,8 @@ npm run dev
 ```
 
 The frontend expects this backend at `NEXT_PUBLIC_AGENT_BACKEND_URL`, normally
-`http://localhost:3002`. Travel AI pages also need the Python travel service:
+`http://localhost:3002`. Travel conversation turns run in Next.js with its own
+OpenAI configuration; itinerary/search/export operations use the Python service:
 
 ```powershell
 cd D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\viza-be\travel-service
@@ -124,6 +130,10 @@ Frontend supporting libraries and types:
 - `viza-fe/internal-website/lib/visa-form-fields.ts`
 - `viza-fe/internal-website/types/visa-form-fields.ts`
 - `viza-fe/internal-website/types/field-guidance.ts`
+- `viza-fe/internal-website/lib/form-assistant/service.ts`
+- `viza-fe/internal-website/lib/form-assistant/server-context.ts`
+- `viza-fe/internal-website/lib/form-assistant/knowledge.ts`
+- `viza-fe/internal-website/lib/form-assistant/submission-readonly.ts`
 
 Backend field guidance and RAG:
 
@@ -145,6 +155,8 @@ Database and migrations:
 - `viza-be/agent-backend/drizzle/0001_viza_initial.sql`
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`
 - `viza-be/agent-backend/drizzle/0013_internal_automation_loop.sql`
+- `viza-be/agent-backend/drizzle/0123_viza_knowledge_releases_and_chat_memory.sql`
+  supersedes the original retrieval RPC with active-release filtering.
 - Supabase tables: `applications`, `application_answers`,
   `visa_application_answers`, `application_documents`, `visa_packages`,
   `visa_form_fields`, `visa_documents`, `visa_chunks`, `payment_records`,
@@ -206,8 +218,10 @@ API/action boundaries:
    remain synchronized in state.
 6. Field values are stored in local step state, then persisted to application answer rows when the user continues.
 7. Team management (when applicable) is followed by one final Review Application
-   step. That step combines the read-only answer review, missing-field summary,
-   confirmation/submission controls, and post-submission status/result state.
+   step. Before submission, English/official values can be corrected with typed
+   controls while preserving Chinese values. The step combines missing-field
+   checks, confirmation/submission controls and result state; successful
+   submitted applications are read-only.
 
 ## Bilingual Form Contract
 
@@ -252,7 +266,10 @@ Backend:
 - It calls `retrieveVisaKnowledge()` when retrieval is enabled.
 - It optionally calls OpenAI when `OPENAI_API_KEY` is available.
 - It strips Markdown from generated text before returning it.
-- It uses an in-memory cache keyed by visa type, field name, and locale.
+- Public field guidance uses `src/routes/field-guidance-cache.ts`, with country,
+  visa type, field and locale in the cache identity. The bounded single-flight
+  cache holds at most 256 entries for 15 minutes. Applicant answers and
+  personalized follow-up replies are not shared cache entries.
 - Initial guidance is cached per field, but follow-up questions are not treated
   as generic field help. When a user asks about the current question, the
   backend builds a question-specific RAG query from the field label, field name,
@@ -274,13 +291,22 @@ RAG retrieval:
 - If embeddings are unavailable or retrieval fails, it falls back to filtered rows from `visa_chunks`.
 - Intent determines preferred document types, for example `form_requirements` and `photo_requirements` for form intake.
 
+Field guidance defaults to `gpt-5.5` (environment overrides apply), with
+structured output limits of 500 tokens for cards and 700 for replies. Context
+is bounded to five 1,200-character chunks or three 900-character chunks for
+those respective paths. Current retrieval uses `text-embedding-3-small`, 1536
+dimensions, default top-k 5/max 12 and runtime threshold 0.03. Active documents
+and releases are required; filtered REST fallback is not a reranker or hybrid
+search.
+
 ## Form-filling assistant
 
-The application-level form-filling assistant is enabled for every current
-DB-driven application schema. The assistant is rendered after the page title
-and before the step navigation. The ordinary bilingual form remains editable
-at all times. Legacy/fallback forms without a DB schema and status-only views
-do not render an empty assistant.
+The application-level form-filling assistant supports DB-driven schemas,
+subject to the route's `FORM_ASSISTANT_ENABLED` and visa-type checks.
+Legacy/fallback forms without a DB schema and status-only views do not render an
+empty assistant. Saved conversations remain readable after successful
+submission, but `lib/form-assistant/submission-readonly.ts` locks answer, confirmation, document,
+validation and voice mutations; the ordinary form is not always editable.
 
 The authenticated routes live under
 `/api/applications/[id]/form-assistant`: state/session GET, conversational
@@ -305,11 +331,29 @@ conflict-safe Undo action; the notice disappears after 10 seconds, and an old
 notice timer cannot dismiss a newer notice.
 
 The server recalculates visible missing fields on every turn. It reads saved
-application answers first, asks for at most five relevant missing fields, and
-only applies high-confidence values that match the active schema. Assistant
+application answers first and asks exactly one current field question. It may
+extract multiple facts volunteered in one answer, but only applies
+high-confidence values that match the active schema. Assistant
 writes use `source=form_assistant` plus provenance in `source_metadata`.
-Manual form saves use `source=user_form`, clear earlier AI provenance, and win
-concurrent conflicts. The assistant never writes Universal Profile data.
+Manual form saves use `source=user_form` and clear earlier AI provenance.
+Assistant writes re-read answers and skip detected conflicts with newer manual
+edits. The assistant never writes Universal Profile data.
+
+`proposeTurn` defaults to OpenAI `gpt-5.5`, with DeepSeek `deepseek-chat` as a
+separately configured fallback. Messages are capped at 4,000 characters, provider
+requests at 18 seconds and generated output at 1,000 tokens. OpenAI uses strict
+JSON Schema; DeepSeek requests a JSON object and still passes through local
+validation. The route limits each user to 30 turns/minute using process-local
+memory. Simple yes/no, reviewed options and unambiguous dates are resolved
+before model extraction.
+
+This is a schema-driven workflow with LLM proposals, not an autonomous tool
+loop. `validateProposal` filters fields, values, exact options and confidence;
+corrections, clarifications and legal confirmations use explicit branches.
+Messages use `(session_id, idempotency_key, role)` upsert deduplication. Session
+`state_version` is written from `Date.now()` without Travel's atomic
+expected-version RPC. Re-reading answers and skipping detected conflicts does
+not establish one transaction across answer, message and session writes.
 
 SGAC has an empty document-requirement manifest, so its assistant does not ask
 for uploads. The country-neutral document extraction policy is deny-by-default
@@ -321,7 +365,37 @@ Final checking combines schema-required/conditional rules, exact options,
 patterns and date consistency. SGAC also checks arrival/departure ordering,
 passport validity at arrival, and surfaces ICA's three-day submission window
 as an acknowledgeable warning. Passing this check only navigates to the
-existing read-only Review step; it never triggers official submission.
+existing Review step; it never triggers official submission. Review editing is
+allowed before success and locked after successful submission.
+
+The backend's separate `viza-be/agent-backend/src/routes/validate-application.ts` contains fixed Indonesia
+B211A/C1 checks plus optional RAG/LLM semantic checking. It is not the universal
+cross-country validator. Neither it nor source citations establish complete
+legal compliance or sentence-by-sentence factual validation. Legacy backend
+validation/translation handlers also lack uniform authentication/ownership
+enforcement; service-role access must not be assumed safe because RLS exists
+elsewhere.
+
+## OCR And Payment Boundaries
+
+- `app/api/passport-ocr/route.ts` verifies an owned document, records an OCR
+  extraction and returns `proposedFields` with `needsConfirmation: true`.
+  This frontend path defaults to `gpt-4o`, with `gpt-4o-mini` fallback, a 10 MiB
+  upload limit, four concurrent extractions per process and a 45-second provider
+  timeout. `PASSPORT_OCR_MAX_FILE_BYTES` can override the upload limit;
+  `PASSPORT_OCR_MAX_CONCURRENCY` can override concurrency up to 16. The route also
+  accepts the supported national-identity-card document categories. The backend
+  passport-scan API has separate defaults.
+- Translation records and frontend translation routes support bilingual
+  review/correction. Exact official options and identity/date fields must not
+  be rewritten as unconstrained translated prose.
+- `lib/checkout/payment-provisioning.ts` persists resumable commercial-payment
+  work for user/profile/application, inbox and official-fee allocation. Its
+  completion does not enqueue browser submission. Explicit review/submit,
+  consent and submission entitlements are separate gates.
+- `app/api/external-submission/route.ts` ingests externally produced status and
+  results; it does not dispatch CEAC. Application, event and notification writes
+  are separate, so partial failure is possible.
 
 ## RAG Source Content
 
@@ -333,7 +407,7 @@ Each country seed should contain:
 - visa type coverage
 - official or authorized source URLs
 - requirements/process chunks
-- exactly one `documentType: "form_requirements"` document
+- `documentType: "form_requirements"` documents for the covered visa products
 - the shared `standard_passport_identity_field_rules` chunk inside that
   `form_requirements` document
 - the source-crawled `official_field_answer_norms` chunk inside that
@@ -345,6 +419,12 @@ The shared runtime store is:
 
 - `visa_documents`: document metadata and source URLs
 - `visa_chunks`: chunk text, country, visa type, document type, and embedding
+
+The main ingestion script consumes pre-authored JSON chunks; there is no
+universal fixed token size or overlap. Knowledge release status and promotion
+checks control visibility. See the
+[RAG seed guide](../../knowledge-base/visa-rag-seeds/README.md) for staging,
+promotion and supplement ingestion.
 
 Ingestion commands from `viza-be/agent-backend`:
 
@@ -377,8 +457,9 @@ review flow; country pages must not implement their own issue navigation.
 - Each issue offers a second path to the original form field. Original fields
   remain highlighted and expose a next-issue action; the last issue returns to
   the assistant so the applicant can run **Review final answers** again.
-- The read-only final review highlights the same question and answer, while all
-  editing remains in the assistant copy or original form.
+- Final review highlights the same question and answer. Before success, its
+  official-value editors preserve the same canonical value contract as the
+  assistant and original form; successful submission makes these read-only.
 - Manual form users get a return-to-assistant review action when deterministic
   required-field completion is reached.
 - Any edit after validation marks that result stale. Final-review navigation is
@@ -475,7 +556,8 @@ Manual checks:
 - `问 AI` opens only from the button
 - AI guidance has no Markdown formatting artifacts
 - photo upload copy is country-specific where RAG/source data exists
-- review is read-only and complete
+- review is complete; official-value corrections preserve Chinese values before
+  submission, and successful submitted applications remain read-only
 
 # Taiwan overseas-China tourist entry permit
 

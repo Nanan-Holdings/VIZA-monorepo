@@ -50,26 +50,26 @@ export function AliasForwardingConsentGate({
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authorizing, setAuthorizing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<ApplicantInboxActionErrorCode | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
 
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    setErrorCode(null);
     void initializeAuthenticatedApplicantInbox()
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
           setSetup(result.data);
         } else {
-          setError(actionErrorMessage(result.error.code, isZh));
+          setErrorCode(result.error.code);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setError(actionErrorMessage("SERVICE_UNAVAILABLE", isZh));
+          setErrorCode("SERVICE_UNAVAILABLE");
         }
       })
       .finally(() => {
@@ -79,7 +79,7 @@ export function AliasForwardingConsentGate({
     return () => {
       cancelled = true;
     };
-  }, [enabled, isZh]);
+  }, [enabled]);
 
   if (!enabled || loading || setup?.forwardingAuthorized) {
     return null;
@@ -88,20 +88,22 @@ export function AliasForwardingConsentGate({
   const authorize = async () => {
     if (!accepted || authorizing) return;
     setAuthorizing(true);
-    setError(null);
+    setErrorCode(null);
     try {
       const result = await authorizeAuthenticatedApplicantInboxForwarding();
       if (result.ok) {
         setSetup(result.data);
       } else {
-        setError(actionErrorMessage(result.error.code, isZh));
+        setErrorCode(result.error.code);
       }
     } catch {
-      setError(actionErrorMessage("SERVICE_UNAVAILABLE", isZh));
+      setErrorCode("SERVICE_UNAVAILABLE");
     } finally {
       setAuthorizing(false);
     }
   };
+
+  const errorMessage = errorCode ? actionErrorMessage(errorCode, isZh) : null;
 
   return (
     <Dialog open>
@@ -156,7 +158,7 @@ export function AliasForwardingConsentGate({
           </span>
         </label>
 
-        {error ? <ClientErrorAlert message={error} /> : null}
+        {errorMessage ? <ClientErrorAlert message={errorMessage} /> : null}
 
         <DialogFooter>
           <Button

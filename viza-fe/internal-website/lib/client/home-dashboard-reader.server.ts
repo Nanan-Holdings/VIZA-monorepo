@@ -89,6 +89,13 @@ export interface ClientHomeDashboardReadResult {
   timelinePartialData: boolean;
 }
 
+/**
+ * Keep browser-provided selection hints small and non-authoritative. The
+ * dashboard always selects from the owner-scoped rows returned by Supabase;
+ * these values only influence which already-authorized row gets a timeline.
+ */
+const MAX_HOME_SELECTION_HINT_LENGTH = 128;
+
 const PROFILE_COLUMNS = [
   "full_name",
   "surname",
@@ -233,6 +240,40 @@ function selectHomeApplication(
   return applications.find((application) => isOngoingApplicationState(application.status)) ?? null;
 }
 
+function normalizeSelectionHintValue(
+  value: string | null | undefined,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (!normalized || normalized.length > MAX_HOME_SELECTION_HINT_LENGTH) return undefined;
+  return normalized;
+}
+
+/**
+ * Normalize an optional route hint without turning a malformed hint into a
+ * dashboard failure. Invalid values are ignored independently so a valid
+ * country/visa pair can still provide a best-effort selection.
+ */
+export function normalizeClientHomeApplicationSelectionHint(
+  selection?: ClientHomeApplicationSelectionHint | null,
+): ClientHomeApplicationSelectionHint | undefined {
+  if (!selection) return undefined;
+
+  const applicationId = normalizeSelectionHintValue(selection.applicationId);
+  const country = normalizeSelectionHintValue(selection.country);
+  const visaType = normalizeSelectionHintValue(selection.visaType);
+  const normalizedApplicationId = applicationId && UUID_PATTERN.test(applicationId)
+    ? applicationId
+    : undefined;
+
+  if (!normalizedApplicationId && !country && !visaType) return undefined;
+  return {
+    ...(normalizedApplicationId ? { applicationId: normalizedApplicationId } : {}),
+    ...(country ? { country } : {}),
+    ...(visaType ? { visaType } : {}),
+  };
+}
+
 function buildDashboardReadResult(
   data: ClientHomeDashboardData,
 ): ClientHomeDashboardReadResult {
@@ -248,6 +289,18 @@ async function loadClientHomeDashboardInternal(
   options: ClientHomeDashboardReadOptions = {},
   readBudget: PortalReadBudget,
 ): Promise<ClientHomeDashboardReadResult> {
+  // Avoid even constructing an authenticated/admin client after an upstream
+  // request has already been cancelled.
+  if (readBudget.signal.aborted) {
+    recordPortalReadOutcome(
+      readBudget.didTimeout() ? "unavailable" : "cancelled",
+    );
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
+      unavailable: true,
+    });
+  }
   const sessionResult = await tracePortalReadStage(
     "auth",
     () => getClientSessionReadResult({
@@ -467,8 +520,20 @@ async function loadClientHomeDashboardInternal(
  */
 export async function loadClientHomeDashboard(
   options: ClientHomeDashboardReadOptions = {},
+  upstreamSignal?: AbortSignal,
 ): Promise<ClientHomeDashboardReadResult> {
-  const readBudget = createPortalReadBudget();
+  // This check deliberately happens before the budget/client setup so a
+  // pre-aborted Route Handler request cannot initiate a Supabase read.
+  if (upstreamSignal?.aborted) {
+    recordPortalReadOutcome("cancelled");
+    return buildDashboardReadResult({
+      ...emptyDashboard(false),
+      error: HOME_READ_ERROR_CODES.sessionUnavailable,
+      unavailable: true,
+    });
+  }
+
+  const readBudget = createPortalReadBudget(undefined, upstreamSignal);
   try {
     return await loadClientHomeDashboardInternal(options, readBudget);
   } catch {
@@ -481,6 +546,27 @@ export async function loadClientHomeDashboard(
   } finally {
     readBudget.dispose();
   }
+}
+
+/** Convert the internal result to the stable aggregate DTO shared by actions and GET. */
+export function toClientHomeDashboardWithTimelineData(
+  result: ClientHomeDashboardReadResult,
+): ClientHomeDashboardWithTimelineData {
+  return {
+    ...result.data,
+    timeline: result.timeline,
+    timelineApplicationId: result.timelineApplicationId,
+    timelinePartialData: result.timelinePartialData,
+  };
+}
+
+/** Safe fixed-code fallback for a route-level unexpected reader failure. */
+export function createClientHomeDashboardFailureResult(): ClientHomeDashboardReadResult {
+  return buildDashboardReadResult({
+    ...emptyDashboard(false),
+    error: HOME_READ_ERROR_CODES.dashboardRead,
+    unavailable: true,
+  });
 }
 
 export function recordHomeDashboardReadOutcome(

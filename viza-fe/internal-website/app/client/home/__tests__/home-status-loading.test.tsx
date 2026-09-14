@@ -3,8 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
-  getClientHomeDashboardWithTimeline: vi.fn(),
-  translate: (key: string) => key,
+  fetchClientHomeDashboard: vi.fn(),
+  locale: "en",
+  translate: (key: string, values?: Record<string, unknown>) => {
+    if (key === "welcomeBack") return `${key}:${String(values?.name ?? "")}`;
+    if (key === "vizaApplicationForCountry") {
+      return `${key}:${String(values?.country ?? "")}`;
+    }
+    return key;
+  },
   readActiveApplicationSelection: vi.fn(),
   setActiveApplicationSelection: vi.fn(),
   getRecentApplicationFormHref: vi.fn(),
@@ -13,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useLocale: () => "en",
+  useLocale: () => mocks.locale,
   useTranslations: () => mocks.translate,
 }));
 
@@ -21,8 +28,8 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: mocks.createClient,
 }));
 
-vi.mock("@/app/actions/client-home-dashboard", () => ({
-  getClientHomeDashboardWithTimeline: mocks.getClientHomeDashboardWithTimeline,
+vi.mock("@/lib/client/home-dashboard-client", () => ({
+  fetchClientHomeDashboard: mocks.fetchClientHomeDashboard,
 }));
 
 vi.mock("@/lib/client/active-application-selection", () => ({
@@ -43,7 +50,8 @@ vi.mock("@/lib/client/application-progress", () => ({
 vi.mock("@/lib/visa-destinations", () => ({
   getDestinationDisplayNameForLocale: (country: string) => country,
   getFormVisaType: (visaType: string) => visaType,
-  getVisaPackageTitle: (_country: string, visaType: string) => visaType,
+  getVisaPackageTitle: (_country: string, visaType: string, locale: string) =>
+    `${locale}:${visaType}`,
 }));
 
 vi.mock("@/lib/client/country-hero-theme", () => ({
@@ -72,7 +80,9 @@ vi.mock("@/components/client/home/UniversalInfoCard", () => ({
 }));
 
 vi.mock("@/components/client/home/ActiveVisaCard", () => ({
-  ActiveVisaCard: () => <div data-testid="active-visa" />,
+  ActiveVisaCard: ({ visaName }: { visaName: string | null }) => (
+    <div data-testid="active-visa">{visaName ?? "empty"}</div>
+  ),
 }));
 
 import type {
@@ -159,12 +169,13 @@ async function waitForDashboardToSettle() {
 
 describe("HomePage status loading", () => {
   beforeEach(() => {
+    mocks.locale = "en";
     mocks.createClient.mockReturnValue({
       auth: {
         setSession: vi.fn(),
       },
     });
-    mocks.getClientHomeDashboardWithTimeline.mockReset();
+    mocks.fetchClientHomeDashboard.mockReset();
     mocks.readActiveApplicationSelection.mockReset();
     mocks.setActiveApplicationSelection.mockReset();
     mocks.getRecentApplicationFormHref.mockReset();
@@ -184,16 +195,16 @@ describe("HomePage status loading", () => {
   });
 
   it("keeps the timeline empty when the aggregate dashboard has no application", async () => {
-    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(dashboard([]));
+    mocks.fetchClientHomeDashboard.mockResolvedValue(dashboard([]));
 
     render(<HomePage />);
     await waitForDashboardToSettle();
 
-    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith({
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledWith({
       applicationId: null,
       country: null,
       visaType: null,
-    });
+    }, { signal: expect.any(AbortSignal) });
     await waitFor(() => {
       expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
     });
@@ -209,7 +220,7 @@ describe("HomePage status loading", () => {
       visaType: second.visa_type,
       href: "/client/destinations",
     });
-    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+    mocks.fetchClientHomeDashboard.mockResolvedValue(
       dashboard([first, second], SECOND_APPLICATION_ID, timeline(SECOND_APPLICATION_ID)),
     );
 
@@ -217,15 +228,41 @@ describe("HomePage status loading", () => {
     await waitForDashboardToSettle();
 
     await waitFor(() => {
-      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
     });
-    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith(
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledWith(
       expect.objectContaining({
         applicationId: SECOND_APPLICATION_ID,
         country: second.country,
         visaType: second.visa_type,
       }),
+      { signal: expect.any(AbortSignal) },
     );
+  });
+
+  it("derives the visa label from the current locale when a refresh overlaps a pending read", async () => {
+    const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
+    let resolveRead!: (value: ClientHomeDashboardWithTimelineData) => void;
+    const pendingRead = new Promise<ClientHomeDashboardWithTimelineData>((resolve) => {
+      resolveRead = resolve;
+    });
+    mocks.fetchClientHomeDashboard.mockImplementationOnce(() => pendingRead);
+
+    const { rerender } = render(<HomePage />);
+    await waitFor(() => {
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.locale = "zh";
+    rerender(<HomePage />);
+    resolveRead(dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("active-visa")).toHaveTextContent(
+        "zh:SG_ARRIVAL_CARD",
+      );
+    });
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
   });
 
   it("uses the server-selected owned application when client hints disagree", async () => {
@@ -243,7 +280,7 @@ describe("HomePage status loading", () => {
       country: second.country,
       visaType: second.visa_type,
     });
-    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+    mocks.fetchClientHomeDashboard.mockResolvedValue(
       dashboard([first, second], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)),
     );
 
@@ -259,7 +296,7 @@ describe("HomePage status loading", () => {
 
   it("marks an unknown server timeline identity as partial instead of showing another app as complete", async () => {
     const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
-    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+    mocks.fetchClientHomeDashboard.mockResolvedValue(
       dashboard([selected], "99999999-9999-4999-8999-999999999999", timeline("99999999-9999-4999-8999-999999999999")),
     );
 
@@ -274,7 +311,7 @@ describe("HomePage status loading", () => {
   it("clears stale timeline state when a later aggregate refresh returns null", async () => {
     const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
-    mocks.getClientHomeDashboardWithTimeline
+    mocks.fetchClientHomeDashboard
       .mockResolvedValueOnce(
         dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)),
       )
@@ -283,8 +320,9 @@ describe("HomePage status loading", () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledWith(
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledWith(
         { applicationId: null, country: null, visaType: null },
+        { signal: expect.any(AbortSignal) },
       );
     });
     await waitFor(() => {
@@ -298,16 +336,59 @@ describe("HomePage status loading", () => {
     });
 
     await waitFor(() => {
-      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(2);
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
       expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
     });
   });
 
+  it("clears prior applicant state when a refresh finds no authenticated session", async () => {
+    const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    mocks.fetchClientHomeDashboard
+      .mockResolvedValueOnce(
+        dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID)),
+      )
+      .mockResolvedValueOnce({
+        ...dashboard([]),
+        authenticated: false,
+        authEmail: null,
+        profile: null,
+      });
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("active-visa")).toHaveTextContent(
+        "en:SG_ARRIVAL_CARD",
+      );
+    });
+    expect(screen.getByText("welcomeBack:Test")).toBeInTheDocument();
+    expect(screen.getByText("vizaApplicationForCountry:singapore")).toBeInTheDocument();
+
+    now.mockReturnValue(1_030_001);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("active-visa")).toHaveTextContent("empty");
+      expect(screen.getByTestId("timeline")).toHaveTextContent("status-empty");
+    });
+    expect(screen.getByText("welcomeBack:there")).toBeInTheDocument();
+    expect(screen.getByText("vizaApplication")).toBeInTheDocument();
+    expect(screen.queryByText("welcomeBack:Test")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("vizaApplicationForCountry:singapore"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the existing localized partial-data notice for a degraded timeline", async () => {
     const selected = application(FIRST_APPLICATION_ID, "2026-09-01T00:00:00.000Z");
-    mocks.getClientHomeDashboardWithTimeline.mockResolvedValue(
+    mocks.fetchClientHomeDashboard.mockResolvedValue(
       dashboard([selected], FIRST_APPLICATION_ID, timeline(FIRST_APPLICATION_ID), true),
     );
 
@@ -319,19 +400,36 @@ describe("HomePage status loading", () => {
     expect(screen.getByTestId("timeline")).toHaveTextContent("status-loaded");
   });
 
+  it("aborts the in-flight read on unmount without starting a retry", async () => {
+    let finishRead: ((data: ClientHomeDashboardWithTimelineData) => void) | undefined;
+    mocks.fetchClientHomeDashboard.mockImplementation(() => new Promise((resolve) => {
+      finishRead = resolve;
+    }));
+    const { unmount } = render(<HomePage />);
+    await waitFor(() => expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1));
+    const signal = mocks.fetchClientHomeDashboard.mock.calls[0]?.[1]?.signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    window.dispatchEvent(new Event("focus"));
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => finishRead?.(dashboard([])));
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
+  });
+
   it("clears an abort retry timer when the page unmounts", async () => {
-    mocks.getClientHomeDashboardWithTimeline.mockRejectedValueOnce(
+    mocks.fetchClientHomeDashboard.mockRejectedValueOnce(
       new DOMException("The operation was aborted.", "AbortError"),
     );
 
     const { unmount } = render(<HomePage />);
     await waitFor(() => {
-      expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
+      expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     unmount();
     await new Promise((resolve) => setTimeout(resolve, 150));
 
-    expect(mocks.getClientHomeDashboardWithTimeline).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchClientHomeDashboard).toHaveBeenCalledTimes(1);
   });
 });

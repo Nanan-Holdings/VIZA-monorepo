@@ -30,8 +30,10 @@ frontend work.
 
 - Do frontend code changes inside `viza-fe/internal-website`.
 - Do not add a new frontend app unless the user explicitly asks.
-- Backend APIs, migrations, and RAG ingestion scripts belong under `viza-be`
-  or `knowledge-base`, even when a frontend feature consumes them.
+- Standalone backend services, Drizzle migrations and RAG ingestion belong
+  under `viza-be` or `knowledge-base`. Portal-owned BFF APIs remain in
+  `internal-website/app/api`, including Travel conversation coordination,
+  form assistance, OCR and payment webhooks; preserve the owning module boundary.
 - If you add, move, or delete an important frontend file, update the nearest
   nested `AGENTS.md` and this file when the change affects the frontend map.
 

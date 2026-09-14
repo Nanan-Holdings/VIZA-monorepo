@@ -22,7 +22,8 @@ primary database is deliberately migrated; static assets remain globally
 served by Vercel's CDN.
 
 Vercel request cancellation is enabled only for the read-only
-`app/api/applications/*/submission-status/route.ts` function. Keep that glob
+`app/api/applications/*/submission-status/route.ts` and
+`app/api/client/home-dashboard/route.ts` functions. Keep these paths
 narrow: payment, upload, enqueue and other mutation routes must not inherit
 automatic termination on disconnect. Its request-wide abort signal is opt-in
 through `createClient` / `createAdminClient` `requestSignal`, and must remain
@@ -89,6 +90,14 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   awaiting unrelated compatibility reads. Multiple applications retain the
   original document query and its global limit. `lib/client-session.test.ts` covers read-only identity
   resolution, total deadlines, cancellation, and profile conflicts.
+
+- `lib/client/home-dashboard-client.ts` reads Home's aggregate through the
+  private no-store `GET /api/client/home-dashboard` route. Pass the browser's
+  abort signal through the route into the shared eight-second reader budget;
+  unmount cancels the read without releasing its in-flight guard prematurely.
+  Keep the legacy Server Action exports for other callers. The adjacent client
+  test and route test cover DTO/error handling, no caching and cancellation;
+  Home component tests preserve selection, partial states and retry cleanup.
 
 - `lib/client/home-profile-applications.server.ts` reads one authenticated
   profile with its left-embedded, owner-filtered applications. Preserve the
