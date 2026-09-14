@@ -50,7 +50,7 @@ verified in the deployment environment without copying them into this repo.
 | DS-160 | mode `dry_run`; `DS160_LIVE_SUBMISSION_ENABLED=false`; live requires `DS160_SUBMISSION_MODE=live_assisted`, the official CEAC origin, review-diff approval, a result secret, and applicant data/photo/passport prerequisites |
 | DS-160 duration/evidence | `DS160_LIVE_MAX_DURATION_SECONDS=1800`; trace/screenshot config flags default on, but a flag alone does not establish that every path captures that artifact |
 | US appointment runner | enabled only when `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`; default provider `usvisascheduling`, country `CN`, batch size `3` |
-| US real browser | `US_APPOINTMENT_PLAYWRIGHT_ENABLED=true` is required; default is false. With a fixture or Playwright disabled, the runner uses the local fixture client and does not contact the official portal |
+| US real browser | `US_APPOINTMENT_PLAYWRIGHT_ENABLED=true` is required; default is false. Disabled browsers or persisted fixture data stop live jobs with a configuration checkpoint. Local tests inject their fixture client explicitly |
 | US CAPTCHA | solving is opt-in and requires `US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED=true` plus `TWOCAPTCHA_API_KEY`; unsupported MFA/WAF/policy gates remain manual checkpoints |
 | France-Visas | mode `dry_run`, live submission false by default; France-Visas/TLS browser paths are Browserbase-only and fail closed when their required Browserbase configuration is unavailable |
 | Queue consumers | `runner_job` consumer defaults on; legacy `submission_queue`, Vietnam cloud, and Indonesia queue consumers are separately enabled by environment. The code default for legacy polling is false even though the example file contains a legacy-worker value |
@@ -135,8 +135,60 @@ not create or rerun a job.
 The real client chooses Browserbase, an authorized CDP endpoint, or local
 Playwright. An explicit storage-state path can load and save cookies for a local
 or connected context. Browser API session rotation is limited to retryable
-Cloudflare gates. A job fixture or `playwrightEnabled=false` selects the fixture
-client and must never be presented as evidence of an official appointment.
+Cloudflare gates. Persisted job fixtures and `playwrightEnabled=false` block
+live processing; only a locally injected test client may simulate results.
+
+To inspect an authorized existing China account without changing its job state:
+
+```powershell
+npm run us-appointment:login-smoke -- --application-id <authorized-application-uuid> --browserbase
+```
+
+This reads the saved encrypted credentials, attempts login once, and records a
+redacted checkpoint report and masked screenshot in ignored `output/playwright`.
+It stops before account creation, policy acceptance, application entry, payment,
+or booking. Exit code 2 means the official session remains at a checkpoint.
+If local services use different encryption keys, `--credential-config <env-file>`
+explicitly loads only `SUBMISSION_RESULT_SECRET_KEY` from the account writer's
+existing configuration into this diagnostic process. It never rewrites an env
+file or changes the normal worker's key; align deployed writer/reader keys
+through the existing secret-management process before enabling that account.
+
+To register an authorized new account already provisioned by the appointment
+orchestrator, use the application-bound command:
+
+```powershell
+npm run us-appointment:register -- --application-id <authorized-application-uuid> --browserbase
+```
+
+This command reads the saved encrypted password and actual applicant names. It
+does not generate a replacement password or accept plaintext credentials on the
+command line. Registration sends a verification code, reads new mail addressed
+to that exact account, verifies the code, and clicks Create only after official
+email verification succeeds. The account becomes active only when creation is
+confirmed by the provider. Existing created/active/verified accounts are refused;
+use the login diagnostic for those accounts. A paused or unconfirmed operation
+returns a nonzero exit code. All browser sessions close on completion or error.
+The command stops after account registration; scheduling and payment are separate.
+`--credential-config <env-file>` selects the existing account writer's encryption
+key for this process, as in the login diagnostic.
+
+Validation baseline (2026-09-14): a real Browserbase session reached the public
+registration form. The selected existing China account was rejected by the
+official login form as invalid credentials. No official appointment was booked.
+Registration's send/verify/create path and failure boundaries are covered by
+local Chromium fixtures. The application-bound command also refused the selected
+existing application's non-registration checkpoint before opening a browser.
+No new real official account was created during implementation validation.
+Live recovery reconnaissance reached the official Reset Password form, which
+requires username and email verification. The selected legacy account uses
+`haggstorm.com`; DNS and independent DNS-over-HTTPS checks returned no usable
+MX/NXDOMAIN on 2026-09-14. Its current mailbox cannot receive recovery codes.
+Registration now verifies bound-inbox routing before any official browser work.
+The portal-to-worker wake integration is also incomplete: US jobs live in
+`appointment_assistance_jobs`, and state updates alone do not wake the shared
+`runner_job` consumer. The login diagnostic and local Chromium tests therefore
+do not establish frontend-to-confirmation automation.
 
 The runner may use the existing TWOCAPTCHA Turnstile/image integration only when
 the corresponding flags and key are configured. MFA, identity, waiting-room,

@@ -295,9 +295,12 @@ Field guidance defaults to `gpt-5.5` (environment overrides apply), with
 structured output limits of 500 tokens for cards and 700 for replies. Context
 is bounded to five 1,200-character chunks or three 900-character chunks for
 those respective paths. Current retrieval uses `text-embedding-3-small`, 1536
-dimensions, default top-k 5/max 12 and runtime threshold 0.03. Active documents
-and releases are required; filtered REST fallback is not a reranker or hybrid
-search.
+dimensions. Field guidance explicitly keeps its baseline top-k 5 and threshold
+0.03 because these augmented queries and truncated contexts need a separate
+evaluation from Chat; see the [retrieval study](../../viza-be/agent-backend/evals/README.md).
+Active documents and releases are required. Successful vector queries with no
+qualifying match stay empty; provider/vector failures may use filtered REST,
+which is not a reranker or hybrid search.
 
 ## Form-filling assistant
 

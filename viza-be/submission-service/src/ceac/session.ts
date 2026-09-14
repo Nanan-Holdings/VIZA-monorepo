@@ -43,6 +43,8 @@ export interface CeacSessionOptions {
   manualStartWaitMs?: number;
   /** CEAC start-page post/location code to select before manual CAPTCHA. */
   startLocationCode?: string | null;
+  /** Use Retrieve for existing applications; default is a new application. */
+  startAction?: "start" | "retrieve";
   /** Maximum automated 2captcha attempts for the CEAC start page. Default: 3. */
   captchaMaxAttempts?: number;
 }
@@ -55,6 +57,8 @@ export interface CeacSession {
   context: BrowserContext;
   page: Page;
   readonly runId?: string;
+  /** Applicant-selected CEAC post retained across session rebuilds. */
+  startLocationCode?: string | null;
   captchaSolve?: { telemetry: Array<Record<string, unknown>> };
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
@@ -144,7 +148,7 @@ export async function startCeacSession(
     }
 
     const onStartPage = /\/GenNIV\/Default\.aspx/i.test(page.url());
-    if (onStartPage && options.startLocationCode) {
+    if (onStartPage && options.startLocationCode !== undefined && options.startLocationCode !== null) {
       const locationOutcome = await selectStartPageLocation(page, {
         locationCode: options.startLocationCode,
       });
@@ -173,6 +177,7 @@ export async function startCeacSession(
     }
 
     let captchaSolveTelemetry: Array<Record<string, unknown>> | undefined;
+    let resolvedStartLocationCode = options.startLocationCode;
     const captchaSelector = CEAC_GATE_MARKERS.solvableCaptchaSelectors.join(", ");
     const captchaPresent = captchaSelector
       ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
@@ -183,11 +188,13 @@ export async function startCeacSession(
         solveStartPageCaptchaWithRetry(
           page,
           options.captchaMaxAttempts ?? 3,
+          { startLocationCode: options.startLocationCode, startAction: options.startAction },
         ),
         readStartCaptchaTimeoutMs(),
         "CEAC start-page CAPTCHA solve timed out",
       );
       captchaSolveTelemetry = solved.telemetry.map((entry) => ({ ...entry }));
+      resolvedStartLocationCode = solved.locationCode;
       await assertNoGate(page);
     }
 
@@ -196,6 +203,7 @@ export async function startCeacSession(
       context,
       page,
       runId: options.runId,
+      startLocationCode: resolvedStartLocationCode,
       captchaSolve: captchaSolveTelemetry ? { telemetry: captchaSolveTelemetry } : undefined,
       close: makeCloser(browser, context),
     };
@@ -235,11 +243,18 @@ export async function rebuildSessionForResume(
   options: CeacSessionOptions = {},
 ): Promise<void> {
   try { await session.close(); } catch { /* best-effort */ }
-  const fresh = await startCeacSession({ ...options, runId: session.runId });
+  const fresh = await startCeacSession({
+    ...options,
+    startAction: "retrieve",
+    startLocationCode:
+      options.startLocationCode !== undefined ? options.startLocationCode : session.startLocationCode,
+    runId: session.runId,
+  });
   // Swap in the new refs. Close function closes the NEW browser.
   session.browser = fresh.browser;
   session.context = fresh.context;
   session.page = fresh.page;
+  session.startLocationCode = fresh.startLocationCode;
   session.captchaSolve = fresh.captchaSolve;
   (session as { close: () => Promise<void> }).close = fresh.close;
 }

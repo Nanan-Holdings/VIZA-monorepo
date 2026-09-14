@@ -41,11 +41,11 @@ export interface RecoveryCredentials {
 const RETRIEVE_FORM_SELECTORS = {
   // The "RETRIEVE AN APPLICATION" link on Default.aspx — post-CAPTCHA.
   retrieveLink:
-    'a[id*="lnkRetrieve"], a[id*="lnkContinueApp"], input[id*="btnRetrieve"]',
+    'a[id*="lnkRetrieve"]:visible, a[id*="lnkContinueApp"]:visible',
   applicationId:
-    'input[id*="tbxApplicationID"], input[id*="txtApplicationID"], input[id*="ApplicationID"][type="text"]',
+    'input[id*="tbxApplicationID"]:visible, input[id*="txtApplicationID"]:visible, input[id*="ApplicationID"][type="text"]:visible',
   applicationIdSubmit:
-    'input[id*="btnBarcodeSubmit"]',
+    'input[id*="btnBarcodeSubmit"]:visible, input[id$="ApplicationRecovery1_btnRetrieve"]:visible',
   surnameFive:
     'input[id*="tbxSurname"]:visible, input[id*="txbSurname"]:visible, input[id*="txtSurname"]:visible, input[id*="txbSname"]:visible, input[id*="Surname"][type="text"]:visible',
   yearOfBirth:
@@ -97,9 +97,22 @@ export async function fillRetrieveApplicationForm(
 
   // Current CEAC renders retrieval as two postbacks. The first accepts only
   // the Application ID; surname/year/security answer are attached after it.
-  const applicationIdSubmit = page.locator(RETRIEVE_FORM_SELECTORS.applicationIdSubmit).first();
-  if ((await applicationIdSubmit.count()) > 0) {
+  const hasSecurityFields = (await page.locator(RETRIEVE_FORM_SELECTORS.securityAnswer).count()) > 0;
+  if (!hasSecurityFields) {
+    const applicationIdSubmit = page.locator(RETRIEVE_FORM_SELECTORS.applicationIdSubmit).first();
+    if ((await applicationIdSubmit.count()) === 0) {
+      throw new Error("CEAC Retrieve form: application ID step could not be located");
+    }
     await clickAndSettle(page, applicationIdSubmit);
+  }
+  for (const selector of [RETRIEVE_FORM_SELECTORS.surnameFive, RETRIEVE_FORM_SELECTORS.yearOfBirth, RETRIEVE_FORM_SELECTORS.securityAnswer]) {
+    if ((await page.locator(selector).count()) === 0) {
+      try {
+        await page.locator(selector).first().waitFor({ state: "visible", timeout: 10_000 });
+      } catch {
+        throw new Error("CEAC Retrieve form: identity fields missing after application ID step");
+      }
+    }
   }
 
   await fillIfPresent(

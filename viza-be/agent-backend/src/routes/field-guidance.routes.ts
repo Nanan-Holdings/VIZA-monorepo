@@ -32,6 +32,9 @@ const GUIDANCE_CACHE = new BoundedSingleFlightCache<CachedGuidance>(256, 15 * 60
 const MAX_HISTORY_MESSAGES = 8;
 const OPTION_CONTEXT_VALUE_LIMIT = 12;
 const MAX_OPTION_EXPLANATIONS = 2;
+// This route augments queries with field metadata and truncates each source for
+// cards/replies. Preserve its baseline until that separate context path is evaluated.
+const FIELD_GUIDANCE_KNOWLEDGE_POLICY = { matchCount: 5, minSimilarity: 0.03 };
 
 const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
   title: "Standard passport identity-field guidance",
@@ -1623,7 +1626,7 @@ async function getStaticGuidance(
           country: reqBody.country,
           visaType: reqBody.visaType,
           intent: "form_intake",
-          matchCount: 5,
+          ...FIELD_GUIDANCE_KNOWLEDGE_POLICY,
         });
 
     const base = buildDeterministicGuidance(field, locale);
@@ -1693,7 +1696,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           country: body.country,
           visaType: body.visaType,
           intent: "form_intake",
-          matchCount: 5,
+          ...FIELD_GUIDANCE_KNOWLEDGE_POLICY,
           signal: requestSignal,
         })
       : null;

@@ -21,6 +21,7 @@ import {
   orchestrateFill,
   isSuccessResult,
   isFailureResult,
+  resolveCeacStartLocationCode,
 } from "../ceac/index.js";
 import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
 import { registerUkAccount } from "../uk/register.js";
@@ -148,11 +149,13 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
   const { profile } = await loadProfileAndApp(applicationId);
   const answers = await loadFieldAnswers(applicationId);
+  const startLocationCode = resolveCeacStartLocationCode(answers);
 
   const session = await startCeacSession({
     headless: process.env.CEAC_PLAYWRIGHT_HEADLESS !== "false",
     acceptDownloads: true,
     runId,
+    startLocationCode,
   });
   try {
     const tracker = createRecoveryTracker({ runId });

@@ -135,7 +135,7 @@ function getReviewFieldOptions(
   return officialOptions;
 }
 
-function toReviewOfficialOptions(
+export function toReviewOfficialOptions(
   options: WizardStep["fields"][number]["options"],
 ): ReviewOfficialOption[] {
   if (!options?.length) return [];
@@ -143,6 +143,7 @@ function toReviewOfficialOptions(
   const deduped = new Map<string, ReviewOfficialOption>();
   for (const option of options) {
     const value = typeof option === "string" ? option : option.value;
+    if (!value.trim()) continue;
     if (deduped.has(value)) continue;
     deduped.set(value, {
       value,

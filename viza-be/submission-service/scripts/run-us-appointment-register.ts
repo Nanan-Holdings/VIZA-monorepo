@@ -1,370 +1,277 @@
 #!/usr/bin/env npx tsx
 import "dotenv/config";
-import { chromium } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { parse } from "dotenv";
+import { resolve } from "node:path";
 import {
-  assertUSAppointmentAutoVerificationConfig,
-  generateUSAppointmentAccountPassword,
+  classifyRegistrationFailure,
+  continueToAppointmentAfterRegistration,
+  parseUSAppointmentRegistrationArgs,
+  prepareRegistrationBrowserConfig,
+  registrationGateSummary,
+  registrationSucceeded,
+  summarizeAppointmentPreparation,
+  validateUSAppointmentRegistrationPreflightWithInbox,
+  type RegistrationBrowserMode,
+} from "../src/us-appointment/registration-command";
+import {
+  completeUSAppointmentAccountRegistration,
   loadUSAppointmentRunnerConfig,
-  PlaywrightUSVisaSchedulingPortalClient,
-  resolveUSAppointmentAccountEmail,
-  waitForUSAppointmentVerificationEmail,
+  validateUSAppointmentRunnerStart,
   type AppointmentAccountCredentials,
-} from "../src/us-appointment";
-import { ensureApplicantInboxAlias } from "../src/inbox/alias";
-import { browserbaseEnabled } from "../src/browserbase-session";
+  type AppointmentPreparationResult,
+} from "../src/us-appointment/runner";
+import { SupabaseUSAppointmentRunnerRepository } from "../src/us-appointment/supabase-repository";
+import { PlaywrightUSVisaSchedulingPortalClient } from "../src/us-appointment/usvisascheduling-portal";
+import { browserbaseEnabled, connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
 import { supabase } from "../src/supabase";
-import { encryptSecret } from "../src/secret-cipher";
 
-type ParsedArgs = {
-  email?: string;
-  password?: string;
-  givenName?: string;
-  surname?: string;
-  applicantId?: string;
-  headless: boolean;
-  localBrowser: boolean;
-  keepOpen: boolean;
-  autoVerifyEmail: boolean;
-};
-
-function getArg(argv: string[], name: string): string | undefined {
-  const full = `--${name}=`;
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === `--${name}` && argv[index + 1]) {
-      return argv[index + 1];
-    }
-    if (token.startsWith(full)) {
-      return token.slice(full.length);
-    }
-  }
-  return undefined;
-}
-
-function hasArg(argv: string[], name: string): boolean {
-  return argv.includes(`--${name}`);
-}
-
-function parseBooleanArg(
-  argv: string[],
-  name: string,
-  fallback: boolean,
-): boolean {
-  const value = getArg(argv, name);
-  if (value === undefined) return fallback;
-  return !["0", "false", "no"].includes(value.toLowerCase());
-}
-
-function parseArgs(argv: string[]): ParsedArgs {
-  const applicantId = getArg(argv, "applicant-id") ?? process.env.US_APPOINTMENT_APPLICANT_ID;
-  return {
-    email: getArg(argv, "email") ?? process.env.US_APPOINTMENT_ACCOUNT_EMAIL,
-    password: getArg(argv, "password") ?? process.env.US_APPOINTMENT_ACCOUNT_PASSWORD,
-    givenName: getArg(argv, "given-name") ?? process.env.US_APPOINTMENT_ACCOUNT_GIVEN_NAME,
-    surname: getArg(argv, "surname") ?? process.env.US_APPOINTMENT_ACCOUNT_SURNAME,
-    applicantId,
-    headless: parseBooleanArg(
-      argv,
-      "headless",
-      process.env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
-    ),
-    localBrowser: hasArg(argv, "local-browser"),
-    keepOpen: hasArg(argv, "keep-open") || process.env.US_APPOINTMENT_KEEP_BROWSER_OPEN === "true",
-    autoVerifyEmail:
-      !hasArg(argv, "no-auto-verify")
-      && process.env.US_APPOINTMENT_AUTO_VERIFY_EMAIL !== "false"
-      && Boolean(applicantId?.trim()),
-  };
-}
-
-function requireText(value: string | undefined, label: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    throw new Error(`${label} is required.`);
-  }
-  return trimmed;
-}
-
-async function persistGeneratedAppointmentAccount(input: {
-  applicantId?: string;
-  email: string;
-  password: string;
-  generatedPassword: boolean;
-}): Promise<{ persisted: boolean; accountId?: string; reason?: string }> {
-  if (!input.applicantId?.trim()) {
-    return { persisted: false, reason: "missing_applicant_id" };
-  }
-  const { data: profile, error: profileError } = await supabase
-    .from("applicant_profiles")
-    .select("auth_user_id")
-    .eq("id", input.applicantId)
-    .maybeSingle();
-  if (profileError) throw new Error(`appointment account profile lookup failed: ${profileError.message}`);
-  const userId = typeof profile?.auth_user_id === "string" ? profile.auth_user_id : null;
-  if (!userId) return { persisted: false, reason: "missing_profile_auth_user_id" };
-
-  const encrypted = encryptSecret(input.password);
-  const now = new Date().toISOString();
-  const { data: existing, error: existingError } = await supabase
-    .from("appointment_accounts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("portal", "usvisascheduling")
-    .eq("account_email", input.email)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (existingError) throw new Error(`appointment account lookup failed: ${existingError.message}`);
-
-  if (existing?.id) {
-    const { error } = await supabase
-      .from("appointment_accounts")
-      .update({
-        encrypted_account_password: encrypted,
-        account_status: "registration_started",
-        email_verified: false,
-        metadata_redacted_json: {
-          created_by: "run-us-appointment-register",
-          generated_password: input.generatedPassword,
-          account_email: "[REDACTED]",
-        },
-        updated_at: now,
-      })
-      .eq("id", existing.id);
-    if (error) throw new Error(`appointment account update failed: ${error.message}`);
-    return { persisted: true, accountId: existing.id };
-  }
-
-  const { data, error } = await supabase
-    .from("appointment_accounts")
-    .insert({
-      user_id: userId,
-      application_id: null,
-      country_code: "US",
-      portal: "usvisascheduling",
-      account_email: input.email,
-      encrypted_account_password: encrypted,
-      password_vault_ref: null,
-      account_status: "registration_started",
-      email_verified: false,
-      metadata_redacted_json: {
-        created_by: "run-us-appointment-register",
-        generated_password: input.generatedPassword,
-        account_email: "[REDACTED]",
-      },
-      created_at: now,
-      updated_at: now,
-    })
-    .select("id")
-    .single();
-  if (error || !data?.id) throw new Error(`appointment account insert failed: ${error?.message ?? "missing id"}`);
-  return { persisted: true, accountId: data.id };
-}
+let phase = "configuration";
 
 function maskEmail(email: string): string {
-  const [localPart, domain] = email.split("@");
+  const [localPart, domain] = email.trim().split("@");
   if (!localPart || !domain) return "[REDACTED]";
   return `${localPart.slice(0, 2)}***@${domain}`;
 }
 
-async function waitForAuthHandoffUrl(
-  endpoint: string,
-  baseUrl: string,
-): Promise<string> {
-  const browser = await chromium.connectOverCDP(endpoint, { timeout: 60_000 });
-  try {
-    const context = browser.contexts()[0] ?? await browser.newContext();
-    const page = await context.newPage();
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    const started = Date.now();
-    while (Date.now() - started < 90_000) {
-      const [currentUrl, title, bodyText] = await Promise.all([
-        Promise.resolve(page.url()),
-        page.title().catch(() => ""),
-        page.locator("body").innerText({ timeout: 3_000 }).catch(() => ""),
-      ]);
-      const normalized = `${title} ${bodyText}`.replace(/\s+/g, " ").trim();
-      const isCloudflareTransit =
-        /__cf_chl_rt_tk/.test(currentUrl)
-        || /just a moment|loading|cloudflare|verify you are human|checking your browser/i
-          .test(`${currentUrl} ${normalized}`)
-        || normalized.length === 0;
-      const reachedAuth =
-        /b2clogin|signin|authorize|sign in|login/i.test(`${currentUrl} ${normalized}`);
-      if (reachedAuth && !/__cf_chl_rt_tk/.test(currentUrl)) {
-        await page.close().catch(() => undefined);
-        return currentUrl;
-      }
-      if (!isCloudflareTransit) {
-        await page.close().catch(() => undefined);
-        return currentUrl;
-      }
-      await page.waitForTimeout(2_000);
-    }
-    const currentUrl = page.url();
-    await page.close().catch(() => undefined);
-    return currentUrl;
-  } finally {
-    await browser.close().catch(() => undefined);
+async function loadCredentialConfig(path: string | null): Promise<void> {
+  if (!path) return;
+  const values = parse(await readFile(resolve(path), "utf8"));
+  const key = values.SUBMISSION_RESULT_SECRET_KEY?.trim();
+  if (!key || key.length < 16) {
+    throw new Error("Selected credential configuration has no usable submission result key.");
+  }
+  // The selected key is process-local. The command never edits either env file
+  // and does not copy any other values from the selected configuration.
+  process.env.SUBMISSION_RESULT_SECRET_KEY = key;
+}
+
+function configureBrowserEnvironment(
+  browserbase: boolean,
+  localBrowser: boolean,
+): void {
+  if (browserbase) {
+    process.env.US_APPOINTMENT_BROWSERBASE_ENABLED = "true";
+    process.env.US_APPOINTMENT_BROWSERBASE_REGION ||= "us-east-1";
+    process.env.US_APPOINTMENT_BROWSERBASE_COUNTRY ||= "US";
+  }
+  if (localBrowser) {
+    // The portal client checks this process flag when selecting its browser.
+    // Clear it for this invocation so --local-browser cannot accidentally use
+    // a managed Browserbase session inherited from .env.
+    process.env.US_APPOINTMENT_BROWSERBASE_ENABLED = "false";
   }
 }
 
-async function assertLocalCdpReachable(endpoint: string): Promise<void> {
-  const browser = await chromium.connectOverCDP(endpoint, { timeout: 10_000 });
-  await browser.close().catch(() => undefined);
+function chooseBrowserMode(
+  browserbaseRequested: boolean,
+  localBrowser: boolean,
+  config: ReturnType<typeof loadUSAppointmentRunnerConfig>,
+): RegistrationBrowserMode {
+  if (localBrowser) return "local";
+  if (browserbaseRequested || browserbaseEnabled("US_APPOINTMENT")) return "browserbase";
+  if (config.playwrightCdpEndpoint) return "configured";
+  return "configured";
 }
 
-async function waitUntilInterrupted(): Promise<void> {
-  console.log("Browser session is being kept open. Press Ctrl+C to stop.");
-  await new Promise<void>((resolve) => {
-    process.once("SIGINT", () => resolve());
-    process.once("SIGTERM", () => resolve());
-  });
+function printPreflightFailure(code: string): void {
+  console.error(JSON.stringify({
+    status: "registration_preflight_failed",
+    phase,
+    code,
+    message: "US appointment registration was stopped before official browser interaction.",
+    ...(code === "account_already_created"
+      ? { nextStep: "Use us-appointment:login-smoke with this application id." }
+      : {}),
+  }));
+}
+
+async function hasCompletedAppointmentConsent(
+  job: { application_id: string; user_id: string },
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("appointment_manual_actions")
+    .select("id")
+    .eq("application_id", job.application_id)
+    .eq("user_id", job.user_id)
+    .eq("action_type", "consent")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("Appointment consent lookup failed.");
+  return Boolean(data?.id);
+}
+
+function printRegistrationResult(
+  applicationId: string,
+  credentials: AppointmentAccountCredentials,
+  result: AppointmentPreparationResult,
+  appointmentPreparation: AppointmentPreparationResult | null,
+  appointmentContinuationErrorCode: string | null,
+  continueRequested: boolean,
+): boolean {
+  const succeeded = registrationSucceeded(result);
+  const gate = registrationGateSummary(result);
+  const output: Record<string, unknown> = {
+    status: succeeded ? "account_created" : result.gate ? "registration_checkpoint" : "registration_failed",
+    applicationId,
+    accountEmail: maskEmail(credentials.email),
+    emailVerified: result.emailVerified === true,
+    accountCreated: result.accountCreated === true,
+    appointmentFlowStarted: Boolean(appointmentPreparation) || Boolean(appointmentContinuationErrorCode),
+  };
+  if (result.gate) {
+    output.gate = {
+      actionType: gate.actionType,
+      code: gate.code,
+    };
+  } else if (!succeeded) {
+    output.code = result.errorCode ?? "registration_evidence_missing";
+  }
+  if (continueRequested) {
+    output.appointmentContinuation = appointmentPreparation
+      ? summarizeAppointmentPreparation(appointmentPreparation)
+      : {
+        status: appointmentContinuationErrorCode ? "failed" : "not_ready",
+        readyForSlotCapture: false,
+        actionType: null,
+        code: appointmentContinuationErrorCode,
+      };
+  }
+  console.log(JSON.stringify(output, null, 2));
+  return succeeded;
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  assertUSAppointmentAutoVerificationConfig({
-    autoVerifyEmail: args.autoVerifyEmail,
-    applicantId: args.applicantId,
-  });
-  const accountEmail = await resolveUSAppointmentAccountEmail({
-    explicitEmail: args.email,
-    applicantId: args.applicantId,
-    ensureAlias: ensureApplicantInboxAlias,
-  });
-  const generatedPassword = !args.password?.trim();
-  const password = args.password?.trim() || generateUSAppointmentAccountPassword();
-  const credentials: AppointmentAccountCredentials = {
-    email: accountEmail.email,
-    password,
-    givenName: args.givenName?.trim() || undefined,
-    surname: args.surname?.trim() || undefined,
-  };
-  const persistedAccount = await persistGeneratedAppointmentAccount({
-    applicantId: args.applicantId,
-    email: credentials.email,
-    password: credentials.password,
-    generatedPassword,
-  });
+  const args = parseUSAppointmentRegistrationArgs(process.argv.slice(2));
+
+  phase = "credential_config";
+  await loadCredentialConfig(args.credentialConfig);
+  configureBrowserEnvironment(args.browserbase, args.localBrowser);
+
+  phase = "runner_configuration";
   const loadedConfig = loadUSAppointmentRunnerConfig();
-  const browserbase = !args.localBrowser && browserbaseEnabled("US_APPOINTMENT");
-  const remoteEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
-  const localHandoffEndpoint =
-    process.env.US_APPOINTMENT_LOCAL_CDP_ENDPOINT?.trim()
-    || "http://127.0.0.1:9222";
-  let browserMode: "browserbase" | "configured" | "local" | "hybrid" = browserbase
-    ? "browserbase"
-    : args.localBrowser
-      ? "local"
-      : "configured";
-  let baseUrl = loadedConfig.baseUrl;
-  let playwrightCdpEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
-
-  if (!args.localBrowser && !browserbase && remoteEndpoint) {
-    await assertLocalCdpReachable(localHandoffEndpoint);
-    baseUrl = await waitForAuthHandoffUrl(remoteEndpoint, loadedConfig.baseUrl);
-    playwrightCdpEndpoint = localHandoffEndpoint;
-    browserMode = "hybrid";
+  const runnerConfigError = validateUSAppointmentRunnerStart(loadedConfig);
+  if (runnerConfigError) {
+    printPreflightFailure("runner_configuration_invalid");
+    process.exitCode = 1;
+    return;
   }
+  const browserMode = chooseBrowserMode(
+    args.browserbase,
+    args.localBrowser,
+    loadedConfig,
+  );
+  // Registration always starts from a fresh managed/local context. Reusing
+  // storage state or an inherited CDP bridge could silently turn this command
+  // into a login flow in an unrelated browser.
+  const config = prepareRegistrationBrowserConfig(
+    loadedConfig,
+    browserMode,
+    args.headless,
+  );
 
-  const config = {
-    ...loadedConfig,
-    playwrightEnabled: true,
-    playwrightHeadless: args.headless,
-    playwrightCdpEndpoint,
-    baseUrl,
-  };
-
-  if (!args.localBrowser && !browserbase && !config.playwrightCdpEndpoint) {
-    throw new Error(
-      "US_APPOINTMENT_BROWSERBASE_ENABLED, US_APPOINTMENT_BROWSER_API_ENDPOINT, or US_APPOINTMENT_CDP_ENDPOINT must be set. Use --local-browser only for intentional local debugging.",
-    );
+  phase = "job_lookup";
+  const repository = new SupabaseUSAppointmentRunnerRepository();
+  const job = await repository.getLatestJobForApplication(args.applicationId);
+  phase = "credential_read";
+  const credentials = job
+    ? await repository.getAppointmentAccountCredentials(job)
+    : null;
+  phase = "consent_preflight";
+  const consentCompleted = job ? await hasCompletedAppointmentConsent(job) : false;
+  const preflight = await validateUSAppointmentRegistrationPreflightWithInbox({
+    applicationId: args.applicationId,
+    job,
+    credentials,
+    consentCompleted,
+    config,
+    browserMode,
+    browserbaseApiKeyConfigured: Boolean(process.env.BROWSERBASE_API_KEY?.trim()),
+  }, repository);
+  if (preflight.ok === false) {
+    printPreflightFailure(preflight.code);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(JSON.stringify({
-    status: "starting",
-    provider: "usvisascheduling",
-    accountEmail: maskEmail(credentials.email),
-    accountEmailSource: accountEmail.source,
-    aliasCreated: accountEmail.aliasCreated,
-    generatedPassword,
-    appointmentAccountPersisted: persistedAccount.persisted,
-    appointmentAccountPersistReason: persistedAccount.reason,
-    browserApi: browserMode,
-    typingDelayMs: {
-      min: config.typingDelayMinMs,
-      max: config.typingDelayMaxMs,
-    },
+    status: "registration_preflight_passed",
+    applicationId: preflight.applicationId,
+    accountEmail: maskEmail(preflight.credentials.email),
+    browserMode,
+    headless: config.playwrightHeadless,
+    appointmentFlowStarted: false,
   }, null, 2));
 
-  const client = new PlaywrightUSVisaSchedulingPortalClient(config);
+  let cloud: Awaited<ReturnType<typeof connectBrowserbaseCloudBrowser>> | null = null;
+  let client: PlaywrightUSVisaSchedulingPortalClient | null = null;
   try {
-    const result = await client.registerAccount(credentials);
-    const emailApplicantId = args.applicantId?.trim() || null;
-    const shouldWaitForEmail =
-      args.autoVerifyEmail
-      && emailApplicantId
-      && result.gate?.actionType === "account_email_verification";
-    const emailVerification = shouldWaitForEmail
-      ? await waitForUSAppointmentVerificationEmail(emailApplicantId, config.emailTimeoutMs)
-          .then((message) => ({
-            received: true,
-            hasCode: Boolean(message.code),
-            hasLink: Boolean(message.link),
-            code: message.code,
-            link: message.link,
-          }))
-          .catch((error) => ({
-            received: false,
-            error: error instanceof Error ? error.message : String(error),
-          }))
-      : null;
-    const verificationResult =
-      emailVerification?.received && "code" in emailVerification
-        ? await client.completeAccountEmailVerification({
-          emailCode: emailVerification.code,
-          verificationLink: emailVerification.link,
-        })
-        : null;
-
-    console.log(JSON.stringify({
-      status:
-        verificationResult?.gate?.actionType
-        ?? (verificationResult ? "email_verification_completed" : result.gate?.actionType)
-        ?? "registration_started",
-      readyForSlotCapture: verificationResult?.readyForSlotCapture ?? result.readyForSlotCapture,
-      gate: (verificationResult?.gate ?? result.gate)
-        ? {
-          actionType: (verificationResult?.gate ?? result.gate)?.actionType,
-          errorCode: (verificationResult?.gate ?? result.gate)?.errorCode ?? null,
-          message:
-            (verificationResult?.gate ?? result.gate)?.errorMessage
-            ?? (verificationResult?.gate ?? result.gate)?.instruction,
-          metadata: (verificationResult?.gate ?? result.gate)?.metadata,
-        }
-        : null,
-      emailVerification: emailVerification
-        ? {
-          received: emailVerification.received,
-          hasCode: "hasCode" in emailVerification ? emailVerification.hasCode : false,
-          hasLink: "hasLink" in emailVerification ? emailVerification.hasLink : false,
-          error: "error" in emailVerification ? emailVerification.error : undefined,
-        }
-        : null,
-    }, null, 2));
-
-    if (args.keepOpen) {
-      await waitUntilInterrupted();
+    phase = "browser_session";
+    if (browserMode === "browserbase") {
+      cloud = await connectBrowserbaseCloudBrowser({ prefix: "US_APPOINTMENT" });
     }
+    client = new PlaywrightUSVisaSchedulingPortalClient(
+      config,
+      cloud ? { page: cloud.page } : {},
+    );
+
+    phase = "official_registration";
+    const prepared = await client.registerAccount(preflight.credentials);
+    const completed = await completeUSAppointmentAccountRegistration(
+      preflight.job,
+      repository,
+      config,
+      client,
+      prepared,
+      preflight.credentials,
+    );
+    let appointmentPreparation: AppointmentPreparationResult | null = null;
+    let appointmentContinuationErrorCode: string | null = null;
+    if (args.continueToAppointment) {
+      phase = "appointment_preparation";
+      try {
+        appointmentPreparation = await continueToAppointmentAfterRegistration({
+          requested: args.continueToAppointment,
+          registration: completed,
+          credentials: preflight.credentials,
+          prepare: (credentials) => client.prepareAppointmentFlow(preflight.job, credentials),
+        });
+      } catch {
+        appointmentContinuationErrorCode = "appointment_preparation_failed";
+      }
+    }
+    const succeeded = printRegistrationResult(
+      preflight.applicationId,
+      preflight.credentials,
+      completed,
+      appointmentPreparation,
+      appointmentContinuationErrorCode,
+      args.continueToAppointment,
+    );
+    // A checkpoint is a non-successful command outcome and must be resumed by
+    // the runner; callers can distinguish it from a hard failure with 2.
+    const appointmentSucceeded = !args.continueToAppointment
+      || appointmentPreparation?.readyForSlotCapture === true;
+    process.exitCode = succeeded && appointmentSucceeded ? 0 : completed.gate ? 2 : 1;
   } finally {
-    if (!args.keepOpen) {
-      await client.close();
+    try {
+      await client?.close();
+    } finally {
+      await cloud?.browser.close().catch(() => undefined);
     }
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error: unknown) => {
+    console.error(JSON.stringify({
+      status: "registration_failed",
+      phase,
+      code: classifyRegistrationFailure(error),
+      message: "US appointment registration stopped without logging account secrets or provider details.",
+    }));
+    process.exitCode = 1;
+  });
+}

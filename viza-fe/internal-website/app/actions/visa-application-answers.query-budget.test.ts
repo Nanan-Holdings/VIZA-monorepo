@@ -36,6 +36,7 @@ vi.mock("@/lib/resilience/application-answers", () => ({
 }));
 
 import {
+  ensureDraftApplication,
   loadApplicationFormContext,
   loadDynamicAnswers,
   saveDynamicAnswers,
@@ -262,6 +263,105 @@ describe("visa application answer query budget", () => {
     ]);
     expect(applicationsQuery.select).toHaveBeenCalledWith(
       expect.not.stringContaining("*")
+    );
+  });
+
+  it("skips the package read when resolving an explicit product", async () => {
+    const profileQuery = query({ data: owner, error: null });
+    const applicationsQuery = query({
+      data: [
+        {
+          id: "explicit-application",
+          country: "vietnam",
+          visa_type: "VN_E_VISA",
+          purpose: "tourism",
+          status: "draft",
+          visa_package_id: null,
+          submission_result_status: null,
+          result_status: null,
+          submission_result: null,
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn((table: string) => {
+      if (table === "applicant_profiles") return profileQuery;
+      if (table === "applications") return applicationsQuery;
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+    mocks.createAdminClient.mockReturnValue({ from });
+
+    await expect(
+      ensureDraftApplication("vietnam", "VN_E_VISA", {
+        preferExplicit: true,
+      })
+    ).resolves.toEqual({
+      applicationId: "explicit-application",
+      created: false,
+    });
+    expect(from.mock.calls.map(([table]) => table)).toEqual([
+      "applicant_profiles",
+      "applications",
+    ]);
+    expect(applicationsQuery.eq).toHaveBeenCalledWith(
+      "applicant_id",
+      "profile-1"
+    );
+  });
+
+  it("still resolves package-driven drafts from the active package read", async () => {
+    const profileQuery = query({ data: owner, error: null });
+    const packageQuery = query({
+      data: {
+        visa_package_id: "package-1",
+        visa_packages: {
+          id: "package-1",
+          country: "vietnam",
+          visa_type: "VN_E_VISA",
+        },
+      },
+      error: null,
+    });
+    const applicationsQuery = query({
+      data: [
+        {
+          id: "package-application",
+          country: "vietnam",
+          visa_type: "VN_E_VISA",
+          purpose: "tourism",
+          status: "draft",
+          visa_package_id: "package-1",
+          submission_result_status: null,
+          result_status: null,
+          submission_result: null,
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn((table: string) => {
+      if (table === "applicant_profiles") return profileQuery;
+      if (table === "user_packages") return packageQuery;
+      if (table === "applications") return applicationsQuery;
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+    mocks.createAdminClient.mockReturnValue({ from });
+
+    await expect(
+      ensureDraftApplication("japan", "JP_TOURIST")
+    ).resolves.toEqual({
+      applicationId: "package-application",
+      created: false,
+    });
+    expect(packageQuery.eq).toHaveBeenNthCalledWith(
+      1,
+      "auth_user_id",
+      "auth-1"
+    );
+    expect(packageQuery.eq).toHaveBeenNthCalledWith(2, "status", "active");
+    expect(packageQuery.limit).toHaveBeenCalledWith(1);
+    expect(applicationsQuery.eq).toHaveBeenCalledWith(
+      "applicant_id",
+      "profile-1"
     );
   });
 });

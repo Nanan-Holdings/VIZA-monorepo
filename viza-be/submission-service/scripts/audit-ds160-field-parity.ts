@@ -7,14 +7,15 @@
  *   A) UI form definitions  — viza-be/agent-backend/scripts/seed-ds160-form-fields.ts
  *      (seeds the `visa_form_fields` table that drives /client/application/long-form)
  *   B) Test fixture         — TEST_DS160_ANSWERS in src/ceac/test-ds160-fixture.ts
- *   C) Orchestrator mappings — every ds160*Mappings export in src/ds160-form-mappings.ts
+ *   C) Orchestrator mappings — established ds160*Mappings plus the checked-in
+ *      extended branch declarations
  *
  * The orchestrator silently skips fields without a matching answer. So if (C)
  * expects a key the form never captures (A) or the fixture omits (B), user
  * data drops on the floor with no warning.
  *
- * Exit code 0 = parity OK (orchestrator fully covered by both form + fixture).
- * Exit code 1 = critical gap (orchestrator key missing from form or fixture).
+ * Exit code 0 = internal contract coverage only, never evidence of live CEAC parity.
+ * Exit code 1 = missing input, unconsumed form field, or fixture coverage gap.
  *
  * Run: npx ts-node scripts/audit-ds160-field-parity.ts
  */
@@ -24,6 +25,10 @@ import * as path from "node:path";
 
 import { TEST_DS160_ANSWERS } from "../src/ceac/test-ds160-fixture";
 import { __DERIVATION_TARGETS } from "../src/ds160-derive-answers";
+import { DS160_EXTENDED_MAPPING_GROUPS, DS160_EXTENDED_METADATA } from "../src/ds160-extended-mappings";
+import { DS160_FIELD_CONTRACTS } from "../src/ds160-field-contract";
+import { branchInventory, consumedSourceKeys, deriveKeyCoverage, ds160ConditionMatches, readDs160SeedFields } from "../src/ds160-parity";
+import type { FormFieldMapping } from "../src/form-mappings";
 import {
   ds160PersonalInfoMappings,
   ds160PersonalInfo2Mappings,
@@ -55,79 +60,15 @@ const SEED_FILE = path.resolve(
 );
 
 function extractFormFieldNames(): { names: Set<string>; gates: Map<string, string> } {
-  const text = fs.readFileSync(SEED_FILE, "utf8");
-  const names = new Set<string>();
-  // field_name -> showIf expression (e.g. "has_telecode === yes")
-  const gates = new Map<string, string>();
-
-  // Find every `field_name: "..."` position, then look ahead within that
-  // field's object literal scope (up to the next `field_name:` or 4kb,
-  // whichever comes first) for the optional `showIf` clause.
-  const directRe = /field_name:\s*"([^"]+)"/g;
-  const matches: { name: string; index: number }[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = directRe.exec(text)) !== null) {
-    matches.push({ name: m[1], index: m.index });
-  }
-  for (let i = 0; i < matches.length; i++) {
-    const { name, index } = matches[i];
-    names.add(name);
-    const scopeEnd = Math.min(
-      i + 1 < matches.length ? matches[i + 1].index : text.length,
-      index + 4000,
-    );
-    const scope = text.slice(index, scopeEnd);
-    const showIfMatch = /showIf:\s*"([^"]+)"/.exec(scope);
-    if (showIfMatch) gates.set(name, showIfMatch[1]);
-  }
-
-  // Steps 17–21 (Security and Background Parts 1–5) declare fields via a
-  // flatMap over destructured tuples like ["has_communicable_disease", "Do
-  // you ..."]. The flatMap body also generates a paired `${fn}_explain`
-  // textarea for each Y/N gate. Match tuples whose first slot looks like a
-  // snake_case identifier and emit both the bare key and the explain alias.
-  // The explain alias is gated on the bare key being === yes (the flatMap
-  // wires it that way uniformly), so register the gate here.
-  const tupleRe = /\[\s*"([a-z][a-z0-9_]+)"\s*,\s*"/g;
-  while ((m = tupleRe.exec(text)) !== null) {
-    const name = m[1];
-    if (name.length < 6 || !name.includes("_")) continue;
-    names.add(name);
-    names.add(`${name}_explain`);
-    gates.set(`${name}_explain`, `${name} === yes`);
-  }
-
-  return { names, gates };
+  const fields = readDs160SeedFields(fs.readFileSync(SEED_FILE, "utf8"));
+  return {
+    names: new Set(fields.map(field => field.name)),
+    gates: new Map(fields.flatMap(field => field.showIf ? [[field.name, field.showIf] as const] : [])),
+  };
 }
 
-/**
- * Evaluate a `showIf` expression against the fixture. The seed grammar is
- * limited to `key === value` joined by `||`, so we support exactly that.
- * Fixture values use CEAC-side tokens (Y/N, M/F, S/M, ...) while showIf uses
- * form-side tokens (yes/no, male/female, single/married, ...) — we normalize
- * Y→yes, N→no since that's the only mismatch this audit hits today.
- *
- * Returns true (gate active, field expected) only when an alternative
- * explicitly matches a fixture value. If no alternative matches — including
- * the case where the gate's source key isn't set in the fixture at all —
- * the gate is treated as OFF. The fixture is a deliberate test scenario;
- * a missing gate field signals "this branch isn't being exercised."
- */
-function evalShowIf(expr: string, fixture: Record<string, string>): boolean {
-  const alternatives = expr.split("||").map((s) => s.trim());
-  for (const alt of alternatives) {
-    const m = /^([a-z_][a-z0-9_]*)\s*===\s*([a-z_][a-z0-9_]*)$/.exec(alt);
-    if (!m) return true; // unparseable — assume gate active to be safe
-    const [, key, expected] = m;
-    const actual = fixture[key];
-    if (actual === undefined) continue;
-    const normalized = actual === "Y" ? "yes" : actual === "N" ? "no" : actual;
-    if (normalized === expected) return true;
-  }
-  return false;
-}
 
-const ALL_ORCHESTRATOR_MAPPINGS = {
+const BASE_ORCHESTRATOR_MAPPINGS = {
   personal_information_1: ds160PersonalInfoMappings,
   personal_information_2: ds160PersonalInfo2Mappings,
   travel_information: ds160TravelMappings,
@@ -148,6 +89,21 @@ const ALL_ORCHESTRATOR_MAPPINGS = {
   security_background_5: ds160SecurityBackground5Mappings,
 } as const;
 
+// The extended branch declarations are kept separate from the established
+// mapping module so the runtime wiring can be reviewed independently. The
+// audit nevertheless evaluates the same page/key union and derivation
+// closure, without importing or executing the runtime orchestrator.
+const mappingPages = new Map<string, Record<string, FormFieldMapping>>(
+  Object.entries(BASE_ORCHESTRATOR_MAPPINGS),
+);
+for (const group of DS160_EXTENDED_MAPPING_GROUPS) {
+  mappingPages.set(group.page, {
+    ...(mappingPages.get(group.page) ?? {}),
+    ...group.mappings,
+  });
+}
+const ALL_ORCHESTRATOR_MAPPINGS = Object.fromEntries(mappingPages.entries());
+
 // Profile fields are resolved from applicant_profiles, not visa_application_answers.
 // answer-loader.ts shapes profile to expose these keys; orchestrator falls back to
 // profile[fieldName] when answers[fieldName] is missing. So they don't need a UI
@@ -159,6 +115,23 @@ const PROFILE_FALLBACK_KEYS = new Set([
   "passport_number",
   "email_address",
 ]);
+
+// These seed entries are intentionally retained for the internal form
+// contract, but their relationship to the live CEAC social-media controls is
+// not established by an official DOM capture. Keep them visible in every
+// audit result so a zero-consumer gap is never mistaken for live parity.
+const UNVERIFIED_SUPPLEMENT_FIELDS = [
+  {
+    fields: ["has_social_media", "social_media_provider", "social_media_identifier"],
+    reason: "supplemental presence/provider/identifier namespace overlaps the repeat social_media_platform/social_media_handle source",
+    officialVerified: false,
+  },
+  {
+    fields: ["has_other_social_media", "other_social_media_name", "other_social_media_identifier"],
+    reason: "supplemental other-website branch has no official CEAC DOM verification",
+    officialVerified: false,
+  },
+] as const;
 
 function diff(a: Set<string>, b: Set<string>): string[] {
   return [...a].filter((k) => !b.has(k)).sort();
@@ -193,6 +166,13 @@ function reportList(label: string, keys: string[], indent = "  "): void {
   for (const k of keys) console.log(`${indent}  - ${k}`);
 }
 
+function isOptionalSeedField(key: string): boolean {
+  const contract = DS160_FIELD_CONTRACTS[key];
+  if (contract) return !contract.required;
+  const metadata = DS160_EXTENDED_METADATA[key];
+  return metadata ? !DS160_FIELD_CONTRACTS[metadata.seedFieldName]?.required : false;
+}
+
 /**
  * Statically compute the upper bound of derivation outputs given a source
  * key set. The runtime derivation only fires when actual values match
@@ -203,30 +183,12 @@ function reportList(label: string, keys: string[], indent = "  "): void {
  * coverage.
  */
 function applyDerivationsToKeySet(sourceKeys: Set<string>): Set<string> {
-  const out = new Set(sourceKeys);
-  const { dateSplits, naPairs, keyAliases, customDerivations } = __DERIVATION_TARGETS;
-  for (const { from, to } of keyAliases) {
-    if (out.has(from)) out.add(to);
-  }
-  for (const { source, targetPrefix } of dateSplits) {
-    if (!out.has(source)) continue;
-    out.add(`${targetPrefix}_day`);
-    out.add(`${targetPrefix}_month`);
-    out.add(`${targetPrefix}_year`);
-  }
-  for (const { source, naKey } of naPairs) {
-    if (out.has(source)) out.add(naKey);
-  }
-  for (const { requires, produces } of customDerivations) {
-    if (requires.every((k) => out.has(k))) {
-      for (const k of produces) out.add(k);
-    }
-  }
-  return out;
+  return deriveKeyCoverage(sourceKeys, __DERIVATION_TARGETS);
 }
 
 function main(): void {
   const { names: formKeys, gates: formGates } = extractFormFieldNames();
+  const fields = readDs160SeedFields(fs.readFileSync(SEED_FILE, "utf8"));
   const fixtureKeys = new Set(Object.keys(TEST_DS160_ANSWERS));
   const { union: orchestratorKeys, byPage } = buildOrchestratorKeySet();
   const formKeysAfterDerive = applyDerivationsToKeySet(formKeys);
@@ -281,10 +243,52 @@ function main(): void {
   // inputs — so the fixture omitting them is correct, not a gap.
   const gatedOffKeys = new Set<string>();
   for (const [name, expr] of formGates) {
-    if (!evalShowIf(expr, TEST_DS160_ANSWERS)) gatedOffKeys.add(name);
+    if (!ds160ConditionMatches(expr, TEST_DS160_ANSWERS)) gatedOffKeys.add(name);
+  }
+  // Inactive source fields also make their aliases/date splits inactive.
+  const gatedOffDerivedKeys = deriveKeyCoverage(gatedOffKeys, __DERIVATION_TARGETS);
+  // consular_post is consumed by session bootstrap rather than a form page.
+  // has_social_media drives deriveSocialMediaPresence's NONE provider branch.
+  const consumed = consumedSourceKeys(
+    [...orchestratorKeys, "consular_post", "has_social_media"],
+    __DERIVATION_TARGETS,
+  );
+  const unconsumedFields = fields.filter(field => !consumed.has(field.name));
+  const branches = branchInventory(fields, consumed);
+  const repeatGroups = [...new Set(fields.flatMap(field => field.repeatGroup ? [field.repeatGroup] : []))];
+  const optionalFixtureInputs = diff(orchestratorKeys, fixtureKeysAfterDerive).filter(
+    (key) => isOptionalSeedField(key),
+  );
+  const missingFromFixture = diff(orchestratorKeys, fixtureKeysAfterDerive).filter(
+    (key) => !PROFILE_FALLBACK_KEYS.has(key) && !gatedOffDerivedKeys.has(key) && !naCoveredKeys.has(key),
+  ).filter((key) => !isOptionalSeedField(key));
+  const optionalFixtureInputsActive = optionalFixtureInputs.filter(
+    (key) => !gatedOffDerivedKeys.has(key) && !naCoveredKeys.has(key),
+  );
+  if (process.argv.includes("--json")) {
+    const missingInputs = diff(orchestratorKeys, formKeysAfterDerive).filter(key => !PROFILE_FALLBACK_KEYS.has(key));
+    const passed = missingInputs.length === 0 && missingFromFixture.length === 0 && unconsumedFields.length === 0;
+    console.log(JSON.stringify({
+      scope: "Internal seed-to-runner contract audit; not live CEAC parity verification",
+      officialParityVerified: false,
+      fieldCount: fields.length,
+      mappingCount: orchestratorKeys.size,
+      conditionalBranchCount: branches.length,
+      repeatGroups,
+      missingRunnerInputs: missingInputs,
+      missingFixtureInputs: missingFromFixture,
+      optionalFixtureInputs: optionalFixtureInputsActive,
+      unconsumedFields,
+      unverifiedSupplementFields: UNVERIFIED_SUPPLEMENT_FIELDS,
+      branches,
+      passed,
+    }, null, 2));
+    process.exitCode = passed ? 0 : 1;
+    return;
   }
   console.log("═".repeat(70));
-  console.log("  DS-160 Field Parity Audit");
+  console.log("  DS-160 Internal Field/Branch Contract Audit");
+  console.log("  Live official-field/options/branch parity: NOT VERIFIED");
   console.log("═".repeat(70));
   console.log(`  UI form fields           (seed-ds160-form-fields.ts) : ${formKeys.size}`);
   console.log(`  Test fixture keys        (TEST_DS160_ANSWERS)        : ${fixtureKeys.size}`);
@@ -299,15 +303,9 @@ function main(): void {
   const missingFromFormAfterDerive = diff(orchestratorKeys, formKeysAfterDerive).filter(
     (k) => !PROFILE_FALLBACK_KEYS.has(k),
   );
-  const missingFromFixture = diff(orchestratorKeys, fixtureKeysAfterDerive).filter(
-    (k) =>
-      !PROFILE_FALLBACK_KEYS.has(k) &&
-      !gatedOffKeys.has(k) &&
-      !naCoveredKeys.has(k),
-  );
 
-  // Soft gaps: keys captured/seeded but no autofill consumer.
-  const orphanFormKeys = diff(formKeys, orchestratorKeys);
+  // Reverse coverage is a release-blocking gap, including inactive branches.
+  const orphanFormKeys = unconsumedFields.map(field => field.name);
   const orphanFixtureKeys = diff(fixtureKeys, orchestratorKeys);
   const formWithoutFixture = diff(formKeys, fixtureKeys);
 
@@ -329,7 +327,19 @@ function main(): void {
   console.log("  omits them. The e2e run silently skips them.");
   reportList("count", missingFromFixture);
 
-  header("INFO — form fields with no orchestrator consumer");
+  header("INFO — optional orchestrator keys not exercised by test fixture");
+  console.log("  These seeded fields are optional and remain absent because the");
+  console.log("  fixture intentionally does not invent applicant data.");
+  reportList("count", optionalFixtureInputsActive);
+
+  header("INFO — seed supplement semantics pending official CEAC verification");
+  for (const supplement of UNVERIFIED_SUPPLEMENT_FIELDS) {
+    console.log(`  - ${supplement.fields.join(", ")}`);
+    console.log(`    ${supplement.reason}`);
+    console.log(`    officialVerified: ${supplement.officialVerified}`);
+  }
+
+  header("CRITICAL — form fields with no declared runtime consumer after derivation");
   console.log("  Captured by /application but never read by autofill.");
   console.log("  Either remove from form, or add a mapping group.");
   reportList("count", orphanFormKeys);
@@ -342,6 +352,12 @@ function main(): void {
   console.log("  /application asks but TEST_DS160_ANSWERS doesn't seed.");
   console.log("  Autofill mapping might exist but isn't covered by the e2e.");
   reportList("count", formWithoutFixture);
+
+  header("Conditional branches and repeat groups");
+  console.log(`  Conditional expressions: ${branches.length}`);
+  console.log(`  Branches with unmapped fields: ${branches.filter(branch => branch.unmappedFields.length > 0).length}`);
+  console.log(`  Repeat groups requiring live add/remove/reload verification: ${repeatGroups.length}`);
+  for (const group of repeatGroups) console.log(`    - ${group}`);
 
   // Per-page breakdown for missing-from-form AFTER derivation — the
   // actionable view, since pre-derivation gaps are bridged automatically.
@@ -360,15 +376,15 @@ function main(): void {
   console.log("\n" + "═".repeat(70));
   // Verdict uses post-derivation form coverage. Pre-derivation count is
   // informational — derivations are a real bridge, not a workaround.
-  const critical = missingFromFormAfterDerive.length + missingFromFixture.length;
+  const critical = missingFromFormAfterDerive.length + missingFromFixture.length + orphanFormKeys.length;
   if (critical === 0) {
-    console.log("  PASS — orchestrator fully covered by form + fixture (post-derivation)");
+    console.log("  PASS — internal contract coverage only; live CEAC parity remains unverified");
     console.log("═".repeat(70));
     process.exit(0);
   } else {
     console.log(
       `  FAIL — ${critical} critical gap${critical === 1 ? "" : "s"} after derivation` +
-        ` (form-after-derive: ${missingFromFormAfterDerive.length}, fixture: ${missingFromFixture.length})`,
+        ` (form-after-derive: ${missingFromFormAfterDerive.length}, fixture: ${missingFromFixture.length}, unconsumed: ${orphanFormKeys.length})`,
     );
     console.log(
       `         pre-derivation form gap was ${missingFromForm.length}; bridge closed ${missingFromForm.length - missingFromFormAfterDerive.length}`,

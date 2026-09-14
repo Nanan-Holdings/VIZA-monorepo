@@ -41,18 +41,18 @@ describe("deriveDS160Answers", () => {
 
     assert.equal(answers.us_contact_name_na, "Y");
     assert.equal(answers.us_contact_email_na, "Y");
-    assert.equal(answers.us_contact_organization, "UNKNOWN");
-    assert.equal(answers.us_contact_organization_na, undefined);
+    assert.equal(answers.us_contact_organization, undefined);
+    assert.equal(answers.us_contact_organization_na, "Y");
     assert.equal(answers.us_contact_surname, undefined);
     assert.equal(answers.us_contact_given_names, undefined);
     assert.equal(answers.us_contact_email, undefined);
   });
 
-  it("defaults blank U.S. tax identifiers to CEAC NA checkboxes", () => {
+  it("does not infer NA for a blank U.S. tax identifier", () => {
     const answers = deriveDS160Answers({ us_taxpayer_id: "" });
 
-    assert.equal(answers.us_taxpayer_id_na, "Y");
-    assert.equal(answers.us_taxpayer_id, undefined);
+    assert.equal(answers.us_taxpayer_id_na, undefined);
+    assert.equal(answers.us_taxpayer_id, "");
   });
 
   it("normalizes parent-in-US yes/no answers to CEAC radio values", () => {
@@ -97,32 +97,73 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.intended_length_of_stay_unit, "D");
   });
 
-  it("derives present education fallback fields for CEAC required inputs", () => {
+  it("maps present work fields to CEAC keys and splits the supplied start date", () => {
     const answers = deriveDS160Answers({
-      primary_occupation: "education",
-      employer_name: "DOES_NOT_APPLY",
-      home_address_line1: "Beijing",
-      home_address_city: "长沙",
-      home_address_country: "China",
-      primary_phone: "19974931995",
+      primary_occupation: "student",
+      employer_name: "NUS",
+      employer_city: "Singapore",
+      employer_state_province: "Central Region",
+      employer_postal_code: "117566",
+      employer_country: "Singapore",
+      employer_phone: "+65 6516 6666",
+      employment_start_date: "2021-03-15",
+      monthly_salary: "SGD 1800",
+      job_duties: "Full-time student",
     });
 
-    assert.equal(answers.employer_name, "UNKNOWN");
-    assert.equal(answers.employer_address_line1, "Beijing");
-    assert.equal(answers.employer_address_city, "CHANGSHA");
-    assert.equal(answers.employer_address_country, "CHIN");
-    assert.equal(answers.employer_phone, "19974931995");
-    assert.equal(answers.employment_start_date_day, "01");
-    assert.equal(answers.employment_start_date_month, "SEP");
-    assert.equal(answers.employment_start_date_year, "2024");
-    assert.equal(answers.monthly_income_na, "Y");
-    assert.equal(answers.job_duties, "STUDENT");
+    assert.equal(answers.employer_address_city, "Singapore");
+    assert.equal(answers.employer_address_state, "Central Region");
+    assert.equal(answers.employer_address_postal, "117566");
+    assert.equal(answers.employer_address_country, "SING");
+    assert.equal(answers.employment_start_date_day, "15");
+    assert.equal(answers.employment_start_date_month, "MAR");
+    assert.equal(answers.employment_start_date_year, "2021");
+    assert.equal(answers.monthly_income, "SGD 1800");
+    assert.equal(answers.employer_address_state_na, undefined);
+    assert.equal(answers.employer_address_postal_na, undefined);
+    assert.equal(answers.monthly_income_na, undefined);
   });
 
-  it("does not open previous education details when no institution data exists", () => {
-    const answers = deriveDS160Answers({ has_other_education: "yes" });
+  it("does not invent missing present work values or override an education answer", () => {
+    const workAnswers = deriveDS160Answers({ primary_occupation: "student" });
+    assert.equal(workAnswers.employer_name, undefined);
+    assert.equal(workAnswers.employer_address_line1, undefined);
+    assert.equal(workAnswers.employer_address_city, undefined);
+    assert.equal(workAnswers.employer_address_country, undefined);
+    assert.equal(workAnswers.employer_phone, undefined);
+    assert.equal(workAnswers.employment_start_date_day, undefined);
+    assert.equal(workAnswers.employment_start_date_month, undefined);
+    assert.equal(workAnswers.employment_start_date_year, undefined);
+    assert.equal(workAnswers.monthly_income, undefined);
+    assert.equal(workAnswers.job_duties, undefined);
 
-    assert.equal(answers.has_other_education, "N");
+    const educationAnswers = deriveDS160Answers({ has_other_education: "yes" });
+    assert.equal(educationAnswers.has_other_education, "Y");
+  });
+
+  it("maps explicit work-field Does Not Apply values to CEAC checkboxes", () => {
+    const answers = deriveDS160Answers({
+      employer_state_province: "does_not_apply",
+      employer_postal_code: "does_not_apply",
+      monthly_salary: "does_not_apply",
+    });
+
+    assert.equal(answers.employer_address_state_na, "Y");
+    assert.equal(answers.employer_address_postal_na, "Y");
+    assert.equal(answers.monthly_income_na, "Y");
+    assert.equal(answers.employer_state_province, undefined);
+    assert.equal(answers.employer_address_state, undefined);
+    assert.equal(answers.employer_postal_code, undefined);
+    assert.equal(answers.employer_address_postal, undefined);
+    assert.equal(answers.monthly_salary, undefined);
+    assert.equal(answers.monthly_income, undefined);
+  });
+
+  it("does not infer unanswered social media as no", () => {
+    const answers = deriveDS160Answers({});
+
+    assert.equal(answers.has_social_media, undefined);
+    assert.equal(answers.social_media_provider, undefined);
   });
 
   it("uses the intended date for the no-specific-plans CEAC branch", () => {
@@ -155,6 +196,78 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.intended_arrival_date_month, "SEP");
     assert.equal(answers.intended_arrival_date_year, "2026");
     assert.equal(answers.arrival_date_month, "SEP");
+  });
+
+  it("does not reuse an inactive travel branch when the active source is missing", () => {
+    const noPlans = deriveDS160Answers({
+      has_specific_travel_plans: "no",
+      arrival_date: "2026-09-10",
+    });
+    assert.equal(noPlans.intended_arrival_date, undefined);
+    assert.equal(noPlans.intended_arrival_date_day, undefined);
+
+    const specificPlans = deriveDS160Answers({
+      has_specific_travel_plans: "yes",
+      intended_arrival_date: "2026-10-20",
+      intended_length_of_stay: "99",
+      intended_length_of_stay_value: "99",
+      intended_length_of_stay_unit: "DAY(S)",
+    });
+    assert.equal(specificPlans.intended_arrival_date, undefined);
+    assert.equal(specificPlans.intended_arrival_date_day, undefined);
+    assert.equal(specificPlans.intended_length_of_stay, undefined);
+    assert.equal(specificPlans.intended_length_of_stay_value, undefined);
+    assert.equal(specificPlans.intended_length_of_stay_unit, undefined);
+  });
+
+  it("derives length of stay only from real dates in the specific-plans branch", () => {
+    const noPlans = deriveDS160Answers({
+      has_specific_travel_plans: "no",
+      arrival_date: "2026-09-10",
+      departure_date: "2026-09-20",
+      intended_length_of_stay_value: "14",
+      intended_length_of_stay_unit: "DAY(S)",
+    });
+    assert.equal(noPlans.intended_length_of_stay_value, "14");
+    assert.equal(noPlans.intended_length_of_stay_unit, "D");
+
+    const specificPlans = deriveDS160Answers({
+      has_specific_travel_plans: "yes",
+      arrival_date: "2026-09-10",
+      departure_date: "2026-09-20",
+      intended_length_of_stay: "99",
+      intended_length_of_stay_value: "99",
+      intended_length_of_stay_unit: "MONTH(S)",
+    });
+    assert.equal(specificPlans.intended_length_of_stay, "10");
+    assert.equal(specificPlans.intended_length_of_stay_value, "10");
+    assert.equal(specificPlans.intended_length_of_stay_unit, "D");
+  });
+
+  it("does not turn an impossible date range into a one-day stay", () => {
+    const answers = deriveDS160Answers({
+      has_specific_travel_plans: "yes",
+      arrival_date: "2026-09-20",
+      departure_date: "2026-09-10",
+    });
+
+    assert.equal(answers.intended_length_of_stay, undefined);
+    assert.equal(answers.intended_length_of_stay_value, undefined);
+    assert.equal(answers.intended_length_of_stay_unit, undefined);
+  });
+
+  it("does not alias U.S. contact address into the separate travel address", () => {
+    const answers = deriveDS160Answers({
+      us_contact_address_street1: "Contact street",
+      us_contact_city: "Contact city",
+      us_contact_state: "CA",
+      us_contact_zip: "90001",
+    });
+
+    assert.equal(answers.us_address_street, undefined);
+    assert.equal(answers.us_address_city, undefined);
+    assert.equal(answers.us_address_state, undefined);
+    assert.equal(answers.us_address_zip, undefined);
   });
 
   it("derives CEAC passport expiration state from the persisted date", () => {

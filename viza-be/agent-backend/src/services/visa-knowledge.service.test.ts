@@ -258,6 +258,106 @@ describe("visa knowledge request cancellation", () => {
     });
   });
 
+  it("returns an explicit no-match result instead of bypassing the similarity threshold", async () => {
+    const rpcBuilder = queryBuilder(async () => ({ data: [], error: null }));
+    const restBuilder = queryBuilder(async () => ({
+      data: [{ id: "should-not-be-used", content: "Unfiltered fallback" }],
+      error: null,
+    }));
+    mocks.rpc.mockReturnValue(rpcBuilder);
+    mocks.from.mockReturnValue(restBuilder);
+    const { retrieveVisaKnowledge } = await importService();
+
+    await expect(
+      retrieveVisaKnowledge({
+        query: "Singapore requirements",
+        country: "singapore",
+        minSimilarity: 0.9,
+      }),
+    ).resolves.toMatchObject({
+      chunks: [],
+      usedEmbedding: true,
+      fallbackReason: "no_similarity_match",
+    });
+
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("match_visa_chunks", {
+      query_embedding: [0.1, 0.2],
+      match_count: 5,
+      filter_country: "singapore",
+      filter_visa_type: null,
+      filter_document_types: null,
+      min_similarity: 0.9,
+    });
+  });
+
+  it("returns no_similarity_match after an empty intent query and empty broad query", async () => {
+    const rpcBuilder = queryBuilder(async () => ({ data: [], error: null }));
+    mocks.rpc.mockReturnValue(rpcBuilder);
+    const { retrieveVisaKnowledge } = await importService();
+
+    await expect(
+      retrieveVisaKnowledge({
+        query: "Singapore requirements",
+        intent: "requirements",
+      }),
+    ).resolves.toMatchObject({
+      chunks: [],
+      usedEmbedding: true,
+      fallbackReason: "no_similarity_match",
+    });
+
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("uses bounded environment policy values and preserves explicit request priority", async () => {
+    vi.stubEnv("VISA_RAG_MATCH_COUNT", "9");
+    vi.stubEnv("VISA_RAG_MIN_SIMILARITY", "0.4");
+    const rpcBuilder = queryBuilder(async () => ({ data: [], error: null }));
+    mocks.rpc.mockReturnValue(rpcBuilder);
+    const { retrieveVisaKnowledge } = await importService();
+
+    await retrieveVisaKnowledge({
+      query: "Singapore requirements",
+      matchCount: 2,
+      minSimilarity: 0.8,
+    });
+
+    expect(mocks.rpc).toHaveBeenCalledWith("match_visa_chunks", {
+      query_embedding: [0.1, 0.2],
+      match_count: 2,
+      filter_country: null,
+      filter_visa_type: null,
+      filter_document_types: null,
+      min_similarity: 0.8,
+    });
+  });
+
+  it("falls back predictably for invalid request policy values", async () => {
+    vi.stubEnv("VISA_RAG_MATCH_COUNT", "7");
+    vi.stubEnv("VISA_RAG_MIN_SIMILARITY", "0.35");
+    const rpcBuilder = queryBuilder(async () => ({ data: [], error: null }));
+    mocks.rpc.mockReturnValue(rpcBuilder);
+    const { retrieveVisaKnowledge } = await importService();
+
+    await retrieveVisaKnowledge({
+      query: "Singapore requirements",
+      matchCount: 99,
+      minSimilarity: Number.POSITIVE_INFINITY,
+    });
+
+    expect(mocks.rpc).toHaveBeenCalledWith("match_visa_chunks", {
+      query_embedding: [0.1, 0.2],
+      match_count: 7,
+      filter_country: null,
+      filter_visa_type: null,
+      filter_document_types: null,
+      min_similarity: 0.35,
+    });
+  });
+
   it("does not share user query results across concurrent requests", async () => {
     const controller = new AbortController();
     mocks.rpc.mockImplementation(() =>

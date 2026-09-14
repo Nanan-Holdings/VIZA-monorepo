@@ -5,13 +5,19 @@ import {
   visaKnowledgeCapacityMonitor,
   type VisaKnowledgeRequestTrace,
 } from "./visa-knowledge-capacity.js";
+import { resolveVisaKnowledgeRetrievalPolicy } from "./visa-knowledge-retrieval-policy.js";
+import {
+  documentTypesForIntent,
+  normalizeKnowledgeFilters,
+  type VisaKnowledgeIntent,
+} from "./visa-knowledge-query.js";
+export { documentTypesForIntent } from "./visa-knowledge-query.js";
+export type { VisaKnowledgeIntent } from "./visa-knowledge-query.js";
 
 const logger = new Logger({ serviceName: "VisaKnowledgeService" });
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_MATCH_COUNT = 5;
-const DEFAULT_MIN_SIMILARITY = 0.03;
 
 function requestAbortError(signal?: AbortSignal): Error {
   if (signal?.reason instanceof Error) return signal.reason;
@@ -23,14 +29,6 @@ function requestAbortError(signal?: AbortSignal): Error {
 function throwIfRequestAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw requestAbortError(signal);
 }
-
-export type VisaKnowledgeIntent =
-  | "route_recommendation"
-  | "requirements"
-  | "form_intake"
-  | "fees_timing"
-  | "eligibility"
-  | "source_check";
 
 export interface VisaKnowledgeQuery {
   query: string;
@@ -89,72 +87,10 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function clampMatchCount(value: number | undefined): number {
-  if (!value || !Number.isFinite(value)) return DEFAULT_MATCH_COUNT;
-  return Math.min(Math.max(Math.trunc(value), 1), 12);
-}
-
-export function documentTypesForIntent(
-  intent?: VisaKnowledgeIntent
-): string[] | undefined {
-  if (!intent) return undefined;
-  const mapping: Record<VisaKnowledgeIntent, string[]> = {
-    route_recommendation: ["requirements", "process"],
-    requirements: ["requirements", "form_requirements", "photo_requirements"],
-    form_intake: ["form_requirements", "photo_requirements", "requirements", "process"],
-    fees_timing: ["requirements", "process"],
-    eligibility: ["requirements"],
-    source_check: ["requirements", "process", "form_requirements", "photo_requirements"],
-  };
-  return mapping[intent];
-}
-
-function normalizeCountryFilter(country?: string | null): string | null | undefined {
-  if (!country) return country;
-  const normalized = country.trim().toLowerCase();
-  const aliases: Record<string, string> = {
-    united_states: "us",
-    usa: "us",
-    "united states": "us",
-    united_kingdom: "uk",
-    "united kingdom": "uk",
-    britain: "uk",
-    "hong kong": "hong_kong",
-    hksar: "hong_kong",
-    macao: "macau",
-    "russian federation": "russia",
-    schengen_area: "france",
-  };
-  return aliases[normalized] ?? normalized;
-}
-
-function normalizeVisaTypeFilter(visaType?: string | null): string | null | undefined {
-  if (!visaType) return visaType;
-  const normalized = visaType.trim();
-  const aliasKey = normalized.toUpperCase();
-  const aliases: Record<string, string> = {
-    DS160: "b1_b2",
-    B1_B2: "b1_b2",
-    B211A: "tourist_b211a",
-    ID_C1_TOURIST: "tourist_b211a",
-    AU_VISITOR_600: "visitor_subclass_600",
-    JP_TOURIST: "short_term_tourism_evisa",
-    KR_C39_SHORT_TERM_VISIT: "c3_or_keta",
-    EG_E_VISA: "evisa_tourism",
-    UK_STANDARD_VISITOR: "standard_visitor",
-    EU_SCHENGEN_C_SHORT_STAY: "schengen_short_stay_tourism",
-    HK_VISIT_VISA: "hk_visit_visa",
-    MO_VISIT_VISA: "mo_visit_visa",
-    RU_E_VISA: "unified_evisa",
-  };
-  return aliases[aliasKey] ?? normalized;
-}
-
 function normalizeKnowledgeQuery(query: VisaKnowledgeQuery): VisaKnowledgeQuery {
   return {
     ...query,
-    country: normalizeCountryFilter(query.country),
-    visaType: normalizeVisaTypeFilter(query.visaType),
+    ...normalizeKnowledgeFilters(query),
   };
 }
 
@@ -368,8 +304,11 @@ async function retrieveVisaKnowledgeInternal(
     };
   }
 
-  const matchCount = clampMatchCount(normalizedQuery.matchCount);
-  const minSimilarity = normalizedQuery.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
+  const retrievalPolicy = resolveVisaKnowledgeRetrievalPolicy({
+    matchCount: normalizedQuery.matchCount,
+    minSimilarity: normalizedQuery.minSimilarity,
+  });
+  const { matchCount, minSimilarity } = retrievalPolicy;
   const embedding = await getEmbedding(
     cleanQuery,
     trace,
@@ -381,6 +320,7 @@ async function retrieveVisaKnowledgeInternal(
     !normalizedQuery.documentTypes?.length && Boolean(intentQuery.documentTypes?.length);
 
   if (embedding) {
+    let vectorSearchFailed = false;
     try {
       const chunks = await retrieveWithVectorSearch(
         intentQuery,
@@ -419,10 +359,19 @@ async function retrieveVisaKnowledgeInternal(
       if (normalizedQuery.signal?.aborted) {
         throw requestAbortError(normalizedQuery.signal);
       }
+      vectorSearchFailed = true;
       logger.warn("Vector knowledge retrieval failed", error as Error, {
         country: query.country,
         visaType: query.visaType,
       });
+    }
+
+    if (!vectorSearchFailed) {
+      return {
+        chunks: [],
+        usedEmbedding: true,
+        fallbackReason: "no_similarity_match",
+      };
     }
   }
 

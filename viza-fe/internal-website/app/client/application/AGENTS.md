@@ -75,6 +75,14 @@ Before changing this route, read:
   the shared submit interaction: successful and in-progress submissions keep
   the applicant's viewport in place, while missing-field errors may navigate
   to the correction surface.
+- `long-form/ordered-dynamic-save.ts` shares one page-owned persistence tail
+  across autosave, navigation, dynamic step completion and review edits. Only
+  adjacent identical in-flight patches in the same application scope may join;
+  completed writes are never cached. Register work before resolving draft IDs.
+  Final submission drains queued work and forces its complete snapshot through
+  the same queue. Preserve immediate sidebar scrolling and backend ownership
+  checks. The adjacent `__tests__/ordered-dynamic-save.test.ts` covers ordering,
+  reverted edits, failure retry, scope isolation and the submission barrier.
 
 ## Guardrails
 

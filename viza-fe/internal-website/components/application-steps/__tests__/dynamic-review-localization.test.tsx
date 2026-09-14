@@ -10,6 +10,7 @@ import {
   getReviewOptionText,
   getReviewOfficialLabel,
   getReviewSourceLabel,
+  toReviewOfficialOptions,
 } from "../dynamic-review-step";
 import { BilingualReviewPanel } from "../bilingual-review-panel";
 
@@ -464,6 +465,18 @@ describe("dynamic review localization", () => {
     expect(getLocalizedOptionText("single", options, "zh")).toBe("单次入境");
     expect(getLocalizedOptionText("single", options, "en")).toBe("Single-entry");
     expect(getLocalizedOptionText("official", [{ value: "official", text: "Official" }], "zh")).toBe("公务人员");
+  });
+
+  test("drops blank enum placeholders before rendering official select items", () => {
+    const options = toReviewOfficialOptions([
+      { value: "", text: "Select one" },
+      { value: "   ", text: "Placeholder" },
+      { value: "single", text: "Single-entry" },
+      { value: "official", text: "Official" },
+    ]);
+
+    expect(options.map((option) => option.value)).toEqual(["single", "official"]);
+    expect(options.every((option) => option.value.trim().length > 0)).toBe(true);
   });
 
   test("localizes stored checkbox booleans on both review sides", () => {

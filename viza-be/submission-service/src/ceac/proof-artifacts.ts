@@ -70,13 +70,13 @@ export async function waitForDs160ConfirmationPage(page: Page): Promise<void> {
 
 async function hasOfficialProofControls(page: Page, selectors: string[]): Promise<boolean> {
   for (const selector of selectors) {
-    if ((await page.locator(selector).count().catch(() => 0)) === 0) return false;
+    if ((await page.locator(visibleSelectors(selector)).count().catch(() => 0)) === 0) return false;
   }
   return true;
 }
 
 async function clickFirstAvailable(page: Page, selector: string): Promise<boolean> {
-  const control = page.locator(selector).first();
+  const control = page.locator(visibleSelectors(selector)).first();
   if ((await control.count().catch(() => 0)) === 0) return false;
   try {
     await control.click({ force: true, timeout: 10_000 });
@@ -89,6 +89,10 @@ async function clickFirstAvailable(page: Page, selector: string): Promise<boolea
     await page.waitForTimeout(2_000);
   }
   return true;
+}
+
+function visibleSelectors(selector: string): string {
+  return selector.split(",").map(part => `${part.trim()}:visible`).join(", ");
 }
 
 function isSubmittedUsResult(value: unknown): value is UsSubmissionResult {

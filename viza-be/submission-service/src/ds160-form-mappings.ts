@@ -382,7 +382,10 @@ export const ds160ContactMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Has other email addresses",
   },
-  has_social_media: {
+  // CEAC's rblAddSocial asks about other websites/applications. Whether the
+  // applicant uses a listed platform is represented by the provider/NONE
+  // dropdown, so those two intake questions must never overwrite each other.
+  has_other_social_media: {
     selector: 'input[name*="rblAddSocial"], input[id*="rblAddSocial"]',
     type: "radio",
     label: "Has additional social media presence",

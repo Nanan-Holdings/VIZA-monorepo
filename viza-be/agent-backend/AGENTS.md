@@ -33,6 +33,14 @@ explicitly reintroduces another provider.
   process-cache or log applicant data.
 - RAG retrieval: `src/services/visa-knowledge.service.ts`,
   `src/config/visa-destination-registry.ts`, and `visa_chunks`.
+- RAG parameter experiments: `scripts/evaluate-rag-retrieval.ts`,
+  `evals/rag-retrieval-queries.json`, and `evals/rag-retrieval-results.json`.
+  `npm run eval:rag-retrieval -- --live` embeds only checked-in public seeds and
+  synthetic queries; `--cached` performs no provider calls. Embedding vectors
+  live under ignored `.tmp/rag-eval/`. Select on dev only, then check heldout;
+  do not claim live-database, ANN latency, or generated-answer accuracy from
+  this exact local cosine experiment. Curated chunk boundaries remain the
+  ingestion default until a separately validated release is re-embedded.
 - Versioned RAG publishing: `scripts/ingest-country-visa-rag.ts`,
   `scripts/stage-visa-knowledge-supplements.ts`,
   `scripts/promote-visa-knowledge-release.ts`, and
@@ -96,6 +104,11 @@ explicitly reintroduces another provider.
   mirrored migration plus guarded local database JSON/ACL/OID parity across
   calendar/rolling boundaries and timezones; it never defaults to production.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- `scripts/prove-rag-retrieval.ts` and its adjacent test implement the local,
+  cached-vector exhaustive empirical RAG certificate. They pool already seen
+  synthetic questions, enumerate threshold equivalence intervals and k 1-12,
+  and use exact rational objective comparisons. This is descriptive benchmark
+  optimization, not a replacement for independent validation or a release gate.
 - Audited tourist-form seeds:
   `scripts/seed-ca-trv-form-fields.ts`,
   `scripts/seed-tr-e-visa-form-fields.ts`,

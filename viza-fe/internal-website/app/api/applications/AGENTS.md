@@ -92,9 +92,12 @@ ports directly.
   reveal. It must forward a bearer token to the agent backend, return no-store
   responses, and never place credentials in URLs, logs, or status projections.
 - `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
-  creates a new blank U.S. DS-160 VIZA draft from a submitted application and
-  returns the explicit form URL; its implementation/test helpers live in the
-  adjacent `route-handler.ts`; it must not copy answers or enqueue official
+  starts the next U.S. DS-160 VIZA flow from an owner-authorized application
+  with an authoritative official submitted result and returns the explicit
+  form URL. Its implementation/test helpers live in the adjacent
+  `route-handler.ts`; it copies saved answers into a new or owner-scoped empty
+  draft, reuses a non-empty draft without overwriting it, and handles the
+  ongoing-draft unique-constraint race. It must not enqueue official
   submission work.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`

@@ -61,6 +61,9 @@ application lifecycle state.
   `applicant_profiles`. Keep the legacy relationship fallback fail-closed and
   cover the query budget plus unauthorized no-write path in
   `visa-application-answers.query-budget.test.ts`.
+  Explicit-country/visa draft resolution (`preferExplicit: true`) must not read
+  the active package, whose values that path ignores; package-driven resolution
+  must retain the owner-filtered active package read and association behavior.
   Universal Profile schema definitions may reuse the shared static visa
   metadata cache, but applicant profile values and answers must remain
   uncached and request-scoped.

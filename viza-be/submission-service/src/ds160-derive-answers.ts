@@ -1,3 +1,8 @@
+import {
+  DS160_EXTENDED_DERIVATION_TARGETS,
+  deriveDs160ExtendedAnswers,
+} from "./ds160-extended-derivations";
+
 /**
  * DS-160 Answer Derivation
  *
@@ -42,6 +47,7 @@ const DATE_SPLITS: ReadonlyArray<DateSplit> = [
   { source: "date_of_birth", targetPrefix: "date_of_birth", monthAsAbbrev: true },
   { source: "passport_issuance_date", targetPrefix: "passport_issue" },
   { source: "passport_expiration_date", targetPrefix: "passport_expiry" },
+  { source: "employment_start_date", targetPrefix: "employment_start_date", monthAsAbbrev: true },
   { source: "father_date_of_birth", targetPrefix: "father_dob", monthAsAbbrev: true },
   { source: "mother_date_of_birth", targetPrefix: "mother_dob", monthAsAbbrev: true },
   // CEAC date dropdown values use three-letter month codes (JAN, FEB...),
@@ -70,6 +76,12 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "home_address_state", naKey: "home_address_state_na" },
   { source: "home_address_postal_code", naKey: "home_address_postal_na" },
   { source: "home_address_postal", naKey: "home_address_postal_na" },
+  { source: "employer_state_province", naKey: "employer_address_state_na" },
+  { source: "employer_address_state", naKey: "employer_address_state_na" },
+  { source: "employer_postal_code", naKey: "employer_address_postal_na" },
+  { source: "employer_address_postal", naKey: "employer_address_postal_na" },
+  { source: "monthly_salary", naKey: "monthly_income_na" },
+  { source: "monthly_income", naKey: "monthly_income_na" },
   { source: "mobile_phone", naKey: "mobile_phone_na" },
   { source: "work_phone", naKey: "work_phone_na" },
   { source: "secondary_phone", naKey: "secondary_phone_na" },
@@ -84,11 +96,6 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "mother_given_names", naKey: "mother_given_names_unknown" },
   { source: "mother_date_of_birth", naKey: "mother_dob_unknown" },
 ];
-
-const DEFAULT_NA_SOURCES: ReadonlySet<string> = new Set([
-  "us_social_security_number",
-  "us_taxpayer_id",
-]);
 
 const CLEAR_NA_TEXT_FIELDS: ReadonlySet<string> = new Set([
   "passport_issuance_state",
@@ -112,14 +119,15 @@ const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
   { from: "has_belonged_to_organization", to: "has_organization" },
   { from: "has_served_paramilitary", to: "has_served_insurgent" },
   { from: "trip_payer_type", to: "who_is_paying" },
+  { from: "employer_city", to: "employer_address_city" },
+  { from: "employer_country", to: "employer_address_country" },
+  { from: "employer_postal_code", to: "employer_address_postal" },
+  { from: "employer_state_province", to: "employer_address_state" },
+  { from: "monthly_salary", to: "monthly_income" },
   { from: "home_address_state_province", to: "home_address_state" },
   { from: "home_address_postal_code", to: "home_address_postal" },
   { from: "us_address_street1", to: "us_address_street" },
   { from: "intended_length_of_stay_value", to: "intended_length_of_stay" },
-  { from: "us_contact_address_street1", to: "us_address_street" },
-  { from: "us_contact_city", to: "us_address_city" },
-  { from: "us_contact_state", to: "us_address_state" },
-  { from: "us_contact_zip", to: "us_address_zip" },
   { from: "social_media_platform", to: "social_media_provider" },
   { from: "social_media_handle", to: "social_media_identifier" },
   // Travel page asks one question ("who is paying for your trip?"); the
@@ -322,11 +330,6 @@ function deriveNaFlags(answers: Record<string, string>): void {
 
   for (const { source, naKey } of NA_PAIRS) {
     const value = answers[source];
-    if ((value === undefined || value.trim() === "") && DEFAULT_NA_SOURCES.has(source) && answers[naKey] === undefined) {
-      answers[naKey] = "Y";
-      if (value !== undefined) delete answers[source];
-      continue;
-    }
     if (!isNaToken(value)) continue;
     if (answers[naKey] === undefined) answers[naKey] = "Y";
     // Clear the source so the orchestrator doesn't try to type "DOES_NOT_APPLY"
@@ -413,25 +416,40 @@ function normalizeCeacTextFields(answers: Record<string, string>): void {
  * the unit to "D" (days) since we always emit a day-count.
  */
 function deriveLengthOfStay(answers: Record<string, string>): void {
+  // The arrival/departure pair belongs to the specific-plans branch. When an
+  // applicant selects "No", any persisted pair is inactive and must never be
+  // used to replace the intended stay they supplied for that branch.
+  if (answers.has_specific_travel_plans !== "Y") return;
+
   const arrival = answers.arrival_date;
   const departure = answers.departure_date;
-  if (!arrival || !departure || isNaToken(arrival) || isNaToken(departure)) return;
+  if (!arrival || !departure || isNaToken(arrival) || isNaToken(departure)) {
+    delete answers.intended_length_of_stay;
+    delete answers.intended_length_of_stay_value;
+    delete answers.intended_length_of_stay_unit;
+    return;
+  }
   const a = parseIsoDate(arrival);
   const d = parseIsoDate(departure);
-  if (!a || !d) return;
+  if (!a || !d) {
+    delete answers.intended_length_of_stay;
+    delete answers.intended_length_of_stay_value;
+    delete answers.intended_length_of_stay_unit;
+    return;
+  }
   const aMs = Date.UTC(Number(a.year), a.month - 1, Number(a.day));
   const dMs = Date.UTC(Number(d.year), d.month - 1, Number(d.day));
-  const diffDays = Math.max(1, Math.round((dMs - aMs) / (1000 * 60 * 60 * 24)));
+  const diffDays = Math.round((dMs - aMs) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) {
+    delete answers.intended_length_of_stay;
+    delete answers.intended_length_of_stay_value;
+    delete answers.intended_length_of_stay_unit;
+    return;
+  }
   const stayValue = String(diffDays);
-  if (answers.intended_length_of_stay_value === undefined) {
-    answers.intended_length_of_stay_value = stayValue;
-  }
-  if (answers.intended_length_of_stay === undefined) {
-    answers.intended_length_of_stay = stayValue;
-  }
-  if (answers.intended_length_of_stay_unit === undefined) {
-    answers.intended_length_of_stay_unit = "D";
-  }
+  answers.intended_length_of_stay_value = stayValue;
+  answers.intended_length_of_stay = stayValue;
+  answers.intended_length_of_stay_unit = "D";
 }
 
 /**
@@ -445,16 +463,28 @@ function deriveIntendedArrivalDate(answers: Record<string, string>): void {
   const intendedArrival = answers.intended_arrival_date;
 
   // Both conditional fields may remain persisted when an applicant changes
-  // the "specific travel plans" answer. CEAC has only one active branch, so
-  // choose its source deterministically instead of allowing whichever stale
-  // field happens to be split first to win.
+  // the "specific travel plans" answer. CEAC has only one active branch. Use
+  // only that branch's source; never fill a missing active answer from the
+  // other branch's stale value.
   const activeArrival = hasSpecificPlans === "N"
-    ? intendedArrival || arrival
+    ? intendedArrival
     : hasSpecificPlans === "Y"
-      ? arrival || intendedArrival
-      : intendedArrival || arrival;
+      ? arrival
+      : undefined;
 
-  if (!activeArrival || isNaToken(activeArrival)) return;
+  if (!activeArrival || isNaToken(activeArrival)) {
+    if (hasSpecificPlans === "Y") {
+      delete answers.intended_arrival_date;
+      delete answers.intended_arrival_date_day;
+      delete answers.intended_arrival_date_month;
+      delete answers.intended_arrival_date_year;
+    } else if (hasSpecificPlans === "N") {
+      delete answers.intended_arrival_date_day;
+      delete answers.intended_arrival_date_month;
+      delete answers.intended_arrival_date_year;
+    }
+    return;
+  }
   answers.intended_arrival_date = activeArrival;
 
   // Stored split fields can also be stale. Clear only the derived CEAC trio;
@@ -484,6 +514,7 @@ export function deriveDS160Answers(
   derivePassportPageConsistency(answers);
   deriveIntendedArrivalDate(answers);
   deriveDateSplits(answers);
+  deriveDs160ExtendedAnswers(answers);
   deriveLengthOfStay(answers);
   deriveContactPageConsistency(answers);
   deriveNaFlags(answers);
@@ -529,53 +560,6 @@ function deriveContactPageConsistency(answers: Record<string, string>): void {
   deriveUsContactNameNa(answers);
   deriveSocialMediaPresence(answers);
   deriveDuplicatePhoneNaFlags(answers);
-  derivePresentWorkEducationFallbacks(answers);
-  derivePreviousEducationGate(answers);
-}
-
-function derivePresentWorkEducationFallbacks(answers: Record<string, string>): void {
-  const occupation = normalizedLookupKey(answers.primary_occupation ?? "");
-  if (occupation !== "EDUCATION" && occupation !== "ED" && occupation !== "STUDENT") return;
-
-  if (isNaToken(answers.employer_name) || !answers.employer_name?.trim()) {
-    answers.employer_name = "UNKNOWN";
-  }
-  if (!answers.employer_address_line1?.trim()) {
-    answers.employer_address_line1 = answers.home_address_line1 ?? answers.home_address ?? "UNKNOWN";
-  }
-  if (!answers.employer_address_city?.trim()) {
-    answers.employer_address_city = answers.home_address_city ?? "UNKNOWN";
-  }
-  if (!answers.employer_address_country?.trim()) {
-    answers.employer_address_country = answers.home_address_country ?? answers.country_of_birth ?? "CHIN";
-  }
-  if (!answers.employer_address_state?.trim()) {
-    answers.employer_address_state_na = "Y";
-  }
-  if (!answers.employer_address_postal?.trim()) {
-    answers.employer_address_postal_na = "Y";
-  }
-  if (!answers.employer_phone?.trim()) {
-    answers.employer_phone = answers.primary_phone ?? answers.phone ?? "0000000000";
-  }
-  if (!answers.employment_start_date_day) answers.employment_start_date_day = "01";
-  if (!answers.employment_start_date_month) answers.employment_start_date_month = "SEP";
-  if (!answers.employment_start_date_year) answers.employment_start_date_year = "2024";
-  if (!answers.monthly_income?.trim()) answers.monthly_income_na = "Y";
-  if (!answers.job_duties?.trim()) answers.job_duties = "STUDENT";
-  normalizeCeacTextFields(answers);
-  answers.employer_address_country = normalizeCountryValue(answers.employer_address_country);
-}
-
-function derivePreviousEducationGate(answers: Record<string, string>): void {
-  if (answers.has_other_education !== "Y") return;
-  const hasDetails = [
-    "previous_school_name",
-    "previous_education_school_name",
-    "school_name",
-    "education_institution_name",
-  ].some((key) => Boolean(answers[key]?.trim()));
-  if (!hasDetails) answers.has_other_education = "N";
 }
 
 function deriveUsContactNameNa(answers: Record<string, string>): void {
@@ -585,15 +569,6 @@ function deriveUsContactNameNa(answers: Record<string, string>): void {
   answers.us_contact_name_na = "Y";
   if (surnameNa) delete answers.us_contact_surname;
   if (givenNa) delete answers.us_contact_given_names;
-
-  // CEAC's U.S. Contact page treats "Contact Person unknown" and
-  // "Organization unknown" as mutually exclusive. If both source answers are
-  // unknown, keep the person-level Do Not Know checkbox and provide a minimal
-  // text value for Organization so the page can validate.
-  if (isNaToken(answers.us_contact_organization)) {
-    answers.us_contact_organization = "UNKNOWN";
-    delete answers.us_contact_organization_na;
-  }
 }
 
 function deriveSocialMediaPresence(answers: Record<string, string>): void {
@@ -612,9 +587,6 @@ function deriveSocialMediaPresence(answers: Record<string, string>): void {
     return;
   }
 
-  if (!handle && answers.has_social_media === undefined) {
-    answers.has_social_media = "N";
-  }
   if (!handle && answers.has_social_media === "N" && answers.social_media_provider === undefined) {
     answers.social_media_provider = "NONE";
   }
@@ -679,12 +651,23 @@ const CUSTOM_DERIVATIONS: ReadonlyArray<{ requires: string[]; produces: string[]
       "intended_length_of_stay_unit",
     ],
   },
+  // Either U.S. contact name field can carry the official "Do Not Know"
+  // token, which derives the shared CEAC name checkbox.
+  { requires: ["us_contact_surname"], produces: ["us_contact_name_na"] },
+  { requires: ["us_contact_given_names"], produces: ["us_contact_name_na"] },
+  // CEAC represents the passport expiration choice as the inverse checkbox;
+  // either persisted source can establish that checkbox's state.
+  { requires: ["passport_expiration_date"], produces: ["passport_expiry_na"] },
+  { requires: ["passport_has_expiry"], produces: ["passport_expiry_na"] },
 ];
 
 /** Exposed for the parity audit script to simulate post-derivation coverage. */
 export const __DERIVATION_TARGETS = {
-  dateSplits: DATE_SPLITS,
-  naPairs: NA_PAIRS,
-  keyAliases: KEY_ALIASES,
-  customDerivations: CUSTOM_DERIVATIONS,
+  dateSplits: [...DATE_SPLITS, ...DS160_EXTENDED_DERIVATION_TARGETS.dateSplits],
+  naPairs: [...NA_PAIRS, ...DS160_EXTENDED_DERIVATION_TARGETS.naPairs],
+  keyAliases: [...KEY_ALIASES, ...DS160_EXTENDED_DERIVATION_TARGETS.keyAliases],
+  customDerivations: [...CUSTOM_DERIVATIONS, ...DS160_EXTENDED_DERIVATION_TARGETS.customDerivations],
 };
+
+/** Stable runtime name for consumers that need to trace derived inputs. */
+export const DS160_DERIVATION_TARGETS = __DERIVATION_TARGETS;

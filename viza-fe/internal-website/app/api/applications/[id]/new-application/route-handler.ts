@@ -22,6 +22,65 @@ type SavedAnswer = {
   value_json: unknown;
 };
 
+function isUniqueViolation(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === "23505" || /duplicate key|unique constraint/i.test(error?.message ?? "");
+}
+
+async function loadExistingDraft(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  source: { id: string; country: string | null; visa_type: string | null },
+): Promise<{
+  readonly draft: { readonly id: string; readonly visa_package_id: string | null } | null;
+  readonly answers: SavedAnswer[];
+  readonly error: { readonly code?: string; readonly message?: string } | null;
+}> {
+  const { data: draft, error: draftError } = await admin
+    .from("applications")
+    .select("id, visa_package_id")
+    .eq("applicant_id", profileId)
+    .eq("country", source.country)
+    .eq("visa_type", source.visa_type)
+    .eq("status", "draft")
+    .neq("id", source.id)
+    .limit(1)
+    .maybeSingle();
+  if (draftError || !draft) {
+    return { draft: draft ?? null, answers: [], error: draftError };
+  }
+
+  const { data: answers, error: answerError } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", draft.id)
+    .limit(1);
+  return {
+    draft,
+    answers: (answers ?? []) as SavedAnswer[],
+    error: answerError,
+  };
+}
+
+async function ensureDraftVisaPackage(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  draft: { readonly id: string; readonly visa_package_id: string | null },
+  sourcePackageId: string | null | undefined,
+): Promise<string | null> {
+  if (draft.visa_package_id || !sourcePackageId) return null;
+
+  const { error } = await admin
+    .from("applications")
+    .update({
+      visa_package_id: sourcePackageId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", draft.id)
+    .eq("applicant_id", profileId)
+    .is("visa_package_id", null);
+  return error?.message ?? null;
+}
+
 export function normalizeCopiedDs160Answers(sourceAnswers: SavedAnswer[]): SavedAnswer[] {
   const copied = new Map(sourceAnswers.map((answer) => [answer.field_name, answer]));
   for (const [legacyName, canonicalName] of Object.entries(DS160_LEGACY_ANSWER_ALIASES)) {
@@ -47,7 +106,7 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
 
   const { data: source } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, visa_package_id, status")
+    .select("id, applicant_id, country, visa_type, visa_package_id, status, submission_result_status, submission_result")
     .eq("id", sourceApplicationId)
     .maybeSingle();
   if (!source) return { error: "Application not found", status: 404 } as const;
@@ -55,7 +114,19 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
   if (!isUsDs160(source.country, source.visa_type)) {
     return { error: "This action is only available for U.S. DS-160 applications", status: 400 } as const;
   }
-  if (source.status !== "submitted") {
+  const result: unknown = source.submission_result;
+  const confirmedResult = typeof result === "object" && result !== null && !Array.isArray(result)
+    ? result as Record<string, unknown>
+    : null;
+  // Older worker results can be authoritative while the generic application
+  // status still says processing. Match the same official submitted result
+  // shown by the result card; never treat a draft/handoff reference as success.
+  const hasSubmittedResult = source.submission_result_status === "submitted"
+    && confirmedResult?.country === "US"
+    && confirmedResult.status === "submitted"
+    && typeof confirmedResult.applicationId === "string"
+    && /^AA[A-Z0-9]{8}$/.test(confirmedResult.applicationId);
+  if (source.status !== "submitted" && !hasSubmittedResult) {
     return { error: "Only a submitted application can be used to start a new application", status: 409 } as const;
   }
 
@@ -73,7 +144,31 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
     } as const;
   }
 
-  const { data: created, error: createError } = await admin
+  const existing = await loadExistingDraft(admin, profile.id, source);
+  if (existing.error) return { error: "Could not load the existing application", status: 500 } as const;
+  if (existing.draft) {
+    const packageError = await ensureDraftVisaPackage(
+      admin,
+      profile.id,
+      existing.draft,
+      source.visa_package_id,
+    );
+    if (packageError) return { error: packageError, status: 500 } as const;
+  }
+  if (existing.draft && existing.answers.length > 0) {
+    // Reopen an existing draft without overwriting any saved answer.
+    return {
+      applicationId: existing.draft.id,
+      country: source.country || "united_states",
+      visaType: source.visa_type || "B1_B2",
+      status: 200,
+    } as const;
+  }
+
+  let created: { readonly id: string } | null = existing.draft;
+  let createdNew = false;
+  if (!created) {
+    const { data: inserted, error: createError } = await admin
     .from("applications")
     .insert({
       applicant_id: profile.id,
@@ -84,9 +179,39 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
     })
     .select("id")
     .single();
-  if (createError || !created) {
-    return { error: createError?.message || "Could not create a new application", status: 500 } as const;
+    if (isUniqueViolation(createError)) {
+      // The unique ongoing-application index closes the race between the
+      // lookup above and this insert. Re-read the owner-scoped row so a
+      // concurrent request reuses it instead of surfacing a false 500.
+      const concurrent = await loadExistingDraft(admin, profile.id, source);
+      if (concurrent.error || !concurrent.draft) {
+        return { error: "Could not create a new application", status: 500 } as const;
+      }
+      const packageError = await ensureDraftVisaPackage(
+        admin,
+        profile.id,
+        concurrent.draft,
+        source.visa_package_id,
+      );
+      if (packageError) return { error: packageError, status: 500 } as const;
+      if (concurrent.answers.length > 0) {
+        return {
+          applicationId: concurrent.draft.id,
+          country: source.country || "united_states",
+          visaType: source.visa_type || "B1_B2",
+          status: 200,
+        } as const;
+      }
+      created = concurrent.draft;
+    } else if (createError || !inserted) {
+      return { error: createError?.message || "Could not create a new application", status: 500 } as const;
+    } else {
+      created = inserted;
+      createdNew = true;
+    }
   }
+
+  if (!created) return { error: "Could not create a new application", status: 500 } as const;
 
   const { error: copyError } = await admin.from("visa_application_answers").insert(
     normalizeCopiedDs160Answers(sourceAnswers).map((answer) => ({
@@ -97,7 +222,24 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
     })),
   );
   if (copyError) {
-    await admin.from("applications").delete().eq("id", created.id);
+    if (isUniqueViolation(copyError)) {
+      // Another request may have copied the same source into this reused
+      // draft between the empty check and the insert. Treat that as a
+      // successful reuse only after confirming the target now has answers.
+      const afterCopy = await loadExistingDraft(admin, profile.id, source);
+      const packageError = afterCopy.draft
+        ? await ensureDraftVisaPackage(admin, profile.id, afterCopy.draft, source.visa_package_id)
+        : null;
+      if (!afterCopy.error && !packageError && afterCopy.draft?.id === created.id && afterCopy.answers.length > 0) {
+        return {
+          applicationId: created.id,
+          country: source.country || "united_states",
+          visaType: source.visa_type || "B1_B2",
+          status: 200,
+        } as const;
+      }
+    }
+    if (createdNew) await admin.from("applications").delete().eq("id", created.id);
     return { error: copyError.message, status: 500 } as const;
   }
 
@@ -105,6 +247,10 @@ export async function createNewUsApplication(userId: string, sourceApplicationId
     applicationId: created.id,
     country: source.country || "united_states",
     visaType: source.visa_type || "B1_B2",
+    // Keep the existing client contract: a successful source-copy response
+    // is treated as creation of the next application flow, even when an
+    // owner-scoped empty draft was reused. A draft that already had answers
+    // returned above with 200 and is never overwritten.
     status: 201,
   } as const;
 }

@@ -4,6 +4,49 @@ Repeatable diagnostic for verifying CEAC DS-160 start-page access from the
 current machine. Reports whether CEAC is reachable, anti-bot gated, or
 otherwise blocked.
 
+## 2026-09-14 verification boundary
+
+- Local Chromium reached a CEAC WAF block. The configured Browserbase path
+  reached the genuine DS-160 start page after waiting for security verification.
+  An initial HTTP 403 during that verification was not the final page state.
+- A start-page smoke proves landing-page access only. It does not establish
+  field, option, branch, repeated-row, review, or signature parity.
+- Run `npm run audit:ds160-parity` for the internal contract check and
+  `npm run audit:ds160-parity -- --json` for the branch inventory. The check now
+  includes form fields with no declared runtime consumer, even on inactive
+  branches. See [the current gap report](ds160-field-parity-2026-09-14.md).
+- Before a live test, inspect the selected application's submitted result and
+  existing official confirmation. Do not enqueue another submission merely
+  because its top-level workflow status is `processing`.
+- Compare the official confirmation's location with the applicant's selected
+  post. Stored `embassyOrConsulate` is currently sourced from answers and is
+  not independent evidence of the post CEAC actually accepted.
+- The selected account's historical submission was retrieved online through
+  CAPTCHA and both recovery stages. Matching the Application ID and all three
+  official print/email confirmation controls verified that historical result;
+  it did not create a new official application.
+- The current local DS-160 suite passes 101 tests, including native postback,
+  repeat-row isolation, missing-control failures, exact option matching,
+  unknown-page stops, and the persistent final-click guard. Service type-check
+  passes. Internal coverage is 325 fields, 76 conditions, and 23 repeat groups,
+  with no unconsumed seed fields; official full parity remains unverified.
+- The new-application browser action copied saved answers into the existing
+  empty draft and reopened that same draft after its missing package link was
+  repaired. Submission access returned HTTP 402 (`official_fee_required`);
+  no new official submission has been launched through that payment gate.
+
+Run the local DS-160 regression suite from `viza-be/submission-service` before
+repeating a live probe (PowerShell):
+
+```powershell
+$ds160Tests = @(rg --files src/ceac/__tests__ -g '*.spec.ts') + @(rg --files src/__tests__ -g '*ds160*.spec.ts')
+node --import tsx --test @ds160Tests
+npm run type-check
+```
+
+These tests exercise local DOM behavior and internal contracts. They cannot
+replace the official page-by-page comparison or a confirmed live submission.
+
 ## Running the smoke test
 
 From the repo root:
@@ -22,7 +65,7 @@ npx tsx viza-be/submission-service/src/ceac/smoke.ts --headed
 
 | Outcome | Exit Code | Meaning |
 |---------|-----------|---------|
-| `start_page` | 0 | CEAC start page loaded. Runtime is ready. |
+| `start_page` | 0 | CEAC start page loaded; filling and submission remain unverified. |
 | `anti_bot_gate` | 1 | Anti-bot / captcha / manual gate detected. Worker cannot proceed. |
 | `blocked` | 2 | Page failed to load or identity mismatch. CEAC may be down. |
 
@@ -86,6 +129,9 @@ npx tsx viza-be/submission-service/src/ceac/smoke.ts --solve-captcha --headed
 
 **Prerequisites:** `TWOCAPTCHA_API_KEY` must be set in
 `viza-be/submission-service/.env`. The API key is never logged or persisted.
+Set `CEAC_LOCATION_CODE` explicitly to the intended post for this CLI probe;
+there is no fallback embassy. Live application runners use the applicant's
+saved `consular_post` and preserve it across CAPTCHA retries and recovery.
 
 ### CAPTCHA solve outcomes
 

@@ -109,14 +109,19 @@ and must fail closed; callers must not perform a direct table settlement.
 - DS-160 selectors, page identities, field mappings, conditional navigation,
   retry limits, and success classification are deterministic; the browser
   runner does not call an LLM. A missing mapping/value must surface as a data or
-  schema issue. The final CEAC click has no database idempotency key: queue
-  isolation prevents competing active jobs, but an accepted click followed by a
-  delayed/ambiguous confirmation can still enter the bounded final-CAPTCHA retry
-  loop and must be reviewed before another submission.
+  schema issue. The final CEAC click is fenced by the persistent
+  `ds160_final_submission_attempts` authorization row and ownership-checked
+  RPCs. Each retry reads that fence, the application-scoped
+  `ds160_application_id`/submission result, and the queue's encrypted
+  recovery checkpoint before CEAC bootstrap; `started`, `unknown`, `confirmed`, or
+  an existing captured Application ID routes to proof recovery or
+  `action_required`, never a new draft or final click. A click whose
+  confirmation remains unknown is permanently reviewable for that authorization;
+  a new explicit resubmission must use a new authorization id.
 - US appointment browser selection is Browserbase, authorized CDP, or local
-  Playwright. An explicit storage-state path may load/save cookies. A job
-  fixture, or `playwrightEnabled=false`, selects the fixture client and is never
-  official-portal evidence. The real client is restricted to the configured
+  Playwright. An explicit storage-state path may load/save cookies. A persisted
+  job fixture or `playwrightEnabled=false` blocks live processing; local tests
+  must inject the fixture client explicitly. The real client is restricted to the configured
   provider/country allowlist, retries only retryable Cloudflare Browser API
   sessions, and closes the browser in `finally`.
 - US appointment state remains persisted and user-gated: consent/review,
@@ -316,6 +321,14 @@ and must fail closed; callers must not perform a direct table settlement.
   treat this file as the generic submission schema; DS-160, appointment, and
   France mappings remain package-specific.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
+- `src/ds160-parity.ts` and `src/__tests__/ds160-parity.spec.ts`: side-effect-free
+  seed AST inventory and bidirectional derivation coverage. The
+  `audit:ds160-parity` command treats unconsumed fields (including inactive
+  branches) as gaps; `-- --json` exports branch/repeater inventory. Passing
+  this internal contract audit never proves live CEAC field/option parity.
+- `docs/ds160-field-parity-2026-09-14.md`: reproducible DS-160 branch/repeater
+  gap inventory. Keep its internal-contract status separate from historical
+  submitted records and live CEAC verification evidence.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill and live-assisted
@@ -525,8 +538,17 @@ and must fail closed; callers must not perform a direct table settlement.
   null PDF/screenshot fields; never claim an artifact that was not captured.
   Keep the DB state machine in `runner.ts` and official-page selectors/page
   interactions in `usvisascheduling-portal.ts`. When `portalFixture` is present
-  or `US_APPOINTMENT_PLAYWRIGHT_ENABLED` is not exactly `true`, the runner uses
-  its fixture client and must not be described as an official portal run.
+  or `US_APPOINTMENT_PLAYWRIGHT_ENABLED` is not exactly `true`, persisted live
+  jobs stop at a configuration checkpoint and never write simulated evidence.
+  Account registration must use the applicant's actual stored name; missing
+  names remain null and must not be replaced with placeholder identities.
+- `scripts/run-us-appointment-login-smoke.ts`: one-account login diagnostic for
+  an explicitly selected existing China application. It only reads database
+  state, uses stored encrypted credentials, writes masked screenshots/redacted
+  reports under ignored `output/playwright`, and stops before registration,
+  policy acceptance, profile submission, payment, or booking. It does not save
+  cookies or change the appointment job. `--browserbase` explicitly selects the
+  configured Browserbase session; all browsers close in `finally`.
 - `scripts/run-us-appointment-registration-recon.ts`: Browserbase Developer
   single-session registration-entry recon. It clicks the official B2C
   `Sign up now` control, verifies the empty registration form, saves masked
@@ -857,14 +879,16 @@ and must fail closed; callers must not perform a direct table settlement.
   reservation completes. A transient Supabase/Cloudflare outage keeps the
   process alive with bounded retry and no queue claims until a slot is acquired;
   it must not cause a Fly restart loop or dump gateway HTML into logs.
-- `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
-  registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
-  or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
-  uses the applicant inbox alias when `--applicant-id` is provided without an
-  explicit email, can consume USVisaScheduling verification mail from
-  `inbound_email`, types account fields with the US appointment typing-delay
-  range, and must not print passwords, Browser API endpoints, verification
-  codes, or links.
+- `scripts/run-us-appointment-register.ts`: application-bound USVisaScheduling
+  registration command. Requires `--application-id`, a consented China live job,
+  its existing encrypted pending account, and actual applicant names. It reuses
+  credentials, refuses created/active/verified accounts, and never overwrites
+  passwords. `--browserbase` selects managed sessions; `--local-browser` is for
+  intentional local debugging. It consumes current verification mail addressed
+  to the immutable account alias and persists active status only with verified
+  creation evidence. `--credential-config` loads only the existing writer's
+  encryption key into this process. All sessions close in `finally`; logs must
+  not contain passwords, endpoints, codes, links, or raw provider errors.
 - Vietnam runner note/acknowledgement handling must never auto-check
   "Agree to create account by email" or similar account-creation checkboxes.
   It may auto-check required official declarations needed to continue the
@@ -1005,6 +1029,15 @@ the France-Visas account after confirming the run.
   `AU_USERNAME`/`AU_PASSWORD` and was not run in this environment.
 
 ## Related Files
+
+- `src/ds160-extended-mappings.ts` and `src/ds160-extended-derivations.ts`
+  cover the additional conditional fields without inventing applicant values.
+- `src/ds160-field-contract.ts` is the checked-in seed shape, verified against
+  the AST parser by `src/__tests__/ds160-field-contract.spec.ts`.
+- `src/ds160-conditions.ts`, `src/ds160-repeat-contract.ts`, and
+  `src/ceac/field-contract.ts` own branch/repeat applicability in the runner.
+- `src/ceac/repeat-browser-adapter.ts` and its adjacent browser tests own
+  observed row scopes, Add/Remove controls, and final row read-back.
 
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`

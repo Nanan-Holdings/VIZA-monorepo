@@ -40,26 +40,37 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    live assisted runs. `start-page-navigation.ts` owns the lightweight CEAC
    start-page navigation wait, and `start-page-location.ts` may select the
    CEAC location dropdown and dismiss the location modal.
-2. `start-page-captcha.ts` remains a legacy diagnostic helper only. Use CAPTCHA-solving APIs to solve supported image CAPTCHA verification at the beginning.
+2. `start-page-captcha.ts` solves the initial image CAPTCHA through 2Captcha.
+   It preserves the applicant-selected post across retries and returns the
+   resolved post for session recovery; never substitute a default embassy.
 3. `pages.ts` detects the current DS-160 page.
 4. `orchestrator.ts` fills mapped pages, uploads the applicant photo, and
    advances through final submission when supplied with signature data.
+   `field-contract.ts` traces mappings to seed conditions and excludes stale
+   inactive answers. `repeat-groups.ts` preserves persisted row indexes;
+   `repeat-browser-adapter.ts` discovers current DOM row scopes and Add/Remove
+   controls, then re-resolves every row for final read-back. Static selector
+   declarations are not evidence of official parity.
 5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
    final CAPTCHA solving.
-6. `photo-document.ts` selects the frontend-uploaded DS-160 photo document for
+6. `final-submission-guard.ts` persists the per-authorization final-click
+   fence through ownership-checked Supabase RPCs and reads the same table
+   before bootstrap. Automatic retries must reuse the same authorization; an
+   explicit resubmission must use a new one.
+7. `photo-document.ts` selects the frontend-uploaded DS-160 photo document for
    the worker.
-7. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
+8. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
-8. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
+9. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
    sign/submit for one-shot submission.
-9. `result.ts` returns typed success/failure/handoff payloads.
-10. `proof-artifacts.ts` must only accept the submitted application's official
-    confirmation surface after `resume-application.ts` retrieval. Do not treat
+10. `result.ts` returns typed success/failure/handoff payloads.
+11. `proof-artifacts.ts` must only accept the submitted application's official
+   confirmation surface after `resume-application.ts` retrieval. Do not treat
     the new-application security question page, recovery form, or generic
     "confirmation page" wording as proof; require the official Print
     Confirmation / Print Application / Email Confirmation controls before
     storing PDFs.
-11. `start-location.ts` validates the applicant-selected China CEAC post code.
+12. `start-location.ts` validates the applicant-selected China CEAC post code.
     Missing or unsupported posts must stop the run; never silently default a
     real application to another embassy or consulate.
 
@@ -83,6 +94,12 @@ Then follow:
 - `viza-be/submission-service/src/ds160-coverage-audit.ts`
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`
 - `viza-be/submission-service/src/ceac/final-submit.ts`
+- `viza-be/submission-service/src/ceac/__tests__/final-submit.spec.ts`
+- `viza-be/submission-service/src/ceac/final-submission-guard.ts`
+- `viza-be/submission-service/src/ceac/__tests__/final-submission-guard.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/orchestrator-final-submit.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/field-fill.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/pages.spec.ts`
 - `viza-be/submission-service/src/ceac/photo-document.ts`
 - `viza-be/submission-service/src/ceac/__tests__/photo-document.spec.ts`
 - `viza-be/submission-service/src/ceac/proof-artifacts.ts`

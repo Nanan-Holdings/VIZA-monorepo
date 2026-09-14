@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildRunnerHandoff,
+  completeUSAppointmentAccountRegistration,
+  FixtureUSAppointmentPortalClient,
   isEligibleUSAppointmentJob,
   loadUSAppointmentRunnerConfig,
   processUSAppointmentJob,
@@ -15,6 +17,7 @@ import {
   type USAppointmentPortalClient,
   type USAppointmentRunnerRepository,
   type AppointmentAccountCredentials,
+  type AppointmentPreparationResult,
 } from "../runner";
 import {
   buildUSAppointmentBrowserApiEndpointForAttempt,
@@ -393,6 +396,7 @@ test("US appointment runner records a login gate when saved credentials are miss
     repository,
     loadUSAppointmentRunnerConfig({
       US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+      US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
     }),
   );
 
@@ -561,6 +565,7 @@ test("US appointment runner reads the alias inbox and completes account email ve
       if (prepareCalls === 1) {
         return {
           readyForSlotCapture: false,
+          verificationRequestedAt: "2026-09-14T10:00:00.000Z",
           gate: {
             jobStatus: "appointment_manual_required",
             actionType: "account_email_verification",
@@ -573,7 +578,7 @@ test("US appointment runner reads the alias inbox and completes account email ve
     },
     async completeAccountEmailVerification(input) {
       receivedCode = input.emailCode;
-      return { readyForSlotCapture: false };
+      return { readyForSlotCapture: false, emailVerified: true, accountCreated: true };
     },
     async observeSlots() {
       return [];
@@ -608,6 +613,109 @@ test("US appointment runner reads the alias inbox and completes account email ve
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
 });
 
+const registrationPrepared: AppointmentPreparationResult = {
+  readyForSlotCapture: false,
+  verificationRequestedAt: "2026-09-14T10:00:00.000Z",
+  gate: {
+    jobStatus: "appointment_manual_required",
+    actionType: "account_email_verification",
+    instruction: "Verify the account email.",
+    metadata: {},
+  },
+};
+
+test("registration stops before any official page when the bound mailbox is unavailable", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "obsolete@example.invalid", password: "fixture-secret",
+    givenName: "Given", surname: "Surname", accountStatus: "account_creation_started", emailVerified: false,
+  };
+  const inboxRepository = Object.assign(repository, {
+    assertAccountRegistrationInboxRoutable: async () => { throw new Error("private-inbox-error"); },
+  });
+  const client = new FixtureUSAppointmentPortalClient();
+  let browserCalls = 0;
+  client.prepareAppointmentFlow = async () => { browserCalls += 1; return { readyForSlotCapture: true }; };
+  const result = await processUSAppointmentJob(
+    { ...baseJob, status: "appointment_account_required" }, inboxRepository,
+    loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }), client,
+  );
+  assert.equal(result, "processed");
+  assert.equal(browserCalls, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.match(JSON.stringify(repository.manualActions), /registration_inbox_unavailable/);
+  assert.doesNotMatch(JSON.stringify(repository.manualActions), /private-inbox-error|obsolete@example/);
+});
+
+for (const proof of [
+  { readyForSlotCapture: true },
+  { readyForSlotCapture: false, emailVerified: true },
+  { readyForSlotCapture: true, accountCreated: true },
+]) {
+  test(`registration rejects incomplete creation evidence ${JSON.stringify(proof)}`, async () => {
+    const repository = new InMemoryRunnerRepository();
+    repository.verificationEmail = { code: "123456", link: null };
+    const client = new FixtureUSAppointmentPortalClient();
+    const result = await completeUSAppointmentAccountRegistration(
+      baseJob, repository, loadUSAppointmentRunnerConfig({}),
+      { ...client, prepareAppointmentFlow: client.prepareAppointmentFlow.bind(client),
+        observeSlots: client.observeSlots.bind(client), captureConfirmation: client.captureConfirmation.bind(client),
+        captureStatusCheck: client.captureStatusCheck.bind(client),
+        completeAccountEmailVerification: async () => proof },
+      registrationPrepared, { email: "applicant@example.com", password: "fixture-secret" },
+    );
+    assert.equal(result.gate?.errorCode, "account_registration_unconfirmed");
+    assert.equal(repository.accountMarkedVerified, false);
+  });
+}
+
+test("registration uses the current send time and preserves confirmed creation when saving fails", async () => {
+  const repository = new InMemoryRunnerRepository();
+  let receivedRequest: { since: string; accountEmail: string } | undefined;
+  const client = new FixtureUSAppointmentPortalClient();
+  const failingRepository: USAppointmentRunnerRepository = Object.assign(repository, {
+    waitForAccountVerificationEmail: async (_job: USAppointmentJobRow, _timeout: number, request: { since: string; accountEmail: string }) => {
+      receivedRequest = request;
+      return { code: "123456", link: null };
+    },
+    markAppointmentAccountVerified: async () => { throw new Error("database unavailable"); },
+  });
+  const portalClient: USAppointmentPortalClient = {
+    prepareAppointmentFlow: client.prepareAppointmentFlow.bind(client),
+    observeSlots: client.observeSlots.bind(client), captureConfirmation: client.captureConfirmation.bind(client),
+    captureStatusCheck: client.captureStatusCheck.bind(client),
+    completeAccountEmailVerification: async () => ({ readyForSlotCapture: false, emailVerified: true, accountCreated: true }),
+  };
+  const result = await completeUSAppointmentAccountRegistration(
+    baseJob, failingRepository, loadUSAppointmentRunnerConfig({}), portalClient,
+    registrationPrepared, { email: "applicant@example.com", password: "fixture-secret" },
+  );
+  assert.deepEqual(receivedRequest, { since: registrationPrepared.verificationRequestedAt, accountEmail: "applicant@example.com" });
+  assert.equal(result.gate?.errorCode, "account_registration_persistence_failed");
+  assert.equal(result.accountCreated, true);
+  assert.equal(result.readyForSlotCapture, false);
+});
+
+test("registration without a send timestamp cannot consume an old verification email", async () => {
+  const repository = new InMemoryRunnerRepository();
+  let verificationCalls = 0;
+  const client = new FixtureUSAppointmentPortalClient();
+  const portalClient: USAppointmentPortalClient = {
+    prepareAppointmentFlow: client.prepareAppointmentFlow.bind(client),
+    observeSlots: client.observeSlots.bind(client), captureConfirmation: client.captureConfirmation.bind(client),
+    captureStatusCheck: client.captureStatusCheck.bind(client),
+    completeAccountEmailVerification: async () => { verificationCalls += 1; return { readyForSlotCapture: true }; },
+  };
+  const result = await completeUSAppointmentAccountRegistration(
+    baseJob, repository, loadUSAppointmentRunnerConfig({}), portalClient,
+    { ...registrationPrepared, verificationRequestedAt: undefined },
+    { email: "applicant@example.com", password: "fixture-secret" },
+  );
+  assert.equal(result.gate?.errorCode, "registration_verification_context_missing");
+  assert.equal(verificationCalls, 0);
+  assert.equal(repository.accountMarkedVerified, false);
+});
+
 test("US appointment runner writes observed slots from a portal fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   const result = await processUSAppointmentJob(
@@ -632,6 +740,7 @@ test("US appointment runner writes observed slots from a portal fixture", async 
     loadUSAppointmentRunnerConfig({
       US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
     }),
+    new FixtureUSAppointmentPortalClient(),
   );
 
   assert.equal(result, "processed");
@@ -665,6 +774,7 @@ test("US appointment runner rechecks slots after a no-slots result", async () =>
     loadUSAppointmentRunnerConfig({
       US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
     }),
+    new FixtureUSAppointmentPortalClient(),
   );
 
   assert.equal(result, "processed");
@@ -859,6 +969,7 @@ test("US appointment runner writes confirmation after final approved booking fix
     loadUSAppointmentRunnerConfig({
       US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
     }),
+    new FixtureUSAppointmentPortalClient(),
   );
 
   assert.equal(result, "processed");
@@ -928,6 +1039,7 @@ test("US appointment runner writes follow-up status check fixture", async () => 
       status: "appointment_status_check_in_progress",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           statusCheck: {
             status: "appointment_exists",
             message: "Appointment still scheduled",
@@ -940,6 +1052,7 @@ test("US appointment runner writes follow-up status check fixture", async () => 
     loadUSAppointmentRunnerConfig({
       US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
     }),
+    new FixtureUSAppointmentPortalClient(),
   );
 
   assert.equal(result, "processed");
@@ -947,6 +1060,59 @@ test("US appointment runner writes follow-up status check fixture", async () => 
   assert.equal(repository.statusChecks[0]?.status, "appointment_exists");
   assert.equal(repository.statusChecks[0]?.screenshot_url, "https://storage.example/status.png");
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_status_checked");
+});
+
+test("status checks stop on a login gate before reading or persisting status", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = { email: "fixture@example.invalid", password: "fixture-only" };
+  const portalClient = new FixtureUSAppointmentPortalClient();
+  portalClient.prepareAppointmentFlow = async (_job, credentials) => {
+    assert.deepEqual(credentials, repository.credentials);
+    return { readyForSlotCapture: false, gate: {
+      jobStatus: "appointment_manual_required", actionType: "login",
+      instruction: "Official login required.", metadata: { gate_type: "login_required" },
+    } };
+  };
+  portalClient.captureStatusCheck = async () => { throw new Error("must not read an unauthenticated page"); };
+  await processUSAppointmentJob({ ...baseJob, status: "appointment_status_check_in_progress" }, repository,
+    loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }), portalClient);
+  assert.equal(repository.statusChecks.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
+});
+
+test("persisted live jobs cannot turn fixture data or a disabled browser into official success", async () => {
+  for (const playwrightEnabled of [false, true]) {
+    for (const status of ["appointment_payment_completed", "appointment_booked", "appointment_status_check_in_progress"]) {
+      const repository = new InMemoryRunnerRepository();
+      repository.finalApprovalCompleted = true;
+      await processUSAppointmentJob({
+        ...baseJob,
+        status,
+        user_preferences_json: { portalFixture: {
+          autoPrepare: true,
+          slots: [{ date: "2027-08-18", time: "09:00", location: "Beijing" }],
+          confirmation: { confirmationNumber: "FAKE-123456" },
+          statusCheck: { status: "appointment_exists" },
+        } },
+      }, repository, {
+        ...loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }),
+        playwrightEnabled,
+      });
+      assert.equal(repository.slots.length, 0);
+      assert.equal(repository.confirmations.length, 0);
+      assert.equal(repository.statusChecks.length, 0);
+      assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+      assert.equal(repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type, "live_browser_configuration_required");
+    }
+  }
+});
+
+test("a disabled live browser without a fixture stops before reading the official account", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.getAppointmentAccountCredentials = async () => { throw new Error("must not read credentials"); };
+  await processUSAppointmentJob(baseJob, repository,
+    loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }));
+  assert.equal(repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type, "live_browser_configuration_required");
 });
 
 test("USVisaScheduling gate classifier identifies official-site gates", () => {

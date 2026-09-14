@@ -36,7 +36,8 @@ reports, and workflow documentation for VIZA.
   release, next-round profiling strategy, and the rejected time-zone candidate's
   paired local results, subsequent HTTP connection diagnostics, and the
   profile/queue read-consolidation candidate, and the 2026-09-13 private Home GET
-  transport/cancellation comparison and alias-consent locale deduplication.
+  transport/cancellation comparison, alias-consent locale deduplication, and
+  the 2026-09-14 form save ordering, support-read and explicit-draft query follow-up.
   Record deployment status separately
   from capacity acceptance; unfinished gates must not be presented as proven
   100-session capacity.

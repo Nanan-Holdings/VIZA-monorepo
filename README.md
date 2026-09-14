@@ -56,9 +56,11 @@ These requests do not all pass through Express.
   deterministic conversation memory and entry rules with retrieved context.
   Its current LLM request has no registered tools or autonomous tool loop.
 - RAG uses `text-embedding-3-small`, `vector(1536)` in Supabase Postgres, cosine
-  retrieval, default top-k 5 (maximum 12), and runtime threshold 0.03. Main
-  ingestion reads pre-authored JSON chunks; that path has no universal fixed
-  token chunk size/overlap, reranker, or BM25/vector fusion.
+  retrieval and bounded, configurable retrieval parameters. The
+  [parameter study](viza-be/agent-backend/evals/README.md) records defaults,
+  rejected candidates and validation limits. Ingestion preserves curated seed
+  chunks by default and supports explicit evaluated character-splitting profiles;
+  it has no reranker or BM25/vector fusion.
 - Current Travel Chat runs in Next `app/api/travel/chat/route.ts`. Structured
   Responses output is validated and applied by deterministic state operations.
   The default model is `gpt-5.6-luna`; a specific model-not-found failure can

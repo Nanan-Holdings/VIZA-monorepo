@@ -13,6 +13,18 @@ conversation state, and other cross-route behavior.
   document-type targeting, fallback retrieval, and knowledge context formatting.
   It propagates the request abort signal into embedding, RPC, and REST work and
   must not start another fallback after the caller disconnects.
+  Successful vector searches with no qualifying match return an empty result;
+  never bypass the similarity threshold with unordered REST rows. REST fallback
+  is reserved for unavailable embeddings or failed vector requests.
+- `visa-knowledge-retrieval-policy.ts`: validated shared retrieval defaults and
+  bounded `VISA_RAG_MATCH_COUNT` / `VISA_RAG_MIN_SIMILARITY` overrides. Numeric
+  changes require the public-seed retrieval experiment and heldout check.
+- `visa-knowledge-query.ts`: pure country/product alias normalization and
+  intent filters, shared by runtime and the retrieval experiment. Gold labels
+  must remain reachable after these aliases are applied.
+- `visa-knowledge-chunking.ts`: exact shared ingestion/evaluation text envelope
+  plus pure, boundary-aware experimental splitting. Splitting is measured in
+  Unicode code points; ingestion retains curated seed boundaries by default.
 - `visa-knowledge-capacity.ts`: bounded, process-local RAG request, external
   call, fallback, result, latency, and cancellation aggregates. It must never
   record query text, route dimensions, user/session identity, or chunk content.

@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { AppointmentAuditService } from "./AppointmentAuditService.js";
 import { AppointmentCheckpointService } from "./AppointmentCheckpointService.js";
 import { AppointmentSlotService } from "./AppointmentSlotService.js";
@@ -44,6 +44,59 @@ const TERMINAL_STATUSES = new Set<USAppointmentStatus>([
   "appointment_blocked_by_site_policy",
 ]);
 
+const APPOINTMENT_ACCOUNT_CREATION_STATUSES = new Set([
+  "account_creation_started",
+  "account_email_verification",
+  "registration_started",
+  "verification_pending",
+]);
+
+const APPOINTMENT_ACCOUNT_READY_STATUSES = new Set([
+  "account_active",
+  "account_created",
+  "account_verified",
+  "active",
+  "created",
+  "logged_in",
+  "registered",
+  "verified",
+]);
+
+type ChinaAssistedLiveAccountStatus =
+  | "appointment_account_required"
+  | "appointment_login_required";
+
+function normalizeAccountStatus(status: string | null | undefined): string {
+  return (status ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
+function isChinaUSVisaSchedulingJob(input: {
+  applyingCountryCode?: string | null;
+  schedulingProvider?: string | null;
+}): boolean {
+  const provider = (input.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const country = (input.applyingCountryCode ?? "").trim().toUpperCase();
+  return provider === "usvisascheduling" && country === "CN";
+}
+
+function routeChinaAssistedLiveAccount(
+  account: AppointmentAccount | null,
+): ChinaAssistedLiveAccountStatus {
+  if (!account) return "appointment_account_required";
+
+  const accountStatus = normalizeAccountStatus(account.accountStatus);
+  if (account.emailVerified || APPOINTMENT_ACCOUNT_READY_STATUSES.has(accountStatus)) {
+    return "appointment_login_required";
+  }
+  if (APPOINTMENT_ACCOUNT_CREATION_STATUSES.has(accountStatus)) {
+    return "appointment_account_required";
+  }
+
+  // Unknown account states fail closed to login so an invalid or stale
+  // credential can never trigger automatic re-registration.
+  return "appointment_login_required";
+}
+
 function getStoredDs160Code(application: USAppointmentApplication): string | null {
   return application.ds160ApplicationId ?? application.confirmationNumber ?? null;
 }
@@ -72,12 +125,46 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
     .sort((a, b) => Date.parse(b.completedAt ?? b.createdAt ?? "") - Date.parse(a.completedAt ?? a.createdAt ?? ""))[0] ?? null;
 }
 
+const OFFICIAL_ACCOUNT_PASSWORD_LENGTH = 16;
+const OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+const OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const OFFICIAL_ACCOUNT_PASSWORD_DIGITS = "0123456789";
+const OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS = "@#$%^&*-_+=[]{}|\\:',?/";
+const OFFICIAL_ACCOUNT_PASSWORD_ALPHABET =
+  OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE
+  + OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE
+  + OFFICIAL_ACCOUNT_PASSWORD_DIGITS
+  + OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS;
+
+function randomOfficialAccountPasswordCharacter(alphabet: string): string {
+  return alphabet[randomInt(alphabet.length)] ?? "";
+}
+
+function shuffleOfficialAccountPasswordCharacters(characters: string[]): void {
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1);
+    const current = characters[index];
+    const replacement = characters[swapIndex];
+    if (current === undefined || replacement === undefined) {
+      throw new Error("Unable to construct the official appointment account password.");
+    }
+    characters[index] = replacement;
+    characters[swapIndex] = current;
+  }
+}
+
 function generateOfficialAccountPassword(): string {
-  const suffix = randomBytes(8)
-    .toString("base64url")
-    .replace(/[^A-Za-z0-9]/g, "")
-    .slice(0, 8);
-  return `Viza9!${suffix}`;
+  const characters = [
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_DIGITS),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS),
+  ];
+  while (characters.length < OFFICIAL_ACCOUNT_PASSWORD_LENGTH) {
+    characters.push(randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_ALPHABET));
+  }
+  shuffleOfficialAccountPasswordCharacters(characters);
+  return characters.join("");
 }
 
 function encryptOfficialPassword(password: string): string {
@@ -234,6 +321,13 @@ export class USAppointmentOrchestrator {
       schedulingProvider,
       mode: input.mode ?? "dry_run",
     });
+    const mode = input.mode ?? "dry_run";
+    const initialStatus = isChinaUSVisaSchedulingJob({
+      applyingCountryCode: input.applyingCountryCode,
+      schedulingProvider,
+    }) && mode === "assisted_live"
+      ? routeChinaAssistedLiveAccount(existingAccount)
+      : "appointment_consent_received";
 
     const job = await this.repository.insertJob({
       applicationId: application.id,
@@ -245,8 +339,8 @@ export class USAppointmentOrchestrator {
       applyingCountryCode: input.applyingCountryCode.trim().toUpperCase(),
       applyingPostCity: confirmedApplyingPostCity,
       schedulingProvider,
-      status: "appointment_consent_received",
-      mode: input.mode ?? "dry_run",
+      status: initialStatus,
+      mode,
       userPreferencesJson: redactToObject(input.userPreferencesJson ?? {}),
       requiresUserAction: false,
       currentManualAction: null,
@@ -761,15 +855,25 @@ export class USAppointmentOrchestrator {
     const normalizedProvider = (job.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
     const normalizedCountry = (job.applyingCountryCode ?? "").trim().toUpperCase();
     if (normalizedProvider === "usvisascheduling" && normalizedCountry === "CN") {
+      const account = job.appointmentAccountId
+        ? await this.repository.getAccount(job.appointmentAccountId)
+        : null;
+      const accountStatus = routeChinaAssistedLiveAccount(account);
+      const accountRegistrationRequired = accountStatus === "appointment_account_required";
       const queued = await this.transitionJob(
         job,
-        "appointment_login_required",
-        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        accountStatus,
+        accountRegistrationRequired
+          ? "China USVisaScheduling assisted-live job queued for official account registration by the submission-service runner."
+          : "China USVisaScheduling assisted-live job queued for login by the submission-service runner.",
         {
           assisted_live_enabled: true,
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
+          account_route: accountRegistrationRequired ? "account_creation" : "login",
+          account_status: account?.accountStatus ?? null,
+          account_email_verified: account?.emailVerified ?? false,
           supported_checkpoint_handling: true,
           explicit_slot_selection_required: true,
           final_viza_approval_required: true,
@@ -778,12 +882,17 @@ export class USAppointmentOrchestrator {
       await this.auditService.recordJobTransition(
         queued,
         "appointment_assisted_live_runner_handoff",
-        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        accountRegistrationRequired
+          ? "China USVisaScheduling assisted-live account registration queued for submission-service runner."
+          : "China USVisaScheduling assisted-live login queued for submission-service runner.",
         {
           assisted_live_enabled: true,
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
+          account_route: accountRegistrationRequired ? "account_creation" : "login",
+          account_status: account?.accountStatus ?? null,
+          account_email_verified: account?.emailVerified ?? false,
           supported_checkpoint_handling: true,
           explicit_slot_selection_required: true,
           final_viza_approval_required: true,

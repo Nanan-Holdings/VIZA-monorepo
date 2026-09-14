@@ -187,9 +187,10 @@ RAG 检索服务：
   - 支持 `intent` 参数：`route_recommendation`、`requirements`、`form_intake`、`fees_timing`、`eligibility`、`source_check`，按任务优先检索对应 `documentType`。
   - 优先调用 Supabase RPC `match_visa_chunks` 做 pgvector 相似度检索。
   - RPC/embedding 不可用时，会 fallback 到按 country / visa type / document type 过滤 `visa_chunks`。
-  - 默认 top-k 是 5，代码把它限制在 1..12；runtime `minSimilarity` 默认是 `0.03`。SQL RPC 的独立默认值为 0.5，但服务会显式传入 0.03。向量为 `text-embedding-3-small` 的 1536 维 embedding。
+  - 默认值由 `src/services/visa-knowledge-retrieval-policy.ts` 管理；`VISA_RAG_MATCH_COUNT` 支持 1..12 整数，`VISA_RAG_MIN_SIMILARITY` 支持 0..1 有限数，显式请求参数优先。数值与准入依据见 [RAG 参数实验](../viza-be/agent-backend/evals/README.md)。SQL RPC 的独立默认值仍为 0.5，共享 service 会显式传入自己的策略值。向量为 `text-embedding-3-small` 的 1536 维 embedding。
   - 检索先按 intent 过滤 document type，未命中时再做 broad vector search；vector/embedding 失败后走 active-release 的 filtered REST fallback。REST fallback 没有相似度排序或 reranker，只返回过滤查询的 limit 行。
-  - seed chunk 在入库时原样保留；runtime 没有统一 token chunker 或 overlap，embedding 输入最多取 8,000 字符。
+  - 成功向量检索没有达到 threshold 的结果时返回 `no_similarity_match`，不得通过未排序 REST rows 绕过阈值。
+  - seed chunk 默认按原有语义边界保留；摄入的 `--chunking` 可显式选用实验中的 400/800/1600 Unicode 字符与 0%/20% overlap 方案。改变分块需要新 embedding 与 staged release，不能仅修改 runtime 参数。embedding 文本构造器与实验共用，最多取 8,000 UTF-16 字符。
   - `formatKnowledgeContext()` 把检索结果整理成可注入 system prompt 的上下文块。
 
 RAG routing context:
@@ -357,7 +358,7 @@ polling 被多副本后端拒绝后仍会尝试 WebSocket。多副本运行时�
 
 - `/client/chat` 通过 Supabase/impersonation 页面逻辑加载已授权的 session，Socket.IO 连接到 agent-backend 的 `/visa` namespace；消息完成后保存 assistant message，application 申请动作发出 redirect CTA。
 - 后端每轮先写入或恢复最近 50 条可见消息，再合并 `VisaConversationState`、entry-rule 结果和 RAG context。结构化 state 位于 `visa_chat_sessions.memory_json`，通过 `memory_revision` 做 CAS；冲突时 namespace reload/rebase，最多重试一次。
-- RAG 的运行时参数是 `text-embedding-3-small`、1536 维、默认 top-k 5（clamp 1..12）和 `minSimilarity=0.03`。检索顺序是 intent-filtered vector、broad vector、active-release filtered REST；REST fallback 没有相似度排序或 reranker。seed chunk 原样入库，运行时没有固定 chunk size 或 overlap，embedding 输入最多 8,000 字符。
+- RAG 使用 `text-embedding-3-small`、1536 维和共享 retrieval policy。intent-filtered vector 可放宽到 broad vector，但成功查询无匹配时会保留空结果；只有 provider/vector 失败才使用未排序的 active-release REST fallback。默认值、真实 embedding 评测、失败候选和分块准入边界见 [RAG 参数实验](../viza-be/agent-backend/evals/README.md)。字段辅助因 query 增补及 context 截断单独保留 `5 / 0.03`，不把 Chat 检索结果直接当作该链路的最优值。
 - country seed 当前是 61 个文件、159 个 documents、559 个 chunks，其中 70 个 `form_requirements` documents；backend registry 有 61 个 destination，`VISA_SERVICE_COUNTRIES` 开放 56 个，`mexico`、`morocco`、`nepal`、`qatar`、`russia` 仍是 dormant reference。上述是 checked-in 文件统计，不是部署数据库计数。
 - `/api/field-guidance` 将字段元数据检查、public RAG 和可选的结构化 OpenAI guidance 组合起来；其 field-level cache 最多 256 项、TTL 15 分钟。`/api/validate-application` 仍是 Indonesia B211A/C1 的 hard rules + optional OpenAI semantic review + fixed Indonesia knowledge context，不能描述为跨国家通用 validator。中文输入到英文提交的持久化翻译由独立 Google `zh` 到 `en` route 负责。
 - 代码已有本地 unit/contract tests、VIZA agent eval/robustness scripts，以及 `load:concurrency`、`load:online-capacity`、`load:local-rls` 等容量 harness；这些结果用于本地回归和失败诊断，不能替代生产 provider、鉴权、RAG release 或多副本 SLO 验证。

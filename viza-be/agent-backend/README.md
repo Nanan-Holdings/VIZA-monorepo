@@ -198,16 +198,28 @@ opens 56 of them; `mexico`, `morocco`, `nepal`, `qatar`, and `russia` remain
 dormant reference seeds. These are repository inventory counts, not a claim
 about the contents of a deployed database.
 
-RAG runtime uses `text-embedding-3-small` with 1536-dimensional vectors. The
-request default is top-k 5, clamped to 1..12, and runtime `minSimilarity`
-defaults to 0.03. The SQL RPC itself has a 0.5 default, but the service passes
-0.03 explicitly. It first tries intent-filtered `match_visa_chunks()` vector
-search, then a broader vector query when intent document types have no match,
-then active-release country/visa/document filters through REST. The REST
-fallback has no similarity ordering or reranker; it returns the limited rows
-from the filtered query. There is no generic runtime chunker, fixed chunk size,
-or overlap: JSON seed chunks are ingested as supplied and embedding input is
-truncated to 8,000 characters.
+RAG uses `text-embedding-3-small` with 1536-dimensional vectors. Shared defaults
+live in `src/services/visa-knowledge-retrieval-policy.ts`; bounded environment
+overrides are `VISA_RAG_MATCH_COUNT` (integer 1..12) and
+`VISA_RAG_MIN_SIMILARITY` (finite 0..1), with valid request overrides taking
+priority. The [retrieval experiment](evals/README.md) records the selected
+defaults, rejected candidates and validation limits. The SQL RPC's independent
+default remains 0.5; the shared service sends its threshold explicitly.
+
+Retrieval tries intent-filtered vector search and then a broader vector query
+when implicit intent filters have no match. A successful search with no
+qualifying result returns `no_similarity_match`, not unordered REST rows.
+Provider or vector-request failures retain the active-release filtered REST
+fallback, which has no similarity ordering or reranker. Field guidance retains
+its explicit 5/0.03 baseline because its augmented queries and truncated cards
+need a separate evaluation. Validation's independent RPC also remains separate.
+
+Ingestion preserves curated seed boundaries by default. `--chunking` selects
+an explicit evaluated character-splitting profile for a new staged release;
+`--dry-run` reports the projected count without provider calls or database
+writes. Ingestion and the experiment share the exact embedding text envelope
+and 8,000 UTF-16-character limit. Selecting a profile does not rewrite the
+existing active index or automatically promote a release.
 
 The SQL release gate requires active release metadata, chunks, embeddings,
 official-source reachability and reviewed entry-rule coverage before promotion.

@@ -21,6 +21,8 @@
 		"test:visa-agent-evals": "tsx scripts/run-visa-agent-evals.ts",
 		"test:visa-agent-robustness": "npm run test:visa-agent-evals",
 		"test:field-guidance-copilot": "tsx scripts/run-field-guidance-copilot-evals.ts",
+		"eval:rag-retrieval": "tsx scripts/evaluate-rag-retrieval.ts",
+		"eval:rag-optimality": "tsx scripts/prove-rag-retrieval.ts",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"load:concurrency": "tsx scripts/concurrency-load.ts",

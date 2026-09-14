@@ -130,6 +130,10 @@ import { setActiveApplicationSelection } from "@/lib/client/active-application-s
 import { readApplicationRouteParam } from "@/lib/client/application-route-params";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
+  createOrderedDynamicSaveQueue,
+  type OrderedDynamicSaveQueue,
+} from "./ordered-dynamic-save";
+import {
   computeAllTabCompletion,
   getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
@@ -166,6 +170,7 @@ import {
 import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
+  initializeExpandedSectionState,
   type ApplicationStepSection,
   type ApplicationStepSectionKey,
 } from "@/lib/application-step-sections";
@@ -646,15 +651,7 @@ function GroupedStepSidebar({
   }, [completedStepIds, currentStep]);
 
   useEffect(() => {
-    setExpandedSections((prev) => {
-      const next = { ...prev };
-      for (const section of sections) {
-        if (next[section.id] === undefined) {
-          next[section.id] = section.steps.some((step) => step.id === currentStep);
-        }
-      }
-      return next;
-    });
+    setExpandedSections((prev) => initializeExpandedSectionState(prev, sections, currentStep));
   }, [sections, currentStep]);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -859,15 +856,7 @@ function GroupedMobileStepBar({
   const progressPercent = Math.min(100, (completedStepCount / Math.max(steps.length, 1)) * 100);
 
   useEffect(() => {
-    setExpandedSections((prev) => {
-      const next = { ...prev };
-      for (const section of sections) {
-        if (next[section.id] === undefined) {
-          next[section.id] = section.steps.some((step) => step.id === currentStep);
-        }
-      }
-      return next;
-    });
+    setExpandedSections((prev) => initializeExpandedSectionState(prev, sections, currentStep));
   }, [sections, currentStep]);
 
   const toggleSection = useCallback((sectionId: string) => {
@@ -1900,6 +1889,7 @@ export default function ApplicationPage() {
   const autosaveTimerRef = useRef<number | null>(null);
   const lastAutosaveVersionRef = useRef(0);
   const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const orderedDynamicSaveQueueRef = useRef<OrderedDynamicSaveQueue | null>(null);
   const autosaveRequestRef = useRef(0);
   const navigationSaveInFlightRef = useRef(false);
   const submitCheckInFlightRef = useRef(false);
@@ -1908,6 +1898,10 @@ export default function ApplicationPage() {
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
   const documentRequirementNavigationRef = useRef(0);
+
+  if (orderedDynamicSaveQueueRef.current === null) {
+    orderedDynamicSaveQueueRef.current = createOrderedDynamicSaveQueue(undefined, autosaveQueueRef);
+  }
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
@@ -3150,6 +3144,29 @@ export default function ApplicationPage() {
     t,
   ]);
 
+  // The application state may briefly retain the previous route's draft ID.
+  // Keep route context in the join key, just as draft resolution does below.
+  const dynamicSaveScope = JSON.stringify([
+    appState.applicationId,
+    explicitApplicationId,
+    resolvedCountry,
+    resolvedVisaType,
+    preferExplicitPackage,
+  ]);
+  const enqueueDynamicAnswerSave = useCallback(
+    (patch: Record<string, string>, applicationIdOverride?: string, force = false) => {
+      const queue = orderedDynamicSaveQueueRef.current;
+      if (!queue) return Promise.reject(new Error("Dynamic answer save queue is unavailable"));
+      const applicationScope = applicationIdOverride ?? dynamicSaveScope;
+      return queue.enqueue(applicationScope, patch, async (snapshot) => {
+        const applicationId = applicationIdOverride ?? await ensureWritableApplicationId();
+        const saveResult = await saveDynamicAnswers(applicationId, snapshot);
+        if (saveResult.error) throw new Error(saveResult.error);
+      }, { deduplicate: !force });
+    },
+    [dynamicSaveScope, ensureWritableApplicationId],
+  );
+
   const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
     const data = dynamicDraftRef.current[stepIndex];
     if (!data) return;
@@ -3167,12 +3184,10 @@ export default function ApplicationPage() {
     );
     if (Object.keys(changedData).length === 0) return;
 
-    const applicationId = await ensureWritableApplicationId();
-    const saveResult = await saveDynamicAnswers(applicationId, changedData);
-    if (saveResult.error) throw new Error(saveResult.error);
+    await enqueueDynamicAnswerSave(changedData);
 
-    setDynamicAnswers((prev) => ({ ...prev, ...data }));
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+    setDynamicAnswers((prev) => ({ ...prev, ...changedData }));
+  }, [dynamicAnswers, enqueueDynamicAnswerSave]);
 
   const saveAllDynamicDrafts = useCallback(async () => {
     const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
@@ -3192,17 +3207,8 @@ export default function ApplicationPage() {
     if (Object.keys(changedDraft).length === 0) return;
 
     const requestId = ++autosaveRequestRef.current;
-    const runSave = autosaveQueueRef.current.then(async () => {
-      const applicationId = await ensureWritableApplicationId();
-      return saveDynamicAnswers(applicationId, changedDraft);
-    });
-    autosaveQueueRef.current = runSave.then(
-      () => undefined,
-      () => undefined,
-    );
-    let saveResult: Awaited<ReturnType<typeof saveDynamicAnswers>>;
     try {
-      saveResult = await runSave;
+      await enqueueDynamicAnswerSave(changedDraft);
     } catch (saveError) {
       if (requestId === autosaveRequestRef.current) {
         setAutosaving(false);
@@ -3210,35 +3216,21 @@ export default function ApplicationPage() {
       }
       throw saveError;
     }
-    if (saveResult.error) {
-      if (requestId === autosaveRequestRef.current) {
-        setAutosaving(false);
-        setAutosaveFailed(true);
-      }
-      throw new Error(saveResult.error);
-    }
 
-    setDynamicAnswers((prev) => ({ ...prev, ...mergedDraft }));
+    setDynamicAnswers((prev) => ({ ...prev, ...changedDraft }));
     setSubmitMissingFields([]);
     if (requestId === autosaveRequestRef.current) {
       setAutosaving(false);
       setAutosaveFailed(false);
     }
-  }, [dynamicAnswers, ensureWritableApplicationId]);
+  }, [dynamicAnswers, enqueueDynamicAnswerSave]);
 
   const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
     const answerEntries = Object.entries(answerPatch);
     if (answerEntries.length === 0) return;
 
     markLiveSaveActivity();
-    const applicationId = await ensureWritableApplicationId();
-    const runSave = autosaveQueueRef.current.then(() => saveDynamicAnswers(applicationId, answerPatch));
-    autosaveQueueRef.current = runSave.then(
-      () => undefined,
-      () => undefined,
-    );
-    const saveResult = await runSave;
-    if (saveResult.error) throw new Error(saveResult.error);
+    await enqueueDynamicAnswerSave(answerPatch);
 
     const fieldNames = new Set(answerEntries.map(([fieldName]) => fieldName));
     autosaveRequestRef.current += 1;
@@ -3263,7 +3255,11 @@ export default function ApplicationPage() {
     setDraftVersion((current) => current + 1);
     setExternalAnswerRevision((current) => current + 1);
     markFormAssistantAnswersChanged();
-  }, [ensureWritableApplicationId, markFormAssistantAnswersChanged, markLiveSaveActivity]);
+  }, [
+    enqueueDynamicAnswerSave,
+    markFormAssistantAnswersChanged,
+    markLiveSaveActivity,
+  ]);
 
   const handleFormAssistantSend = useCallback(async (
     text: string,
@@ -3717,16 +3713,7 @@ export default function ApplicationPage() {
       setAutosaving(false);
       return;
     }
-    const runAutosave = autosaveQueueRef.current.then(async () => {
-      const applicationId = await ensureWritableApplicationId();
-      const saveResult = await saveDynamicAnswers(applicationId, changedDraft);
-      if (saveResult.error) throw new Error(saveResult.error);
-    });
-
-    autosaveQueueRef.current = runAutosave.then(
-      () => undefined,
-      () => undefined,
-    );
+    const runAutosave = enqueueDynamicAnswerSave(changedDraft);
 
     void runAutosave.then(
       () => {
@@ -3747,7 +3734,15 @@ export default function ApplicationPage() {
         setAutosaving(false);
       },
     );
-  }, [autosaveVersion, dynamicAnswers, ensureWritableApplicationId, loading, saving, t, useDynamic]);
+  }, [
+    autosaveVersion,
+    dynamicAnswers,
+    enqueueDynamicAnswerSave,
+    loading,
+    saving,
+    t,
+    useDynamic,
+  ]);
 
   useEffect(() => () => {
     autosaveRequestRef.current += 1;
@@ -3839,8 +3834,7 @@ export default function ApplicationPage() {
         nationality: data.nationality,
         nationality_country: data.nationality,
       };
-      const saveResult = await saveDynamicAnswers(applicationId, answerPatch);
-      if (saveResult.error) throw new Error(saveResult.error);
+      await enqueueDynamicAnswerSave(answerPatch, applicationId);
 
       setAppState((prev) => ({ ...prev, applicationId, personal: data }));
       setCompletedUpTo((c) => Math.max(c, 1));
@@ -3883,7 +3877,7 @@ export default function ApplicationPage() {
         applicationId = result.applicationId;
       }
 
-      const saveResult = await saveDynamicAnswers(applicationId, {
+      await enqueueDynamicAnswerSave({
         passport_number: data.passportNumber,
         passportNumber: data.passportNumber,
         travel_document_number: data.passportNumber,
@@ -3896,8 +3890,7 @@ export default function ApplicationPage() {
         passport_issuing_country: data.passportIssuingCountry,
         passport_issuance_country: data.passportIssuingCountry,
         passport_country_of_issue: data.passportIssuingCountry,
-      });
-      if (saveResult.error) throw new Error(saveResult.error);
+      }, applicationId);
 
       setAppState((prev) => ({ ...prev, applicationId, passport: data }));
       setCompletedUpTo((c) => Math.max(c, 2));
@@ -3971,21 +3964,13 @@ export default function ApplicationPage() {
     setSaving(true);
     setError(null);
     try {
-      let applicationId = appState.applicationId;
-
-      // Non-team flows should always save to the current user's draft for the
-      // active package. Local state can be stale after package/country switches,
-      // which makes saveDynamicAnswers return "Unauthorized" and blocks moving
-      // to the next tab.
-      if (!explicitApplicationId) {
-        applicationId = await ensureWritableApplicationId();
-      } else if (!applicationId) {
+      if (explicitApplicationId && !appState.applicationId) {
         throw new Error(t("errors.noApplicationFound"));
       }
 
-      // Save answers via server action (bypasses RLS)
-      const saveResult = await saveDynamicAnswers(applicationId, data);
-      if (saveResult.error) throw new Error(saveResult.error);
+      // Resolve the non-team draft inside the queue, preserving call order
+      // even when that identity lookup is slower than a subsequent save.
+      await enqueueDynamicAnswerSave(data, explicitApplicationId ? appState.applicationId ?? undefined : undefined);
 
       // Update local state
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
@@ -4096,14 +4081,13 @@ export default function ApplicationPage() {
     // A step can update the in-memory answer state before its autosave has
     // durably committed. The retry API validates persisted answers, so always
     // serialize the exact snapshot that passed the client-side final check.
-    await autosaveQueueRef.current;
+    await orderedDynamicSaveQueueRef.current?.drain();
     const snapshot = buildCurrentAnswerSnapshot();
     if (Object.keys(snapshot).length === 0) return snapshot;
-    const saveResult = await saveDynamicAnswers(applicationId, snapshot);
-    if (saveResult.error) throw new Error(saveResult.error);
+    await enqueueDynamicAnswerSave(snapshot, applicationId, true);
     setDynamicAnswers((current) => ({ ...current, ...snapshot }));
     return snapshot;
-  }, [buildCurrentAnswerSnapshot]);
+  }, [buildCurrentAnswerSnapshot, enqueueDynamicAnswerSave]);
 
   const handleTeamConfirm = useCallback(async () => {
     setSaving(true);

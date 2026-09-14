@@ -1,0 +1,1473 @@
+{
+  "version": "2026-09-14",
+  "provenance": {
+    "source": "knowledge-base/visa-rag-seeds/countries/*.json",
+    "curation": "Agent-curated synthetic queries from checked-in seed content; not human-user or production-traffic labels.",
+    "chunkIdSemantics": "Relevant IDs are the original documents[].chunks[].id values in the country JSON seeds. Runtime visa_chunks rows currently have generated UUIDs, so this set is a source-level gold set.",
+    "evidenceSemantics": "Each evidence.text value is an exact substring of its source chunk's content and is limited to one or two sentences that support the query.",
+    "negativePolicy": "An unanswerable case has no answer chunk under its exact filters, or its purpose is explicitly outside the filtered product. Negative rationale records the local-seed basis; no unsupported requirement is invented.",
+    "selectionPolicy": "Tune on dev only. Use heldout once for final comparison. Positive source parents are partitioned between splits to avoid cross-split leakage.",
+    "runtimeFilterNote": "Some items intentionally omit visaType while retaining country and documentTypes because runtime normalizes aliases such as DS160, UK_STANDARD_VISITOR, EU_SCHENGEN_C_SHORT_STAY, and ID_C1_TOURIST to values that differ from the seed product codes.",
+    "coverage": {
+      "total": 72,
+      "dev": 42,
+      "heldout": 30,
+      "answerable": 51,
+      "unanswerable": 21,
+      "countries": [
+        "singapore",
+        "france",
+        "japan",
+        "indonesia",
+        "us",
+        "uk",
+        "vietnam",
+        "malaysia",
+        "thailand",
+        "canada",
+        "india",
+        "south_korea",
+        "kenya"
+      ],
+      "documentTypes": [
+        "requirements",
+        "process",
+        "form_requirements",
+        "form_fields"
+      ]
+    }
+  },
+  "queries": [
+    {
+      "id": "RAG-DEV-001",
+      "split": "dev",
+      "query": "中国普通护照去新加坡短期旅游不超过30天，需要入境签证吗？",
+      "country": "singapore",
+      "visaType": "SG_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "sgp_entry_visa_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接询问种子对中国普通护照短期旅游的资格规则，并要求区分 SGAC 与签证。",
+      "evidence": [
+        {
+          "chunkId": "sgp_entry_visa_basic_route_zh",
+          "text": "自2024年2月9日起，中华人民共和国签发的普通护照持有人赴新加坡短期停留不超过30天免办入境签证。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-002",
+      "split": "dev",
+      "query": "How close to arrival can I submit the Singapore SG Arrival Card?",
+      "country": "singapore",
+      "visaType": "SG_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "sgp_sgac_three_days"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接询问 SGAC 的官方提交时间窗口。",
+      "evidence": [
+        {
+          "chunkId": "sgp_sgac_three_days",
+          "text": "ICA requires travellers to submit the SG Arrival Card with electronic health declaration within 3 days before arriving in Singapore, including the day of arrival."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-003",
+      "split": "dev",
+      "query": "做新加坡电子入境卡时，系统通常要提前准备哪些个人、行程、住宿和健康信息？",
+      "country": "singapore",
+      "visaType": "SG_ARRIVAL_CARD",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "singapore_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 将 form_requirements chunk 中的字段清单改写为用户的准备问题。",
+      "evidence": [
+        {
+          "chunkId": "singapore_form_fields_to_collect",
+          "text": "Singapore SG Arrival Card intake should collect traveller identity, passport details, nationality/citizenship, sex, date/place of birth, place of residence, email/mobile contact, arrival/departure dates, last and next city/port, purpose of travel, mode and transport number, accommodation type/details, and electronic health declaration answers."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-004",
+      "split": "dev",
+      "query": "Does a Singapore entry visa itself give me an immigration pass or guarantee admission?",
+      "country": "singapore",
+      "visaType": "SG_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "sgp_ica_visa_not_pass"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 询问签证、入境许可和最终入境决定之间的区别。",
+      "evidence": [
+        {
+          "chunkId": "sgp_ica_visa_not_pass",
+          "text": "ICA explains that a Singapore entry visa is not an immigration pass; it is pre-entry permission to travel to and seek entry into Singapore. Possessing a valid visa does not guarantee entry, and ICA officers decide whether to grant an immigration pass at the checkpoint."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-005",
+      "split": "dev",
+      "query": "For a 10-day trip across France and Germany, which country's consulate should receive the application, and what short-stay limit applies?",
+      "country": "france",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "fra_schengen_where_when"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同一问题同时测试申根短期上限和多国行程的主管领馆规则；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "fra_schengen_where_when",
+          "text": "A Schengen visa is for a short temporary visit of up to 90 days in any 180-day period. The EU guidance says to apply at the consulate of the country intended to visit; when visiting multiple Schengen countries, apply to the country where the traveller will spend the longest time, or the first-entry country if stays are equal."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-006",
+      "split": "dev",
+      "query": "法国申根旅游签证通常要准备哪些材料，成人签证费和正常处理时间是多少？",
+      "country": "france",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "fra_schengen_documents_fees_timing"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试材料、费用和处理时长，证据来自一个 requirements chunk；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "fra_schengen_documents_fees_timing",
+          "text": "Common Schengen application documents include a passport valid at least 3 months after planned departure from the Schengen area, a visa application form, ICAO-compliant photo, travel medical insurance covering emergency medical care/hospitalisation/repatriation, purpose-of-stay documents, evidence of financial means and accommodation, evidence of intention to return, and fingerprints."
+        },
+        {
+          "chunkId": "fra_schengen_documents_fees_timing",
+          "text": "EU guidance lists the adult visa fee as EUR 90 and normal processing as 15 days, extendable up to 45 days if more examination or documents are needed."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-007",
+      "split": "dev",
+      "query": "中国护照去法国短期旅游，应该走哪条路线，提交前要核对哪些关键因素？",
+      "country": "france",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "fra_chinese_tourist_basic_route_zh"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 对中国护照法国旅游路由 chunk 的路线和前置确认项进行改写提问；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "fra_chinese_tourist_basic_route_zh",
+          "text": "中国护照持有人如果去法国短期旅游、探亲访友或私人访问，且法国是唯一目的地或主要停留国家，通常应按法国短期 Schengen 旅游/私人访问路线准备，而不是越南 e-visa、英国 Standard Visitor 或美国 DS-160。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-008",
+      "split": "dev",
+      "query": "What kinds of identity, travel, accommodation, and host details should a France Schengen form intake collect?",
+      "country": "france",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "france_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 询问 form_requirements 中的结构化字段范围，而非复述 chunk 标题；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "france_form_fields_to_collect",
+          "text": "The harmonised Schengen form intake should collect surname/current and birth names, first names, date/place/country of birth, current and birth nationality, sex, civil status, parental authority for minors, national ID where applicable, travel document type/number/issue/expiry/issuing authority, home address/email/phone, residence in another country if any, occupation, employer or school, travel purpose, destination Member State(s), first-entry Member State, number of entries requested, intended arrival/departure dates and duration, prior Schengen fingerprints, entry permit for final destination if any, inviting person/company or hotel/accommodation, who pays travel/living costs, EU/EEA/Swiss family member data if applicable, and applicant declaration/signature."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-009",
+      "split": "dev",
+      "query": "For a Chinese national living in China, does Japan eVISA require an accredited agency, and what must be shown at the airport?",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "jpn_evisa_china_agency"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试中国居住地的代理渠道和机场出示方式两个事实。",
+      "evidence": [
+        {
+          "chunkId": "jpn_evisa_china_agency",
+          "text": "For nationals of China residing in China, applications should be made through an accredited agency; electronic visas with a period of stay of 15 or 30 days may be issued. eVISA travellers must display the Visa Issuance Notice online at the airport; PDF, screenshots and printed copies are not accepted."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-010",
+      "split": "dev",
+      "query": "日本短期停留旅游签证最长可以停留多久？可以在日本境内申请吗，通常多久处理？",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "jpn_short_term_scope_processing"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合停留范围、境内申请限制和处理时长。",
+      "evidence": [
+        {
+          "chunkId": "jpn_short_term_scope_processing",
+          "text": "MOFA describes short-term stay as up to 90 days for tourism, business, visiting friends/relatives and similar activities that do not include remunerative work. Visa applications cannot be made inside Japan."
+        },
+        {
+          "chunkId": "jpn_short_term_scope_processing",
+          "text": "MOFA notes that processing takes approximately one week if all necessary requirements are met, but additional documents or consultation can make it longer."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-011",
+      "split": "dev",
+      "query": "日本短期旅游 eVISA 表单需要先收集哪些身份、行程、住宿和历史信息？",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "japan_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 以中文改写日本 form_requirements 字段清单。",
+      "evidence": [
+        {
+          "chunkId": "japan_form_fields_to_collect",
+          "text": "Japan short-stay intake should collect names, nationality, date/place of birth, sex, marital status, passport details, occupation, address/contact details, purpose of visit, intended arrival and stay length, port of entry, airline/ship, hotel or host, guarantor/inviter if any, travel history, and declarations about criminal/deportation/overstay history."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-012",
+      "split": "dev",
+      "query": "Is Visit Japan Web a visa, and what does it cover?",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "japan_vjw_online_scope"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试把 VJW 的入境/海关申报与签证资格区分开。",
+      "evidence": [
+        {
+          "chunkId": "japan_vjw_online_scope",
+          "text": "日本数字厅说明，Visit Japan Web 可在线办理入境（immigration）和海关（customs）相关手续。它是入境申报服务，不是签证，不替代中国普通护照持有人的日本签证或其他入境资格。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-013",
+      "split": "dev",
+      "query": "Indonesia Visa on Arrival 初次最多停留多久，能否延长到另外30天？",
+      "country": "indonesia",
+      "visaType": "ID_B1_EVOA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "idn_voa_duration_fee_requirements"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接询问 VoA 的初始停留和延长规则。",
+      "evidence": [
+        {
+          "chunkId": "idn_voa_duration_fee_requirements",
+          "text": "It is valid for a maximum stay of 30 days from the first day of arrival. It can be extended for another 30 days, subject to eligibility and immigration procedures."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-014",
+      "split": "dev",
+      "query": "What is the official fee for an Indonesia C1 tourist visit visa for the extendable 60-day stay?",
+      "country": "indonesia",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "idn_c1_requirements_fee_processing"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 只询问 C1 费用，避免把同一 chunk 的多个事实混为不完整标签；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "idn_c1_requirements_fee_processing",
+          "text": "The official C1 fee for a 60-day stay that can be extended is Rp 1,000,000."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-015",
+      "split": "dev",
+      "query": "Does Indonesia require an arrival card even when the traveller already has a visa?",
+      "country": "indonesia",
+      "visaType": "ID_B1_EVOA",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "idn_arrival_card_required"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试 arrival card 的时限及其与签证/停留许可的独立性。",
+      "evidence": [
+        {
+          "chunkId": "idn_arrival_card_required",
+          "text": "Indonesia's official e-Visa portal states that Arrival Card submission is required for all travellers and must be submitted within 3 days prior to arrival in Indonesia. Travellers should use the official All Indonesia arrival card service linked from the official e-Visa website."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-016",
+      "split": "dev",
+      "query": "印尼 C1 旅游访问签证表单应收集哪些基本字段？",
+      "country": "indonesia",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "indonesia_c1_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接覆盖 C1 form_requirements 的字段清单和 sponsor 条件问题；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "indonesia_c1_form_fields_to_collect",
+          "text": "Collect passport identity, nationality, date and place of birth, contact details, intended entry date and point, accommodation in Indonesia, planned stay, return or onward travel, and the applicant's purpose statement. Ask whether a sponsor or guarantor is required for the applicant's document and nationality before choosing any sponsor fields."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-017",
+      "split": "dev",
+      "query": "中国护照去美国短期旅游通常申请哪一种访问签证？",
+      "country": "us",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "us_b1_b2_chinese_tourist_zh"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接测试中国游客应走 B-2 或 B-1/B-2 而非 ESTA 的路由；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_chinese_tourist_zh",
+          "text": "中国护照持有人如果去美国短期旅游、度假、探亲访友，通常应申请美国 B-2 旅游/访问签证，或合并的 B-1/B-2 访问签证。中国大陆护照通常不适用 ESTA 免签证计划。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-018",
+      "split": "dev",
+      "query": "What kinds of activities are covered by the B-1/B-2 visitor visa, especially tourism and business?",
+      "country": "us",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "us_b1_b2_overview_allowed_purposes"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 从 B-1、B-2 和合并签证的允许目的改写提问；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_overview_allowed_purposes",
+          "text": "B-1 is for temporary business activities such as consulting with business associates, attending a scientific, educational, professional, or business convention or conference, settling an estate, or negotiating a contract. B-2 is for tourism and visit purposes such as vacation, visiting friends or relatives, medical treatment, social events, amateur events without payment, or a short recreational course of study that is not for credit toward a degree."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-019",
+      "split": "dev",
+      "query": "美国 B-1/B-2 访问签证可以用来读学分课程或工作吗？",
+      "country": "us",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "us_b1_b2_not_permitted"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 询问 seed 明确列出的禁止用途；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_not_permitted",
+          "text": "A U.S. B-1/B-2 visitor visa does not permit study for credit, employment, paid performances, professional performances before a paying audience, arrival as a crewmember, work as foreign press or media, or permanent residence in the United States."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-020",
+      "split": "dev",
+      "query": "What are the common steps after starting a U.S. visitor visa application?",
+      "country": "us",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "us_b1_b2_application_steps"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 将 DS-160、确认页、预约、缴费和面谈流程合并成步骤问题；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_application_steps",
+          "text": "The common process is: complete the Online Nonimmigrant Visa Application Form DS-160, upload a photo while completing DS-160, print the DS-160 confirmation page, schedule a visa interview appointment if required, pay the non-refundable visa application fee according to local instructions, gather required documents, and attend the visa interview."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-021",
+      "split": "dev",
+      "query": "美国访问签证申请费是多少，获批后还可能有什么费用？",
+      "country": "us",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "us_b1_b2_fee_and_issuance_fee"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试申请费金额、不可退款和可能的签发费；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_fee_and_issuance_fee",
+          "text": "The U.S. Department of State visitor visa page lists the visitor visa application fee as USD 185. The fee is non-refundable."
+        },
+        {
+          "chunkId": "us_b1_b2_fee_and_issuance_fee",
+          "text": "Depending on nationality, an applicant may also need to pay a visa issuance fee after approval."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-022",
+      "split": "dev",
+      "query": "What is Form DS-160 used for, and where is it submitted?",
+      "country": "us",
+      "documentTypes": [
+        "form_fields"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "us_ds160_purpose_and_scope"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试 DS-160 的用途和官方电子提交渠道；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_ds160_purpose_and_scope",
+          "text": "Form DS-160 is the Online Nonimmigrant Visa Application for temporary travel to the United States and for K fiancé(e) visas. It is submitted electronically through the Department of State Consular Electronic Application Center."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-023",
+      "split": "dev",
+      "query": "中国护照短期去英国旅游默认应考虑哪个路线，通常可以停留多久？",
+      "country": "uk",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "uk_standard_visitor_scope"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试英国默认短期访问路线和通常停留期；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_scope",
+          "text": "A visitor can usually stay in the UK for up to 6 months."
+        },
+        {
+          "chunkId": "uk_standard_visitor_scope",
+          "text": "If the user says they are travelling for tourism or a short visit, VIZA should treat the default UK route as UK_STANDARD_VISITOR unless facts indicate another visa category."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-024",
+      "split": "dev",
+      "query": "Can a UK Standard Visitor work for a UK company or use the route for settlement?",
+      "country": "uk",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "uk_standard_visitor_not_allowed"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 询问 Standard Visitor 明确排除的工作和长期居留目的；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_not_allowed",
+          "text": "A Standard Visitor cannot do paid or unpaid work for a UK company or as a self-employed person unless the activity is explicitly permitted, cannot claim public funds, cannot live in the UK for long periods through frequent or successive visits, and cannot marry, register a civil partnership, or give notice of marriage or civil partnership."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-025",
+      "split": "dev",
+      "query": "英国 Standard Visitor 最早应在出发前多久申请，家庭成员可以共用一个申请吗？",
+      "country": "uk",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "uk_standard_visitor_apply_online"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 结合最早申请时间和家庭成员独立申请要求；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_apply_online",
+          "text": "GOV.UK says the earliest application time is 3 months before travel. Once started, the online application can be saved and completed later."
+        },
+        {
+          "chunkId": "uk_standard_visitor_apply_online",
+          "text": "Each family member must have their own application, pay their own fee, and attend their own visa application centre appointment when required."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-026",
+      "split": "dev",
+      "query": "How are fingerprints taken for a UK Standard Visitor application, and how long is the usual decision outside the UK?",
+      "country": "uk",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "uk_standard_visitor_biometrics_and_decision"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试 VAC 生物识别和境外通常决定时长；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_biometrics_and_decision",
+          "text": "At the appointment they prove identity with their passport or travel document, provide fingerprints and a photo, and provide documents showing eligibility. GOV.UK says that once the applicant has applied online, proved identity, and provided documents, Standard Visitor decisions outside the UK are usually made within 3 weeks."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-027",
+      "split": "dev",
+      "query": "英国 Standard Visitor 表单要收集哪些账户、个人、财务、行程和 host 信息？",
+      "country": "uk",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "uk_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 以中文概括 UK 表单字段库存，测试 form_requirements 检索；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_form_fields_to_collect",
+          "text": "The existing VIZA UK_STANDARD_VISITOR form schema covers UKVI account and resume URL, personal details, passport and other travel documents, nationality and birth details, under-18 and accompanying adult logic, contact information, home address and residence history, parents, partner and dependants, employment or study status, income and savings, trip cost, who pays, UK travel dates, accommodation, itinerary, purpose-specific answers, travel history, previous UK/immigration history, criminal/civil/security questions, family or host in the UK, and document upload/review steps."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-028",
+      "split": "dev",
+      "query": "What is the maximum validity of a Vietnam e-visa, and can it allow multiple entry?",
+      "country": "vietnam",
+      "visaType": "VN_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "vnm_evisa_validity_conditions"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接询问越南电子签的期限和单次/多次入境选项。",
+      "evidence": [
+        {
+          "chunkId": "vnm_evisa_validity_conditions",
+          "text": "Vietnam E-visa is valid for a maximum of 90 days and can be single or multiple entry."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-029",
+      "split": "dev",
+      "query": "越南电子签证目前应使用哪些官方新域名？",
+      "country": "vietnam",
+      "visaType": "VN_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "vnm_evisa_portal_transition"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试门户域名迁移信息和官方域名提示。",
+      "evidence": [
+        {
+          "chunkId": "vnm_evisa_portal_transition",
+          "text": "The legacy Vietnam Immigration Department portal states that, from 08:00 on 11 November 2024 GMT+7, the Vietnam Electronic Visa Portal operates on the new domains thithucdientu.gov.vn and evisa.gov.vn."
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-030",
+      "split": "dev",
+      "query": "Which fields should a Vietnam e-visa intake collect before the official application is filled?",
+      "country": "vietnam",
+      "visaType": "VN_E_VISA",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "vietnam_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 以英文改写越南 form_requirements 的字段库存。",
+      "evidence": [
+        {
+          "chunkId": "vietnam_form_fields_to_collect",
+          "text": "identity, passport, nationality, portrait/photo, travel dates, entry and exit ports, address in Vietnam, purpose, email/contact and single/multiple entry selection"
+        }
+      ]
+    },
+    {
+      "id": "RAG-DEV-031",
+      "split": "dev",
+      "query": "在 SG_VISITOR_VISA 的表单过滤下，能否回答新加坡 SG Arrival Card 需要填写哪些字段？",
+      "country": "singapore",
+      "visaType": "SG_VISITOR_VISA",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] 精确过滤到新加坡入境签证 form_requirements；SG Arrival Card 字段属于 SG_ARRIVAL_CARD 产品，过滤后没有可回答该问题的 chunk。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-032",
+      "split": "dev",
+      "query": "日本 Visit Japan Web 产品过滤下，能否给出日本短期旅游 eVISA 的申请渠道？",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] 日本短期旅游 eVISA 的证据位于 short_term_tourism_evisa；当前 visaType 过滤为 JP_VISIT_JAPAN_WEB，只有入境/海关申报内容，不能回答 eVISA 申请渠道。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-033",
+      "split": "dev",
+      "query": "美国 J-1 学生/交流访问签证需要多少 SEVIS 费用？",
+      "country": "us",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] us 的 DS160 form_requirements 只覆盖 visitor/tourism-oriented intake；checked-in seed 没有 J-1/SEVIS 产品或费用 chunk。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-034",
+      "split": "dev",
+      "query": "加拿大工作许可需要什么 LMIA 材料？",
+      "country": "canada",
+      "visaType": "CA_TRV",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] CA_TRV requirements 明确是旅游 Temporary Resident Visa；工作访问和工作许可属于独立路由，过滤后没有 LMIA/工作许可材料答案。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-035",
+      "split": "dev",
+      "query": "肯尼亚学生签证的学费和申请材料是什么？",
+      "country": "kenya",
+      "visaType": "KE_ETA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Kenya seed 只覆盖官方 eTA 旅游授权，未收录学生签证产品、学费或学生签证申请材料。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-036",
+      "split": "dev",
+      "query": "法国长期学生签证的资金和学校材料怎么准备？",
+      "country": "france",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] 法国短期申根 seed 将 study/长期居留路由到 separate workflow；EU_SCHENGEN_C_SHORT_STAY form_requirements 不支持长期学生签证答案。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-037",
+      "split": "dev",
+      "query": "新加坡 SG Arrival Card 的政府签证费现在是多少？",
+      "country": "singapore",
+      "visaType": "SG_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Singapore seed 说明 SGAC 是独立入境申报而不是签证，但没有可据此回答的政府签证费金额；不能把未知费用当作事实。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-038",
+      "split": "dev",
+      "query": "美国 B-2 面谈下周的可预约时段有哪些？",
+      "country": "us",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] US seed 只有一般等待时间说明，没有下周某个使领馆的实时预约库存或具体时段。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-039",
+      "split": "dev",
+      "query": "日本 eVISA 今天的实时处理队列有多少份申请？",
+      "country": "japan",
+      "visaType": "short_term_tourism_evisa",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Japan seed 提供静态资格和约一周处理提示，但没有实时队列深度或当天申请数量。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-040",
+      "split": "dev",
+      "query": "印尼 C1 现在有几个小时出签的加急档？",
+      "country": "indonesia",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Indonesia seed 没有当前 C1 小时级加急服务或实时可用性数据；不能由常规处理时间推导加急档。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-041",
+      "split": "dev",
+      "query": "请推荐一部最近上映的电影。",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] 这是与签证知识无关的通用问题，country seed 中没有电影推荐内容。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-DEV-042",
+      "split": "dev",
+      "query": "马来西亚机场今天有多少航班延误？",
+      "country": "malaysia",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Malaysia seed 没有机场实时运行状态、航班延误数量或当天交通数据。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-001",
+      "split": "heldout",
+      "query": "Which official package should be used for Thailand Digital Arrival Card preparation, and is TDAC itself a visa?",
+      "country": "thailand",
+      "visaType": "TH_TDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "thailand_form_channel_and_scope"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试 TDAC 的官方渠道、产品边界和非签证属性。",
+      "evidence": [
+        {
+          "chunkId": "thailand_form_channel_and_scope",
+          "text": "Use the standalone TH_TDAC_ARRIVAL_CARD package for Thailand Digital Arrival Card preparation."
+        },
+        {
+          "chunkId": "thailand_form_channel_and_scope",
+          "text": "TDAC is not a Thai tourist visa or Thai e-Visa and must stay separate from visa-exemption or e-Visa workflows."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-002",
+      "split": "heldout",
+      "query": "泰国 TDAC 表单需要哪些个人、交通、住宿和健康申报信息？",
+      "country": "thailand",
+      "visaType": "TH_TDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "thailand_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 以中文改写 TDAC form_requirements 字段清单。",
+      "evidence": [
+        {
+          "chunkId": "thailand_form_fields_to_collect",
+          "text": "Thailand TDAC intake should collect personal details, passport details, nationality, occupation, contact details, travel purpose, arrival/departure dates, mode of travel, flight/vehicle/vessel details, country or region boarded, port of arrival, accommodation/address in Thailand, health declaration details, and official declaration acknowledgements. Do not silently reuse Thai e-Visa fields for TDAC."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-003",
+      "split": "heldout",
+      "query": "When should Thailand recommend a tourist visa rather than assuming visa-free entry?",
+      "country": "thailand",
+      "visaType": "TH_TDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "tha_tourist_visa_when_needed"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试超期、多次入境、特定长期路线及不符合豁免时的分流。",
+      "evidence": [
+        {
+          "chunkId": "tha_tourist_visa_when_needed",
+          "text": "If a traveller wants to stay beyond the visa-exempt period, enter repeatedly, work remotely under a specific long-stay route, or is not eligible for exemption, VIZA AI should not assume visa-free entry."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-004",
+      "split": "heldout",
+      "query": "马来西亚 MDAC 应该从哪个独立产品和官方渠道准备？",
+      "country": "malaysia",
+      "visaType": "MY_MDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "malaysia_form_channel_and_scope"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 询问 MDAC 的独立产品边界和官方入口。",
+      "evidence": [
+        {
+          "chunkId": "malaysia_form_channel_and_scope",
+          "text": "Use the standalone MY_MDAC_ARRIVAL_CARD package for Malaysia Digital Arrival Card preparation."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-005",
+      "split": "heldout",
+      "query": "Are Chinese and Indian citizens covered by Malaysia's social-visit visa exemption, and for how long?",
+      "country": "malaysia",
+      "visaType": "MY_MDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "mys_china_india_exemption_30_days"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接测试特定国籍、social visit 和 30 天规则，同时可检验不要承诺边境准入。",
+      "evidence": [
+        {
+          "chunkId": "mys_china_india_exemption_30_days",
+          "text": "Malaysia's visa liberalisation materials and Immigration pages state that citizens of China and India may be covered by a visa exemption for social visit purposes for up to 30 days."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-006",
+      "split": "heldout",
+      "query": "What should Malaysia do for a traveller who is not visa-exempt or whose stay does not fit the exemption?",
+      "country": "malaysia",
+      "visaType": "MY_MDAC_ARRIVAL_CARD",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "mys_evisa_mdac_route"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试 visa exemption、eVISA 和 arrival card 的路由区分。",
+      "evidence": [
+        {
+          "chunkId": "mys_evisa_mdac_route",
+          "text": "For travellers who are not visa-exempt or whose purpose/stay does not fit the exemption, route them to the official Malaysia eVISA portal and current Immigration Malaysia instructions."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-007",
+      "split": "heldout",
+      "query": "越南 Pre-Arrival Information 申报什么时候适用，它是签证吗？",
+      "country": "vietnam",
+      "visaType": "VN_PREARRIVAL_DECLARATION",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "vnm_prearrival_official_scope"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试适用性判断和 pre-arrival declaration 非签证属性。",
+      "evidence": [
+        {
+          "chunkId": "vnm_prearrival_official_scope",
+          "text": "It is a separate traveller declaration workflow and is not a visa or an e-visa. VIZA must first determine whether the traveller's current nationality, purpose, route and entry date fall within the portal's required scope; do not infer a requirement from the existence of a visa application."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-008",
+      "split": "heldout",
+      "query": "What information may the Vietnam pre-arrival declaration collect?",
+      "country": "vietnam",
+      "visaType": "VN_PREARRIVAL_DECLARATION",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "vietnam_prearrival_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接询问 pre-arrival form_requirements 的当前字段范围。",
+      "evidence": [
+        {
+          "chunkId": "vietnam_prearrival_form_fields_to_collect",
+          "text": "Collect only the fields currently required by the official portal: passport and identity data, contact and residence information, entry and travel details, Vietnam address/accommodation and any visa or permit information the portal asks for."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-009",
+      "split": "heldout",
+      "query": "越南 pre-arrival 申报在什么情况下才可以标记提交成功？",
+      "country": "vietnam",
+      "visaType": "VN_PREARRIVAL_DECLARATION",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "vietnam_prearrival_review_and_handoff"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试身份、签证、行程核对和官方 confirmation/reference 的成功判定。",
+      "evidence": [
+        {
+          "chunkId": "vietnam_prearrival_review_and_handoff",
+          "text": "Before submission, compare every identity value with the passport, every visa value with the approved official document when one is required, and every trip value with the itinerary. Do not report success until the official portal returns its confirmation or reference."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-010",
+      "split": "heldout",
+      "query": "Visit Japan Web 需要预先收集哪些护照、航班、住宿和风险问题答案？",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "japan_vjw_fields_and_qr"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 覆盖 VJW 的身份、行程、住宿和逐项风险问题。",
+      "evidence": [
+        {
+          "chunkId": "japan_vjw_fields_and_qr",
+          "text": "填写前应从护照和行程材料收集姓名、出生日期、性别、国籍、护照号码和有效期、联系方式、最后出发地、抵达日期、入境机场或港口、航班号、访问目的、计划停留天数以及日本住宿名称、地址和电话。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-011",
+      "split": "heldout",
+      "query": "VJW 的 customs_declaration 是否应作为一个笼统问题，还是应保留逐项海关字段？",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [
+        "japan_vjw_form_fields_to_collect"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试 canonical key 与逐项海关问题的结构化边界。",
+      "evidence": [
+        {
+          "chunkId": "japan_vjw_form_fields_to_collect",
+          "text": "`customs_declaration` 和 `final_declaration` 只作为由逐项答案/确认汇总的 runner canonical key，不向用户新增一个笼统的海关问题。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-012",
+      "split": "heldout",
+      "query": "Should VIZA treat a VJW QR result as a Japan visa approval, and what should be checked before submission?",
+      "country": "japan",
+      "visaType": "JP_VISIT_JAPAN_WEB",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [
+        "japan_vjw_supporting_documents_and_review"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 同时测试 VJW 结构化申报、最终复核和 QR 与签证批准的区分。",
+      "evidence": [
+        {
+          "chunkId": "japan_vjw_supporting_documents_and_review",
+          "text": "最终提交前必须让用户复核申报答案，并区分 VJW QR 结果与日本签证批准结果。"
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-013",
+      "split": "heldout",
+      "query": "印尼 C1 签证有效期和可停留时间有什么区别？",
+      "country": "indonesia",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "idn_c1_limits_and_validity"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试签证有效期与 permitted stay 不同，以及 C1 的入境和活动限制；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "idn_c1_limits_and_validity",
+          "text": "For C1 tourist visit visa, visa validity is 90 days from issuance; if not used within that period, the foreign national must apply for a new visa to enter Indonesia. Visa validity is different from permitted stay length, so users must check the visa for the actual stay permit period."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-014",
+      "split": "heldout",
+      "query": "For an Indonesia C1 stay, when can an extension be filed and what is the general maximum total stay?",
+      "country": "indonesia",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "idn_itk_extension_rules"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 结合 C 类签证的首次停留、60 天递增延期和 180 天总上限；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "idn_itk_extension_rules",
+          "text": "For single-entry visitor visas in index C, the first stay is generally 60 days and can be extended in 60-day increments up to a maximum total stay of 180 days, with exceptions for some visa indexes."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-015",
+      "split": "heldout",
+      "query": "What supporting evidence can a U.S. visitor visa applicant use to show trip purpose, funds, and intent to return?",
+      "country": "us",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "us_b1_b2_supporting_documents"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 询问目的、离境意图、费用承担和邀请函是否必需；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_supporting_documents",
+          "text": "Examples include evidence of the purpose of the trip, intent to depart the United States after the trip, and ability to pay all trip costs. Evidence of employment and family ties may help show trip purpose and intent to return."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-016",
+      "split": "heldout",
+      "query": "美国访问签证面谈通常涉及指纹吗，面谈后还可能发生什么？",
+      "country": "us",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "us_b1_b2_interview_and_fingerprints"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合面谈、指纹和 administrative processing 的可能性；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_b1_b2_interview_and_fingerprints",
+          "text": "Interviews are generally required, subject to limited exceptions and interview-waiver procedures. Ink-free digital fingerprint scans are taken as part of the process, usually during the interview but depending on location."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-017",
+      "split": "heldout",
+      "query": "Do U.S. visa interview wait-time estimates include administrative processing or passport return time?",
+      "country": "us",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [
+        "us_wait_times_estimates"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 直接测试等待时间估算的边界和不保证可预约的说明；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "us_wait_times_estimates",
+          "text": "Wait time estimates do not guarantee appointment availability and do not include administrative processing or passport return time."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-018",
+      "split": "heldout",
+      "query": "What must a UK Standard Visitor show to be considered a genuine temporary visitor?",
+      "country": "uk",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "eligibility",
+      "relevantChunkIds": [
+        "uk_standard_visitor_genuine_visitor"
+      ],
+      "answerable": true,
+      "rationale": "[rewrite] 测试有效期、离境、资金和非长期居住要求；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_genuine_visitor",
+          "text": "They must be able to show they will leave the UK at the end of the visit, can support themselves and dependants during the trip or have third-party support, can pay for return or onward travel or have funding for it, and will not make the UK their main home through frequent or successive visits."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-019",
+      "split": "heldout",
+      "query": "英国访问签证的护照有效期和非英文/威尔士文材料有什么要求？",
+      "country": "uk",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "uk_standard_visitor_documents_passport"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 组合旅行证件有效性和认证翻译要求；运行时保留 country+documentTypes，省略会被 normalize 的 visaType。",
+      "evidence": [
+        {
+          "chunkId": "uk_standard_visitor_documents_passport",
+          "text": "The travel document should establish identity and nationality and be valid for the whole stay. Some passport holders may need alternative evidence of identity and nationality."
+        },
+        {
+          "chunkId": "uk_standard_visitor_documents_passport",
+          "text": "Non-English or non-Welsh documents need certified translations."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-020",
+      "split": "heldout",
+      "query": "Is a Canadian eTA an option inside the CA_TRV application, or should the travel document be routed separately?",
+      "country": "canada",
+      "visaType": "CA_TRV",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "route_recommendation",
+      "relevantChunkIds": [
+        "can_trv_eta_routing"
+      ],
+      "answerable": true,
+      "rationale": "[exact] 测试 eTA 与 CA_TRV 的产品边界以及路由所需的资格因素。",
+      "evidence": [
+        {
+          "chunkId": "can_trv_eta_routing",
+          "text": "A Canadian electronic travel authorization (eTA) is a separate authorization with its own eligibility and application flow; it is not a CA_TRV option."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-021",
+      "split": "heldout",
+      "query": "在 MY_TOURIST_E_VISA 的表单过滤下，能否回答马来西亚 MDAC 要填写哪些字段？",
+      "country": "malaysia",
+      "visaType": "MY_TOURIST_E_VISA",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "form_intake",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] MDAC 字段属于 MY_MDAC_ARRIVAL_CARD；MY_TOURIST_E_VISA form_requirements 只说明不要复制 MDAC 字段，过滤后无 MDAC 字段答案。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-022",
+      "split": "heldout",
+      "query": "India e-Business Visa 的具体表单字段和费用是什么？",
+      "country": "india",
+      "visaType": "IN_E_VISA",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] IN_E_VISA seed 明确排除 e-Business；现有产品只覆盖 e-Tourist，未提供 e-Business 字段或费用答案。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-023",
+      "split": "heldout",
+      "query": "韩国 e-Arrival Card 的免费申报窗口是抵达前几天？",
+      "country": "south_korea",
+      "visaType": "KR_C39_SHORT_TERM_VISIT",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] e-Arrival Card 的时间和费用位于 KR_E_ARRIVAL_CARD form_requirements；当前过滤为 KR_C39_SHORT_TERM_VISIT requirements，过滤后没有该申报窗口答案。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-024",
+      "split": "heldout",
+      "query": "When comparing Singapore SGAC and Malaysia MDAC preparation, what evidence is relevant and how should the two products be tracked?",
+      "documentTypes": [
+        "form_requirements"
+      ],
+      "intent": "requirements",
+      "relevantChunkIds": [
+        "singapore_supporting_documents_and_review",
+        "malaysia_supporting_documents_and_review"
+      ],
+      "answerable": true,
+      "rationale": "[multi-intent] 无 country filter 的多国比较；需要同时检索两个 form_requirements parent，并理解两者都是独立 arrival declaration 而不是签证。",
+      "evidence": [
+        {
+          "chunkId": "singapore_supporting_documents_and_review",
+          "text": "Workflow guardrails: SG Arrival Card is not a visa, does not replace any visa requirement for visa-required travellers, and is normally submitted within the ICA timing window before arrival. VIZA should keep SGAC separate from Singapore entry visa/Form 14A and surface the ICA submission result when the backend runner succeeds."
+        },
+        {
+          "chunkId": "malaysia_supporting_documents_and_review",
+          "text": "MDAC preparation evidence should focus on passport details, travel itinerary, transport number, accommodation or Malaysia address, and contact details. Workflow guardrails: VIZA should distinguish visa-exemption, eVISA and MDAC."
+        }
+      ]
+    },
+    {
+      "id": "RAG-HELDOUT-025",
+      "split": "heldout",
+      "query": "法国 TLS 预约明天还有几个可选时段？",
+      "country": "france",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] checked-in France seeds describe routing and general timing but contain no live TLS appointment inventory or tomorrow's available slots。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-026",
+      "split": "heldout",
+      "query": "加拿大 CA_TRV 最近一周的实际批准率是多少？",
+      "country": "canada",
+      "visaType": "CA_TRV",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "source_check",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] CA_TRV seed provides product rules and checklists but no recent approval-rate series or live statistics。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-027",
+      "split": "heldout",
+      "query": "英国 Standard Visitor 明天能否加急出签，具体要多少钱？",
+      "country": "uk",
+      "documentTypes": [
+        "process"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] UK seed mentions that faster services may depend on location, but does not provide tomorrow's availability or a current expedited price for this applicant。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-028",
+      "split": "heldout",
+      "query": "越南电子签证官方门户现在有多少份申请在排队？",
+      "country": "vietnam",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] Vietnam seeds contain portal and validity guidance but no live queue depth or current application-count metric。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-029",
+      "split": "heldout",
+      "query": "请帮我计算下周从北京到东京的最低机票价格。",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] 这是实时航班价格问题，当前 visa knowledge seeds 没有机票报价或旅行搜索数据。",
+      "evidence": []
+    },
+    {
+      "id": "RAG-HELDOUT-030",
+      "split": "heldout",
+      "query": "法国短期旅游签证需要提交的具体银行余额下限是多少？",
+      "country": "france",
+      "documentTypes": [
+        "requirements"
+      ],
+      "intent": "fees_timing",
+      "relevantChunkIds": [],
+      "answerable": false,
+      "rationale": "[negative] France Schengen seed 要求 evidence of financial means，但没有申请人适用的具体银行余额下限；不能从泛化材料要求推导数值。",
+      "evidence": []
+    }
+  ]
+}

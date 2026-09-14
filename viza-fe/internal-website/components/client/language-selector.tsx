@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { AnimatedDropdown } from "@/components/ui/animated-dropdown";
@@ -37,21 +36,26 @@ export function LanguageSelector({ size = "desktop" }: LanguageSelectorProps) {
     size === "mobile"
       ? "w-9 h-9 flex items-center justify-center cursor-pointer"
       : "p-2.5 cursor-pointer rounded-md";
+  const selectLanguageLabel = t("selectLanguage");
 
-  const triggerButton = (
-    <motion.button
-      className={buttonClass}
-      type="button"
-      aria-label={t("selectLanguage")}
-      whileHover={{ scale: 1.1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    >
-      <Globe
-        className={iconSize}
-        style={{ color: "var(--nav-stroke-color)" }}
-        weight="regular"
-      />
-    </motion.button>
+  // Keep the asChild trigger element stable while Popover measures its anchor.
+  // Recreating a motion button on every parent render makes Radix compose a new
+  // ref chain; its anchor state update can then re-render that chain forever.
+  const triggerButton = useMemo(
+    () => (
+      <button
+        className={buttonClass + " transition-transform duration-200 ease-out hover:scale-110"}
+        type="button"
+        aria-label={selectLanguageLabel}
+      >
+        <Globe
+          className={iconSize}
+          style={{ color: "var(--nav-stroke-color)" }}
+          weight="regular"
+        />
+      </button>
+    ),
+    [buttonClass, iconSize, selectLanguageLabel],
   );
 
   if (!isMounted) {

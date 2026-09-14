@@ -32,6 +32,24 @@ function now(): string {
   return new Date().toISOString();
 }
 
+const OFFICIAL_ACCOUNT_PASSWORD_ALLOWED_CHARACTERS = new Set(
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*-_+=[]{}|\\:',?/".split(""),
+);
+
+function officialAccountPasswordShape(password: string) {
+  return {
+    length: password.length,
+    usesAllowedCharacters: [...password].every((character) =>
+      OFFICIAL_ACCOUNT_PASSWORD_ALLOWED_CHARACTERS.has(character)),
+    hasLowercase: /[a-z]/u.test(password),
+    hasUppercase: /[A-Z]/u.test(password),
+    hasDigit: /[0-9]/u.test(password),
+    hasSymbol: [...password].some((character) =>
+      OFFICIAL_ACCOUNT_PASSWORD_ALLOWED_CHARACTERS.has(character)
+      && !/[A-Za-z0-9]/u.test(character)),
+  };
+}
+
 function baseApplication(
   overrides: Partial<USAppointmentApplication> = {},
 ): USAppointmentApplication {
@@ -632,7 +650,7 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(job.applyingCountryCode).toBe("CN");
     expect(job.applyingPostCity).toBe("Beijing");
     expect(job.schedulingProvider).toBe("usvisascheduling");
-    expect(job.status).toBe("appointment_consent_received");
+    expect(job.status).toBe("appointment_account_required");
   });
 
   it("auto-provisions and links an appointment account for China assisted-live jobs", async () => {
@@ -646,6 +664,50 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
       event.eventType === "appointment_account_auto_provisioned")).toBe(true);
   });
 
+  it("generates a registration password accepted by the official policy", async () => {
+    const { orchestrator } = await createChinaAssistedLiveJob();
+    const revealed = await orchestrator.revealAccount(APPLICATION_ID, USER_ID);
+
+    expect(officialAccountPasswordShape(revealed.accountPassword)).toEqual({
+      length: 16,
+      usesAllowedCharacters: true,
+      hasLowercase: true,
+      hasUppercase: true,
+      hasDigit: true,
+      hasSymbol: true,
+    });
+  });
+
+  it.each([
+    { accountStatus: "created", emailVerified: false },
+    { accountStatus: "active", emailVerified: false },
+    { accountStatus: "account_creation_started", emailVerified: true },
+  ])("routes an existing $accountStatus account to login without replacing credentials", async ({
+    accountStatus,
+    emailVerified,
+  }) => {
+    const repository = new InMemoryUSAppointmentRepository();
+    const existingAccount = await repository.insertAccount({
+      userId: USER_ID,
+      applicationId: APPLICATION_ID,
+      portal: "usvisascheduling",
+      accountEmail: "existing-account@haggstorm.com",
+      encryptedAccountPassword: "existing-encrypted-password",
+      accountStatus,
+      emailVerified,
+    });
+    const { orchestrator, job } = await createChinaAssistedLiveJob(repository);
+
+    expect(job.appointmentAccountId).toBe(existingAccount.id);
+    expect(job.status).toBe("appointment_login_required");
+
+    const status = await orchestrator.runJob(job.id);
+    expect(status.job?.status).toBe("appointment_login_required");
+    expect(repository.accounts).toHaveLength(1);
+    expect(repository.accounts[0]?.id).toBe(existingAccount.id);
+    expect(repository.accounts[0]?.encryptedAccountPassword).toBe("existing-encrypted-password");
+  });
+
   it("reveals VIZA-created appointment account credentials after explicit user action", async () => {
     const repository = new InMemoryUSAppointmentRepository();
     const { orchestrator } = createUSAppointmentServices(repository);
@@ -653,8 +715,14 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
 
     expect(repository.accounts).toHaveLength(1);
     expect(revealed.accountEmail).toBe("appl-existing@haggstorm.com");
-    expect(revealed.accountPassword).toMatch(/^Viza9!/);
-    expect(revealed.accountPassword).toHaveLength(14);
+    expect(officialAccountPasswordShape(revealed.accountPassword)).toEqual({
+      length: 16,
+      usesAllowedCharacters: true,
+      hasLowercase: true,
+      hasUppercase: true,
+      hasDigit: true,
+      hasSymbol: true,
+    });
     expect(revealed.securityQuestions).toHaveLength(3);
     expect(revealed.securityQuestions.map((item) => item.answer)).toEqual([
       "VizaAnswer1",
@@ -695,13 +763,14 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(repository.accounts).toHaveLength(1);
     expect(repository.accounts[0]?.accountEmail).toBe("appl-created@haggstorm.com");
     expect(status.job?.appointmentAccountId).toBe(repository.accounts[0]?.id);
-    expect(status.job?.status).toBe("appointment_login_required");
+    expect(status.job?.status).toBe("appointment_account_required");
   });
 
-  it("queues China assisted-live jobs for the submission runner without a manual login checkpoint", async () => {
+  it("queues China assisted-live registration for the submission runner without a manual login checkpoint", async () => {
     const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    const generatedPassword = repository.accounts[0]?.encryptedAccountPassword;
     const status = await orchestrator.runJob(job.id);
-    expect(status.job?.status).toBe("appointment_login_required");
+    expect(status.job?.status).toBe("appointment_account_required");
     expect(status.job?.requiresUserAction).toBe(false);
     expect(status.job?.currentManualAction).toBeNull();
     expect(status.pendingManualAction).toBeNull();
@@ -710,11 +779,19 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
       runner_service: "submission-service",
       provider: "usvisascheduling",
       applying_country_code: "CN",
+      account_route: "account_creation",
+      account_status: "account_creation_started",
+      account_email_verified: false,
       supported_checkpoint_handling: true,
     });
     expect(
       JSON.stringify(repository.auditEvents.at(-1)?.metadataRedactedJson),
     ).not.toContain("no_final_confirmation_click");
+
+    const resumed = await orchestrator.resumeJob(job.id);
+    expect(resumed.job?.status).toBe("appointment_account_required");
+    expect(repository.accounts).toHaveLength(1);
+    expect(repository.accounts[0]?.encryptedAccountPassword).toBe(generatedPassword);
   });
 
   it("creates the dry-run email verification checkpoint on first run", async () => {

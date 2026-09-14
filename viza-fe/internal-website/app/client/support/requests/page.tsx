@@ -50,7 +50,7 @@ export default function SupportRequestsPage() {
   const locale = useLocale();
   const [tickets, setTickets] = useState<SupportTicketRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const dateFormatter = useMemo(
     () =>
@@ -78,10 +78,13 @@ export default function SupportRequestsPage() {
       .then((result) => {
         if (!mounted) return;
         if (result.error) {
-          setError(t("requestsPage.error"));
+          setLoadFailed(true);
           return;
         }
         setTickets(result.rows ?? []);
+      })
+      .catch(() => {
+        if (mounted) setLoadFailed(true);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -90,7 +93,7 @@ export default function SupportRequestsPage() {
     return () => {
       mounted = false;
     };
-  }, [t]);
+  }, []);
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 pb-16">
@@ -143,14 +146,14 @@ export default function SupportRequestsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
             <p className="text-sm">{t("requests.loading")}</p>
           </div>
-        ) : error ? (
+        ) : loadFailed ? (
           <Empty className="min-h-72 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <Inbox className="h-5 w-5" />
               </EmptyMedia>
               <EmptyTitle>{t("requestsPage.errorTitle")}</EmptyTitle>
-              <EmptyDescription>{error}</EmptyDescription>
+              <EmptyDescription>{t("requestsPage.error")}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : tickets.length === 0 ? (

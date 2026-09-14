@@ -19,6 +19,7 @@ export {
 
 export {
   detectPage,
+  isOfficialDs160ConfirmationPage,
   assertPage,
   waitForPage,
   type CeacPageId,
@@ -178,6 +179,18 @@ export {
   type FinalSubmitOptions,
   type FinalSubmitResult,
 } from "./final-submit";
+
+export {
+  createDs160FinalSubmissionGuard,
+  hashSensitive,
+  type Ds160FinalSubmissionGuard,
+  type FinalSubmissionEvidence,
+  type FinalSubmissionGuardDecision,
+  type FinalSubmissionGuardInspection,
+  type FinalSubmissionRpcClient,
+  type FinalSubmissionRpcResponse,
+  type CreateDs160FinalSubmissionGuardOptions,
+} from "./final-submission-guard";
 
 export {
   fillRetrieveApplicationForm,

@@ -1,7 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Page } from "@playwright/test";
+import { chromium, type Page } from "@playwright/test";
 import { fillRetrieveApplicationForm } from "../resume-application";
+
+test("submits the observed ApplicationRecovery1 ID step before filling security details", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <section id="id-step">
+        <input id="tbxApplicationID">
+        <input type="button" id="ApplicationRecovery1_btnRetrieve" value="Retrieve Application"
+          onclick="if(document.querySelector('#tbxApplicationID').value) { document.querySelector('#id-step').hidden = true; document.querySelector('#security-step').hidden = false; } else { document.body.dataset.emptyAttempt = 'yes'; }">
+      </section>
+      <section id="security-step" hidden>
+        <input id="txbSname"><input id="txbYear"><input id="txbAnswer1">
+        <input type="button" name="ApplicationRecovery1$Button1" value="Retrieve Application"
+          onclick="document.body.dataset.retrieved = 'yes'">
+      </section>
+    `);
+    await fillRetrieveApplicationForm(page, {
+      applicationId: "AA00TEST1234", surnameFirstFive: "SMITH", yearOfBirth: "1990", securityAnswer: "provided-answer",
+    });
+    assert.equal(await page.locator("body").getAttribute("data-empty-attempt"), null);
+    assert.equal(await page.locator("body").getAttribute("data-retrieved"), "yes");
+    assert.equal(await page.locator("#txbAnswer1").inputValue(), "provided-answer");
+  } finally {
+    await browser.close();
+  }
+});
 
 test("fills the live CEAC ApplicationRecovery1 retrieve controls", async () => {
   const values = new Map<string, string>();

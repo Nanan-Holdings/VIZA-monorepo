@@ -130,6 +130,20 @@ generic PDF, URL, or FAQ ingestion pipeline.
 
 ## Rules
 
+Retrieval parameters and splitting candidates are evaluated in
+[the reproducible RAG study](../../viza-be/agent-backend/evals/README.md).
+Country ingestion defaults to `seed-semantic`. `--chunking` accepts the tested
+400/800/1600 Unicode-character profiles with zero or 20% overlap, for example:
+
+```powershell
+npm run ingest:country-visa-rag -- --country japan --dry-run --chunking chars-400-overlap-0
+```
+
+The dry run prints the projected chunk count without provider calls or writes.
+Actual splitting needs a new staged release and fresh embeddings; changing only
+retrieval parameters does not repartition existing database rows. A higher dev
+score does not authorize promoting a failed heldout candidate.
+
 - One country per file.
 - Every document in a file must have `country` equal to the file's `country`.
 - Chunk IDs must be unique inside each country file.

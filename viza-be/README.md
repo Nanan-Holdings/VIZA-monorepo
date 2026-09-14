@@ -278,8 +278,10 @@ backend registries/seeds where applicable.
 ## Reliability, authorization and evidence boundaries
 
 - RAG is OpenAI `text-embedding-3-small` plus pgvector `vector(1536)`, cosine
-  retrieval, default top-k 5/max 12, runtime threshold 0.03, and active-release
-  filtering. REST fallback is not hybrid search or reranking.
+  retrieval and active-release filtering. Current parameter decisions and
+  rejected experiments are in the [retrieval study](agent-backend/evals/README.md).
+  Successful vector queries with no qualifying matches return an empty result;
+  unordered REST fallback is reserved for provider/vector-request failures.
 - `src/socket/chat-concurrency.ts` and `src/utils/provider-capacity.ts` bound
   process-local work. Defaults are chat concurrency 16/queue 64 and non-chat
   concurrency 8/queue 32. They are not distributed provider quotas.

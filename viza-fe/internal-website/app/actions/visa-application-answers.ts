@@ -1528,14 +1528,18 @@ export async function ensureDraftApplication(
     const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
 
-    const { data: activePackage } = await adminClient
-      .from("user_packages")
-      .select("visa_package_id, visa_packages(id, country, visa_type)")
-      .eq("auth_user_id", session.authUserId ?? session.userId)
-      .eq("status", "active")
-      .order("assigned_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const activePackage = options.preferExplicit
+      ? null
+      : (
+          await adminClient
+            .from("user_packages")
+            .select("visa_package_id, visa_packages(id, country, visa_type)")
+            .eq("auth_user_id", session.authUserId ?? session.userId)
+            .eq("status", "active")
+            .order("assigned_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ).data;
 
     const pkg = Array.isArray(activePackage?.visa_packages)
       ? activePackage?.visa_packages[0]

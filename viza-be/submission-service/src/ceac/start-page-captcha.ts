@@ -27,9 +27,6 @@ const CAPTCHA_IMAGE_SELECTOR = 'img[id*="Captcha"]';
 const LOCATION_SELECT_SELECTOR =
   'select[id*="ucLocation_ddlLocation"], select[name*="ucLocation$ddlLocation"]';
 
-/** Default CEAC post/location code used for live runtime validation. */
-const DEFAULT_LOCATION_CODE = process.env.CEAC_LOCATION_CODE?.trim() || "NSS";
-
 /** The text input where the user types the CAPTCHA answer. */
 const CAPTCHA_INPUT_SELECTOR =
   'input[id*="IdentifyCaptcha1_txtCodeTextBox"], input[id*="CaptchaCodeTextBox"], input[id*="captcha" i][type="text"]';
@@ -64,6 +61,86 @@ export type StartPageCaptchaOutcome =
   | { status: "no_captcha" }
   | { status: "failed"; reason: string };
 
+export interface StartPageCaptchaOptions {
+  /** Applicant-selected CEAC post. Omit only to preserve the page selection. */
+  startLocationCode?: string | null;
+  /** Recovery must use Retrieve and must never create a new application. */
+  startAction?: "start" | "retrieve";
+}
+
+export async function submitStartPageAction(
+  page: Page,
+  action: "start" | "retrieve",
+): Promise<void> {
+  const selector = action === "retrieve"
+    ? 'a[id*="lnkRetrieve"], a[id*="lnkContinueApp"], input[id*="btnRetrieve"]'
+    : 'a[id*="lnkNew"], input[type="submit"][value*="Start"]';
+  const button = page.locator(selector).first();
+  await button.waitFor({ state: "visible", timeout: 10_000 });
+  await button.click({ timeout: 10_000 });
+}
+
+type StartPageLocationResolution =
+  | { ok: true; locationCode: string }
+  | { ok: false; reason: string };
+
+async function resolveStartPageLocationCode(
+  page: Page,
+  options: StartPageCaptchaOptions,
+): Promise<StartPageLocationResolution> {
+  const locationSelect = page.locator(LOCATION_SELECT_SELECTOR).first();
+  const explicitLocation = options.startLocationCode !== undefined && options.startLocationCode !== null;
+
+  try {
+    await locationSelect.waitFor({ state: "attached", timeout: 10_000 });
+  } catch {
+    return {
+      ok: false,
+      reason: "CEAC start page loaded but no location selector was found",
+    };
+  }
+
+  let rawLocation = explicitLocation ? options.startLocationCode : undefined;
+  if (!explicitLocation) {
+    try {
+      rawLocation = await locationSelect.inputValue();
+    } catch {
+      return {
+        ok: false,
+        reason: "CEAC start page location selection could not be read",
+      };
+    }
+  }
+
+  const locationCode = rawLocation?.trim().toUpperCase() ?? "";
+  if (!locationCode) {
+    return {
+      ok: false,
+      reason: "CEAC start page location selection is blank; an applicant-selected consular post is required",
+    };
+  }
+
+  try {
+    const optionExists = await locationSelect.evaluate((select, target) => {
+      if (!(select instanceof HTMLSelectElement)) return false;
+      return Array.from(select.options).some((option) => option.value.trim().toUpperCase() === target);
+    }, locationCode);
+    if (!optionExists) {
+      return {
+        ok: false,
+        reason: `CEAC start page location ${locationCode} is not a legal option on the page`,
+      };
+    }
+  } catch {
+    return {
+      ok: false,
+      reason: "CEAC start page location selector could not be validated",
+    };
+  }
+
+  return { ok: true, locationCode };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -84,8 +161,9 @@ export type StartPageCaptchaOutcome =
  */
 export async function solveStartPageCaptcha(
   page: Page,
+  options: StartPageCaptchaOptions = {},
 ): Promise<StartPageCaptchaOutcome> {
-  // 1. Select the CEAC post/location FIRST.
+  // 1. Resolve the CEAC post/location FIRST.
   //
   //    The CEAC location dropdown has AutoPostBack=true. Selecting a value
   //    triggers a server postback that rebuilds the page — including
@@ -95,13 +173,17 @@ export async function solveStartPageCaptcha(
   //    post-postback form, which CEAC rejects and then redirects to
   //    SessionTimedOut.aspx.
   //
-  //    Skip the selectOption when the dropdown already matches our target
-  //    to avoid an unnecessary postback (CEAC preselects a location based
-  //    on the request IP).
-  //
+  //    An explicit applicant location wins. Without one, preserve the
+  //    existing legal page selection and never synthesize a default post.
   //    Wait for the element to be attached rather than failing immediately
   //    on count==0 — after a wrong-CAPTCHA re-render, the DOM is mid-swap
   //    and a zero count reflects timing rather than actual absence.
+  const locationResolution = await resolveStartPageLocationCode(page, options);
+  if (!locationResolution.ok) {
+    return { status: "failed", reason: locationResolution.reason };
+  }
+  const locationCode = locationResolution.locationCode;
+
   const locationSelect = page.locator(LOCATION_SELECT_SELECTOR).first();
   try {
     await locationSelect.waitFor({ state: "attached", timeout: 10_000 });
@@ -112,10 +194,9 @@ export async function solveStartPageCaptcha(
     };
   }
 
-  const locationCode = DEFAULT_LOCATION_CODE;
   let currentValue = "";
   try {
-    currentValue = await locationSelect.inputValue();
+    currentValue = (await locationSelect.inputValue()).trim().toUpperCase();
   } catch {
     // If we can't read the current value, fall through and try to select.
   }
@@ -316,27 +397,9 @@ export async function solveStartPageCaptcha(
   }
   await captchaInput.fill(solve.text.trim());
 
-  // 6. Submit — current CEAC uses START AN APPLICATION (lnkNew).
-  //    `force: true` bypasses Playwright's actionability check (the
-  //    modal backdrop can still linger briefly post-dismissal and
-  //    intercept pointer events). The link has an MSAJAX-wired
-  //    __doPostBack handler, which fires regardless.
-  const submitSelector =
-    'a[id*="lnkNew"], a[id*="lnkContinue"], input[id*="btnContinue"], input[type="submit"][value*="Continue"], input[type="submit"][value*="Start"]';
-  const submitBtn = page.locator(submitSelector).first();
-  if ((await submitBtn.count()) > 0) {
-    try {
-      await submitBtn.click({ force: true });
-    } catch {
-      await submitBtn.evaluate((el) => {
-        const node = el as { click?: () => void };
-        node.click?.();
-      });
-    }
-  } else {
-    // Fallback: press Enter on the input
-    await captchaInput.press("Enter");
-  }
+  // 6. Recovery explicitly selects Retrieve. Never fall back to the Start
+  // link or Enter: that can create a fresh draft during a recovery attempt.
+  await submitStartPageAction(page, options.startAction ?? "start");
 
   // 7. Wait for the POST-START async postback to settle AND for the URL
   //    to transition off Default.aspx (or for a new CAPTCHA to render if
@@ -398,6 +461,8 @@ export async function solveStartPageCaptcha(
 export interface CaptchaSolveWithTelemetry {
   solve: CaptchaSolveResult;
   telemetry: CaptchaSolveTelemetry[];
+  /** Location/post frozen for every attempt, including page reloads. */
+  locationCode: string;
 }
 
 /**
@@ -411,12 +476,31 @@ export interface CaptchaSolveWithTelemetry {
 export async function solveStartPageCaptchaWithRetry(
   page: Page,
   maxAttempts = 3,
+  options: StartPageCaptchaOptions = {},
 ): Promise<CaptchaSolveWithTelemetry> {
   const attempts: StartPageCaptchaOutcome[] = [];
   const telemetry: CaptchaSolveTelemetry[] = [];
 
+  // Resolve the post once before the first CAPTCHA attempt. CEAC reloads the
+  // start page after a rejected answer and may reselect its IP-based default;
+  // every subsequent attempt must keep using this same applicant/page post.
+  const initialLocation = await resolveStartPageLocationCode(page, options);
+  if (!initialLocation.ok) {
+    throw new SessionBootstrapError(
+      `CAPTCHA solve cannot start: ${initialLocation.reason}`,
+      {
+        url: page.url(),
+        details: { locationResolution: initialLocation.reason },
+      },
+    );
+  }
+  const frozenLocationCode = initialLocation.locationCode;
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const outcome = await solveStartPageCaptcha(page);
+    const outcome = await solveStartPageCaptcha(page, {
+      startLocationCode: frozenLocationCode,
+      startAction: options.startAction,
+    });
     attempts.push(outcome);
 
     switch (outcome.status) {
@@ -427,7 +511,7 @@ export async function solveStartPageCaptchaWithRetry(
           attempt,
           outcome: "solved",
         });
-        return { solve: outcome.solve, telemetry };
+        return { solve: outcome.solve, telemetry, locationCode: frozenLocationCode };
 
       case "no_captcha": {
         // A true "no captcha" state means the session is already past the
@@ -455,7 +539,11 @@ export async function solveStartPageCaptchaWithRetry(
           }
           continue;
         }
-        return { solve: { text: "", solveId: "", durationMs: 0 }, telemetry };
+        return {
+          solve: { text: "", solveId: "", durationMs: 0 },
+          telemetry,
+          locationCode: frozenLocationCode,
+        };
       }
 
       case "wrong_answer":

@@ -1430,6 +1430,92 @@ hydration 后 `page.content()` 的约 175 KB DOM，不是 SSR 响应大小。
 设计依据：[React useEffect](https://react.dev/reference/react/useEffect) 和
 [Effect 同步与清理](https://react.dev/learn/synchronizing-with-effects)。
 
+## 2026-09-14：表单保存重叠与工单列表重复读取
+
+当前线上基线为 `dpl_GLB2zq8xhrDjArdfCMh591XfyVMw`，对应提交
+`ef9b6618b45de3f54ccc6bd822b53de4e2c6b557`。该提交已纳入此前 Home GET、
+取消传播和收件箱授权语言切换修复；本轮不重复发布旧候选归档。
+
+继续审计发现，动态表单的 30 秒 autosave 使用队列，但步骤导航保存直接调用
+`saveDynamicAnswers`，可能与正在执行的 autosave 重叠。完成动态步骤也有同类
+旁路；最终提交则有必须再次持久化完整快照的独立要求。现将页面内这些答案保存
+共用一个队列，在申请 ID 查询前就登记任务，防止身份查询耗时改变保存先后顺序。
+仅合并同一上下文内相邻、尚未完成的相同 patch，不缓存成功历史；申请及路由
+上下文均参与去重判断。最终提交等候队列后，仍强制完整快照再次落库。
+即时侧栏滚动、提交检查、服务端认证与归属校验保持原行为。
+
+初版历史签名去重在复核中被否决：A→B→A 可能误跳过最后的 A；另一个私有队列
+也会让原提交 barrier 漏掉尚在等候的任务。最终实现改为上述单队列和在途合并。
+helper 回归覆盖已经入队的 A→B→A、失败重试、scope 隔离、不可变快照、慢申请
+ID 查询、drain 期间新增保存和提交强制写入。它不证明所有表单输入/路由切换的
+端到端一致性，也没有引入跨浏览器、跨用户或跨实例的写入协调。
+
+客服工单历史页原来以翻译函数 `t` 为读取 effect 依赖，每次切换语言都重新调用
+`listMyTickets()`，该 action 又执行认证、profile 读取和完整工单列表查询。
+现改为每次页面挂载读取一次，保存语义失败状态，render 时翻译；同时处理 action
+抛错，避免未处理拒绝。原服务端认证、归属过滤、Storage 回退和完整列表未改。
+组件的 4 项测试与既有 action 的 11 项测试通过；测试使用真实 NextIntl provider，
+覆盖在途/完成后语言切换、返回错误/抛出错误、卸载晚到失败和新页面重新加载。
+第一次测试 setup 返回 mock 函数，被 runner 当成 teardown 调用后触发拒绝，已修正
+setup 的返回值再重跑；该失败属于测试工具，不作为业务通过证据。
+
+真实页面组件的本地 Chrome fixture 在桌面 1440×900 与移动 390×844 各完成
+5 项检查：在途与完成后的语言切换、返回失败、抛错、卸载后晚到结果及重新挂载。
+连续 zh→en→zh→en 的同 fixture 对照，旧页面调用 `listMyTickets` 4 次，新页面
+调用 1 次。该计数是 mock action 调用，不是实际 SQL 或生产 HTTP 请求，也不能
+推算整站吞吐提升倍数；fixture 的外部请求数为 0，服务器与浏览器均已清理。
+证据保存在 `.dev-logs/website-optimization-20260914-save-queue/`。
+
+冻结发布内容的 35 项回归测试通过：队列 11、提交导航 5、答案 action 查询预算 4、
+工单页面 4、工单 action 11。完整 typegen、type-check 和 lint 通过，lint 为
+0 errors / 58 条现有 warnings。独立静态复核确认 long-form 中没有遗漏的直接
+`saveDynamicAnswers` 调用；完整登录后填写/提交流程仍未做浏览器端到端验收。
+发布从当前线上提交重建，核对 1,882 个基线文件与 Git 内容；最终上传 1,885 个
+文件，其中 1,878 个保持线上原内容，7 个为本轮明确覆盖，禁止路径命中为 0。
+其他并行任务对 submission-service 的未提交改动不在本次发布中。发布证据位于
+`.release/capacity-save-queue-20260914/`。
+
+2026-09-14 19:42:14 UTC 已通过 nananviza 组织账号将
+`dpl_4mgTexEejUBJw6faCuTZbo4ETkWH` 切换到主站，alias API 确认一致。
+生产构建与暂存 8 项 HTTP smoke 通过；上线后的真实浏览器中英文切换、保留
+邮箱输入、Home/Status/工单历史/申请表未登录跳转通过，pageErrors=0。
+这些生产检查没有提交登录或业务写入。
+
+随后继续审计 `ensureDraftApplication`，找到明确参数分支的无效读取：
+`preferExplicit: true` 时，国家、签证类型来自参数，package ID 强制为 null，
+但原实现仍查询一次 `user_packages`。该分支可以跳过这次 GET，同时保留 session、
+profile 与申请归属读取；未明确指定产品的分支仍需读取当前套餐。
+
+第二批已在隔离发布目录完成：37 项回归测试、完整 typegen/type-check/lint 通过，
+lint 仍为 0 errors / 58 warnings。新增的 2 项 action 回归分别验证明确参数只读
+profile 与所属申请、默认分支仍读取本人最新 active 套餐并按该套餐选择申请。
+该减少量来自实际 action 控制流与 mock 查询预算断言，未测量生产延迟收益。
+第二批上传仍为 1,885 文件，完整继承第一批上线内容，仅覆盖 action、测试和
+actions guide 这 3 个文件；1,882 个线上文件保持原字节，禁止路径命中为 0。
+证据位于 `.release/capacity-explicit-draft-20260914/`。
+
+2026-09-14 20:02:37 UTC 第二批已由 nananviza 组织账号上线为
+`dpl_CjbmPEQ3M7pw41cuDh2zEdmpSovj`，主站 alias 已核验。生产构建、暂存
+8 项 HTTP smoke、上线后的真实浏览器中英文登录页切换、保留邮箱输入及上述
+4 条受保护页面跳转均通过，pageErrors=0。浏览器检查结束后已关闭浏览器。
+两批均未新增付费资源或执行生产压测；未提交生产登录、申请或其他业务写入。
+
+本轮没有重跑 100 会话负载，且没有完成登录后的整张表单浏览器填写/提交验收。
+此前严格容量验收未通过的结论保留。已确认并实现的是重复 action 合并、语言
+切换减少列表读取，以及明确产品解析少一次套餐读取；不能将这些局部计数换算
+为已证明的整站并发人数或稳定延迟提升。
+
+收件箱审计没有发现轮询或 N+1。减少 3 个未使用标量字段不足以说明明显容量收益；
+正文当前直接显示，延迟读取需要改变交互，因此本轮未改。
+
+对旧 candidate-b2 的计时复核确认，Home 指标包括页面与额外聚合 GET，Status
+包括完整响应体读取；验证器 clone 与 drain 位于原有计时路径中。该口径是原验收
+定义的一部分，不能把移出聚合读取/验证后的较低数字宣称为同一验收通过。
+PG 观测峰值连接 17/100、active 3，无锁等待或死锁；Agent 三连接 probe pool
+等待与前端 Supabase HTTP 读取分属不同路径。保留严格门槛，不据此扩大数据库池。
+今后可做同构建、明确区分原始 transport 与完整业务读取的隔离诊断，但关闭
+observability 或改变验证临界路径后的结果必须单独标注，不能替代原五分钟验收。
+
 ## 官方依据
 
 - [Next.js 请求内去重与并行读取](https://nextjs.org/docs/app/getting-started/fetching-data)：
