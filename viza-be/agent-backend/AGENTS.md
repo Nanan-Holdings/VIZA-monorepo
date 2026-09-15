@@ -52,10 +52,12 @@ explicitly reintroduces another provider.
 - Website internal automation: `src/routes/internal-automation/**`,
   `src/services/internal-automation/**`, `src/db/schema.ts`, and
   `drizzle/0013_internal_automation_loop.sql`.
-- Official visa fee payment framework: `src/routes/official-fee.routes.ts`,
+- Official visa fee payment history: `src/routes/official-fee.routes.ts`,
   `src/services/official-fee/**`, `src/db/schema.ts`, and
-  `drizzle/0089_official_fee_payment.sql`. Dry-run/manual-review only unless
-  a future task explicitly enables provider-approved live payment.
+  `drizzle/0089_official_fee_payment.sql` remain for historical/read
+  compatibility. The routers are no longer mounted and `0194` disables
+  database payment execution; official portal fees must surface as an honest
+  needs-attention result.
 - U.S. B1/B2 appointment assistant: `src/routes/us-appointment.routes.ts`,
   `src/services/us-appointment/**`, `src/db/schema.ts`, and
   `drizzle/0091_us_appointment_assistant.sql`. China
@@ -76,7 +78,8 @@ explicitly reintroduces another provider.
   must remain in submission-service. Assisted-live booking calls the protected
   `/internal/france-tls/book-selected-slot` handoff and accepts success only
   when submission-service returns a verifiable official confirmation number;
-  dry-run confirmation IDs must never be used for assisted-live jobs. With
+  dry-run confirmation IDs must never be used for assisted-live jobs. Payment
+  session authorization is no longer exposed; with
   `FRANCE_TLS_ACCOUNT_PREP_ENABLED=true`, the assisted-live action first calls
   the token-protected `/internal/france-tls/register-account` endpoint to
   provision/activate/login the applicant alias and prefill the France-Visas
@@ -281,8 +284,8 @@ explicitly reintroduces another provider.
   create/link appointment account records and model checkpoint state, but
   actual login, official account registration, CAPTCHA/MFA/email handling,
   waiting-room/rate-limit handling, and slot capture belong in
-  `submission-service`. User slot selection and payment/final approval remain
-  explicit VIZA actions.
+  `submission-service`. User slot selection and final approval remain explicit
+  VIZA actions; payment actions are disabled.
 - Do not move frontend route logic here; Next.js route/UI code belongs in
   `viza-fe/internal-website`.
 

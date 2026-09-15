@@ -18,9 +18,7 @@ vi.mock("@/lib/application-api-auth", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/payments/submission-access", () => ({
-  APPLICATION_PAYMENT_REQUIRED: "application_payment_required",
   evaluateSubmissionAccess: mocks.evaluateSubmissionAccess,
-  submissionAccessHttpBody: vi.fn((decision) => decision),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mocks.createAdminClient,
@@ -125,7 +123,7 @@ describe("submission access route authentication", () => {
       applicationId,
       expect.objectContaining({
         payerAuthUserId: "auth-owner",
-        lockHighAccess: true,
+        returnTo: "/client/application?step=review",
       }),
     );
   });

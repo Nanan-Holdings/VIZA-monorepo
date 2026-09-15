@@ -329,9 +329,6 @@ interface PaymentRow {
 /** Server-only raw rows shared with the Home aggregate reader. */
 export type ClientStatusPaymentRow = PaymentRow;
 
-const PAYMENT_STATUS_SELECT =
-  "id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at";
-
 interface ConsentRow {
   application_id: string;
   accepted: boolean;
@@ -404,7 +401,6 @@ interface ReadRowsResult<T> {
 }
 
 const STEP_ORDER: StatusStepKey[] = [
-  "payment",
   "consent",
   "form",
   "documents",
@@ -413,11 +409,16 @@ const STEP_ORDER: StatusStepKey[] = [
   "result",
 ];
 
-const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "complete", "completed"]);
-const PENDING_PAYMENT_STATUSES = new Set(["pending", "processing", "requires_payment_method"]);
-const ATTENTION_PAYMENT_STATUSES = new Set(["failed", "canceled", "cancelled", "refunded"]);
 const READY_PACKET_STATUSES = new Set(["ready", "generated", "complete", "completed", "sent", "handed_off"]);
 const ATTENTION_STATUSES = new Set(["failed", "error", "needs_attention", "blocked", "rejected"]);
+const LEGACY_PAYMENT_APPLICATION_STATUSES = new Set([
+  "payment_pending",
+  "payment_required",
+  "awaiting_payment",
+  "needs_payment",
+  "unpaid",
+  "payment_failed",
+]);
 const EXTERNAL_ACTIVE_STATUSES = new Set(["submitted", "received", "in_review", "processing", "under_review"]);
 const APPROVED_RESULT_STATUSES = new Set(["approved", "approved_pending_document", "issued", "granted"]);
 const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
@@ -781,43 +782,6 @@ async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsRes
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function buildPaymentScopeFilter(
-  column: "applicant_id" | "application_id",
-  ids: readonly string[],
-): string | null {
-  const validIds = [...new Set(ids)].filter((id) => UUID_PATTERN.test(id));
-  if (validIds.length === 0) return null;
-  return `${column}.in.(${validIds.join(",")})`;
-}
-
-export function buildStatusPaymentScopeFilter(
-  profileIds: readonly string[],
-  applicationIds: readonly string[],
-): string | null {
-  return [
-    buildPaymentScopeFilter("applicant_id", profileIds),
-    buildPaymentScopeFilter("application_id", applicationIds),
-  ]
-    .filter((filter): filter is string => Boolean(filter))
-    .join(",") || null;
-}
-
-export async function loadStatusPayments(
-  adminClient: ReturnType<typeof createAdminClient>,
-  profileIds: readonly string[],
-  applicationIds: readonly string[],
-): Promise<ReadRowsResult<PaymentRow>> {
-  const scopeFilter = buildStatusPaymentScopeFilter(profileIds, applicationIds);
-  if (!scopeFilter) return { rows: [], failed: false };
-
-  return readRows<PaymentRow>(
-    adminClient
-      .from("payment_records")
-      .select(PAYMENT_STATUS_SELECT)
-      .or(scopeFilter),
-  );
-}
-
 function isTerminalApplication(application: ApplicationRow): boolean {
   const applicationStatus = normalizeStatus(application.status);
   const resultStatus = normalizeStatus(application.submission_result_status);
@@ -839,10 +803,6 @@ function getLiveStatusApplicationIds(applications: ApplicationRow[]): string[] {
     ...active.slice(0, MAX_LIVE_STATUS_APPLICATIONS - MAX_RECENT_LIVE_STATUS_APPLICATIONS),
     ...recent.slice(0, MAX_RECENT_LIVE_STATUS_APPLICATIONS),
   ].map((application) => application.id))].slice(0, MAX_LIVE_STATUS_APPLICATIONS);
-}
-
-function getLatestPayment(rows: PaymentRow[]): PaymentRow | null {
-  return sortByNewest(rows, (row) => row.updated_at ?? row.created_at)[0] ?? null;
 }
 
 function getLatestPacket(rows: PacketRow[]): PacketRow | null {
@@ -908,26 +868,11 @@ function buildPackageBase(country: string, visaType: string) {
   };
 }
 
-function paymentIsComplete(payment: PaymentRow | null): boolean {
-  return PAID_PAYMENT_STATUSES.has(normalizeStatus(payment?.status));
-}
-
-function paymentNeedsAttention(payment: PaymentRow | null): boolean {
-  return ATTENTION_PAYMENT_STATUSES.has(normalizeStatus(payment?.status));
-}
-
-function getPaymentState(payment: PaymentRow | null): StatusStepState {
-  if (paymentIsComplete(payment)) return "complete";
-  if (paymentNeedsAttention(payment)) return "attention";
-  if (PENDING_PAYMENT_STATUSES.has(normalizeStatus(payment?.status))) return "current";
-  return "blocked";
-}
-
-function getConsentState(consents: ConsentRow[], signatures: SignatureRow[], paymentComplete: boolean): StatusStepState {
+function getConsentState(consents: ConsentRow[], signatures: SignatureRow[]): StatusStepState {
   const latestConsent = sortByNewest(consents, (row) => row.created_at)[0];
   if (latestConsent?.accepted || signatures.length > 0) return "complete";
   if (latestConsent && !latestConsent.accepted) return "attention";
-  return paymentComplete ? "current" : "upcoming";
+  return "current";
 }
 
 function getFormState(application: ApplicationRow | null, answerCount: number, consentComplete: boolean): StatusStepState {
@@ -1031,13 +976,13 @@ function getOverallState(steps: StatusStep[], application: ApplicationRow | null
     REJECTED_RESULT_STATUSES.has(resultStatus) ||
     REJECTED_RESULT_STATUSES.has(submissionResultStatus)
   ) return "rejected";
+  if (LEGACY_PAYMENT_APPLICATION_STATUSES.has(rawStatus)) return "needs_attention";
   if (application && (submissionResultIsSubmitted(application) || SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus))) return "submitted";
   if (!application) return "not_started";
   if (steps.some((step) => step.state === "attention")) return "needs_attention";
 
   const firstOpenStep = steps.find((step) => step.state !== "complete");
   if (!firstOpenStep) return "submitted";
-  if (firstOpenStep.key === "payment") return "needs_payment";
   if (firstOpenStep.key === "consent") return "needs_consent";
   if (firstOpenStep.key === "documents") return "needs_documents";
   if (firstOpenStep.key === "packet") return "packet_pending";
@@ -1118,9 +1063,7 @@ function buildActions(
     return actions;
   }
 
-  if (firstOpenStep.key === "payment") {
-    actions.push({ key: "pay", href: `/client/checkout?applicationId=${encodeURIComponent(application.id)}`, primary: true });
-  } else if (firstOpenStep.key === "consent") {
+  if (firstOpenStep.key === "consent") {
     actions.push({ key: "giveConsent", href: `/client/consent?applicationId=${encodeURIComponent(application.id)}`, primary: true });
   } else if (firstOpenStep.key === "form") {
     actions.push({ key: "continueForm", href: applicationHref, primary: true });
@@ -1144,13 +1087,12 @@ function buildActions(
 }
 
 function getStepMetric(key: StatusStepKey, application: StatusApplication): string | null {
-  if (key === "payment" && application.payment.amountCents !== null) return String(application.payment.amountCents);
   if (key === "consent") return application.consent.signaturePresent ? "signed" : application.consent.accepted ? "accepted" : null;
   if (key === "form") return String(application.formAnswerCount);
   if (key === "documents") return `${application.documents.uploaded + application.documents.validated}/${application.documents.total}`;
   if (key === "packet") return application.packet.storagePath ? "file" : null;
   if (key === "handoff") return application.officialReference;
-  if (key === "result") return application.files.some((file) => file.key !== "applicationReceipt" && file.key !== "paymentReceipt") ? "file" : null;
+  if (key === "result") return application.files.some((file) => file.key !== "applicationReceipt") ? "file" : null;
   return null;
 }
 
@@ -1194,11 +1136,9 @@ function submissionArtifactTargetForReference(reference: string): StatusStorageT
 
 function buildFilePlans({
   application,
-  latestPayment,
   latestPacket,
 }: {
   application: ApplicationRow;
-  latestPayment: PaymentRow | null;
   latestPacket: PacketRow | null;
 }): StatusFilePlan[] {
   const plans: StatusFilePlan[] = [];
@@ -1221,14 +1161,6 @@ function buildFilePlans({
       "applicationReceipt",
       application.receipt_url,
       application.submitted_at ?? application.updated_at,
-    );
-  }
-
-  if (latestPayment?.receipt_url) {
-    addStoragePlan(
-      "paymentReceipt",
-      latestPayment.receipt_url,
-      latestPayment.updated_at ?? latestPayment.created_at,
     );
   }
 
@@ -1348,22 +1280,12 @@ function buildFiles({
 function buildPackageOnlyApplication(userPackage: {
   assignedAt: string | null;
   package: VisaPackageRow;
-  payment: PaymentRow | null;
 }): StatusApplication {
   const base = buildPackageBase(userPackage.package.country, userPackage.package.visa_type);
-  const paymentState = getPaymentState(userPackage.payment);
-  const paymentComplete = paymentState === "complete";
   const steps: StatusStep[] = [
     {
-      key: "payment",
-      state: paymentState,
-      updatedAt: userPackage.payment?.updated_at ?? userPackage.payment?.created_at ?? userPackage.assignedAt,
-      statusValue: userPackage.payment?.status ?? null,
-      metricValue: null,
-    },
-    {
       key: "consent",
-      state: paymentComplete ? "current" : "upcoming",
+      state: "current",
       updatedAt: null,
       statusValue: null,
       metricValue: null,
@@ -1374,7 +1296,7 @@ function buildPackageOnlyApplication(userPackage: {
     { key: "handoff", state: "upcoming", updatedAt: null, statusValue: null, metricValue: null },
     { key: "result", state: "upcoming", updatedAt: null, statusValue: null, metricValue: null },
   ];
-  const state = paymentComplete ? "needs_consent" : "not_started";
+  const state = "needs_consent" as const;
 
   const shell: StatusApplication = {
     ...base,
@@ -1404,11 +1326,13 @@ function buildPackageOnlyApplication(userPackage: {
       paymentIntentId: null,
       receiptId: null,
     },
+    // Kept as a nullable legacy field for cached clients. The status loader
+    // never reads payment records or populates commercial amounts.
     payment: {
-      status: userPackage.payment?.status ?? null,
-      amountCents: userPackage.payment?.amount_cents ?? userPackage.package.price_cents,
-      currency: userPackage.payment?.currency ?? userPackage.package.currency,
-      updatedAt: userPackage.payment?.updated_at ?? userPackage.payment?.created_at ?? null,
+      status: null,
+      amountCents: null,
+      currency: null,
+      updatedAt: null,
     },
     consent: {
       accepted: false,
@@ -1438,7 +1362,6 @@ function buildApplicationStatus({
   application,
   visaPackage,
   liveSubmission,
-  payments,
   consents,
   signatures,
   documents,
@@ -1454,7 +1377,6 @@ function buildApplicationStatus({
   application: ApplicationRow;
   visaPackage: VisaPackageRow | null;
   liveSubmission: LiveSubmissionSummary | null;
-  payments: PaymentRow[];
   consents: ConsentRow[];
   signatures: SignatureRow[];
   documents: DocumentRow[];
@@ -1468,7 +1390,6 @@ function buildApplicationStatus({
   includeDetails: boolean;
 }): StatusApplication {
   const base = buildPackageBase(application.country, application.visa_type);
-  const latestPayment = getLatestPayment(payments);
   const latestPacket = getLatestPacket(packets);
   const documentCounts = getDocumentCounts(documents);
   const answerCount = getAnswerCount(answers);
@@ -1478,9 +1399,7 @@ function buildApplicationStatus({
     visaTypeLabel: base.visaTypeLabel,
     visaTypeLabelZh: base.visaTypeLabelZh,
   });
-  const paymentState = getPaymentState(latestPayment);
-  const paymentComplete = paymentState === "complete";
-  const consentState = getConsentState(consents, signatures, paymentComplete);
+  const consentState = getConsentState(consents, signatures);
   const consentComplete = consentState === "complete";
   const formState = getFormState(application, answerCount, consentComplete);
   const formStarted = answerCount > 0 || formState === "complete";
@@ -1504,13 +1423,6 @@ function buildApplicationStatus({
   });
 
   const initialSteps: StatusStep[] = [
-    {
-      key: "payment",
-      state: paymentState,
-      updatedAt: latestPayment?.updated_at ?? latestPayment?.created_at ?? null,
-      statusValue: latestPayment?.status ?? null,
-      metricValue: null,
-    },
     {
       key: "consent",
       state: consentState,
@@ -1563,7 +1475,7 @@ function buildApplicationStatus({
             updatedAt: step.updatedAt ?? application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
           };
         }
-        if (step.key === "payment" || step.key === "consent" || step.key === "documents" || step.key === "packet") {
+        if (step.key === "consent" || step.key === "documents" || step.key === "packet") {
           return {
             ...step,
             state: "complete" as const,
@@ -1604,7 +1516,6 @@ function buildApplicationStatus({
       application.external_status_updated_at,
       application.submission_result_updated_at,
       latestPacket?.updated_at,
-      latestPayment?.updated_at,
     ]),
     submittedAt: application.submitted_at,
     officialReference: liveSubmission?.officialReference ?? application.external_reference ?? application.confirmation_number ?? submissionResultReference,
@@ -1632,11 +1543,13 @@ function buildApplicationStatus({
       paymentIntentId: application.official_fee_payment_intent_id,
       receiptId: application.official_fee_receipt_id,
     },
+    // Kept as a nullable legacy field for cached clients. Commercial payment
+    // records are intentionally absent from status reads and responses.
     payment: {
-      status: latestPayment?.status ?? null,
-      amountCents: latestPayment?.amount_cents ?? visaPackage?.price_cents ?? null,
-      currency: latestPayment?.currency ?? visaPackage?.currency ?? null,
-      updatedAt: latestPayment?.updated_at ?? latestPayment?.created_at ?? null,
+      status: null,
+      amountCents: null,
+      currency: null,
+      updatedAt: null,
     },
     consent: {
       accepted: Boolean(latestConsent?.accepted),
@@ -1862,24 +1775,14 @@ export async function assembleClientHomeTimeline(
   preload: ClientHomeTimelinePreload,
 ): Promise<ClientHomeTimelineResult> {
   const applicationId = seed.application.id;
-  const payments = seed.payments.filter(
-    (payment) =>
-      payment.application_id === applicationId ||
-      Boolean(
-        seed.application.visa_package_id &&
-          payment.visa_package_id === seed.application.visa_package_id,
-      ),
-  );
   const documents = (preload.prefetchedDocuments ?? seed.documents).filter(
     (document) => document.application_id === applicationId,
   );
-  const latestPayment = getLatestPayment(payments);
   const latestPacket = getLatestPacket(preload.relatedRows.packets);
   const statusApplication = buildApplicationStatus({
     application: seed.application,
     visaPackage: null,
     liveSubmission: preload.liveSubmission,
-    payments,
     consents: preload.relatedRows.consents,
     signatures: preload.relatedRows.signatures,
     documents,
@@ -1890,7 +1793,6 @@ export async function assembleClientHomeTimeline(
     officialTracking: null,
     filePlans: buildFilePlans({
       application: seed.application,
-      latestPayment,
       latestPacket,
     }),
     storageUrls: new Map(),
@@ -2355,10 +2257,6 @@ async function loadClientStatusData(
       };
     }
   });
-  const paymentRead = tracePortalReadStage(
-    "payments",
-    () => loadStatusPayments(adminClient, profileIds, applicationIds),
-  );
   const eventRead = applicationIds.length > 0 && includeDetails
     ? readRows<EventRow>(
         adminClient
@@ -2385,9 +2283,8 @@ async function loadClientStatusData(
           .in("application_id", applicationIds),
       )
     : Promise.resolve({ rows: [], failed: false } satisfies ReadRowsResult<OfficialTrackingRow>);
-  const [liveResult, paymentResult, relatedRows, eventResult, notificationResult, trackingResult] = await Promise.all([
+  const [liveResult, relatedRows, eventResult, notificationResult, trackingResult] = await Promise.all([
     liveSubmissionRead,
-    paymentRead,
     relatedRowsRead,
     eventRead,
     notificationRead,
@@ -2395,9 +2292,7 @@ async function loadClientStatusData(
   ]);
   const liveSubmissionByApplication = liveResult.rows;
   partialData = partialData || liveResult.failed;
-  partialData = partialData || paymentResult.failed;
   partialData = partialData || relatedRows.partialData;
-  const payments = dedupeById(paymentResult.rows);
 
   partialData = partialData || [eventResult, notificationResult, trackingResult].some((result) => result.failed);
   const consents = relatedRows.consents;
@@ -2410,14 +2305,6 @@ async function loadClientStatusData(
   const officialTracking = trackingResult.rows;
 
   const packagesById = new Map(userPackages.map((row) => [row.package.id, row.package]));
-  const paymentsByApplication = groupByApplication(payments);
-  const paymentsByPackage = new Map<string, PaymentRow[]>();
-  for (const payment of payments) {
-    if (!payment.visa_package_id) continue;
-    const existing = paymentsByPackage.get(payment.visa_package_id) ?? [];
-    existing.push(payment);
-    paymentsByPackage.set(payment.visa_package_id, existing);
-  }
 
   const consentsByApplication = groupByApplication(consents);
   const signaturesByApplication = groupByApplication(signatures);
@@ -2430,17 +2317,11 @@ async function loadClientStatusData(
     officialTracking.map((row) => [row.application_id, row]),
   );
 
-  const paymentsForApplication = (application: ApplicationRow): PaymentRow[] => [
-    ...(paymentsByApplication.get(application.id) ?? []),
-    ...(application.visa_package_id ? paymentsByPackage.get(application.visa_package_id) ?? [] : []),
-  ];
-
   const filePlansByApplication = new Map<string, StatusFilePlan[]>();
   const storageTargets: StatusStorageTarget[] = [];
   for (const application of applications) {
     const plans = buildFilePlans({
       application,
-      latestPayment: getLatestPayment(paymentsForApplication(application)),
       latestPacket: getLatestPacket(packetsByApplication.get(application.id) ?? []),
     });
     filePlansByApplication.set(application.id, plans);
@@ -2476,7 +2357,6 @@ async function loadClientStatusData(
       application,
       visaPackage: application.visa_package_id ? packagesById.get(application.visa_package_id) ?? null : null,
       liveSubmission: liveSubmissionByApplication.get(application.id) ?? null,
-      payments: paymentsForApplication(application),
       consents: consentsByApplication.get(application.id) ?? [],
       signatures: signaturesByApplication.get(application.id) ?? [],
       documents: documentsByApplication.get(application.id) ?? [],
@@ -2501,7 +2381,6 @@ async function loadClientStatusData(
         buildPackageOnlyApplication({
           assignedAt: userPackage.assignedAt,
           package: userPackage.package,
-          payment: getLatestPayment(paymentsByPackage.get(userPackage.package.id) ?? []),
         }),
       );
     }

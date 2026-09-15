@@ -1,24 +1,24 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { chromium,type Browser,type BrowserContext,type Page } from "@playwright/test";
 import {
-  browserbaseEnabled,
-  connectBrowserbaseCloudBrowser,
+browserbaseEnabled,
+connectBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import { solveCaptcha } from "../captcha";
 import {
-  inbox,
-  InboxDomainUnroutableError,
-  InboxTimeoutError,
-  type InboundMessage,
+inbox,
+InboxDomainUnroutableError,
+InboxTimeoutError,
+type InboundMessage,
 } from "../inbox/wait-for-message";
 import type { IndonesiaOneTimeCard } from "./card-session";
 import {
-  actionForIndonesiaPortalState,
-  classifyIndonesiaPortalSnapshot,
-  hasIndonesiaOfficialSuccessEvidence,
-  type IndonesiaPortalStateId,
+actionForIndonesiaPortalState,
+classifyIndonesiaPortalSnapshot,
+hasIndonesiaOfficialSuccessEvidence,
+type IndonesiaPortalStateId,
 } from "./portal-state";
 
 export interface IndonesiaPortalProbeInput {
@@ -4929,136 +4929,7 @@ async function waitForUserPaymentCompletion(
   evidencePdf?: Buffer;
   officialReference?: string;
 }> {
-  let activePage = await resolveActiveIndonesiaPaymentPage(page, diagnostics);
-  const waitTimeoutMs = Math.max(
-    30_000,
-    Number(input.userPaymentHandoff?.waitTimeoutMs ?? process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? 10 * 60 * 1000),
-  );
-  const deadline = Date.now() + waitTimeoutMs;
-  let lastNotifiedState: IndonesiaPortalStateId | null = null;
-  let title = await activePage.title().catch(() => null);
-  let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  let url = activePage.url();
-  let state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-  const preflight = await input.userPaymentHandoff?.beforeCardSubmit?.({
-      url,
-      title,
-      state,
-    });
-  if (preflight && !preflight.allowed) {
-    diagnostics.push(
-      `indonesia_payment_resource_preflight_blocked ${preflight.reason ?? "unspecified"}`,
-    );
-    return { state: "payment_required", title, text, url };
-  }
-  const feeVerification = verifyIndonesiaOfficialFeeText({
-    bodyText: text,
-    expectedAmountCents: input.userPaymentHandoff?.expectedAmountCents,
-    expectedCurrency: input.userPaymentHandoff?.expectedCurrency,
-  });
-  if (!feeVerification.verified) {
-    diagnostics.push(`indonesia_official_fee_unverified ${feeVerification.reason}`);
-    return { state: "unknown", title, text, url };
-  }
-  const oneTimeCard =
-    input.userPaymentHandoff?.oneTimeCard ??
-    await input.userPaymentHandoff?.takeOneTimeCard?.() ??
-    null;
-  if (oneTimeCard) {
-    const cardSubmitted = await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
-    if (!cardSubmitted) {
-      const controlsVisible = await hasIndonesiaPortalEmailOtpControls(activePage);
-      if (isIndonesiaPortalAccountOtpChallenge({ url, text, controlsVisible })) {
-        diagnostics.push("indonesia_payment_blocked_by_unresolved_account_otp");
-        return { state: "login_required", title, text, url };
-      }
-      diagnostics.push("indonesia_payment_card_submission_not_started");
-      return { state: "unknown", title, text, url };
-    }
-    activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
-    title = await activePage.title().catch(() => null);
-    text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    url = activePage.url();
-    state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-  } else {
-    diagnostics.push("indonesia_one_time_card_not_available_for_payment_page");
-    return { state: "payment_failed", title, text, url };
-  }
-
-  while (Date.now() < deadline) {
-    if (
-      (state === "payment_required" || state === "payment_otp_required") &&
-      state !== lastNotifiedState
-    ) {
-      await input.userPaymentHandoff?.onWaitingForUser?.({
-        url,
-        title,
-        state,
-        diagnostics,
-      });
-      diagnostics.push("indonesia_user_payment_handoff_waiting");
-      lastNotifiedState = state;
-    }
-
-    await activePage.waitForTimeout(5_000).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      diagnostics.push(`indonesia_user_payment_wait_interrupted ${message}`.slice(0, 180));
-    });
-    if (activePage.isClosed()) {
-      activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
-      if (activePage.isClosed()) {
-        diagnostics.push("indonesia_user_payment_window_closed");
-        break;
-      }
-    }
-
-    activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
-    title = await activePage.title().catch(() => null);
-    text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    url = activePage.url();
-    state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-    if (state === "submitted_or_approved") {
-      diagnostics.push("indonesia_user_payment_completed");
-      break;
-    }
-    if (state !== "payment_required" && state !== "payment_otp_required") {
-      diagnostics.push(`indonesia_user_payment_state_changed ${state}`);
-      break;
-    }
-  }
-
-  if ((state === "payment_required" || state === "payment_otp_required") && Date.now() >= deadline) {
-    diagnostics.push("indonesia_user_payment_wait_timeout");
-    // A timeout is not proof that the charge failed. Stop in an unknown state
-    // so the next operator action reconciles the official application before
-    // another card submission is attempted.
-    state = "unknown";
-  }
-  if (state === "unknown") {
-    diagnostics.push(`indonesia_payment_terminal_result_unconfirmed ${state}`);
-  }
-
-  if (state !== "submitted_or_approved") return { state, title, text, url };
-
-  const evidencePdf = await activePage.pdf({ format: "A4", printBackground: true }).catch((error: unknown) => {
-    diagnostics.push(
-      `indonesia_official_evidence_pdf_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
-    );
-    return undefined;
-  });
-  if (!evidencePdf || evidencePdf.length < 5 || evidencePdf.subarray(0, 5).toString("utf8") !== "%PDF-") {
-    diagnostics.push("indonesia_official_evidence_pdf_missing");
-    return { state: "unknown", title, text, url };
-  }
-  diagnostics.push("indonesia_official_evidence_pdf_captured");
-  return {
-    state,
-    title,
-    text,
-    url,
-    evidencePdf,
-    officialReference: extractIndonesiaOfficialReference(text),
-  };
+  return { state: "payment_required", title: await page.title().catch(() => null), text: "payment_removed: automated payment has been removed", url: page.url() };
 }
 
 export function normalizeIndonesiaPaymentWaitState(
@@ -5129,95 +5000,7 @@ async function payIndonesiaPortalWithOneTimeCard(
   card: IndonesiaOneTimeCard,
   diagnostics: string[],
 ): Promise<boolean> {
-  if (await payFinpayIndonesiaWithOneTimeCard(page, card, diagnostics)) {
-    return true;
-  }
-
-  const filled = await page
-    .evaluate((paymentCard) => {
-      const visible = (element: Element): boolean => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0;
-      };
-      const describe = (input: HTMLInputElement | HTMLSelectElement): string => [
-        input.id,
-        input.name,
-        input.className,
-        input.getAttribute("autocomplete") ?? "",
-        input.getAttribute("placeholder") ?? "",
-        input.getAttribute("aria-label") ?? "",
-        input.closest("label")?.textContent ?? "",
-      ].join(" ").toLowerCase();
-      const controls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select"))
-        .filter((control) => visible(control) && !control.disabled && !(control instanceof HTMLInputElement && control.readOnly));
-      const setValue = (control: HTMLInputElement | HTMLSelectElement, value: string): boolean => {
-        control.focus();
-        if (control instanceof HTMLSelectElement) {
-          const option = Array.from(control.options).find((candidate) =>
-            candidate.value === value ||
-            candidate.text.trim() === value ||
-            candidate.text.trim().padStart(2, "0") === value,
-          );
-          if (!option) return false;
-          control.value = option.value;
-        } else {
-          control.value = value;
-        }
-        control.dispatchEvent(new Event("input", { bubbles: true }));
-        control.dispatchEvent(new Event("change", { bubbles: true }));
-        control.dispatchEvent(new Event("blur", { bubbles: true }));
-        return true;
-      };
-      const fillByPattern = (pattern: RegExp, value: string): boolean => {
-        const control = controls.find((candidate) => pattern.test(describe(candidate)));
-        return control ? setValue(control, value) : false;
-      };
-
-      const filledCard = fillByPattern(/cc-number|card.?number|card_no|cardno|no.?kartu|pan|nomor.?kartu/, paymentCard.pan);
-      const combinedExpiry = `${paymentCard.expiryMonth}/${paymentCard.expiryYear.slice(-2)}`;
-      const filledExpiry = fillByPattern(/cc-exp|expir|expiry|valid.?thru|masa.?berlaku/, combinedExpiry);
-      const filledMonth = filledExpiry || fillByPattern(/exp.*month|month|bulan/, paymentCard.expiryMonth);
-      const filledYear = filledExpiry || fillByPattern(/exp.*year|year|tahun/, paymentCard.expiryYear);
-      const filledCvv = fillByPattern(/cc-csc|cvv|cvc|security.?code|kode.?keamanan/, paymentCard.cvv);
-      const filledName = paymentCard.holderName
-        ? fillByPattern(/cc-name|card.?holder|holder.?name|name.?on.?card|nama/, paymentCard.holderName)
-        : false;
-
-      return { filledCard, filledExpiry, filledMonth, filledYear, filledCvv, filledName };
-    }, card)
-    .catch((error: unknown) => {
-      diagnostics.push(`indonesia_one_time_card_fill_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 160));
-      return null;
-    });
-
-  if (!filled) return false;
-  diagnostics.push(
-    `indonesia_one_time_card_fields card=${filled.filledCard ? "yes" : "no"} expiry=${filled.filledExpiry || filled.filledMonth && filled.filledYear ? "yes" : "no"} cvv=${filled.filledCvv ? "yes" : "no"} holder=${filled.filledName ? "yes" : "no"}`,
-  );
-  if (!filled.filledCard || !filled.filledCvv || !(filled.filledExpiry || filled.filledMonth && filled.filledYear)) {
-    diagnostics.push("indonesia_one_time_card_payment_form_not_recognized");
-    return false;
-  }
-
-  const payButton = page
-    .getByRole("button", { name: /pay|submit|continue|bayar|lanjut|process/i })
-    .or(page.locator("input[type='submit'], button[type='submit']").first())
-    .first();
-  if (await payButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await payButton.click({ timeout: 10_000 }).catch((error: unknown) => {
-      diagnostics.push(`indonesia_one_time_card_pay_click_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 160));
-    });
-    diagnostics.push("indonesia_one_time_card_pay_clicked");
-    await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
-    await page.waitForTimeout(5_000);
-    return true;
-  }
-  diagnostics.push("indonesia_one_time_card_pay_button_not_found");
-  return true;
+  return false;
 }
 
 async function payFinpayIndonesiaWithOneTimeCard(
@@ -5225,81 +5008,7 @@ async function payFinpayIndonesiaWithOneTimeCard(
   card: IndonesiaOneTimeCard,
   diagnostics: string[],
 ): Promise<boolean> {
-  const cardNumber = page.locator("#number[name='number'], input#number").first();
-  if (!(await cardNumber.isVisible({ timeout: 2_000 }).catch(() => false))) {
-    return false;
-  }
-
-  const holder = page.locator("#fullname[name='name'], input#fullname").first();
-  const expiry = page.locator("#expired[name='expiry'], input#expired").first();
-  const cvv = page.locator("#cvv[name='cvc'], input#cvv").first();
-  const payButton = page.locator("#btn_pay").or(page.getByRole("button", { name: /bayar\s+sekarang|pay now|pay/i })).first();
-  const expiryValue = `${card.expiryMonth}${card.expiryYear.slice(-2)}`;
-
-  try {
-    await cardNumber.click({ timeout: 5_000 });
-    await cardNumber.fill("");
-    await cardNumber.type(card.pan, { delay: 15 });
-    await page
-      .waitForFunction(
-        () => {
-          const required = ["#fullname", "#expired", "#cvv"]
-            .map((selector) => document.querySelector<HTMLInputElement>(selector));
-          return required.every((input) => input && !input.disabled && !input.readOnly);
-        },
-        undefined,
-        { timeout: 10_000 },
-      )
-      .catch(() => undefined);
-
-    const holderEnabled = await holder.isEnabled({ timeout: 1_000 }).catch(() => false);
-    const expiryEnabled = await expiry.isEnabled({ timeout: 1_000 }).catch(() => false);
-    const cvvEnabled = await cvv.isEnabled({ timeout: 1_000 }).catch(() => false);
-    diagnostics.push(
-      `indonesia_one_time_card_finpay_enabled holder=${holderEnabled ? "yes" : "no"} expiry=${expiryEnabled ? "yes" : "no"} cvv=${cvvEnabled ? "yes" : "no"}`,
-    );
-    if (!holderEnabled || !expiryEnabled || !cvvEnabled) {
-      diagnostics.push("indonesia_one_time_card_finpay_locked_after_card_number");
-      return false;
-    }
-
-    if (card.holderName) {
-      await holder.fill("");
-      await holder.type(card.holderName, { delay: 10 });
-    }
-    await expiry.fill("");
-    await expiry.type(expiryValue, { delay: 20 });
-    await cvv.fill("");
-    await cvv.type(card.cvv, { delay: 20 });
-
-    const values = await page.evaluate(() => ({
-      cardLength: document.querySelector<HTMLInputElement>("#number")?.value.replace(/\D/g, "").length ?? 0,
-      holderLength: document.querySelector<HTMLInputElement>("#fullname")?.value.trim().length ?? 0,
-      expiryLength: document.querySelector<HTMLInputElement>("#expired")?.value.trim().length ?? 0,
-      cvvLength: document.querySelector<HTMLInputElement>("#cvv")?.value.trim().length ?? 0,
-    }));
-    diagnostics.push(
-      `indonesia_one_time_card_finpay_fields card=${values.cardLength >= 12 ? "yes" : "no"} holder=${values.holderLength > 0 ? "yes" : "no"} expiry=${values.expiryLength > 0 ? "yes" : "no"} cvv=${values.cvvLength > 0 ? "yes" : "no"}`,
-    );
-    if (values.cardLength < 12 || values.expiryLength === 0 || values.cvvLength === 0 || (card.holderName && values.holderLength === 0)) {
-      diagnostics.push("indonesia_one_time_card_finpay_payment_form_not_completed");
-      return false;
-    }
-
-    if (!(await payButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      diagnostics.push("indonesia_one_time_card_finpay_pay_button_not_found");
-      return true;
-    }
-    await payButton.click({ timeout: 10_000 });
-    diagnostics.push("indonesia_one_time_card_finpay_pay_clicked");
-    await acceptFinpayBillingTermsIfShown(page, diagnostics);
-    await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
-    await page.waitForTimeout(5_000);
-    return true;
-  } catch (error) {
-    diagnostics.push(`indonesia_one_time_card_finpay_fill_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
-    return false;
-  }
+  return false;
 }
 
 async function acceptFinpayBillingTermsIfShown(page: Page, diagnostics: string[]): Promise<boolean> {

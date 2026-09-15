@@ -115,6 +115,22 @@ function liveSnapshot(): FranceAppointmentStatusSnapshot {
 }
 
 describe("FranceAppointmentAssistant assisted-live observation", () => {
+  it("does not collect payment details for a historical dry-run confirmation", async () => {
+    const legacy = liveSnapshot();
+    legacy.job!.mode = "dry_run";
+    legacy.job!.status = "appointment_payment_required";
+    legacy.slots = [{ ...legacy.slots[0], status: "selected" }];
+    mockApi.getFranceAppointmentStatus.mockResolvedValue(legacy);
+
+    render(<FranceAppointmentAssistant applicationId="application-1" />);
+
+    await waitFor(() => expect(screen.getByText("final.title")).toBeInTheDocument());
+    expect(screen.queryByLabelText("payment.last4")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("payment.expMonth")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "payment.record" })).not.toBeInTheDocument();
+    expect(mockApi.recordFrancePaymentSession).not.toHaveBeenCalled();
+  });
+
   it("shows only non-expired observed slots without selection or payment controls", async () => {
     mockApi.getFranceAppointmentStatus.mockResolvedValue(liveSnapshot());
 

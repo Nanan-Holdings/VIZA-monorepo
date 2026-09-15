@@ -410,7 +410,7 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     visaType: "KE_ETA",
     visaName: "Kenya Electronic Travel Authorisation (eTA)",
     visaNameZh: "电子旅行授权",
-    description: "Online Kenya eTA application with VIZA-managed official-fee payment and status tracking.",
+    description: "Online Kenya eTA application preparation and status tracking.",
     descriptionZh: "在线办理肯尼亚电子旅行授权；官方费用由 VIZA 按申请单独管理并跟踪申请结果。",
     flag: "🇰🇪",
     region: "Africa",

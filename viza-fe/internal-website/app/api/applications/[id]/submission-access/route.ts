@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  APPLICATION_PAYMENT_REQUIRED,
   evaluateSubmissionAccess,
-  submissionAccessHttpBody,
 } from "@/lib/payments/submission-access";
 import { getApplicationApiApplicantProfileId } from "@/lib/application-api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -107,38 +105,9 @@ export async function POST(
   try {
     const decision = await evaluateSubmissionAccess(admin, applicationId, {
       payerAuthUserId,
-      lockHighAccess: true,
       returnTo,
     });
-    if (decision.status === "ready") {
-      return NextResponse.json({ ok: true, decision });
-    }
-    if (decision.status === "review_required") {
-      return NextResponse.json(
-        {
-          ...submissionAccessHttpBody(decision),
-          code: "application_payment_review_required",
-        },
-        { status: 409 },
-      );
-    }
-
-    const checkoutUrl = new URL(
-      `/api/applications/${encodeURIComponent(applicationId)}/submission-checkout`,
-      request.nextUrl.origin,
-    );
-    checkoutUrl.searchParams.set("returnTo", returnTo);
-    const checkoutDecision = {
-      ...decision,
-      checkoutUrl: checkoutUrl.toString(),
-    };
-    return NextResponse.json(
-      {
-        ...submissionAccessHttpBody(checkoutDecision),
-        code: APPLICATION_PAYMENT_REQUIRED,
-      },
-      { status: 402 },
-    );
+    return NextResponse.json({ ok: true, decision });
   } catch (error) {
     console.error("[submission-access] evaluation failed", {
       applicationId: applicationId.slice(0, 8),
@@ -146,7 +115,7 @@ export async function POST(
     });
     return NextResponse.json(
       {
-        error: "Submission payment eligibility is temporarily unavailable.",
+        error: "Submission access is temporarily unavailable.",
         code: "submission_access_unavailable",
       },
       { status: 503 },

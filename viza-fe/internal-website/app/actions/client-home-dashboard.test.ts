@@ -248,15 +248,15 @@ describe("getClientHomeDashboardData query budget", () => {
     });
   });
 
-  it("uses one owner-scoped payment query per dashboard load", async () => {
+  it("loads the owner dashboard without financial queries", async () => {
     const calls: QueryCall[] = [];
     mocks.createAdminClient.mockImplementation(() => createAdminClientMock(calls));
 
     const result = await getClientHomeDashboardData();
 
     expect(result.authenticated).toBe(true);
-    expect(result.payments).toHaveLength(1);
-    expect(calls).toHaveLength(3);
+    expect(result.payments).toHaveLength(0);
+    expect(calls).toHaveLength(2);
     expect(calls.filter((call) => call.table === "applications")).toHaveLength(0);
     expect(calls[0]?.eq).toContainEqual(["id", USER_ID]);
     expect(calls[0]?.eq).toContainEqual(["owned_applications.applicant_id", USER_ID]);
@@ -267,14 +267,10 @@ describe("getClientHomeDashboardData query budget", () => {
     expect(sessionOptions.requestSignal).toBeInstanceOf(AbortSignal);
     expect(adminOptions.requestSignal).toBe(sessionOptions.requestSignal);
     const paymentCalls = calls.filter((call) => call.table === "payment_records");
-    expect(paymentCalls).toHaveLength(1);
-    expect(paymentCalls[0]?.eq).toContainEqual(["applicant_id", USER_ID]);
-    expect(paymentCalls[0]?.or).toEqual([
-      `application_id.in.(${APPLICATION_ID}),visa_package_id.in.(${PACKAGE_ID})`,
-    ]);
+    expect(paymentCalls).toHaveLength(0);
   });
 
-  it("keeps 100 concurrent dashboard loads within 100 payment reads", async () => {
+  it("does not issue financial queries for concurrent dashboard loads", async () => {
     const calls: QueryCall[] = [];
     mocks.createAdminClient.mockImplementation(() => createAdminClientMock(calls));
 
@@ -282,9 +278,9 @@ describe("getClientHomeDashboardData query budget", () => {
       Array.from({ length: 100 }, () => getClientHomeDashboardData()),
     );
 
-    expect(results.every((result) => result.authenticated && result.payments.length === 1)).toBe(true);
-    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(100);
-    expect(calls).toHaveLength(300);
+    expect(results.every((result) => result.authenticated && result.payments.length === 0)).toBe(true);
+    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(0);
+    expect(calls).toHaveLength(200);
   });
 
   it("retains a profile without applications with one left-embedded read", async () => {
@@ -342,7 +338,7 @@ describe("getClientHomeDashboardData query budget", () => {
     const result = await getClientHomeDashboardData();
     expect(result.applications).toHaveLength(1);
     expect(result.error).toBeUndefined();
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(4);
     expect(calls.filter((call) => call.select?.includes("owned_applications:"))).toHaveLength(1);
   });
 
@@ -356,13 +352,10 @@ describe("getClientHomeDashboardData query budget", () => {
 
     expect(result.authenticated).toBe(true);
     const paymentCalls = calls.filter((call) => call.table === "payment_records");
-    expect(paymentCalls).toHaveLength(1);
-    expect(paymentCalls[0]?.or).toEqual([
-      `application_id.in.(${APPLICATION_ID})`,
-    ]);
+    expect(paymentCalls).toHaveLength(0);
   });
 
-  it("preserves the existing partial dashboard response on payment errors", async () => {
+  it("ignores unavailable legacy payment storage", async () => {
     const calls: QueryCall[] = [];
     mocks.createAdminClient.mockImplementation(() =>
       createAdminClientMock(calls, { paymentError: { message: "payment read failed" } }),
@@ -372,11 +365,10 @@ describe("getClientHomeDashboardData query budget", () => {
 
     expect(result).toMatchObject({
       authenticated: true,
-      error: "payments_read_failed",
       payments: [],
     });
     expect(result.applications).toHaveLength(1);
-    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(0);
   });
 
   it("preserves nullable document timestamps from the standalone document read", async () => {
@@ -442,7 +434,7 @@ describe("getClientHomeDashboardData query budget", () => {
     expect(relatedApplicationCalls[0]?.select).toContain(
       "documents:application_documents!application_documents_application_id_fkey(id, application_id, document_type, status, required, created_at, updated_at)",
     );
-    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+    expect(calls.filter((call) => call.table === "payment_records")).toHaveLength(0);
     expect(calls.filter((call) => call.table === "submission_queue")).toHaveLength(0);
   });
 
@@ -494,7 +486,7 @@ describe("getClientHomeDashboardData query budget", () => {
 
     expect(startedTables.indexOf("timeline")).toBeGreaterThanOrEqual(0);
     expect(startedTables).not.toContain("application_documents");
-    expect(startedTables.indexOf("timeline")).toBeLessThan(startedTables.indexOf("payment_records"));
+    expect(startedTables).not.toContain("payment_records");
 
     relatedDeferred.resolve({
       data: [{ id: APPLICATION_ID, consents: [], signatures: [], answers: [], packets: [], documents: [], live_queue: [] }],
@@ -534,7 +526,7 @@ describe("getClientHomeDashboardData query budget", () => {
     expect(result.timelinePartialData).toBe(false);
   });
 
-  it("drains a started timeline read before returning a required payment error", async () => {
+  it("finishes the timeline without waiting for legacy payment reads", async () => {
     const calls: QueryCall[] = [];
     const relatedDeferred = createDeferred<FakeQueryResponse>();
     const paymentsDeferred = createDeferred<FakeQueryResponse>();
@@ -570,7 +562,6 @@ describe("getClientHomeDashboardData query budget", () => {
     const result = await resultPromise;
     expect(result).toMatchObject({
       authenticated: true,
-      error: "payments_read_failed",
       payments: [],
     });
   });

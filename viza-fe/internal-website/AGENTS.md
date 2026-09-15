@@ -1,5 +1,15 @@
 # Internal Website Agent Guide
 
+Current product policy (2026-09-15): payments are removed. Applications do not
+require payment evidence; payment routes are retired and checkout pages return
+to the portal. Home and lifecycle reads do not depend on financial storage.
+Historical database records remain intact.
+The frontend migration `supabase/migrations/20260915194928_disable_payment_execution.sql`
+is the byte-identical mirror of backend `drizzle/0194_disable_payment_execution.sql`.
+It disables payment RPCs and financial triggers while preserving history.
+Production applied this migration on 2026-09-15 as version `20260915194928`.
+Both issuer-claim signatures are disabled; historical records remain intact.
+
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
 
@@ -58,9 +68,6 @@ profile read, including legacy identity and explicit-consent fallback paths.
 `lib/supabase/reusable-document-existence.integration.test.ts` verifies the
 document loader's applicant/status filters and ordered metadata through the
 actual SDK against loopback HTTP, plus bounded HEAD checks and error draining.
-`lib/supabase/billing-read.integration.test.ts` verifies that billing filters
-agency fees before transfer through the actual SDK against loopback HTTP,
-preserving owner isolation, application/package sources and error handling.
 `lib/__tests__/appointment-status-cancellation.test.ts` exercises U.S. and
 France appointment status helpers against loopback HTTP, including complete
 snapshots, response-body cancellation, and auth-abort request suppression.
@@ -179,6 +186,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/admin/(dashboard)/billing/**`.
 - Website automation server actions under
   `app/actions/internal-automation/**`.
+- The legacy order receipt endpoint at
+  `app/api/orders/[id]/receipt/route.ts` is retired with payment processing and
+  returns the stable HTTP 410 `payment_removed` response without reading order
+  or invoice data.
 - Payment, uploads, OCR, and external status API boundaries under
   `app/api/stripe/**`, `app/api/payments/**`, `app/api/document-upload/**`,
   `app/api/passport-ocr/**`, `app/api/translations/**`,
@@ -386,10 +397,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
-- Vietnam and Indonesia official-fee authorize/pay/status routes share
-  `app/api/applications/[id]/official-fee/auth.ts`; keep its accepted session
-  policy aligned with `/client/*` so signed `client_session` users do not see a
-  payment form that then fails a Supabase-only authentication check.
+- Vietnam and Indonesia official-fee authorize/pay/status routes under
+  `app/api/applications/[id]/official-fee/**` are retired and return the stable
+  payment-removed response before authentication, card handoff, queue enqueue,
+  or provider access.
 - Vietnam e-Visa trip-expense coverage is made explicitly required by
   `supabase/migrations/20260809105541_vn_evisa_require_expense_coverage.sql`;
   keep the runtime parity patch and submission-service expense preflight in
@@ -810,3 +821,8 @@ Smoke URLs:
 - `scripts/seed-dropdown-destinations.ts`
 - `scripts/verify-travel-image-relevance.ts`
 - `types/*`
+
+Payment regression tests: `app/api/payment-removal.test.ts` covers retired HTTP
+entry points; `lib/payments/submission-access.integration.test.ts` verifies
+ownership checks through the Supabase SDK with no financial queries. The old
+`lib/supabase/billing-read.integration.test.ts` is removed with the billing reader.

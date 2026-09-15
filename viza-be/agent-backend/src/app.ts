@@ -17,10 +17,6 @@ import passportScanRouter from './routes/passport-scan.routes.js';
 import { createPassportScanAdmission } from './routes/passport-scan-admission.js';
 import ukAccountRouter from './routes/uk-account.routes.js';
 import {
-  officialFeeApplicationRouter,
-  officialFeeOperationsRouter,
-} from './routes/official-fee.routes.js';
-import {
   usAppointmentApplicationRouter,
   usAppointmentOperationsRouter,
 } from './routes/us-appointment.routes.js';
@@ -198,10 +194,6 @@ app.use('/api/profile/prefill', profilePrefillRouter);
 
 // Application translation routes
 app.use('/api/applications', translationRouter);
-
-// Official visa fee quote/consent/payment dry-run framework
-app.use('/api/applications', officialFeeApplicationRouter);
-app.use('/api/official-fee', officialFeeOperationsRouter);
 
 // U.S. appointment assistance dry-run/manual checkpoint framework
 app.use('/api/applications', usAppointmentApplicationRouter);

@@ -14,29 +14,13 @@ kill_timeout = "5m"
   # Vietnam e-Visa live jobs use a cloud-only queue status and RPC that older
   # local workers cannot see or claim.
   VN_CLOUD_QUEUE_ENABLED = "true"
-  # Vercel registers Indonesia payment cards through the token-protected
-  # internal endpoint. While the retained Machine is running, cards remain in
-  # its memory for one consumption and are never written to Fly config, logs,
-  # or storage. Deploy readiness prevents stop while any card is present.
-  ID_CLOUD_CARD_SESSION_ENABLED = "true"
-  # Vietnam official-fee jobs also use submission_queue, so the protected
-  # one-time card handoff must terminate on this same single-memory worker.
-  VN_CLOUD_CARD_SESSION_ENABLED = "true"
-  VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
-  # Current production acceptance gate: solve the official search flow and
-  # stop only after an empty VNPAY card-number field is visible. No PAN/CVV is
-  # filled and no payment control is submitted while this flag is enabled.
-  VN_OFFICIAL_PAYMENT_STOP_BEFORE_CARD_ENTRY = "true"
   # Fly has no X server. Vietnam must launch the bundled browser headlessly;
-  # interactive payment challenges are surfaced as explicit checkpoints.
+  # official fee checkpoints require attention.
   VN_PLAYWRIGHT_HEADLESS = "true"
   # The Playwright Fly image only guarantees its bundled Chromium binary.
   # Retry that browser for transient launch/portal failures instead of falling
   # through to host-installed Edge/Chrome channels that do not exist here.
   VN_BROWSER_CHANNELS = "bundled"
-  # Standard Chartered SC Mobile approval is valid for about 100 seconds.
-  # Keep the same cloud browser alive long enough to observe the issuer result.
-  VN_BANK_APP_3DS_WAIT_MS = "115000"
   # api.evisa.gov.vn currently presents an incomplete certificate chain to
   # container Chromium. Scope compatibility mode to the Vietnam browser only.
   VN_IGNORE_HTTPS_ERRORS = "true"

@@ -1,9 +1,31 @@
 # Submission Service Agent Guide
 
+Product policy (2026-09-15): payment execution has been removed.
+`src/payment-removed.ts` defines the unconditional retirement boundary.
+Card-session HTTP routes return 410; issuer and portal payment functions cannot
+spend or acquire cards, regardless of environment flags. Official fee checkpoints
+remain needs-attention states, never fabricated paid/submitted outcomes.
+Existing form filling, ownership/lease fences, consent, and browser cleanup remain.
+This supersedes historical payment pilot instructions below.
+Payment regression coverage lives in `src/__tests__/payment-removal.spec.ts`;
+old issuer, card-session, and successful-payment-only tests have been removed.
+Payment-only npm scripts and credential templates are retired. The old PhotonPay
+issuance/smoke, paid-order backfill, and Vietnam card-profile/autopay scripts are
+removed. Fly configs and secret sync no longer enable or require payment sessions;
+cold start, sizing, readiness, leases, and cleanup settings are preserved.
+
 `src/deploy-readiness.ts` contains the pure safety decision used before a
 retained Fly machine is stopped or replaced; keep its focused test in sync.
 
 Scope: this file applies to `viza-be/submission-service/**`.
+
+The U.S. appointment exact-job endpoint `/internal/us-appointment/wake` uses
+`src/us-appointment/dispatch.ts` and `claim-repository.ts` with migration 0193.
+It is separate from the shared runner RPC cutover, requires the internal bearer
+token, and rejects work before runner startup/capacity-lease readiness. Include
+appointment admission, queued work, and browser cleanup in idle, readiness,
+deployment and shutdown decisions. Unresponsive cleanup must terminate the
+worker without enabling automatic replay of an ambiguous official action.
 
 ## Purpose
 
@@ -665,6 +687,13 @@ and must fail closed; callers must not perform a direct table settlement.
   registration/login, profile/reference, calendar, slot, and review screens,
   saves screenshots with the final official-style control visible, asserts
   zero final-submit clicks, and never sends a request to an official portal.
+- `scripts/run-us-appointment-placeholder-flow.ts` / `npm run
+  us-appointment:placeholder-flow`: local full U.S. appointment regression using
+  the production browser client and runner with `src/us-appointment/testing/**`.
+  It intercepts all browser HTTP into a loopback server, blocks other origins,
+  and uses only synthetic data/in-memory persistence. It covers approval denial,
+  simulated booking, duplicate prevention and status capture. Unobserved
+  visa/delivery/payment pages are fixture-only, never official-site evidence.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner,
   including its pure OTP response classifier and official result capture.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival

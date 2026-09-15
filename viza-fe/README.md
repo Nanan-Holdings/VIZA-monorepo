@@ -1,5 +1,10 @@
 # VIZA Frontend
 
+Current product policy (2026-09-15): payments are removed. Applications do not
+require payment evidence; payment routes are retired and checkout pages return
+to the portal. Home and lifecycle reads do not depend on financial storage.
+Historical database records remain intact.
+
 This directory owns the user-facing web application for VIZA. The active app is
 `internal-website`, a Next.js 16 App Router project that serves the client
 portal, admin portal, application form workflow, VIZA AI chat, and Travel AI UI.

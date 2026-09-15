@@ -22,6 +22,11 @@ import type { USAppointmentRepository } from "./repository.js";
 import { redactToObject } from "./redaction.js";
 import { validateUSAppointmentPreconditions } from "./validators/usAppointmentPreconditions.js";
 import { decryptSecret, encryptSecret } from "../../utils/secret-cipher.js";
+import { isAutoSupportedUSAppointmentManualAction, isUSAppointmentWorkerEligible, wakeUSAppointmentWorker, type USAppointmentWorkerWake } from "./worker-wake.js";
+
+export interface USAppointmentOrchestratorOptions {
+  wakeWorker?: USAppointmentWorkerWake;
+}
 
 export class USAppointmentServiceError extends Error {
   public readonly status: number;
@@ -197,12 +202,14 @@ export class USAppointmentOrchestrator {
   private readonly slotService: AppointmentSlotService;
   private readonly statusService: AppointmentStatusService;
   private readonly providerRegistry = new USAppointmentProviderRegistry();
+  private readonly wakeWorker: USAppointmentWorkerWake;
 
-  constructor(private readonly repository: USAppointmentRepository) {
+  constructor(private readonly repository: USAppointmentRepository, options: USAppointmentOrchestratorOptions = {}) {
     this.auditService = new AppointmentAuditService(repository);
     this.checkpointService = new AppointmentCheckpointService(repository);
     this.slotService = new AppointmentSlotService(repository);
     this.statusService = new AppointmentStatusService(repository);
+    this.wakeWorker = options.wakeWorker ?? wakeUSAppointmentWorker;
   }
 
   async recordConsent(input: {
@@ -418,21 +425,20 @@ export class USAppointmentOrchestrator {
     const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
 
-    const pendingManualAction = await this.repository.getLatestPendingManualAction(job.id);
-    if (pendingManualAction) {
+    if (await this.hasBlockingPendingManualAction(job)) {
       return this.getStatus(job.applicationId);
     }
 
     const attempt = await this.startAttempt(job);
+    let nextJob: AppointmentAssistanceJob;
     try {
-      const nextJob = job.mode === "dry_run"
+      nextJob = job.mode === "dry_run"
         ? await this.runDryRunStep(job)
         : await this.runAssistedLiveDisabledStep(job);
       await this.finishAttempt(attempt, "completed", {
         status: nextJob.status,
         requires_user_action: nextJob.requiresUserAction,
       });
-      return this.getStatus(nextJob.applicationId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Appointment run failed.";
       await this.repository.updateJob(job.id, {
@@ -451,6 +457,9 @@ export class USAppointmentOrchestrator {
       }, error instanceof USAppointmentServiceError ? error.code : "appointment_run_failed", message);
       throw error;
     }
+    // Dispatch failures retain the persisted runnable stage for an explicit retry.
+    await this.dispatchWorkerIfEligible(nextJob);
+    return this.getStatus(nextJob.applicationId);
   }
 
   async resumeJob(jobId: string): Promise<AppointmentStatusSnapshot> {
@@ -479,6 +488,10 @@ export class USAppointmentOrchestrator {
         action_type: action.actionType,
       },
     );
+    if (updated.mode === "assisted_live" && isChinaUSVisaSchedulingJob(updated)
+      && !["slot_selection", "final_confirmation"].includes(action.actionType)) {
+      return this.runJob(updated.id);
+    }
     return this.getStatus(updated.applicationId);
   }
 
@@ -566,6 +579,11 @@ export class USAppointmentOrchestrator {
   async bookSelectedSlot(jobId: string): Promise<AppointmentStatusSnapshot> {
     const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
+    if (job.mode === "assisted_live" && isChinaUSVisaSchedulingJob(job)) {
+      // Repeated HTTP actions must never turn a captured result back into an
+      // executable booking. A different appointment requires a separate review.
+      if (await this.repository.getConfirmationForJob(job.id)) return this.getStatus(job.applicationId);
+    }
 
     const selectedSlot = await this.repository.getSelectedSlot(job.id);
     if (!selectedSlot) {
@@ -586,6 +604,10 @@ export class USAppointmentOrchestrator {
     }
 
     if (job.mode !== "dry_run") {
+      if (job.mode === "assisted_live" && isChinaUSVisaSchedulingJob(job)
+        && !["appointment_final_confirmation_required", "appointment_booked"].includes(job.status)) {
+        throw new USAppointmentServiceError(409, "booking_not_ready", "This appointment job is not ready for approved booking.");
+      }
       const bookedJob = await this.transitionJob(
         job,
         "appointment_booked",
@@ -606,6 +628,7 @@ export class USAppointmentOrchestrator {
           runner_service: "submission-service",
         },
       );
+      await this.dispatchWorkerIfEligible(bookedJob);
       return this.getStatus(bookedJob.applicationId);
     }
 
@@ -676,6 +699,7 @@ export class USAppointmentOrchestrator {
           scheduling_provider: job.schedulingProvider,
         },
       );
+      await this.dispatchWorkerIfEligible(inProgress);
       return this.getStatus(inProgress.applicationId);
     }
     const provider = this.providerRegistry.getProvider(inProgress.schedulingProvider, inProgress.mode);
@@ -855,6 +879,16 @@ export class USAppointmentOrchestrator {
     const normalizedProvider = (job.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
     const normalizedCountry = (job.applyingCountryCode ?? "").trim().toUpperCase();
     if (normalizedProvider === "usvisascheduling" && normalizedCountry === "CN") {
+      // The production runner owns supported login/alias verification checkpoints.
+      // Preserve their persisted current action so its pending-action guard agrees.
+      if (isUSAppointmentWorkerEligible(job) && isAutoSupportedUSAppointmentManualAction(job.currentManualAction)) return job;
+      // Resuming a queued booking or status read must retain its intent. Completed
+      // results and user selection/approval stages are never rewound into login.
+      if (isUSAppointmentWorkerEligible(job) && ["appointment_payment_completed", "appointment_no_slots_available", "appointment_booked", "appointment_status_check_in_progress"].includes(job.status)) return job;
+      if (TERMINAL_STATUSES.has(job.status)
+        || ["appointment_slot_selection_required", "appointment_slots_observed", "appointment_slot_selected", "appointment_final_confirmation_required"].includes(job.status)) {
+        return job;
+      }
       const account = job.appointmentAccountId
         ? await this.repository.getAccount(job.appointmentAccountId)
         : null;
@@ -911,6 +945,45 @@ export class USAppointmentOrchestrator {
       metadata: result.rawResultRedacted ?? {},
     });
     return checkpoint.job;
+  }
+
+  private async dispatchWorkerIfEligible(job: AppointmentAssistanceJob): Promise<void> {
+    if (!isUSAppointmentWorkerEligible(job)) return;
+    if (await this.hasBlockingPendingManualAction(job)) return;
+    if (job.lastErrorCode?.startsWith("appointment_worker_")) {
+      await this.repository.updateJob(job.id, { lastErrorCode: null, lastErrorMessage: null });
+    }
+    let result;
+    try {
+      result = await this.wakeWorker(job.id);
+    } catch {
+      result = { ok: false as const, reason: "request_failed" as const };
+    }
+    if (result.ok) {
+      await this.auditService.recordJobTransition(job, "appointment_worker_wake_accepted", "The appointment worker accepted the persisted job.", {
+        runner_service: "submission-service",
+        duplicate: result.duplicate,
+        cold_start: result.coldStart,
+      });
+      return;
+    }
+    const code = `appointment_worker_${result.reason}`;
+    const message = "The appointment worker could not accept this job. The saved stage is available to retry.";
+    await this.repository.updateJob(job.id, { lastErrorCode: code, lastErrorMessage: message });
+    await this.auditService.recordJobTransition(job, "appointment_worker_wake_failed", message, {
+      runner_service: "submission-service",
+      error_code: code,
+      retryable: true,
+    });
+    throw new USAppointmentServiceError(503, code, message);
+  }
+
+  private async hasBlockingPendingManualAction(job: AppointmentAssistanceJob): Promise<boolean> {
+    const actions = await this.repository.listManualActions(job.id);
+    const workerCanHandleCheckpoint = isUSAppointmentWorkerEligible(job)
+      && isAutoSupportedUSAppointmentManualAction(job.currentManualAction);
+    return actions.some((action) => action.status === "pending"
+      && !(workerCanHandleCheckpoint && isAutoSupportedUSAppointmentManualAction(action.actionType)));
   }
 
   private async transitionJob(
@@ -1163,10 +1236,10 @@ export class USAppointmentOrchestrator {
   }
 }
 
-export function createUSAppointmentServices(repository: USAppointmentRepository): {
+export function createUSAppointmentServices(repository: USAppointmentRepository, options: USAppointmentOrchestratorOptions = {}): {
   orchestrator: USAppointmentOrchestrator;
 } {
   return {
-    orchestrator: new USAppointmentOrchestrator(repository),
+    orchestrator: new USAppointmentOrchestrator(repository, options),
   };
 }

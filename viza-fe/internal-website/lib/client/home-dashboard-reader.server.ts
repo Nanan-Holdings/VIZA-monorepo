@@ -27,7 +27,6 @@ import {
   type ClientHomeTimelineDocumentRow,
   type ClientStatusApplicationRow,
   type ClientStatusDocumentRow,
-  type ClientStatusPaymentRow,
 } from "@/app/client/status/status-data";
 
 export interface ClientHomeProfile {
@@ -120,8 +119,6 @@ const PROFILE_COLUMNS = [
 
 const DOCUMENT_COLUMNS =
   "id, application_id, document_type, status, required, created_at, updated_at";
-const PAYMENT_COLUMNS =
-  "id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -130,7 +127,6 @@ const HOME_READ_ERROR_CODES = {
   profileRead: "profile_read_failed",
   applicationsRead: "applications_read_failed",
   documentsRead: "documents_read_failed",
-  paymentsRead: "payments_read_failed",
   dashboardRead: "dashboard_read_failed",
 } as const;
 
@@ -144,7 +140,6 @@ type HomeDocumentRow = ClientStatusDocumentRow & {
 };
 type HomeDocumentReadResult = { data: unknown; error: unknown };
 
-type HomePaymentRow = ClientStatusPaymentRow;
 
 function emptyDashboard(
   authenticated: boolean,
@@ -186,32 +181,6 @@ function toDashboardDocument(row: HomeDocumentRow): DocumentRow {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-}
-
-function toDashboardPayment(row: HomePaymentRow): PaymentRow {
-  return {
-    id: row.id,
-    application_id: row.application_id,
-    visa_package_id: row.visa_package_id,
-    status: row.status,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-function buildUuidInFilter(
-  column: "application_id" | "visa_package_id",
-  ids: string[],
-): string {
-  const uniqueIds = [...new Set(ids)];
-  if (uniqueIds.length === 0 || uniqueIds.some((id) => !UUID_PATTERN.test(id))) {
-    throw new Error(`Cannot build ${column} payment filter from invalid identifiers`);
-  }
-  return `${column}.in.(${uniqueIds.join(",")})`;
-}
-
-function dedupeById<T extends { id: string }>(rows: T[]): T[] {
-  return [...new Map(rows.map((row) => [row.id, row])).values()];
 }
 
 function selectHomeApplication(
@@ -371,9 +340,6 @@ async function loadClientHomeDashboardInternal(
     (application) => !isQaDryRunPurpose(application.purpose),
   );
   const applicationIds = rawApplications.map((application) => application.id);
-  const packageIds = rawApplications
-    .map((application) => application.visa_package_id)
-    .filter((id): id is string => Boolean(id));
 
   const selectedApplication = options.includeTimeline
     ? selectHomeApplication(rawApplications, options.selection)
@@ -409,14 +375,7 @@ async function loadClientHomeDashboardInternal(
 
   try {
     let rawDocuments: HomeDocumentRow[] = [];
-    let rawPayments: HomePaymentRow[] = [];
     if (applicationIds.length > 0) {
-      const paymentFilters = [
-        buildUuidInFilter("application_id", applicationIds),
-        ...(packageIds.length > 0
-          ? [buildUuidInFilter("visa_package_id", packageIds)]
-          : []),
-      ];
       const readStandaloneDocuments = async (): Promise<HomeDocumentReadResult> => {
         if (readBudget.signal.aborted) return { data: [], error: null };
         return tracePortalReadStage("documents", () =>
@@ -434,17 +393,7 @@ async function loadClientHomeDashboardInternal(
             return readStandaloneDocuments();
           })
         : readStandaloneDocuments();
-      const detailReads = Promise.all([
-        documentRead,
-        tracePortalReadStage("payments", () =>
-          adminClient
-            .from("payment_records")
-            .select(PAYMENT_COLUMNS)
-            .eq("applicant_id", session.userId)
-            .or(paymentFilters.join(",")),
-        ),
-      ]);
-      const [documentResult, paymentResult] = await detailReads;
+      const documentResult = await documentRead;
       const { data: documentRows, error: documentError } = documentResult;
       if (documentError) {
         return buildDashboardReadResult({
@@ -457,22 +406,7 @@ async function loadClientHomeDashboardInternal(
           error: HOME_READ_ERROR_CODES.documentsRead,
         });
       }
-      const paymentError = paymentResult.error;
-      if (paymentError) {
-        return buildDashboardReadResult({
-          authenticated: true,
-          authEmail: session.email,
-          profile: profile as unknown as ClientHomeProfile,
-          applications: rawApplications.map(toDashboardApplication),
-          documents: ((documentRows ?? []) as unknown as HomeDocumentRow[]).map(toDashboardDocument),
-          payments: [],
-          error: HOME_READ_ERROR_CODES.paymentsRead,
-        });
-      }
       rawDocuments = (documentRows ?? []) as unknown as HomeDocumentRow[];
-      rawPayments = dedupeById(
-        (paymentResult.data ?? []) as unknown as HomePaymentRow[],
-      );
     }
 
     const data: ClientHomeDashboardData = {
@@ -481,7 +415,7 @@ async function loadClientHomeDashboardInternal(
       profile: profile as unknown as ClientHomeProfile,
       applications: rawApplications.map(toDashboardApplication),
       documents: rawDocuments.map(toDashboardDocument),
-      payments: rawPayments.map(toDashboardPayment),
+      payments: [],
     };
     const result = buildDashboardReadResult(data);
     if (!options.includeTimeline || !selectedApplication || !timelinePreload) return result;
@@ -490,7 +424,7 @@ async function loadClientHomeDashboardInternal(
       const timelineResult = await assembleClientHomeTimeline({
         application: selectedApplication,
         documents: rawDocuments,
-        payments: rawPayments,
+        payments: [],
       }, await timelinePreload);
       return {
         ...result,

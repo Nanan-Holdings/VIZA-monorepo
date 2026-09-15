@@ -1,5 +1,13 @@
 # Vietnam Submission Runner Agent Guide
 
+Product policy (2026-09-15): payment execution has been removed.
+`src/payment-removed.ts` defines the unconditional retirement boundary.
+Card-session HTTP routes return 410; issuer and portal payment functions cannot
+spend or acquire cards, regardless of environment flags. Official fee checkpoints
+remain needs-attention states, never fabricated paid/submitted outcomes.
+Existing form filling, ownership/lease fences, consent, and browser cleanup remain.
+This supersedes historical payment pilot instructions below.
+
 Scope: this file applies to `viza-be/submission-service/src/vietnam/**`.
 
 ## Reference Implementation

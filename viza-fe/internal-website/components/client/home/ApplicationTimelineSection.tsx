@@ -17,7 +17,6 @@ import type {
 } from "@/app/client/status/status-data";
 
 const STEP_ACTIONS: Partial<Record<StatusStepKey, StatusAction["key"][]>> = {
-  payment: ["pay"],
   consent: ["giveConsent"],
   form: ["startApplication", "continueForm"],
   documents: ["uploadDocuments"],
@@ -31,8 +30,7 @@ const STEP_ACTIONS: Partial<Record<StatusStepKey, StatusAction["key"][]>> = {
  * country gradient (see `country-hero-theme`), so they must stay pure white —
  * those gradients are hand-tuned for white legibility, nothing else.
  */
-const STEP_IMAGE: Record<StatusStepKey, string> = {
-  payment: "/images/step-icons-white/payment.png",
+const STEP_IMAGE: Partial<Record<StatusStepKey, string>> = {
   consent: "/images/step-icons-white/consent.png",
   form: "/images/step-icons-white/form.png",
   documents: "/images/step-icons-white/documents.png",
@@ -130,7 +128,7 @@ function TaskCard({
         style={{ backgroundImage: heroGradientCss(heroTheme) }}
       >
         <Image
-          src={STEP_IMAGE[step.key]}
+          src={STEP_IMAGE[step.key] ?? STEP_IMAGE.form ?? "/images/step-icons-white/form.png"}
           alt=""
           fill
           sizes="64px"

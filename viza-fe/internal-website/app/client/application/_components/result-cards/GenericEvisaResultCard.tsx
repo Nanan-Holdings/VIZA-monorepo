@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Download, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
+import { Download, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
 
 /**
  * POR-006: generic result card for the standard e-Visa launch countries
- * (ID/EG/SA/MY/TH/AE/CA/TR/IT/IN). Handles the submitted, halted-before-pay,
+ * (ID/EG/SA/MY/TH/AE/CA/TR/IT/IN). Handles submitted and
  * and paper/VFS-ready states, and surfaces the e-visa artifact download when
  * the runner stored one (POR-007).
  */
@@ -28,8 +26,6 @@ const COUNTRY_LABEL_ZH: Record<GenericEvisaSubmissionResult["country"], string> 
 
 export function GenericEvisaResultCard({
   applicationId,
-  applicationCountry,
-  applicationVisaType,
   result,
 }: {
   applicationId: string | null;
@@ -38,83 +34,8 @@ export function GenericEvisaResultCard({
   result: GenericEvisaSubmissionResult;
 }) {
   const isZh = isChineseLocale(useLocale());
-  const [locatingPayment, setLocatingPayment] = useState(false);
-  const [startingManagedPayment, setStartingManagedPayment] = useState(false);
-  const [locateError, setLocateError] = useState<string | null>(null);
-  const portalUrl = result.portalUrl;
-  // Only show the bank-verification wording after the runner explicitly records a card handoff.
-  // Reaching Finpay alone is a payment-page handoff, not a completed or initiated card payment.
-  const indonesiaAutopayCheckpoint =
-    result.country === "ID" &&
-    result.status === "stopped_at_pay" &&
-    (result as GenericEvisaSubmissionResult & { oneTimeCardSubmitted?: boolean }).oneTimeCardSubmitted === true;
-  const isIndonesiaHomePaymentUrl =
-    result.country === "ID" &&
-    portalUrl !== undefined &&
-    /^https:\/\/evisa\.imigrasi\.go\.id\/?$/i.test(portalUrl.trim());
   const country = (isZh ? COUNTRY_LABEL_ZH[result.country] : COUNTRY_LABEL[result.country]) ?? result.country;
   const hasArtifact = Boolean(result.artifactStoragePath);
-
-  async function locateOfficialPaymentPage(): Promise<void> {
-    if (!applicationId) return;
-    setLocatingPayment(true);
-    setLocateError(null);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "live_assisted",
-          country: applicationCountry ?? "indonesia",
-          visaType: applicationVisaType ?? "ID_B1_EVOA",
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      if (!response.ok) {
-        throw new Error(typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`);
-      }
-      window.location.reload();
-    } catch (error) {
-      setLocateError(error instanceof Error ? error.message : String(error));
-      setLocatingPayment(false);
-    }
-  }
-
-  async function startManagedOfficialPayment(): Promise<void> {
-    if (!applicationId) return;
-    setStartingManagedPayment(true);
-    setLocateError(null);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        error?: unknown;
-        code?: unknown;
-        checkoutUrl?: unknown;
-      } | null;
-      if (!response.ok) {
-        if (
-          body?.code === "official_fee_funding_required" &&
-          typeof body.checkoutUrl === "string"
-        ) {
-          window.location.assign(body.checkoutUrl);
-          return;
-        }
-        throw new Error(
-          typeof body?.error === "string"
-            ? body.error
-            : `Official-fee payment returned ${response.status}`,
-        );
-      }
-      window.location.reload();
-    } catch (error) {
-      setLocateError(error instanceof Error ? error.message : String(error));
-      setStartingManagedPayment(false);
-    }
-  }
 
   const heading =
     result.status === "submitted"
@@ -125,7 +46,7 @@ export function GenericEvisaResultCard({
 
   const badge =
     result.status === "stopped_at_pay"
-      ? isZh ? "VIZA 正在处理付款" : "VIZA is handling payment"
+      ? isZh ? "需要关注" : "Needs attention"
       : result.status === "form_ready_for_agency"
         ? isZh ? "下载并提交" : "Download & submit"
         : isZh ? "已提交" : "Submitted";
@@ -145,8 +66,8 @@ export function GenericEvisaResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {result.status === "stopped_at_pay"
             ? isZh
-              ? `VIZA 已把你的${country}申请推进到官网付款节点，并会使用本申请专属的一次性虚拟卡支付。只有官网成功凭证保存完成后才会显示成功；系统不会要求你向官网提供银行卡。`
-              : `VIZA advanced your ${country} application to the government payment step and will pay with an application-scoped one-use virtual card. Success appears only after official evidence is stored; you will not be asked to give card details to the government portal.`
+              ? `你的${country}申请需要在官网完成后续步骤。请联系支持团队获取下一步指引。`
+              : `Your ${country} application needs attention for a later official-portal step. Contact support for next steps.`
             : result.status === "form_ready_for_agency"
               ? isZh
                 ? `你的${country}申请资料包已准备好，可下载、打印并递交至签证中心。`
@@ -172,53 +93,6 @@ export function GenericEvisaResultCard({
                 : isZh ? "下载文件" : "Download document"}
             </a>
           </Button>
-        ) : result.status === "stopped_at_pay" && indonesiaAutopayCheckpoint ? (
-          <div className="flex items-center justify-center gap-2 rounded-md border border-brand-100 bg-brand-50 p-4 text-sm font-medium text-brand-700">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {isZh ? "正在确认官方付款结果…" : "Confirming the official payment result…"}
-          </div>
-        ) : result.status === "stopped_at_pay" && isIndonesiaHomePaymentUrl ? (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!applicationId || locatingPayment}
-              onClick={() => {
-                void locateOfficialPaymentPage();
-              }}
-            >
-              {locatingPayment ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="mr-2 h-4 w-4" />
-              )}
-              {locatingPayment
-                ? isZh ? "正在定位官方付款页" : "Locating official payment page"
-                : isZh ? "定位官方付款页" : "Locate official payment page"}
-            </Button>
-            {locateError ? <ClientErrorAlert message={locateError} /> : null}
-          </div>
-        ) : result.status === "stopped_at_pay" ? (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!applicationId || startingManagedPayment}
-              onClick={() => {
-                void startManagedOfficialPayment();
-              }}
-            >
-              {startingManagedPayment ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ShieldCheck className="mr-2 h-4 w-4" />
-              )}
-              {startingManagedPayment
-                ? isZh ? "正在启动 VIZA 官网付款" : "Starting VIZA official payment"
-                : isZh ? "由 VIZA 继续支付官网费用" : "Continue official payment with VIZA"}
-            </Button>
-            {locateError ? <ClientErrorAlert message={locateError} /> : null}
-          </div>
         ) : (
           <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-brand-500">

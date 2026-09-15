@@ -17,6 +17,7 @@ type FieldLike = Pick<
 >;
 
 export function usesBilingualAnswerPair(field: FieldLike): boolean {
+  if (field.fieldName === "full_name_native_alphabet") return false;
   if (field.fieldType !== "text" && field.fieldType !== "textarea") return false;
 
   const rules = field.validationRules as {

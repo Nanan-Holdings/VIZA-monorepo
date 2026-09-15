@@ -1,5 +1,4 @@
-import { supabase } from "../supabase.js";
-import { applicantVault } from "../applicant-vault.js";
+import { rejectRemovedPayment } from "../payment-removed.js";
 import { routingFor } from "../payment-routing.js";
 
 /**
@@ -40,29 +39,9 @@ export const VN_GOVT_PAYMENT_MECHANISM = routingFor(
 ).mechanism;
 
 export async function loadEscrowCard(
-  applicantId: string,
+  _applicantId: string,
 ): Promise<VnEscrowCard> {
-  const pan = await applicantVault.require(
-    applicantId,
-    "viza.escrow.card.pan",
-    { actor: "vietnam:govt-payment", correlationId: applicantId },
-  );
-  const expiry = await applicantVault.require(
-    applicantId,
-    "viza.escrow.card.expiry",
-    { actor: "vietnam:govt-payment", correlationId: applicantId },
-  );
-  const cvv = await applicantVault.require(
-    applicantId,
-    "viza.escrow.card.cvv",
-    { actor: "vietnam:govt-payment", correlationId: applicantId },
-  );
-  const m = /^(\d{2})\/(\d{2,4})$/.exec(expiry.trim());
-  if (!m) throw new Error(`Invalid escrow card expiry: ${expiry}`);
-  const month = m[1];
-  let year = m[2];
-  if (year.length === 2) year = `20${year}`;
-  return { pan, expiryMonth: month, expiryYear: year, cvv };
+  return rejectRemovedPayment();
 }
 
 export interface RecordPortalReceiptInput {
@@ -73,46 +52,14 @@ export interface RecordPortalReceiptInput {
 }
 
 export async function recordPortalReceipt(
-  input: RecordPortalReceiptInput,
+  _input: RecordPortalReceiptInput,
 ): Promise<void> {
-  const { error: lineErr } = await supabase.from("order_line").insert({
-    order_id: input.orderId,
-    kind: "govt",
-    amount_cents: input.amountCents,
-    currency: input.currency,
-    payee: "vietnam",
-    description: "VN e-Visa government fee — runner escrow card",
-    metadata: { portal_receipt_id: input.portalReceiptId },
-  });
-  if (lineErr) {
-    throw new Error(`order_line insert: ${lineErr.message}`);
-  }
-  const { error: orderErr } = await supabase
-    .from("order")
-    .update({
-      status: "submitted",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", input.orderId)
-    .eq("status", "paid");
-  if (orderErr) {
-    throw new Error(`order status update: ${orderErr.message}`);
-  }
+  return rejectRemovedPayment();
 }
 
 export async function recordPortalDecline(
-  orderId: string,
-  reason: string,
+  _orderId: string,
+  _reason: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("order")
-    .update({
-      status: "govt_payment_failed",
-      metadata: { decline_reason: reason },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-  if (error) {
-    throw new Error(`order decline update: ${error.message}`);
-  }
+  return rejectRemovedPayment();
 }

@@ -12,7 +12,6 @@ import { isQaDryRunPurpose } from "@/lib/applications/qa-safety";
 
 export type LifecycleState =
   | "intake"
-  | "payment_pending"
   | "consent_pending"
   | "document_collection"
   | "packet_generation"
@@ -22,7 +21,6 @@ export type LifecycleState =
   | "completed"
   | "attention";
 
-export type PaymentState = "missing" | "pending" | "paid" | "failed" | "refunded";
 export type ConsentState = "missing" | "missing_signature" | "complete" | "declined";
 export type DocumentState = "not_started" | "missing" | "complete" | "rejected";
 export type PacketState = "not_started" | "generating" | "ready" | "failed";
@@ -61,9 +59,6 @@ interface ApplicationRow {
   result_status: string | null;
   result_storage_path: string | null;
   result_notes: string | null;
-  government_fee_cents: number | null;
-  government_fee_currency: string | null;
-  government_fee_mode: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -98,8 +93,6 @@ export interface VisaPackageRow {
   name: string;
   country: string;
   visa_type: string;
-  price_cents: number | null;
-  currency: string | null;
   metadata: JsonValue | null;
 }
 
@@ -137,23 +130,6 @@ export interface ApplicationAnswerRow {
   field_name: string;
   value_text: string | null;
   value_json: JsonValue | null;
-  updated_at: string | null;
-}
-
-export interface PaymentRecordRow {
-  id: string;
-  application_id: string | null;
-  applicant_id: string | null;
-  visa_package_id: string | null;
-  provider: string;
-  provider_session_id: string | null;
-  provider_payment_id: string | null;
-  amount_cents: number;
-  currency: string;
-  status: string;
-  fee_type: string;
-  receipt_url: string | null;
-  created_at: string | null;
   updated_at: string | null;
 }
 
@@ -227,13 +203,6 @@ export interface DocumentStatusSummary {
   missingLabels: string[];
 }
 
-export interface PaymentStatusSummary {
-  state: PaymentState;
-  latest: PaymentRecordRow | null;
-  paidTotalCents: number;
-  currency: string | null;
-}
-
 export interface ConsentStatusSummary {
   state: ConsentState;
   latestConsent: ConsentEventRow | null;
@@ -272,7 +241,6 @@ export interface AdminApplicationModel {
   missingItems: string[];
   profile: ApplicantProfileRow | null;
   visaPackage: VisaPackageRow | null;
-  payment: PaymentStatusSummary;
   consent: ConsentStatusSummary;
   documents: DocumentStatusSummary;
   packet: PacketStatusSummary;
@@ -281,7 +249,6 @@ export interface AdminApplicationModel {
   liveSubmission: LiveSubmissionSummary | null;
   answers: ApplicationAnswerRow[];
   applicationDocuments: ApplicationDocumentRow[];
-  payments: PaymentRecordRow[];
   consents: ConsentEventRow[];
   signatures: ApplicationSignatureRow[];
   packets: ApplicationPacketRow[];
@@ -295,9 +262,6 @@ export interface AdminApplicationModel {
   submittedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
-  governmentFeeCents: number | null;
-  governmentFeeCurrency: string | null;
-  governmentFeeMode: string | null;
 }
 
 export interface AdminPackageAssignmentSummary {
@@ -311,7 +275,6 @@ export interface AdminPackageAssignmentSummary {
   packageName: string;
   countryLabel: string;
   visaTypeLabel: string;
-  priceLabel: string;
 }
 
 export interface AdminApplicantOverview {
@@ -350,7 +313,6 @@ interface RelatedData {
   requirements: DocumentRequirementRow[];
   documentsByApplication: Map<string, ApplicationDocumentRow[]>;
   answersByApplication: Map<string, ApplicationAnswerRow[]>;
-  paymentsByApplication: Map<string, PaymentRecordRow[]>;
   consentsByApplication: Map<string, ConsentEventRow[]>;
   signaturesByApplication: Map<string, ApplicationSignatureRow[]>;
   packetsByApplication: Map<string, ApplicationPacketRow[]>;
@@ -361,7 +323,6 @@ interface RelatedData {
 
 export const LIFECYCLE_LABELS: Record<LifecycleState, string> = {
   intake: "Intake",
-  payment_pending: "Payment pending",
   consent_pending: "Consent pending",
   document_collection: "Document collection",
   packet_generation: "Packet generation",
@@ -370,14 +331,6 @@ export const LIFECYCLE_LABELS: Record<LifecycleState, string> = {
   result_delivery: "Result delivery",
   completed: "Completed",
   attention: "Needs attention",
-};
-
-export const PAYMENT_LABELS: Record<PaymentState, string> = {
-  missing: "Missing",
-  pending: "Pending",
-  paid: "Paid",
-  failed: "Failed",
-  refunded: "Refunded",
 };
 
 export const CONSENT_LABELS: Record<ConsentState, string> = {
@@ -420,11 +373,6 @@ export const RESULT_LABELS: Record<ResultState, string> = {
   rejected: "Rejected",
 };
 
-const PAID_STATUSES = new Set(["paid", "succeeded", "success", "complete", "completed"]);
-const PENDING_PAYMENT_STATUSES = new Set(["pending", "open", "processing", "requires_payment"]);
-const FAILED_PAYMENT_STATUSES = new Set(["failed", "canceled", "cancelled", "expired", "void"]);
-const REFUNDED_PAYMENT_STATUSES = new Set(["refunded", "partially_refunded"]);
-
 const PACKET_READY_STATUSES = new Set(["ready", "generated", "complete", "completed"]);
 const PACKET_PENDING_STATUSES = new Set(["pending", "not_started", "generating", "processing", "queued"]);
 const PACKET_FAILED_STATUSES = new Set(["failed", "error", "blocked"]);
@@ -440,11 +388,19 @@ const RESULT_REJECTED_STATUSES = new Set(["rejected", "refused", "denied"]);
 const RESULT_DELIVERED_STATUSES = new Set(["delivered", "sent_to_customer"]);
 const RESULT_RECEIVED_STATUSES = new Set(["received", "available", "ready"]);
 const RESULT_PENDING_STATUSES = new Set(["pending", "processing"]);
+const LEGACY_PAYMENT_APPLICATION_STATUSES = new Set([
+  "payment_pending",
+  "payment_required",
+  "awaiting_payment",
+  "needs_payment",
+  "unpaid",
+  "payment_failed",
+]);
 
 const APPLICATION_BASE_SELECT =
   "id, applicant_id, country, visa_type, purpose, status, arrival_date, departure_date, confirmation_number, submitted_at, visa_package_id, created_at, updated_at";
 
-const APPLICATION_AUTOMATION_SELECT = `${APPLICATION_BASE_SELECT}, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes, government_fee_cents, government_fee_currency, government_fee_mode`;
+const APPLICATION_AUTOMATION_SELECT = `${APPLICATION_BASE_SELECT}, packet_status, packet_manifest, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, result_notes`;
 
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
@@ -498,9 +454,6 @@ function withApplicationDefaults(row: Partial<ApplicationRow> & Pick<
     result_status: row.result_status ?? null,
     result_storage_path: row.result_storage_path ?? null,
     result_notes: row.result_notes ?? null,
-    government_fee_cents: row.government_fee_cents ?? null,
-    government_fee_currency: row.government_fee_currency ?? null,
-    government_fee_mode: row.government_fee_mode ?? null,
     created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
   };
@@ -561,7 +514,6 @@ function groupApplicationsByApplicant(rows: AdminApplicationModel[]): Map<string
 export function getLifecycleProgressPercent(application: AdminApplicationModel): number {
   const progressByState: Record<LifecycleState, number> = {
     intake: 8,
-    payment_pending: 18,
     consent_pending: 32,
     document_collection: 48,
     packet_generation: 64,
@@ -622,7 +574,6 @@ function toPackageAssignmentSummary(
     packageName: visaPackage?.name ?? "Unknown package",
     countryLabel: visaPackage ? getDestinationDisplayName(visaPackage.country) : "Unknown country",
     visaTypeLabel: visaPackage ? getVisaTypeDisplayName(getFormVisaType(visaPackage.visa_type)) : "Unknown visa type",
-    priceLabel: visaPackage ? formatMoney(visaPackage.price_cents, visaPackage.currency) : "Not set",
   };
 }
 
@@ -647,7 +598,6 @@ function derivePackageSummariesFromApplications(
       packageName: application.visaPackage.name,
       countryLabel: getDestinationDisplayName(application.visaPackage.country),
       visaTypeLabel: getVisaTypeDisplayName(getFormVisaType(application.visaPackage.visa_type)),
-      priceLabel: formatMoney(application.visaPackage.price_cents, application.visaPackage.currency),
     });
   }
 
@@ -669,7 +619,7 @@ async function loadPackageAssignmentsByApplicant(
 
   const adminClient = createAdminClient();
   const baseSelect =
-    "id, auth_user_id, visa_package_id, application_id, status, assigned_at, completed_at, visa_packages(id, name, country, visa_type, price_cents, currency, metadata)";
+    "id, auth_user_id, visa_package_id, application_id, status, assigned_at, completed_at, visa_packages(id, name, country, visa_type, metadata)";
   const fullResult = await adminClient
     .from("user_packages")
     .select(`${baseSelect}, expires_at`)
@@ -903,25 +853,6 @@ function summarizeDocuments(
   };
 }
 
-function summarizePayment(payments: PaymentRecordRow[]): PaymentStatusSummary {
-  const sorted = sortByUpdatedAt(payments);
-  const latest = sorted[0] ?? null;
-  const paidPayments = payments.filter((payment) => PAID_STATUSES.has(normalizeStatus(payment.status)));
-  const paidTotalCents = paidPayments.reduce((total, payment) => total + payment.amount_cents, 0);
-  const currency = latest?.currency ?? paidPayments[0]?.currency ?? null;
-
-  if (!latest) {
-    return { state: "missing", latest: null, paidTotalCents, currency };
-  }
-
-  const status = normalizeStatus(latest.status);
-  if (PAID_STATUSES.has(status)) return { state: "paid", latest, paidTotalCents, currency };
-  if (REFUNDED_PAYMENT_STATUSES.has(status)) return { state: "refunded", latest, paidTotalCents, currency };
-  if (FAILED_PAYMENT_STATUSES.has(status)) return { state: "failed", latest, paidTotalCents, currency };
-  if (PENDING_PAYMENT_STATUSES.has(status)) return { state: "pending", latest, paidTotalCents, currency };
-  return { state: "pending", latest, paidTotalCents, currency };
-}
-
 function summarizeConsent(
   consents: ConsentEventRow[],
   signatures: ApplicationSignatureRow[],
@@ -1011,7 +942,6 @@ function summarizeResult(application: ApplicationRow): ResultStatusSummary {
 
 function deriveLifecycleState({
   rawStatus,
-  payment,
   consent,
   documents,
   packet,
@@ -1021,7 +951,6 @@ function deriveLifecycleState({
   answers,
 }: {
   rawStatus: string;
-  payment: PaymentStatusSummary;
   consent: ConsentStatusSummary;
   documents: DocumentStatusSummary;
   packet: PacketStatusSummary;
@@ -1032,10 +961,13 @@ function deriveLifecycleState({
 }): LifecycleState {
   const normalizedRawStatus = normalizeStatus(rawStatus);
 
+  // Applications created by the retired commercial flow remain visible, but
+  // their legacy payment statuses must not block the free application path.
+  if (LEGACY_PAYMENT_APPLICATION_STATUSES.has(normalizedRawStatus)) return "attention";
+
   if (
     liveSubmission?.state === "action_required" ||
     liveSubmission?.state === "failed" ||
-    payment.state === "failed" ||
     consent.state === "declined" ||
     documents.state === "rejected" ||
     packet.state === "failed" ||
@@ -1059,7 +991,6 @@ function deriveLifecycleState({
   }
   if (external.state === "ready_for_handoff") return "ready_for_external_handoff";
   if (packet.state === "generating") return "packet_generation";
-  if (payment.state !== "paid" && payment.state !== "refunded") return "payment_pending";
   if (consent.state !== "complete") return "consent_pending";
   if (documents.state !== "complete") return "document_collection";
   if (packet.state !== "ready") return "packet_generation";
@@ -1068,7 +999,6 @@ function deriveLifecycleState({
 }
 
 function buildMissingItems({
-  payment,
   consent,
   documents,
   packet,
@@ -1076,7 +1006,6 @@ function buildMissingItems({
   liveSubmission,
   answers,
 }: {
-  payment: PaymentStatusSummary;
   consent: ConsentStatusSummary;
   documents: DocumentStatusSummary;
   packet: PacketStatusSummary;
@@ -1087,9 +1016,6 @@ function buildMissingItems({
   const items: string[] = [];
 
   if (answers.length === 0) items.push("Application answers not started");
-  if (payment.state === "missing") items.push("Agency fee payment missing");
-  if (payment.state === "pending") items.push("Agency fee payment pending");
-  if (payment.state === "failed") items.push("Payment needs customer support");
   if (consent.state === "missing") items.push("Consent not accepted");
   if (consent.state === "missing_signature") items.push("Signature not captured");
   if (consent.state === "declined") items.push("Consent was declined");
@@ -1100,7 +1026,7 @@ function buildMissingItems({
     items.push(`${documents.missingLabels.length - 4} more document items`);
   }
   if (packet.state === "failed") items.push("Packet generation failed");
-  if (packet.state === "not_started" && payment.state === "paid" && consent.state === "complete" && documents.state === "complete") {
+  if (packet.state === "not_started" && consent.state === "complete" && documents.state === "complete") {
     items.push("Packet not generated yet");
   }
   if (external.state === "attention" || external.state === "rejected") {
@@ -1120,7 +1046,6 @@ function buildApplicationModel(
   application: ApplicationRow,
   related: RelatedData,
 ): AdminApplicationModel {
-  const payments = sortByUpdatedAt(related.paymentsByApplication.get(application.id) ?? []);
   const consents = sortByCreatedAt(related.consentsByApplication.get(application.id) ?? []);
   const signatures = sortByCreatedAt(related.signaturesByApplication.get(application.id) ?? []);
   const packets = sortByUpdatedAt(related.packetsByApplication.get(application.id) ?? []);
@@ -1128,7 +1053,6 @@ function buildApplicationModel(
   const notifications = sortByUpdatedAt(related.notificationsByApplication.get(application.id) ?? []);
   const answers = sortByUpdatedAt(related.answersByApplication.get(application.id) ?? []);
   const applicationDocuments = sortByUpdatedAt(related.documentsByApplication.get(application.id) ?? []);
-  const payment = summarizePayment(payments);
   const consent = summarizeConsent(consents, signatures);
   const documents = summarizeDocuments(application, applicationDocuments, related.requirements);
   const packet = summarizePacket(application, packets);
@@ -1137,7 +1061,6 @@ function buildApplicationModel(
   const result = summarizeResult(application);
   const lifecycleState = deriveLifecycleState({
     rawStatus: application.status,
-    payment,
     consent,
     documents,
     packet,
@@ -1156,10 +1079,9 @@ function buildApplicationModel(
     visaTypeLabel: getVisaTypeDisplayName(getFormVisaType(application.visa_type)),
     rawStatus: application.status,
     lifecycleState,
-    missingItems: buildMissingItems({ payment, consent, documents, packet, external, liveSubmission, answers }),
+    missingItems: buildMissingItems({ consent, documents, packet, external, liveSubmission, answers }),
     profile: related.profilesById.get(application.applicant_id) ?? null,
     visaPackage: application.visa_package_id ? related.packagesById.get(application.visa_package_id) ?? null : null,
-    payment,
     consent,
     documents,
     packet,
@@ -1168,7 +1090,6 @@ function buildApplicationModel(
     liveSubmission,
     answers,
     applicationDocuments,
-    payments,
     consents,
     signatures,
     packets,
@@ -1182,9 +1103,6 @@ function buildApplicationModel(
     submittedAt: application.submitted_at,
     createdAt: application.created_at,
     updatedAt: application.updated_at,
-    governmentFeeCents: application.government_fee_cents,
-    governmentFeeCurrency: application.government_fee_currency,
-    governmentFeeMode: application.government_fee_mode,
   };
 }
 
@@ -1203,7 +1121,6 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     countryRequirementRes,
     documentRes,
     answerRes,
-    paymentRes,
     consentRes,
     signatureRes,
     packetRes,
@@ -1220,7 +1137,7 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     packageIds.length > 0
       ? adminClient
           .from("visa_packages")
-          .select("id, name, country, visa_type, price_cents, currency, metadata")
+          .select("id, name, country, visa_type, metadata")
           .in("id", packageIds)
       : Promise.resolve({ data: [], error: null }),
     packageIds.length > 0
@@ -1244,13 +1161,6 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
           .select("id, application_id, field_name, value_text, value_json, updated_at")
           .in("application_id", applicationIds)
           .limit(5000)
-      : Promise.resolve({ data: [], error: null }),
-    applicationIds.length > 0
-      ? adminClient
-          .from("payment_records")
-          .select("id, application_id, applicant_id, visa_package_id, provider, provider_session_id, provider_payment_id, amount_cents, currency, status, fee_type, receipt_url, created_at, updated_at")
-          .in("application_id", applicationIds)
-          .limit(1000)
       : Promise.resolve({ data: [], error: null }),
     applicationIds.length > 0
       ? adminClient
@@ -1297,7 +1207,6 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     countryRequirementRes.error,
     documentRes.error,
     answerRes.error,
-    paymentRes.error,
     consentRes.error,
     signatureRes.error,
     packetRes.error,
@@ -1321,7 +1230,6 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     requirements: uniqueRequirements,
     documentsByApplication: groupByApplication((documentRes.data ?? []) as ApplicationDocumentRow[]),
     answersByApplication: groupByApplication((answerRes.data ?? []) as ApplicationAnswerRow[]),
-    paymentsByApplication: groupByApplication((paymentRes.data ?? []) as PaymentRecordRow[]),
     consentsByApplication: groupByApplication((consentRes.data ?? []) as ConsentEventRow[]),
     signaturesByApplication: groupByApplication((signatureRes.data ?? []) as ApplicationSignatureRow[]),
     packetsByApplication: groupByApplication((packetRes.data ?? []) as ApplicationPacketRow[]),
@@ -1463,14 +1371,6 @@ export function maskPassport(passportNumber: string | null): string {
   return visible ? `**** ${visible}` : "Masked";
 }
 
-export function formatMoney(cents: number | null | undefined, currency: string | null | undefined): string {
-  if (typeof cents !== "number") return "Not set";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency || "USD",
-  }).format(cents / 100);
-}
-
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "Not recorded";
   return new Intl.DateTimeFormat("en-SG", {
@@ -1514,7 +1414,6 @@ export function buildStatusSummary(application: AdminApplicationModel): string {
     `Application ${shortenId(application.id)} for ${applicantName}`,
     `${application.countryLabel} - ${application.visaTypeLabel}`,
     `Lifecycle: ${LIFECYCLE_LABELS[application.lifecycleState]}`,
-    `Payment: ${PAYMENT_LABELS[application.payment.state]}`,
     `Consent: ${CONSENT_LABELS[application.consent.state]}`,
     `Documents: ${DOCUMENT_LABELS[application.documents.state]}`,
     `Packet: ${PACKET_LABELS[application.packet.state]}`,

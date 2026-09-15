@@ -16,21 +16,8 @@ interface FailureCardProps {
   applicationId?: string;
   errorMessage?: string;
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
-  onRetry?: (
-    mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
-  ) => Promise<void> | void;
+  onRetry?: (mode: SubmissionMode) => Promise<void> | void;
   showFranceAccount?: boolean;
-  requiresOfficialPaymentCard?: boolean;
-  requiresVietnamPaymentCard?: boolean;
-  requiresIndonesiaPaymentCard?: boolean;
-}
-
-export interface VietnamOneTimePaymentCard {
-  pan: string;
-  expiry: string;
-  cvv: string;
-  holderName: string;
 }
 
 type FvOfficialAccount = {
@@ -226,9 +213,6 @@ export function FailureCard({
   retryModes,
   onRetry,
   showFranceAccount = false,
-  requiresOfficialPaymentCard = false,
-  requiresVietnamPaymentCard = false,
-  requiresIndonesiaPaymentCard = false,
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
@@ -243,14 +227,9 @@ export function FailureCard({
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
-  const indonesiaPaymentFailure =
-    requiresIndonesiaPaymentCard ||
-    /(?:indonesia.{0,80}payment|payment.{0,80}indonesia)/i.test(errorMessage ?? "");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
-  const requiresManagedPayment =
-    requiresOfficialPaymentCard || requiresVietnamPaymentCard || indonesiaPaymentFailure;
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -341,10 +320,6 @@ export function FailureCard({
             ? (isZh
                 ? "云端提交任务没有及时推进。你的答案已保存；请直接重新提交，VIZA 会创建新的云端任务并继续跟踪。"
                 : "The cloud submission job did not advance in time. Your answers are saved; submit again to create a new cloud job and continue tracking it.")
-            : indonesiaPaymentFailure
-            ? (isZh
-                ? "印尼官网付款没有成功。你的申请答案已保存；请重试，VIZA 会使用此申请专用的限额虚拟卡再次付款并确认最终结果。"
-                : "The Indonesia official payment did not succeed. Your answers are saved; retry and VIZA will use this application's limited virtual card to pay again and confirm the result.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
@@ -400,19 +375,6 @@ export function FailureCard({
               <ExternalLink className="ml-2 h-4 w-4" />
             </a>
           </Button>
-        )}
-        {requiresManagedPayment && (
-          <Alert variant="info">
-            <AlertIcon variant="info" />
-            <AlertTitle>{isZh ? "VIZA 将处理官方付款" : "VIZA will handle the official payment"}</AlertTitle>
-            <AlertDescription>
-              <p>
-                {isZh
-                  ? "无需输入银行卡资料或前往官网付款。重试后，VIZA 会使用仅限此申请和已核对金额的虚拟卡继续。"
-                  : "Do not enter card details or pay on the official portal. On retry, VIZA will continue with a virtual card limited to this application and verified amount."}
-              </p>
-            </AlertDescription>
-          </Alert>
         )}
         {retryFailure && (
           <Alert variant="destructive">

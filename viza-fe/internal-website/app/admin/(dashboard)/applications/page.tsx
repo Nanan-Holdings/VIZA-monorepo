@@ -22,7 +22,6 @@ import {
   type ExternalState,
   type LifecycleState,
   type PacketState,
-  type PaymentState,
   type ResultState,
   fetchAdminApplicantQueue,
   getLifecycleProgressPercent,
@@ -45,7 +44,6 @@ export const dynamic = "force-dynamic";
 
 interface ActiveFilters {
   lifecycle: LifecycleState | "all";
-  payment: PaymentState | "all";
   consent: ConsentState | "all";
   documents: DocumentState | "all";
   packet: PacketState | "all";
@@ -56,7 +54,6 @@ interface ActiveFilters {
 
 const LIFECYCLE_OPTIONS: LifecycleState[] = [
   "intake",
-  "payment_pending",
   "consent_pending",
   "document_collection",
   "packet_generation",
@@ -66,7 +63,6 @@ const LIFECYCLE_OPTIONS: LifecycleState[] = [
   "completed",
   "attention",
 ];
-const PAYMENT_OPTIONS: PaymentState[] = ["missing", "pending", "paid", "failed", "refunded"];
 const CONSENT_OPTIONS: ConsentState[] = ["missing", "missing_signature", "complete", "declined"];
 const DOCUMENT_OPTIONS: DocumentState[] = ["not_started", "missing", "complete", "rejected"];
 const PACKET_OPTIONS: PacketState[] = ["not_started", "generating", "ready", "failed"];
@@ -98,7 +94,6 @@ function getFilterValue<T extends string>(
 function parseFilters(searchParams: SearchParams): ActiveFilters {
   return {
     lifecycle: getFilterValue(searchParams, "lifecycle", LIFECYCLE_OPTIONS),
-    payment: getFilterValue(searchParams, "payment", PAYMENT_OPTIONS),
     consent: getFilterValue(searchParams, "consent", CONSENT_OPTIONS),
     documents: getFilterValue(searchParams, "documents", DOCUMENT_OPTIONS),
     packet: getFilterValue(searchParams, "packet", PACKET_OPTIONS),
@@ -111,7 +106,6 @@ function parseFilters(searchParams: SearchParams): ActiveFilters {
 function matchesApplicationFilters(row: AdminApplicationModel, filters: ActiveFilters): boolean {
   return (
     (filters.lifecycle === "all" || row.lifecycleState === filters.lifecycle) &&
-    (filters.payment === "all" || row.payment.state === filters.payment) &&
     (filters.consent === "all" || row.consent.state === filters.consent) &&
     (filters.documents === "all" || row.documents.state === filters.documents) &&
     (filters.packet === "all" || row.packet.state === filters.packet) &&
@@ -122,7 +116,7 @@ function matchesApplicationFilters(row: AdminApplicationModel, filters: ActiveFi
 
 function matchesApplicantFilters(applicant: AdminApplicantOverview, filters: ActiveFilters): boolean {
   // 基础的状态筛选
-  const matchesStatus = applicant.applications.some((application) => 
+  const matchesStatus = applicant.applications.some((application) =>
     matchesApplicationFilters(application, filters)
   );
   if (!matchesStatus) return false;
@@ -193,7 +187,7 @@ function QueueFilters({
         <Filter className="h-4 w-4 text-brand-500" />
         {copy.list.filtersTitle}
       </div>
-      
+
       {/* 融合：在筛选器上方单开一行放搜索框，体验更好 */}
       <div className="flex flex-col gap-1 text-xs font-medium text-[#6b6b6b]">
         <span className="mb-1">{copy.list.search}</span>
@@ -213,14 +207,6 @@ function QueueFilters({
           value={filters.lifecycle}
           options={LIFECYCLE_OPTIONS}
           labels={copy.status.lifecycle}
-          allLabel={copy.common.all}
-        />
-        <FilterSelect
-          label={copy.list.payment}
-          name="payment"
-          value={filters.payment}
-          options={PAYMENT_OPTIONS}
-          labels={copy.status.payment}
           allLabel={copy.common.all}
         />
         <FilterSelect
@@ -410,10 +396,10 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = parseFilters(resolvedSearchParams);
-  
+
   // 仍然使用 HEAD 的统一队列获取函数
   const { applicants, applications, error } = await fetchAdminApplicantQueue();
-  
+
   // 经过“多维状态筛选”加“远端文本关键字检索”过滤后的列表
   const filteredApplicants = applicants.filter((applicant) => matchesApplicantFilters(applicant, filters));
 

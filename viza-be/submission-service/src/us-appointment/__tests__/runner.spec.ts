@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import type { USAppointmentApplicantDetailsResult } from "../applicant-details-data";
 import {
   buildRunnerHandoff,
   completeUSAppointmentAccountRegistration,
@@ -60,6 +61,8 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
   credentials: AppointmentAccountCredentials | null = null;
   verificationEmail: { code: string | null; link: string | null } | null = null;
   accountMarkedVerified = false;
+  accountRegistrationSubmitted = false;
+  submittedAccountEmail: string | null = null;
   finalApprovalCompleted = false;
 
   async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
@@ -130,6 +133,14 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
 
   async markAppointmentAccountVerified(): Promise<void> {
     this.accountMarkedVerified = true;
+  }
+
+  async markAppointmentAccountRegistrationSubmitted(
+    _job: USAppointmentJobRow,
+    submission: { accountEmail: string },
+  ): Promise<void> {
+    this.accountRegistrationSubmitted = true;
+    this.submittedAccountEmail = submission.accountEmail;
   }
 
   async updateApplicationAppointmentState(input: {
@@ -332,7 +343,38 @@ test("US appointment runner advances a prepared portal session to slot capture",
 
   assert.equal(result, "processed");
   assert.equal(repository.manualActions.length, 0);
-  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_no_slots_available");
+  assert.equal(repository.jobUpdates.some(update => update.status === "appointment_payment_completed"), false);
+});
+
+test("calendar access captures actual slots in the same session without asserting payment", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+  let prepared = false;
+  let observations = 0;
+  client.prepareAppointmentFlow = async () => {
+    assert.equal(prepared, false, "the first prepared session must be reused");
+    prepared = true;
+    return { readyForSlotCapture: true };
+  };
+  client.observeSlots = async job => {
+    assert.equal(prepared, true);
+    observations += 1;
+    return [{
+      job_id: job.id, application_id: job.application_id,
+      appointment_date: "2027-05-06", appointment_time: "10:00",
+      appointment_location: "Beijing", appointment_type: "interview",
+      source: "usvisascheduling", status: "observed", metadata_redacted_json: {},
+    }];
+  };
+  await processUSAppointmentJob(baseJob, repository, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+  }), client);
+  assert.equal(observations, 1);
+  assert.equal(repository.slots.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_slot_selection_required");
+  assert.equal(repository.applicationStates.at(-1)?.status, "appointment_slot_selection_required");
+  assert.equal(repository.jobUpdates.some(update => update.status === "appointment_payment_completed"), false);
 });
 
 test("US appointment runner can automate a pending login checkpoint with saved credentials", async () => {
@@ -381,7 +423,7 @@ test("US appointment runner can automate a pending login checkpoint with saved c
   assert.equal(result, "processed");
   assert.deepEqual(receivedCredentials, repository.credentials);
   assert.equal(repository.manualActions.length, 0);
-  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_no_slots_available");
 });
 
 test("US appointment runner records a login gate when saved credentials are missing", async () => {
@@ -408,6 +450,185 @@ test("US appointment runner records a login gate when saved credentials are miss
     repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type,
     "missing_account_credentials",
   );
+});
+
+test("US appointment runner passes application-bound missing fields to the prepared page", async () => {
+  const details: USAppointmentApplicantDetailsResult = {
+    state: "missing", missingFields: ["mobile_phone_country_code"],
+  };
+  class ApplicantRepository extends InMemoryRunnerRepository {
+    async getAppointmentApplicantDetails(job: USAppointmentJobRow) {
+      assert.equal(job.application_id, baseJob.application_id);
+      return details;
+    }
+  }
+  const repository = new ApplicantRepository();
+  repository.credentials = { email: "applicant@example.com", password: "test", emailVerified: true, accountStatus: "active" };
+  const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+  client.prepareAppointmentFlow = async (_job, _credentials, received) => {
+    assert.deepEqual(received, details);
+    return { readyForSlotCapture: false, gate: {
+      jobStatus: "appointment_manual_required", actionType: "site_policy_review",
+      instruction: "Complete the missing application fields.",
+      errorCode: "appointment_applicant_details_required",
+      metadata: { missing_fields: details.missingFields },
+    } };
+  };
+  await processUSAppointmentJob(baseJob, repository, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+  }), client);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.deepEqual(repository.auditEvents.at(-1)?.metadata_redacted_json.missing_fields, details.missingFields);
+});
+
+test("US appointment runner redacts applicant lookup errors and prevents guessed form data", async () => {
+  class ApplicantRepository extends InMemoryRunnerRepository {
+    async getAppointmentApplicantDetails(): Promise<USAppointmentApplicantDetailsResult> {
+      throw new Error("private database diagnostic");
+    }
+  }
+  const repository = new ApplicantRepository();
+  repository.credentials = { email: "applicant@example.com", password: "test", emailVerified: true, accountStatus: "active" };
+  const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+  client.prepareAppointmentFlow = async (_job, _credentials, received) => {
+    assert.deepEqual(received, { state: "missing", missingFields: ["application_data"] });
+    return { readyForSlotCapture: false, gate: {
+      jobStatus: "appointment_manual_required", actionType: "site_policy_review",
+      instruction: "Application data is unavailable.", metadata: { gate_type: "application_data" },
+    } };
+  };
+  await processUSAppointmentJob(baseJob, repository, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+  }), client);
+  assert.doesNotMatch(JSON.stringify(repository.auditEvents), /private database diagnostic/);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+});
+
+test("registration-submitted recovery persists exact-account double proof before reading details and continuing the same client", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "recovery@example.invalid", password: "fixture-password",
+    accountStatus: "registration_submitted", emailVerified: false,
+  };
+  const job = { ...baseJob, status: "appointment_login_required", appointment_account_id: "44444444-4444-4444-8444-444444444444" };
+  const events: string[] = [];
+  const details: USAppointmentApplicantDetailsResult = { state: "missing", missingFields: ["passportNumber"] };
+  const recoveryRepository: USAppointmentRunnerRepository = Object.assign(repository, {
+    getAppointmentApplicantDetails: async (received: USAppointmentJobRow) => {
+      assert.equal(received, job);
+      assert.equal(repository.accountMarkedVerified, true);
+      events.push("load_details");
+      return details;
+    },
+  });
+  recoveryRepository.markAppointmentAccountVerified = async (received, proof) => {
+    assert.equal(received, job);
+    assert.deepEqual(proof, { emailVerified: true, accountCreated: true, accountEmail: "recovery@example.invalid" });
+    events.push("persist_verified");
+    repository.accountMarkedVerified = true;
+  };
+  const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+  client.prepareAppointmentFlow = async (received, credentials, receivedDetails) => {
+    assert.equal(received, job);
+    events.push(`prepare_${credentials?.accountStatus}`);
+    if (credentials?.accountStatus === "registration_submitted") {
+      assert.equal(receivedDetails, undefined);
+      assert.equal(repository.accountMarkedVerified, false);
+      return { readyForSlotCapture: false, emailVerified: true, accountCreated: true };
+    }
+    assert.deepEqual(credentials, { ...repository.credentials, accountStatus: "active", emailVerified: true });
+    assert.equal(receivedDetails, details);
+    return { readyForSlotCapture: true };
+  };
+  client.observeSlots = async () => { events.push("observe"); return []; };
+  const portal: USAppointmentPortalClient = client;
+  portal.completeAccountEmailVerification = async () => { assert.fail("recovery must not repeat verification/Create"); };
+  await processUSAppointmentJob(job, recoveryRepository, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+  }), portal);
+  assert.deepEqual(events, ["prepare_registration_submitted", "persist_verified", "load_details", "prepare_active", "observe"]);
+  assert.equal(repository.manualActions.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_no_slots_available");
+});
+
+for (const persistence of ["missing", "failed"] as const) {
+  test(`registration-submitted recovery ${persistence} persistence stops before details or another preparation`, async () => {
+    const repository = new InMemoryRunnerRepository();
+    repository.credentials = {
+      email: "recovery@example.invalid", password: "fixture-password",
+      accountStatus: "registration_submitted", emailVerified: false,
+    };
+    let preparations = 0;
+    const recoveryRepository: USAppointmentRunnerRepository = Object.assign(repository, {
+      getAppointmentApplicantDetails: async () => { assert.fail("details read before successful persistence"); },
+    });
+    recoveryRepository.markAppointmentAccountVerified = persistence === "missing" ? undefined
+      : async () => { throw new Error("private-db-error recovery@example.invalid"); };
+    const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+    client.prepareAppointmentFlow = async () => {
+      preparations++;
+      return { readyForSlotCapture: false, emailVerified: true, accountCreated: true };
+    };
+    client.completeAccountEmailVerification = async () => { assert.fail("Create/verification replayed"); };
+    client.observeSlots = async () => { assert.fail("calendar observed without persisted active account"); };
+    await processUSAppointmentJob({ ...baseJob, status: "appointment_login_required" }, recoveryRepository,
+      loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }), client);
+    assert.equal(preparations, 1);
+    assert.equal(repository.accountMarkedVerified, false);
+    assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+    const code = `account_registration_reconciliation_persistence_${persistence === "missing" ? "unavailable" : "failed"}`;
+    assert.equal(repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type, code);
+    assert.doesNotMatch(JSON.stringify(repository.auditEvents), /private-db-error|recovery@example\.invalid/);
+  });
+}
+
+for (const [scenario, proof] of Object.entries<AppointmentPreparationResult>({
+  email_only: { readyForSlotCapture: false, emailVerified: true },
+  creation_only: { readyForSlotCapture: false, accountCreated: true },
+  no_proof: { readyForSlotCapture: false },
+  gated: { readyForSlotCapture: false, emailVerified: true, accountCreated: true, gate: {
+    jobStatus: "appointment_manual_required", actionType: "account_email_verification",
+    instruction: "Existing official checkpoint.", metadata: {},
+  } },
+  error_code: { readyForSlotCapture: false, emailVerified: true, accountCreated: true, errorCode: "provider_unavailable" },
+  error_message: { readyForSlotCapture: false, emailVerified: true, accountCreated: true, errorMessage: "Provider unavailable." },
+})) {
+  test(`registration-submitted recovery rejects ${scenario} before persistence or applicant details`, async () => {
+    const repository = new InMemoryRunnerRepository();
+    repository.credentials = {
+      email: "recovery@example.invalid", password: "fixture-password",
+      accountStatus: "registration_submitted", emailVerified: false,
+    };
+    let preparations = 0;
+    const recoveryRepository = Object.assign(repository, {
+      getAppointmentApplicantDetails: async () => { assert.fail("details read without recovery proof"); },
+    });
+    const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+    client.prepareAppointmentFlow = async () => { preparations++; return proof; };
+    client.completeAccountEmailVerification = async () => { assert.fail("recovery must not replay Create/OTP"); };
+    client.observeSlots = async () => { assert.fail("calendar observed without recovery proof"); };
+    await processUSAppointmentJob({ ...baseJob, status: "appointment_login_required" }, recoveryRepository,
+      loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }), client);
+    assert.equal(preparations, 1);
+    assert.equal(repository.accountMarkedVerified, false);
+  });
+}
+
+test("existing active or other registration states do not use recovery persistence", async () => {
+  for (const credentials of [
+    { accountStatus: "active", emailVerified: true },
+    { accountStatus: "registration_submitted", emailVerified: true },
+    { accountStatus: "account_creation_started", emailVerified: false },
+    { accountStatus: "registration_started", emailVerified: false },
+  ]) {
+    const repository = new InMemoryRunnerRepository();
+    repository.credentials = { email: "existing@example.invalid", password: "fixture-password", ...credentials };
+    const client: USAppointmentPortalClient = new FixtureUSAppointmentPortalClient();
+    client.prepareAppointmentFlow = async () => ({ readyForSlotCapture: true, emailVerified: true, accountCreated: true });
+    await processUSAppointmentJob({ ...baseJob, status: "appointment_login_required" }, repository,
+      loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }), client);
+    assert.equal(repository.accountMarkedVerified, false);
+  }
 });
 
 test("US appointment runner persists unsupported official-site gates as manual-required", async () => {
@@ -610,7 +831,7 @@ test("US appointment runner reads the alias inbox and completes account email ve
   assert.equal(receivedCode, "123456");
   assert.equal(repository.accountMarkedVerified, true);
   assert.equal(repository.manualActions.length, 0);
-  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_no_slots_available");
 });
 
 const registrationPrepared: AppointmentPreparationResult = {
@@ -694,6 +915,99 @@ test("registration uses the current send time and preserves confirmed creation w
   assert.equal(result.gate?.errorCode, "account_registration_persistence_failed");
   assert.equal(result.accountCreated, true);
   assert.equal(result.readyForSlotCapture, false);
+});
+
+test("registration submission checkpoint is persisted without claiming account creation", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.verificationEmail = { code: "123456", link: null };
+  const client = new FixtureUSAppointmentPortalClient();
+  const portalClient: USAppointmentPortalClient = {
+    prepareAppointmentFlow: client.prepareAppointmentFlow.bind(client),
+    observeSlots: client.observeSlots.bind(client),
+    captureConfirmation: client.captureConfirmation.bind(client),
+    captureStatusCheck: client.captureStatusCheck.bind(client),
+    completeAccountEmailVerification: async () => ({
+      readyForSlotCapture: false,
+      emailVerified: true,
+      accountCreated: false,
+      errorCode: "account_creation_login_failed",
+      errorMessage: "The provider returned a post-create login checkpoint.",
+      gate: {
+        jobStatus: "appointment_manual_required",
+        actionType: "login",
+        instruction: "Reconcile the account before retrying.",
+        metadata: { account_creation_submitted: true },
+        errorCode: "account_creation_login_failed",
+        errorMessage: "The provider returned a post-create login checkpoint.",
+      },
+    }),
+  };
+  const credentials = {
+    email: "applicant@example.com",
+    password: "fixture-secret",
+    accountStatus: "account_creation_started",
+    emailVerified: false,
+  };
+
+  const result = await completeUSAppointmentAccountRegistration(
+    baseJob,
+    repository,
+    loadUSAppointmentRunnerConfig({}),
+    portalClient,
+    registrationPrepared,
+    credentials,
+  );
+
+  assert.equal(repository.accountRegistrationSubmitted, true);
+  assert.equal(repository.submittedAccountEmail, credentials.email);
+  assert.equal(repository.accountMarkedVerified, false);
+  assert.equal(result.gate?.errorCode, "account_creation_login_failed");
+  assert.equal(result.errorCode, "account_creation_login_failed");
+  assert.equal(result.emailVerified, true);
+  assert.equal(result.accountCreated, false);
+});
+
+test("registration submission persistence failure remains a reconciliation gate", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.verificationEmail = { code: "123456", link: null };
+  const client = new FixtureUSAppointmentPortalClient();
+  const failingRepository: USAppointmentRunnerRepository = Object.assign(repository, {
+    markAppointmentAccountRegistrationSubmitted: async () => {
+      throw new Error("database unavailable");
+    },
+  });
+  const portalClient: USAppointmentPortalClient = {
+    prepareAppointmentFlow: client.prepareAppointmentFlow.bind(client),
+    observeSlots: client.observeSlots.bind(client),
+    captureConfirmation: client.captureConfirmation.bind(client),
+    captureStatusCheck: client.captureStatusCheck.bind(client),
+    completeAccountEmailVerification: async () => ({
+      readyForSlotCapture: false,
+      emailVerified: true,
+      accountCreated: false,
+      gate: {
+        jobStatus: "appointment_manual_required",
+        actionType: "login",
+        instruction: "Reconcile the account before retrying.",
+        metadata: { account_creation_submitted: true },
+        errorCode: "account_creation_login_failed",
+      },
+    }),
+  };
+
+  const result = await completeUSAppointmentAccountRegistration(
+    baseJob,
+    failingRepository,
+    loadUSAppointmentRunnerConfig({}),
+    portalClient,
+    registrationPrepared,
+    { email: "applicant@example.com", password: "fixture-secret" },
+  );
+
+  assert.equal(result.gate?.errorCode, "registration_submission_persistence_failed");
+  assert.equal(result.accountCreated, false);
+  assert.equal(result.emailVerified, true);
+  assert.equal(repository.accountMarkedVerified, false);
 });
 
 test("registration without a send timestamp cannot consume an old verification email", async () => {
@@ -1136,8 +1450,18 @@ test("USVisaScheduling gate classifier identifies official-site gates", () => {
     "waiting_room",
   );
   assert.equal(
+    classifyUSVisaSchedulingGateText(
+      "You are now in line. Your estimated wait time is 4 minutes. Cloudflare",
+    )?.metadata.gate_type,
+    "waiting_room",
+  );
+  assert.equal(
     classifyUSVisaSchedulingGateText("请稍候... Just a moment while we verify you are human.")?.metadata.provider,
     "cloudflare",
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Cloudflare verification challenge. Please verify you are human.")?.metadata.gate_type,
+    "captcha_checkpoint",
   );
   assert.equal(
     classifyUSVisaSchedulingGateText("Review and accept the privacy policy before continuing.")?.actionType,

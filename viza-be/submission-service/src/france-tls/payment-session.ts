@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { rejectRemovedPayment } from "../payment-removed.js";
 
 export interface FranceTlsPaymentInput {
   cardNumber: string;
@@ -54,33 +54,9 @@ export function createFranceTlsPaymentSessionStore(options: { now?: () => number
   const sessions = new Map<string, StoredPaymentSession>();
 
   return {
-    create(input: { jobId: string; ttlMs: number; payment: FranceTlsPaymentInput }): FranceTlsPaymentSession {
-      const id = randomUUID();
-      const session: StoredPaymentSession = {
-        id,
-        jobId: input.jobId,
-        expiresAt: now() + input.ttlMs,
-        redacted: redactFranceTlsPaymentInput(input.payment),
-        payment: {
-          ...input.payment,
-          cardNumber: normalizeCardNumber(input.payment.cardNumber),
-        },
-      };
-      sessions.set(id, session);
-      return {
-        id: session.id,
-        jobId: session.jobId,
-        expiresAt: session.expiresAt,
-        redacted: session.redacted,
-      };
-    },
+    create(_input: { jobId: string; ttlMs: number; payment: FranceTlsPaymentInput }): FranceTlsPaymentSession { return rejectRemovedPayment(); },
 
-    consume(sessionId: string, jobId: string): FranceTlsPaymentInput | null {
-      const session = sessions.get(sessionId);
-      sessions.delete(sessionId);
-      if (!session || session.jobId !== jobId || session.expiresAt <= now()) return null;
-      return session.payment;
-    },
+    consume(_sessionId: string, _jobId: string): FranceTlsPaymentInput | null { return null; },
 
     snapshot(): FranceTlsPaymentSession[] {
       return [...sessions.values()].map((session) => ({

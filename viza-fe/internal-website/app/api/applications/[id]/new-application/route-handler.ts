@@ -42,6 +42,7 @@ async function loadExistingDraft(
     .eq("country", source.country)
     .eq("visa_type", source.visa_type)
     .eq("status", "draft")
+    .or("purpose.is.null,purpose.neq.VIZA_PLACEHOLDER_DRY_RUN")
     .neq("id", source.id)
     .limit(1)
     .maybeSingle();

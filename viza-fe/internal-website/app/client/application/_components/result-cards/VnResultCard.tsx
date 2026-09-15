@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { Warning as AlertTriangle, CheckCircle as CheckCircle2, ArrowSquareOut as ExternalLink, FileText as FileCheck2, CircleNotch as Loader2, Envelope as Mail, ShieldCheck } from "@phosphor-icons/react";
+import {
+  Warning as AlertTriangle,
+  CheckCircle as CheckCircle2,
+  ArrowSquareOut as ExternalLink,
+  FileText as FileCheck2,
+  CircleNotch as Loader2,
+  Envelope as Mail,
+} from "@phosphor-icons/react";
 import {
   Alert,
   AlertAction,
@@ -16,9 +23,7 @@ import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
-import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import type { VnSubmissionResult } from "@/lib/submission-result";
-import { WaitingCard } from "./WaitingCard";
 
 type ManualAction = {
   id: string;
@@ -28,72 +33,48 @@ type ManualAction = {
   screenshotUrl: string | null;
 };
 
-export function mergeOfficialFeeStatus(
-  current: Record<string, unknown> | null,
-  payload: Record<string, unknown> | null,
-): Record<string, unknown> {
-  const payloadHasPaymentQueued = typeof payload?.paymentQueued === "boolean";
-  return {
-    ...(current ?? {}),
-    ...(payload ?? {}),
-    // A terminal queue response must be allowed to clear the optimistic
-    // `true` written immediately after POST /pay. Keeping it sticky made the
-    // payment card remain at 99% after vn_blocked/manual_review was persisted.
-    paymentQueued: payloadHasPaymentQueued
-      ? payload?.paymentQueued === true
-      : current?.paymentQueued === true,
-    queueId:
-      typeof payload?.queueId === "string"
-        ? payload.queueId
-        : typeof current?.queueId === "string"
-          ? current.queueId
-          : null,
-    paymentQueue: payload?.paymentQueue ?? current?.paymentQueue ?? null,
-  };
+function isOfficialFeeAction(result: VnSubmissionResult): boolean {
+  return (
+    result.status === "stopped_at_pay" ||
+    result.manualAction?.type === "payment_required" ||
+    result.checkpoint === "payment_page_visible" ||
+    /payment|official[_ -]?fee|bank|3ds|otp/i.test(
+      `${result.checkpoint ?? ""} ${result.manualAction?.instructions ?? ""}`,
+    )
+  );
 }
 
-export function localizeVietnamPaymentError(
-  error: string | null | undefined,
-  isZh: boolean,
-): string | null {
-  const normalized = error?.trim();
-  if (!normalized) return null;
-  const phaseMessages: Record<string, { zh: string; en: string }> = {
-    worker_start_failed: {
-      zh: "云端付款机器暂时无法启动，请稍后重新提交。",
-      en: "The cloud payment worker could not start. Please resubmit shortly.",
-    },
-    worker_readiness_timeout: {
-      zh: "云端付款服务启动超时，本次未创建付款任务，请重新提交。",
-      en: "The cloud payment service timed out while starting. No payment job was created; please resubmit.",
-    },
-    card_handoff_failed: {
-      zh: "银行卡安全会话未能送达云端，本次未创建付款任务，请重新提交。",
-      en: "The secure card session did not reach the cloud worker. No payment job was created; please resubmit.",
-    },
-    queue_enqueue_failed: {
-      zh: "云端付款任务未能创建，本次银行卡会话已取消，请重新提交。",
-      en: "The cloud payment job could not be created. This card session was cancelled; please resubmit.",
-    },
-    card_session_not_configured: {
-      zh: "云端付款服务尚未配置，请联系 VIZA 支持。",
-      en: "The cloud payment service is not configured. Please contact VIZA support.",
-    },
-  };
-  const phaseMessage = phaseMessages[normalized];
-  if (phaseMessage) return isZh ? phaseMessage.zh : phaseMessage.en;
-  if (!isZh || /\p{Script=Han}/u.test(normalized)) return normalized;
-  if (isIgnorableRuntimeAbortError(new Error(normalized))) {
-    return "状态查询暂时超时，系统会自动重新连接。";
+function titleForResult(result: VnSubmissionResult, isZh: boolean, needsAttention: boolean): string {
+  if (needsAttention) {
+    return isZh ? "需要处理" : "Needs attention";
   }
-  if (/network|fetch|connection|timeout|timed out/i.test(normalized)) {
-    return "网络连接暂时不稳定，系统会自动重新连接。";
+  if (result.status === "submitted_pending_email") {
+    return isZh ? "越南 e-Visa 已提交，等待官方邮件" : "Vietnam e-Visa submitted, awaiting official email";
   }
-  return "官网处理暂时未完成，系统会自动更新；如果长时间没有变化，请联系支持。";
+  if (result.status === "official_form_reached") {
+    return isZh ? "已进入越南 e-Visa 官网表单" : "Vietnam e-Visa form reached";
+  }
+  if (result.status === "needs_manual_verification") {
+    return isZh ? "越南 e-Visa 需要核对" : "Vietnam e-Visa needs review";
+  }
+  return isZh ? "越南 e-Visa 官网流程需要处理" : "Vietnam e-Visa official flow needs attention";
+}
+
+function safeInstruction(result: VnSubmissionResult, isZh: boolean, needsAttention: boolean): string {
+  if (needsAttention) {
+    return isZh
+      ? "需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"
+      : "Needs attention. VIZA automated payment has been removed. Contact support to confirm the next official-portal step.";
+  }
+  return (
+    result.manualAction?.instructions ??
+    (isZh
+      ? "官网流程已暂停，系统会在确认后更新申请状态。"
+      : "The official flow is paused. VIZA will update the application status after confirmation.")
+  );
 }
 
 export function VnResultCard({
-  applicationId,
   result,
   jobId,
 }: {
@@ -105,141 +86,28 @@ export function VnResultCard({
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
-  const [officialFeeStatus, setOfficialFeeStatus] = useState<Record<string, unknown> | null>(null);
-  const [paymentBusy, setPaymentBusy] = useState(false);
-  const [activePaymentQueueId, setActivePaymentQueueId] = useState<string | null>(null);
-  const [paymentProgressCycleKey, setPaymentProgressCycleKey] = useState<string | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const officialFeeAction = isOfficialFeeAction(result);
+  const needsAttention = officialFeeAction || result.status === "needs_manual_verification";
   const hasRegistrationCode = Boolean(result.registrationCode);
-  const isPaymentCheckpoint = result.status === "stopped_at_pay" || hasRegistrationCode;
-  const receipt = officialFeeStatus?.receipt as Record<string, unknown> | null | undefined;
-  const intent = officialFeeStatus?.intent as Record<string, unknown> | null | undefined;
-  const quote = officialFeeStatus?.quote as Record<string, unknown> | null | undefined;
-  const receiptNumber = typeof receipt?.receipt_number === "string" ? receipt.receipt_number : null;
-  const receiptUrl = typeof receipt?.receipt_url === "string" ? receipt.receipt_url : null;
-  const intentStatus = typeof intent?.status === "string" ? intent.status : null;
-  const paymentQueuedByAction =
-    officialFeeStatus?.paymentQueued === true ||
-    typeof officialFeeStatus?.queueId === "string";
-  const paymentNeedsOperator = officialFeeStatus?.paymentNeedsOperator === true;
-  const paymentQueue = officialFeeStatus?.paymentQueue as Record<string, unknown> | null | undefined;
-  const polledPaymentQueueId =
-    typeof paymentQueue?.id === "string"
-      ? paymentQueue.id
-      : typeof officialFeeStatus?.queueId === "string"
-        ? officialFeeStatus.queueId
-        : null;
-  const paymentQueueStatus = typeof paymentQueue?.status === "string" ? paymentQueue.status : null;
-  const paymentQueueStage = typeof paymentQueue?.current_stage === "string" ? paymentQueue.current_stage : null;
-  const paymentQueuePaymentStatus =
-    typeof paymentQueue?.payment_status === "string" ? paymentQueue.payment_status : null;
-  const paymentQueueOfficialStatus =
-    typeof paymentQueue?.official_status === "string" ? paymentQueue.official_status : null;
-  const paymentQueuePaid = paymentQueue?.status === "vn_payment_paid" || paymentQueue?.payment_status === "paid";
-  const quoteAmount = typeof quote?.official_fee_amount === "number"
-    ? quote.official_fee_amount
-    : typeof quote?.official_fee_amount === "string"
-      ? Number(quote.official_fee_amount)
-      : 25;
-  const quoteCurrency = typeof quote?.official_fee_currency === "string" ? quote.official_fee_currency : "USD";
-  const paymentPaid = result.paymentStatus === "paid" || intentStatus === "succeeded" || Boolean(receiptNumber) || paymentQueuePaid;
-  const paymentQueued =
-    paymentQueuedByAction ||
-    intentStatus === "in_progress" ||
-    intentStatus === "pending" ||
-    intentStatus === "manual_review";
-  const cloudPaymentActive =
-    paymentBusy || (paymentQueued && !paymentNeedsOperator && !paymentPaid);
-  const cloudPaymentAtOfficialPayment =
-    paymentQueueStatus === "vn_payment_pending" ||
-    paymentQueueStatus === "vn_payment_processing" ||
-    paymentQueuePaymentStatus === "authorized" ||
-    /payment[_ -]?authorized|official[_ -]?payment[_ -]?approved/i.test(paymentQueueOfficialStatus ?? "") ||
-    /payment|bank_authentication|3ds|otp/i.test(paymentQueueStage ?? "");
-  const cloudPaymentWorkerRunning =
-    paymentQueueStatus === "vn_live_assisted_processing" ||
-    paymentQueueStatus === "vn_live_assisted_pending";
-  const cloudPaymentVisualStage: "preparing" | "filling_form" | "payment_handoff" =
-    cloudPaymentAtOfficialPayment
-      ? "payment_handoff"
-      : cloudPaymentWorkerRunning
-        ? "filling_form"
-        : "preparing";
-  const cloudPaymentProgress =
-    cloudPaymentVisualStage === "payment_handoff"
-      ? 88
-      : cloudPaymentVisualStage === "filling_form"
-        ? 55
-        : 9;
-  const cloudPaymentRunId = activePaymentQueueId ?? polledPaymentQueueId ?? jobId ?? null;
-  const cloudPaymentPersistenceKey = cloudPaymentRunId
-    ? `submission-run:${cloudPaymentRunId}`
-    : null;
-  const cloudPaymentProgressCycleKey = paymentProgressCycleKey ?? cloudPaymentRunId;
-  const showPaymentForm =
-    !paymentPaid &&
-    !paymentBusy &&
-    (!paymentQueued || paymentNeedsOperator);
-  const isFormCheckpoint = result.status === "official_form_reached";
-  const isManualCheckpoint = Boolean(result.manualAction);
-  const manualInstruction = result.manualAction?.instructions ?? "";
-  const needsBankConfirmation =
-    result.manualAction?.type === "payment_required" &&
-    (
-      result.portalUrl?.includes("pay.vnpay.vn") ||
-      /3ds|otp|bank-app|bank authentication/i.test(manualInstruction)
-    );
-  const isBankConfirmationRetry = paymentNeedsOperator && needsBankConfirmation;
-  const title = paymentPaid
-    ? (isZh ? "越南 e-Visa 已提交并完成官方付款" : "Vietnam e-Visa submitted and paid")
-    : isPaymentCheckpoint
-    ? paymentQueued && !paymentNeedsOperator
-      ? (isZh ? "越南自动付款处理中" : "Vietnam automated payment in progress")
-      : paymentNeedsOperator
-        ? isBankConfirmationRetry
-          ? (isZh
-              ? "付款失败，请在手机银行里确认。现在可重新提交。"
-              : "Payment failed. Confirm it in your banking app. You can resubmit now.")
-          : (isZh ? "官方付款未完成，可重新自动付款" : "Official payment incomplete; automated retry is available")
-        : (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
-    : isFormCheckpoint
-      ? (isZh ? "已进入越南 e-Visa 官网表单" : "Vietnam e-Visa form reached")
-      : isManualCheckpoint
-        ? (isZh ? "越南 e-Visa 需要人工操作" : "Vietnam e-Visa action required")
-        : (isZh ? "已进入越南官网流程" : "Vietnam official portal reached");
-  const badge = isBankConfirmationRetry
-    ? null
-    : paymentPaid
-    ? (isZh ? "已付款" : "Paid")
-    : isPaymentCheckpoint
-    ? (isZh ? "自动处理中" : "Automating")
-    : isManualCheckpoint
-      ? (isZh ? "需要操作" : "Action required")
-      : (isZh ? "官网检查点" : "Official checkpoint");
-  const Icon = paymentPaid ? CheckCircle2 : isPaymentCheckpoint ? ShieldCheck : isFormCheckpoint ? FileCheck2 : AlertTriangle;
+  const hasManualAction = Boolean(result.manualAction) && !needsAttention;
 
   useEffect(() => {
-    if (!jobId || !result.manualAction) return;
+    if (!jobId || !hasManualAction) return;
     let cancelled = false;
+
     const loadManualActions = async () => {
       try {
         const response = await fetch(`/api/submissions/${jobId}/manual-actions`, {
           cache: "no-store",
         });
         const payload = (await response.json().catch(() => null)) as {
-          error?: unknown;
           manualActions?: ManualAction[];
         } | null;
         if (!response.ok) {
-          throw new Error(
-            typeof payload?.error === "string"
-              ? payload.error
-              : `Manual actions returned ${response.status}`,
-          );
+          throw new Error(`Manual actions returned ${response.status}`);
         }
-        const pending = payload?.manualActions?.find((action) => action.status === "pending") ?? null;
         if (!cancelled) {
-          setManualAction(pending);
+          setManualAction(payload?.manualActions?.find((action) => action.status === "pending") ?? null);
           setActionError(null);
         }
       } catch (error) {
@@ -253,73 +121,7 @@ export function VnResultCard({
     return () => {
       cancelled = true;
     };
-  }, [jobId, result.manualAction]);
-
-  useEffect(() => {
-    if (!applicationId || !isPaymentCheckpoint || paymentPaid) return;
-    let cancelled = false;
-    let timer: number | undefined;
-    let inFlight = false;
-    let controller: AbortController | null = null;
-
-    const schedule = (delayMs: number) => {
-      if (cancelled) return;
-      if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        timer = undefined;
-        void loadPaymentStatus();
-      }, delayMs);
-    };
-
-    const loadPaymentStatus = async () => {
-      if (cancelled || inFlight) return;
-      if (document.visibilityState !== "visible") {
-        schedule(15_000);
-        return;
-      }
-
-      inFlight = true;
-      const requestController = new AbortController();
-      controller = requestController;
-      const deadline = window.setTimeout(() => requestController.abort(), 5_000);
-      try {
-        const response = await fetch(`/api/applications/${applicationId}/official-fee/status`, {
-          cache: "no-store",
-          signal: requestController.signal,
-        });
-        const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-        if (!response.ok) {
-          throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/status returned ${response.status}`);
-        }
-        if (!cancelled) {
-          setOfficialFeeStatus((current) => mergeOfficialFeeStatus(current, payload));
-          setPaymentError(null);
-        }
-      } catch (error) {
-        if (!cancelled && !isIgnorableRuntimeAbortError(error)) {
-          setPaymentError(error instanceof Error ? error.message : String(error));
-        }
-      } finally {
-        window.clearTimeout(deadline);
-        if (controller === requestController) controller = null;
-        inFlight = false;
-        schedule(5_000);
-      }
-    };
-
-    const pollWhenVisible = () => {
-      if (document.visibilityState === "visible") schedule(0);
-    };
-
-    void loadPaymentStatus();
-    document.addEventListener("visibilitychange", pollWhenVisible);
-    return () => {
-      cancelled = true;
-      controller?.abort();
-      if (timer !== undefined) window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", pollWhenVisible);
-    };
-  }, [applicationId, isPaymentCheckpoint, paymentPaid]);
+  }, [hasManualAction, jobId]);
 
   const completeManualAction = async () => {
     if (!jobId || !manualAction || completing) return;
@@ -346,251 +148,73 @@ export function VnResultCard({
     }
   };
 
-  const authorizeAndPay = async () => {
-    if (!applicationId || paymentBusy) return;
-    setPaymentProgressCycleKey(`payment:${applicationId}:${Date.now()}`);
-    setActivePaymentQueueId(null);
-    setPaymentBusy(true);
-    setPaymentError(null);
-    const controller = new AbortController();
-    // Stay below the route's 60 second platform ceiling. A missing response
-    // must restore the actionable card form instead of leaving the applicant
-    // on a local-only loading state with no durable queue row.
-    const deadline = window.setTimeout(() => controller.abort(), 55_000);
-    try {
-      const pay = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-        signal: controller.signal,
-      });
-      const payPayload = (await pay.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!pay.ok) {
-        throw new Error(
-          typeof payPayload?.errorCode === "string"
-            ? payPayload.errorCode
-            : typeof payPayload?.error === "string"
-              ? payPayload.error
-              : `official-fee/pay returned ${pay.status}`,
-        );
-      }
-      const queuedStatus =
-        typeof payPayload?.queueStatus === "string"
-          ? payPayload.queueStatus
-          : "vn_cloud_live_pending";
-      const newPaymentQueueId =
-        typeof payPayload?.queueId === "string" ? payPayload.queueId : null;
-      setActivePaymentQueueId(newPaymentQueueId);
-      setOfficialFeeStatus((current) => ({
-        ...(current ?? {}),
-        paymentQueued: true,
-        paymentNeedsOperator: false,
-        queueId: newPaymentQueueId,
-        paymentQueue: {
-          id: newPaymentQueueId,
-          status: queuedStatus,
-          current_stage: "payment_authorized",
-          payment_status: "authorized",
-        },
-      }));
-    } catch (error) {
-      setPaymentError(
-        error instanceof DOMException && error.name === "AbortError"
-          ? "official_fee_payment_request_timeout"
-          : error instanceof Error
-            ? error.message
-            : String(error),
-      );
-    } finally {
-      window.clearTimeout(deadline);
-      setPaymentBusy(false);
-    }
-  };
-
-  if (cloudPaymentActive) {
-    const cloudPaymentMessage =
-      cloudPaymentVisualStage === "payment_handoff"
-        ? isZh
-          ? "Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"
-          : "The Fly cloud run reached official payment and is waiting for the payment result or bank verification."
-        : cloudPaymentVisualStage === "filling_form"
-          ? isZh
-            ? "Fly 云端正在填写越南 e-Visa 官网表单。"
-            : "The Fly cloud run is filling the official Vietnam e-Visa form."
-          : isZh
-            ? "正在启动云端任务；虚拟卡将在官网付款页按需开立。"
-            : "Starting the cloud job; the virtual card will be opened only at the official payment page.";
-
-    return (
-      <WaitingCard
-        status="running"
-        stage={cloudPaymentVisualStage}
-        serverProgress={cloudPaymentProgress}
-        message={cloudPaymentMessage}
-        applicationId={applicationId}
-        persistenceKey={cloudPaymentPersistenceKey}
-        progressCycleKey={cloudPaymentProgressCycleKey}
-        resetProgressOnMount={Boolean(paymentProgressCycleKey)}
-        country="vietnam"
-        visaType="evisa_tourism"
-      />
-    );
-  }
-
-  const localizedPaymentError = localizeVietnamPaymentError(paymentError, isZh);
-  const localizedActionError = localizeVietnamPaymentError(actionError, isZh);
+  const Icon = needsAttention
+    ? AlertTriangle
+    : result.status === "submitted_pending_email"
+      ? CheckCircle2
+      : result.status === "official_form_reached"
+        ? FileCheck2
+        : AlertTriangle;
+  const badge = needsAttention
+    ? (isZh ? "需要处理" : "Needs attention")
+    : result.status === "submitted_pending_email"
+      ? (isZh ? "已提交" : "Submitted")
+      : result.status === "official_form_reached"
+        ? (isZh ? "官网表单" : "Official form")
+        : (isZh ? "官网检查点" : "Official checkpoint");
 
   return (
     <Card className="rounded-xl border-input">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-3 text-foreground">
             <Icon className="h-5 w-5 text-brand-500" />
-            {title}
+            {titleForResult(result, isZh, needsAttention)}
           </CardTitle>
-          {badge ? <Badge variant="secondary">{badge}</Badge> : null}
+          <Badge variant={needsAttention ? "secondary" : "outline"}>{badge}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!isBankConfirmationRetry && (
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {paymentPaid
-              ? isZh
-                ? "VIZA 已完成本次越南 e-Visa 官网付款，申请已进入官网审核。"
-                : "VIZA has completed the official Vietnam e-Visa payment for this application."
-              : isPaymentCheckpoint
-              ? isZh
-                ? "VIZA 已完成官网表单。确认后，系统会为本申请开立限额虚拟卡，并仅用于支付本次官方费用。"
-                : "VIZA completed the official form. After confirmation, VIZA opens a limited virtual card for this application and uses it only for this official fee."
-              : result.manualAction?.instructions ??
-                (isZh
-                  ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
-                  : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
-          </p>
-        )}
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {safeInstruction(result, isZh, needsAttention)}
+        </p>
 
-        {result.checkpoint && !isPaymentCheckpoint && (
+        {hasRegistrationCode && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "官网检查点" : "Checkpoint"}</div>
-            <div className="mt-0.5 text-sm font-medium text-foreground">
-              {isZh ? "官网流程已暂停，等待下一步处理" : "The official flow is paused for the next step"}
+            <div className="text-xs text-muted-foreground">
+              {isZh ? "官网登记编号" : "Official registration code"}
             </div>
-          </div>
-        )}
-
-        {hasRegistrationCode && paymentPaid && (
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "官网登记编号" : "Registration code"}</div>
             <div className="mt-0.5 font-mono text-base font-medium text-foreground">
               {result.registrationCode}
             </div>
           </div>
         )}
 
-        {isPaymentCheckpoint && (
-          <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
-            <div className="flex items-start gap-2">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">
-                  {paymentPaid
-                    ? (isZh ? "官方付款已完成" : "Official payment completed")
-                    : paymentQueued && !paymentNeedsOperator
-                      ? (isZh ? "正在自动付款" : "Automated payment in progress")
-                      : paymentNeedsOperator
-                        ? (isZh ? "重新自动付款" : "Restart automated payment")
-                        : (isZh ? "自动支付官方费用" : "Pay the official fee automatically")}
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? `越南 e-Visa 官方费用为 ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}。虚拟卡只在官网付款页按需开立，卡号和 CVV 不会保存。`
-                    : `The Vietnam e-Visa official fee is ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}. The virtual card is opened only at the official payment page; PAN and CVV are never stored.`}
+        {hasManualAction && (
+          <Alert variant="warning">
+            <AlertIcon variant="warning" />
+            <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
+            <AlertDescription>
+              <p>{result.manualAction?.instructions}</p>
+              {manualAction?.screenshotUrl && (
+                <p className="mt-2 break-all font-mono text-xs">
+                  {isZh ? "证据截图：" : "Screenshot: "}
+                  {manualAction.screenshotUrl}
                 </p>
-              </div>
-            </div>
-
-            {showPaymentForm && (
-              <div className="space-y-3 rounded-md border border-brand-100 bg-white p-3">
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? "确认即表示你授权 VIZA 为本申请开立限额虚拟卡并支付上述官方费用。若官网付款结果不明确，系统会冻结重试并转入核对。"
-                    : "By confirming, you authorize VIZA to open a limited virtual card for this application and pay the fee above. An uncertain portal result is quarantined for reconciliation before any retry."}
-                </p>
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={authorizeAndPay}
-                  disabled={!applicationId || paymentBusy}
-                >
-                  {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                  {paymentNeedsOperator
-                    ? (isZh ? "重新自动付款" : "Restart automated payment")
-                    : (isZh ? "开始自动付款" : "Start automated payment")}
-                </Button>
-              </div>
-            )}
-
-            {!paymentPaid && paymentQueued && !paymentNeedsOperator && (
-              <Button type="button" className="w-full" disabled>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isZh ? "正在自动付款" : "Automated payment in progress"}
-              </Button>
-            )}
-
-            {paymentPaid && receiptNumber && (
-              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
-                <div className="text-xs text-brand-500">{isZh ? "付款凭证编号" : "Payment evidence"}</div>
-                <div className="mt-0.5 break-all font-mono text-sm font-medium text-foreground">{receiptNumber}</div>
-              </div>
-            )}
-
-            {receiptUrl && (
-              <Button asChild variant="outline" className="w-full bg-white">
-                <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
-                  {isZh ? "打开付款凭证" : "Open payment receipt"}
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-            )}
-
-            {localizedPaymentError && (
-              <Alert variant="destructive">
-                <AlertIcon variant="destructive" />
-                <AlertTitle>{isZh ? "付款未完成" : "Payment did not complete"}</AlertTitle>
-                <AlertDescription>
-                  <p>{localizedPaymentError}</p>
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+              )}
+              {manualAction && (
+                <AlertActions>
+                  <AlertAction onClick={completeManualAction} disabled={completing}>
+                    {completing && <Loader2 className="animate-spin" />}
+                    {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
+                  </AlertAction>
+                </AlertActions>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
-        {result.manualAction && !isPaymentCheckpoint && (
-          <>
-            <Alert variant="warning">
-              <AlertIcon variant="warning" />
-              <AlertTitle>{isZh ? "需要人工操作" : "Manual action"}</AlertTitle>
-              <AlertDescription>
-                <p>{result.manualAction.instructions}</p>
-                {manualAction?.screenshotUrl && (
-                  <p className="mt-2 break-all font-mono text-xs">
-                    {isZh ? "证据截图：" : "Screenshot: "}
-                    {manualAction.screenshotUrl}
-                  </p>
-                )}
-                {manualAction && (
-                  <AlertActions>
-                    <AlertAction onClick={completeManualAction} disabled={completing}>
-                      {completing && <Loader2 className="animate-spin" />}
-                      {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
-                    </AlertAction>
-                  </AlertActions>
-                )}
-              </AlertDescription>
-            </Alert>
-            {localizedActionError ? <ClientErrorAlert message={localizedActionError} /> : null}
-          </>
-        )}
+        {actionError ? <ClientErrorAlert message={actionError} /> : null}
 
         {result.noticeText && (
           <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
@@ -599,11 +223,21 @@ export function VnResultCard({
               {isZh ? "下一步" : "What happens next"}
             </div>
             <p className="mt-2 text-sm text-foreground">
-              {isZh ? "e-Visa PDF 通常会在付款受理后约 3 个工作日通过邮件送达。" : result.noticeText}
+              {isZh
+                ? "官方确认文件通常会通过邮件送达。"
+                : "The official confirmation file is usually delivered by email."}
             </p>
           </div>
         )}
 
+        {!needsAttention && result.portalUrl && (
+          <Button asChild variant="ghost" className="w-full">
+            <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
+              {isZh ? "打开越南 e-Visa 官网" : "Open Vietnam e-Visa official site"}
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

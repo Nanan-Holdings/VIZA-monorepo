@@ -1,6 +1,7 @@
 /**
  * Seed script: visa_form_fields for DS-160 (US nonimmigrant visa)
- * Field definitions match the actual DS-160 online form exactly.
+ * Field definitions are a source-based DS-160 field contract.
+ * Live CEAC DOM validation remains required before claiming runtime parity.
  * Run: npm run seed:ds160-form-fields
  */
 
@@ -41,6 +42,9 @@ interface FieldDef {
   options?: Array<{ value: string; text: string }>;
   conditional_logic?: Record<string, unknown>;
 }
+
+const DS160_SIGN_SUBMIT_OFFICIAL_SOURCE =
+  "CEAC DS-160 Sign and Submit page (2014 government screenshot; current DOM not yet verified)";
 
 const FIELDS: FieldDef[] = [
   {
@@ -3367,22 +3371,139 @@ const FIELDS: FieldDef[] = [
       },
     ])
   ),
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 22: Sign and Submit / Preparer of Application
+  // The preparer details are shown only when the applicant explicitly answers Yes.
+  // Country uses the complete ISO3166-1 source; no reduced option list is stored.
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    field_name: "ds160_preparer_assistance",
+    label: "Did anyone assist you in filling out this application?",
+    field_type: "radio",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 1,
+    options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "是否有人协助您填写此申请？" },
+  },
+  {
+    field_name: "ds160_preparer_surname",
+    label: "Surnames",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 2,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "姓氏" },
+  },
+  {
+    field_name: "ds160_preparer_given_names",
+    label: "Given Names",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 3,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "名字", has_does_not_apply: true, does_not_apply_label: "Does Not Apply" },
+  },
+  {
+    field_name: "ds160_preparer_organization_name",
+    label: "Organization Name",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 4,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "组织名称", has_does_not_apply: true, does_not_apply_label: "Does Not Apply" },
+  },
+  {
+    field_name: "ds160_preparer_street1",
+    label: "Street Address (Line 1)",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 5,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "街道地址（第1行）" },
+  },
+  {
+    field_name: "ds160_preparer_street2",
+    label: "Street Address (Line 2)",
+    field_type: "text",
+    required: false,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 6,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "街道地址（第2行）", optional_label: true },
+  },
+  {
+    field_name: "ds160_preparer_city",
+    label: "City",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 7,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "城市" },
+  },
+  {
+    field_name: "ds160_preparer_state_province",
+    label: "State/Province",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 8,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "州/省", has_does_not_apply: true, does_not_apply_label: "Does Not Apply" },
+  },
+  {
+    field_name: "ds160_preparer_postal_code",
+    label: "Postal Zone/ZIP Code",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 9,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "邮政区/邮政编码", has_does_not_apply: true, does_not_apply_label: "Does Not Apply" },
+  },
+  {
+    field_name: "ds160_preparer_country",
+    label: "Country/Region",
+    field_type: "select",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 10,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "国家/地区", source: "ISO3166-1" },
+  },
+  {
+    field_name: "ds160_preparer_relationship",
+    label: "Relationship to You",
+    field_type: "text",
+    required: true,
+    step_number: 22,
+    step_name: "Sign and Submit",
+    display_order: 11,
+    conditional_logic: { showIf: "ds160_preparer_assistance === yes" },
+    validation_rules: { official_source: DS160_SIGN_SUBMIT_OFFICIAL_SOURCE, label_zh: "与您的关系" },
+  },
 ];
 
 async function seed() {
   console.log(`\nSeeding DS-160 visa_form_fields (${FIELDS.length} fields)...\n`);
 
-  // First, delete existing DS160 fields to avoid orphans from renamed fields
-  const { error: delError } = await supabase
-    .from("visa_form_fields")
-    .delete()
-    .eq("visa_type", "DS160");
-  if (delError) {
-    console.error("Error deleting existing DS160 fields:", delError.message);
-  } else {
-    console.log("Cleared existing DS160 fields");
-  }
-
+  // Upsert by the stable visa_type/field_name key so existing field IDs and
+  // any fields added by migrations remain intact.
   const rows = FIELDS.map((f) => toBilingualSeedRow("DS160", f));
 
   const BATCH = 20;
@@ -3391,16 +3512,16 @@ async function seed() {
     const batch = rows.slice(i, i + BATCH);
     const { data, error } = await supabase
       .from("visa_form_fields")
-      .insert(batch)
+      .upsert(batch, { onConflict: "visa_type,field_name" })
       .select("id");
     if (error) {
       console.error(`Batch ${Math.floor(i / BATCH) + 1} error:`, error.message);
     } else {
       total += data?.length ?? 0;
-      process.stdout.write(`Batch ${Math.floor(i / BATCH) + 1}: ${data?.length ?? 0} inserted\n`);
+      process.stdout.write(`Batch ${Math.floor(i / BATCH) + 1}: ${data?.length ?? 0} upserted\n`);
     }
   }
-  console.log(`\nDone: ${total} rows seeded (${FIELDS.length} defined)`);
+  console.log(`\nDone: ${total} rows upserted (${FIELDS.length} defined)`);
 }
 
 seed().catch((err) => { console.error(err); process.exit(1); });

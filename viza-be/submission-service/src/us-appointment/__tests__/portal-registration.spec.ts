@@ -8,7 +8,15 @@ import {
 } from "../runner";
 import { PlaywrightUSVisaSchedulingPortalClient, isUSVisaSchedulingRegistrationPasswordValid } from "../usvisascheduling-portal";
 
-type RegistrationMode = "success" | "duplicate" | "create-failure" | "return-login" | "delayed-verification";
+type RegistrationMode =
+  | "success"
+  | "duplicate"
+  | "create-failure"
+  | "return-login"
+  | "return-login-terms"
+  | "return-login-terms-delayed"
+  | "return-login-terms-mismatch"
+  | "delayed-verification";
 
 type RegistrationFixture = {
   client: PlaywrightUSVisaSchedulingPortalClient;
@@ -101,6 +109,80 @@ async function readBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+function returnToLoginPage(): string {
+  return `<h1>Sign in</h1><form action="https://www.usvisascheduling.com/en-US/" method="post">
+    <input id="signInName" name="signInName"><input id="password" name="password" type="password">
+    <button type="submit">Sign In</button></form>`;
+}
+
+function profilePage(primaryEmail: string): string {
+  return `<h1>Profile</h1>
+    <a href="mailto:${primaryEmail}">${primaryEmail}</a>
+    <a href="/Account/Login/LogOff" hidden>LogOff</a>
+    <button id="change-password" type="button">Change password</button>
+    <input id="firstname" value="Test Given">`;
+}
+
+function termsAndConditionsPage(primaryEmail: string): string {
+  const profileHtml = profilePage(primaryEmail);
+  return `<!doctype html>
+    <h1>Terms and Conditions</h1>
+    <label><input id="privacy-act-visual" type="checkbox"> Privacy Act</label>
+    <label><input id="confidentiality-agreement" type="checkbox"> Confidentiality agreement</label>
+    <input id="submit-agreement" type="submit" value="Continue" disabled>
+    <script>
+      history.replaceState({}, '', '/en-US/Account/Login/TermsAndConditions');
+      const privacy = document.querySelector('#privacy-act-visual');
+      const confidentiality = document.querySelector('#confidentiality-agreement');
+      const submit = document.querySelector('#submit-agreement');
+      const trace = [];
+      const sync = () => {
+        submit.disabled = !(privacy.checked && confidentiality.checked);
+        trace.push([privacy.checked, confidentiality.checked, submit.disabled].join(':'));
+        document.documentElement.dataset.termsTrace = trace.join('|');
+      };
+      privacy.addEventListener('change', sync);
+      confidentiality.addEventListener('change', sync);
+      sync();
+      submit.addEventListener('click', (event) => {
+        event.preventDefault();
+        history.pushState({}, '', '/en-US/profile/');
+        document.body.innerHTML = ${JSON.stringify(profileHtml)};
+      });
+    </script>`;
+}
+
+function delayedTermsAndConditionsPage(primaryEmail: string): string {
+  const profileHtml = profilePage(primaryEmail);
+  const controlsHtml = `
+    <h1>Terms and Conditions</h1>
+    <label><input id="privacy-act-visual" type="checkbox"> Privacy Act</label>
+    <label><input id="confidentiality-agreement" type="checkbox"> Confidentiality agreement</label>
+    <input id="submit-agreement" type="submit" value="Continue" disabled>`;
+  return `<!doctype html>
+    <h1>Terms and Conditions</h1>
+    <form><label>Username <input id="signInName" name="signInName"></label>
+      <label>Password <input id="password" name="password" type="password"></label></form>
+    <script>
+      history.replaceState({}, '', '/en-US/Account/Login/TermsAndConditions');
+      setTimeout(() => {
+        document.body.innerHTML = ${JSON.stringify(controlsHtml)};
+        const privacy = document.querySelector('#privacy-act-visual');
+        const confidentiality = document.querySelector('#confidentiality-agreement');
+        const submit = document.querySelector('#submit-agreement');
+        const sync = () => { submit.disabled = !(privacy.checked && confidentiality.checked); };
+        privacy.addEventListener('change', sync);
+        confidentiality.addEventListener('change', sync);
+        sync();
+        submit.addEventListener('click', (event) => {
+          event.preventDefault();
+          history.pushState({}, '', '/en-US/profile/');
+          document.body.innerHTML = ${JSON.stringify(profileHtml)};
+        });
+      }, 12_000);
+    </script>`;
+}
+
 async function withRegistrationFixture(
   mode: RegistrationMode,
   run: (fixture: RegistrationFixture) => Promise<void>,
@@ -132,10 +214,13 @@ async function withRegistrationFixture(
       counts.create += 1;
       if (mode === "create-failure") {
         response.end("<h1>Registration</h1><div class='error'>Account creation failed</div>");
-      } else if (mode === "return-login") {
-        response.end(`<h1>Sign in</h1><form action="https://www.usvisascheduling.com/en-US/" method="post">
-          <input id="signInName" name="signInName"><input id="password" name="password" type="password">
-          <button type="submit">Sign In</button></form>`);
+      } else if (
+        mode === "return-login"
+        || mode === "return-login-terms"
+        || mode === "return-login-terms-delayed"
+        || mode === "return-login-terms-mismatch"
+      ) {
+        response.end(returnToLoginPage());
       } else {
         response.end("<h1>Account created successfully.</h1>");
       }
@@ -260,6 +345,85 @@ for (const loginAccepted of [true, false]) {
     });
   });
 }
+
+test("registration accepts the official terms checkpoint and requires bound profile evidence", { timeout: 60_000 }, async () => {
+  await withRegistrationFixture("return-login-terms", async ({ client, page, counts }) => {
+    const officialPaths: string[] = [];
+    await page.route("https://www.usvisascheduling.com/**", async (route) => {
+      const request = route.request();
+      officialPaths.push(new URL(request.url()).pathname);
+      assert.equal(request.method(), "POST");
+      await route.fulfill({
+        contentType: "text/html",
+        body: termsAndConditionsPage(credentials.email),
+      });
+    });
+
+    await client.registerAccount(credentials);
+    const completed = await client.completeAccountEmailVerification({ emailCode: "123456" });
+
+    assert.equal(counts.create, 1);
+    assert.equal(completed.emailVerified, true);
+    assert.equal(completed.accountCreated, true);
+    assert.equal(completed.gate, undefined);
+    assert.equal(completed.readyForSlotCapture, false);
+    assert.equal(page.url(), "https://www.usvisascheduling.com/en-US/profile/");
+    assert.equal(
+      await page.locator("html").getAttribute("data-terms-trace"),
+      "false:false:true|true:false:true|true:true:false",
+    );
+    assert.equal(await page.locator(`a[href="mailto:${credentials.email}"]`).count(), 1);
+    assert.equal(await page.locator("a[href*='/Account/Login/LogOff']").isVisible(), false);
+    assert.equal(await page.locator("#change-password").isVisible(), true);
+    assert.equal(await page.locator("#firstname").isVisible(), true);
+    assert.doesNotMatch(await page.locator("body").innerText(), /update|payment|booked/i);
+    assert.equal(officialPaths.some((path) => /update|payment|booked/i.test(path)), false);
+  });
+});
+
+test("registration waits on the same tab when the terms URL arrives before its controls", { timeout: 60_000 }, async () => {
+  await withRegistrationFixture("return-login-terms-delayed", async ({ client, page, counts }) => {
+    await page.route("https://www.usvisascheduling.com/**", async (route) => {
+      assert.equal(route.request().method(), "POST");
+      await route.fulfill({
+        contentType: "text/html",
+        body: delayedTermsAndConditionsPage(credentials.email),
+      });
+    });
+
+    await client.registerAccount(credentials);
+    const completed = await client.completeAccountEmailVerification({ emailCode: "123456" });
+
+    assert.equal(counts.create, 1);
+    assert.equal(completed.emailVerified, true);
+    assert.equal(completed.accountCreated, true);
+    assert.equal(completed.gate, undefined);
+    assert.equal(page.url(), "https://www.usvisascheduling.com/en-US/profile/");
+    assert.equal(await page.locator("#firstname").isVisible(), true);
+  });
+});
+
+test("registration rejects a profile whose primary email does not match the bound account", { timeout: 60_000 }, async () => {
+  await withRegistrationFixture("return-login-terms-mismatch", async ({ client, page }) => {
+    await page.route("https://www.usvisascheduling.com/**", async (route) => {
+      assert.equal(route.request().method(), "POST");
+      await route.fulfill({
+        contentType: "text/html",
+        body: termsAndConditionsPage("different@example.com"),
+      });
+    });
+
+    await client.registerAccount(credentials);
+    const completed = await client.completeAccountEmailVerification({ emailCode: "123456" });
+
+    assert.equal(completed.emailVerified, true);
+    assert.equal(completed.accountCreated, false);
+    assert.equal(completed.gate?.errorCode, "account_creation_unconfirmed");
+    assert.equal(page.url(), "https://www.usvisascheduling.com/en-US/profile/");
+    assert.equal(await page.locator(`a[href="mailto:${credentials.email}"]`).count(), 0);
+    assert.equal(await page.locator("a[href='mailto:different@example.com']").count(), 1);
+  });
+});
 
 test("duplicate registration response is surfaced and never reaches verification or Create", async () => {
   await withRegistrationFixture("duplicate", async ({ client, counts }) => {

@@ -13,9 +13,7 @@ import {
   Robot as Bot,
   Calendar,
   CaretRight as ChevronRight,
-  CurrencyCircleDollar as CircleDollarSign,
   ClipboardText as ClipboardList,
-  CreditCard,
   Database as DatabaseBackup,
   Globe as Globe2,
   Headphones,
@@ -33,9 +31,6 @@ import {
   GearSix as ServerCog,
   Gear as Settings,
   ShieldCheck,
-  ShoppingCart,
-  Tag as Tags,
-  ArrowCounterClockwise as Undo2,
   UserPlus,
   Users,
 } from "@phosphor-icons/react";
@@ -56,14 +51,14 @@ interface Route {
 }
 
 type AdminNavKey =
-  | "dashboard" | "accounts" | "applications" | "coverage" | "billing"
-  | "support" | "orders" | "products" | "cataloguePublication"
-  | "consultations" | "work" | "takeovers" | "chat" | "revenue"
-  | "pricing" | "metrics" | "portalHealth" | "notificationDlq" | "backups"
-  | "costs" | "analytics" | "privacy" | "refunds" | "leads" | "audit" | "team";
+  | "dashboard" | "accounts" | "applications" | "coverage"
+  | "support" | "products" | "cataloguePublication" | "consultations"
+  | "work" | "takeovers" | "chat" | "metrics" | "portalHealth"
+  | "notificationDlq" | "backups" | "costs" | "analytics" | "privacy"
+  | "leads" | "audit" | "team";
 
 type AdminNavSectionKey =
-  | "control" | "cases" | "customers" | "commerce" | "platform" | "catalogue" | "administration";
+  | "control" | "cases" | "customers" | "platform" | "catalogue" | "administration";
 
 interface AdminNavSection {
   labelKey: AdminNavSectionKey;
@@ -74,15 +69,15 @@ const ADMIN_COPY = {
   en: {
     nav: {
       dashboard: "Dashboard", accounts: "Accounts", applications: "Applications", coverage: "Coverage",
-      billing: "Billing", support: "Support", orders: "Orders", products: "Products",
+      support: "Support", products: "Products",
       cataloguePublication: "Marketing publication", consultations: "Appointments", work: "Work queue",
-      takeovers: "Takeovers", chat: "Live chat", revenue: "Revenue", pricing: "Pricing",
+      takeovers: "Takeovers", chat: "Live chat",
       metrics: "Runner metrics", portalHealth: "Portal health", notificationDlq: "Notification DLQ",
       backups: "Backups", costs: "Costs", analytics: "Analytics", privacy: "Privacy requests",
-      refunds: "Refunds & disputes", leads: "Leads", audit: "Audit log", team: "Team & workload",
+      leads: "Leads", audit: "Audit log", team: "Team & workload",
     },
     sections: {
-      control: "Control tower", cases: "Cases", customers: "Customers", commerce: "Commerce",
+      control: "Control tower", cases: "Cases", customers: "Customers",
       platform: "Platform", catalogue: "Catalogue", administration: "Administration",
     },
     admin: "Admin",
@@ -97,15 +92,15 @@ const ADMIN_COPY = {
   zh: {
     nav: {
       dashboard: "仪表盘", accounts: "账户", applications: "申请", coverage: "覆盖范围",
-      billing: "账单", support: "客服", orders: "订单", products: "产品",
+      support: "客服", products: "产品",
       cataloguePublication: "营销发布", consultations: "预约", work: "工作队列",
-      takeovers: "人工接管", chat: "在线聊天", revenue: "收入", pricing: "定价",
+      takeovers: "人工接管", chat: "在线聊天",
       metrics: "自动化指标", portalHealth: "门户健康", notificationDlq: "通知死信队列",
       backups: "备份", costs: "成本", analytics: "分析", privacy: "隐私请求",
-      refunds: "退款与争议", leads: "销售线索", audit: "审计日志", team: "团队与工作量",
+      leads: "销售线索", audit: "审计日志", team: "团队与工作量",
     },
     sections: {
-      control: "运营控制台", cases: "申请案件", customers: "客户", commerce: "交易",
+      control: "运营控制台", cases: "申请案件", customers: "客户",
       platform: "平台", catalogue: "产品目录", administration: "系统管理",
     },
     admin: "管理后台",
@@ -137,12 +132,6 @@ const adminNavSections: AdminNavSection[] = [
     { labelKey: "chat", icon: MessageSquare, href: "/admin/chat" },
     { labelKey: "privacy", icon: ShieldCheck, href: "/admin/privacy" },
   ] },
-  { labelKey: "commerce", routes: [
-    { labelKey: "orders", icon: ShoppingCart, href: "/admin/orders" },
-    { labelKey: "billing", icon: CreditCard, href: "/admin/billing" },
-    { labelKey: "refunds", icon: Undo2, href: "/admin/refunds" },
-    { labelKey: "revenue", icon: CircleDollarSign, href: "/admin/revenue" },
-  ] },
   { labelKey: "platform", routes: [
     { labelKey: "portalHealth", icon: Activity, href: "/admin/portal-health" },
     { labelKey: "metrics", icon: ServerCog, href: "/admin/metrics" },
@@ -152,7 +141,6 @@ const adminNavSections: AdminNavSection[] = [
   ] },
   { labelKey: "catalogue", routes: [
     { labelKey: "coverage", icon: Map, href: "/admin/packages" },
-    { labelKey: "pricing", icon: Tags, href: "/admin/pricing" },
     { labelKey: "products", icon: Package, href: "/admin/products" },
     { labelKey: "cataloguePublication", icon: Globe2, href: "/admin/catalogue-publication" },
   ] },

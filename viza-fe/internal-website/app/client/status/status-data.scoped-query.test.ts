@@ -781,7 +781,7 @@ describe("getClientStatusData application scope", () => {
       ),
     );
     expect(scopedApplicationQuery).toBeDefined();
-    expect(scoped.fake.calls.filter((call) => call.table === "payment_records")).toHaveLength(1);
+    expect(scoped.fake.calls.filter((call) => call.table === "payment_records")).toHaveLength(0);
     expect(scoped.fake.calls.filter((call) => call.table === "visa_application_answers")).toHaveLength(0);
   });
 
@@ -811,7 +811,7 @@ describe("getClientStatusData application scope", () => {
     expect(scoped.data.detailApplications[0]).toEqual(
       all.data.detailApplications.find((application) => application.id === LINKED_APPLICATION_ID),
     );
-    expect(scoped.data.detailApplications[0]?.payment.status).toBe("paid");
+    expect(scoped.data.detailApplications[0]?.payment.status).toBeNull();
   });
 
   it("retains a submitted SGAC application linked by the legacy email answer", async () => {
@@ -973,8 +973,8 @@ describe("getClientStatusData application scope", () => {
   );
 });
 
-describe("getClientStatusData package-linked payment files", () => {
-  it("keeps the newest owner-linked receipt when its application id is legacy or mismatched", async () => {
+describe("getClientStatusData retired payment files", () => {
+  it("does not expose legacy payment receipts or request storage signatures", async () => {
     const fixture = baseFixture();
     fixture.applications = [applicationRow({
       receipt_url: null,
@@ -1002,28 +1002,9 @@ describe("getClientStatusData package-linked payment files", () => {
     const { data, fake } = await runLoader(fixture, PROFILE_APPLICATION_ID);
     const application = data.detailApplications[0];
 
-    expect(application?.files).toEqual([
-      {
-        key: "paymentReceipt",
-        href: "https://signed.example.test/application-documents/legacy-payment.pdf",
-        reference: "application-documents/legacy-payment.pdf",
-        createdAt: "2026-09-03T12:00:00.000Z",
-      },
-    ]);
-    expect(fake.storageBatches).toEqual([
-      {
-        bucket: "application-documents",
-        paths: ["legacy-payment.pdf"],
-        expiresIn: 60 * 60,
-      },
-    ]);
-    expect(fake.storageSignatures).toEqual([
-      {
-        bucket: "application-documents",
-        path: "legacy-payment.pdf",
-        expiresIn: 60 * 60,
-      },
-    ]);
+    expect(application?.files).toEqual([]);
+    expect(fake.storageBatches).toHaveLength(0);
+    expect(fake.storageSignatures).toHaveLength(0);
     expect(fake.storageSingleCalls).toHaveLength(0);
   });
 });
@@ -1455,8 +1436,8 @@ describe("getClientStatusIndexData projection", () => {
     const normal = full.data.detailApplications.find((application) => application.id === NORMAL_APPLICATION_ID);
     expect(normal).toMatchObject({
       state: "in_progress",
-      progressPercent: 71,
-      payment: { status: "paid", amountCents: 12000 },
+      progressPercent: 67,
+      payment: { status: null, amountCents: null },
       consent: { accepted: true, signaturePresent: true },
       formAnswerCount: 2,
       documents: { total: 2, uploaded: 1, validated: 1, missing: 0, rejected: 0 },

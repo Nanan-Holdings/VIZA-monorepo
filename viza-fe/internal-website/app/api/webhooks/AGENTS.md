@@ -2,6 +2,12 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/webhooks/**`.
 
+Current product policy (2026-09-15): payment provider callbacks are retired.
+PhotonPay and Airwallex payment webhooks return HTTP 410 without signature
+verification, provider calls, issuer authorization, or database writes. The
+Airwallex remote-authorization callback keeps its provider response shape and
+always returns `DECLINED` with a payment-removed reason.
+
 ## Purpose
 
 This module receives third-party provider callbacks that are not owned by a

@@ -67,7 +67,6 @@ const FORM_COMPLETE_STATUSES = new Set([
   "staff_action_required",
 ]);
 
-const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "success", "complete", "completed"]);
 
 const TERMINAL_PROGRESS_STATUSES = new Set([
   "submitted",
@@ -120,13 +119,6 @@ export function buildApplicationHref(application: ApplicationRow): string {
   });
 }
 
-export function buildCheckoutHref(application: ApplicationRow): string {
-  const params = new URLSearchParams();
-  if (application.visa_package_id) params.set("packageId", application.visa_package_id);
-  params.set("applicationId", application.id);
-  return `/client/checkout?${params.toString()}`;
-}
-
 export function buildStatusHref(application: ApplicationRow): string {
   const params = new URLSearchParams({ applicationId: application.id });
   return `/client/status?${params.toString()}`;
@@ -136,20 +128,11 @@ export function isFormComplete(application: ApplicationRow): boolean {
   return Boolean(application.submitted_at) || FORM_COMPLETE_STATUSES.has(application.status.toLowerCase());
 }
 
-export function isPaymentComplete(application: ApplicationRow, payments: PaymentRow[]): boolean {
-  return payments.some((payment) => {
-    const matchesApplication = payment.application_id === application.id;
-    const matchesPackage = Boolean(application.visa_package_id && payment.visa_package_id === application.visa_package_id);
-    return (matchesApplication || matchesPackage) && PAID_PAYMENT_STATUSES.has(payment.status.toLowerCase());
-  });
-}
-
-export function getNextApplicationHref(application: ApplicationRow, payments: PaymentRow[]): string {
+export function getNextApplicationHref(application: ApplicationRow, _payments: PaymentRow[] = []): string {
   if (!isFormComplete(application)) return buildApplicationHref(application);
   if (application.country === "south_korea" && application.visa_type === "KR_C39_SHORT_TERM_VISIT") {
     return buildApplicationHref(application);
   }
-  if (!isPaymentComplete(application, payments)) return buildCheckoutHref(application);
   return buildStatusHref(application);
 }
 

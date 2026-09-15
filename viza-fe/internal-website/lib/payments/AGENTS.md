@@ -1,41 +1,21 @@
-# Payments Library Agent Guide
+# Retired Payments and Submission Access
 
-Scope: this file applies to `viza-fe/internal-website/lib/payments/**`.
+Scope: this directory.
 
-## Purpose
+Payments were removed by product decision on 2026-09-15. Do not restore
+checkout, subscription sales, payment-method binding, refunds, card issuance,
+or payment-gated submission.
 
-This module holds shared payment-domain helpers used by client and API routes.
+- submission-access.ts retains the legacy response shape for existing clients
+  but only verifies application/profile/group ownership. It performs no
+  financial reads, entitlement writes, allocation, or payment-deferral RPC.
+- submission-access.test.ts covers unpaid applications, old refund evidence,
+  foreign owners, group owners, and missing applications.
+- submission-access.integration.test.ts verifies owner-scoped reads through
+  the installed Supabase SDK against a local HTTP fixture, with all financial
+  storage unavailable. It never connects to a production database.
+- Legacy financial types/helpers may remain only for historical compatibility.
+  No active application flow may call them to collect or execute payment.
 
-## Key Files
-
-- `subscription-display.ts`: derives subscription labels from current interface
-  locale and persisted status/dates, including legacy payment-method labels.
-  `subscription-display.test.ts` verifies locale switching without state loss.
-
-- `commercial-products.ts`: CNY subscription and pay-per-application product
-  catalog used by `/client/subscription`.
-- `commercial-session.ts`: resolves the current client portal applicant session
-  for commercial subscription payment records.
-- `refund-rules.ts`: refund eligibility helpers for existing payment records.
-- `method-availability.ts`: package/currency policy for direct wallets and
-  Stripe Checkout Alipay/WeChat Pay method selection.
-- `official-fee-catalog.ts`: typed country/visa classification for VIZA-managed
-  virtual-card payments and explicit offline/free exceptions.
-- `submission-access.ts`: application-scoped final-submission evaluator. It
-  locks valid high-access waivers, reconciles legacy order/payment evidence,
-  validates official-fee allocations, and returns the stable
-  `SubmissionAccessDecision` used by every server-side submission boundary.
-
-## Guardrails
-
-- Store prices in minor units (`amountFen` for CNY) and format at the UI edge.
-- Keep official government fees separate from commercial VIZA service fees.
-- Official portal payments use VIZA-managed, application-scoped virtual cards;
-  any `portal_direct` value is legacy data, not an instruction for applicants
-  to enter their own card.
-- Do not import client components from this module.
-- Never accept payment evidence from a different application. A ready decision
-  requires the exact application entitlement plus matching amount/currency for
-  managed official-fee allocations.
-- Payment confirmation prepares the entitlement but never enqueues an official
-  submission. The applicant must return to Review and explicitly submit again.
+Fee fields in the legacy response describe VIZA collection only; zero collection
+is never evidence that an official authority's fee has been paid.

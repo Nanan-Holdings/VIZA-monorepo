@@ -26,7 +26,7 @@ function originFromEnv(value: string | undefined): string | null {
  *
  * Enforced and mirrored in the reporting policy. The App Router injects inline
  * bootstrap scripts/styles and the app talks to several third parties
- * (Supabase, Stripe, Google Maps/Places). Keep frame exceptions origin-scoped;
+ * (Supabase, Stripe Identity, Google Maps/Places). Keep frame exceptions origin-scoped;
  * connect-src is derived from the configured backend origins.
  */
 function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
@@ -69,7 +69,6 @@ function buildContentSecurityPolicy(allowSameOriginFrame = false): string {
       "'self'",
       LOOM_EXTENSION_ORIGIN,
       "https://js.stripe.com",
-      "https://checkout.stripe.com",
       "https://hooks.stripe.com",
     ],
     "worker-src": ["'self'", "blob:"],
@@ -103,7 +102,7 @@ const SECURITY_HEADERS = [
       "geolocation=()",
       "gyroscope=()",
       "magnetometer=()",
-      "payment=(self)",
+      "payment=()",
       "usb=()",
       "interest-cohort=()",
     ].join(", "),

@@ -1,3 +1,4 @@
+import { rejectRemovedPayment } from "../payment-removed.js";
 /**
  * PhotonPay Open API client (card issuing / 发卡).
  *
@@ -65,24 +66,6 @@ export interface PhotonPayLogEntry {
   durationMs?: number;
 }
 
-const SENSITIVE_HEADERS = new Set(["x-pd-token", "x-pd-sign", "authorization"]);
-
-function redactHeaders(h?: Record<string, string>): Record<string, string> | undefined {
-  if (!h) return h;
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(h)) out[k] = SENSITIVE_HEADERS.has(k.toLowerCase()) ? "***" : v;
-  return out;
-}
-
-/** Redact card three-elements from a JSON body string (PCI — never log PAN/CVV). */
-function redactBody(b?: string): string | undefined {
-  if (!b) return b;
-  return b.replace(
-    /("(?:cardNo|cardNumber|pan|cvv|cvv2|expirationDate|expiryDate)"\s*:\s*")[^"]*(")/gi,
-    "$1***$2",
-  );
-}
-
 /** PhotonPay wraps every response as `{ code, msg, data }`. */
 interface Envelope<T> {
   code?: string;
@@ -93,11 +76,6 @@ interface Envelope<T> {
 
 /** `code` values that indicate success across PhotonPay endpoints. */
 const SUCCESS_CODES = new Set(["0000", "0"]);
-
-/** Refresh the access token this long BEFORE its real expiry — never present a
- * token at the exact 2h deadline (clock skew / in-flight latency). Matches the
- * PhotonPay reference implementation's 5-minute early refresh. */
-const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
 
 /** Fallback token lifetime when the response carries no usable expiry. */
 const TOKEN_DEFAULT_TTL_MS = 2 * 60 * 60_000;
@@ -356,33 +334,8 @@ export class PhotonPayClient {
   }
 
   private async fetchToken(): Promise<string> {
-    const now = Date.now();
-    const basic =
-      "basic " +
-      Buffer.from(`${this.cfg.appId}/${this.cfg.appSecret}`).toString("base64");
-    const res = await fetch(`${this.cfg.baseUrl}/oauth2/token/accessToken`, {
-      method: "POST",
-      headers: { Authorization: basic, "Content-Type": "application/json" },
-    });
-    const body = (await res.json().catch(() => ({}))) as Envelope<{
-      token?: string;
-      accessToken?: string;
-      expiresIn?: number;
-    }>;
-    const token = body.data?.token ?? body.data?.accessToken ?? null;
-    if (!res.ok || !token) {
-      throw new PhotonPayApiError(
-        "/oauth2/token/accessToken",
-        body.code ?? String(res.status),
-        body.msg ?? "no token in response",
-      );
-    }
-    this.token = token;
-    // Refresh TOKEN_REFRESH_MARGIN_MS before the real deadline — never key off
-    // a fixed "now + 2h" that could ride the token to its edge.
-    this.tokenExpiresAt = resolveTokenExpiry(body.data?.expiresIn, now) - TOKEN_REFRESH_MARGIN_MS;
-    return token;
-  }
+  return rejectRemovedPayment();
+}
 
   // --- signing ------------------------------------------------------------
 
@@ -409,50 +362,16 @@ export class PhotonPayClient {
     }
   }
 
-  // --- transport ----------------------------------------------------------
-
-  private emitLog(entry: Omit<PhotonPayLogEntry, "at">): void {
-    if (!this.cfg.logger) return;
-    this.cfg.logger({
-      ...entry,
-      headers: redactHeaders(entry.headers),
-      body: redactBody(entry.body),
-      at: new Date().toISOString(),
-    });
-  }
-
   /** Single fetch chokepoint: logs the request + response (redacted), timed. */
   private async send(
-    method: string,
-    path: string,
-    url: string,
-    headers: Record<string, string>,
-    body?: string,
+    _method: string,
+    _path: string,
+    _url: string,
+    _headers: Record<string, string>,
+    _body?: string,
   ): Promise<Response> {
-    const started = Date.now();
-    this.emitLog({ direction: "request", method, path, headers, body });
-    const res = await fetch(url, { method, headers, ...(body !== undefined ? { body } : {}) });
-    let respText = "";
-    try {
-      respText = await res.clone().text();
-    } catch {
-      /* body not clonable/readable — log without it */
-    }
-    const responseHeaders: Record<string, string> = {};
-    res.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
-    this.emitLog({
-      direction: "response",
-      method,
-      path,
-      status: res.status,
-      durationMs: Date.now() - started,
-      headers: responseHeaders,
-      body: respText,
-    });
-    return res;
-  }
+  return rejectRemovedPayment();
+}
 
   private async get<T>(path: string, query?: Record<string, string | undefined>): Promise<T> {
     const qs = query

@@ -68,6 +68,9 @@ Smoke at least one route that uses the changed primitive.
   controls sharing the `.application-form-control` CSS contract. The select
   primitive owns regular, searchable single-select, and searchable multi-select
   behavior used by both `/ui-components` and `/client/application`.
+  `components/ui/__tests__/application-form-select-ref-stability.test.tsx`
+  protects the filled canonical Select trigger from React 19 ref detaches
+  during parent and option updates.
 - `application-conditional-fields-panel.tsx`: the single nested panel for all
   fields revealed by one parent answer, including dropdown-controlled branches,
   radio-controlled branches, and the closely coupled repeat-group add action.

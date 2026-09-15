@@ -344,7 +344,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-        ? "The official portal reached payment. VIZA will continue with the application-scoped virtual card."
+        ? "The official portal requires a fee. Automated payment is unavailable; this application needs attention."
         : "Vietnam official portal needs action before VIZA can continue.");
     const checkpoint =
       typeof payload.checkpoint === "string" && payload.checkpoint.trim()
@@ -353,13 +353,13 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
   const instructionText = isVietnamPayment
-    ? "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+    ? "The official Vietnam e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
         ? actionType === "official_fee_otp_required"
           ? "The official Indonesia payment needs bank verification. VIZA staff will review it; do not make a duplicate payment."
-          : "The official Indonesia payment needs review. VIZA will continue with the application-scoped virtual card."
-        : "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card."
+          : "The official Indonesia portal requires a fee. Automated payment is unavailable; this application needs attention."
+        : "The official Indonesia e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
@@ -380,7 +380,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       manualAction: {
         type: actionType,
         status: "open",
-        instructions: isIndonesiaPayment ? instructionText : instruction,
+        instructions: isIndonesiaPayment || isVietnamPayment ? instructionText : instruction,
       },
       paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
         ? "manual_required"
@@ -985,7 +985,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Vietnam e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+        "The official Vietnam e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention.",
       error: queueMessage,
     };
   }
@@ -997,7 +997,7 @@ export function deriveNonTerminalStatus(
       progress: 99,
       message:
         queueMessage ??
-        "The official Indonesia e-Visa portal reached payment. VIZA will continue with the application-scoped virtual card.",
+        "The official Indonesia e-Visa portal requires a fee. Automated payment is unavailable; this application needs attention.",
       error: queueMessage,
     };
   }

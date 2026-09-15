@@ -988,6 +988,7 @@
       "Security and Background: Part 3": "安全与背景：第3部分",
       "Security and Background: Part 4": "安全与背景：第4部分",
       "Security and Background: Part 5": "安全与背景：第5部分",
+      "Sign and Submit": "签名并提交",
       "Visa Selection": "签证选择",
       "Visa Category & Passport": "签证类别与护照",
       "Personal Info": "个人信息",
@@ -1207,7 +1208,7 @@
       "governmentFeeNote": "官方签证费由目的地政府收取并单独结算，金额因国家而异。"
     },
     "title": "状态中心",
-    "subtitle": "在一个页面查看付款、授权、表单答案、材料、申请包准备、外部交接和官方结果交付。",
+    "subtitle": "在一个页面查看授权、表单答案、材料、申请包准备、外部交接和官方结果交付。",
     "chooseDestination": "选择其他目的地",
     "partialData": "部分自动化详情暂时不可用。当前显示的状态仍然只包含适合客户查看的信息。",
     "progress": "进度",
@@ -1244,7 +1245,7 @@
     },
     "empty": {
       "title": "暂无进行中的申请",
-      "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示付款、授权、材料、申请包、交接和结果状态。",
+      "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示授权、材料、申请包、交接和结果状态。",
       "cta": "选择目的地"
     },
     "stats": {
@@ -4133,7 +4134,7 @@
   },
   "settings": {
     "title": "设置",
-    "subtitle": "在这里管理付款偏好、通用签证资料、账户安全和帮助入口。",
+    "subtitle": "在这里管理通用签证资料、账户安全和帮助入口。",
     "backToSettings": "返回设置",
     "loading": "正在加载您的设置...",
     "tabs": {
@@ -4166,7 +4167,7 @@
       "title": "VIZA 积分",
       "totalLabel": "当前积分总额",
       "referralRule": "新用户注册时使用您的推荐码后，两边账号各获得 99 积分。",
-      "purchaseRule": "每实际消费 100 元人民币可获得 100 VIZA 积分，付款确认后会自动计入当前积分总额。",
+      "purchaseRule": "付款积分奖励已取消。现有积分仍可在积分中心查看和使用。",
       "lifetimeEarned": "累计获得",
       "lifetimeSpent": "累计使用",
       "marketplaceTitle": "积分商城",
@@ -4239,7 +4240,7 @@
       },
       "helpCenter": {
         "title": "帮助中心",
-        "description": "阅读账户、付款、隐私和申请流程相关说明。"
+        "description": "阅读账户、隐私和申请流程相关说明。"
       },
       "feedback": {
         "title": "分享反馈",

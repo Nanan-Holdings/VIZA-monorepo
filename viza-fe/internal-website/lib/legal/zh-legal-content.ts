@@ -147,17 +147,8 @@ export const zhTermsArticle: LegalArticle = {
     {
       heading: "服务费用",
       content: [
-        { type: "paragraph", text: "部分服务需要支付相应费用。" },
-        { type: "paragraph", text: "具体价格将在相关页面展示，并以用户下单时确认的金额为准。" },
-        {
-          type: "paragraph",
-          text: "除非另有说明，用户支付的费用对应 VIZA 提供的签证申请辅助服务。相关政府费用、签证申请费用、预约费用、生物信息采集费用、医疗检查费用或其他第三方收费项目通常不包含在服务费中。",
-        },
-        {
-          type: "paragraph",
-          text: "如官方费用支持线上支付，VIZA 会为对应申请创建限额虚拟卡，并代表用户向官方门户付款；相关官方机构的付款及退款规则仍然适用。",
-        },
-        { type: "paragraph", text: "退款、取消及其他相关规则适用《退款政策》。" },
+        { type: "paragraph", text: "VIZA 不收取服务费，也不提供付费订阅。申请无需在 VIZA 内付款。" },
+        { type: "paragraph", text: "政府机构或其他服务机构仍可能按其规则收取费用。VIZA 不收取或自动支付这些费用；如官方流程要求缴费，申请可能需要停在该步骤。" },
       ],
     },
     {
@@ -416,11 +407,8 @@ export const zhDisclaimerArticle: LegalArticle = {
     {
       heading: "服务费用说明",
       content: [
-        {
-          type: "paragraph",
-          text: "VIZA 收取的是签证申请辅助服务费用，而非政府签证申请费用。除非另有明确说明，网站所展示的价格通常不包含相关政府机构收取的申请费、签证费、生物信息采集费、医疗检查费、邮寄费或其他第三方费用。",
-        },
-        { type: "paragraph", text: "相关官方费用由政府机构或指定服务机构收取，并适用其自身的付款、取消及退款规则。如支持线上支付，VIZA 会使用申请专属虚拟卡代表用户向官方门户付款。" },
+        { type: "paragraph", text: "VIZA 不收取服务费，也不提供付费订阅。申请无需在 VIZA 内付款。" },
+        { type: "paragraph", text: "政府机构或其他服务机构仍可能按其规则收取费用。VIZA 不收取或自动支付这些费用；如官方流程要求缴费，申请可能需要停在该步骤。" },
       ],
     },
     {

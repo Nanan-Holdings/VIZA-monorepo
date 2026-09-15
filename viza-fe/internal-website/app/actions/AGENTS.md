@@ -76,6 +76,9 @@ application lifecycle state.
   fields through the bounded static-metadata singleflight cache, then runs the
   shared schema/UI compiler so component mapping and conditional-panel
   ownership are deterministic across countries.
+  DS-160 cold schema reads have a 15-second deadline and one bounded GET retry.
+  `visa-form-fields.integration.test.ts` exercises delayed/transient responses
+  through the actual Supabase SDK against a local HTTP server, without credentials.
 - `companion-sessions.ts`: VIZA chat sessions, messages, title markers, search,
   and history.
   Sidebar history reads 30 owned session candidates with precise columns, then
@@ -115,8 +118,9 @@ application lifecycle state.
   coverage lives in `takeover.test.ts`.
 - `admin-work-items.ts`: reconciles durable operational exceptions into the
   staff queue and owns auditable assignment/status transitions.
-- `admin-commerce.ts`: audited provisioning retry, refund decision, and
-  approved line-based refund execution commands.
+- `admin-commerce.ts`: legacy payment provisioning and refund commands. All
+  payment mutations now return the stable payment-removed error and never
+  access provider or payment-record state.
 - `admin-documents.ts`, `admin-privacy.ts`, `admin-leads.ts`: auditable admin
   decisions for document review, data rights, and marketing lead handling.
   UAE transaction-783 bank/insurance approval is a distinct immutable staff
@@ -126,8 +130,12 @@ application lifecycle state.
   to race an active operator takeover.
 - `admin-catalogue.ts`: validates public catalogue drafts and executes atomic,
   auditable publish/retire commands through database functions.
-- `admin-disputes.ts`: synchronizes Stripe disputes, stages evidence, uploads
-  evidence files, and submits the reviewed response without exposing API keys.
+- `admin-disputes.ts`: legacy Stripe dispute commands. They now fail with the
+  stable payment-removed error before reading or uploading evidence.
+- `card-checkout.ts`, `wechat-checkout.ts`, `payments.ts`, `refunds.ts`,
+  `refund-request.ts`, `receipts.ts`, and `wechat-provisioning.ts`: retired
+  payment server-action exports retained only for stale callers; each fails
+  before authentication, database access, provider calls, or outbound mail.
 - `admin-appointments.ts`: owns the staff-side appointment case, expires only
   persisted-overdue actions, and captures missing official confirmation evidence.
 

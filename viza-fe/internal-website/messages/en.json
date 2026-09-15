@@ -978,6 +978,7 @@
       "Security and Background: Part 3": "Security and Background: Part 3",
       "Security and Background: Part 4": "Security and Background: Part 4",
       "Security and Background: Part 5": "Security and Background: Part 5",
+      "Sign and Submit": "Sign and Submit",
       "Supporting Documents": "Supporting Documents",
       "Passport Upload": "Passport Upload",
       "Upload Photo": "Upload Photo",
@@ -1207,7 +1208,7 @@
       "governmentFeeNote": "Government visa fees are paid to the authority and billed separately; amounts vary by country."
     },
     "title": "Status Center",
-    "subtitle": "Track payment, consent, form answers, documents, packet preparation, external handoff, and official result delivery in one place.",
+    "subtitle": "Track consent, form answers, documents, application preparation, handoff, and official results in one place.",
     "chooseDestination": "Choose another destination",
     "partialData": "Some automation details are temporarily unavailable. Visible statuses are still limited to customer-safe information.",
     "progress": "Progress",
@@ -1244,7 +1245,7 @@
     },
     "empty": {
       "title": "No active applications yet",
-      "description": "Choose a destination from Home to start a visa workflow. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",
+      "description": "Choose a destination from Home to start your application. Your consent, documents, application preparation, handoff, and results will appear here.",
       "cta": "Choose destination"
     },
     "stats": {
@@ -4133,7 +4134,7 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Manage payment preferences, reusable visa profile details, account security, and support links from one place.",
+    "subtitle": "Manage reusable visa profile details, account security, and support links.",
     "backToSettings": "Back to Settings",
     "loading": "Loading your settings...",
     "tabs": {
@@ -4166,7 +4167,7 @@
       "title": "VIZA points",
       "totalLabel": "Current balance",
       "referralRule": "When a new user signs up with your referral code, both accounts receive 99 points.",
-      "purchaseRule": "Earn 100 VIZA points for every RMB 100 you spend. Points are added to your current balance after payment is confirmed.",
+      "purchaseRule": "Points are no longer awarded for purchases. View and use your existing balance in the points center.",
       "lifetimeEarned": "Lifetime earned",
       "lifetimeSpent": "Lifetime spent",
       "marketplaceTitle": "Points marketplace",
@@ -4239,7 +4240,7 @@
       },
       "helpCenter": {
         "title": "Help center",
-        "description": "Read account, payment, privacy, and application support articles."
+        "description": "Read account, privacy, and application support articles."
       },
       "feedback": {
         "title": "Share feedback",

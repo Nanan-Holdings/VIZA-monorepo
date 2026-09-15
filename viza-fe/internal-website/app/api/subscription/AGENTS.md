@@ -2,6 +2,10 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/subscription/**`.
 
+Current product policy (2026-09-15): commercial subscriptions are retired.
+The current, cancel, and resume routes return HTTP 410 with
+`code: "payment_removed"` and never read or mutate subscription/payment state.
+
 ## Purpose
 
 This module exposes authenticated client subscription state for the VIZA

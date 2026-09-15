@@ -2,6 +2,12 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/payments/**`.
 
+Current product policy (2026-09-15): payment processing is removed. Every
+route under this directory returns HTTP 410 with `code: "payment_removed"`
+before authentication, provider configuration, database access, or webhook
+processing. Historical payment records remain available only to migrations or
+separately owned read models.
+
 ## Purpose
 
 This module owns commercial subscription and pay-per-application payment

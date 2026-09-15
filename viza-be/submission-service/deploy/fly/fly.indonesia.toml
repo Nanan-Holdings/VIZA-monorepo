@@ -1,5 +1,5 @@
 # Sticky Indonesia B1/C1 submission_queue worker. One retained Machine keeps
-# account, OTP, browser, and one-time payment-card state in a single process.
+# account, OTP, and browser state in a single process.
 app = "viza-runner-indonesia"
 primary_region = "sin"
 kill_signal = "SIGINT"
@@ -15,9 +15,7 @@ kill_timeout = "5m"
   SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
   SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
-  ID_CLOUD_CARD_SESSION_ENABLED = "true"
   INDONESIA_PLAYWRIGHT_HEADLESS = "true"
-  INDONESIA_PAYMENT_MAX_MEMORY_MB = "1700"
   INDONESIA_STEP_1_USE_LEGACY_FALLBACKS = "false"
   INBOX_ALIAS_DOMAIN = "viza.it.com"
   INDONESIA_BROWSERBASE_ENABLED = "true"

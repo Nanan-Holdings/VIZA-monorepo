@@ -15,6 +15,10 @@ application flow.
   `visa_packages.metadata.document_checklist`.
 - Use a conservative fallback checklist only when package-specific requirements
   are missing.
+- For US DS-160, the fallback requires the digital photo and keeps generic
+  interview supporting documents optional, so it cannot block the questionnaire
+  on bank statements or booked travel. Explicit package requirements retain
+  precedence; applicant answers and the runner still validate the official data.
 - Persist uploads to Supabase Storage bucket `application-documents`.
 - Confirm passport OCR into reusable profile columns and confirm national
   identity-card OCR into `universal_profile_answers`; keep identity-card

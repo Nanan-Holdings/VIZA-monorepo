@@ -165,13 +165,13 @@ describe("DigitalArrivalCardResultCard", () => {
 
   it("localizes raw loading stages for the Chinese interface", () => {
     expect(localizeProgressMessage("Current stage: payment_authorized.", true)).toBe(
-      "官方付款已授权，正在等待云端任务继续。",
+      "官网费用步骤需要人工处理。VIZA 不提供自动付款。",
     );
     expect(localizeProgressMessage("Current stage: future_runner_stage.", true)).toBe(
       "云端任务正在处理，页面会自动更新。",
     );
     expect(localizeProgressMessage("Current stage: payment_authorized.", false)).toBe(
-      "Current stage: payment_authorized.",
+      "The official fee checkpoint needs manual attention. VIZA does not provide automated payment.",
     );
     expect(
       localizeProgressMessage("Fly worker resumed with a future runtime message.", true),
@@ -242,7 +242,7 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(phaseItem("正在填写官网表单")).toHaveClass("border-brand-200");
     expect(phaseItem("正在等待检查点或结果")).toHaveClass("border-brand-500");
     expect(
-      screen.getByText("Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"),
+      screen.getByText("官网费用步骤需要人工处理。VIZA 不提供自动付款。"),
     ).toBeInTheDocument();
 
     rerender(
@@ -329,7 +329,7 @@ describe("DigitalArrivalCardResultCard", () => {
     window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
   });
 
-  it("keeps the Vietnam managed-payment action mounted when the new queue becomes active", async () => {
+  it("renders a legacy Vietnam payment checkpoint as needs attention without payment controls", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
         return {
@@ -386,18 +386,18 @@ describe("DigitalArrivalCardResultCard", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/vn-payment-application/submission-status",
-        expect.objectContaining({ cache: "no-store" }),
-      );
-    });
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByRole("button", { name: "开始自动付款" })).toBeInTheDocument();
-    expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
+    expect(screen.getAllByText("需要处理")).toHaveLength(2);
+    expect(
+      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "开始自动付款" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新开始并自动付款" })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/official-fee/")),
+    ).toBe(false);
   });
 
   it("does not hide portal field-selection errors as browser launch failures", () => {
@@ -1047,7 +1047,7 @@ describe("cloud submission retry routing", () => {
     expect(screen.queryByText(previousError)).not.toBeInTheDocument();
   });
 
-  it("lets a new Indonesia payment retry outrank the previous durable failure", async () => {
+  it("retries a legacy Indonesia payment failure through the normal queue without payment calls", async () => {
     const previousResult = {
       country: "ID",
       status: "stopped_at_pay",
@@ -1123,7 +1123,8 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
+    expect(screen.getByText("提交没有完成")).toBeInTheDocument();
+    expect(screen.queryByText("VIZA 将处理官方付款")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     await waitFor(() => {
@@ -1142,9 +1143,12 @@ describe("cloud submission retry routing", () => {
       expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
       expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
     });
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/official-fee/")),
+    ).toBe(false);
   });
 
-  it("authorizes a managed virtual card when restarting an Indonesia account checkpoint", async () => {
+  it("keeps a legacy Indonesia account checkpoint on a non-payment retry path", () => {
     const accountCheckpoint = {
       country: "GENERIC",
       targetCountry: "ID",
@@ -1157,15 +1161,7 @@ describe("cloud submission retry routing", () => {
       implementationStatus: "implemented",
       message: "The previous one-time card session was consumed.",
     } as const;
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        cardSession: { redactedCard: { last4: "1111" } },
-        queueId: "new-indonesia-queue",
-        queueStatus: "pending",
-      }),
-    });
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -1178,20 +1174,13 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("本申请专用限额虚拟卡")).toBeInTheDocument();
-    const restartButton = screen.getByRole("button", { name: "重新开始并自动付款" });
-    expect(restartButton).toBeEnabled();
-    fireEvent.click(restartButton);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/official-fee/pay",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-        }),
-      );
-    });
+    expect(screen.getByText("需要人工操作")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "继续自动申请" })).toBeEnabled();
+    expect(screen.queryByText("本申请专用限额虚拟卡")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新开始并自动付款" })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.every(([url]) => url === "/api/applications/application-id/submission-status"),
+    ).toBe(true);
   });
 
   it("sends a failed Vietnam retry directly to a fresh cloud queue", async () => {
@@ -1238,7 +1227,8 @@ describe("cloud submission retry routing", () => {
       />,
     );
 
-    expect(screen.getByText("VIZA 将处理官方付款")).toBeInTheDocument();
+    expect(screen.getByText("提交没有完成")).toBeInTheDocument();
+    expect(screen.queryByText("VIZA 将处理官方付款")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "提交" }));
 
     expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
@@ -1263,100 +1253,6 @@ describe("cloud submission retry routing", () => {
         json: async () => ({
           jobId: "new-vietnam-queue",
           queueStatus: "vn_cloud_live_pending",
-          provider: "vietnam_evisa_live",
-        }),
-      });
-    });
-  });
-
-  it("shows Fly cloud loading immediately while a Vietnam payment retry is being accepted", async () => {
-    let resolvePayment: ((value: unknown) => void) | undefined;
-    const paymentResponse = new Promise((resolve) => {
-      resolvePayment = resolve;
-    });
-    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
-      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
-        return paymentResponse;
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          status: "failed",
-          stage: "failed",
-          progress: 0,
-          result: {
-            country: "VN",
-            status: "stopped_at_pay",
-            mode: "live_assisted",
-            provider: "vietnam_evisa_live",
-            portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
-            checkpoint: "payment_page_visible",
-            manualAction: {
-              type: "payment_required",
-              status: "open",
-              instructions: "Previous cloud attempt ended.",
-            },
-          },
-          error: "Previous cloud attempt ended.",
-          message: "Previous cloud attempt ended.",
-          updatedAt: new Date().toISOString(),
-          applicationStatus: "failed",
-          country: "VN",
-          visaType: "evisa_tourism",
-          queue: {
-            id: "old-vietnam-queue",
-            status: "failed",
-            mode: "live_assisted",
-            provider: "vietnam_evisa_live",
-          },
-        }),
-      };
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(
-      <SubmissionStatusStep
-        applicationId="application-id"
-        country="vietnam"
-        visaType="evisa_tourism"
-        status="failed"
-        result={{
-          country: "VN",
-          status: "stopped_at_pay",
-          mode: "live_assisted",
-          provider: "vietnam_evisa_live",
-          portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
-          checkpoint: "payment_page_visible",
-          manualAction: {
-            type: "payment_required",
-            status: "open",
-            instructions: "Previous cloud attempt ended.",
-          },
-        }}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "开始自动付款" }));
-
-    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
-    expect(screen.getByText("正在启动云端任务；虚拟卡将在官网付款页按需开立。")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/applications/application-id/official-fee/pay",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-      }),
-    );
-
-    await act(async () => {
-      resolvePayment?.({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          queueId: "new-vietnam-queue",
-          queueStatus: "vn_payment_pending",
           provider: "vietnam_evisa_live",
         }),
       });

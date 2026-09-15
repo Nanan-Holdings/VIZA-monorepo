@@ -10,6 +10,7 @@ import {
   launchAbortableResource,
 } from "../queue/portal-safety.js";
 import type { RunnerExecutionContext } from "../queue/execution-context.js";
+import { PAYMENT_REMOVED, rejectRemovedPayment } from "../payment-removed.js";
 import {
   KE_ETA_OFFICIAL_PORTAL_URL,
   KeEtaPortalValidationError,
@@ -107,7 +108,16 @@ export interface KeEtaPortalRunnerOptions {
   executionContext?: RunnerExecutionContext;
   adapter?: KeEtaPortalAdapter;
   statusLookup?: KeEtaStatusLookup;
+  /** @deprecated Retained for stale callers; the runner never uses this handoff. */
   payment?: RestrictedVirtualCardHandoff;
+}
+
+const PAYMENT_REMOVED_MESSAGE =
+  "Automated payments and payment cards have been removed; the official fee checkpoint needs attention.";
+
+function isPaymentRemovedError(error: unknown): boolean {
+  return error instanceof Error
+    && (error.name === "PaymentRemovedError" || error.message.startsWith(`${PAYMENT_REMOVED}:`));
 }
 
 function blockedResult(payload: KeEtaPortalPayload, code: string, message: string, mode: "live_assisted" | "dry_run" = "live_assisted"): KeEtaPortalSubmissionResult {
@@ -243,22 +253,14 @@ export async function runKeEtaPortalSubmission(
   if (!payload.attachments?.passportBioPage || !payload.attachments.passportPhoto) {
     return blockedResult(payload, "ke_eta_application_documents_missing", "Kenya eTA passport bio page and photo must be resolved from application_documents before submission.");
   }
-  if (!options.payment) return blockedResult(payload, "ke_eta_payment_handoff_missing", "A restricted application-scoped virtual-card handoff is required before Kenya eTA payment.");
-
   const screenshots: string[] = [];
   const pdfs: string[] = [];
   const logs: string[] = [`ke_eta_start application=${payload.applicationId}`];
-  type PreparedCard = Awaited<ReturnType<RestrictedVirtualCardHandoff["prepare"]>>;
-  const paymentState: { value: PreparedCard | null } = { value: null };
+  let paymentCheckpointReached = false;
   const takePaymentCard = async () => {
-    options.executionContext?.checkpoint("kenya_eta_payment_card");
-    paymentState.value ??= await options.payment!.prepare({
-      applicationId: payload.applicationId,
-      amount: payload.officialFeeAmount,
-      currency: payload.officialFeeCurrency,
-      idempotencyKey: payload.idempotencyKey,
-    });
-    return paymentState.value;
+    paymentCheckpointReached = true;
+    options.executionContext?.checkpoint("kenya_eta_payment_removed");
+    return rejectRemovedPayment();
   };
   try {
     const response = options.adapter
@@ -272,9 +274,15 @@ export async function runKeEtaPortalSubmission(
         }
       })();
     options.executionContext?.assertOwned();
-    const payment = paymentState.value;
-    if (!payment) {
-      throw new KeEtaPortalError("Kenya eTA adapter returned a submission result without consuming the application-scoped payment card.", {
+    if (paymentCheckpointReached) {
+      logs.push(PAYMENT_REMOVED);
+      return {
+        ...blockedResult(payload, PAYMENT_REMOVED, PAYMENT_REMOVED_MESSAGE),
+        artifacts: { screenshots, pdfs, logs, traces: [] },
+      };
+    }
+    if (!paymentCheckpointReached) {
+      throw new KeEtaPortalError("Kenya eTA adapter returned a submission result without reaching the official fee checkpoint.", {
         code: "ke_eta_payment_evidence_missing",
         screenshotPaths: screenshots,
       });
@@ -285,7 +293,6 @@ export async function runKeEtaPortalSubmission(
       await assertPdf(response.approvalPdfPath);
       pdfs.push(response.approvalPdfPath);
     }
-    await options.payment.finalize({ paymentSessionId: payment.paymentSessionId, outcome: "paid" });
     const status = response.status === "approved" ? "approved" : response.status;
     return {
       country: "KE",
@@ -305,9 +312,12 @@ export async function runKeEtaPortalSubmission(
       artifacts: { screenshots, pdfs, logs, traces: [] },
     };
   } catch (error) {
-    const payment = paymentState.value;
-    if (payment) {
-      await options.payment.finalize({ paymentSessionId: payment.paymentSessionId, outcome: "failed" }).catch(() => undefined);
+    if (isPaymentRemovedError(error)) {
+      logs.push(PAYMENT_REMOVED);
+      return {
+        ...blockedResult(payload, PAYMENT_REMOVED, PAYMENT_REMOVED_MESSAGE),
+        artifacts: { screenshots, pdfs, logs, traces: [] },
+      };
     }
     throw error;
   }

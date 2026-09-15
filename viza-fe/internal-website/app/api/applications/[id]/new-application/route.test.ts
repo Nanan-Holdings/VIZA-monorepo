@@ -22,6 +22,7 @@ function query(result: unknown) {
     update: vi.fn(() => builder),
     neq: vi.fn(() => builder),
     is: vi.fn(() => builder),
+    or: vi.fn(() => builder),
     limit: vi.fn(() => builder),
     delete: vi.fn(() => builder),
     maybeSingle: vi.fn(async () => result),
@@ -149,6 +150,59 @@ describe("createNewUsApplication", () => {
     expect(from).toHaveBeenCalledTimes(2);
   });
 
+  it("does not reuse a QA placeholder draft when starting the next DS-160", async () => {
+    const profileQuery = query({ data: { id: "profile-id" }, error: null });
+    const sourceQuery = query({
+      data: {
+        id: "submitted-id",
+        applicant_id: "profile-id",
+        country: "united_states",
+        visa_type: "B1_B2",
+        visa_package_id: "package-id",
+        status: "submitted",
+      },
+      error: null,
+    });
+    const sourceAnswersQuery = query({
+      data: [{ field_name: "surname", value_text: "CHEN", value_json: null }],
+      error: null,
+    });
+    const qaDraftResult = {
+      data: { id: "qa-placeholder-id", visa_package_id: null, purpose: "VIZA_PLACEHOLDER_DRY_RUN" },
+      error: null,
+    };
+    const existingDraftQuery = query(qaDraftResult);
+    existingDraftQuery.maybeSingle.mockImplementation(async () => (
+      existingDraftQuery.or.mock.calls.length > 0 ? { data: null, error: null } : qaDraftResult
+    ));
+    const createQuery = query({ data: { id: "new-draft-id" }, error: null });
+    const copyQuery = query({ data: null, error: null });
+    const from = vi.fn()
+      .mockReturnValueOnce(profileQuery)
+      .mockReturnValueOnce(sourceQuery)
+      .mockReturnValueOnce(sourceAnswersQuery)
+      .mockReturnValueOnce(existingDraftQuery)
+      .mockReturnValueOnce(createQuery)
+      .mockReturnValueOnce(copyQuery);
+    createAdminClient.mockReturnValue({ from });
+
+    await expect(createNewUsApplication("user-id", "submitted-id")).resolves.toEqual({
+      applicationId: "new-draft-id",
+      country: "united_states",
+      visaType: "B1_B2",
+      status: 201,
+    });
+    expect(existingDraftQuery.or).toHaveBeenCalledWith("purpose.is.null,purpose.neq.VIZA_PLACEHOLDER_DRY_RUN");
+    expect(existingDraftQuery.update).not.toHaveBeenCalled();
+    expect(createQuery.insert).toHaveBeenCalledWith({
+      applicant_id: "profile-id",
+      country: "united_states",
+      visa_type: "B1_B2",
+      visa_package_id: "package-id",
+      status: "draft",
+    });
+  });
+
   it.each([false, true])("reopens an existing draft and preserves existing answers: %s", async (hasAnswers) => {
     const existingDraftQuery = query({ data: { id: "existing-draft", visa_package_id: null }, error: null });
     const existingAnswersQuery = query({ data: hasAnswers ? [{ field_name: "surname" }] : [], error: null });
@@ -168,6 +222,7 @@ describe("createNewUsApplication", () => {
     const result = await createNewUsApplication("user-id", "submitted-id");
     expect(result).toMatchObject({ applicationId: "existing-draft", status: hasAnswers ? 200 : 201 });
     expect(existingDraftQuery.insert).not.toHaveBeenCalled();
+    expect(existingDraftQuery.or).toHaveBeenCalledWith("purpose.is.null,purpose.neq.VIZA_PLACEHOLDER_DRY_RUN");
     expect(packageUpdateQuery.update).toHaveBeenCalledWith({
       visa_package_id: "source-package",
       updated_at: expect.any(String),
@@ -281,6 +336,8 @@ describe("createNewUsApplication", () => {
       visa_package_id: "package-id",
       updated_at: expect.any(String),
     });
+    expect(initialDraftQuery.or).toHaveBeenCalledWith("purpose.is.null,purpose.neq.VIZA_PLACEHOLDER_DRY_RUN");
+    expect(concurrentDraftQuery.or).toHaveBeenCalledWith("purpose.is.null,purpose.neq.VIZA_PLACEHOLDER_DRY_RUN");
   });
 
   it("returns a server error when a unique-application race cannot be re-read", async () => {

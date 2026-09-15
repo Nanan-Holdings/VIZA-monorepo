@@ -16,10 +16,10 @@ test("start-local-official-helpers dry-run enables local official helper endpoin
   const config = JSON.parse(output);
 
   assert.equal(config.port, 18080);
-  assert.equal(config.env.VN_LOCAL_CARD_SESSION_ENABLED, "true");
-  assert.equal(config.env.ID_LOCAL_CARD_SESSION_ENABLED, "true");
+  assert.equal(config.env.VN_LOCAL_CARD_SESSION_ENABLED, undefined);
+  assert.equal(config.env.ID_LOCAL_CARD_SESSION_ENABLED, undefined);
   assert.equal(config.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED, "true");
-  assert.equal(config.endpoints.includes("/local/vietnam/card-session"), true);
-  assert.equal(config.endpoints.includes("/local/indonesia/card-session"), true);
+  assert.equal(config.endpoints.includes("/local/vietnam/card-session"), false);
+  assert.equal(config.endpoints.includes("/local/indonesia/card-session"), false);
   assert.equal(config.endpoints.includes("/local/korea-eform/generate"), true);
 });

@@ -107,17 +107,6 @@ interface PacketRow {
   updated_at: string | null;
 }
 
-interface PaymentRecordRow {
-  id: string;
-  status: string;
-  amount_cents: number;
-  currency: string;
-  fee_type: string;
-  receipt_url: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
 interface ConsentRow {
   consent_type: string;
   version: string;
@@ -309,10 +298,6 @@ export interface ExternalStatusIngestResponse {
   notificationQueued: boolean;
 }
 
-function hasPaidStatus(payment: PaymentRecordRow | null): boolean {
-  return Boolean(payment && ["paid", "succeeded", "completed"].includes(payment.status));
-}
-
 function isPacketReady(application: ApplicationRow, packet: PacketRow | null): boolean {
   return Boolean(
     application.packet_storage_path ||
@@ -358,7 +343,6 @@ function areDocumentsReady(documents: DocumentRow[], counts: DocumentCounts): bo
 }
 
 function buildReadiness(params: {
-  latestPayment: PaymentRecordRow | null;
   consents: ConsentRow[];
   signatures: SignatureRow[];
   answerCount: number;
@@ -368,7 +352,10 @@ function buildReadiness(params: {
   packet: PacketRow | null;
 }): ReadinessSummary {
   return {
-    payment: hasPaidStatus(params.latestPayment),
+    // Kept in the response for older clients. Payment is no longer a
+    // prerequisite; an official portal fee is reported by its runner as
+    // needs_attention rather than as a fabricated paid state.
+    payment: true,
     consent: params.consents.some((consent) => consent.accepted),
     signature: params.signatures.length > 0,
     formAnswers: params.answerCount > 0,
@@ -429,7 +416,6 @@ function determineLifecycleStatus(
   }
 
   if (!readiness.formAnswers) return "draft";
-  if (!readiness.payment) return "awaiting_payment";
   if (!readiness.consent || !readiness.signature) return "awaiting_consent";
   return "awaiting_documents";
 }
@@ -437,7 +423,8 @@ function determineLifecycleStatus(
 function getNextActions(status: StatusSummary["lifecycleStatus"]): string[] {
   const actionsByStatus: Record<StatusSummary["lifecycleStatus"], string[]> = {
     draft: ["complete_application_form"],
-    awaiting_payment: ["complete_payment"],
+    // Legacy status value retained for old rows; never advertise checkout.
+    awaiting_payment: ["accept_consent", "provide_signature"],
     awaiting_consent: ["accept_consent", "provide_signature"],
     awaiting_documents: ["upload_required_documents"],
     ready_for_packet: ["generate_packet"],
@@ -450,10 +437,6 @@ function getNextActions(status: StatusSummary["lifecycleStatus"]): string[] {
   };
 
   return actionsByStatus[status];
-}
-
-function getLatestPayment(payments: PaymentRecordRow[]): PaymentRecordRow | null {
-  return payments[0] ?? null;
 }
 
 function getLatestAcceptedConsent(consents: ConsentRow[]): ConsentRow | null {
@@ -573,18 +556,6 @@ async function loadSignatures(applicationId: string): Promise<SignatureRow[]> {
   return (data ?? []) as SignatureRow[];
 }
 
-async function loadPayments(applicationId: string): Promise<PaymentRecordRow[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("payment_records")
-    .select("id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at")
-    .eq("application_id", applicationId)
-    .order("updated_at", { ascending: false });
-
-  if (error) throw new Error(error.message);
-  return (data ?? []) as PaymentRecordRow[];
-}
-
 async function loadConsents(applicationId: string): Promise<ConsentRow[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -665,7 +636,6 @@ function buildAnswersMap(answers: AnswerRow[]): Record<string, JsonValue> {
 
 function buildStatusSummary(params: {
   application: ApplicationRow;
-  payments: PaymentRecordRow[];
   consents: ConsentRow[];
   documents: DocumentRow[];
   signatures: SignatureRow[];
@@ -674,11 +644,9 @@ function buildStatusSummary(params: {
   events?: EventRow[];
 }): StatusSummary {
   const documentCounts = buildDocumentCounts(params.documents);
-  const latestPayment = getLatestPayment(params.payments);
   const latestConsent = getLatestAcceptedConsent(params.consents);
   const latestSignature = getLatestSignature(params.signatures);
   const readiness = buildReadiness({
-    latestPayment,
     consents: params.consents,
     signatures: params.signatures,
     answerCount: params.answerCount,
@@ -703,11 +671,11 @@ function buildStatusSummary(params: {
       updatedAt: params.application.updated_at,
     },
     payment: {
-      latestStatus: latestPayment?.status ?? null,
-      paidAt: latestPayment?.updated_at ?? latestPayment?.created_at ?? null,
-      amountCents: latestPayment?.amount_cents ?? null,
-      currency: latestPayment?.currency ?? null,
-      receiptUrl: latestPayment?.receipt_url ?? null,
+      latestStatus: "not_required",
+      paidAt: null,
+      amountCents: 0,
+      currency: null,
+      receiptUrl: null,
     },
     consent: {
       accepted: Boolean(latestConsent),
@@ -907,7 +875,6 @@ export async function getApplicationStatusSummary(
   }
 
   const [
-    payments,
     consents,
     documents,
     signatures,
@@ -915,7 +882,6 @@ export async function getApplicationStatusSummary(
     packet,
     events,
   ] = await Promise.all([
-    loadPayments(applicationId),
     loadConsents(applicationId),
     loadDocuments(applicationId),
     loadSignatures(applicationId),
@@ -928,7 +894,6 @@ export async function getApplicationStatusSummary(
     ok: true,
     data: buildStatusSummary({
       application,
-      payments,
       consents,
       documents,
       signatures,

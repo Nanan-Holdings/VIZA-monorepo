@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { USAppointmentWakeResult } from "./us-appointment/dispatch";
 import { evaluateDeploymentReadiness } from "./deploy-readiness.js";
 import { registerAndPrepareFranceTlsAccount } from "./france-tls/account-registration.js";
 import {
@@ -59,6 +60,7 @@ export interface HealthServerOptions {
   hasOneTimeCardSessions?: () => boolean;
   wakeSubmissionQueue?: () => void;
   wakeRunnerJob?: () => void;
+  wakeUSAppointmentJob?: (jobId: string) => Promise<USAppointmentWakeResult>;
   onWorkStart?: () => void;
   onWorkFinish?: () => void;
   getLifecycle?: () => object;
@@ -801,6 +803,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void operation.finally(() => opts.onWorkFinish?.());
     };
     const url = req.url ?? "/";
+    if (/\/(?:card-session|payment-session)(?:\?|$)/.test(url)) {
+      sendJson(res, 410, { code: "payment_removed", error: "Payment processing has been removed." });
+      return;
+    }
     if (req.method === "GET" && url === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ status: "ok", ...(opts.getLifecycle?.() ?? {}) }));
@@ -870,6 +876,38 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       } finally {
         opts.onWorkFinish?.();
       }
+      return;
+    }
+    if (req.method === "POST" && url === "/internal/us-appointment/wake") {
+      const appointmentToken = process.env.US_APPOINTMENT_INTERNAL_TOKEN?.trim();
+      if (appointmentToken ? !hasBearerToken(req, appointmentToken) : !isSubmissionQueueInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      if (!opts.wakeUSAppointmentJob) {
+        sendJson(res, 503, { error: "us_appointment_dispatch_unavailable" });
+        return;
+      }
+      runTracked((async () => {
+        let body: unknown;
+        try { body = await readJsonBody(req, 1024); }
+        catch { sendJson(res, 400, { error: "invalid_request" }); return; }
+        const jobId = body && typeof body === "object" && !Array.isArray(body)
+          ? (body as Record<string, unknown>).jobId : null;
+        if (typeof jobId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId)) {
+          sendJson(res, 400, { error: "invalid_job_id" }); return;
+        }
+        try {
+          const result = await opts.wakeUSAppointmentJob!(jobId);
+          if (result.outcome === "accepted") {
+            sendJson(res, 202, { ok: true, accepted: true, duplicate: result.duplicate });
+          } else {
+            const status = result.outcome === "busy" ? 409 : result.outcome === "not_found" ? 404
+              : result.outcome === "ineligible" ? 422 : 503;
+            sendJson(res, status, { error: `us_appointment_${result.outcome}` });
+          }
+        } catch { sendJson(res, 503, { error: "us_appointment_dispatch_unavailable" }); }
+      })());
       return;
     }
     if (req.method === "POST" && url === "/internal/runner-job/wake") {
@@ -1127,6 +1165,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
     if (opts.wakeSubmissionQueue) endpoints.push("/internal/submission-queue/wake");
     if (opts.wakeRunnerJob) endpoints.push("/internal/runner-job/wake");
+    if (opts.wakeUSAppointmentJob) endpoints.push("/internal/us-appointment/wake");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready, /deploy-ready${extra})`);
   });

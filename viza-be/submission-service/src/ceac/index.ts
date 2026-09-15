@@ -171,6 +171,7 @@ export {
 export {
   handleConfirmApplicationPage,
   type ConfirmApplicationOptions,
+  type ConfirmApplicationCheckpoint,
   type ConfirmApplicationResult,
 } from "./confirm-application";
 
@@ -179,6 +180,13 @@ export {
   type FinalSubmitOptions,
   type FinalSubmitResult,
 } from "./final-submit";
+
+export {
+  applyExplicitPreparerAnswer,
+  assertDs160PreparerAnswers,
+  fillVerifiedPassportSignature,
+  type Ds160PreparerAnswers,
+} from "./signature-fields";
 
 export {
   createDs160FinalSubmissionGuard,
@@ -206,6 +214,9 @@ export {
 
 export {
   selectDs160PhotoDocument,
+  resolveDs160PhotoDocument,
+  DS160_PHOTO_DOCUMENT_TYPES,
+  DS160_REUSABLE_PROFILE_PHOTO_STATUSES,
   buildPhotoFileFromDownloadedDocument,
   isDs160PhotoDocument,
 } from "./photo-document";

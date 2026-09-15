@@ -21,10 +21,9 @@ France-Visas official reference capture.
   collect preferred dates or let the frontend invent appointment timings.
 - Start new jobs in `assisted_live` mode by default. Dry-run is for tests only
   and must not be presented as real TLS availability.
-- Payment UI may display or collect only redacted one-time authorization
-  metadata such as brand, last4, and expiry. Full PAN, CVV, OTP, payment
-  password, and provider tokens must never be sent to agent-backend status APIs,
-  persisted in DB, logged, or rendered in screenshots.
+- Payment collection and authorization have been removed. Do not render card
+  fields or invoke payment-session APIs, including for historical dry-run jobs.
+  Official fee requirements remain unresolved checkpoints, never paid evidence.
 - Unsupported official-site gates such as MFA, real-name checks, WAF, policy
   blocks, or payment challenges must remain visible as paused checkpoint states;
   do not present them as completed bookings.

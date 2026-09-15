@@ -46,15 +46,17 @@ conversation state, and other cross-route behavior.
 - `internal-automation/**`: lifecycle status mapping, external status
   normalization, packet handoff payload shaping, and notification payload
   helpers for website-owned automation.
-- `official-fee/**`: official visa fee quote/consent/payment-intent framework,
-  dry-run/manual providers, precondition gates, redaction, and reconciliation.
+- `official-fee/**`: historical official visa fee quote/consent/payment-intent
+  framework and redacted compatibility models. Its HTTP routers are unmounted
+  and migration `0194_disable_payment_execution.sql` disables payment
+  execution and reconciliation entrypoints.
 - `us-appointment/**`: U.S. B1/B2 appointment dry-run state machine,
   provider-detection metadata, manual checkpoints, slot/status models,
   redaction, and audit helpers.
 - `france-appointment/**`: France Schengen TLScontact China appointment service
   over the shared `appointment_*` data model. Requires France-Visas reference
   and user consent, enforces slot/status cooldowns, allows only user-selected
-  observed slots, and stores payment state as redacted metadata.
+  observed slots, and no longer exposes payment-session authorization.
 - `japan-appointment/**`: Japan VFS/JVAC Singapore preparation service over the
   shared appointment tables. It validates stored answers and documents,
   prepares a redacted alias account record, and delegates Browserbase portal

@@ -1,9 +1,8 @@
+import { rejectRemovedPayment } from "../payment-removed.js";
 import {
-  parseVietnamFixedCardInput,
-  redactVietnamFixedCard,
   type RedactedVietnamFixedCard,
   type VietnamFixedCard,
-  type VietnamFixedCardInput,
+  type VietnamFixedCardInput
 } from "./fixed-card-payment";
 
 export interface VietnamCardSession {
@@ -18,18 +17,12 @@ export interface VietnamCardSessionResult {
   expiresAtIso: string;
   redactedCard: RedactedVietnamFixedCard;
 }
-
-const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const sessions = new Map<string, VietnamCardSession>();
 
-function envEnabled(value: string | undefined): boolean {
-  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
-}
-
 export function vietnamCardSessionsEnabled(
-  env: Record<string, string | undefined> = process.env,
+  _env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return env.NODE_ENV !== "production" && envEnabled(env.VN_LOCAL_CARD_SESSION_ENABLED);
+  return false;
 }
 
 function nowMs(): number {
@@ -52,32 +45,13 @@ function cleanupExpired(referenceTime = nowMs()): void {
   }
 }
 
-export function putVietnamCardSession(input: {
+export function putVietnamCardSession(_input: {
   applicationId: string;
   card: VietnamFixedCardInput;
   ttlMs?: number;
   referenceTimeMs?: number;
-}, env: Record<string, string | undefined> = process.env): VietnamCardSessionResult {
-  if (!vietnamCardSessionsEnabled(env)) {
-    throw new Error("Vietnam applicant-card sessions are local-development fixtures only.");
-  }
-  const applicationId = normalizeApplicationId(input.applicationId);
-  const referenceTime = input.referenceTimeMs ?? nowMs();
-  cleanupExpired(referenceTime);
-  const ttlMs = Math.max(30_000, Math.min(input.ttlMs ?? DEFAULT_TTL_MS, 15 * 60 * 1000));
-  const card = parseVietnamFixedCardInput(input.card);
-  const session: VietnamCardSession = {
-    applicationId,
-    card,
-    createdAt: referenceTime,
-    expiresAt: referenceTime + ttlMs,
-  };
-  sessions.set(applicationId, session);
-  return {
-    applicationId,
-    expiresAtIso: new Date(session.expiresAt).toISOString(),
-    redactedCard: redactVietnamFixedCard(card),
-  };
+}, _env: Record<string, string | undefined> = process.env): VietnamCardSessionResult {
+  return rejectRemovedPayment();
 }
 
 export function peekVietnamCardSession(applicationId: string, referenceTimeMs = nowMs()): VietnamCardSession | null {
@@ -86,11 +60,8 @@ export function peekVietnamCardSession(applicationId: string, referenceTimeMs = 
   return sessions.get(normalized) ?? null;
 }
 
-export function consumeVietnamCardSession(applicationId: string, referenceTimeMs = nowMs()): VietnamFixedCard | null {
-  const session = peekVietnamCardSession(applicationId, referenceTimeMs);
-  if (!session) return null;
-  sessions.delete(session.applicationId);
-  return session.card;
+export function consumeVietnamCardSession(_applicationId: string, _referenceTimeMs = nowMs()): VietnamFixedCard | null {
+  return null;
 }
 
 /** Delete an unused card without returning its sensitive contents. */

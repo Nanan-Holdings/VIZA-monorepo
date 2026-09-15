@@ -20,9 +20,7 @@ import {
   type KeEtaPortalSubmissionResult,
 } from "../ke-eta/runner.js";
 import { writeRunnerPoolSubmissionResult } from "../result-writer.js";
-import { loadManagedOfficialFeeExecutionContext } from "../official-fee/execution-context.js";
-import { createManagedPaymentHooks } from "../official-fee/managed-payment-hooks.js";
-import type { ManagedPaymentCard } from "../runners/managed-payment-boundary.js";
+import { rejectRemovedPayment } from "../payment-removed.js";
 import type { JpVisitJapanWebSubmissionResult, KeEtaSubmissionResult } from "../submission-result.js";
 import { supabase } from "../supabase.js";
 import { loadCountrySubmissionContext } from "./answers.js";
@@ -118,12 +116,9 @@ async function preparePayload(
       idempotencyKey: `runner-pool:${jobId}`,
     });
   if (flow === "ke_eta") {
-    const officialFee = await loadManagedOfficialFeeExecutionContext(applicationId);
     mappedPayload.metadata = {
       ...mappedPayload.metadata,
       attachments,
-      officialFeeAmount: officialFee.canonicalAmountCents / 100,
-      officialFeeCurrency: officialFee.canonicalCurrency,
     };
   }
   return {
@@ -229,13 +224,6 @@ async function executePortal(
       },
     });
   }
-  const paymentHooks = createManagedPaymentHooks({
-    applicationId: payload.applicationId,
-    workerId: executionContext.workerId,
-    country: "kenya",
-    visaType: "KE_ETA",
-  });
-  let issuedCard: ManagedPaymentCard | null = null;
   return normalizeAndRunKeEtaPortalSubmission(payload, {
     headless: process.env.KE_ETA_PLAYWRIGHT_HEADLESS !== "false",
     executionContext,
@@ -246,38 +234,8 @@ async function executePortal(
       },
     },
     payment: {
-      prepare: async ({ amount, currency }) => {
-        if (currency !== "USD" || !Number.isFinite(amount) || amount <= 0) {
-          throw new KeEtaPortalError("Kenya eTA official payment amount is invalid.", {
-            code: "ke_eta_official_fee_invalid",
-          });
-        }
-        issuedCard ??= await paymentHooks.takePaymentCard?.() ?? null;
-        if (!issuedCard) {
-          throw new KeEtaPortalError("Kenya eTA managed virtual card could not be issued.", {
-            code: "ke_eta_managed_card_unavailable",
-          });
-        }
-        return {
-          paymentSessionId: issuedCard.attemptId,
-          pan: issuedCard.pan,
-          expiry: issuedCard.expiry,
-          cvv: issuedCard.cvv,
-          holderName: issuedCard.holderName,
-          last4: issuedCard.pan.slice(-4),
-        };
-      },
-      finalize: async ({ paymentSessionId, outcome }) => {
-        if (!issuedCard || issuedCard.attemptId !== paymentSessionId) {
-          throw new KeEtaPortalError("Kenya eTA payment finalizer received an unknown card attempt.", {
-            code: "ke_eta_payment_attempt_mismatch",
-          });
-        }
-        await paymentHooks.finalizePaymentCard?.(
-          issuedCard,
-          outcome === "paid" ? "consumed" : "review_required",
-        );
-      },
+      prepare: async () => rejectRemovedPayment(),
+      finalize: async () => rejectRemovedPayment(),
     },
   });
 }

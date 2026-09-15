@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Clock, CreditCard, Download, FileText as FileCheck2, Info, ShieldWarning as ShieldAlert } from "@phosphor-icons/react";
+import { ArrowRight, Clock, Download, FileText as FileCheck2, Info, ShieldWarning as ShieldAlert } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,6 @@ interface ApplicationStageCardProps {
   status: string;
   country: string;
   visaType: string;
-  payUrl?: string | null;
   documentUrl?: string | null;
   etaIso?: string | null;
 }
@@ -29,17 +28,16 @@ function describeStage(props: ApplicationStageCardProps): StageMeta {
     case "draft":
       return {
         title: `Draft — ${base}`,
-        body: "Finish answering the application questions to unlock payment.",
+        body: "Finish answering the application questions to continue your application.",
         cta: { label: "Continue answers", href: `/application/${props.applicationId}/answer` },
         icon: <Info className="h-5 w-5 text-brand-500" />,
         tone: "default",
       };
     case "payment_pending":
       return {
-        title: `Payment pending — ${base}`,
-        body: "Your answers are locked in. Pay the government + service fee to start submission.",
-        cta: props.payUrl ? { label: "Pay now", href: props.payUrl } : undefined,
-        icon: <CreditCard className="h-5 w-5 text-brand-500" />,
+        title: `Needs attention — ${base}`,
+        body: "This application needs attention before submission can continue. Contact support for next steps.",
+        icon: <ShieldAlert className="h-5 w-5 text-amber-600" />,
         tone: "warning",
       };
     case "submitted_to_government":

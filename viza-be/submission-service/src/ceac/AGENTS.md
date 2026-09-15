@@ -47,18 +47,37 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 4. `orchestrator.ts` fills mapped pages, uploads the applicant photo, and
    advances through final submission when supplied with signature data.
    `field-contract.ts` traces mappings to seed conditions and excludes stale
-   inactive answers. `repeat-groups.ts` preserves persisted row indexes;
+   inactive answers. Before bootstrap it also rejects recognizable input
+   prompts in active answers, including optional fields, effective English
+   aliases, and repeated rows. Report field names without answer values; a
+   nonempty value or a passing prompt check does not establish factual truth.
+   `repeat-groups.ts` preserves persisted row indexes;
    `repeat-browser-adapter.ts` discovers current DOM row scopes and Add/Remove
    controls, then re-resolves every row for final read-back. Static selector
    declarations are not evidence of official parity.
 5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
    final CAPTCHA solving.
+   `signature-fields.ts` requires saved preparer Yes/No and conditional details
+   before bootstrap; matches unique associated official field labels, scopes
+   explicit NA choices to their own field, selects country before address
+   fields, and verifies all values after postbacks. Never infer the preparer
+   declaration or third-party details. Public form screenshots are historical
+   label evidence, not proof of the current live DOM.
 6. `final-submission-guard.ts` persists the per-authorization final-click
    fence through ownership-checked Supabase RPCs and reads the same table
    before bootstrap. Automatic retries must reuse the same authorization; an
    explicit resubmission must use a new one.
+   A captured-application resume is narrower: it is enabled only by the
+   server-only exact `DS160_RESUME_CAPTURED_JOB_ID` queue-job match, requires
+   all three encrypted checkpoint fields to agree with the application row,
+   requires no application-level final-fence attempt, and must verify the
+   retrieved DOM's same Application ID before orchestration. Otherwise route
+   to `action_required`; never create a new CEAC draft or repeat final click.
 7. `photo-document.ts` selects the frontend-uploaded DS-160 photo document for
-   the worker.
+   the worker. Only when no application photo row exists may its owner-scoped
+   metadata loader select the newest explicitly usable Universal Profile
+   photo. Rejected or unavailable application uploads must not silently fall
+   back to a profile photo. Download only the selected file.
 8. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
 9. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
@@ -95,7 +114,11 @@ Then follow:
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`
 - `viza-be/submission-service/src/ceac/final-submit.ts`
 - `viza-be/submission-service/src/ceac/__tests__/final-submit.spec.ts`
+- `viza-be/submission-service/src/ceac/signature-fields.ts`
+- `viza-be/submission-service/src/ceac/__tests__/signature-fields.spec.ts`
 - `viza-be/submission-service/src/ceac/final-submission-guard.ts`
+- `viza-be/submission-service/src/ceac/captured-resume.ts`
+- `viza-be/submission-service/src/ceac/__tests__/captured-resume.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/final-submission-guard.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/orchestrator-final-submit.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/field-fill.spec.ts`
@@ -104,6 +127,7 @@ Then follow:
 - `viza-be/submission-service/src/ceac/__tests__/photo-document.spec.ts`
 - `viza-be/submission-service/src/ceac/proof-artifacts.ts`
 - `viza-be/submission-service/src/ceac/__tests__/proof-artifacts.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/confirm-application.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/resume-application.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/session.spec.ts`
 - `viza-be/submission-service/docs/ceac-smoke-test.md`

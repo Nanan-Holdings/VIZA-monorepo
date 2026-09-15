@@ -14,7 +14,7 @@ import {
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
 import { normalizeBirthplace } from "@/lib/birthplace-options";
-import { isVietnamEVisaApplication as isVietnamEVisaQueueApplication } from "@/lib/submission-queue";
+import { isDs160VisaType, isVietnamEVisaApplication as isVietnamEVisaQueueApplication } from "@/lib/submission-queue";
 import {
   resolveVisaFormSchemaVisaType,
   visaFormSchemaVisaTypesMatch,
@@ -1467,6 +1467,15 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
   }
 
+  if (isDs160VisaType(application.visa_type)
+      && ["us", "usa", "united_states", "united_states_of_america"].includes(application.country.trim().toLowerCase().replace(/[\s-]+/g, "_"))) {
+    // CEAC needs the digital photo. Generic interview/agency supporting
+    // documents must not block submission of the DS-160 questionnaire itself.
+    return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS.map((requirement) => ({
+      ...requirement,
+      required: requirement.documentType === "photo",
+    })) };
+  }
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };
 }
 

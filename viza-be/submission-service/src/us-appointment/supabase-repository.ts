@@ -2,6 +2,8 @@ import { supabase } from "../supabase";
 import { decryptSecret } from "../secret-cipher";
 import { inbox } from "../inbox/wait-for-message";
 import { waitForUSAppointmentVerificationEmail } from "./inbox";
+import { buildUSAppointmentApplicantDetails } from "./applicant-details-data";
+import type { USAppointmentApplicantDetailsResult } from "./applicant-details-data";
 import type {
   AppointmentAccountCredentials,
   AppointmentAccountRegistrationProof,
@@ -11,6 +13,7 @@ import type {
   ManualActionInsert,
   SlotInsert,
   StatusCheckInsert,
+  AppointmentAccountRegistrationSubmission,
   USAppointmentJobRow,
   USAppointmentRunnerRepository,
 } from "./runner";
@@ -18,6 +21,55 @@ import type {
 function decryptStoredPassword(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
   return decryptSecret(value);
+}
+
+const US_APPLICATION_COUNTRIES = new Set([
+  "us",
+  "usa",
+  "united_states",
+  "united-states",
+  "united states",
+]);
+
+const APPLICANT_DETAILS_PROFILE_COLUMNS = [
+  "id",
+  "auth_user_id",
+  "surname",
+  "surname_en",
+  "given_names",
+  "given_names_en",
+  "date_of_birth",
+  "birth_country",
+  "nationality",
+  "passport_number",
+  "passport_issue_date",
+  "passport_expiry_date",
+  "phone",
+].join(", ");
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeCountry(value: unknown): string {
+  return typeof value === "string"
+    ? value.trim().toLowerCase().replace(/\s+/g, " ")
+    : "";
+}
+
+function readMobileCallingCode(job: USAppointmentJobRow): string | undefined {
+  const preferences = job.user_preferences_json;
+  if (!isRecord(preferences) || !isRecord(preferences.applicant_details)) {
+    return undefined;
+  }
+  const value = preferences.applicant_details.mobile_phone_country_code;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function applicantDetailsLookupError(): Error {
+  return new Error("US appointment applicant details lookup failed.");
 }
 
 export class SupabaseUSAppointmentRunnerRepository
@@ -179,6 +231,110 @@ export class SupabaseUSAppointmentRunnerRepository
     };
   }
 
+  async getAppointmentApplicantDetails(
+    job: USAppointmentJobRow,
+  ): Promise<USAppointmentApplicantDetailsResult> {
+    if (
+      !job.appointment_account_id
+      || job.scheduling_provider?.trim().toLowerCase() !== "usvisascheduling"
+    ) {
+      throw applicantDetailsLookupError();
+    }
+
+    const { data: accountData, error: accountError } = await this.db
+      .from("appointment_accounts")
+      .select("account_email, account_status, email_verified")
+      .eq("portal", "usvisascheduling")
+      .eq("id", job.appointment_account_id)
+      .eq("application_id", job.application_id)
+      .eq("user_id", job.user_id)
+      .eq("account_status", "active")
+      .eq("email_verified", true)
+      .limit(1)
+      .maybeSingle();
+    if (accountError || !isRecord(accountData)) {
+      throw applicantDetailsLookupError();
+    }
+    const accountEmail = typeof accountData.account_email === "string"
+      ? accountData.account_email.trim()
+      : "";
+    if (
+      !accountEmail
+      || accountData.account_status !== "active"
+      || accountData.email_verified !== true
+    ) {
+      throw applicantDetailsLookupError();
+    }
+
+    const { data: applicationData, error: applicationError } = await this.db
+      .from("applications")
+      .select("applicant_id, country")
+      .eq("id", job.application_id)
+      .limit(1)
+      .maybeSingle();
+    if (applicationError || !isRecord(applicationData)) {
+      throw applicantDetailsLookupError();
+    }
+    const applicantId = typeof applicationData.applicant_id === "string"
+      ? applicationData.applicant_id.trim()
+      : "";
+    if (
+      !applicantId
+      || !US_APPLICATION_COUNTRIES.has(normalizeCountry(applicationData.country))
+    ) {
+      throw applicantDetailsLookupError();
+    }
+
+    const { data: profileData, error: profileError } = await this.db
+      .from("applicant_profiles")
+      .select(APPLICANT_DETAILS_PROFILE_COLUMNS)
+      .eq("id", applicantId)
+      .eq("auth_user_id", job.user_id)
+      .limit(1)
+      .maybeSingle();
+    if (profileError || !isRecord(profileData)) {
+      throw applicantDetailsLookupError();
+    }
+    if (profileData.auth_user_id !== job.user_id) {
+      throw applicantDetailsLookupError();
+    }
+
+    const { data: answerData, error: answerError } = await this.db
+      .from("visa_application_answers")
+      .select("application_id, field_name, value_text, value_json")
+      .eq("application_id", job.application_id)
+      .order("updated_at", { ascending: false });
+    if (answerError || !Array.isArray(answerData)) {
+      throw applicantDetailsLookupError();
+    }
+
+    const answers: Record<string, unknown> = {};
+    for (const candidate of answerData as unknown[]) {
+      if (!isRecord(candidate)) continue;
+      if (candidate.application_id !== job.application_id) continue;
+      const fieldName = typeof candidate.field_name === "string"
+        ? candidate.field_name.trim()
+        : "";
+      if (!fieldName || fieldName in answers) continue;
+      if (candidate.value_json !== null && candidate.value_json !== undefined) {
+        answers[fieldName] = candidate.value_json;
+      } else if (candidate.value_text !== null && candidate.value_text !== undefined) {
+        answers[fieldName] = candidate.value_text;
+      }
+    }
+
+    try {
+      return buildUSAppointmentApplicantDetails({
+        profile: profileData,
+        answers,
+        accountEmail,
+        mobileCallingCode: readMobileCallingCode(job),
+      });
+    } catch {
+      throw applicantDetailsLookupError();
+    }
+  }
+
   async updateJobStatus(input: {
     jobId: string;
     status: string;
@@ -294,6 +450,35 @@ export class SupabaseUSAppointmentRunnerRepository
     const { data, error } = await query;
     if (error) throw new Error(`US appointment account verification update failed: ${error.message}`);
     if (!data?.id) throw new Error("US appointment account verification update did not match the bound account.");
+  }
+
+  async markAppointmentAccountRegistrationSubmitted(
+    job: USAppointmentJobRow,
+    submission: AppointmentAccountRegistrationSubmission,
+  ): Promise<void> {
+    const accountEmail = submission.accountEmail.trim();
+    if (!job.appointment_account_id || !accountEmail) {
+      throw new Error("Official account submission evidence and an exact account binding are required.");
+    }
+    const query = this.db
+      .from("appointment_accounts")
+      .update({
+        account_status: "registration_submitted",
+        email_verified: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("portal", "usvisascheduling")
+      .eq("id", job.appointment_account_id)
+      .eq("application_id", job.application_id)
+      .eq("user_id", job.user_id)
+      .eq("account_email", accountEmail)
+      .eq("email_verified", false)
+      .in("account_status", ["account_creation_started", "registration_started", "verification_pending", "account_email_verification", "registration_submitted"])
+      .select("id")
+      .maybeSingle();
+    const { data, error } = await query;
+    if (error) throw new Error(`US appointment account submission update failed: ${error.message}`);
+    if (!data?.id) throw new Error("US appointment account submission update did not match the bound account.");
   }
 
   async insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }> {

@@ -35,7 +35,7 @@ test("Indonesia Fly topology is one cheap sticky scale-to-zero Machine", () => {
   assert.match(scaler, /kind" == "indonesia"/);
   assert.match(scaler, /viza-runner-indonesia/);
   assert.match(deployWorkflow, /deploy-indonesia\.sh/);
-  assert.match(secretSync, /Missing required Indonesia card-session internal token/);
+  assert.doesNotMatch(secretSync, /CARD_SESSION_INTERNAL_TOKEN/);
   assert.match(workerEntry, /hasIndonesiaCardSessions\(\)/);
   assert.match(workerEntry, /INDONESIA_QUEUE_ENABLED && await hasIndonesiaWorkerWork\(\)/);
 });

@@ -121,26 +121,6 @@ export interface LifecycleReadinessInput {
   packets?: readonly PacketLike[];
 }
 
-const READY_PAYMENT_STATUSES = new Set([
-  "paid",
-  "succeeded",
-  "success",
-  "complete",
-  "completed",
-  "captured",
-]);
-
-const FAILED_PAYMENT_STATUSES = new Set([
-  "failed",
-  "canceled",
-  "cancelled",
-  "voided",
-  "disputed",
-  "chargeback",
-]);
-
-const REFUNDED_PAYMENT_STATUSES = new Set(["refunded", "partially_refunded"]);
-
 const ACCEPTED_DOCUMENT_STATUSES = new Set([
   "accepted",
   "approved",
@@ -157,52 +137,12 @@ const READY_PACKET_STATUSES = new Set([
 ]);
 
 export function checkPaymentReadiness(
-  payments: readonly PaymentRecordLike[]
+  _payments: readonly PaymentRecordLike[]
 ): ReadinessCheckResult {
-  if (payments.length === 0) {
-    return createReadinessResult(
-      "payment",
-      false,
-      "missing",
-      "No captured agency payment was found."
-    );
-  }
-
-  const paidPayment = payments.find((payment) =>
-    READY_PAYMENT_STATUSES.has(normalizeStatusToken(payment.status))
-  );
-  if (paidPayment) {
-    return createReadinessResult("payment", true, "paid", null, [], [
-      paidPayment.id,
-    ]);
-  }
-
-  const latestPayment = getLatestByTimestamp(payments);
-  const latestStatus = normalizeStatusToken(latestPayment?.status ?? "pending");
-  if (REFUNDED_PAYMENT_STATUSES.has(latestStatus)) {
-    return createReadinessResult(
-      "payment",
-      false,
-      "refunded",
-      "The captured payment has already been refunded."
-    );
-  }
-
-  if (FAILED_PAYMENT_STATUSES.has(latestStatus)) {
-    return createReadinessResult(
-      "payment",
-      false,
-      "failed",
-      "The latest payment did not complete."
-    );
-  }
-
-  return createReadinessResult(
-    "payment",
-    false,
-    "pending",
-    "Payment is still pending."
-  );
+  // Payment remains in the readiness DTO for older clients, but it is no
+  // longer an intake prerequisite. Official portals that require their own
+  // fee report a needs-attention result in the portal runner instead.
+  return createReadinessResult("payment", true, "not_required", null);
 }
 
 export function checkConsentReadiness(
@@ -530,7 +470,6 @@ function deriveLifecycleStatusFromReadiness(
 
   if (
     rawLifecycleStatus === "draft" &&
-    !checks.payment.ready &&
     checks.consent.state === "missing" &&
     checks.formAnswers.state === "missing" &&
     checks.documents.state === "missing" &&
@@ -539,7 +478,6 @@ function deriveLifecycleStatusFromReadiness(
     return "draft";
   }
 
-  if (!checks.payment.ready) return "awaiting_payment";
   if (!checks.consent.ready) return "awaiting_consent";
   if (!checks.formAnswers.ready || !checks.documents.ready || !checks.signature.ready) {
     return "awaiting_documents";
@@ -564,16 +502,6 @@ function createReadinessResult(
     missing: [...missing],
     references: [...references],
   };
-}
-
-function getLatestByTimestamp<T extends { createdAt?: Date | null; updatedAt?: Date | null }>(
-  values: readonly T[]
-): T | null {
-  return [...values].sort((first, second) => {
-    const firstTime = getTimestamp(first.updatedAt ?? first.createdAt);
-    const secondTime = getTimestamp(second.updatedAt ?? second.createdAt);
-    return secondTime - firstTime;
-  })[0] ?? null;
 }
 
 function getTimestamp(value: Date | null | undefined): number {

@@ -21,7 +21,6 @@ import type {
   SubmissionResultStatus,
   TwSubmissionResult,
   UkSubmissionResult,
-  VnSubmissionResult,
 } from "@/lib/submission-result";
 import type { ApplicationCompletenessResult } from "@/lib/application-completeness";
 import {
@@ -40,7 +39,7 @@ import {
   type SubmissionVisualStage,
   type SubmissionVisualStatus,
 } from "./WaitingCard";
-import { FailureCard, type VietnamOneTimePaymentCard } from "./FailureCard";
+import { FailureCard } from "./FailureCard";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
@@ -91,7 +90,7 @@ interface SubmissionStatusStepProps {
   submissionStarting?: boolean;
   onResubmit?: (
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => Promise<void> | void;
 }
 
@@ -136,19 +135,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function resultTargetsIndonesia(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-  if (value.country === "ID" || value.targetCountry === "ID") return true;
-  const identifyingText = [
-    value.visaType,
-    value.error,
-    value.message,
-    value.actionType,
-    value.actionInstructions,
-  ].filter((item): item is string => typeof item === "string").join(" ");
-  return /\b(?:indonesia|ID_(?:B1|C1))\b/i.test(identifyingText);
-}
-
 function isOfficialVietnamPrearrivalReference(value: string | null | undefined): value is string {
   if (!value) return false;
   const normalized = value.trim().toUpperCase();
@@ -179,12 +165,10 @@ function isVietnamPrearrivalAwaitingQr(
   );
 }
 
-function isVietnamPaymentCheckpointResult(
-  result: SubmissionResult | null,
-): result is VnSubmissionResult {
+function isVietnamNeedsAttentionResult(result: SubmissionResult | null): boolean {
   if (!result || result.country !== "VN") return false;
   if (isDigitalArrivalCardResult(result)) return false;
-  const record = result as VnSubmissionResult;
+  const record = result as Extract<SubmissionResult, { country: "VN" }>;
   return (
     record.status === "stopped_at_pay" ||
     record.checkpoint === "payment_page_visible" ||
@@ -532,7 +516,7 @@ function isGenericEvisaResult(result: SubmissionResult): result is GenericEvisaS
   );
 }
 
-function isVietnamPaymentCheckpointError(error: string | null | undefined): boolean {
+function isVietnamNeedsAttentionError(error: string | null | undefined): boolean {
   const normalized = (error ?? "").toLowerCase();
   return (
     normalized.includes("official vietnam e-visa portal reached payment") ||
@@ -682,27 +666,20 @@ function isTaiwanEntryPermitApplication(
 
 function localizeActionText(value: string | null | undefined, isZh: boolean): string | null {
   if (!value) return null;
+  const normalized = value.trim();
+  if (/payment|official[_ -]?fee|card|bank|3ds|otp/i.test(normalized)) {
+    return isZh
+      ? "官网流程需要进一步核对，VIZA 会在状态确认后更新申请。"
+      : "The official portal needs further review. VIZA will update the application status after it is confirmed.";
+  }
   if (!isZh) return value;
 
-  const normalized = value.trim();
   if (normalized === "managed_account_required") {
     return "VIZA 正在后台准备托管官网账号";
   }
 
   if (normalized === "managed_account_alias_unavailable") {
     return "正在准备专属邮箱 alias";
-  }
-
-  if (normalized === "official_fee_payment_required") {
-    return "等待官方费用授权";
-  }
-
-  if (normalized === "official_fee_payment_failed") {
-    return "官方付款失败，可重新自动付款";
-  }
-
-  if (normalized === "official_fee_otp_required") {
-    return "等待银行 OTP 验证";
   }
 
   if (normalized === "live_portal_recon_required") {
@@ -857,24 +834,13 @@ function GenericResultCard({
     isUkStandardVisitorApplication(applicationCountry, applicationVisaType ?? result.visaType);
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
-  const indonesiaPaymentAction = isIndonesiaAction;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
-  const title = isIndonesiaAction
-    ? result.actionType === "official_fee_otp_required"
-      ? (isZh ? "等待银行 OTP 验证" : "Waiting for bank OTP verification")
-      : result.actionType === "official_fee_payment_failed"
-      ? (isZh ? "官方付款失败，可重新自动付款" : "Official payment failed; automated retry is available")
-      : result.actionType === "official_fee_payment_required"
-      ? (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
-      : (isZh ? "印尼自动申请正在准备" : "Indonesia automated application is preparing")
-    : actionRequired
+  const title = actionRequired
       ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
       : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
-  const badge = isIndonesiaAction
-    ? (isZh ? "自动处理中" : "Automating")
-    : actionRequired
+  const badge = actionRequired
       ? (isZh ? "需操作" : "Action required")
     : unsupported
       ? (isZh ? "暂不支持" : "Unsupported")
@@ -969,8 +935,8 @@ function GenericResultCard({
 
     const confirmed = window.confirm(
       isZh
-        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号、自动填写申请表，并由 VIZA 使用本申请专属的一次性虚拟卡支付官网签证费。确认继续？"
-        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill the application, and let VIZA pay the official fee with an application-scoped one-use virtual card. Continue?",
+        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号并自动填写申请表。官网需要进一步操作时，页面会提示你。确认继续？"
+        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk and pre-fill the application. This page will show any further official-portal step that needs attention. Continue?",
     );
     if (!confirmed) return;
 
@@ -991,28 +957,6 @@ function GenericResultCard({
         throw new Error(payload.error || `retry-submission returned ${response.status}`);
       }
       window.location.reload();
-    } catch (error) {
-      setLiveError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setStartingLive(false);
-    }
-  };
-
-  const restartIndonesiaOfficialPayment = async () => {
-    if (!applicationId) return;
-    setStartingLive(true);
-    setLiveError(null);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-      });
-      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/pay returned ${response.status}`);
-      }
-      window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setLiveError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1094,29 +1038,17 @@ function GenericResultCard({
                       : "Submit will use the saved form and photo to file the DS-160 on CEAC. Progress appears here, followed by the DS-160 number and evidence.")
                   : liveTarget === "indonesia"
                     ? (isZh
-                        ? "VIZA 会继续用托管的印尼官网账号和专属邮箱 alias 推进申请。邮箱验证由 email worker 自动读取；遇到 3DS、OTP 或官方风控时才会暂停。"
-                        : "VIZA will continue with the managed Indonesia portal account and dedicated email alias. Email verification is handled by the email worker; only 3DS, OTP, or official risk gates pause the run.")
+                        ? "VIZA 会继续用托管的印尼官网账号和专属邮箱 alias 推进申请；官网需要人工确认时，页面会提示下一步。"
+                        : "VIZA will continue with the managed Indonesia portal account and dedicated email alias; this page will show the next step if the official portal needs attention.")
                   : (isZh
                       ? "这是旧的 dry-run 结果。可以从这里启动 France-Visas 官网辅助填写；如需新账号，VIZA 会用专属邮箱 alias 注册并用 2captcha 处理注册页图片验证码。"
                       : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; if a new account is needed, VIZA will use a dedicated email alias and 2captcha for the registration image CAPTCHA.")}
               </span>
             </div>
-            {indonesiaPaymentAction ? (
-              <div className="mt-3 space-y-3 rounded-md border border-brand-100 bg-white p-3">
-                <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "本申请专用限额虚拟卡" : "Limited virtual card for this application"}
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? "确认后，VIZA 只会在印尼官网付款页准备就绪时开立虚拟卡。卡片绑定本申请和本次官方费用；卡号、有效期和 CVV 不会保存。"
-                    : "After confirmation, VIZA opens the virtual card only when the Indonesia official payment page is ready. It is bound to this application and fee; PAN, expiry, and CVV are never stored."}
-                </p>
-              </div>
-            ) : null}
             <Button
               type="button"
               className="mt-3 w-full"
-              onClick={indonesiaPaymentAction ? restartIndonesiaOfficialPayment : startLiveAssisted}
+              onClick={startLiveAssisted}
               disabled={startingLive}
             >
               {startingLive ? (
@@ -1129,13 +1061,7 @@ function GenericResultCard({
                 : liveTarget === "ds160"
                   ? (isZh ? "提交" : "Submit")
                   : liveTarget === "indonesia"
-                    ? indonesiaPaymentAction
-                      ? result.actionType === "official_visa_selection_reached"
-                        ? (isZh ? "继续并自动付款" : "Continue and pay automatically")
-                        : result.actionType === "official_account_automation_required"
-                          ? (isZh ? "重新开始并自动付款" : "Restart and pay automatically")
-                        : (isZh ? "重新自动付款" : "Restart automated payment")
-                      : (isZh ? "继续自动申请" : "Continue automated application")
+                    ? (isZh ? "继续自动申请" : "Continue automated application")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
             </Button>
           </div>
@@ -1147,8 +1073,8 @@ function GenericResultCard({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
               <span>
                 {isZh
-                  ? "表单校验已通过。点击下方按钮后，VIZA 会在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并使用本申请专属的一次性虚拟卡支付官网签证费。若资金尚未分配，系统会先引导你完成 VIZA 安全结算。"
-                  : "Validation passed. VIZA will create the UKVI account, complete the gov.uk form, and pay the official fee with an application-scoped one-use virtual card. If funding has not been allocated yet, VIZA will first direct you to its secure checkout."}
+                  ? "表单校验已通过。点击下方按钮后，VIZA 会在 gov.uk 创建真实 UKVI 账号并自动填写全部页面；官网需要进一步操作时，页面会提示你。"
+                  : "Validation passed. VIZA will create the UKVI account and complete the gov.uk form. This page will show any further official-portal step that needs attention."}
               </span>
             </div>
             <Button
@@ -1493,11 +1419,9 @@ export function SubmissionStatusStep({
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
   const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
-  const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (!applicationId) return;
@@ -1524,66 +1448,6 @@ export function SubmissionStatusStep({
       queue: null,
     });
     try {
-      const isOfficialPaymentCardRetry =
-        Boolean(vietnamPaymentCard) &&
-        (
-          isVietnamEVisaApplication(retryCountry, retryVisaType) ||
-          isIndonesiaEVisaApplication(retryCountry, retryVisaType) ||
-          initialResultTargetsIndonesia
-        );
-      if (isOfficialPaymentCardRetry && vietnamPaymentCard) {
-        const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            card: {
-              pan: vietnamPaymentCard.pan,
-              expiry: vietnamPaymentCard.expiry,
-              cvv: vietnamPaymentCard.cvv,
-              holderName: vietnamPaymentCard.holderName.trim(),
-            },
-          }),
-        });
-        const body = (await response.json().catch(() => null)) as {
-          error?: unknown;
-          queueId?: unknown;
-          queueStatus?: unknown;
-          provider?: unknown;
-        } | null;
-        if (!response.ok) {
-          const message = typeof body?.error === "string" ? body.error : `Payment retry failed with ${response.status}`;
-          setRetryError(message);
-          throw new Error(message);
-        }
-        const now = new Date().toISOString();
-        const retryQueueId = typeof body?.queueId === "string" ? body.queueId : "";
-        setLocalRetryActive(true);
-        setActiveRetryQueueId(retryQueueId || null);
-        setSnapshot({
-          status: "queued",
-          stage: "preparing",
-          progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
-          message: isZh ? "银行卡已安全送入云端，正在启动自动付款。" : "The card was sent securely to the cloud; automated payment is starting.",
-          result: null,
-          error: null,
-          updatedAt: now,
-          applicationStatus: "waiting",
-          country: retryCountry,
-          visaType: retryVisaType,
-          queue: {
-            id: retryQueueId,
-            status: typeof body?.queueStatus === "string" ? body.queueStatus : "pending",
-            mode,
-            provider: typeof body?.provider === "string" ? body.provider : null,
-            currentStage: null,
-            heartbeatAt: null,
-            fieldFallbacks: [],
-            createdAt: now,
-            updatedAt: now,
-          },
-        });
-        return;
-      }
       // A failed DS-160 already has a persisted answer set. Retry it directly
       // through the fresh-application endpoint instead of re-running the
       // long-form save/validation callback before the queue write.
@@ -1595,7 +1459,7 @@ export function SubmissionStatusStep({
         !isTaiwanRetry &&
         !isVietnamPrearrivalRetry
       ) {
-        await onResubmit(mode, vietnamPaymentCard);
+        await onResubmit(mode, taiwanOfficialTermsConsent);
         setSnapshot(null);
         setLocalRetryActive(false);
         return;
@@ -1670,7 +1534,7 @@ export function SubmissionStatusStep({
     } finally {
       setResubmitting(false);
     }
-  }, [applicationId, country, initialResultTargetsIndonesia, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
+  }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -1695,10 +1559,6 @@ export function SubmissionStatusStep({
     snapshotIsActive,
     snapshotAvailable: snapshot !== null,
   });
-  const parentHasTerminalSubmission =
-    Boolean(result) &&
-    fallbackVisualStatus !== "queued" &&
-    fallbackVisualStatus !== "running";
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1781,15 +1641,6 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
-  const isVietnamSubmission = isVietnamEVisaApplication(
-    snapshot?.country ?? country,
-    snapshot?.visaType ?? visaType,
-  );
-  const isIndonesiaSubmission = isIndonesiaEVisaApplication(
-    snapshot?.country ?? country,
-    snapshot?.visaType ?? visaType,
-  ) || initialResultTargetsIndonesia || resultTargetsIndonesia(snapshot?.result) ||
-    /\bindonesia\b/i.test(effectiveError ?? "");
   const isVnPrearrivalSubmission = isVietnamPrearrivalApplication(
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
@@ -2086,7 +1937,7 @@ export function SubmissionStatusStep({
             ? isZh
               ? "正在排队台湾官网正式提交任务；只有官方回执验证通过后才会显示成功。"
               : "Queueing the formal Taiwan submission; success is shown only after official receipt verification."
-            : isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
+            : isZh ? "正在启动 Fly 云端提交任务。" : "Starting the Fly cloud submission job."}
           applicationId={applicationId}
           persistenceKey={submissionProgressPersistenceKey(
             activeRetryQueueId ?? snapshot?.queue?.id ?? null,
@@ -2100,27 +1951,26 @@ export function SubmissionStatusStep({
     );
   }
 
-  const vietnamPaymentCheckpointResult =
-    isVietnamPaymentCheckpointResult(effectiveResult)
+  const vietnamNeedsAttentionResult =
+    isVietnamNeedsAttentionResult(effectiveResult)
       ? effectiveResult
       : isVietnamEVisaApplication(country, visaType) &&
-          isVietnamPaymentCheckpointError(retryError ?? effectiveError)
+          isVietnamNeedsAttentionError(retryError ?? effectiveError)
         ? ({
             country: "VN",
-            status: "stopped_at_pay",
+            status: "needs_manual_verification",
             mode: "live_assisted",
             provider: "vietnam_evisa_live",
             portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
-            checkpoint: "payment_page_visible",
+            checkpoint: "official_portal_needs_attention",
             manualAction: {
-              type: "payment_required",
+              type: "needs_manual_verification",
               status: "open",
               instructions:
                 retryError ??
                 effectiveError ??
-                "The official Vietnam e-Visa portal reached payment. Authorize payment in VIZA before continuing.",
+                "The official Vietnam e-Visa portal needs further review. VIZA will update this application after the status is confirmed.",
             },
-            paymentStatus: "manual_required",
           } as const)
         : null;
 
@@ -2182,7 +2032,7 @@ export function SubmissionStatusStep({
   }
 
   if (
-    vietnamPaymentCheckpointResult &&
+    vietnamNeedsAttentionResult &&
     (snapshotIsActive || failed || stalled || actionWithResult || completedWithResult)
   ) {
     return (
@@ -2191,7 +2041,7 @@ export function SubmissionStatusStep({
           applicationId,
           country,
           visaType,
-          vietnamPaymentCheckpointResult,
+          vietnamNeedsAttentionResult,
           snapshot?.queue?.id ?? null,
           isZh,
         )}
@@ -2249,7 +2099,7 @@ export function SubmissionStatusStep({
           retryBusy={resubmitting}
           retryError={retryError}
           retryCompleteness={retryCompleteness}
-          onRetry={(mode, consent) => handleRetry(mode, undefined, consent)}
+          onRetry={(mode, consent) => handleRetry(mode, consent)}
           result={buildTwResultFromStatus({
             result: effectiveResult,
             snapshot,
@@ -2277,8 +2127,6 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
-          requiresIndonesiaPaymentCard={isIndonesiaSubmission}
         />
       </div>
     );
@@ -2298,8 +2146,6 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
-          requiresIndonesiaPaymentCard={isIndonesiaSubmission}
         />
       </div>
     );
@@ -2327,7 +2173,6 @@ export function SubmissionStatusStep({
           }
           retryModes={retryModes}
           onRetry={handleRetry}
-          requiresOfficialPaymentCard={isVietnamSubmission}
         />
       </div>
     );

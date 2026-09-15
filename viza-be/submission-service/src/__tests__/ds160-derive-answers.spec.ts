@@ -3,6 +3,24 @@ import { describe, it } from "node:test";
 import { deriveDS160Answers } from "../ds160-derive-answers";
 
 describe("deriveDS160Answers", () => {
+  it("preserves a native-script name even when a translated alias is saved", () => {
+    const answers = deriveDS160Answers({
+      full_name_native_alphabet: "张三",
+      full_name_native_alphabet_en: "ZHANG SAN",
+      surname: "张",
+      surname_en: "ZHANG",
+    });
+
+    assert.equal(answers.full_name_native_alphabet, "张三");
+    assert.equal(answers.surname, "ZHANG");
+  });
+
+  it("does not fill a native-script name from an English-only alias", () => {
+    const answers = deriveDS160Answers({ full_name_native_alphabet_en: "ZHANG SAN" });
+
+    assert.equal(answers.full_name_native_alphabet, undefined);
+  });
+
   it("maps a no-social-media answer to the CEAC NONE provider option", () => {
     const answers = deriveDS160Answers({ has_social_media: "N" });
 

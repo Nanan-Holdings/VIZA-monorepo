@@ -213,8 +213,8 @@ export function AutomatedOnlineResultCard({ result }: { result: AutomatedOnlineR
         {!isJapan ? (
           <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
             {isZh
-              ? "肯尼亚官方费用、支付手续费和 VIZA 服务费分别记录；VIZA 不会要求你在此页面输入官方门户卡号。"
-              : "Kenya's official fee, payment processing fee, and VIZA service fee are recorded separately. VIZA will not ask you to enter an official-portal card number here."}
+              ? "官网费用步骤需要处理，VIZA 已取消平台收费和自动代付。"
+              : "The official fee checkpoint needs attention. VIZA platform charges and automated payment have been removed."}
           </p>
         ) : null}
 

@@ -1,5 +1,13 @@
 # Indonesia submission runners
 
+Product policy (2026-09-15): payment execution has been removed.
+`src/payment-removed.ts` defines the unconditional retirement boundary.
+Card-session HTTP routes return 410; issuer and portal payment functions cannot
+spend or acquire cards, regardless of environment flags. Official fee checkpoints
+remain needs-attention states, never fabricated paid/submitted outcomes.
+Existing form filling, ownership/lease fences, consent, and browser cleanup remain.
+This supersedes historical payment pilot instructions below.
+
 Scope: `viza-be/submission-service/src/indonesia/**`.
 
 This module owns Indonesia C1 Tourist eVisa and B1 e-VoA live-assisted queue

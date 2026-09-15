@@ -157,28 +157,6 @@ export function selectFranceAppointmentSlot(
   );
 }
 
-export function recordFrancePaymentSession(
-  jobId: string,
-  payload: {
-    sessionId: string;
-    redacted: {
-      last4: string;
-      expMonth: string;
-      expYear: string;
-      brand?: string;
-      holderNamePresent?: boolean;
-    };
-  },
-): Promise<FranceAppointmentStatusSnapshot> {
-  return requestFranceAppointment<FranceAppointmentStatusSnapshot>(
-    `/api/france-appointment/jobs/${jobId}/payment-session`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
 export function approveFranceAppointmentFinalConfirmation(
   jobId: string,
 ): Promise<FranceAppointmentStatusSnapshot> {

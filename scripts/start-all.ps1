@@ -793,18 +793,6 @@ $submissionAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $submissionServiceDir `
   -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
   -ExpectedContent @('"status":"ok"')
-$submissionVietnamCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session"
-$submissionIndonesiaCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/indonesia/card-session"
-$submissionCardSessionEndpointsReady =
-  (Test-HttpProbe -Uri $submissionVietnamCardSessionUri -ExpectedContent @('"enabled":true')) -and
-  (Test-HttpProbe -Uri $submissionIndonesiaCardSessionUri -ExpectedContent @('"enabled":true'))
-if ($submissionAlreadyRunning -and !$submissionCardSessionEndpointsReady) {
-  Write-Warn "submission-service is running but the Vietnam/Indonesia card-session endpoints are not both enabled; restarting it with local payment env."
-  Stop-ProcessesByPath -Path $submissionServiceDir
-  Start-Sleep -Seconds 2
-  $submissionAlreadyRunning = $false
-}
-
 $frontendNeedsRestartForSubmissionServiceEnv = $frontendAlreadyRunning
 if ($frontendNeedsRestartForSubmissionServiceEnv) {
   Write-Warn "frontend is already running; restarting it so SUBMISSION_SERVICE_LOCAL_URL and live-submission env match this start-all run."
@@ -835,23 +823,23 @@ if (!$agentAlreadyRunning) {
 if (!$submissionAlreadyRunning) {
   $submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
   if ($submissionProcess) {
-    if ($submissionCardSessionEndpointsReady) {
+    if ((Test-HttpProbe -Uri "http://127.0.0.1:$SubmissionPort/health" -ExpectedContent @('"status":"ok"'))) {
       Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
     } else {
-      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but the Vietnam/Indonesia card-session endpoints are not ready; restarting it."
+      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but its health endpoint is not ready; restarting it."
       Stop-ProcessesByPath -Path $submissionServiceDir
       Start-Sleep -Seconds 2
-      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
       $started += Start-ManagedProcess `
-        -Name "submission-service worker with Vietnam and Indonesia local payments" `
+        -Name "submission-service worker" `
         -SafeName "submission-service" `
         -WorkingDirectory $submissionServiceDir `
         -Command $submissionCommand
     }
   } else {
-    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
     $started += Start-ManagedProcess `
-      -Name "submission-service worker with Vietnam and Indonesia local payments" `
+      -Name "submission-service worker" `
       -SafeName "submission-service" `
       -WorkingDirectory $submissionServiceDir `
       -Command $submissionCommand
@@ -914,7 +902,6 @@ Write-Host "Marketing web:       http://127.0.0.1:$MarketingPort/" -ForegroundCo
 Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -ForegroundColor Green
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
 Write-Host "Submission service:  http://127.0.0.1:$SubmissionPort/health" -ForegroundColor Green
-Write-Host "VN card handoff:     http://127.0.0.1:$SubmissionPort/local/vietnam/card-session" -ForegroundColor Green
 Write-Host "VIZA agent socket:   http://127.0.0.1:$AgentPort/visa" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green
 Write-Host "Travel proxy health: http://127.0.0.1:$FrontendPort/api/travel/health" -ForegroundColor Green

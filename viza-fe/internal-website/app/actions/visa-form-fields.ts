@@ -52,15 +52,17 @@ export async function getVisaFormSteps(
       visaType,
     );
     const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, schemaCountry);
-    return getCachedStaticVisaMetadata<WizardStep[]>(
+    return await getCachedStaticVisaMetadata<WizardStep[]>(
       `visa-form-steps:v1:${schemaVisaType}`,
       async () => {
         const rows = await getCachedStaticVisaMetadata<VisaFormFieldDbRow[]>(
           `visa-form-fields:v1:${schemaVisaType}`,
           async () => {
             const { data, error } = await createAdminClient({
-              requestTimeoutMs: 4_000,
-              retryDelaysMs: [],
+              // DS-160 includes the complete conditional schema. Its cold read
+              // can exceed the small metadata deadline; retry this GET once.
+              requestTimeoutMs: schemaVisaType === "DS160" ? 15_000 : 4_000,
+              retryDelaysMs: schemaVisaType === "DS160" ? [300] : [],
             })
               .from("visa_form_fields")
               .select("*")

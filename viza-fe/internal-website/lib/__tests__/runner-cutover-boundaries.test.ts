@@ -56,7 +56,7 @@ describe("runner cutover guarded boundary source contract", () => {
     const persistIndex = handler.indexOf(
       "persistCurrentDynamicAnswersForSubmission(applicationId)",
     );
-    const enqueueIndex = handler.indexOf("return insertSubmissionQueueJob({");
+    const enqueueIndex = handler.indexOf("await insertSubmissionQueueJob({");
 
     expect(persistIndex).toBeGreaterThanOrEqual(0);
     expect(enqueueIndex).toBeGreaterThanOrEqual(0);
@@ -152,12 +152,6 @@ describe("runner cutover guarded boundary source contract", () => {
       "app/api/applications/[id]/ds160-proof/route.ts",
       "isRunnerCutoverPaused()",
       "enqueueProofJob(loaded.admin, applicationId)",
-      "export async function POST",
-    ],
-    [
-      "app/api/applications/[id]/official-fee/pay/route.ts",
-      "isRunnerCutoverPaused()",
-      "relayIndonesiaOfficialFeePayment({",
       "export async function POST",
     ],
     [

@@ -22,6 +22,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DS160_PREPARER_FIELD_NAMES } from "../src/ceac/signature-fields";
 
 import { TEST_DS160_ANSWERS } from "../src/ceac/test-ds160-fixture";
 import { __DERIVATION_TARGETS } from "../src/ds160-derive-answers";
@@ -250,7 +251,7 @@ function main(): void {
   // consular_post is consumed by session bootstrap rather than a form page.
   // has_social_media drives deriveSocialMediaPresence's NONE provider branch.
   const consumed = consumedSourceKeys(
-    [...orchestratorKeys, "consular_post", "has_social_media"],
+    [...orchestratorKeys, "consular_post", "has_social_media", ...DS160_PREPARER_FIELD_NAMES],
     __DERIVATION_TARGETS,
   );
   const unconsumedFields = fields.filter(field => !consumed.has(field.name));
@@ -273,6 +274,7 @@ function main(): void {
       officialParityVerified: false,
       fieldCount: fields.length,
       mappingCount: orchestratorKeys.size,
+      signatureFieldCount: DS160_PREPARER_FIELD_NAMES.length,
       conditionalBranchCount: branches.length,
       repeatGroups,
       missingRunnerInputs: missingInputs,
@@ -280,6 +282,7 @@ function main(): void {
       optionalFixtureInputs: optionalFixtureInputsActive,
       unconsumedFields,
       unverifiedSupplementFields: UNVERIFIED_SUPPLEMENT_FIELDS,
+      signatureFields: { fields: DS160_PREPARER_FIELD_NAMES, officialVerified: false },
       branches,
       passed,
     }, null, 2));

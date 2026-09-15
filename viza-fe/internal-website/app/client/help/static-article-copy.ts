@@ -1,7 +1,6 @@
 import type { HelpArticleSection } from "@/components/client/help-article";
 
 export type StaticHelpArticleId =
-  | "addPaymentMethod"
   | "completeProfile"
   | "exploreServices"
   | "accountSecurityTips"
@@ -15,56 +14,6 @@ export interface StaticHelpArticleCopy {
 }
 
 const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
-  addPaymentMethod: {
-    title: "Add a payment method",
-    subtitle: "Learn how billing and payment work on the platform.",
-    sections: [
-      {
-        heading: "How billing works",
-        content: [
-          {
-            type: "paragraph",
-            text: "VIZA uses secure checkout for eligible application, subscription, and agency-fee payments. Available payment methods are shown before you confirm a purchase.",
-          },
-        ],
-      },
-      {
-        heading: "Setting up your payment method",
-        content: [
-          {
-            type: "list",
-            items: [
-              "Open the application or subscription checkout you want to pay.",
-              "Review the amount, currency, and payment description.",
-              "Choose one of the payment methods offered at checkout and complete the provider's secure flow.",
-            ],
-          },
-          {
-            type: "tip",
-            text: "VIZA does not ask you to send full card details through chat or email. Contact Support if a checkout does not show the payment method you expect.",
-          },
-        ],
-      },
-      {
-        heading: "Using points",
-        content: [
-          {
-            type: "paragraph",
-            text: "Eligible VIZA Points and their redemption options are shown in Points Center. Availability and limits can vary by plan, promotion, and purchase type.",
-          },
-        ],
-      },
-      {
-        heading: "Viewing past transactions",
-        content: [
-          {
-            type: "paragraph",
-            text: "Open Billing to view payment history, receipts, invoice requests, and refund status.",
-          },
-        ],
-      },
-    ],
-  },
   completeProfile: {
     title: "Complete your profile",
     subtitle: "Keep reusable applicant information accurate across your visa applications.",
@@ -130,7 +79,7 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "Start or continue an application from Home or Application. VIZA keeps your application answers, supporting documents, payments, consent, and status in one workflow.",
+            text: "Start or continue an application from Home or Application. VIZA keeps your application answers, supporting documents, consent, and status in one workflow.",
           },
         ],
       },
@@ -179,7 +128,7 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "Use Status to follow application progress and Support for account, payment, document, or timing questions that require the customer-service team.",
+            text: "Use Status to follow application progress and Support for account, document, or timing questions that require the customer-service team.",
           },
         ],
       },
@@ -256,7 +205,6 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
               "Personal information: name, date of birth, phone number, and address.",
               "Application data: passport details, visa history, form answers, supporting documents, and consent records.",
               "Usage data: pages visited, features used, and session activity to improve the platform.",
-              "Transaction data: payment status, invoices, refunds, and subscription records.",
             ],
           },
         ],
@@ -269,8 +217,8 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
             items: [
               "To prepare, review, and manage your visa applications.",
               "To let authorized visa staff review application materials and provide support.",
-              "To process payments and track application service fulfillment.",
-              "To send application, document, payment, and status notifications.",
+              "To track application service fulfillment.",
+              "To send application, document, and status notifications.",
             ],
           },
           {
@@ -284,7 +232,7 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "Some platform functions rely on trusted third-party providers for payments, document processing, communications, and official application submission.",
+            text: "Some platform functions rely on trusted third-party providers for document processing, communications, and official application submission.",
           },
           {
             type: "paragraph",
@@ -360,56 +308,6 @@ const EN: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
 };
 
 const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
-  addPaymentMethod: {
-    title: "添加支付方式",
-    subtitle: "了解平台上的账单和支付方式。",
-    sections: [
-      {
-        heading: "账单如何运作",
-        content: [
-          {
-            type: "paragraph",
-            text: "对于符合条件的申请、订阅和代理服务费支付，VIZA 使用安全结账流程。确认购买前，你会看到当前可用的支付方式。",
-          },
-        ],
-      },
-      {
-        heading: "设置支付方式",
-        content: [
-          {
-            type: "list",
-            items: [
-              "打开你要支付的申请或订阅结账页面。",
-              "核对金额、币种和支付说明。",
-              "选择结账页面提供的支付方式，并完成支付服务商的安全流程。",
-            ],
-          },
-          {
-            type: "tip",
-            text: "VIZA 不会要求你通过聊天或电子邮件发送完整的银行卡信息。如果结账页面没有显示你预期的支付方式，请联系支持团队。",
-          },
-        ],
-      },
-      {
-        heading: "使用积分",
-        content: [
-          {
-            type: "paragraph",
-            text: "符合条件的 VIZA 积分及其兑换方式会显示在积分中心。可用性和使用限制可能因方案、促销活动和购买类型而异。",
-          },
-        ],
-      },
-      {
-        heading: "查看历史交易",
-        content: [
-          {
-            type: "paragraph",
-            text: "打开账单即可查看支付记录、收据、发票申请和退款状态。",
-          },
-        ],
-      },
-    ],
-  },
   completeProfile: {
     title: "完善你的资料",
     subtitle: "保持可复用的申请人信息准确，并用于你的签证申请。",
@@ -475,7 +373,7 @@ const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "你可以从首页或申请页面开始或继续申请。VIZA 会在同一流程中保存申请答案、证明文件、支付、同意记录和状态。",
+            text: "你可以从首页或申请页面开始或继续申请。VIZA 会在同一流程中保存申请答案、证明文件、同意记录和状态。",
           },
         ],
       },
@@ -524,7 +422,7 @@ const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "使用状态页面跟进申请进度；如有账户、支付、文件或时间方面需要客服团队处理的问题，请使用支持服务。",
+            text: "使用状态页面跟进申请进度；如有账户、文件或时间方面需要客服团队处理的问题，请使用支持服务。",
           },
         ],
       },
@@ -601,7 +499,6 @@ const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
               "个人信息：姓名、出生日期、电话号码和地址。",
               "申请数据：护照信息、签证记录、表格答案、证明文件和同意记录。",
               "使用数据：访问的页面、使用的功能和会话活动，用于改进平台。",
-              "交易数据：支付状态、发票、退款和订阅记录。",
             ],
           },
         ],
@@ -614,8 +511,8 @@ const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
             items: [
               "准备、审核和管理你的签证申请。",
               "让获授权的签证工作人员查看申请材料并提供支持。",
-              "处理支付并跟进申请服务的履行情况。",
-              "发送申请、文件、支付和状态通知。",
+              "跟进申请服务的履行情况。",
+              "发送申请、文件和状态通知。",
             ],
           },
           {
@@ -629,7 +526,7 @@ const ZH: Record<StaticHelpArticleId, StaticHelpArticleCopy> = {
         content: [
           {
             type: "paragraph",
-            text: "平台的部分功能依赖可信的第三方服务商来处理支付、文件、通信和官方申请提交。",
+            text: "平台的部分功能依赖可信的第三方服务商来处理文件、通信和官方申请提交。",
           },
           {
             type: "paragraph",

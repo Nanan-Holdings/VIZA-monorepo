@@ -7,22 +7,23 @@ vi.mock("next-intl", () => ({
   useLocale: () => "zh",
 }));
 
-describe("UkResultCard", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
-  it("keeps portal credentials and the force-resume handoff out of the customer UI", () => {
+const legacySecretBearingResult = {
+  country: "UK" as const,
+  status: "stopped_at_pay" as const,
+  portalUrl: "https://visas-immigration.service.gov.uk/forceResume/private-token",
+  portalUsername: "private@example.com",
+  generatedPasswordCipher: "salt:iv:ciphertext:tag",
+  applicationReference: "GWF123456789",
+} satisfies UkSubmissionResult;
+
+describe("UkResultCard", () => {
+  it("shows a neutral needs-attention state without credentials or payment controls", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const legacySecretBearingResult = {
-      country: "UK",
-      status: "stopped_at_pay",
-      portalUrl: "https://visas-immigration.service.gov.uk/forceResume/private-token",
-      portalUsername: "private@example.com",
-      generatedPasswordCipher: "salt:iv:ciphertext:tag",
-      applicationReference: "GWF123456789",
-    } satisfies UkSubmissionResult;
 
     render(
       <UkResultCard
@@ -32,54 +33,34 @@ describe("UkResultCard", () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByText("待 VIZA 自动支付")).toBeInTheDocument();
-    expect(screen.getByText(/限额虚拟卡并自动支付官方费用/u)).toBeInTheDocument();
+    expect(screen.getByText("需要处理")).toBeInTheDocument();
+    expect(
+      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("GWF123456789")).toBeInTheDocument();
     expect(screen.queryByText("private@example.com")).not.toBeInTheDocument();
     expect(screen.queryByText("salt:iv:ciphertext:tag")).not.toBeInTheDocument();
-    expect(screen.queryByText("登录邮箱")).not.toBeInTheDocument();
-    expect(screen.queryByText("密码")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByText(/这些最后步骤需由你本人完成/u)).not.toBeInTheDocument();
-    expect(screen.queryByText(/前往 gov\.uk 核对并支付/u)).not.toBeInTheDocument();
   });
 
-  it("starts managed official-fee payment without sending card details", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "Temporary test response" }),
-    });
+  it("does not send a request when a legacy fee checkpoint is rendered", () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const legacySecretBearingResult = {
-      country: "UK",
-      status: "stopped_at_pay",
-      portalUrl: "https://visas-immigration.service.gov.uk/forceResume/private-token",
-      portalUsername: "private@example.com",
-      generatedPasswordCipher: "salt:iv:ciphertext:tag",
-    } satisfies UkSubmissionResult;
 
     render(
       <UkResultCard
         applicationId="application-id"
-        result={legacySecretBearingResult}
+        result={{ ...legacySecretBearingResult, status: "funding_required" }}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "由 VIZA 自动支付官方费用" }));
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/application-id/official-fee/pay",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-        },
-      );
-    });
-    expect(screen.getByText("Temporary test response")).toBeInTheDocument();
+    expect(screen.getByText("需要处理")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /自动|支付/u })).not.toBeInTheDocument();
   });
 
-  it("keeps uncertain portal outcomes with VIZA staff instead of asking for duplicate payment", () => {
+  it("maps uncertain portal outcomes to the same neutral state", () => {
     render(
       <UkResultCard
         applicationId="application-id"
@@ -92,12 +73,14 @@ describe("UkResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("VIZA 正在复核")).toBeInTheDocument();
-    expect(screen.getByText(/请勿前往 gov\.uk 重复付款/u)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "由 VIZA 自动支付官方费用" })).not.toBeInTheDocument();
+    expect(screen.getByText("需要处理")).toBeInTheDocument();
+    expect(
+      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("VIZA 正在复核")).not.toBeInTheDocument();
   });
 
-  it("shows paid only after the runner persisted official success", () => {
+  it("does not claim that a legacy paid status was completed", () => {
     render(
       <UkResultCard
         applicationId="application-id"
@@ -110,8 +93,36 @@ describe("UkResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("已支付")).toBeInTheDocument();
-    expect(screen.getByText(/保存官方回执/u)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "由 VIZA 自动支付官方费用" })).not.toBeInTheDocument();
+    expect(screen.getByText("需要处理")).toBeInTheDocument();
+    expect(screen.getByText(/自动付款已移除/u)).toBeInTheDocument();
+    expect(screen.queryByText("已支付")).not.toBeInTheDocument();
+    expect(screen.queryByText(/保存官方回执/u)).not.toBeInTheDocument();
+  });
+
+  it("keeps ordinary gov.uk prefill retry available", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(
+      <UkResultCard
+        applicationId="application-id"
+        applicationCountry="UK"
+        applicationVisaType="UK_STANDARD_VISITOR"
+        result={{ country: "UK", status: "registered" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "重新提交到 gov.uk" }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/retry-submission",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
   });
 });

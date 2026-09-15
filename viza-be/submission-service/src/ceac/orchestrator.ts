@@ -79,8 +79,9 @@ import type { Ds160FinalSubmissionGuard } from "./final-submission-guard";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
 import { DS160_EXTENDED_MAPPING_GROUPS } from "../ds160-extended-mappings";
-import { createDs160BranchPolicy, ds160MappingRepeatGroup, ds160RepeatAnswers } from "./field-contract";
+import { assertDs160RequiredAnswers, createDs160BranchPolicy, ds160MappingRepeatGroup, ds160RepeatAnswers } from "./field-contract";
 import { fillDs160RepeatGroups } from "./repeat-browser-adapter";
+import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -178,6 +179,8 @@ export interface OrchestrateOptions {
    */
   finalSubmit?: {
     passportNumber: string;
+    savedPreparerAssistance?: string;
+    savedPreparerDetails?: Ds160PreparerAnswers;
     maxCaptchaAttempts?: number;
     finalSubmissionGuard?: Ds160FinalSubmissionGuard;
     confirmationTimeoutMs?: number;
@@ -232,6 +235,7 @@ export async function orchestrateFill(
   const sectionsSkipped: string[] = [];
 
   try {
+    if (options.branchAnswers) assertDs160RequiredAnswers(options.branchAnswers);
     // Fill-and-advance loop: detect current page, fill if we have mappings,
     // advance to the next page. Stop when we reach a terminal page.
     while (transitions < MAX_PAGE_TRANSITIONS) {
@@ -470,6 +474,8 @@ export async function orchestrateFill(
           );
           const finalSignaturePage = await certifySignAndSubmitPage(page, {
             passportNumber: options.finalSubmit.passportNumber,
+            savedPreparerAssistance: options.finalSubmit.savedPreparerAssistance,
+            savedPreparerDetails: options.finalSubmit.savedPreparerDetails,
             diagnosticPath: path.join(outputDir, "sign-certify-dom.json"),
             finalSubmissionGuard: options.finalSubmit.finalSubmissionGuard,
             expectedApplicationId: tracker.snapshot().applicationId,
@@ -720,6 +726,8 @@ async function certifySignAndSubmitPage(
   page: Page,
   options: {
     passportNumber: string;
+    savedPreparerAssistance?: string;
+    savedPreparerDetails?: Ds160PreparerAnswers;
     diagnosticPath?: string;
     finalSubmissionGuard?: Ds160FinalSubmissionGuard;
     expectedApplicationId?: string | null;
@@ -727,8 +735,8 @@ async function certifySignAndSubmitPage(
   },
 ): Promise<Page> {
   if (options.diagnosticPath) await dumpSignCertifyDom(page, options.diagnosticPath);
-  await choosePreparerNo(page);
-  await fillSignCertifyPassportNumber(page, options.passportNumber.trim());
+  await applyExplicitPreparerAnswer(page, options.savedPreparerAssistance, options.savedPreparerDetails);
+  await fillVerifiedPassportSignature(page, options.passportNumber);
   await solveSignCertifyCaptcha(page);
 
   const signButton = page.locator(SIGN_CERTIFY_SUBMIT_SELECTOR).first();
@@ -806,12 +814,7 @@ async function certifySignAndSubmitPage(
       },
       'input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]',
       { timeout: 10_000 },
-    ).catch(async () => {
-      await next.evaluate((el) => {
-        (el as HTMLInputElement).disabled = false;
-        el.removeAttribute("disabled");
-      });
-    });
+    );
     return activePage;
   } catch (error) {
     if (guardReserved && options.finalSubmissionGuard && !guardOutcomeAttempted) {
@@ -835,68 +838,6 @@ async function waitForOfficialConfirmation(
     await page.waitForTimeout(Math.min(250, remainingMs));
   }
   return false;
-}
-
-async function choosePreparerNo(page: Page): Promise<void> {
-  const noRadio = page
-    .locator(
-      [
-        'input[type="radio"][value="N"]',
-        'input[type="radio"][value="NO"]',
-        'input[type="radio"][value="No"]',
-        'input[type="radio"][id$="_rblPreparer_1"]',
-        'input[type="radio"][name*="Preparer"][value="N"]',
-      ].join(", "),
-    )
-    .first();
-  if ((await noRadio.count().catch(() => 0)) > 0) {
-    await noRadio.check({ force: true, timeout: 5_000 }).catch(async () => {
-      await noRadio.click({ force: true, timeout: 5_000 });
-    });
-    return;
-  }
-
-  await page.evaluate(() => {
-    const radios = Array.from(document.querySelectorAll('input[type="radio"]')) as HTMLInputElement[];
-    for (const radio of radios) {
-      const text = (radio.closest("label, td, span, div")?.textContent ?? "").trim();
-      const isNo = /^no$/i.test(text) || /\bno\b/i.test(text);
-      radio.checked = isNo;
-      radio.dispatchEvent(new Event("input", { bubbles: true }));
-      radio.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }).catch(() => undefined);
-}
-
-async function fillSignCertifyPassportNumber(page: Page, passportNumber: string): Promise<void> {
-  const filled = await page.evaluate((value) => {
-    const inputs = Array.from(
-      document.querySelectorAll('input[type="text"], input[type="password"], input:not([type])'),
-    ) as HTMLInputElement[];
-    const editable = inputs.filter((input) => {
-      if (input.disabled || input.readOnly) return false;
-      const rect = input.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return false;
-      const key = `${input.id} ${input.name}`.toLowerCase();
-      return !/captcha|code|answer/i.test(key);
-    });
-    const passportInput =
-      editable.find((input) => /passport|travel/i.test(`${input.id} ${input.name}`)) ??
-      editable[0] ??
-      null;
-    if (!passportInput) return false;
-
-    passportInput.value = value;
-    passportInput.dispatchEvent(new Event("input", { bubbles: true }));
-    passportInput.dispatchEvent(new Event("change", { bubbles: true }));
-    passportInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-    passportInput.dispatchEvent(new Event("blur", { bubbles: true }));
-    return true;
-  }, passportNumber);
-
-  if (!filled) {
-    throw new Error("Could not find SignCertify passport/travel document field.");
-  }
 }
 
 async function solveSignCertifyCaptcha(page: Page): Promise<void> {

@@ -352,6 +352,9 @@ function applyEnglishAliases(answers: Record<string, string>): void {
     if (!key.endsWith("_en")) continue;
     const baseKey = key.slice(0, -3);
     if (!baseKey || !value.trim()) continue;
+    // CEAC explicitly asks for this answer in the applicant's native script.
+    // A translated review alias must never replace the supplied name.
+    if (baseKey === "full_name_native_alphabet") continue;
 
     const current = answers[baseKey];
     if (!current || HAS_CJK.test(current)) {

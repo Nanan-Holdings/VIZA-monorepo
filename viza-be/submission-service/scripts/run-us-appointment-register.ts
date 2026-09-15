@@ -236,7 +236,11 @@ async function main(): Promise<void> {
           requested: args.continueToAppointment,
           registration: completed,
           credentials: preflight.credentials,
-          prepare: (credentials) => client.prepareAppointmentFlow(preflight.job, credentials),
+          prepare: async (credentials) => client.prepareAppointmentFlow(
+            preflight.job,
+            credentials,
+            await repository.getAppointmentApplicantDetails(preflight.job),
+          ),
         });
       } catch {
         appointmentContinuationErrorCode = "appointment_preparation_failed";

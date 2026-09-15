@@ -9,12 +9,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $localEnv = [ordered]@{
-  VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
-  VN_LOCAL_CARD_SESSION_ENABLED = "true"
   VN_LIVE_SUBMISSION_ENABLED = "true"
   VN_LIVE_ASSISTED_ONLY = "true"
   VN_PLAYWRIGHT_HEADLESS = if ($Headless) { "true" } else { "false" }
-  ID_LOCAL_CARD_SESSION_ENABLED = "true"
   KR_VISA_PORTAL_EFORM_LOCAL_ENABLED = "true"
   KR_VISA_PORTAL_EFORM_LIVE_ENABLED = "true"
   KR_VISA_PORTAL_EFORM_SECOND_PAGE_ENABLED = "true"
@@ -24,8 +21,6 @@ $localEnv = [ordered]@{
 }
 
 $localEndpoints = @(
-  "/local/vietnam/card-session",
-  "/local/indonesia/card-session",
   "/local/korea-eform/generate",
   "/local/korea-kvac/sms/start"
 )

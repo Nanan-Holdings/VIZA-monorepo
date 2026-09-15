@@ -8,7 +8,6 @@ import {
   CalendarCheck,
   CheckCircle as CheckCircle2,
   Clock as Clock3,
-  CreditCard,
   CircleNotch as Loader2,
   Envelope as Mail,
   MapPin,
@@ -20,7 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
-import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { BrandField } from "@/components/client/brand-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +34,6 @@ import {
   FranceAppointmentApiError,
   getFranceAppointmentStatus,
   recordFranceAppointmentConsent,
-  recordFrancePaymentSession,
   runFranceAppointmentJob,
   selectFranceAppointmentSlot,
 } from "@/lib/france-appointment/client";
@@ -54,7 +52,6 @@ type BusyAction =
   | "run"
   | "checkSlots"
   | "slot"
-  | "payment"
   | "approve"
   | "book"
   | "cancel";
@@ -186,10 +183,6 @@ export function FranceAppointmentAssistant({
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [centerCode, setCenterCode] = useState("shanghai");
-  const [paymentBrand, setPaymentBrand] = useState("");
-  const [paymentLast4, setPaymentLast4] = useState("");
-  const [paymentExpMonth, setPaymentExpMonth] = useState("");
-  const [paymentExpYear, setPaymentExpYear] = useState("");
 
   const job = snapshot?.job ?? null;
   const slots = useMemo(() => {
@@ -209,8 +202,6 @@ export function FranceAppointmentAssistant({
       ),
     [snapshot?.manualActions],
   );
-  const paymentAuthorized =
-    job?.userPreferencesJson.paymentSessionStatus === "authorized";
   const applicationFormHref =
     `/client/application/long-form?country=france&visaType=EU_SCHENGEN_C_SHORT_STAY&applicationId=${encodeURIComponent(applicationId)}`;
 
@@ -377,28 +368,6 @@ export function FranceAppointmentAssistant({
     });
   };
 
-  const handlePayment = () =>
-    runAction("payment", async () => {
-      if (!job) return;
-      const last4 = paymentLast4.trim();
-      const expMonth = paymentExpMonth.trim().padStart(2, "0");
-      const expYear = paymentExpYear.trim();
-      if (!/^\d{4}$/.test(last4) || !/^\d{1,2}$/.test(expMonth) || !/^\d{4}$/.test(expYear)) {
-        setErrorMessage(t("payment.validation"));
-        return;
-      }
-      return recordFrancePaymentSession(job.id, {
-        sessionId: `france-tls-payment:${job.id}:${Date.now()}`,
-        redacted: {
-          last4,
-          expMonth,
-          expYear,
-          brand: paymentBrand.trim() || undefined,
-          holderNamePresent: true,
-        },
-      });
-    });
-
   const stage = getFranceAppointmentStage(snapshot);
   const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
   const currentStep = stepKeys.indexOf(stage);
@@ -428,7 +397,7 @@ export function FranceAppointmentAssistant({
     job &&
       selectedAppointmentSlot &&
       finalApproved &&
-      (job.mode === "assisted_live" || paymentAuthorized) &&
+      job.status !== "appointment_payment_required" &&
       !snapshot?.confirmation,
   );
   const isAssistedLive = job?.mode === "assisted_live";
@@ -760,34 +729,6 @@ export function FranceAppointmentAssistant({
             ) : (
               <p className="text-sm text-muted-foreground">{t("final.requirement")}</p>
             )}
-
-            {!isAssistedLive && !paymentAuthorized ? (
-              <div className="space-y-4 rounded-[8px] border bg-muted/20 p-4">
-                <div className="flex items-center gap-2 font-medium">
-                  <CreditCard className="h-4 w-4 text-brand-600" />
-                  {t("payment.title")}
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">{t("payment.body")}</p>
-                <div className="grid gap-3 sm:grid-cols-4">
-                  <BrandField label={t("payment.brand")} htmlFor="france-payment-brand">
-                    <BrandInput id="france-payment-brand" value={paymentBrand} onChange={(event) => setPaymentBrand(event.target.value)} placeholder={t("payment.brandPlaceholder")} />
-                  </BrandField>
-                  <BrandField label={t("payment.last4")} htmlFor="france-payment-last4">
-                    <BrandInput id="france-payment-last4" value={paymentLast4} onChange={(event) => setPaymentLast4(event.target.value)} inputMode="numeric" maxLength={4} placeholder="1234" />
-                  </BrandField>
-                  <BrandField label={t("payment.expMonth")} htmlFor="france-payment-month">
-                    <BrandInput id="france-payment-month" value={paymentExpMonth} onChange={(event) => setPaymentExpMonth(event.target.value)} inputMode="numeric" maxLength={2} placeholder="06" />
-                  </BrandField>
-                  <BrandField label={t("payment.expYear")} htmlFor="france-payment-year">
-                    <BrandInput id="france-payment-year" value={paymentExpYear} onChange={(event) => setPaymentExpYear(event.target.value)} inputMode="numeric" maxLength={4} placeholder="2028" />
-                  </BrandField>
-                </div>
-                <Button type="button" variant="outline" onClick={handlePayment} disabled={!job || isBusy}>
-                  {busyAction === "payment" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  {t("payment.record")}
-                </Button>
-              </div>
-            ) : null}
 
             {!isAssistedLive ? (
               <Alert className="border-amber-200 bg-amber-50">

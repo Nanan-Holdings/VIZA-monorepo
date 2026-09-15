@@ -338,13 +338,11 @@ checks:
 - VIZA AI user-facing answers should be plain text by default.
 - RAG answers must not invent official requirements. State uncertainty and point
   to official sources when data is missing.
-- For every electronically payable official fee, VIZA provisions an
-  application-scoped, limited virtual card and pays the government portal on
-  the applicant's behalf. Applicant-facing UI must never ask for an official-
-  portal card number or tell the applicant to pay the portal directly. Keep
-  the commercial agency-fee checkout and official-fee allocation/receipt as
-  separate records.
-- Website internal automation covers payment, consent, documents, OCR, packet
+- Payments have been removed by product decision (2026-09-15). Do not collect
+  fees, sell paid plans, issue payment cards, or gate applications on payment.
+  Preserve historical financial records. Official portal fee checkpoints must
+  remain honest needs-attention states without executing payment.
+- Website internal automation covers consent, documents, OCR, packet
   generation, status display, notifications, staff monitoring, and external
   status ingestion only.
 - For `viza-be/submission-service`, official portal automation should use

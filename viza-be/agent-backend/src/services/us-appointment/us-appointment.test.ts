@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  createUSAppointmentServices,
+  createUSAppointmentServices as createServices,
   redactSensitivePayload,
   USAppointmentProviderRegistry,
   type AppointmentAccount,
@@ -23,6 +23,13 @@ import {
   type USAppointmentApplication,
   type USAppointmentRepository,
 } from "./index.js";
+import type { USAppointmentWorkerWake } from "./worker-wake.js";
+import { isUSAppointmentWorkerEligible } from "./worker-wake.js";
+
+// Every service test owns its dispatch dependency, even if the test host has live env vars.
+function createUSAppointmentServices(repository: USAppointmentRepository, wakeWorker: USAppointmentWorkerWake = async () => ({ ok: true, duplicate: false, coldStart: "not_configured" })) {
+  return createServices(repository, { wakeWorker });
+}
 
 const APPLICATION_ID = "11111111-1111-4111-8111-111111111111";
 const APPLICANT_ID = "22222222-2222-4222-8222-222222222222";
@@ -500,8 +507,9 @@ async function createReadyJob(
 
 async function createChinaAssistedLiveJob(
   repository = new InMemoryUSAppointmentRepository(),
+  wakeWorker?: USAppointmentWorkerWake,
 ) {
-  const { orchestrator } = createUSAppointmentServices(repository);
+  const { orchestrator } = createUSAppointmentServices(repository, wakeWorker);
   await orchestrator.recordConsent({
     applicationId: APPLICATION_ID,
     actorUserId: USER_ID,
@@ -774,7 +782,7 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(status.job?.requiresUserAction).toBe(false);
     expect(status.job?.currentManualAction).toBeNull();
     expect(status.pendingManualAction).toBeNull();
-    expect(repository.auditEvents.at(-1)?.metadataRedactedJson).toMatchObject({
+    expect([...repository.auditEvents].reverse().find((event) => event.eventType === "appointment_assisted_live_runner_handoff")?.metadataRedactedJson).toMatchObject({
       assisted_live_enabled: true,
       runner_service: "submission-service",
       provider: "usvisascheduling",
@@ -849,7 +857,8 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
   });
 
   it("allows China assisted-live booking handoff only after selected slot and final approval", async () => {
-    const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
     const [slot] = await repository.insertSlots([
       {
         jobId: job.id,
@@ -880,14 +889,35 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     await expect(orchestrator.bookSelectedSlot(job.id)).rejects.toMatchObject({
       code: "final_confirmation_required",
     });
+    expect(wake).not.toHaveBeenCalled();
 
     await orchestrator.approveFinalConfirmation(job.id);
+    expect(wake).not.toHaveBeenCalled();
     const status = await orchestrator.bookSelectedSlot(job.id);
+    expect(wake).toHaveBeenCalledWith(job.id);
     expect(status.job?.status).toBe("appointment_booked");
     expect(status.confirmation).toBeNull();
-    expect(repository.auditEvents.at(-1)?.eventType).toBe(
-      "appointment_assisted_live_booking_requested",
-    );
+    expect(repository.auditEvents.some((event) => event.eventType === "appointment_assisted_live_booking_requested")).toBe(true);
+    expect(repository.auditEvents.at(-1)?.eventType).toBe("appointment_worker_wake_accepted");
+    await repository.insertConfirmation({
+      jobId: job.id,
+      applicationId: APPLICATION_ID,
+      userId: USER_ID,
+      countryCode: "US",
+      visaType: "B1/B2",
+      appointmentDate: slot.appointmentDate,
+      appointmentTime: slot.appointmentTime,
+      appointmentLocation: slot.appointmentLocation,
+      appointmentType: slot.appointmentType,
+      confirmationNumber: "TEST-OFFICIAL-EVIDENCE-ONLY",
+      confirmationPdfUrl: null,
+      confirmationScreenshotUrl: null,
+      rawConfirmationRedactedJson: {},
+    });
+    await repository.updateJob(job.id, { status: "appointment_confirmation_captured" });
+    const repeated = await orchestrator.bookSelectedSlot(job.id);
+    expect(repeated.job?.status).toBe("appointment_confirmation_captured");
+    expect(wake).toHaveBeenCalledOnce();
   });
 
   it("returns dry-run appointment status and rate-limits repeated status checks", async () => {
@@ -903,7 +933,8 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
   });
 
   it("queues China assisted-live status checks for the submission runner", async () => {
-    const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
     await repository.updateJob(job.id, {
       status: "appointment_confirmation_captured",
       requiresUserAction: false,
@@ -912,6 +943,7 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     const status = await orchestrator.checkAppointmentStatus(job.id);
     expect(status.job?.status).toBe("appointment_status_check_in_progress");
     expect(status.latestStatusCheck).toBeNull();
+    expect(wake).toHaveBeenCalledWith(job.id);
     expect(repository.auditEvents.at(-1)?.metadataRedactedJson).toMatchObject({
       runner_service: "submission-service",
     });
@@ -981,5 +1013,117 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(
       JSON.stringify(status, null, 2).toLowerCase(),
     ).not.toContain("2captcha");
+  });
+});
+
+describe("US appointment explicit worker dispatch", () => {
+  it("does not wake on consent, create, or repeated status reads; explicit run/resume wake the persisted job", async () => {
+    const repository = new InMemoryUSAppointmentRepository();
+    const wake = vi.fn(async (jobId: string) => {
+      expect(repository.jobs.find((job) => job.id === jobId)?.status).toBe("appointment_account_required");
+      return { ok: true as const, duplicate: false, coldStart: "not_configured" as const };
+    });
+    const { orchestrator, job } = await createChinaAssistedLiveJob(repository, wake);
+    await orchestrator.getStatus(APPLICATION_ID);
+    await orchestrator.getStatus(APPLICATION_ID);
+    expect(wake).not.toHaveBeenCalled();
+    await orchestrator.runJob(job.id);
+    await orchestrator.resumeJob(job.id);
+    expect(wake.mock.calls).toEqual([[job.id], [job.id]]);
+  });
+
+  it("records a fixed-code dispatch failure and leaves its stage retryable", async () => {
+    const wake = vi.fn<Parameters<USAppointmentWorkerWake>, ReturnType<USAppointmentWorkerWake>>()
+      .mockRejectedValueOnce(new Error("secret-token@example.invalid"))
+      .mockResolvedValueOnce({ ok: true, duplicate: false, coldStart: "not_configured" });
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await expect(orchestrator.runJob(job.id)).rejects.toMatchObject({ status: 503, code: "appointment_worker_request_failed" });
+    expect(repository.jobs[0]).toMatchObject({ status: "appointment_account_required", lastErrorCode: "appointment_worker_request_failed" });
+    expect(repository.auditEvents.at(-1)).toMatchObject({ eventType: "appointment_worker_wake_failed", metadataRedactedJson: { error_code: "appointment_worker_request_failed", retryable: true } });
+    expect(JSON.stringify(repository.auditEvents)).not.toContain("secret-token");
+    await orchestrator.resumeJob(job.id);
+    expect(repository.jobs[0].lastErrorCode).toBeNull();
+  });
+
+  it.each(["appointment_booked", "appointment_status_check_in_progress", "appointment_payment_completed", "appointment_no_slots_available"] as const)("resume preserves %s", async (status) => {
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: true, coldStart: "configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await repository.updateJob(job.id, { status });
+    const snapshot = await orchestrator.resumeJob(job.id);
+    expect(snapshot.job?.status).toBe(status);
+    expect(wake).toHaveBeenCalledOnce();
+    expect(snapshot.confirmation).toBeNull();
+  });
+
+  it("completes a manual checkpoint and dispatches the next persisted stage", async () => {
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await repository.updateJob(job.id, { status: "appointment_manual_required", requiresUserAction: true, currentManualAction: "login" });
+    const action = await repository.insertManualAction({ jobId: job.id, applicationId: APPLICATION_ID, userId: USER_ID, actionType: "login", status: "pending" });
+    await orchestrator.runJob(job.id);
+    expect(wake).not.toHaveBeenCalled();
+    const snapshot = await orchestrator.completeManualAction(action.id, { completedByUser: true });
+    expect(snapshot.pendingManualAction).toBeNull();
+    expect(wake).toHaveBeenCalledWith(job.id);
+  });
+
+  it.each(["login", "account_email_verification"] as const)("dispatches the pending %s checkpoint that the production worker supports", async (actionType) => {
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await repository.updateJob(job.id, { status: "appointment_login_required", requiresUserAction: true, currentManualAction: actionType });
+    const action = await repository.insertManualAction({ jobId: job.id, applicationId: APPLICATION_ID, userId: USER_ID, actionType, status: "pending" });
+    const snapshot = await orchestrator.runJob(job.id);
+    expect(wake).toHaveBeenCalledWith(job.id);
+    expect(snapshot.job).toMatchObject({ status: "appointment_login_required", requiresUserAction: true, currentManualAction: actionType });
+    expect(snapshot.pendingManualAction?.id).toBe(action.id);
+    expect(action.status).toBe("pending");
+  });
+
+  it("keeps other pending checkpoint types blocked even alongside a supported login checkpoint", async () => {
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await repository.updateJob(job.id, { status: "appointment_login_required", requiresUserAction: true, currentManualAction: "login" });
+    await repository.insertManualAction({ jobId: job.id, applicationId: APPLICATION_ID, userId: USER_ID, actionType: "payment", status: "pending" });
+    await repository.insertManualAction({ jobId: job.id, applicationId: APPLICATION_ID, userId: USER_ID, actionType: "login", status: "pending" });
+    await orchestrator.runJob(job.id);
+    expect(wake).not.toHaveBeenCalled();
+  });
+
+  it("persists a fixed lifecycle refusal without losing the runnable stage", async () => {
+    const wake = vi.fn(async () => ({ ok: false as const, reason: "machine_lifecycle_unverified" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await expect(orchestrator.runJob(job.id)).rejects.toMatchObject({ status: 503, code: "appointment_worker_machine_lifecycle_unverified" });
+    expect(repository.jobs[0]).toMatchObject({ status: "appointment_account_required", lastErrorCode: "appointment_worker_machine_lifecycle_unverified" });
+    expect(repository.auditEvents.at(-1)).toMatchObject({ eventType: "appointment_worker_wake_failed", metadataRedactedJson: { error_code: "appointment_worker_machine_lifecycle_unverified" } });
+  });
+
+  it("only an explicit slot check retries the no-slots stage, respecting cooldown", async () => {
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob(undefined, wake);
+    await repository.updateJob(job.id, { status: "appointment_no_slots_available" });
+    await orchestrator.getStatus(APPLICATION_ID);
+    expect(wake).not.toHaveBeenCalled();
+    await orchestrator.checkSlots(job.id);
+    expect(wake).toHaveBeenCalledOnce();
+    await expect(orchestrator.checkSlots(job.id)).rejects.toMatchObject({ code: "slot_check_rate_limited" });
+    expect(wake).toHaveBeenCalledOnce();
+  });
+
+  it("does not wake dry-run, manual, unsupported country, blocked checkpoints, selection or completed stages", async () => {
+    const { job } = await createChinaAssistedLiveJob();
+    for (const patch of [
+      { mode: "dry_run" }, { mode: "manual" }, { applyingCountryCode: "SG" },
+      { schedulingProvider: "ais_usvisa_info" }, { requiresUserAction: true, currentManualAction: "payment" },
+      { status: "appointment_slot_selection_required" }, { status: "appointment_final_confirmation_required" },
+      { status: "appointment_confirmation_captured" }, { status: "appointment_status_checked" },
+    ] as Array<Partial<AppointmentAssistanceJob>>) {
+      expect(isUSAppointmentWorkerEligible({ ...job, ...patch })).toBe(false);
+    }
+    const wake = vi.fn(async () => ({ ok: true as const, duplicate: false, coldStart: "not_configured" as const }));
+    const repository = new InMemoryUSAppointmentRepository();
+    const { orchestrator, job: completedJob } = await createChinaAssistedLiveJob(repository, wake);
+    await repository.updateJob(completedJob.id, { status: "appointment_confirmation_captured" });
+    expect((await orchestrator.resumeJob(completedJob.id)).job?.status).toBe("appointment_confirmation_captured");
+    expect(wake).not.toHaveBeenCalled();
   });
 });

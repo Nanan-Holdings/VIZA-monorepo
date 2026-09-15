@@ -102,3 +102,35 @@ test("guards the SignCertify click when it directly reaches official confirmatio
     await browser.close();
   }
 });
+
+test("stops SignCertify before signing when the saved preparer declaration is missing", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const memory = createMemoryGuard();
+  const tracker = createRecoveryTracker({ runId: "run-preparer", delegate: { async record() {} } });
+  tracker.setApplicationId(APPLICATION_ID);
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      contentType: "text/html",
+      body: `<h2>Sign and Submit Application</h2>
+        <input type="radio" name="unrelated" value="N">
+        <label><input id="ctl00_rblPreparer_0" name="Preparer" type="radio" value="Y">Yes</label>
+        <label><input id="ctl00_rblPreparer_1" name="Preparer" type="radio" value="N">No</label>
+        <input id="passport" type="text">
+        <input type="submit" value="Sign and Submit" onclick="document.body.dataset.clicked='yes'">`,
+    }));
+    await page.goto("https://ceac.state.gov/GenNIV/General/complete_signandsubmit.aspx?node=SignSubmit");
+    const session = { browser, context: page.context(), page, runId: "run-preparer", close: () => browser.close() } satisfies CeacSession;
+    const outcome = await orchestrateFill(session, {
+      answers: {}, profile: {}, tracker,
+      finalSubmit: { passportNumber: "P1234567", finalSubmissionGuard: memory.guard },
+    });
+    assert.equal(outcome.result.status, "failed");
+    assert.equal(await page.locator("input:checked").count(), 0);
+    assert.equal(await page.locator("#passport").inputValue(), "");
+    assert.equal(await page.locator("body").getAttribute("data-clicked"), null);
+    assert.deepEqual(await memory.guard.inspect(), { kind: "available" });
+  } finally {
+    await browser.close();
+  }
+});

@@ -58,49 +58,6 @@ export type UkPaymentAmountCheck =
   | { ok: true; amount: number; currency: string }
   | { ok: false; reason: string };
 
-type CardField = "pan" | "holder" | "expiry" | "expiryMonth" | "expiryYear" | "cvv";
-
-const FIELD_SELECTORS: Record<CardField, readonly string[]> = {
-  pan: [
-    'input[autocomplete="cc-number"]',
-    'input[name="card_number"]',
-    'input[name="cardNumber"]',
-    'input[name*="cardnumber" i]',
-    'input[id*="cardnumber" i]',
-  ],
-  holder: [
-    'input[autocomplete="cc-name"]',
-    'input[name="cardholderName"]',
-    'input[name*="cardholder" i]',
-    'input[id*="cardholder" i]',
-  ],
-  expiry: [
-    'input[autocomplete="cc-exp"]',
-    'input[name="expiry"]',
-    'input[name*="expiry" i]',
-    'input[id*="expiry" i]',
-  ],
-  expiryMonth: [
-    'select[autocomplete="cc-exp-month"]',
-    'select[name="exp_month"]',
-    'select[name*="month" i]',
-    'input[name="exp_month"]',
-  ],
-  expiryYear: [
-    'select[autocomplete="cc-exp-year"]',
-    'select[name="exp_year"]',
-    'select[name*="year" i]',
-    'input[name="exp_year"]',
-  ],
-  cvv: [
-    'input[autocomplete="cc-csc"]',
-    'input[name="cvc"]',
-    'input[name="cvv"]',
-    'input[name*="security" i]',
-    'input[id*="security" i]',
-  ],
-};
-
 function isAllowedPaymentUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -209,86 +166,12 @@ export async function verifyUkPaymentPageAmount(input: {
   });
 }
 
-async function fillFirst(
-  frames: readonly Frame[],
-  selectors: readonly string[],
-  value: string,
-): Promise<boolean> {
-  for (const frame of frames) {
-    for (const selector of selectors) {
-      const locator = frame.locator(selector).first();
-      if ((await locator.count().catch(() => 0)) === 0) continue;
-      if (!(await locator.isVisible().catch(() => false))) continue;
-      const tag = await locator.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
-      if (tag === "select") {
-        const selected = await locator.selectOption(value).then(() => true).catch(() => false);
-        if (selected) return true;
-        const selectedByLabel = await locator.selectOption({ label: value }).then(() => true).catch(() => false);
-        if (selectedByLabel) return true;
-      } else {
-        const filled = await locator.fill(value).then(() => true).catch(() => false);
-        if (filled) return true;
-      }
-    }
-  }
-  return false;
-}
-
 function splitExpiry(expiry: string): { month: string; year: string; shortYear: string } | null {
   const match = /^(0?[1-9]|1[0-2])\s*[/-]\s*(\d{2}|\d{4})$/.exec(expiry.trim());
   if (!match) return null;
   const month = match[1].padStart(2, "0");
   const year = match[2].length === 2 ? `20${match[2]}` : match[2];
   return { month, year, shortYear: year.slice(-2) };
-}
-
-async function fillManagedCard(page: Page, card: UkManagedPaymentCard): Promise<string | null> {
-  const frames = paymentFrames(page);
-  if (frames.length === 0) return "UK payment page did not use an allowlisted UKVI/Worldpay origin";
-  const expiry = splitExpiry(card.expiry);
-  if (!expiry) return "PhotonPay returned an unsupported expiry format";
-
-  const panFilled = await fillFirst(frames, FIELD_SELECTORS.pan, card.pan);
-  const cvvFilled = await fillFirst(frames, FIELD_SELECTORS.cvv, card.cvv);
-  await fillFirst(frames, FIELD_SELECTORS.holder, card.holderName);
-  const combinedExpiryFilled = await fillFirst(
-    frames,
-    FIELD_SELECTORS.expiry,
-    `${expiry.month}/${expiry.shortYear}`,
-  );
-  const monthFilled = combinedExpiryFilled
-    ? true
-    : await fillFirst(frames, FIELD_SELECTORS.expiryMonth, expiry.month);
-  const yearFilled = combinedExpiryFilled
-    ? true
-    : (await fillFirst(frames, FIELD_SELECTORS.expiryYear, expiry.year)) ||
-      (await fillFirst(frames, FIELD_SELECTORS.expiryYear, expiry.shortYear));
-
-  if (!panFilled || !cvvFilled || !monthFilled || !yearFilled) {
-    return "UK payment controls were not fully mapped on the allowlisted payment page";
-  }
-  return null;
-}
-
-async function clickPaymentSubmit(page: Page): Promise<boolean> {
-  const frames = paymentFrames(page);
-  const selectors = [
-    'button:has-text("Pay")',
-    'button:has-text("Make payment")',
-    'button:has-text("Confirm payment")',
-    'input[type="submit"][value*="Pay" i]',
-    'button[type="submit"]',
-  ];
-  for (const frame of frames) {
-    for (const selector of selectors) {
-      const button = frame.locator(selector).first();
-      if ((await button.count().catch(() => 0)) === 0) continue;
-      if (!(await button.isVisible().catch(() => false))) continue;
-      const clicked = await button.click({ timeout: 10_000 }).then(() => true).catch(() => false);
-      if (clicked) return true;
-    }
-  }
-  return false;
 }
 
 function extractReceipt(body: string): string | null {
@@ -333,40 +216,7 @@ export function classifyUkPaymentPage(input: {
 }
 
 export async function payUkWithManagedCard(input: PayUkInput): Promise<PayUkResult> {
-  const timeoutMs = input.timeoutMs ?? 90_000;
-  const amountCheck = await verifyUkPaymentPageAmount(input);
-  if (!amountCheck.ok) {
-    return {
-      status: "review_required",
-      portalReceiptId: null,
-      finalUrl: input.page.url(),
-      reason: amountCheck.reason,
-    };
-  }
-  const fillError = await fillManagedCard(input.page, input.card);
-  if (fillError) {
-    return {
-      status: "review_required",
-      portalReceiptId: null,
-      finalUrl: input.page.url(),
-      reason: fillError,
-    };
-  }
-  if (!(await clickPaymentSubmit(input.page))) {
-    return {
-      status: "review_required",
-      portalReceiptId: null,
-      finalUrl: input.page.url(),
-      reason: "UK payment submit control was not found",
-    };
-  }
-
-  await Promise.race([
-    input.page.waitForLoadState("domcontentloaded", { timeout: timeoutMs }),
-    input.page.waitForTimeout(Math.min(timeoutMs, 15_000)),
-  ]).catch(() => undefined);
-  const bodyText = await input.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-  return classifyUkPaymentPage({ bodyText, finalUrl: input.page.url() });
+  return { status: "review_required", reason: "payment_removed: automated payment has been removed", portalReceiptId: null, finalUrl: input.page.url() };
 }
 
 export const __INTERNALS = {

@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from "react";
+import { startTransition, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useContentAlignment } from "./use-content-alignment";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CircleNotch as Loader2, Check, CaretDown as ChevronDown, ShieldCheck } from "@phosphor-icons/react";
@@ -85,13 +86,12 @@ function localizedSubmissionAccessError(
   rawError: string,
   isZh: boolean,
 ): string {
+  if (code === "application_payment_review_required" || code === "application_payment_required") {
+    return isZh
+      ? "此申请需要进一步人工确认后才能提交，请联系客服。"
+      : "This application needs attention before submission can continue. Contact support for next steps.";
+  }
   if (!isZh) return rawError;
-  if (code === "application_payment_review_required") {
-    return "此申请的付款记录需要人工核对后才能提交。日本 Visit Japan Web 官方服务本身免费，请勿重复付款。";
-  }
-  if (code === "application_payment_required") {
-    return "提交前需要完成适用的 VIZA 服务费及官方费用确认。";
-  }
   if (code === "authentication_required" || /^unauthorized$/i.test(rawError.trim())) {
     return "登录状态已失效，请重新登录后再提交。";
   }
@@ -313,13 +313,6 @@ type LiveAssistedTarget =
   | "jp_vjw"
   | "ke_eta"
   | null;
-
-interface VietnamOneTimePaymentCard {
-  pan: string;
-  expiry: string;
-  cvv: string;
-  holderName: string;
-}
 
 type SubmitCheckState = "idle" | "checking" | "invalid";
 
@@ -1087,7 +1080,6 @@ function FinalConfirmationPanel({
   submissionError: string | null;
   onSubmit: (
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => void | Promise<void>;
 }) {
@@ -1178,7 +1170,6 @@ function FinalConfirmationPanel({
   const submitDisabled = isSubmitting || isChecking || !taiwanTermsReady ||
     (isKoreaEArrivalCard && !koreaPreflightTrusted) ||
     (hasLiveAssistedTarget && !liveAssistedEnabled);
-  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = undefined;
   const submitCopy = forceDryRun
     ? isZh
       ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
@@ -1236,8 +1227,8 @@ function FinalConfirmationPanel({
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
               {isZh
-                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若审核通过后产生官网费用，VIZA 将从本申请专属的官方费用分配中自动支付。"
-                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If an official fee becomes payable after approval, VIZA will pay it from this application's dedicated official-fee allocation."}
+                ? "两项授权会分别记录。确认后，VIZA 将在后台自动完成官网填写、验证码和「确认资料」提交；只有取得官方申请编号才会显示提交成功。若官网后续需要人工处理，系统会在状态中提示下一步。"
+                : "Each authorization is recorded separately. VIZA will complete the official form, CAPTCHA, and final confirmation in the background. Success is shown only after an official application number is verified. If the official portal needs attention later, the status page will show the next step."}
             </p>
           </div>
           <ApplicationCheckbox
@@ -1283,7 +1274,7 @@ function FinalConfirmationPanel({
                 termsModalAccepted: taiwanTermsModalAccepted,
               }
             : undefined;
-          void Promise.resolve(onSubmit(submitMode, officialPaymentCard, taiwanOfficialTermsConsent))
+          void Promise.resolve(onSubmit(submitMode, taiwanOfficialTermsConsent))
             .catch(() => undefined);
         }}
         className={cn(
@@ -1390,17 +1381,8 @@ async function insertSubmissionQueueJob(
     const payload = (await response.json().catch(() => null)) as {
       error?: unknown;
       code?: unknown;
-      checkoutUrl?: unknown;
       missingFields?: unknown;
     } | null;
-    if (
-      response.status === 402
-      && typeof payload?.checkoutUrl === "string"
-      && payload.checkoutUrl
-    ) {
-      window.location.assign(payload.checkoutUrl);
-      throw new Error("Redirecting to checkout.");
-    }
     const rawError = typeof payload?.error === "string"
       ? payload.error
       : `Submission queue creation failed with ${response.status}`;
@@ -1471,7 +1453,6 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   const currentUrl = new URL(window.location.href);
   currentUrl.searchParams.set("applicationId", applicationId);
   currentUrl.searchParams.set("step", "review");
-  currentUrl.searchParams.delete("payment");
   currentUrl.searchParams.delete("orderId");
   const returnTo = `${currentUrl.pathname}${currentUrl.search}`;
   const response = await fetch(`/api/applications/${applicationId}/submission-access`, {
@@ -1482,20 +1463,11 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   const payload = (await response.json().catch(() => null)) as {
     error?: unknown;
     code?: unknown;
-    checkoutUrl?: unknown;
   } | null;
   if (response.ok) return true;
-  if (
-    response.status === 402
-    && typeof payload?.checkoutUrl === "string"
-    && payload.checkoutUrl
-  ) {
-    window.location.assign(payload.checkoutUrl);
-    return false;
-  }
   const rawError = typeof payload?.error === "string"
     ? payload.error
-    : "Submission payment eligibility could not be confirmed.";
+    : "Submission access needs attention before this application can continue.";
   throw new Error(localizedSubmissionAccessError(
     typeof payload?.code === "string" ? payload.code : undefined,
     rawError,
@@ -1503,60 +1475,6 @@ async function prepareSubmissionAccess(applicationId: string, isZh: boolean): Pr
   ));
 }
 
-async function insertOfficialFeeSubmissionQueueJobWithCard(
-  applicationId: string,
-  _card: VietnamOneTimePaymentCard | undefined,
-): Promise<SubmissionQueueJobResult> {
-  const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ paymentMethod: "viza_managed_virtual_card" }),
-  });
-  const payload = (await response.json().catch(() => null)) as {
-    error?: unknown;
-    code?: unknown;
-    errorCode?: unknown;
-    checkoutUrl?: unknown;
-    queueId?: unknown;
-    queueStatus?: unknown;
-    provider?: unknown;
-  } | null;
-  if (!response.ok) {
-    if (
-      (payload?.code === "official_fee_funding_required" ||
-        payload?.errorCode === "official_fee_funding_required" ||
-        payload?.code === "application_payment_required" ||
-        payload?.errorCode === "application_payment_required") &&
-      typeof payload.checkoutUrl === "string"
-    ) {
-      window.location.assign(payload.checkoutUrl);
-      return {
-        scheduled: false,
-        scheduledFor: null,
-        jobId: null,
-        queueStatus: "official_fee_funding_required",
-        provider: "viza_managed_virtual_card",
-        submissionResultStatus: "waiting",
-        submissionResult: null,
-      };
-    }
-    throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : `Official-fee queue creation failed with ${response.status}`,
-    );
-  }
-
-  return {
-    scheduled: false,
-    scheduledFor: null,
-    jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
-    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_cloud_live_pending",
-    provider: typeof payload?.provider === "string" ? payload.provider : "vietnam_evisa_live",
-    submissionResultStatus: "waiting",
-    submissionResult: null,
-  };
-}
 
 type LoadedApplicantProfile = UniversalProfileSnapshot & {
   id?: string | null;
@@ -1746,7 +1664,6 @@ export default function ApplicationPage() {
   const jumpToConfirmation = ["confirmation", "confirm", "status"].includes(searchParams.get("step") ?? "");
   const explicitApplicationId = searchParams.get("applicationId")?.trim() || null;
   const returnToParam = searchParams.get("returnTo")?.trim() || null;
-  const paymentConfirmed = searchParams.get("payment") === "confirmed";
   const isCompanionFlow = Boolean(explicitApplicationId && returnToParam);
   const teamNotice = searchParams.get("teamNotice");
   const explicitCountry =
@@ -1868,7 +1785,6 @@ export default function ApplicationPage() {
   const [documentCenterError, setDocumentCenterError] = useState<string | null>(null);
   const [documentCenterLoaded, setDocumentCenterLoaded] = useState(false);
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
-  const [contentAlignment, setContentAlignment] = useState(0);
   const initialStepResolvedRef = useRef(false);
   const loadDataRequestRef = useRef(0);
   const formAssistantDraftBootstrapRef = useRef<{
@@ -1895,6 +1811,7 @@ export default function ApplicationPage() {
   const submitCheckInFlightRef = useRef(false);
   const hasLiveSaveActivityRef = useRef(false);
   const applicationContentRef = useRef<HTMLElement | null>(null);
+  const contentAlignment = useContentAlignment(applicationContentRef);
   const formAssistantRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRefs = useRef(new Map<number, HTMLDivElement>());
   const documentRequirementNavigationRef = useRef(0);
@@ -1967,36 +1884,6 @@ export default function ApplicationPage() {
 
       target.scrollIntoView({ behavior, block: "start" });
     });
-  }, []);
-
-  useLayoutEffect(() => {
-    const syncNavAlignment = () => {
-      const homeAnchor = Array.from(document.querySelectorAll<HTMLElement>("[data-nav-anchor='Home']"))
-        .find((element) => element.getBoundingClientRect().width > 0);
-      const content = applicationContentRef.current;
-      if (!homeAnchor || !content) return;
-
-      const homeLeft = homeAnchor.getBoundingClientRect().left;
-      setContentAlignment(Math.max(0, homeLeft - content.getBoundingClientRect().left));
-    };
-
-    syncNavAlignment();
-    const alignmentFrame = window.requestAnimationFrame(syncNavAlignment);
-    const alignmentTimer = window.setTimeout(syncNavAlignment, 100);
-    const alignmentObserver = new MutationObserver(syncNavAlignment);
-    alignmentObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-nav-anchor"],
-    });
-    window.addEventListener("resize", syncNavAlignment);
-    return () => {
-      window.cancelAnimationFrame(alignmentFrame);
-      window.clearTimeout(alignmentTimer);
-      alignmentObserver.disconnect();
-      window.removeEventListener("resize", syncNavAlignment);
-    };
   }, []);
 
   useEffect(() => {
@@ -4121,33 +4008,9 @@ export default function ApplicationPage() {
     teamStepIndex,
     useDynamic,
   ]);
-
-  const authorizeVietnamOfficialFeeIfNeeded = useCallback(
-    async (applicationId: string, mode: SubmissionMode) => {
-      if (mode !== "live_assisted" || !isVietnamEVisa) return;
-      const response = await fetch(`/api/applications/${applicationId}/official-fee/authorize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accepted: true }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
-        throw new Error(
-          typeof payload?.error === "string"
-            ? payload.error
-            : isZhInterface
-              ? "官方费用授权失败，请稍后重试。"
-              : "Official fee authorization failed. Please try again.",
-        );
-      }
-    },
-    [isVietnamEVisa, isZhInterface],
-  );
-
   // ── Dynamic-mode review complete handler ────────────────────────────
   const handleDynamicReviewComplete = async (
     mode: SubmissionMode = "dry_run",
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     setSaving(true);
@@ -4199,29 +4062,24 @@ export default function ApplicationPage() {
           : "Please complete the missing information listed at the end of Review Application.");
       }
       if (!isJpTourist && !isKrC39) {
-        const queueJob = mode === "live_assisted" && isVietnamEVisa
-          ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
-          : await (async () => {
-              await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-              // Standard automated-submission countries enqueue a job for the
-              // submission-service worker to drive the per-country portal.
-              return insertSubmissionQueueJob({
-                applicationId,
-                country: resolvedCountry,
-                visaType: resolvedVisaType,
-                mode,
-                createdAt: new Date().toISOString(),
-                locale,
-                // Japan must validate and enqueue the exact snapshot visible
-                // on final review. The API durably writes this snapshot before
-                // it reads answers or creates a runner job, eliminating the
-                // autosave/outbox race at the submission boundary.
-                answerSnapshot: isJapanVjwApplication
-                  ? submissionAnswerSnapshot
-                  : undefined,
-                taiwanOfficialTermsConsent,
-              });
-            })();
+        // Standard automated-submission countries enqueue a job for the
+        // submission-service worker to drive the per-country portal.
+        const queueJob = await insertSubmissionQueueJob({
+          applicationId,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+          mode,
+          createdAt: new Date().toISOString(),
+          locale,
+          // Japan must validate and enqueue the exact snapshot visible
+          // on final review. The API durably writes this snapshot before
+          // it reads answers or creates a runner job, eliminating the
+          // autosave/outbox race at the submission boundary.
+          answerSnapshot: isJapanVjwApplication
+            ? submissionAnswerSnapshot
+            : undefined,
+          taiwanOfficialTermsConsent,
+        });
         const submittedAt = new Date().toISOString();
         queueAccepted = true;
         // The route has now returned a durable queue/job result. Only at this
@@ -4331,7 +4189,6 @@ export default function ApplicationPage() {
 
   const handleReviewComplete = async (
     mode: SubmissionMode = "dry_run",
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     setSaving(true);
@@ -4407,20 +4264,15 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const queueJob = mode === "live_assisted" && isVietnamEVisa
-        ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
-        : await (async () => {
-            await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-            return insertSubmissionQueueJob({
-              applicationId,
-              country: resolvedCountry,
-              visaType: resolvedVisaType,
-              mode,
-              createdAt: new Date().toISOString(),
-              locale,
-              taiwanOfficialTermsConsent,
-            });
-          })();
+      const queueJob = await insertSubmissionQueueJob({
+        applicationId,
+        country: resolvedCountry,
+        visaType: resolvedVisaType,
+        mode,
+        createdAt: new Date().toISOString(),
+        locale,
+        taiwanOfficialTermsConsent,
+      });
 
       const submittedAt = new Date().toISOString();
       setAppState((prev) => ({
@@ -4487,11 +4339,9 @@ export default function ApplicationPage() {
   const checkAndSubmit = async (
     submit: (
       mode: SubmissionMode,
-      vietnamPaymentCard?: VietnamOneTimePaymentCard,
       taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
     ) => void | Promise<void>,
     mode: SubmissionMode,
-    vietnamPaymentCard?: VietnamOneTimePaymentCard,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
     if (saving || submitCheckInFlightRef.current || submitCheckState === "checking") return;
@@ -4536,7 +4386,7 @@ export default function ApplicationPage() {
           return;
         }
         setSubmitCheckState("idle");
-        await submit(mode, vietnamPaymentCard, taiwanOfficialTermsConsent);
+        await submit(mode, taiwanOfficialTermsConsent);
       } catch (submitAccessError) {
         setSubmitCheckState("invalid");
         const requestError = submitAccessError as SubmissionQueueRequestError;
@@ -4563,7 +4413,7 @@ export default function ApplicationPage() {
         setError(
           submitAccessError instanceof Error
             ? localizeApplicationAuthError(submitAccessError.message, isZhInterface)
-            : "Submission payment eligibility could not be confirmed.",
+            : "Submission access needs attention before this application can continue.",
         );
       }
     } finally {
@@ -4872,6 +4722,12 @@ export default function ApplicationPage() {
     );
   }
 
+  if (isDs160Application && !useDynamic) {
+    // A generic intake cannot represent DS-160 fields or their branches.
+    // Use the existing error boundary instead of accepting unrelated answers.
+    throw new Error("DS-160 form schema is unavailable. Please reload the application.");
+  }
+
   if (koreaSchemaUnavailable) {
     return <KoreaArrivalCardSchemaUnavailableNotice isZh={isZhInterface} />;
   }
@@ -4931,18 +4787,6 @@ export default function ApplicationPage() {
               {pageTitle}
             </h1>
           </header>
-
-          {paymentConfirmed && jumpToReview ? (
-            <Alert variant="info" className="mb-5">
-              <AlertIcon variant="info" />
-              <AlertTitle>{isZhInterface ? "付款已确认" : "Payment confirmed"}</AlertTitle>
-              <AlertDescription>
-                {isZhInterface
-                  ? "费用已到账。请复核申请内容，并再次明确点击提交；系统不会自动向官网提交。"
-                  : "Your payment is confirmed. Review the application and explicitly submit again; VIZA will not file it automatically."}
-              </AlertDescription>
-            </Alert>
-          ) : null}
 
           {showFormFillingAssistant ? (
             <div ref={formAssistantRef} className="scroll-mt-4">
@@ -5222,8 +5066,8 @@ export default function ApplicationPage() {
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
                                   submissionError={error}
-                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
-                                    checkAndSubmit(handleDynamicReviewComplete, mode, paymentCard, taiwanConsent)}
+                                  onSubmit={(mode, taiwanConsent) =>
+                                    checkAndSubmit(handleDynamicReviewComplete, mode, taiwanConsent)}
                                 />
                               ) : null}
                             </div>
@@ -5363,8 +5207,8 @@ export default function ApplicationPage() {
                                   submittingMode={saving ? submittingMode ?? "dry_run" : null}
                                   submitCheckState={submitCheckState}
                                   submissionError={error}
-                                  onSubmit={(mode, paymentCard, taiwanConsent) =>
-                                    checkAndSubmit(handleReviewComplete, mode, paymentCard, taiwanConsent)}
+                                  onSubmit={(mode, taiwanConsent) =>
+                                    checkAndSubmit(handleReviewComplete, mode, taiwanConsent)}
                                 />
                               ) : null}
                             </div>

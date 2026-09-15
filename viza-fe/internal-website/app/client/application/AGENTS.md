@@ -34,6 +34,11 @@ Before changing this route, read:
 
 ## Key Files
 
+- `long-form/use-content-alignment.ts` batches navigation alignment measurements
+  into animation frames and skips unchanged geometry before dispatching React
+  state. Portal DOM mutations must not trigger synchronous render loops.
+  `long-form/__tests__/content-alignment.test.tsx` covers repeated mutations,
+  resize updates and observer cleanup.
 - `page.tsx`: route entry and application flow coordinator. It resolves query params, loads draft application state, chooses DB-driven versus fallback steps, and appends supporting-documents/review/status steps.
   The normal form-context action preloads answers for the exact returned
   application to avoid a duplicate ownership/read round trip. Reuse those
@@ -145,6 +150,8 @@ Before changing this route, read:
 21. Never select `VIZA_PLACEHOLDER_DRY_RUN` records as a customer's active
     application. Synthetic QA answer markers must block queue creation and must
     not be saved or reused as applicant information.
+    DS-160 also requires its DB-driven schema: an unavailable schema must use
+    the existing page error boundary instead of exposing the generic intake.
 22. Parse application query parameters through the shared escaped-parameter
     reader. For a dedicated country product, the product code is authoritative
     for country resolution; never combine its schema with an unrelated route,

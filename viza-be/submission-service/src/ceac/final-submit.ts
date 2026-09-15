@@ -4,12 +4,20 @@ import { CEAC_APPLICATION_ID_PATTERN, CEAC_SIGN_AND_SUBMIT_MARKERS } from "./sel
 import { detectPage, isOfficialDs160ConfirmationPage } from "./pages";
 import { detectSignAndSubmit } from "./stop-at-sign";
 import type { Ds160FinalSubmissionGuard } from "./final-submission-guard";
+import {
+  applyExplicitPreparerAnswer,
+  fillVerifiedPassportSignature,
+  type Ds160PreparerAnswers,
+} from "./signature-fields";
 
 const FINAL_CAPTCHA_INPUT_SELECTOR =
   'input[id*="CaptchaCodeTextBox"], input[id*="IdentifyCaptcha"][type="text"], input[id*="captcha" i][type="text"], input[name*="captcha" i]';
 
 export interface FinalSubmitOptions {
   passportNumber: string;
+  /** Applicant-saved explicit preparer answer; a visible control requires it. */
+  savedPreparerAssistance?: string;
+  savedPreparerDetails?: Ds160PreparerAnswers;
   /** Expected CEAC Application ID; confirmation must contain this exact ID. */
   applicationId?: string | null;
   /** Maximum time to wait for official confirmation after the one click. */
@@ -50,9 +58,8 @@ export async function signAndSubmitApplication(
     throw new Error("confirmationTimeoutMs must be a positive number.");
   }
 
-  const signatureInput = page.locator(CEAC_SIGN_AND_SUBMIT_MARKERS.passportSignatureSelector).first();
-  await signatureInput.waitFor({ state: "visible", timeout: 10_000 });
-  await signatureInput.fill(options.passportNumber.trim());
+  await applyExplicitPreparerAnswer(page, options.savedPreparerAssistance, options.savedPreparerDetails);
+  await fillVerifiedPassportSignature(page, options.passportNumber);
 
   const captchaImage = page.locator(CEAC_SIGN_AND_SUBMIT_MARKERS.captchaSelector).first();
   if ((await captchaImage.count()) > 0 && (await captchaImage.isVisible().catch(() => false))) {

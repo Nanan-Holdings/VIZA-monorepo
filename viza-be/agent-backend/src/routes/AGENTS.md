@@ -31,15 +31,16 @@ and internal admin flows.
 - `user-packages.routes.ts`: package/destination APIs.
 - `internal-automation/**`: external status ingest, packet handoff, lifecycle
   summaries, and website automation admin/customer APIs.
-- `official-fee.routes.ts`: official visa fee quote, consent, dry-run/manual
-  payment intent, approval, execution, retry, and status APIs.
+- `official-fee.routes.ts`: retained historical official-fee API source. Its
+  routers are no longer mounted by `src/app.ts`; database payment execution is
+  disabled by migration `0194_disable_payment_execution.sql`.
 - `us-appointment.routes.ts`: U.S. B1/B2 appointment consent, dry-run job,
   manual checkpoint, slot selection, final approval, mock booking, and
   user-triggered status/slot check APIs.
 - `france-appointment.routes.ts`: France Schengen TLScontact China consent,
-  job creation, user-triggered slot check, observed-slot selection, redacted
-  payment authorization, final approval, booking request, cancellation, and
-  status APIs.
+  job creation, user-triggered slot check, observed-slot selection, final
+  approval, booking request, cancellation, and status APIs. Payment-session
+  authorization is not exposed.
 - `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
   applicant bearer-token verification in browser-facing backend routes.
 - `request-abort.ts`: converts HTTP upload aborts and premature response closes

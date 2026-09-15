@@ -110,7 +110,7 @@ describe("application submit navigation", () => {
     const queueHelper = sourceBetween(
       pageSource,
       "async function insertSubmissionQueueJob",
-      "async function insertOfficialFeeSubmissionQueueJobWithCard",
+      "async function prepareSubmissionAccess",
     );
 
     expect(queueHelper).toContain("kr_eac_stay_address_required");

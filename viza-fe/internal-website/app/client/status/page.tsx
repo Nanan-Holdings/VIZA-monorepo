@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 
 const LIST_TONE: Record<ClientStatusState, ApplicationListTone> = {
   not_started: "brand",
-  needs_payment: "alert",
+  needs_payment: "warn",
   needs_consent: "warn",
   in_progress: "brand",
   needs_documents: "warn",
@@ -72,7 +72,7 @@ function statusLabel(
   state: ClientStatusState,
   t: Awaited<ReturnType<typeof getTranslations>>
 ): string {
-  return t(`states.${state}`);
+  return t(`states.${state === "needs_payment" ? "needs_attention" : state}`);
 }
 
 function toApplicationListItem(

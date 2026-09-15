@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { VnSubmissionResult } from "@/lib/submission-result";
 import { VnResultCard } from "../VnResultCard";
@@ -7,31 +7,11 @@ vi.mock("next-intl", () => ({
   useLocale: () => "zh",
 }));
 
-type Deferred<T> = {
-  promise: Promise<T>;
-  reject: (reason?: unknown) => void;
-  resolve: (value: T) => void;
-};
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, reject, resolve };
-}
-
-function createResponse(body: unknown, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  };
-}
-
-const paymentResult: VnSubmissionResult = {
+const feeCheckpointResult: VnSubmissionResult = {
   country: "VN",
   status: "stopped_at_pay",
   mode: "live_assisted",
@@ -41,117 +21,76 @@ const paymentResult: VnSubmissionResult = {
   paymentStatus: "manual_required",
 };
 
-async function flushEffects() {
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-}
-
-async function advanceAndFlush(milliseconds: number) {
-  await act(async () => {
-    vi.advanceTimersByTime(milliseconds);
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-}
-
-function setVisibility(value: "visible" | "hidden") {
-  Object.defineProperty(document, "visibilityState", {
-    configurable: true,
-    value,
-  });
-}
-
-function statusRequestCount(fetchMock: ReturnType<typeof vi.fn>) {
-  return fetchMock.mock.calls.filter(([input]) =>
-    String(input).endsWith("/official-fee/status"),
-  ).length;
-}
-
-describe("VnResultCard payment status polling", () => {
-  afterEach(() => {
-    cleanup();
-    Reflect.deleteProperty(document, "visibilityState");
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
-  });
-
-  it("coalesces visibility resume while fetch and its response body are pending", async () => {
-    vi.useFakeTimers();
-    setVisibility("visible");
-    const response = deferred<ReturnType<typeof createResponse>>();
-    const body = deferred<Record<string, unknown>>();
-    const fetchMock = vi.fn(() => response.promise);
+describe("VnResultCard payment-free checkpoint", () => {
+  it("shows neutral attention copy without polling or payment controls", () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
-    expect(statusRequestCount(fetchMock)).toBe(1);
+    render(<VnResultCard applicationId="app-vn" result={feeCheckpointResult} />);
 
-    setVisibility("hidden");
-    document.dispatchEvent(new Event("visibilitychange"));
-    setVisibility("visible");
-    document.dispatchEvent(new Event("visibilitychange"));
-    await advanceAndFlush(0);
-    expect(statusRequestCount(fetchMock)).toBe(1);
-
-    response.resolve(createResponse(body.promise));
-    await flushEffects();
-    expect(statusRequestCount(fetchMock)).toBe(1);
-
-    setVisibility("hidden");
-    document.dispatchEvent(new Event("visibilitychange"));
-    setVisibility("visible");
-    document.dispatchEvent(new Event("visibilitychange"));
-    await advanceAndFlush(0);
-    expect(statusRequestCount(fetchMock)).toBe(1);
-
-    body.resolve({ paymentQueued: false });
-    await flushEffects();
-    await advanceAndFlush(4_999);
-    expect(statusRequestCount(fetchMock)).toBe(1);
-    await advanceAndFlush(1);
-    expect(statusRequestCount(fetchMock)).toBe(2);
+    expect(screen.getAllByText("需要处理")).toHaveLength(2);
+    expect(
+      screen.getByText("需要处理，VIZA 自动付款已移除。请联系支持人员确认官方流程的下一步。"),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/虚拟卡|自动付款处理中|官方费用/u)).not.toBeInTheDocument();
   });
 
-  it("aborts the owned request at its deadline and does not schedule after cleanup", async () => {
-    vi.useFakeTimers();
-    setVisibility("visible");
-    const request = deferred<ReturnType<typeof createResponse>>();
-    let signal: AbortSignal | undefined;
-    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
-      signal = init?.signal ?? undefined;
-      return request.promise;
+  it("keeps a legacy registration code visible while hiding fee handling", () => {
+    render(
+      <VnResultCard
+        applicationId="app-vn"
+        result={{ ...feeCheckpointResult, registrationCode: "VN-REG-123" }}
+      />,
+    );
+
+    expect(screen.getByText("VN-REG-123")).toBeInTheDocument();
+    expect(screen.getByText("官网登记编号")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("retains completion for a non-payment manual action", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        manualActions: [{
+          id: "manual-action-id",
+          actionType: "captcha_required",
+          status: "pending",
+          instruction: "Complete the official CAPTCHA.",
+          screenshotUrl: "/private/captcha.png",
+        }],
+      }),
     });
     vi.stubGlobal("fetch", fetchMock);
+    const result: VnSubmissionResult = {
+      country: "VN",
+      status: "captcha_required",
+      mode: "live_assisted",
+      provider: "vietnam_evisa_live",
+      manualAction: {
+        type: "captcha_required",
+        status: "open",
+        instructions: "Complete the official CAPTCHA.",
+      },
+    };
 
-    const view = render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
-    expect(signal).toBeDefined();
-    await advanceAndFlush(5_000);
-    expect(signal?.aborted).toBe(true);
+    render(<VnResultCard applicationId="app-vn" jobId="job-vn" result={result} />);
 
-    view.unmount();
-    request.resolve(createResponse({ paymentQueued: false }));
-    await flushEffects();
-    await advanceAndFlush(60_000);
-    expect(statusRequestCount(fetchMock)).toBe(1);
-  });
+    const completeButton = await screen.findByRole("button", { name: "我已在官网完成，继续" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/submissions/job-vn/manual-actions", {
+      cache: "no-store",
+    });
+    fireEvent.click(completeButton);
 
-  it("stops polling after a paid status response", async () => {
-    vi.useFakeTimers();
-    setVisibility("visible");
-    const fetchMock = vi.fn().mockResolvedValue(
-      createResponse({
-        paymentQueued: false,
-        receipt: { receipt_number: "VN-PAID-1" },
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
-    await flushEffects();
-    expect(statusRequestCount(fetchMock)).toBe(1);
-    await advanceAndFlush(60_000);
-    expect(statusRequestCount(fetchMock)).toBe(1);
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/submissions/job-vn/manual-actions/manual-action-id/complete",
+        { method: "POST" },
+      );
+    });
   });
 });

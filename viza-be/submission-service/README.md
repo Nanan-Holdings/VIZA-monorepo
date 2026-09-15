@@ -124,6 +124,29 @@ available; do not claim every retrieval credential is necessarily user-supplied.
 
 ## USVisaScheduling appointment runner
 
+Explicit VIZA appointment actions wake `POST /internal/us-appointment/wake`
+with `Authorization: Bearer <US_APPOINTMENT_INTERNAL_TOKEN>` and a JSON
+`jobId`. The endpoint accepts one persisted live China USVisaScheduling job,
+after startup and capacity-lease readiness, using migration 0193's atomic claim.
+HTTP 202 means admission succeeded; it is not an official appointment result.
+Duplicate calls share admission. Worker shutdown cancels queued claims;
+ambiguous started claims remain held instead of replaying an official action.
+The execution deadline includes queue wait. A browser that cannot stop within
+the cleanup deadline makes the worker unhealthy and exits the machine.
+
+The backend requires `US_APPOINTMENT_SUBMISSION_SERVICE_URL` and the matching
+`US_APPOINTMENT_INTERNAL_TOKEN`; both sides also accept the existing shared
+`SUBMISSION_QUEUE_INTERNAL_TOKEN` when no appointment-specific token is set.
+For an existing on-demand Fly pool machine, configure
+`US_APPOINTMENT_FLY_APP`, `US_APPOINTMENT_FLY_MACHINE_ID`, and the organization
+`FLY_SUBMISSION_ORG_TOKEN`. The target URL must match that Fly app. The backend
+verifies `RUNNER_MACHINE_KIND=pool` and a positive idle TTL no greater than one
+hour before starting the exact existing machine and sending an instance-pinned
+wake. It never creates or scales machines. Keep the existing pool sizing and
+120-second idle setting. Enable the US live and Playwright flags on the worker
+only after its secrets, claim RPCs, and portal configuration are verified.
+Page/status reads do not wake or restart jobs.
+
 `src/us-appointment/runner.ts` is restricted by default to `CN` and
 `usvisascheduling`. It persists the review/consent, account or verification
 checkpoint, current official slot observations, selected slot, final approval,
@@ -169,22 +192,58 @@ email verification succeeds. The account becomes active only when creation is
 confirmed by the provider. Existing created/active/verified accounts are refused;
 use the login diagnostic for those accounts. A paused or unconfirmed operation
 returns a nonzero exit code. All browser sessions close on completion or error.
-The command stops after account registration; scheduling and payment are separate.
+By default the command stops after account registration. Use
+`--continue-to-appointment` to prepare the appointment flow in the same browser
+after registration is confirmed. This does not select a slot or pay/book.
 `--credential-config <env-file>` selects the existing account writer's encryption
 key for this process, as in the login diagnostic.
 
-Validation baseline (2026-09-14): a real Browserbase session reached the public
-registration form. The selected existing China account was rejected by the
-official login form as invalid credentials. No official appointment was booked.
-Registration's send/verify/create path and failure boundaries are covered by
-local Chromium fixtures. The application-bound command also refused the selected
-existing application's non-registration checkpoint before opening a browser.
-No new real official account was created during implementation validation.
-Live recovery reconnaissance reached the official Reset Password form, which
-requires username and email verification. The selected legacy account uses
-`haggstorm.com`; DNS and independent DNS-over-HTTPS checks returned no usable
-MX/NXDOMAIN on 2026-09-14. Its current mailbox cannot receive recovery codes.
-Registration now verifies bound-inbox routing before any official browser work.
+Live validation (2026-09-14 UTC): after explicit user authorization, the selected
+China application received a new application-scoped `viza.it.com` account while
+the legacy `haggstorm.com` record and credentials were retained. Real official
+verification mail arrived through the managed inbox, its code was verified,
+and account creation plus subsequent login/security questions were confirmed.
+The official authenticated profile and visible Sign out control were observed
+before the account was saved as active. Privacy/confidentiality initialization,
+contact email, China country and English portal language were completed. Profile
+Update redirected to the official home; Start Application opened
+`/en-US/applicant_details/`. No appointment, payment or confirmation was made.
+The applicant-details adapter binds contact, address, passport and identity
+fields from this application's owned answers/profile. It checks completeness
+before filling and reports fields requiring review. The selected live application
+needs a mobile calling code and reconciliation of conflicting passport number
+and birth-date records before that official page can be submitted.
+
+Live findings are reflected in code: the B2C password policy is 8–16 characters,
+the send-code widget can appear after network idle, and Cloudflare waiting-room
+admission must retain the same browser rather than reset its queue position.
+Creation submissions whose login/evidence remains unresolved are persisted as
+`registration_submitted` and cannot be registered again automatically.
+Local Chromium tests cover these transitions and profile ownership/field guards.
+Registration verifies bound-inbox routing before official browser work.
+
+To exercise the entire placeholder scenario with the production Playwright client
+and job runner, without using an official account:
+
+```powershell
+npm run us-appointment:placeholder-flow
+# Optional visible browser:
+npm run us-appointment:placeholder-flow -- --headed
+```
+
+The command covers registration/OTP, login, profile, Applicant Details, simulated
+visa/delivery/payment pages, observed slots, separate selection and final approval,
+confirmation capture, duplicate prevention, and status reading. Every browser HTTP
+request is intercepted and fulfilled by a loopback fixture. Local redirects create
+fresh intercepted navigations; a loopback-only proxy rejects escaped connections.
+Separate negative controls verify both protections. The apparent official browser
+URL is synthetic and never contacted. The command loads no environment file, credentials,
+saved session or database repository. Screenshots and `result.json` are written to
+ignored `output/playwright/us-appointment-placeholder/<timestamp>/`.
+
+Visa options, delivery, payment, email delivery, VIZA user actions and persistence
+are explicitly simulated. This is a runnable regression scenario, not evidence of
+live payment/booking, frontend integration or parity with unobserved official pages.
 The portal-to-worker wake integration is also incomplete: US jobs live in
 `appointment_assistance_jobs`, and state updates alone do not wake the shared
 `runner_job` consumer. The login diagnostic and local Chromium tests therefore

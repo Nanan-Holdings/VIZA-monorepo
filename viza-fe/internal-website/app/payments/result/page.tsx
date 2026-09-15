@@ -1,12 +1,6 @@
-import { PaymentResult } from "./payment-result";
+import { redirect } from "next/navigation";
 
-interface PaymentResultPageProps {
-  searchParams?: Promise<{ paymentId?: string | string[] }>;
-}
-
-export default async function PaymentResultPage({ searchParams }: PaymentResultPageProps) {
-  const params = await searchParams;
-  const value = params?.paymentId;
-  const paymentId = Array.isArray(value) ? value[0] ?? null : value ?? null;
-  return <PaymentResult paymentId={paymentId} />;
+/** Legacy compatibility route: payment results have been retired. */
+export default function PaymentResultPage() {
+  redirect("/client/status");
 }

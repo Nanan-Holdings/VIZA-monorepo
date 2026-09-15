@@ -4,11 +4,23 @@
 
 这份报告描述的是 VIZA 内部的 seed → derivation → CEAC mapping 契约。它不能证明字段标签、选项值、必填规则、选择器、页面跳转或重复项行为与 CEAC 官网一致。修复后的状态为 **内部契约通过，官方完整 parity 未验证**。新增字段必须在实际页面定位、填写并回读成功，才构成该字段在当前分支的运行证据。
 
-当前已在线通过 CAPTCHA 和两阶段恢复流程取回匹配的历史官方确认页；这证明历史提交存在，不代表产生了本次新提交。以下未激活分支仍未获得逐项官网证据。[Smoke 文档](ceac-smoke-test.md)区分本地回归、恢复验证和真实提交验证。
+当前已在线通过 CAPTCHA 和两阶段恢复流程取回匹配的历史官方确认页；这证明历史提交存在，不代表产生了本次新提交。2026-09-14 22:54 UTC 已在真实前端点击新申请的提交按钮，收到 HTTP 402 / `application_payment_required`：VIZA 要求配置 185 美元官方费用，服务费已免除。数据库核验未产生递交队列、官方申请号或新提交结果。这是 VIZA 的付款关卡，不是 CEAC 提交成功的证据。以下未激活分支仍未获得逐项官网证据。[Smoke 文档](ceac-smoke-test.md)区分本地回归、恢复验证和真实提交验证。
+
+实际审阅页还暴露了 React 19 与旧版 Radix Select/Slot 的 ref 更新循环。已升级 `@radix-ui/react-select` 至 2.3.7、`@radix-ui/react-slot` 至 1.3.3，使用官方修复；没有保留临时 node_modules 补丁。真实审阅页稳定加载后完成了上述点击。新增 canonical Select 回归测试验证父组件重渲染和选项更新不会让稳定 ref detach，也不会丢失已选值。付款跳转过程中仍记录到一次 passive-effect 更新警告，付款完成后的全程尚未验证。[Radix 修复 PR](https://github.com/radix-ui/primitives/pull/3899)、[Select changelog](https://github.com/radix-ui/primitives/blob/main/packages/react/select/CHANGELOG.md)。
+
+新增必填检查覆盖当前已激活字段和每个已保存的重复行，并在创建官方申请之前运行。申请人于 2026-09-15 明确回答协助填写声明为 No；该答案已保存，当前 293 项保存答案通过必填与分支检查。回答 Yes 时仍需相应的真实填写人资料。检查不会把空答案补成 No、NA 或任意日期。
+
+2026-09-15 07:49 UTC 再次从真实审阅页点击提交：限定单申请、非生产环境的本地付款例外使 `submission-access` 返回 200，但 `retry-submission` 返回 500。数据库仍无队列和新官方申请号；独立的数据库付款 trigger 拒绝了未付款入队，HTTP 放行不足以跑通真实流程。费用记录保持原有待付款状态。07:52 UTC 重新通过 Browserbase 到达官方开始页，页面判定为 `start`、无安全拦截；这仍不构成新提交或完整字段 parity 的证据。
+
+原 seed 没有收集签名页的协助填写声明及其 Yes 分支。现在本地新增 Step 22 共 11 字段，覆盖声明、姓名、机构、地址和关系；运行器要求明确答案，先选国家，再填地址，并在所有回发后逐字段回读。护照签名输入也改为唯一明确字段定位和精确回读。字段参考 [2014 年政府 DS-160 截图第 41 页](https://www.reginfo.gov/public/do/DownloadDocument?objectID=49797701)；该静态截图不能证明姓名区 NA checkbox 的实际 DOM 作用域。当前采用 Given Names 的保守候选契约，遇到共享控件、歧义或非预期禁用行为会停止，仍需当前官网 DOM 核验。[国务院 DS-160 FAQ](https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/forms/ds-160-online-nonimmigrant-visa-application/ds-160-faqs.html)说明第三方协助的披露要求。
+
+Step 22 的 seed 已改为按 `(visa_type, field_name)` upsert，保留已有字段标识，不再全量删除。新增字段尚未写入共享数据库，代码也未发布；应与新版运行器一起上线，避免旧运行器忽略 Yes 答案。中英文步骤标签已补齐。
+
+照片读取也补齐了账号复用路径：本次申请没有任何照片上传行时，worker 只查询同一申请人的 Universal Profile 可用照片，按更新时间选择一个文件；本次申请已有的照片行（包括 rejected）仍优先，不会被账号文件覆盖。2026-09-14 23:26 UTC 已对实际账号验证可选照片存在且其精确 Storage 对象存在，没有下载文件内容或创建申请材料行。此修复解决了“前端认为账号材料已齐、worker 却只读取 application_documents”的差异。
 
 ## 范围与权威来源
 
-- 字段权威来源：`viza-be/agent-backend/scripts/seed-ds160-form-fields.ts:45` 的 `FIELDS`。解析得到 325 个字段，包含 1–16 步直接字段和 17–21 步安全背景自动生成的 Yes/No 问题及说明字段（生成逻辑位于 `:3279-3366`）。
+- 内部字段来源：`viza-be/agent-backend/scripts/seed-ds160-form-fields.ts` 的 `FIELDS`。解析得到 336 个字段，包含 1–16 步直接字段、17–21 步安全背景生成字段和第 22 步协助填写声明。
 - Mapping 来源：`src/ds160-form-mappings.ts` 与 `src/ds160-extended-mappings.ts` 的 18 个页面组，共 379 个唯一 mapping key。新增候选选择器保留未验证标记。
 - 归一化来源：`viza-be/submission-service/src/ds160-derive-answers.ts:41-121, 472-490`。日期拆分、NA 标志和旧字段别名在运行时加载答案后才出现。
 - 分支/重复组解析：`viza-be/submission-service/src/ds160-parity.ts`。报告使用审计脚本 `scripts/audit-ds160-field-parity.ts --json` 的 `branches`、`repeatGroups`、`missingRunnerInputs` 和 `unconsumedFields` 结构。
@@ -28,9 +40,10 @@ npx ts-node scripts/audit-ds160-field-parity.ts --json
 
 | 项目 | 数量/状态 |
 | --- | ---: |
-| `fieldCount` | 325 |
+| `fieldCount` | 336 |
 | `mappingCount` | 379 |
-| `conditionalBranchCount` | 76 |
+| `signatureFieldCount` | 11 |
+| `conditionalBranchCount` | 77 |
 | `repeatGroups.length` | 23 |
 | `missingRunnerInputs.length`（归一化后） | 0 |
 | `missingFixtureInputs.length`（当前 fixture 分支） | 0 |
@@ -40,7 +53,7 @@ npx ts-node scripts/audit-ds160-field-parity.ts --json
 
 > 可复现性备注：当前工作树的 `--json` 命令返回 exit 0。下方保留修复前的 177 字段差异清单作为历史基线；这些字段现在均有声明的运行时消费者。
 
-修复前 177 个未消费字段中，175 个属于下表的条件分支，另外 2 个没有 `showIf`：`secondary_phone`、`has_other_social_media`。本轮补齐 201 个映射键、严格日期拆分、325 字段运行时契约和 23 个重复组的浏览器适配。`passed: true` 只证明内部字段消费关系闭合；官网完整 parity 仍为 false。
+修复前 177 个未消费字段中，175 个属于下表的条件分支，另外 2 个没有 `showIf`：`secondary_phone`、`has_other_social_media`。本轮补齐 201 个映射键、严格日期拆分、336 字段运行时契约和 23 个重复组的浏览器适配。`passed: true` 只证明内部字段消费关系闭合；官网完整 parity 仍为 false。
 
 ## 修复前分支差异基线
 
@@ -217,15 +230,28 @@ npx ts-node scripts/audit-ds160-field-parity.ts --json
 
 | 检查 | 结果 |
 | --- | --- |
-| DS-160 / CEAC 聚焦回归（含本地 Playwright DOM） | 101/101 通过 |
+| DS-160 / CEAC 聚焦回归（含本地 Playwright DOM） | 128/128 通过 |
 | 本轮已修改的跟踪文件 `git diff --check` | 通过 |
-| 全包 `npm run type-check` | 通过 |
+| 全包 `npm run type-check` | submission-service、frontend、agent-backend 均通过 |
+| Lint | frontend / agent-backend 均无错误；分别保留 58 / 1 个既有警告 |
+| Canonical Select 稳定 ref 回归 | 通过；父级重渲染、选项更新不丢失值 |
+| 真实账号复用照片元数据与对象存在性 | 通过；未下载文件内容 |
 | 内部字段/分支审计 | 通过，0 个未消费字段 |
 | 历史 CEAC 申请在线取回 | 通过 CAPTCHA、两阶段取回及匹配申请号的官方确认控件核验 |
 | 官方全页面、分支、重复组与本轮真实提交 | 未验证 |
 
 - `officialParityVerified` 必须保持 `false`，直到每个 CEAC 页面都有带官方 DOM 证据的字段/选项/分支检查。
 - 历史确认页取回成功只证明历史提交存在。本轮新申请尚未得到官方提交结果，也没有全分支和全部重复组的真实官网证据。
-- 新申请已从真实前端操作建立并复制保存答案；提交资格接口返回 `application_payment_required`，要求为新申请配置官方费用。不得绕过付款边界直接插入队列。
+- 2026-09-15 用户明确要求暂缓 VIZA 付款后，迁移 `0192_ds160_local_payment_deferral.sql` 提供仅限本地、指定申请、4 小时内且绑定首个 DS-160 队列的例外；原费用记录仍为待付款，正常官方付款及预约资格不变。真实前端 Submit 于 09:55 UTC 返回 200 并创建队列，已观察到页面提交进度和 worker 领取。
+- 本次真实操作发现并修复了原文姓名被翻译别名覆盖、通用材料回退错误要求银行流水/行程单、起始安全验证过渡页被误判等问题。原文姓名按官网规则保留本国语言；DS-160 通用材料回退只强制照片，显式套餐材料规则仍优先。
+- 10:41 UTC 官网创建本次申请号并进入 Personal Information 1，但恢复记录写入使用了不存在的 `submission_queue.official_started_at`，因此安全停止。恢复密钥已从同一 Browserbase 会话的受保护诊断中提取、加密保存，且取回页安全问题与同一申请号已核验。继续使用原队列和原官方申请，未再次创建草稿。
+- 当前仍未取得本次官方最终提交确认。先前 128 项通过是本地契约/DOM 回归结果，不能代替新一次官方提交；后续运行结果应追加记录。
+- 11:07 UTC 前的同号恢复核验表明：Personal Information 1 尚未保存，官网拒绝姓氏/出生年份匹配，留空又被必填规则拒绝。旧草稿保持未签名，恢复资料和错误记录保留；用户随后明确批准保留旧记录并新建替代申请。修复后的确认页在 Continue 前加密保存恢复资料，保存失败不翻页；本轮完整本地 DS-160 回归为 136/136。
+- 替代申请流程另发现旧 QA 空草稿被 `new-application` 接口复用。已让真实申请复用查询排除 `VIZA_PLACEHOLDER_DRY_RUN`，与数据库 ongoing 索引一致，未取消演练安全防护。本次误复制到 QA 草稿的 331 项答案按创建时间、同属申请人、逐值匹配和无队列条件撤回，QA 稿恢复为空；相关临时付款例外已撤销。
+- 11:30 UTC 真正的新申请创建成功，创建时间为当次操作、无 QA 标记、331 项答案与原稿无差异；当时的 runtime required 仅证明非空，不能证明答案是真实资料。签名协助声明为用户明确填写的 no。实际前端 Submit 于 12:25 UTC 建立新队列，不能把旧草稿的申请号或历史确认页当成本次成功。
+- 14:12 UTC 新队列进入真实 CEAC，修复后的三个加密恢复字段在 Continue 前成功保存。Personal Information 1 的 City of Birth 回读发现保存的内容是输入提示文案，并因官网长度限制被截断；姓、名和原文姓名也包含示例或提示。该次操作已停止，未点击最终签名，最终提交尝试表为零条。后续必须先解决数据真实性，再判断同号取回是否可用。
+- 同属申请人的较早材料中找到了真实护照，已核对姓名、出生日期及护照有效期。默认复用的护照实际为测试模板；仅本次申请的材料引用已替换为真实护照。82 条身份、护照及语言别名按已核验护照和已保存出生城市修正，并保存来源标记及受保护的修改前备份。该数字包含别名及护照有效期选项，不表示 82 个独立官网问题。真实前端已核验修正后的姓、名、原文姓名、出生城市和护照签发省份，未触发提交。
+- 历史已提交记录、非空检查、语言一致性及上传文件元数据都不能证明资料真实。仍需检查提示文案、模板材料、冲突选项及当前旅行资料；不以猜测日期、地址、亲属资料或默认 No 补齐。
+- 用户随后要求使用 placeholder，后续验证限定为本地 fixture/DOM 演练；真实队列保持阻塞、租约清除，恢复字段保留，临时付款例外撤销。未用占位答案签名递交官网。提交前校验现可识别活动字段中的中英文提示，遵循英文别名优先规则及重复行条件；缺失或占位答案停止自动重试，错误只记录字段名。当前账号命中 6 个提示字段；142/142 本地回归、service type-check 和内部字段审计通过，官网全分支验证仍未完成。
 - 后续仍须逐页核对官网标签、选项、必填规则、条件跳转及重复行，并保存相应的 DOM/回读证据。
 - 报告不包含申请人个人数据、账号、答案或官网提交结果。

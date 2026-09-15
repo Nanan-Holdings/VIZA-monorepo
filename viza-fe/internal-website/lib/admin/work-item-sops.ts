@@ -33,19 +33,6 @@ export const WORK_ITEM_SOPS: readonly WorkItemSop[] = [
     resolutionCodes: ["qualified", "converted", "not_eligible", "unresponsive", "duplicate"],
   },
   {
-    kind: "payment_provisioning_failed",
-    owningTeam: "commerce_ops",
-    defaultPriority: "p1",
-    targetMinutes: 30,
-    checklist: [
-      "Verify the commercial payment is settled and not disputed",
-      "Identify the failed provisioning step and retry eligibility",
-      "Confirm account, application, inbox, allocation, and runner state",
-      "Notify the customer if their expected timeline changes",
-    ],
-    resolutionCodes: ["retried_successfully", "payment_reversed", "engineering_escalation"],
-  },
-  {
     kind: "document_review",
     owningTeam: "case_ops",
     defaultPriority: "p2",
@@ -70,19 +57,6 @@ export const WORK_ITEM_SOPS: readonly WorkItemSop[] = [
       "Record the official reference or escalation outcome",
     ],
     resolutionCodes: ["takeover_completed", "retry_succeeded", "portal_unavailable", "engineering_escalation"],
-  },
-  {
-    kind: "refund_or_dispute",
-    owningTeam: "commerce_ops",
-    defaultPriority: "p1",
-    targetMinutes: 120,
-    checklist: [
-      "Verify refundable order lines and prior official-fee spend",
-      "Review customer reason and supporting evidence",
-      "Execute or deny through the payment workflow",
-      "Confirm provider result and customer notification",
-    ],
-    resolutionCodes: ["refunded", "partially_refunded", "denied", "dispute_evidence_submitted"],
   },
   {
     kind: "privacy_request",

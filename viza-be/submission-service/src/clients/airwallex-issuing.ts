@@ -1,3 +1,4 @@
+import { rejectRemovedPayment } from "../payment-removed.js";
 /**
  * Low-level Airwallex Issuing client (PAY-004).
  *
@@ -163,59 +164,19 @@ function assertApplicationFeeCardInput(
 // ---------------------------------------------------------------------------
 
 export class AirwallexIssuingClient {
-  private token: string | null = null;
-  private tokenExpiresAt = 0;
 
   constructor(
     private cfg: AirwallexConfig,
     private fetchImpl: typeof fetch = fetch,
   ) {}
 
-  private async authHeader(): Promise<Record<string, string>> {
-    const now = Date.now();
-    if (this.token && now < this.tokenExpiresAt - 60_000) {
-      return { Authorization: `Bearer ${this.token}` };
-    }
-    const res = await this.fetchImpl(`${this.cfg.baseUrl}/api/v1/authentication/login`, {
-      method: "POST",
-      headers: {
-        "x-client-id": this.cfg.clientId,
-        "x-api-key": this.cfg.apiKey,
-        "Content-Type": "application/json",
-      },
-    });
-    if (!res.ok) {
-      throw new Error(`Airwallex auth failed: ${res.status} ${await res.text()}`);
-    }
-    const body = (await res.json()) as { token: string };
-    this.token = body.token;
-    // Token lives ~30 min; refresh a minute early.
-    this.tokenExpiresAt = now + 29 * 60_000;
-    return { Authorization: `Bearer ${this.token}` };
-  }
+  private async post<T>(_path: string, _payload: unknown): Promise<T> {
+  return rejectRemovedPayment();
+}
 
-  private async post<T>(path: string, payload: unknown): Promise<T> {
-    const res = await this.fetchImpl(`${this.cfg.baseUrl}${path}`, {
-      method: "POST",
-      headers: { ...(await this.authHeader()), "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      throw new Error(`Airwallex POST ${path} failed: ${res.status} ${await res.text()}`);
-    }
-    return (await res.json()) as T;
-  }
-
-  private async get<T>(path: string): Promise<T> {
-    const res = await this.fetchImpl(`${this.cfg.baseUrl}${path}`, {
-      method: "GET",
-      headers: await this.authHeader(),
-    });
-    if (!res.ok) {
-      throw new Error(`Airwallex GET ${path} failed: ${res.status} ${await res.text()}`);
-    }
-    return (await res.json()) as T;
-  }
+  private async get<T>(_path: string): Promise<T> {
+  return rejectRemovedPayment();
+}
 
   /** Read-only pre-issuance safety gate; deliberately omits any shared secret. */
   async getIssuingConfig(): Promise<AirwallexIssuingSecurityConfig> {

@@ -2,6 +2,11 @@
 
 Scope: this file applies to `viza-fe/internal-website/app/api/applications/**`.
 
+Current product policy (2026-09-15): application checkout and official-fee
+routes are retired. The `submission-checkout` and `official-fee/**` routes
+return HTTP 410 with `code: "payment_removed"` before authentication,
+database access, card handoff, queue enqueue, or provider calls.
+
 ## Purpose
 
 Application API routes expose same-origin helpers for application-specific
@@ -40,15 +45,11 @@ ports directly.
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-access/route.ts`
-  performs the final-review payment preflight and returns a stable `402`
-  `application_payment_required` response with an application-scoped quote.
-  Its adjacent `auth.ts` resolves both the signed VIZA client session and
-  Supabase Auth against the exact target owner before returning the
-  authoritative payer ID; `auth.test.ts` guards mixed-session and group-payer
-  fail-closed behavior.
+  is retired with the rest of submission payment gating; the owning lifecycle
+  boundary decides access without collecting payment.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-checkout/route.ts`
-  creates or reuses the exact outstanding order and redirects to the verified
-  payment provider. Its return target is restricted to the application flow.
+  is a retired compatibility route and returns HTTP 410 before creating an
+  order, redirecting to a provider, or reading payment state.
 - `viza-fe/internal-website/app/api/applications/[id]/taiwan-handoff/route.ts`
   claims the authoritative Taiwan handoff through
   `claim_tw_applicant_handoff` with the exact application, applicant, and
@@ -58,22 +59,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/cancel-submission/route.ts`
   resolves exact shared-runner flow/country tuples before using the atomic
   cancellation RPC, while unmapped arrival-card flows remain on legacy queue.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/auth.ts`
-  centralizes the signed `client_session` and Supabase session policy shared by
-  the official-fee routes; its focused regression coverage lives in the
-  adjacent `auth.test.ts`.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/managed-payment.ts`
-  resolves the typed country/visa official-fee policy, pricing fallback, and
-  eligible treasury-allocation boundary before a managed-card job is queued.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/cloud-worker-ready.ts`
-  owns the cold-start readiness boundary and keeps its focused regression tests
-  in the adjacent `cloud-worker-ready.test.ts`.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
-  keeps its implementation and test helpers in the adjacent `route-handler.ts`
-  module so the Next route exports only HTTP methods/configuration.
-- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.test.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/**`
+  exposes only retired 410 route handlers; the former auth, managed-payment,
+  cloud-worker handoff, status-loader, and focused payment tests were removed
+  with the payment flow.
 - `viza-fe/internal-website/app/api/applications/[id]/official-status/refresh/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
@@ -98,7 +87,8 @@ ports directly.
   `route-handler.ts`; it copies saved answers into a new or owner-scoped empty
   draft, reuses a non-empty draft without overwriting it, and handles the
   ongoing-draft unique-constraint race. It must not enqueue official
-  submission work.
+  submission work. Real-draft reuse excludes `VIZA_PLACEHOLDER_DRY_RUN`, matching
+  the ongoing-draft index; never remove a QA marker to make a live retry pass.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so

@@ -22,8 +22,6 @@ interface VisaPackageRow {
   visa_type: string;
   name: string;
   description: string | null;
-  price_cents: number | null;
-  currency: string | null;
   metadata: unknown;
   updated_at: string | null;
   created_at: string | null;
@@ -56,12 +54,10 @@ interface CoverageRow {
   targetLabel: string | null;
   schema: CapabilityStatus;
   documents: CapabilityStatus;
-  payment: CapabilityStatus;
   packet: CapabilityStatus;
   externalHandoff: CapabilityStatus;
   resultIngest: CapabilityStatus;
   statusUi: CapabilityStatus;
-  governmentFee: string;
   overall: CoverageState;
 }
 
@@ -104,12 +100,10 @@ interface PackageCoverageCopy {
     package: string;
     schema: string;
     documents: string;
-    payment: string;
     packet: string;
     externalHandoff: string;
     resultIngest: string;
     statusUi: string;
-    governmentFee: string;
   };
   noPackages: string;
   caution: string;
@@ -122,10 +116,6 @@ interface PackageCoverageCopy {
     documentRowsFound: (total: number, required: number) => string;
     noDocumentRows: string;
     noDocumentCoverage: string;
-    agencyPricePartial: (amount: string) => string;
-    noPaymentCoverage: string;
-    paymentEnabled: string;
-    paymentDisabled: string;
     noPacketCoverage: string;
     packetEnabled: string;
     packetDisabled: string;
@@ -140,8 +130,6 @@ interface PackageCoverageCopy {
     statusUiEnabled: string;
     statusUiDisabled: string;
     partialCoverage: string;
-    noGovernmentFee: string;
-    incompleteGovernmentFee: string;
   };
 }
 
@@ -150,7 +138,7 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
     eyebrow: "Package coverage",
     title: "Automation Coverage Matrix",
     subtitle:
-      "Active visa packages with schema, document checklist, payment, packet generation, external handoff, result ingest, and status UI readiness. External handoff here means a structured handoff boundary, not official portal automation.",
+      "Active visa packages with schema, document checklist, packet generation, external handoff, result ingest, and status UI readiness. External handoff here means a structured handoff boundary, not official portal automation.",
     supported: "Supported",
     partial: "Partial",
     unsupported: "Unsupported",
@@ -170,12 +158,10 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
       package: "Package",
       schema: "Schema",
       documents: "Document checklist",
-      payment: "Payment",
       packet: "Packet generation",
       externalHandoff: "External handoff",
       resultIngest: "Result ingest",
       statusUi: "Status UI",
-      governmentFee: "Government fee",
     },
     noPackages: "No active visa packages found.",
     caution:
@@ -199,11 +185,6 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
         `${total} document requirement${total === 1 ? "" : "s"} (${required} required).`,
       noDocumentRows: "No document_requirements rows found for this package.",
       noDocumentCoverage: "No document checklist coverage is configured.",
-      agencyPricePartial: (amount) =>
-        `Agency price configured at ${amount}; payment coverage metadata is not explicit.`,
-      noPaymentCoverage: "No payment coverage metadata or package price is configured.",
-      paymentEnabled: "Payment coverage is enabled in package metadata.",
-      paymentDisabled: "Payment coverage is not enabled for this package.",
       noPacketCoverage: "No packet generation coverage metadata is configured.",
       packetEnabled: "Packet generation coverage is enabled in package metadata.",
       packetDisabled: "Packet generation coverage is not enabled for this package.",
@@ -220,16 +201,13 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
       statusUiEnabled: "Package-specific status UI coverage is enabled in metadata.",
       statusUiDisabled: "Status UI coverage is not enabled for this package.",
       partialCoverage: "Partial coverage is configured in package metadata.",
-      noGovernmentFee: "No government fee metadata configured.",
-      incompleteGovernmentFee:
-        "Government fee metadata is present without display fields.",
     },
   },
   zh: {
     eyebrow: "套餐覆盖范围",
     title: "自动化覆盖矩阵",
     subtitle:
-      "查看当前启用的签证套餐是否具备表单 schema、材料清单、支付、材料包生成、外部交接、结果接收和状态展示能力。这里的外部交接只表示结构化交接边界，不代表官方门户自动提交。",
+      "查看当前启用的签证套餐是否具备表单 schema、材料清单、材料包生成、外部交接、结果接收和状态展示能力。这里的外部交接只表示结构化交接边界，不代表官方门户自动提交。",
     supported: "已支持",
     partial: "部分支持",
     unsupported: "未支持",
@@ -249,12 +227,10 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
       package: "套餐",
       schema: "表单 Schema",
       documents: "材料清单",
-      payment: "支付",
       packet: "材料包生成",
       externalHandoff: "外部交接",
       resultIngest: "结果接收",
       statusUi: "状态展示",
-      governmentFee: "官方费用",
     },
     noPackages: "暂无启用的签证套餐。",
     caution:
@@ -277,10 +253,6 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
       documentRowsFound: (total, required) => `已找到 ${total} 条材料要求，其中 ${required} 条必需。`,
       noDocumentRows: "这个套餐没有 document_requirements 记录。",
       noDocumentCoverage: "尚未配置材料清单覆盖能力。",
-      agencyPricePartial: (amount) => `已配置 VIZA 服务费 ${amount}，但支付覆盖 metadata 未显式声明。`,
-      noPaymentCoverage: "没有支付覆盖 metadata，也没有配置套餐价格。",
-      paymentEnabled: "支付覆盖已在套餐 metadata 中启用。",
-      paymentDisabled: "这个套餐未启用支付覆盖。",
       noPacketCoverage: "尚未配置材料包生成覆盖 metadata。",
       packetEnabled: "材料包生成覆盖已在套餐 metadata 中启用。",
       packetDisabled: "这个套餐未启用材料包生成覆盖。",
@@ -295,8 +267,6 @@ const COPY: Record<InterfaceLocale, PackageCoverageCopy> = {
       statusUiEnabled: "这个套餐的状态展示覆盖已在 metadata 中启用。",
       statusUiDisabled: "这个套餐未启用状态展示覆盖。",
       partialCoverage: "套餐 metadata 中配置了部分覆盖能力。",
-      noGovernmentFee: "尚未配置官方费用 metadata。",
-      incompleteGovernmentFee: "已有官方费用 metadata，但缺少可展示字段。",
     },
   },
 };
@@ -321,7 +291,6 @@ const FIRST_BATCH_TARGETS = [
 const CAPABILITY_COLUMNS = [
   "schema",
   "documents",
-  "payment",
   "packet",
   "externalHandoff",
   "resultIngest",
@@ -362,7 +331,6 @@ export default async function AdminPackagesPage() {
       formFieldCounts.get(pkg.visa_type) ?? 0,
       documentStats.get(pkg.id) ?? { total: 0, required: 0 },
       copy,
-      locale,
     )
   );
   const summary = buildSummary(rows);
@@ -484,12 +452,10 @@ export default async function AdminPackagesPage() {
                 <TableHeading>{copy.headings.package}</TableHeading>
                 <TableHeading>{copy.headings.schema}</TableHeading>
                 <TableHeading>{copy.headings.documents}</TableHeading>
-                <TableHeading>{copy.headings.payment}</TableHeading>
                 <TableHeading>{copy.headings.packet}</TableHeading>
                 <TableHeading>{copy.headings.externalHandoff}</TableHeading>
                 <TableHeading>{copy.headings.resultIngest}</TableHeading>
                 <TableHeading>{copy.headings.statusUi}</TableHeading>
-                <TableHeading>{copy.headings.governmentFee}</TableHeading>
               </tr>
             </thead>
             <tbody>
@@ -524,19 +490,15 @@ export default async function AdminPackagesPage() {
                     </td>
                     <CapabilityCell status={row.schema} copy={copy} />
                     <CapabilityCell status={row.documents} copy={copy} />
-                    <CapabilityCell status={row.payment} copy={copy} />
                     <CapabilityCell status={row.packet} copy={copy} />
                     <CapabilityCell status={row.externalHandoff} copy={copy} />
                     <CapabilityCell status={row.resultIngest} copy={copy} />
                     <CapabilityCell status={row.statusUi} copy={copy} />
-                    <td className="min-w-[190px] px-4 py-4 text-xs leading-5 text-[#4b5563]">
-                      {row.governmentFee}
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-[#9ca3af]">
+                  <td colSpan={7} className="px-4 py-10 text-center text-[#9ca3af]">
                     {copy.noPackages}
                   </td>
                 </tr>
@@ -568,7 +530,7 @@ async function fetchActivePackages(
     adminClient
       .from("visa_packages")
       .select(
-        "id, country, visa_type, name, description, price_cents, currency, metadata, updated_at, created_at"
+        "id, country, visa_type, name, description, metadata, updated_at, created_at"
       )
       .eq("is_active", true)
       .order("country", { ascending: true })
@@ -770,7 +732,6 @@ function buildCoverageRow(
   fieldCount: number,
   docStats: DocumentStats,
   copy: PackageCoverageCopy,
-  locale: InterfaceLocale,
 ): CoverageRow {
   const metadata = asRecord(pkg.metadata);
   const coverage = asRecord(metadata?.coverage);
@@ -795,18 +756,6 @@ function buildCoverageRow(
         : copy.detail.noDocumentRows,
     supportedDetail: copy.detail.documentRowsFound(docStats.total, docStats.required),
     unsupportedDetail: copy.detail.noDocumentCoverage,
-    partialDetail: copy.detail.partialCoverage,
-  });
-
-  const payment = resolveCapability({
-    value: firstDefined(coverage, ["payment"]),
-    fallback: pkg.price_cents !== null ? "partial" : "unsupported",
-    fallbackDetail:
-      pkg.price_cents !== null
-        ? copy.detail.agencyPricePartial(formatMoney(pkg.price_cents, pkg.currency ?? "USD", locale))
-        : copy.detail.noPaymentCoverage,
-    supportedDetail: copy.detail.paymentEnabled,
-    unsupportedDetail: copy.detail.paymentDisabled,
     partialDetail: copy.detail.partialCoverage,
   });
 
@@ -853,7 +802,6 @@ function buildCoverageRow(
   const capabilityStates = [
     schema,
     documents,
-    payment,
     packet,
     externalHandoff,
     resultIngest,
@@ -865,12 +813,10 @@ function buildCoverageRow(
     targetLabel: findTargetLabel(pkg, copy),
     schema,
     documents,
-    payment,
     packet,
     externalHandoff,
     resultIngest,
     statusUi,
-    governmentFee: formatGovernmentFee(metadata, pkg, copy, locale),
     overall: getOverallState(capabilityStates),
   };
 }
@@ -1054,38 +1000,6 @@ function getOverallState(states: CoverageState[]): CoverageState {
   return "unsupported";
 }
 
-function formatGovernmentFee(
-  metadata: Record<string, unknown> | null,
-  pkg: VisaPackageRow,
-  copy: PackageCoverageCopy,
-  locale: InterfaceLocale,
-) {
-  const governmentFee = asRecord(metadata?.government_fee);
-  if (!governmentFee) return copy.detail.noGovernmentFee;
-
-  const mode = firstString(governmentFee, ["mode", "status"]);
-  const label = firstString(governmentFee, ["label", "note", "notes"]);
-  const currency = firstString(governmentFee, ["currency"]) ?? pkg.currency ?? "USD";
-  const amountCents = firstNumber(governmentFee, ["amount_cents", "amountCents"]);
-  const formattedAmount =
-    amountCents === undefined ? null : formatMoney(amountCents, currency, locale);
-
-  return [formattedAmount, mode ? toTitleCase(mode) : null, label]
-    .filter(Boolean)
-    .join(" · ") || copy.detail.incompleteGovernmentFee;
-}
-
-function formatMoney(amountCents: number, currency: string, locale: InterfaceLocale) {
-  try {
-    return new Intl.NumberFormat(locale === "zh" ? "zh-CN" : "en-US", {
-      style: "currency",
-      currency,
-    }).format(amountCents / 100);
-  } catch {
-    return `${currency} ${(amountCents / 100).toFixed(2)}`;
-  }
-}
-
 function firstDefined(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return undefined;
   for (const key of keys) {
@@ -1098,16 +1012,6 @@ function firstString(record: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const value = record[key];
     if (typeof value === "string" && value.trim().length > 0) {
-      return value;
-    }
-  }
-  return undefined;
-}
-
-function firstNumber(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "number" && Number.isFinite(value)) {
       return value;
     }
   }

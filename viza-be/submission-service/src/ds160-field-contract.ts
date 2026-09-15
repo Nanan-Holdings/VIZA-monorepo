@@ -13,6 +13,8 @@ export interface Ds160FieldContract {
   label: string;
   showIf?: string;
   repeatGroup?: string;
+  allowsDoesNotApply?: boolean;
+  optional?: boolean;
 }
 
 export const DS160_FIELD_CONTRACTS: Record<string, Ds160FieldContract> = {
@@ -341,6 +343,17 @@ export const DS160_FIELD_CONTRACTS: Record<string, Ds160FieldContract> = {
   "has_voted_illegally_explain": {"page":"Security and Background: Part 5","step":21,"type":"textarea","required":true,"label":"Explain","showIf":"has_voted_illegally === yes"},
   "has_renounced_citizenship": {"page":"Security and Background: Part 5","step":21,"type":"radio","required":true,"label":"Have you ever renounced United States citizenship for the purposes of avoiding taxation?"},
   "has_renounced_citizenship_explain": {"page":"Security and Background: Part 5","step":21,"type":"textarea","required":true,"label":"Explain","showIf":"has_renounced_citizenship === yes"},
+  "ds160_preparer_assistance": {"page":"Sign and Submit","step":22,"type":"radio","required":true,"label":"Did anyone assist you in filling out this application?"},
+  "ds160_preparer_surname": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Surnames","showIf":"ds160_preparer_assistance === yes"},
+  "ds160_preparer_given_names": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Given Names","showIf":"ds160_preparer_assistance === yes","allowsDoesNotApply":true},
+  "ds160_preparer_organization_name": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Organization Name","showIf":"ds160_preparer_assistance === yes","allowsDoesNotApply":true},
+  "ds160_preparer_street1": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Street Address (Line 1)","showIf":"ds160_preparer_assistance === yes"},
+  "ds160_preparer_street2": {"page":"Sign and Submit","step":22,"type":"text","required":false,"label":"Street Address (Line 2)","showIf":"ds160_preparer_assistance === yes","optional":true},
+  "ds160_preparer_city": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"City","showIf":"ds160_preparer_assistance === yes"},
+  "ds160_preparer_state_province": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"State/Province","showIf":"ds160_preparer_assistance === yes","allowsDoesNotApply":true},
+  "ds160_preparer_postal_code": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Postal Zone/ZIP Code","showIf":"ds160_preparer_assistance === yes","allowsDoesNotApply":true},
+  "ds160_preparer_country": {"page":"Sign and Submit","step":22,"type":"select","required":true,"label":"Country/Region","showIf":"ds160_preparer_assistance === yes"},
+  "ds160_preparer_relationship": {"page":"Sign and Submit","step":22,"type":"text","required":true,"label":"Relationship to You","showIf":"ds160_preparer_assistance === yes"},
 };
 
-export const DS160_FIELD_CONTRACT_COUNT = 325;
+export const DS160_FIELD_CONTRACT_COUNT = 336;

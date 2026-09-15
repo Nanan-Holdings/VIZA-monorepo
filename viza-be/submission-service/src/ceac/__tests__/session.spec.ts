@@ -1,38 +1,33 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, before, it } from "node:test";
+import { chromium, type Browser } from "@playwright/test";
+import { gotoCeacStartPage } from "../start-page-navigation";
+import { detectGate } from "../gates";
 
-describe("CEAC session bootstrap navigation", () => {
-  it("waits only for the initial CEAC response commit before page detection", async () => {
-    const { gotoCeacStartPage } = require("../start-page-navigation") as typeof import("../start-page-navigation");
-    const calls: Array<{ waitUntil?: string; timeout?: number }> = [];
-    const page = {
-      goto: async (_url: string, options: { waitUntil?: string; timeout?: number }) => {
-        calls.push(options);
-        return null;
-      },
-      waitForSelector: async () => undefined,
-    };
+let browser: Browser;
+before(async () => { browser = await chromium.launch({ headless: true }); });
+after(async () => { await browser.close(); });
 
-    await gotoCeacStartPage(page as never, 12_345);
+it("waits through an interstitial h2 until the CEAC form appears", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      contentType: "text/html",
+      body: `<h2>Security verification</h2><script>setTimeout(()=>{document.body.innerHTML='<h2>Apply For a Nonimmigrant Visa</h2><select id="ctl00_ucLocation_ddlLocation"><option>BEJ</option></select>'},250)</script>`,
+    }));
+    await gotoCeacStartPage(page, 3000);
+    assert.equal(await page.locator("h2").innerText(), "Apply For a Nonimmigrant Visa");
+    assert.equal(await page.locator("select").count(), 1);
+  } finally { await page.close(); }
+});
 
-    assert.deepEqual(calls, [{ waitUntil: "commit", timeout: 12_345 }]);
-  });
-
-  it("waits for CEAC page markers after the initial response commit", async () => {
-    const { gotoCeacStartPage } = require("../start-page-navigation") as typeof import("../start-page-navigation");
-    const selectors: Array<{ selector: string; state?: string; timeout?: number }> = [];
-    const page = {
-      goto: async () => null,
-      waitForSelector: async (selector: string, options: { state?: string; timeout?: number }) => {
-        selectors.push({ selector, ...options });
-      },
-    };
-
-    await gotoCeacStartPage(page as never, 12_345);
-
-    assert.equal(selectors.length, 1);
-    assert.match(selectors[0].selector, /h2/);
-    assert.equal(selectors[0].state, "attached");
-    assert.equal(selectors[0].timeout, 12_345);
-  });
+it("preserves a definitive WAF block for structured gate classification", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      status: 403, contentType: "text/html", body: "<h2>Sorry, you have been blocked</h2>",
+    }));
+    await gotoCeacStartPage(page, 3000);
+    assert.equal((await detectGate(page)).gated, true);
+  } finally { await page.close(); }
 });

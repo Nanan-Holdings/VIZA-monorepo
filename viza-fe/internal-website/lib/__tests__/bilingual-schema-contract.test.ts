@@ -6,7 +6,9 @@ import {
   resolveLocalizedFieldLabel,
   resolveLocalizedOptions,
   resolveOptionDisplayLabel,
+  usesBilingualAnswerPair,
 } from "../bilingual-schema-contract";
+import { shouldSkipTranslation } from "../translation/translation-field-rules";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY, TW_DISTRICT_COUNT } from "../taiwan-administrative-units";
 import type { VisaFormFieldRow } from "../../types/visa-form-fields";
 
@@ -30,6 +32,12 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("bilingual schema contract", () => {
+  it("keeps the official native-alphabet name in its original script", () => {
+    expect(usesBilingualAnswerPair(field({ fieldName: "full_name_native_alphabet", visaType: "DS160" }))).toBe(false);
+    expect(shouldSkipTranslation("full_name_native_alphabet", "张三", "text")).toBe(true);
+    expect(usesBilingualAnswerPair(field({ fieldName: "surname", visaType: "DS160" }))).toBe(true);
+    expect(shouldSkipTranslation("surname", "张", "text")).toBe(false);
+  });
   it("expands long declaration fields into clear Chinese labels and helpers", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "declaration_fee_not_refunded_awareness",
