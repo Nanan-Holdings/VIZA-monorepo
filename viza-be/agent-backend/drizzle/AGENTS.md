@@ -467,3 +467,7 @@ Run from `viza-be/agent-backend` when database access is available:
 npm run db:migrate
 npm run type-check
 ```
+
+## Isolated U.S. appointment release
+
+`0193_us_appointment_runner_claims.sql` adds private exact-owner execution claims for CN USVisaScheduling. It does not change shared runner RPCs. Active claims require reconciliation rather than expiration takeover.

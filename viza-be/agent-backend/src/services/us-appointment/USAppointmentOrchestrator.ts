@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { AppointmentAuditService } from "./AppointmentAuditService.js";
 import { AppointmentCheckpointService } from "./AppointmentCheckpointService.js";
 import { AppointmentSlotService } from "./AppointmentSlotService.js";
@@ -22,6 +22,11 @@ import type { USAppointmentRepository } from "./repository.js";
 import { redactToObject } from "./redaction.js";
 import { validateUSAppointmentPreconditions } from "./validators/usAppointmentPreconditions.js";
 import { decryptSecret, encryptSecret } from "../../utils/secret-cipher.js";
+import { isAutoSupportedUSAppointmentManualAction, isUSAppointmentWorkerEligible, wakeUSAppointmentWorker, type USAppointmentWorkerWake } from "./worker-wake.js";
+
+export interface USAppointmentOrchestratorOptions {
+  wakeWorker?: USAppointmentWorkerWake;
+}
 
 export class USAppointmentServiceError extends Error {
   public readonly status: number;
@@ -43,6 +48,59 @@ const TERMINAL_STATUSES = new Set<USAppointmentStatus>([
   "appointment_cancelled",
   "appointment_blocked_by_site_policy",
 ]);
+
+const APPOINTMENT_ACCOUNT_CREATION_STATUSES = new Set([
+  "account_creation_started",
+  "account_email_verification",
+  "registration_started",
+  "verification_pending",
+]);
+
+const APPOINTMENT_ACCOUNT_READY_STATUSES = new Set([
+  "account_active",
+  "account_created",
+  "account_verified",
+  "active",
+  "created",
+  "logged_in",
+  "registered",
+  "verified",
+]);
+
+type ChinaAssistedLiveAccountStatus =
+  | "appointment_account_required"
+  | "appointment_login_required";
+
+function normalizeAccountStatus(status: string | null | undefined): string {
+  return (status ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
+function isChinaUSVisaSchedulingJob(input: {
+  applyingCountryCode?: string | null;
+  schedulingProvider?: string | null;
+}): boolean {
+  const provider = (input.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const country = (input.applyingCountryCode ?? "").trim().toUpperCase();
+  return provider === "usvisascheduling" && country === "CN";
+}
+
+function routeChinaAssistedLiveAccount(
+  account: AppointmentAccount | null,
+): ChinaAssistedLiveAccountStatus {
+  if (!account) return "appointment_account_required";
+
+  const accountStatus = normalizeAccountStatus(account.accountStatus);
+  if (account.emailVerified || APPOINTMENT_ACCOUNT_READY_STATUSES.has(accountStatus)) {
+    return "appointment_login_required";
+  }
+  if (APPOINTMENT_ACCOUNT_CREATION_STATUSES.has(accountStatus)) {
+    return "appointment_account_required";
+  }
+
+  // Unknown account states fail closed to login so an invalid or stale
+  // credential can never trigger automatic re-registration.
+  return "appointment_login_required";
+}
 
 function getStoredDs160Code(application: USAppointmentApplication): string | null {
   return application.ds160ApplicationId ?? application.confirmationNumber ?? null;
@@ -72,12 +130,46 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
     .sort((a, b) => Date.parse(b.completedAt ?? b.createdAt ?? "") - Date.parse(a.completedAt ?? a.createdAt ?? ""))[0] ?? null;
 }
 
+const OFFICIAL_ACCOUNT_PASSWORD_LENGTH = 16;
+const OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+const OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const OFFICIAL_ACCOUNT_PASSWORD_DIGITS = "0123456789";
+const OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS = "@#$%^&*-_+=[]{}|\\:',?/";
+const OFFICIAL_ACCOUNT_PASSWORD_ALPHABET =
+  OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE
+  + OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE
+  + OFFICIAL_ACCOUNT_PASSWORD_DIGITS
+  + OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS;
+
+function randomOfficialAccountPasswordCharacter(alphabet: string): string {
+  return alphabet[randomInt(alphabet.length)] ?? "";
+}
+
+function shuffleOfficialAccountPasswordCharacters(characters: string[]): void {
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1);
+    const current = characters[index];
+    const replacement = characters[swapIndex];
+    if (current === undefined || replacement === undefined) {
+      throw new Error("Unable to construct the official appointment account password.");
+    }
+    characters[index] = replacement;
+    characters[swapIndex] = current;
+  }
+}
+
 function generateOfficialAccountPassword(): string {
-  const suffix = randomBytes(8)
-    .toString("base64url")
-    .replace(/[^A-Za-z0-9]/g, "")
-    .slice(0, 8);
-  return `Viza9!${suffix}`;
+  const characters = [
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_LOWERCASE),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_UPPERCASE),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_DIGITS),
+    randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_SYMBOLS),
+  ];
+  while (characters.length < OFFICIAL_ACCOUNT_PASSWORD_LENGTH) {
+    characters.push(randomOfficialAccountPasswordCharacter(OFFICIAL_ACCOUNT_PASSWORD_ALPHABET));
+  }
+  shuffleOfficialAccountPasswordCharacters(characters);
+  return characters.join("");
 }
 
 function encryptOfficialPassword(password: string): string {
@@ -110,12 +202,14 @@ export class USAppointmentOrchestrator {
   private readonly slotService: AppointmentSlotService;
   private readonly statusService: AppointmentStatusService;
   private readonly providerRegistry = new USAppointmentProviderRegistry();
+  private readonly wakeWorker: USAppointmentWorkerWake;
 
-  constructor(private readonly repository: USAppointmentRepository) {
+  constructor(private readonly repository: USAppointmentRepository, options: USAppointmentOrchestratorOptions = {}) {
     this.auditService = new AppointmentAuditService(repository);
     this.checkpointService = new AppointmentCheckpointService(repository);
     this.slotService = new AppointmentSlotService(repository);
     this.statusService = new AppointmentStatusService(repository);
+    this.wakeWorker = options.wakeWorker ?? wakeUSAppointmentWorker;
   }
 
   async recordConsent(input: {
@@ -234,6 +328,13 @@ export class USAppointmentOrchestrator {
       schedulingProvider,
       mode: input.mode ?? "dry_run",
     });
+    const mode = input.mode ?? "dry_run";
+    const initialStatus = isChinaUSVisaSchedulingJob({
+      applyingCountryCode: input.applyingCountryCode,
+      schedulingProvider,
+    }) && mode === "assisted_live"
+      ? routeChinaAssistedLiveAccount(existingAccount)
+      : "appointment_consent_received";
 
     const job = await this.repository.insertJob({
       applicationId: application.id,
@@ -245,8 +346,8 @@ export class USAppointmentOrchestrator {
       applyingCountryCode: input.applyingCountryCode.trim().toUpperCase(),
       applyingPostCity: confirmedApplyingPostCity,
       schedulingProvider,
-      status: "appointment_consent_received",
-      mode: input.mode ?? "dry_run",
+      status: initialStatus,
+      mode,
       userPreferencesJson: redactToObject(input.userPreferencesJson ?? {}),
       requiresUserAction: false,
       currentManualAction: null,
@@ -324,21 +425,20 @@ export class USAppointmentOrchestrator {
     const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
 
-    const pendingManualAction = await this.repository.getLatestPendingManualAction(job.id);
-    if (pendingManualAction) {
+    if (await this.hasBlockingPendingManualAction(job)) {
       return this.getStatus(job.applicationId);
     }
 
     const attempt = await this.startAttempt(job);
+    let nextJob: AppointmentAssistanceJob;
     try {
-      const nextJob = job.mode === "dry_run"
+      nextJob = job.mode === "dry_run"
         ? await this.runDryRunStep(job)
         : await this.runAssistedLiveDisabledStep(job);
       await this.finishAttempt(attempt, "completed", {
         status: nextJob.status,
         requires_user_action: nextJob.requiresUserAction,
       });
-      return this.getStatus(nextJob.applicationId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Appointment run failed.";
       await this.repository.updateJob(job.id, {
@@ -357,6 +457,9 @@ export class USAppointmentOrchestrator {
       }, error instanceof USAppointmentServiceError ? error.code : "appointment_run_failed", message);
       throw error;
     }
+    // Dispatch failures retain the persisted runnable stage for an explicit retry.
+    await this.dispatchWorkerIfEligible(nextJob);
+    return this.getStatus(nextJob.applicationId);
   }
 
   async resumeJob(jobId: string): Promise<AppointmentStatusSnapshot> {
@@ -385,6 +488,10 @@ export class USAppointmentOrchestrator {
         action_type: action.actionType,
       },
     );
+    if (updated.mode === "assisted_live" && isChinaUSVisaSchedulingJob(updated)
+      && !["slot_selection", "final_confirmation"].includes(action.actionType)) {
+      return this.runJob(updated.id);
+    }
     return this.getStatus(updated.applicationId);
   }
 
@@ -472,6 +579,11 @@ export class USAppointmentOrchestrator {
   async bookSelectedSlot(jobId: string): Promise<AppointmentStatusSnapshot> {
     const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
+    if (job.mode === "assisted_live" && isChinaUSVisaSchedulingJob(job)) {
+      // Repeated HTTP actions must never turn a captured result back into an
+      // executable booking. A different appointment requires a separate review.
+      if (await this.repository.getConfirmationForJob(job.id)) return this.getStatus(job.applicationId);
+    }
 
     const selectedSlot = await this.repository.getSelectedSlot(job.id);
     if (!selectedSlot) {
@@ -492,6 +604,10 @@ export class USAppointmentOrchestrator {
     }
 
     if (job.mode !== "dry_run") {
+      if (job.mode === "assisted_live" && isChinaUSVisaSchedulingJob(job)
+        && !["appointment_final_confirmation_required", "appointment_booked"].includes(job.status)) {
+        throw new USAppointmentServiceError(409, "booking_not_ready", "This appointment job is not ready for approved booking.");
+      }
       const bookedJob = await this.transitionJob(
         job,
         "appointment_booked",
@@ -512,6 +628,7 @@ export class USAppointmentOrchestrator {
           runner_service: "submission-service",
         },
       );
+      await this.dispatchWorkerIfEligible(bookedJob);
       return this.getStatus(bookedJob.applicationId);
     }
 
@@ -582,6 +699,7 @@ export class USAppointmentOrchestrator {
           scheduling_provider: job.schedulingProvider,
         },
       );
+      await this.dispatchWorkerIfEligible(inProgress);
       return this.getStatus(inProgress.applicationId);
     }
     const provider = this.providerRegistry.getProvider(inProgress.schedulingProvider, inProgress.mode);
@@ -761,15 +879,35 @@ export class USAppointmentOrchestrator {
     const normalizedProvider = (job.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
     const normalizedCountry = (job.applyingCountryCode ?? "").trim().toUpperCase();
     if (normalizedProvider === "usvisascheduling" && normalizedCountry === "CN") {
+      // The production runner owns supported login/alias verification checkpoints.
+      // Preserve their persisted current action so its pending-action guard agrees.
+      if (isUSAppointmentWorkerEligible(job) && isAutoSupportedUSAppointmentManualAction(job.currentManualAction)) return job;
+      // Resuming a queued booking or status read must retain its intent. Completed
+      // results and user selection/approval stages are never rewound into login.
+      if (isUSAppointmentWorkerEligible(job) && ["appointment_payment_completed", "appointment_no_slots_available", "appointment_booked", "appointment_status_check_in_progress"].includes(job.status)) return job;
+      if (TERMINAL_STATUSES.has(job.status)
+        || ["appointment_slot_selection_required", "appointment_slots_observed", "appointment_slot_selected", "appointment_final_confirmation_required"].includes(job.status)) {
+        return job;
+      }
+      const account = job.appointmentAccountId
+        ? await this.repository.getAccount(job.appointmentAccountId)
+        : null;
+      const accountStatus = routeChinaAssistedLiveAccount(account);
+      const accountRegistrationRequired = accountStatus === "appointment_account_required";
       const queued = await this.transitionJob(
         job,
-        "appointment_login_required",
-        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        accountStatus,
+        accountRegistrationRequired
+          ? "China USVisaScheduling assisted-live job queued for official account registration by the submission-service runner."
+          : "China USVisaScheduling assisted-live job queued for login by the submission-service runner.",
         {
           assisted_live_enabled: true,
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
+          account_route: accountRegistrationRequired ? "account_creation" : "login",
+          account_status: account?.accountStatus ?? null,
+          account_email_verified: account?.emailVerified ?? false,
           supported_checkpoint_handling: true,
           explicit_slot_selection_required: true,
           final_viza_approval_required: true,
@@ -778,12 +916,17 @@ export class USAppointmentOrchestrator {
       await this.auditService.recordJobTransition(
         queued,
         "appointment_assisted_live_runner_handoff",
-        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        accountRegistrationRequired
+          ? "China USVisaScheduling assisted-live account registration queued for submission-service runner."
+          : "China USVisaScheduling assisted-live login queued for submission-service runner.",
         {
           assisted_live_enabled: true,
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
+          account_route: accountRegistrationRequired ? "account_creation" : "login",
+          account_status: account?.accountStatus ?? null,
+          account_email_verified: account?.emailVerified ?? false,
           supported_checkpoint_handling: true,
           explicit_slot_selection_required: true,
           final_viza_approval_required: true,
@@ -802,6 +945,45 @@ export class USAppointmentOrchestrator {
       metadata: result.rawResultRedacted ?? {},
     });
     return checkpoint.job;
+  }
+
+  private async dispatchWorkerIfEligible(job: AppointmentAssistanceJob): Promise<void> {
+    if (!isUSAppointmentWorkerEligible(job)) return;
+    if (await this.hasBlockingPendingManualAction(job)) return;
+    if (job.lastErrorCode?.startsWith("appointment_worker_")) {
+      await this.repository.updateJob(job.id, { lastErrorCode: null, lastErrorMessage: null });
+    }
+    let result;
+    try {
+      result = await this.wakeWorker(job.id);
+    } catch {
+      result = { ok: false as const, reason: "request_failed" as const };
+    }
+    if (result.ok) {
+      await this.auditService.recordJobTransition(job, "appointment_worker_wake_accepted", "The appointment worker accepted the persisted job.", {
+        runner_service: "submission-service",
+        duplicate: result.duplicate,
+        cold_start: result.coldStart,
+      });
+      return;
+    }
+    const code = `appointment_worker_${result.reason}`;
+    const message = "The appointment worker could not accept this job. The saved stage is available to retry.";
+    await this.repository.updateJob(job.id, { lastErrorCode: code, lastErrorMessage: message });
+    await this.auditService.recordJobTransition(job, "appointment_worker_wake_failed", message, {
+      runner_service: "submission-service",
+      error_code: code,
+      retryable: true,
+    });
+    throw new USAppointmentServiceError(503, code, message);
+  }
+
+  private async hasBlockingPendingManualAction(job: AppointmentAssistanceJob): Promise<boolean> {
+    const actions = await this.repository.listManualActions(job.id);
+    const workerCanHandleCheckpoint = isUSAppointmentWorkerEligible(job)
+      && isAutoSupportedUSAppointmentManualAction(job.currentManualAction);
+    return actions.some((action) => action.status === "pending"
+      && !(workerCanHandleCheckpoint && isAutoSupportedUSAppointmentManualAction(action.actionType)));
   }
 
   private async transitionJob(
@@ -1054,10 +1236,10 @@ export class USAppointmentOrchestrator {
   }
 }
 
-export function createUSAppointmentServices(repository: USAppointmentRepository): {
+export function createUSAppointmentServices(repository: USAppointmentRepository, options: USAppointmentOrchestratorOptions = {}): {
   orchestrator: USAppointmentOrchestrator;
 } {
   return {
-    orchestrator: new USAppointmentOrchestrator(repository),
+    orchestrator: new USAppointmentOrchestrator(repository, options),
   };
 }
