@@ -12,6 +12,11 @@ started claim. Shutdown cancels unstarted work; deadlines abort browser work.
 Unresponsive cleanup makes the worker unhealthy and terminates it, retaining
 the ambiguous claim for reconciliation. Browserbase sessions have a 15-minute
 provider TTL and an explicit release independent of Playwright cleanup.
+US sessions opt into Browserbase keep-alive and retain one logical capacity
+lease until cleanup. Only the first entry navigation may reconnect the same
+session, at most twice, reusing its existing page without repeating navigation.
+Once entry finishes, authentication and all official form actions keep their
+existing one-attempt rules; disconnecting never replays those actions.
 `__tests__/dispatch.spec.ts`, `claim-repository.spec.ts`, and `wake-http.spec.ts`
 cover admission, duplicate exclusion, cancellation, timeout and authenticated
 HTTP transport. Loopback tests are not production execution evidence.

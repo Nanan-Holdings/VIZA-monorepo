@@ -265,3 +265,61 @@ test("rejected existing account credentials do not create a replacement official
     assert.equal(registrationRequests, 0);
   });
 });
+
+test("entrance reconnect continues the admitted page without repeating root navigation", { timeout: 30_000 }, async () => {
+  await withFixture(async (client, baseUrl, initialPage) => {
+    const ownedBrowser = initialPage.context().browser();
+    assert.ok(ownedBrowser);
+    const resumedPage = await ownedBrowser.newPage();
+    await resumedPage.goto(`${baseUrl}calendar`);
+    let rootVisits = 0;
+    let reconnects = 0;
+    let disconnected = false;
+    await initialPage.route(baseUrl, async (route) => {
+      rootVisits += 1;
+      await route.fulfill({ contentType: "text/html", body: "<h1>Just a moment</h1>" });
+      setTimeout(() => { disconnected = true; void initialPage.close(); }, 100);
+    });
+    let currentPage = initialPage;
+    Object.assign(client, { browserbaseCloud: {
+      get browser() { return disconnected ? { isConnected: () => false } : ownedBrowser; },
+      get context() { return currentPage.context(); },
+      get page() { return currentPage; },
+      async reconnect() { reconnects += 1; currentPage = resumedPage; disconnected = false; },
+      async close() {},
+    } });
+    const result = await client.prepareAppointmentFlow(job, null);
+    assert.equal(result.readyForSlotCapture, true);
+    assert.equal(reconnects, 1);
+    assert.equal(rootVisits, 1);
+    assert.equal(new URL(resumedPage.url()).pathname, "/calendar");
+    const slots = await client.observeSlots(job);
+    assert.ok(slots.length > 0);
+  });
+});
+
+test("a disconnect after login submission cannot reconnect or replay authentication", { timeout: 30_000 }, async () => {
+  await withFixture(async (client, baseUrl, page) => {
+    let submits = 0;
+    let reconnects = 0;
+    await page.route(`${baseUrl}**`, async (route) => {
+      if (new URL(route.request().url()).pathname === "/") {
+        await route.fulfill({ contentType: "text/html", body: `<form action="/authenticate" method="post">
+          <input id="signInName"><input type="password" name="password"><button>Sign In</button></form>` });
+      } else {
+        submits += 1;
+        await route.fulfill({ contentType: "text/html", body: "<h1>Loading</h1>" });
+        setTimeout(() => void page.close(), 100);
+      }
+    });
+    Object.assign(client, { browserbaseCloud: {
+      browser: page.context().browser(), context: page.context(), page,
+      async reconnect() { reconnects += 1; }, async close() {},
+    } });
+    await assert.rejects(client.prepareAppointmentFlow(job, {
+      email: "fixture@example.invalid", password: "fixture-only",
+    }));
+    assert.equal(submits, 1);
+    assert.equal(reconnects, 0);
+  });
+});

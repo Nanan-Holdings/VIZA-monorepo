@@ -5,8 +5,9 @@ import { chromium, type Browser, type BrowserContext, type Locator, type Page } 
 import { solveCaptcha } from "../captcha";
 import {
   browserbaseEnabled,
-  connectBrowserbaseCloudBrowser,
+  connectReconnectableBrowserbaseCloudBrowser,
   releaseBrowserbaseCloudSession,
+  type ReconnectableBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import {
   extractUSAppointmentConfirmationNumber,
@@ -742,6 +743,8 @@ export function inferStatusFromText(text: string): string {
 export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPortalClient {
   private aborted = false;
   private browserbaseSessionId: string | null = null;
+  private browserbaseCloud: ReconnectableBrowserbaseCloudBrowser | null = null;
+  private entranceRecoveryAvailable = true;
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
@@ -785,7 +788,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     try {
       operation = "navigation";
       page = await this.getPage();
-      await this.openPortal(page);
+      page = await this.openPortal(page);
 
       operation = "wait";
       let gate = await this.detectGate(page);
@@ -914,8 +917,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       ) });
     }
 
-    const page = await this.getPage();
-    await this.openPortal(page);
+    const page = await this.openPortal(await this.getPage());
     await this.acceptTermsCheckpointIfPresent(page);
     const initialGate = await this.detectGate(page);
     if (initialGate) {
@@ -1272,8 +1274,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     if (credentials && shouldRegisterAppointmentAccount(_job, credentials)) {
       return this.registerAccount(credentials);
     }
-    const page = await this.getPage();
-    await this.openPortal(page);
+    const page = await this.openPortal(await this.getPage());
     await this.acceptTermsCheckpointIfPresent(page);
     const initialGate = await this.detectGate(page);
     if (initialGate) {
@@ -1745,8 +1746,10 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const page = this.page;
     const connectedToUserBrowser = this.connectedToUserBrowser;
     const sessionId = this.browserbaseSessionId;
+    const cloud = this.browserbaseCloud;
     const save = this.aborted ? Promise.resolve() : this.saveStorageState().catch(() => undefined);
     this.browserbaseSessionId = null;
+    this.browserbaseCloud = null;
     this.browser = null;
     this.context = null;
     this.page = null;
@@ -1755,6 +1758,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await Promise.all([
       (async () => {
         await save;
+        if (cloud) return;
         if (connectedToUserBrowser) {
           await page?.close().catch(() => undefined);
           await browser?.close().catch(() => undefined);
@@ -1762,7 +1766,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
           await browser?.close();
         }
       })(),
-      sessionId ? releaseBrowserbaseCloudSession(sessionId) : Promise.resolve(),
+      cloud ? cloud.close() : sessionId ? releaseBrowserbaseCloudSession(sessionId) : Promise.resolve(),
     ]);
   }
 
@@ -1783,7 +1787,8 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       return this.injectedPage;
     }
     if (browserbaseEnabled("US_APPOINTMENT")) {
-      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "US_APPOINTMENT", timeoutSeconds: 900 });
+      const cloud = await connectReconnectableBrowserbaseCloudBrowser({ prefix: "US_APPOINTMENT", timeoutSeconds: 900 });
+      this.browserbaseCloud = cloud;
       this.browserbaseSessionId = cloud.sessionId;
       this.browser = cloud.browser;
       this.context = cloud.context;
@@ -1901,17 +1906,50 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     });
   }
 
-  private async openPortal(page: Page): Promise<void> {
+  private async openPortal(page: Page): Promise<Page> {
     this.clearPreparedSession();
     this.clearPendingRegistration();
-    await page.goto(this.config.baseUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    await this.waitForPortalNavigationSettle(page);
+    const allowRecovery = this.entranceRecoveryAvailable;
+    try {
+      try {
+        await page.goto(this.config.baseUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      } catch (error) {
+        if (!allowRecovery || !this.browserbaseCloud
+          || (this.browserbaseCloud.browser.isConnected() && !page.isClosed())) throw error;
+        page = await this.recoverEntrancePage(page, allowRecovery);
+      }
+      return await this.waitForPortalNavigationSettle(page, allowRecovery);
+    } finally {
+      // Recovery is restricted to the first entry navigation. No authentication,
+      // registration, profile save, applicant submit or booking is ever replayed.
+      this.entranceRecoveryAvailable = false;
+    }
   }
 
-  private async waitForPortalNavigationSettle(page: Page): Promise<void> {
+  private async recoverEntrancePage(page: Page, allowed: boolean): Promise<Page> {
+    const cloud = this.browserbaseCloud;
+    if (!cloud) {
+      if (page.isClosed()) throw new Error("USVisaScheduling browser session interrupted.");
+      return this.readyPage(page);
+    }
+    if (cloud.browser.isConnected() && !page.isClosed()) return this.readyPage(page);
+    if (!allowed || this.aborted) throw new Error("USVisaScheduling browser session interrupted.");
+    await cloud.reconnect();
+    if (this.aborted || this.browserbaseCloud !== cloud) {
+      await cloud.close();
+      throw new Error("USVisaScheduling execution was cancelled.");
+    }
+    this.browser = cloud.browser;
+    this.context = cloud.context;
+    this.page = cloud.page;
+    return this.readyPage(cloud.page);
+  }
+
+  private async waitForPortalNavigationSettle(page: Page, allowRecovery = false): Promise<Page> {
     const started = Date.now();
     let deadline = started + 90_000;
     while (Date.now() < deadline) {
+      page = await this.recoverEntrancePage(page, allowRecovery);
       const [currentUrl, title, bodyText, loginVisible] = await Promise.all([
         Promise.resolve(page.url()),
         page.title().catch(() => ""),
@@ -1924,7 +1962,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         // browser loses the visitor's queue position. A ten-minute bound keeps
         // the managed browser lifecycle finite if the provider never admits it.
         deadline = started + 600_000;
-        await page.waitForTimeout(2_000);
+        await new Promise<void>((resolve) => setTimeout(resolve, 2_000));
         continue;
       }
       const isCloudflareTransit =
@@ -1935,10 +1973,11 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         loginVisible
         || /b2clogin|signin|login|authorize/i.test(currentUrl)
         || /apply for a u\.s\. visa|user details|sign in/i.test(normalized);
-      if (reachedOfficialAuth && !isCloudflareTransit && !/__cf_chl_rt_tk/.test(currentUrl)) return;
-      if (!isCloudflareTransit) return;
-      await page.waitForTimeout(2_000);
+      if (reachedOfficialAuth && !isCloudflareTransit && !/__cf_chl_rt_tk/.test(currentUrl)) return page;
+      if (!isCloudflareTransit) return page;
+      await new Promise<void>((resolve) => setTimeout(resolve, 2_000));
     }
+    return page;
   }
 
   private async isLoginVisible(page: Page): Promise<boolean> {
