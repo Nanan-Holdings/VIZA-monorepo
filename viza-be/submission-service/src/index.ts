@@ -176,8 +176,12 @@ import {
   createUSAppointmentRunnerRepository,
   loadUSAppointmentRunnerConfig,
   pollUSAppointmentAssistedJobs,
+  processUSAppointmentJob,
+  createPlaywrightUSVisaSchedulingPortalClient,
   validateUSAppointmentRunnerStart,
 } from "./us-appointment";
+import { USAppointmentDispatcher, type USAppointmentWakeResult } from "./us-appointment/dispatch";
+import { SupabaseUSAppointmentClaims } from "./us-appointment/claim-repository";
 import {
   normalizeSgacPortalPayload,
   runSgacPortalSubmission,
@@ -7900,6 +7904,8 @@ async function pollOnce(runMaintenance = true): Promise<boolean> {
     try {
       const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
         createUSAppointmentRunnerRepository(),
+        loadUSAppointmentRunnerConfig(),
+        async (jobId) => (await wakeUSAppointmentJob(jobId)).outcome === "accepted",
       );
       if (processedUsAppointmentJobs > 0) {
         idleExitController?.noteActivity();
@@ -7964,6 +7970,7 @@ let runnerJobInFlight = false;
 let legacyQueueWorkInFlight = false;
 let activeHttpWork = 0;
 let idleExitController: IdleExitController | null = null;
+let usAppointmentDispatcher: USAppointmentDispatcher | null = null;
 
 function wakeSubmissionQueue(): void {
   if (shutdownRequested) return;
@@ -8002,6 +8009,57 @@ const RUNNER_WORKER_ID =
   process.env.FLY_MACHINE_ID?.trim() ||
   process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() ||
   `local-submission-service-${process.pid}`;
+
+function wakeUSAppointmentJob(jobId: string): Promise<USAppointmentWakeResult> {
+  if (shutdownRequested || !runnerStarted || !runnerPoolDatabaseHealthy
+    || (process.env.FLY_MACHINE_ID && RUNNER_MACHINE_KIND && !runnerSlotLease?.isHealthy())) {
+    return Promise.resolve({ outcome: "unavailable" });
+  }
+  if (!usAppointmentDispatcher) {
+    const repository = createUSAppointmentRunnerRepository();
+    const config = loadUSAppointmentRunnerConfig();
+    if (!repository.getJob) return Promise.resolve({ outcome: "unavailable" });
+    const getJob = repository.getJob.bind(repository);
+    usAppointmentDispatcher = new USAppointmentDispatcher({
+      getJob,
+      claims: new SupabaseUSAppointmentClaims(),
+      workerId: RUNNER_WORKER_ID,
+      config,
+      runJob: async (job, signal) => {
+        const client = await createPlaywrightUSVisaSchedulingPortalClient(config);
+        const abort = () => { void client.abort().catch(() => undefined); };
+        signal.addEventListener("abort", abort, { once: true });
+        try {
+          if (signal.aborted) { await client.abort(); return "skipped"; }
+          return await processUSAppointmentJob(job, repository, config, client);
+        } finally {
+          signal.removeEventListener("abort", abort);
+          await client.close().catch(() => undefined);
+        }
+      },
+      onWorkStart: () => idleExitController?.workStarted(),
+      onWorkFinish: () => {
+        idleExitController?.workFinished();
+        if (shutdownRequested && !pollInFlight && !runnerJobInFlight) closeHealthServer();
+      },
+      onFailure: (code) => console.warn(`[us-appointment] ${code}`),
+      onFatal: (code) => {
+        console.error(`[us-appointment] ${code}`);
+        shutdownRunner("appointment cleanup deadline");
+        // An unresponsive browser must not leave a billable worker alive or
+        // run beside another job. Its durable claim remains reconciliation-only.
+        // Exit successfully so Fly's on-failure policy does not restart a loop.
+        const exitTimer = setTimeout(() => process.exit(0), 1_000);
+        void runnerSlotLease?.stop().catch(() => undefined).finally(() => {
+          clearTimeout(exitTimer);
+          process.exit(0);
+        });
+      },
+    });
+  }
+  return usAppointmentDispatcher.wake(jobId);
+}
+
 const runnerAbort = new AbortController();
 let runnerStarted = false;
 let runnerPoolDatabaseHealthy = true;
@@ -8058,6 +8116,7 @@ function finishShutdown(): void {
 }
 
 function closeHealthServer(): void {
+  if ((usAppointmentDispatcher?.activeCount ?? 0) > 0) return;
   if (!healthServer) {
     finishShutdown();
     return;
@@ -8077,13 +8136,14 @@ function shutdownRunner(signal: string): void {
   idleExitController?.stop();
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
+  void usAppointmentDispatcher?.shutdown().catch(() => undefined);
   immediatePollRequested = false;
   if (runnerRetryWakeTimer) {
     clearTimeout(runnerRetryWakeTimer);
     runnerRetryWakeTimer = null;
   }
   runnerRetryWakeAt = 0;
-  if (!pollInFlight && !runnerJobInFlight) {
+  if (!pollInFlight && !runnerJobInFlight && (usAppointmentDispatcher?.activeCount ?? 0) === 0) {
     closeHealthServer();
   } else {
     console.log("[main] Waiting for active queue work to finish before shutdown");
@@ -8161,6 +8221,7 @@ async function isSafeForIdleExit(): Promise<boolean> {
     shutdownRequested ||
     pollInFlight ||
     runnerJobInFlight ||
+    (usAppointmentDispatcher?.activeCount ?? 0) > 0 ||
     activeHttpWork > 0 ||
     hasVietnamCardSessions() ||
     hasIndonesiaCardSessions() ||
@@ -8212,12 +8273,16 @@ async function main(): Promise<void> {
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
   healthServer = startHealthServer({
-    isWorkerStarted: () => runnerStarted,
-    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0,
+    isWorkerStarted: () => runnerStarted && !shutdownRequested && runnerPoolDatabaseHealthy
+      && (usAppointmentDispatcher?.healthy ?? true)
+      && (!process.env.FLY_MACHINE_ID || !RUNNER_MACHINE_KIND || Boolean(runnerSlotLease?.isHealthy())),
+    isWorkerBusy: () => legacyQueueWorkInFlight || runnerJobInFlight || activeHttpWork > 0
+      || (usAppointmentDispatcher?.activeCount ?? 0) > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
     wakeSubmissionQueue,
     wakeRunnerJob: wakeRunnerJobs,
+    wakeUSAppointmentJob,
     onWorkStart: () => {
       activeHttpWork += 1;
       idleExitController?.workStarted();

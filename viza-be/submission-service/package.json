@@ -72,7 +72,9 @@
     "db:verify-inputs": "ts-node scripts/db/verify-runner-inputs.ts",
     "db:verify": "npm run db:verify-queue && npm run db:verify-inputs",
     "db:diff-migrations": "ts-node scripts/db/diff-migrations.ts",
-    "launch:e2e-smoke": "ts-node scripts/launch/e2e-smoke.ts"
+    "launch:e2e-smoke": "ts-node scripts/launch/e2e-smoke.ts",
+    "us-appointment:placeholder-flow": "tsx scripts/run-us-appointment-placeholder-flow.ts",
+    "us-appointment:login-smoke": "tsx scripts/run-us-appointment-login-smoke.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",

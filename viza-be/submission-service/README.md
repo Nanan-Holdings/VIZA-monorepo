@@ -68,3 +68,29 @@ src/
 
 Managed virtual-card issuing is fail-closed and gated by exact issuer currency
 configuration — see `docs/photonpay-issuing-integration.md`.
+
+
+## USVisaScheduling appointment runner
+
+Explicit VIZA appointment actions wake `POST /internal/us-appointment/wake`
+with `Authorization: Bearer <US_APPOINTMENT_INTERNAL_TOKEN>` and a JSON
+`jobId`. The endpoint accepts one persisted live China USVisaScheduling job,
+after startup and capacity-lease readiness, using migration 0193's atomic claim.
+HTTP 202 means admission succeeded; it is not an official appointment result.
+Duplicate calls share admission. Worker shutdown cancels queued claims;
+ambiguous started claims remain held instead of replaying an official action.
+The execution deadline includes queue wait. A browser that cannot stop within
+the cleanup deadline makes the worker unhealthy and exits the machine.
+
+The backend requires `US_APPOINTMENT_SUBMISSION_SERVICE_URL` and the matching
+`US_APPOINTMENT_INTERNAL_TOKEN`; both sides also accept the existing shared
+`SUBMISSION_QUEUE_INTERNAL_TOKEN` when no appointment-specific token is set.
+For an existing on-demand Fly pool machine, configure
+`US_APPOINTMENT_FLY_APP`, `US_APPOINTMENT_FLY_MACHINE_ID`, and the organization
+`FLY_SUBMISSION_ORG_TOKEN`. The target URL must match that Fly app. The backend
+verifies `RUNNER_MACHINE_KIND=pool` and a positive idle TTL no greater than one
+hour before starting the exact existing machine and sending an instance-pinned
+wake. It never creates or scales machines. Keep the existing pool sizing and
+120-second idle setting. Enable the US live and Playwright flags on the worker
+only after its secrets, claim RPCs, and portal configuration are verified.
+Page/status reads do not wake or restart jobs.

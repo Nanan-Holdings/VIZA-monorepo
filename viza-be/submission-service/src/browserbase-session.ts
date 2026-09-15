@@ -63,6 +63,9 @@ type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response>;
 
+const BROWSERBASE_SESSION_RELEASE_TIMEOUT_MS = 10_000;
+const BROWSERBASE_BROWSER_CLOSE_TIMEOUT_MS = 10_000;
+
 function readBoolean(name: string, fallback: boolean): boolean {
   const value = process.env[name]?.trim().toLowerCase();
   if (!value) return fallback;
@@ -175,17 +178,64 @@ export async function createBrowserbaseCloudSession(options: {
   }
 
   const payload = await response.json() as BrowserbaseCreateResponse;
-  if (typeof payload.id !== "string" || typeof payload.connectUrl !== "string") {
+  const sessionId = typeof payload.id === "string" ? payload.id.trim() : "";
+  const connectUrl = typeof payload.connectUrl === "string" ? payload.connectUrl.trim() : "";
+  if (!sessionId || !connectUrl) {
+    if (sessionId) await releaseBrowserbaseCloudSession(sessionId, fetchImpl);
     throw new BrowserbaseSessionError("Browserbase returned an invalid session response.");
   }
 
   return {
-    id: payload.id,
-    connectUrl: payload.connectUrl,
-    replayUrl: `https://www.browserbase.com/sessions/${payload.id}`,
+    id: sessionId,
+    connectUrl,
+    replayUrl: `https://www.browserbase.com/sessions/${sessionId}`,
     proxiesEnabled,
     verifiedEnabled,
   };
+}
+
+/**
+ * Ask Browserbase to release a session that was created but could not be
+ * connected or prepared. Cleanup is deliberately best-effort: callers must
+ * retain the original setup error, while a hung provider request must not hold
+ * the worker indefinitely. The endpoint and API response are never exposed.
+ */
+export async function releaseBrowserbaseCloudSession(
+  sessionId: string,
+  fetchImpl: FetchLike = fetch,
+  timeoutMs = BROWSERBASE_SESSION_RELEASE_TIMEOUT_MS,
+): Promise<void> {
+  const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
+  if (!apiKey || !sessionId.trim()) return;
+
+  const boundedTimeoutMs = Math.max(1, Math.min(timeoutMs, BROWSERBASE_SESSION_RELEASE_TIMEOUT_MS));
+  const controller = new AbortController();
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const request = Promise.resolve().then(() => fetchImpl(
+    `https://api.browserbase.com/v1/sessions/${encodeURIComponent(sessionId)}`,
+    {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-BB-API-Key": apiKey,
+      },
+      body: JSON.stringify({ status: "REQUEST_RELEASE" }),
+    },
+  )).then(() => undefined).catch(() => undefined);
+  try {
+    await Promise.race([
+      request,
+      new Promise<void>((resolve) => {
+        timeoutHandle = setTimeout(() => {
+          controller.abort();
+          resolve();
+        }, boundedTimeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
 }
 
 function readPositiveInteger(name: string, fallback: number): number {
@@ -208,15 +258,33 @@ async function acquireBrowserbaseConnection(): Promise<() => void> {
   };
 }
 
+async function closeBrowserAfterSetupFailure(browser: Browser): Promise<void> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  await Promise.race([
+    Promise.resolve().then(() => browser.close()).catch(() => undefined),
+    new Promise<void>((resolve) => {
+      timeoutHandle = setTimeout(resolve, BROWSERBASE_BROWSER_CLOSE_TIMEOUT_MS);
+    }),
+  ]);
+  if (timeoutHandle) clearTimeout(timeoutHandle);
+}
+
 export async function connectBrowserbaseCloudBrowser(options: {
   prefix: string;
   keepAlive?: boolean;
   timeoutSeconds?: number;
+  /** Test-only transport injection; production callers omit this. */
+  fetchImpl?: FetchLike;
+  /** Test-only CDP injection; production callers use Playwright directly. */
+  connectOverCDPImpl?: typeof chromium.connectOverCDP;
 }): Promise<BrowserbaseCloudBrowser> {
   const release = await acquireBrowserbaseConnection();
+  let cloudSession: BrowserbaseCloudSession | null = null;
+  let browser: Browser | null = null;
   try {
-    const cloudSession = await createBrowserbaseCloudSession(options);
-    const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
+    cloudSession = await createBrowserbaseCloudSession(options);
+    const connectOverCDP = options.connectOverCDPImpl ?? chromium.connectOverCDP.bind(chromium);
+    browser = await connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
     browser.once("disconnected", release);
     const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
     const page = context.pages()[0] ?? await context.newPage();
@@ -230,6 +298,10 @@ export async function connectBrowserbaseCloudBrowser(options: {
       verifiedEnabled: cloudSession.verifiedEnabled,
     };
   } catch (error) {
+    await Promise.all([
+      browser ? closeBrowserAfterSetupFailure(browser) : Promise.resolve(),
+      cloudSession ? releaseBrowserbaseCloudSession(cloudSession.id, options.fetchImpl) : Promise.resolve(),
+    ]);
     release();
     throw error;
   }
