@@ -20,18 +20,23 @@ const SECURITY_HEADERS = [
     // enforcing CSP; blocking an analytics or checkout handoff at launch is
     // worse than collecting a short report-only baseline first.
     key: "Content-Security-Policy",
+    // AdSense needs its whole serving chain allowlisted here or the ad code is
+    // blocked outright: the loader and creatives come from googlesyndication /
+    // googleadservices / doubleclick, ad slots render in cross-origin iframes
+    // (frame-src), and the tag beacons to adtrafficquality.google for invalid
+    // traffic detection (connect-src). img-src already allows https:.
     value: [
       "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self' https://app.viza.it.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.gstatic.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://app.viza.it.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
-      "frame-src 'self' https://www.googletagmanager.com",
+      "connect-src 'self' https://app.viza.it.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.gstatic.com https://*.adtrafficquality.google",
+      "frame-src 'self' https://www.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://www.google.com https://*.adtrafficquality.google",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
       "report-uri /api/csp-report",

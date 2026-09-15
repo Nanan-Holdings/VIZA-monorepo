@@ -69,10 +69,23 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
         <link rel="preconnect" href={portalUrl} />
         <Script id="data-layer-init" strategy="beforeInteractive">
           {`window.dataLayer = window.dataLayer || [];`}
         </Script>
+        {/* Google AdSense loader, Kelin Studio publisher account. Kept out of
+            GTM on purpose: adsbygoogle.js is an ad-serving library rather than
+            a measurement tag, so Auto ads need it early to place slots on first
+            paint, and AdSense's reviewer reads the served HTML. A plain script
+            rather than next/script for that same reason: afterInteractive
+            injects it client side, where neither holds. Its origins are
+            allowlisted in the CSP in next.config.ts. */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8631844190242419"
+          crossOrigin="anonymous"
+        />
         {gtmId ? (
           <Script id="google-tag-manager" strategy="afterInteractive">
             {`
