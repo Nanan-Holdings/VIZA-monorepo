@@ -4,8 +4,28 @@ Scope: this file applies to `viza-be/agent-backend/drizzle/**`.
 
 ## Purpose
 
+`0192_ds160_local_payment_deferral.sql` provides service-role-only, expiring
+authorization for one local CEAC queue. It preserves financial entitlements,
+never authorizes the shared runner or appointments, and must be revoked after
+the test. The local frontend requires an exact application-id environment gate.
+
 This directory owns sequential SQL migrations for the agent backend Supabase
 database.
+
+`0193_us_appointment_runner_claims.sql` owns service-role-only RPCs and a
+private, RLS-protected claim history for mainland-China USVisaScheduling jobs.
+Claim creation locks the exact eligible appointment job and permits one active
+owner. Active claims never expire or transfer automatically; reconcile any
+official side effects before settling a lost worker. These RPCs do not change
+the shared `runner_job` claim/cutover contract or authorize payment/booking.
+
+`0194_disable_payment_execution.sql` disables database-side checkout, payment
+confirmation, official-fee queueing, and managed-card issuance while retaining
+historical payment tables and rows. It releases payment-only submission
+defaults/gates, removes payment risk/fence triggers and fee cron scheduling,
+and preserves consent, authorization, QA, queue ownership, and runner cutover
+checks. Keep the timestamped frontend Supabase mirror byte-identical; do not
+apply this migration to a remote database from local development.
 
 ## Key Responsibilities
 
@@ -440,6 +460,11 @@ The current internal automation migrations are:
 - `0188_jp_vjw_simplified_chinese_admin_labels.sql`: removes residual Japanese
   kana from municipality display labels without changing official romanized
   values. Keep its timestamped frontend Supabase mirror byte-identical.
+- `0194_disable_payment_execution.sql`: disables all database payment execution
+  entrypoints and payment-only submission fences without deleting historical
+  payment data. Legacy RPC identities remain as fail-closed
+  `payments_disabled` stubs; ordinary consent/QA/queue/runner checks remain.
+  Keep the timestamped frontend Supabase mirror byte-identical.
 
 ## Guardrails
 

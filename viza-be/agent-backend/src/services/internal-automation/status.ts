@@ -35,11 +35,13 @@ const LIFECYCLE_STATUS_ALIASES: Record<string, InternalLifecycleStatus> = {
   not_submitted: "draft",
   in_progress: "draft",
   incomplete: "draft",
-  unpaid: "awaiting_payment",
-  pending_payment: "awaiting_payment",
-  payment_pending: "awaiting_payment",
-  payment_required: "awaiting_payment",
-  needs_payment: "awaiting_payment",
+  // Historical payment labels now continue through the normal consent and
+  // document lifecycle. They must never advertise a checkout action.
+  unpaid: "awaiting_consent",
+  pending_payment: "awaiting_consent",
+  payment_pending: "awaiting_consent",
+  payment_required: "awaiting_consent",
+  needs_payment: "awaiting_consent",
   paid: "awaiting_consent",
   consent_pending: "awaiting_consent",
   consent_required: "awaiting_consent",
@@ -81,6 +83,7 @@ export function normalizeLifecycleStatus(
   if (!value) return null;
 
   const normalized = normalizeStatusToken(value);
+  if (normalized === "awaiting_payment") return "awaiting_consent";
   if (isInternalLifecycleStatus(normalized)) return normalized;
   return LIFECYCLE_STATUS_ALIASES[normalized] ?? null;
 }
@@ -90,4 +93,3 @@ export function isTerminalLifecycleStatus(
 ): boolean {
   return status === "approved" || status === "rejected";
 }
-
