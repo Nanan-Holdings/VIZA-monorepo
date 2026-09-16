@@ -1,0 +1,556 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const testState = vi.hoisted(() => ({
+  dynamicPropsHistory: [] as Array<Record<string, unknown>>,
+  reviewPropsHistory: [] as Array<Record<string, unknown>>,
+  assistantPropsHistory: [] as Array<Record<string, unknown>>,
+  completionInputs: [] as Array<{
+    effectiveStepIds: number[];
+    effectiveStepNames: string[];
+    answers: Record<string, string>;
+  }>,
+  tabCompletionCalls: 0,
+  assistantProgressCalls: 0,
+  automaticValidationCalls: 0,
+  saveDynamicAnswersCalls: [] as Array<{
+    applicationId: string;
+    answers: Record<string, unknown>;
+  }>,
+  validationRequestStarted: Promise.withResolvers<void>(),
+  resolveValidation: null as ((value: unknown) => void) | null,
+}));
+
+const routeParams = new URLSearchParams(
+  "applicationId=application-1&country=united_states&visaType=DS160",
+);
+const router = {
+  push: vi.fn(),
+  replace: vi.fn(),
+  refresh: vi.fn(),
+};
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  useSearchParams: () => routeParams,
+  usePathname: () => "/client/application/long-form",
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children?: React.ReactNode; href?: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+vi.mock("@phosphor-icons/react", () => {
+  const Icon = () => <span aria-hidden="true" />;
+  return {
+    CircleNotch: Icon,
+    Check: Icon,
+    CaretDown: Icon,
+    ShieldCheck: Icon,
+  };
+});
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    channel: () => ({
+      on() {
+        return this;
+      },
+      subscribe() {
+        return this;
+      },
+    }),
+    removeChannel: vi.fn(),
+  }),
+}));
+
+vi.mock("next-intl", () => {
+  const translate = Object.assign((key: string) => key, { has: () => false });
+  return {
+    useLocale: () => "en",
+    useTranslations: () => translate,
+  };
+});
+
+vi.mock("country-data-list", () => ({ countries: { all: [] } }));
+vi.mock("@/hooks/use-content-alignment", () => ({ useContentAlignment: () => 0 }));
+vi.mock("../use-content-alignment", () => ({ useContentAlignment: () => 0 }));
+
+vi.mock("@/components/ui/alert", () => {
+  const Wrapper = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
+  return { Alert: Wrapper, AlertDescription: Wrapper, AlertIcon: Wrapper, AlertTitle: Wrapper };
+});
+
+vi.mock("@/components/ui/application-form-panel", () => ({
+  ApplicationFormPanel: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+    <section {...props}>{children}</section>
+  ),
+}));
+
+vi.mock("@/components/ui/application-checkbox", () => ({
+  ApplicationCheckbox: () => null,
+}));
+
+vi.mock("@/app/client/documents/document-center-client", () => ({
+  DocumentCenterClient: () => null,
+}));
+vi.mock("@/components/client/client-error-alert", () => ({ ClientErrorAlert: () => null }));
+vi.mock("@/components/smooth-progress", () => ({ SmoothProgressBar: () => null }));
+vi.mock("@/components/client/passport-ocr-upload", () => ({ PassportOcrUpload: () => null }));
+vi.mock("@/components/client/brand-action-button", () => ({
+  BrandActionButton: ({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }) => (
+    <button {...props}>{children}</button>
+  ),
+}));
+vi.mock("@/components/application-steps/universal-profile-sync-card", () => ({
+  UniversalProfileSyncCard: () => null,
+}));
+vi.mock("../_components/result-cards/SubmissionStatusStep", () => ({
+  SubmissionStatusStep: () => null,
+}));
+
+vi.mock("@/components/application-steps", () => {
+  const Empty = () => null;
+  return {
+    PersonalInfoStep: Empty,
+    PassportStep: Empty,
+    TravelInfoStep: Empty,
+    ReviewStep: Empty,
+    DynamicReviewStep: (props: Record<string, unknown>) => {
+      testState.reviewPropsHistory.push(props);
+      return null;
+    },
+    TeamStep: Empty,
+  };
+});
+
+vi.mock("@/components/dynamic-step-form", () => {
+  const DynamicStepForm = (props: Record<string, unknown>) => {
+    testState.dynamicPropsHistory.push(props);
+    const onDraftChange = props.onDraftChange as (data: Record<string, string>) => void;
+    return (
+      <>
+        <button
+          type="button"
+          data-testid="dynamic-edit"
+          onClick={() => onDraftChange({ first_name: "edited" })}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          data-testid="dynamic-branch-edit"
+          onClick={() => onDraftChange({ branch: "alternate" })}
+        >
+          Switch branch
+        </button>
+      </>
+    );
+  };
+  return {
+    DynamicStepForm,
+    ensureVnPrearrivalOtherFlightFlow: (steps: unknown) => steps,
+  };
+});
+
+vi.mock("@/components/client/form-assistant", () => {
+  const FormFillingAssistant = (props: Record<string, unknown>) => {
+    testState.assistantPropsHistory.push(props);
+    const onValidate = props.onValidate as () => Promise<unknown>;
+    return (
+      <button type="button" data-testid="assistant-validate" onClick={() => void onValidate()}>
+        Validate
+      </button>
+    );
+  };
+  return { FormFillingAssistant };
+});
+
+vi.mock("@/app/actions/visa-form-fields", () => ({
+  getVisaFormSteps: vi.fn(async () => [
+    {
+      stepNumber: 1,
+      stepName: "Personal",
+      fields: [{
+        id: "field-1",
+        visaType: "DS160",
+        fieldName: "branch",
+        label: "Branch",
+        fieldType: "radio",
+        required: false,
+        stepNumber: 1,
+        stepName: "Personal",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: null,
+        options: ["base", "alternate"],
+        conditionalLogic: null,
+      }],
+    },
+    {
+      stepNumber: 2,
+      stepName: "Alternate details",
+      fields: [{
+        id: "field-2",
+        visaType: "DS160",
+        fieldName: "alternate_details",
+        label: "Alternate details",
+        fieldType: "text",
+        required: true,
+        stepNumber: 2,
+        stepName: "Alternate details",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: null,
+        options: null,
+        conditionalLogic: { showIf: "branch === alternate" },
+      }],
+    },
+  ]),
+}));
+
+vi.mock("@/app/client/documents/actions", () => ({
+  loadDocumentCenterData: vi.fn(async () => ({
+    ok: true,
+    data: { documents: [], selectedApplication: { id: "application-1" } },
+  })),
+}));
+
+vi.mock("@/app/actions/application-group", () => ({
+  getTeamApplicationContext: vi.fn(async () => ({
+    ok: true,
+    application: {
+      id: "application-1",
+      country: "united_states",
+      visa_type: "DS160",
+      status: "draft",
+      purpose: "VIZA_PLACEHOLDER_DRY_RUN",
+    },
+    profile: { full_name: "Ada Lovelace", nationality: "United Kingdom" },
+  })),
+  markTeamCompanionReviewed: vi.fn(),
+}));
+
+vi.mock("@/app/actions/visa-application-answers", () => ({
+  loadApplicationFormContext: vi.fn(),
+  loadDynamicAnswers: vi.fn(async () => ({ answers: {} })),
+  saveDynamicAnswers: vi.fn(async (applicationId: string, answers: Record<string, unknown>) => {
+    testState.saveDynamicAnswersCalls.push({ applicationId, answers });
+    return { ok: true };
+  }),
+  ensureDraftApplication: vi.fn(),
+}));
+vi.mock("@/app/actions/ds160-normalize", () => ({ persistDS160AnswerSet: vi.fn() }));
+vi.mock("@/app/actions/user-package", () => ({ getUserVisaPackage: vi.fn() }));
+
+vi.mock("@/lib/visa-form-schema-aliases", () => ({
+  resolveVisaFormSchemaVisaType: (value: string) => value,
+}));
+vi.mock("@/lib/form-utils", () => ({
+  evaluateShowIf: (
+    field: { conditionalLogic?: { showIf?: unknown } | null },
+    answers: Record<string, string>,
+  ) => field.conditionalLogic?.showIf === "branch === alternate"
+    ? answers.branch === "alternate"
+    : true,
+}));
+vi.mock("@/lib/visa-destinations", () => ({
+  getCanonicalApplicationProductCountry: (country: string) => country,
+  getFormVisaType: (visaType: string) => visaType,
+  getVisaPackageTitle: () => "DS-160",
+}));
+vi.mock("@/lib/applications/ongoing-application", () => ({ applicationIdentityMatches: () => true }));
+vi.mock("@/lib/universal-profile-prefill", () => ({
+  buildMalaysiaMdacUniversalProfileAnswerPatch: () => ({}),
+  buildUniversalProfileAnswerPatch: () => ({}),
+  mergeUniversalProfileIntoAnswers: (answers: Record<string, string>) => answers,
+  splitUniversalFullName: () => ({ givenNames: "", surname: "" }),
+}));
+vi.mock("@/lib/form-assistant/bootstrap", () => ({ shouldBootstrapFormAssistantDraft: () => false }));
+vi.mock("@/lib/form-assistant/constants", () => ({
+  canUseFormAssistant: () => true,
+  isFormAssistantConfirmationField: () => false,
+}));
+vi.mock("@/lib/form-assistant/review-issues", () => ({
+  buildFormAssistantFieldReviewIssues: () => [],
+  getBaseAnswerFieldName: (value: string) => value,
+  normalizeFormAssistantValidationResponse: (value: unknown) => value,
+}));
+vi.mock("@/lib/application-tab-completion", () => ({
+  computeAllTabCompletion: (input: {
+    effectiveSteps: Array<{ id: number; name: string }>;
+    answers: Record<string, string>;
+  }) => {
+    testState.tabCompletionCalls += 1;
+    testState.completionInputs.push({
+      effectiveStepIds: input.effectiveSteps.map((step) => step.id),
+      effectiveStepNames: input.effectiveSteps.map((step) => step.name),
+      answers: { ...input.answers },
+    });
+    return { completedStepIds: [], missingFields: [] };
+  },
+  getApplicationFieldErrorMessage: () => "Invalid",
+  getContiguousCompletedCount: () => 0,
+  getMissingRequiredDocumentRequirementKeys: () => [],
+  getRequiredDocumentProgress: () => ({ completed: 0, total: 0 }),
+}));
+vi.mock("@/lib/form-assistant/validator", () => ({
+  getAssistantProgress: () => {
+    testState.assistantProgressCalls += 1;
+    return { completed: 0, total: 1 };
+  },
+  validateApplicationAnswers: () => {
+    testState.automaticValidationCalls += 1;
+    return { errors: [], warnings: [], canReview: true, validationId: "auto" };
+  },
+}));
+vi.mock("@/lib/application-submission-display", () => ({
+  shouldShowReviewAlongsideSubmissionStatus: () => false,
+  shouldShowSubmissionStatusStep: () => false,
+}));
+vi.mock("@/lib/form-assistant/submission-readonly", () => ({
+  hasSuccessfulFormSubmission: () => false,
+  toSubmittedFormAssistantProgress: (progress: unknown) => progress,
+  toSubmittedFormAssistantState: (state: unknown) => state,
+}));
+vi.mock("@/lib/runtime-abort-errors", () => ({ isIgnorableRuntimeAbortError: () => false }));
+vi.mock("@/features/kr-arrival-card/config", () => ({ isKoreaEArrivalCardLiveEnabled: () => false }));
+vi.mock("@/features/kr-arrival-card/preflight", () => ({
+  canCreateKoreaArrivalCardDraft: () => true,
+  validateKoreaEArrivalPreflight: () => ({ ok: false }),
+}));
+vi.mock("@/features/kr-arrival-card/schema-availability", () => ({ isKoreaArrivalCardSchemaUnavailable: () => false }));
+vi.mock("@/app/client/arrival-cards/south-korea/gate", () => ({ KoreaArrivalCardEligibilityGate: () => null }));
+vi.mock("@/features/kr-arrival-card/routes", () => ({ buildKoreaArrivalCardFormHref: () => "/" }));
+vi.mock("@/lib/server-action-recovery", () => ({
+  attemptStaleServerActionReload: vi.fn(),
+  isStaleServerActionError: () => false,
+}));
+vi.mock("@/lib/application-step-sections", () => ({
+  buildApplicationStepSections: (steps: unknown[]) => [{ id: "personal", key: "personal", title: "Personal", steps }],
+  getDynamicStepTranslationCandidates: () => [],
+  initializeExpandedSectionState: () => ({}),
+}));
+vi.mock("@/lib/taiwan-entry-permit-layout", () => ({
+  buildTaiwanEntryPermitSections: () => [],
+  isTaiwanEntryPermitQualificationStepSource: () => false,
+  shouldShowStandaloneDocumentStep: (show: boolean) => show,
+}));
+vi.mock("@/lib/submission-queue", () => ({
+  isDs160VisaType: () => true,
+  isDigitalArrivalCardApplication: () => false,
+  isIndonesiaEVisaApplication: () => false,
+  isJapanVisitJapanWebApplication: () => false,
+  isKenyaEtaApplication: () => false,
+  isKoreaEArrivalCardApplication: () => false,
+  isMalaysiaMdacApplication: () => false,
+  isFranceVisasVisaType: () => false,
+  isPhilippinesEtravelApplication: () => false,
+  isSgArrivalCardApplication: () => false,
+  isThailandTdacApplication: () => false,
+  isUkStandardVisitorApplication: () => false,
+  isVietnamEVisaApplication: () => false,
+  isVietnamPrearrivalApplication: () => false,
+}));
+vi.mock("@/lib/taiwan-entry-permit-document-requirements", () => ({
+  getTaiwanEntryPermitExtraRequirements: () => [],
+  getTaiwanEntryPermitRequiredDocumentKeys: () => [],
+  getTaiwanEntryPermitVisibleDocumentKeys: () => [],
+}));
+vi.mock("@/lib/client/recent-application-form", () => ({
+  buildApplicationFormHref: () => "/client/application/long-form",
+  buildApplicationLongFormHref: () => "/client/application/long-form",
+  setRecentApplicationFormHref: vi.fn(),
+}));
+vi.mock("@/lib/client/active-application-selection", () => ({ setActiveApplicationSelection: vi.fn() }));
+vi.mock("@/lib/client/application-route-params", () => ({
+  readApplicationRouteParam: (params: URLSearchParams, ...keys: string[]) =>
+    keys.map((key) => params.get(key)).find(Boolean) ?? null,
+}));
+vi.mock("@/app/api/applications/customer-submission-result", () => ({ sanitizeCustomerSubmissionResult: (value: unknown) => value }));
+
+const response = (payload: unknown) => ({
+  ok: true,
+  json: async () => payload,
+});
+
+beforeEach(() => {
+  testState.dynamicPropsHistory.length = 0;
+  testState.reviewPropsHistory.length = 0;
+  testState.assistantPropsHistory.length = 0;
+  testState.completionInputs.length = 0;
+  testState.tabCompletionCalls = 0;
+  testState.assistantProgressCalls = 0;
+  testState.automaticValidationCalls = 0;
+  testState.saveDynamicAnswersCalls.length = 0;
+  testState.validationRequestStarted = Promise.withResolvers<void>();
+  testState.resolveValidation = null;
+  window.matchMedia = vi.fn(() => ({
+    matches: false,
+    media: "(min-width: 1024px)",
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
+  window.requestAnimationFrame = ((callback: FrameRequestCallback) => window.setTimeout(() => callback(0), 0)) as typeof window.requestAnimationFrame;
+  window.cancelAnimationFrame = ((id: number) => window.clearTimeout(id)) as typeof window.cancelAnimationFrame;
+  window.scrollTo = vi.fn();
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  HTMLElement.prototype.scrollTo = vi.fn();
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("form-assistant?") && !url.includes("/validate")) {
+      return response({
+        sessionId: "assistant-session",
+        assistantMessage: "Ready",
+        messages: [],
+        missingFields: [],
+        aiFilledFieldNames: [],
+        progress: { completed: 0, total: 1 },
+        canRunFinalCheck: true,
+      }) as Response;
+    }
+    if (url.includes("/form-assistant/validate")) {
+      testState.validationRequestStarted.resolve();
+      const payload = await new Promise<unknown>((resolve) => {
+        testState.resolveValidation = resolve;
+      });
+      return response(payload) as Response;
+    }
+    return response({}) as Response;
+  }) as typeof fetch;
+});
+
+describe("long form page orchestration", () => {
+  it("keeps dynamic form props reusable after a draft snapshot refresh", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    const initialProps = testState.dynamicPropsHistory.at(-1)!;
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("dynamic-edit"));
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    });
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(1));
+
+    const refreshedProps = testState.dynamicPropsHistory.at(-1)!;
+    expect(refreshedProps.step).toBe(initialProps.step);
+    expect(refreshedProps.onComplete).toBe(initialProps.onComplete);
+    expect(refreshedProps.onDraftChange).toBe(initialProps.onDraftChange);
+    expect(refreshedProps.aiFilledFieldNames).toBe(initialProps.aiFilledFieldNames);
+    expect(refreshedProps.invalidFieldNames).toBe(initialProps.invalidFieldNames);
+    expect(refreshedProps.invalidFieldMessages).toBe(initialProps.invalidFieldMessages);
+  });
+
+  it("rejects a validation response captured before an in-flight edit", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.assistantPropsHistory.length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByTestId("assistant-validate"));
+    await testState.validationRequestStarted.promise;
+
+    fireEvent.click(screen.getByTestId("dynamic-edit"));
+    testState.resolveValidation?.({
+      validationId: "stale-response",
+      errors: [{ code: "stale", message: "stale", fieldNames: ["first_name"] }],
+      warnings: [],
+      canReview: false,
+      progress: { completed: 0, total: 1 },
+      missingFields: [],
+    });
+
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    expect(testState.assistantPropsHistory.at(-1)?.validationResult).toBeNull();
+  });
+
+  it("debounces whole-page answer derivations during a typing burst", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    await waitFor(() => expect(testState.reviewPropsHistory.length).toBeGreaterThan(0));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 30));
+    });
+
+    const baseline = {
+      tabCompletionCalls: testState.tabCompletionCalls,
+      assistantProgressCalls: testState.assistantProgressCalls,
+      automaticValidationCalls: testState.automaticValidationCalls,
+      reviewPropsCount: testState.reviewPropsHistory.length,
+    };
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("dynamic-edit"));
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+      fireEvent.click(screen.getByTestId("dynamic-edit"));
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    });
+
+    expect(testState.tabCompletionCalls).toBe(baseline.tabCompletionCalls);
+    expect(testState.assistantProgressCalls).toBe(baseline.assistantProgressCalls);
+    expect(testState.automaticValidationCalls).toBe(baseline.automaticValidationCalls);
+    expect(testState.reviewPropsHistory).toHaveLength(baseline.reviewPropsCount);
+
+    await waitFor(() => {
+      expect(testState.reviewPropsHistory.at(-1)?.dynamicAnswers).toMatchObject({
+        first_name: "edited",
+      });
+    }, { timeout: 1000 });
+    expect(testState.tabCompletionCalls).toBeGreaterThan(baseline.tabCompletionCalls);
+  });
+
+  it("uses the latest draft at submission even before the derived snapshot debounce", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled());
+
+    const reviewCountBeforeEdit = testState.reviewPropsHistory.length;
+    fireEvent.click(screen.getByTestId("dynamic-edit"));
+    expect(testState.reviewPropsHistory).toHaveLength(reviewCountBeforeEdit);
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(0));
+
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({
+      first_name: "edited",
+    });
+  });
+
+  it("uses the latest visible branch for submission validation before debounce", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled());
+
+    const initialCompletion = testState.completionInputs.at(-1);
+    expect(initialCompletion?.effectiveStepIds).not.toContain(1);
+    const reviewCountBeforeBranchEdit = testState.reviewPropsHistory.length;
+
+    fireEvent.click(screen.getByTestId("dynamic-branch-edit"));
+    expect(testState.reviewPropsHistory).toHaveLength(reviewCountBeforeBranchEdit);
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => {
+      expect(testState.completionInputs.at(-1)?.effectiveStepIds).toContain(1);
+    });
+    expect(testState.completionInputs.at(-1)?.answers).toMatchObject({
+      branch: "alternate",
+    });
+  });
+});

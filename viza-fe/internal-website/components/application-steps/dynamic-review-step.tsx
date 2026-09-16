@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
 import { evaluateShowIf } from "@/lib/form-utils";
@@ -11,12 +11,14 @@ import {
 } from "@/lib/ds160-translations";
 import {
   resolveLocalizedFieldLabel,
+  normalizeBilingualOption,
   resolveOptionDisplayLabel,
   usesBilingualAnswerPair,
 } from "@/lib/bilingual-schema-contract";
 import { ValidationPanel } from "./review-step";
 import {
   BilingualReviewPanel,
+  areReviewRowValuesEqual,
   type ReviewOfficialOption,
   type ReviewRow,
 } from "./bilingual-review-panel";
@@ -140,18 +142,44 @@ export function toReviewOfficialOptions(
 ): ReviewOfficialOption[] {
   if (!options?.length) return [];
 
+  const cached = reviewOfficialOptionsCache.get(options);
+  if (cached) return cached;
+
   const deduped = new Map<string, ReviewOfficialOption>();
+  const firstLabelByNormalizedValue = new Map<string, string>();
   for (const option of options) {
     const value = typeof option === "string" ? option : option.value;
     if (!value.trim()) continue;
+
+    const normalized = normalizeBilingualOption(option);
+    const normalizedObject = typeof normalized === "string" ? null : normalized;
+    const normalizedValue = normalizedObject?.value ?? value;
+    const normalizedLabel = normalizedObject?.official_label
+      ?? normalizedObject?.label_en
+      ?? normalizedObject?.text
+      ?? value;
+    const normalizedKey = normalizedValue.toLowerCase();
+    if (!firstLabelByNormalizedValue.has(normalizedKey)) {
+      firstLabelByNormalizedValue.set(normalizedKey, normalizedLabel);
+    }
+
     if (deduped.has(value)) continue;
     deduped.set(value, {
       value,
-      label: getLocalizedOptionText(value, options, "en") ?? value,
+      // resolveOptionDisplayLabel is case-insensitive and uses the first
+      // matching option. Keep that behavior while building the list once.
+      label: firstLabelByNormalizedValue.get(normalizedKey) ?? value,
     });
   }
-  return Array.from(deduped.values());
+  const next = Array.from(deduped.values());
+  reviewOfficialOptionsCache.set(options, next);
+  return next;
 }
+
+const reviewOfficialOptionsCache = new WeakMap<
+  NonNullable<WizardStep["fields"][number]["options"]>,
+  ReviewOfficialOption[]
+>();
 
 export function getReviewBooleanText(
   value: string,
@@ -340,10 +368,22 @@ export function DynamicReviewStep({
     await onSaveOfficialValue(answerPatch);
   }, [dbSteps, onSaveOfficialValue]);
 
+  const previousRowsByKeyRef = useRef(new Map<string, ReviewRow>());
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const completedRows: ReviewRow[] = [];
     const missingRows: ReviewRow[] = [];
     const optionalRows: ReviewRow[] = [];
+    const previousRowsByKey = previousRowsByKeyRef.current;
+    const nextRowsByKey = new Map<string, ReviewRow>();
+
+    const reuseStableRow = (cacheKey: string, nextRow: ReviewRow): ReviewRow => {
+      const previousRow = previousRowsByKey.get(cacheKey);
+      const stableRow = previousRow && areReviewRowValuesEqual(previousRow, nextRow)
+        ? previousRow
+        : nextRow;
+      nextRowsByKey.set(cacheKey, stableRow);
+      return stableRow;
+    };
 
     dbSteps.forEach((step, sourceIndex) => {
       const sectionTitle = (() => {
@@ -393,19 +433,20 @@ export function DynamicReviewStep({
                 getBilingualReviewValue(dynamicAnswers, answerKey, value, field, "en"),
                 field,
               );
-          const officialOptions = toReviewOfficialOptions(getReviewFieldOptions(dynamicAnswers, field));
+          const cachedOfficialOptions = toReviewOfficialOptions(getReviewFieldOptions(dynamicAnswers, field));
+          let officialOptions = cachedOfficialOptions;
           if (
             (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country")
             && value
             && !officialOptions.some((option) => option.value === value)
           ) {
-            officialOptions.push({ value, label: officialValue });
+            officialOptions = [...officialOptions, { value, label: officialValue }];
           }
           if (field.fieldType === "checkbox" && officialOptions.length === 0) {
-            officialOptions.push(
+            officialOptions = [
               { value: "true", label: "Yes" },
               { value: "false", label: "No" },
-            );
+            ];
           }
           const officialEditorKind = field.fieldType === "textarea"
             ? "textarea" as const
@@ -431,7 +472,7 @@ export function DynamicReviewStep({
             warnings.push(t("translation.passportSpellingWarning"));
           }
 
-          const row: ReviewRow = {
+          const row = reuseStableRow(`${sourceIndex}:${answerKey}`, {
             section: isRequiredMissing
               ? `${sectionTitle} · ${t("review.missingInformation")}`
               : isOptionalBlank
@@ -462,7 +503,7 @@ export function DynamicReviewStep({
                 ? value
                 : isMissing ? "" : officialValue,
             officialOptions: officialEditorKind === "select" ? officialOptions : undefined,
-          };
+          });
 
           if (isRequiredMissing) missingRows.push(row);
           else if (isOptionalBlank) optionalRows.push(row);
@@ -471,6 +512,7 @@ export function DynamicReviewStep({
       }
     });
 
+    previousRowsByKeyRef.current = nextRowsByKey;
     return [...completedRows, ...missingRows, ...optionalRows];
   }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
 

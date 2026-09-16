@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { memo, startTransition, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useContentAlignment } from "./use-content-alignment";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -210,6 +210,13 @@ import {
 type StepStatus = "complete" | "in_progress" | "locked";
 
 const DYNAMIC_AUTOSAVE_INTERVAL_MS = 30_000;
+// Cross-step progress, branch visibility and the off-screen review are derived
+// from the complete answer snapshot. Keep those calculations out of the
+// keystroke path and publish the latest draft after the user pauses briefly.
+const DYNAMIC_DERIVED_REFRESH_DEBOUNCE_MS = 300;
+
+const EMPTY_REVIEW_COMPLETE = () => undefined;
+const MemoizedDynamicReviewStep = memo(DynamicReviewStep);
 
 function prepareFormAssistantState(
   state: FormAssistantState,
@@ -405,13 +412,16 @@ type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
 function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
-  return Object.values(drafts).reduce<Record<string, string>>(
-    (acc, stepDraft) => ({ ...acc, ...stepDraft }),
-    {},
-  );
+  const merged: Record<string, string> = {};
+  // Later step drafts intentionally override earlier keys without cloning the
+  // whole accumulated answer map for every step.
+  for (const stepDraft of Object.values(drafts)) Object.assign(merged, stepDraft);
+  return merged;
 }
 
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "team", "review"] as const;
+const EMPTY_INVALID_FIELD_NAMES_BY_STEP = new Map<number, Set<string>>();
+const EMPTY_INVALID_FIELD_MESSAGES_BY_STEP = new Map<number, Map<string, string>>();
 
 function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
   return steps
@@ -1779,6 +1789,10 @@ export default function ApplicationPage() {
   const [formAssistantAnswerRevision, setFormAssistantAnswerRevision] = useState(0);
   const [formAssistantUnavailable, setFormAssistantUnavailable] = useState(false);
   const [aiFilledFieldNames, setAiFilledFieldNames] = useState<string[]>([]);
+  const aiFilledFieldNameSet = useMemo(
+    () => new Set(aiFilledFieldNames),
+    [aiFilledFieldNames],
+  );
   const [draftVersion, setDraftVersion] = useState(0);
   const [autosaveVersion, setAutosaveVersion] = useState(0);
   const [documentCenterData, setDocumentCenterData] = useState<DocumentCenterData | null>(null);
@@ -1792,6 +1806,11 @@ export default function ApplicationPage() {
     promise: ReturnType<typeof ensureDraftApplication>;
   } | null>(null);
   const formAssistantHasValidatedRef = useRef(false);
+  const formAssistantValidationInFlightRef = useRef(false);
+  // One answer edit is enough to invalidate the current validation snapshot.
+  // Additional keystrokes must not schedule a page render for every character;
+  // the next validation request resets this latch before taking its snapshot.
+  const formAssistantAnswersMarkedDirtyRef = useRef(false);
   const formAssistantValidationRefreshGuardRef = useRef(new FormAssistantValidationRefreshGuard());
   const formAssistantValidateRef = useRef<(() => Promise<FormAssistantValidationResponse>) | null>(null);
   const formAssistantRetryRef = useRef<{
@@ -1799,6 +1818,8 @@ export default function ApplicationPage() {
     text: string;
     idempotencyKey: string;
   } | null>(null);
+  const dynamicAnswersRef = useRef(dynamicAnswers);
+  dynamicAnswersRef.current = dynamicAnswers;
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
@@ -1824,8 +1845,26 @@ export default function ApplicationPage() {
     hasLiveSaveActivityRef.current = true;
   }, []);
 
+  const scheduleDynamicDerivedRefresh = useCallback(() => {
+    if (draftVersionTimerRef.current !== null) {
+      window.clearTimeout(draftVersionTimerRef.current);
+    }
+    draftVersionTimerRef.current = window.setTimeout(() => {
+      draftVersionTimerRef.current = null;
+      startTransition(() => setDraftVersion((version) => version + 1));
+    }, DYNAMIC_DERIVED_REFRESH_DEBOUNCE_MS);
+  }, []);
+
   const markFormAssistantAnswersChanged = useCallback(() => {
-    if (!formAssistantHasValidatedRef.current) return;
+    // A user can edit while the first validation request is still in flight.
+    // Treat that edit as a new answer snapshot too, otherwise the response
+    // captured before the edit would still pass the refresh guard.
+    if (
+      !formAssistantHasValidatedRef.current &&
+      !formAssistantValidationInFlightRef.current
+    ) return;
+    if (formAssistantAnswersMarkedDirtyRef.current) return;
+    formAssistantAnswersMarkedDirtyRef.current = true;
     const revision = formAssistantValidationRefreshGuardRef.current.markAnswersChanged();
     setFormAssistantAnswerRevision(revision);
     setFormAssistantValidationDirty(true);
@@ -1941,7 +1980,7 @@ export default function ApplicationPage() {
     const manuallyChangedAiFields = new Set(
       Object.entries(nextData)
         .filter(([fieldName, value]) =>
-          aiFilledFieldNames.includes(fieldName) && (dynamicAnswers[fieldName] ?? "") !== value,
+          aiFilledFieldNames.includes(fieldName) && (dynamicAnswersRef.current[fieldName] ?? "") !== value,
         )
         .map(([fieldName]) => fieldName),
     );
@@ -1949,7 +1988,7 @@ export default function ApplicationPage() {
       setAiFilledFieldNames((current) => current.filter((fieldName) => !manuallyChangedAiFields.has(fieldName)));
     }
     const hasChangedValue = Object.entries(nextData).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (hasChangedValue) {
       markFormAssistantAnswersChanged();
@@ -1962,12 +2001,8 @@ export default function ApplicationPage() {
     if (hasChangedValue) {
       // Refresh cross-step conditional visibility separately from persistence.
       // This is a low-priority UI update and must never restart the save clock.
-      if (draftVersionTimerRef.current === null) {
-        draftVersionTimerRef.current = window.setTimeout(() => {
-          draftVersionTimerRef.current = null;
-          startTransition(() => setDraftVersion((version) => version + 1));
-        }, 120);
-      }
+      // Debounce it so a burst of keystrokes produces one whole-page refresh.
+      scheduleDynamicDerivedRefresh();
 
       // The first unsaved change starts one 30-second flush window; later
       // edits join that same batch instead of resetting the timer.
@@ -1979,7 +2014,7 @@ export default function ApplicationPage() {
       }
     }
     setSubmitMissingFields((current) => current.length === 0 ? current : []);
-  }, [aiFilledFieldNames, dynamicAnswers, markFormAssistantAnswersChanged]);
+  }, [aiFilledFieldNames, markFormAssistantAnswersChanged, scheduleDynamicDerivedRefresh]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -1999,14 +2034,17 @@ export default function ApplicationPage() {
   // Companion questions required by an official visa schema remain regular
   // dynamic form steps. The standalone VIZA Team workflow is deferred.
   const showTeamStep = false;
-  const STEPS: StepDef[] = STEP_KEYS
-    .filter((key) => showTeamStep || key !== "team")
-    .map((key, id) => ({
-      id,
-      name: t(`steps.${key}.name`),
-      description: t(`steps.${key}.description`),
-      sourceName: key,
-    }));
+  const STEPS = useMemo<StepDef[]>(
+    () => STEP_KEYS
+      .filter((key) => showTeamStep || key !== "team")
+      .map((key, id) => ({
+        id,
+        name: t(`steps.${key}.name`),
+        description: t(`steps.${key}.description`),
+        sourceName: key,
+      })),
+    [showTeamStep, t],
+  );
   const isDs160Application = isDs160VisaType(resolvedVisaType);
   const normalizedCountryForLive = resolvedCountry.trim().toLowerCase();
   const isFranceSchengenApplication =
@@ -2211,7 +2249,22 @@ export default function ApplicationPage() {
     () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
     [dbSteps, dynamicAnswerSnapshot, useDynamic],
   );
-  const firstFormStepId = useDynamic ? (visibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
+  // Draft answers change on the typing cadence, but most edits do not change
+  // which schema steps are visible. Keep the step list reference stable until
+  // that visibility set (or the schema itself) actually changes so downstream
+  // navigation effects do not rebind on every draft snapshot.
+  const visibleDynamicStepKey = useMemo(
+    () => visibleDynamicSteps.map(({ sourceIndex }) => sourceIndex).join(","),
+    [visibleDynamicSteps],
+  );
+  // The signature intentionally replaces the array dependency: answer edits
+  // can recreate the same visible-step list without changing navigation.
+  const stableVisibleDynamicSteps = useMemo(
+    () => visibleDynamicSteps,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dbSteps, useDynamic, visibleDynamicStepKey],
+  );
+  const firstFormStepId = useDynamic ? (stableVisibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
   const passportBioPageDocument = useMemo(
     () =>
       documentCenterData?.documents.find((document) =>
@@ -2249,7 +2302,7 @@ export default function ApplicationPage() {
     () =>
       useDynamic
         ? [
-        ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
+          ...stableVisibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
           sourceName: step.stepName,
           name: localizeDynamicStepName(step.stepName, {
@@ -2306,28 +2359,31 @@ export default function ApplicationPage() {
       tApp,
       tDyn,
       useDynamic,
-      visibleDynamicSteps,
+      stableVisibleDynamicSteps,
     ],
   );
 
-  const dynamicSectionTitles = {
-    personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
-    travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
-    stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
-    travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
-    previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
-    addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
-    passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
-    usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
-    family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
-    workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
-    securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
-    documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
-    photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
-    review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
-    team: tApp.has("dynamicSections.team") ? tApp("dynamicSections.team" as never) : "Team",
-    confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
-  } satisfies Record<StepSectionKey, string>;
+  const dynamicSectionTitles = useMemo(
+    () => ({
+      personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
+      travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+      stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
+      travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
+      previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
+      addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
+      passport: tApp.has("dynamicSections.passport") ? tApp("dynamicSections.passport" as never) : "Passport",
+      usContact: tApp.has("dynamicSections.usContact") ? tApp("dynamicSections.usContact" as never) : "U.S. Contact",
+      family: tApp.has("dynamicSections.family") ? tApp("dynamicSections.family" as never) : "Family",
+      workEducationTraining: tApp.has("dynamicSections.workEducationTraining") ? tApp("dynamicSections.workEducationTraining" as never) : "Work / Education / Training",
+      securityAndBackground: tApp.has("dynamicSections.securityAndBackground") ? tApp("dynamicSections.securityAndBackground" as never) : "Security and Background",
+      documents: tApp.has("dynamicSections.documents") ? tApp("dynamicSections.documents" as never) : isZhInterface ? "材料" : "Documents",
+      photo: tApp.has("dynamicSections.photo") ? tApp("dynamicSections.photo" as never) : "Upload Photo",
+      review: tApp.has("dynamicSections.review") ? tApp("dynamicSections.review" as never) : "Review",
+      team: tApp.has("dynamicSections.team") ? tApp("dynamicSections.team" as never) : "Team",
+      confirmation: tApp.has("dynamicSections.confirmation") ? tApp("dynamicSections.confirmation" as never) : "Confirmation",
+    } satisfies Record<StepSectionKey, string>),
+    [isZhInterface, tApp],
+  );
 
   const groupedSections = useMemo(
     () => {
@@ -2357,9 +2413,54 @@ export default function ApplicationPage() {
   // Final list of steps in display order: flattened from grouped sections so
   // the sidebar index matches navigation order. Falls back to source order
   // for the hardcoded (non-DB) flow.
-  const effectiveSteps: StepDef[] = useDynamic
-    ? groupedSections.flatMap((section) => section.steps)
-    : sourceOrderedSteps;
+  const effectiveSteps = useMemo<StepDef[]>(
+    () => useDynamic
+      ? groupedSections.flatMap((section) => section.steps)
+      : sourceOrderedSteps,
+    [groupedSections, sourceOrderedSteps, useDynamic],
+  );
+
+  // The displayed step list intentionally waits for the debounced draft
+  // snapshot. Submission is an explicit boundary, though, so a branch toggle
+  // made immediately before clicking Submit must still be reflected in the
+  // synchronous completeness walk. Rebuild only the dynamic step definitions
+  // here; the static document/review steps already have stable ids.
+  const getCurrentEffectiveSteps = useCallback((answers: Record<string, string>) => {
+    if (!useDynamic) return effectiveSteps;
+
+    const currentVisibleDynamicSteps = getVisibleDynamicSteps(dbSteps, answers);
+    const currentVisibleDynamicStepKey = currentVisibleDynamicSteps
+      .map(({ sourceIndex }) => sourceIndex)
+      .join(",");
+    if (currentVisibleDynamicStepKey === visibleDynamicStepKey) return effectiveSteps;
+
+    const sourceStepsById = new Map(sourceOrderedSteps.map((step) => [step.id, step]));
+    const currentDynamicSteps = currentVisibleDynamicSteps.map(({ step, sourceIndex }) =>
+      sourceStepsById.get(sourceIndex) ?? {
+        id: sourceIndex,
+        sourceName: step.stepName,
+        name: localizeDynamicStepName(step.stepName, {
+          isZhInterface,
+          visaType: resolvedVisaType,
+          translate: tDyn,
+        }),
+        description: tApp("dynamicStepDescription", { count: step.fields.length }),
+      },
+    );
+    const staticSteps = effectiveSteps.filter((step) => step.id >= documentStepIndex);
+    return [...currentDynamicSteps, ...staticSteps];
+  }, [
+    dbSteps,
+    documentStepIndex,
+    effectiveSteps,
+    isZhInterface,
+    resolvedVisaType,
+    sourceOrderedSteps,
+    tApp,
+    tDyn,
+    useDynamic,
+    visibleDynamicStepKey,
+  ]);
 
   const tabCompletion = useMemo(
     () => computeAllTabCompletion({
@@ -2446,9 +2547,9 @@ export default function ApplicationPage() {
   const formAssistantFieldReviewIssues = useMemo(
     () => buildFormAssistantFieldReviewIssues(
       formAssistantValidationDirty ? null : reviewValidation,
-      visibleDynamicSteps.map(({ step }) => step),
+      stableVisibleDynamicSteps.map(({ step }) => step),
     ),
-    [formAssistantValidationDirty, reviewValidation, visibleDynamicSteps],
+    [formAssistantValidationDirty, reviewValidation, stableVisibleDynamicSteps],
   );
   const formAssistantFieldReviewIssueMap = useMemo(
     () => new Map(formAssistantFieldReviewIssues.map((issue) => [issue.fieldName, issue])),
@@ -2533,10 +2634,10 @@ export default function ApplicationPage() {
   const applicationReadyForAssistantReview =
     (!showStandaloneDocumentStep || documentCenterLoaded) &&
     tabCompletion.missingFields.length === 0;
-  const lastVisibleFormStepId = visibleDynamicSteps.at(-1)?.sourceIndex ?? null;
+  const lastVisibleFormStepId = stableVisibleDynamicSteps.at(-1)?.sourceIndex ?? null;
   const invalidFieldNamesByStep = useMemo(() => {
+    if (submitCheckState !== "invalid") return EMPTY_INVALID_FIELD_NAMES_BY_STEP;
     const fieldsByStep = new Map<number, Set<string>>();
-    if (submitCheckState !== "invalid") return fieldsByStep;
 
     for (const item of confirmationMissingFields) {
       const fieldNames = fieldsByStep.get(item.stepId) ?? new Set<string>();
@@ -2546,8 +2647,8 @@ export default function ApplicationPage() {
     return fieldsByStep;
   }, [confirmationMissingFields, submitCheckState]);
   const invalidFieldMessagesByStep = useMemo(() => {
+    if (submitCheckState !== "invalid") return EMPTY_INVALID_FIELD_MESSAGES_BY_STEP;
     const messagesByStep = new Map<number, Map<string, string>>();
-    if (submitCheckState !== "invalid") return messagesByStep;
 
     for (const item of confirmationMissingFields) {
       const fieldMessages = messagesByStep.get(item.stepId) ?? new Map<string, string>();
@@ -2587,6 +2688,7 @@ export default function ApplicationPage() {
     setError(null);
     setCurrentStep(0);
     setCompletedUpTo(0);
+    dynamicAnswersRef.current = {};
     setDynamicAnswers({});
     setKoreaPreflightTrusted(!isKoreaEArrivalCard);
     setSubmitCheckState("idle");
@@ -2596,6 +2698,8 @@ export default function ApplicationPage() {
     setFormAssistantAnswerRevision(0);
     setFormAssistantBusy(false);
     formAssistantHasValidatedRef.current = false;
+    formAssistantValidationInFlightRef.current = false;
+    formAssistantAnswersMarkedDirtyRef.current = false;
     formAssistantValidationRefreshGuardRef.current.reset();
     initialStepResolvedRef.current = false;
     setAppState((prev) => ({
@@ -2803,6 +2907,7 @@ export default function ApplicationPage() {
 
         // Set dynamic answers for the dynamic form steps
         if (Object.keys(mergedDynamicAnswers).length > 0) {
+          dynamicAnswersRef.current = mergedDynamicAnswers;
           setDynamicAnswers(mergedDynamicAnswers);
           if (ds160Answers["photo_path"]) {
             setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
@@ -3060,21 +3165,22 @@ export default function ApplicationPage() {
 
     const hasNonEmptyValue = Object.values(data).some((value) => value.trim() !== "");
     const hasChangedValue = Object.entries(data).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (!hasNonEmptyValue && !hasChangedValue) return;
 
     const changedData = Object.fromEntries(
       Object.entries(data).filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedData).length === 0) return;
 
     await enqueueDynamicAnswerSave(changedData);
 
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedData };
     setDynamicAnswers((prev) => ({ ...prev, ...changedData }));
-  }, [dynamicAnswers, enqueueDynamicAnswerSave]);
+  }, [enqueueDynamicAnswerSave]);
 
   const saveAllDynamicDrafts = useCallback(async () => {
     const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
@@ -3082,13 +3188,13 @@ export default function ApplicationPage() {
     if (draftEntries.length === 0) return;
 
     const hasChangedValue = draftEntries.some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (!hasChangedValue) return;
 
     const changedDraft = Object.fromEntries(
       draftEntries.filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) return;
@@ -3104,13 +3210,14 @@ export default function ApplicationPage() {
       throw saveError;
     }
 
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedDraft };
     setDynamicAnswers((prev) => ({ ...prev, ...changedDraft }));
     setSubmitMissingFields([]);
     if (requestId === autosaveRequestRef.current) {
       setAutosaving(false);
       setAutosaveFailed(false);
     }
-  }, [dynamicAnswers, enqueueDynamicAnswerSave]);
+  }, [enqueueDynamicAnswerSave]);
 
   const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
     const answerEntries = Object.entries(answerPatch);
@@ -3136,6 +3243,7 @@ export default function ApplicationPage() {
       if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
     }
 
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...answerPatch };
     setDynamicAnswers((current) => ({ ...current, ...answerPatch }));
     setAiFilledFieldNames((current) => current.filter((fieldName) => !fieldNames.has(fieldName)));
     setSubmitMissingFields([]);
@@ -3240,6 +3348,13 @@ export default function ApplicationPage() {
           ])),
           expiresAt: Date.now() + 5_000,
         };
+        const nextAnswers = { ...dynamicAnswersRef.current };
+        for (const item of payload.appliedPatches) {
+          delete nextAnswers[`${item.fieldName}_zh`];
+          delete nextAnswers[`${item.fieldName}_en`];
+        }
+        Object.assign(nextAnswers, patch);
+        dynamicAnswersRef.current = nextAnswers;
         setDynamicAnswers((current) => {
           const next = { ...current };
           for (const item of payload.appliedPatches) {
@@ -3444,6 +3559,18 @@ export default function ApplicationPage() {
     scrollToFormAssistant();
   }, [scrollToApplicationField, scrollToFormAssistant]);
 
+  const handleDynamicReviewEdit = useCallback(
+    (stepIndex: number, fieldName: string) => scrollToApplicationField(fieldName, stepIndex),
+    [scrollToApplicationField],
+  );
+  const handleDynamicReviewPhotoEdit = useCallback(
+    () => scrollToDocumentRequirement(
+      "photo",
+      showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
+    ),
+    [documentStepIndex, firstFormStepId, scrollToDocumentRequirement, showStandaloneDocumentStep],
+  );
+
   const renderFormAssistantIssueField = useCallback((issue: FormAssistantDisplayValidationIssue) => {
     if (!issue.fieldName) return null;
     const location = formAssistantFieldLocations.get(getBaseAnswerFieldName(issue.fieldName));
@@ -3466,12 +3593,12 @@ export default function ApplicationPage() {
           country={resolvedCountry}
           visaType={resolvedVisaType}
           invalidFieldNames={issue.severity === "error" ? new Set([issue.fieldName]) : undefined}
-          aiFilledFieldNames={new Set(aiFilledFieldNames)}
+          aiFilledFieldNames={aiFilledFieldNameSet}
         />
       </div>
     );
   }, [
-    aiFilledFieldNames,
+    aiFilledFieldNameSet,
     dynamicAnswerSnapshot,
     formAssistantFieldLocations,
     formAssistantValidation?.validationId,
@@ -3485,7 +3612,11 @@ export default function ApplicationPage() {
   const handleFormAssistantValidate = useCallback(async (): Promise<FormAssistantValidationResponse> => {
     const applicationId = appState.applicationId;
     if (!applicationId) throw new Error(t("errors.noApplicationFound"));
+    // The guard revision is captured after the latest draft has been flushed.
+    // Allow the next edit to invalidate this new request exactly once.
+    formAssistantAnswersMarkedDirtyRef.current = false;
     const requestToken = formAssistantValidationRefreshGuardRef.current.startRequest();
+    formAssistantValidationInFlightRef.current = true;
     setFormAssistantBusy(true);
     try {
       await saveAllDynamicDrafts();
@@ -3506,6 +3637,7 @@ export default function ApplicationPage() {
         formAssistantHasValidatedRef.current = true;
         setFormAssistantValidation(payload);
         setFormAssistantValidationDirty(false);
+        formAssistantAnswersMarkedDirtyRef.current = false;
         setFormAssistantState((current) => current ? {
           ...current,
           progress: payload.progress,
@@ -3518,6 +3650,8 @@ export default function ApplicationPage() {
     } finally {
       if (formAssistantValidationRefreshGuardRef.current.isLatestRequest(requestToken)) {
         setFormAssistantBusy(false);
+        formAssistantAnswersMarkedDirtyRef.current = false;
+        formAssistantValidationInFlightRef.current = false;
       }
     }
   }, [appState.applicationId, locale, saveAllDynamicDrafts, t]);
@@ -3578,7 +3712,7 @@ export default function ApplicationPage() {
 
     const pendingDraft = collectDraftAnswers(dynamicDraftRef.current);
     const hasChangedValue = Object.entries(pendingDraft).some(
-      ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
 
     if (!hasChangedValue) {
@@ -3592,7 +3726,7 @@ export default function ApplicationPage() {
 
     const changedDraft = Object.fromEntries(
       Object.entries(pendingDraft).filter(
-        ([fieldName, value]) => (dynamicAnswers[fieldName] ?? "") !== value,
+        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) {
@@ -3605,6 +3739,7 @@ export default function ApplicationPage() {
     void runAutosave.then(
       () => {
         if (requestId !== autosaveRequestRef.current) return;
+        dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedDraft };
         setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
         setAutosaveFailed(false);
         setAutosaving(false);
@@ -3623,7 +3758,6 @@ export default function ApplicationPage() {
     );
   }, [
     autosaveVersion,
-    dynamicAnswers,
     enqueueDynamicAnswerSave,
     loading,
     saving,
@@ -3847,7 +3981,7 @@ export default function ApplicationPage() {
     }
   };
 
-  const handleDynamicStepComplete = async (stepIndex: number, data: Record<string, string>) => {
+  const handleDynamicStepComplete = useCallback(async (stepIndex: number, data: Record<string, string>) => {
     setSaving(true);
     setError(null);
     try {
@@ -3860,6 +3994,7 @@ export default function ApplicationPage() {
       await enqueueDynamicAnswerSave(data, explicitApplicationId ? appState.applicationId ?? undefined : undefined);
 
       // Update local state
+      dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...data };
       setDynamicAnswers((prev) => ({ ...prev, ...data }));
       setSubmitMissingFields([]);
       const currentStepPosition = getVisibleStepIndex(effectiveSteps, stepIndex);
@@ -3876,7 +4011,27 @@ export default function ApplicationPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [appState.applicationId, enqueueDynamicAnswerSave, effectiveSteps, explicitApplicationId, scrollToStepPanel, t]);
+
+  // DynamicStepForm keeps its own field state, so these handlers only need to
+  // change when the page-level save context changes. Keeping one handler per
+  // step avoids defeating child memoization on every draft-version render.
+  const dynamicStepCompleteHandlers = useMemo(() => {
+    const handlers = new Map<number, (data: Record<string, string>) => void | Promise<void>>();
+    for (const step of effectiveSteps) {
+      if (step.id >= documentStepIndex) continue;
+      handlers.set(step.id, (data) => handleDynamicStepComplete(step.id, data));
+    }
+    return handlers;
+  }, [documentStepIndex, effectiveSteps, handleDynamicStepComplete]);
+  const dynamicStepDraftHandlers = useMemo(() => {
+    const handlers = new Map<number, (data: Record<string, string>) => void>();
+    for (const step of effectiveSteps) {
+      if (step.id >= documentStepIndex) continue;
+      handlers.set(step.id, (data) => handleDynamicDraftChange(step.id, data));
+    }
+    return handlers;
+  }, [documentStepIndex, effectiveSteps, handleDynamicDraftChange]);
 
   const returnToTeam = useCallback(() => {
     const target = new URL(returnToParam ?? "/client/application/long-form", window.location.origin);
@@ -3916,14 +4071,17 @@ export default function ApplicationPage() {
   }, [appState.applicationId, appState.passport, appState.personal, appState.travel, returnToTeam, t]);
 
   const buildCurrentAnswerSnapshot = useCallback(
-    () => ({ ...dynamicAnswers, ...collectDraftAnswers(dynamicDraftRef.current) }),
-    [dynamicAnswers],
+    () => ({ ...dynamicAnswersRef.current, ...collectDraftAnswers(dynamicDraftRef.current) }),
+    [],
   );
 
   const getCurrentSubmitMissingFields = useCallback(
-    (answers: Record<string, string>) => computeAllTabCompletion({
+    (
+      answers: Record<string, string>,
+      currentEffectiveSteps: StepDef[] = effectiveSteps,
+    ) => computeAllTabCompletion({
       dbSteps,
-      effectiveSteps,
+      effectiveSteps: currentEffectiveSteps,
       answers,
       documentCenterData,
       documentsLoaded: documentCenterLoaded,
@@ -3972,6 +4130,7 @@ export default function ApplicationPage() {
     const snapshot = buildCurrentAnswerSnapshot();
     if (Object.keys(snapshot).length === 0) return snapshot;
     await enqueueDynamicAnswerSave(snapshot, applicationId, true);
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...snapshot };
     setDynamicAnswers((current) => ({ ...current, ...snapshot }));
     return snapshot;
   }, [buildCurrentAnswerSnapshot, enqueueDynamicAnswerSave]);
@@ -4051,7 +4210,10 @@ export default function ApplicationPage() {
 
       await saveAllDynamicDrafts();
       const submissionAnswerSnapshot = await persistCurrentDynamicAnswersForSubmission(applicationId);
-      const missing = getCurrentSubmitMissingFields(submissionAnswerSnapshot).filter(
+      const missing = getCurrentSubmitMissingFields(
+        submissionAnswerSnapshot,
+        getCurrentEffectiveSteps(submissionAnswerSnapshot),
+      ).filter(
         (item) => !forceDryRun || item.stepId !== documentStepIndex,
       );
       setSubmitMissingFields(missing);
@@ -4245,8 +4407,12 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
+      const currentAnswerSnapshot = buildCurrentAnswerSnapshot();
       const missing = useDynamic
-        ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot())
+        ? getCurrentSubmitMissingFields(
+            currentAnswerSnapshot,
+            getCurrentEffectiveSteps(currentAnswerSnapshot),
+          )
         : [];
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
@@ -4361,8 +4527,12 @@ export default function ApplicationPage() {
         return;
       }
 
+      const currentAnswerSnapshot = buildCurrentAnswerSnapshot();
       const missing = useDynamic
-        ? getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
+        ? getCurrentSubmitMissingFields(
+            currentAnswerSnapshot,
+            getCurrentEffectiveSteps(currentAnswerSnapshot),
+          ).filter(
             (item) => !forceDryRun || item.stepId !== documentStepIndex,
           )
         : [];
@@ -4426,6 +4596,7 @@ export default function ApplicationPage() {
   const handleKoreaPreflightComplete = useCallback(
     async (completion: KoreaArrivalCardPreflightCompletion) => {
       setKoreaPreflightTrusted(true);
+      dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...completion.answers };
       setDynamicAnswers((current) => ({
         ...current,
         ...completion.answers,
@@ -4568,7 +4739,7 @@ export default function ApplicationPage() {
         if (!value || (appliedFieldNameSet && !appliedFieldNameSet.has(fieldName))) return false;
         // A locally edited value can exist before its autosave reaches the
         // server. Preserve it just like a persisted manual answer.
-        return !(dynamicAnswers[fieldName] ?? "").trim();
+        return !(dynamicAnswersRef.current[fieldName] ?? "").trim();
       }),
     );
     const { givenNames, surname } = splitUniversalFullName(fields.full_name);
@@ -4588,6 +4759,7 @@ export default function ApplicationPage() {
       }
       if (changed) dynamicDraftRef.current[Number(stepIndexText)] = nextDraft;
     }
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...safeAnswerPatch };
     setDynamicAnswers((prev) => ({ ...prev, ...safeAnswerPatch }));
     if (Object.keys(safeAnswerPatch).length > 0) {
       // Remount the current DB-driven step so its local controlled values are
@@ -4614,7 +4786,7 @@ export default function ApplicationPage() {
         passportExpirationDate: prev.passport.passportExpirationDate || fields.passport_expiry_date || undefined,
       },
     }));
-  }, [dynamicAnswers, markFormAssistantAnswersChanged]);
+  }, [markFormAssistantAnswersChanged]);
 
   // When the first form step has a dedicated passport-upload field (e.g. the UK
   // "Passport Upload" step), the passport OCR card above the form is the real
@@ -4624,11 +4796,27 @@ export default function ApplicationPage() {
     () => (hasPassportUploadField ? ["passport_upload"] : []),
     [hasPassportUploadField],
   );
+  const renderedDynamicSteps = useMemo(() => {
+    const steps = new Map<number, WizardStep>();
+    dbSteps.forEach((step, index) => {
+      steps.set(
+        index,
+        isTaiwanEntryPermit
+          ? { ...step, fields: step.fields.filter((field) => field.fieldName !== "household_revoked") }
+          : step,
+      );
+    });
+    return steps;
+  }, [dbSteps, isTaiwanEntryPermit]);
 
   const handlePassportBioUploaded = useCallback(
     (fileName: string) => {
       setLocalPassportBioPageName(fileName);
       if (!hasPassportUploadField) return;
+      dynamicAnswersRef.current = {
+        ...dynamicAnswersRef.current,
+        passport_upload: fileName,
+      };
       setDynamicAnswers((prev) =>
         prev.passport_upload === fileName ? prev : { ...prev, passport_upload: fileName },
       );
@@ -4639,6 +4827,8 @@ export default function ApplicationPage() {
   useEffect(() => {
     if (!hasPassportUploadField || !passportOcrInitialUploaded) return;
     const name = passportOcrInitialFileName ?? "uploaded";
+    if (dynamicAnswersRef.current.passport_upload) return;
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, passport_upload: name };
     setDynamicAnswers((prev) =>
       prev.passport_upload ? prev : { ...prev, passport_upload: name },
     );
@@ -4877,6 +5067,9 @@ export default function ApplicationPage() {
           {/* Step cards */}
           <div className="flex flex-col gap-5 sm:gap-6">
             {effectiveSteps.map((step) => {
+              const dynamicStep = renderedDynamicSteps.get(step.id);
+              const dynamicStepCompleteHandler = dynamicStepCompleteHandlers.get(step.id);
+              const dynamicStepDraftHandler = dynamicStepDraftHandlers.get(step.id);
               return (
                 <div
                   key={step.id}
@@ -4905,7 +5098,7 @@ export default function ApplicationPage() {
                       /* Dynamic DB-driven form + photo/review/status steps */
                       <>
                         {/* DB-driven form steps */}
-                        {step.id < documentStepIndex && dbSteps[step.id] && (
+                        {step.id < documentStepIndex && dynamicStep && dynamicStepCompleteHandler && dynamicStepDraftHandler && (
                           <>
                             {isTaiwanEntryPermit && isTaiwanEntryPermitQualificationStepSource(step.sourceName) && appState.applicationId ? (
                               <DocumentCenterClient
@@ -4921,15 +5114,10 @@ export default function ApplicationPage() {
                             ) : null}
                             <DynamicStepForm
                               key={`${step.id}:${externalAnswerRevision}`}
-                              step={{
-                                ...dbSteps[step.id],
-                                fields: isTaiwanEntryPermit
-                                  ? dbSteps[step.id].fields.filter((field) => field.fieldName !== "household_revoked")
-                                  : dbSteps[step.id].fields,
-                              }}
+                              step={dynamicStep}
                               prefill={dynamicAnswers}
-                              onComplete={(data) => handleDynamicStepComplete(step.id, data)}
-                              onDraftChange={(data) => handleDynamicDraftChange(step.id, data)}
+                              onComplete={dynamicStepCompleteHandler}
+                              onDraftChange={dynamicStepDraftHandler}
                               onUserChange={markLiveSaveActivity}
                               saving={saving}
                               showContinueButton={false}
@@ -4938,7 +5126,7 @@ export default function ApplicationPage() {
                               externallyHandledFieldNames={passportUploadHandledFields}
                               invalidFieldNames={invalidFieldNamesByStep.get(step.id)}
                               invalidFieldMessages={invalidFieldMessagesByStep.get(step.id)}
-                              aiFilledFieldNames={new Set(aiFilledFieldNames)}
+                              aiFilledFieldNames={aiFilledFieldNameSet}
                               reviewIssues={formAssistantFieldReviewIssueMap}
                               onNavigateReviewIssue={handleNavigateReviewIssue}
                             />
@@ -5005,18 +5193,15 @@ export default function ApplicationPage() {
                               data-testid={preserveIndonesiaReview ? "indonesia-review-status-stack" : undefined}
                             >
                               {showReviewAlongsideSubmissionStatus ? (
-                                <DynamicReviewStep
+                                <MemoizedDynamicReviewStep
                                   applicationId={appState.applicationId}
                                   dynamicAnswers={dynamicAnswerSnapshot}
                                   dbSteps={dbSteps}
                                   photoPath={appState.photo}
-                                  onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
-                                  onPhotoEdit={() => scrollToDocumentRequirement(
-                                    "photo",
-                                    showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
-                                  )}
+                                  onEdit={handleDynamicReviewEdit}
+                                  onPhotoEdit={handleDynamicReviewPhotoEdit}
                                   onSaveOfficialValue={formAssistantReadOnly ? undefined : handleReviewOfficialValueSave}
-                                  onComplete={() => undefined}
+                                  onComplete={EMPTY_REVIEW_COMPLETE}
                                   mode="continue"
                                   showAction={false}
                                   reviewIssues={formAssistantFieldReviewIssueMap}
@@ -5034,18 +5219,15 @@ export default function ApplicationPage() {
                             </div>
                           ) : (
                             <div className="flex flex-col gap-6">
-                              <DynamicReviewStep
+                                <MemoizedDynamicReviewStep
                                 applicationId={appState.applicationId}
                                 dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
                                 photoPath={appState.photo}
-                                onEdit={(stepIdx, fieldName) => scrollToApplicationField(fieldName, stepIdx)}
-                                onPhotoEdit={() => scrollToDocumentRequirement(
-                                  "photo",
-                                  showStandaloneDocumentStep ? documentStepIndex : firstFormStepId,
-                                )}
+                                onEdit={handleDynamicReviewEdit}
+                                onPhotoEdit={handleDynamicReviewPhotoEdit}
                                 onSaveOfficialValue={handleReviewOfficialValueSave}
-                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : () => undefined}
+                                onComplete={isCompanionFlow ? handleCompanionReviewComplete : EMPTY_REVIEW_COMPLETE}
                                 mode="continue"
                                 continueLabel={isCompanionFlow ? t("team.confirmCompanion") : undefined}
                                 showAction={isCompanionFlow}

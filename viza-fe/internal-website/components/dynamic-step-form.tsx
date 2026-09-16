@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { memo, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { Question as CircleHelp, CircleNotch as Loader2, Sparkle as Sparkles, Trash as Trash2 } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -300,6 +300,18 @@ type FieldIssueSeverity = "ok" | "warning" | "error";
 interface FieldIssue {
   severity: FieldIssueSeverity;
   message: string;
+}
+
+interface EffectiveFieldState {
+  validationField: VisaFormFieldRow;
+  fieldOptions: VisaFormFieldRow["options"];
+  phEtravelSource: string | null;
+  isKoreaAddressSearchSelect: boolean;
+  vnPrearrivalSource: string | null;
+  vnPrearrivalKey: string | null;
+  isVnPrearrivalField: boolean;
+  isVnPrearrivalArrivalDateField: boolean;
+  hasVnPrearrivalStaticOptions: boolean;
 }
 
 function isIndonesiaPostalAutoFillField(field: VisaFormFieldRow): boolean {
@@ -651,6 +663,12 @@ const NATIONALITY_CONSISTENCY_CANDIDATES = [
   "nationality_at_birth_different",
 ] as const;
 
+const DOCUMENT_EXPIRY_DISPLAY_KEY_CANDIDATES = [
+  "date_of_expiry",
+  "expiration_date",
+  "expiry_date",
+] as const;
+
 function getRepeatInstanceSuffix(key: string): string {
   return key.match(/__\d+$/)?.[0] ?? "";
 }
@@ -659,16 +677,49 @@ function stripRepeatInstanceSuffix(key: string): string {
   return key.replace(/__\d+$/, "");
 }
 
+type NormalisedFieldCandidates = readonly string[];
+
+// Schema field names are stable and bounded by the loaded form. Keep only a
+// small FIFO cache for normalized keys so repeated validation passes avoid the
+// regexp/lowercase work without retaining arbitrary answer data.
+const NORMALISED_FIELD_KEY_CACHE_LIMIT = 1024;
+const normalisedFieldKeyCache = new Map<string, string>();
+const normalisedFieldCandidatesCache = new WeakMap<
+  readonly string[],
+  NormalisedFieldCandidates
+>();
+
 function normaliseFieldKey(key: string): string {
-  return stripRepeatInstanceSuffix(key)
+  const cached = normalisedFieldKeyCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const normalised = stripRepeatInstanceSuffix(key)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+  if (normalisedFieldKeyCache.size >= NORMALISED_FIELD_KEY_CACHE_LIMIT) {
+    const oldestKey = normalisedFieldKeyCache.keys().next().value;
+    if (oldestKey !== undefined) normalisedFieldKeyCache.delete(oldestKey);
+  }
+  normalisedFieldKeyCache.set(key, normalised);
+  return normalised;
 }
 
-function fieldKeyMatchesCandidate(key: string, candidate: string): boolean {
-  const normalisedKey = normaliseFieldKey(key);
-  const normalisedCandidate = normaliseFieldKey(candidate);
+function getNormalisedFieldCandidates(
+  candidates: readonly string[],
+): NormalisedFieldCandidates {
+  const cached = normalisedFieldCandidatesCache.get(candidates);
+  if (cached) return cached;
+
+  const normalised = candidates.map(normaliseFieldKey);
+  normalisedFieldCandidatesCache.set(candidates, normalised);
+  return normalised;
+}
+
+function normalisedFieldKeyMatchesCandidate(
+  normalisedKey: string,
+  normalisedCandidate: string,
+): boolean {
   return (
     normalisedKey === normalisedCandidate ||
     normalisedKey.endsWith(`_${normalisedCandidate}`) ||
@@ -677,7 +728,10 @@ function fieldKeyMatchesCandidate(key: string, candidate: string): boolean {
 }
 
 function fieldKeyMatchesAny(key: string, candidates: readonly string[]): boolean {
-  return candidates.some((candidate) => fieldKeyMatchesCandidate(key, candidate));
+  const normalisedKey = normaliseFieldKey(key);
+  return getNormalisedFieldCandidates(candidates).some((candidate) =>
+    normalisedFieldKeyMatchesCandidate(normalisedKey, candidate)
+  );
 }
 
 function currentFieldMatchesAny(
@@ -710,7 +764,7 @@ function isCurrentDocumentExpiryField(field: VisaFormFieldRow, valueKey: string)
     searchText.includes("travel document") ||
     searchText.includes("expiry date") ||
     searchText.includes("expiration date") ||
-    fieldKeyMatchesAny(valueKey, ["date_of_expiry", "expiration_date", "expiry_date"])
+    fieldKeyMatchesAny(valueKey, DOCUMENT_EXPIRY_DISPLAY_KEY_CANDIDATES)
   );
 }
 
@@ -733,10 +787,74 @@ function isCurrentNationalityConsistencyField(field: VisaFormFieldRow, valueKey:
   return currentFieldMatchesAny(field, valueKey, NATIONALITY_CONSISTENCY_CANDIDATES);
 }
 
+interface ValueLookupIndex {
+  entries: ReadonlyArray<[string, string]>;
+  usesDefaultEntries: boolean;
+  normalisedEntries: Array<{ key: string; value: string; normalisedKey: string }>;
+  fallbackValues: Map<string, string | null>;
+}
+
+// Field-level validation asks for the same cross-field answers repeatedly.
+// Keep normalized fallback keys with the values object so a render pays the
+// normalization cost once instead of once per field and candidate alias.
+// The WeakMap avoids retaining completed renders while preserving the exact
+// Object.entries order used by the legacy fallback matcher.
+const valueLookupIndexCache = new WeakMap<Record<string, string>, ValueLookupIndex>();
+
+function getValueLookupIndex(
+  values: Record<string, string>,
+  valueEntries?: ReadonlyArray<[string, string]>,
+): ValueLookupIndex {
+  const usesDefaultEntries = !valueEntries;
+  const cached = valueLookupIndexCache.get(values);
+  if (
+    cached &&
+    cached.usesDefaultEntries === usesDefaultEntries &&
+    (usesDefaultEntries || cached.entries === valueEntries)
+  ) {
+    return cached;
+  }
+
+  const entries = valueEntries ?? Object.entries(values);
+  const index: ValueLookupIndex = {
+    entries,
+    usesDefaultEntries,
+    normalisedEntries: entries.map(([key, value]) => ({
+      key,
+      value,
+      normalisedKey: normaliseFieldKey(key),
+    })),
+    fallbackValues: new Map(),
+  };
+  valueLookupIndexCache.set(values, index);
+  return index;
+}
+
+function findIndexedFallbackValue(
+  index: ValueLookupIndex,
+  candidate: string,
+  repeatSuffix: string,
+): string | null {
+  const normalisedCandidate = normaliseFieldKey(candidate);
+  const cacheKey = `${repeatSuffix}\u0000${normalisedCandidate}`;
+  if (index.fallbackValues.has(cacheKey)) {
+    return index.fallbackValues.get(cacheKey) ?? null;
+  }
+
+  const matched = index.normalisedEntries.find(({ key, value, normalisedKey }) =>
+    (!repeatSuffix || key.endsWith(repeatSuffix)) &&
+    normalisedFieldKeyMatchesCandidate(normalisedKey, normalisedCandidate) &&
+    Boolean(value.trim()),
+  )?.value ?? null;
+  index.fallbackValues.set(cacheKey, matched);
+  return matched;
+}
+
 function findAnswerValue(
   values: Record<string, string>,
   candidates: readonly string[],
   repeatSuffix = "",
+  valueEntries?: ReadonlyArray<[string, string]>,
 ): string | null {
   if (repeatSuffix) {
     for (const candidate of candidates) {
@@ -750,14 +868,10 @@ function findAnswerValue(
     if (value?.trim()) return value;
   }
 
-  const entries = Object.entries(values);
+  const index = getValueLookupIndex(values, valueEntries);
   for (const candidate of candidates) {
-    const found = entries.find(([key, value]) =>
-      (!repeatSuffix || key.endsWith(repeatSuffix)) &&
-      fieldKeyMatchesCandidate(key, candidate) &&
-      value.trim()
-    );
-    if (found) return found[1];
+    const found = findIndexedFallbackValue(index, candidate, repeatSuffix);
+    if (found) return found;
   }
 
   return null;
@@ -1193,7 +1307,17 @@ function findCanonicalOptionValue(
 function normalizeFixedChoiceStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
+  changedFieldName?: string,
 ): Record<string, string> {
+  if (changedFieldName) {
+    const baseFieldName = stripRepeatInstanceSuffix(changedFieldName);
+    const changedField = fields.find((field) => field.fieldName === baseFieldName);
+    // Text edits cannot make a previously saved select label non-canonical.
+    // Keep the full option canonicalization for select edits and hydration,
+    // but avoid rescanning every select option for every typed character.
+    if (changedField?.fieldType !== "select") return values;
+  }
+
   const next = { ...values };
 
   for (const field of fields) {
@@ -1362,9 +1486,10 @@ function normalizeTdacStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
   visaType?: string,
+  changedFieldName?: string,
 ): Record<string, string> {
   const resolvedVisaType = visaType ?? fields[0]?.visaType;
-  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values);
+  const fixedChoiceValues = normalizeFixedChoiceStepValues(fields, values, changedFieldName);
   if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
     const next = { ...fixedChoiceValues };
     const legacyChinaAliases = new Set([
@@ -1574,6 +1699,7 @@ function getLocalFieldIssue(
   value: string,
   values: Record<string, string>,
   locale: string,
+  valueEntries?: ReadonlyArray<[string, string]>,
 ): FieldIssue {
   const isZh = isChineseLocale(locale);
   const trimmed = value.trim();
@@ -1787,11 +1913,13 @@ function getLocalFieldIssue(
     values,
     DOCUMENT_ISSUE_DATE_CANDIDATES,
     repeatSuffix,
+    valueEntries,
   ) ?? undefined);
   const expiryDate = parseFlexibleDate(findAnswerValue(
     values,
     DOCUMENT_EXPIRY_DATE_CANDIDATES,
     repeatSuffix,
+    valueEntries,
   ) ?? undefined);
 
   if (isCurrentDocumentExpiryField(field, valueKey) && issueDate && expiryDate && expiryDate <= issueDate) {
@@ -1802,11 +1930,13 @@ function getLocalFieldIssue(
     values,
     ARRIVAL_DATE_CANDIDATES,
     repeatSuffix,
+    valueEntries,
   ) ?? undefined);
   const departureDate = parseFlexibleDate(findAnswerValue(
     values,
     DEPARTURE_DATE_CANDIDATES,
     repeatSuffix,
+    valueEntries,
   ) ?? undefined);
 
   const isCurrentTravelDateField =
@@ -1822,9 +1952,14 @@ function getLocalFieldIssue(
     return issue("warning", isZh ? "证件有效期距离旅行日期不足 6 个月" : "Document validity is less than 6 months from the travel date");
   }
 
-  const currentNationality = findAnswerValue(values, ["current_nationality", "nationality_country", "nationality"]);
-  const nationalityAtBirth = findAnswerValue(values, ["nationality_at_birth"]);
-  const nationalityDifferent = findAnswerValue(values, ["nationality_at_birth_different"]);
+  const currentNationality = findAnswerValue(
+    values,
+    ["current_nationality", "nationality_country", "nationality"],
+    "",
+    valueEntries,
+  );
+  const nationalityAtBirth = findAnswerValue(values, ["nationality_at_birth"], "", valueEntries);
+  const nationalityDifferent = findAnswerValue(values, ["nationality_at_birth_different"], "", valueEntries);
   if (
     currentNationality &&
     nationalityAtBirth &&
@@ -2781,7 +2916,7 @@ function inlineGroupGridStyle(fieldCount: number) {
   };
 }
 
-export function DynamicStepForm({
+function DynamicStepFormImpl({
   step,
   prefill,
   onComplete,
@@ -2827,57 +2962,6 @@ export function DynamicStepForm({
     scrollContainerRef.current = scrollContainer;
     preMutationScrollOffsetRef.current = getScrollMetrics(scrollContainer).offset;
   };
-
-  // This intentionally measures after every render so conditional UI changes,
-  // not only repeat-count changes, participate in scroll-height preservation.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    const content = formContentRef.current;
-    if (!content) return;
-
-    const nextHeight = content.getBoundingClientRect().height;
-    const scrollContainer = findVerticalScrollContainer(content);
-    scrollContainerRef.current = scrollContainer;
-
-    if (preservedFormHeight > 0 && pendingScrollRestoreRef.current !== null) {
-      const restoreOffset = pendingScrollRestoreRef.current;
-      pendingScrollRestoreRef.current = null;
-      setScrollOffset(scrollContainer, restoreOffset);
-      lastScrollYRef.current = restoreOffset;
-    }
-
-    const stepKey = `${step.stepNumber}:${step.stepName}`;
-    if (measuredStepKeyRef.current !== stepKey) {
-      measuredStepKeyRef.current = stepKey;
-      previousContentHeightRef.current = nextHeight;
-      preMutationScrollOffsetRef.current = null;
-      pendingScrollRestoreRef.current = null;
-      if (preservedFormHeight > 0) setPreservedFormHeight(0);
-      return;
-    }
-
-    const previousHeight = previousContentHeightRef.current;
-    previousContentHeightRef.current = nextHeight;
-
-    if (previousHeight <= nextHeight + 1) {
-      preMutationScrollOffsetRef.current = null;
-      if (preservedFormHeight > 0 && nextHeight >= preservedFormHeight - 1) {
-        setPreservedFormHeight(0);
-      }
-      return;
-    }
-
-    const metrics = getScrollMetrics(scrollContainer);
-    const offsetBeforeMutation = preMutationScrollOffsetRef.current ?? metrics.offset;
-    preMutationScrollOffsetRef.current = null;
-    const viewportBottom = offsetBeforeMutation + metrics.viewportSize;
-    const naturalPageBottom = metrics.scrollSize;
-    if (viewportBottom < naturalPageBottom - 1) return;
-
-    pendingScrollRestoreRef.current = offsetBeforeMutation;
-    lastScrollYRef.current = offsetBeforeMutation;
-    setPreservedFormHeight((current) => Math.max(current, previousHeight));
-  });
 
   useEffect(() => {
     if (preservedFormHeight <= 0) return;
@@ -3019,12 +3103,100 @@ export function DynamicStepForm({
     () => getConditionalControllerFieldNames(step.fields),
     [step.fields],
   );
+  const layoutControllerFieldNames = useMemo(() => {
+    const names = new Set(conditionalControllerFieldNames);
+
+    // LESS_THAN_24_HOURS changes whether the sibling controls are disabled,
+    // which can also change their rendered height. Keep those select values in
+    // the structural signature used by the scroll-preservation effect.
+    for (const field of step.fields) {
+      if (field.fieldType !== "select") continue;
+      const inlineGroup = getInlineGroup(field);
+      if (!inlineGroup) continue;
+      const hasLessThan24Option = field.options?.some((option) =>
+        (typeof option === "string" ? option : option.value) === "LESS_THAN_24_HOURS",
+      );
+      if (hasLessThan24Option) names.add(field.fieldName);
+    }
+
+    return [...names].sort();
+  }, [conditionalControllerFieldNames, step.fields]);
+  const layoutControllerFieldNameSet = useMemo(
+    () => new Set(layoutControllerFieldNames),
+    [layoutControllerFieldNames],
+  );
+
+  // Ordinary text edits must not force a synchronous layout read. This
+  // signature contains only values that can change field visibility or the
+  // rendered disabled/conditional structure, plus repeat counts. It changes
+  // when a structural branch changes, while remaining stable during normal
+  // typing in an unrelated field.
+  const layoutSignature = useMemo(() => {
+    const structuralValues = Object.entries(values)
+      .filter(([key]) => layoutControllerFieldNameSet.has(stripRepeatInstanceSuffix(key)))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+    const repeatCounts = Object.entries(groupCounts)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([group, count]) => `${group}=${count}`)
+      .join("&");
+    return `${step.stepNumber}:${step.stepName}|${repeatCounts}|${structuralValues}`;
+  }, [groupCounts, layoutControllerFieldNameSet, step.stepName, step.stepNumber, values]);
 
   valuesRef.current = values;
   textPairsRef.current = textPairs;
   manualEnglishValueKeysRef.current = manualEnglishValueKeys;
   groupCountsRef.current = groupCounts;
   vnPrearrivalQueriesRef.current = vnPrearrivalQueries;
+
+  useLayoutEffect(() => {
+    const content = formContentRef.current;
+    if (!content) return;
+
+    const nextHeight = content.getBoundingClientRect().height;
+    const scrollContainer = findVerticalScrollContainer(content);
+    scrollContainerRef.current = scrollContainer;
+
+    if (preservedFormHeight > 0 && pendingScrollRestoreRef.current !== null) {
+      const restoreOffset = pendingScrollRestoreRef.current;
+      pendingScrollRestoreRef.current = null;
+      setScrollOffset(scrollContainer, restoreOffset);
+      lastScrollYRef.current = restoreOffset;
+    }
+
+    const stepKey = `${step.stepNumber}:${step.stepName}`;
+    if (measuredStepKeyRef.current !== stepKey) {
+      measuredStepKeyRef.current = stepKey;
+      previousContentHeightRef.current = nextHeight;
+      preMutationScrollOffsetRef.current = null;
+      pendingScrollRestoreRef.current = null;
+      if (preservedFormHeight > 0) setPreservedFormHeight(0);
+      return;
+    }
+
+    const previousHeight = previousContentHeightRef.current;
+    previousContentHeightRef.current = nextHeight;
+
+    if (previousHeight <= nextHeight + 1) {
+      preMutationScrollOffsetRef.current = null;
+      if (preservedFormHeight > 0 && nextHeight >= preservedFormHeight - 1) {
+        setPreservedFormHeight(0);
+      }
+      return;
+    }
+
+    const metrics = getScrollMetrics(scrollContainer);
+    const offsetBeforeMutation = preMutationScrollOffsetRef.current ?? metrics.offset;
+    preMutationScrollOffsetRef.current = null;
+    const viewportBottom = offsetBeforeMutation + metrics.viewportSize;
+    const naturalPageBottom = metrics.scrollSize;
+    if (viewportBottom < naturalPageBottom - 1) return;
+
+    pendingScrollRestoreRef.current = offsetBeforeMutation;
+    lastScrollYRef.current = offsetBeforeMutation;
+    setPreservedFormHeight((current) => Math.max(current, previousHeight));
+  }, [layoutSignature, preservedFormHeight, step.stepName, step.stepNumber]);
 
   // Saved answers can arrive just after the form component mounts. Hydrate
   // visibility controllers in a layout effect so their dependent panels are
@@ -4011,7 +4183,11 @@ export function DynamicStepForm({
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
         ? value.replace(/\D/g, "").slice(0, 5)
         : value;
-    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
+    const valueChanged = valuesRef.current[fieldName] !== normalizedValue;
+    if (valueChanged && layoutControllerFieldNameSet.has(stripRepeatInstanceSuffix(fieldName))) {
+      captureScrollOffsetBeforeMutation();
+    }
+    if (options?.recordUndo !== false && valueChanged) {
       onUserChange?.();
       pushUndoSnapshot();
     }
@@ -4059,7 +4235,7 @@ export function DynamicStepForm({
       }
     }
 
-    const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
+    const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType, fieldName);
     valuesRef.current = normalizedNext;
     setValues(normalizedNext);
   };
@@ -4152,6 +4328,7 @@ export function DynamicStepForm({
     const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
     if (currentCount >= max) return;
 
+    captureScrollOffsetBeforeMutation();
     onUserChange?.();
     pushUndoSnapshot();
     const count = currentCount + 1;
@@ -4185,6 +4362,7 @@ export function DynamicStepForm({
     const count = groupCounts[group] ?? 1;
     if (count <= 1) return;
 
+    captureScrollOffsetBeforeMutation();
     onUserChange?.();
     pushUndoSnapshot();
     setValues((prev) => {
@@ -4325,60 +4503,18 @@ export function DynamicStepForm({
     return (field.required && !isRequiredUnlessSatisfied(field, values)) || isRequiredWhenSatisfied(field, values);
   };
 
-  // Required validation: only check visible fields (and all instances of repeat groups)
-  const requiredFilled = visibleFields
-    .filter((f) => isRequiredField(f))
-    // File fields are mirrored from official portals for parity, but the
-    // actual upload state is managed by Document Center.
-    .filter((f) => f.fieldType !== "file")
-    .every((f) => {
-      const group = getRepeatGroup(f);
-      if (group) {
-        const count = groupCounts[group] ?? 1;
-        return Array.from({ length: count }, (_, i) =>
-          (values[instanceKey(f.fieldName, i)] ?? "").trim()
-        ).every(Boolean);
-      }
-      return (values[f.fieldName] ?? "").trim();
-    });
+  // Rendered controls and local validation must use the same effective option
+  // list. Build it once per field/value key so dependent options and remote
+  // catalog branches do not disappear from the precomputed issue map.
+  const effectiveFieldStateCache = new Map<string, EffectiveFieldState>();
+  const getEffectiveFieldState = (
+    field: VisaFormFieldRow,
+    valueKey: string,
+  ): EffectiveFieldState => {
+    const cacheKey = `${field.fieldName}\u0000${valueKey}`;
+    const cached = effectiveFieldStateCache.get(cacheKey);
+    if (cached) return cached;
 
-  const blockingErrorsClear = visibleFields.every((f) => {
-    if (f.fieldType === "file") return true;
-    const group = getRepeatGroup(f);
-    if (group) {
-      const count = groupCounts[group] ?? 1;
-      return Array.from({ length: count }, (_, i) => {
-        const valueKey = instanceKey(f.fieldName, i);
-        return getLocalFieldIssue(f, valueKey, values[valueKey] ?? "", values, locale).severity !== "error";
-      }).every(Boolean);
-    }
-    return getLocalFieldIssue(f, f.fieldName, values[f.fieldName] ?? "", values, locale).severity !== "error";
-  });
-  const indonesiaPostalLookupBlocksContinue = isIndonesiaOfficialEVisa &&
-    step.fields.some((field) => field.fieldName === "postal_code") &&
-    (indonesiaPostalLookup.status === "checking" ||
-      indonesiaPostalLookup.status === "invalid" ||
-      indonesiaPostalLookup.status === "unavailable");
-
-  /** Translate and render a single field */
-  const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
-    const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
-    const submitCheckMessage = invalidFieldMessages?.get(valueKey)
-      ?? invalidFieldMessages?.get(field.fieldName);
-    const submitCheckInvalid = Boolean(
-      submitCheckMessage ||
-      invalidFieldNames?.has(field.fieldName) ||
-      invalidFieldNames?.has(valueKey) ||
-      reviewIssue?.severity === "error",
-    );
-    const reviewWarning = reviewIssue?.severity === "warning";
-    const rawPlaceholder = field.placeholder ?? null;
-    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
-      ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
-    const enPlaceholder = getEnglishPlaceholder(rawPlaceholder)
-      ?? (field.fieldType === "select" ? "Select..." : null);
-
-    // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
     if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
       fieldOptions = getPhoneCountryCodeOptions();
@@ -4389,6 +4525,7 @@ export function DynamicStepForm({
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
     }
+
     const phEtravelSource = getPhEtravelOfficialOptionSource(field);
     if (phEtravelSource) {
       const remoteOptions = phEtravelOptions[field.fieldName] ?? [];
@@ -4400,7 +4537,9 @@ export function DynamicStepForm({
         ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
         : remoteOptions;
     }
-    if (isKoreaOfficialAddressSearchField(field)) {
+
+    const isKoreaAddressSearchSelect = isKoreaOfficialAddressSearchField(field);
+    if (isKoreaAddressSearchSelect) {
       const selectedValue = values[valueKey]?.trim();
       const hasSelectedValue =
         selectedValue &&
@@ -4417,6 +4556,7 @@ export function DynamicStepForm({
           }, ...koreaAddressOptions]
         : koreaAddressOptions;
     }
+
     const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
     const vnPrearrivalKey = vnPrearrivalSource ? vnPrearrivalOptionKey(field) : null;
     const isVnPrearrivalField = isVnPrearrivalContext(visaType, field);
@@ -4485,6 +4625,150 @@ export function DynamicStepForm({
       fieldOptions = localizePhEtravelOptions(field.fieldName, fieldOptions);
     }
 
+    const validationField: VisaFormFieldRow = {
+      ...field,
+      required: isRequiredField(field),
+      fieldType: isKoreaAddressSearchSelect
+        ? "select"
+        : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+      options: fieldOptions,
+    };
+    const state: EffectiveFieldState = {
+      validationField,
+      fieldOptions,
+      phEtravelSource,
+      isKoreaAddressSearchSelect,
+      vnPrearrivalSource,
+      vnPrearrivalKey,
+      isVnPrearrivalField,
+      isVnPrearrivalArrivalDateField,
+      hasVnPrearrivalStaticOptions,
+    };
+    effectiveFieldStateCache.set(cacheKey, state);
+    return state;
+  };
+
+  // Required validation: only check visible fields (and all instances of repeat groups)
+  const requiredFilled = visibleFields
+    .filter((f) => isRequiredField(f))
+    // File fields are mirrored from official portals for parity, but the
+    // actual upload state is managed by Document Center.
+    .filter((f) => f.fieldType !== "file")
+    .every((f) => {
+      const group = getRepeatGroup(f);
+      if (group) {
+        const count = groupCounts[group] ?? 1;
+        return Array.from({ length: count }, (_, i) =>
+          (values[instanceKey(f.fieldName, i)] ?? "").trim()
+        ).every(Boolean);
+      }
+      return (values[f.fieldName] ?? "").trim();
+    });
+
+  const valueEntries = Object.entries(values);
+
+  // Required-button state and field footers used to validate the same field
+  // twice on every keystroke. Build one issue map for the current render and
+  // let both consumers reuse it. Fields that are rendered while disabled by a
+  // conditional branch are added lazily below because they are intentionally
+  // excluded from the submit gate.
+  const fieldIssues = new Map<string, FieldIssue>();
+  for (const field of visibleFields) {
+    if (field.fieldType === "file") continue;
+    const group = getRepeatGroup(field);
+    if (group) {
+      const count = groupCounts[group] ?? 1;
+      for (let index = 0; index < count; index++) {
+        const valueKey = instanceKey(field.fieldName, index);
+        fieldIssues.set(
+          valueKey,
+          getLocalFieldIssue(
+            getEffectiveFieldState(field, valueKey).validationField,
+            valueKey,
+            values[valueKey] ?? "",
+            values,
+            locale,
+            valueEntries,
+          ),
+        );
+      }
+      continue;
+    }
+    fieldIssues.set(
+      field.fieldName,
+      getLocalFieldIssue(
+        getEffectiveFieldState(field, field.fieldName).validationField,
+        field.fieldName,
+        values[field.fieldName] ?? "",
+        values,
+        locale,
+        valueEntries,
+      ),
+    );
+  }
+  const getCachedFieldIssue = (field: VisaFormFieldRow, valueKey: string): FieldIssue => {
+    const cached = fieldIssues.get(valueKey);
+    if (cached) return cached;
+    const issue = getLocalFieldIssue(
+      getEffectiveFieldState(field, valueKey).validationField,
+      valueKey,
+      values[valueKey] ?? "",
+      values,
+      locale,
+      valueEntries,
+    );
+    fieldIssues.set(valueKey, issue);
+    return issue;
+  };
+
+  const blockingErrorsClear = visibleFields.every((f) => {
+    if (f.fieldType === "file") return true;
+    const group = getRepeatGroup(f);
+    if (group) {
+      const count = groupCounts[group] ?? 1;
+      return Array.from({ length: count }, (_, i) => {
+        const valueKey = instanceKey(f.fieldName, i);
+        return fieldIssues.get(valueKey)?.severity !== "error";
+      }).every(Boolean);
+    }
+    return fieldIssues.get(f.fieldName)?.severity !== "error";
+  });
+  const indonesiaPostalLookupBlocksContinue = isIndonesiaOfficialEVisa &&
+    step.fields.some((field) => field.fieldName === "postal_code") &&
+    (indonesiaPostalLookup.status === "checking" ||
+      indonesiaPostalLookup.status === "invalid" ||
+      indonesiaPostalLookup.status === "unavailable");
+
+  /** Translate and render a single field */
+  const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
+    const reviewIssue = reviewIssues?.get(valueKey) ?? reviewIssues?.get(field.fieldName);
+    const submitCheckMessage = invalidFieldMessages?.get(valueKey)
+      ?? invalidFieldMessages?.get(field.fieldName);
+    const submitCheckInvalid = Boolean(
+      submitCheckMessage ||
+      invalidFieldNames?.has(field.fieldName) ||
+      invalidFieldNames?.has(valueKey) ||
+      reviewIssue?.severity === "error",
+    );
+    const reviewWarning = reviewIssue?.severity === "warning";
+    const rawPlaceholder = field.placeholder ?? null;
+    const zhPlaceholder = getChinesePlaceholder(rawPlaceholder, field.fieldName)
+      ?? (field.fieldType === "select" ? tButtons("selectFallback") : null);
+    const enPlaceholder = getEnglishPlaceholder(rawPlaceholder)
+      ?? (field.fieldType === "select" ? "Select..." : null);
+
+    const effectiveFieldState = getEffectiveFieldState(field, valueKey);
+    const {
+      fieldOptions,
+      phEtravelSource,
+      isKoreaAddressSearchSelect,
+      vnPrearrivalSource,
+      vnPrearrivalKey,
+      isVnPrearrivalField,
+      isVnPrearrivalArrivalDateField,
+      hasVnPrearrivalStaticOptions,
+    } = effectiveFieldState;
+
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const tdacTransitCheckboxLocked =
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
@@ -4502,7 +4786,6 @@ export function DynamicStepForm({
 
     const renderSide = (side: BilingualSide) => {
       const isTaiwanEntryPermit = (visaType ?? field.visaType) === "TW_ENTRY_PERMIT";
-      const isKoreaAddressSearchSelect = isKoreaOfficialAddressSearchField(field);
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
       const vnReadOnlyRules = field.validationRules as {
         read_only?: boolean;
@@ -4524,13 +4807,13 @@ export function DynamicStepForm({
         fieldName: isTaiwanEntryPermit ? field.fieldName : `${valueKey}-${side}`,
         fieldType: isKoreaAddressSearchSelect
           ? "select"
-          : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+        : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: isTaiwanEntryPermit && field.fieldName === "name_english"
           ? "英文姓名（依护照大写拼写）"
           : isTaiwanEntryPermit && field.fieldName === "name_chinese"
             ? "中文姓名（繁体字）"
             : getLocalizedFieldLabel(field, side),
-        required: isRequiredField(field),
+        required: effectiveFieldState.validationField.required,
         placeholder: getLocalizedPlaceholder(
           field,
           side,
@@ -4621,16 +4904,12 @@ export function DynamicStepForm({
     };
 
     const guidanceField: VisaFormFieldRow = {
-      ...field,
-      required: isRequiredField(field),
-      fieldType: isKoreaOfficialAddressSearchField(field)
-        ? "select"
-        : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
+      ...effectiveFieldState.validationField,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
-    const localIssue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
-    const requiredIssue = isRequiredField(field) && !field.required && !(values[valueKey] ?? "").trim()
+    const localIssue = getCachedFieldIssue(field, valueKey);
+    const requiredIssue = effectiveFieldState.validationField.required && !field.required && !(values[valueKey] ?? "").trim()
       ? { severity: "warning" as const, message: isChineseInterface ? "必填项" : "Required" }
       : null;
     const postalLookupIssue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
@@ -4886,7 +5165,6 @@ export function DynamicStepForm({
       onSubmit={handleSubmit}
       onKeyDown={handleKeyboardShortcuts}
       onClickCapture={captureScrollOffsetBeforeMutation}
-      onChangeCapture={captureScrollOffsetBeforeMutation}
       style={preservedFormHeight > 0 ? { minHeight: `${preservedFormHeight}px` } : undefined}
     >
       <div
@@ -5179,3 +5457,9 @@ export function DynamicStepForm({
     </form>
   );
 }
+
+// The long-form page keeps the step, draft, and callback props stable while a
+// sibling step changes. Preserve that boundary so an unrelated keystroke does
+// not rerender every step's field tree. React's default shallow comparison is
+// intentional here: each controlled prop remains part of the comparison.
+export const DynamicStepForm = memo(DynamicStepFormImpl);

@@ -21,6 +21,34 @@ flag server-only, exact-value parsed, and default-off in `.env.example`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
 
+Dynamic long-form input must avoid whole-page work per keystroke. Keep step
+objects, callbacks and navigation lists stable; `DynamicStepForm` uses shallow
+memoization without ignoring cross-field inputs. Field validation shares a
+normalized answer lookup index per values snapshot, and scroll preservation
+measures only structural branch/repeat changes. The regression tests in
+`components/__tests__/dynamic-step-form-performance.test.tsx` cover typing and
+scroll behavior; `app/client/application/long-form/__tests__/page-orchestration.test.tsx`
+covers page orchestration and validation freshness. Preserve the ordered draft
+save queue and the pre-submission save barrier when optimizing this flow.
+Derived progress and review refresh after a 300 ms typing pause; current draft
+refs remain authoritative for navigation, validation and submission before
+that refresh. Cache branch inference by immutable schema identity, never by
+answer values. Review rows reuse unchanged data and compare every rendered
+value and callback. Performance verification must include the authenticated
+long-form route with review/progress mounted, not only an isolated field form.
+Bring the diagnostic browser tab to the foreground before measuring animation
+frames, and distinguish CPU slowdown tests from ordinary foreground timings.
+
+Keep the Radix component family on compatible stable-ref releases, including
+FocusScope, DismissableLayer, Popper, ScrollArea and Toast. Updating Select or
+Slot alone leaves older primitives with inline state-setting callback refs;
+opening a calendar can still trigger React 19 update-depth crashes.
+`package.json` also overrides every transitive `@radix-ui/react-slot` dependency
+to the direct fixed version. Preserve this override and the `prebuild` guard
+`scripts/check-radix-ref-contract.mjs`, which checks the lockfile and actual
+consumer resolutions. A fresh `npm ci` must pass the guard and the ref-stability
+regressions, followed by real-browser date-picker and select interaction checks.
+
 `npm run type-check` uses `tsconfig.typecheck.json` so stale development-server
 route artifacts under `.next/dev/types` cannot invalidate the production type
 check. Keep `.next/types` generated with `npx next typegen` in scope.
@@ -635,6 +663,7 @@ Smoke URLs:
 - `components/client/korea-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
+- `components/__tests__/dynamic-step-form-performance.test.tsx`
 - `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`

@@ -88,6 +88,9 @@ Before changing this route, read:
   the same queue. Preserve immediate sidebar scrolling and backend ownership
   checks. The adjacent `__tests__/ordered-dynamic-save.test.ts` covers ordering,
   reverted edits, failure retry, scope isolation and the submission barrier.
+- `long-form/__tests__/page-orchestration.test.tsx` mounts the coordinator with
+  a minimal DB schema and verifies ordinary draft refreshes reuse dynamic-step
+  props while an answer edit during validation rejects the stale response.
 
 ## Guardrails
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { memo, useEffect, useState, type CSSProperties } from "react";
 import { CircleNotch as Loader2, ArrowsClockwise as RefreshCw } from "@phosphor-icons/react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,49 @@ export interface ReviewRow {
   officialEditorKind?: "text" | "textarea" | "date" | "select";
   officialEditorValue?: string;
   officialOptions?: ReviewOfficialOption[];
+}
+
+function areReviewOptionListsEqual(
+  left: ReviewOfficialOption[] | undefined,
+  right: ReviewOfficialOption[] | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+  return left.every((option, index) => {
+    const other = right[index];
+    return option.value === other.value && option.label === other.label;
+  });
+}
+
+/**
+ * Compare every value rendered by a review row before reusing the row. The
+ * review builder can recreate its row objects when a sibling answer changes;
+ * comparing the full value shape keeps that parent update from resetting an
+ * editor that the applicant is currently typing in.
+ */
+export function areReviewRowValuesEqual(left: ReviewRow, right: ReviewRow): boolean {
+  return left === right || (
+    left.section === right.section
+    && left.fieldName === right.fieldName
+    && left.label === right.label
+    && left.sourceLabel === right.sourceLabel
+    && left.officialLabel === right.officialLabel
+    && left.sourceValue === right.sourceValue
+    && left.officialValue === right.officialValue
+    && left.editable === right.editable
+    && left.editStepIndex === right.editStepIndex
+    && left.missing === right.missing
+    && left.optional === right.optional
+    && left.issueSeverity === right.issueSeverity
+    && left.issueMessage === right.issueMessage
+    && left.officialEditorKind === right.officialEditorKind
+    && left.officialEditorValue === right.officialEditorValue
+    && left.badges.length === right.badges.length
+    && left.badges.every((badge, index) => badge === right.badges[index])
+    && left.warnings.length === right.warnings.length
+    && left.warnings.every((warning, index) => warning === right.warnings[index])
+    && areReviewOptionListsEqual(left.officialOptions, right.officialOptions)
+  );
 }
 
 interface BilingualReviewPanelProps {
@@ -101,14 +144,14 @@ function BilingualReviewRow({
   row,
   onSaveOfficialValue,
   onUpdated,
+  isZh,
 }: {
   row: ReviewRow;
   onSaveOfficialValue?: (fieldName: string, officialValue: string) => void | Promise<void>;
   onUpdated?: (fieldName: string, officialValue: string) => void;
+  isZh: boolean;
 }) {
   const t = useTranslations("applicationSteps.translation");
-  const locale = useLocale();
-  const isZh = isChineseLocale(locale);
   const sourceLabel = row.sourceLabel ?? row.label;
   const officialLabel = row.officialLabel ?? row.label;
   const editorValue = row.officialEditorValue ?? row.officialValue;
@@ -376,6 +419,13 @@ function BilingualReviewRow({
   );
 }
 
+const MemoizedBilingualReviewRow = memo(BilingualReviewRow, (previous, next) => (
+  previous.isZh === next.isZh
+  && previous.onSaveOfficialValue === next.onSaveOfficialValue
+  && previous.onUpdated === next.onUpdated
+  && areReviewRowValuesEqual(previous.row, next.row)
+));
+
 export function BilingualReviewPanel({
   rows,
   loading,
@@ -442,11 +492,12 @@ export function BilingualReviewPanel({
             <Table className="table-fixed">
               <TableBody>
                 {section.rows.map((row) => (
-                  <BilingualReviewRow
+                  <MemoizedBilingualReviewRow
                     key={row.fieldName}
                     row={row}
                     onSaveOfficialValue={onSaveOfficialValue}
                     onUpdated={onUpdated}
+                    isZh={isZh}
                   />
                 ))}
               </TableBody>

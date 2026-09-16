@@ -228,6 +228,20 @@ function readPageUrl(page: Page): URL | null {
   }
 }
 
+const US_VISA_SCHEDULING_AUTH_WAITING_ROOM_TIMEOUT_MS = 600_000;
+
+function isUSVisaSchedulingWaitingRoom(
+  current: URL | null,
+  title: string,
+  bodyText: string,
+): boolean {
+  const normalized = normalizeVisibleText(`${title} ${bodyText}`).toLowerCase();
+  if (
+    /waiting\s*[- ]?room|you are now in line|your estimated wait(?:ing)? time|estimated wait time|queue position/.test(normalized)
+  ) return true;
+  return Boolean(current && /waiting\s*[-_]?room/i.test(current.pathname));
+}
+
 function isUSVisaSchedulingTermsUrl(current: URL | null): boolean {
   return current !== null
     && /(^|\.)usvisascheduling\.com$/i.test(current.hostname)
@@ -359,6 +373,12 @@ export function classifyUSVisaSchedulingAuthenticationState(input: {
     return "rejected";
   }
 
+  const gate = classifyUSVisaSchedulingGateText(normalizedBody);
+  if (gate?.errorCode === "portal_access_blocked"
+    || gate?.errorCode === "portal_connection_interrupted"
+    || gate?.errorCode === "captcha_checkpoint"
+    || gate?.errorCode === "waiting_room") return "pending";
+
   try {
     const url = new URL(input.url);
     const authenticatedHost = url.hostname === "usvisascheduling.com"
@@ -377,6 +397,32 @@ export function classifyUSVisaSchedulingAuthenticationState(input: {
 export function classifyUSVisaSchedulingGateText(text: string): AppointmentPortalGate | null {
   const normalized = normalizeVisibleText(text).toLowerCase();
   if (!normalized) return null;
+
+  // This is the terminal access-denial page observed after the login queue,
+  // not a Turnstile widget. Its Cloudflare footer must not invoke a solver.
+  if (/sorry,? you have been blocked|sorry,? you are blocked/.test(normalized)
+    && /cloudflare|you are unable to access|why have i been blocked/.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction: "USVisaScheduling explicitly blocked this browser session. Review the recorded portal access denial before resuming.",
+      metadata: { gate_type: "portal_access_blocked", provider: "cloudflare", visible_text: "[REDACTED]" },
+      errorCode: "portal_access_blocked",
+      errorMessage: "USVisaScheduling blocked access to this browser session.",
+    };
+  }
+
+  if (/\berr_(?:connection_(?:closed|reset|aborted|refused|timed_out)|tunnel_connection_failed|proxy_connection_failed|timed_out|network_changed)\b/.test(normalized)
+    && /this site can.?t be reached|this page isn.?t working|无法访问此网站|网页无法正常运作|chrome-error:\/\//.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction: "The browser connection to USVisaScheduling was interrupted. Review the recorded interruption before resuming; it does not establish a credential rejection.",
+      metadata: { gate_type: "portal_connection_interrupted", provider: "usvisascheduling", visible_text: "[REDACTED]" },
+      errorCode: "portal_connection_interrupted",
+      errorMessage: "The browser connection to USVisaScheduling was interrupted.",
+    };
+  }
 
   if (/mfa|multi-factor|authenticator|one-time password|security code sent to/.test(normalized)) {
     return {
@@ -1957,6 +2003,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         this.isLoginVisible(page).catch(() => false),
       ]);
       const normalized = normalizeVisibleText(`${title} ${bodyText}`);
+      const terminalGate = classifyUSVisaSchedulingGateText(normalized);
+      if (terminalGate?.errorCode === "portal_access_blocked"
+        || terminalGate?.errorCode === "portal_connection_interrupted") return page;
       if (/you are now in line|your estimated wait time|waiting room/i.test(normalized)) {
         // Keep the official queue cookie and tab. Reloading or creating a new
         // browser loses the visitor's queue position. A ten-minute bound keeps
@@ -2118,15 +2167,58 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   private async waitForAuthenticatedPortal(
     page: Page,
     timeoutMs = 120_000,
+    // The third argument is used only by loopback tests to keep the same
+    // waiting-room state machine fast; production uses the 600-second bound.
+    waitingRoomTimeoutMs = US_VISA_SCHEDULING_AUTH_WAITING_ROOM_TIMEOUT_MS,
   ): Promise<boolean> {
-    const deadline = Date.now() + timeoutMs;
+    const started = Date.now();
+    let deadline = started + timeoutMs;
+    const boundedWaitingRoomTimeoutMs = Math.max(
+      timeoutMs,
+      Math.min(US_VISA_SCHEDULING_AUTH_WAITING_ROOM_TIMEOUT_MS, waitingRoomTimeoutMs),
+    );
+    let waitingRoomObserved = false;
     let stableLoginPolls = 0;
+    const pageIsClosed = (): boolean => {
+      try {
+        return page.isClosed();
+      } catch {
+        return true;
+      }
+    };
+    const waitForPoll = (delayMs: number): Promise<void> => new Promise((resolve) => {
+      const remaining = Math.max(0, deadline - Date.now());
+      setTimeout(resolve, Math.min(delayMs, remaining));
+    });
+
     while (Date.now() < deadline) {
+      if (pageIsClosed()) return false;
       const current = readPageUrl(page);
       if (!current) {
         // Do not let a transient about:blank/empty URL during a same-tab
         // redirect become a false login failure.
-        await page.waitForTimeout(500);
+        await waitForPoll(500);
+        continue;
+      }
+
+      const [transitTitle, transitBodyText] = await Promise.all([
+        page.title().catch(() => ""),
+        page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+      ]);
+      const transitPath = `${current.protocol}//${current.host}${current.pathname}`;
+      const transitGate = classifyUSVisaSchedulingGateText(
+        `${transitPath} ${transitTitle} ${transitBodyText}`,
+      );
+      if (transitGate?.errorCode === "portal_access_blocked"
+        || transitGate?.errorCode === "portal_connection_interrupted") return false;
+      if (isUSVisaSchedulingWaitingRoom(current, transitTitle, transitBodyText)) {
+        // Waiting Room is an explicit post-login queue state. Keep this same
+        // tab and continue reading it; do not run login or security-question
+        // actions while the queue is active, and never classify its body as
+        // authenticated merely because it uses the official host.
+        waitingRoomObserved = true;
+        deadline = started + boundedWaitingRoomTimeoutMs;
+        await waitForPoll(2_000);
         continue;
       }
       const officialTerms = isUSVisaSchedulingTermsUrl(current);
@@ -2142,12 +2234,17 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
           && await page.locator("#confidentiality-agreement").isVisible().catch(() => false)) return true;
         if (await this.isInvalidCredentialsVisible(page).catch(() => false)) return false;
         stableLoginPolls = 0;
-        await page.waitForTimeout(500);
+        await waitForPoll(500);
         continue;
       }
 
       if (await this.hasAuthenticationValidationError(page)) return false;
-      await this.answerLoginSecurityQuestions(page).catch(() => "absent" as const);
+      // A queue can briefly replace its document with a login-looking
+      // refresh page. Once an explicit Waiting Room was observed, never
+      // replay a security-question action from that transient document.
+      if (!waitingRoomObserved) {
+        await this.answerLoginSecurityQuestions(page).catch(() => "absent" as const);
+      }
       const [bodyText, loginVisible, invalidCredentialsVisible] = await Promise.all([
         page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
         this.isLoginVisible(page).catch(() => false),
@@ -2155,13 +2252,23 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       ]);
       const settledUrl = readPageUrl(page);
       if (!settledUrl) {
-        await page.waitForTimeout(500);
+        await waitForPoll(500);
         continue;
       }
       // The URL can change while the body/controls snapshot is being read.
       // Start a fresh poll so classification never combines two documents.
       if (settledUrl.href !== current.href) {
         stableLoginPolls = 0;
+        continue;
+      }
+      const settledPath = `${settledUrl.protocol}//${settledUrl.host}${settledUrl.pathname}`;
+      const settledGate = classifyUSVisaSchedulingGateText(`${settledPath} ${bodyText}`);
+      if (settledGate?.errorCode === "portal_access_blocked"
+        || settledGate?.errorCode === "portal_connection_interrupted") return false;
+      if (isUSVisaSchedulingWaitingRoom(settledUrl, "", bodyText)) {
+        waitingRoomObserved = true;
+        deadline = started + boundedWaitingRoomTimeoutMs;
+        await waitForPoll(2_000);
         continue;
       }
       const state = classifyUSVisaSchedulingAuthenticationState({
@@ -2173,8 +2280,8 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       if (state === "authenticated") return true;
       if (state === "rejected") return false;
       stableLoginPolls = loginVisible ? stableLoginPolls + 1 : 0;
-      if (stableLoginPolls >= 5) return false;
-      await page.waitForTimeout(2_000);
+      if (!waitingRoomObserved && stableLoginPolls >= 5) return false;
+      await waitForPoll(2_000);
     }
     return false;
   }
@@ -2812,7 +2919,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       page.title().catch(() => ""),
       page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
     ]);
-    const gate = classifyUSVisaSchedulingGateText(`${currentUrl} ${title} ${bodyText}`);
+    const parsedUrl = readPageUrl(page);
+    const classificationUrl = parsedUrl ? `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}` : "";
+    const gate = classifyUSVisaSchedulingGateText(`${classificationUrl} ${title} ${bodyText}`);
     if (gate) return gate;
     if (
       /usvisascheduling\.com/i.test(currentUrl)
@@ -2921,9 +3030,12 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async readDiagnostics(page: Page): Promise<PortalDiagnostics> {
+    const diagnosticUrl = readPageUrl(page);
     const [currentUrl, title, bodyText, loginVisible, scheduleControlVisible, slotCandidateCount] =
       await Promise.all([
-        Promise.resolve(page.url()),
+        Promise.resolve(diagnosticUrl && ["http:", "https:"].includes(diagnosticUrl.protocol)
+          ? `${diagnosticUrl.protocol}//${diagnosticUrl.host}${diagnosticUrl.pathname}`
+          : ""),
         page.title().catch(() => ""),
         page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
         this.isLoginVisible(page).catch(() => false),

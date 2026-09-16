@@ -107,6 +107,63 @@ async function withFixture(
   }
 }
 
+type AuthWaitProbeClient = {
+  waitForAuthenticatedPortal(
+    page: Page,
+    timeoutMs?: number,
+    waitingRoomTimeoutMs?: number,
+  ): Promise<boolean>;
+};
+
+async function withOfficialAuthFixture(
+  html: string,
+  run: (
+    client: PlaywrightUSVisaSchedulingPortalClient,
+    page: Page,
+    requests: string[],
+  ) => Promise<void>,
+): Promise<void> {
+  const origin = "https://www.usvisascheduling.com";
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const requests: string[] = [];
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.origin !== origin) {
+      await route.abort();
+      return;
+    }
+    requests.push(`${request.method()} ${url.pathname}`);
+    await route.fulfill({ contentType: "text/html", body: html });
+  });
+  const client = new PlaywrightUSVisaSchedulingPortalClient({
+    ...loadUSAppointmentRunnerConfig({}),
+    baseUrl: `${origin}/en-US/`,
+    playwrightEnabled: true,
+  }, { page });
+  try {
+    await page.goto(`${origin}/en-US/`, { waitUntil: "domcontentloaded" });
+    await run(client, page, requests);
+  } finally {
+    await client.close();
+    await browser.close();
+  }
+}
+
+function waitForAuthenticatedPortalForTest(
+  client: PlaywrightUSVisaSchedulingPortalClient,
+  page: Page,
+  timeoutMs: number,
+  waitingRoomTimeoutMs: number,
+): Promise<boolean> {
+  return (client as unknown as AuthWaitProbeClient).waitForAuthenticatedPortal(
+    page,
+    timeoutMs,
+    waitingRoomTimeoutMs,
+  );
+}
+
 test("submitted registration reconciles only through a matching official profile without entering applicant details", async () => {
   const browser = await chromium.launch({ headless: true });
   const origin = "https://www.usvisascheduling.com";
@@ -243,6 +300,46 @@ test("official waiting-room admission preserves the same tab without reloading",
     assert.equal(result.gate, undefined);
     assert.equal(queueVisits, 1);
     assert.equal(new URL(page.url()).pathname, "/admitted");
+  });
+});
+
+test("authentication wait extends past its initial bound for same-tab waiting-room admission", { timeout: 10_000 }, async () => {
+  const waitingRoomHtml = `<h1>You are now in line.</h1>
+    <h2>Your estimated wait time is 1 minute.</h2><footer>Cloudflare</footer>
+    <form action="/signin-aad-b2c_1" method="post"><input id="signInName"><input type="password" name="password"><button>Sign In</button></form>
+    <form action="/security" method="post"><input id="kba1_response"><button id="continue">Continue</button></form>
+    <script>setTimeout(() => {
+      history.replaceState({}, "", "/en-US/profile/");
+      document.body.innerHTML = "<h1>Applicant home</h1><a id='start_application' href='/en-US/applicant_details/'>Start Application</a>";
+    }, 350)</script>`;
+  await withOfficialAuthFixture(waitingRoomHtml, async (client, page, requests) => {
+    const started = Date.now();
+    const authenticated = await waitForAuthenticatedPortalForTest(client, page, 100, 4_000);
+    const elapsed = Date.now() - started;
+
+    assert.equal(authenticated, true);
+    assert.ok(elapsed >= 100, `authentication returned before its initial bound (${elapsed}ms)`);
+    assert.ok(elapsed < 5_000, `same-tab admission exceeded the fixture bound (${elapsed}ms)`);
+    assert.equal(new URL(page.url()).pathname, "/en-US/profile/");
+    assert.equal(requests.filter((request) => request.startsWith("POST ")).length, 0);
+    assert.equal(requests.filter((request) => request === "GET /en-US/").length, 1);
+  });
+});
+
+test("authentication wait returns false at the bounded waiting-room deadline without submitting", { timeout: 10_000 }, async () => {
+  const waitingRoomHtml = `<h1>Waiting Room</h1>
+    <p>You are now in line. Your estimated wait time is 1 minute.</p><footer>Cloudflare</footer>
+    <form action="/signin-aad-b2c_1" method="post"><input id="signInName"><input type="password" name="password"><button>Sign In</button></form>
+    <form action="/security" method="post"><input id="kba1_response"><button id="continue">Continue</button></form>`;
+  await withOfficialAuthFixture(waitingRoomHtml, async (client, page, requests) => {
+    const started = Date.now();
+    const authenticated = await waitForAuthenticatedPortalForTest(client, page, 100, 450);
+    const elapsed = Date.now() - started;
+
+    assert.equal(authenticated, false);
+    assert.ok(elapsed < 2_000, `waiting-room timeout was not bounded (${elapsed}ms)`);
+    assert.equal(requests.filter((request) => request.startsWith("POST ")).length, 0);
+    assert.equal(requests.filter((request) => request === "GET /en-US/").length, 1);
   });
 });
 

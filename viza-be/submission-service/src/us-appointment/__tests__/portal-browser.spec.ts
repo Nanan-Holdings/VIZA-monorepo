@@ -117,6 +117,42 @@ test("production browser rejects unknown calendar markup instead of claiming no 
   });
 });
 
+test("production browser distinguishes access denial and transport failure before slot capture", async () => {
+  const checkpoints = [
+    {
+      body: "<h1>Sorry, you have been blocked</h1><p>You are unable to access usvisascheduling.com</p><footer>Cloudflare</footer>",
+      code: "portal_access_blocked",
+    },
+    {
+      body: "<h1>This site can’t be reached</h1><p>www.usvisascheduling.com unexpectedly closed the connection.</p><p>ERR_CONNECTION_CLOSED</p>",
+      code: "portal_connection_interrupted",
+    },
+  ];
+  for (const checkpoint of checkpoints) {
+    await withPortal(checkpoint.body, async (client, counters) => {
+      const result = await client.prepareAppointmentFlow(job, null);
+      assert.equal(result.readyForSlotCapture, false);
+      assert.equal(result.gate?.errorCode, checkpoint.code);
+      assert.equal(result.gate?.actionType, "site_policy_review");
+      assert.equal(counters.home, 1);
+      assert.equal(counters.booked, 0);
+      await assert.rejects(client.observeSlots(job), /must be prepared/);
+    });
+  }
+});
+
+test("unknown-page diagnostics omit OAuth query and fragment credentials", async () => {
+  const html = `<h1>Unmapped portal page</h1>
+    <script>history.replaceState({}, "", "/calendar?code=fixture-secret-code&state=fixture-secret-state#access_token=fixture-secret-token")</script>`;
+  await withPortal(html, async (client) => {
+    const result = await client.prepareAppointmentFlow(job, null);
+    assert.equal(result.readyForSlotCapture, false);
+    assert.equal(result.gate?.errorCode, "unknown_official_state");
+    assert.match(String(result.gate?.metadata.current_url), /\/calendar$/);
+    assert.doesNotMatch(JSON.stringify(result), /fixture-secret|code=|state=|access_token/);
+  });
+});
+
 test("production browser rejects another job or an unapproved booking before clicking", async () => {
   await withPortal(calendar, async (client, counters) => {
     await client.prepareAppointmentFlow(job, null);

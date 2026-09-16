@@ -54,6 +54,15 @@ security-question checkpoint at most once per page; visible validation errors
 stop the attempt. When OAuth reaches TermsAndConditions before its controls
 render, keep a bounded wait in that same tab and classify only a consistent
 URL/DOM snapshot; never retry login or Create to resolve a loading race.
+After the login callback enters an explicit Waiting Room, keep observing that
+same tab for at most ten minutes from the authentication wait start; do not
+replay login or security-question submissions while queued, and return a
+pending failure promptly when the page closes or the portal connection is
+blocked/interrupted.
+Explicit Cloudflare denial pages use `portal_access_blocked`; Chrome network
+error pages use `portal_connection_interrupted`. Neither is a credential
+rejection or authenticated page. Access denial must not invoke a CAPTCHA
+solver or become an empty-calendar result. Keep their evidence redacted.
 Browserbase owns its native Turnstile lifecycle and must not
 receive VIZA's custom render interception hook. Classify page text with only
 credential-free URL paths, never OAuth query/fragment tokens.

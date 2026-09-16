@@ -1491,6 +1491,24 @@ test("USVisaScheduling uses the current B2C email verification selector", () => 
   assert.match(US_VISA_SCHEDULING_SELECTORS.verificationCodeInputs, /#email_ver_input/);
 });
 
+test("official denial, network errors and queue pages never prove authentication", () => {
+  const cases = [
+    { bodyText: "Sorry, you have been blocked. You are unable to access usvisascheduling.com. Cloudflare", code: "portal_access_blocked" },
+    { bodyText: "This site can’t be reached. ERR_CONNECTION_CLOSED", code: "portal_connection_interrupted" },
+    { bodyText: "You are now in line. Your estimated wait time is 1 minute. Cloudflare", code: "waiting_room" },
+    { bodyText: "Just a moment. Cloudflare verification challenge. Verify you are human.", code: "captcha_checkpoint" },
+  ];
+  for (const { bodyText, code } of cases) {
+    assert.equal(classifyUSVisaSchedulingGateText(bodyText)?.errorCode, code);
+    assert.equal(classifyUSVisaSchedulingAuthenticationState({
+      url: "https://www.usvisascheduling.com/en-US/profile/",
+      bodyText, loginVisible: false, invalidCredentialsVisible: false,
+    }), "pending");
+  }
+  assert.equal(classifyUSVisaSchedulingGateText("Learn why suspicious content can be blocked. Cloudflare")?.errorCode, "captcha_checkpoint");
+  assert.equal(classifyUSVisaSchedulingGateText("Support reference: ERR_CONNECTION_CLOSED"), null);
+});
+
 test("USVisaScheduling only accepts an OAuth redirect after reaching the authenticated portal", () => {
   assert.equal(classifyUSVisaSchedulingAuthenticationState({
     url: "https://atlasauth.b2clogin.com/atlasauth.onmicrosoft.com/oauth2/v2.0/authorize",

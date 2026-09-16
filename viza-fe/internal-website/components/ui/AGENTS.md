@@ -58,6 +58,10 @@ Smoke at least one route that uses the changed primitive.
 
 ## Related Files
 
+- `__tests__/radix-presence-ref-stability.test.tsx` covers the real transitive
+  Slot/Presence composition, FocusScope ref attachment, and repeated calendar
+  opening/closing without changing the saved date. Keep it alongside the Select
+  test; checking only the directly installed Select misses other primitives.
 - `viza-fe/internal-website/components.json`
 - `viza-fe/internal-website/tailwind.config.ts`
 - `viza-fe/internal-website/app/globals.css`

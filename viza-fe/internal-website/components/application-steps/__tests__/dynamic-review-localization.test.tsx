@@ -146,6 +146,60 @@ describe("dynamic review localization", () => {
     expect(within(row).getByText("李")).toBeInTheDocument();
   });
 
+  test("keeps an active editor draft when a sibling review row changes", () => {
+    const onSaveOfficialValue = vi.fn();
+    const initialRows = [
+      {
+        section: "个人信息",
+        fieldName: "surname",
+        label: "姓 / Surname",
+        sourceLabel: "姓",
+        officialLabel: "Surname",
+        sourceValue: "李",
+        officialValue: "LI",
+        officialEditorKind: "text" as const,
+        officialEditorValue: "LI",
+        badges: [],
+        warnings: [],
+        editable: true,
+      },
+      {
+        section: "个人信息",
+        fieldName: "given_names",
+        label: "名 / Given names",
+        sourceLabel: "名",
+        officialLabel: "Given names",
+        sourceValue: "明",
+        officialValue: "MING",
+        officialEditorKind: "text" as const,
+        officialEditorValue: "MING",
+        badges: [],
+        warnings: [],
+        editable: true,
+      },
+    ];
+    const { rerender } = render(
+      <BilingualReviewPanel
+        rows={initialRows}
+        onSaveOfficialValue={onSaveOfficialValue}
+      />,
+    );
+
+    fireEvent.change(screen.getByDisplayValue("LI"), { target: { value: "LEE" } });
+    rerender(
+      <BilingualReviewPanel
+        rows={[
+          { ...initialRows[0] },
+          { ...initialRows[1], officialValue: "MING (UPDATED)", officialEditorValue: "MING (UPDATED)" },
+        ]}
+        onSaveOfficialValue={onSaveOfficialValue}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("LEE")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("MING (UPDATED)")).toBeInTheDocument();
+  });
+
   test("disables the English value editor while saving", async () => {
     let resolveSave!: () => void;
     const onSaveOfficialValue = vi.fn(() => new Promise<void>((resolve) => {
@@ -468,15 +522,29 @@ describe("dynamic review localization", () => {
   });
 
   test("drops blank enum placeholders before rendering official select items", () => {
-    const options = toReviewOfficialOptions([
+    const rawOptions = [
       { value: "", text: "Select one" },
       { value: "   ", text: "Placeholder" },
       { value: "single", text: "Single-entry" },
       { value: "official", text: "Official" },
-    ]);
+    ];
+    const options = toReviewOfficialOptions(rawOptions);
 
     expect(options.map((option) => option.value)).toEqual(["single", "official"]);
     expect(options.every((option) => option.value.trim().length > 0)).toBe(true);
+    expect(toReviewOfficialOptions(rawOptions)).toBe(options);
+  });
+
+  test("preserves first-match labels for case-insensitive duplicate option values", () => {
+    const rawOptions = [
+      { value: "YES", text: "First", official_label: "First official" },
+      { value: "yes", text: "Second", official_label: "Second official" },
+    ];
+
+    expect(toReviewOfficialOptions(rawOptions)).toEqual([
+      { value: "YES", label: "First official" },
+      { value: "yes", label: "First official" },
+    ]);
   });
 
   test("localizes stored checkbox booleans on both review sides", () => {
