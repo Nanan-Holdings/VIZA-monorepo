@@ -83,6 +83,25 @@ describe("application submit navigation", () => {
     ).toHaveLength(2);
   });
 
+  it("reconciles an ambiguous DS-160 enqueue response without posting twice", () => {
+    const pageSource = readFileSync(
+      join(process.cwd(), "app/client/application/long-form/page.tsx"),
+      "utf8",
+    );
+    const dynamicSubmit = sourceBetween(
+      pageSource,
+      "const handleDynamicReviewComplete = async",
+      "const handleReviewComplete = async",
+    );
+
+    expect(dynamicSubmit).toContain("submissionRequestStarted = true;");
+    expect(dynamicSubmit).toContain("isDs160VisaType(resolvedVisaType)");
+    expect(dynamicSubmit).toContain("reconcileSubmissionStatus(applicationId)");
+    expect(dynamicSubmit).toContain("isSubmissionTransportError(err)");
+    expect(dynamicSubmit).toContain("request was not resubmitted automatically");
+    expect(dynamicSubmit.match(/insertSubmissionQueueJob\(\{/g)).toHaveLength(1);
+  });
+
   it("uses a synchronous ref lock to reject rapid duplicate submit clicks", () => {
     const pageSource = readFileSync(
       join(process.cwd(), "app/client/application/long-form/page.tsx"),

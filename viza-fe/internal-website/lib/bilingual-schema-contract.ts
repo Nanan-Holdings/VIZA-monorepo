@@ -1817,8 +1817,12 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const placeholderEn = deriveEnglishPlaceholder(fieldWithOverrides, labelEn);
   const helperZh = deriveHelperZh(fieldWithOverrides, labelZh, labelEn);
   const helperEn = deriveHelperEn(fieldWithOverrides, labelEn);
+  const isDs160SocialSecurityNumber =
+    fieldWithOverrides.visaType === "DS160"
+    && normalizeFieldName(fieldWithOverrides.fieldName) === "us_social_security_number";
   const requiredOverride =
-    fieldWithOverrides.visaType === "TW_ENTRY_PERMIT" && TW_REQUIRED_FIELD_OVERRIDES.has(normalizeFieldName(fieldWithOverrides.fieldName));
+    isDs160SocialSecurityNumber
+    || (fieldWithOverrides.visaType === "TW_ENTRY_PERMIT" && TW_REQUIRED_FIELD_OVERRIDES.has(normalizeFieldName(fieldWithOverrides.fieldName)));
   const hasConfiguredStateOptions = fieldWithOverrides.options?.some((option) =>
     US_STATE_FORM_OPTIONS.some((state) => state.value === (typeof option === "string" ? option : option.value)),
   );
@@ -1830,6 +1834,10 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
     required: requiredOverride ? true : fieldWithOverrides.required,
     validationRules: {
       ...(fieldWithOverrides.validationRules ?? {}),
+      ...(isDs160SocialSecurityNumber ? {
+        allow_does_not_apply: true,
+        has_does_not_apply: true,
+      } : {}),
       label_zh: labelZh,
       label_en: labelEn,
       official_label_en: labelEn,

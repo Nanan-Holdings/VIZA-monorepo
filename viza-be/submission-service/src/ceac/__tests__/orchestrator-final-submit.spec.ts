@@ -34,7 +34,7 @@ function createMemoryGuard(): {
   return { guard, getState: () => state };
 }
 
-test("guards the SignCertify click when it directly reaches official confirmation", async () => {
+test("does not sign from a retrieved sign page without current fill and official review evidence", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const memory = createMemoryGuard();
@@ -92,18 +92,16 @@ test("guards the SignCertify click when it directly reaches official confirmatio
       },
     });
 
-    assert.equal(result.result.status, "submitted");
-    if (result.result.status === "submitted") {
-      assert.equal(result.result.applicationId, APPLICATION_ID);
-      assert.equal(result.result.confirmationNumber, null);
-    }
-    assert.equal(memory.getState(), "confirmed");
+    assert.equal(result.result.status, "failed");
+    assert.deepEqual(await memory.guard.inspect(), { kind: "available" });
+    assert.match(page.url(), /complete_signandsubmit/);
+    assert.equal(await page.locator("#passport").inputValue(), "");
   } finally {
     await browser.close();
   }
 });
 
-test("stops SignCertify before signing when the saved preparer declaration is missing", async () => {
+test("an unverified review leaves preparer, passport, and final-submit controls untouched", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const memory = createMemoryGuard();

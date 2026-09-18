@@ -43,7 +43,7 @@ export const DS160_FIELD_CONTRACTS: Record<string, Ds160FieldContract> = {
   "permanent_resident_other_country": {"page":"Personal Information 2","step":2,"type":"radio","required":true,"label":"Are you a permanent resident of a country/region other than your country/region of origin (nationality) indicated above?"},
   "other_permanent_resident_country": {"page":"Personal Information 2","step":2,"type":"select","required":true,"label":"Other Permanent Resident Country/Region","showIf":"permanent_resident_other_country === yes","repeatGroup":"permanent_resident"},
   "national_id_number": {"page":"Personal Information 2","step":2,"type":"text","required":false,"label":"National Identification Number"},
-  "us_social_security_number": {"page":"Personal Information 2","step":2,"type":"text","required":false,"label":"U.S. Social Security Number"},
+  "us_social_security_number": {"page":"Personal Information 2","step":2,"type":"text","required":true,"label":"U.S. Social Security Number","allowsDoesNotApply":true},
   "us_taxpayer_id": {"page":"Personal Information 2","step":2,"type":"text","required":false,"label":"U.S. Taxpayer ID Number"},
   "purpose_of_trip": {"page":"Travel Information","step":3,"type":"select","required":true,"label":"Purpose of Trip to the U.S.","repeatGroup":"trip_purpose"},
   "purpose_of_trip_specify": {"page":"Travel Information","step":3,"type":"select","required":true,"label":"Specify","repeatGroup":"trip_purpose"},

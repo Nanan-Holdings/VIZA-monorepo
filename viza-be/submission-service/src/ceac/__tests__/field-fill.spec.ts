@@ -4,10 +4,49 @@ import { chromium } from "@playwright/test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fillPageFields, orchestrateFill } from "../orchestrator";
+import { fillPageFields, orchestrateFill, verifyPageFieldValues } from "../orchestrator";
 import { createRecoveryTracker } from "../artifacts";
-import { ds160ContactMappings } from "../../ds160-form-mappings";
+import { ds160ContactMappings, ds160TravelMappings } from "../../ds160-form-mappings";
 import { deriveDS160Answers } from "../../ds160-derive-answers";
+import { createDs160BranchPolicy, ds160MappingRepeatGroup } from "../field-contract";
+
+test("official review expectations use verified control IDs and selected display values", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="tbxAPP_SURNAME" value="CHEN"><select id="ddlCountry"><option value="CHIN" selected>CHINA</option></select><input id="rblGate_1" name="rblGate" type="radio" value="N" checked>');
+    const observed: Array<{ fieldName: string; controlId: string; value: string }> = [];
+    await verifyPageFieldValues(page, {
+      surname: { selector: "#tbxAPP_SURNAME", type: "text", label: "Surname" },
+      country: { selector: "#ddlCountry", type: "select", label: "Country" },
+      gate: { selector: 'input[name="rblGate"]', type: "radio", label: "Gate" },
+    }, { surname: "CHEN", country: "CHIN", gate: "N" }, {}, {
+      requireMappedAnswers: true, observeVerified: field => observed.push(field),
+    });
+    assert.deepEqual(observed, [
+      { fieldName: "surname", controlId: "tbxAPP_SURNAME", value: "CHEN" },
+      { fieldName: "country", controlId: "ddlCountry", value: "CHINA" },
+      { fieldName: "gate", controlId: "rblGate_1", value: "No" },
+    ]);
+  } finally { await browser.close(); }
+});
+
+test("fills intended stay on the no-specific-plans branch instead of dropping it as a repeat field", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="tbxTRAVEL_LOS"><select id="ddlTRAVEL_LOS_CD"><option value="">Choose</option><option value="D">DAY(S)</option></select>');
+    const saved = { has_specific_plans: "no", intended_length_of_stay_value: "10", intended_length_of_stay_unit: "DAY(S)" };
+    const branch = createDs160BranchPolicy(saved);
+    const mappings = Object.fromEntries(Object.entries(ds160TravelMappings).filter(([key]) =>
+      !ds160MappingRepeatGroup(key) && branch.isMappingActive(key)));
+    const answers = deriveDS160Answers({ ...saved });
+    delete answers.has_specific_travel_plans;
+    await fillPageFields(page, mappings, answers, {}, { requireMappedAnswers: true });
+    assert.equal(await page.locator('#tbxTRAVEL_LOS').inputValue(), '10');
+    assert.equal(await page.locator('#ddlTRAVEL_LOS_CD').inputValue(), 'D');
+  } finally { await browser.close(); }
+});
 
 test("an unknown official branch cannot advance through an unmapped page", async () => {
   const browser = await chromium.launch({ headless: true });

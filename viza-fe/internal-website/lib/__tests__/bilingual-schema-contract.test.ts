@@ -145,6 +145,37 @@ describe("bilingual schema contract", () => {
     expect(normalized.options?.map((option) => typeof option === "string" ? option : option.value)).toEqual(["AL", "AS", "ID"]);
   });
 
+  it("requires DS-160 Social Security Number to be explicit or Does Not Apply", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: false,
+      validationRules: null,
+    }));
+
+    expect(normalized.required).toBe(true);
+    expect(normalized.validationRules).toMatchObject({
+      allow_does_not_apply: true,
+      has_does_not_apply: true,
+    });
+    expect(normalized.options).toBeNull();
+  });
+
+  it("does not make a non-DS-160 Social Security Number field required", () => {
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: false,
+      validationRules: null,
+    }));
+
+    expect(normalized.required).toBe(false);
+    expect(normalized.validationRules).not.toHaveProperty("allow_does_not_apply");
+  });
+
   it("does not confuse a country named Georgia with the US state", () => {
     const normalized = normalizeBilingualFormField(field({
       visaType: "DS160",

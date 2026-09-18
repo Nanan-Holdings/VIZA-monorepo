@@ -60,6 +60,11 @@ import {
   validateCapturedDs160Resume,
   type CapturedDs160ResumeCheckpoint,
 } from "./ceac/captured-resume";
+import {
+  assertRecoveredDs160Application,
+  rewindRecoveredDs160ApplicationToPersonalInformation1,
+} from "./ceac/recovered-application";
+import { withDs160RecoveryFailure } from "./ceac/recovery-failure";
 import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
   applyVietnamAnswerAliases,
@@ -2001,38 +2006,6 @@ async function loadDs160CapturedResumeCheckpoint(
   return decision.checkpoint;
 }
 
-/**
- * Confirm that Retrieve landed on the same CEAC application before any fill
- * or final-submit orchestration is allowed to run. Unknown/start/retrieve and
- * confirmation surfaces all fail closed because they do not prove that the
- * saved application was recovered.
- */
-async function assertDs160CapturedResumeLanding(
-  page: Parameters<typeof detectPage>[0],
-  expectedApplicationId: string,
-): Promise<void> {
-  const identity = await detectPage(page);
-  const disallowedPageIds = new Set([
-    "start",
-    "security_notice",
-    "retrieve_application",
-    "confirmation",
-    "session_expired",
-    "unknown",
-  ]);
-  if (disallowedPageIds.has(identity.id)) {
-    throw new Error("DS-160 captured resume did not land on a recoverable application page.");
-  }
-
-  const captured = await captureApplicationId(page);
-  if (
-    !captured.applicationId ||
-    captured.applicationId.trim().toUpperCase() !== expectedApplicationId.trim().toUpperCase()
-  ) {
-    throw new Error("DS-160 captured resume returned a different or missing CEAC Application ID.");
-  }
-}
-
 function hasExistingDs160Application(state: Ds160StoredSubmissionState): boolean {
   const resultApplicationId = state.submissionResult?.country === "US"
     ? state.submissionResult.applicationId
@@ -2513,12 +2486,16 @@ async function processDs160Item(
   let recoveryCheckpointAttempted = false;
   let recoveryCheckpointPersisted = false;
   const capturedResumeActive = capturedResumeCheckpoint !== null;
+  const diagnosticRedactions = Object.entries(process.env)
+    .filter(([key]) => /SECRET|TOKEN|PASSWORD|API_KEY|SERVICE_ROLE|CONNECT_URL/i.test(key))
+    .map(([, value]) => value ?? "");
 
   try {
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
     const { profile, documents } = await loadApplicantData(item.application_id);
     const branchAnswers = await loadDs160Answers(item.application_id);
+    diagnosticRedactions.push(...Object.values(branchAnswers));
     assertDs160RequiredAnswers(branchAnswers);
     assertDs160PreparerAnswers(branchAnswers);
     const answers = deriveDS160Answers({ ...branchAnswers });
@@ -2571,6 +2548,7 @@ async function processDs160Item(
       headless: config.playwrightHeadless,
       acceptDownloads: true,
       runId,
+      diagnosticDirectory: tempDir,
       startLocationCode,
       // Leave the original bootstrap option untouched unless this exact,
       // server-authorized captured-resume job is running.
@@ -2589,9 +2567,14 @@ async function processDs160Item(
         yearOfBirth,
         securityAnswer: capturedResumeCheckpoint.securityAnswer,
       });
-      await assertDs160CapturedResumeLanding(
+      const recoveredPageId = await assertRecoveredDs160Application(
         session.page,
         capturedResumeCheckpoint.applicationId,
+      );
+      await rewindRecoveredDs160ApplicationToPersonalInformation1(
+        session.page,
+        capturedResumeCheckpoint.applicationId,
+        { currentPageId: recoveredPageId },
       );
       tracker.setApplicationId(capturedResumeCheckpoint.applicationId);
       recoveryIdentity = capturedResumeCheckpoint;
@@ -2777,13 +2760,14 @@ async function processDs160Item(
       // Orchestrator caught an error internally but preserved recovery state.
       // Persist the failure result payload so ops can inspect recovery metadata.
       const errorMsg = result.error?.message as string ?? "Unknown orchestration error";
+      const recoveryFailurePayload = withDs160RecoveryFailure(item.ceac_result_payload, result.error, runId, diagnosticRedactions);
       console.error(
         `[ceac] Run ${runId} orchestration failed for application=${redactIdentifier(item.application_id)}:`,
-        errorMsg,
+        String(recoveryFailurePayload.reason),
       );
 
       if (capturedResumeActive) {
-        await routeDs160ExistingFinalSubmission(item, "application_captured");
+        await routeDs160ExistingFinalSubmission({ ...item, ceac_result_payload: recoveryFailurePayload }, "application_captured");
         return;
       }
       if (recoveryCheckpointAttempted && !recoveryCheckpointPersisted) {
@@ -2871,7 +2855,9 @@ async function processDs160Item(
     }
 
     if (capturedResumeActive) {
-      await routeDs160ExistingFinalSubmission(item, "application_captured");
+      const payload = withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions);
+      console.error(`[ceac] Captured resume failed: ${String(payload.reason)}`);
+      await routeDs160ExistingFinalSubmission({ ...item, ceac_result_payload: payload }, "application_captured");
       return;
     }
 

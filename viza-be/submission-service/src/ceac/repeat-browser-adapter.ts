@@ -94,6 +94,8 @@ export interface Ds160RepeatBrowserFillRowContext {
   readonly mappings: Record<string, FormFieldMapping>;
   /** The verified nearest row scope; callers should keep fills inside it. */
   readonly scope?: Locator;
+  /** Rediscover this same row after a controller's WebForms postback. */
+  readonly resolveScope?: () => Promise<Locator>;
   readonly page: Page;
   readonly pageId: string;
   readonly group: Ds160RepeatGroupName;
@@ -177,6 +179,7 @@ interface FilledBrowserRepeatRow {
   readonly activeFieldKeys: readonly string[];
   readonly answers: Record<string, string>;
   readonly mappings: Record<string, FormFieldMapping>;
+  readonly resolveScope: () => Promise<Locator>;
 }
 
 function mappingKeysForContract(
@@ -1005,10 +1008,29 @@ export async function fillDs160RepeatGroups(
         context.activeFieldKeys,
         options.pageId,
       );
+      let expectedToken: string | null | undefined;
+      let expectedCount: number | undefined;
+      const resolveScope = async (): Promise<Locator> => {
+        const candidates = await collectVisibleCandidates(options.page, entries, context.contract, options.pageId);
+        const runtime = await discoverRows(candidates, context.contract, options.pageId);
+        const current = runtime.rows[context.row.index];
+        if (!current || (expectedCount !== undefined &&
+          (runtime.rows.length !== expectedCount || current.ctlToken !== expectedToken))) {
+          throw new Ds160RepeatBrowserError(
+            "ambiguous_repeat_row", context.contract.group, options.pageId,
+            "Repeat row identity changed while filling its conditional controls.",
+            { rowIndex: context.row.index },
+          );
+        }
+        expectedToken = current.ctlToken;
+        expectedCount = runtime.rows.length;
+        return current.scope;
+      };
       await options.fillRow({
         answers: rowData.answers,
         mappings: rowData.mappings,
-        scope: rowHandle,
+        scope: await resolveScope(),
+        resolveScope,
         page: options.page,
         pageId: options.pageId,
         group: context.contract.group,
@@ -1019,7 +1041,7 @@ export async function fillDs160RepeatGroups(
       // callback, otherwise a legitimate conditional branch fails before it
       // has had a chance to render.
       await verifyScopedMappedControls(
-        rowHandle,
+        await resolveScope(),
         rowData.answers,
         rowData.mappings,
         context.contract.group,
@@ -1031,6 +1053,7 @@ export async function fillDs160RepeatGroups(
         activeFieldKeys: [...context.activeFieldKeys],
         answers: rowData.answers,
         mappings: rowData.mappings,
+        resolveScope,
       });
       filledRowsByGroup.set(context.contract.group, filledRows);
     },
@@ -1074,10 +1097,8 @@ export async function fillDs160RepeatGroups(
   if (options.verifyRow) {
     for (const groupResult of result.groups) {
       if (groupResult.status !== "filled") continue;
-      const contract = DS160_REPEAT_GROUP_CONTRACTS[groupResult.group];
-      const entries = entriesByGroup.get(groupResult.group);
       const filledRows = filledRowsByGroup.get(groupResult.group);
-      if (!entries || !filledRows) continue;
+      if (!filledRows) continue;
 
       for (const rowIndex of groupResult.filledRowIndices) {
         const filled = filledRows.get(rowIndex);
@@ -1091,29 +1112,12 @@ export async function fillDs160RepeatGroups(
           );
         }
 
-        // Resolve the live row again after every group's postbacks have
-        // settled. A Locator captured during fill may refer to a detached
-        // WebForms fragment and must never be used for final read-back.
-        const runtime = await discoverRuntime(
-          options.page,
-          entries,
-          contract,
-          options.pageId,
-        );
-        const browserRow = runtime.rows[rowIndex];
-        if (!browserRow) {
-          throw new Ds160RepeatBrowserError(
-            "missing_repeat_row",
-            groupResult.group,
-            options.pageId,
-            `Could not re-resolve persisted row ${rowIndex} of "${groupResult.group}" for final verification.`,
-            { rowIndex, actualCount: runtime.rows.length },
-          );
-        }
+        // Retain the original row identity guard even after later groups'
+        // postbacks; an existing ordinal alone does not establish identity.
         await options.verifyRow({
           answers: filled.answers,
           mappings: filled.mappings,
-          scope: browserRow.scope,
+          scope: await filled.resolveScope(),
           page: options.page,
           pageId: options.pageId,
           group: groupResult.group,

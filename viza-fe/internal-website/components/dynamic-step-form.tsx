@@ -1732,6 +1732,17 @@ function getLocalFieldIssue(
     return issue("ok", "");
   }
 
+  // Non-date controls use the same official sentinel answers as date fields
+  // (for example DS-160 SSN may explicitly be DOES_NOT_APPLY). Once the
+  // schema opts into that branch, skip ordinary length/pattern/option checks;
+  // the sentinel is the completed canonical answer for that field.
+  const isAllowedNonDateSentinel =
+    (trimmed === "DO_NOT_KNOW" && (rules?.allow_do_not_know === true || rules?.allow_unknown === true))
+    || (trimmed === "DOES_NOT_APPLY" && (rules?.allow_does_not_apply === true || rules?.has_does_not_apply === true));
+  if (isAllowedNonDateSentinel) {
+    return issue("ok", "");
+  }
+
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
     return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
   }

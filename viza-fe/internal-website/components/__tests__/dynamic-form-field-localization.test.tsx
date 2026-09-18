@@ -1,9 +1,19 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DynamicFormField } from "../dynamic-form-field";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
 
 let mockLocale = "zh";
+
+beforeAll(() => {
+  if (!("ResizeObserver" in globalThis)) {
+    globalThis.ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
 
 vi.mock("next-intl", () => ({
   useLocale: () => mockLocale,
@@ -48,6 +58,46 @@ describe("DynamicFormField localization", () => {
     );
 
     expect(screen.getByRole("spinbutton", { name: "计划停留天数" })).toBeInTheDocument();
+  });
+
+  it("renders an explicit Does Not Apply checkbox for the DS-160 Social Security Number", () => {
+    const onChange = vi.fn();
+    const ssnField = field({
+      id: "us-social-security-number",
+      visaType: "DS160",
+      fieldName: "us_social_security_number",
+      label: "U.S. Social Security Number",
+      fieldType: "text",
+      required: true,
+      validationRules: { allow_does_not_apply: true },
+    });
+
+    const { rerender } = render(
+      <DynamicFormField
+        field={ssnField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    const doesNotApply = screen.getByRole("checkbox", { name: "dynamicField.doesNotApply" });
+    expect(doesNotApply).not.toBeChecked();
+    fireEvent.click(doesNotApply);
+    expect(onChange).toHaveBeenCalledWith("DOES_NOT_APPLY");
+
+    rerender(
+      <DynamicFormField
+        field={ssnField}
+        value="DOES_NOT_APPLY"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "dynamicField.doesNotApply" })).toBeChecked();
+    expect(screen.queryByLabelText("dynamicField.usSocialSecurityNumber")).not.toBeInTheDocument();
+    expect(screen.getAllByText("dynamicField.doesNotApply")).toHaveLength(2);
   });
 
   it("renders an official text autocomplete while preserving free entry", () => {

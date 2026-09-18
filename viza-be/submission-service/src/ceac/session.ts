@@ -18,6 +18,7 @@ import { assertNoGate } from "./gates";
 import { selectStartPageLocation } from "./start-page-location";
 import { solveStartPageCaptchaWithRetry } from "./start-page-captcha";
 import { gotoCeacStartPage } from "./start-page-navigation";
+import { tryCaptureBootstrapDiagnostics } from "./diagnostics";
 
 export const CEAC_DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
@@ -36,6 +37,8 @@ export interface CeacSessionOptions {
   userAgent?: string;
   /** Optional run identifier for structured logging. */
   runId?: string;
+  /** Private run directory for evidence captured before failed bootstrap cleanup. */
+  diagnosticDirectory?: string;
   /**
    * When positive, visible live-assisted runs wait for the applicant to
    * complete the CEAC start-page location/CAPTCHA checkpoint manually.
@@ -83,9 +86,9 @@ export async function startCeacSession(
 
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
+  let page: Page | null = null;
 
   try {
-    let page: Page;
     if (browserbaseEnabled("CEAC")) {
       const cloud = await connectBrowserbaseCloudBrowser({ prefix: "CEAC" });
       browser = cloud.browser;
@@ -210,6 +213,9 @@ export async function startCeacSession(
 
     return session;
   } catch (err) {
+    if (page && options.diagnosticDirectory) {
+      await tryCaptureBootstrapDiagnostics(page, options.diagnosticDirectory);
+    }
     // Make sure we do not leak a browser if bootstrap fails mid-way.
     try {
       if (context) await context.close();

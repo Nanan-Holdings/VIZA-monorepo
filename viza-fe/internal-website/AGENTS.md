@@ -38,6 +38,12 @@ codes during hydration and localize only their display text. Regression coverage
 lives in `components/__tests__/dynamic-step-form-us-state-prefill.test.tsx`
 and `components/ui/__tests__/region-select.test.tsx`.
 
+DS-160 SSN requires a number or the applicant's explicit Does Not Apply
+choice. The segmented numeric control must expose that schema-permitted
+choice without placing the sentinel inside its digits. Keep the full-form
+required/NA contract covered by
+`components/__tests__/dynamic-step-form-ssn-validation.test.tsx`.
+
 Dynamic long-form input must avoid whole-page work per keystroke. Keep step
 objects, callbacks and navigation lists stable; `DynamicStepForm` uses shallow
 memoization without ignoring cross-field inputs. Field validation shares a

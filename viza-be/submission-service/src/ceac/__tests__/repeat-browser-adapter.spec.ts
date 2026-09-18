@@ -7,6 +7,7 @@ import {
   deriveDs160RepeatRowAnswers,
   fillDs160RepeatGroups,
 } from "../repeat-browser-adapter";
+import { fillPageFields } from "../orchestrator";
 
 interface FixtureState {
   readonly phoneAddCount: number;
@@ -199,6 +200,49 @@ function conditionalNationalityFixture(): string {
 </body></html>`;
 }
 
+function travelPurposePostbackFixture(wrapperIds = true): string {
+  return `<!doctype html><html><body>
+    <section id="travel-purpose-group">
+      <div ${wrapperIds ? 'id="travel_ctl00_row"' : ''} data-fixture-row>
+        <div ${wrapperIds ? 'id="travel_ctl00_main-cell"' : ''}>
+          <select id="travel_ctl00_ddlPurposeOfTrip">
+            <option value="">PLEASE SELECT A VISA CLASS</option>
+            <option value="B">TEMP. BUSINESS OR PLEASURE VISITOR (B)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+    <script>
+      (function () {
+        var row = document.querySelector("[data-fixture-row]");
+        var purpose = document.getElementById("travel_ctl00_ddlPurposeOfTrip");
+        purpose.addEventListener("change", function () {
+          // Simulate the CEAC UpdatePanel replacing the whole item after the
+          // parent purpose is selected. The dependent select is a sibling of
+          // the original control's cell, not its direct child.
+          var replacement = document.createElement("div");
+          ${wrapperIds ? 'replacement.id = "travel_ctl00_row";' : ''}
+          replacement.innerHTML =
+            '<div ${wrapperIds ? 'id="travel_ctl00_main-cell"' : ''}>' +
+              '<select id="travel_ctl00_ddlPurposeOfTrip">' +
+                '<option value="">PLEASE SELECT A VISA CLASS</option>' +
+                '<option value="B" selected>TEMP. BUSINESS OR PLEASURE VISITOR (B)</option>' +
+              '</select>' +
+            '</div>' +
+            '<div ${wrapperIds ? 'id="travel_ctl00_specify-cell"' : ''}>' +
+              '<select id="travel_ctl00_ddlOtherPurpose">' +
+                '<option value="">PLEASE SELECT</option>' +
+                '<option value="B1-B2">BUSINESS &amp; TOURISM (TEMPORARY VISITOR) (B1/B2)</option>' +
+              '</select>' +
+            '</div>';
+          row.replaceWith(replacement);
+          row = replacement;
+        });
+      }());
+    </script>
+  </body></html>`;
+}
+
 async function withPage<T>(html: string, run: (page: Page) => Promise<T>): Promise<T> {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -306,6 +350,39 @@ test("browser adapter falls back to the existing extended mapping for a visible 
   );
 });
 
+test("final read-back rejects a row identity changed by a later group's postback", async () => {
+  await withPage(phoneFixture({ phoneRows: 1, emailRows: 1 }), async (page) => {
+    let verified = 0;
+    await assert.rejects(fillDs160RepeatGroups({
+      page, pageId: "address_and_phone",
+      answers: {
+        has_other_phones: "yes", additional_phone: "FIRST PHONE",
+        has_other_emails: "yes", additional_email: "first@example.invalid",
+      },
+      mappings: {
+        additional_phone: textMapping('input[data-field="additional_phone"]', "Phone"),
+        additional_email: textMapping('input[data-field="additional_email"]', "Email"),
+      },
+      groups: ["additional_phones", "additional_emails"],
+      fillRow: async ({ group, scope, answers, mappings }) => {
+        assert.ok(scope);
+        for (const [key, mapping] of Object.entries(mappings)) {
+          await scope.locator(mapping.selector).fill(answers[key]);
+        }
+        if (group === "additional_emails") {
+          await page.locator('input[data-field="additional_phone"]').evaluate((input) => {
+            input.id = input.id.replace("ctl00", "ctl04");
+            const name = input.getAttribute("name");
+            if (name) input.setAttribute("name", name.replace("ctl00", "ctl04"));
+          });
+        }
+      },
+      verifyRow: async () => { verified += 1; },
+    }), /Repeat row identity changed/);
+    assert.equal(verified, 0);
+  });
+});
+
 test("browser adapter preserves aliases for two social rows", async () => {
   await withPage(socialFixture(), async (page) => {
     const received: Array<Record<string, string>> = [];
@@ -329,13 +406,9 @@ test("browser adapter preserves aliases for two social rows", async () => {
         ),
       },
       groups: ["social_media"],
-      fillRow: async ({ answers, scope, row }) => {
-        assert.ok(scope);
+      fillRow: async ({ answers, mappings, scope, resolveScope }) => {
         received.push({ ...answers });
-        const providerKey = row.index === 0 ? "social_media_provider" : "social_media_provider__2";
-        const identifierKey = row.index === 0 ? "social_media_identifier" : "social_media_identifier__2";
-        await scope.locator('input[data-field="social_media_provider"]').fill(answers[providerKey]);
-        await scope.locator('input[data-field="social_media_identifier"]').fill(answers[identifierKey]);
+        await fillPageFields(page, mappings, answers, {}, { scope, resolveScope, requireMappedAnswers: true });
       },
     });
 
@@ -493,6 +566,44 @@ test("browser adapter fills a child that appears from an inline conditional row 
     );
   });
 });
+
+for (const wrapperIds of [true, false]) {
+test(`browser adapter rediscovers conditional siblings after postback (wrapper ids: ${wrapperIds})`, async () => {
+  await withPage(travelPurposePostbackFixture(wrapperIds), async (page) => {
+    await fillDs160RepeatGroups({
+      page,
+      pageId: "travel_information",
+      answers: {
+        purpose_of_trip: "B",
+        purpose_of_trip_specify: "B1/B2",
+      },
+      mappings: {
+        purpose_of_trip: selectMapping(
+          'select[id*="ddlPurposeOfTrip"]',
+          "Purpose of Trip",
+        ),
+        purpose_of_trip_specify: selectMapping(
+          'select[id*="ddlOtherPurpose"]',
+          "Specify Purpose",
+        ),
+      },
+      groups: ["trip_purpose"],
+      fillRow: async ({ answers, mappings, scope, resolveScope }) => {
+        await fillPageFields(page, mappings, answers, {}, { scope, resolveScope, requireMappedAnswers: true });
+      },
+    });
+
+    assert.equal(
+      await page.locator('select[id*="ddlPurposeOfTrip"]').inputValue(),
+      "B",
+    );
+    assert.equal(
+      await page.locator('select[id*="ddlOtherPurpose"]').inputValue(),
+      "B1-B2",
+    );
+  });
+});
+}
 
 test("condition-off repeat branch skips DOM discovery, while a count-one row needs no controls", async () => {
   await withPage(phoneFixture({ phoneRows: 1, phoneAddButtons: 0, includePhoneRemove: false }), async (page) => {

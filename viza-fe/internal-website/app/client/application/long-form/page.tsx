@@ -134,6 +134,10 @@ import {
   type OrderedDynamicSaveQueue,
 } from "./ordered-dynamic-save";
 import {
+  isSubmissionTransportError,
+  reconcileSubmissionStatus,
+} from "./submission-reconciliation";
+import {
   computeAllTabCompletion,
   getApplicationFieldErrorMessage,
   getContiguousCompletedCount,
@@ -4178,6 +4182,8 @@ export default function ApplicationPage() {
     const isJpTourist = resolvedVisaType === "JP_TOURIST";
     const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
     let queueAccepted = false;
+    let submissionRequestStarted = false;
+    let applicationId = appState.applicationId;
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
         throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
@@ -4193,7 +4199,6 @@ export default function ApplicationPage() {
         throw new Error(isZhInterface ? "本地 live assisted 环境未启用。" : "Live assisted mode is not enabled locally.");
       }
       const supabase = createClient();
-      let applicationId = appState.applicationId;
       if (!explicitApplicationId) {
         if (isKoreaEArrivalCard) {
           applicationId = await ensureWritableApplicationId();
@@ -4226,6 +4231,7 @@ export default function ApplicationPage() {
       if (!isJpTourist && !isKrC39) {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
+        submissionRequestStarted = true;
         const queueJob = await insertSubmissionQueueJob({
           applicationId,
           country: resolvedCountry,
@@ -4274,16 +4280,17 @@ export default function ApplicationPage() {
         // JP_TOURIST has no automation pipeline. Synthesize the terminal
         // result client-side so the StatusStep can render JpResultCard with
         // the MOFA Form A download CTA.
+        const jpResult: SubmissionResult = {
+          country: "JP",
+          status: "form_ready_for_agency",
+          applicationId,
+          formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
+        };
         setAppState((prev) => ({
           ...prev,
           submittedAt: new Date().toISOString(),
           submissionResultStatus: "form_ready_for_agency",
-          submissionResult: {
-            country: "JP",
-            status: "form_ready_for_agency",
-            applicationId,
-            formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
-          },
+          submissionResult: jpResult,
         }));
       }
       if (isKrC39) {
@@ -4327,6 +4334,42 @@ export default function ApplicationPage() {
           submissionResultStatus: prev.submissionResultStatus ?? "waiting",
         }));
         setError(null);
+        return;
+      }
+      if (
+        !queueAccepted &&
+        submissionRequestStarted &&
+        applicationId &&
+        isDs160VisaType(resolvedVisaType) &&
+        isSubmissionTransportError(err)
+      ) {
+        const reconciliation = await reconcileSubmissionStatus(applicationId);
+        if (reconciliation.kind === "accepted") {
+          const submittedAt = new Date().toISOString();
+          setAppState((prev) => ({
+            ...prev,
+            submittedAt:
+              mode === "live_assisted" && isTaiwanEntryPermit
+                ? undefined
+                : (prev.submittedAt ?? submittedAt),
+            submissionResultStatus: reconciliation.submissionResultStatus,
+            submissionResult: reconciliation.submissionResult,
+          }));
+          setSubmitMissingFields([]);
+          const completionPosition = getVisibleStepIndex(effectiveSteps, reviewStepIndex);
+          setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
+          setError(null);
+          return;
+        }
+        setError(
+          reconciliation.kind === "not_accepted"
+            ? isZhInterface
+              ? "未发现已接受的提交任务，本次请求未自动重复提交，请重试。"
+              : "No accepted submission task was found. The request was not resubmitted automatically; please try again."
+            : isZhInterface
+              ? "提交结果暂时无法确认，请刷新查看申请状态。系统未自动重复提交。"
+              : "The submission result could not be confirmed. Refresh the application status; the request was not resubmitted automatically.",
+        );
         return;
       }
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));

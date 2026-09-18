@@ -3,10 +3,31 @@ import { after, before, it } from "node:test";
 import { chromium, type Browser } from "@playwright/test";
 import { gotoCeacStartPage } from "../start-page-navigation";
 import { detectGate } from "../gates";
+import { tryCaptureBootstrapDiagnostics } from "../diagnostics";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
 let browser: Browser;
 before(async () => { browser = await chromium.launch({ headless: true }); });
 after(async () => { await browser.close(); });
+
+it("preserves a failed bootstrap surface without serializing hidden input values", async () => {
+  const page = await browser.newPage();
+  const outputDir = mkdtempSync(join(tmpdir(), "ceac-bootstrap-evidence-"));
+  try {
+    await page.setContent('<h2>Session expired</h2><input type="hidden" id="ViewState" value="PRIVATE-HIDDEN-STATE"><input id="captcha" value="PRIVATE-CAPTCHA-ANSWER">');
+    await tryCaptureBootstrapDiagnostics(page, outputDir);
+    const text = readFileSync(join(outputDir, "bootstrap-failure.json"), "utf8");
+    assert.match(text, /Session expired/);
+    assert.doesNotMatch(text, /PRIVATE-HIDDEN-STATE|PRIVATE-CAPTCHA-ANSWER/);
+    assert.ok(readFileSync(join(outputDir, "bootstrap-failure.png")).length > 0);
+  } finally {
+    await page.close();
+    if (dirname(resolve(outputDir)) !== resolve(tmpdir())) throw new Error("Unexpected diagnostic test path");
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});
 
 it("waits through an interstitial h2 until the CEAC form appears", async () => {
   const page = await browser.newPage();

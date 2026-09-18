@@ -63,6 +63,12 @@ describe("DS-160 checked-in field contract", () => {
     }
   });
 
+  it("requires an SSN answer while allowing an explicit Does Not Apply value", () => {
+    const socialSecurityNumber = DS160_FIELD_CONTRACTS.us_social_security_number;
+    assert.equal(socialSecurityNumber.required, true);
+    assert.equal(socialSecurityNumber.allowsDoesNotApply, true);
+  });
+
   it("keeps the DS-160 seed additive", () => {
     const seedPath = path.resolve(__dirname, "../../../agent-backend/scripts/seed-ds160-form-fields.ts");
     const source = readFileSync(seedPath, "utf8");
@@ -70,4 +76,3 @@ describe("DS-160 checked-in field contract", () => {
     assert.doesNotMatch(source, /\.from\(\"visa_form_fields\"\)[\s\S]*?\.delete\(\)/);
   });
 });
-

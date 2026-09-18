@@ -53,8 +53,21 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    nonempty value or a passing prompt check does not establish factual truth.
    `repeat-groups.ts` preserves persisted row indexes;
    `repeat-browser-adapter.ts` discovers current DOM row scopes and Add/Remove
-   controls, then re-resolves every row for final read-back. Static selector
+   controls, then re-resolves the same row before each field and after
+   controller postbacks, rejecting changed row counts or identities. Final
+   read-back also re-resolves every row. Static selector
    declarations are not evidence of official parity.
+   `previous-travel-branch.ts` recognizes the observed four-question previous
+   travel page without an ESTA question. Only a saved negative ESTA answer may
+   be inactive, after the full page and absence of both controls and question
+   text are verified. Visible questions, affirmative answers, incomplete pages,
+   and unrelated missing controls retain strict filling and read-back checks.
+   `review-verification.ts` captures the same application's visible official
+   review values and screenshots into the private run directory. The
+   orchestrator compares them against values read back from filled controls;
+   missing, changed, ambiguous or unsupported review identities block final
+   signing. Personal Information 1 and Passport must have been verified in the
+   current run. A config flag alone is never a passed review comparison.
 5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
    final CAPTCHA solving.
    `signature-fields.ts` requires saved preparer Yes/No and conditional details
@@ -80,6 +93,18 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    back to a profile photo. Download only the selected file.
 8. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
+   Public bootstrap failures retain a screenshot plus visible page/control
+   metadata before closing the browser; never dump hidden input values,
+   cookies or credentials into these diagnostics.
+   `recovery-failure.ts` retains the latest captured-resume error instead of a
+   stale queue reason, redacting known answers/secrets and excluding raw context.
+   `recovered-application.ts` waits for an explicitly recoverable form page
+   after Retrieve navigation, then verifies the captured official Application
+   ID. Its browser regression in `__tests__/recovered-application.spec.ts`
+   must reject transient/terminal surfaces and mismatched IDs.
+   Captured resumes rewind through an observed official Personal Information 1
+   link before refilling, so changes to earlier answers are not omitted when
+   CEAC restores the draft at a later page.
 9. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
    sign/submit for one-shot submission.
 10. `result.ts` returns typed success/failure/handoff payloads.

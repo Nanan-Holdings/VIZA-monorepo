@@ -377,12 +377,14 @@ function SsnSegmentedInput({
   value,
   onChange,
   required,
+  disabled = false,
   whiteControlClass,
   ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   required: boolean;
+  disabled?: boolean;
   whiteControlClass: string;
   ariaLabel: string;
 }) {
@@ -403,6 +405,7 @@ function SsnSegmentedInput({
       containerClassName="h-12"
       className="w-full"
       required={required}
+      disabled={disabled}
       aria-label={ariaLabel}
     >
       <InputOTPGroup>
@@ -863,15 +866,42 @@ export function DynamicFormField({
 
     default: // text, number, email, tel, etc.
       if (isSsnField(field)) {
+        const ssnRules = field.validationRules as {
+          allow_does_not_apply?: unknown;
+          has_does_not_apply?: unknown;
+        } | null;
+        const allowSsnDoesNotApply = ssnRules?.allow_does_not_apply === true
+          || ssnRules?.has_does_not_apply === true;
+        const ssnIsDoesNotApply = value === "DOES_NOT_APPLY";
+        const ssnInput = ssnIsDoesNotApply ? (
+          <ApplicationFormControlDisplay className={`h-12 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
+            {doesNotApplyLabel}
+          </ApplicationFormControlDisplay>
+        ) : (
+          <SsnSegmentedInput
+            value={value}
+            onChange={onChange}
+            required={required && !ssnIsDoesNotApply}
+            disabled={disabled}
+            whiteControlClass={forceWhiteBackground ? "bg-white" : ""}
+            ariaLabel={t("dynamicField.usSocialSecurityNumber")}
+          />
+        );
+
         return (
           <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
-            <SsnSegmentedInput
-              value={value}
-              onChange={onChange}
-              required={required}
-              whiteControlClass={forceWhiteBackground ? "bg-white" : ""}
-              ariaLabel={t("dynamicField.usSocialSecurityNumber")}
-            />
+            {allowSsnDoesNotApply ? (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">{ssnInput}</div>
+                <ApplicationCheckbox
+                  checked={ssnIsDoesNotApply}
+                  label={doesNotApplyLabel}
+                  className="shrink-0 whitespace-nowrap text-[13px] text-gray-500"
+                  disabled={disabled}
+                  onCheckedChange={(checked) => onChange(checked ? "DOES_NOT_APPLY" : "")}
+                />
+              </div>
+            ) : ssnInput}
           </FieldWrapper>
         );
       }

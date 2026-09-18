@@ -83,9 +83,12 @@ function deleteAnswerFamily(values: Record<string, string>, base: string): void 
 /** Trace only mechanical aliases; a source field takes precedence over aliases. */
 export function ds160MappingSources(fieldName: string): string[] {
   const base = fieldName.replace(/__\d+$/, "");
-  const repeatedAlias = __DERIVATION_TARGETS.keyAliases.find(rule =>
-    rule.to === base && DS160_FIELD_CONTRACTS[rule.from]?.repeatGroup);
-  if (repeatedAlias) return [repeatedAlias.from];
+  // A direct saved-field alias owns its branch, even if a custom derivation
+  // can also produce it. Otherwise intended stay is incorrectly assigned to
+  // the repeated arrival/departure group and skipped for "no specific plans".
+  const savedFieldAlias = __DERIVATION_TARGETS.keyAliases.find(rule =>
+    rule.to === base && DS160_FIELD_CONTRACTS[rule.from]);
+  if (savedFieldAlias) return [savedFieldAlias.from];
   if (DS160_FIELD_CONTRACTS[base]) return [base];
   if (DS160_EXTENDED_METADATA[base]) return [DS160_EXTENDED_METADATA[base].seedFieldName];
   const pending = [base];
@@ -167,6 +170,7 @@ function isPlaceholderPrompt(value: string | undefined): boolean {
   // Recognize input instructions, not arbitrary prose containing "please" or
   // generic test-looking names. This check cannot establish factual accuracy.
   return /^(?:请(?:填写|输入|选择|提供|填入)|(?:例如|示例|如)\s*[:：]|please\s+(?:enter|provide|fill(?:\s+in)?|select)\b|enter\s+your\b|for\s+example\s*[,，:]|e\.g\.\s*[,，:]?)/i.test(text)
+    || /^[^.!?\n]{0,160}\(\s*leave\s+blank\s+if\s+(?:none|not\s+applicable)\s*\)\s*,?\s*for\s+example\s*[:：]/i.test(text)
     || /^(?:placeholder|<placeholder>|\[placeholder\]|待填写|待补充)$/i.test(text);
 }
 

@@ -27,6 +27,15 @@ test("maps derived dates and aliases back to their seed branch and repeat group"
   assert.equal(ds160MappingRepeatGroup("purpose_of_trip"), "trip_purpose");
 });
 
+test("intended stay belongs to its saved no-specific-plans field, not repeated travel dates", () => {
+  assert.deepEqual(ds160MappingSources("intended_length_of_stay"), ["intended_length_of_stay_value"]);
+  assert.equal(ds160MappingRepeatGroup("intended_length_of_stay"), undefined);
+  assert.equal(createDs160BranchPolicy({ has_specific_plans: "no" })
+    .isMappingActive("intended_length_of_stay"), true);
+  assert.equal(createDs160BranchPolicy({ has_specific_plans: "yes" })
+    .isMappingActive("intended_length_of_stay"), false);
+});
+
 test("inactive specific travel dates and dependent old nationality answers stay inactive", () => {
   const policy = createDs160BranchPolicy({
     has_specific_plans: "no", arrival_date: "2030-01-01", intended_arrival_date: "2030-03-01",
@@ -160,6 +169,21 @@ test("placeholder preflight follows official English alias precedence and preser
     surname: "For example, Zhang", surname_en: "LEE",
     home_address_city: "City", home_address_city_en: "Please enter your city",
   }), ["surname"]);
+});
+
+test("placeholder preflight recognizes the English address instruction when its alias is effective", () => {
+  const addressPrompt = "Community/Building/Unit/Room Number (leave blank if none), for example: Sunshine Garden, Building 3, Unit 2, Room 501";
+
+  assert.deepEqual(findDs160PlaceholderFields({
+    home_address_line2_en: addressPrompt,
+  }), ["home_address_line2"]);
+
+  // A real Latin-script canonical answer still takes precedence over a stale
+  // translated prompt alias and must not be rejected as a placeholder.
+  assert.deepEqual(findDs160PlaceholderFields({
+    home_address_line2: "12 Example Road, Building 3, Unit 2",
+    home_address_line2_en: addressPrompt,
+  }), []);
 });
 
 test("placeholder preflight ignores inactive branches and their translated aliases", () => {

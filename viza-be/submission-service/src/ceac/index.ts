@@ -207,6 +207,12 @@ export {
 } from "./resume-application";
 
 export {
+  assertRecoveredDs160Application,
+  RECOVERABLE_DS160_PAGE_IDS,
+  type RecoveredDs160LandingOptions,
+} from "./recovered-application";
+
+export {
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
   type Ds160ProofStoragePaths,

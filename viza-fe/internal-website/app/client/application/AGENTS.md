@@ -44,6 +44,9 @@ Before changing this route, read:
   application to avoid a duplicate ownership/read round trip. Reuse those
   answers only while the application ID still matches; a newly bootstrapped or
   explicit team application must perform its own authorized answer read.
+- `long-form/submission-reconciliation.ts`: client-only, read-only recovery for
+  an ambiguous DS-160 enqueue response. It may confirm an existing queue or
+  result through the status endpoint, but must never issue a second enqueue.
 - `components/dynamic-step-form.tsx`: shared DB-driven localized form renderer, including hidden Chinese/English synchronization, field-level validation, repeat groups, keyboard undo/redo, and AI trigger buttons.
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.

@@ -1,5 +1,24 @@
 # CEAC Smoke Test
 
+## 2026-09-18 captured-draft continuation
+
+- Same-draft retrieval now waits for a recognized in-progress page before
+  enforcing the captured Application ID. A live resume passed Personal 1 and
+  Personal 2 with the applicant's explicit SSN Does Not Apply answer.
+- The Travel run exposed two runtime bugs: intended stay was assigned to the
+  repeated specific-plans branch through an indirect derivation, and a parent
+  select's postback could reveal a child outside the initial narrow row scope.
+  Direct saved aliases now own their branch. Repeat filling re-discovers the
+  same row before each field and after postbacks, rejecting changed row counts
+  or row identities. Browser fixtures cover the real filler with generated and
+  anonymous wrappers, as well as separate values in multiple rows.
+- The applicant subsequently confirmed accommodation is not yet determined.
+  The current attempt is blocked with its encrypted recovery checkpoint
+  retained and no final-click fence. No new official draft or final signature
+  should be attempted until truthful accommodation/contact data is supplied.
+  These page-level checks and fixtures do not establish full official parity
+  or a completed submission.
+
 ## 2026-09-15 live continuation
 
 - The applicant explicitly requested a temporary VIZA payment deferral.

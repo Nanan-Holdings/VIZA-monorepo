@@ -81,6 +81,8 @@ import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
 import { DS160_EXTENDED_MAPPING_GROUPS } from "../ds160-extended-mappings";
 import { assertDs160RequiredAnswers, createDs160BranchPolicy, ds160MappingRepeatGroup, ds160RepeatAnswers } from "./field-contract";
 import { fillDs160RepeatGroups } from "./repeat-browser-adapter";
+import { resolvePreviousTravelMappings } from "./previous-travel-branch";
+import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 
 /**
@@ -233,6 +235,8 @@ export async function orchestrateFill(
   let resumeAttempts = 0;
   const sectionsFilled: string[] = [];
   const sectionsSkipped: string[] = [];
+  const reviewExpectations = new Map<string, ReviewExpectation>();
+  const reviewSnapshots: ReviewSnapshot[] = [];
 
   try {
     if (options.branchAnswers) assertDs160RequiredAnswers(options.branchAnswers);
@@ -418,6 +422,23 @@ export async function orchestrateFill(
       // signature step), we still terminate as handoff_ready — going
       // beyond is a contract violation.
       if (currentPageId === "sign_and_submit") {
+        if (options.finalSubmit?.passportNumber) {
+          const expected = [...reviewExpectations.values()];
+          const diff = verifyOfficialReview(expected, reviewSnapshots);
+          if (!sectionsFilled.includes("personal_information_1") || !sectionsFilled.includes("passport")) {
+            diff.status = "unverified";
+            diff.issues.push({ fieldName: "identity", reason: "identity_pages_not_verified_in_this_run" });
+          }
+          fs.writeFileSync(path.join(outputDir, "official-review-expectations.json"), JSON.stringify(expected, null, 2));
+          fs.writeFileSync(path.join(outputDir, "official-review-diff.json"), JSON.stringify(diff, null, 2));
+          if (diff.status !== "passed") {
+            throw new Error(`DS-160 official review comparison ${diff.status}: ${diff.issues.length} field(s) require verification before signing.`);
+          }
+          await recordSectionCheckpoint(page, {
+            ...checkpointOpts,
+            details: { section: "official_review", reviewDiffStatus: "passed", matchedFields: diff.matched },
+          });
+        }
         if (!datArtifact) {
           try { datArtifact = await captureDatArtifact(page, { outputDir }); } catch { /* best effort */ }
         }
@@ -565,19 +586,26 @@ export async function orchestrateFill(
       if (mappings) {
         console.log(`[orchestrator] Filling page: ${currentPageId}`);
         const branch = createDs160BranchPolicy(options.branchAnswers ?? answers);
-        const nonRepeatMappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
+        const observeVerified = (field: Omit<ReviewExpectation, "section">) => {
+          const expected = { ...field, section: currentPageId };
+          reviewExpectations.set(`${currentPageId}:${field.controlId}:${field.fieldName}`, expected);
+        };
+        let nonRepeatMappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
           !ds160MappingRepeatGroup(key) && branch.isMappingActive(key)));
+        if (currentPageId === "previous_us_travel") {
+          nonRepeatMappings = await resolvePreviousTravelMappings(page, nonRepeatMappings, branch.values);
+        }
         await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true });
         await fillDs160RepeatGroups({
           page, pageId: currentPageId, answers: ds160RepeatAnswers(branch.values, answers), mappings,
           fillRow: async row => fillPageFields(page, row.mappings, row.answers, {}, {
-            scope: row.scope, requireMappedAnswers: true,
+            scope: row.scope, resolveScope: row.resolveScope, requireMappedAnswers: true,
           }),
           verifyRow: async row => verifyPageFieldValues(row.scope ?? page, row.mappings, row.answers, {}, {
-            requireMappedAnswers: true,
+            requireMappedAnswers: true, observeVerified,
           }),
         });
-        await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true });
+        await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeVerified });
         sectionsFilled.push(currentPageId);
       } else {
         if (currentPageId !== "review") {
@@ -585,6 +613,9 @@ export async function orchestrateFill(
             detected: currentPageId,
           });
         }
+        const applicationId = tracker.snapshot().applicationId;
+        if (!applicationId) throw new Error("Official review cannot be verified without the captured application identity.");
+        reviewSnapshots.push(await captureOfficialReviewPage(page, applicationId, outputDir, reviewSnapshots.length));
         sectionsSkipped.push(currentPageId);
       }
 
@@ -1092,6 +1123,8 @@ async function verifyFilledField(
 export interface FillPageFieldsOptions {
   /** Scope repeated controls to one observed official row. */
   scope?: Locator;
+  /** Keep the same repeated row, but rediscover its conditional controls. */
+  resolveScope?: () => Promise<Locator>;
   /** Evaluate against the applicant's selected branch before touching DOM. */
   isFieldActive?: (fieldName: string) => boolean;
   /** An active supplied answer must have a visible, verifiable control. */
@@ -1106,7 +1139,7 @@ export async function fillPageFields(
   options: FillPageFieldsOptions = {},
 ): Promise<void> {
   const debug = process.env.CEAC_FILL_DEBUG === "1";
-  const scope = options.scope ?? page;
+  let scope = options.scope ?? page;
   mappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
     options.isFieldActive?.(key) !== false));
 
@@ -1144,6 +1177,8 @@ export async function fillPageFields(
       ?? null;
 
     if (!value) continue;
+
+    if (options.resolveScope) scope = await options.resolveScope();
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
     let filled = false;
@@ -1197,6 +1232,7 @@ export async function fillPageFields(
           await page.waitForTimeout(750);
         }
 
+        if (options.resolveScope) scope = await options.resolveScope();
         await verifyFilledField(scope, selector, mapping, value);
 
         filled = true;
@@ -1211,6 +1247,7 @@ export async function fillPageFields(
     }
   }
 
+  if (options.resolveScope) scope = await options.resolveScope();
   await verifyPageFieldValues(scope, mappings, answers, profile, {
     requireMappedAnswers: options.requireMappedAnswers,
     choicesOnly: !options.requireMappedAnswers,
@@ -1223,7 +1260,11 @@ export async function verifyPageFieldValues(
   mappings: Record<string, FormFieldMapping>,
   answers: Record<string, string>,
   profile: Record<string, unknown>,
-  options: { requireMappedAnswers?: boolean; choicesOnly?: boolean } = {},
+  options: {
+    requireMappedAnswers?: boolean;
+    choicesOnly?: boolean;
+    observeVerified?: (field: Omit<ReviewExpectation, "section">) => void;
+  } = {},
 ): Promise<void> {
   for (const [fieldName, mapping] of Object.entries(mappings)) {
     if (options.choicesOnly && mapping.type !== "checkbox" && mapping.type !== "radio") continue;
@@ -1241,6 +1282,20 @@ export async function verifyPageFieldValues(
         if (!candidate) continue;
         sawVisibleCandidate = true;
         await verifyFilledField(page, selector, mapping, value);
+        if (options.observeVerified) {
+          const control = mapping.type === "radio"
+            ? await findVisibleRadio(page, selector, value)
+            : candidate;
+          if (!control) throw new Error("Verified control disappeared before review snapshot");
+          const controlId = await control.getAttribute("id") ?? await control.getAttribute("name") ?? "";
+          if (!controlId) throw new Error("Verified control has no stable review identity");
+          const displayValue = mapping.type === "select"
+            ? (await control.locator("option:checked").innerText()).trim()
+            : mapping.type === "radio" || mapping.type === "checkbox"
+              ? /^(Y|1|true|yes)$/i.test(value) ? "Yes" : "No"
+              : await control.inputValue();
+          options.observeVerified({ fieldName, controlId, value: displayValue });
+        }
         verified = true;
         break;
       } catch {

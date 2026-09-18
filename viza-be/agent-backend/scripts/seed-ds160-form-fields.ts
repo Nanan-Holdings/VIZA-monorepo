@@ -339,7 +339,7 @@ const FIELDS: FieldDef[] = [
     field_name: "us_social_security_number",
     label: "U.S. Social Security Number",
     field_type: "text",
-    required: false,
+    required: true,
     step_number: 2,
     step_name: "Personal Information 2",
     display_order: 9,
