@@ -37,6 +37,7 @@ import {
   resolveLocalizedOptions,
   resolveLocalizedPlaceholder,
   usesBilingualAnswerPair,
+  US_STATE_FORM_OPTIONS,
 } from "@/lib/bilingual-schema-contract";
 import { evaluateShowIf, isRequiredUnlessSatisfied, isRequiredWhenSatisfied } from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
@@ -49,6 +50,7 @@ import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
 import { countries } from "country-data-list";
+import { getDateFieldValueState, parseDateFieldValue } from "@/lib/date-field-validation";
 import {
   getCompiledConditionalPanelController,
   getCompiledConditionalPanelMode,
@@ -385,8 +387,18 @@ function getBilingualPrefillText(
   prefill: Record<string, string>,
   fallbackValue?: string,
 ): BilingualTextValue {
-  const zh = prefill[`${key}_zh`]?.trim();
-  const storedEnglish = prefill[`${key}_en`]?.trim();
+  const storedChinese = prefill[`${key}_zh`]?.trim();
+  const rawEnglish = prefill[`${key}_en`]?.trim();
+  const inputPrompt = /^(?:请(?:填写|输入|选择|提供|填入)|please\s+(?:enter|provide|fill(?:\s+in)?|select)\b|enter\s+your\b)/i;
+  const savedAnswer = fallbackValue?.trim() ?? "";
+  const canRepairMirror = Boolean(savedAnswer && !inputPrompt.test(savedAnswer));
+  // A later official-side edit can leave an old input prompt in a companion
+  // column. Recover only that invalid mirror from the saved canonical answer;
+  // genuine Chinese answers must survive official-side edits unchanged.
+  const zh = canRepairMirror && storedChinese && inputPrompt.test(storedChinese)
+    ? toChineseSourceValue(savedAnswer) : storedChinese;
+  const storedEnglish = canRepairMirror && rawEnglish && inputPrompt.test(rawEnglish)
+    ? toOfficialEnglishValue(savedAnswer) : rawEnglish;
   const en = storedEnglish && !hasChineseText(storedEnglish) ? storedEnglish : "";
   if (zh || en) {
     return {
@@ -531,36 +543,8 @@ function DynamicFieldRealtimeTranslation({
   );
 }
 
-function buildStrictDate(year: number, month: number, day: number): Date | null {
-  const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
-}
-
 function parseFlexibleDate(value?: string): Date | null {
-  const trimmed = value?.trim();
-  if (!trimmed || trimmed === "DO_NOT_KNOW" || trimmed === "DOES_NOT_APPLY") return null;
-
-  const iso = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-  const official = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
-  const chinese = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
-
-  if (iso) return buildStrictDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
-  if (official) return buildStrictDate(Number(official[3]), Number(official[2]), Number(official[1]));
-  if (chinese) return buildStrictDate(Number(chinese[1]), Number(chinese[2]), Number(chinese[3]));
-
-  const parsed = new Date(trimmed);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function isYearOnlyDateValue(value: string): boolean {
-  return /^\d{4}$/.test(value.trim());
+  return parseDateFieldValue(value);
 }
 
 function startOfDay(date: Date): Date {
@@ -1324,6 +1308,7 @@ function normalizeFixedChoiceStepValues(
     if (field.fieldType !== "select" || !field.options?.length) continue;
 
     const rules = field.validationRules as {
+      source?: unknown;
       dependent_on?: unknown;
       depends_on?: unknown;
       dependsOn?: unknown;
@@ -1331,6 +1316,10 @@ function normalizeFixedChoiceStepValues(
       official_source?: unknown;
       remote_search?: unknown;
     } | null;
+    // US_STATES controls resolve their options from RegionSelect's catalog.
+    // The schema can contain only a placeholder; it is not an allowlist for
+    // the persisted official code (for example CA).
+    if (rules?.source === "US_STATES") continue;
     const optionsAreLoadedOrDependent = Boolean(
       rules?.dependent_on
       || rules?.depends_on
@@ -1707,6 +1696,10 @@ function getLocalFieldIssue(
     maxLength?: number;
     pattern?: string;
     at_least_one_of?: string[];
+    allow_do_not_know?: boolean;
+    allow_unknown?: boolean;
+    allow_does_not_apply?: boolean;
+    has_does_not_apply?: boolean;
     allow_year_only?: boolean;
     min_date?: "today";
     max_days_from_today?: number;
@@ -1729,6 +1722,14 @@ function getLocalFieldIssue(
 
   if (field.required && !trimmed) {
     return issue("warning", isZh ? "必填项" : "Required");
+  }
+
+  // Date sentinels are canonical answers only when the schema explicitly
+  // exposes the corresponding unknown/not-applicable branch. They must skip
+  // date parsing and every date-specific constraint, while arbitrary strings
+  // still follow the normal strict date validation below.
+  if (field.fieldType === "date" && getDateFieldValueState(trimmed, rules) === "allowed_sentinel") {
+    return issue("ok", "");
   }
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
@@ -1824,9 +1825,10 @@ function getLocalFieldIssue(
     if (!optionMatch) return issue("error", isZh ? "请选择题目提供的选项" : "Choose one of the provided options");
   }
 
-  const isYearOnly = field.fieldType === "date" && Boolean(rules?.allow_year_only) && isYearOnlyDateValue(trimmed);
+  const dateValueState = field.fieldType === "date" ? getDateFieldValueState(trimmed, rules) : null;
+  const isYearOnly = dateValueState === "year_only";
   const currentDate = field.fieldType === "date" && !isYearOnly ? parseFlexibleDate(trimmed) : null;
-  if (field.fieldType === "date" && trimmed && !currentDate && !isYearOnly) {
+  if (field.fieldType === "date" && trimmed && (dateValueState === "invalid" || (!currentDate && !isYearOnly))) {
     return issue("error", isZh ? "日期格式不符合要求" : "Date format does not match the requirement");
   }
 
@@ -4515,7 +4517,8 @@ function DynamicStepFormImpl({
     const cached = effectiveFieldStateCache.get(cacheKey);
     if (cached) return cached;
 
-    let fieldOptions = field.options;
+    let fieldOptions = (field.validationRules as { source?: unknown } | null)?.source === "US_STATES"
+      ? US_STATE_FORM_OPTIONS : field.options;
     if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
       fieldOptions = getPhoneCountryCodeOptions();
     }

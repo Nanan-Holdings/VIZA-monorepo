@@ -21,6 +21,23 @@ flag server-only, exact-value parsed, and default-off in `.env.example`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
 
+`lib/date-field-validation.ts` owns schema-aware date sentinel validation for
+dynamic form inputs, progress, assistant validation and review. `DO_NOT_KNOW`
+and `DOES_NOT_APPLY` are valid only when the field explicitly permits them;
+never apply ordinary date parsing to an allowed sentinel. Keep real dates and
+unsupported sentinels validated, including after clearing the checkbox. The
+adjacent tests and dynamic-form regressions cover this shared contract.
+When restoring bilingual text, a recognizable input-prompt mirror may be
+repaired only from an existing non-prompt canonical answer. Preserve genuine
+source-language answers and leave missing canonical answers visible for user
+correction; never invent data while repairing stale mirrors.
+
+US state fields may declare only `source: US_STATES` and a placeholder option.
+Resolve their complete code catalog before option validation; preserve stored
+codes during hydration and localize only their display text. Regression coverage
+lives in `components/__tests__/dynamic-step-form-us-state-prefill.test.tsx`
+and `components/ui/__tests__/region-select.test.tsx`.
+
 Dynamic long-form input must avoid whole-page work per keystroke. Keep step
 objects, callbacks and navigation lists stable; `DynamicStepForm` uses shallow
 memoization without ignoring cross-field inputs. Field validation shares a

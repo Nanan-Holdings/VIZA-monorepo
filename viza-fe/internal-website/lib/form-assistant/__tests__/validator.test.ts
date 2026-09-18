@@ -72,6 +72,56 @@ const steps: WizardStep[] = [
 ];
 
 describe("validateApplicationAnswers", () => {
+  it("treats an explicitly allowed unknown date as complete and requires a real date after reset", () => {
+    const unknownDateSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Family Information",
+      fields: [{
+        id: "father-dob",
+        visaType: "DS160",
+        fieldName: "father_date_of_birth",
+        label: "Father's Date of Birth",
+        fieldType: "date",
+        required: true,
+        stepNumber: 1,
+        stepName: "Family Information",
+        displayOrder: 1,
+        placeholder: null,
+        validationRules: { format: "DD-MMM-YYYY", allow_do_not_know: true },
+        options: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const unknown = validateApplicationAnswers({
+      steps: unknownDateSteps,
+      answers: { father_date_of_birth: "DO_NOT_KNOW" },
+      visaType: "DS160",
+    });
+    expect(unknown.errors).toEqual([]);
+    expect(unknown.missingFields).toEqual([]);
+    expect(unknown.progress).toEqual({ completed: 1, total: 1 });
+
+    const reset = validateApplicationAnswers({
+      steps: unknownDateSteps,
+      answers: { father_date_of_birth: "" },
+      visaType: "DS160",
+    });
+    expect(reset.missingFields.map((field) => field.fieldName)).toEqual(["father_date_of_birth"]);
+
+    const invalid = validateApplicationAnswers({
+      steps: [{
+        ...unknownDateSteps[0],
+        fields: [{ ...unknownDateSteps[0].fields[0], validationRules: { format: "DD-MMM-YYYY" } }],
+      }],
+      answers: { father_date_of_birth: "DO_NOT_KNOW" },
+      visaType: "DS160",
+    });
+    expect(invalid.errors).toEqual([
+      expect.objectContaining({ code: "invalid_date", fieldNames: ["father_date_of_birth"] }),
+    ]);
+  });
+
   it("recalculates conditional required fields and rejects invalid exact options", () => {
     const result = validateApplicationAnswers({
       steps,

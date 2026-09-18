@@ -10,6 +10,8 @@ and internal admin flows.
 ## Key Routes
 
 - `field-guidance.routes.ts`: `POST /api/field-guidance`.
+- `field-guidance.routes.test.ts`: date-sentinel validation regressions for
+  schema-allowed unknown/not-applicable answers.
 - `field-guidance-cache.ts`: bounded, expiring single-flight cache for static
   field guidance. Cache keys and values may contain field metadata and public
   knowledge only; applicant answers, questions, and chat history remain

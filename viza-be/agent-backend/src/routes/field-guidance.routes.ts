@@ -1076,6 +1076,19 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function isAllowedDateSentinel(
+  value: string,
+  rules: Record<string, unknown>,
+): boolean {
+  if (value === "DO_NOT_KNOW") {
+    return rules.allow_do_not_know === true || rules.allow_unknown === true;
+  }
+  if (value === "DOES_NOT_APPLY") {
+    return rules.allow_does_not_apply === true || rules.has_does_not_apply === true;
+  }
+  return false;
+}
+
 function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
@@ -1286,7 +1299,7 @@ function findAnswer(
   return null;
 }
 
-function validateAnswer(
+export function validateAnswer(
   field: FieldGuidanceField,
   answer: string,
   allAnswers: Record<string, string>,
@@ -1308,6 +1321,13 @@ function validateAnswer(
 
   if (field.required && !trimmed) {
     warn("此必填项还没有填写。", "This required field has not been filled yet.");
+  }
+
+  // Date sentinels are canonical answers only when this schema explicitly
+  // exposes the corresponding branch. Treat an allowed sentinel as complete
+  // and skip ordinary date, pattern, length, and cross-field checks.
+  if (field.fieldType === "date" && isAllowedDateSentinel(trimmed, rules)) {
+    return { severity, messages };
   }
 
   const maxLength = typeof rules.maxLength === "number" ? rules.maxLength : null;

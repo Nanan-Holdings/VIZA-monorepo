@@ -29,6 +29,7 @@ import {
   parseDirectCurrentFieldAnswer,
   parseDirectYesNoAnswer,
   runAssistantTurn,
+  validateProposal,
 } from "./service";
 import { FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE } from "@/types/form-assistant";
 
@@ -2745,5 +2746,39 @@ describe("parseDirectCurrentFieldAnswer", () => {
       confidence: "high",
       modelSource: "deterministic",
     });
+  });
+});
+
+describe("validateProposal date sentinels", () => {
+  const dateField: VisaFormFieldRow = {
+    ...field("father_date_of_birth", "Father's date of birth", "父亲出生日期"),
+    fieldType: "date",
+    validationRules: {
+      format: "DD-MMM-YYYY",
+      pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+      maxLength: 10,
+      allow_do_not_know: true,
+    },
+  };
+
+  it.each([
+    ["DO_NOT_KNOW", { allow_do_not_know: true }],
+    ["DO_NOT_KNOW", { allow_unknown: true }],
+    ["DOES_NOT_APPLY", { allow_does_not_apply: true }],
+    ["DOES_NOT_APPLY", { has_does_not_apply: true }],
+  ] as const)("accepts the explicitly allowed date sentinel %s", (value, rules) => {
+    expect(validateProposal(
+      { ...dateField, validationRules: { ...dateField.validationRules, ...rules } },
+      { fieldName: dateField.fieldName, value, confidence: "high" },
+      {},
+    )).toBe(true);
+  });
+
+  it("rejects date sentinels when the schema does not allow them", () => {
+    expect(validateProposal(
+      { ...dateField, validationRules: { format: "DD-MMM-YYYY" } },
+      { fieldName: dateField.fieldName, value: "DO_NOT_KNOW", confidence: "high" },
+      {},
+    )).toBe(false);
   });
 });

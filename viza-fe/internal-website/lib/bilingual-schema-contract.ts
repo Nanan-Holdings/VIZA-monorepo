@@ -6,8 +6,20 @@ import {
   getEnglishLabel,
   getEnglishOptionText,
   getEnglishPlaceholder,
+  translateUsRegionName,
 } from "./ds160-translations";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY } from "./taiwan-administrative-units";
+import countryRegionData from "country-region-data/data.json";
+
+export const US_STATE_FORM_OPTIONS: Exclude<VisaFormFieldOption, string>[] =
+  (countryRegionData.find((country) => country.countryShortCode === "US")?.regions ?? [])
+    .flatMap((region) => region.shortCode ? [{
+      value: region.shortCode,
+      text: region.name,
+      label_en: region.name,
+      official_label: region.name,
+      label_zh: translateUsRegionName(region.name, region.shortCode),
+    }] : []);
 
 type BilingualSide = "zh" | "en";
 
@@ -1241,6 +1253,7 @@ const COUNTRY_ZH: Record<string, string> = {
   Egypt: "埃及",
   France: "法国",
   Germany: "德国",
+  Georgia: "格鲁吉亚",
   "Hong Kong": "香港",
   Indonesia: "印度尼西亚",
   India: "印度",
@@ -1250,6 +1263,7 @@ const COUNTRY_ZH: Record<string, string> = {
   Macau: "澳门",
   Malaysia: "马来西亚",
   Maldives: "马尔代夫",
+  Micronesia: "密克罗尼西亚联邦",
   "New Zealand": "新西兰",
   Philippines: "菲律宾",
   Russia: "俄罗斯",
@@ -1383,6 +1397,19 @@ function hasLatin(value: string): boolean {
 
 function clean(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+/**
+ * DS-160 Chinese entry labels should not repeat an English official label in
+ * parentheses. The English/official label and canonical option value remain
+ * on the option object for review and submission.
+ */
+function stripDs160EnglishParenthetical(value: string): string {
+  return value
+    .replace(/\s*\([^()]*[A-Za-z][^()]*\)/g, "")
+    .replace(/\s*（[^（）]*[A-Za-z][^（）]*）/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function getRuleText(field: FieldLike, keys: string[]): string | null {
@@ -1678,14 +1705,38 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function deriveChineseOptionLabel(option: VisaFormFieldOption): string {
+const DS160_US_REGION_FIELD_NAMES = new Set([
+  "us_address_state",
+  "us_contact_state",
+  "us_drivers_license_state",
+]);
+
+function isDs160UsRegionField(
+  visaType?: string,
+  fieldName?: string,
+  validationRules?: Record<string, unknown> | null,
+): boolean {
+  if (visaType !== "DS160") return false;
+  if (validationRules?.source === "US_STATES") return true;
+  return DS160_US_REGION_FIELD_NAMES.has(fieldName ?? "");
+}
+
+function deriveChineseOptionLabel(
+  option: VisaFormFieldOption,
+  context: { visaType?: string; fieldName?: string; validationRules?: Record<string, unknown> | null } = {},
+): string {
+  const value = optionValue(option);
+  const rawText = optionText(option);
+  if (isDs160UsRegionField(context.visaType, context.fieldName, context.validationRules)) {
+    const usRegionLabel = translateUsRegionName(rawText, value);
+    if (usRegionLabel !== rawText) return usRegionLabel;
+  }
+
   if (typeof option !== "string") {
     const existing = clean(option.label_zh);
     if (existing && hasCjk(existing)) return existing;
   }
 
-  const value = optionValue(option);
-  const rawText = optionText(option);
   const normalizedValue = value.toLowerCase();
   const exact = OPTION_ZH_BY_VALUE[normalizedValue] ?? OPTION_ZH_BY_VALUE[rawText.toLowerCase()];
   if (exact) return exact;
@@ -1710,11 +1761,19 @@ function deriveEnglishOptionLabel(option: VisaFormFieldOption): string {
   return getEnglishOptionText(optionText(option));
 }
 
-export function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormFieldOption {
+export function normalizeBilingualOption(
+  option: VisaFormFieldOption,
+  visaType?: string,
+  fieldName?: string,
+  validationRules?: Record<string, unknown> | null,
+): VisaFormFieldOption {
   const value = optionValue(option);
   const text = optionText(option) || value;
   const labelEn = deriveEnglishOptionLabel(option);
-  const labelZh = deriveChineseOptionLabel(option);
+  const derivedLabelZh = deriveChineseOptionLabel(option, { visaType, fieldName, validationRules });
+  const labelZh = visaType === "DS160"
+    ? stripDs160EnglishParenthetical(derivedLabelZh)
+    : derivedLabelZh;
 
   if (typeof option === "string") {
     return {
@@ -1760,6 +1819,11 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const helperEn = deriveHelperEn(fieldWithOverrides, labelEn);
   const requiredOverride =
     fieldWithOverrides.visaType === "TW_ENTRY_PERMIT" && TW_REQUIRED_FIELD_OVERRIDES.has(normalizeFieldName(fieldWithOverrides.fieldName));
+  const hasConfiguredStateOptions = fieldWithOverrides.options?.some((option) =>
+    US_STATE_FORM_OPTIONS.some((state) => state.value === (typeof option === "string" ? option : option.value)),
+  );
+  const fieldOptions = fieldWithOverrides.validationRules?.source === "US_STATES" && !hasConfiguredStateOptions
+    ? US_STATE_FORM_OPTIONS : fieldWithOverrides.options;
 
   return {
     ...fieldWithOverrides,
@@ -1774,7 +1838,13 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
       ...(helperZh ? { helper_zh: helperZh } : {}),
       ...(helperEn ? { helper_en: helperEn } : {}),
     },
-    options: fieldWithOverrides.options?.map(normalizeBilingualOption) ?? fieldWithOverrides.options,
+    options: fieldOptions?.map((option) => normalizeBilingualOption(
+      option,
+      fieldWithOverrides.visaType,
+      fieldWithOverrides.fieldName,
+      fieldWithOverrides.validationRules,
+    ))
+      ?? fieldOptions,
   };
 }
 

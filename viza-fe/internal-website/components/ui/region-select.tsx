@@ -24,6 +24,8 @@ type CountryRegion = {
   regions: Region[];
 };
 
+const EMPTY_REGION_CODES: string[] = [];
+
 interface RegionSelectProps {
   countryCode: string;
   defaultValue?: string;
@@ -34,6 +36,12 @@ interface RegionSelectProps {
   whitelist?: string[];
   blacklist?: string[];
   onChange?: (region: Region) => void;
+  /**
+   * Formats the user-facing region label while preserving the canonical
+   * short code emitted by the select. When omitted, the source region name
+   * is shown unchanged.
+   */
+  formatRegionName?: (region: Region) => string;
   forceWhiteBackground?: boolean;
 }
 
@@ -69,10 +77,11 @@ export function RegionSelect({
   disabled = false,
   placeholder = "Region",
   className,
-  priorityOptions = [],
-  whitelist = [],
-  blacklist = [],
+  priorityOptions = EMPTY_REGION_CODES,
+  whitelist = EMPTY_REGION_CODES,
+  blacklist = EMPTY_REGION_CODES,
   onChange,
+  formatRegionName,
   forceWhiteBackground = false,
 }: RegionSelectProps) {
   const [value, setValue] = useState<string>("");
@@ -105,9 +114,13 @@ export function RegionSelect({
     <Select
       value={value}
       onValueChange={(nextValue) => {
-        setValue(nextValue);
         const selectedRegion = regions.find((region) => region.shortCode === nextValue);
-        if (selectedRegion) onChange?.(selectedRegion);
+        // Radix's native form bridge can emit an empty value while mounting.
+        // There is no empty menu item, so only actual catalog selections may
+        // replace the displayed value. Prop changes still clear it above.
+        if (!selectedRegion) return;
+        setValue(nextValue);
+        onChange?.(selectedRegion);
       }}
       disabled={disabled}
     >
@@ -119,9 +132,9 @@ export function RegionSelect({
         <SelectValue placeholder={placeholder} />
       </ApplicationFormSelectTrigger>
       <ApplicationFormSelectContent>
-        {regions.map(({ name, shortCode }) => (
-          <ApplicationFormSelectItem key={shortCode} value={shortCode}>
-            {name}
+        {regions.map((region) => (
+          <ApplicationFormSelectItem key={region.shortCode} value={region.shortCode}>
+            {formatRegionName ? formatRegionName(region) : region.name}
           </ApplicationFormSelectItem>
         ))}
       </ApplicationFormSelectContent>

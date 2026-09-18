@@ -9,6 +9,7 @@ import {
   getMissingCanadaTrvExternalGates,
   isCanadaTrvApplication,
 } from "@/lib/canada-trv-completion";
+import { isDateFieldValueComplete } from "@/lib/date-field-validation";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 export interface ApplicationStepRef {
@@ -419,13 +420,18 @@ function isFieldComplete(
   if (!group) {
     const value = text(values[field.fieldName]);
     if (!hasValue(value)) return false;
+    if (!isDateFieldValueComplete(field, value)) return false;
     if (isPastUpcomingTravelDate(field, value, now)) return false;
     return isAllowedChoiceValue(field, value, values);
   }
 
   const count = getMaxItems(field) ?? 1;
   for (let index = 0; index < count; index += 1) {
-    if (isAllowedChoiceValue(field, values[instanceKey(field.fieldName, index)], values, index)) return true;
+    const value = values[instanceKey(field.fieldName, index)];
+    if (
+      isDateFieldValueComplete(field, value) &&
+      isAllowedChoiceValue(field, value, values, index)
+    ) return true;
   }
   return false;
 }

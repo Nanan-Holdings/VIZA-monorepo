@@ -8,6 +8,7 @@ import {
   resolveOptionDisplayLabel,
   usesBilingualAnswerPair,
 } from "../bilingual-schema-contract";
+import { DS160_US_REGION_ZH_BY_CODE, translateUsRegionName } from "../ds160-translations";
 import { shouldSkipTranslation } from "../translation/translation-field-rules";
 import { TW_CITY_OPTIONS, TW_DISTRICTS_BY_CITY, TW_DISTRICT_COUNT } from "../taiwan-administrative-units";
 import type { VisaFormFieldRow } from "../../types/visa-form-fields";
@@ -76,6 +77,99 @@ describe("bilingual schema contract", () => {
     expect(enOptions?.[0]).toMatchObject({ value: "tourism", text: "Tourism" });
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "zh")).toBe("探亲访友");
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
+  });
+
+  it("localizes the complete DS-160 US region list by display label", () => {
+    expect(Object.keys(DS160_US_REGION_ZH_BY_CODE)).toHaveLength(62);
+    expect(translateUsRegionName("Alabama", "AL")).toBe("阿拉巴马州");
+    expect(translateUsRegionName("American Samoa", "AS")).toBe("美属萨摩亚");
+    expect(translateUsRegionName("Idaho", "ID")).toBe("爱达荷州");
+    expect(translateUsRegionName("Northern Mariana Islands", "MP")).toBe("北马里亚纳群岛");
+    expect(translateUsRegionName("Armed Forces Pacific", "AP")).toBe("驻太平洋武装部队");
+    expect(translateUsRegionName("Unknown region", "ZZ")).toBe("Unknown region");
+  });
+
+  it("keeps DS-160 Chinese options Chinese-only while preserving official values", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "trip_payer_type",
+      label: "Person/Entity Paying for Your Trip",
+      fieldType: "select",
+      options: [
+        { value: "self", text: "SELF" },
+        { value: "other_person", text: "OTHER PERSON", label_zh: "其他人 (OTHER PERSON)" },
+        { value: "present_employer", text: "PRESENT EMPLOYER" },
+      ],
+    }));
+
+    const zhOptions = resolveLocalizedOptions(normalized.options, "zh");
+    const enOptions = resolveLocalizedOptions(normalized.options, "en");
+
+    expect(zhOptions?.map((option) => typeof option === "string" ? option : option.text)).toEqual([
+      "本人承担",
+      "其他人",
+      "现雇主",
+    ]);
+    expect(enOptions?.map((option) => typeof option === "string" ? option : option.text)).toEqual([
+      "SELF",
+      "OTHER PERSON",
+      "PRESENT EMPLOYER",
+    ]);
+    expect(normalized.options).toEqual([
+      expect.objectContaining({ value: "self", text: "SELF", label_zh: "本人承担", official_label: "SELF" }),
+      expect.objectContaining({ value: "other_person", text: "OTHER PERSON", label_zh: "其他人", official_label: "OTHER PERSON" }),
+      expect.objectContaining({ value: "present_employer", text: "PRESENT EMPLOYER", label_zh: "现雇主", official_label: "PRESENT EMPLOYER" }),
+    ]);
+    expect(zhOptions?.every((option) => typeof option === "string" || !/[A-Za-z]\s*[()（）]/.test(option.text ?? ""))).toBe(true);
+  });
+
+  it("uses Chinese DS-160 labels for state options without changing codes", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "us_address_state",
+      label: "State",
+      fieldType: "select",
+      validationRules: { source: "US_STATES" },
+      options: [
+        { value: "AL", text: "Alabama" },
+        { value: "AS", text: "American Samoa" },
+        { value: "ID", text: "Idaho" },
+      ],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "AL", text: "阿拉巴马州" }),
+      expect.objectContaining({ value: "AS", text: "美属萨摩亚" }),
+      expect.objectContaining({ value: "ID", text: "爱达荷州" }),
+    ]);
+    expect(normalized.options?.map((option) => typeof option === "string" ? option : option.value)).toEqual(["AL", "AS", "ID"]);
+  });
+
+  it("does not confuse a country named Georgia with the US state", () => {
+    const normalized = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "nationality_country",
+      label: "Country/Region of Origin (Nationality)",
+      fieldType: "select",
+      options: [{ value: "GEO", text: "Georgia" }, { value: "FM", text: "Micronesia" }],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "GEO", text: "格鲁吉亚" }),
+      expect.objectContaining({ value: "FM", text: "密克罗尼西亚联邦" }),
+    ]);
+  });
+
+  it("does not alter parenthesized labels for non-DS-160 products", () => {
+    const normalized = normalizeBilingualFormField(field({
+      fieldName: "other_person",
+      fieldType: "select",
+      options: [{ value: "other", text: "OTHER PERSON", label_zh: "其他人 (OTHER PERSON)" }],
+    }));
+
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+      expect.objectContaining({ value: "other", text: "其他人 (OTHER PERSON)" }),
+    ]);
   });
 
   it("uses specific Vietnamese province and border-gate labels instead of generic fallbacks", () => {

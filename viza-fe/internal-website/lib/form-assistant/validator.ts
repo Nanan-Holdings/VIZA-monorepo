@@ -108,7 +108,7 @@ function relatedAnswer(
 
 function isAllowedAnswerOverride(value: string, rules: Record<string, unknown>): boolean {
   return (
-    (value === "DO_NOT_KNOW" && rules.allow_do_not_know === true) ||
+    (value === "DO_NOT_KNOW" && (rules.allow_do_not_know === true || rules.allow_unknown === true)) ||
     (value === "DOES_NOT_APPLY" && (rules.allow_does_not_apply === true || rules.has_does_not_apply === true))
   );
 }

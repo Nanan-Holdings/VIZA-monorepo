@@ -30,6 +30,7 @@ import {
   canonicalizeApplicationOptionAnswers,
   getAssistantProgress,
 } from "./validator";
+import { isAllowedDateSentinel } from "@/lib/date-field-validation";
 
 export { isFieldClarificationRequest } from "./constants";
 
@@ -2330,12 +2331,15 @@ async function proposeTurn(params: {
   throw new Error(FORM_ASSISTANT_PROVIDERS_UNAVAILABLE_CODE);
 }
 
-function validateProposal(
+export function validateProposal(
   field: VisaFormFieldRow,
   patch: ProposedPatch,
   answers: Record<string, string>,
 ): boolean {
   if (patch.confidence !== "high" || !patch.value?.trim()) return false;
+  if (field.fieldType === "date" && isAllowedDateSentinel(patch.value.trim(), field.validationRules)) {
+    return true;
+  }
   if (isVagueFormAnswer(patch.value)) return false;
   if (field.fieldType === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(patch.value)) return false;
   if (field.options?.length && !field.options.map(optionValue).includes(patch.value)) return false;

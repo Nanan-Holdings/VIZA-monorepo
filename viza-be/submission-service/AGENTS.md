@@ -140,6 +140,20 @@ and must fail closed; callers must not perform a direct table settlement.
   `action_required`, never a new draft or final click. A click whose
   confirmation remains unknown is permanently reviewable for that authorization;
   a new explicit resubmission must use a new authorization id.
+- `src/queue/captured-resume-recovery.ts` and
+  `scripts/queue/recover-ds160-captured-resume.ts` are the operator-only
+  continuation path for a captured DS-160 queue row. The command is read-only
+  by default and requires exact application/job UUIDs plus `--execute` for the
+  conditional status transition. It must preserve all encrypted recovery
+  fields and never replace the captured queue row with a new retry job.
+  Preflight rejects active sibling work, official success evidence, and any
+  final-submission fence. The transition repeats the checkpoint/lease/status
+  predicates in its `WHERE` clause and treats zero-row or constraint errors as
+  concurrent conflicts. The existing
+  `submission_queue_one_active_job_per_application_idx` partial unique index
+  protects the pending-status transition against a concurrent active sibling;
+  the worker's captured-resume preflight and durable final-submission guard
+  remain the final cross-table fence before official work or a final click.
 - US appointment browser selection is Browserbase, authorized CDP, or local
   Playwright. An explicit storage-state path may load/save cookies. A persisted
   job fixture or `playwrightEnabled=false` blocks live processing; local tests
@@ -1080,6 +1094,11 @@ the France-Visas account after confirming the run.
   `requeue_runner_job` RPC adapter. It returns success only for an explicit
   `true`; a false result is a concurrent conflict and must not be counted as
   requeued.
+- `viza-be/submission-service/src/queue/captured-resume-recovery.ts`,
+  `scripts/queue/recover-ds160-captured-resume.ts`, and
+  `src/queue/__tests__/recover-ds160-captured-resume.spec.ts` own the guarded
+  DS-160 captured-resume operator transition. Its usage and exact safety gates
+  are documented in `docs/ds160-captured-resume-recovery.md`.
 - `viza-be/submission-service/src/queue/__tests__/takeover.spec.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/submission-queue-claim.ts`

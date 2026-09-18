@@ -312,6 +312,38 @@ describe("dynamic review localization", () => {
     });
   });
 
+  test("allows an explicitly permitted unknown date sentinel in the official editor", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "father_date_of_birth",
+      label: "Father's Date of Birth",
+      fieldType: "date",
+      validationRules: { allow_do_not_know: true },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ father_date_of_birth: "2006-07-27" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Family", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("27/07/2006");
+    fireEvent.change(dateInput, { target: { value: "DO_NOT_KNOW" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ father_date_of_birth: "DO_NOT_KNOW" });
+    });
+  });
+
   test("renders section headings in the active language only", () => {
     expect(getLocalizedReviewSectionTitle("Personal Information / 个人信息", "en"))
       .toBe("Personal Information");

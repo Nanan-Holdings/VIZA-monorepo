@@ -57,6 +57,41 @@ const vietnamInformationAcknowledgementField = {
   },
 };
 
+const dateSentinelField = {
+  ...passportTypeField,
+  id: "field-father-date-of-birth",
+  visaType: "DS160",
+  fieldName: "father_date_of_birth",
+  label: "父亲出生日期",
+  fieldType: "date",
+  options: null,
+  validationRules: {
+    allow_do_not_know: true,
+    allow_unknown: true,
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+    maxLength: 10,
+  },
+};
+
+function backendGuidanceResponse(validation: FieldGuidanceResponse["validation"]): FieldGuidanceResponse {
+  return {
+    guidance: {
+      title: "父亲出生日期填写帮助",
+      summary: "请按当前字段规则核对。",
+      examples: [],
+      optionExplanations: [],
+      hints: [],
+      officialWarnings: [],
+      formatHints: [],
+    },
+    validation,
+    sources: [],
+    confidence: "high",
+    aiUsed: true,
+    cached: false,
+  };
+}
+
 describe("POST /api/field-guidance", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -276,6 +311,118 @@ describe("POST /api/field-guidance", () => {
     expect(payload.guidance.hints).toContainEqual(expect.stringContaining("越南签证信息"));
     expect(payload.guidance.examples).toEqual([]);
     expect(guidanceText).not.toContain("请按护照、身份证明或官方文件上的原文填写");
+  });
+
+  it.each([
+    {
+      answer: "DO_NOT_KNOW",
+      rules: { allow_do_not_know: true },
+      locale: "zh",
+      dateMessage: "日期格式无法识别。",
+      otherMessage: "这是其他字段错误。",
+    },
+    {
+      answer: "DOES_NOT_APPLY",
+      rules: { has_does_not_apply: true },
+      locale: "en",
+      dateMessage: "The date format could not be recognized.",
+      otherMessage: "This is an unrelated validation error.",
+    },
+  ])(
+    "clears stale upstream date errors for an explicitly allowed $answer sentinel while preserving unrelated errors",
+    async ({ answer, rules, locale, dateMessage, otherMessage }) => {
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        json: async () => backendGuidanceResponse({
+          severity: "error",
+          messages: [dateMessage, otherMessage],
+        }),
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const response = await POST(
+        new Request("http://localhost/api/field-guidance", {
+          method: "POST",
+          body: JSON.stringify({
+            visaType: "DS160",
+            country: "US",
+            locale,
+            field: { ...dateSentinelField, validationRules: { ...dateSentinelField.validationRules, ...rules } },
+            answer,
+            allAnswers: {},
+            question: "这个日期怎么填？",
+          }),
+        }),
+      );
+      const payload = (await response.json()) as FieldGuidanceResponse;
+
+      expect(payload.validation.severity).toBe("error");
+      expect(payload.validation.messages).toEqual([otherMessage]);
+      expect(payload.validation.messages).not.toContain(dateMessage);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("clears only the stale date error when an allowed sentinel is the sole upstream error", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => backendGuidanceResponse({
+        severity: "error",
+        messages: ["日期格式不符合要求。"],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "DS160",
+          country: "US",
+          locale: "zh",
+          field: dateSentinelField,
+          answer: "DO_NOT_KNOW",
+          allAnswers: {},
+          question: "这个日期怎么填？",
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+
+    expect(payload.validation.severity).toBe("ok");
+    expect(payload.validation.messages).not.toContain("日期格式不符合要求。");
+  });
+
+  it("keeps a date error when the sentinel is not allowed by the schema", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => backendGuidanceResponse({
+        severity: "error",
+        messages: ["日期格式无法识别。"],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "DS160",
+          country: "US",
+          locale: "zh",
+          field: { ...dateSentinelField, validationRules: null },
+          answer: "DO_NOT_KNOW",
+          allAnswers: {},
+          question: "这个日期怎么填？",
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+
+    expect(payload.validation).toEqual({
+      severity: "error",
+      messages: ["日期格式无法识别。"],
+    });
   });
 
   it("replaces downstream country-specific examples with metadata-backed examples", async () => {

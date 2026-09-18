@@ -58,6 +58,10 @@ Smoke at least one route that uses the changed primitive.
 
 ## Related Files
 
+- `region-select.tsx` accepts an optional display-name formatter while
+  preserving official region codes. `__tests__/region-select.test.tsx` covers
+  localized labels, unchanged codes and selection stability. Keep its default
+  filter arrays stable so an internal selection does not reset to a placeholder.
 - `__tests__/radix-presence-ref-stability.test.tsx` covers the real transitive
   Slot/Presence composition, FocusScope ref attachment, and repeated calendar
   opening/closing without changing the saved date. Keep it alongside the Select

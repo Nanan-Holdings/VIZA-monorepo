@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
+import { isAllowedDateSentinel } from "@/lib/date-field-validation";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatDateOfficial(value: string): string | null {
@@ -357,7 +358,15 @@ export function DynamicReviewStep({
     const canonicalOfficialValue = field.fieldType === "date"
       ? formatDateEditorValue(officialValue)
       : officialValue;
-    if (field.fieldType === "date" && !isValidIsoCalendarDate(canonicalOfficialValue)) {
+    const dateRules = field.validationRules as {
+      allow_do_not_know?: unknown;
+      allow_unknown?: unknown;
+      allow_does_not_apply?: unknown;
+      has_does_not_apply?: unknown;
+    } | null;
+    const allowedDateSentinel = field.fieldType === "date" &&
+      isAllowedDateSentinel(canonicalOfficialValue, dateRules);
+    if (field.fieldType === "date" && !allowedDateSentinel && !isValidIsoCalendarDate(canonicalOfficialValue)) {
       throw new Error(`Invalid official date: ${officialValue}`);
     }
 

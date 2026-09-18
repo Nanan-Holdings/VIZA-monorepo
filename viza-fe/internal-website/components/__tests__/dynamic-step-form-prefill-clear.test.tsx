@@ -105,6 +105,51 @@ function changeValue(container: HTMLElement, fieldName: string, value: string) {
 }
 
 describe("DynamicStepForm prefill clear protection", () => {
+  it("recovers stale prompt mirrors from a saved DS-160 answer without replacing genuine source text", () => {
+    mockLocale = "zh";
+    const step = stepFor([
+      field({ visaType: "DS160", fieldName: "us_address_city", label: "City" }),
+      field({ visaType: "DS160", fieldName: "home_address_city", label: "Home city" }),
+    ]);
+    const onDraftChange = vi.fn();
+    const { container } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          us_address_city: "Los Angeles",
+          us_address_city_zh: "请填写美国住宿城市",
+          us_address_city_en: "Please enter your city",
+          home_address_city: "Beijing",
+          home_address_city_zh: "北京市",
+          home_address_city_en: "Beijing",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+
+    expect(valueFor(container, "us_address_city")).toBe("洛杉矶");
+    expect(valueFor(container, "home_address_city")).toBe("北京市");
+    changeValue(container, "home_address_city", "上海市");
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      us_address_city: "Los Angeles",
+      us_address_city_zh: "洛杉矶",
+      us_address_city_en: "Los Angeles",
+    }));
+  });
+
+  it("keeps a prompt visible when no saved answer can repair it", () => {
+    mockLocale = "zh";
+    const step = stepFor([field({ visaType: "DS160", fieldName: "us_address_city", label: "City" })]);
+    const { container } = render(
+      <DynamicStepForm step={step} prefill={{ us_address_city: "请填写城市", us_address_city_zh: "请填写城市" }}
+        onComplete={vi.fn()} onDraftChange={vi.fn()} country="united_states" visaType="DS160" />,
+    );
+    expect(valueFor(container, "us_address_city")).toBe("请填写城市");
+  });
+
   it("keeps a cleared name_chinese empty across rerenders with the same prefill", () => {
     mockLocale = "zh";
     const step = stepFor([

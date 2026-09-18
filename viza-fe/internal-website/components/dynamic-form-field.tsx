@@ -22,6 +22,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
+import { translateUsRegionName } from "@/lib/ds160-translations";
 import { convertSimplifiedToTraditional } from "@/lib/chinese-conversion";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +49,9 @@ type CountryCodeEntry = {
   alpha3: string;
   name: string;
 };
+
+const formatChineseUsRegion = ({ name, shortCode }: { name: string; shortCode: string }) =>
+  translateUsRegionName(name, shortCode);
 
 const COUNTRY_ALPHA2_BY_CODE = new Map<string, string>();
 const COUNTRY_ALPHA2_BY_NAME = new Map<string, string>();
@@ -227,7 +231,9 @@ function extractYearFromDateValue(value: string): string {
 
 type DateFieldRules = {
   allow_do_not_know?: boolean;
+  allow_unknown?: boolean;
   allow_does_not_apply?: boolean;
+  has_does_not_apply?: boolean;
   allow_year_only?: boolean;
 };
 
@@ -499,9 +505,12 @@ export function DynamicFormField({
   switch (fieldType) {
     case "date": {
       const dateRules = (field.validationRules as DateFieldRules | null);
-      const dateAllowDoNotKnow = dateRules?.allow_do_not_know;
-      const dateAllowDoesNotApply = dateRules?.allow_does_not_apply;
-      const dateAllowYearOnly = Boolean(dateRules?.allow_year_only);
+      // Schema flags are deliberately strict booleans. Keeping this aligned
+      // with the validator prevents a malformed string value such as
+      // "false" from rendering a sentinel checkbox that validation rejects.
+      const dateAllowDoNotKnow = dateRules?.allow_do_not_know === true || dateRules?.allow_unknown === true;
+      const dateAllowDoesNotApply = dateRules?.allow_does_not_apply === true || dateRules?.has_does_not_apply === true;
+      const dateAllowYearOnly = dateRules?.allow_year_only === true;
       const dateIsDoNotKnow = value === "DO_NOT_KNOW";
       const dateIsDoesNotApply = value === "DOES_NOT_APPLY";
       const currentDateMode = dateModeByField[field.fieldName] ?? (/^\d{4}$/.test(value.trim()) ? "year" : "full");
@@ -617,6 +626,7 @@ export function DynamicFormField({
           <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
             <RegionSelect
               countryCode="US"
+              formatRegionName={sideLocale === "zh" ? formatChineseUsRegion : undefined}
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(region) => commitSelection(region.shortCode)}
