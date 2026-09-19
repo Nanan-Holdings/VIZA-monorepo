@@ -4,11 +4,85 @@ import { chromium } from "@playwright/test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fillPageFields, orchestrateFill, verifyPageFieldValues } from "../orchestrator";
+import { assertFamilyUnknownParentBranches, fillPageFields, orchestrateFill, verifyPageFieldValues } from "../orchestrator";
 import { createRecoveryTracker } from "../artifacts";
 import { ds160ContactMappings, ds160TravelMappings } from "../../ds160-form-mappings";
 import { deriveDS160Answers } from "../../ds160-derive-answers";
 import { createDs160BranchPolicy, ds160MappingRepeatGroup } from "../field-contract";
+
+test("verifies both-name-unknown parent branches against the official family DOM", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <h2>Family Information: Relatives</h2>
+      <input id="ctl00_cphMain_cbxFATHER_SURNAME_UNK_IND" type="checkbox" checked>
+      <input id="ctl00_cphMain_cbxFATHER_GIVEN_NAME_UNK_IND" type="checkbox" checked>
+      <div style="display:none">
+        <select id="ctl00_cphMain_ddlFathersDOBDay"></select>
+        <select id="ctl00_cphMain_ddlFathersDOBMonth"></select>
+        <input id="ctl00_cphMain_tbxFathersDOBYear">
+        <input id="ctl00_cphMain_cbxFATHER_DOB_UNK_IND" type="checkbox">
+        <input id="ctl00_cphMain_rblFATHER_LIVE_IN_US_IND_0" name="rblFATHER_LIVE_IN_US_IND" type="radio">
+        <span>Is your father in the U.S.?</span>
+      </div>
+    `);
+
+    await assertFamilyUnknownParentBranches(page, {
+      father_surname: "DO_NOT_KNOW",
+      father_given_names: "DO NOT KNOW",
+    });
+
+    await page.locator("#ctl00_cphMain_ddlFathersDOBDay").evaluate((element) => {
+      (element.parentElement as HTMLElement).style.display = "block";
+    });
+    await assert.rejects(
+      assertFamilyUnknownParentBranches(page, {
+        father_surname: "DO_NOT_KNOW",
+        father_given_names: "DO_NOT_KNOW",
+      }),
+      /dependent family control remained visible/,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("does not apply the both-name-unknown assertion to a one-unknown parent", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<h2>Family Information: Relatives</h2><select id="ddlFathersDOBDay"></select>');
+    await assertFamilyUnknownParentBranches(page, {
+      father_surname: "DO_NOT_KNOW",
+      father_given_names: "KNOWN",
+    });
+    assert.equal(await page.locator("#ddlFathersDOBDay").isVisible(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("official text length limits stop before truncation and accept a fitting organization name", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="tbxUS_POC_ORGANIZATION" maxlength="33" value="EXISTING ORGANIZATION">');
+    const mappings = { organization: {
+      selector: '#tbxUS_POC_ORGANIZATION', type: 'text' as const, label: 'Organization',
+    } };
+    const tooLong = 'SYNTHETIC ORGANIZATION NAME EXCEEDING THE LIMIT';
+    await assert.rejects(fillPageFields(page, mappings, { organization: tooLong }, {}), error => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /official maximum length of 33/);
+      assert.ok(!error.message.includes(tooLong));
+      return true;
+    });
+    assert.equal(await page.locator('#tbxUS_POC_ORGANIZATION').inputValue(), 'EXISTING ORGANIZATION');
+    await fillPageFields(page, mappings, { organization: 'SYNTHETIC HOTEL TIMES SQ CTR' }, {});
+    assert.equal(await page.locator('#tbxUS_POC_ORGANIZATION').inputValue(), 'SYNTHETIC HOTEL TIMES SQ CTR');
+  } finally { await browser.close(); }
+});
 
 test("official review expectations use verified control IDs and selected display values", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -28,6 +102,33 @@ test("official review expectations use verified control IDs and selected display
       { fieldName: "country", controlId: "ddlCountry", value: "CHINA" },
       { fieldName: "gate", controlId: "rblGate_1", value: "No" },
     ]);
+  } finally { await browser.close(); }
+});
+
+test("explicitly cleared text replaces stale draft content and is included in review evidence", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent('<input id="tbxAddress2" value="OLD APARTMENT"><input id="tbxMissing" value="KEEP"><input id="cbxGate" type="checkbox" checked>');
+    const mappings = {
+      address2: { selector: "#tbxAddress2", type: "text" as const, label: "Address line 2" },
+      missing: { selector: "#tbxMissing", type: "text" as const, label: "Missing answer" },
+      gate: { selector: "#cbxGate", type: "checkbox" as const, label: "Unknown choice" },
+      absent: { selector: "#optionalNotOnThisBranch", type: "text" as const, label: "Absent empty optional field" },
+    };
+    const answers = { address2: "", gate: "", absent: "" };
+    const profile = { address2: "STALE PROFILE" };
+    await fillPageFields(page, mappings, answers, profile, { requireMappedAnswers: true });
+    assert.equal(await page.locator("#tbxAddress2").inputValue(), "");
+    assert.equal(await page.locator("#tbxMissing").inputValue(), "KEEP");
+    assert.equal(await page.locator("#cbxGate").isChecked(), true);
+    const observed: unknown[] = [];
+    await verifyPageFieldValues(page, mappings, answers, profile, {
+      requireMappedAnswers: true, observeVerified: field => observed.push(field),
+    });
+    assert.deepEqual(observed, [{ fieldName: "address2", controlId: "tbxAddress2", value: "", allowEmptyValue: true }]);
+    await page.locator("#tbxAddress2").fill("RESTORED OLD VALUE");
+    await assert.rejects(verifyPageFieldValues(page, mappings, answers, profile, { requireMappedAnswers: true }), /could not be filled or verified/i);
   } finally { await browser.close(); }
 });
 

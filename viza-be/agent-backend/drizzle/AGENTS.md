@@ -27,6 +27,13 @@ and preserves consent, authorization, QA, queue ownership, and runner cutover
 checks. Keep the timestamped frontend Supabase mirror byte-identical; do not
 apply this migration to a remote database from local development.
 
+`0195_ds160_submission_queue_lease_renewal.sql` adds the service-role-only
+DS-160 legacy queue lease renewal RPC. It locks the exact queue row before
+sampling `clock_timestamp()`, requires the current owner, an unexpired lease,
+and a DS-160 processing status, and caps the renewed lease at one hour. An
+expired or reclaimed worker receives no row and cannot renew the replacement
+worker's lease through this RPC.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.
@@ -465,6 +472,10 @@ The current internal automation migrations are:
   payment data. Legacy RPC identities remain as fail-closed
   `payments_disabled` stubs; ordinary consent/QA/queue/runner checks remain.
   Keep the timestamped frontend Supabase mirror byte-identical.
+- `0195_ds160_submission_queue_lease_renewal.sql`: renews a live DS-160 legacy
+  `submission_queue` lease only for its current service worker and only while
+  the row remains in a DS-160 processing state; stale or reclaimed workers
+  receive an empty result.
 
 ## Guardrails
 

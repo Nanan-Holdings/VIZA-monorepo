@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { waitForAspNetPostback } from "./aspnet";
-import { captureApplicationId } from "./checkpoints";
 import { detectPage } from "./pages";
+import { waitForExpectedApplicationId } from "./recovered-application";
 
 export interface ReviewExpectation {
   section: string;
@@ -11,6 +11,13 @@ export interface ReviewExpectation {
   controlId: string;
   /** The display value already read back from the filled CEAC control. */
   value: string;
+  /** Set only when an explicitly supplied empty answer was verified in CEAC. */
+  allowEmptyValue?: boolean;
+}
+
+export interface ReviewCaptureOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
 }
 
 export interface ReviewSnapshot {
@@ -115,6 +122,7 @@ export async function captureOfficialReviewPage(
   applicationId: string,
   outputDir: string,
   index: number,
+  options: ReviewCaptureOptions = {},
 ): Promise<ReviewSnapshot> {
   const expectedApplicationId = applicationId.trim().toUpperCase();
   if (!expectedApplicationId || !Number.isInteger(index) || index < 0) {
@@ -129,12 +137,15 @@ export async function captureOfficialReviewPage(
 
   await waitForAspNetPostback(page, 8_000);
 
-  const captured = await captureApplicationId(page);
-  if (
-    !captured.applicationId ||
-    captured.applicationId.trim().toUpperCase() !== expectedApplicationId
-  ) {
-    throw new Error("CEAC review page Application ID did not match the expected application.");
+  await waitForExpectedApplicationId(
+    page,
+    expectedApplicationId,
+    options,
+    "CEAC review page Application ID did not match the expected application.",
+  );
+  const initialReviewUrl = officialReviewUrl(page.url());
+  if (!initialReviewUrl || (await detectPage(page)).id !== "review") {
+    throw new Error("CEAC review page changed during evidence capture.");
   }
 
   const values = await readVisibleReviewValues(page);
@@ -143,10 +154,20 @@ export async function captureOfficialReviewPage(
   if (JSON.stringify(values) !== JSON.stringify(settledValues)) {
     throw new Error("CEAC review page changed during evidence capture.");
   }
+  const capturedApplicationId = await waitForExpectedApplicationId(
+    page,
+    expectedApplicationId,
+    options,
+    "CEAC review page Application ID did not match the expected application.",
+  );
+  const settledUrl = officialReviewUrl(page.url());
+  if (!settledUrl || (await detectPage(page)).id !== "review") {
+    throw new Error("CEAC review page changed during evidence capture.");
+  }
 
   const snapshot: ReviewSnapshot = {
-    url: url.toString(),
-    applicationId: captured.applicationId.trim(),
+    url: settledUrl.toString(),
+    applicationId: capturedApplicationId,
     values: settledValues,
   };
 
@@ -178,10 +199,21 @@ function addIssue(
   }
 }
 
+function canShareReviewComparison(
+  first: ReviewExpectation,
+  next: ReviewExpectation,
+): boolean {
+  return first.controlId === next.controlId
+    && first.section === next.section
+    && normalizeValue(first.value) === normalizeValue(next.value)
+    && Boolean(first.allowEmptyValue) === Boolean(next.allowEmptyValue);
+}
+
 /**
- * Verify exact, uniquely identified review values. Unknown page IDs, duplicate
- * semantic IDs, and missing structure remain unverified; a known value that
- * differs from the read-back value is a failed review.
+ * Verify exact, uniquely identified review values. Unknown expectation IDs,
+ * conflicting duplicate semantic IDs, and missing structure remain
+ * unverified; a known value that differs from the read-back value is a failed
+ * review.
  */
 export function verifyOfficialReview(
   expectations: ReviewExpectation[],
@@ -214,7 +246,7 @@ export function verifyOfficialReview(
     }
   }
 
-  const expectedIds = new Set<string>();
+  const expectedBySemanticId = new Map<string, ReviewExpectation>();
   let matched = 0;
   for (const expectation of expectations) {
     const fieldName = expectation.fieldName.trim() || "$review";
@@ -223,11 +255,15 @@ export function verifyOfficialReview(
       addIssue(issues, fieldName, "invalid_expectation_id");
       continue;
     }
-    if (expectedIds.has(semanticId)) {
-      addIssue(issues, fieldName, "duplicate_expectation_id");
-      continue;
+    const firstExpectation = expectedBySemanticId.get(semanticId);
+    if (firstExpectation) {
+      if (!canShareReviewComparison(firstExpectation, expectation)) {
+        addIssue(issues, fieldName, "duplicate_expectation_id");
+        continue;
+      }
+    } else {
+      expectedBySemanticId.set(semanticId, expectation);
     }
-    expectedIds.add(semanticId);
 
     const values = observed.get(semanticId) ?? [];
     if (values.length === 0) {
@@ -238,11 +274,21 @@ export function verifyOfficialReview(
       addIssue(issues, fieldName, "ambiguous_observed_id");
       continue;
     }
-    if (!normalizeValue(expectation.value)) {
-      addIssue(issues, fieldName, "empty_expected_value");
+    const expectedValue = normalizeValue(expectation.value);
+    const observedValue = normalizeValue(values[0].text);
+    if (!expectedValue) {
+      if (!expectation.allowEmptyValue) {
+        addIssue(issues, fieldName, "empty_expected_value");
+        continue;
+      }
+      if (observedValue !== "") {
+        addIssue(issues, fieldName, "review_value_mismatch");
+        continue;
+      }
+      matched += 1;
       continue;
     }
-    if (normalizeValue(values[0].text) !== normalizeValue(expectation.value)) {
+    if (observedValue !== expectedValue) {
       addIssue(issues, fieldName, "review_value_mismatch");
       continue;
     }

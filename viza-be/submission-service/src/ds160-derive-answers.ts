@@ -3,6 +3,28 @@ import {
   deriveDs160ExtendedAnswers,
 } from "./ds160-extended-derivations";
 
+export interface Ds160AnswerRow {
+  field_name: string;
+  value_text: string | null;
+  value_json: unknown;
+}
+
+/**
+ * Materialize stored DS-160 rows without treating an explicit empty answer as
+ * missing. Callers use key presence to distinguish an intentional clear from
+ * an absent answer, so profile fallback and alias derivation can respect it.
+ */
+export function buildDs160AnswerMap(
+  rows: ReadonlyArray<Ds160AnswerRow>,
+): Record<string, string> {
+  const answers: Record<string, string> = {};
+  for (const row of rows) {
+    const value = row.value_json != null ? String(row.value_json) : row.value_text;
+    if (value !== null && value !== undefined) answers[row.field_name] = value;
+  }
+  return answers;
+}
+
 /**
  * DS-160 Answer Derivation
  *
@@ -343,7 +365,9 @@ function applyAliases(answers: Record<string, string>): void {
   for (const { from, to } of KEY_ALIASES) {
     const value = answers[from];
     if (value === undefined) continue;
-    if (answers[to] === undefined) answers[to] = value;
+    // An explicit empty source clears a stale derived target. For non-empty
+    // sources, preserve the historical target-first compatibility behavior.
+    if (value === "" || answers[to] === undefined) answers[to] = value;
   }
 }
 
@@ -357,7 +381,9 @@ function applyEnglishAliases(answers: Record<string, string>): void {
     if (baseKey === "full_name_native_alphabet") continue;
 
     const current = answers[baseKey];
-    if (!current || HAS_CJK.test(current)) {
+    // An explicitly cleared canonical answer is authoritative. Only a missing
+    // key or an existing native-script value may use the English alias.
+    if (current === undefined || HAS_CJK.test(current)) {
       answers[baseKey] = value;
     }
   }

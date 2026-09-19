@@ -437,6 +437,28 @@ test("browser adapter preserves aliases for two social rows", async () => {
   });
 });
 
+test("repeat-row derivation clears a stale alias target for an explicitly empty source", () => {
+  assert.deepEqual(
+    deriveDs160RepeatRowAnswers({
+      group: "social_media",
+      index: 1,
+      storageSuffix: "__2",
+      values: {
+        social_media_platform: "",
+        social_media_provider: "OLD PROVIDER",
+      },
+      sourceKeys: {
+        social_media_platform: "social_media_platform__2",
+        social_media_provider: "social_media_provider__2",
+      },
+    }),
+    {
+      social_media_platform__2: "",
+      social_media_provider__2: "",
+    },
+  );
+});
+
 test("browser adapter derives and retains date parts for the second former-spouse row", async () => {
   await withPage(formerSpouseDateFixture(), async (page) => {
     const received: Array<Record<string, string>> = [];

@@ -69,6 +69,25 @@ describe("DS-160 checked-in field contract", () => {
     assert.equal(socialSecurityNumber.allowsDoesNotApply, true);
   });
 
+  it("gates parent DOB and U.S. presence on both parent names being known", () => {
+    assert.equal(
+      DS160_FIELD_CONTRACTS.father_date_of_birth.showIf,
+      "father_surname !== DO_NOT_KNOW || father_given_names !== DO_NOT_KNOW",
+    );
+    assert.equal(
+      DS160_FIELD_CONTRACTS.father_in_us.showIf,
+      "father_surname !== DO_NOT_KNOW || father_given_names !== DO_NOT_KNOW",
+    );
+    assert.equal(
+      DS160_FIELD_CONTRACTS.mother_date_of_birth.showIf,
+      "mother_surname !== DO_NOT_KNOW || mother_given_names !== DO_NOT_KNOW",
+    );
+    assert.equal(
+      DS160_FIELD_CONTRACTS.mother_in_us.showIf,
+      "mother_surname !== DO_NOT_KNOW || mother_given_names !== DO_NOT_KNOW",
+    );
+  });
+
   it("keeps the DS-160 seed additive", () => {
     const seedPath = path.resolve(__dirname, "../../../agent-backend/scripts/seed-ds160-form-fields.ts");
     const source = readFileSync(seedPath, "utf8");

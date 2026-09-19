@@ -492,6 +492,7 @@ test("reconnects the same keep-alive session with dynamic handles and one permit
 
     const waitingPromise = connectReconnectableBrowserbaseCloudBrowser({
       prefix: "US_APPOINTMENT",
+      timeoutSeconds: 1800,
       fetchImpl: browserbaseReconnectFetch(waitingRequests, "waiting-session"),
       connectOverCDPImpl: async () => waitingBrowser.browser,
     });
@@ -499,6 +500,8 @@ test("reconnects the same keep-alive session with dynamic handles and one permit
     assert.equal(waitingRequests.length, 0);
     await cloud.close();
     waitingCloud = await waitingPromise;
+    const longSessionBody = JSON.parse(String(waitingRequests[0]?.init?.body)) as Record<string, unknown>;
+    assert.equal(longSessionBody.timeout, 1800);
     assert.equal(waitingCloud.sessionId, "waiting-session");
     assert.equal(releaseRequestCount(requests, "same-session"), 1);
     assert.equal(second.state.closeCount, 1);

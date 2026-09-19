@@ -60,7 +60,7 @@ import {
   type PreservedRecovery,
 } from "./artifacts";
 import { buildSuccessResult, buildFailureResult, type CeacRunResult } from "./result";
-import { serializeError, UnexpectedPageError } from "./errors";
+import { CeacError, serializeError, UnexpectedPageError } from "./errors";
 import type { CeacSession } from "./session";
 import { rebuildSessionForResume } from "./session";
 import { tryCaptureScreenshot } from "./diagnostics";
@@ -68,7 +68,7 @@ import {
   fillRetrieveApplicationForm,
   type RecoveryCredentials,
 } from "./resume-application";
-import { waitForAspNetPostback } from "./aspnet";
+import { assertCeacPostbackHealthy, installCeacPostbackMonitor, waitForAspNetPostback } from "./aspnet";
 import {
   handleUploadPhotoPage,
   PhotoRejectedError,
@@ -84,6 +84,7 @@ import { fillDs160RepeatGroups } from "./repeat-browser-adapter";
 import { resolvePreviousTravelMappings } from "./previous-travel-branch";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
+import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -144,6 +145,107 @@ class FieldFillError extends Error {
   }
 }
 
+class FieldLengthError extends FieldFillError {
+  constructor(fieldName: string, label: string, maxLength: number) {
+    super(fieldName, label);
+    this.name = "FieldLengthError";
+    this.message = `CEAC field "${label}" (${fieldName}) exceeds the official maximum length of ${maxLength} characters.`;
+  }
+}
+
+interface FamilyParentUnknownBranch {
+  parent: "father" | "mother";
+  surnameField: string;
+  givenNamesField: string;
+  nameUnknownFields: readonly string[];
+  hiddenFields: readonly string[];
+  inUsQuestion: string;
+}
+
+const FAMILY_PARENT_UNKNOWN_BRANCHES: readonly FamilyParentUnknownBranch[] = [
+  {
+    parent: "father",
+    surnameField: "father_surname",
+    givenNamesField: "father_given_names",
+    nameUnknownFields: ["father_surname_unknown", "father_given_names_unknown"],
+    hiddenFields: ["father_dob_day", "father_dob_month", "father_dob_year", "father_dob_unknown", "father_in_us"],
+    inUsQuestion: "Is your father in the U.S.?",
+  },
+  {
+    parent: "mother",
+    surnameField: "mother_surname",
+    givenNamesField: "mother_given_names",
+    nameUnknownFields: ["mother_surname_unknown", "mother_given_names_unknown"],
+    hiddenFields: ["mother_dob_day", "mother_dob_month", "mother_dob_year", "mother_dob_unknown", "mother_in_us"],
+    inUsQuestion: "Is your mother in the U.S.?",
+  },
+];
+
+function isDoNotKnow(value: string | undefined): boolean {
+  return value?.trim().replace(/\s+/g, "_").toUpperCase() === "DO_NOT_KNOW";
+}
+
+async function visibleMatches(page: Page, selector: string): Promise<Locator[]> {
+  const all = page.locator(selector);
+  const matches: Locator[] = [];
+  for (let index = 0; index < await all.count(); index += 1) {
+    const candidate = all.nth(index);
+    if (await candidate.isVisible().catch(() => false)) matches.push(candidate);
+  }
+  return matches;
+}
+
+/**
+ * Assert the official family page applied CEAC's both-name-unknown branch.
+ * The name checkboxes are required evidence; dependent controls may be
+ * absent or hidden, but a visible contradiction is always a hard failure.
+ */
+export async function assertFamilyUnknownParentBranches(
+  page: Page,
+  values: Readonly<Record<string, string>>,
+): Promise<void> {
+  const activeBranches = FAMILY_PARENT_UNKNOWN_BRANCHES.filter((branch) =>
+    isDoNotKnow(values[branch.surnameField]) && isDoNotKnow(values[branch.givenNamesField]),
+  );
+  if (activeBranches.length === 0) return;
+
+  await waitForAspNetPostback(page, 8_000);
+  if ((await detectPage(page)).id !== "family_relatives") {
+    throw new Error("CEAC family branch assertion requires the verified Family Information: Relatives page.");
+  }
+
+  for (const branch of activeBranches) {
+    for (const fieldName of branch.nameUnknownFields) {
+      const mapping = ds160FamilyRelativesMappings[fieldName];
+      if (!mapping) throw new Error(`Missing CEAC family unknown-checkbox mapping for ${fieldName}.`);
+      const candidates: Locator[] = [];
+      for (const selector of mapping.selector.split(",").map((item) => item.trim()).filter(Boolean)) {
+        candidates.push(...await visibleMatches(page, selector));
+      }
+      if (candidates.length !== 1) {
+        throw new Error(`CEAC ${branch.parent} name-unknown checkbox is not uniquely visible.`);
+      }
+      if (!(await candidates[0].isChecked().catch(() => false))) {
+        throw new Error(`CEAC ${branch.parent} name-unknown checkbox was not checked.`);
+      }
+    }
+
+    for (const fieldName of branch.hiddenFields) {
+      const mapping = ds160FamilyRelativesMappings[fieldName];
+      if (!mapping) throw new Error(`Missing CEAC family branch mapping for ${fieldName}.`);
+      for (const selector of mapping.selector.split(",").map((item) => item.trim()).filter(Boolean)) {
+        if ((await visibleMatches(page, selector)).length > 0) {
+          throw new Error(`CEAC ${branch.parent} dependent family control remained visible.`);
+        }
+      }
+    }
+
+    if ((await visibleMatches(page, `text=${branch.inUsQuestion}`)).length > 0) {
+      throw new Error(`CEAC ${branch.parent} in-US question remained visible.`);
+    }
+  }
+}
+
 export interface OrchestrateOptions {
   /** Answers from visa_application_answers keyed by field_name. */
   answers: Record<string, string>;
@@ -157,6 +259,8 @@ export interface OrchestrateOptions {
   runId?: string;
   /** Directory for .dat and screenshot artifacts. */
   outputDir?: string;
+  /** Stop before recovery or official actions when the caller loses its job lease. */
+  assertActive?: () => void;
   /**
    * Credentials needed to auto-resume after a mid-fill session timeout.
    * Required if the run may take longer than CEAC's ~10-minute idle
@@ -243,6 +347,13 @@ export async function orchestrateFill(
     // Fill-and-advance loop: detect current page, fill if we have mappings,
     // advance to the next page. Stop when we reach a terminal page.
     while (transitions < MAX_PAGE_TRANSITIONS) {
+      options.assertActive?.();
+      if (session.browser?.isConnected?.() === false && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
+        if (await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, RECOVERABLE_DS160_PAGE_IDS)) {
+          resumeAttempts++;
+          console.log("[orchestrator] Reconnected the same verified CEAC draft before page detection");
+        }
+      }
       // Always use session.page — rebuildSessionForResume may have
       // swapped the Page ref between iterations after a recovery.
       const page = session.page;
@@ -257,7 +368,9 @@ export async function orchestrateFill(
       ) {
         console.log(`[orchestrator] Session expired mid-fill — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
         resumeAttempts++;
+        options.assertActive?.();
         await rebuildSessionForResume(session);
+        options.assertActive?.();
         await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
         // Fall through: next iteration will re-probe the page identity
         // and pick up fill at the section CEAC restored to.
@@ -270,7 +383,9 @@ export async function orchestrateFill(
       if (currentPageId === "session_expired" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts) {
         console.log(`[orchestrator] session_expired page detected — attempting resume (attempt ${resumeAttempts + 1}/${maxResumeAttempts})`);
         resumeAttempts++;
+        options.assertActive?.();
         await rebuildSessionForResume(session);
+        options.assertActive?.();
         await fillRetrieveApplicationForm(session.page, options.recoveryCredentials);
         continue;
       }
@@ -445,6 +560,7 @@ export async function orchestrateFill(
         const signIdentity = await detectSignAndSubmit(page);
         if (signIdentity) {
           if (options.finalSubmit?.passportNumber) {
+            options.assertActive?.();
             const submitResult = await signAndSubmitApplication(page, options.finalSubmit);
             const tracked = tracker.snapshot();
             const checkpoint = {
@@ -493,6 +609,7 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
+          options.assertActive?.();
           const finalSignaturePage = await certifySignAndSubmitPage(page, {
             passportNumber: options.finalSubmit.passportNumber,
             savedPreparerAssistance: options.finalSubmit.savedPreparerAssistance,
@@ -595,8 +712,9 @@ export async function orchestrateFill(
         if (currentPageId === "previous_us_travel") {
           nonRepeatMappings = await resolvePreviousTravelMappings(page, nonRepeatMappings, branch.values);
         }
-        await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true });
-        await fillDs160RepeatGroups({
+        try {
+          await fillPageFields(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true });
+          await fillDs160RepeatGroups({
           page, pageId: currentPageId, answers: ds160RepeatAnswers(branch.values, answers), mappings,
           fillRow: async row => fillPageFields(page, row.mappings, row.answers, {}, {
             scope: row.scope, resolveScope: row.resolveScope, requireMappedAnswers: true,
@@ -604,8 +722,21 @@ export async function orchestrateFill(
           verifyRow: async row => verifyPageFieldValues(row.scope ?? page, row.mappings, row.answers, {}, {
             requireMappedAnswers: true, observeVerified,
           }),
-        });
-        await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeVerified });
+          });
+          await verifyPageFieldValues(page, nonRepeatMappings, answers, profile, { requireMappedAnswers: true, observeVerified });
+        } catch (fillError) {
+          options.assertActive?.();
+          if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
+            await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, [currentPageId])) {
+            resumeAttempts++;
+            console.log(`[orchestrator] Reconnected the same CEAC page; repeating verified fill for ${currentPageId}`);
+            continue;
+          }
+          throw fillError;
+        }
+        if (currentPageId === "family_relatives") {
+          await assertFamilyUnknownParentBranches(page, branch.values);
+        }
         sectionsFilled.push(currentPageId);
       } else {
         if (currentPageId !== "review") {
@@ -633,7 +764,8 @@ export async function orchestrateFill(
           datArtifact = await captureDatArtifact(page, { outputDir });
           console.log(`[orchestrator] .dat captured at ${currentPageId}`);
           await waitForAspNetPostback(page, 8_000);
-        } catch {
+        } catch (err) {
+          if (err instanceof CeacError) throw err;
           console.warn(`[orchestrator] .dat capture failed at ${currentPageId} — continuing`);
           await waitForAspNetPostback(page, 5_000);
         }
@@ -661,6 +793,13 @@ export async function orchestrateFill(
           to: nextPageCandidates,
         });
       } catch (navErr) {
+        options.assertActive?.();
+        if (currentPageId !== "unknown" && options.recoveryCredentials && resumeAttempts < maxResumeAttempts &&
+          await reconnectVerifiedCeacPage(session, options.recoveryCredentials.applicationId, [currentPageId, ...nextPageCandidates])) {
+          resumeAttempts++;
+          console.log("[orchestrator] Reconnected and verified the official page after navigation");
+          continue;
+        }
         // Navigation failed — check what we actually landed on.
         const recheck = await detectPage(page);
         if (recheck.id === "sign_and_submit") {
@@ -687,6 +826,7 @@ export async function orchestrateFill(
   } catch (err) {
     // Preserve recovery metadata on any failure. Use session.page since
     // we moved the per-iteration page binding into the loop body.
+    console.warn(`[orchestrator] Failure transportConnected=${session.browser?.isConnected?.()} pageClosed=${session.page?.isClosed?.()}`);
     const recovery = await preserveRecoveryOnFailure({
       tracker,
       error: err,
@@ -1139,6 +1279,8 @@ export async function fillPageFields(
   options: FillPageFieldsOptions = {},
 ): Promise<void> {
   const debug = process.env.CEAC_FILL_DEBUG === "1";
+  installCeacPostbackMonitor(page);
+  assertCeacPostbackHealthy(page);
   let scope = options.scope ?? page;
   mappings = Object.fromEntries(Object.entries(mappings).filter(([key]) =>
     options.isFieldActive?.(key) !== false));
@@ -1172,11 +1314,15 @@ export async function fillPageFields(
   }
 
   for (const [fieldName, mapping] of Object.entries(mappings)) {
+    assertCeacPostbackHealthy(page);
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
       ?? null;
 
-    if (!value) continue;
+    // An explicitly cleared text answer must clear the retrieved draft too.
+    // Missing answers and empty choice values do not authorize a replacement.
+    if (value === null || (value === "" &&
+      (answers[fieldName] !== "" || (mapping.type !== "text" && mapping.type !== "date")))) continue;
 
     if (options.resolveScope) scope = await options.resolveScope();
 
@@ -1215,6 +1361,11 @@ export async function fillPageFields(
           const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
           await el.setChecked(shouldCheck, { timeout: 5_000 });
         } else {
+          const maxLength = await el.evaluate(node =>
+            (node as HTMLInputElement | HTMLTextAreaElement).maxLength);
+          if (Number.isInteger(maxLength) && maxLength >= 0 && value.length > maxLength) {
+            throw new FieldLengthError(fieldName, mapping.label, maxLength);
+          }
           try {
             await el.fill(value, { timeout: 5_000 });
           } catch {
@@ -1238,11 +1389,14 @@ export async function fillPageFields(
         filled = true;
         break;
       } catch (err) {
+        assertCeacPostbackHealthy(page);
+        if (err instanceof FieldLengthError || err instanceof CeacError) throw err;
         if (debug) console.log(`[fill] ${fieldName} (${mapping.type}) selector branch failed`);
       }
     }
 
-    if (!filled && (sawVisibleCandidate || options.requireMappedAnswers)) {
+    if (!filled && (sawVisibleCandidate || (options.requireMappedAnswers && value !== ""))) {
+      assertCeacPostbackHealthy(page);
       throw new FieldFillError(fieldName, mapping.label);
     }
   }
@@ -1266,12 +1420,15 @@ export async function verifyPageFieldValues(
     observeVerified?: (field: Omit<ReviewExpectation, "section">) => void;
   } = {},
 ): Promise<void> {
+  const activePage = "mainFrame" in page ? page : page.page();
   for (const [fieldName, mapping] of Object.entries(mappings)) {
+    assertCeacPostbackHealthy(activePage);
     if (options.choicesOnly && mapping.type !== "checkbox" && mapping.type !== "radio") continue;
     const value = answers[fieldName]
       ?? (profile[fieldName] as string | undefined)
       ?? null;
-    if (!value) continue;
+    if (value === null || (value === "" &&
+      (answers[fieldName] !== "" || (mapping.type !== "text" && mapping.type !== "date")))) continue;
 
     const selectors = mapping.selector.split(",").map((s) => s.trim());
     let sawVisibleCandidate = false;
@@ -1294,16 +1451,21 @@ export async function verifyPageFieldValues(
             : mapping.type === "radio" || mapping.type === "checkbox"
               ? /^(Y|1|true|yes)$/i.test(value) ? "Yes" : "No"
               : await control.inputValue();
-          options.observeVerified({ fieldName, controlId, value: displayValue });
+          options.observeVerified({
+            fieldName, controlId, value: displayValue,
+            ...(value === "" ? { allowEmptyValue: true } : {}),
+          });
         }
         verified = true;
         break;
       } catch {
+        assertCeacPostbackHealthy(activePage);
         // Try the next selector alias; a visible field is reported below if
         // none of the aliases can be verified.
       }
     }
-    if ((sawVisibleCandidate || options.requireMappedAnswers) && !verified) {
+    if ((sawVisibleCandidate || (options.requireMappedAnswers && value !== "")) && !verified) {
+      assertCeacPostbackHealthy(activePage);
       throw new FieldFillError(fieldName, mapping.label);
     }
   }

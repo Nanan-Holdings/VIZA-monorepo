@@ -184,9 +184,9 @@ export function findDs160PlaceholderFields(saved: Ds160SavedAnswers): string[] {
     if (!key.endsWith("_en") || !value.trim()) continue;
     const base = key.slice(0, -3);
     if (base === "full_name_native_alphabet") continue;
-    // Match applyEnglishAliases: an existing Latin-script canonical answer
-    // takes precedence. A clean alias must not hide the prompt actually used.
-    if (!effective[base] || /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(effective[base])) {
+    // Match applyEnglishAliases: an existing Latin-script or explicitly empty
+    // canonical answer takes precedence over a stale translated alias.
+    if (effective[base] === undefined || /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(effective[base])) {
       effective[base] = value;
     }
   }

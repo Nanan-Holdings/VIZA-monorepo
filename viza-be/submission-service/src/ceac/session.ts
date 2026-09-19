@@ -9,16 +9,18 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import {
   browserbaseEnabled,
-  connectBrowserbaseCloudBrowser,
+  connectReconnectableBrowserbaseCloudBrowser,
+  type ReconnectableBrowserbaseCloudBrowser,
 } from "../browserbase-session";
 import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
-import { assertNoGate } from "./gates";
+import { assertNoGate, isGateError } from "./gates";
 import { selectStartPageLocation } from "./start-page-location";
 import { solveStartPageCaptchaWithRetry } from "./start-page-captcha";
 import { gotoCeacStartPage } from "./start-page-navigation";
 import { tryCaptureBootstrapDiagnostics } from "./diagnostics";
+import { installCeacPostbackMonitor } from "./aspnet";
 
 export const CEAC_DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
@@ -65,6 +67,8 @@ export interface CeacSession {
   captchaSolve?: { telemetry: Array<Record<string, unknown>> };
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
+  /** Reattach the same provider session after a dropped control connection. */
+  reconnect?(): Promise<void>;
 }
 
 /**
@@ -87,10 +91,12 @@ export async function startCeacSession(
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
   let page: Page | null = null;
+  let cloudSession: ReconnectableBrowserbaseCloudBrowser | null = null;
 
   try {
     if (browserbaseEnabled("CEAC")) {
-      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "CEAC" });
+      const cloud = await connectReconnectableBrowserbaseCloudBrowser({ prefix: "CEAC", timeoutSeconds: 1800 });
+      cloudSession = cloud;
       browser = cloud.browser;
       context = cloud.context;
       page = cloud.page;
@@ -108,9 +114,11 @@ export async function startCeacSession(
       page = await context.newPage();
     }
 
+    installCeacPostbackMonitor(page);
     try {
       await gotoCeacStartPage(page, navigationTimeoutMs);
     } catch (err) {
+      if (isGateError(err)) throw err;
       const message = err instanceof Error ? err.message : String(err);
       throw new SessionBootstrapError(
         `Failed to load CEAC start page within ${navigationTimeoutMs}ms`,
@@ -208,13 +216,27 @@ export async function startCeacSession(
       runId: options.runId,
       startLocationCode: resolvedStartLocationCode,
       captchaSolve: captchaSolveTelemetry ? { telemetry: captchaSolveTelemetry } : undefined,
-      close: makeCloser(browser, context),
+      close: cloudSession ? cloudSession.close.bind(cloudSession) : makeCloser(browser, context),
     };
+    if (cloudSession) {
+      const cloud = cloudSession;
+      session.reconnect = async function () {
+        await cloud.reconnect();
+        this.browser = cloud.browser;
+        this.context = cloud.context;
+        this.page = cloud.page;
+        installCeacPostbackMonitor(this.page);
+      };
+    }
 
     return session;
   } catch (err) {
     if (page && options.diagnosticDirectory) {
       await tryCaptureBootstrapDiagnostics(page, options.diagnosticDirectory);
+    }
+    if (cloudSession) {
+      await cloudSession.close().catch(() => undefined);
+      throw err;
     }
     // Make sure we do not leak a browser if bootstrap fails mid-way.
     try {
@@ -262,6 +284,7 @@ export async function rebuildSessionForResume(
   session.page = fresh.page;
   session.startLocationCode = fresh.startLocationCode;
   session.captchaSolve = fresh.captchaSolve;
+  session.reconnect = fresh.reconnect;
   (session as { close: () => Promise<void> }).close = fresh.close;
 }
 

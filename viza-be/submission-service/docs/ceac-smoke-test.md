@@ -1,5 +1,110 @@
 # CEAC Smoke Test
 
+## 2026-09-19 contact organization length
+
+- Follow-up code repair installs the CEAC async form-response monitor before
+  any session interaction and preserves structured failures through field,
+  read-back, repeat-control and navigation fallbacks. HTTP 403/429 cannot be mistaken for missing
+  fields, and an unfinished MSAJAX postback cannot count as DOM settlement.
+  Pending full-document navigation is tracked and rechecked within the original
+  wait budget; document failures use the same structured error boundary.
+  Isolated Chromium fixtures cover an already
+  received 403, a 429, a pending timeout, sanitized MSAJAX errors, normal 200
+  and no-op paths, normal and delayed document navigation, a document POST
+  rejection, navigator Next-button gate propagation, and stopping before a
+  dependent input. The final suite passed all 227 regressions, including ten
+  focused postback browser cases; type checking, build and diff checks passed.
+  These fixtures reproduce failure handling;
+  they do not establish live family-page parity or official submission.
+  Local Chrome still showed the security-verification interstitial, so no
+  further live portal attempt was started after this repair. The application
+  remains action-required with no official confirmation or final-click fence.
+
+- The next direct-route live run again verified all pages through U.S.
+  Contact, then failed in Family Relatives. Provider diagnostics established
+  an official `complete_family1.aspx` XHR HTTP 403 and a corresponding MSAJAX
+  `PageRequestManagerServerErrorException`; the screenshot retained checked
+  mother-name unknown boxes alongside unrefreshed dependent controls. The
+  later missing-other-relatives error was a stale-page symptom, not evidence
+  to remove that question. The exact provider session was confirmed completed,
+  the stopped worker's lease cleared conditionally, and no final action was
+  attempted. Hidden-control branch verification remains required; this run
+  does not establish full family-page parity.
+
+- The legacy DS-160 heartbeat now renews its owned, unexpired lease through
+  migration 0195. Renewal rejection/error/timeout closes CEAC and prevents
+  recovery or final signing; proof/result writes complete before terminal
+  queue settlement. Eleven focused lease/orchestration regressions passed,
+  following 214 passing DS-160 regressions. A rolled-back database smoke
+  verified valid renewal and rejection of wrong-owner, expired, and terminal
+  cases. Function execution is restricted to service_role; the security
+  advisor introduced no new findings. These checks do not prove submission.
+  This is lease renewal, not a completed atomic settlement refactor: existing
+  application/result writes and preflight recovery mutations still need a
+  shared database-clock ownership fence before relying on automatic takeover
+  during in-flight writes. Bootstrap also closes after returning when ownership
+  is lost before the caller receives its session. The live test remains an
+  exact-job operator run and does not establish those broader failure cases.
+
+- The direct-route continuation retrieved the same captured application and
+  verified every page through U.S. Contact. It stopped on Family Relatives:
+  after both father name fields were marked Do Not Know, the official page
+  removed the father's DOB and U.S.-presence controls, but the runner still
+  required the DOB-unknown checkbox. This is observed branch evidence, not a
+  missing applicant answer. The owned provider session was confirmed closed,
+  the stopped worker's lease cleared conditionally, and the final action was
+  not attempted. The four existing live schema rows now have explicit
+  both-names-unknown branch conditions. A production browser reload verified
+  the dependent DOB/U.S.-presence questions disappear from both entry and
+  review, retaining the four parent-name unknown selections. The runner's
+  corresponding official-DOM assertion is required before continuation.
+
+- Follow-up routing diagnosis confirmed the failed U.S. residential-proxy
+  session had transferred 3,934,695 proxy bytes: the proxy flag was effective.
+  A bounded 180-second proxy probe remained in Cloudflare verification, with
+  repeated 403 document responses even after a verification-success message.
+  Keeping the provider, U.S. region, and standard browser mode unchanged but
+  disabling proxies reached the real CEAC location/form controls in 6 seconds.
+  The exact captured-resume job is therefore continuing with an explicit
+  direct-route runtime override; this does not change other runners' defaults
+  or establish why the website rejected that particular proxy route.
+
+- The next two bounded live attempts stopped at the CEAC landing page's
+  Cloudflare `Performing security verification` state before any form controls
+  appeared. Local Chrome independently showed the same gate. Both owned remote
+  sessions were confirmed `COMPLETED`; the stopped workers' stale leases were
+  cleared conditionally. Recovery dry-run still reports complete encrypted
+  checkpoints, no active conflicting jobs, and zero final-submission fences.
+  No official submission occurred. Live validation of the new reconnect path
+  beyond bootstrap remains pending; passing regressions do not establish it.
+
+- Later continuations exposed a separate control-connection failure:
+  `transportConnected=false` and `pageClosed=true`, while the remote provider
+  still held the same normal CEAC page. CEAC now uses the existing reconnectable
+  Browserbase connector, re-verifying origin, application identity and an
+  allowed filling/navigation page before retrying. It explicitly releases the
+  remote session on all closes and has a 1,800-second TTL. Signature actions
+  remain outside the retry path. The expanded regression suite passes 199
+  tests, including reconnection identity/page guards and provider cleanup.
+
+- A same-draft live continuation verified Personal 1, Personal 2, Travel,
+  Travel Companions, Previous U.S. Travel, Address/Phone, and Passport.
+  U.S. Contact then stopped because the 47-character organization name was
+  read back from CEAC as only its first 33 characters. The official browser
+  control log, together with the failure screenshot, established truncation.
+- The DS-160 seed and the existing live schema field now declare
+  `us_contact_organization.validation_rules.maxLength = 33`. The applicant's
+  selected organization uses a meaning-preserving abbreviated official value;
+  the full name remains in its source metadata and Chinese display value.
+  A production browser read verified both the abbreviated English value and
+  the Chinese input's `maxlength="33"`.
+- The filler now checks each visible text control's observed `maxlength`
+  before writing. An overlong answer raises a value-free length error without
+  modifying the control; it is never silently truncated or forced past the
+  official limit. All 14 field-filling browser regressions and both affected
+  service type checks pass. The preceding complete DS-160 suite passed 183
+  tests; these checks do not establish a completed official submission.
+
 ## 2026-09-18 captured-draft continuation
 
 - Same-draft retrieval now waits for a recognized in-progress page before

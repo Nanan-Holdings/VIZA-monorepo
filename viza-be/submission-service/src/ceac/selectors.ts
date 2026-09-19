@@ -89,6 +89,15 @@ export const CEAC_SESSION_EXPIRED_MARKERS: readonly RegExp[] = [
  * button. The worker must stop when these appear.
  */
 /**
+ * CEAC may keep this exact interstitial visible while an authorized browser
+ * session completes its verification. Navigation gives this state a bounded
+ * grace period before treating it as a blocking gate.
+ */
+const CEAC_TRANSIENT_VERIFICATION_TEXT_PATTERNS = [
+  /security verification/i,
+] as const;
+
+/**
  * Anti-bot, captcha, and manual-intervention gate markers. When CEAC detects
  * automated traffic it may present a challenge page, a "please verify"
  * interstitial, or a Cloudflare/WAF block before the DS-160 start page loads.
@@ -110,7 +119,14 @@ export const CEAC_GATE_MARKERS = {
     /one more step/i,
     /checking your browser/i,
     /attention required/i,
+    ...CEAC_TRANSIENT_VERIFICATION_TEXT_PATTERNS,
   ] as readonly RegExp[],
+  /**
+   * Gate text that may clear without a new request while the same browser
+   * session completes its verification. Only this explicit state receives the
+   * bounded post-timeout readiness grace.
+   */
+  transientVerificationTextPatterns: CEAC_TRANSIENT_VERIFICATION_TEXT_PATTERNS,
   /**
    * Start-page CAPTCHA selectors. Live assisted DS-160 treats these as human
    * checkpoints; do not route them to CAPTCHA-solving APIs.

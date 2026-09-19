@@ -25,6 +25,7 @@ import {
 } from "./selectors";
 import { assertPage, detectPage, waitForPage, type CeacPageId } from "./pages";
 import { NavigationError, ValidationFailedError } from "./errors";
+import { assertCeacPostbackHealthy, installCeacPostbackMonitor, waitForAspNetPostback } from "./aspnet";
 
 /**
  * Subset of CEAC navigation buttons the navigator knows how to click.
@@ -180,6 +181,8 @@ async function runTransition(
   const timeoutMs = params.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pollIntervalMs = params.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const assertFrom = params.options.assertFrom ?? true;
+  installCeacPostbackMonitor(page);
+  assertCeacPostbackHealthy(page);
 
   if (assertFrom) {
     // If the page is not where we thought it was, fail loudly with origin
@@ -214,6 +217,7 @@ async function runTransition(
       () => navButton.click(),
     );
   } catch (err) {
+    assertCeacPostbackHealthy(page);
     throw new NavigationError(
       `Failed to click CEAC ${params.action} button on page "${params.from}"`,
       {
@@ -227,6 +231,7 @@ async function runTransition(
     );
   }
 
+  await waitForAspNetPostback(page, timeoutMs);
   let pageCompletePromptHandled = await continueAfterPageCompletePrompt(
     page,
     params.from,
@@ -276,11 +281,14 @@ async function runTransition(
   // gives the browser a standards-based form-submit fallback.
   const primaryWindowMs = Math.min(PRIMARY_CLICK_SETTLE_MS, timeoutMs);
   try {
-    return await waitForPage(page, expectedList, {
+    const destination = await waitForPage(page, expectedList, {
       timeoutMs: primaryWindowMs,
       pollIntervalMs,
     });
+    assertCeacPostbackHealthy(page);
+    return destination;
   } catch {
+    assertCeacPostbackHealthy(page);
     // Continue into the same-page diagnostic/fallback path below.
   }
 
@@ -295,6 +303,7 @@ async function runTransition(
 
   let requestSubmitAttempted = false;
   if (canRetrySubmit) {
+    assertCeacPostbackHealthy(page);
     requestSubmitAttempted = true;
     pageCompleteDialogHandled =
       (await performWithPageCompleteDialogAcceptance(
@@ -317,14 +326,18 @@ async function runTransition(
 
   if (requestSubmitAttempted) {
     try {
-      return await waitForPage(page, expectedList, {
+      await waitForAspNetPostback(page, timeoutMs);
+      const destination = await waitForPage(page, expectedList, {
         timeoutMs: Math.min(
           REQUEST_SUBMIT_SETTLE_MS,
           timeoutMs - primaryWindowMs,
         ),
         pollIntervalMs,
       });
+      assertCeacPostbackHealthy(page);
+      return destination;
     } catch {
+      assertCeacPostbackHealthy(page);
       // Continue into the WebForms-specific postback fallback below.
     }
   }
@@ -338,6 +351,7 @@ async function runTransition(
     validationDiagnostic.invalidValidators.length === 0;
 
   if (canRetryWebFormsPostback) {
+    assertCeacPostbackHealthy(page);
     pageCompleteDialogHandled =
       (await performWithPageCompleteDialogAcceptance(
         page,
@@ -368,7 +382,8 @@ async function runTransition(
   // Poll the remaining timeout budget after the optional WebForms postback.
   // `waitForPage` throws on timeout; translate it below.
   try {
-    return await waitForPage(page, expectedList, {
+    await waitForAspNetPostback(page, timeoutMs);
+    const destination = await waitForPage(page, expectedList, {
       timeoutMs: Math.max(
         pollIntervalMs,
         timeoutMs - primaryWindowMs -
@@ -376,7 +391,10 @@ async function runTransition(
       ),
       pollIntervalMs,
     });
+    assertCeacPostbackHealthy(page);
+    return destination;
   } catch (err) {
+    assertCeacPostbackHealthy(page);
     const detected = (err as { context?: { detected?: CeacPageId | "unknown" } })?.context?.detected;
     // ASP.NET validators can be rendered by a late UpdatePanel response after
     // the initial post-click probe. Re-read them at the failure boundary so a

@@ -1775,6 +1775,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Family Information: Relatives",
     display_order: 3,
     validation_rules: { format: "DD-MMM-YYYY", allow_do_not_know: true },
+    conditional_logic: { showIf: "father_surname !== DO_NOT_KNOW || father_given_names !== DO_NOT_KNOW" },
   },
   {
     field_name: "mother_surname",
@@ -1807,6 +1808,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Family Information: Relatives",
     display_order: 8,
     validation_rules: { format: "DD-MMM-YYYY", allow_do_not_know: true },
+    conditional_logic: { showIf: "mother_surname !== DO_NOT_KNOW || mother_given_names !== DO_NOT_KNOW" },
   },
   {
     field_name: "has_immediate_us_relatives",
@@ -2417,7 +2419,7 @@ const FIELDS: FieldDef[] = [
     step_number: 13,
     step_name: "US Point of Contact",
     display_order: 3,
-    validation_rules: { allow_do_not_know: true },
+    validation_rules: { allow_do_not_know: true, maxLength: 33 },
   },
   {
     field_name: "us_contact_relationship",
@@ -3266,6 +3268,7 @@ const FIELDS: FieldDef[] = [
     step_number: 9,
     step_name: "Family Information: Relatives",
     display_order: 90,
+    conditional_logic: { showIf: "father_surname !== DO_NOT_KNOW || father_given_names !== DO_NOT_KNOW" },
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
   },
   {
@@ -3276,6 +3279,7 @@ const FIELDS: FieldDef[] = [
     step_number: 9,
     step_name: "Family Information: Relatives",
     display_order: 91,
+    conditional_logic: { showIf: "mother_surname !== DO_NOT_KNOW || mother_given_names !== DO_NOT_KNOW" },
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
   },
 

@@ -77,7 +77,7 @@ $env:CEAC_BROWSERBASE_ENABLED = "true"
 $env:CEAC_BROWSERBASE_PROXIES = "true"
 $env:CEAC_BROWSERBASE_REGION = "us-east-1"
 $env:CEAC_BROWSERBASE_COUNTRY = "US"
-$env:CEAC_BROWSERBASE_TIMEOUT_SECONDS = "900"
+$env:CEAC_BROWSERBASE_TIMEOUT_SECONDS = "1800"
 $env:BROWSERBASE_MAX_CONCURRENCY = "1"
 $env:SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
 npm run dev
@@ -85,11 +85,14 @@ npm run dev
 
 The allowlist plus the disabled consumers limits this process to the targeted
 `ceac_live` legacy queue row. CEAC closes its Playwright context and browser
-and releases its local Browserbase concurrency permit. The current CEAC
-bootstrap uses the basic Browserbase connector, so the provider session is
-bounded by `CEAC_BROWSERBASE_TIMEOUT_SECONDS` (900 seconds here); it does not
-retain the provider session ID for an explicit `REQUEST_RELEASE` call on
-normal close. Keep `BROWSERBASE_MAX_CONCURRENCY=1` for this one-shot run.
+and releases its local Browserbase concurrency permit. CEAC uses the
+reconnectable connector with an explicit 1,800-second provider TTL. It retains
+the provider session ID and requests `REQUEST_RELEASE` on normal close and
+bootstrap failure, including after a dropped control connection. Only
+filling/navigation may recover a disconnected transport, with the same
+official Application ID and an allowed current/next page verified before any
+further action. Final signature actions are never replayed by that path.
+Keep `BROWSERBASE_MAX_CONCURRENCY=1` for this one-shot run.
 
 The CEAC worker still performs captured-resume validation, retrieves the same
 official Application ID, applies the official review-diff gate, and uses the

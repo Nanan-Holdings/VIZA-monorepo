@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, it } from "node:test";
 import { chromium, type Browser } from "@playwright/test";
+import { GateDetectedError } from "../errors";
 import { gotoCeacStartPage } from "../start-page-navigation";
 import { detectGate } from "../gates";
 import { tryCaptureBootstrapDiagnostics } from "../diagnostics";
@@ -50,5 +51,55 @@ it("preserves a definitive WAF block for structured gate classification", async 
     }));
     await gotoCeacStartPage(page, 3000);
     assert.equal((await detectGate(page)).gated, true);
+  } finally { await page.close(); }
+});
+
+it("classifies a persistent security-verification interstitial after bounded grace", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      contentType: "text/html",
+      body: "<h2>Performing security verification</h2>",
+    }));
+    await assert.rejects(
+      () => gotoCeacStartPage(page, 100, { verificationGraceMs: 100 }),
+      (err: unknown) => {
+        assert.ok(err instanceof GateDetectedError);
+        assert.equal(err.code, "GATE_DETECTED");
+        assert.equal(err.context.details?.gateKind, "anti_bot_text");
+        assert.deepEqual(err.context.details?.matchedTextPatterns, ["security verification"]);
+        return true;
+      },
+    );
+  } finally { await page.close(); }
+});
+
+it("allows the recognized verification surface to clear during grace", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      contentType: "text/html",
+      body: `<h2>Performing security verification</h2><script>setTimeout(()=>{document.body.innerHTML='<h2>Apply For a Nonimmigrant Visa</h2><select id="ctl00_ucLocation_ddlLocation"><option>BEJ</option></select>'},150)</script>`,
+    }));
+    await gotoCeacStartPage(page, 100, { verificationGraceMs: 500 });
+    assert.equal(await page.locator("select").count(), 1);
+  } finally { await page.close(); }
+});
+
+it("keeps unrelated readiness timeouts out of gate classification", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("https://ceac.state.gov/**", route => route.fulfill({
+      contentType: "text/html",
+      body: "<h2>CEAC maintenance</h2>",
+    }));
+    await assert.rejects(
+      () => gotoCeacStartPage(page, 100, { verificationGraceMs: 100 }),
+      (err: unknown) => {
+        assert.ok(!(err instanceof GateDetectedError));
+        assert.match(err instanceof Error ? err.message : String(err), /timeout/i);
+        return true;
+      },
+    );
   } finally { await page.close(); }
 });

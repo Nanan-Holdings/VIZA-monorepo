@@ -8,6 +8,39 @@ import type { Ds160FinalSubmissionGuard, FinalSubmissionEvidence } from "../fina
 
 const APPLICATION_ID = "AA00TEST1234";
 
+test("lost job ownership stops before an expired CEAC session can be rebuilt", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let requestCount = 0;
+  let reconnectCount = 0;
+  try {
+    await page.route("https://ceac.state.gov/**", async route => {
+      requestCount += 1;
+      await route.fulfill({ contentType: "text/html", body: "<h2>Session Timed Out</h2>" });
+    });
+    await page.goto("https://ceac.state.gov/GenNIV/SessionTimedOut.aspx");
+    const session: CeacSession = {
+      browser, context: page.context(), page,
+      close: async () => browser.close(),
+      reconnect: async () => { reconnectCount += 1; },
+    };
+    const result = await orchestrateFill(session, {
+      answers: {}, profile: {},
+      tracker: createRecoveryTracker({ runId: "lost-lease" }),
+      recoveryCredentials: {
+        applicationId: APPLICATION_ID, surnameFirstFive: "TEST", yearOfBirth: "2000", securityAnswer: "fixture",
+      },
+      assertActive: () => { throw new Error("job ownership lost"); },
+    });
+    assert.equal(result.result.status, "failed");
+    assert.equal(requestCount, 1);
+    assert.equal(reconnectCount, 0);
+    assert.equal(page.url(), "https://ceac.state.gov/GenNIV/SessionTimedOut.aspx");
+  } finally {
+    await browser.close();
+  }
+});
+
 function createMemoryGuard(): {
   guard: Ds160FinalSubmissionGuard;
   getState: () => "started" | "unknown" | "confirmed";

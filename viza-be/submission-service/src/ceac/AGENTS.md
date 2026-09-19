@@ -40,10 +40,34 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    live assisted runs. `start-page-navigation.ts` owns the lightweight CEAC
    start-page navigation wait, and `start-page-location.ts` may select the
    CEAC location dropdown and dismiss the location modal.
+   Start-page readiness uses the normal navigation timeout first, then grants
+   only a capped 120-second same-document grace when the visible page explicitly
+   says `security verification`; a persistent recognized verification is a
+   structured gate, while unrelated timeouts remain bootstrap failures. Local
+   tests may pass a shorter `verificationGraceMs` to the navigation helper.
+   Browserbase sessions use bounded same-session reconnection and an explicit
+   provider release on close, with a 1,800-second TTL. Filling/navigation may
+   retry only a confirmed transport disconnect, after the official origin,
+   same Application ID and allowed current/next page are re-verified. A final
+   signature action is never replayed by this transport recovery path.
+   The caller's ownership assertion runs before page loops, reconnect/rebuild
+   paths, and final signing; an aborted queue lease cannot open a replacement
+   browser or continue official actions.
 2. `start-page-captcha.ts` solves the initial image CAPTCHA through 2Captcha.
    It preserves the applicant-selected post across retries and returns the
    resolved post for session recovery; never substitute a default embassy.
 3. `pages.ts` detects the current DS-160 page.
+   `aspnet.ts` installs an official form-response monitor before interactions.
+   Failed form POST XHR/fetch and main-document responses, plus MSAJAX
+   exceptions, remain latched for the page, including failures arriving before
+   the settlement wait. Pending document navigation cannot settle against the
+   old DOM; successful attachment responses retain the Save-to-File path.
+   HTTP 403/429 are structured gates; in-flight timeouts and other update
+   failures cannot count as DOM settlement. Field/read-back, repeat-control
+   and navigator fallbacks preserve these errors instead of relabeling them
+   as missing controls or navigation timeouts. Diagnostics
+   include phase/status only, never response bodies, query strings or answers.
+   Browser fixtures in `__tests__/aspnet.spec.ts` cover this boundary.
 4. `orchestrator.ts` fills mapped pages, uploads the applicant photo, and
    advances through final submission when supplied with signature data.
    `field-contract.ts` traces mappings to seed conditions and excludes stale
@@ -57,11 +81,22 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    controller postbacks, rejecting changed row counts or identities. Final
    read-back also re-resolves every row. Static selector
    declarations are not evidence of official parity.
+   Explicitly empty text/date answers clear visible editable controls in a
+   retrieved draft and participate in read-back and review verification.
+   Missing answers and empty choice values never authorize clearing or a No.
+   Text filling checks the observed official `maxlength` before changing a
+   control. Overlong answers fail with a value-free length error; never bypass
+   the limit or accept a silently truncated answer. The live U.S. contact
+   organization field permits 33 characters, mirrored in the DS-160 seed.
    `previous-travel-branch.ts` recognizes the observed four-question previous
    travel page without an ESTA question. Only a saved negative ESTA answer may
    be inactive, after the full page and absence of both controls and question
    text are verified. Visible questions, affirmative answers, incomplete pages,
    and unrelated missing controls retain strict filling and read-back checks.
+   Family relatives gates each parent's DOB and in-US controls on the exact
+   both-name-unknown condition from the seed. After family fill, the
+   orchestrator requires each active unknown-name checkbox to be uniquely
+   visible and checked, and rejects any visible dependent control or question.
    `review-verification.ts` captures the same application's visible official
    review values and screenshots into the private run directory. The
    orchestrator compares them against values read back from filled controls;
@@ -100,7 +135,9 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    stale queue reason, redacting known answers/secrets and excluding raw context.
    `recovered-application.ts` waits for an explicitly recoverable form page
    after Retrieve navigation, then verifies the captured official Application
-   ID. Its browser regression in `__tests__/recovered-application.spec.ts`
+   ID. A missing ID may wait within a bounded readiness window; a nonempty
+   different ID fails immediately, including before and after a rewind.
+   Its browser regression in `__tests__/recovered-application.spec.ts`
    must reject transient/terminal surfaces and mismatched IDs.
    Captured resumes rewind through an observed official Personal Information 1
    link before refilling, so changes to earlier answers are not omitted when

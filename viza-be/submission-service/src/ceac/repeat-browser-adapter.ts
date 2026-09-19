@@ -41,6 +41,7 @@ import {
   type RepeatSelectorEvidence,
 } from "./repeat-groups";
 import { waitForAspNetPostback } from "./aspnet";
+import { CeacError } from "./errors";
 
 const REPEAT_CONTROL_SELECTOR =
   'a, button, input[type="submit"], input[type="button"], input[type="image"], [role="button"]';
@@ -668,6 +669,7 @@ async function clickControl(
     await control.locator.click({ timeout: 5_000 });
     await waitForAspNetPostback(page, 8_000);
   } catch (error) {
+    if (error instanceof CeacError) throw error;
     throw new Ds160RepeatBrowserError(
       "control_click_failed",
       contract.group,

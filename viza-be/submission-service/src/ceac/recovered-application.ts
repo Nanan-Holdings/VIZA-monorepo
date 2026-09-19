@@ -2,6 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { captureApplicationId } from "./checkpoints";
 import { detectPage, waitForPage, type CeacPageId } from "./pages";
 import { CEAC_URLS } from "./selectors";
+import type { CeacSession } from "./session";
 
 /**
  * CEAC pages on which a retrieved, still-in-progress DS-160 can safely
@@ -44,6 +45,23 @@ export interface RecoveredDs160LandingOptions {
 export interface RewindRecoveredDs160Options extends RecoveredDs160LandingOptions {
   /** Page identity already verified by assertRecoveredDs160Application. */
   currentPageId?: CeacPageId;
+}
+
+/** Reconnect only a dropped transport, preserving the exact draft and page. */
+export async function reconnectVerifiedCeacPage(
+  session: CeacSession,
+  expectedApplicationId: string,
+  allowedPageIds: readonly CeacPageId[],
+  options: RecoveredDs160LandingOptions = {},
+): Promise<boolean> {
+  if (session.browser.isConnected() || !session.reconnect) return false;
+  await session.reconnect();
+  assertOfficialCeacOrigin(session.page.url());
+  const pageId = await assertRecoveredDs160Application(session.page, expectedApplicationId, options);
+  if (!allowedPageIds.includes(pageId)) {
+    throw new Error("DS-160 browser reconnection returned an unexpected official page.");
+  }
+  return true;
 }
 
 const RECOVERED_APPLICATION_ID_TIMEOUT_MS = 10_000;
@@ -140,11 +158,12 @@ async function assertCurrentApplicationId(
   await waitForExpectedApplicationId(page, expectedApplicationId, options);
 }
 
-async function waitForExpectedApplicationId(
+export async function waitForExpectedApplicationId(
   page: Page,
   expectedApplicationId: string,
-  options: RecoveredDs160LandingOptions,
-): Promise<void> {
+  options: RecoveredDs160LandingOptions = {},
+  errorMessage = RECOVERED_APPLICATION_ID_ERROR,
+): Promise<string> {
   const expected = expectedApplicationId.trim().toUpperCase();
   const timeoutMs = Math.max(
     0,
@@ -162,14 +181,14 @@ async function waitForExpectedApplicationId(
 
     if (actual) {
       if (actual !== expected) {
-        throw new Error(RECOVERED_APPLICATION_ID_ERROR);
+        throw new Error(errorMessage);
       }
-      return;
+      return actual;
     }
 
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) {
-      throw new Error(RECOVERED_APPLICATION_ID_ERROR);
+      throw new Error(errorMessage);
     }
 
     await page.waitForTimeout(Math.min(pollIntervalMs, remainingMs));

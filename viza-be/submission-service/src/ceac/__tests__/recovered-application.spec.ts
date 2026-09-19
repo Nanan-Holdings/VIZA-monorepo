@@ -4,9 +4,39 @@ import { chromium } from "@playwright/test";
 import {
   assertRecoveredDs160Application,
   rewindRecoveredDs160ApplicationToPersonalInformation1,
+  reconnectVerifiedCeacPage,
 } from "../recovered-application";
+import type { CeacSession } from "../session";
+import type { Browser } from "@playwright/test";
 
 const APPLICATION_ID = "AA00TEST1234";
+
+test("transport reconnection preserves the same official application and allowed page", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  let reconnects = 0;
+  const disconnected = { isConnected: () => false } as unknown as Browser;
+  const session: CeacSession = {
+    browser, context: page.context(), page, close: async () => undefined,
+    async reconnect() { reconnects++; this.browser = browser; },
+  };
+  try {
+    await openOfficialMockPage(page, `<h2>Personal Information 2</h2><span id="lblAppID">${APPLICATION_ID}</span>`);
+    assert.equal(await reconnectVerifiedCeacPage(session, APPLICATION_ID, ["personal_information_2"]), false);
+    assert.equal(reconnects, 0);
+    session.browser = disconnected;
+    assert.equal(await reconnectVerifiedCeacPage(session, APPLICATION_ID, ["personal_information_2"]), true);
+    assert.equal(reconnects, 1);
+    session.browser = disconnected;
+    await assert.rejects(reconnectVerifiedCeacPage(session, APPLICATION_ID, ["travel_information"]), /unexpected official page/);
+    await page.locator('#lblAppID').evaluate(node => { node.textContent = 'AA00OTHER1234'; });
+    session.browser = disconnected;
+    await assert.rejects(reconnectVerifiedCeacPage(session, APPLICATION_ID, ["personal_information_2"]), /different or missing CEAC Application ID/);
+    await page.goto('about:blank');
+    session.browser = disconnected;
+    await assert.rejects(reconnectVerifiedCeacPage(session, APPLICATION_ID, ["personal_information_2"]), /official CEAC origin/);
+  } finally { await browser.close(); }
+});
 
 async function openOfficialMockPage(
   page: import("@playwright/test").Page,

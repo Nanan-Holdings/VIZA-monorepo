@@ -53,6 +53,41 @@ test("selected specific travel dates activate their actual date controls", () =>
   assert.equal(policy.isMappingActive("intended_arrival_date_day"), false);
 });
 
+test("parent DOB and in-US controls deactivate only when both names are unknown", () => {
+  const bothUnknown = createDs160BranchPolicy({
+    father_surname: "DO_NOT_KNOW",
+    father_given_names: "DO_NOT_KNOW",
+    mother_surname: "DO_NOT_KNOW",
+    mother_given_names: "DO_NOT_KNOW",
+  });
+  for (const fieldName of [
+    "father_dob_day", "father_dob_month", "father_dob_year", "father_in_us",
+    "mother_dob_day", "mother_dob_month", "mother_dob_year", "mother_in_us",
+  ]) {
+    assert.equal(bothUnknown.isMappingActive(fieldName), false, fieldName);
+  }
+
+  const oneUnknown = createDs160BranchPolicy({
+    father_surname: "DO_NOT_KNOW",
+    father_given_names: "KNOWN",
+    mother_surname: "KNOWN",
+    mother_given_names: "DO_NOT_KNOW",
+  });
+  for (const fieldName of [
+    "father_dob_day", "father_dob_month", "father_dob_year", "father_in_us",
+    "mother_dob_day", "mother_dob_month", "mother_dob_year", "mother_in_us",
+  ]) {
+    assert.equal(oneUnknown.isMappingActive(fieldName), true, fieldName);
+  }
+
+  const requiredAnswers = completeRequiredFixture();
+  requiredAnswers.father_surname = "DO_NOT_KNOW";
+  requiredAnswers.father_given_names = "DO_NOT_KNOW";
+  delete requiredAnswers.father_date_of_birth;
+  delete requiredAnswers.father_in_us;
+  assert.doesNotThrow(() => assertDs160RequiredAnswers(requiredAnswers));
+});
+
 test("legacy provider NONE and second-row aliases reach repeat fields without replacing canonical answers", () => {
   const rows = ds160RepeatAnswers({ social_media_platform: "EXISTING" }, {
     social_media_provider: "NONE", social_media_provider__2: "SECOND", social_media_identifier__2: "handle",
@@ -190,6 +225,12 @@ test("placeholder preflight ignores inactive branches and their translated alias
   assert.deepEqual(findDs160PlaceholderFields({
     other_names_used: "no", other_surname: "请填写曾用姓氏", other_surname_en: "Please enter your surname",
     has_specific_plans: "yes", intended_length_of_stay_value: "请填写停留时间",
+  }), []);
+});
+
+test("placeholder preflight respects an explicitly cleared answer over a stale English prompt", () => {
+  assert.deepEqual(findDs160PlaceholderFields({
+    home_address_line2: "", home_address_line2_en: "Please enter your apartment",
   }), []);
 });
 

@@ -119,8 +119,16 @@ and must fail closed; callers must not perform a direct table settlement.
   a 35-minute default DS-160 live cutoff (`1800 + 300` seconds), 30-minute stale
   maintenance with a batch of 100 capped at 500, and a 120-second Fly idle
   grace when idle exit is enabled. Runner machine slots use a 30-minute lease
-  renewed every 60 seconds. The active DS-160 heartbeat is every 60 seconds.
+  renewed every 60 seconds. The active DS-160 heartbeat renews the legacy
+  `submission_queue` lease through the service-role-only
+  `renew_submission_queue_lease` RPC every 60 seconds. The RPC uses a
+  server-clock owner/status/expiry fence; an empty/error renewal aborts and
+  closes CEAC, and the stale worker skips queue/application settlement writes.
 - DS-160 browser state is an ephemeral CEAC Browserbase or Chromium context.
+  A dropped Browserbase control connection may reconnect to the same provider
+  session only after the official origin, Application ID and allowed page are
+  verified. CEAC uses a 1,800-second provider TTL and explicitly releases the
+  provider session on close; final signing is never replayed by reconnect logic.
   Mid-flow expiry creates a fresh context and retrieves the application with
   the persisted Application ID, surname prefix, birth year, and security answer.
   Captured `.dat` Save-to-File artifacts, checkpoints, screenshots and result

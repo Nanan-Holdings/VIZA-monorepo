@@ -1,8 +1,43 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { deriveDS160Answers } from "../ds160-derive-answers";
+import { buildDs160AnswerMap, deriveDS160Answers } from "../ds160-derive-answers";
 
 describe("deriveDS160Answers", () => {
+  it("preserves an explicit empty answer over stale profile or English aliases", () => {
+    const answers = buildDs160AnswerMap([
+      { field_name: "given_names", value_text: "", value_json: null },
+      { field_name: "given_names_en", value_text: "STALE GIVEN NAMES", value_json: null },
+      { field_name: "surname", value_text: "STALE SURNAME", value_json: "" },
+    ]);
+
+    assert.ok(Object.prototype.hasOwnProperty.call(answers, "given_names"));
+    assert.equal(answers.given_names, "");
+    assert.equal(answers.surname, "");
+
+    const derived = deriveDS160Answers({ ...answers });
+    assert.equal(derived.given_names, "");
+    assert.equal(derived.surname, "");
+  });
+
+  it("clears stale mechanical alias targets while preserving non-empty target compatibility", () => {
+    const cleared = {
+      home_address_state_province: "",
+      home_address_state: "OLD STATE",
+    };
+
+    deriveDS160Answers(cleared);
+    assert.equal(cleared.home_address_state, "");
+    deriveDS160Answers(cleared);
+    assert.equal(cleared.home_address_state, "");
+
+    const compatible = {
+      home_address_state_province: "NEW STATE",
+      home_address_state: "EXISTING TARGET",
+    };
+    deriveDS160Answers(compatible);
+    assert.equal(compatible.home_address_state, "EXISTING TARGET");
+  });
+
   it("preserves a native-script name even when a translated alias is saved", () => {
     const answers = deriveDS160Answers({
       full_name_native_alphabet: "张三",

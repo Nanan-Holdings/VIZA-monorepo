@@ -12,6 +12,7 @@
 import type { Page } from "@playwright/test";
 import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type CaptchaSolveTelemetry } from "../captcha";
 import { SessionBootstrapError } from "./errors";
+import { isGateError } from "./gates";
 import { CEAC_URLS } from "./selectors";
 import { waitForAspNetPostback } from "./aspnet";
 import { gotoCeacStartPage } from "./start-page-navigation";
@@ -534,7 +535,8 @@ export async function solveStartPageCaptchaWithRetry(
           }
           try {
             await gotoCeacStartPage(page, 30_000);
-          } catch {
+          } catch (err) {
+            if (isGateError(err)) throw err;
             await page.waitForTimeout(1_000);
           }
           continue;
@@ -572,7 +574,8 @@ export async function solveStartPageCaptchaWithRetry(
         // gives us a clean start-page structure.
         try {
           await gotoCeacStartPage(page, 30_000);
-        } catch {
+        } catch (err) {
+          if (isGateError(err)) throw err;
           await page.waitForTimeout(1_000);
         }
         continue;
@@ -617,7 +620,8 @@ export async function solveStartPageCaptchaWithRetry(
         // Reload before retry — same reasoning as the wrong_answer branch.
         try {
           await gotoCeacStartPage(page, 30_000);
-        } catch {
+        } catch (err) {
+          if (isGateError(err)) throw err;
           await page.waitForTimeout(1_000);
         }
         continue;

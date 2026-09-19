@@ -22,7 +22,7 @@ import {
   DS160_SAVE_SELECTOR,
   DS160_MAPPING_GROUPS,
 } from "./ds160-form-mappings";
-import { deriveDS160Answers } from "./ds160-derive-answers";
+import { buildDs160AnswerMap, deriveDS160Answers } from "./ds160-derive-answers";
 import { assertDs160RequiredAnswers, Ds160PlaceholderAnswersError, Ds160RequiredAnswersError } from "./ceac/field-contract";
 import { assertDs160PreparerAnswers } from "./ceac/signature-fields";
 import {
@@ -174,6 +174,9 @@ import {
   claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
+  startSubmissionQueueLeaseHeartbeat,
+  SubmissionQueueOwnershipLostError,
+  type SubmissionQueueLeaseHeartbeat,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
@@ -1388,7 +1391,10 @@ function applyEnglishAliases(answers: Record<string, string>): void {
     if (!baseKey) continue;
 
     const current = answers[baseKey];
-    if (!current || HAS_CJK.test(current)) {
+    // An explicitly cleared canonical answer must not be replaced by a stale
+    // English alias. Only a missing key or an existing native-script value may
+    // use the English alias.
+    if (current === undefined || HAS_CJK.test(current)) {
       answers[baseKey] = value;
     }
   }
@@ -1471,11 +1477,7 @@ async function loadDs160Answers(
 
   if (error) throw new Error(`Failed to load DS-160 answers: ${error.message}`);
 
-  const answers: Record<string, string> = {};
-  for (const row of (data ?? []) as VisaApplicationAnswer[]) {
-    const value = row.value_json != null ? String(row.value_json) : row.value_text;
-    if (value) answers[row.field_name] = value;
-  }
+  const answers = buildDs160AnswerMap((data ?? []) as VisaApplicationAnswer[]);
 
   if (options.prepareForCeac) {
     applyEnglishAliases(answers);
@@ -2385,6 +2387,24 @@ async function processDs160LiveConfigBlockedItem(
 
 // ─── DS-160 Job Processor (CEAC runtime pipeline) ──────────────────────────
 
+async function updateOwnedDs160Queue(
+  item: SubmissionQueueItem,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const ownerId = item.locked_by?.trim();
+  if (!ownerId) throw new SubmissionQueueOwnershipLostError("DS-160 queue lease owner is missing");
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .update(patch)
+    .eq("id", item.id)
+    .eq("locked_by", ownerId)
+    .gt("locked_until", new Date().toISOString())
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Failed to update owned DS-160 queue row: ${error.message}`);
+  if (!data) throw new SubmissionQueueOwnershipLostError();
+}
+
 async function processDs160Item(
   item: SubmissionQueueItem,
   config: Ds160SubmissionConfig,
@@ -2456,31 +2476,13 @@ async function processDs160Item(
     allowCapturedResume: capturedResumeCheckpoint !== null,
   }))) return;
 
-  await supabase
-    .from("submission_queue")
-    .update({
-      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", item.id);
-  await setSubmissionStatus(item.application_id, "processing");
-
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
-  const heartbeatTimer = setInterval(() => {
-    void supabase
-      .from("submission_queue")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", item.id)
-      .in("status", ["ds160_live_assisted_processing", "ds160_prefill_processing"])
-      .then(({ error }) => {
-        if (error) {
-          console.warn(
-            `[ceac] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${error.message}`,
-          );
-        }
-      });
-  }, 60_000);
+  let queueLease: SubmissionQueueLeaseHeartbeat | null = null;
+  const assertQueueLeaseOwned = (): void => {
+    if (!queueLease) throw new SubmissionQueueOwnershipLostError();
+    queueLease.assertOwned();
+  };
 
   const tracker = createRecoveryTracker({ runId });
   let recoveryCheckpointAttempted = false;
@@ -2491,6 +2493,31 @@ async function processDs160Item(
     .map(([, value]) => value ?? "");
 
   try {
+    // Fence the transition to processing, then renew through the service-only
+    // RPC before any CEAC browser is opened. Later renewal loss closes the
+    // active session and skips all stale settlement writes.
+    await updateOwnedDs160Queue(item, {
+      status: liveAssisted ? "ds160_live_assisted_processing" : "ds160_prefill_processing",
+      updated_at: new Date().toISOString(),
+    });
+
+    queueLease = await startSubmissionQueueLeaseHeartbeat({
+      client: supabase,
+      queueId: item.id,
+      workerId: item.locked_by ?? "",
+      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+      onOwnershipLost: async () => {
+        if (session) {
+          session.reconnect = async () => {
+            throw new SubmissionQueueOwnershipLostError();
+          };
+          await session.close().catch(() => undefined);
+        }
+      },
+    });
+
+    await setSubmissionStatus(item.application_id, "processing");
+
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
     const { profile, documents } = await loadApplicantData(item.application_id);
@@ -2554,6 +2581,7 @@ async function processDs160Item(
       // server-authorized captured-resume job is running.
       ...(capturedResumeActive ? { startAction: "retrieve" as const } : {}),
     });
+    assertQueueLeaseOwned();
     // Record bootstrap checkpoint — proves CEAC start page was reached
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
 
@@ -2623,7 +2651,13 @@ async function processDs160Item(
           passportNumber: passportNumberForSignature,
           savedPreparerAssistance,
           savedPreparerDetails: answers,
-          finalSubmissionGuard,
+          finalSubmissionGuard: {
+            ...finalSubmissionGuard,
+            begin: async () => {
+              assertQueueLeaseOwned();
+              return finalSubmissionGuard.begin();
+            },
+          },
         }
       : undefined;
 
@@ -2639,6 +2673,7 @@ async function processDs160Item(
       photo: photoFile,
       finalSubmit,
       branchAnswers,
+      assertActive: assertQueueLeaseOwned,
       recoveryCredentials: {
         applicationId: recoveryIdentity.applicationId,
         surnameFirstFive,
@@ -2646,18 +2681,24 @@ async function processDs160Item(
         securityAnswer: recoveryIdentity.securityAnswer,
       },
     });
+    // orchestrateFill intentionally captures page errors into its result;
+    // re-check here so a heartbeat loss cannot continue into any persisted
+    // result or final-submit settlement path.
+    assertQueueLeaseOwned();
 
     // Upload .dat artifact to Supabase Storage if captured. The path is
     // user-prefixed for RLS — fall back to applicantId if the profile has
     // no auth_user_id (legacy rows from before Supabase Auth was wired).
     let storagePath = "";
     if (datArtifact) {
+      assertQueueLeaseOwned();
       const ownerId = profile.auth_user_id ?? profile.id;
       storagePath = await uploadDs160Dat(datArtifact.path, item.application_id, ownerId);
     }
 
     // Persist Application ID and .dat metadata
     if (result.applicationId) {
+      assertQueueLeaseOwned();
       const retrievalUrl = `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${result.applicationId}`;
       await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, storagePath);
     }
@@ -2668,19 +2709,9 @@ async function processDs160Item(
       : {};
 
     if (isSubmittedResult(result)) {
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: "ds160_submitted",
-          current_stage: "submitted",
-          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
-          live_submitted_at: result.submittedAt,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-
       const applicationId = result.applicationId ?? recoveryIdentity.applicationId;
       const ownerId = profile.auth_user_id ?? profile.id;
+      assertQueueLeaseOwned();
       const proofStoragePaths = await uploadDs160ProofArtifacts(
         await captureDs160ProofArtifacts(session.page, tempDir),
         item.application_id,
@@ -2712,7 +2743,21 @@ async function processDs160Item(
             "This confirms the submission of the Nonimmigrant visa application for:",
         },
       };
+      assertQueueLeaseOwned();
       await writeSubmissionResult(item.application_id, usPayload, "submitted");
+      // Proof/result persistence must finish while the row is still in a
+      // processing state: the renewal RPC intentionally stops once the row
+      // becomes terminal. Drain one last renewal before the fenced terminal
+      // queue transition so a completed CEAC submit cannot lose its result.
+      await queueLease?.stopRenewal();
+      assertQueueLeaseOwned();
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_submitted",
+        current_stage: "submitted",
+        ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
+        live_submitted_at: result.submittedAt,
+        updated_at: new Date().toISOString(),
+      });
 
       console.log(
         `[ceac] Run ${runId} submitted for application=${redactIdentifier(item.application_id)} ceac=${redactIdentifier(applicationId)}`,
@@ -2720,15 +2765,6 @@ async function processDs160Item(
     } else if (isSuccessResult(result)) {
       // Handoff-ready: form filled up to Sign and Submit page.
       // Persist full CEAC result payload for operator diagnostics.
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: "ds160_prefilled",
-          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-
       // Write the user-facing UsSubmissionResult to applications so the
       // frontend's realtime subscription can swap StatusStep to UsResultCard.
       // embassyOrConsulate is sourced from form answers; falls back to a
@@ -2751,7 +2787,15 @@ async function processDs160Item(
         ...(storagePath ? { datStoragePath: storagePath } : {}),
         finalSubmissionMode: "applicant_handoff",
       };
+      assertQueueLeaseOwned();
       await writeSubmissionResult(item.application_id, usPayload, "stopped_at_sign");
+      await queueLease?.stopRenewal();
+      assertQueueLeaseOwned();
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_prefilled",
+        ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString(),
+      });
 
       console.log(
         `[ceac] Run ${runId} handoff_ready for application=${redactIdentifier(item.application_id)}`,
@@ -2808,16 +2852,13 @@ async function processDs160Item(
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
           ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       if (newAttempts >= MAX_ATTEMPTS) {
         await markSubmissionFailed(item.application_id, errorMsg);
@@ -2825,6 +2866,16 @@ async function processDs160Item(
       }
     }
   } catch (err) {
+    // A lost legacy lease is a concurrent ownership conflict. The heartbeat
+    // has already aborted and closed CEAC; do not write queue/application
+    // status because a replacement worker may own the row now.
+    if (err instanceof SubmissionQueueOwnershipLostError || queueLease?.isOwnershipLost()) {
+      console.warn(
+        `[ceac] DS-160 queue lease ownership lost for queue=${redactIdentifier(item.id)}; stopping without settlement`,
+      );
+      return;
+    }
+
     const recovery = session
       ? await preserveRecoveryOnFailure({
           tracker,
@@ -2878,9 +2929,7 @@ async function processDs160Item(
         errorMsg,
       );
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: "ds160_blocked",
           last_error: `[CEAC manual action: ${err.actionType}] ${errorMsg}`,
           ceac_result_payload: {
@@ -2893,8 +2942,7 @@ async function processDs160Item(
             ...exceptionCaptchaTelemetry,
           },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       await writeSubmissionResult(
         item.application_id,
@@ -2913,9 +2961,7 @@ async function processDs160Item(
         await updateDs160Metadata(item.application_id, result.applicationId, retrievalUrl, "");
       }
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: "ds160_blocked",
           last_error: `[CEAC gate: ${err.context.details?.gateKind ?? "unknown"}] ${errorMsg}`,
           ceac_result_payload: {
@@ -2924,8 +2970,7 @@ async function processDs160Item(
             ...exceptionCaptchaTelemetry,
           },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       await markSubmissionFailed(item.application_id, `[CEAC gate] ${errorMsg}`);
       await sendDs160FailureAlertIfEnabled(
@@ -2950,16 +2995,13 @@ async function processDs160Item(
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateOwnedDs160Queue(item, {
           status: newStatus,
           attempts: newAttempts,
           last_error: errorMsg,
           ceac_result_payload: { ...result as unknown as Record<string, unknown>, ...exceptionCaptchaTelemetry },
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       if (newAttempts >= MAX_ATTEMPTS) {
         console.error(
@@ -2970,7 +3012,7 @@ async function processDs160Item(
       }
     }
   } finally {
-    clearInterval(heartbeatTimer);
+    await queueLease?.stopRenewal();
     if (session) await session.close();
     if (process.env.DS160_KEEP_TEMP === "1") {
       console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);

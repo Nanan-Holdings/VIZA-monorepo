@@ -26,7 +26,8 @@ export interface BrowserbaseCloudBrowser {
 
 /**
  * An opt-in Browserbase handle for flows that can recover a dropped CDP
- * transport before their first navigation. The browser, context, and page are
+ * transport where the caller can re-verify its page and application identity.
+ * The browser, context, and page are
  * getters because a recovery replaces those transport objects.
  */
 export interface ReconnectableBrowserbaseCloudBrowser {
@@ -573,7 +574,7 @@ class ReconnectableBrowserbaseCloudBrowserImpl implements ReconnectableBrowserba
 
 export async function connectReconnectableBrowserbaseCloudBrowser(options: {
   prefix: string;
-  /** Kept for call-site parity; this opt-in connector always uses 900 seconds. */
+  /** Defaults to 900 seconds; long form workflows may explicitly select 1800. */
   timeoutSeconds?: number;
   /** Test-only transport injection; production callers omit this. */
   fetchImpl?: FetchLike;
@@ -588,7 +589,7 @@ export async function connectReconnectableBrowserbaseCloudBrowser(options: {
       prefix: options.prefix,
       fetchImpl: options.fetchImpl,
       keepAlive: true,
-      timeoutSeconds: RECONNECTABLE_SESSION_TIMEOUT_SECONDS,
+      timeoutSeconds: options.timeoutSeconds === 1800 ? 1800 : RECONNECTABLE_SESSION_TIMEOUT_SECONDS,
     });
     const connectOverCDP = options.connectOverCDPImpl ?? chromium.connectOverCDP.bind(chromium);
     browser = await connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
