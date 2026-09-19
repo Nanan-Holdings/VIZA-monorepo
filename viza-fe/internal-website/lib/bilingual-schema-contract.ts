@@ -1,6 +1,7 @@
 import type { VisaFormFieldOption, VisaFormFieldRow } from "../types/visa-form-fields";
 import {
   getChineseLabel,
+  getExactDs160ChineseLabel,
   getChineseOptionText,
   getChinesePlaceholder,
   getEnglishLabel,
@@ -1571,6 +1572,13 @@ function deriveChineseFromLabel(field: FieldLike): string | null {
 }
 
 export function deriveChineseFieldLabel(field: FieldLike): string {
+  // Official questions must retain their full meaning even if an earlier
+  // normalization cached a vague generated label in validationRules.
+  const officialQuestion = clean(field.label);
+  if (field.visaType === "DS160" && officialQuestion.includes("?")) {
+    const exactQuestion = getExactDs160ChineseLabel(officialQuestion);
+    if (exactQuestion) return stripDs160EnglishParenthetical(exactQuestion);
+  }
   const normalizedFieldName = normalizeFieldName(field.fieldName);
   const direct = FIELD_NAME_ZH_OVERRIDES[normalizedFieldName];
   const taiwanDirect = TW_FIELD_NAME_ZH[normalizedFieldName] ?? direct;
@@ -1732,12 +1740,21 @@ function deriveChineseOptionLabel(
     if (usRegionLabel !== rawText) return usRegionLabel;
   }
 
+  const normalizedValue = value.toLowerCase();
+  const normalizedFieldName = normalizeFieldName(context.fieldName ?? "");
+  if (
+    context.visaType === "DS160"
+    && normalizedFieldName === "marital_status"
+    && (normalizedValue === "single" || rawText.toLowerCase() === "single")
+  ) {
+    return "未婚";
+  }
+
   if (typeof option !== "string") {
     const existing = clean(option.label_zh);
     if (existing && hasCjk(existing)) return existing;
   }
 
-  const normalizedValue = value.toLowerCase();
   const exact = OPTION_ZH_BY_VALUE[normalizedValue] ?? OPTION_ZH_BY_VALUE[rawText.toLowerCase()];
   if (exact) return exact;
 

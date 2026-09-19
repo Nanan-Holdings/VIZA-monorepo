@@ -44,6 +44,12 @@ choice without placing the sentinel inside its digits. Keep the full-form
 required/NA contract covered by
 `components/__tests__/dynamic-step-form-ssn-validation.test.tsx`.
 
+DS-160 official questions with maintained exact translations must take
+precedence over generated labels and stale translated metadata. Do not collapse
+distinct safety declarations into generic crime/family questions. Localize
+marital status SINGLE as 未婚 while preserving 单次 for entry counts; both
+contracts are covered by `lib/__tests__/bilingual-schema-contract.test.ts`.
+
 Dynamic long-form input must avoid whole-page work per keystroke. Keep step
 objects, callbacks and navigation lists stable; `DynamicStepForm` uses shallow
 memoization without ignoring cross-field inputs. Field validation shares a

@@ -50,6 +50,7 @@
 **/playwright-report
 **/screenshots
 **/browser-evidence
+**/design-system/uploads
 **/.mcp*
 **/.agents
 **/.claude

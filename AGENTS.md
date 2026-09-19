@@ -41,6 +41,14 @@ that CLI configuration and require the exact username and email above. If the
 organization credentials are missing or expired, authenticate nananviza only;
 never substitute another account to unblock deployment.
 
+The current Vercel team uses Hobby, which also checks the Git commit author.
+Before a release, verify the author of the release commit as well as the CLI
+identity. For new release changes authored on behalf of VIZA, use the verified
+organization identity (`viza-gmail <nanan.viza2016@gmail.com>`) for that commit
+without changing the workstation's global Git identity. Preserve existing
+commit authors; never amend history or strip Git metadata to evade this check.
+Adding external contributors requires an explicitly approved collaboration plan.
+
 ## Local Test Admin
 
 Use this admin account for local portal smoke testing:

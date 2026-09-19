@@ -123,6 +123,77 @@ describe("bilingual schema contract", () => {
     expect(zhOptions?.every((option) => typeof option === "string" || !/[A-Za-z]\s*[()（）]/.test(option.text ?? ""))).toBe(true);
   });
 
+  it("uses the DS-160 marital meaning for SINGLE without changing entry meanings", () => {
+    const marital = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "marital_status",
+      label: "Marital Status",
+      fieldType: "select",
+      options: [{ value: "SINGLE", text: "SINGLE", label_zh: "单次" }, { value: "MARRIED", text: "MARRIED" }],
+    }));
+    const entries = normalizeBilingualFormField(field({
+      fieldName: "number_of_entries",
+      label: "Number of entries",
+      fieldType: "select",
+      options: [{ value: "single", text: "Single" }, { value: "multiple", text: "Multiple" }],
+    }));
+
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).toBe("未婚");
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).not.toContain("单次");
+    expect(resolveOptionDisplayLabel(marital.options, "SINGLE", "zh")).not.toMatch(/[A-Za-z()（）]/);
+    expect(resolveOptionDisplayLabel(entries.options, "single", "zh")).toBe("单次");
+    expect(resolveOptionDisplayLabel(normalizeBilingualFormField(marital).options, "SINGLE", "zh")).toBe("未婚");
+  });
+
+  it("keeps the exact DS-160 human-trafficking translations ahead of generic offense wording", () => {
+    const questions = [
+      [
+        "Have you ever committed or conspired to commit a human trafficking offense in the United States or outside the United States?",
+        "您是否曾在美国境内或境外实施或密谋实施人口贩运罪行？",
+      ],
+      [
+        "Have you ever knowingly aided, abetted, assisted or colluded with an individual who has committed, or conspired to commit a severe human trafficking offense in the United States or outside the United States?",
+        "您是否曾故意帮助、教唆、协助或与在美国境内或境外实施或密谋实施严重人口贩运罪行的个人合谋？",
+      ],
+      [
+        "Are you the spouse, son, or daughter of an individual who has committed or conspired to commit a human trafficking offense in the United States or outside the United States and have you within the last five years, knowingly benefited from the trafficking activities?",
+        "您是否是在美国境内或境外实施或密谋实施人口贩运罪行的个人的配偶、儿子或女儿，并且在过去五年内是否故意从贩运活动中获益？",
+      ],
+    ] as const;
+
+    for (const [label, expected] of questions) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160",
+        fieldName: "human_trafficking_question",
+        label,
+        fieldType: "radio",
+        validationRules: { label_zh: "是否有需要申报的犯罪、逮捕或定罪记录？" },
+      }));
+
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(expected);
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).not.toContain("犯罪、逮捕或定罪");
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).not.toMatch(/[A-Za-z]/);
+      expect(resolveLocalizedFieldLabel(normalizeBilingualFormField(normalized), "zh")).toBe(expected);
+    }
+  });
+
+  it("restores complete DS-160 questions instead of cached generated fragments", () => {
+    const questions = [
+      ["Have you ever been issued a U.S. Visa?", "您是否曾获发美国签证？"],
+      ["Have you ever lost a passport or had one stolen?", "您是否曾丢失护照或护照被盗？"],
+      ["Are you a member or representative of a terrorist organization?", "您是否是恐怖组织的成员或代表？"],
+      ["Are you the spouse, son, or daughter of an individual who has engaged in terrorist activity, including providing financial assistance or other support to terrorists or terrorist organizations, in the last five years?", "您是否是在过去五年内从事过恐怖活动（包括向恐怖分子或恐怖组织提供财务援助或其他支持）的个人的配偶、儿子或女儿？"],
+    ] as const;
+    for (const [label, expected] of questions) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160", label, fieldType: "radio",
+        validationRules: { label_zh: "是否家庭？" },
+      }));
+      expect(resolveLocalizedFieldLabel(normalized, "zh")).toBe(expected);
+      expect(resolveLocalizedFieldLabel(normalizeBilingualFormField(normalized), "zh")).toBe(expected);
+    }
+  });
+
   it("uses Chinese DS-160 labels for state options without changing codes", () => {
     const normalized = normalizeBilingualFormField(field({
       visaType: "DS160",

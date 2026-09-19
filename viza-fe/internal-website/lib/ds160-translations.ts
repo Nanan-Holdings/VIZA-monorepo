@@ -1734,6 +1734,11 @@ const REVERSE_VALUE_TRANSLATIONS = Object.entries(VALUE_TRANSLATIONS).reduce<Rec
   {},
 );
 
+/** Exact maintained DS-160 wording, without generated or generic fallbacks. */
+export function getExactDs160ChineseLabel(label: string): string | null {
+  return ZH_LABELS[label] ?? null;
+}
+
 export function getChineseLabel(label: string, fieldName?: string): string {
   return getExactChineseText(label) ?? generateChineseFromFieldName(fieldName) ?? generateChineseFromText(label) ?? label;
 }
