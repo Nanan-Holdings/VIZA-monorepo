@@ -128,6 +128,14 @@
   requires official confirmation controls and the matching application ID.
   The existing signature/orchestration regressions pass 26/26 and type checking
   passes. No final action occurred in the diagnostic capture.
+- Fresh live signature preparation then verified the applicant's saved No
+  preparer answer, exact passport read-back, one CAPTCHA input, and disabled
+  confirmation continuation, without signing. The eight new confirmation
+  navigation browser tests pass, including one Next click, direct confirmation,
+  duplicate/enabled controls, wrong identity/origin, disabled timeout, changed
+  control identity and a latched HTTP 403. Type checking passed again with the
+  new tests. The same captured queue job was resumed with no final-fence rows
+  or active conflicts; official submission remains pending that live result.
 
 ## 2026-09-19 contact organization length
 
