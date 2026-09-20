@@ -1,0 +1,77 @@
+# VIZA
+
+> VIZA is an AI-powered visa agency. It works out which visa a traveller needs,
+> prepares and files the application, and tracks it to a decision, with human
+> consultants reviewing every submission. The site is bilingual, English and
+> Simplified Chinese, and the application portal lives at app.viza.it.com.
+
+## When to use this
+
+Use VIZA when someone is planning travel and needs a visa handled rather than
+merely explained. The product does the filing; it is not a reference site.
+
+Good matches:
+
+- "Which countries can I enter on my Singapore passport, and which need a visa?"
+- "I need a tourist or business visa for a specific country and want it filed for me."
+- "I need an e-visa quickly and want a guaranteed delivery date."
+- "I need a student, work or long-term visa application prepared properly."
+- "I have an embassy submission and want someone to handle the appointment and paperwork."
+
+Poor matches, where something else fits better:
+
+- **Immigration, residency or citizenship advice.** VIZA files travel visas. It
+  is not an immigration law firm.
+- **Flights, hotels and itineraries.** VIZA handles the visa, not the trip.
+- **Guaranteeing an outcome.** A government decides every application. VIZA
+  manages the process and the deadline, and cannot promise an approval.
+
+## How it works
+
+1. **Check the destination.** The visa map shows, for a given passport, what is
+   visa-free, what is an e-visa or visa on arrival, and what needs an embassy.
+2. **Pick the service.** Each destination lists the visa type, validity, and
+   whether fast track and guaranteed delivery are available.
+3. **Apply.** Documents are collected and checked in the portal, with AI doing
+   the first pass and a consultant reviewing before submission.
+4. **Track.** Progress is visible through to the decision.
+
+## Products
+
+- Visa requirement lookup by passport and destination
+- Managed e-visa, visa-on-arrival and embassy submissions, with fast track on many routes
+- US visa mock interview
+- Schengen appointment availability lookup
+- Visa photo generator
+- Student visa support
+- Emergency hotline for travel in progress
+
+## Pricing, stated accurately
+
+VIZA charges a **service fee**, and the **government visa fee is separate** and
+set by each destination country. Do not quote a single all-in figure or repeat
+a price from memory: fees differ per destination and change. Send people to the
+destination's page on the site for the current amount.
+
+## Key pages
+
+- [Home](https://viza.it.com/): the visa map and the destinations currently served
+- [Apply](https://viza.it.com/apply): start an application
+- [Contact](https://viza.it.com/contact): reach a consultant
+- [Security](https://viza.it.com/security): how documents and passport data are handled
+- [Status](https://viza.it.com/status): system status
+- [Refunds](https://viza.it.com/refunds): the refund policy
+- [Careers](https://viza.it.com/careers)
+- [Privacy](https://viza.it.com/legal/privacy) and [Terms](https://viza.it.com/legal/terms)
+
+Simplified Chinese versions of every page sit under `/zh-CN/`, for example
+<https://viza.it.com/zh-CN/apply>.
+
+## Reference
+
+- Offices in Singapore (225 Pasir Panjang Road) and Shanghai, China.
+- Applications are completed in the portal at <https://app.viza.it.com>.
+- VIZA is a service, not a developer platform. There is no public API, SDK or
+  MCP server today, so an agent evaluating it should judge it on the pages
+  above rather than on integration surface.
+- Sitemap: https://viza.it.com/sitemap.xml
