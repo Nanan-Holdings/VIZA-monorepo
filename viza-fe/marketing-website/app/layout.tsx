@@ -1,11 +1,33 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { getLocale } from "next-intl/server";
 import { switzer, geist } from "./fonts";
 
-const gtmId = process.env.NEXT_PUBLIC_GTM_ID ?? "GTM-PK9WNC3D";
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
+/* GA4 property 546131559 ("VIZA", in the Kelin Studio Analytics account).
+   A constant with an env override rather than plain config, because the
+   variable was not set in production and the whole GA4 block below therefore
+   never rendered: viza.it.com's only measurement came from the GTM container,
+   which fires a different property that nobody here can open. A missing
+   environment variable is indistinguishable from a working install, and this
+   is a public client-side value, so it belongs where a diff shows it. */
+const gaMeasurementId =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "G-RKJ1ZKV7QK";
+
+// Checkout completes on the portal origin, so GA4 has to be told these two
+// hosts are one session — otherwise the purchase is attributed to a referral
+// from viza.it.com instead of to the campaign that actually paid for the visit.
+// Keep this list identical to the portal's `lib/analytics.ts`.
+const analyticsLinkerDomains = (
+  process.env.NEXT_PUBLIC_ANALYTICS_LINKER_DOMAINS ?? "viza.it.com,app.viza.it.com"
+)
+  .split(",")
+  .map((domain) => domain.trim())
+  .filter(Boolean);
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
 const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL ?? "https://app.viza.it.com").replace(/\/$/, "");
+const portalHostname = (() => { try { return new URL(portalUrl).hostname; } catch { return ""; } })();
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -13,6 +35,11 @@ const organizationJsonLd = {
   "@id": `${siteUrl}/#organization`,
   name: "VIZA",
   url: siteUrl,
+  /* Without a description an agent reading the graph knows the entity is
+     called VIZA and nothing about what it does, which is the difference
+     between being listed and being recommended. */
+  description:
+    "VIZA is an AI-powered visa agency. It plans, files and tracks tourist, business, work, student and long-term visa applications, with human consultants reviewing every submission.",
   logo: `${siteUrl}/assets/viza-logo-black.svg`,
   contactPoint: [
     {
@@ -52,14 +79,35 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale === "zh-CN" ? "zh-CN" : "en"} suppressHydrationWarning>
       <head>
+        <Script id="redact-beta-url" strategy="beforeInteractive">
+          {`
+            (function () {
+              function sanitizedLocation() {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('beta');
+                url.searchParams.delete('betaToken');
+                return url.toString();
+              }
+              var initialUrl = new URL(window.location.href);
+              var betaToken = (initialUrl.searchParams.get('betaToken') || initialUrl.searchParams.get('beta') || '').trim();
+              if (betaToken) window.__vizaPendingBetaToken = betaToken.slice(0, 128);
+              var cleanLocation = sanitizedLocation();
+              window.__vizaAnalyticsPageLocation = sanitizedLocation;
+              if (cleanLocation !== window.location.href) {
+                window.history.replaceState(window.history.state, '', cleanLocation);
+              }
+            })();
+          `}
+        </Script>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -68,24 +116,16 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
+        {/* Markdown twin of the home page, for agents and language models that
+            would rather read prose than execute a React bundle. Points at the
+            one page that has a twin: advertising a .md that does not exist is
+            worse than advertising none. */}
+        <link rel="alternate" type="text/markdown" href="/index.md" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
-        <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
         <link rel="preconnect" href={portalUrl} />
         <Script id="data-layer-init" strategy="beforeInteractive">
           {`window.dataLayer = window.dataLayer || [];`}
         </Script>
-        {/* Google AdSense loader, Kelin Studio publisher account. Kept out of
-            GTM on purpose: adsbygoogle.js is an ad-serving library rather than
-            a measurement tag, so Auto ads need it early to place slots on first
-            paint, and AdSense's reviewer reads the served HTML. A plain script
-            rather than next/script for that same reason: afterInteractive
-            injects it client side, where neither holds. Its origins are
-            allowlisted in the CSP in next.config.ts. */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8631844190242419"
-          crossOrigin="anonymous"
-        />
         {gtmId ? (
           <Script id="google-tag-manager" strategy="afterInteractive">
             {`
@@ -97,6 +137,21 @@ export default function RootLayout({
             `}
           </Script>
         ) : null}
+        {gaMeasurementId ? (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`} strategy="afterInteractive" />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
+                window.gtag('js', new Date());
+                window.gtag('config', '${gaMeasurementId}', {
+                  linker: { domains: ${JSON.stringify(analyticsLinkerDomains)} },
+                  page_location: window.__vizaAnalyticsPageLocation()
+                });
+              `}
+            </Script>
+          </>
+        ) : null}
         <Script id="marketing-click-tracking" strategy="afterInteractive">
           {`
             (function () {
@@ -107,7 +162,7 @@ export default function RootLayout({
                 window.dataLayer.push(Object.assign({
                   event: event,
                   page_path: window.location.pathname,
-                  page_location: window.location.href
+                  page_location: window.__vizaAnalyticsPageLocation()
                 }, params || {}));
               }
               document.addEventListener('click', function (event) {
@@ -119,7 +174,7 @@ export default function RootLayout({
                   var url = new URL(anchor.href);
                   var label = anchor.getAttribute('aria-label') || (anchor.textContent || '').trim();
                   var country = url.searchParams.get('country') || anchor.dataset.country || undefined;
-                  if (url.hostname === 'app.viza.it.com') {
+                  if (url.hostname === ${JSON.stringify(portalHostname)}) {
                     if (url.pathname.indexOf('/checkout/') === 0) {
                       push('checkout_start', {
                         destination_country: country,
