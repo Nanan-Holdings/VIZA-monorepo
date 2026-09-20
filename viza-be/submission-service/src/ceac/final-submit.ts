@@ -1,7 +1,8 @@
 import type { Page } from "@playwright/test";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN, CEAC_SIGN_AND_SUBMIT_MARKERS } from "./selectors";
-import { detectPage, isOfficialDs160ConfirmationPage } from "./pages";
+import { detectPage } from "./pages";
+import { prepareConfirmationContinuation, waitForDs160SubmissionConfirmation } from "./confirmation-navigation";
 import { detectSignAndSubmit } from "./stop-at-sign";
 import type { Ds160FinalSubmissionGuard } from "./final-submission-guard";
 import {
@@ -11,7 +12,7 @@ import {
 } from "./signature-fields";
 
 const FINAL_CAPTCHA_INPUT_SELECTOR =
-  'input[id*="CaptchaCodeTextBox"], input[id*="IdentifyCaptcha"][type="text"], input[id*="captcha" i][type="text"], input[name*="captcha" i]';
+  'input[id*="CaptchaCodeTextBox"], input[id*="IdentifyCaptcha"][type="text"], input[id*="captcha" i][type="text"], input[name*="captcha" i], input[id$="_CodeTextBox"][type="text"]';
 
 export interface FinalSubmitOptions {
   passportNumber: string;
@@ -74,6 +75,7 @@ export async function signAndSubmitApplication(
   if (!guard) {
     throw new Error("Persistent DS-160 final submission guard is required before the final click.");
   }
+  const continuation = await prepareConfirmationContinuation(page);
 
   // The final action is irreversible. Reserve the logical operation in the
   // database immediately before clicking. An existing started/unknown/
@@ -89,7 +91,7 @@ export async function signAndSubmitApplication(
   try {
     await clickFinalSubmit(page);
 
-    const submitted = await waitForConfirmation(page, expectedApplicationId, confirmationTimeoutMs);
+    const submitted = await waitForDs160SubmissionConfirmation(page, expectedApplicationId, confirmationTimeoutMs, continuation);
     if (!submitted) {
       throw new Error("Final DS-160 submission did not reach a verified confirmation after the one allowed click.");
     }
@@ -131,21 +133,6 @@ async function clickFinalSubmit(page: Page): Promise<void> {
     page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
     submitButton.click({ force: true, timeout: 10_000 }),
   ]);
-}
-
-async function waitForConfirmation(
-  page: Page,
-  expectedApplicationId: string,
-  timeoutMs: number,
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await isOfficialDs160ConfirmationPage(page, expectedApplicationId)) return true;
-    const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) break;
-    await page.waitForTimeout(Math.min(250, remainingMs));
-  }
-  return false;
 }
 
 function extractApplicationId(text: string): string | null {

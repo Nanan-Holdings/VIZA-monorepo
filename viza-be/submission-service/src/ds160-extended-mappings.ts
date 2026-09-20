@@ -87,6 +87,8 @@ interface FieldSpec {
   selectorTokens: readonly string[];
   condition?: string;
   repeatGroup?: string;
+  /** Evidence level for the selector tokens in this declaration. */
+  selectorEvidence?: Ds160SelectorEvidence;
   derivedFrom?: string;
   derivedPart?: "day" | "month" | "year";
 }
@@ -159,7 +161,7 @@ function addField(
   add({
     page,
     fieldName,
-    seedFieldName: options.derivedFrom ? options.derivedFrom : fieldName,
+    seedFieldName: options.seedFieldName ?? (options.derivedFrom ? options.derivedFrom : fieldName),
     seedType,
     mappingType,
     htmlTag: options.htmlTag ?? (seedType === "textarea" ? "textarea" : undefined),
@@ -167,6 +169,7 @@ function addField(
     selectorTokens,
     condition: options.condition,
     repeatGroup: options.repeatGroup,
+    selectorEvidence: options.selectorEvidence,
     derivedFrom: options.derivedFrom,
     derivedPart: options.derivedPart,
   });
@@ -181,12 +184,14 @@ function addDate(
   dayTokens: readonly string[],
   monthTokens: readonly string[],
   yearTokens: readonly string[],
+  selectorEvidence?: Ds160SelectorEvidence,
 ): void {
   dateSplits.push({ source, targetPrefix: source, monthAsAbbrev: true });
   addField(page, `${source}_day`, "date", label, dayTokens, {
     mappingType: "select",
     condition,
     repeatGroup,
+    selectorEvidence,
     derivedFrom: source,
     derivedPart: "day",
   });
@@ -194,6 +199,7 @@ function addDate(
     mappingType: "select",
     condition,
     repeatGroup,
+    selectorEvidence,
     derivedFrom: source,
     derivedPart: "month",
   });
@@ -201,6 +207,7 @@ function addDate(
     mappingType: "text",
     condition,
     repeatGroup,
+    selectorEvidence,
     derivedFrom: source,
     derivedPart: "year",
   });
@@ -958,19 +965,46 @@ addDate(
 );
 
 const education = [
-  ["education_institution_name", "Name of Institution", "text", ["EDUC_INST_NAME", "EDUCATION_INSTITUTION", "EDU_INSTITUTION_NAME"]],
-  ["education_address_line1", "Street Address (Line 1)", "text", ["EDUC_ADDR_LN1", "EDUCATION_ADDR_LN1"]],
-  ["education_address_line2", "Street Address (Line 2)", "text", ["EDUC_ADDR_LN2", "EDUCATION_ADDR_LN2"]],
-  ["education_city", "City", "text", ["EDUC_CITY", "EDUCATION_CITY"]],
-  ["education_state_province", "State/Province", "text", ["EDUC_STATE", "EDUCATION_STATE", "EDUC_STATE_PROVINCE"]],
-  ["education_postal_code", "Postal Zone/ZIP Code", "text", ["EDUC_POSTAL", "EDUCATION_POSTAL", "EDUC_ZIP"]],
-  ["education_country", "Country/Region", "select", ["EDUC_COUNTRY", "EDUCATION_COUNTRY"]],
-  ["education_course_of_study", "Course of Study", "text", ["EDUC_COURSE", "EDUCATION_COURSE", "COURSE_OF_STUDY"]],
+  ["education_institution_name", "Name of Institution", "text", ["tbxSchoolName"]],
+  ["education_address_line1", "Street Address (Line 1)", "text", ["tbxSchoolAddr1"]],
+  ["education_address_line2", "Street Address (Line 2)", "text", ["tbxSchoolAddr2"]],
+  ["education_city", "City", "text", ["tbxSchoolCity"]],
+  ["education_state_province", "State/Province", "text", ["tbxEDUC_INST_ADDR_STATE"]],
+  ["education_postal_code", "Postal Zone/ZIP Code", "text", ["tbxEDUC_INST_POSTAL_CD"]],
+  ["education_country", "Country/Region", "select", ["ddlSchoolCountry"]],
+  ["education_course_of_study", "Course of Study", "text", ["tbxSchoolCourseOfStudy"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of education) {
   addField("work_education_previous", fieldName, seedType, label, tokens, {
     condition: "has_attended_education === yes",
     repeatGroup: "education",
+    selectorEvidence: "repository_selector",
+  });
+}
+
+// CEAC renders the state and postal "Does Not Apply" controls as companions
+// to the education address text fields. They share the same ctlNN row token,
+// so they must be discovered and filled inside the same repeat-row scope.
+const educationAddressNa = [
+  [
+    "education_address_state_na",
+    "State/Province Does Not Apply",
+    ["cbxEDUC_INST_ADDR_STATE_NA"],
+    "education_state_province",
+  ],
+  [
+    "education_address_postal_na",
+    "Postal Zone/ZIP Code Does Not Apply",
+    ["cbxEDUC_INST_POSTAL_CD_NA"],
+    "education_postal_code",
+  ],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of educationAddressNa) {
+  addField("work_education_previous", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "has_attended_education === yes",
+    repeatGroup: "education",
+    selectorEvidence: "repository_selector",
   });
 }
 addDate(
@@ -979,9 +1013,10 @@ addDate(
   "Date of Attendance From",
   "has_attended_education === yes",
   "education",
-  ["ddlEDUC_DATE_FROMDay", "ddlEDUC_FROMDay", "EDUCATION_START_DAY"],
-  ["ddlEDUC_DATE_FROMMonth", "ddlEDUC_FROMMonth", "EDUCATION_START_MONTH"],
-  ["tbxEDUC_DATE_FROMYear", "tbxEDUC_FROMYear", "EDUCATION_START_YEAR"],
+  ["ddlSchoolFromDay"],
+  ["ddlSchoolFromMonth"],
+  ["tbxSchoolFromYear"],
+  "repository_selector",
 );
 addDate(
   "work_education_previous",
@@ -989,9 +1024,10 @@ addDate(
   "Date of Attendance To",
   "has_attended_education === yes",
   "education",
-  ["ddlEDUC_DATE_TO_Day", "ddlEDUC_TODay", "EDUCATION_END_DAY"],
-  ["ddlEDUC_DATE_TO_Month", "ddlEDUC_TOMonth", "EDUCATION_END_MONTH"],
-  ["tbxEDUC_DATE_TO_Year", "tbxEDUC_TOYear", "EDUCATION_END_YEAR"],
+  ["ddlSchoolToDay"],
+  ["ddlSchoolToMonth"],
+  ["tbxSchoolToYear"],
+  "repository_selector",
 );
 
 // ── Work/Education/Training: Additional ────────────────────────────────────
@@ -1174,7 +1210,7 @@ const mappingEntries = declarations.map((spec) => {
     seedType: spec.seedType,
     condition: spec.condition,
     repeatGroup: spec.repeatGroup,
-    selectorEvidence: "official_label_fallback",
+    selectorEvidence: spec.selectorEvidence ?? "official_label_fallback",
     officialLabel: spec.label,
     readBack: "required",
     derivedFrom: spec.derivedFrom,
@@ -1219,4 +1255,3 @@ export const DS160_EXTENDED_MAPPING_GROUPS: readonly Ds160ExtendedMappingGroup[]
     metadata: Object.fromEntries(pageEntries.map((entry) => [entry.fieldName, entry.metadata])),
   };
 });
-

@@ -4,6 +4,8 @@ import type { Page } from "@playwright/test";
 import { waitForAspNetPostback } from "./aspnet";
 import { detectPage } from "./pages";
 import { waitForExpectedApplicationId } from "./recovered-application";
+import type { ReviewTableRow } from "./review-table-contract";
+import { verifyTableReview } from "./review-table";
 
 export interface ReviewExpectation {
   section: string;
@@ -24,6 +26,7 @@ export interface ReviewSnapshot {
   url: string;
   applicationId: string;
   values: Array<{ id: string; text: string }>;
+  rows?: ReviewTableRow[];
 }
 
 export interface ReviewVerificationIssue {
@@ -38,7 +41,7 @@ export interface ReviewVerificationResult {
 }
 
 const OFFICIAL_CEAC_ORIGIN = "https://ceac.state.gov";
-const CONTROL_KIND_PATTERN = /(?:^|_)(tbx|ddl|rbl|cbx|lbl)_?/i;
+const CONTROL_KIND_PATTERN = /(?:^|_)(tbx|tb|ddl|rbl|cbx|cbex|lbl)_?/i;
 
 function normalizeValue(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
@@ -113,6 +116,54 @@ async function readVisibleReviewValues(page: Page): Promise<Array<{ id: string; 
   }));
 }
 
+async function readVisibleReviewRows(page: Page): Promise<ReviewTableRow[]> {
+  return page.locator(".ReviewSection").filter({visible: true}).evaluateAll(sections => {
+    const result: ReviewTableRow[] = [];
+    for (const section of sections) {
+      const titles = Array.from(section.querySelectorAll("table.title")).filter(title =>
+        title.closest(".ReviewSection") === section && title.getClientRects().length > 0);
+      if (titles.length !== 1) throw new Error("CEAC review section title is ambiguous.");
+      const group = (titles[0] as HTMLElement).innerText.replace(/\s+/g, " ").trim();
+      if (!/^Edit\b/i.test(group)) throw new Error("CEAC review section title is unsupported.");
+      let position = -1;
+      for (const row of Array.from(section.querySelectorAll("tr"))) {
+        position += 1;
+        if (row.closest(".ReviewSection") !== section || !row.getClientRects().length) continue;
+        let ancestor: Element | null = row;
+        let hidden = false;
+        while (ancestor) {
+          const style = window.getComputedStyle(ancestor);
+          const rect = ancestor.getBoundingClientRect();
+          if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0" ||
+            (rect.width === 0 && rect.height === 0)) { hidden = true; break; }
+          ancestor = ancestor.parentElement;
+        }
+        if (hidden) continue;
+        const table = row.closest("table");
+        if (!table?.classList.contains("mainstyle")) continue;
+        const cells = Array.from(row.children).filter(cell => cell.tagName === "TD");
+        if (cells.length !== 2) continue;
+        const data = Array.from(cells[1].children).filter(child => child.matches("div.data"));
+        if (data.length === 0) continue;
+        if (data.length !== 1) throw new Error("CEAC review value cell is ambiguous.");
+        const style = window.getComputedStyle(data[0]);
+        if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") continue;
+        const containerElement = row.closest("[id]");
+        const container = containerElement && containerElement !== section && section.contains(containerElement)
+          ? containerElement.id : "";
+        result.push({
+          group,
+          container,
+          position,
+          label: (cells[0] as HTMLElement).innerText.replace(/\s+/g, " ").trim(),
+          value: (data[0] as HTMLElement).innerText.replace(/\s+/g, " ").trim(),
+        });
+      }
+    }
+    return result;
+  });
+}
+
 /**
  * Capture only the review values whose own visible span/td has an ID. The
  * screenshot and JSON are private artifacts in outputDir; neither is logged.
@@ -149,9 +200,11 @@ export async function captureOfficialReviewPage(
   }
 
   const values = await readVisibleReviewValues(page);
+  const rows = await readVisibleReviewRows(page);
   await page.waitForTimeout(250);
   const settledValues = await readVisibleReviewValues(page);
-  if (JSON.stringify(values) !== JSON.stringify(settledValues)) {
+  const settledRows = await readVisibleReviewRows(page);
+  if (JSON.stringify(values) !== JSON.stringify(settledValues) || JSON.stringify(rows) !== JSON.stringify(settledRows)) {
     throw new Error("CEAC review page changed during evidence capture.");
   }
   const capturedApplicationId = await waitForExpectedApplicationId(
@@ -169,6 +222,7 @@ export async function captureOfficialReviewPage(
     url: settledUrl.toString(),
     applicationId: capturedApplicationId,
     values: settledValues,
+    rows: settledRows,
   };
 
   await fs.mkdir(outputDir, { recursive: true });
@@ -233,6 +287,10 @@ export function verifyOfficialReview(
   }
   if (snapshots.some((snapshot) => !officialReviewUrl(snapshot.url))) {
     addIssue(issues, "$review", "invalid_review_url");
+  }
+
+  if (snapshots.some(snapshot => (snapshot.rows?.length ?? 0) > 0)) {
+    return verifyTableReview(expectations, snapshots, issues);
   }
 
   const observed = new Map<string, Array<{ text: string }>>();

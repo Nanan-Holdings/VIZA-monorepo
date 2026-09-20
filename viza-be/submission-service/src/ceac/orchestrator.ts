@@ -75,6 +75,7 @@ import {
   type PhotoFile,
 } from "./upload-photo";
 import { signAndSubmitApplication } from "./final-submit";
+import { prepareConfirmationContinuation, waitForDs160SubmissionConfirmation } from "./confirmation-navigation";
 import type { Ds160FinalSubmissionGuard } from "./final-submission-guard";
 import { solveImageCaptcha } from "../captcha";
 import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
@@ -763,12 +764,20 @@ export async function orchestrateFill(
         try {
           datArtifact = await captureDatArtifact(page, { outputDir });
           console.log(`[orchestrator] .dat captured at ${currentPageId}`);
-          await waitForAspNetPostback(page, 8_000);
         } catch (err) {
-          if (err instanceof CeacError) throw err;
+          assertCeacPostbackHealthy(page);
+          // An unavailable optional backup must not prevent normal Next
+          // navigation. Preserve portal gates, identity errors and failed
+          // postbacks instead of treating them as download failures.
+          if (err instanceof CeacError && !(
+            err.code === "NAVIGATION_FAILED" &&
+            err.context.details?.action === "save_to_file" &&
+            err.context.details?.phase !== "aspnet_postback"
+          )) throw err;
           console.warn(`[orchestrator] .dat capture failed at ${currentPageId} — continuing`);
-          await waitForAspNetPostback(page, 5_000);
         }
+        // Settlement failures are never optional, even if capture failed.
+        await waitForAspNetPostback(page, 8_000);
       }
 
       // Determine next page and advance.
@@ -912,6 +921,7 @@ async function certifySignAndSubmitPage(
 
   const signButton = page.locator(SIGN_CERTIFY_SUBMIT_SELECTOR).first();
   const hasSignButton = (await signButton.count().catch(() => 0)) > 0;
+  const continuation = hasSignButton ? await prepareConfirmationContinuation(page) : null;
   let guardReserved = false;
   let guardOutcomeAttempted = false;
   if (hasSignButton) {
@@ -943,7 +953,7 @@ async function certifySignAndSubmitPage(
       throw new Error("confirmationTimeoutMs must be a positive number.");
     }
     const officialConfirmation = expectedApplicationId
-      ? await waitForOfficialConfirmation(activePage, expectedApplicationId, confirmationTimeoutMs)
+      ? await waitForDs160SubmissionConfirmation(activePage, expectedApplicationId, confirmationTimeoutMs, continuation)
       : false;
     if (officialConfirmation) {
       const bodyText = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
@@ -994,21 +1004,6 @@ async function certifySignAndSubmitPage(
     }
     throw error;
   }
-}
-
-async function waitForOfficialConfirmation(
-  page: Page,
-  expectedApplicationId: string,
-  timeoutMs: number,
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await isOfficialDs160ConfirmationPage(page, expectedApplicationId)) return true;
-    const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) break;
-    await page.waitForTimeout(Math.min(250, remainingMs));
-  }
-  return false;
 }
 
 async function solveSignCertifyCaptcha(page: Page): Promise<void> {

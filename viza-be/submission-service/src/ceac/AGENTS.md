@@ -57,7 +57,16 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    It preserves the applicant-selected post across retries and returns the
    resolved post for session recovery; never substitute a default embassy.
 3. `pages.ts` detects the current DS-160 page.
-   `aspnet.ts` installs an official form-response monitor before interactions.
+   `navigator.ts` handles CEAC's completed-draft Continue Form modal on all
+   form pages, including Personal Information 1, before waiting for its real
+   postback. Delayed continuation clicks receive their own settlement wait;
+   only explicit visible Continue Form / Save and Continue actions qualify.
+   `__tests__/navigator-page-complete.spec.ts` covers visible, hidden and
+   delayed modal behavior without returning to Review or skipping filling.
+   `aspnet.ts` installs an official form-response monitor after bootstrap has
+   verified the real start form and before any location/CAPTCHA interaction.
+   Bounded bootstrap gate checks own initial security verification; an initial
+   challenge response must not poison a subsequently verified start page.
    Failed form POST XHR/fetch and main-document responses, plus MSAJAX
    exceptions, remain latched for the page, including failures arriving before
    the settlement wait. Pending document navigation cannot settle against the
@@ -79,7 +88,12 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    `repeat-browser-adapter.ts` discovers current DOM row scopes and Add/Remove
    controls, then re-resolves the same row before each field and after
    controller postbacks, rejecting changed row counts or identities. Final
-   read-back also re-resolves every row. Static selector
+   read-back also re-resolves every row. Candidate metadata reads are batched
+   across all selector branches and common ancestors are computed within one
+   browser evaluation to limit remote CDP latency. Preserve Playwright
+   visibility semantics, ambiguity checks and fresh row discovery; never cache
+   a row across postbacks. Temporary element handles must be released.
+   Static selector
    declarations are not evidence of official parity.
    Explicitly empty text/date answers clear visible editable controls in a
    retrieved draft and participate in read-back and review verification.
@@ -103,14 +117,35 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    missing, changed, ambiguous or unsupported review identities block final
    signing. Personal Information 1 and Passport must have been verified in the
    current run. A config flag alone is never a passed review comparison.
+   Live CEAC review answers also use idless `.ReviewSection` / `table.mainstyle`
+   rows with `div.data` value cells. `review-table-contract.ts` defines the
+   captured rows and explicit comparison rules; `review-table-personal.ts` and
+   `review-table-work.ts` hold public labels observed on those pages.
+   `review-table.ts` matches exact page, edit-section, nested repeat container,
+   label and numbered record; composite names/dates/locations are compared as
+   complete values. Checkbox NA/unknown displays have explicit rules, and an
+   unchecked expiry NA must match the actual expiry date. Missing or ambiguous
+   rows and unsupported fields remain unverified. Private applicant values
+   must never be added to these catalogs or fixtures. Browser/pure regressions
+   are in `__tests__/review-table.spec.ts` and `review-verification.spec.ts`.
 5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
    final CAPTCHA solving.
+   `confirmation-navigation.ts` is shared by both final-signature paths. It
+   observes the unique disabled `Next: Confirmation` control before signing,
+   then permits at most one continuation click after it becomes enabled on
+   the same official application's signature page. This does not repeat the
+   final signature or reserve a second attempt. Only the identity-checked
+   official confirmation controls establish success. Its regressions live in
+   `__tests__/confirmation-navigation.spec.ts`.
    `signature-fields.ts` requires saved preparer Yes/No and conditional details
    before bootstrap; matches unique associated official field labels, scopes
    explicit NA choices to their own field, selects country before address
    fields, and verifies all values after postbacks. Never infer the preparer
    declaration or third-party details. Public form screenshots are historical
    label evidence, not proof of the current live DOM.
+   Live SignCertify metadata captured on 2026-09-20 also identifies the exact
+   `rblPREP_IND` Yes/No group and `PPTNumTbx` signature input; retain unique
+   control selection and read-back checks, excluding the `CodeTextBox` CAPTCHA.
 6. `final-submission-guard.ts` persists the per-authorization final-click
    fence through ownership-checked Supabase RPCs and reads the same table
    before bootstrap. Automatic retries must reuse the same authorization; an
@@ -128,6 +163,11 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    back to a profile photo. Download only the selected file.
 8. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
+   Strategic `.dat` backups are optional: a missing Save-to-File control or
+   download failure must not stop ordinary Next navigation. The orchestrator
+   checks the latched form-response monitor before tolerating a backup error
+   and waits for postback settlement outside that catch. Gates, failed
+   postbacks and page-identity errors remain fatal.
    Public bootstrap failures retain a screenshot plus visible page/control
    metadata before closing the browser; never dump hidden input values,
    cookies or credentials into these diagnostics.

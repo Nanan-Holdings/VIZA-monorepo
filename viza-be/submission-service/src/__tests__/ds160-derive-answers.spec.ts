@@ -212,6 +212,30 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.monthly_income, undefined);
   });
 
+  it("preserves a student's explicit no-income decision for CEAC", () => {
+    const answers = deriveDS160Answers({
+      primary_occupation: "student",
+      monthly_salary: "DOES_NOT_APPLY",
+    });
+
+    assert.equal(answers.primary_occupation, "student");
+    assert.equal(answers.monthly_income_na, "Y");
+    assert.equal(answers.monthly_salary, undefined);
+    assert.equal(answers.monthly_income, undefined);
+  });
+
+  it("maps education address Does Not Apply values to row-local CEAC checkboxes", () => {
+    const answers = deriveDS160Answers({
+      education_state_province: "DOES_NOT_APPLY",
+      education_postal_code: "DOES_NOT_APPLY",
+    });
+
+    assert.equal(answers.education_address_state_na, "Y");
+    assert.equal(answers.education_address_postal_na, "Y");
+    assert.equal(answers.education_state_province, undefined);
+    assert.equal(answers.education_postal_code, undefined);
+  });
+
   it("does not infer unanswered social media as no", () => {
     const answers = deriveDS160Answers({});
 

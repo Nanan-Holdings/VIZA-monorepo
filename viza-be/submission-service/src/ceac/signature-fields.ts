@@ -54,6 +54,8 @@ export function assertDs160PreparerAnswers(answers: Ds160PreparerAnswers): void 
 const PREPARER_RADIO_SELECTOR = [
   'input[type="radio"][id$="_rblPreparer_0"]',
   'input[type="radio"][id$="_rblPreparer_1"]',
+  'input[type="radio"][id*="rblPREP_IND" i]',
+  'input[type="radio"][name*="rblPREP_IND" i]',
   'input[type="radio"][name*="Preparer" i]',
   'input[type="radio"][id*="Preparer" i]',
 ].join(", ");
@@ -287,7 +289,7 @@ async function fillPreparerDetails(page: Page, answers: Ds160PreparerAnswers): P
 
 function isExplicitPassportIdentifier(metadata: SignatureInputMetadata): boolean {
   const identifier = `${metadata.id} ${metadata.name}`;
-  return /(?:^|[^a-z0-9])sign[_-]?passport(?:$|[^a-z0-9])|(?:^|[^a-z0-9])passport(?:number|no)?(?:$|[^a-z0-9])/i.test(
+  return /(?:^|[^a-z0-9])sign[_-]?passport(?:$|[^a-z0-9])|(?:^|[^a-z0-9])passport(?:number|no)?(?:$|[^a-z0-9])|(?:^|[^a-z0-9])pptnumtbx(?:$|[^a-z0-9])/i.test(
     identifier,
   );
 }

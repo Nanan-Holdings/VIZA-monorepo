@@ -142,6 +142,24 @@ test("required assertion honors inactive branches, explicit NA, and legacy alias
   assert.doesNotThrow(() => assertDs160RequiredAnswers(answers));
 });
 
+test("student work branch requires monthly income or its explicit NA choice", () => {
+  const missingIncome = completeRequiredFixture();
+  missingIncome.primary_occupation = "student";
+  delete missingIncome.monthly_salary;
+
+  assert.throws(
+    () => assertDs160RequiredAnswers(missingIncome),
+    (error: unknown) => {
+      assert.ok(error instanceof Ds160RequiredAnswersError);
+      assert.deepEqual(error.missingFields, ["monthly_salary"]);
+      return true;
+    },
+  );
+
+  const explicitNa = { ...missingIncome, monthly_salary: "DOES_NOT_APPLY" };
+  assert.doesNotThrow(() => assertDs160RequiredAnswers(explicitNa));
+});
+
 test("required assertion checks every active persisted repeat row", () => {
   const answers = completeRequiredFixture();
   answers.has_companions = "yes";

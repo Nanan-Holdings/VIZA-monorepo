@@ -102,6 +102,8 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "employer_address_state", naKey: "employer_address_state_na" },
   { source: "employer_postal_code", naKey: "employer_address_postal_na" },
   { source: "employer_address_postal", naKey: "employer_address_postal_na" },
+  { source: "education_state_province", naKey: "education_address_state_na" },
+  { source: "education_postal_code", naKey: "education_address_postal_na" },
   { source: "monthly_salary", naKey: "monthly_income_na" },
   { source: "monthly_income", naKey: "monthly_income_na" },
   { source: "mobile_phone", naKey: "mobile_phone_na" },

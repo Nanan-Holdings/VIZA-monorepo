@@ -69,6 +69,16 @@ describe("DS-160 checked-in field contract", () => {
     assert.equal(socialSecurityNumber.allowsDoesNotApply, true);
   });
 
+  it("requires the CEAC monthly-income decision in the active student branch", () => {
+    const monthlyIncome = DS160_FIELD_CONTRACTS.monthly_salary;
+    assert.equal(monthlyIncome.required, true);
+    assert.equal(monthlyIncome.allowsDoesNotApply, true);
+    assert.equal(
+      monthlyIncome.showIf,
+      "primary_occupation !== _empty && primary_occupation !== retired && primary_occupation !== homemaker && primary_occupation !== not_employed",
+    );
+  });
+
   it("gates parent DOB and U.S. presence on both parent names being known", () => {
     assert.equal(
       DS160_FIELD_CONTRACTS.father_date_of_birth.showIf,

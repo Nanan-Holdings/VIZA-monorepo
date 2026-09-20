@@ -9,7 +9,7 @@
  * stays the single source of truth for filling controls.
  */
 
-import type { Locator, Page } from "@playwright/test";
+import type { ElementHandle, Locator, Page } from "@playwright/test";
 import type { FormFieldMapping } from "../form-mappings";
 import {
   DS160_EXTENDED_DATE_SPLITS,
@@ -153,6 +153,10 @@ interface CandidateAttributes {
   readonly title: string;
 }
 
+interface VisibleCandidateSnapshot extends CandidateAttributes {
+  readonly visible: boolean;
+}
+
 interface VisibleFieldCandidate {
   readonly fieldKey: string;
   readonly mapping: FormFieldMapping;
@@ -161,6 +165,8 @@ interface VisibleFieldCandidate {
   readonly ctlToken: string | null;
   readonly attributes: CandidateAttributes;
 }
+
+type CandidateElementHandle = ElementHandle<SVGElement | HTMLElement>;
 
 interface BrowserRepeatRow {
   readonly ordinal: number;
@@ -235,6 +241,80 @@ async function readCandidateAttributes(locator: Locator): Promise<CandidateAttri
   }));
 }
 
+/**
+ * Read a selector's visibility and identity in one browser evaluation.
+ *
+ * Playwright's locator methods are deliberately kept for actions and for the
+ * locator returned to callers. Discovery is read-only, so evaluating the
+ * complete matched set at once avoids a count/isVisible/evaluate round trip
+ * for every element while retaining the same visibility rules used by
+ * locator.isVisible() for form controls.
+ */
+async function readVisibleCandidateSnapshots(
+  locator: Locator,
+): Promise<VisibleCandidateSnapshot[]> {
+  return locator.evaluateAll((elements) => {
+    return elements.map((element) => {
+      // This mirrors Playwright's injected isElementVisible implementation,
+      // while keeping the whole selector result in one browser evaluation.
+      let visible = false;
+      const pending: Element[] = [element];
+      while (pending.length > 0 && !visible) {
+        const current = pending.shift();
+        if (!current) break;
+        const style = window.getComputedStyle(current);
+        if (style.display === "contents") {
+          for (let child = current.firstChild; child; child = child.nextSibling) {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+              pending.push(child as Element);
+            } else if (child.nodeType === Node.TEXT_NODE) {
+              const range = current.ownerDocument.createRange();
+              range.selectNode(child);
+              const rect = range.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) visible = true;
+            }
+          }
+          continue;
+        }
+
+        const checkVisibility = (Element.prototype as unknown as {
+          checkVisibility?: (this: Element) => boolean;
+        }).checkVisibility;
+        let styleVisible = true;
+        if (checkVisibility && !checkVisibility.call(current)) {
+          styleVisible = false;
+        } else if (!checkVisibility) {
+          const detailsOrSummary = current.closest("details,summary");
+          if (
+            detailsOrSummary !== current &&
+            detailsOrSummary?.nodeName === "DETAILS" &&
+            !(detailsOrSummary as HTMLDetailsElement).open
+          ) {
+            styleVisible = false;
+          }
+        }
+        if (styleVisible && style.visibility === "visible") {
+          const rect = current.getBoundingClientRect();
+          visible = rect.width > 0 && rect.height > 0;
+        }
+      }
+
+      return {
+        visible,
+        id: element.getAttribute("id") ?? "",
+        name: element.getAttribute("name") ?? "",
+        tagName: element.tagName,
+        value:
+          element.getAttribute("value") ??
+          ("value" in element ? String((element as HTMLInputElement).value ?? "") : ""),
+        text: element.textContent?.trim() ?? "",
+        ariaLabel: element.getAttribute("aria-label") ?? "",
+        title: element.getAttribute("title") ?? "",
+      };
+    });
+  });
+}
+
 function aspNetCtlTokens(value: string): string[] {
   return [...value.matchAll(/(?:^|[_$])((?:ctl)\d+)(?=[_$]|$)/gi)].map((match) =>
     match[1].toLowerCase(),
@@ -270,35 +350,44 @@ async function collectVisibleCandidates(
   const candidates: VisibleFieldCandidate[] = [];
   const seen = new Set<string>();
 
+  const selectorJobs: Array<{
+    readonly entry: MappingEntry;
+    readonly selector: string;
+    readonly locator: Locator;
+  }> = [];
   for (const entry of entries) {
     for (const selector of splitSelectors(entry.mapping.selector)) {
-      let locator: Locator;
       try {
-        locator = page.locator(selector);
+        selectorJobs.push({ entry, selector, locator: page.locator(selector) });
       } catch {
-        continue;
+        // Keep the existing fallback behavior for malformed selector branches.
       }
-      const count = await locator.count().catch(() => 0);
-      for (let index = 0; index < count; index += 1) {
-        const candidateLocator = locator.nth(index);
-        if (!(await candidateLocator.isVisible().catch(() => false))) continue;
-        const attributes = await readCandidateAttributes(candidateLocator).catch(() => null);
-        if (!attributes) continue;
+    }
+  }
+  const selectorResults = await Promise.all(
+    selectorJobs.map(async (job) => ({
+      ...job,
+      snapshots: await readVisibleCandidateSnapshots(job.locator).catch(() => []),
+    })),
+  );
 
-        const identity = `${attributes.id}\u0000${attributes.name}`;
-        const dedupeKey = `${entry.key}\u0000${identity || `${selector}\u0000${index}`}`;
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
+  for (const result of selectorResults) {
+    for (const [index, snapshot] of result.snapshots.entries()) {
+      if (!snapshot.visible) continue;
+      const { visible: _visible, ...attributes } = snapshot;
+      const identity = `${attributes.id}\u0000${attributes.name}`;
+      const dedupeKey = `${result.entry.key}\u0000${identity || `${result.selector}\u0000${index}`}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
 
-        candidates.push({
-          fieldKey: entry.key,
-          mapping: entry.mapping,
-          locator: candidateLocator,
-          identity,
-          ctlToken: ctlTokenFromAttributes(attributes),
-          attributes,
-        });
-      }
+      candidates.push({
+        fieldKey: result.entry.key,
+        mapping: result.entry.mapping,
+        locator: result.locator.nth(index),
+        identity,
+        ctlToken: ctlTokenFromAttributes(attributes),
+        attributes,
+      });
     }
   }
 
@@ -317,13 +406,17 @@ async function collectVisibleCandidates(
 async function locatorContains(root: Locator, child: Locator): Promise<boolean> {
   const rootHandle = await root.elementHandle().catch(() => null);
   if (!rootHandle) return false;
-  return child
-    .evaluate(
-      (element, rootElement) =>
-        rootElement instanceof Element && rootElement.contains(element),
-      rootHandle,
-    )
-    .catch(() => false);
+  try {
+    return await child
+      .evaluate(
+        (element, rootElement) =>
+          rootElement instanceof Element && rootElement.contains(element),
+        rootHandle,
+      )
+      .catch(() => false);
+  } finally {
+    await rootHandle.dispose().catch(() => undefined);
+  }
 }
 
 async function commonAncestor(
@@ -345,26 +438,44 @@ async function commonAncestor(
   // row otherwise gets a scope equal to its input and the scoped verifier
   // cannot see that input as a descendant. Walking parents also avoids
   // depending on XPath axis ordering across Playwright/browser versions.
-  let root = first.locator.locator("xpath=..");
-  for (let depth = 0; depth < 128; depth += 1) {
-    const tagName = await root.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
-    if (!tagName || tagName === "html" || tagName === "body") break;
-
-    let containsAll = true;
-    for (const candidate of candidates) {
-      if (!(await locatorContains(root, candidate.locator))) {
-        containsAll = false;
-        break;
-      }
+  const root = first.locator.locator("xpath=..");
+  const candidateHandles = await Promise.all(
+    candidates.map((candidate) => candidate.locator.elementHandle().catch(() => null)),
+  );
+  let commonDepth: number | null = null;
+  try {
+    if (candidateHandles.every((handle): handle is CandidateElementHandle => handle !== null)) {
+      const result = await root.evaluate((rootElement, elements) => {
+        if (!(rootElement instanceof Element)) return null;
+        let current: Element | null = rootElement;
+        for (let depth = 0; depth < 128 && current; depth += 1) {
+          const tagName = current.tagName.toLowerCase();
+          if (!tagName || tagName === "html" || tagName === "body") break;
+          if (elements.every((element) => element instanceof Element && current?.contains(element))) {
+            return { depth };
+          }
+          current = current.parentElement;
+        }
+        return null;
+      }, candidateHandles as CandidateElementHandle[]);
+      commonDepth = result?.depth ?? null;
     }
-    if (containsAll) return root;
+  } catch {
+    commonDepth = null;
+  } finally {
+    await Promise.all(
+      candidateHandles
+        .filter((handle): handle is CandidateElementHandle => handle !== null)
+        .map((handle) => handle.dispose().catch(() => undefined)),
+    );
+  }
 
-    const parent = root.locator("xpath=..");
-    const parentTag = await parent
-      .evaluate((element) => element.tagName.toLowerCase())
-      .catch(() => "");
-    if (!parentTag || (parentTag === tagName && tagName === "html")) break;
-    root = parent;
+  if (commonDepth !== null) {
+    let scope = root;
+    for (let depth = 0; depth < commonDepth; depth += 1) {
+      scope = scope.locator("xpath=..");
+    }
+    return scope;
   }
 
   throw new Ds160RepeatBrowserError(

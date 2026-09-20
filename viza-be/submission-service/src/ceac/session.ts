@@ -114,7 +114,6 @@ export async function startCeacSession(
       page = await context.newPage();
     }
 
-    installCeacPostbackMonitor(page);
     try {
       await gotoCeacStartPage(page, navigationTimeoutMs);
     } catch (err) {
@@ -158,6 +157,10 @@ export async function startCeacSession(
       );
     }
 
+    // Bootstrap may briefly receive a challenge response before the verified
+    // start form appears. Its bounded gate checks above own that phase; latch
+    // form failures only after clearance, before the first form interaction.
+    installCeacPostbackMonitor(page);
     const onStartPage = /\/GenNIV\/Default\.aspx/i.test(page.url());
     if (onStartPage && options.startLocationCode !== undefined && options.startLocationCode !== null) {
       const locationOutcome = await selectStartPageLocation(page, {

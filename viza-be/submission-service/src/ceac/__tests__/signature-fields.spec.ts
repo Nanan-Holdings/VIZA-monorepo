@@ -37,6 +37,24 @@ test("checks only the explicit preparer No control and ignores unrelated radios"
   }
 });
 
+test("matches the live CEAC rblPREP_IND preparer group", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <label><input id="ctl00_SiteContentPlaceHolder_FormView3_rblPREP_IND_0"
+        name="ctl00$SiteContentPlaceHolder$FormView3$rblPREP_IND" type="radio" value="Y">Yes</label>
+      <label><input id="ctl00_SiteContentPlaceHolder_FormView3_rblPREP_IND_1"
+        name="ctl00$SiteContentPlaceHolder$FormView3$rblPREP_IND" type="radio" value="N">No</label>
+    `);
+    await applyExplicitPreparerAnswer(page, "no");
+    assert.equal(await page.locator("#ctl00_SiteContentPlaceHolder_FormView3_rblPREP_IND_0").isChecked(), false);
+    assert.equal(await page.locator("#ctl00_SiteContentPlaceHolder_FormView3_rblPREP_IND_1").isChecked(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("blocks a visible preparer group without an explicit saved answer", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -215,6 +233,23 @@ test("accepts an explicit passport label when the input id is generic", async ()
     await fillVerifiedPassportSignature(page, "P7654321");
     assert.equal(await page.locator("#signatureField").inputValue(), "P7654321");
     assert.equal(await page.locator("#otherVisible").inputValue(), "");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("matches the live CEAC PPTNumTbx passport signature input without a label", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <input id="ctl00_SiteContentPlaceHolder_PPTNumTbx"
+        name="ctl00$SiteContentPlaceHolder$PPTNumTbx" type="text">
+      <input id="ctl00_SiteContentPlaceHolder_CodeTextBox" type="text">
+    `);
+    await fillVerifiedPassportSignature(page, "P1234567");
+    assert.equal(await page.locator("#ctl00_SiteContentPlaceHolder_PPTNumTbx").inputValue(), "P1234567");
+    assert.equal(await page.locator("#ctl00_SiteContentPlaceHolder_CodeTextBox").inputValue(), "");
   } finally {
     await browser.close();
   }

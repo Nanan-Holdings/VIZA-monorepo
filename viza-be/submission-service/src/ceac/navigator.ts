@@ -231,11 +231,24 @@ async function runTransition(
     );
   }
 
-  await waitForAspNetPostback(page, timeoutMs);
+  // CEAC can render its "Your DS-160 is complete" prompt as a same-document
+  // modal before it starts the ASP.NET postback.  The modal's "No – Continue
+  // Form" button is the second half of the navigation action.  Handle it
+  // before waiting for a postback so that the click we are waiting on is the
+  // actual form transition rather than the prompt that gates it.  Keep the
+  // postback-time check as a bounded fallback for portals that render the
+  // modal after the first response.
   let pageCompletePromptHandled = await continueAfterPageCompletePrompt(
     page,
-    params.from,
   );
+  await waitForAspNetPostback(page, timeoutMs);
+  const promptAfterPostback = await continueAfterPageCompletePrompt(page);
+  if (promptAfterPostback) {
+    // A delayed modal click starts the real ASP.NET transition.  Wait for
+    // that second action before reading validators or probing the destination.
+    await waitForAspNetPostback(page, timeoutMs);
+    pageCompletePromptHandled = true;
+  }
 
   // Give CEAC a moment to either navigate or render validators. Using
   // `waitForLoadState('networkidle')` with a short budget is safe: if the
@@ -320,7 +333,7 @@ async function runTransition(
           }),
       ).catch(() => false)) || pageCompleteDialogHandled;
     pageCompletePromptHandled =
-      (await continueAfterPageCompletePrompt(page, params.from)) ||
+      (await continueAfterPageCompletePrompt(page)) ||
       pageCompletePromptHandled;
   }
 
@@ -375,7 +388,7 @@ async function runTransition(
           }),
       ).catch(() => false)) || pageCompleteDialogHandled;
     pageCompletePromptHandled =
-      (await continueAfterPageCompletePrompt(page, params.from)) ||
+      (await continueAfterPageCompletePrompt(page)) ||
       pageCompletePromptHandled;
   }
 
@@ -474,25 +487,27 @@ async function performWithPageCompleteDialogAcceptance(
 
 async function continueAfterPageCompletePrompt(
   page: Page,
-  from: CeacPageId,
 ): Promise<boolean> {
-  // CEAC can show a section-boundary prompt or a passport-country warning
-  // after Passport. "No – Continue Form" and "Save and Continue" both mean
-  // continue to U.S. Contact; they are required second clicks, not the page's
-  // primary Next button.
-  if (from !== "passport") return false;
+  // CEAC can show this section-boundary prompt after any completed form page,
+  // not only after Passport. "No – Continue Form" and "Save and Continue"
+  // both mean continue with the requested navigation; they are the required
+  // second click, not the page's primary Next button.
 
   const candidates = page.locator(CEAC_NAV_SELECTORS.continueAfterPageComplete);
-  try {
-    await candidates.first().waitFor({ state: "visible", timeout: 5_000 });
-  } catch {
-    return false;
-  }
-
   const count = await candidates.count();
   for (let index = 0; index < count; index += 1) {
     const candidate = candidates.nth(index);
     if (!(await candidate.isVisible().catch(() => false))) continue;
+    const label = (
+      (await candidate.getAttribute("value").catch(() => null)) ??
+      (await candidate.textContent().catch(() => null)) ??
+      ""
+    ).trim();
+    // Keep the candidate list tolerant of CEAC's markup variants, but only
+    // click the explicit continuation action.  In particular, never treat a
+    // visible review/return button or an unrelated element with a similar id
+    // as the answer to this prompt.
+    if (!/(?:continue form|save and continue)/i.test(label)) continue;
     await candidate.click({ timeout: 5_000 });
     return true;
   }

@@ -2685,7 +2685,10 @@ const FIELDS: FieldDef[] = [
     field_name: "monthly_salary",
     label: "Monthly Income in Local Currency (if employed)",
     field_type: "text",
-    required: false,
+    // CEAC renders this control for the student branch as well.  Its
+    // "if employed" wording means a student without income must choose the
+    // adjacent Does Not Apply control; it does not make the answer optional.
+    required: true,
     step_number: 14,
     step_name: "Work/Education/Training: Present",
     display_order: 13,

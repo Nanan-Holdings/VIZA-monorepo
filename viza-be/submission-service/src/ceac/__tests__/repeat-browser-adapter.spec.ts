@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chromium, type Locator, type Page } from "@playwright/test";
 import type { FormFieldMapping } from "../../form-mappings";
+import { DS160_EXTENDED_MAPPINGS } from "../../ds160-extended-mappings";
 import {
   Ds160RepeatBrowserError,
   deriveDs160RepeatRowAnswers,
   fillDs160RepeatGroups,
 } from "../repeat-browser-adapter";
-import { fillPageFields } from "../orchestrator";
+import { fillPageFields, verifyPageFieldValues } from "../orchestrator";
 
 interface FixtureState {
   readonly phoneAddCount: number;
@@ -198,6 +199,63 @@ function conditionalNationalityFixture(): string {
     </div>
   </section>
 </body></html>`;
+}
+
+function educationFixture(rowCount = 2): string {
+  const tableId = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEduc";
+  const rowPrefix = `${tableId}_ctl`;
+  const rows = Array.from({ length: rowCount }, (_, index) => {
+    const token = String(index).padStart(2, "0");
+    const id = (suffix: string) => `${rowPrefix}${token}_${suffix}`;
+    return `
+      <tbody data-row="${index}">
+        <tr><td><input id="${id("tbxSchoolName")}" name="${id("tbxSchoolName")}" maxlength="75"></td></tr>
+        <tr><td><input id="${id("tbxSchoolAddr1")}" name="${id("tbxSchoolAddr1")}" maxlength="40"></td></tr>
+        <tr><td><input id="${id("tbxSchoolAddr2")}" name="${id("tbxSchoolAddr2")}" maxlength="40"></td></tr>
+        <tr><td><input id="${id("tbxSchoolCity")}" name="${id("tbxSchoolCity")}" maxlength="20"></td></tr>
+        <tr><td>
+          <input id="${id("tbxEDUC_INST_ADDR_STATE")}" name="${id("tbxEDUC_INST_ADDR_STATE")}" maxlength="20">
+          <input id="${id("cbxEDUC_INST_ADDR_STATE_NA")}" name="${id("cbxEDUC_INST_ADDR_STATE_NA")}" type="checkbox">
+        </td></tr>
+        <tr><td>
+          <input id="${id("tbxEDUC_INST_POSTAL_CD")}" name="${id("tbxEDUC_INST_POSTAL_CD")}" maxlength="10">
+          <input id="${id("cbxEDUC_INST_POSTAL_CD_NA")}" name="${id("cbxEDUC_INST_POSTAL_CD_NA")}" type="checkbox">
+        </td></tr>
+        <tr><td>
+          <select id="${id("ddlSchoolCountry")}" name="${id("ddlSchoolCountry")}" aria-label="Country/Region">
+            <option value="">PLEASE SELECT</option><option value="CHIN">China</option>
+          </select>
+        </td></tr>
+        <tr><td><input id="${id("tbxSchoolCourseOfStudy")}" name="${id("tbxSchoolCourseOfStudy")}" maxlength="66"></td></tr>
+        <tr><td>
+          <select id="${id("ddlSchoolFromDay")}" name="${id("ddlSchoolFromDay")}">
+            <option value="">DAY</option><option value="01">01</option><option value="10">10</option><option value="12">12</option>
+          </select>
+          <select id="${id("ddlSchoolFromMonth")}" name="${id("ddlSchoolFromMonth")}">
+            <option value="">MONTH</option><option value="AUG">AUG</option><option value="JUN">JUN</option><option value="SEP">SEP</option>
+          </select>
+          <input id="${id("tbxSchoolFromYear")}" name="${id("tbxSchoolFromYear")}" maxlength="4">
+        </td></tr>
+        <tr><td>
+          <select id="${id("ddlSchoolToDay")}" name="${id("ddlSchoolToDay")}">
+            <option value="">DAY</option><option value="01">01</option><option value="10">10</option><option value="12">12</option>
+          </select>
+          <select id="${id("ddlSchoolToMonth")}" name="${id("ddlSchoolToMonth")}">
+            <option value="">MONTH</option><option value="AUG">AUG</option><option value="JUN">JUN</option><option value="SEP">SEP</option>
+          </select>
+          <input id="${id("tbxSchoolToYear")}" name="${id("tbxSchoolToYear")}" maxlength="4">
+        </td></tr>
+      </tbody>`;
+  }).join("");
+  return `<!doctype html><html><body><table id="${tableId}">${rows}</table></body></html>`;
+}
+
+function educationFixtureWithHiddenTemplate(): string {
+  const tableId = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEduc";
+  const hiddenTemplate = `<div style="display:none">
+    <input id="${tableId}_ctl00_tbxSchoolName" name="${tableId}_ctl00_tbxSchoolName" maxlength="75">
+  </div>`;
+  return educationFixture(1).replace("</body>", `${hiddenTemplate}</body>`);
 }
 
 function travelPurposePostbackFixture(wrapperIds = true): string {
@@ -585,6 +643,129 @@ test("browser adapter fills a child that appears from an inline conditional row 
     assert.equal(
       await page.locator('input[data-field="other_nationality_passport_number"]').isVisible(),
       true,
+    );
+  });
+});
+
+test("browser adapter fills live CEAC education controls, NA companions, and date parts in the observed row", async () => {
+  await withPage(educationFixture(1), async (page) => {
+    const filledRows: number[] = [];
+    const answers = {
+      has_attended_education: "yes",
+      education_institution_name: "YALI HIGH SCHOOL",
+      education_address_line1: "1 SCHOOL ROAD",
+      education_city: "CHANGSHA",
+      education_state_province: "DOES_NOT_APPLY",
+      education_postal_code: "DOES_NOT_APPLY",
+      education_country: "CHINA",
+      education_course_of_study: "GENERAL COURSE",
+      education_start_date: "2021-09-01",
+      education_end_date: "2024-06-10",
+    };
+
+    await fillDs160RepeatGroups({
+      page,
+      pageId: "work_education_previous",
+      answers,
+      mappings: {},
+      groups: ["education"],
+      fillRow: async ({ answers: rowAnswers, mappings, scope, resolveScope, row }) => {
+        assert.ok(scope);
+        assert.equal(await scope.locator('input[id*="tbxSchoolName"]').count(), 1);
+        await fillPageFields(page, mappings, rowAnswers, {}, {
+          scope,
+          resolveScope,
+          requireMappedAnswers: true,
+        });
+        filledRows.push(row.index);
+      },
+      verifyRow: async ({ answers: rowAnswers, mappings, scope, row }) => {
+        assert.ok(scope);
+        assert.equal(await scope.locator('input[id*="tbxSchoolName"]').count(), 1);
+        await verifyPageFieldValues(scope, mappings, rowAnswers, {}, {
+          requireMappedAnswers: true,
+        });
+        assert.equal(row.index, 0);
+        const suffix = "00";
+        assert.equal(
+          await scope.locator(`input[id*="${suffix}_cbxEDUC_INST_ADDR_STATE_NA"]`).isChecked(),
+          true,
+        );
+        assert.equal(
+          await scope.locator(`input[id*="${suffix}_cbxEDUC_INST_POSTAL_CD_NA"]`).isChecked(),
+          true,
+        );
+      },
+    });
+
+    assert.deepEqual(filledRows, [0]);
+    assert.equal(
+      await page.locator('tbody[data-row="0"] input[id*="tbxSchoolName"]').inputValue(),
+      "YALI HIGH SCHOOL",
+    );
+    assert.equal(
+      await page.locator('tbody[data-row="0"] select[id*="ddlSchoolFromMonth"]').inputValue(),
+      "SEP",
+    );
+  });
+});
+
+test("live education mappings honor CEAC maxlength before changing a control", async () => {
+  await withPage(educationFixture(1), async (page) => {
+    const mapping = DS160_EXTENDED_MAPPINGS.education_institution_name;
+    assert.ok(mapping);
+    const tooLong = "X".repeat(76);
+    await assert.rejects(
+      () => fillPageFields(
+        page,
+        { education_institution_name: mapping },
+        { education_institution_name: tooLong },
+        {},
+        { requireMappedAnswers: true },
+      ),
+      /official maximum length of 75/,
+    );
+    assert.equal(
+      await page.locator('input[id*="tbxSchoolName"]').inputValue(),
+      "",
+    );
+  });
+});
+
+test("browser adapter ignores hidden CEAC template controls during batched discovery", async () => {
+  await withPage(educationFixtureWithHiddenTemplate(), async (page) => {
+    await fillDs160RepeatGroups({
+      page,
+      pageId: "work_education_previous",
+      answers: {
+        has_attended_education: "yes",
+        education_institution_name: "VISIBLE SCHOOL",
+        education_address_line1: "1 SCHOOL ROAD",
+        education_city: "CHANGSHA",
+        education_state_province: "DOES_NOT_APPLY",
+        education_postal_code: "DOES_NOT_APPLY",
+        education_country: "CHINA",
+        education_course_of_study: "GENERAL COURSE",
+        education_start_date: "2021-09-01",
+        education_end_date: "2024-06-10",
+      },
+      mappings: {},
+      groups: ["education"],
+      fillRow: async ({ answers, scope }) => {
+        assert.ok(scope);
+        await scope
+          .locator('input[id*="tbxSchoolName"]')
+          .fill(answers.education_institution_name);
+      },
+    });
+
+    assert.equal(
+      await page.locator('table tbody[data-row="0"] input[id*="tbxSchoolName"]').inputValue(),
+      "VISIBLE SCHOOL",
+    );
+    assert.equal(
+      await page.locator('div[style="display:none"] input[id*="tbxSchoolName"]').inputValue(),
+      "",
     );
   });
 });

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, it } from "node:test";
 import { chromium, type Browser } from "@playwright/test";
+import { installCeacPostbackMonitor, waitForAspNetPostback } from "../aspnet";
 import { GateDetectedError } from "../errors";
+import { assertNoGate, detectGate } from "../gates";
+import { assertPage } from "../pages";
 import { gotoCeacStartPage } from "../start-page-navigation";
-import { detectGate } from "../gates";
 import { tryCaptureBootstrapDiagnostics } from "../diagnostics";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -41,6 +43,52 @@ it("waits through an interstitial h2 until the CEAC form appears", async () => {
     assert.equal(await page.locator("h2").innerText(), "Apply For a Nonimmigrant Visa");
     assert.equal(await page.locator("select").count(), 1);
   } finally { await page.close(); }
+});
+
+it("keeps a cleared initial 403 challenge usable after the verified monitor install point", async () => {
+  const page = await browser.newPage();
+  let navigationCount = 0;
+  try {
+    await page.route("https://ceac.state.gov/GenNIV/**", async route => {
+      const request = route.request();
+      if (request.isNavigationRequest() && request.resourceType() === "document") {
+        navigationCount += 1;
+        if (navigationCount === 1) {
+          await route.fulfill({
+            status: 403,
+            contentType: "text/html",
+            body: `<h2>Cloudflare challenge</h2><script>location.replace('/GenNIV/Default.aspx?challenge=cleared')</script>`,
+          });
+          return;
+        }
+        await route.fulfill({
+          contentType: "text/html",
+          body: `<h2>Apply For a Nonimmigrant Visa</h2>
+            <select id="ctl00_ucLocation_ddlLocation"><option>BEJ</option></select>
+            <form method="post" action="/GenNIV/Default.aspx">
+              <input type="submit" id="postback" value="Continue">
+            </form>`,
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "text/plain", body: "ok" });
+    });
+
+    await gotoCeacStartPage(page, 3_000);
+    await assertNoGate(page);
+    await assertPage(page, "start");
+
+    // This is the production ordering: the monitor starts after the initial
+    // challenge has cleared and the start page has passed both guards.
+    installCeacPostbackMonitor(page);
+    const postback = waitForAspNetPostback(page, 2_000);
+    await page.locator("#postback").click();
+    await postback;
+    assert.equal(navigationCount, 3);
+    await assertPage(page, "start");
+  } finally {
+    await page.close();
+  }
 });
 
 it("preserves a definitive WAF block for structured gate classification", async () => {

@@ -1,5 +1,134 @@
 # CEAC Smoke Test
 
+## 2026-09-20 bootstrap monitor boundary
+
+- The first continuation stopped with a latched HTTP 403 while the retained
+  bootstrap diagnostic showed the real CEAC start form. Provider diagnostics
+  also showed security verification followed by successful start-page document
+  responses. The monitor now starts after both gate and start-page identity
+  checks, before location/CAPTCHA interaction. Bootstrap retains its bounded
+  security-verification handling; failures after form interaction still latch.
+- All 17 focused session/postback browser regressions and type checking passed,
+  including an initial 403 challenge that clears into a verified start form,
+  persistent gates, and form/document postback failures. This does not prove an
+  official submission. The same captured draft is used for live continuation.
+- The next live continuation retrieved the same draft and verified Personal 1,
+  Personal 2, Travel, Companions, Previous U.S. Travel, Address/Phone and Passport.
+  It stopped because an optional `.dat` backup had no Save-to-File control.
+  The broad structured-error rethrow had incorrectly made that backup fatal.
+  Only optional save-to-file navigation failures may now be tolerated after
+  checking the latched postback monitor; settlement waits stay outside that
+  catch. No final signing occurred in that run; its provider session completed.
+- The five orchestration browser regressions pass, including advancing without
+  a Save-to-File control and stopping on its HTTP 403 postback. The latter
+  fixture downloads an attachment successfully while its form request fails,
+  demonstrating that backup success cannot mask an official form failure.
+- The next live run verified the original captured draft through Passport,
+  U.S. Contact and Family Relatives. Optional backup absence no longer blocked
+  navigation, and both parents' unknown-name hidden-control assertions passed
+  against the live page. Present Work/Education selected STUDENT and CEAC
+  rejected Next because Monthly Income in Local Currency (if employed) was
+  blank with Does Not Apply unchecked. The active schema exposed this field
+  but incorrectly marked it optional, and the applicant had no saved income
+  answer. This is a missing explicit answer plus required-field contract gap,
+  not a proxy failure. The same draft was retained, no final action occurred,
+  the provider session completed and the stopped worker's lease was cleared.
+- The monthly-income seed, checked-in runtime contract and existing production
+  field now require an explicit answer while retaining Does Not Apply. The 55
+  focused derivation/contract tests and submission-service type checking pass.
+  A production browser reload changed completion from 92/92 (100%) to 92/93
+  (99%), showed the missing monthly-income prompt and marked the field required.
+  No income or NA answer was inferred or saved; continuation awaits the
+  applicant's explicit answer.
+- After the applicant explicitly chose no work income, the production form's
+  NA checkbox saved both `monthly_salary` and its English alias as
+  `DOES_NOT_APPLY`; the UI showed 93/93 required answers. The next live run
+  selected CEAC's monthly-income NA checkbox and advanced to Previous
+  Work/Education. That page exposed a separate mapping gap: the education
+  repeater matched none of its visible controls. An identity-checked Retrieve
+  probe observed `dtlPrevEduc_ctl00_tbxSchool*` fields, its date selects and
+  year inputs, state/postal NA controls, and Insert/Delete controls. Captured
+  metadata excludes answer values and secrets. No final action occurred;
+  all completed diagnostic sessions were released.
+- The education mappings now use those observed control IDs, including
+  state/postal NA companions and separate day/month/year controls. All 45
+  focused mapping, derivation and repeat-browser tests pass, as does type
+  checking. A browser fixture verifies the observed single-row structure,
+  postback re-resolution, NA controls and official length rejection. Live
+  Add/Remove behavior for multiple school rows remains unverified.
+- Isolated live tail validation exposed excessive remote-browser round trips
+  in repeat discovery: the first school input took several minutes to reach.
+  Candidate selectors and ancestor containment were queried serially and
+  rediscovered repeatedly. The diagnostic provider session was explicitly
+  released without a final action. This is a runtime performance finding,
+  not an official submission or evidence of an invalid applicant answer.
+- A separate identity-checked single-school diagnostic used the observed
+  `dtlPrevEduc` container and rechecked its sole `ctl00` row before/after each
+  fill. CEAC accepted the saved school record and advanced. Ordinary
+  orchestration then filled and passed Work/Education Additional and all five
+  Security/Background pages, reaching Photo. This diagnostic deliberately
+  omitted photo/final-submit inputs and wrote no queue success. It verifies
+  only the applicant's current branches; final submission remains unverified.
+- Repeat discovery now batches every selector branch's read-only metadata and
+  computes a common ancestor in one page evaluation, disposing temporary
+  handles. Fresh row discovery, count/token guards and final read-back remain.
+  All 15 repeat-browser regressions and type checking pass after the change;
+  the observed-school local fixture decreased from about 35 to 18 seconds.
+  This local timing is not a production latency guarantee. The same queue job
+  passed captured-resume preflight with no conflicts or final-fence attempts
+  and was restarted for a complete guarded submission run.
+- That guarded run verified the same application through the normal education
+  repeater and advanced to Additional, with the Previous Education checkpoint
+  at 20:50:56 UTC. The first school input no longer waited several minutes;
+  field filling and full row read-back completed in roughly three minutes.
+  This is live evidence for the current single-school branch only.
+- The full run reached Sign and Submit after CEAC accepted the photo, but
+  correctly stopped before final signing: all 146 review expectations were
+  structurally unverified. The old collector saw only generic page labels;
+  real answers are idless `div.data` values inside scoped review tables. A
+  separate identity-checked read-only capture preserved all seven actual
+  table structures. Explicit page/group/container/label rules and composite
+  comparisons now match all 146 previously read-back fields against those
+  captured rows off line. This offline result alone does not prove a live
+  capture or final submission. The failed worker and provider session were
+  stopped/released, and its exact terminal queue lease was cleared.
+- The new collector then re-read all seven live official review pages for the
+  same application. All 146 read-back expectations matched with zero issues;
+  this was a read-only diagnostic and performed no signing. The 22 focused
+  review/capture/orchestration regressions and type checking passed. The
+  original captured queue job was resumed again with final-review and
+  one-shot-submit guards still enabled.
+- A subsequent replay stopped at Personal Information 1 with CEAC's visible
+  completed-draft prompt asking whether to return to Review or continue the
+  form. Navigation only handled that prompt after Passport, so the first-page
+  transition timed out. No signing occurred and the stopped worker's exact
+  terminal lease was cleared. Separately, review matching now rejects a
+  continuation separated by a skipped physical table row and excludes answers
+  inside hidden ancestors. All 17 review regressions and type checking pass;
+  the captured current review still matches 146/146. All 23 final-signature
+  and persistent-guard regressions also pass.
+- Navigation now handles visible completed-draft continuation on every form
+  page and waits for the postback triggered by a delayed continuation click.
+  Hidden controls do not add a polling delay, and only explicit continuation
+  labels qualify. All 16 targeted navigation/browser tests, including the
+  three modal cases, and type checking passed. The exact captured queue job
+  passed preflight again and was resumed for the full guarded submission.
+- That run traversed the formerly blocked first-page modal and all current
+  applicant branches. At 21:53:12 UTC its fresh official review matched all
+  146 fields. It stopped before the final reservation because the actual
+  signature input was not recognized. A live unsigned-page capture identified
+  `rblPREP_IND`, `PPTNumTbx`, `CodeTextBox`, `btnSignApp`, and an initially
+  disabled `Next: Confirmation` control. The page explicitly instructs the
+  applicant to continue to confirmation after signing. Both prior signing
+  paths waited for direct confirmation and missed that continuation.
+- Exact preparer/passport identifiers now retain unique selection and read-back
+  verification. Shared confirmation navigation observes the disabled control
+  before signing and permits its enabled transition once, only for the same
+  official application; it never repeats the signature click. Success still
+  requires official confirmation controls and the matching application ID.
+  The existing signature/orchestration regressions pass 26/26 and type checking
+  passes. No final action occurred in the diagnostic capture.
+
 ## 2026-09-19 contact organization length
 
 - Follow-up code repair installs the CEAC async form-response monitor before
