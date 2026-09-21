@@ -128,6 +128,13 @@ import {
 } from "@/lib/client/recent-application-form";
 import { setActiveApplicationSelection } from "@/lib/client/active-application-selection";
 import { readApplicationRouteParam } from "@/lib/client/application-route-params";
+import {
+  clearSavedApplicationDraftCache,
+  readApplicationDraftCache,
+  syncApplicationDraftCache,
+  writeApplicationDraftCache,
+  type ApplicationDraftCacheScope,
+} from "@/lib/client/application-draft-cache";
 import { sanitizeCustomerSubmissionResult } from "@/app/api/applications/customer-submission-result";
 import {
   createOrderedDynamicSaveQueue,
@@ -1831,6 +1838,8 @@ export default function ApplicationPage() {
     text: string;
     idempotencyKey: string;
   } | null>(null);
+  const profileIdRef = useRef<string | null>(null);
+  const dynamicPersistedAnswersRef = useRef<Record<string, string>>({});
   const dynamicAnswersRef = useRef(dynamicAnswers);
   dynamicAnswersRef.current = dynamicAnswers;
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
@@ -1854,6 +1863,28 @@ export default function ApplicationPage() {
   if (orderedDynamicSaveQueueRef.current === null) {
     orderedDynamicSaveQueueRef.current = createOrderedDynamicSaveQueue(undefined, autosaveQueueRef);
   }
+
+  const draftCacheContextRef = useRef({
+    applicationId: appState.applicationId || explicitApplicationId,
+    visaType: explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST",
+    country: explicitProductCountry ?? visaPackage?.country ?? "indonesia",
+  });
+  draftCacheContextRef.current = {
+    applicationId: appState.applicationId || explicitApplicationId,
+    visaType: explicitVisaType ?? visaPackage?.visa_type ?? "ID_C1_TOURIST",
+    country: explicitProductCountry ?? visaPackage?.country ?? "indonesia",
+  };
+  const getApplicationDraftCacheScope = useCallback((applicationId?: string | null): ApplicationDraftCacheScope | null => {
+    const context = draftCacheContextRef.current;
+    const resolvedApplicationId = applicationId?.trim() || context.applicationId;
+    if (!resolvedApplicationId) return null;
+    return {
+      applicationId: resolvedApplicationId,
+      profileId: profileIdRef.current,
+      country: getCanonicalApplicationProductCountry(context.country, context.visaType),
+      visaType: context.visaType,
+    };
+  }, []);
 
   const markLiveSaveActivity = useCallback(() => {
     hasLiveSaveActivityRef.current = true;
@@ -1996,6 +2027,10 @@ export default function ApplicationPage() {
       || Object.keys(previousDraft).length !== Object.keys(nextData).length
       || Object.entries(nextData).some(([key, value]) => previousDraft[key] !== value);
     dynamicDraftRef.current[stepId] = nextData;
+    const cacheScope = getApplicationDraftCacheScope();
+    const pendingCache = cacheScope
+      ? syncApplicationDraftCache(cacheScope, nextData, dynamicPersistedAnswersRef.current)
+      : null;
     // Returning to the saved value still changes the visible branch. Compare
     // with the previous draft here; the persisted baseline only decides save work.
     if (hasDraftChanged) scheduleDynamicDerivedRefresh();
@@ -2020,7 +2055,7 @@ export default function ApplicationPage() {
       // submit attempt will surface a fresh, localized error if it still fails.
       setError(null);
     }
-    if (hasChangedValue) {
+    if (hasChangedValue || pendingCache) {
       // The first unsaved change starts one 30-second flush window; later
       // edits join that same batch instead of resetting the timer.
       if (autosaveTimerRef.current === null) {
@@ -2031,7 +2066,12 @@ export default function ApplicationPage() {
       }
     }
     setSubmitMissingFields((current) => current.length === 0 ? current : []);
-  }, [aiFilledFieldNames, markFormAssistantAnswersChanged, scheduleDynamicDerivedRefresh]);
+  }, [
+    aiFilledFieldNames,
+    getApplicationDraftCacheScope,
+    markFormAssistantAnswersChanged,
+    scheduleDynamicDerivedRefresh,
+  ]);
 
   useEffect(() => () => {
     if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
@@ -2735,8 +2775,20 @@ export default function ApplicationPage() {
     setError(null);
     setCurrentStep(0);
     setCompletedUpTo(0);
+    profileIdRef.current = null;
+    dynamicPersistedAnswersRef.current = {};
     dynamicAnswersRef.current = {};
+    dynamicDraftRef.current = {};
     setDynamicAnswers({});
+    if (draftVersionTimerRef.current !== null) {
+      window.clearTimeout(draftVersionTimerRef.current);
+      draftVersionTimerRef.current = null;
+    }
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    lastAutosaveVersionRef.current = 0;
     setKoreaPreflightTrusted(!isKoreaEArrivalCard);
     setSubmitCheckState("idle");
     setSubmitMissingFields([]);
@@ -2853,6 +2905,7 @@ export default function ApplicationPage() {
       }
 
       if (!isLatestRequest()) return;
+      profileIdRef.current = profile?.id ?? null;
       setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
       if (profile) {
@@ -2873,9 +2926,32 @@ export default function ApplicationPage() {
             setKoreaPreflightTrusted(true);
           }
         }
+        const serverAnswers = { ...ds160Answers };
+        const cacheScope = getApplicationDraftCacheScope(application?.id);
+        const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+        const hydratedAnswers = cachedDraft
+          ? { ...serverAnswers, ...cachedDraft.answers }
+          : serverAnswers;
+        if (cachedDraft) {
+          // The cache contains only edits that were not confirmed by the
+          // server. Overlay it before both dynamic and hardcoded hydration so
+          // a refresh cannot show a mixed old/new application.
+          ds160Answers = hydratedAnswers;
+        }
+        const serverUniversalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
+          answers: mergeUniversalProfileIntoAnswers(serverAnswers, profile),
+          existingAnswers: serverAnswers,
+          profile,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+        });
+        const persistedDynamicAnswers = normalizeAnswersToFieldOptions(
+          serverUniversalDynamicAnswers,
+          dbSteps,
+        );
         const universalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
-          answers: mergeUniversalProfileIntoAnswers(ds160Answers, profile),
-          existingAnswers: ds160Answers,
+          answers: mergeUniversalProfileIntoAnswers(hydratedAnswers, profile),
+          existingAnswers: hydratedAnswers,
           profile,
           country: resolvedCountry,
           visaType: resolvedVisaType,
@@ -2954,8 +3030,15 @@ export default function ApplicationPage() {
 
         // Set dynamic answers for the dynamic form steps
         if (Object.keys(mergedDynamicAnswers).length > 0) {
+          dynamicPersistedAnswersRef.current = persistedDynamicAnswers;
           dynamicAnswersRef.current = mergedDynamicAnswers;
           setDynamicAnswers(mergedDynamicAnswers);
+          if (cachedDraft && Object.keys(cachedDraft.answers).length > 0 && autosaveTimerRef.current === null) {
+            autosaveTimerRef.current = window.setTimeout(() => {
+              autosaveTimerRef.current = null;
+              setAutosaveVersion((version) => version + 1);
+            }, DYNAMIC_AUTOSAVE_INTERVAL_MS);
+          }
           if (ds160Answers["photo_path"]) {
             setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
           }
@@ -2982,6 +3065,7 @@ export default function ApplicationPage() {
     preferExplicitPackage,
     resolvedCountry,
     resolvedVisaType,
+    getApplicationDraftCacheScope,
     scrollToStepPanel,
     statusStepIndex,
     t,
@@ -3198,29 +3282,53 @@ export default function ApplicationPage() {
       const queue = orderedDynamicSaveQueueRef.current;
       if (!queue) return Promise.reject(new Error("Dynamic answer save queue is unavailable"));
       const applicationScope = applicationIdOverride ?? dynamicSaveScope;
+      let cacheScope = getApplicationDraftCacheScope(applicationIdOverride);
+      let queuedCacheEntry = cacheScope
+        ? writeApplicationDraftCache(cacheScope, patch)
+        : null;
       return queue.enqueue(applicationScope, patch, async (snapshot) => {
         const applicationId = applicationIdOverride ?? await ensureWritableApplicationId();
         if (submittedReadOnlyRef.current) return;
+        if (!cacheScope) {
+          cacheScope = getApplicationDraftCacheScope(applicationId);
+          queuedCacheEntry = cacheScope
+            ? writeApplicationDraftCache(cacheScope, patch)
+            : null;
+        }
         const saveResult = await saveDynamicAnswers(applicationId, snapshot);
         if (saveResult.error) throw new Error(saveResult.error);
+        dynamicPersistedAnswersRef.current = {
+          ...dynamicPersistedAnswersRef.current,
+          ...snapshot,
+        };
+        if (cacheScope) {
+          clearSavedApplicationDraftCache(cacheScope, snapshot, queuedCacheEntry?.revision);
+        }
       }, { deduplicate: !force });
     },
-    [dynamicSaveScope, ensureWritableApplicationId],
+    [dynamicSaveScope, ensureWritableApplicationId, getApplicationDraftCacheScope],
   );
 
   const saveAllDynamicDrafts = useCallback(async () => {
-    const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const cacheScope = getApplicationDraftCacheScope();
+    const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+    const mergedDraft = {
+      ...(cachedDraft?.answers ?? {}),
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
     const draftEntries = Object.entries(mergedDraft);
     if (draftEntries.length === 0) return;
 
     const hasChangedValue = draftEntries.some(
-      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
+      ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+        || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
     if (!hasChangedValue) return;
 
     const changedDraft = Object.fromEntries(
       draftEntries.filter(
-        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
+        ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+          || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) return;
@@ -3236,14 +3344,16 @@ export default function ApplicationPage() {
       throw saveError;
     }
 
-    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedDraft };
-    setDynamicAnswers((prev) => ({ ...prev, ...changedDraft }));
+    const latestDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const visiblePatch = { ...changedDraft, ...latestDraft };
+    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...visiblePatch };
+    setDynamicAnswers((prev) => ({ ...prev, ...visiblePatch }));
     setSubmitMissingFields([]);
     if (requestId === autosaveRequestRef.current) {
       setAutosaving(false);
       setAutosaveFailed(false);
     }
-  }, [enqueueDynamicAnswerSave]);
+  }, [enqueueDynamicAnswerSave, getApplicationDraftCacheScope]);
 
   const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
     if (submittedReadOnlyRef.current) return;
@@ -3737,9 +3847,15 @@ export default function ApplicationPage() {
       return;
     }
 
-    const pendingDraft = collectDraftAnswers(dynamicDraftRef.current);
+    const cacheScope = getApplicationDraftCacheScope();
+    const cachedDraft = cacheScope ? readApplicationDraftCache(cacheScope) : null;
+    const pendingDraft = {
+      ...(cachedDraft?.answers ?? {}),
+      ...collectDraftAnswers(dynamicDraftRef.current),
+    };
     const hasChangedValue = Object.entries(pendingDraft).some(
-      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
+      ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+        || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
     );
 
     if (!hasChangedValue) {
@@ -3753,7 +3869,8 @@ export default function ApplicationPage() {
 
     const changedDraft = Object.fromEntries(
       Object.entries(pendingDraft).filter(
-        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
+        ([fieldName, value]) => Boolean(cachedDraft && Object.prototype.hasOwnProperty.call(cachedDraft.answers, fieldName))
+          || (dynamicAnswersRef.current[fieldName] ?? "") !== value,
       ),
     );
     if (Object.keys(changedDraft).length === 0) {
@@ -3766,8 +3883,12 @@ export default function ApplicationPage() {
     void runAutosave.then(
       () => {
         if (requestId !== autosaveRequestRef.current) return;
-        dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedDraft };
-        setDynamicAnswers((previous) => ({ ...previous, ...changedDraft }));
+        // The successful request confirms its snapshot, but edits made while
+        // it was in flight must remain visible and pending for the next save.
+        const latestDraft = collectDraftAnswers(dynamicDraftRef.current);
+        const visiblePatch = { ...changedDraft, ...latestDraft };
+        dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...visiblePatch };
+        setDynamicAnswers((previous) => ({ ...previous, ...visiblePatch }));
         setAutosaveFailed(false);
         setAutosaving(false);
       },
@@ -3787,6 +3908,7 @@ export default function ApplicationPage() {
     autosaveVersion,
     enqueueDynamicAnswerSave,
     formAssistantReadOnly,
+    getApplicationDraftCacheScope,
     loading,
     saving,
     t,

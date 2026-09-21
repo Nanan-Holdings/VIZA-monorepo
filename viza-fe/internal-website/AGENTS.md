@@ -1,5 +1,11 @@
 # Internal Website Agent Guide
 
+`lib/client/application-draft-cache.ts` stores only unacknowledged long-form
+answer patches in tab-local sessionStorage, isolated by application and profile.
+Preserve empty repeat-row tombstones and per-field revisions: a late save must
+not remove newer edits, including edits back to the previous server value.
+The adjacent unit tests cover scope isolation and acknowledgement behavior.
+
 `supabase/migrations/20260921060000_ds160_live_catalog_reconciliation.sql`
 mirrors backend 0202. It reconciles fourteen differences discovered in the live
 catalog after 0197–0201, including spouse branches and companion limits, without

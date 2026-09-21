@@ -34,6 +34,14 @@ Before changing this route, read:
 
 ## Key Files
 
+- `long-form/page.tsx` restores the tab-local pending patch before hydration,
+  keeps a separate persisted baseline, and drains recovered edits through the
+  ordered save queue. Cache scope lookup must remain stable across application
+  ID hydration so it does not retrigger initialization. Successful responses
+  update the persisted baseline while newer draft values remain visible.
+  `long-form/__tests__/page-orchestration.test.tsx` covers immediate reload,
+  failed-save recovery and A→B→A while B is still being saved.
+
 - DS-160 cross-section gates in `long-form/page.tsx` use a stable projection of
   current draft nationality, repeated other nationalities, DOB, marital status,
   travel-plan choice and stay units. Ordinary text edits keep sibling form props

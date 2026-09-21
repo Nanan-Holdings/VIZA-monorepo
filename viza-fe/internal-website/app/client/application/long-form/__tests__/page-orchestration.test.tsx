@@ -412,6 +412,7 @@ const response = (payload: unknown) => ({
 });
 
 beforeEach(() => {
+  sessionStorage.clear();
   testState.submitted = false;
   testState.saveBarrier = null;
   testState.saveError = null;
@@ -695,6 +696,50 @@ describe("long form page orchestration", () => {
       .toBe("persisted");
   });
 
+  it("restores a pending patch after refresh and clears it only after the retry succeeds", async () => {
+    testState.initialDynamicAnswers = {
+      first_name: "server value",
+      saved_answer: "persisted",
+    };
+    const { default: ApplicationPage } = await import("../page");
+    const firstRender = render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => {
+      expect((testState.dynamicPropsHistory.at(-1)?.prefill as Record<string, string>).first_name)
+        .toBe("server value");
+    });
+    fireEvent.click(screen.getByTestId("dynamic-edit"));
+    await waitFor(() => {
+      expect(sessionStorage.length).toBeGreaterThan(0);
+    });
+    expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
+
+    firstRender.unmount();
+    testState.dynamicPropsHistory.length = 0;
+    testState.saveDynamicAnswersCalls.length = 0;
+    render(<ApplicationPage />);
+
+    await waitFor(() => {
+      expect((testState.dynamicPropsHistory.at(-1)?.prefill as Record<string, string>).first_name)
+        .toBe("edited");
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled());
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
+
+    testState.saveError = "Save failed. Please retry.";
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(screen.getByText("Save failed. Please retry.")).toBeInTheDocument());
+    expect(sessionStorage.length).toBeGreaterThan(0);
+    expect(testState.submissionPosts).toHaveLength(0);
+    testState.saveError = null;
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(0));
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({ first_name: "edited" });
+    await waitFor(() => expect(sessionStorage.length).toBe(0));
+  });
+
   it("refreshes a branch when a draft moves A to B and back to the saved A value", async () => {
     const { default: ApplicationPage } = await import("../page");
     render(<ApplicationPage />);
@@ -711,6 +756,39 @@ describe("long form page orchestration", () => {
     // No autosave is needed for this assertion; the visible branch must still
     // follow the current draft when it returns to the persisted value.
     expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
+  });
+
+  it("keeps a reverted answer visible and saves it after an older request completes", async () => {
+    testState.initialDynamicAnswers = { branch: "base" };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+    await waitFor(() => expect(screen.getByTestId("dynamic-branch-edit")).toBeInTheDocument());
+    const pendingSave = Promise.withResolvers<void>();
+    testState.saveBarrier = pendingSave.promise;
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByTestId("dynamic-branch-edit"));
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(testState.saveDynamicAnswersCalls.at(-1)?.answers.branch).toBe("alternate");
+
+      fireEvent.click(screen.getByTestId("dynamic-branch-revert"));
+      await act(async () => {
+        pendingSave.resolve();
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(screen.queryByTestId("dynamic-edit-step-2")).not.toBeInTheDocument();
+      const cacheKey = Object.keys(sessionStorage).find((key) => key.startsWith("viza:application-draft-cache:"));
+      expect(cacheKey).toBeDefined();
+      expect(JSON.parse(sessionStorage.getItem(cacheKey!)!).answers.branch).toBe("base");
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(testState.saveDynamicAnswersCalls.at(-1)?.answers.branch).toBe("base");
+      expect(sessionStorage.getItem(cacheKey!)).toBeNull();
+    } finally {
+      pendingSave.resolve();
+      vi.useRealTimers();
+    }
   });
 
   it("flushes every dirty dynamic panel when navigation reads a stale current step", async () => {
