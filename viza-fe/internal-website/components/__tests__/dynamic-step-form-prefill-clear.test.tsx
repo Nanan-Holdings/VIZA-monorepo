@@ -268,6 +268,138 @@ describe("DynamicStepForm prefill clear protection", () => {
     expect(valueFor(container, "other_name")).toBe("User edited");
   });
 
+  it("hydrates DS-160 cross-step controllers without replacing local edits", async () => {
+    mockLocale = "zh";
+    const step = stepFor([
+      field({
+        visaType: "DS160",
+        fieldName: "vwp_denial",
+        label: "ESTA denial",
+        fieldType: "radio",
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        validationRules: { nationality_gate: "CEAC_ESTA" },
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "dob_branch",
+        label: "Date branch",
+        conditionalLogic: { showIf: "date_of_birth === adult" },
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "marital_branch",
+        label: "Marital branch",
+        conditionalLogic: { showIf: "marital_status === married" },
+      }),
+      field({ visaType: "DS160", fieldName: "ordinary_note", label: "Ordinary note" }),
+      field({ visaType: "DS160", fieldName: "ordinary_clear", label: "Ordinary clear" }),
+    ]);
+    const { container, rerender } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          nationality_country: "CHIN",
+          date_of_birth: "child",
+          marital_status: "single",
+          ordinary_note: "server value",
+          ordinary_clear: "server clear",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+
+    expect(container.querySelector('[data-field-name="vwp_denial"]')).toBeNull();
+    expect(container.querySelector('[data-field-name="dob_branch"]')).toBeNull();
+    expect(container.querySelector('[data-field-name="marital_branch"]')).toBeNull();
+    changeValue(container, "ordinary_note", "typed locally");
+    changeValue(container, "ordinary_clear", "");
+
+    rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          nationality_country: "JPN",
+          date_of_birth: "adult",
+          marital_status: "married",
+          ordinary_note: "stale server value",
+          ordinary_clear: "server clear",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-field-name="vwp_denial"]')).not.toBeNull();
+      expect(container.querySelector('[data-field-name="dob_branch"]')).not.toBeNull();
+      expect(container.querySelector('[data-field-name="marital_branch"]')).not.toBeNull();
+    });
+    expect(valueFor(container, "ordinary_note")).toBe("typed locally");
+    expect(valueFor(container, "ordinary_clear")).toBe("");
+  });
+
+  it("clears and restores the ESTA gate when an other-nationality repeat row is removed", async () => {
+    mockLocale = "zh";
+    const step = stepFor([
+      field({
+        visaType: "DS160",
+        fieldName: "vwp_denial",
+        label: "ESTA denial",
+        fieldType: "radio",
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        validationRules: { nationality_gate: "CEAC_ESTA" },
+      }),
+    ]);
+    const { container, rerender } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          nationality_country: "CHIN",
+          other_nationality: "yes",
+          other_nationality_country__2: "JPN",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+    expect(container.querySelector('[data-field-name="vwp_denial"]')).not.toBeNull();
+
+    rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{ nationality_country: "CHIN", other_nationality: "no" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(container.querySelector('[data-field-name="vwp_denial"]')).toBeNull());
+
+    rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          nationality_country: "CHIN",
+          other_nationality: "yes",
+          other_nationality_country__2: "JPN",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        country="united_states"
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(container.querySelector('[data-field-name="vwp_denial"]')).not.toBeNull());
+  });
+
   it("keeps Taiwan name input formatting for uppercase English and Traditional Chinese blur conversion", async () => {
     mockLocale = "zh";
     const step = stepFor([

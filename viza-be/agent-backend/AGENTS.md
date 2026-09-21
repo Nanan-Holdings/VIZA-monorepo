@@ -107,6 +107,9 @@ explicitly reintroduces another provider.
   mirrored migration plus guarded local database JSON/ACL/OID parity across
   calendar/rolling boundaries and timezones; it never defaults to production.
 - Seed/ingestion scripts: `scripts/*.ts`.
+- `scripts/ds160-consular-posts.ts` is the checked-in 217-entry CEAC DS-160
+  start-page consular-post catalog. Keep official codes/English labels stable
+  for runner payloads and use `labelZh` only for applicant-facing display.
 - `scripts/prove-rag-retrieval.ts` and its adjacent test implement the local,
   cached-vector exhaustive empirical RAG certificate. They pool already seen
   synthetic questions, enumerate threshold equivalence intervals and k 1-12,

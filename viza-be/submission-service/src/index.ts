@@ -23,7 +23,14 @@ import {
   DS160_MAPPING_GROUPS,
 } from "./ds160-form-mappings";
 import { buildDs160AnswerMap, deriveDS160Answers } from "./ds160-derive-answers";
-import { assertDs160RequiredAnswers, Ds160PlaceholderAnswersError, Ds160RequiredAnswersError } from "./ceac/field-contract";
+import {
+  assertDs160RequiredAnswers,
+  Ds160DuplicatePurposeError,
+  Ds160ImmediateRelativeRelationshipError,
+  Ds160PlaceholderAnswersError,
+  Ds160RequiredAnswersError,
+  Ds160UsContactRelationshipError,
+} from "./ceac/field-contract";
 import { assertDs160PreparerAnswers } from "./ceac/signature-fields";
 import {
   startCeacSession,
@@ -2898,7 +2905,11 @@ async function processDs160Item(
       ? { captchaSolve: session.captchaSolve.telemetry }
       : {};
 
-    if (err instanceof Ds160PlaceholderAnswersError || err instanceof Ds160RequiredAnswersError) {
+    if (err instanceof Ds160PlaceholderAnswersError ||
+        err instanceof Ds160RequiredAnswersError ||
+        err instanceof Ds160DuplicatePurposeError ||
+        err instanceof Ds160UsContactRelationshipError ||
+        err instanceof Ds160ImmediateRelativeRelationshipError) {
       // Applicant input cannot be repaired by retrying the browser. Preserve
       // any captured official result/checkpoint and stop before another job.
       await markDs160FinalSubmissionActionRequired(item, "input_review_required", errorMsg, true);

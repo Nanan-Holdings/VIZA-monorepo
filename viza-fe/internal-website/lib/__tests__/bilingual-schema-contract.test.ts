@@ -208,12 +208,13 @@ describe("bilingual schema contract", () => {
       ],
     }));
 
-    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual([
+    expect(resolveLocalizedOptions(normalized.options, "zh")).toEqual(expect.arrayContaining([
       expect.objectContaining({ value: "AL", text: "阿拉巴马州" }),
       expect.objectContaining({ value: "AS", text: "美属萨摩亚" }),
       expect.objectContaining({ value: "ID", text: "爱达荷州" }),
-    ]);
-    expect(normalized.options?.map((option) => typeof option === "string" ? option : option.value)).toEqual(["AL", "AS", "ID"]);
+    ]));
+    expect(normalized.options).toHaveLength(56);
+    expect(normalized.validationRules?.source).toBe("CEAC_US_STATES");
   });
 
   it("requires DS-160 Social Security Number to be explicit or Does Not Apply", () => {

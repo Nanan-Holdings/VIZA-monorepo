@@ -1,11 +1,35 @@
 import { evaluateShowIf, getRepeatInstanceCount, getRepeatInstanceValues } from "@/lib/form-utils";
 import { resolveLocalizedFieldLabel } from "@/lib/bilingual-schema-contract";
+import { getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
 import {
   getMissingDynamicFormFields,
   isPastUpcomingTravelDate,
   isVisibleDynamicFieldRequired,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
+import {
+  FORMER_SPOUSE_COUNT_FIELD,
+  getFormerSpouseCountIssue,
+  getFormerSpouseCountValidationMessage,
+} from "@/lib/former-spouse-count";
+import {
+  getUsContactRelationshipIssue,
+  getUsContactRelationshipIssueMessage,
+} from "@/lib/us-contact-validation";
+import {
+  getDs160ImmediateRelativeRelationshipIssue,
+  getDs160ImmediateRelativeRelationshipIssueMessage,
+} from "@/lib/ds160-family-validation";
+import {
+  getDs160TripPurposeDuplicateIssue,
+  getDs160TripPurposeDuplicateMessage,
+} from "@/lib/ds160-travel-validation";
+import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
+import {
+  getDs160NationalityDuplicateIssue,
+  getDs160NationalityDuplicateMessage,
+} from "@/lib/ds160-nationality-validation";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
 import type {
   FormAssistantProgress,
@@ -77,13 +101,23 @@ function fieldAnswerKeys(
   const configuredMax = field.validationRules?.max_items;
   const maxItems = typeof configuredMax === "number" && configuredMax > 0
     ? Math.floor(configuredMax)
-    : 5;
+    : null;
   const keys = new Set<string>([field.fieldName]);
-  for (let index = 1; index < maxItems; index += 1) {
-    const key = answerInstanceKey(field.fieldName, index);
-    if (Object.prototype.hasOwnProperty.call(answers, key)) keys.add(key);
+  const prefix = `${field.fieldName}__`;
+  for (const key of Object.keys(answers)) {
+    if (!key.startsWith(prefix)) continue;
+    const suffix = key.slice(prefix.length);
+    if (!/^\d+$/.test(suffix)) continue;
+    const rowIndex = Number(suffix);
+    if (!Number.isSafeInteger(rowIndex) || rowIndex < 2) continue;
+    if (maxItems !== null && rowIndex > maxItems) continue;
+    keys.add(key);
   }
-  return Array.from(keys);
+  return Array.from(keys).sort((left, right) => {
+    const leftIndex = Number(left.match(/__(\d+)$/)?.[1] ?? "1");
+    const rightIndex = Number(right.match(/__(\d+)$/)?.[1] ?? "1");
+    return leftIndex - rightIndex;
+  });
 }
 
 function hasMeaningfulAnswer(value: string | null | undefined): boolean {
@@ -118,7 +152,7 @@ function optionValuesAreAllowed(
   const allowed = new Set(field.options.map(optionValue));
   const selectedValues = field.fieldType === "multi_select"
     ? value.split(",").map((part) => part.trim()).filter(Boolean)
-    : [value];
+    : [resolveDs160OfficialOptionValue(getDs160OfficialOptionSource(field), value)];
   return selectedValues.length > 0 && selectedValues.every((selected) => allowed.has(selected));
 }
 
@@ -142,6 +176,10 @@ export function canonicalizeApplicationOptionAnswers(
   const patches: CanonicalOptionAnswerPatch[] = [];
 
   for (const field of steps.flatMap((step) => step.fields)) {
+    // Compatibility aliases are persisted for the runner bridge but are no
+    // longer user-facing controls. Keep their historical values untouched;
+    // canonical alias resolution happens at the submission boundary.
+    if (isLegacyCompatibilityOnlyField(field)) continue;
     if (
       !field.options?.length ||
       !["select", "radio", "country", "multi_select"].includes(field.fieldType)
@@ -150,7 +188,8 @@ export function canonicalizeApplicationOptionAnswers(
     for (const answerKey of fieldAnswerKeys(field, answers)) {
       const previousValue = answers[answerKey]?.trim();
       if (!previousValue) continue;
-      const wholeValue = canonicalOptionValue(field.options, previousValue);
+      const resolvedValue = resolveDs160OfficialOptionValue(getDs160OfficialOptionSource(field), previousValue);
+      const wholeValue = canonicalOptionValue(field.options, resolvedValue);
       let canonicalValue = wholeValue;
       if (!canonicalValue && field.fieldType === "multi_select") {
         const parts = previousValue.split(",").map((part) => part.trim()).filter(Boolean);
@@ -239,11 +278,16 @@ export function getAssistantProgress(
   answers: Record<string, string>,
   now: Date = new Date(),
 ): FormAssistantProgress {
-  const visibleRequired = steps.flatMap((step) => step.fields.flatMap((field) =>
+  const visibleRequired = steps.flatMap((step) => step.fields
+    .filter((field) => !isLegacyCompatibilityOnlyField(field))
+    .flatMap((field) =>
     Array.from({ length: getRepeatInstanceCount(field, answers, step.fields) }, (_, index) => ({
       key: answerInstanceKey(field.fieldName, index),
       values: getRepeatInstanceValues(field, index, answers, step.fields),
-    })).filter(({ values }) => isVisibleDynamicFieldRequired(field, values, step.fields))
+    })).filter(({ values }) =>
+      isDs160FieldVisibleForRuntime(field, step, undefined, answers, now) &&
+      isVisibleDynamicFieldRequired(field, values, step.fields)
+    )
       .map(({ key }) => key),
   ));
   const missingNames = new Set(
@@ -280,6 +324,63 @@ export function validateApplicationAnswers(params: {
   });
   const errors: FormAssistantValidationIssue[] = missingFields.flatMap((missing) => {
     const field = fieldByName.get(missing.fieldName.replace(/__\d+$/, ""));
+    if (missing.fieldName === FORMER_SPOUSE_COUNT_FIELD) {
+      const formerSpouseCountIssue = getFormerSpouseCountIssue(answers);
+      if (formerSpouseCountIssue) {
+        return [{
+          code: formerSpouseCountIssue.kind === "required"
+            ? "former_spouse_count_required"
+            : "former_spouse_count_mismatch",
+          fieldNames: [FORMER_SPOUSE_COUNT_FIELD],
+          message: getFormerSpouseCountValidationMessage(formerSpouseCountIssue, isZh),
+        }];
+      }
+    }
+    if (missing.fieldName === "us_contact_relationship") {
+      const usContactRelationshipIssue = getUsContactRelationshipIssue(answers);
+      if (usContactRelationshipIssue) {
+        return [{
+          code: `us_contact_relationship_${usContactRelationshipIssue.kind}`,
+          fieldNames: ["us_contact_relationship"],
+          message: getUsContactRelationshipIssueMessage(usContactRelationshipIssue, isZh),
+        }];
+      }
+    }
+    if (/^us_relative_relationship(?:__\d+)?$/u.test(missing.fieldName)) {
+      const immediateRelativeRelationshipIssue = getDs160ImmediateRelativeRelationshipIssue(
+        answers,
+        missing.fieldName,
+      );
+      if (immediateRelativeRelationshipIssue) {
+        return [{
+          code: `ds160_immediate_relative_relationship_${immediateRelativeRelationshipIssue.kind}`,
+          fieldNames: [missing.fieldName, "marital_status"],
+          message: getDs160ImmediateRelativeRelationshipIssueMessage(immediateRelativeRelationshipIssue, isZh),
+        }];
+      }
+    }
+    if (/^purpose_of_trip(?:__\d+)?$/u.test(missing.fieldName)) {
+      const tripPurposeIssue = getDs160TripPurposeDuplicateIssue(answers, missing.fieldName);
+      if (tripPurposeIssue) {
+        return [{
+          code: "ds160_trip_purpose_duplicate_category",
+          fieldNames: [missing.fieldName],
+          message: getDs160TripPurposeDuplicateMessage(tripPurposeIssue, isZh),
+        }];
+      }
+    }
+    if (
+      /^(?:nationality_country|other_nationality_country|other_permanent_resident_country)(?:__\d+)?$/u.test(missing.fieldName)
+    ) {
+      const nationalityIssue = getDs160NationalityDuplicateIssue(answers, missing.fieldName);
+      if (nationalityIssue) {
+        return [{
+          code: `ds160_${nationalityIssue.kind}`,
+          fieldNames: [missing.fieldName],
+          message: getDs160NationalityDuplicateMessage(nationalityIssue, isZh),
+        }];
+      }
+    }
     if (field && isPastUpcomingTravelDate(field, answers[missing.fieldName], params.now)) {
       return [{
         code: "date_before_today",
@@ -300,6 +401,8 @@ export function validateApplicationAnswers(params: {
 
   for (const step of steps) {
     for (const field of step.fields) {
+      if (isLegacyCompatibilityOnlyField(field)) continue;
+      if (!isDs160FieldVisibleForRuntime(field, step, visaType, answers, params.now)) continue;
       const label = labelForField(field);
       for (const answerKey of fieldAnswerKeys(field, answers)) {
         const instanceIndex = Number(answerKey.match(/__(\d+)$/)?.[1] ?? "1") - 1;

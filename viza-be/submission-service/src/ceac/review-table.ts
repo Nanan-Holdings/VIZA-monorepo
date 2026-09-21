@@ -23,6 +23,30 @@ function observedDate(value: string): string | null {
   return match ? dateValue(match[1], match[2], match[3]) : null;
 }
 
+function monthIndex(value: string): number {
+  const normalized = normalize(value);
+  const named = months.findIndex(name => normalized === name || normalized === name.slice(0, 3));
+  if (named >= 0) return named;
+  const numeric = /^0?(\d{1,2})$/.exec(normalized);
+  if (!numeric) return -1;
+  const month = Number(numeric[1]);
+  return month >= 1 && month <= 12 ? month - 1 : -1;
+}
+
+function observedPartialDate(value: string, month: string | undefined, year: string, precision: "month" | "year"): boolean {
+  if (!/^\d{4}$/.test(year.trim())) return false;
+  const normalized = normalize(value);
+  const yearPattern = new RegExp(`(?:^|\\D)${year.trim()}(?:\\D|$)`);
+  if (!yearPattern.test(normalized)) return false;
+  if (precision === "year") return true;
+  if (!month?.trim()) return false;
+  const index = monthIndex(month);
+  if (index < 0) return false;
+  const name = months[index];
+  if (normalized.includes(name) || normalized.includes(name.slice(0, 3))) return true;
+  return new RegExp(`(?:^|\\D)0?${index + 1}(?:\\D|$)`).test(normalized);
+}
+
 function fieldIndex(name: string, base: string): number | null {
   if (name === base) return 0;
   if (!name.startsWith(`${base}__`)) return null;
@@ -89,6 +113,19 @@ function compareRule(rule: ReviewTableRule, fields: Array<ReviewExpectation | un
   if (rule.format === "date" && na && normalize(na.value) === "yes") {
     if (fields.some(Boolean)) return "incomplete";
     return normalize(actual) === "does not apply" ? "match" : "mismatch";
+  }
+  if (rule.format === "date" && rule.partialDate) {
+    const month = fields[1];
+    const year = fields[2];
+    if (!year || !year.value.trim() || (rule.partialDate === "month" && (!month || !month.value.trim()))) return "incomplete";
+    const day = fields[0];
+    if (day?.value.trim()) {
+      if (!month?.value.trim()) return "incomplete";
+      const expectedDate = dateValue(day.value, month.value, year.value);
+      if (!expectedDate) return "incomplete";
+      return observedDate(actual) === expectedDate ? "match" : "mismatch";
+    }
+    return observedPartialDate(actual, month?.value, year.value, rule.partialDate) ? "match" : "mismatch";
   }
   if (fields.some(field => !field)) return "incomplete";
   const present = fields as ReviewExpectation[];

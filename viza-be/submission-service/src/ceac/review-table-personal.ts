@@ -332,6 +332,7 @@ export const PERSONAL_REVIEW_TABLE_RULES: readonly ReviewTableRule[] = [
     label: "Intended Date of Arrival:",
     fields: ["intended_arrival_date_day", "intended_arrival_date_month", "intended_arrival_date_year"],
     format: "date",
+    partialDate: "month",
   },
   {
     page: "travel",

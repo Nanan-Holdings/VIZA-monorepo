@@ -30,7 +30,13 @@ import { Button } from "@/components/ui/button";
 import { ReviewEditButton } from "@/components/ui/review-edit-button";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
-import { isAllowedDateSentinel } from "@/lib/date-field-validation";
+import {
+  isAllowedDateSentinel,
+  isDateFieldValueComplete,
+  type DateFieldValidationRules,
+} from "@/lib/date-field-validation";
+import { getDs160AgeVisibleStep } from "@/lib/ds160-age-gate";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatDateOfficial(value: string): string | null {
@@ -45,31 +51,33 @@ function formatDateOfficial(value: string): string | null {
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 }
 
-function formatDateEditorValue(value: string): string {
+function formatDateEditorValue(
+  value: string,
+  rules?: DateFieldValidationRules | null,
+): string {
   const trimmed = value.trim();
   const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const isoMonthMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})$/);
   const chineseMatch = trimmed.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+  const chineseMonthMatch = trimmed.match(/^(\d{4})年(\d{1,2})月$/);
   const officialMatch = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
 
   if (isoMatch || chineseMatch) {
     const [, year, month, day] = isoMatch ?? chineseMatch!;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
+  if (isoMonthMatch || chineseMonthMatch) {
+    const [, year, month] = isoMonthMatch ?? chineseMonthMatch!;
+    return `${year}-${month.padStart(2, "0")}`;
+  }
   if (officialMatch) {
     const [, day, month, year] = officialMatch;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
+  if (/^\d{4}$/.test(trimmed) && (rules?.allow_year_only === true || rules?.minimum_date_precision === "year")) {
+    return trimmed;
+  }
   return trimmed;
-}
-
-function isValidIsoCalendarDate(value: string): boolean {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return false;
-  const [, year, month, day] = match;
-  const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  return parsed.getUTCFullYear() === Number(year)
-    && parsed.getUTCMonth() === Number(month) - 1
-    && parsed.getUTCDate() === Number(day);
 }
 
 export function getReviewSourceLabel(field: WizardStep["fields"][number]): string {
@@ -265,6 +273,7 @@ export interface DynamicReviewStepProps {
   applicationId: string;
   dynamicAnswers: Record<string, string>;
   dbSteps: WizardStep[];
+  visaType?: string | null;
   photoPath: string | null;
   onEdit: (stepIndex: number, fieldName: string) => void;
   onPhotoEdit: () => void;
@@ -281,6 +290,7 @@ export function DynamicReviewStep({
   applicationId,
   dynamicAnswers,
   dbSteps,
+  visaType,
   photoPath,
   onEdit,
   onPhotoEdit,
@@ -301,7 +311,9 @@ export function DynamicReviewStep({
   const validationFieldLabels = useMemo(() => {
     const labels: Record<string, { zh: string; en: string }> = {};
     for (const step of dbSteps) {
-      for (const field of step.fields) {
+      const ageVisibleStep = getDs160AgeVisibleStep(step, visaType, dynamicAnswers);
+      for (const field of ageVisibleStep.fields) {
+        if (isLegacyCompatibilityOnlyField(field)) continue;
         labels[field.fieldName] = {
           zh: getReviewSourceLabel(field),
           en: getReviewOfficialLabel(field),
@@ -309,7 +321,7 @@ export function DynamicReviewStep({
       }
     }
     return labels;
-  }, [dbSteps]);
+  }, [dbSteps, dynamicAnswers, visaType]);
 
   /**
    * Format a field's stored value for display.
@@ -356,19 +368,17 @@ export function DynamicReviewStep({
       .flatMap((step) => step.fields)
       .find((candidate) => candidate.fieldName === schemaFieldName);
     if (!field) throw new Error(`Review field not found: ${schemaFieldName}`);
+    if (isLegacyCompatibilityOnlyField(field)) {
+      throw new Error(`Review field is compatibility-only: ${schemaFieldName}`);
+    }
 
+    const dateRules = field.validationRules as DateFieldValidationRules | null;
     const canonicalOfficialValue = field.fieldType === "date"
-      ? formatDateEditorValue(officialValue)
+      ? formatDateEditorValue(officialValue, dateRules)
       : officialValue;
-    const dateRules = field.validationRules as {
-      allow_do_not_know?: unknown;
-      allow_unknown?: unknown;
-      allow_does_not_apply?: unknown;
-      has_does_not_apply?: unknown;
-    } | null;
     const allowedDateSentinel = field.fieldType === "date" &&
       isAllowedDateSentinel(canonicalOfficialValue, dateRules);
-    if (field.fieldType === "date" && !allowedDateSentinel && !isValidIsoCalendarDate(canonicalOfficialValue)) {
+    if (field.fieldType === "date" && !allowedDateSentinel && !isDateFieldValueComplete(field, canonicalOfficialValue)) {
       throw new Error(`Invalid official date: ${officialValue}`);
     }
 
@@ -406,7 +416,9 @@ export function DynamicReviewStep({
 
       const instanceCounts = new Map<string, number>();
       const instanceValues = new Map<string, Record<string, string>>();
-      for (const field of step.fields) {
+      const ageVisibleStep = getDs160AgeVisibleStep(step, visaType, dynamicAnswers);
+      for (const field of ageVisibleStep.fields) {
+        if (isLegacyCompatibilityOnlyField(field)) continue;
         if (field.fieldType === "file") continue;
         const group = String(field.validationRules?.repeat_group ?? field.fieldName);
         let count = instanceCounts.get(group);
@@ -529,7 +541,7 @@ export function DynamicReviewStep({
 
     previousRowsByKeyRef.current = nextRowsByKey;
     return [...completedRows, ...missingRows, ...optionalRows];
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, readOnly, reviewIssues, t, tDyn]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, readOnly, reviewIssues, t, tDyn, visaType]);
 
   return (
     <div className="flex flex-col gap-4">

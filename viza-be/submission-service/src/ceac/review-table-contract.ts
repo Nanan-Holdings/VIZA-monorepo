@@ -21,6 +21,8 @@ export interface ReviewTableRule {
   /** Read-back field names, in the order required by the format. */
   fields: readonly string[];
   format?: "text" | "aliases" | "name" | "date" | "place" | "length" | "locality" | "na" | "unknown";
+  /** Allow an official date row to omit the day (month) or month/day (year). */
+  partialDate?: "month" | "year";
   /** A date's checked NA companion; false is verified against the same date. */
   naField?: string;
   /** Select the immediate blank-label continuation after the labeled row. */

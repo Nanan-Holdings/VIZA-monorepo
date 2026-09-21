@@ -407,6 +407,74 @@ describe("computeAllTabCompletion", () => {
       .toMatchObject([{ fieldName: "live_required_detail" }]);
   });
 
+  test("ignores persistence-only compatibility rows while retaining the canonical completion gate", () => {
+    const compatibilitySteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Address and Phone",
+      fields: [
+        field("mobile_phone", {
+          validationRules: { legacy_compatibility_only: true },
+        }),
+        field("secondary_phone"),
+      ],
+    }];
+
+    expect(getMissingDynamicFormFields(compatibilitySteps, {
+      mobile_phone: "historical-value",
+      secondary_phone: "canonical-value",
+    })).toEqual([]);
+    expect(getMissingDynamicFormFields(compatibilitySteps, {
+      mobile_phone: "historical-value",
+    })).toMatchObject([{ fieldName: "secondary_phone" }]);
+  });
+
+  test("blocks every active DS-160 nationality duplicate in completion and review messages", () => {
+    const nationalitySteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Personal Information 2",
+      fields: [
+        field("nationality_country"),
+        field("other_nationality"),
+        field("other_nationality_country", {
+          label: "Other nationality",
+          showIf: "other_nationality === yes",
+          validationRules: { repeat_group: "other_nationalities" },
+        }),
+        field("permanent_resident_other_country"),
+        field("other_permanent_resident_country", {
+          label: "Permanent resident country",
+          showIf: "permanent_resident_other_country === yes",
+          validationRules: { repeat_group: "permanent_resident_countries" },
+        }),
+      ],
+    }];
+    const answers = {
+      nationality_country: "CHIN",
+      other_nationality: "yes",
+      other_nationality_country: "China",
+      permanent_resident_other_country: "yes",
+      other_permanent_resident_country: "中国",
+    };
+
+    const missing = getMissingDynamicFormFields(nationalitySteps, answers, {
+      visaType: "DS160",
+    });
+    expect(missing.map((item) => item.fieldName)).toEqual([
+      "nationality_country",
+      "other_nationality_country",
+      "other_permanent_resident_country",
+    ]);
+    expect(missing.every((item) => item.reason === "invalid")).toBe(true);
+    expect(getApplicationFieldErrorMessage(missing[0]!, {
+      visaType: "DS160",
+      isZh: false,
+    })).toBe("The Other Country/Region of Origin (Nationality) listed has already been (entered or selected).");
+    expect(getApplicationFieldErrorMessage(missing[2]!, {
+      visaType: "DS160",
+      isZh: false,
+    })).toBe("The Other Permanent/Resident Country/Region listed has already been (entered or selected).");
+  });
+
   test("blocks final submission when an at-least-one-of official field group is empty", () => {
     const addressFields: WizardStep[] = [{
       stepNumber: 3,
@@ -527,6 +595,42 @@ describe("computeAllTabCompletion", () => {
     }, {
       now: new Date("2026-08-23T23:59:59Z"),
     })).toEqual([]);
+  });
+
+  test("uses the schema minimum date precision when computing completion", () => {
+    const dateSteps: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Travel Information",
+      fields: [
+        {
+          ...field("intended_arrival_date", { label: "Intended arrival date" }),
+          fieldType: "date",
+          validationRules: { minimum_date_precision: "month" },
+        },
+        {
+          ...field("father_date_of_birth", { label: "Father date of birth" }),
+          fieldType: "date",
+          validationRules: { minimum_date_precision: "year" },
+        },
+      ],
+    }];
+
+    expect(getMissingDynamicFormFields(dateSteps, {
+      intended_arrival_date: "2026-11",
+      father_date_of_birth: "1960",
+    })).toEqual([]);
+    expect(getMissingDynamicFormFields(dateSteps, {
+      intended_arrival_date: "2026-13",
+      father_date_of_birth: "1960",
+    })).toEqual([
+      expect.objectContaining({ fieldName: "intended_arrival_date", reason: "invalid" }),
+    ]);
+    expect(getMissingDynamicFormFields(dateSteps, {
+      intended_arrival_date: "2026-11",
+      father_date_of_birth: "1960-00",
+    })).toEqual([
+      expect.objectContaining({ fieldName: "father_date_of_birth", reason: "invalid" }),
+    ]);
   });
 
   test("derives TDAC transit status from same-day dates before validating accommodation", () => {
@@ -838,5 +942,216 @@ describe("computeAllTabCompletion", () => {
     });
 
     expect(missing).toEqual([]);
+  });
+
+  test("blocks a former-spouse count that does not match populated repeat rows", () => {
+    const formerSpouseRules = { repeatable: true, repeat_group: "former_spouses" };
+    const formerSpouseStep: WizardStep[] = [{
+      stepNumber: 12,
+      stepName: "Family Information: Former Spouse",
+      fields: [
+        {
+          ...field("number_of_former_spouses", {
+            label: "Number of Former Spouses",
+            required: false,
+            showIf: "marital_status === divorced",
+          }),
+          fieldType: "select" as const,
+          options: [{ value: "1", text: "1" }, { value: "2", text: "2" }],
+        },
+        {
+          ...field("former_spouse_surname", {
+            required: false,
+            showIf: "marital_status === divorced",
+            validationRules: formerSpouseRules,
+          }),
+          validationRules: formerSpouseRules,
+        },
+      ],
+    }];
+
+    const mismatch = getMissingDynamicFormFields(formerSpouseStep, {
+      marital_status: "divorced",
+      number_of_former_spouses: "2",
+      former_spouse_surname: "ZHANG",
+    });
+    expect(mismatch).toContainEqual(expect.objectContaining({
+      fieldName: "number_of_former_spouses",
+      reason: "invalid",
+    }));
+    expect(getApplicationFieldErrorMessage(mismatch[0]!, { isZh: true }))
+      .toContain("前任配偶人数必须与已填写");
+
+    const complete = getMissingDynamicFormFields(formerSpouseStep, {
+      marital_status: "divorced",
+      number_of_former_spouses: "2",
+      former_spouse_surname: "ZHANG",
+      former_spouse_surname__2: "LI",
+    });
+    expect(complete.some((item) => item.fieldName === "number_of_former_spouses")).toBe(false);
+  });
+
+  test("blocks duplicate DS-160 travel-purpose categories across repeat rows", () => {
+    const repeatRules = { repeatable: true, repeat_group: "trip_purpose" };
+    const tripPurposeStep: WizardStep[] = [{
+      stepNumber: 3,
+      stepName: "Travel Information",
+      fields: [
+        {
+          ...field("purpose_of_trip", { label: "Purpose of Trip to the U.S." }),
+          validationRules: repeatRules,
+        },
+        {
+          ...field("purpose_of_trip_specify", { label: "Specify" }),
+          validationRules: repeatRules,
+        },
+      ],
+    }];
+
+    const duplicate = getMissingDynamicFormFields(tripPurposeStep, {
+      purpose_of_trip: "B",
+      purpose_of_trip_specify: "B1",
+      purpose_of_trip__2: "B",
+      purpose_of_trip_specify__2: "B2",
+    }, { visaType: "DS160" });
+    expect(duplicate).toContainEqual(expect.objectContaining({
+      fieldName: "purpose_of_trip__2",
+      reason: "invalid",
+    }));
+    expect(getApplicationFieldErrorMessage(
+      duplicate.find((item) => item.fieldName === "purpose_of_trip__2")!,
+      { visaType: "DS160", isZh: false },
+    )).toContain("Each Purpose of Trip");
+
+    const distinct = getMissingDynamicFormFields(tripPurposeStep, {
+      purpose_of_trip: "B",
+      purpose_of_trip_specify: "B1",
+      purpose_of_trip__2: "C",
+      purpose_of_trip_specify__2: "B2",
+    }, { visaType: "DS160" });
+    expect(distinct.some((item) => item.fieldName === "purpose_of_trip__2")).toBe(false);
+  });
+
+  test("reports incompatible DS-160 U.S. contact relationship branches", () => {
+    const usContactStep: WizardStep[] = [{
+      stepNumber: 13,
+      stepName: "US Point of Contact",
+      fields: [{
+        ...field("us_contact_relationship", {
+          label: "U.S. Contact — Relationship",
+          required: true,
+        }),
+        fieldType: "select" as const,
+        options: ["R", "S", "C", "B", "P", "H", "O"],
+      }],
+    }];
+
+    const missing = getMissingDynamicFormFields(usContactStep, {
+      us_contact_surname: "DO_NOT_KNOW",
+      us_contact_given_names: "DO_NOT_KNOW",
+      us_contact_organization: "HOTEL",
+      us_contact_relationship: "R",
+    });
+    expect(missing).toContainEqual(expect.objectContaining({
+      fieldName: "us_contact_relationship",
+      reason: "invalid",
+    }));
+    expect(getApplicationFieldErrorMessage(missing[0]!, { isZh: true }))
+      .toContain("美国联系人关系与姓名、机构或婚姻状况");
+
+    const spouseWithWrongMaritalStatus = getMissingDynamicFormFields(usContactStep, {
+      us_contact_surname: "SMITH",
+      us_contact_given_names: "JANE",
+      us_contact_organization: "DO_NOT_KNOW",
+      us_contact_relationship: "S",
+      marital_status: "P",
+    });
+    expect(spouseWithWrongMaritalStatus).toContainEqual(expect.objectContaining({
+      fieldName: "us_contact_relationship",
+      reason: "invalid",
+    }));
+  });
+
+  test("reports incompatible immediate-relative spouse branches per repeat row", () => {
+    const relationshipRules = { repeatable: true, repeat_group: "us_relatives" };
+    const relativeStep: WizardStep[] = [{
+      stepNumber: 8,
+      stepName: "Family Information: Relatives",
+      fields: [
+        field("has_immediate_us_relatives", { required: false }),
+        {
+          ...field("us_relative_relationship", {
+            label: "Relationship to You",
+            required: false,
+            showIf: "has_immediate_us_relatives === yes",
+            validationRules: relationshipRules,
+          }),
+          fieldType: "select" as const,
+          options: ["SPOUSE", "FIANCE", "CHILD", "SIBLING"],
+        },
+      ],
+    }];
+
+    const invalid = getMissingDynamicFormFields(relativeStep, {
+      has_immediate_us_relatives: "yes",
+      us_relative_relationship: "FIANCE",
+      us_relative_relationship__2: "SPOUSE",
+      marital_status: "C",
+    }, { visaType: "DS160" });
+    expect(invalid).toContainEqual(expect.objectContaining({
+      fieldName: "us_relative_relationship__2",
+      reason: "invalid",
+    }));
+    expect(getApplicationFieldErrorMessage(
+      invalid.find((item) => item.fieldName === "us_relative_relationship__2")!,
+      { visaType: "DS160", isZh: true },
+    )).toContain("已婚或合法分居");
+
+    const valid = getMissingDynamicFormFields(relativeStep, {
+      has_immediate_us_relatives: "yes",
+      us_relative_relationship: "SPOUSE",
+      marital_status: "L",
+    }, { visaType: "DS160" });
+    expect(valid.some((item) => item.fieldName === "us_relative_relationship")).toBe(false);
+  });
+
+  test("omits CEAC work/education requirements for a minor while retaining them for an unknown DOB", () => {
+    const workStep: WizardStep[] = [{
+      stepNumber: 10,
+      stepName: "Work/Education/Training: Present",
+      fields: [
+        field("primary_occupation", { required: true }),
+        field("has_previous_employer", { required: true }),
+      ],
+    }];
+    const minor = getMissingDynamicFormFields(workStep, { date_of_birth: "2012-09-22" }, {
+      visaType: "DS160",
+      now: new Date("2026-09-21T12:00:00.000Z"),
+    });
+    expect(minor).toEqual([]);
+
+    const unknown = getMissingDynamicFormFields(workStep, { date_of_birth: "" }, {
+      visaType: "DS160",
+      now: new Date("2026-09-21T12:00:00.000Z"),
+    });
+    expect(unknown.map((item) => item.fieldName)).toEqual([
+      "primary_occupation",
+      "has_previous_employer",
+    ]);
+  });
+
+  test("omits U.S. contact requirements when CEAC hides that page for an H stay", () => {
+    const contactStep: WizardStep[] = [{
+      stepNumber: 13,
+      stepName: "US Point of Contact",
+      fields: [
+        field("us_contact_surname", { required: true }),
+        field("us_contact_relationship", { required: true }),
+      ],
+    }];
+    expect(getMissingDynamicFormFields(contactStep, {
+      has_specific_plans: "no",
+      intended_length_of_stay_unit: "H",
+    }, { visaType: "DS160" })).toEqual([]);
   });
 });

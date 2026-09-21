@@ -69,6 +69,15 @@ export function assertCeacPostbackHealthy(page: Page): void {
 
 type PostbackOutcome = { kind: "settled" | "timeout" | "failed"; status?: number };
 
+export interface WaitForAspNetPostbackOptions {
+  /**
+   * Grace period for a WebForms control whose onchange handler schedules the
+   * async postback on a later task.  The default remains short for ordinary
+   * controls; callers with a known delayed AutoPostBack can opt in.
+   */
+  startGraceMs?: number;
+}
+
 async function evaluateWithinBudget(page: Page, script: string, timeoutMs: number): Promise<PostbackOutcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -85,10 +94,17 @@ async function evaluateWithinBudget(page: Page, script: string, timeoutMs: numbe
 }
 
 /** A timeout or endRequest error is a failure, never successful DOM settlement. */
-export async function waitForAspNetPostback(page: Page, timeoutMs = 10_000): Promise<void> {
+export async function waitForAspNetPostback(
+  page: Page,
+  timeoutMs = 10_000,
+  options: WaitForAspNetPostbackOptions = {},
+): Promise<void> {
   installCeacPostbackMonitor(page);
   assertCeacPostbackHealthy(page);
   const budget = Number.isFinite(timeoutMs) ? Math.max(1, Math.min(timeoutMs, 60_000)) : 10_000;
+  const startGraceMs = Number.isFinite(options.startGraceMs)
+    ? Math.max(0, Math.min(options.startGraceMs!, 5_000))
+    : 400;
   const deadline = Date.now() + budget;
   let outcome: PostbackOutcome;
   while (true) {
@@ -133,7 +149,7 @@ export async function waitForAspNetPostback(page: Page, timeoutMs = 10_000): Pro
             idleTimer = setTimeout(function() {
               try { if (!mgr.get_isInAsyncPostBack()) done({kind: 'settled'}); }
               catch (_) { done({kind: 'failed'}); }
-            }, Math.min(400, timeoutMs));
+            }, Math.min(${startGraceMs}, timeoutMs));
             timeoutTimer = setTimeout(function() { done({kind: 'timeout'}); }, timeoutMs);
           } catch (_) { done({kind: 'failed'}); }
         });
@@ -174,4 +190,14 @@ export async function waitForAspNetPostback(page: Page, timeoutMs = 10_000): Pro
     monitors.get(page)!.failure = failure;
     throw failure;
   }
+}
+
+/**
+ * Wait for an AutoPostBack control whose onchange callback may start after a
+ * normal idle probe.  This is intentionally opt-in: CEAC's Travel subtype
+ * select has been observed to schedule its postback late enough that an
+ * immediate Next click can open the blank visa-class modal.
+ */
+export async function waitForAspNetPostbackStable(page: Page, timeoutMs = 10_000): Promise<void> {
+  await waitForAspNetPostback(page, timeoutMs, { startGraceMs: 1_500 });
 }

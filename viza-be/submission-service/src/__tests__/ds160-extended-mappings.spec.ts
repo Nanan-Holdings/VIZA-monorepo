@@ -30,7 +30,7 @@ test("extended consumers cover every reported unconsumed seed field", () => {
   const seedByName = new Map(seed.map((field) => [field.name, field]));
   const consumers = Object.entries(DS160_EXTENDED_SEED_CONSUMERS);
 
-  assert.equal(consumers.length, 177);
+  assert.equal(consumers.length, 178);
   for (const [source, targets] of consumers) {
     const seedField = seedByName.get(source);
     assert.ok(seedField, `unknown seed source: ${source}`);
@@ -118,6 +118,115 @@ test("the public DS-160 derivation pipeline applies the extended closure", () =>
   assert.equal(answers.previous_visit_date_arrived_month, "FEB");
   assert.equal(answers.previous_visit_date_arrived_year, "2024");
   assert.ok(__DERIVATION_TARGETS.dateSplits.some((split) => split.source === "previous_visit_date_arrived"));
+});
+
+test("live NA and unknown mappings retain their branches and repeat groups", () => {
+  assert.match(DS160_EXTENDED_MAPPINGS.payer_address_state_na.selector, /cbxDNAPayerStateProvince/);
+  assert.match(DS160_EXTENDED_MAPPINGS.payer_address_postal_na.selector, /cbxDNAPayerPostalZIPCode/);
+  assert.match(DS160_EXTENDED_MAPPINGS.payer_org_address_state_na.selector, /cbxDNAPayerStateProvince/);
+  assert.match(DS160_EXTENDED_MAPPINGS.payer_org_address_postal_na.selector, /cbxDNAPayerPostalZIPCode/);
+  assert.match(DS160_EXTENDED_MAPPINGS.mailing_address_state_na.selector, /cbexMAILING_ADDR_STATE_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.mailing_address_postal_na.selector, /cbexMAILING_ADDR_POSTAL_CD_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.secondary_phone_na.selector, /cbexAPP_MOBILE_TEL_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.us_drivers_license_number_unknown.selector, /cbxUS_DRIVER_LICENSE_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.visa_number_unknown.selector, /cbxPREV_VISA_FOIL_NUMBER_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.lost_passport_number_unknown.selector, /cbxLOST_PPT_NUM_UNKN_IND/);
+  assert.match(DS160_EXTENDED_MAPPINGS.spouse_address_state_na.selector, /cbexSPOUSE_ADDR_STATE_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.spouse_address_zip_na.selector, /cbexSPOUSE_ADDR_POSTAL_CD_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.prev_employer_state_na.selector, /cbxPREV_EMPL_ADDR_STATE_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.prev_employer_postal_na.selector, /cbxPREV_EMPL_ADDR_POSTAL_CD_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.prev_supervisor_surname_unknown.selector, /cbxSupervisorSurname_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.prev_supervisor_given_names_unknown.selector, /cbxSupervisorGivenName_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.partner_city_of_birth_na.selector, /cbexSPOUSE_POB_CITY_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.partner_address_state_na.selector, /cbexSPOUSE_ADDR_STATE_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.partner_address_zip_na.selector, /cbexSPOUSE_ADDR_POSTAL_CD_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.deceased_spouse_city_of_birth_unknown.selector, /cbxSPOUSE_POB_CITY_NA/);
+  assert.match(DS160_EXTENDED_MAPPINGS.former_spouse_city_of_birth_unknown.selector, /DListSpouse_ctl00_cbxSPOUSE_POB_CITY_NA/);
+
+  assert.equal(DS160_EXTENDED_METADATA.payer_address_state_na.seedFieldName, "payer_address_state");
+  assert.equal(DS160_EXTENDED_METADATA.payer_org_address_postal_na.seedFieldName, "payer_org_address_postal");
+  assert.equal(DS160_EXTENDED_METADATA.us_drivers_license_number_unknown.repeatGroup, "drivers_licenses");
+  assert.equal(DS160_EXTENDED_METADATA.lost_passport_number_unknown.repeatGroup, "lost_passport");
+  assert.equal(DS160_EXTENDED_METADATA.mailing_address_state_na.condition, "mailing_same_as_home === no");
+  assert.equal(DS160_EXTENDED_METADATA.spouse_address_state_na.seedFieldName, "spouse_address_state");
+  assert.equal(DS160_EXTENDED_METADATA.spouse_address_zip_na.seedFieldName, "spouse_address_zip");
+  assert.equal(DS160_EXTENDED_METADATA.spouse_address_state_na.condition, "spouse_address_type === other");
+  assert.equal(DS160_EXTENDED_METADATA.prev_employer_state_na.repeatGroup, "previous_employers");
+  assert.equal(DS160_EXTENDED_METADATA.prev_supervisor_given_names_unknown.seedFieldName, "prev_supervisor_given_names");
+  assert.equal(DS160_EXTENDED_METADATA.partner_city_of_birth_na.seedFieldName, "partner_city_of_birth");
+  assert.equal(DS160_EXTENDED_METADATA.partner_address_state_na.condition, "partner_address_type === other");
+  assert.equal(DS160_EXTENDED_METADATA.deceased_spouse_city_of_birth_unknown.condition, "marital_status === widowed");
+  assert.equal(DS160_EXTENDED_METADATA.former_spouse_city_of_birth_unknown.repeatGroup, "former_spouses");
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_from_day.selector, /ddlMILITARY_SVC_FROMDay/);
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_from_month.selector, /ddlMILITARY_SVC_FROMMonth/);
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_from_year.selector, /tbxMILITARY_SVC_FROMYear/);
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_to_day.selector, /ddlMILITARY_SVC_TODay/);
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_to_month.selector, /ddlMILITARY_SVC_TOMonth/);
+  assert.match(DS160_EXTENDED_MAPPINGS.military_date_to_year.selector, /tbxMILITARY_SVC_TOYear/);
+});
+
+test("previous-employment dates preserve official year-only precision", () => {
+  const answers: Record<string, string> = {
+    prev_employment_start_date: "2019",
+    prev_employment_end_date__2: "2020-04",
+  };
+
+  deriveDs160ExtendedAnswers(answers);
+  assert.equal(answers.prev_employment_start_date_year, "2019");
+  assert.equal(answers.prev_employment_start_date_month, undefined);
+  assert.equal(answers.prev_employment_start_date_day, undefined);
+  assert.equal(answers.prev_employment_end_date_year__2, "2020");
+  assert.equal(answers.prev_employment_end_date_month__2, "APR");
+  assert.equal(answers.prev_employment_end_date_day__2, undefined);
+});
+
+test("partner, deceased-spouse, and former-spouse birthdays preserve year-only precision", () => {
+  const answers: Record<string, string> = {
+    partner_date_of_birth: "1990",
+    deceased_spouse_date_of_birth: "1991-02",
+    former_spouse_date_of_birth__2: "1992-03-04",
+  };
+
+  deriveDs160ExtendedAnswers(answers);
+  assert.equal(answers.partner_date_of_birth_year, "1990");
+  assert.equal(answers.partner_date_of_birth_month, undefined);
+  assert.equal(answers.partner_date_of_birth_day, undefined);
+  assert.equal(answers.deceased_spouse_date_of_birth_year, "1991");
+  assert.equal(answers.deceased_spouse_date_of_birth_month, "FEB");
+  assert.equal(answers.deceased_spouse_date_of_birth_day, undefined);
+  assert.equal(answers.former_spouse_date_of_birth_year__2, "1992");
+  assert.equal(answers.former_spouse_date_of_birth_month__2, "MAR");
+  assert.equal(answers.former_spouse_date_of_birth_day__2, "04");
+});
+
+test("education dates preserve official month-and-year precision", () => {
+  const answers: Record<string, string> = {
+    education_start_date: "2010-01",
+    education_end_date__2: "2015-12",
+  };
+
+  deriveDs160ExtendedAnswers(answers);
+  assert.equal(answers.education_start_date_year, "2010");
+  assert.equal(answers.education_start_date_month, "JAN");
+  assert.equal(answers.education_start_date_day, undefined);
+  assert.equal(answers.education_end_date_year__2, "2015");
+  assert.equal(answers.education_end_date_month__2, "DEC");
+  assert.equal(answers.education_end_date_day__2, undefined);
+});
+
+test("military service dates preserve official month-and-year precision", () => {
+  const answers: Record<string, string> = {
+    military_date_from: "2010-01",
+    military_date_to__2: "2011-02",
+  };
+
+  deriveDs160ExtendedAnswers(answers);
+  assert.equal(answers.military_date_from_year, "2010");
+  assert.equal(answers.military_date_from_month, "JAN");
+  assert.equal(answers.military_date_from_day, undefined);
+  assert.equal(answers.military_date_to_year__2, "2011");
+  assert.equal(answers.military_date_to_month__2, "FEB");
+  assert.equal(answers.military_date_to_day__2, undefined);
 });
 
 test("each group is page-stable and every selector includes a label fallback", () => {

@@ -1,4 +1,5 @@
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
 
 type InferredConditionalToggle = {
   fieldName: string;
@@ -59,7 +60,12 @@ export function getRepeatInstanceCount(
   const members = new Set(allFields.filter((member) => getRepeatGroup(member) === group)
     .map((member) => member.fieldName));
   const configuredMax = field.validationRules?.max_items;
-  const max = typeof configuredMax === "number" && configuredMax > 0 ? configuredMax : 20;
+  // An omitted max_items means the official repeat group is unbounded. Do
+  // not invent a UI/schema ceiling while deriving already-saved row counts;
+  // the UI still creates rows one click at a time.
+  const max = typeof configuredMax === "number" && configuredMax > 0
+    ? configuredMax
+    : Number.MAX_SAFE_INTEGER;
   let count = 1;
   for (const [key, value] of Object.entries(values)) {
     // Empty patches delete persisted answers. They must not resurrect a removed
@@ -130,13 +136,14 @@ function getConditionalInferenceMetadata(allFields: VisaFormFieldRow[]): Conditi
   const cached = conditionalInferenceCache.get(allFields);
   if (cached) return cached;
 
-  const yesNoToggles = allFields
+  const activeFields = allFields.filter((field) => !isLegacyCompatibilityOnlyField(field));
+  const yesNoToggles = activeFields
     .filter(isYesNoToggle)
     .map((field) => ({
       fieldName: field.fieldName,
       stems: conditionalToggleStems(field.fieldName),
     }));
-  const fieldNames = new Set(allFields.map((field) => field.fieldName));
+  const fieldNames = new Set(activeFields.map((field) => field.fieldName));
   const byField = new Map<VisaFormFieldRow, InferredConditionalToggle | null>();
   const byFieldName = new Map<string, Map<string | null, InferredConditionalToggle | null>>();
   for (const field of allFields) {

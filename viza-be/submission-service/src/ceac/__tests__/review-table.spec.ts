@@ -25,6 +25,21 @@ test("compares idless name and date composites atomically", () => {
   assert.equal(verifyOfficialReview(expected.slice(1), [snapshot(rows)]).status, "unverified");
 });
 
+test("accepts official partial dates without manufacturing a day", () => {
+  const expected = [
+    field("travel_information", "intended_arrival_date_month", "NOV"),
+    field("travel_information", "intended_arrival_date_year", "2027"),
+  ];
+  const group = "Edit Travel Information";
+  assert.equal(verifyOfficialReview(expected, [snapshot([row(group, "Intended Date of Arrival:", "NOVEMBER 2027")], "travel")]).status, "passed");
+  assert.equal(verifyOfficialReview(expected, [snapshot([row(group, "Intended Date of Arrival:", "DECEMBER 2027")], "travel")]).status, "failed");
+  const full = [
+    field("travel_information", "intended_arrival_date_day", "7"),
+    ...expected,
+  ];
+  assert.equal(verifyOfficialReview(full, [snapshot([row(group, "Intended Date of Arrival:", "08 NOVEMBER 2027")], "travel")]).status, "failed");
+});
+
 test("duplicate, wrong-section and wrong-page table rows cannot establish a match", () => {
   const expected = [field("passport", "passport_number", "TEST123")];
   const matching = row(passport, "Passport/Travel Document Number:", "TEST123");

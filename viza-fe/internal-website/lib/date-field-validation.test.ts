@@ -28,4 +28,24 @@ describe("date field sentinel validation", () => {
     expect(getDateFieldValueState("1988", rules)).toBe("year_only");
     expect(getDateFieldValueState("1988", {})).toBe("invalid");
   });
+
+  it("accepts a calendar-valid month without inventing a day", () => {
+    const rules: DateFieldValidationRules = { minimum_date_precision: "month" };
+    expect(getDateFieldValueState("2026-11", rules)).toBe("month_only");
+    expect(getDateFieldValueState("2026-13", rules)).toBe("invalid");
+    expect(getDateFieldValueState("2026", rules)).toBe("invalid");
+    expect(getDateFieldValueState("2023-02-29", rules)).toBe("invalid");
+  });
+
+  it("accepts year and month or year-only values at year precision", () => {
+    const rules: DateFieldValidationRules = { minimum_date_precision: "year" };
+    expect(getDateFieldValueState("2026", rules)).toBe("year_only");
+    expect(getDateFieldValueState("2026-11", rules)).toBe("month_only");
+    expect(getDateFieldValueState("2026-11-01", rules)).toBe("valid");
+    expect(getDateFieldValueState("2026-00", rules)).toBe("invalid");
+  });
+
+  it("keeps partial precision out of Date comparisons", () => {
+    expect(getDateFieldValueState("2026-11", { minimum_date_precision: "day" })).toBe("invalid");
+  });
 });

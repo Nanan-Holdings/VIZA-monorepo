@@ -5,9 +5,16 @@ import { DS160_FIELD_CONTRACTS } from "../../ds160-field-contract";
 import {
   assertDs160RequiredAnswers,
   createDs160BranchPolicy,
+  Ds160DatePrecisionError,
+  Ds160DuplicatePurposeError,
+  Ds160ImmediateRelativeRelationshipError,
   Ds160RequiredAnswersError,
   Ds160PlaceholderAnswersError,
+  Ds160UsContactRelationshipError,
+  findDs160DuplicatePurposeFields,
+  findDs160ImmediateRelativeRelationshipFields,
   findDs160PlaceholderFields,
+  findDs160UsContactRelationshipIssue,
   ds160MappingRepeatGroup,
   ds160MappingSources,
   ds160RepeatAnswers,
@@ -16,7 +23,7 @@ import {
 function completeRequiredFixture(): Record<string, string> {
   const answers: Record<string, string> = {};
   for (const [fieldName, field] of Object.entries(DS160_FIELD_CONTRACTS)) {
-    if (field.required) answers[fieldName] = "fixture";
+    if (field.required) answers[fieldName] = field.type === "date" ? "2000-01-01" : "fixture";
   }
   return answers;
 }
@@ -125,6 +132,150 @@ test("required assertion reports missing field names without answer values", () 
       assert.deepEqual(error.missingFields, ["surname"]);
       assert.match(error.message, /surname/);
       assert.doesNotMatch(error.message, /sensitive@example\.invalid/);
+      return true;
+    },
+  );
+});
+
+test("required assertion rejects unsupported partial-date precision before submission", () => {
+  assert.throws(
+    () => assertDs160RequiredAnswers({ has_specific_plans: "no", intended_arrival_date: "2027" }),
+    (error: unknown) => {
+      assert.ok(error instanceof Ds160DatePrecisionError);
+      assert.deepEqual(error.invalidFields, ["intended_arrival_date"]);
+      return true;
+    },
+  );
+});
+
+test("trip-purpose preflight rejects duplicate categories even when subtypes differ", () => {
+  const answers = {
+    purpose_of_trip: "B",
+    purpose_of_trip_specify: "B1-CF",
+    purpose_of_trip__2: " b ",
+    purpose_of_trip_specify__2: "B2-TM",
+  };
+
+  assert.deepEqual(findDs160DuplicatePurposeFields(answers), [
+    "purpose_of_trip",
+    "purpose_of_trip__2",
+  ]);
+  assert.throws(
+    () => assertDs160RequiredAnswers(answers),
+    (error: unknown) => {
+      assert.ok(error instanceof Ds160DuplicatePurposeError);
+      assert.deepEqual(error.duplicateFields, [
+        "purpose_of_trip",
+        "purpose_of_trip__2",
+      ]);
+      assert.doesNotMatch(error.message, /B1-CF|B2-TM/);
+      return true;
+    },
+  );
+});
+
+test("different trip-purpose categories remain valid and empty rows are ignored", () => {
+  assert.deepEqual(findDs160DuplicatePurposeFields({
+    purpose_of_trip: "B",
+    purpose_of_trip__2: "F",
+    purpose_of_trip__3: "",
+  }), []);
+});
+
+test("U.S. contact preflight mirrors CEAC name/organization relationship rules", () => {
+  for (const relationship of ["R", "S", "C"]) {
+    const issue = findDs160UsContactRelationshipIssue({
+      us_contact_surname: "DO_NOT_KNOW",
+      us_contact_given_names: "DO_NOT_KNOW",
+      us_contact_organization: "HOTEL",
+      us_contact_relationship: relationship,
+    });
+    assert.deepEqual(issue, { kind: "organization_only_relationship" });
+  }
+
+  for (const relationship of ["B", "P", "H", "O"]) {
+    assert.equal(findDs160UsContactRelationshipIssue({
+      us_contact_surname: "DO_NOT_KNOW",
+      us_contact_given_names: "DO_NOT_KNOW",
+      us_contact_organization: "HOTEL",
+      us_contact_relationship: relationship,
+    }), null);
+  }
+
+  for (const maritalStatus of ["P", "W", "D", "S", "O"]) {
+    assert.deepEqual(findDs160UsContactRelationshipIssue({
+      us_contact_surname: "SMITH",
+      us_contact_given_names: "JANE",
+      us_contact_organization: "DO_NOT_KNOW",
+      us_contact_relationship: "S",
+      marital_status: maritalStatus,
+    }), { kind: "spouse_marital_status" });
+  }
+  for (const maritalStatus of ["M", "C", "L"]) {
+    assert.equal(findDs160UsContactRelationshipIssue({
+      us_contact_surname: "SMITH",
+      us_contact_given_names: "JANE",
+      us_contact_organization: "DO_NOT_KNOW",
+      us_contact_relationship: "S",
+      marital_status: maritalStatus,
+    }), null);
+  }
+
+  assert.deepEqual(findDs160UsContactRelationshipIssue({
+    us_contact_surname: "DO_NOT_KNOW",
+    us_contact_given_names: "DO_NOT_KNOW",
+    us_contact_organization: "DO_NOT_KNOW",
+    us_contact_relationship: "O",
+  }), { kind: "both_unknown" });
+});
+
+test("required assertion routes U.S. contact relationship conflicts as input review", () => {
+  assert.throws(
+    () => assertDs160RequiredAnswers({
+      us_contact_surname: "DO_NOT_KNOW",
+      us_contact_given_names: "DO_NOT_KNOW",
+      us_contact_organization: "HOTEL",
+      us_contact_relationship: "R",
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Ds160UsContactRelationshipError);
+      assert.deepEqual(error.issue, { kind: "organization_only_relationship" });
+      assert.deepEqual(error.fields, ["us_contact_relationship"]);
+      return true;
+    },
+  );
+});
+
+test("immediate-relative spouse relationship validates every persisted repeat row", () => {
+  assert.deepEqual(findDs160ImmediateRelativeRelationshipFields({
+    has_immediate_us_relatives: "yes",
+    marital_status: "C",
+    us_relative_relationship: "S",
+    us_relative_relationship__2: "SPOUSE",
+  }), [
+    "us_relative_relationship",
+    "marital_status",
+    "us_relative_relationship__2",
+  ]);
+
+  for (const maritalStatus of ["M", "L", "MARRIED", "LEGALLY_SEPARATED"]) {
+    assert.deepEqual(findDs160ImmediateRelativeRelationshipFields({
+      has_immediate_us_relatives: "yes",
+      marital_status: maritalStatus,
+      us_relative_relationship: "S",
+      us_relative_relationship__2: "SPOUSE",
+    }), []);
+  }
+
+  assert.throws(
+    () => assertDs160RequiredAnswers({
+      has_immediate_us_relatives: "yes",
+      marital_status: "single",
+      us_relative_relationship: "S",
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Ds160ImmediateRelativeRelationshipError);
+      assert.deepEqual(error.fields, ["us_relative_relationship", "marital_status"]);
       return true;
     },
   );
@@ -254,6 +405,7 @@ test("placeholder preflight respects an explicitly cleared answer over a stale E
 
 test("placeholder preflight checks later repeat rows and honors row-local NONE", () => {
   assert.deepEqual(findDs160PlaceholderFields({
+    has_social_media: "yes",
     social_media_platform: "NONE", social_media_handle: "Please enter your handle",
     social_media_platform__2: "FACEBOOK", social_media_handle__2: "请填写账号",
     social_media_handle__2_en: "Please enter your handle",

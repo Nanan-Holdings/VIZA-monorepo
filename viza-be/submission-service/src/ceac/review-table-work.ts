@@ -74,6 +74,7 @@ export const WORK_REVIEW_TABLE_RULES = [
       "employment_start_date_year",
     ],
     format: "date",
+    partialDate: "year",
   },
   {
     page: "workeducation",

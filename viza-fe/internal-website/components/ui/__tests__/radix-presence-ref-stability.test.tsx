@@ -179,4 +179,25 @@ describe("Radix Presence ref stability", () => {
     }
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("lets a partial-date field enter a month without synthesizing a day", () => {
+    const onChange = vi.fn();
+    const view = render(
+      <NextIntlClientProvider locale="zh" messages={{}}>
+        <ApplicationFormDatePicker
+          value="2026-11"
+          onChange={onChange}
+          minimumDatePrecision="month"
+          mode="month"
+          displayLocale="zh"
+        />
+      </NextIntlClientProvider>,
+    );
+
+    const input = view.getByRole("textbox", { name: "请输入年份和月份（日期未知）" });
+    expect(input).toHaveValue("2026-11");
+    fireEvent.change(input, { target: { value: "202612" } });
+    expect(onChange).toHaveBeenCalledWith("2026-12");
+    expect(view.container.querySelector('[data-date-mode="month"]')).toBeInTheDocument();
+  });
 });

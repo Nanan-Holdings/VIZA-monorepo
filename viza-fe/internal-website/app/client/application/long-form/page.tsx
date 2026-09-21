@@ -178,6 +178,7 @@ import {
   type ApplicationStepSection,
   type ApplicationStepSectionKey,
 } from "@/lib/application-step-sections";
+import { getDs160AgeVisibleStep } from "@/lib/ds160-age-gate";
 import {
   buildTaiwanEntryPermitSections,
   isTaiwanEntryPermitQualificationStepSource,
@@ -427,10 +428,18 @@ const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "te
 const EMPTY_INVALID_FIELD_NAMES_BY_STEP = new Map<number, Set<string>>();
 const EMPTY_INVALID_FIELD_MESSAGES_BY_STEP = new Map<number, Map<string, string>>();
 
-function getVisibleDynamicSteps(steps: WizardStep[], answers: Record<string, string>): VisibleDynamicStep[] {
+function getVisibleDynamicSteps(
+  steps: WizardStep[],
+  answers: Record<string, string>,
+  visaType?: string | null,
+): VisibleDynamicStep[] {
   return steps
-    .map((step, sourceIndex) => ({ step, sourceIndex }))
-    .filter(({ step }) => step.fields.some((field) => evaluateShowIf(field, answers, step.fields)));
+    .map((sourceStep, sourceIndex) => ({
+      sourceStep,
+      step: getDs160AgeVisibleStep(sourceStep, visaType, answers),
+      sourceIndex,
+    }))
+    .filter(({ sourceStep, step }) => step.fields.some((field) => evaluateShowIf(field, answers, sourceStep.fields)));
 }
 
 function getNextVisibleStepId(steps: StepDef[], currentStepId: number): number | null {
@@ -1982,7 +1991,14 @@ export default function ApplicationPage() {
     } else if (protection) {
       externalDraftProtectionRef.current = null;
     }
+    const previousDraft = dynamicDraftRef.current[stepId];
+    const hasDraftChanged = !previousDraft
+      || Object.keys(previousDraft).length !== Object.keys(nextData).length
+      || Object.entries(nextData).some(([key, value]) => previousDraft[key] !== value);
     dynamicDraftRef.current[stepId] = nextData;
+    // Returning to the saved value still changes the visible branch. Compare
+    // with the previous draft here; the persisted baseline only decides save work.
+    if (hasDraftChanged) scheduleDynamicDerivedRefresh();
     const manuallyChangedAiFields = new Set(
       Object.entries(nextData)
         .filter(([fieldName, value]) =>
@@ -2005,11 +2021,6 @@ export default function ApplicationPage() {
       setError(null);
     }
     if (hasChangedValue) {
-      // Refresh cross-step conditional visibility separately from persistence.
-      // This is a low-priority UI update and must never restart the save clock.
-      // Debounce it so a burst of keystrokes produces one whole-page refresh.
-      scheduleDynamicDerivedRefresh();
-
       // The first unsaved change starts one 30-second flush window; later
       // edits join that same batch instead of resetting the timer.
       if (autosaveTimerRef.current === null) {
@@ -2267,9 +2278,23 @@ export default function ApplicationPage() {
     () => ({ ...dynamicAnswers, ...pendingDynamicDrafts }),
     [dynamicAnswers, pendingDynamicDrafts],
   );
+  // Cross-section gates must see the current draft, not the 30-second save
+  // snapshot. Restrict the override to structural DS-160 inputs so ordinary
+  // typing keeps sibling DynamicStepForm props stable.
+  const ds160CrossStepSignature = useMemo(() => {
+    if (!isDs160VisaType(resolvedVisaType)) return "{}";
+    return JSON.stringify(Object.fromEntries(Object.entries(dynamicAnswerSnapshot)
+      .filter(([key]) => /^(?:nationality_country|nationality|current_nationality|other_nationality|other_nationality_country(?:__\d+)?|date_of_birth|dateOfBirth|marital_status|has_specific_plans|has_specific_travel_plans|intended_length_of_stay_units?)$/.test(key))
+      .sort(([left], [right]) => left.localeCompare(right))));
+  }, [dynamicAnswerSnapshot, resolvedVisaType]);
+  const dynamicFormPrefill = useMemo(() => {
+    if (ds160CrossStepSignature === "{}") return dynamicAnswers;
+    const currentControllers = JSON.parse(ds160CrossStepSignature) as Record<string, string>;
+    return { ...dynamicAnswers, ...currentControllers };
+  }, [dynamicAnswers, ds160CrossStepSignature]);
   const visibleDynamicSteps = useMemo(
-    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot) : []),
-    [dbSteps, dynamicAnswerSnapshot, useDynamic],
+    () => (useDynamic ? getVisibleDynamicSteps(dbSteps, dynamicAnswerSnapshot, resolvedVisaType) : []),
+    [dbSteps, dynamicAnswerSnapshot, resolvedVisaType, useDynamic],
   );
   // Draft answers change on the typing cadence, but most edits do not change
   // which schema steps are visible. Keep the step list reference stable until
@@ -2450,7 +2475,7 @@ export default function ApplicationPage() {
   const getCurrentEffectiveSteps = useCallback((answers: Record<string, string>) => {
     if (!useDynamic) return effectiveSteps;
 
-    const currentVisibleDynamicSteps = getVisibleDynamicSteps(dbSteps, answers);
+    const currentVisibleDynamicSteps = getVisibleDynamicSteps(dbSteps, answers, resolvedVisaType);
     const currentVisibleDynamicStepKey = currentVisibleDynamicSteps
       .map(({ sourceIndex }) => sourceIndex)
       .join(",");
@@ -4842,15 +4867,16 @@ export default function ApplicationPage() {
   const renderedDynamicSteps = useMemo(() => {
     const steps = new Map<number, WizardStep>();
     dbSteps.forEach((step, index) => {
+      const ageVisibleStep = getDs160AgeVisibleStep(step, resolvedVisaType, dynamicAnswerSnapshot);
       steps.set(
         index,
         isTaiwanEntryPermit
-          ? { ...step, fields: step.fields.filter((field) => field.fieldName !== "household_revoked") }
-          : step,
+          ? { ...ageVisibleStep, fields: ageVisibleStep.fields.filter((field) => field.fieldName !== "household_revoked") }
+          : ageVisibleStep,
       );
     });
     return steps;
-  }, [dbSteps, isTaiwanEntryPermit]);
+  }, [dbSteps, dynamicAnswerSnapshot, isTaiwanEntryPermit, resolvedVisaType]);
 
   const handlePassportBioUploaded = useCallback(
     (fileName: string) => {
@@ -5163,7 +5189,7 @@ export default function ApplicationPage() {
                             <DynamicStepForm
                               key={`${step.id}:${externalAnswerRevision}`}
                               step={dynamicStep}
-                              prefill={dynamicAnswers}
+                              prefill={dynamicFormPrefill}
                               onComplete={dynamicStepCompleteHandler}
                               onDraftChange={dynamicStepDraftHandler}
                               onUserChange={markLiveSaveActivity}
@@ -5246,6 +5272,7 @@ export default function ApplicationPage() {
                                   applicationId={appState.applicationId}
                                   dynamicAnswers={dynamicAnswerSnapshot}
                                   dbSteps={dbSteps}
+                                  visaType={resolvedVisaType}
                                   photoPath={appState.photo}
                                   onEdit={handleDynamicReviewEdit}
                                   onPhotoEdit={handleDynamicReviewPhotoEdit}
@@ -5274,6 +5301,7 @@ export default function ApplicationPage() {
                                 applicationId={appState.applicationId}
                                 dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
+                                visaType={resolvedVisaType}
                                 photoPath={appState.photo}
                                 onEdit={handleDynamicReviewEdit}
                                 onPhotoEdit={handleDynamicReviewPhotoEdit}

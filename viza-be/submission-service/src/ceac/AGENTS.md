@@ -191,9 +191,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
     "confirmation page" wording as proof; require the official Print
     Confirmation / Print Application / Email Confirmation controls before
     storing PDFs.
-12. `start-location.ts` validates the applicant-selected China CEAC post code.
-    Missing or unsupported posts must stop the run; never silently default a
-    real application to another embassy or consulate.
+12. `start-location.ts` validates the applicant-selected CEAC Designate Location
+    code against the current official option list. Missing, ambiguous, or
+    unsupported posts must stop the run; never silently default a real
+    application to another embassy or consulate.
 
 ## Validation
 

@@ -20,6 +20,18 @@ const makeField = (overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow => ({
 });
 
 describe("dynamic form conditional expressions", () => {
+  test("legacy-only social controller cannot hide the canonical platform or its active handle", () => {
+    const legacy = makeField({ fieldName: "has_social_media", fieldType: "radio", options: ["yes", "no"], validationRules: { legacy_compatibility_only: true } });
+    const platform = makeField({ fieldName: "social_media_platform", fieldType: "select", validationRules: { repeat_group: "social_media" } });
+    const handle = makeField({ fieldName: "social_media_handle", validationRules: { repeat_group: "social_media" }, conditionalLogic: { showIf: "social_media_platform !== NONE && social_media_platform !== null" } });
+    const fields = [legacy, platform, handle];
+    for (const oldValue of ["", "no", "yes"]) {
+      const answers = { has_social_media: oldValue };
+      expect(evaluateShowIf(platform, answers, fields)).toBe(true);
+      expect(evaluateShowIf(handle, { ...answers, social_media_platform: "NONE" }, fields)).toBe(false);
+      expect(evaluateShowIf(handle, { ...answers, social_media_platform: "INSTAGRAM" }, fields)).toBe(true);
+    }
+  });
   test("does not show a social-media identifier before a platform is selected", () => {
     const expression = "social_media_platform !== NONE && social_media_platform !== null";
     expect(evaluateExpression(expression, {})).toBe(false);
@@ -50,6 +62,27 @@ describe("dynamic form conditional expressions", () => {
     expect(getRepeatInstanceCount(passport, { unrelated__9: "x" }, fields)).toBe(1);
     expect(getRepeatInstanceCount(passport, { has_passport__3_en: "yes" }, fields)).toBe(3);
     expect(getRepeatInstanceCount(passport, { has_passport__2: "", passport__2_zh: "" }, fields)).toBe(1);
+  });
+
+  test("keeps saved rows above five when max_items is omitted", () => {
+    const language = makeField({
+      fieldName: "language",
+      validationRules: { repeatable: true, repeat_group: "languages" },
+    });
+    const values = Object.fromEntries([
+      ["language", "Chinese"],
+      ...Array.from({ length: 50 }, (_, index) => [`language__${index + 2}`, `Language ${index + 2}`]),
+    ]);
+    expect(getRepeatInstanceCount(language, values, [language])).toBe(51);
+
+    const capped = makeField({
+      fieldName: "previous_visit",
+      validationRules: { repeatable: true, repeat_group: "previous_visits", max_items: 5 },
+    });
+    expect(getRepeatInstanceCount(capped, {
+      previous_visit: "one",
+      previous_visit__6: "six",
+    }, [capped])).toBe(5);
   });
 
   test("matches any selected multi-select value", () => {

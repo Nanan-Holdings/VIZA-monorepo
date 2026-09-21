@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, it } from "node:test";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { installCeacPostbackMonitor, waitForAspNetPostback } from "../aspnet";
+import {
+  installCeacPostbackMonitor,
+  waitForAspNetPostback,
+  waitForAspNetPostbackStable,
+} from "../aspnet";
 import { GateDetectedError, NavigationError } from "../errors";
 import { advance } from "../navigator";
 import { fillPageFields } from "../orchestrator";
@@ -203,6 +207,20 @@ it("allows a settled 200 response and a no-op wait", async () => {
 
     await page.evaluate(() => { delete (window as unknown as { Sys?: unknown }).Sys; });
     await waitForAspNetPostback(page, 500);
+  } finally {
+    await page.close();
+  }
+});
+
+it("waits through a delayed AutoPostBack before allowing the next action", async () => {
+  const page = await browser.newPage();
+  try {
+    await installFixture(page, { postbackStatus: 200 });
+    await page.evaluate(() => {
+      const fixture = (window as unknown as FixtureWindow).__ceacTriggerPostback;
+      setTimeout(() => { void fixture(); }, 650);
+    });
+    await assert.doesNotReject(() => waitForAspNetPostbackStable(page, 3_000));
   } finally {
     await page.close();
   }

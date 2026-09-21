@@ -1,7 +1,9 @@
 import {
   DS160_EXTENDED_DERIVATION_TARGETS,
   deriveDs160ExtendedAnswers,
+  parseDs160DateForPrecision,
 } from "./ds160-extended-derivations";
+import { normalizeDs160CountryValue } from "./ds160-nationality-gate";
 
 export interface Ds160AnswerRow {
   field_name: string;
@@ -94,6 +96,7 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "us_contact_organization", naKey: "us_contact_organization_na" },
   { source: "us_contact_email", naKey: "us_contact_email_na" },
   { source: "passport_book_number", naKey: "passport_book_number_na" },
+  { source: "passport_expiration_date", naKey: "passport_expiry_na" },
   { source: "home_address_state_province", naKey: "home_address_state_na" },
   { source: "home_address_state", naKey: "home_address_state_na" },
   { source: "home_address_postal_code", naKey: "home_address_postal_na" },
@@ -110,6 +113,32 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "work_phone", naKey: "work_phone_na" },
   { source: "secondary_phone", naKey: "secondary_phone_na" },
   { source: "full_name_native_alphabet", naKey: "full_name_native_alphabet_na" },
+  { source: "state_of_birth", naKey: "state_of_birth_na" },
+  // Live CEAC controls for conditional travel/address branches.  These keys
+  // are applicant-facing values; CEAC expects the companion checkbox instead
+  // of the literal DOES_NOT_APPLY/DO_NOT_KNOW token in the text input.
+  { source: "payer_email", naKey: "payer_email_na" },
+  { source: "payer_address_state", naKey: "payer_address_state_na" },
+  { source: "payer_address_postal", naKey: "payer_address_postal_na" },
+  { source: "payer_org_address_state", naKey: "payer_org_address_state_na" },
+  { source: "payer_org_address_postal", naKey: "payer_org_address_postal_na" },
+  { source: "mailing_address_state", naKey: "mailing_address_state_na" },
+  { source: "mailing_address_postal", naKey: "mailing_address_postal_na" },
+  { source: "us_drivers_license_number", naKey: "us_drivers_license_number_unknown" },
+  { source: "visa_number", naKey: "visa_number_unknown" },
+  { source: "lost_passport_number", naKey: "lost_passport_number_unknown" },
+  { source: "spouse_city_of_birth", naKey: "spouse_city_of_birth_na" },
+  { source: "spouse_address_state", naKey: "spouse_address_state_na" },
+  { source: "spouse_address_zip", naKey: "spouse_address_zip_na" },
+  { source: "partner_city_of_birth", naKey: "partner_city_of_birth_na" },
+  { source: "partner_address_state", naKey: "partner_address_state_na" },
+  { source: "partner_address_zip", naKey: "partner_address_zip_na" },
+  { source: "deceased_spouse_city_of_birth", naKey: "deceased_spouse_city_of_birth_unknown" },
+  { source: "former_spouse_city_of_birth", naKey: "former_spouse_city_of_birth_unknown" },
+  { source: "prev_employer_state", naKey: "prev_employer_state_na" },
+  { source: "prev_employer_postal", naKey: "prev_employer_postal_na" },
+  { source: "prev_supervisor_surname", naKey: "prev_supervisor_surname_unknown" },
+  { source: "prev_supervisor_given_names", naKey: "prev_supervisor_given_names_unknown" },
   // Parent-relative "unknown" flags. CEAC names these *_unknown rather than
   // *_na but the trigger is identical — a "Do Not Know" checkbox on the
   // form sets the source value to DO_NOT_KNOW.
@@ -308,6 +337,10 @@ function isNaToken(value: string | undefined): boolean {
   return NA_VALUE_TOKENS.has(value.trim());
 }
 
+function isDoNotKnowToken(value: string): boolean {
+  return value.trim().replace(/\s+/g, "_").toUpperCase() === "DO_NOT_KNOW";
+}
+
 function parseIsoDate(value: string): { day: string; month: number; year: string } | null {
   // Accept yyyy-mm-dd, yyyy/mm/dd, or anything Date.parse() understands.
   // The form uses a DatePicker that emits yyyy-mm-dd; this branch is the
@@ -328,17 +361,76 @@ function parseIsoDate(value: string): { day: string; month: number; year: string
   };
 }
 
+function datePrecisionForSource(source: string): "full" | "month" | "year" {
+  if (source === "intended_arrival_date") return "month";
+  if (
+    source === "father_date_of_birth" ||
+    source === "mother_date_of_birth" ||
+    source === "spouse_date_of_birth" ||
+    source === "partner_date_of_birth" ||
+    source === "deceased_spouse_date_of_birth" ||
+    source === "former_spouse_date_of_birth" ||
+    source === "employment_start_date" ||
+    source === "previous_visit_date_arrived" ||
+    source === "prev_employment_start_date" ||
+    source === "prev_employment_end_date"
+  ) return "year";
+  if (
+    source === "education_start_date" ||
+    source === "education_end_date" ||
+    source === "military_date_from" ||
+    source === "military_date_to"
+  ) return "month";
+  return "full";
+}
+
+/** Return saved DS-160 date fields that do not match their live precision. */
+export function findInvalidDs160DateAnswers(
+  answers: Readonly<Record<string, string>>,
+): string[] {
+  const invalid = new Set<string>();
+  for (const [key, value] of Object.entries(answers)) {
+    if (!value.trim()) continue;
+    const base = key.replace(/__\d+$/, "");
+    const precision = [
+      "intended_arrival_date",
+      "previous_visit_date_arrived",
+      "father_date_of_birth",
+      "mother_date_of_birth",
+      "spouse_date_of_birth",
+      "partner_date_of_birth",
+      "deceased_spouse_date_of_birth",
+      "former_spouse_date_of_birth",
+      "employment_start_date",
+      "prev_employment_start_date",
+      "prev_employment_end_date",
+      "education_start_date",
+      "education_end_date",
+      "military_date_from",
+      "military_date_to",
+    ].includes(base)
+      ? datePrecisionForSource(base)
+      : null;
+    if ((base === "father_date_of_birth" || base === "mother_date_of_birth") && isDoNotKnowToken(value)) continue;
+    if (precision && !parseDs160DateForPrecision(value, precision)) invalid.add(key);
+  }
+  return [...invalid];
+}
+
 function deriveDateSplits(answers: Record<string, string>): void {
   for (const { source, targetPrefix, monthAsAbbrev } of DATE_SPLITS) {
     const raw = answers[source];
     if (!raw || isNaToken(raw)) continue;
-    const parts = parseIsoDate(raw);
+    const precision = datePrecisionForSource(source);
+    const parts = precision === "full"
+      ? parseIsoDate(raw)
+      : parseDs160DateForPrecision(raw, precision);
     if (!parts) continue;
     const dayKey = `${targetPrefix}_day`;
     const monthKey = `${targetPrefix}_month`;
     const yearKey = `${targetPrefix}_year`;
-    if (answers[dayKey] === undefined) answers[dayKey] = parts.day;
-    if (answers[monthKey] === undefined) {
+    if (parts.day !== undefined && answers[dayKey] === undefined) answers[dayKey] = parts.day;
+    if (parts.month !== undefined && answers[monthKey] === undefined) {
       answers[monthKey] = monthAsAbbrev
         ? MONTH_ABBREVS[parts.month - 1]
         : String(parts.month).padStart(2, "0");
@@ -353,14 +445,32 @@ function deriveNaFlags(answers: Record<string, string>): void {
   }
 
   for (const { source, naKey } of NA_PAIRS) {
-    const value = answers[source];
-    if (!isNaToken(value)) continue;
-    if (answers[naKey] === undefined) answers[naKey] = "Y";
-    // Clear the source so the orchestrator doesn't try to type "DOES_NOT_APPLY"
-    // into the underlying CEAC text field. The NA checkbox handles disabling
-    // the input on CEAC's side.
-    delete answers[source];
+    for (const sourceKey of Object.keys(answers)) {
+      const suffix = repeatSuffixForKey(sourceKey, source);
+      if (suffix === null) continue;
+
+      const value = answers[sourceKey];
+      if (!isNaToken(value)) continue;
+      const targetKey = `${naKey}${suffix}`;
+      if (answers[targetKey] === undefined) answers[targetKey] = "Y";
+      // Clear the source so the orchestrator doesn't try to type
+      // "DOES_NOT_APPLY"/"DO_NOT_KNOW" into the underlying CEAC text field.
+      // The companion checkbox handles disabling the input on CEAC's side.
+      delete answers[sourceKey];
+    }
   }
+}
+
+/**
+ * Return the storage suffix for a canonical key or a repeat-row key.
+ * Repeat rows use the persisted `__2`, `__3`, ... convention; a similarly
+ * named field with another suffix must not be treated as a row accidentally.
+ */
+function repeatSuffixForKey(key: string, base: string): string | null {
+  if (key === base) return "";
+  if (!key.startsWith(`${base}__`)) return null;
+  const suffix = key.slice(base.length);
+  return /^__\d+$/.test(suffix) ? suffix : null;
 }
 
 function applyAliases(answers: Record<string, string>): void {
@@ -396,7 +506,10 @@ function normalizedLookupKey(value: string): string {
 }
 
 function normalizeCountryValue(value: string): string {
-  return CEAC_COUNTRY_CODES[normalizedLookupKey(value)] ?? value;
+  const normalized = normalizeDs160CountryValue(value);
+  return normalized === value
+    ? CEAC_COUNTRY_CODES[normalizedLookupKey(value)] ?? value
+    : normalized;
 }
 
 function shouldNormalizeCountryKey(key: string): boolean {
@@ -405,7 +518,14 @@ function shouldNormalizeCountryKey(key: string): boolean {
 }
 
 function shouldNormalizeBooleanKey(key: string): boolean {
-  return /^(has_|is_|intend_|vwp_|immigrant_|mailing_same_as_home|passport_has_|passport_lost_or_stolen|other_nationality|permanent_resident_other_country|father_in_us|mother_in_us)/.test(key);
+  const normalized = key.toLowerCase();
+  // `other_nationality_country` and its repeat rows are country values, while
+  // `other_nationality` is the yes/no controller.  Likewise the
+  // permanent-resident controller contains "country" in its historical key.
+  if (normalized.includes("country") && normalized !== "permanent_resident_other_country") {
+    return false;
+  }
+  return /^(has_|is_|intend_|vwp_|immigrant_|mailing_same_as_home|passport_has_|passport_lost_or_stolen|other_nationality|permanent_resident_other_country|father_in_us|mother_in_us)/.test(normalized);
 }
 
 function normalizeCeacValueCodes(answers: Record<string, string>): void {

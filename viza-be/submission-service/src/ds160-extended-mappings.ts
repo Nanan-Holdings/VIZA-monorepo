@@ -361,6 +361,17 @@ for (const [fieldName, label, tokens] of payerAddress) {
     condition: "payer_address_same_as_home === no",
   });
 }
+const payerAddressNa = [
+  ["payer_address_state_na", "State/Province Does Not Apply", ["cbxDNAPayerStateProvince"], "payer_address_state"],
+  ["payer_address_postal_na", "Postal Zone/ZIP Code Does Not Apply", ["cbxDNAPayerPostalZIPCode"], "payer_address_postal"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of payerAddressNa) {
+  addField("travel_information", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "payer_address_same_as_home === no",
+    selectorEvidence: "repository_selector",
+  });
+}
 addField(
   "travel_information",
   "payer_address_country",
@@ -383,6 +394,17 @@ const payerOrganization = [
 for (const [fieldName, label, tokens] of payerOrganization) {
   addField("travel_information", fieldName, "text", label, tokens, {
     condition: "trip_payer_type === other_company",
+  });
+}
+const payerOrganizationAddressNa = [
+  ["payer_org_address_state_na", "State/Province Does Not Apply", ["cbxDNAPayerStateProvince"], "payer_org_address_state"],
+  ["payer_org_address_postal_na", "Postal Zone/ZIP Code Does Not Apply", ["cbxDNAPayerPostalZIPCode"], "payer_org_address_postal"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of payerOrganizationAddressNa) {
+  addField("travel_information", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "trip_payer_type === other_company",
+    selectorEvidence: "repository_selector",
   });
 }
 addField(
@@ -465,6 +487,19 @@ addField(
 );
 addField(
   "previous_us_travel",
+  "us_drivers_license_number_unknown",
+  "checkbox",
+  "Do Not Know",
+  ["cbxUS_DRIVER_LICENSE_NA"],
+  {
+    seedFieldName: "us_drivers_license_number",
+    condition: "has_us_drivers_license === yes",
+    repeatGroup: "drivers_licenses",
+    selectorEvidence: "repository_selector",
+  },
+);
+addField(
+  "previous_us_travel",
   "us_drivers_license_state",
   "select",
   "Driver's License State",
@@ -500,8 +535,8 @@ addField(
   "visa_number_unknown",
   "checkbox",
   "Do Not Know",
-  ["cbxPREV_VISA_FOIL_NUMBER_UNK", "cbxPREV_VISA_FOIL_NUMBER_NA", "PREV_VISA_NUMBER_UNKNOWN"],
-  { condition: "has_us_visa === yes" },
+  ["cbxPREV_VISA_FOIL_NUMBER_NA"],
+  { condition: "has_us_visa === yes", selectorEvidence: "repository_selector" },
 );
 addField(
   "previous_us_travel",
@@ -583,6 +618,14 @@ addField(
   ["IV_PETITION_EXPLAIN", "IMMIGRANT_PETITION_EXPLAIN", "tbxIV_PETITION_EXPLAIN"],
   { condition: "immigrant_petition_filed === yes", repeatGroup: "immigrant_petition" },
 );
+addField(
+  "previous_us_travel",
+  "vwp_denial_explain",
+  "textarea",
+  "Please explain",
+  ["VWP_DENIAL_EXPL", "tbxVWP_DENIAL_EXPL"],
+  { condition: "vwp_denial === yes" },
+);
 
 // ── Address and Phone ──────────────────────────────────────────────────────
 const mailingAddress = [
@@ -595,6 +638,17 @@ const mailingAddress = [
 for (const [fieldName, label, tokens] of mailingAddress) {
   addField("address_and_phone", fieldName, "text", label, tokens, {
     condition: "mailing_same_as_home === no",
+  });
+}
+const mailingAddressNa = [
+  ["mailing_address_state_na", "Mailing State/Province Does Not Apply", ["cbexMAILING_ADDR_STATE_NA"], "mailing_address_state"],
+  ["mailing_address_postal_na", "Mailing Postal Zone/ZIP Code Does Not Apply", ["cbexMAILING_ADDR_POSTAL_CD_NA"], "mailing_address_postal"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of mailingAddressNa) {
+  addField("address_and_phone", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "mailing_same_as_home === no",
+    selectorEvidence: "repository_selector",
   });
 }
 addField(
@@ -611,6 +665,14 @@ addField(
   "text",
   "Secondary Phone Number",
   ["APP_SECONDARY_TEL", "APP_SEC_TEL", "APP_OTHER_TEL_2", "SECONDARY_PHONE"],
+);
+addField(
+  "address_and_phone",
+  "secondary_phone_na",
+  "checkbox",
+  "Secondary Phone Number Does Not Apply",
+  ["cbexAPP_MOBILE_TEL_NA"],
+  { seedFieldName: "secondary_phone", selectorEvidence: "repository_selector" },
 );
 addField(
   "address_and_phone",
@@ -671,6 +733,19 @@ addField(
 );
 addField(
   "passport",
+  "lost_passport_number_unknown",
+  "checkbox",
+  "Do Not Know",
+  ["cbxLOST_PPT_NUM_UNKN_IND"],
+  {
+    seedFieldName: "lost_passport_number",
+    condition: "lost_passport === yes",
+    repeatGroup: "lost_passport",
+    selectorEvidence: "repository_selector",
+  },
+);
+addField(
+  "passport",
   "lost_passport_country",
   "select",
   "Country/Authority That Issued Passport/Travel Document",
@@ -727,7 +802,7 @@ addField(
   "select",
   "Spouse's Country/Region of Birth",
   ["SPOUSE_POB_CNTRY", "SPOUSE_COUNTRY_OF_BIRTH", "ddlSPOUSE_POB_CNTRY"],
-  { condition: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === other" },
+  { condition: "marital_status === married || marital_status === legally_separated || marital_status === common_law" },
 );
 addField(
   "family_spouse",
@@ -735,7 +810,7 @@ addField(
   "select",
   "Spouse's Address",
   ["SPOUSE_ADDR_TYPE", "SPOUSE_ADDRESS_TYPE", "ddlSPOUSE_ADDR_TYPE"],
-  { condition: "marital_status === married || marital_status === legally_separated || marital_status === common_law || marital_status === other" },
+  { condition: "marital_status === married || marital_status === legally_separated || marital_status === common_law" },
 );
 
 const spouseAddress = [
@@ -748,6 +823,17 @@ const spouseAddress = [
 for (const [fieldName, label, tokens] of spouseAddress) {
   addField("family_spouse", fieldName, "text", label, tokens, {
     condition: "spouse_address_type === other",
+  });
+}
+const spouseAddressNa = [
+  ["spouse_address_state_na", "State/Province Does Not Apply", ["cbexSPOUSE_ADDR_STATE_NA"], "spouse_address_state"],
+  ["spouse_address_zip_na", "Postal Zone/ZIP Code Does Not Apply", ["cbexSPOUSE_ADDR_POSTAL_CD_NA"], "spouse_address_zip"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of spouseAddressNa) {
+  addField("family_spouse", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "spouse_address_type === other",
+    selectorEvidence: "repository_selector",
   });
 }
 addField(
@@ -772,6 +858,18 @@ for (const [fieldName, label, seedType, tokens] of partnerDetails) {
     condition: "marital_status === civil_union",
   });
 }
+addField(
+  "family_spouse",
+  "partner_city_of_birth_na",
+  "checkbox",
+  "Do Not Know",
+  ["cbexSPOUSE_POB_CITY_NA"],
+  {
+    seedFieldName: "partner_city_of_birth",
+    condition: "marital_status === civil_union",
+    selectorEvidence: "repository_selector",
+  },
+);
 const partnerAddress = [
   ["partner_address_street1", "Street Address (Line 1)", ["PARTNER_ADDR_LN1", "PARTNER_ADDRESS_LN1"]],
   ["partner_address_street2", "Street Address (Line 2)", ["PARTNER_ADDR_LN2", "PARTNER_ADDRESS_LN2"]],
@@ -782,6 +880,17 @@ const partnerAddress = [
 for (const [fieldName, label, tokens] of partnerAddress) {
   addField("family_spouse", fieldName, "text", label, tokens, {
     condition: "partner_address_type === other",
+  });
+}
+const partnerAddressNa = [
+  ["partner_address_state_na", "State/Province Does Not Apply", ["cbexSPOUSE_ADDR_STATE_NA"], "partner_address_state"],
+  ["partner_address_zip_na", "Postal Zone/ZIP Code Does Not Apply", ["cbexSPOUSE_ADDR_POSTAL_CD_NA"], "partner_address_zip"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of partnerAddressNa) {
+  addField("family_spouse", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "partner_address_type === other",
+    selectorEvidence: "repository_selector",
   });
 }
 addField(
@@ -815,6 +924,18 @@ for (const [fieldName, label, seedType, tokens] of deceasedDetails) {
     condition: "marital_status === widowed",
   });
 }
+addField(
+  "family_spouse",
+  "deceased_spouse_city_of_birth_unknown",
+  "checkbox",
+  "Do Not Know",
+  ["cbxSPOUSE_POB_CITY_NA"],
+  {
+    seedFieldName: "deceased_spouse_city_of_birth",
+    condition: "marital_status === widowed",
+    selectorEvidence: "repository_selector",
+  },
+);
 addDate(
   "family_spouse",
   "deceased_spouse_date_of_birth",
@@ -848,6 +969,19 @@ for (const [fieldName, label, seedType, tokens] of formerDetails) {
     repeatGroup: "former_spouses",
   });
 }
+addField(
+  "family_spouse",
+  "former_spouse_city_of_birth_unknown",
+  "checkbox",
+  "Do Not Know",
+  ["DListSpouse_ctl00_cbxSPOUSE_POB_CITY_NA", "cbxSPOUSE_POB_CITY_NA"],
+  {
+    seedFieldName: "former_spouse_city_of_birth",
+    condition: "marital_status === divorced",
+    repeatGroup: "former_spouses",
+    selectorEvidence: "repository_selector",
+  },
+);
 addDate(
   "family_spouse",
   "former_spouse_date_of_birth",
@@ -886,7 +1020,7 @@ addField(
   "text",
   "Street Address (Line 2)",
   ["US_POC_ADDR_LN2", "US_CONTACT_ADDR_LN2"],
-  { condition: "us_contact_relationship !== _empty" },
+  { condition: "has_specific_plans !== no && us_contact_relationship !== _empty || intended_length_of_stay_unit !== H && us_contact_relationship !== _empty" },
 );
 
 // ── Work/Education/Training: Present ───────────────────────────────────────
@@ -933,6 +1067,20 @@ for (const [fieldName, label, tokens] of previousEmployer) {
   addField("work_education_previous", fieldName, isTextarea ? "textarea" : "text", label, tokens, {
     condition: "has_previous_employer === yes",
     repeatGroup: "previous_employers",
+  });
+}
+const previousEmployerSentinels = [
+  ["prev_employer_state_na", "State/Province Does Not Apply", ["cbxPREV_EMPL_ADDR_STATE_NA"], "prev_employer_state"],
+  ["prev_employer_postal_na", "Postal Zone/ZIP Code Does Not Apply", ["cbxPREV_EMPL_ADDR_POSTAL_CD_NA"], "prev_employer_postal"],
+  ["prev_supervisor_surname_unknown", "Do Not Know", ["cbxSupervisorSurname_NA"], "prev_supervisor_surname"],
+  ["prev_supervisor_given_names_unknown", "Do Not Know", ["cbxSupervisorGivenName_NA"], "prev_supervisor_given_names"],
+] as const;
+for (const [fieldName, label, tokens, seedFieldName] of previousEmployerSentinels) {
+  addField("work_education_previous", fieldName, "checkbox", label, tokens, {
+    seedFieldName,
+    condition: "has_previous_employer === yes",
+    repeatGroup: "previous_employers",
+    selectorEvidence: "repository_selector",
   });
 }
 addField(
@@ -1081,9 +1229,10 @@ addDate(
   "Date of Service From",
   "has_served_military === yes",
   "military_service",
-  ["ddlMILITARY_DATE_FROMDay", "ddlMILITARY_FROMDay", "MILITARY_DATE_FROM_DAY"],
-  ["ddlMILITARY_DATE_FROMMonth", "ddlMILITARY_FROMMonth", "MILITARY_DATE_FROM_MONTH"],
-  ["tbxMILITARY_DATE_FROMYear", "tbxMILITARY_FROMYear", "MILITARY_DATE_FROM_YEAR"],
+  ["ddlMILITARY_SVC_FROMDay", "ddlMILITARY_DATE_FROMDay", "ddlMILITARY_FROMDay", "MILITARY_DATE_FROM_DAY"],
+  ["ddlMILITARY_SVC_FROMMonth", "ddlMILITARY_DATE_FROMMonth", "ddlMILITARY_FROMMonth", "MILITARY_DATE_FROM_MONTH"],
+  ["tbxMILITARY_SVC_FROMYear", "tbxMILITARY_DATE_FROMYear", "tbxMILITARY_FROMYear", "MILITARY_DATE_FROM_YEAR"],
+  "repository_selector",
 );
 addDate(
   "work_education_additional",
@@ -1091,9 +1240,10 @@ addDate(
   "Date of Service To",
   "has_served_military === yes",
   "military_service",
-  ["ddlMILITARY_DATE_TO_Day", "ddlMILITARY_TODay", "MILITARY_DATE_TO_DAY"],
-  ["ddlMILITARY_DATE_TO_Month", "ddlMILITARY_TOMonth", "MILITARY_DATE_TO_MONTH"],
-  ["tbxMILITARY_DATE_TO_Year", "tbxMILITARY_TOYear", "MILITARY_DATE_TO_YEAR"],
+  ["ddlMILITARY_SVC_TODay", "ddlMILITARY_DATE_TO_Day", "ddlMILITARY_TODay", "MILITARY_DATE_TO_DAY"],
+  ["ddlMILITARY_SVC_TOMonth", "ddlMILITARY_DATE_TO_Month", "ddlMILITARY_TOMonth", "MILITARY_DATE_TO_MONTH"],
+  ["tbxMILITARY_SVC_TOYear", "tbxMILITARY_DATE_TO_Year", "tbxMILITARY_TOYear", "MILITARY_DATE_TO_YEAR"],
+  "repository_selector",
 );
 addField(
   "work_education_additional",

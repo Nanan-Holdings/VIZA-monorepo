@@ -12,6 +12,25 @@ import {
   isCanadaTrvApplication,
 } from "@/lib/canada-trv-completion";
 import { isDateFieldValueComplete } from "@/lib/date-field-validation";
+import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
+import {
+  FORMER_SPOUSE_COUNT_FIELD,
+  FORMER_SPOUSE_REPEAT_GROUP,
+  getFormerSpouseCountIssue,
+} from "@/lib/former-spouse-count";
+import { getUsContactRelationshipIssue } from "@/lib/us-contact-validation";
+import { getDs160ImmediateRelativeRelationshipIssue } from "@/lib/ds160-family-validation";
+import {
+  DS160_TRIP_PURPOSE_FIELD,
+  DS160_TRIP_PURPOSE_REPEAT_GROUP,
+  getDs160TripPurposeDuplicateIssue,
+} from "@/lib/ds160-travel-validation";
+import {
+  findDs160DuplicateNationalityFields,
+  getDs160NationalityDuplicateMessageForField,
+} from "@/lib/ds160-nationality-validation";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import { getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 export interface ApplicationStepRef {
@@ -157,6 +176,40 @@ export function getApplicationFieldErrorMessage(
         };
     const japanMessage = japanMessages[field.fieldName as keyof typeof japanMessages];
     if (japanMessage) return japanMessage;
+  }
+
+  if (field.fieldName === FORMER_SPOUSE_COUNT_FIELD && field.reason === "invalid") {
+    return options.isZh
+      ? "前任配偶人数必须与已填写的前任配偶信息条数一致，并使用官网提供的选项。"
+      : "The number of former spouses must match the completed former-spouse entries and use an official option.";
+  }
+
+  if (field.fieldName === "us_contact_relationship" && field.reason === "invalid") {
+    return options.isZh
+      ? "美国联系人关系与姓名、机构或婚姻状况的组合不符合官网要求。"
+      : "The U.S. contact relationship is not compatible with the selected name, organization, or marital-status branch.";
+  }
+
+  if (/^us_relative_relationship(?:__\d+)?$/u.test(field.fieldName) && field.reason === "invalid") {
+    return options.isZh
+      ? "选择“配偶”作为美国直系亲属关系时，婚姻状况必须为已婚或合法分居。"
+      : "The immediate-relative Spouse relationship requires a marital status of Married or Legally Separated.";
+  }
+
+  if (
+    /^purpose_of_trip(?:__\d+)?$/u.test(field.fieldName) &&
+    field.reason === "invalid"
+  ) {
+    return options.isZh
+      ? "赴美目的类别不能重复，请为每一项选择不同的类别。"
+      : "Each Purpose of Trip to the U.S. category may be selected only once.";
+  }
+
+  if (
+    field.reason === "invalid" &&
+    /^(?:nationality_country|other_nationality_country|other_permanent_resident_country)(?:__\d+)?$/u.test(field.fieldName)
+  ) {
+    return getDs160NationalityDuplicateMessageForField(field.fieldName, options.isZh);
   }
 
   if (field.reason === "invalid") {
@@ -346,6 +399,7 @@ export function isVisibleDynamicFieldRequired(
   values: Record<string, string>,
   fields: VisaFormFieldRow[],
 ): boolean {
+  if (isLegacyCompatibilityOnlyField(field)) return false;
   if (isRequiredUnlessSatisfied(field, values)) return false;
   if (!field.required && !isRequiredWhenSatisfied(field, values) && !ruleRequiresAcceptance(field)) return false;
   return evaluateShowIf(field, values, fields);
@@ -373,6 +427,8 @@ function isAllowedChoiceValue(
   repeatIndex = 0,
 ): boolean {
   if (!hasValue(value)) return false;
+  const officialSource = getDs160OfficialOptionSource(field);
+  const choiceValue = officialSource ? resolveDs160OfficialOptionValue(officialSource, value!) : value;
   const rules = field.validationRules as {
     dependent_on?: unknown;
     depends_on?: unknown;
@@ -389,7 +445,7 @@ function isAllowedChoiceValue(
     if (!Array.isArray(allowedOptions)) return false;
     return allowedOptions.some((option) => (
       typeof option === "string" ? option : option.value
-    ) === value);
+    ) === choiceValue);
   }
   if (
     !field.options?.length ||
@@ -400,7 +456,7 @@ function isAllowedChoiceValue(
   ) return true;
   return field.options.some((option) => (
     typeof option === "string" ? option : option.value
-  ) === value);
+  ) === choiceValue);
 }
 
 function isFieldComplete(
@@ -427,10 +483,13 @@ function missingForDynamicStep(
   stepId: number,
   stepName: string,
   answers: Record<string, string>,
+  visaType?: string | null,
   now: Date = new Date(),
 ) {
   const missing: MissingApplicationField[] = [];
   for (const field of step.fields) {
+    if (isLegacyCompatibilityOnlyField(field)) continue;
+    if (!isDs160FieldVisibleForRuntime(field, step, visaType, answers, now)) continue;
     const group = getRepeatGroup(field);
     if (group) {
       const count = getRepeatInstanceCount(field, answers, step.fields);
@@ -462,6 +521,137 @@ function missingForDynamicStep(
     });
   }
 
+  // CEAC asks for the declared former-spouse count separately from the
+  // repeated rows. Keep the cross-field contract in the same completion list
+  // used by progress, assistant validation, and final review.
+  const formerSpouseCountField = step.fields.find(
+    (field) => field.fieldName === FORMER_SPOUSE_COUNT_FIELD,
+  );
+  const hasFormerSpouseRows = step.fields.some(
+    (field) => getRepeatGroup(field) === FORMER_SPOUSE_REPEAT_GROUP,
+  );
+  if (
+    formerSpouseCountField &&
+    hasFormerSpouseRows &&
+    isDs160FieldVisibleForRuntime(formerSpouseCountField, step, visaType, answers, now) &&
+    evaluateShowIf(formerSpouseCountField, answers, step.fields)
+  ) {
+    const countIssue = getFormerSpouseCountIssue(answers);
+    if (countIssue && !missing.some((field) => field.fieldName === FORMER_SPOUSE_COUNT_FIELD)) {
+      missing.push({
+        stepId,
+        stepName,
+        fieldName: FORMER_SPOUSE_COUNT_FIELD,
+        label: formerSpouseCountField.label || FORMER_SPOUSE_COUNT_FIELD,
+        labelZh: getChineseFieldLabel(formerSpouseCountField),
+        reason: countIssue.kind === "required" ? "required" : "invalid",
+      });
+    }
+  }
+
+  const usContactRelationshipField = step.fields.find(
+    (field) => field.fieldName === "us_contact_relationship",
+  );
+  if (
+    usContactRelationshipField &&
+    isDs160FieldVisibleForRuntime(usContactRelationshipField, step, visaType, answers, now) &&
+    evaluateShowIf(usContactRelationshipField, answers, step.fields)
+  ) {
+    const relationshipIssue = getUsContactRelationshipIssue(answers);
+    if (
+      relationshipIssue &&
+      !missing.some((field) => field.fieldName === "us_contact_relationship")
+    ) {
+      missing.push({
+        stepId,
+        stepName,
+        fieldName: "us_contact_relationship",
+        label: usContactRelationshipField.label || "U.S. Contact — Relationship",
+        labelZh: getChineseFieldLabel(usContactRelationshipField),
+        reason: "invalid",
+      });
+    }
+  }
+
+  const immediateRelativeRelationshipField = step.fields.find(
+    (field) => field.fieldName === "us_relative_relationship",
+  );
+  if (
+    immediateRelativeRelationshipField &&
+    immediateRelativeRelationshipField.visaType === "DS160" &&
+    isDs160FieldVisibleForRuntime(immediateRelativeRelationshipField, step, visaType, answers, now) &&
+    evaluateShowIf(immediateRelativeRelationshipField, answers, step.fields)
+  ) {
+    const count = getRepeatInstanceCount(immediateRelativeRelationshipField, answers, step.fields);
+    for (let index = 0; index < count; index += 1) {
+      const valueKey = instanceKey(immediateRelativeRelationshipField.fieldName, index);
+      const instanceValues = getRepeatInstanceValues(immediateRelativeRelationshipField, index, answers, step.fields);
+      if (!evaluateShowIf(immediateRelativeRelationshipField, instanceValues, step.fields)) continue;
+      const relationshipIssue = getDs160ImmediateRelativeRelationshipIssue(instanceValues, valueKey);
+      if (
+        relationshipIssue &&
+        !missing.some((field) => field.fieldName === valueKey)
+      ) {
+        missing.push({
+          stepId,
+          stepName,
+          fieldName: valueKey,
+          label: `${immediateRelativeRelationshipField.label || "Relationship to You"}${index > 0 ? ` #${index + 1}` : ""}`,
+          labelZh: getChineseFieldLabel(immediateRelativeRelationshipField),
+          reason: "invalid",
+        });
+      }
+    }
+  }
+
+  const tripPurposeField = step.fields.find(
+    (field) =>
+      field.fieldName === DS160_TRIP_PURPOSE_FIELD &&
+      getRepeatGroup(field) === DS160_TRIP_PURPOSE_REPEAT_GROUP,
+  );
+  if (
+    tripPurposeField &&
+    isDs160FieldVisibleForRuntime(tripPurposeField, step, visaType, answers, now) &&
+    evaluateShowIf(tripPurposeField, answers, step.fields)
+  ) {
+    const count = getRepeatInstanceCount(tripPurposeField, answers, step.fields);
+    for (let index = 0; index < count; index += 1) {
+      const valueKey = instanceKey(tripPurposeField.fieldName, index);
+      const duplicateIssue = getDs160TripPurposeDuplicateIssue(answers, valueKey);
+      if (!duplicateIssue || missing.some((field) => field.fieldName === valueKey)) continue;
+      missing.push({
+        stepId,
+        stepName,
+        fieldName: valueKey,
+        label: `${tripPurposeField.label || DS160_TRIP_PURPOSE_FIELD}${index > 0 ? ` #${index + 1}` : ""}`,
+        labelZh: getChineseFieldLabel(tripPurposeField),
+        reason: "invalid",
+      });
+    }
+  }
+
+  // CEAC rejects a country repeated across the primary nationality, active
+  // other-nationality rows, and active permanent-resident rows. Add the
+  // duplicate controls to the same missing list used by progress and review.
+  for (const duplicateFieldName of findDs160DuplicateNationalityFields(answers)) {
+    const baseFieldName = duplicateFieldName.replace(/__\d+$/u, "");
+    const duplicateField = step.fields.find((field) => field.fieldName === baseFieldName);
+    if (!duplicateField || duplicateField.visaType !== "DS160") continue;
+    if (!isDs160FieldVisibleForRuntime(duplicateField, step, visaType, answers, now)) continue;
+    const repeatIndex = Number(duplicateFieldName.match(/__(\d+)$/u)?.[1] ?? "1") - 1;
+    const scopedValues = getRepeatInstanceValues(duplicateField, repeatIndex, answers, step.fields);
+    if (!evaluateShowIf(duplicateField, scopedValues, step.fields)) continue;
+    if (missing.some((field) => field.fieldName === duplicateFieldName)) continue;
+    missing.push({
+      stepId,
+      stepName,
+      fieldName: duplicateFieldName,
+      label: `${duplicateField.label || baseFieldName}${repeatIndex > 0 ? ` #${repeatIndex + 1}` : ""}`,
+      labelZh: getChineseFieldLabel(duplicateField),
+      reason: "invalid",
+    });
+  }
+
   // Some official forms express an OR requirement as a group of individually
   // optional fields. Treat the visible group as required at final review too;
   // otherwise the inline validator and the submit validator disagree.
@@ -475,6 +665,8 @@ function missingForDynamicStep(
     const visibleMembers = group
       .map((fieldName) => step.fields.find((candidate) => candidate.fieldName === fieldName))
       .filter((candidate): candidate is VisaFormFieldRow => Boolean(candidate))
+      .filter((candidate) => !isLegacyCompatibilityOnlyField(candidate))
+      .filter((candidate) => isDs160FieldVisibleForRuntime(candidate, step, visaType, answers, now))
       .filter((candidate) => evaluateShowIf(candidate, answers, step.fields));
     if (visibleMembers.length === 0 || group.some((fieldName) => hasValue(answers[fieldName]))) continue;
     const first = visibleMembers[0];
@@ -501,8 +693,11 @@ export function getMissingDynamicFormFields(
   answers: Record<string, string>,
   options: { country?: string | null; visaType?: string | null; now?: Date } = {},
 ): MissingApplicationField[] {
+  const inferredVisaType = options.visaType ?? dbSteps
+    .flatMap((step) => step.fields)
+    .find((field) => field.visaType)?.visaType;
   const missing = dbSteps.flatMap((step, index) =>
-    missingForDynamicStep(step, index, step.stepName, answers, options.now),
+    missingForDynamicStep(step, index, step.stepName, answers, inferredVisaType, options.now),
   );
   if (isCanadaTrvApplication(options.country, options.visaType)) {
     missing.push(...getInvalidCanadaTrvFields(dbSteps, answers).map(({ stepIndex, field }) => ({
@@ -653,7 +848,7 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
     const stepName = input.effectiveSteps.find((candidate) => candidate.id === stepId)?.name ?? step.stepName;
-    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers, input.now);
+    const missing = missingForDynamicStep(step, stepId, stepName, completionAnswers, input.visaType, input.now);
     missingFields.push(...missing);
     if (missing.length === 0) completed.add(stepId);
   });

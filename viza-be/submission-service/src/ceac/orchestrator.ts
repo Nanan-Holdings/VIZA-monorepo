@@ -68,7 +68,12 @@ import {
   fillRetrieveApplicationForm,
   type RecoveryCredentials,
 } from "./resume-application";
-import { assertCeacPostbackHealthy, installCeacPostbackMonitor, waitForAspNetPostback } from "./aspnet";
+import {
+  assertCeacPostbackHealthy,
+  installCeacPostbackMonitor,
+  waitForAspNetPostback,
+  waitForAspNetPostbackStable,
+} from "./aspnet";
 import {
   handleUploadPhotoPage,
   PhotoRejectedError,
@@ -86,6 +91,12 @@ import { resolvePreviousTravelMappings } from "./previous-travel-branch";
 import { captureOfficialReviewPage, verifyOfficialReview, type ReviewExpectation, type ReviewSnapshot } from "./review-verification";
 import { applyExplicitPreparerAnswer, fillVerifiedPassportSignature, type Ds160PreparerAnswers } from "./signature-fields";
 import { reconnectVerifiedCeacPage, RECOVERABLE_DS160_PAGE_IDS } from "./recovered-application";
+import {
+  isDs160UsContactPage,
+  isDs160UsContactVisible,
+  isDs160WorkEducationPage,
+  isDs160WorkEducationVisible,
+} from "../ds160-age-gate";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -345,6 +356,8 @@ export async function orchestrateFill(
 
   try {
     if (options.branchAnswers) assertDs160RequiredAnswers(options.branchAnswers);
+    const workEducationVisible = isDs160WorkEducationVisible(options.branchAnswers ?? answers);
+    const usContactVisible = isDs160UsContactVisible(options.branchAnswers ?? answers);
     // Fill-and-advance loop: detect current page, fill if we have mappings,
     // advance to the next page. Stop when we reach a terminal page.
     while (transitions < MAX_PAGE_TRANSITIONS) {
@@ -697,7 +710,9 @@ export async function orchestrateFill(
       }
 
       // Fill fields if we have mappings for this page
-      const mappings = currentPageId !== "unknown"
+      const ageGatedWorkPage = !workEducationVisible && isDs160WorkEducationPage(currentPageId);
+      const branchGatedUsContactPage = !usContactVisible && isDs160UsContactPage(currentPageId);
+      const mappings = currentPageId !== "unknown" && !ageGatedWorkPage && !branchGatedUsContactPage
         ? PAGE_FILL_MAP[currentPageId]
         : undefined;
 
@@ -740,7 +755,9 @@ export async function orchestrateFill(
         }
         sectionsFilled.push(currentPageId);
       } else {
-        if (currentPageId !== "review") {
+        if (ageGatedWorkPage || branchGatedUsContactPage) {
+          sectionsSkipped.push(currentPageId);
+        } else if (currentPageId !== "review") {
           throw new UnexpectedPageError("CEAC page has no verified filling path; automatic navigation stopped.", {
             detected: currentPageId,
           });
@@ -783,7 +800,10 @@ export async function orchestrateFill(
       // Determine next page and advance.
       // We don't hardcode the expected destination since CEAC may skip
       // conditional pages. Instead we accept any known DS-160 page.
-      const nextPageCandidates = getExpectedNextPages(currentPageId);
+      const nextPageCandidates = getExpectedNextPages(currentPageId, {
+        skipWorkEducation: !workEducationVisible,
+        skipUsContact: !usContactVisible,
+      });
 
       // Wait for the primary Next button to be attached before advancing.
       // Some CEAC pages re-render their button row asynchronously after
@@ -1373,7 +1393,14 @@ export async function fillPageFields(
         // or enables dependent fields. Wait for it to settle before we
         // try the next mapping — otherwise subsequent fills target a
         // transient DOM and silently miss.
-        await waitForAspNetPostback(page, 8_000);
+        if (mapping.type === "select" && fieldName === "purpose_of_trip_specify") {
+          // CEAC's subtype select schedules its AutoPostBack on a later task.
+          // Keep Next from racing that update and opening the blank visa-class
+          // modal observed during live B1/B2 discovery.
+          await waitForAspNetPostbackStable(page, 8_000);
+        } else {
+          await waitForAspNetPostback(page, 8_000);
+        }
         if (mapping.type === "checkbox") {
           await page.waitForTimeout(750);
         }
@@ -1471,7 +1498,10 @@ export async function verifyPageFieldValues(
  * The DS-160 flow is mostly linear but some pages are conditional, so we
  * accept multiple possible destinations rather than one rigid target.
  */
-function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
+export function getExpectedNextPages(
+  current: CeacPageId | "unknown",
+  options: { skipWorkEducation?: boolean; skipUsContact?: boolean } = {},
+): CeacPageId[] {
   // Ordered DS-160 page progression (simplified — conditional pages may be skipped)
   const pageOrder: CeacPageId[] = [
     "start",
@@ -1499,11 +1529,15 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
     "sign_and_submit",
   ];
 
-  const currentIdx = pageOrder.indexOf(current as CeacPageId);
+  const effectivePageOrder = pageOrder.filter((page) =>
+    !(options.skipWorkEducation && isDs160WorkEducationPage(page)) &&
+    !(options.skipUsContact && isDs160UsContactPage(page))
+  );
+  const currentIdx = effectivePageOrder.indexOf(current as CeacPageId);
 
-  if (currentIdx === -1 || currentIdx >= pageOrder.length - 1) {
+  if (currentIdx === -1 || currentIdx >= effectivePageOrder.length - 1) {
     // Unknown page or at the end — accept any page after personal_information_1
-    return pageOrder.slice(1);
+    return effectivePageOrder.slice(1);
   }
 
   // Review is a chain of sub-pages (Personal → Travel → … → Spouse) all
@@ -1514,5 +1548,5 @@ function getExpectedNextPages(current: CeacPageId | "unknown"): CeacPageId[] {
   }
 
   // Accept the next 3 pages (to handle skipped conditional pages)
-  return pageOrder.slice(currentIdx + 1, currentIdx + 4);
+  return effectivePageOrder.slice(currentIdx + 1, currentIdx + 4);
 }

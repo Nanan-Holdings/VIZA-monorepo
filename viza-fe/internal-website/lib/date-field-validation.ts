@@ -3,15 +3,31 @@ import type { VisaFormFieldRow } from "@/types/visa-form-fields";
 export const DO_NOT_KNOW_DATE_SENTINEL = "DO_NOT_KNOW";
 export const DOES_NOT_APPLY_DATE_SENTINEL = "DOES_NOT_APPLY";
 
+export type DateMinimumPrecision = "day" | "month" | "year";
+
 export type DateFieldValidationRules = {
   allow_do_not_know?: unknown;
   allow_unknown?: unknown;
   allow_does_not_apply?: unknown;
   has_does_not_apply?: unknown;
   allow_year_only?: unknown;
+  minimum_date_precision?: unknown;
 };
 
-export type DateFieldValueState = "empty" | "valid" | "allowed_sentinel" | "year_only" | "invalid";
+export type DateFieldValueState =
+  | "empty"
+  | "valid"
+  | "allowed_sentinel"
+  | "month_only"
+  | "year_only"
+  | "invalid";
+
+export function getDateFieldMinimumPrecision(
+  rules: DateFieldValidationRules | null | undefined,
+): DateMinimumPrecision {
+  const precision = rules?.minimum_date_precision;
+  return precision === "month" || precision === "year" ? precision : "day";
+}
 
 function buildStrictDate(year: number, month: number, day: number): Date | null {
   const date = new Date(year, month - 1, day);
@@ -32,6 +48,19 @@ function buildStrictDate(year: number, month: number, day: number): Date | null 
 export function parseDateFieldValue(value?: string): Date | null {
   const trimmed = value?.trim();
   if (!trimmed || isDateSentinel(trimmed)) return null;
+
+  // A partial date is intentionally not converted to a Date. Doing so would
+  // silently invent the missing month/day (for example, `2026-11` becoming
+  // November 1), which would make date comparisons and submission payloads
+  // claim precision the applicant did not provide.
+  if (
+    /^\d{4}[-/.]\d{1,2}$/.test(trimmed)
+    || /^\d{4}年\d{1,2}月$/.test(trimmed)
+    || /^\d{1,2}[-/.]\d{4}$/.test(trimmed)
+    || /^\d{4}$/.test(trimmed)
+  ) {
+    return null;
+  }
 
   const iso = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   const official = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
@@ -68,8 +97,22 @@ export function getDateFieldValueState(
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return "empty";
   if (isAllowedDateSentinel(trimmed, rules)) return "allowed_sentinel";
+  const minimumPrecision = getDateFieldMinimumPrecision(rules);
+
+  const monthOnly =
+    /^(\d{4})[-/.](\d{1,2})$/.exec(trimmed)
+    ?? /^(\d{4})年(\d{1,2})月$/.exec(trimmed);
+  if (monthOnly) {
+    const month = Number(monthOnly[2]);
+    return minimumPrecision === "month" || minimumPrecision === "year"
+      ? month >= 1 && month <= 12 ? "month_only" : "invalid"
+      : "invalid";
+  }
+
   if (/^\d{4}$/.test(trimmed)) {
-    return rules?.allow_year_only === true ? "year_only" : "invalid";
+    return rules?.allow_year_only === true || minimumPrecision === "year"
+      ? "year_only"
+      : "invalid";
   }
   return parseDateFieldValue(trimmed) ? "valid" : "invalid";
 }
@@ -83,5 +126,10 @@ export function isDateFieldValueComplete(
     value,
     field.validationRules as DateFieldValidationRules | null,
   );
-  return state === "valid" || state === "allowed_sentinel" || state === "year_only";
+  const rules = field.validationRules as DateFieldValidationRules | null;
+  const minimumPrecision = getDateFieldMinimumPrecision(rules);
+  return state === "valid"
+    || state === "allowed_sentinel"
+    || (state === "month_only" && (minimumPrecision === "month" || minimumPrecision === "year"))
+    || (state === "year_only" && (rules?.allow_year_only === true || minimumPrecision === "year"));
 }

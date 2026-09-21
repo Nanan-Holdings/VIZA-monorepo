@@ -402,6 +402,70 @@ describe("dynamic review localization", () => {
     });
   });
 
+  test("edits a month-precision official date without inventing a day", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "intended_arrival_date",
+      label: "Intended arrival date",
+      fieldType: "date",
+      validationRules: { minimum_date_precision: "month" },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ intended_arrival_date: "2026-11" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Travel", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("2026-11");
+    fireEvent.change(dateInput, { target: { value: "2026年12月" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ intended_arrival_date: "2026-12" });
+    });
+  });
+
+  test("edits a year-precision official date as a year-only value", async () => {
+    const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
+    const field = baseField({
+      fieldName: "previous_visit_date_arrived",
+      label: "Previous visit date arrived",
+      fieldType: "date",
+      validationRules: { minimum_date_precision: "year" },
+    });
+
+    render(
+      <DynamicReviewStep
+        applicationId="application-id"
+        dynamicAnswers={{ previous_visit_date_arrived: "2020" }}
+        dbSteps={[{ stepNumber: 1, stepName: "Previous travel", fields: [field] }]}
+        photoPath={null}
+        onEdit={vi.fn()}
+        onPhotoEdit={vi.fn()}
+        onComplete={vi.fn()}
+        onSaveOfficialValue={onSaveOfficialValue}
+        showAction={false}
+      />,
+    );
+
+    const dateInput = screen.getByDisplayValue("2020");
+    fireEvent.change(dateInput, { target: { value: "2021" } });
+    fireEvent.blur(dateInput);
+
+    await waitFor(() => {
+      expect(onSaveOfficialValue).toHaveBeenCalledWith({ previous_visit_date_arrived: "2021" });
+    });
+  });
+
   test("allows an explicitly permitted unknown date sentinel in the official editor", async () => {
     const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
     const field = baseField({

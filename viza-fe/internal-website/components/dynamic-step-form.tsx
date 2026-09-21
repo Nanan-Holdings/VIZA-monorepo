@@ -5,6 +5,7 @@ import { Question as CircleHelp, CircleNotch as Loader2, Sparkle as Sparkles, Tr
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
+import { getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import { ApplicationConditionalFieldsPanel } from "@/components/ui/application-conditional-fields-panel";
 import { AiAssistButton } from "@/components/ui/ai-assist-button";
@@ -57,6 +58,33 @@ import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options
 import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
 import { countries } from "country-data-list";
 import { getDateFieldValueState, parseDateFieldValue } from "@/lib/date-field-validation";
+import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
+import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
+import {
+  FORMER_SPOUSE_COUNT_FIELD,
+  FORMER_SPOUSE_REPEAT_GROUP,
+  getFormerSpouseCountIssue,
+  getFormerSpouseCountValidationMessage,
+  getFormerSpouseRepeatLimit,
+} from "@/lib/former-spouse-count";
+import {
+  getUsContactRelationshipIssue,
+  getUsContactRelationshipIssueMessage,
+} from "@/lib/us-contact-validation";
+import {
+  getDs160ImmediateRelativeRelationshipIssue,
+  getDs160ImmediateRelativeRelationshipIssueMessage,
+} from "@/lib/ds160-family-validation";
+import {
+  DS160_TRIP_PURPOSE_FIELD,
+  DS160_TRIP_PURPOSE_REPEAT_GROUP,
+  getDs160TripPurposeDuplicateIssue,
+  getDs160TripPurposeDuplicateMessage,
+} from "@/lib/ds160-travel-validation";
+import {
+  getDs160NationalityDuplicateIssue,
+  getDs160NationalityDuplicateMessage,
+} from "@/lib/ds160-nationality-validation";
 import {
   getCompiledConditionalPanelController,
   getCompiledConditionalPanelMode,
@@ -100,8 +128,13 @@ const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
   specific_travel_plans: 1,
 };
 
-/** Default max instances for repeatable groups without an explicit max_items */
-const REPEAT_GROUP_DEFAULT_MAX = 5;
+/**
+ * Repeat groups without an explicit schema max are unbounded by the official
+ * form. Keep this as a numeric sentinel so comparisons stay cheap without
+ * materializing rows; rows are still created only when the applicant clicks
+ * Add.
+ */
+const REPEAT_GROUP_DEFAULT_MAX = Number.MAX_SAFE_INTEGER;
 
 const TAIWAN_ENTRY_PERMIT_CONTACT_ADDRESS_NOTICE =
   "可填写在台住宿酒店的地址；即使尚未预订酒店，也可以先填写预计入住的酒店地址。没有在台个人联系电话时，可将酒店电话填写在‘在台市内电话’。";
@@ -308,6 +341,89 @@ type FieldIssueSeverity = "ok" | "warning" | "error";
 interface FieldIssue {
   severity: FieldIssueSeverity;
   message: string;
+}
+
+function getUsContactUnknownIssue(
+  field: VisaFormFieldRow,
+  valueKey: string,
+  values: Record<string, string>,
+  isZh: boolean,
+): FieldIssue | null {
+  if (field.visaType !== "DS160") return null;
+  const role = getUsContactUnknownRole(valueKey);
+  if (!role) return null;
+
+  const suffix = getRepeatInstanceSuffix(valueKey);
+  const surname = values[`us_contact_surname${suffix}`];
+  const givenNames = values[`us_contact_given_names${suffix}`];
+  const organization = values[`us_contact_organization${suffix}`];
+  const surnameUnknown = isDoNotKnowAnswer(surname);
+  const givenNamesUnknown = isDoNotKnowAnswer(givenNames);
+  const organizationUnknown = isDoNotKnowAnswer(organization);
+
+  if (role === "name" && surnameUnknown !== givenNamesUnknown) {
+    return {
+      severity: "error",
+      message: isZh
+        ? "美国联系人姓名“不知道”必须同时用于姓和名。"
+        : "If the U.S. contact name is unknown, mark both surname and given names as unknown.",
+    };
+  }
+
+  if (organizationUnknown && surnameUnknown && givenNamesUnknown) {
+    return {
+      severity: "error",
+      message: getUsContactRelationshipIssueMessage({ kind: "both_unknown" }, isZh),
+    };
+  }
+
+  return null;
+}
+
+function getDs160PreparerSentinelIssue(
+  field: VisaFormFieldRow,
+  valueKey: string,
+  values: Record<string, string>,
+  isZh: boolean,
+): FieldIssue | null {
+  if (field.visaType !== "DS160") return null;
+  const role = getDs160PreparerSentinelRole(valueKey);
+  if (!role) return null;
+
+  const suffix = getRepeatInstanceSuffix(valueKey);
+  const surname = values[`ds160_preparer_surname${suffix}`];
+  const givenNames = values[`ds160_preparer_given_names${suffix}`];
+  const organization = values[`ds160_preparer_organization_name${suffix}`];
+  const surnameNotApplicable = isDoesNotApplyAnswer(surname);
+  const givenNamesNotApplicable = isDoesNotApplyAnswer(givenNames);
+  const organizationNotApplicable = isDoesNotApplyAnswer(organization);
+  const nameNotApplicable = surnameNotApplicable || givenNamesNotApplicable;
+
+  const issue = (messageZh: string, messageEn: string): FieldIssue => ({
+    severity: "error",
+    message: isZh ? messageZh : messageEn,
+  });
+
+  if (surnameNotApplicable !== givenNamesNotApplicable) {
+    return issue(
+      "填写人姓名的“不适用”必须同时用于姓氏和名字。",
+      "The preparer's name must mark both surname and given names as not applicable.",
+    );
+  }
+
+  if (nameNotApplicable && organizationNotApplicable) {
+    return issue(
+      "填写人姓名和机构不能同时选择“不适用”，请至少提供其中一项。",
+      "The preparer's name and organization cannot both be not applicable. Provide at least one.",
+    );
+  }
+
+  // A programmatically synchronized surname or given-name value has no own
+  // checkbox in the schema, so allow the shared sentinel through this helper
+  // before generic field-option validation runs.
+  if (role === "name" && nameNotApplicable) return { severity: "ok", message: "" };
+  if (role === "organization" && organizationNotApplicable) return { severity: "ok", message: "" };
+  return null;
 }
 
 interface EffectiveFieldState {
@@ -665,6 +781,51 @@ function getRepeatInstanceSuffix(key: string): string {
 
 function stripRepeatInstanceSuffix(key: string): string {
   return key.replace(/__\d+$/, "");
+}
+
+function isPrefillMirrorKey(key: string): boolean {
+  return /_(?:zh|en)$/u.test(key);
+}
+
+type UsContactUnknownRole = "name" | "organization";
+
+interface UsContactUnknownSnapshot {
+  values: Record<string, string>;
+  textPairs: Record<string, BilingualTextValue>;
+}
+
+function getUsContactUnknownRole(fieldName: string): UsContactUnknownRole | null {
+  switch (stripRepeatInstanceSuffix(fieldName)) {
+    case "us_contact_surname":
+    case "us_contact_given_names":
+      return "name";
+    case "us_contact_organization":
+      return "organization";
+    default:
+      return null;
+  }
+}
+
+type Ds160PreparerSentinelRole = "name" | "organization";
+
+function getDs160PreparerSentinelRole(fieldName: string): Ds160PreparerSentinelRole | null {
+  switch (stripRepeatInstanceSuffix(fieldName)) {
+    case "ds160_preparer_surname":
+    case "ds160_preparer_given_names":
+      return "name";
+    case "ds160_preparer_organization_name":
+      return "organization";
+    default:
+      return null;
+  }
+}
+
+function isDoNotKnowAnswer(value: string | undefined): boolean {
+  return value?.trim() === "DO_NOT_KNOW";
+}
+
+function isDoesNotApplyAnswer(value: string | undefined): boolean {
+  return value?.trim() === "DOES_NOT_APPLY";
 }
 
 type NormalisedFieldCandidates = readonly string[];
@@ -1313,6 +1474,18 @@ function normalizeFixedChoiceStepValues(
   for (const field of fields) {
     if (field.fieldType !== "select" || !field.options?.length) continue;
 
+    const officialSource = getDs160OfficialOptionSource(field);
+    if (officialSource) {
+      // Resolve legacy ISO names/codes without discarding saved answers when
+      // an old value is ambiguous in the current official catalog.
+      for (const key of Object.keys(next)) {
+        if (key === field.fieldName || new RegExp(`^${field.fieldName}__\\d+$`).test(key)) {
+          next[key] = resolveDs160OfficialOptionValue(officialSource, next[key]);
+        }
+      }
+      continue;
+    }
+
     const rules = field.validationRules as {
       source?: unknown;
       dependent_on?: unknown;
@@ -1695,6 +1868,7 @@ function getLocalFieldIssue(
   values: Record<string, string>,
   locale: string,
   valueEntries?: ReadonlyArray<[string, string]>,
+  allValues: Record<string, string> = values,
 ): FieldIssue {
   const isZh = isChineseLocale(locale);
   const trimmed = value.trim();
@@ -1707,6 +1881,7 @@ function getLocalFieldIssue(
     allow_does_not_apply?: boolean;
     has_does_not_apply?: boolean;
     allow_year_only?: boolean;
+    minimum_date_precision?: "day" | "month" | "year";
     min_date?: "today";
     max_days_from_today?: number;
     submission_window_hours?: number;
@@ -1726,8 +1901,72 @@ function getLocalFieldIssue(
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
+  if (field.fieldName === FORMER_SPOUSE_COUNT_FIELD) {
+    const formerSpouseCountIssue = getFormerSpouseCountIssue(values);
+    if (formerSpouseCountIssue) {
+      return issue(
+        "error",
+        getFormerSpouseCountValidationMessage(formerSpouseCountIssue, isZh),
+      );
+    }
+  }
+
+  const ds160PreparerSentinelIssue = getDs160PreparerSentinelIssue(field, valueKey, values, isZh);
+  if (ds160PreparerSentinelIssue) return ds160PreparerSentinelIssue;
+
   if (field.required && !trimmed) {
     return issue("warning", isZh ? "必填项" : "Required");
+  }
+
+  const usContactUnknownIssue = getUsContactUnknownIssue(field, valueKey, values, isZh);
+  if (usContactUnknownIssue) return usContactUnknownIssue;
+
+  if (field.visaType === "DS160" && field.fieldName === "us_contact_relationship") {
+    const usContactRelationshipIssue = getUsContactRelationshipIssue(values, valueKey);
+    if (usContactRelationshipIssue) {
+      return issue(
+        "error",
+        getUsContactRelationshipIssueMessage(usContactRelationshipIssue, isZh),
+      );
+    }
+  }
+
+  if (field.visaType === "DS160" && field.fieldName === "us_relative_relationship") {
+    const immediateRelativeRelationshipIssue = getDs160ImmediateRelativeRelationshipIssue(values, valueKey);
+    if (immediateRelativeRelationshipIssue) {
+      return issue(
+        "error",
+        getDs160ImmediateRelativeRelationshipIssueMessage(immediateRelativeRelationshipIssue, isZh),
+      );
+    }
+  }
+
+  if (
+    field.visaType === "DS160" &&
+    field.fieldName === DS160_TRIP_PURPOSE_FIELD &&
+    getRepeatGroup(field) === DS160_TRIP_PURPOSE_REPEAT_GROUP
+  ) {
+    const duplicateIssue = getDs160TripPurposeDuplicateIssue(allValues, valueKey);
+    if (duplicateIssue) {
+      return issue(
+        "error",
+        getDs160TripPurposeDuplicateMessage(duplicateIssue, isZh),
+      );
+    }
+  }
+
+  if (field.visaType === "DS160" && (
+    field.fieldName === "nationality_country" ||
+    field.fieldName === "other_nationality_country" ||
+    field.fieldName === "other_permanent_resident_country"
+  )) {
+    const duplicateIssue = getDs160NationalityDuplicateIssue(allValues, valueKey);
+    if (duplicateIssue) {
+      return issue(
+        "error",
+        getDs160NationalityDuplicateMessage(duplicateIssue, isZh),
+      );
+    }
   }
 
   // Date sentinels are canonical answers only when the schema explicitly
@@ -1843,9 +2082,10 @@ function getLocalFieldIssue(
   }
 
   const dateValueState = field.fieldType === "date" ? getDateFieldValueState(trimmed, rules) : null;
+  const isPartialDate = dateValueState === "year_only" || dateValueState === "month_only";
   const isYearOnly = dateValueState === "year_only";
-  const currentDate = field.fieldType === "date" && !isYearOnly ? parseFlexibleDate(trimmed) : null;
-  if (field.fieldType === "date" && trimmed && (dateValueState === "invalid" || (!currentDate && !isYearOnly))) {
+  const currentDate = field.fieldType === "date" && !isPartialDate ? parseFlexibleDate(trimmed) : null;
+  if (field.fieldType === "date" && trimmed && (dateValueState === "invalid" || (!currentDate && !isPartialDate))) {
     return issue("error", isZh ? "日期格式不符合要求" : "Date format does not match the requirement");
   }
 
@@ -2740,8 +2980,9 @@ const GATING_TOGGLE_LABEL_PATTERNS = [
 
 function getConditionalControllerFieldNames(fields: VisaFormFieldRow[]): Set<string> {
   const names = new Set<string>();
-  const fieldsByName = new Map(fields.map((field) => [field.fieldName, field]));
-  const yesNoControllers = fields.filter(
+  const activeFields = fields.filter((field) => !isLegacyCompatibilityOnlyField(field));
+  const fieldsByName = new Map(activeFields.map((field) => [field.fieldName, field]));
+  const yesNoControllers = activeFields.filter(
     (field) =>
       (field.fieldType === "radio" || field.fieldType === "select") &&
       field.options?.some((option) =>
@@ -2786,6 +3027,53 @@ function getConditionalControllerFieldNames(fields: VisaFormFieldRow[]): Set<str
       GATING_TOGGLE_LABEL_PATTERNS.some((pattern) => field.label.toLowerCase().includes(pattern))
     ) {
       names.add(field.fieldName);
+    }
+  }
+
+  return names;
+}
+
+/**
+ * Some DS-160 visibility gates are encoded in validation metadata instead of
+ * a field's showIf expression. Their answers still arrive from another page,
+ * so the current step must hydrate those controllers when the parent snapshot
+ * changes. Keep this list limited to the controls used by the shared runtime
+ * gates; ordinary fields remain governed by the step-local prefill merge.
+ */
+function getDs160RuntimeControllerFieldNames(
+  step: Pick<WizardStep, "stepName" | "fields">,
+  visaType?: string,
+): Set<string> {
+  const names = new Set<string>();
+  const isDs160 = visaType === "DS160" || step.fields.some((field) => field.visaType === "DS160");
+  if (!isDs160) return names;
+
+  if (step.fields.some((field) => field.validationRules?.nationality_gate === "CEAC_ESTA")) {
+    for (const fieldName of [
+      "nationality_country",
+      "nationality",
+      "current_nationality",
+      "other_nationality",
+      "other_nationality_country",
+    ]) {
+      names.add(fieldName);
+    }
+  }
+
+  const stepText = `${step.stepName} ${step.fields[0]?.stepName ?? ""}`.trim();
+  if (/(?:work\s*[/&]\s*education|work\s+education|education\s*[/&]\s*employment|^occupation\b)/iu.test(stepText)) {
+    names.add("date_of_birth");
+    names.add("dateOfBirth");
+  }
+
+  if (/(?:u\.?\s*s\.?\s*)?(?:point\s+of\s+)?contact/iu.test(stepText)) {
+    for (const fieldName of [
+      "has_specific_plans",
+      "has_specific_travel_plans",
+      "intended_length_of_stay_unit",
+      "intended_length_of_stay_units",
+    ]) {
+      names.add(fieldName);
     }
   }
 
@@ -3133,6 +3421,8 @@ function DynamicStepFormImpl({
   const removedRepeatKeysRef = useRef<Set<string>>(new Set());
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
+  const usContactUnknownRestoreRef = useRef<Record<string, UsContactUnknownSnapshot>>({});
+  const ds160PreparerSentinelRestoreRef = useRef<Record<string, UsContactUnknownSnapshot>>({});
 
   const buildDraftPatch = (
     patchFields: VisaFormFieldRow[],
@@ -3150,10 +3440,13 @@ function DynamicStepFormImpl({
     return patch;
   };
 
-  const conditionalControllerFieldNames = useMemo(
-    () => getConditionalControllerFieldNames(step.fields),
-    [step.fields],
-  );
+  const conditionalControllerFieldNames = useMemo(() => {
+    const names = getConditionalControllerFieldNames(step.fields);
+    for (const fieldName of getDs160RuntimeControllerFieldNames(step, visaType)) {
+      names.add(fieldName);
+    }
+    return names;
+  }, [step.fields, step.stepName, visaType]);
   const layoutControllerFieldNames = useMemo(() => {
     const names = new Set(conditionalControllerFieldNames);
 
@@ -3254,12 +3547,31 @@ function DynamicStepFormImpl({
   // present on the first visible paint instead of appearing only after the
   // user toggles the controller again.
   useLayoutEffect(() => {
+    const controllerKeys = new Set<string>();
+    for (const key of [
+      ...Object.keys(prefill),
+      ...Object.keys(valuesRef.current),
+    ]) {
+      if (isPrefillMirrorKey(key)) continue;
+      if (conditionalControllerFieldNames.has(stripRepeatInstanceSuffix(key))) {
+        controllerKeys.add(key);
+      }
+    }
+
     let nextValues = valuesRef.current;
     let changed = false;
 
-    for (const fieldName of conditionalControllerFieldNames) {
-      const savedValue = prefill[fieldName]?.trim();
-      if (!savedValue || nextValues[fieldName]?.trim()) continue;
+    for (const fieldName of controllerKeys) {
+      // The active step owns these refs. A local clear (including a repeat-row
+      // deletion) must survive an older parent snapshot until that tombstone
+      // is acknowledged by the save queue.
+      if (
+        userEditedValueKeysRef.current.has(fieldName) ||
+        userClearedValueKeysRef.current.has(fieldName)
+      ) continue;
+
+      const savedValue = prefill[fieldName]?.trim() ?? "";
+      if ((nextValues[fieldName] ?? "") === savedValue) continue;
       if (!changed) nextValues = { ...nextValues };
       nextValues[fieldName] = savedValue;
       changed = true;
@@ -4484,6 +4796,220 @@ function DynamicStepFormImpl({
     ));
   };
 
+  const handleUsContactUnknownChange = (
+    field: VisaFormFieldRow,
+    fieldName: string,
+    value: string,
+  ): boolean => {
+    if (field.visaType !== "DS160") return false;
+    const role = getUsContactUnknownRole(fieldName);
+    if (!role || (value !== "" && value !== "DO_NOT_KNOW")) return false;
+
+    const suffix = getRepeatInstanceSuffix(fieldName);
+    const cacheKey = `us_contact${suffix}`;
+    const nameKeys = [`us_contact_surname${suffix}`, `us_contact_given_names${suffix}`];
+    const organizationKey = `us_contact_organization${suffix}`;
+    const allKeys = [...nameKeys, organizationKey];
+    let snapshot = usContactUnknownRestoreRef.current[cacheKey];
+    if (value === "DO_NOT_KNOW" && !snapshot) {
+      snapshot = {
+        values: Object.fromEntries(allKeys.map((key) => [key, valuesRef.current[key] ?? ""])),
+        textPairs: Object.fromEntries(
+          allKeys
+            .filter((key) => textPairsRef.current[key])
+            .map((key) => [key, { ...textPairsRef.current[key] }]),
+        ),
+      };
+      usContactUnknownRestoreRef.current[cacheKey] = snapshot;
+    }
+
+    const nextValues = { ...valuesRef.current };
+    const nextTextPairs = { ...textPairsRef.current };
+    const fieldUsesBilingualPair = (key: string): boolean => {
+      const baseName = stripRepeatInstanceSuffix(key);
+      return step.fields.some((candidate) => candidate.fieldName === baseName && usesBilingualAnswerPair(candidate));
+    };
+    const setUnknown = (key: string) => {
+      nextValues[key] = "DO_NOT_KNOW";
+      if (fieldUsesBilingualPair(key) || nextTextPairs[key] || snapshot?.textPairs[key]) {
+        nextTextPairs[key] = { zh: "DO_NOT_KNOW", en: "DO_NOT_KNOW" };
+      }
+    };
+    const restore = (key: string) => {
+      const restoredValue = snapshot?.values[key] ?? "";
+      const safeValue = isDoNotKnowAnswer(restoredValue) ? "" : restoredValue;
+      nextValues[key] = safeValue;
+      if (fieldUsesBilingualPair(key) || nextTextPairs[key] || snapshot?.textPairs[key]) {
+        const restoredPair = snapshot?.textPairs[key];
+        nextTextPairs[key] = restoredPair && !isDoNotKnowAnswer(restoredPair.en) && !isDoNotKnowAnswer(restoredPair.zh)
+          ? { ...restoredPair }
+          : toInitialBilingualText(safeValue);
+      }
+    };
+
+    if (role === "name") {
+      if (value === "DO_NOT_KNOW") {
+        nameKeys.forEach(setUnknown);
+        if (isDoNotKnowAnswer(valuesRef.current[organizationKey])) restore(organizationKey);
+      } else if (nameKeys.some((key) => isDoNotKnowAnswer(valuesRef.current[key]))) {
+        nameKeys.forEach(restore);
+      }
+    } else if (value === "DO_NOT_KNOW") {
+      setUnknown(organizationKey);
+      if (nameKeys.some((key) => isDoNotKnowAnswer(valuesRef.current[key]))) nameKeys.forEach(restore);
+    } else if (isDoNotKnowAnswer(valuesRef.current[organizationKey])) {
+      restore(organizationKey);
+    }
+
+    const changedKeys = allKeys.filter((key) => nextValues[key] !== valuesRef.current[key]);
+    const changedPairs = allKeys.some((key) => {
+      const currentPair = textPairsRef.current[key];
+      const nextPair = nextTextPairs[key];
+      return Boolean(currentPair || nextPair) && (
+        currentPair?.zh !== nextPair?.zh || currentPair?.en !== nextPair?.en
+      );
+    });
+    if (changedKeys.length === 0 && !changedPairs) return true;
+
+    onUserChange?.();
+    pushUndoSnapshot();
+    for (const key of changedKeys) {
+      userEditedValueKeysRef.current.add(key);
+      if (!nextValues[key]?.trim()) {
+        userClearedValueKeysRef.current.add(key);
+        userClearPrefillBaselineRef.current[key] = prefill[key]?.trim()
+          ?? previousPrefillRef.current[key]
+          ?? "";
+      } else {
+        userClearedValueKeysRef.current.delete(key);
+        delete userClearPrefillBaselineRef.current[key];
+      }
+    }
+
+    const normalizedNext = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    valuesRef.current = normalizedNext;
+    textPairsRef.current = nextTextPairs;
+    setValues(normalizedNext);
+    setTextPairs(nextTextPairs);
+
+    const stillUnknown = nameKeys.some((key) => isDoNotKnowAnswer(normalizedNext[key]))
+      || isDoNotKnowAnswer(normalizedNext[organizationKey]);
+    if (!stillUnknown) delete usContactUnknownRestoreRef.current[cacheKey];
+
+    const nextPatch = buildDraftPatch(step.fields, normalizedNext, groupCountsRef.current, nextTextPairs);
+    lastDraftPatchRef.current = nextPatch;
+    onDraftChangeRef.current?.(nextPatch);
+    return true;
+  };
+
+  const handleDs160PreparerSentinelChange = (
+    field: VisaFormFieldRow,
+    fieldName: string,
+    value: string,
+  ): boolean => {
+    if (field.visaType !== "DS160") return false;
+    const role = getDs160PreparerSentinelRole(fieldName);
+    if (!role || (value !== "" && value !== "DOES_NOT_APPLY")) return false;
+
+    const suffix = getRepeatInstanceSuffix(fieldName);
+    const cacheKey = `ds160_preparer${suffix}`;
+    const nameKeys = [`ds160_preparer_surname${suffix}`, `ds160_preparer_given_names${suffix}`];
+    const organizationKey = `ds160_preparer_organization_name${suffix}`;
+    const allKeys = [...nameKeys, organizationKey];
+    let snapshot = ds160PreparerSentinelRestoreRef.current[cacheKey];
+    if (value === "DOES_NOT_APPLY" && !snapshot) {
+      snapshot = {
+        values: Object.fromEntries(allKeys.map((key) => [key, valuesRef.current[key] ?? ""])),
+        textPairs: Object.fromEntries(
+          allKeys
+            .filter((key) => textPairsRef.current[key])
+            .map((key) => [key, { ...textPairsRef.current[key] }]),
+        ),
+      };
+      ds160PreparerSentinelRestoreRef.current[cacheKey] = snapshot;
+    }
+
+    const nextValues = { ...valuesRef.current };
+    const nextTextPairs = { ...textPairsRef.current };
+    const fieldUsesBilingualPair = (key: string): boolean => {
+      const baseName = stripRepeatInstanceSuffix(key);
+      return step.fields.some((candidate) => candidate.fieldName === baseName && usesBilingualAnswerPair(candidate));
+    };
+    const setNotApplicable = (key: string) => {
+      nextValues[key] = "DOES_NOT_APPLY";
+      if (fieldUsesBilingualPair(key) || nextTextPairs[key] || snapshot?.textPairs[key]) {
+        nextTextPairs[key] = { zh: "DOES_NOT_APPLY", en: "DOES_NOT_APPLY" };
+      }
+    };
+    const restore = (key: string) => {
+      const restoredValue = snapshot?.values[key] ?? "";
+      const safeValue = isDoesNotApplyAnswer(restoredValue) ? "" : restoredValue;
+      nextValues[key] = safeValue;
+      if (fieldUsesBilingualPair(key) || nextTextPairs[key] || snapshot?.textPairs[key]) {
+        const restoredPair = snapshot?.textPairs[key];
+        nextTextPairs[key] = restoredPair &&
+          !isDoesNotApplyAnswer(restoredPair.en) &&
+          !isDoesNotApplyAnswer(restoredPair.zh)
+          ? { ...restoredPair }
+          : toInitialBilingualText(safeValue);
+      }
+    };
+
+    if (role === "name") {
+      if (value === "DOES_NOT_APPLY") {
+        nameKeys.forEach(setNotApplicable);
+        if (isDoesNotApplyAnswer(valuesRef.current[organizationKey])) restore(organizationKey);
+      } else if (nameKeys.some((key) => isDoesNotApplyAnswer(valuesRef.current[key]))) {
+        nameKeys.forEach(restore);
+      }
+    } else if (value === "DOES_NOT_APPLY") {
+      setNotApplicable(organizationKey);
+      if (nameKeys.some((key) => isDoesNotApplyAnswer(valuesRef.current[key]))) nameKeys.forEach(restore);
+    } else if (isDoesNotApplyAnswer(valuesRef.current[organizationKey])) {
+      restore(organizationKey);
+    }
+
+    const changedKeys = allKeys.filter((key) => nextValues[key] !== valuesRef.current[key]);
+    const changedPairs = allKeys.some((key) => {
+      const currentPair = textPairsRef.current[key];
+      const nextPair = nextTextPairs[key];
+      return Boolean(currentPair || nextPair) && (
+        currentPair?.zh !== nextPair?.zh || currentPair?.en !== nextPair?.en
+      );
+    });
+    if (changedKeys.length === 0 && !changedPairs) return true;
+
+    onUserChange?.();
+    pushUndoSnapshot();
+    for (const key of changedKeys) {
+      userEditedValueKeysRef.current.add(key);
+      if (!nextValues[key]?.trim()) {
+        userClearedValueKeysRef.current.add(key);
+        userClearPrefillBaselineRef.current[key] = prefill[key]?.trim()
+          ?? previousPrefillRef.current[key]
+          ?? "";
+      } else {
+        userClearedValueKeysRef.current.delete(key);
+        delete userClearPrefillBaselineRef.current[key];
+      }
+    }
+
+    const normalizedNext = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    valuesRef.current = normalizedNext;
+    textPairsRef.current = nextTextPairs;
+    setValues(normalizedNext);
+    setTextPairs(nextTextPairs);
+
+    const stillNotApplicable = nameKeys.some((key) => isDoesNotApplyAnswer(normalizedNext[key]))
+      || isDoesNotApplyAnswer(normalizedNext[organizationKey]);
+    if (!stillNotApplicable) delete ds160PreparerSentinelRestoreRef.current[cacheKey];
+
+    const nextPatch = buildDraftPatch(step.fields, normalizedNext, groupCountsRef.current, nextTextPairs);
+    lastDraftPatchRef.current = nextPatch;
+    onDraftChangeRef.current?.(nextPatch);
+    return true;
+  };
+
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
     const nextPair = side === "zh"
@@ -4545,7 +5071,10 @@ function DynamicStepFormImpl({
 
   const addGroupInstance = (group: string) => {
     const currentCount = groupCounts[group] ?? 1;
-    const max = repeatGroupMax[group] ?? Number.POSITIVE_INFINITY;
+    const configuredMax = repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX;
+    const max = group === FORMER_SPOUSE_REPEAT_GROUP
+      ? getFormerSpouseRepeatLimit(valuesRef.current, configuredMax)
+      : configuredMax;
     if (currentCount >= max) return;
 
     captureScrollOffsetBeforeMutation();
@@ -4774,18 +5303,22 @@ function DynamicStepFormImpl({
   }, [step.fields, values]);
 
   const isFieldConditionallyVisible = useCallback((field: VisaFormFieldRow, valueKey: string) => {
+    if (isLegacyCompatibilityOnlyField(field)) return false;
     const fieldValues = getScopedFieldValues(field, valueKey);
+    if (!isDs160FieldVisibleForRuntime(field, step, visaType, fieldValues)) return false;
     if (isGatedByUnansweredToggle(field, fieldValues)) return false;
     if (isDisabledByLT24(field, valueKey, fieldValues, step.fields)) return false;
     return evaluateShowIf(field, fieldValues, step.fields);
-  }, [getScopedFieldValues, isGatedByUnansweredToggle, step.fields]);
+  }, [getScopedFieldValues, isGatedByUnansweredToggle, step, visaType]);
 
   const shouldRenderField = useCallback((field: VisaFormFieldRow, valueKey: string) => {
+    if (isLegacyCompatibilityOnlyField(field)) return false;
     const fieldValues = getScopedFieldValues(field, valueKey);
+    if (!isDs160FieldVisibleForRuntime(field, step, visaType, fieldValues)) return false;
     if (isGatedByUnansweredToggle(field, fieldValues)) return false;
     return evaluateShowIf(field, fieldValues, step.fields)
       || isDisabledByLT24(field, valueKey, fieldValues, step.fields);
-  }, [getScopedFieldValues, isGatedByUnansweredToggle, step.fields]);
+  }, [getScopedFieldValues, isGatedByUnansweredToggle, step, visaType]);
 
   const isRequiredField = (
     field: VisaFormFieldRow,
@@ -5000,6 +5533,7 @@ function DynamicStepFormImpl({
             fieldValues,
             locale,
             index === 0 ? valueEntries : Object.entries(fieldValues),
+            values,
           ),
         );
       }
@@ -5029,6 +5563,7 @@ function DynamicStepFormImpl({
       fieldValues,
       locale,
       valueKey === field.fieldName ? valueEntries : Object.entries(fieldValues),
+      values,
     );
     fieldIssues.set(valueKey, issue);
     return issue;
@@ -5157,6 +5692,8 @@ function DynamicStepFormImpl({
             field={sideField}
             value={isTextLike ? pair[side] : (values[valueKey] ?? "")}
             onChange={(nextValue) => {
+              if (handleUsContactUnknownChange(field, valueKey, nextValue)) return;
+              if (handleDs160PreparerSentinelChange(field, valueKey, nextValue)) return;
               if (isTextLike) {
                 handleBilingualTextChange(valueKey, side, nextValue);
                 return;
@@ -5502,6 +6039,7 @@ function DynamicStepFormImpl({
       {step.fields.map((field) => {
         // Skip fields handled by an external control (e.g. passport OCR upload
         // card). They stay in required validation but are not rendered here.
+        if (isLegacyCompatibilityOnlyField(field)) return null;
         if (externallyHandled.has(field.fieldName)) return null;
         if (isIndonesiaPostalAutoFillField(field)) return null;
         const group = getRepeatGroup(field);
@@ -5522,8 +6060,10 @@ function DynamicStepFormImpl({
               multiOptionConditionalGroups.fieldsByRoot[multiOptionRoot] ?? []
             ).filter(
               (candidate) =>
+                !isLegacyCompatibilityOnlyField(candidate) &&
                 !externallyHandled.has(candidate.fieldName) &&
                 !isIndonesiaPostalAutoFillField(candidate) &&
+                isDs160FieldVisibleForRuntime(candidate, step, visaType, values) &&
                 (evaluateShowIf(candidate, values, step.fields) ||
                   isDisabledByLT24(candidate, candidate.fieldName, values, step.fields)) &&
                 !isGatedByUnansweredToggle(candidate),
@@ -5564,7 +6104,9 @@ function DynamicStepFormImpl({
             const blockFields = step.fields.filter(
               (f) =>
                 !getRepeatGroup(f) &&
+                !isLegacyCompatibilityOnlyField(f) &&
                 getBlockGroup(f) === bg &&
+                isDs160FieldVisibleForRuntime(f, step, visaType, values) &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
                 !isGatedByUnansweredToggle(f) &&
                 !isIndonesiaPostalAutoFillField(f),
@@ -5630,7 +6172,9 @@ function DynamicStepFormImpl({
             const inlineFields = step.fields.filter(
               (f) =>
                 !getRepeatGroup(f) &&
+                !isLegacyCompatibilityOnlyField(f) &&
                 getInlineGroup(f) === ig &&
+                isDs160FieldVisibleForRuntime(f, step, visaType, values) &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
                 !isGatedByUnansweredToggle(f) &&
                 !isIndonesiaPostalAutoFillField(f)
@@ -5710,8 +6254,12 @@ function DynamicStepFormImpl({
         if (!visibleGroupFieldsByInstance.some((fields) => fields.length > 0)) return null;
 
         const isConditionalGroup = groupFields.some(hasConditionalDependency);
+        const configuredRepeatMax = repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX;
+        const effectiveRepeatMax = group === FORMER_SPOUSE_REPEAT_GROUP
+          ? getFormerSpouseRepeatLimit(values, configuredRepeatMax)
+          : configuredRepeatMax;
         const canAddGroupInstance =
-          (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
+          (groupCounts[group] ?? 1) < effectiveRepeatMax;
 
         return (
           <ApplicationConditionalFieldsPanel

@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { countries } from "country-data-list";
-import { ApplicationFormDatePicker } from "@/components/ui/application-form-date-picker";
+import { ApplicationFormDatePicker, type DatePickerMode } from "@/components/ui/application-form-date-picker";
 import { ApplicationCheckbox, ApplicationRadio } from "@/components/ui/application-checkbox";
 import {
   Select,
@@ -23,6 +23,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
 import { translateUsRegionName } from "@/lib/ds160-translations";
+import { getDs160OfficialOptions, getDs160OfficialOptionSource, resolveDs160OfficialOptionValue } from "@/lib/ds160-official-options";
+import { getDateFieldMinimumPrecision, type DateMinimumPrecision } from "@/lib/date-field-validation";
 import { convertSimplifiedToTraditional } from "@/lib/chinese-conversion";
 import { cn } from "@/lib/utils";
 import {
@@ -222,11 +224,22 @@ function resolveFlagCountryCode(...candidates: Array<string | undefined>): strin
 function extractYearFromDateValue(value: string): string {
   const trimmed = value.trim();
   const yearOnly = trimmed.match(/^(\d{4})$/);
-  const iso = trimmed.match(/^(\d{4})[-/.]\d{1,2}[-/.]\d{1,2}$/);
-  const official = trimmed.match(/^\d{1,2}[-/.]\d{1,2}[-/.](\d{4})$/);
-  const chinese = trimmed.match(/^(\d{4})年\d{1,2}月\d{1,2}日$/);
+  const iso = trimmed.match(/^(\d{4})[-/.]\d{1,2}(?:[-/.]\d{1,2})?$/);
+  const official = trimmed.match(/^(?:\d{1,2}[-/.])?\d{1,2}[-/.](\d{4})$/);
+  const chinese = trimmed.match(/^(\d{4})年\d{1,2}(?:月\d{1,2}日)?$/);
 
   return yearOnly?.[1] ?? iso?.[1] ?? official?.[1] ?? chinese?.[1] ?? "";
+}
+
+function extractYearMonthFromDateValue(value: string): string {
+  const trimmed = value.trim();
+  const iso = trimmed.match(/^(\d{4})[-/.](\d{1,2})(?:[-/.]\d{1,2})?$/);
+  const official = trimmed.match(/^(\d{1,2})[-/.](\d{4})$/);
+  const chinese = trimmed.match(/^(\d{4})年(\d{1,2})月(?:\d{1,2}日)?$/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}`;
+  if (official) return `${official[2]}-${official[1].padStart(2, "0")}`;
+  if (chinese) return `${chinese[1]}-${chinese[2].padStart(2, "0")}`;
+  return /^\d{4}$/.test(trimmed) ? trimmed : "";
 }
 
 type DateFieldRules = {
@@ -235,6 +248,7 @@ type DateFieldRules = {
   allow_does_not_apply?: boolean;
   has_does_not_apply?: boolean;
   allow_year_only?: boolean;
+  minimum_date_precision?: unknown;
 };
 
 type LengthRules = {
@@ -447,14 +461,17 @@ export function DynamicFormField({
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const locale = useLocale();
-  const { label, fieldType, required, placeholder, options } = field;
+  const { label, fieldType, required, placeholder } = field;
+  const officialOptionSource = getDs160OfficialOptionSource(field);
+  const options = getDs160OfficialOptions(officialOptionSource) ?? field.options;
+  const selectionValue = resolveDs160OfficialOptionValue(officialOptionSource, value);
   const sideLocale = displayLocale ?? (locale.startsWith("zh") ? "zh" : "en");
   const selectFallback = sideLocale === "zh" ? "请选择..." : "Select...";
   const localizedPlaceholder = resolveLocalizedPlaceholder(field, sideLocale) ?? placeholder ?? undefined;
   const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
-  const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
-  const [optimisticSelectionValue, setOptimisticSelectionValue] = useState(value);
+  const [dateModeByField, setDateModeByField] = useState<Record<string, DatePickerMode>>({});
+  const [optimisticSelectionValue, setOptimisticSelectionValue] = useState(selectionValue);
   const selectionChangeRef = useRef(onChange);
   const maxLength = getMaxLengthRule(field);
   const criticalInlineHelperText = getCriticalInlineHelperText(field, sideLocale);
@@ -471,8 +488,8 @@ export function DynamicFormField({
   }, [onChange]);
 
   useEffect(() => {
-    setOptimisticSelectionValue(value);
-  }, [field.fieldName, value]);
+    setOptimisticSelectionValue(selectionValue);
+  }, [field.fieldName, selectionValue]);
 
   const commitSelection = useCallback((nextValue: string) => {
     setOptimisticSelectionValue(nextValue);
@@ -493,12 +510,22 @@ export function DynamicFormField({
       const dateAllowDoNotKnow = dateRules?.allow_do_not_know === true || dateRules?.allow_unknown === true;
       const dateAllowDoesNotApply = dateRules?.allow_does_not_apply === true || dateRules?.has_does_not_apply === true;
       const dateAllowYearOnly = dateRules?.allow_year_only === true;
+      const dateMinimumPrecision: DateMinimumPrecision = getDateFieldMinimumPrecision(dateRules);
+      const dateCanUseMonth = dateMinimumPrecision === "month" || dateMinimumPrecision === "year";
+      const dateCanUseYear = dateMinimumPrecision === "year" || dateAllowYearOnly;
       const dateIsDoNotKnow = value === "DO_NOT_KNOW";
       const dateIsDoesNotApply = value === "DOES_NOT_APPLY";
-      const currentDateMode = dateModeByField[field.fieldName] ?? (/^\d{4}$/.test(value.trim()) ? "year" : "full");
-      const dateIsYearOnly = dateAllowYearOnly && currentDateMode === "year";
+      const trimmedDateValue = value.trim();
+      const inferredDateMode: DatePickerMode = /^\d{4}$/.test(trimmedDateValue) && dateCanUseYear
+        ? "year"
+        : (/^(?:\d{4}[-/.]\d{1,2}|\d{4}年\d{1,2}月)$/.test(trimmedDateValue) && dateCanUseMonth
+          ? "month"
+          : "full");
+      const currentDateMode = dateModeByField[field.fieldName] ?? inferredDateMode;
+      const dateIsYearOnly = dateCanUseYear && currentDateMode === "year";
       const dateHasSideCheckbox = dateAllowDoNotKnow || dateAllowDoesNotApply;
       const fullDateLabel = sideLocale === "zh" ? "完整日期" : "Full";
+      const monthOnlyLabel = sideLocale === "zh" ? "只知道年月" : "Only year and month are known";
       const yearOnlyLabel = sideLocale === "zh" ? "只知道年份" : "Only year is known";
       const datePickerNode = !dateIsDoNotKnow && !dateIsDoesNotApply ? (
         <ApplicationFormDatePicker
@@ -508,27 +535,15 @@ export function DynamicFormField({
           forceWhiteBackground={forceWhiteBackground}
           displayLocale={sideLocale}
           disabled={disabled}
+          minimumDatePrecision={dateMinimumPrecision}
+          mode={currentDateMode}
         />
       ) : (
         <ApplicationFormControlDisplay className={`h-12 text-[15px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
           {dateIsDoNotKnow ? doNotKnowLabel : doesNotApplyLabel}
         </ApplicationFormControlDisplay>
       );
-      const dateInputNode = dateIsYearOnly ? (
-        <ApplicationFormInputGroup
-          filled={Boolean(value)}
-          forceWhiteBackground={forceWhiteBackground}
-        >
-          <InputGroupInput
-            value={value}
-            onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="YYYY"
-            inputMode="numeric"
-            pattern="[0-9]{4}"
-            disabled={disabled}
-          />
-        </ApplicationFormInputGroup>
-      ) : datePickerNode;
+      const dateInputNode = datePickerNode;
       const sideCheckbox = dateAllowDoNotKnow ? (
         <ApplicationCheckbox
           checked={dateIsDoNotKnow}
@@ -547,28 +562,43 @@ export function DynamicFormField({
 
       return (
         <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>
-          {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
+          {(dateCanUseMonth || dateCanUseYear) && !dateIsDoNotKnow && !dateIsDoesNotApply && (
             <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
               <ApplicationRadio
                 name={`${field.fieldName}-date-mode`}
-                checked={!dateIsYearOnly}
+                checked={currentDateMode === "full"}
                 label={fullDateLabel}
                 className="text-[13px] text-gray-700"
                 onCheckedChange={() => {
+                  if (currentDateMode === "full") return;
                   setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "full" }));
-                  if (/^\d{4}$/.test(value.trim())) onChange("");
+                  onChange(/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmedDateValue) ? value : "");
                 }}
               />
-              <ApplicationRadio
-                name={`${field.fieldName}-date-mode`}
-                checked={dateIsYearOnly}
-                label={yearOnlyLabel}
-                className="text-[13px] text-gray-700"
-                onCheckedChange={() => {
-                  setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "year" }));
-                  onChange(extractYearFromDateValue(value));
-                }}
-              />
+              {dateCanUseMonth ? (
+                <ApplicationRadio
+                  name={`${field.fieldName}-date-mode`}
+                  checked={currentDateMode === "month"}
+                  label={monthOnlyLabel}
+                  className="text-[13px] text-gray-700"
+                  onCheckedChange={() => {
+                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "month" }));
+                    onChange(extractYearMonthFromDateValue(value));
+                  }}
+                />
+              ) : null}
+              {dateCanUseYear ? (
+                <ApplicationRadio
+                  name={`${field.fieldName}-date-mode`}
+                  checked={dateIsYearOnly}
+                  label={yearOnlyLabel}
+                  className="text-[13px] text-gray-700"
+                  onCheckedChange={() => {
+                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "year" }));
+                    onChange(extractYearFromDateValue(value));
+                  }}
+                />
+              ) : null}
             </div>
           )}
           {dateHasSideCheckbox ? (
@@ -587,8 +617,8 @@ export function DynamicFormField({
       // Country fields use source metadata — render CountryDropdown
       const source = getFieldSource(field);
       const isSchengenMemberState = usesSchengenMemberStateList(field);
-      const isCountry = source === "ISO3166-1" || isSchengenMemberState;
-      const isUsState = source === "US_STATES";
+      const isCountry = !officialOptionSource && (source === "ISO3166-1" || isSchengenMemberState);
+      const isUsState = !officialOptionSource && source === "US_STATES";
       if (isCountry) {
         return (
           <FieldWrapper label={label} labelMeta={labelMeta} required={required} sideLocale={sideLocale} helperText={helperText} labelAction={labelAction}>

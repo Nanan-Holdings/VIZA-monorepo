@@ -23,6 +23,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { DS160_PREPARER_FIELD_NAMES } from "../src/ceac/signature-fields";
+import {
+  buildDs160OfficialEvidenceManifest,
+  type Ds160OfficialEvidenceInput,
+  type Ds160OfficialEvidenceRecord,
+} from "../src/ds160-coverage-audit";
 
 import { TEST_DS160_ANSWERS } from "../src/ceac/test-ds160-fixture";
 import { __DERIVATION_TARGETS } from "../src/ds160-derive-answers";
@@ -174,6 +179,106 @@ function isOptionalSeedField(key: string): boolean {
   return metadata ? !DS160_FIELD_CONTRACTS[metadata.seedFieldName]?.required : false;
 }
 
+function readEvidenceInput(): Ds160OfficialEvidenceInput {
+  const index = process.argv.indexOf("--evidence");
+  if (index < 0) return {};
+  const evidencePath = process.argv[index + 1];
+  if (!evidencePath || evidencePath.startsWith("--")) {
+    throw new Error("--evidence requires a JSON path");
+  }
+  const parsed: unknown = JSON.parse(fs.readFileSync(path.resolve(evidencePath), "utf8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("DS-160 evidence input must be a JSON object");
+  }
+  const object = parsed as Record<string, unknown>;
+  // Accept the generated manifest itself after a reviewer fills its evidence
+  // arrays. This keeps `--write-template` and `--evidence` round-trippable.
+  if (Array.isArray(object.fields) && Array.isArray(object.branches) && Array.isArray(object.repeatGroups)) {
+    const fieldEvidence: Record<string, readonly Ds160OfficialEvidenceRecord[]> = {};
+    for (const entry of object.fields) {
+      if (!entry || typeof entry !== "object") continue;
+      const value = entry as Record<string, unknown>;
+      if (typeof value.fieldName !== "string") continue;
+      fieldEvidence[value.fieldName] = evidenceRecordsFromTemplateSlot(value.evidence);
+    }
+    const branchEvidence: Record<string, {
+      positive: readonly Ds160OfficialEvidenceRecord[];
+      negative: readonly Ds160OfficialEvidenceRecord[];
+    }> = {};
+    for (const entry of object.branches) {
+      if (!entry || typeof entry !== "object") continue;
+      const value = entry as Record<string, unknown>;
+      if (typeof value.expression !== "string") continue;
+      branchEvidence[value.expression] = {
+        positive: evidenceRecordsFromTemplateSlot(value.positive),
+        negative: evidenceRecordsFromTemplateSlot(value.negative),
+      };
+    }
+    const repeatEvidence: Record<string, {
+      rowAdded: readonly Ds160OfficialEvidenceRecord[];
+      rowDeleted: readonly Ds160OfficialEvidenceRecord[];
+    }> = {};
+    for (const entry of object.repeatGroups) {
+      if (!entry || typeof entry !== "object") continue;
+      const value = entry as Record<string, unknown>;
+      if (typeof value.group !== "string") continue;
+      repeatEvidence[value.group] = {
+        rowAdded: evidenceRecordsFromTemplateSlot(value.rowAdded),
+        rowDeleted: evidenceRecordsFromTemplateSlot(value.rowDeleted),
+      };
+    }
+    const scopeGaps = Array.isArray(object.scopeGaps)
+      ? object.scopeGaps.flatMap((entry): Array<{
+          key: string;
+          category: "field" | "branch" | "repeat_group" | "page_control" | "other";
+          description: string;
+          evidence: readonly Ds160OfficialEvidenceRecord[];
+        }> => {
+          if (!entry || typeof entry !== "object") return [];
+          const value = entry as Record<string, unknown>;
+          if (typeof value.key !== "string" || typeof value.description !== "string") return [];
+          const categories = ["field", "branch", "repeat_group", "page_control", "other"] as const;
+          if (!categories.includes(value.category as (typeof categories)[number])) return [];
+          return [{
+            key: value.key,
+            category: value.category as (typeof categories)[number],
+            description: value.description,
+            evidence: evidenceRecordsFromTemplateSlot(value.evidence),
+          }];
+        })
+      : [];
+    return {
+      fields: fieldEvidence,
+      branches: branchEvidence,
+      repeats: repeatEvidence,
+      scopeReviewComplete: object.scopeReviewComplete === true,
+      scopeGaps,
+    };
+  }
+  return parsed as Ds160OfficialEvidenceInput;
+}
+
+function evidenceRecordsFromTemplateSlot(value: unknown): readonly Ds160OfficialEvidenceRecord[] {
+  if (!value || typeof value !== "object") return [];
+  const evidence = (value as Record<string, unknown>).evidence;
+  return Array.isArray(evidence)
+    ? evidence as readonly Ds160OfficialEvidenceRecord[]
+    : [];
+}
+
+function writeEvidenceTemplate(manifest: ReturnType<typeof buildDs160OfficialEvidenceManifest>): string | null {
+  const index = process.argv.indexOf("--write-template");
+  if (index < 0) return null;
+  const requestedPath = process.argv[index + 1];
+  if (!requestedPath || requestedPath.startsWith("--")) {
+    throw new Error("--write-template requires a JSON path");
+  }
+  const target = path.resolve(requestedPath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return target;
+}
+
 /**
  * Statically compute the upper bound of derivation outputs given a source
  * key set. The runtime derivation only fires when actual values match
@@ -190,6 +295,8 @@ function applyDerivationsToKeySet(sourceKeys: Set<string>): Set<string> {
 function main(): void {
   const { names: formKeys, gates: formGates } = extractFormFieldNames();
   const fields = readDs160SeedFields(fs.readFileSync(SEED_FILE, "utf8"));
+  const evidenceManifest = buildDs160OfficialEvidenceManifest(fields, readEvidenceInput());
+  const evidenceTemplatePath = writeEvidenceTemplate(evidenceManifest);
   const fixtureKeys = new Set(Object.keys(TEST_DS160_ANSWERS));
   const { union: orchestratorKeys, byPage } = buildOrchestratorKeySet();
   const formKeysAfterDerive = applyDerivationsToKeySet(formKeys);
@@ -284,6 +391,8 @@ function main(): void {
       unverifiedSupplementFields: UNVERIFIED_SUPPLEMENT_FIELDS,
       signatureFields: { fields: DS160_PREPARER_FIELD_NAMES, officialVerified: false },
       branches,
+      officialEvidence: evidenceManifest,
+      evidenceTemplatePath,
       passed,
     }, null, 2));
     process.exitCode = passed ? 0 : 1;
@@ -361,6 +470,13 @@ function main(): void {
   console.log(`  Branches with unmapped fields: ${branches.filter(branch => branch.unmappedFields.length > 0).length}`);
   console.log(`  Repeat groups requiring live add/remove/reload verification: ${repeatGroups.length}`);
   for (const group of repeatGroups) console.log(`    - ${group}`);
+  header("Official evidence manifest (fail-closed)");
+  console.log(`  Fields with current live DOM evidence : ${evidenceManifest.counts.fields.liveDomVerified}/${evidenceManifest.counts.fields.total}`);
+  console.log(`  Branches fully observed both ways     : ${evidenceManifest.counts.branches.fullyLiveDomVerified}/${evidenceManifest.counts.branches.total}`);
+  console.log(`  Repeat groups add+delete observed     : ${evidenceManifest.counts.repeatGroups.fullyLiveDomVerified}/${evidenceManifest.counts.repeatGroups.total}`);
+  console.log(`  Missing evidence slots                : ${evidenceManifest.counts.evidenceSlots.missingEvidence}`);
+  console.log(`  officialParityVerified                : ${evidenceManifest.officialParityVerified}`);
+  if (evidenceTemplatePath) console.log(`  Evidence template written             : ${evidenceTemplatePath}`);
 
   // Per-page breakdown for missing-from-form AFTER derivation — the
   // actionable view, since pre-derivation gaps are bridged automatically.

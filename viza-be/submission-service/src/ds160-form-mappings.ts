@@ -83,6 +83,11 @@ export const ds160PersonalInfoMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "State/Province of Birth",
   },
+  state_of_birth_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_POB_ST_PROVINCE_NA"]',
+    type: "checkbox",
+    label: "State/Province of Birth Does Not Apply",
+  },
   country_of_birth: {
     selector: 'select[id*="ddlAPP_POB_CNTRY"]',
     type: "select",
@@ -200,6 +205,11 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     selector: 'input[id*="tbxPAYER_EMAIL"]',
     type: "text",
     label: "Payer Email",
+  },
+  payer_email_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPAYER_EMAIL_ADDR_NA"]',
+    type: "checkbox",
+    label: "Payer Email Does Not Apply",
   },
   payer_relationship: {
     selector: 'select[id*="ddlPAYER_REL"]',
@@ -609,6 +619,11 @@ export const ds160PreviousUsTravelMappings: Record<string, FormFieldMapping> = {
     type: "radio",
     label: "Denied ESTA / travel authorization",
   },
+  vwp_denial_explain: {
+    selector: 'textarea[name*="tbxVWP_DENIAL_EXPL"], textarea[id*="tbxVWP_DENIAL_EXPL"]',
+    type: "text",
+    label: "ESTA denial explanation",
+  },
   immigrant_petition_filed: {
     selector: 'input[name*="rblIV_PETITION_IND"], input[id*="rblIV_PETITION_IND"]',
     type: "radio",
@@ -824,6 +839,11 @@ export const ds160FamilySpouseMappings: Record<string, FormFieldMapping> = {
     selector: 'input[id*="tbxSPOUSE_POB_CITY"]',
     type: "text",
     label: "Spouse City of Birth",
+  },
+  spouse_city_of_birth_na: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_cbexSPOUSE_POB_CITY_NA"]',
+    type: "checkbox",
+    label: "Spouse City of Birth Do Not Know",
   },
 };
 

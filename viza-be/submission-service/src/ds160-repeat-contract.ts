@@ -126,7 +126,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     ],
     activation: "has_specific_plans === yes",
     fieldShowIf: {},
-    maxItems: 1,
     controls: UNVERIFIED_CONTROLS,
   }),
   planned_locations: contract({
@@ -172,7 +171,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     rowFieldKeys: ["us_drivers_license_number", "us_drivers_license_state"],
     activation: "has_us_drivers_license === yes",
     fieldShowIf: {},
-    maxItems: 5,
     controls: UNVERIFIED_CONTROLS,
   }),
   visa_refused: contract({
@@ -181,6 +179,7 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     rowFieldKeys: ["refusal_explain"],
     activation: "has_been_refused === yes",
     fieldShowIf: {},
+    maxItems: 1,
     controls: UNVERIFIED_CONTROLS,
   }),
   immigrant_petition: contract({
@@ -189,6 +188,7 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     rowFieldKeys: ["immigrant_petition_explain"],
     activation: "immigrant_petition_filed === yes",
     fieldShowIf: {},
+    maxItems: 1,
     controls: UNVERIFIED_CONTROLS,
   }),
   additional_phones: contract({
@@ -248,7 +248,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     ],
     activation: "has_immediate_us_relatives === yes",
     fieldShowIf: {},
-    maxItems: 5,
     controls: UNVERIFIED_CONTROLS,
   }),
   former_spouses: contract({
@@ -291,6 +290,7 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     ],
     activation: "has_previous_employer === yes",
     fieldShowIf: {},
+    maxItems: 2,
     controls: UNVERIFIED_CONTROLS,
   }),
   education: contract({
@@ -317,7 +317,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     page: "work_education_additional",
     rowFieldKeys: ["language_name"],
     fieldShowIf: {},
-    maxItems: 10,
     controls: UNVERIFIED_CONTROLS,
   }),
   traveled_countries: contract({
@@ -326,7 +325,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     rowFieldKeys: ["traveled_country"],
     activation: "has_traveled_last_five_years === yes",
     fieldShowIf: {},
-    maxItems: 20,
     controls: UNVERIFIED_CONTROLS,
   }),
   organizations: contract({
@@ -335,7 +333,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     rowFieldKeys: ["organization_name"],
     activation: "has_belonged_to_organization === yes",
     fieldShowIf: {},
-    maxItems: 10,
     controls: UNVERIFIED_CONTROLS,
   }),
   military_service: contract({
@@ -351,7 +348,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     ],
     activation: "has_served_military === yes",
     fieldShowIf: {},
-    maxItems: 5,
     controls: UNVERIFIED_CONTROLS,
   }),
 };
@@ -364,4 +360,3 @@ export function getDs160RepeatGroupContract(
 ): Ds160RepeatGroupContract {
   return DS160_REPEAT_GROUP_CONTRACTS[group];
 }
-

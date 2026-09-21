@@ -373,12 +373,28 @@ and must fail closed; callers must not perform a direct table settlement.
 - `docs/ds160-field-parity-2026-09-14.md`: reproducible DS-160 branch/repeater
   gap inventory. Keep its internal-contract status separate from historical
   submitted records and live CEAC verification evidence.
-- `docs/ds160-field-parity-2026-09-21.md`: no-PII audit separating the 336-row
-  internal seed, 325-row production snapshot, internal branch matrix, the
-  eleven preparer-schema migration rows, and the historical 146/146 review
-  comparison. It explicitly keeps official full parity unverified.
+- `docs/ds160-field-parity-2026-09-21.md`: no-PII audit for the current 337-field,
+  83-condition, 23-repeat internal contract and the separate current-live
+  evidence index. It explicitly keeps official full parity unverified.
+- `docs/ds160-field-parity-evidence-template.json`: generated B1/B2 evidence
+  manifest for every seeded field, both directions of each conditional branch,
+  and repeat-row add/delete controls. Empty slots are fail-closed; published
+  or historical evidence never counts as current live-DOM verification.
+- `docs/ds160-live-audit-2026-09-21.json`: sanitized journal of current-live
+  CEAC observations for the scoped B1/B2 pages, photo recovery, e-Sign
+  structure, database readback, and cross-field checks. It records proven
+  findings separately from pending checks and must keep `officialParityVerified`
+  false until the full B1/B2 scope, including any seed-external controls after
+  contract reconciliation, is reviewed.
+- `docs/ds160-current-live-evidence-manifest-2026-09-21.json`: generated
+  no-PII evidence index that maps the current-live journal into the field,
+  branch, and repeat evidence slots. It is intentionally incomplete and must
+  remain separate from the empty evidence template.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
-  coverage/verification utilities.
+  coverage/verification utilities. `src/__tests__/ds160-evidence-manifest.spec.ts`
+  protects the evidence manifest counts and fail-closed semantics; use
+  `scripts/audit-ds160-field-parity.ts --write-template <path>` to regenerate
+  the no-PII template.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill and live-assisted
   one-shot submission, including page identity, deterministic mappings,
   CAPTCHA, session recovery, `.dat` checkpoints, and official proof handling.
@@ -1089,6 +1105,16 @@ the France-Visas account after confirming the run.
   cover the additional conditional fields without inventing applicant values.
 - `src/ds160-field-contract.ts` is the checked-in seed shape, verified against
   the AST parser by `src/__tests__/ds160-field-contract.spec.ts`.
+- `src/__tests__/ds160-travel-contract.spec.ts` verifies the confirmed
+  B1/B2 Travel Information, payer and companion required branches, hidden
+  optional controls, explicit Does Not Apply choices and checked-in lengths.
+- `src/__tests__/ds160-previous-contact-contract.spec.ts` verifies the
+  confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+  required branches, date precision metadata, explicit unknown/NA choices,
+  social-platform options, and checked-in lengths.
+- `src/__tests__/ds160-remaining-live-contract.spec.ts` verifies the proven
+  Passport, family, U.S. Contact, Work/Education, Additional Work, Security,
+  age-gate, repeat-group, and CEAC option-source metadata.
 - `src/ds160-conditions.ts`, `src/ds160-repeat-contract.ts`, and
   `src/ceac/field-contract.ts` own branch/repeat applicability in the runner.
 - `src/ceac/repeat-browser-adapter.ts` and its adjacent browser tests own

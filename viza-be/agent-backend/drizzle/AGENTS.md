@@ -40,6 +40,29 @@ schema rows already defined by the DS-160 seed. It upserts only those stable
 modify applicant answers or reseed the rest of the catalog. Keep the
 timestamped frontend Supabase mirror byte-identical.
 
+`0197_ds160_personal_identity_required_fields.sql` aligns DS-160 Personal
+Information 1 and 2 controls that CEAC validates on Next:
+`full_name_native_alphabet`, `state_of_birth`, `national_id_number`,
+`us_social_security_number`, `us_taxpayer_id`,
+`other_nationality_has_passport`, and
+`other_nationality_passport_number`. It changes required metadata, preserves
+the existing explicit Does Not Apply validation rules, and records the current
+20-character CEAC passport-number limit plus the verified Personal Information
+1 text limits (native name 100; other names 33; birth city/state 20). Keep the
+timestamped frontend Supabase mirror byte-identical.
+
+`0198_ds160_travel_required_fields.sql` aligns the confirmed B1/B2 Travel
+Information, payer, and companion branches: required controls, verified text
+limits, and the companion relationship option set. It preserves conditional
+logic, repeat groups, and existing Does Not Apply rules. Keep the timestamped
+frontend Supabase mirror byte-identical.
+
+`0201_ds160_remaining_live_parity.sql` aligns the live Passport, family,
+U.S. Contact, Work/Education, Additional Work, Security, age-gate, repeat-group,
+and CEAC option-source metadata. It preserves applicant answers and the legacy
+passport-issuance-state clearing behavior. Keep the timestamped frontend
+Supabase mirror byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.
@@ -485,6 +508,27 @@ The current internal automation migrations are:
 - `0196_ds160_preparer_fields.sql`: publishes the eleven DS-160 Sign and
   Submit preparer fields from the existing seed contract through a stable-key
   upsert; it preserves field IDs and never changes applicant answer rows.
+- `0197_ds160_personal_identity_required_fields.sql`: aligns CEAC-required
+  Personal Information 1 and 2 identity controls, preserves explicit Does Not
+  Apply rules, and records the verified text-length limits. Keep its frontend
+  Supabase migration mirror byte-identical.
+- `0198_ds160_travel_required_fields.sql`: aligns the confirmed Travel
+  Information, payer, and companion branch metadata and preserves all
+  conditional/repeat contracts. Keep its frontend Supabase migration mirror
+  byte-identical.
+- `0199_ds160_previous_travel_contact_required_fields.sql`: aligns the
+  confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+  branches with CEAC-required flags, lengths, date precision, social-platform
+  options, and explicit Does Not Apply/Do Not Know conditions. Keep its
+  timestamped frontend Supabase migration mirror byte-identical.
+- `0200_ds160_telecode_validation.sql`: aligns the Personal Information 1
+  telecode controls with CEAC's four-digit-group format and 20-character
+  limit; the surname remains required while given names are optional. Keep
+  its timestamped frontend Supabase migration mirror byte-identical.
+- `0201_ds160_remaining_live_parity.sql`: aligns the remaining live Passport,
+  family, U.S. Contact, Work/Education, Additional Work, Security, age-gate,
+  repeat-group, and CEAC option-source metadata. Keep its timestamped frontend
+  Supabase migration mirror byte-identical.
 
 ## Guardrails
 
@@ -512,3 +556,13 @@ Run from `viza-be/agent-backend` when database access is available:
 npm run db:migrate
 npm run type-check
 ```
+# Migration 0202
+
+`0202_ds160_live_catalog_reconciliation.sql` corrects fourteen metadata differences
+found by comparing production after 0197–0201 with the B1/B2 seed: companion
+lengths, petition order, spouse visibility, partner requiredness, the contact
+hours branch, and the preparer NA label. It does not modify applicant answers.
+Its frontend mirror is `20260921060000_ds160_live_catalog_reconciliation.sql`.
+Production applied 0197–0201 atomically as `20260921185118` and 0202 as
+`20260921185319`. The resulting 337 DS-160 rows matched the seed for field type,
+requiredness, step/order, conditional logic, and all non-copy validation rules.

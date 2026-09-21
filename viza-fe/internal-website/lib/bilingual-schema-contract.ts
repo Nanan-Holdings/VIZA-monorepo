@@ -1,4 +1,5 @@
 import type { VisaFormFieldOption, VisaFormFieldRow } from "../types/visa-form-fields";
+import { getDs160OfficialOptions, getDs160OfficialOptionSource } from "./ds160-official-options";
 import {
   getChineseLabel,
   getExactDs160ChineseLabel,
@@ -1864,14 +1865,17 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
   const hasConfiguredStateOptions = fieldWithOverrides.options?.some((option) =>
     US_STATE_FORM_OPTIONS.some((state) => state.value === (typeof option === "string" ? option : option.value)),
   );
-  const fieldOptions = fieldWithOverrides.validationRules?.source === "US_STATES" && !hasConfiguredStateOptions
-    ? US_STATE_FORM_OPTIONS : fieldWithOverrides.options;
+  const officialOptionSource = getDs160OfficialOptionSource(fieldWithOverrides);
+  const fieldOptions = getDs160OfficialOptions(officialOptionSource)
+    ?? (fieldWithOverrides.validationRules?.source === "US_STATES" && !hasConfiguredStateOptions
+      ? US_STATE_FORM_OPTIONS : fieldWithOverrides.options);
 
   return {
     ...fieldWithOverrides,
     required: requiredOverride ? true : fieldWithOverrides.required,
     validationRules: {
       ...(fieldWithOverrides.validationRules ?? {}),
+      ...(officialOptionSource ? { source: officialOptionSource } : {}),
       ...(isDs160SocialSecurityNumber ? {
         allow_does_not_apply: true,
         has_does_not_apply: true,
@@ -1938,9 +1942,13 @@ export function resolveOptionDisplayLabel(
 ): string | null {
   if (!options || !Array.isArray(options)) return null;
   const normalizedValue = value.toLowerCase();
-  for (const option of options) {
+  const exact = options.filter((option) => (typeof option === "string" ? option : option.value).toLowerCase() === normalizedValue);
+  const candidates = exact.length ? exact : options.filter((option) => typeof option !== "string" &&
+    [option.official_value, option.code, option.label_en, option.label_zh, option.official_label]
+      .some((alias) => typeof alias === "string" && alias.toLowerCase() === normalizedValue));
+  if (candidates.length !== 1) return null;
+  for (const option of candidates) {
     const normalized = normalizeBilingualOption(option) as OptionObject;
-    if (normalized.value.toLowerCase() !== normalizedValue) continue;
     return side === "zh"
       ? (normalized.label_zh ?? normalized.text ?? normalized.value)
       : (normalized.official_label ?? normalized.label_en ?? normalized.text ?? normalized.value);

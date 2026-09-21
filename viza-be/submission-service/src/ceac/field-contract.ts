@@ -1,7 +1,14 @@
-import { __DERIVATION_TARGETS } from "../ds160-derive-answers";
+import { __DERIVATION_TARGETS, findInvalidDs160DateAnswers } from "../ds160-derive-answers";
 import { DS160_EXTENDED_METADATA } from "../ds160-extended-mappings";
 import { DS160_FIELD_CONTRACTS } from "../ds160-field-contract";
 import { ds160ConditionMatches } from "../ds160-conditions";
+import { isDs160FieldRuntimeVisible } from "../ds160-age-gate";
+import {
+  canonicalizeDs160Nationality,
+  hasDs160HistoricEstaAffirmative,
+  isDs160Affirmative,
+  isDs160EstaNationalityGateVisible,
+} from "../ds160-nationality-gate";
 import {
   DS160_REPEAT_GROUP_CONTRACTS,
   DS160_REPEAT_GROUP_NAMES,
@@ -127,7 +134,10 @@ export function createDs160BranchPolicy(saved: Ds160SavedAnswers) {
       // row 1's NONE choice deactivate row 2's real social-media handle.
       const globalShowIf = field.repeatGroup ? undefined : field.showIf;
       if ((globalShowIf && !ds160ConditionMatches(globalShowIf, values)) ||
-          (group?.activation && !ds160ConditionMatches(group.activation, values))) {
+          (group?.activation && !ds160ConditionMatches(group.activation, values)) ||
+          (field.nationalityGate === "CEAC_ESTA" &&
+            !isDs160EstaNationalityGateVisible(values) &&
+            !hasDs160HistoricEstaAffirmative(values))) {
         active.delete(name);
         deleteAnswerFamily(values, name);
         changed = true;
@@ -164,6 +174,78 @@ export class Ds160PlaceholderAnswersError extends Error {
   }
 }
 
+export class Ds160DatePrecisionError extends Error {
+  readonly invalidFields: readonly string[];
+
+  constructor(invalidFields: readonly string[]) {
+    super(`Invalid DS-160 date precision in fields: ${invalidFields.join(", ")}`);
+    this.name = "Ds160DatePrecisionError";
+    this.invalidFields = [...invalidFields];
+  }
+}
+
+export class Ds160DuplicatePurposeError extends Error {
+  readonly duplicateFields: readonly string[];
+
+  constructor(duplicateFields: readonly string[]) {
+    super(`Duplicate DS-160 purpose-of-trip categories in fields: ${duplicateFields.join(", ")}`);
+    this.name = "Ds160DuplicatePurposeError";
+    this.duplicateFields = [...duplicateFields];
+  }
+}
+
+export class Ds160DuplicateNationalityError extends Error {
+  readonly duplicateFields: readonly string[];
+
+  constructor(duplicateFields: readonly string[]) {
+    super(`Duplicate DS-160 nationality countries in fields: ${duplicateFields.join(", ")}`);
+    this.name = "Ds160DuplicateNationalityError";
+    this.duplicateFields = [...duplicateFields];
+  }
+}
+
+export type Ds160UsContactRelationshipIssueKind =
+  | "both_unknown"
+  | "organization_only_relationship"
+  | "spouse_marital_status";
+
+export interface Ds160UsContactRelationshipIssue {
+  readonly kind: Ds160UsContactRelationshipIssueKind;
+}
+
+export class Ds160UsContactRelationshipError extends Error {
+  readonly issue: Ds160UsContactRelationshipIssue;
+  readonly fields: readonly string[];
+
+  constructor(issue: Ds160UsContactRelationshipIssue) {
+    const fields = issue.kind === "spouse_marital_status"
+      ? ["us_contact_relationship", "marital_status"]
+      : ["us_contact_relationship"];
+    super(`Invalid DS-160 U.S. contact relationship branch (${issue.kind}); review fields: ${fields.join(", ")}`);
+    this.name = "Ds160UsContactRelationshipError";
+    this.issue = issue;
+    this.fields = fields;
+  }
+}
+
+export interface Ds160ImmediateRelativeRelationshipIssue {
+  readonly kind: "spouse_marital_status";
+  readonly fields: readonly string[];
+}
+
+export class Ds160ImmediateRelativeRelationshipError extends Error {
+  readonly issue: Ds160ImmediateRelativeRelationshipIssue;
+  readonly fields: readonly string[];
+
+  constructor(fields: readonly string[]) {
+    const normalizedFields = [...new Set(fields)];
+    super(`Invalid DS-160 immediate-relative relationship branch; review fields: ${normalizedFields.join(", ")}`);
+    this.name = "Ds160ImmediateRelativeRelationshipError";
+    this.issue = { kind: "spouse_marital_status", fields: normalizedFields };
+    this.fields = normalizedFields;
+  }
+}
+
 function isPlaceholderPrompt(value: string | undefined): boolean {
   if (!value) return false;
   const text = value.normalize("NFKC").trim();
@@ -175,7 +257,10 @@ function isPlaceholderPrompt(value: string | undefined): boolean {
 }
 
 /** Inspect the values actually selected for filling, including English aliases. */
-export function findDs160PlaceholderFields(saved: Ds160SavedAnswers): string[] {
+export function findDs160PlaceholderFields(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): string[] {
   const effective: Record<string, string> = {};
   for (const [key, value] of Object.entries(saved)) {
     if (typeof value === "string") effective[key] = value;
@@ -193,7 +278,9 @@ export function findDs160PlaceholderFields(saved: Ds160SavedAnswers): string[] {
   const policy = createDs160BranchPolicy(effective);
   const fields = new Set<string>();
   for (const [name, field] of Object.entries(DS160_FIELD_CONTRACTS)) {
-    if (!field.repeatGroup && policy.isSeedActive(name) && isPlaceholderPrompt(policy.values[name])) {
+    if (!field.repeatGroup && policy.isSeedActive(name) &&
+      isDs160FieldRuntimeVisible(field, policy.values, options.now) &&
+      isPlaceholderPrompt(policy.values[name])) {
       fields.add(name);
     }
   }
@@ -207,6 +294,7 @@ export function findDs160PlaceholderFields(saved: Ds160SavedAnswers): string[] {
       if (contract.activation && !ds160ConditionMatches(contract.activation, values)) continue;
       for (const [name, field] of groupFields) {
         if (!policy.isSeedActive(name)) continue;
+        if (!isDs160FieldRuntimeVisible(field, policy.values, options.now)) continue;
         if (field.showIf && !ds160ConditionMatches(field.showIf, values)) continue;
         const rowCondition = contract.fieldShowIf[name];
         if (rowCondition && !ds160ConditionMatches(rowCondition, values)) continue;
@@ -283,6 +371,212 @@ function repeatRowIndexes(
   return [...indexes].sort((left, right) => left - right);
 }
 
+function normalizePurposeCategory(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function normalizeDs160Choice(value: Ds160SavedAnswer): string {
+  return typeof value === "string"
+    ? value.normalize("NFKC").trim().toUpperCase().replace(/[\s_-]+/g, " ")
+    : "";
+}
+
+function isDs160DoNotKnow(value: Ds160SavedAnswer): boolean {
+  return normalizeDs160Choice(value) === "DO NOT KNOW";
+}
+
+function isDs160SpouseRelationship(value: Ds160SavedAnswer): boolean {
+  const normalized = normalizeDs160Choice(value);
+  return normalized === "S" || normalized === "SPOUSE";
+}
+
+function isDs160OrganizationOnlyDisallowedRelationship(value: Ds160SavedAnswer): boolean {
+  return new Set([
+    "R", "RELATIVE", "OTHER RELATIVE", "PARENT", "CHILD",
+    "C", "S", "SPOUSE", "F", "FRIEND",
+  ]).has(normalizeDs160Choice(value));
+}
+
+function isDs160SpouseCompatibleMaritalStatus(value: Ds160SavedAnswer): boolean {
+  return new Set([
+    "M", "MARRIED", "C", "COMMON LAW", "COMMONLAW",
+    "L", "LEGALLY SEPARATED", "LEGALLYSEPARATED",
+  ]).has(normalizeDs160Choice(value));
+}
+
+function isDs160ImmediateRelativeSpouseCompatibleMaritalStatus(value: Ds160SavedAnswer): boolean {
+  return new Set([
+    "M", "MARRIED",
+    "L", "LEGALLY SEPARATED", "LEGALLYSEPARATED",
+  ]).has(normalizeDs160Choice(value));
+}
+
+/**
+ * Apply the live CEAC cross-field rules for the U.S. Point of Contact page.
+ * These are page-level constraints, so they must run before field mapping and
+ * must be skipped when the official page is itself hidden by a travel branch.
+ */
+export function findDs160UsContactRelationshipIssue(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): Ds160UsContactRelationshipIssue | null {
+  const policy = createDs160BranchPolicy(saved);
+  const relationshipField = DS160_FIELD_CONTRACTS.us_contact_relationship;
+  if (!relationshipField || !policy.isSeedActive("us_contact_relationship") ||
+      !isDs160FieldRuntimeVisible(relationshipField, policy.values, options.now)) {
+    return null;
+  }
+
+  const nameUnknown = isDs160DoNotKnow(policy.values.us_contact_surname) &&
+    isDs160DoNotKnow(policy.values.us_contact_given_names);
+  const organizationUnknown = isDs160DoNotKnow(policy.values.us_contact_organization);
+  const relationship = policy.values.us_contact_relationship;
+
+  if (nameUnknown && organizationUnknown) return { kind: "both_unknown" };
+  if (nameUnknown && !organizationUnknown &&
+      isDs160OrganizationOnlyDisallowedRelationship(relationship)) {
+    return { kind: "organization_only_relationship" };
+  }
+  if (!nameUnknown && organizationUnknown && isDs160SpouseRelationship(relationship) &&
+      !isDs160SpouseCompatibleMaritalStatus(policy.values.marital_status)) {
+    return { kind: "spouse_marital_status" };
+  }
+  return null;
+}
+
+/**
+ * Apply the live CEAC cross-field rule for each immediate-relative row.  The
+ * Family Information: Relatives page accepts a spouse relationship only when
+ * the applicant's marital status is Married or Legally Separated; Common Law
+ * is accepted by the separate U.S. Point of Contact rule but is rejected on
+ * this page.  Return seed field names (including repeat-row suffixes) only.
+ */
+export function findDs160ImmediateRelativeRelationshipFields(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): string[] {
+  const policy = createDs160BranchPolicy(saved);
+  const relationshipField = DS160_FIELD_CONTRACTS.us_relative_relationship;
+  if (!relationshipField || !policy.isSeedActive("us_relative_relationship") ||
+      !isDs160FieldRuntimeVisible(relationshipField, policy.values, options.now)) {
+    return [];
+  }
+
+  const contract = DS160_REPEAT_GROUP_CONTRACTS.us_relatives;
+  const fields: string[] = [];
+  for (const index of repeatRowIndexes(saved, policy.values, "us_relatives")) {
+    const suffix = index === 0 ? "" : `__${index + 1}`;
+    const rowValuesForConditions = rowValues(policy.values, suffix);
+    if (contract.activation && !ds160ConditionMatches(contract.activation, rowValuesForConditions)) continue;
+
+    const relationshipKey = `us_relative_relationship${suffix}`;
+    if (!isDs160SpouseRelationship(policy.values[relationshipKey])) continue;
+    const maritalStatus = policy.values.marital_status;
+    if (!hasStoredAnswer(policy.values, "marital_status") ||
+        isDs160ImmediateRelativeSpouseCompatibleMaritalStatus(maritalStatus)) continue;
+
+    fields.push(relationshipKey);
+    if (!fields.includes("marital_status")) fields.push("marital_status");
+  }
+  return fields;
+}
+
+/**
+ * CEAC accepts multiple trip-purpose rows, but each top-level purpose
+ * category may occur only once.  The subtype may differ (for example B1-CF
+ * and B2-TM), while both rows still share the B category and are rejected by
+ * CEAC.  Return storage keys only so diagnostics never expose answer values.
+ */
+export function findDs160DuplicatePurposeFields(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): string[] {
+  const policy = createDs160BranchPolicy(saved);
+  const purposeField = DS160_FIELD_CONTRACTS.purpose_of_trip;
+  if (!purposeField || !policy.isSeedActive("purpose_of_trip") ||
+      !isDs160FieldRuntimeVisible(purposeField, policy.values, options.now)) {
+    return [];
+  }
+
+  const firstByCategory = new Map<string, string>();
+  const duplicates = new Set<string>();
+  for (const index of repeatRowIndexes(saved, policy.values, "trip_purpose")) {
+    const suffix = index === 0 ? "" : `__${index + 1}`;
+    const key = `purpose_of_trip${suffix}`;
+    // A canonical saved answer wins over a translated companion.  The
+    // fallback keeps older bilingual rows auditable when only *_en survived.
+    const raw = hasOwn(policy.values, key)
+      ? policy.values[key]
+      : policy.values[`${key}_en`];
+    if (typeof raw !== "string" || !raw.trim()) continue;
+
+    const category = normalizePurposeCategory(raw);
+    if (!category) continue;
+    const firstKey = firstByCategory.get(category);
+    if (firstKey) {
+      duplicates.add(firstKey);
+      duplicates.add(key);
+    } else {
+      firstByCategory.set(category, key);
+    }
+  }
+  return [...duplicates];
+}
+
+/**
+ * CEAC rejects a country when it is entered more than once across the
+ * primary nationality, other-nationality rows, and permanent-resident rows.
+ * Compare the canonical CEAC value after inactive parent branches are removed
+ * so stale rows cannot create a false duplicate.
+ */
+export function findDs160DuplicateNationalityFields(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): string[] {
+  const policy = createDs160BranchPolicy(saved);
+  const entries: Array<{ key: string; country: string }> = [];
+  const add = (key: string, value: Ds160SavedAnswer) => {
+    const country = canonicalizeDs160Nationality(value ?? undefined);
+    if (country) entries.push({ key, country });
+  };
+
+  const primaryField = DS160_FIELD_CONTRACTS.nationality_country;
+  if (primaryField && policy.isSeedActive("nationality_country") &&
+      isDs160FieldRuntimeVisible(primaryField, policy.values, options.now)) {
+    add("nationality_country", policy.values.nationality_country ?? policy.values.nationality);
+  }
+
+  const collectRepeat = (
+    group: Ds160RepeatGroupName,
+    controller: string,
+    fieldName: string,
+  ) => {
+    if (!isDs160Affirmative(policy.values[controller])) return;
+    for (const index of repeatRowIndexes(saved, policy.values, group)) {
+      const suffix = index === 0 ? "" : `__${index + 1}`;
+      const key = `${fieldName}${suffix}`;
+      if (!policy.isSeedActive(fieldName) || !hasStoredAnswer(policy.values, key)) continue;
+      add(key, policy.values[key]);
+    }
+  };
+
+  collectRepeat("other_nationality", "other_nationality", "other_nationality_country");
+  collectRepeat("permanent_resident", "permanent_resident_other_country", "other_permanent_resident_country");
+
+  const firstByCountry = new Map<string, string>();
+  const duplicates = new Set<string>();
+  for (const entry of entries) {
+    const first = firstByCountry.get(entry.country);
+    if (first) {
+      duplicates.add(first);
+      duplicates.add(entry.key);
+    } else {
+      firstByCountry.set(entry.country, entry.key);
+    }
+  }
+  return [...duplicates];
+}
+
 /**
  * Assert that every active required DS-160 source field has a supplied saved
  * answer before CEAC derivation/filling.  Repeated fields are checked for
@@ -290,14 +584,36 @@ function repeatRowIndexes(
  * Missing field names are safe to log; answer values are intentionally never
  * included in the error.
  */
-export function assertDs160RequiredAnswers(saved: Ds160SavedAnswers): void {
-  const placeholders = findDs160PlaceholderFields(saved);
+export function assertDs160RequiredAnswers(
+  saved: Ds160SavedAnswers,
+  options: { now?: Date } = {},
+): void {
+  const placeholders = findDs160PlaceholderFields(saved, options);
   if (placeholders.length) throw new Ds160PlaceholderAnswersError(placeholders);
   const policy = createDs160BranchPolicy(saved);
+  const invalidDates = findInvalidDs160DateAnswers(policy.values).filter((fieldName) => {
+    const baseName = fieldName.replace(/__\d+$/, "");
+    const field = DS160_FIELD_CONTRACTS[baseName];
+    return !field || isDs160FieldRuntimeVisible(field, policy.values, options.now);
+  });
+  if (invalidDates.length) throw new Ds160DatePrecisionError(invalidDates);
+  const duplicatePurposes = findDs160DuplicatePurposeFields(saved, options);
+  if (duplicatePurposes.length) throw new Ds160DuplicatePurposeError(duplicatePurposes);
+  const duplicateNationalities = findDs160DuplicateNationalityFields(saved, options);
+  if (duplicateNationalities.length) throw new Ds160DuplicateNationalityError(duplicateNationalities);
+  const usContactRelationshipIssue = findDs160UsContactRelationshipIssue(saved, options);
+  if (usContactRelationshipIssue) {
+    throw new Ds160UsContactRelationshipError(usContactRelationshipIssue);
+  }
+  const immediateRelativeRelationshipFields = findDs160ImmediateRelativeRelationshipFields(saved, options);
+  if (immediateRelativeRelationshipFields.length) {
+    throw new Ds160ImmediateRelativeRelationshipError(immediateRelativeRelationshipFields);
+  }
   const missing: string[] = [];
 
   for (const [fieldName, field] of Object.entries(DS160_FIELD_CONTRACTS)) {
     if (!field.required || field.repeatGroup) continue;
+    if (!isDs160FieldRuntimeVisible(field, policy.values, options.now)) continue;
     if (!policy.isSeedActive(fieldName)) continue;
     if (!hasStoredAnswer(policy.values, fieldName)) missing.push(fieldName);
   }
@@ -321,6 +637,7 @@ export function assertDs160RequiredAnswers(saved: Ds160SavedAnswers): void {
       if (contract.activation && !ds160ConditionMatches(contract.activation, values)) continue;
 
       for (const [fieldName, field] of requiredFields) {
+        if (!isDs160FieldRuntimeVisible(field, policy.values, options.now)) continue;
         if (!policy.isSeedActive(fieldName)) continue;
         if (field.showIf && !ds160ConditionMatches(field.showIf, values)) continue;
         const groupShowIf = contract.fieldShowIf[fieldName];

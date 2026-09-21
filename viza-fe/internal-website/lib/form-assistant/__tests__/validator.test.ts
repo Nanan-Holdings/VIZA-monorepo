@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WizardStep } from "@/types/visa-form-fields";
-import { validateApplicationAnswers } from "../validator";
+import { getAssistantProgress, validateApplicationAnswers } from "../validator";
 
 const steps: WizardStep[] = [
   {
@@ -72,6 +72,337 @@ const steps: WizardStep[] = [
 ];
 
 describe("validateApplicationAnswers", () => {
+  it("does not validate persistence-only compatibility aliases", () => {
+    const compatibilitySteps: WizardStep[] = [{
+      ...steps[0],
+      fields: [{
+        ...steps[0].fields[2],
+        id: "legacy-provider",
+        fieldName: "social_media_provider",
+        label: "Legacy social provider",
+        required: true,
+        options: ["NOT_A_CURRENT_OPTION"],
+        validationRules: { legacy_compatibility_only: true },
+      }],
+    }];
+    const result = validateApplicationAnswers({
+      steps: compatibilitySteps,
+      answers: { social_media_provider: "historical-value" },
+      visaType: "DS160",
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.missingFields).toEqual([]);
+    expect(getAssistantProgress(compatibilitySteps, {
+      social_media_provider: "",
+    })).toEqual({ completed: 0, total: 0 });
+  });
+
+  it("surfaces the former-spouse count mismatch as a localized review error", () => {
+    const formerSpouseSteps: WizardStep[] = [{
+      stepNumber: 12,
+      stepName: "Family Information: Former Spouse",
+      fields: [
+        {
+          ...steps[0].fields[2],
+          id: "former-count",
+          fieldName: "number_of_former_spouses",
+          label: "Number of Former Spouses",
+          fieldType: "select",
+          required: false,
+          options: ["1", "2"],
+          conditionalLogic: { showIf: "marital_status === divorced" },
+          validationRules: null,
+        },
+        {
+          ...steps[0].fields[3],
+          id: "former-surname",
+          fieldName: "former_spouse_surname",
+          label: "Former Spouse's Surnames",
+          fieldType: "text",
+          required: false,
+          options: null,
+          validationRules: { repeatable: true, repeat_group: "former_spouses" },
+          conditionalLogic: { showIf: "marital_status === divorced" },
+        },
+      ],
+    }];
+
+    const mismatch = validateApplicationAnswers({
+      steps: formerSpouseSteps,
+      answers: {
+        marital_status: "divorced",
+        number_of_former_spouses: "2",
+        former_spouse_surname: "ZHANG",
+      },
+      visaType: "DS160",
+      locale: "zh",
+    });
+    expect(mismatch.errors).toContainEqual(expect.objectContaining({
+      code: "former_spouse_count_mismatch",
+      fieldNames: ["number_of_former_spouses"],
+      message: "声明的前任配偶人数为 2，但已填写 1 位。请使两者一致。",
+    }));
+    expect(mismatch.missingFields).toContainEqual(expect.objectContaining({
+      fieldName: "number_of_former_spouses",
+      reason: "invalid",
+    }));
+
+    const complete = validateApplicationAnswers({
+      steps: formerSpouseSteps,
+      answers: {
+        marital_status: "divorced",
+        number_of_former_spouses: "2",
+        former_spouse_surname: "ZHANG",
+        former_spouse_surname__2: "LI",
+      },
+      visaType: "DS160",
+    });
+    expect(complete.errors).toEqual([]);
+    expect(complete.missingFields).toEqual([]);
+  });
+
+  it("surfaces incompatible U.S. contact relationship branches", () => {
+    const usContactSteps: WizardStep[] = [{
+      stepNumber: 13,
+      stepName: "US Point of Contact",
+      fields: [{
+        ...steps[0].fields[2],
+        id: "us-contact-relationship",
+        fieldName: "us_contact_relationship",
+        label: "U.S. Contact — Relationship",
+        fieldType: "select",
+        required: true,
+        options: ["R", "S", "C", "B", "P", "H", "O"],
+        validationRules: null,
+        conditionalLogic: null,
+      }],
+    }];
+
+    const organizationOnly = validateApplicationAnswers({
+      steps: usContactSteps,
+      answers: {
+        us_contact_surname: "DO_NOT_KNOW",
+        us_contact_given_names: "DO_NOT_KNOW",
+        us_contact_organization: "HOTEL",
+        us_contact_relationship: "R",
+      },
+      visaType: "DS160",
+      locale: "zh",
+    });
+    expect(organizationOnly.errors).toContainEqual(expect.objectContaining({
+      code: "us_contact_relationship_organization_only_relationship",
+      fieldNames: ["us_contact_relationship"],
+    }));
+
+    const spouseWithWrongMaritalStatus = validateApplicationAnswers({
+      steps: usContactSteps,
+      answers: {
+        us_contact_surname: "SMITH",
+        us_contact_given_names: "JANE",
+        us_contact_organization: "DO_NOT_KNOW",
+        us_contact_relationship: "S",
+        marital_status: "P",
+      },
+      visaType: "DS160",
+    });
+    expect(spouseWithWrongMaritalStatus.errors).toContainEqual(expect.objectContaining({
+      code: "us_contact_relationship_spouse_marital_status",
+    }));
+  });
+
+  it("surfaces incompatible immediate-relative spouse branches", () => {
+    const immediateRelativeSteps: WizardStep[] = [{
+      stepNumber: 8,
+      stepName: "Family Information: Relatives",
+      fields: [
+        {
+          ...steps[0].fields[2],
+          visaType: "DS160",
+          id: "has-immediate-us-relatives",
+          fieldName: "has_immediate_us_relatives",
+          label: "Immediate U.S. relatives",
+          fieldType: "radio",
+          required: true,
+          options: ["yes", "no"],
+          validationRules: null,
+          conditionalLogic: null,
+        },
+        {
+          ...steps[0].fields[2],
+          visaType: "DS160",
+          id: "us-relative-relationship",
+          fieldName: "us_relative_relationship",
+          label: "Relationship to You",
+          fieldType: "select",
+          required: false,
+          options: ["SPOUSE", "FIANCE", "CHILD", "SIBLING"],
+          validationRules: { repeatable: true, repeat_group: "us_relatives" },
+          conditionalLogic: { showIf: "has_immediate_us_relatives === yes" },
+        },
+      ],
+    }];
+
+    const invalid = validateApplicationAnswers({
+      steps: immediateRelativeSteps,
+      answers: {
+        has_immediate_us_relatives: "yes",
+        us_relative_relationship: "SPOUSE",
+        marital_status: "C",
+      },
+      visaType: "DS160",
+      locale: "zh",
+    });
+    expect(invalid.errors).toContainEqual(expect.objectContaining({
+      code: "ds160_immediate_relative_relationship_spouse_marital_status",
+      fieldNames: ["us_relative_relationship", "marital_status"],
+    }));
+
+    const valid = validateApplicationAnswers({
+      steps: immediateRelativeSteps,
+      answers: {
+        has_immediate_us_relatives: "yes",
+        us_relative_relationship: "SPOUSE",
+        marital_status: "M",
+      },
+      visaType: "DS160",
+    });
+    expect(valid.errors).toEqual([]);
+  });
+
+  it("surfaces duplicate DS-160 travel-purpose categories", () => {
+    const tripPurposeSteps: WizardStep[] = [{
+      stepNumber: 3,
+      stepName: "Travel Information",
+      fields: [
+        {
+          ...steps[0].fields[2],
+          id: "trip-purpose",
+          fieldName: "purpose_of_trip",
+          label: "Purpose of Trip to the U.S.",
+          fieldType: "select",
+          required: true,
+          options: ["A", "B", "C"],
+          validationRules: { repeatable: true, repeat_group: "trip_purpose" },
+          conditionalLogic: null,
+        },
+        {
+          ...steps[0].fields[2],
+          id: "trip-purpose-specify",
+          fieldName: "purpose_of_trip_specify",
+          label: "Specify",
+          fieldType: "select",
+          required: true,
+          options: ["B1", "B2"],
+          validationRules: { repeatable: true, repeat_group: "trip_purpose" },
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const result = validateApplicationAnswers({
+      steps: tripPurposeSteps,
+      answers: {
+        purpose_of_trip: "B",
+        purpose_of_trip_specify: "B1",
+        purpose_of_trip__2: "B",
+        purpose_of_trip_specify__2: "B2",
+      },
+      visaType: "DS160",
+      locale: "zh",
+    });
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      code: "ds160_trip_purpose_duplicate_category",
+      fieldNames: ["purpose_of_trip__2"],
+    }));
+  });
+
+  it("surfaces all active DS-160 nationality duplicate groups", () => {
+    const nationalitySteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Personal Information 2",
+      fields: [
+        {
+          ...steps[0].fields[0],
+          visaType: "DS160",
+          fieldName: "nationality_country",
+          label: "Nationality",
+          fieldType: "text",
+          required: true,
+          options: null,
+          validationRules: null,
+          conditionalLogic: null,
+        },
+        {
+          ...steps[0].fields[0],
+          visaType: "DS160",
+          fieldName: "other_nationality",
+          label: "Other nationality",
+          fieldType: "text",
+          required: true,
+          options: null,
+          validationRules: null,
+          conditionalLogic: null,
+        },
+        {
+          ...steps[0].fields[3],
+          visaType: "DS160",
+          fieldName: "other_nationality_country",
+          label: "Other nationality country",
+          required: true,
+          validationRules: { repeat_group: "other_nationalities" },
+          conditionalLogic: { showIf: "other_nationality === yes" },
+        },
+        {
+          ...steps[0].fields[0],
+          visaType: "DS160",
+          fieldName: "permanent_resident_other_country",
+          label: "Permanent residence",
+          fieldType: "text",
+          required: true,
+          options: null,
+          validationRules: null,
+          conditionalLogic: null,
+        },
+        {
+          ...steps[0].fields[3],
+          visaType: "DS160",
+          fieldName: "other_permanent_resident_country",
+          label: "Permanent residence country",
+          required: true,
+          validationRules: { repeat_group: "permanent_resident_countries" },
+          conditionalLogic: { showIf: "permanent_resident_other_country === yes" },
+        },
+      ],
+    }];
+    const result = validateApplicationAnswers({
+      steps: nationalitySteps,
+      answers: {
+        nationality_country: "CHIN",
+        other_nationality: "yes",
+        other_nationality_country: "China",
+        permanent_resident_other_country: "yes",
+        other_permanent_resident_country: "中国",
+      },
+      visaType: "DS160",
+    });
+
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      code: "ds160_nationality_duplicate",
+      fieldNames: ["nationality_country"],
+    }));
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      code: "ds160_nationality_duplicate",
+      fieldNames: ["other_nationality_country"],
+    }));
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      code: "ds160_permanent_resident_duplicate",
+      fieldNames: ["other_permanent_resident_country"],
+    }));
+    expect(result.errors.find((issue) => issue.fieldNames[0] === "other_permanent_resident_country")?.message)
+      .toBe("The Other Permanent/Resident Country/Region listed has already been (entered or selected).");
+  });
+
   it("validates and counts the visible required field in each repeated branch", () => {
     const repeatedSteps: WizardStep[] = [{
       stepNumber: 1, stepName: "Other nationalities",

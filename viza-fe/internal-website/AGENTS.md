@@ -1,5 +1,26 @@
 # Internal Website Agent Guide
 
+`supabase/migrations/20260921060000_ds160_live_catalog_reconciliation.sql`
+mirrors backend 0202. It reconciles fourteen differences discovered in the live
+catalog after 0197–0201, including spouse branches and companion limits, without
+changing saved answers. Verify the resulting catalog, not just SQL target names.
+
+`lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
+observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
+nationalities, other nationalities, family nationalities, passport issuers,
+geographic addresses and U.S. states separate. Preserve official codes and
+labels while translating display labels. The adjacent focused test compares
+counts and value/label fingerprints independently captured from the live DOM;
+do not substitute a generic ISO or U.S. region list. Bilingual schema hydration
+and dynamic controls share these options and preserve legacy saved names.
+`components/__tests__/dynamic-step-form-official-options.test.tsx` covers
+legacy ISO answers across entry, validation, and review when official catalogs
+replace generic lists; ambiguous region aliases must not be silently selected.
+`lib/ds160-consular-posts.ts` is the 217-entry CEAC start-page consular-post
+catalog captured on 2026-09-21. It keeps the official three-letter code and
+English label for runner payloads alongside Chinese display labels; do not
+reduce it to the five China posts or replace it with an ISO country list.
+
 Current product policy (2026-09-15): payments are removed. Applications do not
 require payment evidence; payment routes are retired and checkout pages return
 to the portal. Home and lifecycle reads do not depend on financial storage.
@@ -15,6 +36,42 @@ byte-identical mirror of backend
 `drizzle/0196_ds160_preparer_fields.sql`. It upserts only the eleven
 `ds160_preparer_*` schema rows and preserves existing field IDs and applicant
 answers.
+The frontend migration
+`supabase/migrations/20260921010000_ds160_personal_identity_required_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0197_ds160_personal_identity_required_fields.sql`. It marks the
+native-name, birth-state, national-ID, SSN, U.S.-taxpayer-ID and active
+other-nationality passport controls required while preserving their explicit
+Does Not Apply validation rules, the current 20-character passport-number
+limit, and the verified Personal Information 1 text limits.
+The frontend migration
+`supabase/migrations/20260921020000_ds160_travel_required_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0198_ds160_travel_required_fields.sql`. It aligns the confirmed
+Travel Information, payer and companion branch metadata while preserving
+conditional logic, repeat groups and Does Not Apply rules.
+The frontend migration
+`supabase/migrations/20260921030000_ds160_previous_travel_contact_required_fields.sql`
+is the byte-identical mirror of backend
+`drizzle/0199_ds160_previous_travel_contact_required_fields.sql`. It aligns
+the confirmed Previous U.S. Travel, Address and Phone, parent, and spouse
+branches with CEAC-required flags, lengths, date precision, social options,
+and explicit Does Not Apply/Do Not Know conditions.
+The frontend migration
+`supabase/migrations/20260921040000_ds160_telecode_validation.sql` is the
+byte-identical mirror of backend
+`drizzle/0200_ds160_telecode_validation.sql`. It aligns the Personal
+Information 1 telecode format, length, and surname/given-name requiredness
+with the confirmed CEAC behavior.
+`components/__tests__/dynamic-step-form-telecode-validation.test.tsx` covers
+the same schema-driven UI acceptance and rejection paths.
+The frontend migration
+`supabase/migrations/20260921050000_ds160_remaining_live_parity.sql` is the
+byte-identical mirror of backend
+`drizzle/0201_ds160_remaining_live_parity.sql`. It aligns the remaining live
+Passport, family, U.S. Contact, Work/Education, Additional Work, Security,
+age-gate, repeat-group, and CEAC option-source metadata while preserving
+applicant answers.
 
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
@@ -40,12 +97,28 @@ authoritative during stale prefill updates. Removed repeat rows must retain
 empty canonical/`_zh`/`_en` tombstones in every replacement draft until a row
 is restored; one-shot deletion patches are insufficient for page-level saves.
 
+`lib/legacy-compatibility-fields.ts` treats
+`validation_rules.legacy_compatibility_only` as persistence-only metadata.
+Dynamic forms, progress, assistant validation, and review hide those rows,
+while draft hydration and save patches keep the complete schema so historical
+aliases reach the server-side canonical bridge unchanged.
+
+`lib/ds160-age-gate.ts` centralizes DS-160 runtime visibility gates shared by
+the form, completion, assistant and review. The `CEAC_ESTA` gate uses the
+observed official nationality codes and active other-nationality rows; a
+permanent-residency row alone must not make the ESTA question visible.
+
 `lib/date-field-validation.ts` owns schema-aware date sentinel validation for
 dynamic form inputs, progress, assistant validation and review. `DO_NOT_KNOW`
 and `DOES_NOT_APPLY` are valid only when the field explicitly permits them;
 never apply ordinary date parsing to an allowed sentinel. Keep real dates and
 unsupported sentinels validated, including after clearing the checkbox. The
 adjacent tests and dynamic-form regressions cover this shared contract.
+`lib/ds160-family-validation.ts` owns the CEAC DS-160 immediate-relative
+relationship cross-field rule. Keep it separate from the U.S. contact rule:
+the immediate-relative `SPOUSE` option accepts only Married or Legally
+Separated, while companion and U.S. contact relationships have their own
+official branches.
 When restoring bilingual text, a recognizable input-prompt mirror may be
 repaired only from an existing non-prompt canonical answer. Preserve genuine
 source-language answers and leave missing canonical answers visible for user
@@ -739,6 +812,9 @@ Smoke URLs:
 - `lib/document-upload-client.ts`
 - `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
+- `lib/former-spouse-count.ts`: shared DS-160 former-spouse declaration/repeat-row validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
+- `lib/us-contact-validation.ts`: shared DS-160 U.S. contact unknown-name/organization and relationship cross-branch validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
+- `lib/ds160-travel-validation.ts`: shared DS-160 repeated purpose-category validation used by entry, progress, assistant validation and final review; focused tests live under `lib/__tests__/`.
 - `lib/static-visa-metadata-cache.ts`: bounded TTL/LRU and cold-miss
   singleflight for shared visa schema metadata only.
 - `lib/canada-trv-completion.ts`: fail-closed CA_TRV value validation and

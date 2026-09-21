@@ -48,3 +48,18 @@ test("missing ESTA control remains required for affirmative answers, incomplete 
     await assert.rejects(fillPageFields(page, active, affirmative, {}, { requireMappedAnswers: true }), /vwp_denial/);
   } finally { await browser.close(); }
 });
+
+test("predicted visible ESTA branch is preserved when the CEAC control is missing", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(completePage);
+    const active = await resolvePreviousTravelMappings(page, mappings, {
+      ...answers,
+      nationality_country: "CHIN",
+      other_nationality: "yes",
+      other_nationality_country: "JPN",
+    });
+    assert.ok(active.vwp_denial);
+  } finally { await browser.close(); }
+});

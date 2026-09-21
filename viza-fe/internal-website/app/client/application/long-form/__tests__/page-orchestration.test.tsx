@@ -22,6 +22,7 @@ const testState = vi.hoisted(() => ({
     applicationId: string;
     answers: Record<string, unknown>;
   }>,
+  initialDynamicAnswers: {} as Record<string, string>,
   validationRequestStarted: Promise.withResolvers<void>(),
   resolveValidation: null as ((value: unknown) => void) | null,
 }));
@@ -158,6 +159,24 @@ vi.mock("@/components/dynamic-step-form", () => {
             Switch branch
           </button>
         ) : null}
+        {isFirstStep ? (
+          <button
+            type="button"
+            data-testid="dynamic-branch-revert"
+            onClick={() => onDraftChange({ branch: "base" })}
+          >
+            Revert branch
+          </button>
+        ) : null}
+        {isFirstStep ? (
+          <button
+            type="button"
+            data-testid="dynamic-nationality-edit"
+            onClick={() => onDraftChange({ nationality_country: "JPN" })}
+          >
+            Edit nationality
+          </button>
+        ) : null}
       </>
     );
   };
@@ -247,7 +266,7 @@ vi.mock("@/app/actions/application-group", () => ({
 
 vi.mock("@/app/actions/visa-application-answers", () => ({
   loadApplicationFormContext: vi.fn(),
-  loadDynamicAnswers: vi.fn(async () => ({ answers: {} })),
+  loadDynamicAnswers: vi.fn(async () => ({ answers: testState.initialDynamicAnswers })),
   saveDynamicAnswers: vi.fn(async (applicationId: string, answers: Record<string, unknown>) => {
     testState.saveDynamicAnswersCalls.push({ applicationId, answers });
     if (testState.saveBarrier) await testState.saveBarrier;
@@ -406,6 +425,7 @@ beforeEach(() => {
   testState.assistantProgressCalls = 0;
   testState.automaticValidationCalls = 0;
   testState.saveDynamicAnswersCalls.length = 0;
+  testState.initialDynamicAnswers = {};
   testState.validationRequestStarted = Promise.withResolvers<void>();
   testState.resolveValidation = null;
   window.matchMedia = vi.fn(() => ({
@@ -643,6 +663,54 @@ describe("long form page orchestration", () => {
     expect(testState.completionInputs.at(-1)?.answers).toMatchObject({
       branch: "alternate",
     });
+  });
+
+  it("projects unsaved DS-160 structural controllers into dynamic prefill", async () => {
+    testState.initialDynamicAnswers = {
+      branch: "base",
+      nationality_country: "CHN",
+      marital_status: "single",
+      date_of_birth: "2000-01-01",
+      has_specific_plans: "no",
+      intended_length_of_stay_unit: "DAY(S)",
+      saved_answer: "persisted",
+    };
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    expect((testState.dynamicPropsHistory.at(-1)?.prefill as Record<string, string>).nationality_country)
+      .toBe("CHN");
+
+    fireEvent.click(screen.getByTestId("dynamic-nationality-edit"));
+    await waitFor(() => {
+      expect((testState.dynamicPropsHistory.at(-1)?.prefill as Record<string, string>).nationality_country)
+        .toBe("JPN");
+    });
+
+    // The structural projection updates before the 30-second persistence timer
+    // and leaves ordinary persisted answers intact.
+    expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
+    expect((testState.dynamicPropsHistory.at(-1)?.prefill as Record<string, string>).saved_answer)
+      .toBe("persisted");
+  });
+
+  it("refreshes a branch when a draft moves A to B and back to the saved A value", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("dynamic-edit-step-2")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("dynamic-branch-edit"));
+    await waitFor(() => expect(screen.getByTestId("dynamic-edit-step-2")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("dynamic-branch-revert"));
+    await waitFor(() => expect(screen.queryByTestId("dynamic-edit-step-2")).not.toBeInTheDocument());
+
+    // No autosave is needed for this assertion; the visible branch must still
+    // follow the current draft when it returns to the persisted value.
+    expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
   });
 
   it("flushes every dirty dynamic panel when navigation reads a stale current step", async () => {
