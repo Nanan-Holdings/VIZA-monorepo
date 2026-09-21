@@ -622,6 +622,58 @@ describe("DynamicStepForm date sentinel validation", () => {
     expect(container.querySelectorAll('[data-repeat-group-instance="true"]')).toHaveLength(6);
   });
 
+  it("renders specific travel arrival and departure as one official block", () => {
+    const conditional = { showIf: "has_specific_plans === yes" };
+    const travelField = (
+      fieldName: string,
+      fieldType: VisaFormFieldRow["fieldType"],
+      required: boolean,
+      validationRules: Record<string, unknown> | null,
+      displayOrder: number,
+    ): VisaFormFieldRow => ({
+      id: fieldName,
+      visaType: "DS160",
+      fieldName,
+      label: fieldName,
+      fieldType,
+      required,
+      stepNumber: 3,
+      stepName: "Travel Information",
+      displayOrder,
+      placeholder: null,
+      validationRules,
+      options: null,
+      conditionalLogic: conditional,
+    });
+    const fields: VisaFormFieldRow[] = [
+      {
+        ...travelField("has_specific_plans", "radio", true, null, 3),
+        options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+        conditionalLogic: null,
+      },
+      travelField("arrival_date", "date", true, { format: "DD-MMM-YYYY" }, 4),
+      travelField("arrival_flight", "text", false, { maxLength: 20 }, 7),
+      travelField("arrival_city", "text", true, { maxLength: 20 }, 8),
+      travelField("departure_date", "date", true, { format: "DD-MMM-YYYY" }, 9),
+      travelField("departure_flight", "text", false, { maxLength: 20 }, 12),
+      travelField("departure_city", "text", true, { maxLength: 20 }, 13),
+    ];
+    const step: WizardStep = { stepNumber: 3, stepName: "Travel Information", fields };
+
+    const { container } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{ has_specific_plans: "yes" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "addAnother" })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-repeat-group-instance="true"]')).toHaveLength(0);
+  });
+
   it("honors an explicit repeat-group max while leaving unbounded groups open", async () => {
     const fields = [formerSpouseField("previous_school", {
       id: "previous-school",

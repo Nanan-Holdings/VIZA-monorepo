@@ -22,6 +22,11 @@ mirrors backend 0203. It removes repeat metadata from the six conditional
 arrival/departure fields while preserving saved answer rows, including historical
 suffixed keys; planned locations and trip purpose remain repeatable.
 
+`supabase/migrations/20260922010000_ds160_form_control_types.sql` mirrors
+backend 0204. It aligns the CEAC sex select, former-spouse count text control,
+and marriage-ended textarea, and marks the duplicate present-job title as
+persistence-only while preserving saved answers and aliases.
+
 `lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
 observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
 nationalities, other nationalities, family nationalities, passport issuers,

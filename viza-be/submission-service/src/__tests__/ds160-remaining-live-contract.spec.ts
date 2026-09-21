@@ -17,6 +17,8 @@ const migrationDirectory = path.dirname(migrationPath);
 const frontendMigrationPath = path.resolve(__dirname, "../../../..", "viza-fe/internal-website/supabase/migrations/20260921050000_ds160_remaining_live_parity.sql");
 const singleBlockMigrationPath = path.resolve(__dirname, "../../../agent-backend/drizzle/0203_ds160_specific_travel_single_block.sql");
 const singleBlockFrontendMigrationPath = path.resolve(__dirname, "../../../..", "viza-fe/internal-website/supabase/migrations/20260922000000_ds160_specific_travel_single_block.sql");
+const controlTypesMigrationPath = path.resolve(__dirname, "../../../agent-backend/drizzle/0204_ds160_form_control_types.sql");
+const controlTypesFrontendMigrationPath = path.resolve(__dirname, "../../../..", "viza-fe/internal-website/supabase/migrations/20260922010000_ds160_form_control_types.sql");
 const consularPostsPath = path.resolve(__dirname, "../../../agent-backend/scripts/ds160-consular-posts.ts");
 
 function declaration(source: string, fieldName: string): string {
@@ -253,11 +255,40 @@ describe("DS-160 remaining live branch contract", () => {
     assert.doesNotMatch(migration, /DELETE\s+FROM/i);
   });
 
+  it("matches the observed CEAC control types and compatibility aliases", () => {
+    const source = readFileSync(seedPath, "utf8");
+    const migration = readFileSync(controlTypesMigrationPath, "utf8");
+    assert.equal(DS160_FIELD_CONTRACTS.sex.type, "select");
+    assert.match(declaration(source, "sex"), /field_type: "select"/);
+    assert.match(declaration(source, "sex"), /value: "male"/);
+    assert.match(declaration(source, "sex"), /value: "female"/);
+    assert.match(migration, /field_type = 'select'[\s\S]*field_name = 'sex'/);
+
+    assert.equal(DS160_FIELD_CONTRACTS.number_of_former_spouses.type, "text");
+    assert.equal(DS160_FIELD_CONTRACTS.number_of_former_spouses.maxLength, 2);
+    assert.equal(DS160_FIELD_CONTRACTS.number_of_former_spouses.pattern, "^[1-9][0-9]?$");
+    assert.match(declaration(source, "number_of_former_spouses"), /field_type: "text"/);
+    assert.match(declaration(source, "number_of_former_spouses"), /maxLength: 2/);
+    assert.match(declaration(source, "number_of_former_spouses"), /pattern: "\^\[1-9\]\[0-9\]\?\$"/);
+    assert.doesNotMatch(declaration(source, "number_of_former_spouses"), /options:/);
+
+    assert.equal(DS160_FIELD_CONTRACTS.former_spouse_how_marriage_ended.type, "textarea");
+    assert.match(declaration(source, "former_spouse_how_marriage_ended"), /field_type: "textarea"/);
+    assert.match(migration, /field_type = 'textarea'/);
+    assert.match(migration, /tbxNumberOfPrevSpouses|number_of_former_spouses/);
+    assert.match(declaration(source, "job_title"), /legacy_compatibility_only: true/);
+    assert.match(migration, /legacy_compatibility_only[\s\S]*field_name = 'job_title'/);
+    assert.equal(readFileSync(controlTypesFrontendMigrationPath, "utf8"), migration, "frontend control-types migration mirror drift");
+    assert.doesNotMatch(migration, /visa_application_answers/);
+    assert.doesNotMatch(migration, /DELETE\s+FROM/i);
+  });
+
   it("records the live lengths, date precision, repeat limits, and NA/unknown paths", () => {
     const source = readFileSync(seedPath, "utf8");
     const maxLengths: Record<string, number> = {
       national_id_number: 20,
       us_taxpayer_id: 20,
+      number_of_former_spouses: 2,
       passport_document_type_explain: 4000,
       passport_book_number: 20,
       passport_issuance_city: 25,

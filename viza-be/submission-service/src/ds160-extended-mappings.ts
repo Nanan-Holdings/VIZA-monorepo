@@ -949,9 +949,9 @@ addDate(
 addField(
   "family_spouse",
   "number_of_former_spouses",
-  "select",
+  "text",
   "Number of Former Spouses",
-  ["FORMER_SPOUSE_COUNT", "NUM_FORMER_SPOUSES", "NUMBER_FORMER_SPOUSES"],
+  ["tbxNumberOfPrevSpouses", "FORMER_SPOUSE_COUNT", "NUM_FORMER_SPOUSES", "NUMBER_FORMER_SPOUSES"],
   { condition: "marital_status === divorced" },
 );
 const formerDetails = [
@@ -960,7 +960,7 @@ const formerDetails = [
   ["former_spouse_nationality", "Former Spouse's Country/Region of Origin (Nationality)", "select", ["FORMER_SPOUSE_NATL", "FORMER_SPOUSE_NATIONALITY"]],
   ["former_spouse_city_of_birth", "Former Spouse's City of Birth", "text", ["FORMER_SPOUSE_POB_CITY", "FORMER_SPOUSE_CITY_OF_BIRTH"]],
   ["former_spouse_country_of_birth", "Former Spouse's Country/Region of Birth", "select", ["FORMER_SPOUSE_POB_CNTRY", "FORMER_SPOUSE_COUNTRY_OF_BIRTH"]],
-  ["former_spouse_how_marriage_ended", "How the Marriage Ended", "text", ["FORMER_SPOUSE_MARRIAGE_ENDED", "FORMER_MARRIAGE_ENDED"]],
+  ["former_spouse_how_marriage_ended", "How the Marriage Ended", "textarea", ["DListSpouse_ctl00_tbxHowMarriageEnded", "FORMER_SPOUSE_MARRIAGE_ENDED", "FORMER_MARRIAGE_ENDED"]],
   ["former_spouse_country_marriage_terminated", "Country/Region Marriage was Terminated", "select", ["FORMER_SPOUSE_MARRIAGE_COUNTRY", "FORMER_MARRIAGE_TERMINATED_COUNTRY"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of formerDetails) {

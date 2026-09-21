@@ -184,7 +184,7 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "sex",
     label: "Sex",
-    field_type: "radio",
+    field_type: "select",
     required: true,
     step_number: 1,
     step_name: "Personal Information 1",
@@ -2296,16 +2296,13 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "number_of_former_spouses",
     label: "Number of Former Spouses",
-    field_type: "select",
+    field_type: "text",
     required: true,
     step_number: 10,
     step_name: "Family Information: Former Spouse",
     display_order: 1,
     conditional_logic: { showIf: "marital_status === divorced" },
-    options: [
-      { value: "1", text: "1" },
-      { value: "2", text: "2" },
-    ],
+    validation_rules: { maxLength: 2, pattern: "^[1-9][0-9]?$" },
   },
   {
     field_name: "former_spouse_surname",
@@ -2398,7 +2395,7 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "former_spouse_how_marriage_ended",
     label: "How the Marriage Ended",
-    field_type: "text",
+    field_type: "textarea",
     required: true,
     step_number: 10,
     step_name: "Family Information: Former Spouse",
@@ -2708,7 +2705,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Work/Education/Training: Present",
     display_order: 11,
     conditional_logic: { showIf: "primary_occupation !== _empty && primary_occupation !== retired && primary_occupation !== homemaker && primary_occupation !== not_employed" },
-    validation_rules: { has_does_not_apply: true, block_group: "present_employer" },
+    validation_rules: { has_does_not_apply: true, block_group: "present_employer", legacy_compatibility_only: true },
   },
   {
     field_name: "employment_start_date",

@@ -72,6 +72,16 @@ test("arrival and departure controls are a conditional single block", () => {
   }
 });
 
+test("former-spouse count and marriage-ended mappings use observed controls", () => {
+  assert.equal(DS160_EXTENDED_MAPPINGS.number_of_former_spouses.type, "text");
+  assert.match(DS160_EXTENDED_MAPPINGS.number_of_former_spouses.selector, /tbxNumberOfPrevSpouses/);
+  assert.equal(DS160_EXTENDED_METADATA.former_spouse_how_marriage_ended.seedType, "textarea");
+  assert.match(
+    DS160_EXTENDED_MAPPINGS.former_spouse_how_marriage_ended.selector,
+    /textarea[^,]*DListSpouse_ctl00_tbxHowMarriageEnded/,
+  );
+});
+
 test("date sources expose one frozen split declaration and three mappings", () => {
   assert.equal(DS160_EXTENDED_DATE_SPLITS.length, 12);
   assert.deepEqual(

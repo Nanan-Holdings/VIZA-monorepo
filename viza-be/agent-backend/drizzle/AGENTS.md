@@ -575,3 +575,15 @@ six conditional arrival/departure fields. CEAC exposes one such block; the
 changes metadata only and preserves existing applicant answer rows, including
 historical suffixed keys. Keep its frontend mirror
 `20260922000000_ds160_specific_travel_single_block.sql` byte-identical.
+
+# Migration 0204
+
+`0204_ds160_form_control_types.sql` aligns the CEAC `sex` select control while
+preserving its male/female options, aligns the former-spouse count with CEAC's
+text control (`maxLength` 2 plus the numeric UI pattern), aligns the
+marriage-ended explanation with CEAC's 4000-character textarea, and marks the
+duplicate present-employer `job_title` as `legacy_compatibility_only`. It is
+metadata-only and preserves existing applicant answers and aliases. The count
+pattern is a local numeric input guard; it does not claim an independently
+verified CEAC server-side range. Keep its frontend mirror
+`20260922010000_ds160_form_control_types.sql` byte-identical.
