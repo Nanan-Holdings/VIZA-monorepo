@@ -296,7 +296,7 @@ addField(
   "text",
   "Arrival Flight (if known)",
   ["TRAVEL_ARR_FLIGHT", "ARRIVAL_FLIGHT", "ARR_FLIGHT"],
-  { condition: "has_specific_plans === yes", repeatGroup: "specific_travel_plans" },
+  { condition: "has_specific_plans === yes" },
 );
 addField(
   "travel_information",
@@ -304,7 +304,7 @@ addField(
   "text",
   "Arrival City",
   ["TRAVEL_ARR_CITY", "ARRIVAL_CITY", "ARR_CITY"],
-  { condition: "has_specific_plans === yes", repeatGroup: "specific_travel_plans" },
+  { condition: "has_specific_plans === yes" },
 );
 addField(
   "travel_information",
@@ -312,7 +312,7 @@ addField(
   "text",
   "Departure Flight (if known)",
   ["TRAVEL_DEP_FLIGHT", "DEPARTURE_FLIGHT", "DEP_FLIGHT"],
-  { condition: "has_specific_plans === yes", repeatGroup: "specific_travel_plans" },
+  { condition: "has_specific_plans === yes" },
 );
 addField(
   "travel_information",
@@ -320,7 +320,7 @@ addField(
   "text",
   "Departure City",
   ["TRAVEL_DEP_CITY", "DEPARTURE_CITY", "DEP_CITY"],
-  { condition: "has_specific_plans === yes", repeatGroup: "specific_travel_plans" },
+  { condition: "has_specific_plans === yes" },
 );
 addField(
   "travel_information",

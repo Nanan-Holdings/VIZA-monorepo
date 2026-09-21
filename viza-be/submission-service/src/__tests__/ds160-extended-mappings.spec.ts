@@ -60,6 +60,18 @@ test("metadata preserves seed conditions and repeat group names", () => {
   }
 });
 
+test("arrival and departure controls are a conditional single block", () => {
+  for (const fieldName of [
+    "arrival_flight",
+    "arrival_city",
+    "departure_flight",
+    "departure_city",
+  ]) {
+    assert.equal(DS160_EXTENDED_METADATA[fieldName].condition, "has_specific_plans === yes");
+    assert.equal(DS160_EXTENDED_METADATA[fieldName].repeatGroup, undefined, fieldName);
+  }
+});
+
 test("date sources expose one frozen split declaration and three mappings", () => {
   assert.equal(DS160_EXTENDED_DATE_SPLITS.length, 12);
   assert.deepEqual(

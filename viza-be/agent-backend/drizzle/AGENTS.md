@@ -566,3 +566,12 @@ Its frontend mirror is `20260921060000_ds160_live_catalog_reconciliation.sql`.
 Production applied 0197–0201 atomically as `20260921185118` and 0202 as
 `20260921185319`. The resulting 337 DS-160 rows matched the seed for field type,
 requiredness, step/order, conditional logic, and all non-copy validation rules.
+
+# Migration 0203
+
+`0203_ds160_specific_travel_single_block.sql` removes repeat metadata from the
+six conditional arrival/departure fields. CEAC exposes one such block; the
+`planned_locations` and `trip_purpose` groups remain repeatable. The migration
+changes metadata only and preserves existing applicant answer rows, including
+historical suffixed keys. Keep its frontend mirror
+`20260922000000_ds160_specific_travel_single_block.sql` byte-identical.

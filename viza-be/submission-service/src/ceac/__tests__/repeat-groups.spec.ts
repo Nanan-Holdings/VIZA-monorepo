@@ -103,15 +103,16 @@ async function withRepeatFixture<T>(run: (page: Page) => Promise<T>): Promise<T>
   }
 }
 
-test("DS-160 repeat contract covers all 23 seed groups and 79 row fields", () => {
-  assert.equal(DS160_REPEAT_GROUP_NAMES.length, 23);
-  assert.equal(DS160_REPEAT_GROUP_CONTRACT_LIST.length, 23);
+test("DS-160 repeat contract covers all 22 active seed groups and 73 row fields", () => {
+  assert.equal(DS160_REPEAT_GROUP_NAMES.length, 22);
+  assert.equal(DS160_REPEAT_GROUP_CONTRACT_LIST.length, 22);
+  assert.equal((DS160_REPEAT_GROUP_NAMES as readonly string[]).includes("specific_travel_plans"), false);
   assert.equal(
     DS160_REPEAT_GROUP_CONTRACT_LIST.reduce(
       (total, contract) => total + contract.rowFieldKeys.length,
       0,
     ),
-    79,
+    73,
   );
   for (const contract of DS160_REPEAT_GROUP_CONTRACT_LIST) {
     assert.equal(contract.controls.verified, false);

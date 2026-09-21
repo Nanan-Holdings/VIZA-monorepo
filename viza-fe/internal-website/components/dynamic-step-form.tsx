@@ -124,6 +124,12 @@ interface DynamicStepFormProps {
   onNavigateReviewIssue?: (targetFieldName: string | null) => void;
 }
 
+/**
+ * A pre-0203 catalog can still hydrate the historical repeat metadata for
+ * these fields. Keep that stale catalog from creating new rows while the
+ * metadata-only migration rolls out; current schema rows omit the group
+ * entirely, so this compatibility cap is otherwise unused.
+ */
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
   specific_travel_plans: 1,
 };

@@ -15,7 +15,6 @@ export const DS160_REPEAT_GROUP_NAMES = [
   "other_nationality",
   "permanent_resident",
   "trip_purpose",
-  "specific_travel_plans",
   "planned_locations",
   "companions",
   "previous_visits",
@@ -78,7 +77,7 @@ const UNVERIFIED_CONTROLS: RepeatControlLocatorStrategy = {
 const contract = <T extends Ds160RepeatGroupContract>(value: T): T => value;
 
 /**
- * All 23 repeat groups present in the DS-160 seed.  Field order follows the
+ * All 22 active repeat groups present in the DS-160 seed.  Field order follows the
  * seed order so a row mapper can use a deterministic order when filling.
  */
 export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
@@ -110,21 +109,6 @@ export const DS160_REPEAT_GROUP_CONTRACTS: Readonly<
     group: "trip_purpose",
     page: "travel_information",
     rowFieldKeys: ["purpose_of_trip", "purpose_of_trip_specify"],
-    fieldShowIf: {},
-    controls: UNVERIFIED_CONTROLS,
-  }),
-  specific_travel_plans: contract({
-    group: "specific_travel_plans",
-    page: "travel_information",
-    rowFieldKeys: [
-      "arrival_date",
-      "arrival_flight",
-      "arrival_city",
-      "departure_date",
-      "departure_flight",
-      "departure_city",
-    ],
-    activation: "has_specific_plans === yes",
     fieldShowIf: {},
     controls: UNVERIFIED_CONTROLS,
   }),

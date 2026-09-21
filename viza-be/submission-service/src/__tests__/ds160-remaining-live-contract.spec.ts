@@ -5,13 +5,18 @@ import { describe, it } from "node:test";
 import { ds160ConditionMatches } from "../ds160-conditions";
 import { DS160_FIELD_CONTRACTS } from "../ds160-field-contract";
 import { readDs160SeedFields } from "../ds160-parity";
-import { DS160_REPEAT_GROUP_CONTRACTS } from "../ds160-repeat-contract";
+import {
+  DS160_REPEAT_GROUP_CONTRACTS,
+  DS160_REPEAT_GROUP_NAMES,
+} from "../ds160-repeat-contract";
 import { CEAC_DS160_LOCATION_OPTIONS } from "../ceac/start-location-options";
 
 const seedPath = path.resolve(__dirname, "../../../agent-backend/scripts/seed-ds160-form-fields.ts");
 const migrationPath = path.resolve(__dirname, "../../../agent-backend/drizzle/0201_ds160_remaining_live_parity.sql");
 const migrationDirectory = path.dirname(migrationPath);
 const frontendMigrationPath = path.resolve(__dirname, "../../../..", "viza-fe/internal-website/supabase/migrations/20260921050000_ds160_remaining_live_parity.sql");
+const singleBlockMigrationPath = path.resolve(__dirname, "../../../agent-backend/drizzle/0203_ds160_specific_travel_single_block.sql");
+const singleBlockFrontendMigrationPath = path.resolve(__dirname, "../../../..", "viza-fe/internal-website/supabase/migrations/20260922000000_ds160_specific_travel_single_block.sql");
 const consularPostsPath = path.resolve(__dirname, "../../../agent-backend/scripts/ds160-consular-posts.ts");
 
 function declaration(source: string, fieldName: string): string {
@@ -230,6 +235,24 @@ describe("DS-160 remaining live branch contract", () => {
     }
   });
 
+  it("ships the single-block travel migration without touching answers", () => {
+    const migration = readFileSync(singleBlockMigrationPath, "utf8");
+    assert.equal(
+      readFileSync(singleBlockFrontendMigrationPath, "utf8"),
+      migration,
+      "frontend single-block migration mirror drift",
+    );
+    for (const fieldName of [
+      "arrival_date", "arrival_flight", "arrival_city",
+      "departure_date", "departure_flight", "departure_city",
+    ]) {
+      assert.match(migration, new RegExp(`'${fieldName}'`), fieldName);
+    }
+    assert.match(migration, /validation_rules[\s\S]*- 'repeatable'[\s\S]*- 'repeat_group'/);
+    assert.doesNotMatch(migration, /visa_application_answers/);
+    assert.doesNotMatch(migration, /DELETE\s+FROM/i);
+  });
+
   it("records the live lengths, date precision, repeat limits, and NA/unknown paths", () => {
     const source = readFileSync(seedPath, "utf8");
     const maxLengths: Record<string, number> = {
@@ -381,8 +404,17 @@ describe("DS-160 remaining live branch contract", () => {
     assert.equal(DS160_REPEAT_GROUP_CONTRACTS.previous_employers.maxItems, 2);
     assert.equal(DS160_REPEAT_GROUP_CONTRACTS.visa_refused.maxItems, 1);
     assert.equal(DS160_REPEAT_GROUP_CONTRACTS.immigrant_petition.maxItems, 1);
+    assert.equal((DS160_REPEAT_GROUP_NAMES as readonly string[]).includes("specific_travel_plans"), false);
+    for (const fieldName of [
+      "arrival_date", "arrival_flight", "arrival_city",
+      "departure_date", "departure_flight", "departure_city",
+    ]) {
+      assert.equal(DS160_FIELD_CONTRACTS[fieldName].repeatGroup, undefined, fieldName);
+      assert.doesNotMatch(declaration(source, fieldName), /repeatable:\s*true/, fieldName);
+      assert.doesNotMatch(declaration(source, fieldName), /repeat_group:\s*"specific_travel_plans"/, fieldName);
+    }
     for (const group of [
-      "specific_travel_plans", "drivers_licenses", "us_relatives", "lost_passport",
+      "drivers_licenses", "us_relatives", "lost_passport",
       "former_spouses", "education", "languages", "traveled_countries", "organizations",
       "military_service",
     ] as const) {

@@ -374,7 +374,7 @@ and must fail closed; callers must not perform a direct table settlement.
   gap inventory. Keep its internal-contract status separate from historical
   submitted records and live CEAC verification evidence.
 - `docs/ds160-field-parity-2026-09-21.md`: no-PII audit for the current 337-field,
-  83-condition, 23-repeat internal contract and the separate current-live
+  83-condition, 22-active-repeat internal contract and the separate current-live
   evidence index. It explicitly keeps official full parity unverified.
 - `docs/ds160-field-parity-evidence-template.json`: generated B1/B2 evidence
   manifest for every seeded field, both directions of each conditional branch,

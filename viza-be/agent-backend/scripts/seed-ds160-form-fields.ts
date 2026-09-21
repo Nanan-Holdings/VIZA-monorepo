@@ -444,7 +444,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 4,
-    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { format: "DD-MMM-YYYY" },
     conditional_logic: { showIf: "has_specific_plans === yes" },
   },
   {
@@ -456,7 +456,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 7,
     conditional_logic: { showIf: "has_specific_plans === yes" },
-    validation_rules: { maxLength: 20, repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { maxLength: 20 },
   },
   {
     field_name: "arrival_city",
@@ -467,7 +467,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 8,
     conditional_logic: { showIf: "has_specific_plans === yes" },
-    validation_rules: { maxLength: 20, repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { maxLength: 20 },
   },
   {
     field_name: "departure_date",
@@ -477,7 +477,7 @@ const FIELDS: FieldDef[] = [
     step_number: 3,
     step_name: "Travel Information",
     display_order: 9,
-    validation_rules: { format: "DD-MMM-YYYY", repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { format: "DD-MMM-YYYY" },
     conditional_logic: { showIf: "has_specific_plans === yes" },
   },
   {
@@ -489,7 +489,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 12,
     conditional_logic: { showIf: "has_specific_plans === yes" },
-    validation_rules: { maxLength: 20, repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { maxLength: 20 },
   },
   {
     field_name: "departure_city",
@@ -500,7 +500,7 @@ const FIELDS: FieldDef[] = [
     step_name: "Travel Information",
     display_order: 13,
     conditional_logic: { showIf: "has_specific_plans === yes" },
-    validation_rules: { maxLength: 20, repeatable: true, repeat_group: "specific_travel_plans" },
+    validation_rules: { maxLength: 20 },
   },
   {
     field_name: "planned_location",

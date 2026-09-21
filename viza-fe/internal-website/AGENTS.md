@@ -17,6 +17,11 @@ mirrors backend 0202. It reconciles fourteen differences discovered in the live
 catalog after 0197–0201, including spouse branches and companion limits, without
 changing saved answers. Verify the resulting catalog, not just SQL target names.
 
+`supabase/migrations/20260922000000_ds160_specific_travel_single_block.sql`
+mirrors backend 0203. It removes repeat metadata from the six conditional
+arrival/departure fields while preserving saved answer rows, including historical
+suffixed keys; planned locations and trip purpose remain repeatable.
+
 `lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
 observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
 nationalities, other nationalities, family nationalities, passport issuers,
