@@ -43,13 +43,18 @@ describe("DS-160 official evidence manifest", () => {
     assert.equal(manifest.counts.evidenceSlots.missingEvidence, evidenceSlotCount);
     assert.equal(manifest.officialParityVerified, false);
     assert.deepEqual(manifest.scopeReviewMissing, ["scope_review_complete"]);
-    assert.ok(manifest.fields.every(field => !field.evidence.officialVerified));
-    assert.ok(manifest.branches.every(branch => !branch.officialVerified));
-    assert.ok(manifest.repeatGroups.every(group => !group.officialVerified));
+    assert.ok(manifest.fields.every(field => !field.evidence.liveDomObserved));
+    assert.ok(manifest.branches.every(branch => branch.contractComparison === null));
+    assert.ok(manifest.repeatGroups.every(group => group.contractComparison === null));
+    assert.equal(
+      manifest.repeatGroups.filter(group => group.structure === "structure_not_applicable").length,
+      2,
+    );
+    assert.equal(manifest.counts.evidenceSlots.structureNotApplicable, 4);
     assert.equal(manifest.missingEvidence.length, evidenceSlotCount);
   });
 
-  it("requires current live DOM evidence for a verified claim", () => {
+  it("tracks current live DOM observation separately from contract comparison", () => {
     const fields = seedFields();
     const expression = fields.find(field => field.showIf)?.showIf;
     assert.ok(expression);
@@ -62,12 +67,13 @@ describe("DS-160 official evidence manifest", () => {
       },
     });
 
-    assert.equal(manifest.counts.fields.liveDomVerified, 1);
-    assert.equal(manifest.counts.branches.fullyLiveDomVerified, 1);
-    assert.equal(manifest.counts.repeatGroups.fullyLiveDomVerified, 1);
-    assert.equal(manifest.fields.find(field => field.fieldName === "surname")?.evidence.officialVerified, true);
-    assert.equal(manifest.branches.find(branch => branch.expression === expression)?.officialVerified, true);
-    assert.equal(manifest.repeatGroups.find(group => group.group === "other_nationality")?.officialVerified, true);
+    assert.equal(manifest.counts.fields.liveDomObserved, 1);
+    assert.equal(manifest.counts.branches.fullyLiveDomObserved, 1);
+    assert.equal(manifest.counts.repeatGroups.fullyLiveDomObserved, 1);
+    assert.equal(manifest.fields.find(field => field.fieldName === "surname")?.evidence.liveDomObserved, true);
+    assert.equal(manifest.fields.find(field => field.fieldName === "surname")?.evidence.contractComparison, "match");
+    assert.equal(manifest.branches.find(branch => branch.expression === expression)?.contractComparison, "match");
+    assert.equal(manifest.repeatGroups.find(group => group.group === "other_nationality")?.contractComparison, "match");
     assert.equal(manifest.officialParityVerified, false);
   });
 
@@ -87,9 +93,9 @@ describe("DS-160 official evidence manifest", () => {
     const surname = manifest.fields.find(field => field.fieldName === "surname")!;
     const givenNames = manifest.fields.find(field => field.fieldName === "given_names")!;
     assert.equal(surname.evidence.publishedEvidence, true);
-    assert.equal(surname.evidence.liveDomVerified, false);
-    assert.equal(surname.evidence.officialVerified, false);
-    assert.equal(givenNames.evidence.liveDomVerified, false);
+    assert.equal(surname.evidence.liveDomObserved, false);
+    assert.equal(surname.evidence.contractComparison, "match");
+    assert.equal(givenNames.evidence.liveDomObserved, false);
     assert.ok(givenNames.evidence.missingEvidence.includes("actual"));
     assert.ok(givenNames.evidence.missingEvidence.includes("current_live_dom_match"));
     assert.equal(manifest.officialParityVerified, false);
@@ -105,9 +111,22 @@ describe("DS-160 official evidence manifest", () => {
       fields: { surname: [liveMatch, mismatch] },
     });
     const surname = manifest.fields.find(field => field.fieldName === "surname")!;
-    assert.equal(surname.evidence.liveDomVerified, false);
-    assert.equal(surname.evidence.officialVerified, false);
+    assert.equal(surname.evidence.liveDomObserved, false);
+    assert.equal(surname.evidence.contractComparison, "mismatch");
     assert.ok(surname.evidence.missingEvidence.includes("no_mismatch"));
+  });
+
+  it("prefers a later live match over an earlier not-observed record", () => {
+    const notObserved: Ds160OfficialEvidenceRecord = {
+      ...liveMatch,
+      comparison: "not_observed",
+    };
+    const manifest = buildDs160OfficialEvidenceManifest(seedFields(), {
+      fields: { surname: [notObserved, liveMatch] },
+    });
+    const surname = manifest.fields.find(field => field.fieldName === "surname")!;
+    assert.equal(surname.evidence.liveDomObserved, true);
+    assert.equal(surname.evidence.contractComparison, "match");
   });
 
   it("keeps official controls discovered outside the seed as explicit scope gaps", () => {
@@ -122,7 +141,35 @@ describe("DS-160 official evidence manifest", () => {
     assert.equal(manifest.scopeReviewComplete, true);
     assert.equal(manifest.counts.scopeGaps.total, 1);
     assert.equal(manifest.counts.scopeGaps.missingEvidence, 1);
+    assert.equal(manifest.counts.evidenceSlots.total, evidenceSlotCountFor(seedFields()) + 1);
     assert.equal(manifest.officialParityVerified, false);
     assert.ok(manifest.missingEvidence.some(item => item.kind === "scope_gap" && item.key === "official_age_gate"));
   });
+
+  it("records singleton explanation structure without counting Add/Remove", () => {
+    const manifest = buildDs160OfficialEvidenceManifest(seedFields(), {
+      repeats: {
+        visa_refused: { rowAdded: [liveMatch], rowDeleted: [liveMatch] },
+        immigrant_petition: { rowAdded: [liveMatch], rowDeleted: [liveMatch] },
+      },
+    });
+
+    const visaRefused = manifest.repeatGroups.find(group => group.group === "visa_refused")!;
+    assert.equal(visaRefused.structure, "structure_not_applicable");
+    assert.equal(visaRefused.contractComparison, "structure_not_applicable");
+    assert.equal(visaRefused.rowAdded.contractComparison, "structure_not_applicable");
+    assert.equal(visaRefused.rowDeleted.contractComparison, "structure_not_applicable");
+    assert.equal(visaRefused.rowAdded.liveDomObserved, false);
+    assert.equal(visaRefused.rowDeleted.liveDomObserved, false);
+    assert.equal(manifest.counts.repeatGroups.structureNotApplicable, 2);
+    assert.equal(manifest.counts.repeatGroups.rowAddedLiveDomObserved, 0);
+    assert.equal(manifest.counts.repeatGroups.rowDeletedLiveDomObserved, 0);
+    assert.equal(manifest.counts.repeatGroups.fullyLiveDomObserved, 0);
+    assert.equal(visaRefused.missingEvidence.length, 0);
+  });
 });
+
+function evidenceSlotCountFor(fields: ReturnType<typeof seedFields>): number {
+  const branchCount = new Set(fields.flatMap((field) => field.showIf ? [field.showIf] : [])).size;
+  return fields.length + branchCount * 2 + DS160_REPEAT_GROUP_CONTRACT_LIST.length * 2;
+}

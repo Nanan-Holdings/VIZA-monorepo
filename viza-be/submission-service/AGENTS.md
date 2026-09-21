@@ -390,6 +390,18 @@ and must fail closed; callers must not perform a direct table settlement.
   no-PII evidence index that maps the current-live journal into the field,
   branch, and repeat evidence slots. It is intentionally incomplete and must
   remain separate from the empty evidence template.
+- `docs/ds160-live-browser-raw-evidence-2026-09-21.json` preserves sanitized
+  control metadata and dated observation states, with no applicant answers.
+  `scripts/index-ds160-live-browser-evidence.mjs` creates the aggregate
+  `docs/ds160-live-evidence-index-2026-09-21.json` trace index. Its covers and
+  parentFindingIds associate records with raw page/control observations; they
+  do not establish independent server-side validation for each field.
+  HTML required attributes must never be treated as CEAC server requiredness.
+- Evidence slots expose `liveDomObserved` and `contractComparison`, not a
+  per-field officialVerified claim. The two singleton explanation contracts
+  are `structure_not_applicable`, excluded from actual Add/Remove counts.
+  Evidence-slot totals include scope gaps; preserve the overall fail-closed
+  officialParityVerified result while those gaps remain.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
   coverage/verification utilities. `src/__tests__/ds160-evidence-manifest.spec.ts`
   protects the evidence manifest counts and fail-closed semantics; use

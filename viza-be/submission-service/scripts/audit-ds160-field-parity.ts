@@ -27,6 +27,7 @@ import {
   buildDs160OfficialEvidenceManifest,
   type Ds160OfficialEvidenceInput,
   type Ds160OfficialEvidenceRecord,
+  type Ds160RepeatEvidenceInput,
 } from "../src/ds160-coverage-audit";
 
 import { TEST_DS160_ANSWERS } from "../src/ceac/test-ds160-fixture";
@@ -214,17 +215,18 @@ function readEvidenceInput(): Ds160OfficialEvidenceInput {
         negative: evidenceRecordsFromTemplateSlot(value.negative),
       };
     }
-    const repeatEvidence: Record<string, {
-      rowAdded: readonly Ds160OfficialEvidenceRecord[];
-      rowDeleted: readonly Ds160OfficialEvidenceRecord[];
-    }> = {};
+    const repeatEvidence: Record<string, Ds160RepeatEvidenceInput> = {};
     for (const entry of object.repeatGroups) {
       if (!entry || typeof entry !== "object") continue;
       const value = entry as Record<string, unknown>;
       if (typeof value.group !== "string") continue;
+      const structure = value.structure === "structure_not_applicable" || value.structure === "repeat"
+        ? value.structure
+        : undefined;
       repeatEvidence[value.group] = {
         rowAdded: evidenceRecordsFromTemplateSlot(value.rowAdded),
         rowDeleted: evidenceRecordsFromTemplateSlot(value.rowDeleted),
+        ...(structure ? { structure } : {}),
       };
     }
     const scopeGaps = Array.isArray(object.scopeGaps)
@@ -471,9 +473,9 @@ function main(): void {
   console.log(`  Repeat groups requiring live add/remove/reload verification: ${repeatGroups.length}`);
   for (const group of repeatGroups) console.log(`    - ${group}`);
   header("Official evidence manifest (fail-closed)");
-  console.log(`  Fields with current live DOM evidence : ${evidenceManifest.counts.fields.liveDomVerified}/${evidenceManifest.counts.fields.total}`);
-  console.log(`  Branches fully observed both ways     : ${evidenceManifest.counts.branches.fullyLiveDomVerified}/${evidenceManifest.counts.branches.total}`);
-  console.log(`  Repeat groups add+delete observed     : ${evidenceManifest.counts.repeatGroups.fullyLiveDomVerified}/${evidenceManifest.counts.repeatGroups.total}`);
+  console.log(`  Fields with current live DOM evidence : ${evidenceManifest.counts.fields.liveDomObserved}/${evidenceManifest.counts.fields.total}`);
+  console.log(`  Branches fully observed both ways     : ${evidenceManifest.counts.branches.fullyLiveDomObserved}/${evidenceManifest.counts.branches.total}`);
+  console.log(`  Repeat groups add+delete observed     : ${evidenceManifest.counts.repeatGroups.fullyLiveDomObserved}/${evidenceManifest.counts.repeatGroups.total - evidenceManifest.counts.repeatGroups.structureNotApplicable}`);
   console.log(`  Missing evidence slots                : ${evidenceManifest.counts.evidenceSlots.missingEvidence}`);
   console.log(`  officialParityVerified                : ${evidenceManifest.officialParityVerified}`);
   if (evidenceTemplatePath) console.log(`  Evidence template written             : ${evidenceTemplatePath}`);

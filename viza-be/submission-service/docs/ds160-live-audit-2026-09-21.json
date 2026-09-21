@@ -1,0 +1,3862 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-09-21",
+  "scope": "ds160_b1_b2_current_live_dom_observations",
+  "officialParityVerified": false,
+  "evidenceClass": "current_live_dom",
+  "observationMethod": "CUA real-page observation supplied by the root agent",
+  "applicantDataStored": false,
+  "claimBoundary": "This journal records supplied CEAC current-live DOM observations for Personal Information 1-2, Travel Information, Travel Companions, Previous U.S. Travel, Address and Phone, Passport Information, U.S. Point of Contact, Family Information (Relatives, Spouse/Partner, Deceased Spouse, Former Spouse), Work/Education/Training (Present, Previous, Additional), Security and Background Parts 1-5, the photo upload/continue-without-photo path, and e-Sign preparer structure. It remains a partial live review and does not prove all DS-160 fields, options, pages, server rules, reload behavior, final signature, or visa-specific branches. No applicant answers are stored in this journal.",
+  "contractInventoryContext": {
+    "seedFieldCount": 337,
+    "seedConditionalExpressionCount": 83,
+    "seedRepeatGroupCount": 23,
+    "countsAreNotOfficialScopeUpperBounds": true
+  },
+  "pages": [
+    {
+      "pageKey": "personal_information_1",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_personal.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "full_name_native_alphabet",
+          "findingStatus": "proven_live_finding",
+          "expected": "An empty native-alphabet name value requires an explicit N/A choice before continuing.",
+          "actual": "Empty value produced the observed Next validation state; selecting the explicit N/A control allowed advancement to Personal Information 2.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Text input maximum length is 33 characters.",
+          "actual": "The live input exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Text input maximum length is 33 characters.",
+          "actual": "The live input exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "city_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Text input maximum length is 20 characters.",
+          "actual": "The live input exposed a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "state_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "An empty birth-province value blocks Next unless the explicit N/A path is selected.",
+          "actual": "An empty birth-province value produced the observed Next error; selecting explicit N/A allowed advancement.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Conditional other-name surname input has a 33-character maximum when the branch is active.",
+          "actual": "The live input exposed a 33-character maximum after the other-names branch was opened.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Conditional other-name given-names input has a 33-character maximum when the branch is active.",
+          "actual": "The live input exposed a 33-character maximum after the other-names branch was opened.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "telecode_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Telecode surname accepts at most 20 characters and only groups of four digits separated by spaces.",
+          "actual": "12345678 was rejected with the official four-digit-group format error; 1234 5678 was accepted in the controlled replay.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "telecode_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Telecode given names accept at most 20 characters and may remain blank when the valid surname path is used.",
+          "actual": "The live control exposed a 20-character maximum; blank given names were accepted with the valid 1234 5678 surname path when Next advanced to Personal Information 2.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "marital_status_other_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "The explanation input appears for marital status Other and is removed when Married is selected.",
+          "actual": "The live explanation input appeared for Other and was removed after switching to Married.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "other_names_used",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals required other-name surname and given-names inputs.",
+            "actual": "Yes revealed the surname and given-names inputs.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the other-name inputs.",
+            "actual": "No hid the other-name inputs.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_telecode",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals telecode surname and given-names inputs.",
+            "actual": "Yes revealed both telecode inputs.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides both telecode inputs.",
+            "actual": "No hid both telecode inputs.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "marital_status",
+          "positiveValue": "other",
+          "negativeValue": "married",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Other reveals the explanation input.",
+            "actual": "Other revealed the explanation input.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Married removes the explanation input.",
+            "actual": "Married removed the explanation input.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "controlKey": "other_names_used",
+          "findingStatus": "proven_live_finding",
+          "expected": "The live other-names control can add and remove rows without leaving a stale second row.",
+          "actual": "Add/Remove changed the live row count 1 to 2 to 1 successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "pendingContractReviews": [
+        {
+          "key": "personal_information_1_other_names_repeat_control",
+          "findingStatus": "partial_live_review",
+          "description": "CEAC exposed an Other Names Add/Remove control. Normalized repeat-contract reconciliation is pending; this journal does not classify it as a seed gap.",
+          "officialVerified": false,
+          "followUp": "Reconcile the live control with the normalized B1/B2 repeat contract before making a parity claim."
+        }
+      ],
+      "telecodeValidationFindings": [
+        {
+          "findingStatus": "proven_live_finding",
+          "expected": "Telecode validation uses groups of four digits separated by spaces.",
+          "actual": "The contiguous eight-digit value was rejected; the spaced two-group value was accepted.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:personal-information-1"
+      ]
+    },
+    {
+      "pageKey": "personal_information_2",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_personalcont.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "initialBlankValidation": {
+        "findingStatus": "proven_live_finding",
+        "expected": "Next identifies the required controls when the page is blank.",
+        "actual": "Blank Next required nationality, other-nationality question, permanent-resident question, national ID, SSN, and taxpayer ID.",
+        "comparison": "match",
+        "officialVerified": false
+      },
+      "progressionFindings": [
+        {
+          "event": "explicit_na_and_negative_branch_completion",
+          "findingStatus": "proven_live_finding",
+          "expected": "After a valid nationality selection, explicit N/A choices for national ID, SSN, and taxpayer ID plus negative other-nationality and permanent-resident branches allow Next.",
+          "actual": "The three explicit N/A controls and the two negative branches were selected; Next advanced successfully to Travel Information.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "fieldFindings": [
+        {
+          "fieldName": "nationality_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank initial nationality is identified by Next as required.",
+          "actual": "Blank Next identified nationality as required.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_nationality_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes branch reveals a required other-nationality country input.",
+          "actual": "Yes revealed the other-nationality country input.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_nationality_has_passport",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes branch reveals a passport-held question for the other nationality.",
+          "actual": "Yes revealed the passport-held question.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_nationality_passport_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Passport number is required when the other-nationality passport answer is Yes and has a 20-character maximum.",
+          "actual": "Yes revealed the required passport-number input with a 20-character maximum; No hid it.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "other_permanent_resident_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes branch reveals a permanent-resident country repeat row, and Add/Remove updates the row count.",
+          "actual": "Yes revealed the country row; Add/Remove changed the live row count 1 to 2 to 1.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "national_id_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank initial value is identified by Next as required.",
+          "actual": "Blank Next identified national ID as required.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_social_security_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank initial value is identified by Next as required unless the official N/A path is selected.",
+          "actual": "Blank Next identified SSN as required; selecting the explicit N/A path satisfied the control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_taxpayer_id",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank initial value is identified by Next as required unless the official N/A path is selected.",
+          "actual": "Blank Next identified taxpayer ID as required; selecting the explicit N/A path satisfied the control.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "other_nationality",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals country and passport-held controls.",
+            "actual": "Yes revealed country and passport-held controls.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the other-nationality country and passport controls.",
+            "actual": "No hid the other-nationality country and passport controls.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "other_nationality_has_passport",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals a required passport-number input with maximum length 20.",
+            "actual": "Yes revealed the required passport-number input with maximum length 20.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the passport-number input.",
+            "actual": "No hid the passport-number input.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "permanent_resident_other_country",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals a permanent-resident country repeat group whose add and remove operations match CEAC.",
+            "actual": "Yes revealed the country row; Add/Remove changed the live row count 1 to 2 to 1.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the permanent-resident country controls.",
+            "actual": "No hid the permanent-resident country controls.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "other_nationality",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second other-nationality row.",
+            "actual": "Add/Remove changed the live row count 1 to 2 to 1 successfully.",
+            "comparison": "match"
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the live row count from 2 to 1 without a stale second row.",
+            "actual": "Remove returned the live row count from 2 to 1.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "permanent_resident",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second permanent-resident country row.",
+            "actual": "Add created row 2.",
+            "comparison": "match"
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the permanent-resident country row count to 1.",
+            "actual": "Remove returned the permanent-resident country row count from 2 to 1.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        }
+      ],
+      "crossFieldFindings": [
+        {
+          "key": "nationality_duplicate_country_validation",
+          "findingStatus": "proven_live_finding",
+          "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_personalcont.aspx",
+          "observedOn": "2026-09-21",
+          "expected": "CEAC rejects a country repeated across the primary nationality, active other-nationality rows, and active permanent-resident rows; hidden No branches do not participate.",
+          "actual": "Primary/other, repeated-other, primary/permanent-resident, repeated-permanent-resident, and other/permanent-resident duplicate combinations were observed. CEAC returned the nationality duplicate message for nationality paths and the permanent-resident duplicate message for permanent-resident paths; the primary-versus-permanent-resident path used CEAC’s inconsistent label.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:personal-information-2"
+      ]
+    },
+    {
+      "pageKey": "travel_information",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_travel.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "controlFindings": [
+        {
+          "controlKey": "trip_purpose_repeat_control",
+          "findingStatus": "proven_live_finding",
+          "expected": "The purpose-of-trip control exposes the observed B1/B2 purpose subtypes and repeat add/remove behavior consistent with the official page.",
+          "actual": "A repeatable purpose control was present; Add/Remove changed the live row count 1 to 2 to 1. Observed subtypes were B1-B2, B1-CF, and B2-TM.",
+          "comparison": "match",
+          "officialVerified": false,
+          "observedSubtypes": [
+            {
+              "value": "B1-B2",
+              "label": "Business or Tourism"
+            },
+            {
+              "value": "B1-CF",
+              "label": "Business Conference"
+            },
+            {
+              "value": "B2-TM",
+              "label": "Tourism Medical"
+            }
+          ]
+        },
+        {
+          "controlKey": "has_specific_plans",
+          "findingStatus": "proven_live_finding",
+          "expected": "The specific-plans control exposes Yes and No choices.",
+          "actual": "Specific-plans Yes and No choices were present.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "controlKey": "trip_payer_type",
+          "findingStatus": "proven_live_finding",
+          "expected": "The B1/B2 payer choices are S, O, P, U, and C; H is not an available choice.",
+          "actual": "The payer choices were S, O, P, U, and C; H was absent among the initial nine controls.",
+          "comparison": "match",
+          "officialVerified": false,
+          "observedOptions": [
+            "S",
+            "O",
+            "P",
+            "U",
+            "C"
+          ],
+          "absentOptions": [
+            "H"
+          ]
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "has_specific_plans",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals arrival/departure dates, flights if known, a required arrival city, required repeat locations, and the U.S. stay address.",
+            "actual": "Yes added arrival/departure dates, optional flights if known, a required city, required repeat locations, and the U.S. stay address.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the specific-plan child controls.",
+            "actual": "The later travel-specific-plans-no observation captured the no-specific-plan controls; refresh persistence remains separate.",
+            "comparison": "match",
+            "previousObservation": {
+              "findingStatus": "proven_live_finding",
+              "expected": "No hides the specific-plan child controls.",
+              "actual": "No was available as the opposing specific-plans choice; child-control persistence after switching back was not separately replayed.",
+              "comparison": "not_observed"
+            },
+            "observationState": "travel-specific-plans-no",
+            "rawEvidenceArtifact": "ds160-live-browser-raw-evidence-2026-09-21.json"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "trip_payer_type",
+          "positiveValue": "O",
+          "negativeValue": "S",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Other Person adds name, phone, email with an N/A path, relationship, and same-address choice.",
+            "actual": "Other Person added name, phone, email with an N/A path, relationship, and same-address choice.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Self adds no payer detail controls.",
+            "actual": "Self added no payer detail controls.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "payer_address_same_as_home",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes hides the payer address controls.",
+            "actual": "Yes hid the payer address controls.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No adds payer street, city, state, postal, country controls, with N/A paths for state and postal where applicable.",
+            "actual": "No added the payer address controls; state and postal exposed N/A paths.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "trip_payer_type",
+          "positiveValue": "C",
+          "negativeValue": "P/U",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Other Company adds organization name, phone, text relationship, and organization address controls.",
+            "actual": "Other Company added organization name, phone, text relationship, and organization address controls.",
+            "comparison": "match"
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Present Employer and U.S. Employer add no extra payer detail controls.",
+            "actual": "Present Employer and U.S. Employer added no extra payer detail controls.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        }
+      ],
+      "fieldFindings": [
+        {
+          "fieldName": "payer_email",
+          "findingStatus": "proven_live_finding",
+          "expected": "Other Person email supports the official N/A path.",
+          "actual": "The Other Person email control exposed an N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_address_city",
+          "findingStatus": "proven_live_finding",
+          "expected": "Specific plans Yes requires a U.S. stay city.",
+          "actual": "Specific plans Yes added a required U.S. stay city control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "planned_location",
+          "findingStatus": "proven_live_finding",
+          "expected": "Specific plans Yes requires repeat planned-location rows, and the live Add/Remove sequence changes the row count 1 to 2 to 1.",
+          "actual": "Specific plans Yes added required repeat locations; Add/Remove changed the live row count 1 to 2 to 1. Reload persistence and stale-value behavior were not separately replayed.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "trip_purpose",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second purpose row.",
+            "actual": "Add changed the live purpose row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the purpose row count to one.",
+            "actual": "Remove changed the live purpose row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "planned_locations",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Specific plans Yes allows required repeat planned-location rows to be added.",
+            "actual": "Add/Remove changed the live planned-location row count 1 to 2 to 1.",
+            "comparison": "match"
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns planned-location rows to the prior count without stale values.",
+            "actual": "Remove returned the live planned-location row count from 2 to 1; stale-value behavior was not separately replayed.",
+            "comparison": "match"
+          },
+          "officialVerified": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "planned_locations_add_remove_and_reload",
+          "reason": "Planned-location Add/Remove 1→2→1 is observed; reload persistence and stale-value behavior still need a separate replay."
+        },
+        {
+          "key": "travel_information_remaining_controls",
+          "reason": "Payer and specific-plan branches were observed at control level; remaining Travel fields, limits, validation and server behavior still need per-field evidence."
+        }
+      ],
+      "noPlanStayFindings": {
+        "unitField": "intended_length_of_stay_unit",
+        "findingStatus": "proven_live_finding",
+        "observedOptions": [
+          {
+            "value": "Y",
+            "meaning": "year",
+            "usAddressShown": true,
+            "durationEnabled": true
+          },
+          {
+            "value": "M",
+            "meaning": "month",
+            "usAddressShown": true,
+            "durationEnabled": true
+          },
+          {
+            "value": "W",
+            "meaning": "week",
+            "usAddressShown": true,
+            "durationEnabled": true
+          },
+          {
+            "value": "D",
+            "meaning": "day",
+            "usAddressShown": true,
+            "durationEnabled": true
+          },
+          {
+            "value": "H",
+            "meaning": "less than 24 hours",
+            "usAddressShown": false,
+            "durationEnabled": false
+          }
+        ],
+        "expected": "Year, month, week, and day choices show the U.S. stay address; less-than-24-hours hides the address and disables duration.",
+        "actual": "Y/M/W/D showed the U.S. stay address. H hid the address and disabled the duration control.",
+        "comparison": "match",
+        "officialVerified": false,
+        "durationField": {
+          "fieldName": "intended_length_of_stay_value",
+          "maxLength": 3,
+          "observedPattern": "numeric duration"
+        }
+      },
+      "dateValidationFindings": [
+        {
+          "fieldName": "intended_arrival_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "No-specific-plans arrival accepts month and year with an optional day, when the remaining travel data is valid.",
+          "actual": "Month NOV and year 2026 with a blank day, valid 10-day duration, U.S. QA address, and Self payer advanced successfully to Travel Companions.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "intended_arrival_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank Next reports that month and year are required for the no-specific-plans date.",
+          "actual": "Blank Next displayed: Intended Date of Arrival is invalid. Month and Year are required.",
+          "comparison": "match",
+          "officialVerified": false,
+          "observedOfficialMessage": "Intended Date of Arrival is invalid. Month and Year are required."
+        },
+        {
+          "fieldName": "arrival_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Specific-plans arrival/departure dates require Month Day Year.",
+          "actual": "The specific-plans date validation message required Month Day Year.",
+          "comparison": "match",
+          "officialVerified": false,
+          "observedOfficialMessage": "Month Day Year required"
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:travel-information"
+      ]
+    },
+    {
+      "pageKey": "travel_companions",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_travelcompanions.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "branchFindings": [
+        {
+          "controller": "has_companions",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the official group-travel question.",
+            "actual": "Yes revealed the group-travel Yes/No question.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides all companion controls and permits Next.",
+            "actual": "No hid all companion controls and Next advanced.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "group_travel",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals a required group name with maximum length 75.",
+            "actual": "Yes revealed the required group-name field with max length 75.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No reveals repeat surname/given-name fields with maximum length 33 and a required relationship.",
+            "actual": "No revealed repeat surname/given-name fields (max 33 each) and a required relationship.",
+            "comparison": "match",
+            "officialVerified": false,
+            "relationshipOptionsObserved": [
+              "P",
+              "S",
+              "C",
+              "R",
+              "F",
+              "B",
+              "O"
+            ]
+          }
+        }
+      ],
+      "fieldFindings": [
+        {
+          "fieldName": "companion_group_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Blank Next identifies the required group name when group travel is Yes.",
+          "actual": "Blank Next identified the group name as required.",
+          "comparison": "match",
+          "officialVerified": false,
+          "maxLength": 75
+        },
+        {
+          "fieldName": "companion_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Group No repeat surname has maximum length 33 and is required.",
+          "actual": "The repeat surname control exposed max length 33 and was required in the blank Next check.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "companion_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Group No repeat given names has maximum length 33 and is required.",
+          "actual": "The repeat given-names control exposed max length 33 and was required in the blank Next check.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "companion_relationship",
+          "findingStatus": "proven_live_finding",
+          "expected": "The companion SPOUSE relationship follows the companion branch independently of the applicant marital-status branch.",
+          "actual": "A controlled single-status applicant with a companion SPOUSE relationship advanced successfully to Previous U.S. Travel; this rule was not generalized to U.S. contact or immediate-relative relationships.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "travel_companions",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second companion row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the live companion row count to 1.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "travel_companions_reload_and_server_validation",
+          "reason": "Live branch controls and Add/Remove were observed; reload persistence, all field limits, and server-side validation still require separate capture."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:travel-companions"
+      ]
+    },
+    {
+      "pageKey": "previous_us_travel",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_previousustravel.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "previous_visit_date_arrived",
+          "findingStatus": "proven_live_finding",
+          "expected": "Current seed says DD-MMM-YYYY, while the live CEAC control accepts year-only when month and day are unknown.",
+          "actual": "Year 2020 with blank month and day, less-than-24-hours stay unit, and otherwise valid synthetic controls advanced successfully.",
+          "comparison": "mismatch",
+          "officialVerified": false,
+          "precisionObserved": "year",
+          "observedOfficialMessage": "Date Arrived is invalid. Year is required.",
+          "seedContractComparison": "current_seed_full_date_is_narrower_than_live_year_only_observation"
+        },
+        {
+          "fieldName": "vwp_denial",
+          "findingStatus": "proven_live_finding",
+          "expected": "The ESTA denial question is visible for a qualifying primary nationality or an active qualifying other-nationality row, and is hidden for non-qualifying nationalities and permanent-residency-only rows.",
+          "actual": "All 211 primary-nationality codes were tested: 37 exposed rblVWP_DENIAL_IND and 174 did not. Primary CHIN plus other-nationality JPN exposed the control; primary CHIN with other-nationality No and permanent-resident JPN kept it hidden. Primary CHIN with other-nationalities CAN and JPN also exposed the control.",
+          "comparison": "match",
+          "officialVerified": false,
+          "observedControl": "rblVWP_DENIAL_IND",
+          "observedNationalityGate": "CEAC primary-nationality code",
+          "positiveCodeCount": 37,
+          "testedPrimaryNationalityCount": 211,
+          "additionalOtherNationalityGate": "primary CHIN + other_nationality_country__1 JPN + other_nationality_has_passport__1 No",
+          "permanentResidenceOnlyGate": "primary CHIN + other_nationality No + other_permanent_resident_country JPN remained hidden",
+          "officialQuestionObserved": "Have you ever been denied a U.S. Visa Waiver Program (ESTA) authorization?",
+          "followUp": "Recheck duplicate-country server validation and reload persistence for primary, other-nationality, and permanent-resident rows."
+        },
+        {
+          "fieldName": "us_drivers_license_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Driver-license number supports the official Do Not Know path and its live length limit.",
+          "actual": "The control exposed Do Not Know and a maximum length of 20.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "maxLength": 20
+        },
+        {
+          "fieldName": "visa_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Visa number supports the official Do Not Know path and matches the modeled length limit.",
+          "actual": "The control exposed Do Not Know and a maximum length of 12.",
+          "comparison": "mismatch",
+          "officialVerified": false,
+          "observedMaxLength": 12,
+          "followUp": "Reconcile the live 12-character limit with the current seed/mapping contract before claiming parity."
+        },
+        {
+          "fieldName": "year_visa_lost_or_stolen",
+          "findingStatus": "proven_live_finding",
+          "expected": "The lost/stolen visa year accepts four digits.",
+          "actual": "The live control exposed a maximum length of 4.",
+          "comparison": "match",
+          "officialVerified": false,
+          "maxLength": 4
+        },
+        {
+          "fieldName": "previous_travel_explanation_textareas",
+          "findingStatus": "proven_live_finding",
+          "expected": "Conditional explanation textareas expose their official length limits.",
+          "actual": "The four observed conditional explanation textareas exposed a maximum length of 4000.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "maxLength": 4000
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "vwp_denial",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals a required ESTA denial explanation textarea with a maximum length of 4000.",
+            "actual": "Yes revealed tbxVWP_DENIAL_EXPL with a maximum length of 4000. Leaving it empty blocked Next; the official page displayed a Visa Refusal wording error even though the visible control was the ESTA explanation. Filling TEST and continuing reached Address and Phone successfully.",
+            "comparison": "match",
+            "officialVerified": false,
+            "observedControl": "tbxVWP_DENIAL_EXPL",
+            "maxLength": 4000,
+            "observedRequired": true,
+            "observedOfficialValidationMessage": "The live error label referred to Visa Refusal while the visible required control was the ESTA explanation."
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the ESTA denial explanation.",
+            "actual": "No hid the ESTA denial explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_been_in_us",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals previous-visit, driver-license, and prior-visa controls.",
+            "actual": "Yes revealed the previous-visit, driver-license, and prior-visa sections; conditional requiredness was confirmed with blank Next checks.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides previous U.S. visit controls.",
+            "actual": "No hid the previous-visit controls and the page advanced when the remaining answers were valid.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_us_drivers_license",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals driver's-license number and state controls.",
+            "actual": "Yes revealed the driver's-license controls; conditional requiredness was confirmed.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides driver's-license controls.",
+            "actual": "No hid the driver's-license controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_us_visa",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals prior-visa details and downstream conditional questions.",
+            "actual": "Yes revealed prior-visa details and the downstream same-type, same-location, ten-printed, lost/stolen, cancelled/revoked, refusal, and immigrant-petition branches.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides prior-visa detail controls.",
+            "actual": "No hid the prior-visa detail controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "visa_lost_or_stolen",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals year and explanation controls.",
+            "actual": "Yes revealed the year and explanation controls; blank Next required both.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides year and explanation controls.",
+            "actual": "No hid the year and explanation controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "visa_cancelled_or_revoked",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the explanation control.",
+            "actual": "Yes revealed the explanation control; blank Next required it.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation control.",
+            "actual": "No hid the explanation control.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_been_refused",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals a required refusal explanation.",
+            "actual": "Yes revealed the refusal explanation; blank Next required it.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the refusal explanation.",
+            "actual": "No hid the refusal explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "immigrant_petition_filed",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals an immigrant-petition explanation.",
+            "actual": "Yes revealed the immigrant-petition explanation; blank Next required it.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the immigrant-petition explanation.",
+            "actual": "No hid the immigrant-petition explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "previous_visits",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add increases previous-visit rows up to the official maximum of five.",
+            "actual": "Add changed rows 1 to 2 to 3 to 4 to 5; a sixth click kept the count at 5.",
+            "comparison": "match",
+            "officialVerified": false,
+            "maxRowsObserved": 5
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes previous-visit rows without leaving stale rows.",
+            "actual": "Remove reduced the rows from 5 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "group": "drivers_licenses",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add supports at least six visible driver-license rows in the observed run; no unverified maximum is inferred.",
+            "actual": "Add exposed a sixth driver-license row (the sixth row was visible in the live DOM).",
+            "comparison": "match",
+            "officialVerified": false,
+            "maxRowsObserved": 6
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns driver-license rows to the prior count.",
+            "actual": "Remove changed the live driver-license row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "previous_us_travel_reload_and_server_validation",
+          "reason": "Live branches, limits, and repeat operations were observed; refresh persistence, all remaining field limits, and server-side validation still require separate capture."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:previous-us-travel"
+      ]
+    },
+    {
+      "pageKey": "address_and_phone",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_contact.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "branchFindings": [
+        {
+          "controller": "mailing_same_as_home",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes hides the separate mailing-address controls.",
+            "actual": "Yes hid the separate mailing-address controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No reveals the mailing-address controls.",
+            "actual": "No revealed the mailing-address controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_other_phones",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat additional-phone controls.",
+            "actual": "Yes revealed the additional-phone controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides additional-phone controls.",
+            "actual": "No hid additional-phone controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_other_emails",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat additional-email controls.",
+            "actual": "Yes revealed the additional-email controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides additional-email controls.",
+            "actual": "No hid additional-email controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_social_media",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals listed-social-platform and identifier controls.",
+            "actual": "Yes revealed the listed-social-platform and identifier controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides listed-social-platform and identifier controls.",
+            "actual": "No hid the listed-social-platform and identifier controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "has_other_social_media",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat other-website/application controls.",
+            "actual": "Yes revealed the other-website/application controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides other-website/application controls.",
+            "actual": "No hid the other-website/application controls.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "controller": "social_media_platform",
+          "positiveValue": "FCBK",
+          "negativeValue": "NONE",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "A listed platform such as FCBK enables and requires its identifier.",
+            "actual": "FCBK enabled and required the identifier.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "NONE disables the identifier while leaving the control visible.",
+            "actual": "NONE left the identifier visible but disabled it.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        }
+      ],
+      "fieldFindings": [
+        {
+          "fieldName": "address_and_phone_na_paths",
+          "findingStatus": "proven_live_finding",
+          "expected": "Home and mailing state/postal, secondary/work phone, and social NONE expose the official N/A or disabled paths.",
+          "actual": "Home/mailing state and postal, secondary/work phone, and social NONE exposed the observed N/A or disabled paths; valid synthetic values advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "contact_field_lengths",
+          "findingStatus": "proven_live_finding",
+          "expected": "The live controls expose the observed CEAC length limits.",
+          "actual": "Phone max 15; email max 50; additional email max 40; listed-social identifier max 50; other-platform and handle max 40; home/mailing street max 40, city max 20, state max 20, postal max 10.",
+          "comparison": "not_observed",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "contact_blank_next",
+          "findingStatus": "proven_live_finding",
+          "expected": "Visible required contact fields block Next, with N/A alternatives where CEAC provides them; street line 2 is optional.",
+          "actual": "Blank Next required all visible fields except street line 2, while the observed N/A alternatives satisfied their controls.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "additional_phones",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second additional-phone row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns additional-phone rows from 2 to 1.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "group": "additional_emails",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second additional-email row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns additional-email rows from 2 to 1.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "group": "social_media",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second listed-social row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns listed-social rows from 2 to 1.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        },
+        {
+          "group": "other_social_media",
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates a second other-website/application row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns other-website/application rows from 2 to 1.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          }
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "address_and_phone_platform_catalog_and_server_validation",
+          "reason": "The platform list was captured by the scope agent but is not duplicated here; full option catalog, reload persistence, and server-side validation still require separate manifest evidence."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:address-and-phone"
+      ]
+    },
+    {
+      "pageKey": "passport_information",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "passport_document_type",
+          "findingStatus": "partial_live_review",
+          "expected": "The document-type control exposes the observed R, O, D, L, and T choices.",
+          "actual": "R, O, D, L, and T were present in the live control; the R and T paths were exercised in this observation.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "followUp": "Exercise every visible document type and reconcile the option labels and server path."
+        },
+        {
+          "fieldName": "passport_document_type_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "The T/Other Travel Document path reveals a required explanation with a 4000-character maximum.",
+          "actual": "The T path revealed the required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Passport number is required and accepts at most 20 characters.",
+          "actual": "The live control was required and exposed a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_book_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "Passport book number accepts at most 20 characters and has an explicit N/A path.",
+          "actual": "The live control exposed a 20-character maximum; the explicit N/A path satisfied the blank control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_issuance_city",
+          "findingStatus": "proven_live_finding",
+          "expected": "Issuance city is required and accepts at most 25 characters.",
+          "actual": "The live control was required and exposed a 25-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_issuance_state",
+          "findingStatus": "proven_live_finding",
+          "expected": "Issuance state is optional, accepts at most 25 characters, and has no N/A checkbox.",
+          "actual": "The live state control exposed a 25-character maximum, was optional in the successful path, and had no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_issuance_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Issuance date requires a complete date.",
+          "actual": "The live issuance-date control required all date parts in the successful path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_has_expiry",
+          "findingStatus": "proven_live_finding",
+          "expected": "The expiry question controls whether the expiration date is required.",
+          "actual": "The live expiry question accepted the no-expiration path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "passport_expiration_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "A passport expiration date requires a complete date, unless the no-expiration path is selected.",
+          "actual": "The complete-date path and the explicit no-expiration path both reached the next page when the remaining controls were valid.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "lost_passport_number",
+          "findingStatus": "proven_live_finding",
+          "expected": "An active lost/stolen passport row requires a number of at most 20 characters, or an explicit unknown path.",
+          "actual": "The Yes branch exposed the required number control with a 20-character maximum; the unknown path was accepted in the controlled replay.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "lost_passport_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "An active lost/stolen passport row requires the issuing country.",
+          "actual": "The Yes branch exposed a required issuing-country control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "lost_passport_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "An active lost/stolen passport row requires an explanation of at most 4000 characters.",
+          "actual": "The Yes branch exposed the required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "lost_passport",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the lost/stolen passport number, country, and explanation controls.",
+            "actual": "Yes revealed number, country, and explanation; the number could be marked unknown.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the lost/stolen passport detail controls.",
+            "actual": "No hid the lost/stolen passport detail controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "passport_has_expiry",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes requires the complete expiration date.",
+            "actual": "Yes required the complete expiration date.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No accepts the explicit no-expiration path.",
+            "actual": "No accepted the no-expiration path.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "lost_passport",
+          "rowFieldKeys": [
+            "lost_passport_number",
+            "lost_passport_country",
+            "lost_passport_explain"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates the next live repeat row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes the added row and returns to the prior live row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "progressionFindings": [
+        {
+          "event": "next_to_us_contact",
+          "findingStatus": "proven_live_finding",
+          "expected": "A valid passport page can advance to U.S. Point of Contact.",
+          "actual": "Next advanced to U.S. Point of Contact with the controlled book-number N/A, no-expiration, lost-passport-unknown, and blank issuance-state paths.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "passport_document_type_full_option_replay",
+          "reason": "R/O/D/L/T document types were individually visible and exercised through their live paths; complete server validation, reload persistence, and stale-value clearing remain pending."
+        },
+        {
+          "key": "passport_lost_repeat_persistence",
+          "reason": "Lost-passport Add/Remove was observed; reload persistence and stale-value clearing were not separately replayed."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:passport-information"
+      ]
+    },
+    {
+      "pageKey": "us_point_of_contact",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_uscontact.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "us_contact_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Contact surname is required unless the shared contact-name unknown path is selected.",
+          "actual": "The live surname control was required when the shared unknown path was off and was bypassed by the shared unknown path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Contact given names are required unless the shared contact-name unknown path is selected.",
+          "actual": "The live given-names control was required when the shared unknown path was off and was bypassed by the shared unknown path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_organization",
+          "findingStatus": "proven_live_finding",
+          "expected": "Organization is required when used as the contact identity unless the organization unknown path is selected.",
+          "actual": "The live organization control was required in the organization path and could be marked unknown.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_relationship",
+          "findingStatus": "partial_live_review",
+          "expected": "The relationship control exposes the seven observed codes R, S, C, B, P, H, and O.",
+          "actual": "The live relationship control exposed R, S, C, B, P, H, and O.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "followUp": "Replay every relationship code through Next and verify address visibility and server validation."
+        },
+        {
+          "fieldName": "us_contact_address_street1",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, street line 1 is required and accepts at most 40 characters.",
+          "actual": "The active address path exposed required street line 1 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_address_street2",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, street line 2 is optional and accepts at most 40 characters.",
+          "actual": "The active address path exposed optional street line 2 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_city",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, city is required and accepts at most 20 characters.",
+          "actual": "The active address path exposed required city with a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_state",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, state is required.",
+          "actual": "The active address path exposed required state.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_zip",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, ZIP is optional and accepts at most 10 characters.",
+          "actual": "The active address path exposed optional ZIP with a 10-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_phone",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, phone is required and accepts at most 15 characters.",
+          "actual": "The active address path exposed required phone with a 15-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_contact_email",
+          "findingStatus": "proven_live_finding",
+          "expected": "When a relationship is selected, email is required and accepts at most 50 characters, with an explicit N/A path.",
+          "actual": "The active address path exposed required email with a 50-character maximum and an N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "us_contact_name_unknown",
+          "positiveValue": "checked",
+          "negativeValue": "unchecked",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "The shared unknown control applies to surname and given names together and clears organization unknown.",
+            "actual": "Checking the shared name unknown path applied it to surname and given names; organization unknown was cleared.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Clearing the shared unknown path restores the name inputs.",
+            "actual": "Clearing the shared name unknown path restored the name inputs in the controlled replay.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "us_contact_organization_unknown",
+          "positiveValue": "checked",
+          "negativeValue": "unchecked",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Organization unknown clears the shared name unknown path.",
+            "actual": "Checking organization unknown cleared both name unknown controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "The two unknown branches cannot be active together.",
+            "actual": "Both directions were exercised; the live page kept the branches mutually exclusive.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "us_contact_relationship",
+          "positiveValue": "empty",
+          "negativeValue": "O",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "An empty relationship hides the address controls; O reveals them.",
+            "actual": "The empty relationship hid address controls and O revealed them.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "A selected relationship other than O also reveals the address controls.",
+            "actual": "A selected non-empty relationship exposed the address controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "next_to_family_relatives",
+          "findingStatus": "proven_live_finding",
+          "expected": "A valid contact path can advance to Family Information: Relatives.",
+          "actual": "Next advanced with the shared name unknown path, a controlled organization fixture, address controls, and the email N/A path.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "us_contact_full_relationship_and_server_matrix",
+          "reason": "The seven relationship codes and mutual unknown behavior were observed, but every relationship's server-side requiredness, reload persistence, and stale-value clearing still need independent replay."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:us-point-of-contact"
+      ]
+    },
+    {
+      "pageKey": "family_relatives",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_family1.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "father_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Father surname is required or the official unknown path is selected; maximum length is 33.",
+          "actual": "The live father surname control was required, accepted the unknown path, and exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "father_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Father given names are required or the official unknown path is selected; maximum length is 33.",
+          "actual": "The live father given-names control was required, accepted the unknown path, and exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "father_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Father date of birth is shown when either parent-name field is known and accepts minimum year precision.",
+          "actual": "With one parent-name side known, the live father DOB remained visible and a year-only controlled value advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "mother_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Mother surname is required or the official unknown path is selected; maximum length is 33.",
+          "actual": "The live mother surname control was required, accepted the unknown path, and exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "mother_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Mother given names are required or the official unknown path is selected; maximum length is 33.",
+          "actual": "The live mother given-names control was required, accepted the unknown path, and exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "mother_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Mother date of birth is shown when either parent-name field is known and accepts minimum year precision.",
+          "actual": "With one parent-name side known, the live mother DOB remained visible and a year-only controlled value advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "father_in_us",
+          "findingStatus": "proven_live_finding",
+          "expected": "When the father DOB/name branch is active, the father-in-U.S. control is required; Yes reveals a four-choice status control and No hides it.",
+          "actual": "The live father-in-U.S. Yes path exposed status choices S, C, P, and O; No hid status.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "mother_in_us",
+          "findingStatus": "proven_live_finding",
+          "expected": "When the mother DOB/name branch is active, the mother-in-U.S. control is required; Yes reveals a four-choice status control and No hides it.",
+          "actual": "The live mother-in-U.S. Yes path exposed status choices S, C, P, and O; No hid status.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_relative_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Immediate U.S. relative surname is required in an active repeat row and accepts at most 33 characters.",
+          "actual": "The immediate-relative Yes path exposed the required repeat surname control with a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_relative_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Immediate U.S. relative given names are required in an active repeat row and accept at most 33 characters.",
+          "actual": "The immediate-relative Yes path exposed the required repeat given-names control with a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "us_relative_relationship",
+          "findingStatus": "proven_live_finding",
+          "expected": "On the immediate-relative repeat, SPOUSE is accepted only with Married or Legally Separated; the observed FIANCE branch is accepted across the tested marital statuses.",
+          "actual": "SPOUSE advanced with Married and Legally Separated and was rejected with Common Law, Civil Union, Widowed, Divorced, Single, and Other. FIANCE advanced with Married, Common Law, Legally Separated, Civil Union, Widowed, Divorced, and Single; Other was not re-tested.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        },
+        {
+          "fieldName": "us_relative_status",
+          "findingStatus": "partial_live_review",
+          "expected": "Immediate U.S. relative status exposes the four observed status choices.",
+          "actual": "The immediate-relative Yes path exposed the four observed status choices.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "followUp": "Replay each status code and server validation before claiming full option parity."
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "parent_name_unknowns",
+          "positiveValue": "both unknown",
+          "negativeValue": "one known",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "When both parent name pairs are unknown, DOB and in-U.S. status controls are hidden.",
+            "actual": "Both parent name unknown paths hid the corresponding DOB and in-U.S. controls for father and mother.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "When either parent name side is known, the corresponding DOB and in-U.S. controls remain visible.",
+            "actual": "With one parent-name side known, DOB and in-U.S. controls remained visible for both parent checks.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_immediate_us_relatives",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat surname, given names, relationship, and status controls.",
+            "actual": "Yes revealed the four immediate-relative repeat controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides immediate-relative controls and exposes the other-relatives question.",
+            "actual": "No hid immediate-relative controls and exposed the other-relatives Yes/No question.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "father_in_us",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the father status choices S, C, P, and O.",
+            "actual": "Yes revealed S, C, P, and O.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the father status control.",
+            "actual": "No hid the father status control.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "mother_in_us",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the mother status choices S, C, P, and O.",
+            "actual": "Yes revealed S, C, P, and O.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the mother status control.",
+            "actual": "No hid the mother status control.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "us_relatives",
+          "rowFieldKeys": [
+            "us_relative_surname",
+            "us_relative_given_names",
+            "us_relative_relationship",
+            "us_relative_status"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates the next live repeat row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes the added row and returns to the prior live row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "family_relatives_parent_requiredness_matrix",
+          "reason": "All four parent name-known/unknown combinations and the observed year-only/unknown DOB branches were live-tested; the complete parent status option matrix, reload persistence, and server validation remain pending."
+        },
+        {
+          "key": "family_relatives_relationship_server_replay",
+          "reason": "Immediate-relative SPOUSE/FIANCE cross-branch behavior was observed in the live DOM; independent reload, stale-value clearing, and server-side replay remain pending."
+        }
+      ],
+      "routingFindings": [
+        {
+          "controller": "marital_status",
+          "findingStatus": "proven_live_finding",
+          "expected": "M/C/L route to Spouse (Family 2); P routes to Partner (Family 2); W routes to Deceased Spouse (Family 5); D routes to Former Spouse (Family 4); S/O stay on Relatives and continue to Work without a spouse panel.",
+          "actual": "All eight observed marital routes were verified: M/C/L→Spouse, P→Partner, W→Deceased Spouse, D→Former Spouse, and S/O→Relatives then Work; the L route retained the same spouse controls as M/C.",
+          "comparison": "match",
+          "officialVerified": false,
+          "routeMap": {
+            "M": "complete_family2.aspx",
+            "C": "complete_family2.aspx",
+            "L": "complete_family2.aspx",
+            "P": "complete_family2.aspx",
+            "W": "complete_family5.aspx",
+            "D": "complete_family4.aspx",
+            "S": "work education",
+            "O": "work education"
+          },
+          "applicantValuesStored": false
+        },
+        {
+          "controller": "marital_status_other_explanation",
+          "findingStatus": "proven_live_finding",
+          "expected": "Marital status Other reveals an explanation with a 4000-character maximum.",
+          "actual": "Other revealed the 4000-character explanation control before continuing to Relatives.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:family-relatives"
+      ]
+    },
+    {
+      "pageKey": "family_spouse_partner",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_family2.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "spouse_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse surname is required in the active spouse branch and has a 33-character maximum without an N/A path.",
+          "actual": "The active spouse branch exposed a required 33-character surname control with no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse given names are required in the active spouse branch and have a 33-character maximum without an N/A path.",
+          "actual": "The active spouse branch exposed a required 33-character given-names control with no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse DOB accepts minimum year precision.",
+          "actual": "The spouse branch accepted a controlled year-only DOB.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_nationality",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse nationality is required.",
+          "actual": "The spouse branch exposed required nationality.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_city_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse city is required or can use the official unknown path, with a 20-character maximum.",
+          "actual": "The spouse branch exposed a required 20-character city control with an unknown path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_country_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Spouse country of birth is required.",
+          "actual": "The spouse branch exposed required country of birth.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner surname is required in the civil-union branch and has a 33-character maximum without an N/A path.",
+          "actual": "The civil-union branch exposed the same required 33-character surname control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner given names are required in the civil-union branch and have a 33-character maximum without an N/A path.",
+          "actual": "The civil-union branch exposed the same required 33-character given-names control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner DOB accepts minimum year precision.",
+          "actual": "The civil-union branch accepted a controlled year-only DOB with month and day blank.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_nationality",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner nationality is required.",
+          "actual": "The civil-union branch exposed required nationality.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_city_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner city is required or can use the official unknown path, with a 20-character maximum.",
+          "actual": "The civil-union branch accepted the city unknown path and exposed a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "partner_country_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Partner country of birth is required.",
+          "actual": "The civil-union branch exposed required country of birth.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "spouse_partner_address_controls",
+          "findingStatus": "partial_live_review",
+          "expected": "H, M, U, and D address choices add no extra controls; O requires street, city, state, ZIP, and country, with state and postal N/A paths.",
+          "actual": "The live spouse and partner branches accepted H/M/U/D without extra controls; O exposed the address controls with 40/40/20/20/10 limits, state and postal N/A, and required country.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "followUp": "Replay every address code with server validation for both spouse and partner branches."
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "marital_status",
+          "positiveValue": "married/common_law",
+          "negativeValue": "civil_union",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Married and Common Law use the spouse field set.",
+            "actual": "Married and Common Law opened the spouse controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Civil Union uses the partner field set.",
+            "actual": "Civil Union opened the partner controls with the same visible field shape and CEAC IDs.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "spouse_address_type",
+          "positiveValue": "H/M/U/D",
+          "negativeValue": "O",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "H, M, U, and D hide extra address inputs.",
+            "actual": "H, M, U, and D accepted Next without extra address inputs.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "O reveals the full spouse address controls.",
+            "actual": "O revealed the full spouse address controls and the observed N/A paths.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "partner_address_type",
+          "positiveValue": "H/M/U/D",
+          "negativeValue": "O",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "H, M, U, and D hide extra address inputs.",
+            "actual": "H, M, U, and D accepted Next without extra address inputs.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "O reveals the full partner address controls.",
+            "actual": "O revealed the full partner address controls and the observed N/A paths.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "partner_year_only_replay",
+          "findingStatus": "proven_live_finding",
+          "expected": "A civil-union partner with year-only DOB, unknown city, and other-address state/postal N/A can advance when the remaining controls are valid.",
+          "actual": "The controlled partner path advanced with year-only DOB, city unknown, and state/postal N/A.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "family_spouse_partner_full_address_code_matrix",
+          "reason": "The shared spouse/partner field shape and observed address paths were captured, but every marital and address code, server validation, and reload persistence remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:family-spouse-partner"
+      ]
+    },
+    {
+      "pageKey": "family_deceased_spouse",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_family5.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "deceased_spouse_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires deceased spouse surname with a 33-character maximum.",
+          "actual": "Blank Next identified deceased spouse surname as required and the live control exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "deceased_spouse_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires deceased spouse given names with a 33-character maximum.",
+          "actual": "Blank Next identified deceased spouse given names as required and the live control exposed a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "deceased_spouse_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires DOB and accepts minimum year precision.",
+          "actual": "Blank Next identified DOB as required; a controlled year-only DOB advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "deceased_spouse_nationality",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires nationality.",
+          "actual": "Blank Next identified nationality as required.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "deceased_spouse_city_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires city or the official unknown path, with a 20-character maximum.",
+          "actual": "Blank Next identified city as required; the unknown city path was accepted and the live control exposed a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "deceased_spouse_country_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Widowed branch requires country of birth.",
+          "actual": "Blank Next identified country of birth as required.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "marital_status",
+          "positiveValue": "widowed",
+          "negativeValue": "other marital status",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Widowed reveals the six deceased-spouse controls and no address controls.",
+            "actual": "Widowed revealed exactly six required controls and no address section.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Other marital statuses do not reveal deceased-spouse controls.",
+            "actual": "The non-widowed path did not show deceased-spouse controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "widowed_next",
+          "findingStatus": "proven_live_finding",
+          "expected": "All six deceased-spouse controls block blank Next; valid values including year-only DOB and unknown city allow Next.",
+          "actual": "Blank Next returned six errors; a controlled year-only DOB plus unknown city and valid remaining controls advanced.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "deceased_spouse_non_widowed_replay",
+          "reason": "Widowed positive behavior was observed; every non-widowed marital branch and server-side error path remains pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:family-deceased-spouse"
+      ]
+    },
+    {
+      "pageKey": "family_former_spouse",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_family4.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "number_of_former_spouses",
+          "findingStatus": "proven_live_finding",
+          "expected": "Divorce requires the number of former spouses and accepts at most two digits.",
+          "actual": "The Divorce branch exposed the required count control with a two-digit maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each former-spouse row requires surname with a 33-character maximum and no N/A path.",
+          "actual": "The live row exposed required surname with a 33-character maximum and no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each former-spouse row requires given names with a 33-character maximum and no N/A path.",
+          "actual": "The live row exposed required given names with a 33-character maximum and no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_date_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Former-spouse DOB accepts minimum year precision.",
+          "actual": "A controlled year-only former-spouse DOB was accepted.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_nationality",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each former-spouse row requires nationality.",
+          "actual": "The live row exposed required nationality.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_city_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Former-spouse city is required or can use the official unknown path, with a 20-character maximum.",
+          "actual": "The live row exposed a required 20-character city control and accepted the unknown path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_country_of_birth",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each former-spouse row requires country of birth.",
+          "actual": "The live row exposed required country of birth.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_date_of_marriage",
+          "findingStatus": "proven_live_finding",
+          "expected": "Former-spouse marriage start requires a complete date.",
+          "actual": "A year-only and month-year marriage date were rejected; a controlled complete date was accepted.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_date_marriage_ended",
+          "findingStatus": "proven_live_finding",
+          "expected": "Former-spouse marriage end requires a complete date.",
+          "actual": "A year-only and month-year marriage date were rejected; a controlled complete date was accepted.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_how_marriage_ended",
+          "findingStatus": "proven_live_finding",
+          "expected": "How the marriage ended is required and accepts at most 4000 characters.",
+          "actual": "The live row exposed required explanation with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "former_spouse_country_marriage_terminated",
+          "findingStatus": "proven_live_finding",
+          "expected": "Country where the marriage terminated is required.",
+          "actual": "The live row exposed required termination country.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "marital_status",
+          "positiveValue": "divorced",
+          "negativeValue": "other marital status",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Divorced routes to the Former Spouse page.",
+            "actual": "The D marital route opened complete_family4.aspx.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Non-divorced routes do not open the Former Spouse page.",
+            "actual": "The other tested marital routes opened their corresponding family page.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "former_spouses",
+          "rowFieldKeys": [
+            "former_spouse_surname",
+            "former_spouse_given_names",
+            "former_spouse_date_of_birth",
+            "former_spouse_nationality",
+            "former_spouse_city_of_birth",
+            "former_spouse_country_of_birth",
+            "former_spouse_date_of_marriage",
+            "former_spouse_date_marriage_ended",
+            "former_spouse_how_marriage_ended",
+            "former_spouse_country_marriage_terminated"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates rows only up to Number of Former Spouses.",
+            "actual": "With a declared count of 2, Add enabled the second row and then became disabled at row count 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes a row while more than one former-spouse row remains.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "progressionFindings": [
+        {
+          "event": "former_spouse_count_mismatch",
+          "findingStatus": "proven_live_finding",
+          "expected": "If the declared former-spouse count exceeds completed rows, Next blocks with a row-count error.",
+          "actual": "Declared count 2 with one completed row blocked Next with the official count-versus-row error.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        },
+        {
+          "event": "former_spouse_date_precision",
+          "findingStatus": "proven_live_finding",
+          "expected": "Former-spouse DOB may be year-only; marriage start and end require full dates.",
+          "actual": "Controlled DOB year-only was accepted; marriage year-only and month-year values were rejected; complete dates advanced with city unknown.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "former_spouse_full_repeat_and_server_matrix",
+          "reason": "Count-capped Add/Remove, count mismatch blocking, representative date precision, and required fields were observed; reload persistence and all server validation remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:family-former-spouse"
+      ]
+    },
+    {
+      "pageKey": "work_education_present",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_workeducation1.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "primary_occupation",
+          "findingStatus": "partial_live_review",
+          "expected": "The occupation control exposes 22 observed choices.",
+          "actual": "The live control exposed 22 choices; Student (S), Business (B), Other (O), Not Employed (N), Homemaker (H), and Retired (R/T) paths were exercised.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "followUp": "Replay all 22 choices and server validation."
+        },
+        {
+          "fieldName": "occupation_other_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "Other occupation requires an explanation of at most 4000 characters.",
+          "actual": "Other revealed the required 4000-character explanation control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "not_employed_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "Not Employed requires an explanation of at most 4000 characters.",
+          "actual": "Not Employed revealed the required 4000-character explanation control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer name is required, accepts at most 75 characters, and has no N/A path.",
+          "actual": "The active Student/Business employer branch exposed required name with a 75-character maximum and no N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_address_line1",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer street line 1 is required and accepts at most 40 characters.",
+          "actual": "The active employer branch exposed required line 1 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_address_line2",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer street line 2 is optional and accepts at most 40 characters.",
+          "actual": "The active employer branch exposed optional line 2 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_city",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer city is required and accepts at most 20 characters.",
+          "actual": "The active employer branch exposed required city with a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_state_province",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer state accepts at most 20 characters.",
+          "actual": "The active employer branch exposed a 20-character state control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_postal_code",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer postal code is required or can use N/A, with a 10-character maximum.",
+          "actual": "The active employer branch exposed required postal with a 10-character maximum and an N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer country is required.",
+          "actual": "The active employer branch exposed required country.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employer_phone",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employer phone is required and accepts at most 15 characters.",
+          "actual": "The active employer branch exposed required phone with a 15-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "employment_start_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active employment start date accepts minimum year precision.",
+          "actual": "A controlled year-only employment start date advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "monthly_salary",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active monthly salary is required or can use N/A, with a 15-character maximum.",
+          "actual": "The active employer branch accepted the explicit salary N/A path and exposed a 15-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "job_duties",
+          "findingStatus": "proven_live_finding",
+          "expected": "Active job duties are required and accept at most 4000 characters.",
+          "actual": "The active employer branch exposed required duties with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "primary_occupation",
+          "positiveValue": "S/B",
+          "negativeValue": "H/R/T",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Student and Business use the same employer control set.",
+            "actual": "Student and Business exposed the same employer controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Homemaker and Retired expose no employer detail controls.",
+            "actual": "Homemaker and Retired showed no employer detail controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "primary_occupation",
+          "positiveValue": "O",
+          "negativeValue": "N",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Other reveals required occupation explanation.",
+            "actual": "Other revealed the required explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Not Employed reveals only the required not-employed explanation.",
+            "actual": "Not Employed revealed only the required not-employed explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "missingEvidence": [
+        {
+          "key": "present_work_occupation_full_option_matrix",
+          "reason": "All 22 occupation options were individually exercised in the live DOM; complete option-source parity, reload persistence, and server validation remain pending."
+        }
+      ],
+      "resolvedFindings": [
+        {
+          "key": "present_work_job_title_and_additional_jobs",
+          "findingStatus": "resolved_live_finding",
+          "reason": "Current live review established that separate Current Job Title and additional-jobs controls are not present in the observed Present Work/Education page; the prior pending item was a stale seed/UI assumption."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:work-present"
+      ]
+    },
+    {
+      "pageKey": "work_education_previous",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_workeducation2.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "prev_employer_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "An active previous-employer row requires a name of at most 75 characters.",
+          "actual": "The Yes branch exposed required previous-employer name with a 75-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_address_street1",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer street line 1 is required and accepts at most 40 characters.",
+          "actual": "The Yes branch exposed required line 1 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_address_street2",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer street line 2 is optional and accepts at most 40 characters.",
+          "actual": "The Yes branch exposed optional line 2 with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_city",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer city is required and accepts at most 20 characters.",
+          "actual": "The Yes branch exposed required city with a 20-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_state",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer state accepts at most 20 characters.",
+          "actual": "The Yes branch exposed a 20-character state control.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_postal",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer postal is required or N/A and accepts at most 10 characters.",
+          "actual": "The Yes branch exposed required postal with a 10-character maximum and an N/A path.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employer_phone",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous-employer phone is required and accepts at most 15 characters.",
+          "actual": "The Yes branch exposed required phone with a 15-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_job_title",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous job title is required and accepts at most 75 characters.",
+          "actual": "The Yes branch exposed required job title with a 75-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_supervisor_surname",
+          "findingStatus": "proven_live_finding",
+          "expected": "Supervisor surname is required or can use unknown, with a 33-character maximum.",
+          "actual": "The Yes branch exposed required supervisor surname with unknown and a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_supervisor_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Supervisor given names are required or can use unknown, with a 33-character maximum.",
+          "actual": "The Yes branch exposed required supervisor given names with unknown and a 33-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employment_start_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous employment start date accepts minimum year precision.",
+          "actual": "A controlled year-only start date advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_employment_end_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous employment end date accepts minimum year precision.",
+          "actual": "A controlled year-only end date advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "prev_job_duties",
+          "findingStatus": "proven_live_finding",
+          "expected": "Previous job duties are required and accept at most 4000 characters.",
+          "actual": "The Yes branch exposed required duties with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "education_institution_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Education institution name is required and accepts at most 75 characters.",
+          "actual": "The education Yes branch exposed required institution name with a 75-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "education_course_of_study",
+          "findingStatus": "proven_live_finding",
+          "expected": "Education course of study is required and accepts at most 66 characters.",
+          "actual": "The education Yes branch exposed required course with a 66-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "education_start_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Education start date accepts minimum month precision.",
+          "actual": "A controlled YYYY-MM start date with day blank advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "education_end_date",
+          "findingStatus": "proven_live_finding",
+          "expected": "Education end date accepts minimum month precision.",
+          "actual": "A controlled YYYY-MM end date with day blank advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "has_previous_employer",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the previous-employer repeat row.",
+            "actual": "Yes revealed the previous-employer controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides previous-employer controls.",
+            "actual": "No hid previous-employer controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_attended_education",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the education repeat row.",
+            "actual": "Yes revealed the education controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides education controls.",
+            "actual": "No hid education controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "previous_employers",
+          "rowFieldKeys": [
+            "prev_employer_name",
+            "prev_employer_address_street1",
+            "prev_employer_address_street2",
+            "prev_employer_city",
+            "prev_employer_state",
+            "prev_employer_postal",
+            "prev_employer_country",
+            "prev_employer_phone",
+            "prev_job_title",
+            "prev_supervisor_surname",
+            "prev_supervisor_given_names",
+            "prev_employment_start_date",
+            "prev_employment_end_date",
+            "prev_job_duties"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates the next live repeat row.",
+            "actual": "Add created row 2; a third Add did not exceed the live cap of 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes the added row and returns to the prior live row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "education",
+          "rowFieldKeys": [
+            "education_institution_name",
+            "education_address_line1",
+            "education_address_line2",
+            "education_city",
+            "education_state_province",
+            "education_postal_code",
+            "education_country",
+            "education_course_of_study",
+            "education_start_date",
+            "education_end_date"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates the next live repeat row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes the added row and returns to the prior live row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "previous_work_education_server_matrix",
+          "reason": "Representative requiredness, N/A, unknown, date precision, and repeat-cap behavior were observed; reload persistence and complete server validation remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:work-previous"
+      ]
+    },
+    {
+      "pageKey": "work_education_additional",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_workeducation3.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "clan_tribe_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes reveals a required clan/tribe name with an 80-character maximum.",
+          "actual": "Yes revealed the required clan/tribe name control with an 80-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "language_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "At least one language name is always required, with a 66-character maximum.",
+          "actual": "The live page always exposed a required language row with a 66-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "traveled_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes reveals required repeat country rows for travel in the last five years.",
+          "actual": "Yes revealed required repeat country controls.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "organization_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes reveals required repeat organization names with a 66-character maximum.",
+          "actual": "Yes revealed required repeat organization controls with a 66-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "specialized_skills_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "Yes reveals a required explanation with a 4000-character maximum.",
+          "actual": "Yes revealed the required specialized-skills explanation with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_country",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military Yes requires country; military dates accept minimum month precision.",
+          "actual": "Military Yes exposed required country and the controlled YYYY-MM date paths accepted blank days.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_branch",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military branch is required and accepts at most 40 characters.",
+          "actual": "Military Yes exposed required branch with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_rank",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military rank is required and accepts at most 40 characters.",
+          "actual": "Military Yes exposed required rank with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_specialty",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military specialty is required and accepts at most 40 characters.",
+          "actual": "Military Yes exposed required specialty with a 40-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_date_from",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military service start accepts minimum month precision.",
+          "actual": "A controlled YYYY-MM start date with blank day advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "military_date_to",
+          "findingStatus": "proven_live_finding",
+          "expected": "Military service end accepts minimum month precision.",
+          "actual": "A controlled YYYY-MM end date with blank day advanced successfully.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "paramilitary_explain",
+          "findingStatus": "proven_live_finding",
+          "expected": "Paramilitary Yes reveals a required explanation with a 4000-character maximum.",
+          "actual": "Yes revealed the required paramilitary explanation with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "has_clan_tribe",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals clan/tribe name; No hides it.",
+            "actual": "Yes revealed clan/tribe name.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides clan/tribe name.",
+            "actual": "No hid clan/tribe name.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_traveled_last_five_years",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat visited-country rows; No hides them.",
+            "actual": "Yes revealed visited-country rows.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides visited-country rows.",
+            "actual": "No hid visited-country rows.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_belonged_to_organization",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals repeat organization rows; No hides them.",
+            "actual": "Yes revealed organization rows.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides organization rows.",
+            "actual": "No hid organization rows.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_specialized_skills",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the specialized-skills explanation; No hides it.",
+            "actual": "Yes revealed the explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation.",
+            "actual": "No hid the explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_served_paramilitary",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the paramilitary explanation; No hides it.",
+            "actual": "Yes revealed the explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation.",
+            "actual": "No hid the explanation.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "controller": "has_served_military",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals military service controls.",
+            "actual": "Yes revealed military country, branch, rank, specialty, and date controls.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "partial_live_review",
+            "expected": "No hides military service controls.",
+            "actual": "The later additional-military-no observation captured the military No path with the military detail controls hidden.",
+            "comparison": "match",
+            "officialVerified": false,
+            "previousObservation": {
+              "findingStatus": "partial_live_review",
+              "expected": "No hides military service controls.",
+              "actual": "The No path was not included in the current fact bundle.",
+              "comparison": "not_observed",
+              "officialVerified": false
+            },
+            "observationState": "additional-military-no",
+            "rawEvidenceArtifact": "ds160-live-browser-raw-evidence-2026-09-21.json"
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [
+        {
+          "group": "languages",
+          "rowFieldKeys": [
+            "language_name"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add supports at least 51 visible language rows in the observed run; no unverified maximum is inferred.",
+            "actual": "Add exposed 51 visible language rows in the live DOM.",
+            "comparison": "match",
+            "officialVerified": false,
+            "maxRowsObserved": 51
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the repeat group to the prior row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "traveled_countries",
+          "rowFieldKeys": [
+            "traveled_country"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add supports at least 21 visible visited-country rows in the observed run; no unverified maximum is inferred.",
+            "actual": "Add exposed 21 visible visited-country rows in the live DOM.",
+            "comparison": "match",
+            "officialVerified": false,
+            "maxRowsObserved": 21
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the repeat group to the prior row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "organizations",
+          "rowFieldKeys": [
+            "organization_name"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add creates the next live repeat row.",
+            "actual": "Add changed the live row count from 1 to 2.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove deletes the added row and returns to the prior live row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        },
+        {
+          "group": "military_service",
+          "rowFieldKeys": [
+            "military_country",
+            "military_branch",
+            "military_rank",
+            "military_specialty",
+            "military_date_from",
+            "military_date_to"
+          ],
+          "rowAdded": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Add supports at least 6 visible military rows in the observed run; no unverified maximum is inferred.",
+            "actual": "Add exposed 6 visible military rows in the live DOM.",
+            "comparison": "match",
+            "officialVerified": false,
+            "maxRowsObserved": 6
+          },
+          "rowDeleted": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Remove returns the repeat group to the prior row count.",
+            "actual": "Remove changed the live row count from 2 to 1.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "progressionFindings": [
+        {
+          "event": "next_to_security_part_1",
+          "findingStatus": "proven_live_finding",
+          "expected": "Valid additional work answers can advance to Security and Background Part 1.",
+          "actual": "The page advanced with the controlled military YYYY-MM date paths and the remaining negative/valid controls.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "additional_work_military_negative_branch",
+          "reason": "Military Yes and its date/length behavior were observed; the military No branch and complete option/server matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:work-additional"
+      ]
+    },
+    {
+      "pageKey": "security_background_1",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "security_background_1_question_controls",
+          "findingStatus": "proven_live_finding",
+          "expected": "Security and Background Part 1 exposes 3 required Yes/No questions.",
+          "actual": "The live page exposed 3 required Yes/No question controls: has_communicable_disease, has_physical_mental_disorder, is_drug_abuser.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_background_1_yes_explanations",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each Yes branch reveals a required explanation with a 4000-character maximum.",
+          "actual": "Every tested Yes branch on Part 1 revealed a required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_question_label_parity",
+          "findingStatus": "proven_live_finding",
+          "expected": "All current CEAC Security and Background question labels match their corresponding seeded labels after whitespace normalization.",
+          "actual": "The current CEAC controls were captured across this page as part of the 27-question, five-page comparison; all 27 labels matched the seed labels.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "security_background_1_answers",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the matching required explanation controls.",
+            "actual": "Yes revealed the required explanation controls for the 3 questions.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation controls and permits Next when the remaining answers are valid.",
+            "actual": "No hid all explanation controls; Next accepted the page with all 3 answers set to No.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [],
+      "questionCount": 3,
+      "questionFieldNames": [
+        "has_communicable_disease",
+        "has_physical_mental_disorder",
+        "is_drug_abuser"
+      ],
+      "missingEvidence": [
+        {
+          "key": "security_background_1_full_question_wording_and_server_matrix",
+          "reason": "The 27 current CEAC question labels, five page counts, Yes explanation requiredness, and No hiding were observed; server-side validation, reload persistence, and the full option matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:security-background-1"
+      ]
+    },
+    {
+      "pageKey": "security_background_2",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "security_background_2_question_controls",
+          "findingStatus": "proven_live_finding",
+          "expected": "Security and Background Part 2 exposes 7 required Yes/No questions.",
+          "actual": "The live page exposed 7 required Yes/No question controls: has_arrest_conviction, has_violated_controlled_substance, has_prostitution, has_money_laundering, has_human_trafficking, has_aided_human_trafficking, has_trafficking_beneficiary.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_background_2_yes_explanations",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each Yes branch reveals a required explanation with a 4000-character maximum.",
+          "actual": "Every tested Yes branch on Part 2 revealed a required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_question_label_parity",
+          "findingStatus": "proven_live_finding",
+          "expected": "All current CEAC Security and Background question labels match their corresponding seeded labels after whitespace normalization.",
+          "actual": "The current CEAC controls were captured across this page as part of the 27-question, five-page comparison; all 27 labels matched the seed labels.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "security_background_2_answers",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the matching required explanation controls.",
+            "actual": "Yes revealed the required explanation controls for the 7 questions.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation controls and permits Next when the remaining answers are valid.",
+            "actual": "No hid all explanation controls; Next accepted the page with all 7 answers set to No.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [],
+      "questionCount": 7,
+      "questionFieldNames": [
+        "has_arrest_conviction",
+        "has_violated_controlled_substance",
+        "has_prostitution",
+        "has_money_laundering",
+        "has_human_trafficking",
+        "has_aided_human_trafficking",
+        "has_trafficking_beneficiary"
+      ],
+      "missingEvidence": [
+        {
+          "key": "security_background_2_full_question_wording_and_server_matrix",
+          "reason": "The 27 current CEAC question labels, five page counts, Yes explanation requiredness, and No hiding were observed; server-side validation, reload persistence, and the full option matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:security-background-2"
+      ]
+    },
+    {
+      "pageKey": "security_background_3",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "security_background_3_question_controls",
+          "findingStatus": "proven_live_finding",
+          "expected": "Security and Background Part 3 exposes 12 required Yes/No questions.",
+          "actual": "The live page exposed 12 required Yes/No question controls: intend_illegal_activity, intend_terrorist_activity, has_provided_terrorist_support, is_terrorist_member, is_terrorist_family, has_genocide, has_torture, has_extrajudicial_killings, has_child_soldier, has_religious_freedom_violation, has_population_control, has_coercive_transplant.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_background_3_yes_explanations",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each Yes branch reveals a required explanation with a 4000-character maximum.",
+          "actual": "Every tested Yes branch on Part 3 revealed a required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_question_label_parity",
+          "findingStatus": "proven_live_finding",
+          "expected": "All current CEAC Security and Background question labels match their corresponding seeded labels after whitespace normalization.",
+          "actual": "The current CEAC controls were captured across this page as part of the 27-question, five-page comparison; all 27 labels matched the seed labels.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "security_background_3_answers",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the matching required explanation controls.",
+            "actual": "Yes revealed the required explanation controls for the 12 questions.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation controls and permits Next when the remaining answers are valid.",
+            "actual": "No hid all explanation controls; Next accepted the page with all 12 answers set to No.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [],
+      "questionCount": 12,
+      "questionFieldNames": [
+        "intend_illegal_activity",
+        "intend_terrorist_activity",
+        "has_provided_terrorist_support",
+        "is_terrorist_member",
+        "is_terrorist_family",
+        "has_genocide",
+        "has_torture",
+        "has_extrajudicial_killings",
+        "has_child_soldier",
+        "has_religious_freedom_violation",
+        "has_population_control",
+        "has_coercive_transplant"
+      ],
+      "missingEvidence": [
+        {
+          "key": "security_background_3_full_question_wording_and_server_matrix",
+          "reason": "The 27 current CEAC question labels, five page counts, Yes explanation requiredness, and No hiding were observed; server-side validation, reload persistence, and the full option matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:security-background-3"
+      ]
+    },
+    {
+      "pageKey": "security_background_4",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "security_background_4_question_controls",
+          "findingStatus": "proven_live_finding",
+          "expected": "Security and Background Part 4 exposes 2 required Yes/No questions.",
+          "actual": "The live page exposed 2 required Yes/No question controls: has_immigration_fraud, has_removal_order.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_background_4_yes_explanations",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each Yes branch reveals a required explanation with a 4000-character maximum.",
+          "actual": "Every tested Yes branch on Part 4 revealed a required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_question_label_parity",
+          "findingStatus": "proven_live_finding",
+          "expected": "All current CEAC Security and Background question labels match their corresponding seeded labels after whitespace normalization.",
+          "actual": "The current CEAC controls were captured across this page as part of the 27-question, five-page comparison; all 27 labels matched the seed labels.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "security_background_4_answers",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the matching required explanation controls.",
+            "actual": "Yes revealed the required explanation controls for the 2 questions.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation controls and permits Next when the remaining answers are valid.",
+            "actual": "No hid all explanation controls; Next accepted the page with all 2 answers set to No.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [],
+      "questionCount": 2,
+      "questionFieldNames": [
+        "has_immigration_fraud",
+        "has_removal_order"
+      ],
+      "missingEvidence": [
+        {
+          "key": "security_background_4_full_question_wording_and_server_matrix",
+          "reason": "The 27 current CEAC question labels, five page counts, Yes explanation requiredness, and No hiding were observed; server-side validation, reload persistence, and the full option matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:security-background-4"
+      ]
+    },
+    {
+      "pageKey": "security_background_5",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "security_background_5_question_controls",
+          "findingStatus": "proven_live_finding",
+          "expected": "Security and Background Part 5 exposes 3 required Yes/No questions.",
+          "actual": "The live page exposed 3 required Yes/No question controls: has_withheld_child_custody, has_voted_illegally, has_renounced_citizenship.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_background_5_yes_explanations",
+          "findingStatus": "proven_live_finding",
+          "expected": "Each Yes branch reveals a required explanation with a 4000-character maximum.",
+          "actual": "Every tested Yes branch on Part 5 revealed a required explanation control with a 4000-character maximum.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "security_question_label_parity",
+          "findingStatus": "proven_live_finding",
+          "expected": "All current CEAC Security and Background question labels match their corresponding seeded labels after whitespace normalization.",
+          "actual": "The current CEAC controls were captured across this page as part of the 27-question, five-page comparison; all 27 labels matched the seed labels.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "security_background_5_answers",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes reveals the matching required explanation controls.",
+            "actual": "Yes revealed the required explanation controls for the 3 questions.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the explanation controls and permits Next when the remaining answers are valid.",
+            "actual": "No hid all explanation controls; Next accepted the page with all 3 answers set to No.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "next_to_photo",
+          "findingStatus": "proven_live_finding",
+          "expected": "A valid Security and Background Part 5 advances to the photo step.",
+          "actual": "Next advanced from Part 5 to the photo step after the all-No controlled path.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        },
+        {
+          "event": "photo_negative_quality_and_continue_without_photo",
+          "findingStatus": "proven_live_finding",
+          "expected": "The photo upload page blocks missing/invalid photos and exposes the official continue-without-photo recovery path.",
+          "actual": "No-file Next requested a photo; a blank 600x600 white JPEG failed the quality check; Continue Without Photo reached photo confirmation and then Review. No valid applicant photo was uploaded.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "questionCount": 3,
+      "questionFieldNames": [
+        "has_withheld_child_custody",
+        "has_voted_illegally",
+        "has_renounced_citizenship"
+      ],
+      "missingEvidence": [
+        {
+          "key": "security_background_5_full_question_wording_and_server_matrix",
+          "reason": "The 27 current CEAC question labels, five page counts, Yes explanation requiredness, and No hiding were observed; server-side validation, reload persistence, and the full option matrix remain pending."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:security-background-5"
+      ]
+    },
+    {
+      "pageKey": "photo_upload",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/photo/photo_uploadthephoto.aspx?node=UploadPhoto",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "photo_file",
+          "findingStatus": "proven_live_finding",
+          "expected": "A missing photo blocks Next and requests an image.",
+          "actual": "Next with no file displayed the official photo-selection error.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "photo_quality",
+          "findingStatus": "proven_live_finding",
+          "expected": "An invalid-quality image is rejected before confirmation.",
+          "actual": "A blank 600x600 white JPEG failed the photo-quality validation.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "continue_without_photo",
+          "positiveValue": "continue",
+          "negativeValue": "upload_valid_photo",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Continue Without Photo reaches photo confirmation and can proceed to Review.",
+            "actual": "Continue Without Photo reached photo confirmation and then Review.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "partial_live_review",
+            "expected": "A valid applicant photo can be uploaded and accepted.",
+            "actual": "A valid applicant photo path was not tested.",
+            "comparison": "not_observed",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "continue_without_photo_to_review",
+          "findingStatus": "proven_live_finding",
+          "expected": "The controlled no-photo recovery path reaches Review while retaining the official warning for the interview.",
+          "actual": "Photo confirmation and Review were reached; no applicant photo was stored.",
+          "comparison": "match",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "photo_valid_upload_and_server_review",
+          "reason": "No valid applicant photo was uploaded; accepted-photo server validation, reload persistence, and final submission behavior remain untested."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:photo-flow"
+      ]
+    },
+    {
+      "pageKey": "esign_signature",
+      "sourceUrl": "https://ceac.state.gov/GenNIV/General/esign/signtheapplication.aspx?node=SignCertify",
+      "observedOn": "2026-09-21",
+      "pageReviewStatus": "partial_live_review",
+      "officialVerified": false,
+      "fieldFindings": [
+        {
+          "fieldName": "ds160_preparer_assistance",
+          "findingStatus": "proven_live_finding",
+          "expected": "Assistance Yes exposes the preparer controls and No hides them.",
+          "actual": "Assistance Yes exposed 11 preparer controls; No hid the 11 controls.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "ds160_preparer_surname_and_given_names",
+          "findingStatus": "proven_live_finding",
+          "expected": "Preparer surname and given names use two 33-character fields and a shared Name Does Not Apply branch.",
+          "actual": "The live page exposed two 33-character name fields with a shared Name Does Not Apply checkbox.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "ds160_preparer_organization_name",
+          "findingStatus": "proven_live_finding",
+          "expected": "Preparer organization uses a 33-character field and an Organization Does Not Apply branch.",
+          "actual": "The live page exposed a 33-character organization field and an Organization Does Not Apply checkbox.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "ds160_preparer_unknown_branch_exclusion",
+          "findingStatus": "proven_live_finding",
+          "expected": "Name Does Not Apply and Organization Does Not Apply are mutually exclusive and restore the opposite branch when undone.",
+          "actual": "Selecting Name Does Not Apply cleared Organization Does Not Apply; selecting Organization Does Not Apply cleared Name Does Not Apply and restored the name controls.",
+          "comparison": "match",
+          "officialVerified": false
+        },
+        {
+          "fieldName": "ds160_preparer_address_and_relationship",
+          "findingStatus": "proven_live_finding",
+          "expected": "Street 1/2 max 40, city/state max 20, postal max 10, country uses CEAC_GEOGRAPHY, relationship max 75; state and postal expose N/A.",
+          "actual": "The live controls exposed street 1/2 max 40, city/state max 20, postal max 10, country fingerprint ba2b437e=CEAC_GEOGRAPHY, relationship max 75, and N/A paths for state and postal.",
+          "comparison": "match",
+          "officialVerified": false
+        }
+      ],
+      "branchFindings": [
+        {
+          "controller": "ds160_preparer_assistance",
+          "positiveValue": "yes",
+          "negativeValue": "no",
+          "positive": {
+            "findingStatus": "proven_live_finding",
+            "expected": "Yes displays the preparer group.",
+            "actual": "Yes displayed the 11-field preparer group.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "negative": {
+            "findingStatus": "proven_live_finding",
+            "expected": "No hides the preparer group.",
+            "actual": "No hid the 11-field preparer group.",
+            "comparison": "match",
+            "officialVerified": false
+          },
+          "officialVerified": false
+        }
+      ],
+      "repeatFindings": [],
+      "progressionFindings": [
+        {
+          "event": "signature_not_clicked",
+          "findingStatus": "partial_live_review",
+          "expected": "Final signature and submission should be tested only with an authorized, complete applicant record.",
+          "actual": "The sign structure was reviewed without clicking the final signature or submission controls; final server validation and submission remain untested.",
+          "comparison": "not_observed",
+          "officialVerified": false,
+          "applicantValuesStored": false
+        }
+      ],
+      "missingEvidence": [
+        {
+          "key": "esign_final_signature_and_server_validation",
+          "reason": "The live e-Sign structure and preparer branches were reviewed, but no synthetic or applicant signature was clicked; final review, server validation, reload persistence, and submission remain untested."
+        }
+      ],
+      "rawParentFindingIds": [
+        "ceac-live-2026-09-21:esign-structure"
+      ]
+    }
+  ],
+  "missingEvidence": [
+    {
+      "key": "photo_valid_upload_success",
+      "description": "A valid CEAC photo upload and successful photo confirmation path were not captured; only no-file and invalid-quality recovery paths were observed.",
+      "status": "not_fully_verified"
+    },
+    {
+      "key": "esign_final_signature_server_validation",
+      "description": "The final e-Sign requiredness, signature interaction, server validation, and submit confirmation were not clicked or captured.",
+      "status": "not_fully_verified"
+    },
+    {
+      "key": "reload_and_stale_value_validation",
+      "description": "Cross-page save, refresh persistence, and stale conditional-value clearing need independent replay across the scoped B1/B2 branches.",
+      "status": "not_fully_verified"
+    }
+  ],
+  "securityQuestionLabelCapture": {
+    "sourceUrlPattern": "https://ceac.state.gov/GenNIV/General/complete/complete_securityandbackground{1..5}.aspx",
+    "observedOn": "2026-09-21",
+    "questionCount": 27,
+    "pages": 5,
+    "comparison": "27/27 current CEAC question labels matched the corresponding seed labels after whitespace normalization",
+    "officialVerified": false
+  },
+  "internalContractReadback": {
+    "observedOn": "2026-09-21",
+    "source": "Supabase database readback after migrations 0197-0202",
+    "fieldMetadataCompared": 337,
+    "metadataDifferences": 0,
+    "meaningfulOptionCodeDifferences": 0,
+    "migrationVersions": [
+      "20260921185118",
+      "20260921185319"
+    ],
+    "officialVerified": false,
+    "claimBoundary": "This is an internal database-to-seed contract check. It does not prove current CEAC DOM, server behavior, or applicant submission."
+  },
+  "rawEvidenceAddendum": {
+    "artifact": "ds160-live-browser-raw-evidence-2026-09-21.json",
+    "index": "ds160-live-evidence-index-2026-09-21.json",
+    "sha256": "6B96F82A14598A48E5DE208C425408183E6D34F8A93B4B74427EFA8E8758BBE4",
+    "controls": 832,
+    "observations": 365,
+    "claimBoundary": "Aggregate covers are trace links to current-live DOM/catalog findings. They do not prove independent server validation, reload/stale-value behavior, every option combination, final signature requiredness, or final submission.",
+    "htmlRequiredBoundary": "Control required values reflect the HTML attribute only. CEAC server validators must be verified separately; required:false does not establish that a field is optional."
+  },
+  "historicalMissingEvidence": [
+    {
+      "scope": "personal_information_1",
+      "key": "other_names_repeat_schema_mapping",
+      "reason": "The live Add/Remove control is observed; normalized repeat-contract reconciliation is pending, so this journal does not classify it as a seed gap."
+    },
+    {
+      "scope": "personal_information_2",
+      "key": "other_nationality_no_branch",
+      "reason": "The No-path was saved in the live replay; independent refresh/reload persistence and the complete server-side validation path still require capture."
+    },
+    {
+      "scope": "personal_information_2",
+      "key": "explicit_na_refresh_and_server_validation",
+      "reason": "Explicit N/A satisfied national ID, SSN, and taxpayer ID in this live run; persistence and server-side validation still require an independent replay."
+    },
+    {
+      "scope": "all_remaining_b1_b2_pages_and_controls",
+      "key": "full_b1_b2_official_scope_review",
+      "reason": "The journal now covers current-live controls across the scoped B1/B2 pages plus photo and e-Sign structure, but it does not prove every scoped field, option/conditional/repeat contract, server rule, reload/stale-value behavior, or final signature/submission."
+    },
+    {
+      "scope": "passport_information",
+      "key": "passport_full_option_and_reload_review",
+      "reason": "R/O/D/L/T document types and their live paths were individually observed; complete server validation, reload persistence, and stale-value clearing remain pending."
+    },
+    {
+      "scope": "us_point_of_contact",
+      "key": "us_contact_full_branch_review",
+      "reason": "All seven relationship codes, shared name/organization unknown mutual exclusion, and representative address controls were observed; server, reload, and stale-value review remain pending."
+    },
+    {
+      "scope": "family_information",
+      "key": "family_former_spouse_and_remaining_family_branches",
+      "reason": "Relatives, spouse/partner, deceased-spouse, and Divorce/former-spouse paths were observed; remaining family server, reload, stale-value, and untested option behavior remain pending."
+    },
+    {
+      "scope": "work_education_training",
+      "key": "work_full_option_and_server_review",
+      "reason": "All 22 present-occupation options and Present, Previous, and Additional work/education paths were observed; remaining server, reload, stale-value, and military-No evidence remain pending."
+    },
+    {
+      "scope": "security_and_background",
+      "key": "security_full_question_wording_and_server_review",
+      "reason": "All 27 current CEAC Security and Background question labels, five page counts, Yes/No explanation behavior, negative photo path, and e-Sign structure were observed; server validation, persistence, valid-photo success, and final signature remain pending."
+    },
+    {
+      "scope": "family_information",
+      "key": "marital_route_and_former_spouse_reconciliation",
+      "reason": "All eight marital routes and the Divorce/former-spouse repeat count behavior were observed; complete per-route server validation, reload persistence, and stale-value clearing remain pending."
+    }
+  ],
+  "historicalNotesBoundary": "Earlier page notes and pendingContractReviews retain the evidence available when written. Later raw observation references supersede only control-presence claims; they do not establish all server validation, reload behavior or final submission."
+}

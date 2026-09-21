@@ -168,18 +168,18 @@ describe("DynamicStepForm performance boundaries", () => {
   });
 
   it("resolves exact cross-field dates before aliases and refreshes the lookup after edits", () => {
-    const { container } = renderForm(
-      stepFor([
-        field({ fieldName: "passport_issue_date", fieldType: "date", validationRules: { allow_year_only: true } }),
-        field({ fieldName: "profile_passport_issue_date", fieldType: "date", validationRules: { allow_year_only: true } }),
-        field({ fieldName: "passport_expiry_date", fieldType: "date", validationRules: { allow_year_only: true } }),
-      ]),
-      {
-        passport_issue_date: "2024",
-        profile_passport_issue_date: "2026",
-        passport_expiry_date: "2025",
-      },
-    );
+    const step = stepFor([
+      field({ fieldName: "passport_issue_date", fieldType: "date", validationRules: { allow_year_only: true } }),
+      field({ fieldName: "profile_passport_issue_date", fieldType: "date", validationRules: { allow_year_only: true } }),
+      field({ fieldName: "passport_expiry_date", fieldType: "date", validationRules: { allow_year_only: true } }),
+    ]);
+    const prefill = {
+      passport_issue_date: "2024",
+      profile_passport_issue_date: "2026-01-01",
+      passport_expiry_date: "2025-01-01",
+    };
+    const view = renderForm(step, prefill);
+    const { container } = view;
 
     const expiry = () => container.querySelector('[data-field-name="passport_expiry_date"]');
     expect(expiry()).toHaveAttribute("data-field-warning", "false");
@@ -189,8 +189,16 @@ describe("DynamicStepForm performance boundaries", () => {
     expect(expiry()).toHaveAttribute("data-field-warning", "true");
 
     // A new values object must get a fresh index; the old alias result cannot
-    // remain cached after the edited field changes.
-    fireEvent.change(getControl(container, "profile_passport_issue_date"), { target: { value: "2024" } });
+    // remain cached after the edited prefill changes.
+    view.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{ ...prefill, profile_passport_issue_date: "2024-01-01" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
     expect(expiry()).toHaveAttribute("data-field-warning", "false");
   });
 
@@ -228,10 +236,10 @@ describe("DynamicStepForm performance boundaries", () => {
         field({ fieldName: "passport_expiry_date", fieldType: "date", validationRules: { ...repeatRules, allow_year_only: true } }),
       ]),
       {
-        profile_passport_issue_date: "2024",
-        profile_passport_issue_date__2: "2026",
-        passport_expiry_date: "2025",
-        passport_expiry_date__2: "2025",
+        profile_passport_issue_date: "2024-01-01",
+        profile_passport_issue_date__2: "2026-01-01",
+        passport_expiry_date: "2025-01-01",
+        passport_expiry_date__2: "2025-01-01",
       },
     );
 

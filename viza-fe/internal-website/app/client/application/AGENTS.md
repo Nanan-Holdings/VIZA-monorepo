@@ -34,6 +34,13 @@ Before changing this route, read:
 
 ## Key Files
 
+- DS-160 cross-section gates in `long-form/page.tsx` use a stable projection of
+  current draft nationality, repeated other nationalities, DOB, marital status,
+  travel-plan choice and stay units. Ordinary text edits keep sibling form props
+  stable. Derived UI refresh compares the previous draft, while persistence
+  compares saved answers: returning A→B→A must still refresh before autosave.
+  `long-form/__tests__/page-orchestration.test.tsx` exercises this distinction.
+
 - `long-form/use-content-alignment.ts` batches navigation alignment measurements
   into animation frames and skips unchanged geometry before dispatching React
   state. Portal DOM mutations must not trigger synchronous render loops.
