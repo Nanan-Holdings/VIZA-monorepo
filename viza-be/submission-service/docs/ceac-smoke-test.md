@@ -136,6 +136,23 @@
   control identity and a latched HTTP 403. Type checking passed again with the
   new tests. The same captured queue job was resumed with no final-fence rows
   or active conflicts; official submission remains pending that live result.
+- The resumed full run completed successfully at 2026-09-20 22:27:29 UTC.
+  Its fresh review passed 146/146, then the guarded signature flow reached
+  `Complete_Done_Confirmation.aspx?node=Done`. The application result is
+  `submitted` / `external_verified`, the original queue is `ds160_submitted`,
+  and the durable final-attempt state is `confirmed`. A two-page official
+  confirmation PDF was saved to private storage; visual inspection confirmed
+  its matching application barcode, applicant photo and Chinese submission
+  confirmation. No application-form PDF was returned, so none is claimed.
+  The production applicant page automatically replaced progress with Chinese
+  submitted status, the matching application ID and confirmation-file controls.
+  This used the guarded operator continuation of the original queue because
+  the frontend correctly blocks new-draft retries for an existing CEAC draft.
+  The completed local worker was stopped and its exact terminal lease cleared.
+  Clicking the production Print Confirmation control reported that the proof
+  file was ready and opened its download, without enqueuing additional work.
+  Both PDF pages were rendered and inspected; the first contains the official
+  confirmation and matching barcode, and the second contains CEAC instructions.
 
 ## 2026-09-19 contact organization length
 
