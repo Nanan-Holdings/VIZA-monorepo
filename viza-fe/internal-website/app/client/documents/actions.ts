@@ -38,6 +38,13 @@ import {
   type CreateSignedUrls,
 } from "./document-preview-urls";
 import { loadExistingDocumentPaths } from "./reusable-document-existence";
+import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  DS160_PHOTO_MAX_BYTES,
+  getDs160PhotoErrorMessage,
+  isDs160PhotoRequirement,
+  validateDs160PhotoBytes,
+} from "@/lib/ds160-photo-contract";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1884,6 +1891,7 @@ export async function reuseUniversalProfileDocument(input: {
   documentType: string;
   requirementKey: string;
   required: boolean;
+  locale?: string;
 }): Promise<DocumentMutationResult> {
   try {
     const contextResult = await getApplicantContext();
@@ -1920,6 +1928,35 @@ export async function reuseUniversalProfileDocument(input: {
     }
     if (!storageObjectExists) {
       return { ok: false, code: "not_found", error: "The saved profile file is no longer available" };
+    }
+
+    if (isDs160PhotoRequirement({
+      country: application.country,
+      visaType: application.visa_type,
+      documentType: input.documentType,
+      requirementKey: input.requirementKey,
+    })) {
+      const { data: photo, error: photoReadError } = await adminClient.storage
+        .from(APPLICATION_DOCUMENTS_BUCKET).download(reusableDocument.storage_path);
+      if (photoReadError || !photo) {
+        return {
+          ok: false,
+          code: "server_error",
+          error: isChineseLocale(input.locale ?? "en")
+            ? "无法读取已保存的照片，请重新上传。"
+            : "Unable to read the saved photo. Please upload it again.",
+        };
+      }
+      const photoError = photo.size > DS160_PHOTO_MAX_BYTES
+        ? "file_too_large"
+        : validateDs160PhotoBytes(new Uint8Array(await photo.arrayBuffer()));
+      if (photoError) {
+        return {
+          ok: false,
+          code: "invalid_request",
+          error: getDs160PhotoErrorMessage(photoError, isChineseLocale(input.locale ?? "en")),
+        };
+      }
     }
 
     return recordDocumentUpload({
@@ -2292,6 +2329,24 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
 
     const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    if (isDs160PhotoRequirement({
+      country: application.country,
+      visaType: application.visa_type,
+      documentType,
+      requirementKey,
+    })) {
+      const photoError = file.size > DS160_PHOTO_MAX_BYTES
+        ? "file_too_large"
+        : validateDs160PhotoBytes(new Uint8Array(await file.arrayBuffer()));
+      if (photoError) {
+        return {
+          ok: false,
+          code: "invalid_request",
+          error: getDs160PhotoErrorMessage(photoError, isChineseLocale(getFormDataString(formData, "locale") ?? "en")),
+        };
+      }
+    }
 
     const vietnamImageUploadError = await validateVietnamOfficialImageUpload({ application, documentType, file });
     if (vietnamImageUploadError) {

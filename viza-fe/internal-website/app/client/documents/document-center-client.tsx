@@ -42,6 +42,13 @@ import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
+import {
+  DS160_PHOTO_ACCEPT,
+  DS160_PHOTO_MAX_BYTES,
+  getDs160PhotoErrorMessage,
+  isDs160PhotoRequirement,
+  validateDs160PhotoBytes,
+} from "@/lib/ds160-photo-contract";
 import { runFaceMatch, type FaceMatchActionResult } from "@/app/actions/face-match";
 import type { FieldGuidanceChatMessage } from "@/types/field-guidance";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
@@ -288,7 +295,10 @@ function sanitizeFilename(name: string): string {
   return cleaned.length > 120 ? cleaned.slice(cleaned.length - 120) : cleaned;
 }
 
-function getRequirementAccept(requirement: DocumentRequirement): string {
+function getRequirementAccept(requirement: DocumentRequirement, country?: string | null, visaType?: string | null): string {
+  if (isDs160PhotoRequirement({ country, visaType, documentType: requirement.documentType, requirementKey: requirement.key })) {
+    return DS160_PHOTO_ACCEPT;
+  }
   if (isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) {
     return ".pdf,application/pdf";
   }
@@ -857,14 +867,16 @@ function RequirementRow({
           reason={hasRejectedDocument ? status.description : null}
           dropLabel={isZh ? "拖放文件到这里，或点击选择" : "Drop file or browse"}
           acceptHint={
-            isZh
+            isDs160PhotoRequirement({ country, visaType, documentType: requirement.documentType, requirementKey: requirement.key })
+              ? isZh ? "JPG/JPEG · 不超过 240 KB · 600–1200 像素的正方形彩色照片" : "JPG/JPEG · Up to 240 KB · Square color image, 600–1200 pixels"
+              : isZh
               ? "支持 PDF、JPG、PNG、WebP、DOC 和 DOCX"
               : "PDF, JPG, PNG, WebP, DOC or DOCX"
           }
           action={action}
           removeLabel={isZh ? "移除文件" : "Remove file"}
           onRemove={onRemove}
-          accept={getRequirementAccept(requirement)}
+          accept={getRequirementAccept(requirement, country, visaType)}
           disabled={busy}
           inputAriaLabel={
             document
@@ -1321,6 +1333,7 @@ export function DocumentCenterClient({
       uploadForm.set("required", String(requirement.required));
       uploadForm.set("source", source);
       uploadForm.set("file", file);
+      uploadForm.set("locale", locale);
       const result = await uploadApplicationDocumentFromClient(uploadForm);
       if (!result.ok) throw new Error(result.error);
 
@@ -1343,6 +1356,7 @@ export function DocumentCenterClient({
       documentType: requirement.documentType,
       requirementKey: requirement.key,
       required: requirement.required,
+      locale,
     });
     if (!result.ok) {
       setError(result.error || formatUploadError(new Error(result.error), isZh));
@@ -1372,6 +1386,25 @@ export function DocumentCenterClient({
   }
 
   async function handleFileChange(requirement: DocumentRequirement, file: File) {
+    if (isDs160PhotoRequirement({
+      country: selectedApplication?.country ?? country,
+      visaType: selectedApplication?.visaType ?? visaType,
+      documentType: requirement.documentType,
+      requirementKey: requirement.key,
+    })) {
+      try {
+        const photoError = file.size > DS160_PHOTO_MAX_BYTES
+          ? "file_too_large"
+          : validateDs160PhotoBytes(new Uint8Array(await file.arrayBuffer()));
+        if (photoError) {
+          setError(getDs160PhotoErrorMessage(photoError, isZh));
+          return;
+        }
+      } catch {
+        setError(isZh ? "无法读取照片，请重新选择 JPEG 文件。" : "Unable to read the photo. Please select the JPEG file again.");
+        return;
+      }
+    }
     if ((isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) && !isPdfFile(file)) {
       setError(isZh
         ? "印尼官网要求该材料仅接受 PDF 文件。"

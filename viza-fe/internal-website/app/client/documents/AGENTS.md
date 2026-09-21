@@ -19,6 +19,11 @@ application flow.
   interview supporting documents optional, so it cannot block the questionnaire
   on bank statements or booked travel. Explicit package requirements retain
   precedence; applicant answers and the runner still validate the official data.
+- U.S. DS-160 photo uploads and saved-file reuse share
+  `lib/ds160-photo-contract.ts`. Validate bytes before upload and before recording
+  a reused private file; use the owned application's country and visa type on
+  the server. Show the same constraints through canonical upload-field props.
+  Technical file checks must not mark a photo officially approved.
 - Persist uploads to Supabase Storage bucket `application-documents`.
 - Confirm passport OCR into reusable profile columns and confirm national
   identity-card OCR into `universal_profile_answers`; keep identity-card
@@ -51,6 +56,8 @@ application flow.
   per-load concurrency, missing objects, request isolation, and failure cleanup.
 - `__tests__/document-center-client.test.tsx`: embedded application-step layout
   coverage for the responsive document-card grids and direct file fields.
+- `__tests__/ds160-photo-actions.test.ts`: DS-160 photo upload/reuse byte
+  validation, Storage ordering, and application ownership boundaries.
 
 ## Data Sources
 

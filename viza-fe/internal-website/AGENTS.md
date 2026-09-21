@@ -1,5 +1,11 @@
 # Internal Website Agent Guide
 
+`lib/ds160-photo-contract.ts` shares the byte-level U.S. DS-160 photo checks
+between the actual document-center upload UI, server upload, and profile-file
+reuse: JPEG, at most 240 KiB, square 600–1200 pixels, 8-bit/three-component
+frame. These technical checks do not certify facial composition, color profile,
+compression quality, or official acceptance. Keep its adjacent regression tests.
+
 `lib/client/application-draft-cache.ts` stores only unacknowledged long-form
 answer patches in tab-local sessionStorage, isolated by application and profile.
 Preserve empty repeat-row tombstones and per-field revisions: a late save must
