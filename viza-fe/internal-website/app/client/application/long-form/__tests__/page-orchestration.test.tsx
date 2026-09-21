@@ -138,22 +138,26 @@ vi.mock("@/components/dynamic-step-form", () => {
   const DynamicStepForm = (props: Record<string, unknown>) => {
     testState.dynamicPropsHistory.push(props);
     const onDraftChange = props.onDraftChange as (data: Record<string, string>) => void;
+    const step = props.step as { stepNumber?: number };
+    const isFirstStep = step.stepNumber === 1;
     return (
       <>
         <button
           type="button"
-          data-testid="dynamic-edit"
-          onClick={() => onDraftChange({ first_name: "edited" })}
+          data-testid={isFirstStep ? "dynamic-edit" : `dynamic-edit-step-${step.stepNumber ?? "unknown"}`}
+          onClick={() => onDraftChange(isFirstStep ? { first_name: "edited" } : { alternate_details: "edited-second" })}
         >
           Edit
         </button>
-        <button
-          type="button"
-          data-testid="dynamic-branch-edit"
-          onClick={() => onDraftChange({ branch: "alternate" })}
-        >
-          Switch branch
-        </button>
+        {isFirstStep ? (
+          <button
+            type="button"
+            data-testid="dynamic-branch-edit"
+            onClick={() => onDraftChange({ branch: "alternate" })}
+          >
+            Switch branch
+          </button>
+        ) : null}
       </>
     );
   };
@@ -639,5 +643,44 @@ describe("long form page orchestration", () => {
     expect(testState.completionInputs.at(-1)?.answers).toMatchObject({
       branch: "alternate",
     });
+  });
+
+  it("flushes every dirty dynamic panel when navigation reads a stale current step", async () => {
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(testState.dynamicPropsHistory.length).toBeGreaterThan(0));
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+
+    // Keep the scroll observer from advancing currentStep while the second
+    // panel is edited. This models a click arriving before its async update.
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    window.requestAnimationFrame = vi.fn(() => 0) as unknown as typeof window.requestAnimationFrame;
+    try {
+      fireEvent.click(screen.getByTestId("dynamic-branch-edit"));
+      await waitFor(() => expect(screen.getByTestId("dynamic-edit-step-2")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("dynamic-edit-step-2"));
+
+      // Navigate to the newly visible panel before the stale currentStep can
+      // catch up. The old implementation only saved the first panel here.
+      fireEvent.click(screen.getAllByRole("button", { name: /Alternate details/ })[0]);
+
+      await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(0));
+      expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({
+        branch: "alternate",
+        alternate_details: "edited-second",
+      });
+
+      // The first click leaves the page's currentStep at the target. A later
+      // edit in the other panel must still flush when targetStepId ===
+      // currentStep; the old early return dropped this write entirely.
+      fireEvent.click(screen.getByTestId("dynamic-edit"));
+      fireEvent.click(screen.getAllByRole("button", { name: /Alternate details/ })[0]);
+      await waitFor(() => expect(testState.saveDynamicAnswersCalls.at(-1)?.answers).toMatchObject({
+        first_name: "edited",
+      }));
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
   });
 });

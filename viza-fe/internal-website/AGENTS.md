@@ -9,6 +9,12 @@ is the byte-identical mirror of backend `drizzle/0194_disable_payment_execution.
 It disables payment RPCs and financial triggers while preserving history.
 Production applied this migration on 2026-09-15 as version `20260915194928`.
 Both issuer-claim signatures are disabled; historical records remain intact.
+The frontend migration
+`supabase/migrations/20260921000000_ds160_preparer_fields.sql` is the
+byte-identical mirror of backend
+`drizzle/0196_ds160_preparer_fields.sql`. It upserts only the eleven
+`ds160_preparer_*` schema rows and preserves existing field IDs and applicant
+answers.
 
 `lib/submission-worker-wake.server.ts` centralizes authenticated Fly worker
 wake requests; its focused tests live under `lib/__tests__/`.
@@ -20,6 +26,19 @@ status reads, cancellation, and guarded settlement remain available. Keep the
 flag server-only, exact-value parsed, and default-off in `.env.example`.
 
 Scope: this file applies to `viza-fe/internal-website/**`.
+
+`lib/form-utils.ts` scopes repeated conditional answers within their own group
+through `getRepeatInstanceValues` and discovers partially filled rows through
+`getRepeatInstanceCount`. Use that same scope for rendering, required checks,
+assistant validation and final review. Outer branch controllers stay global;
+missing later-row answers must never fall back to the first row. Legacy `null`
+conditional operands mean an empty value, like `_empty`, rather than literal
+text; preserve the empty-platform social-media regression.
+
+`components/dynamic-step-form.tsx` keeps local canonical and bilingual edits
+authoritative during stale prefill updates. Removed repeat rows must retain
+empty canonical/`_zh`/`_en` tombstones in every replacement draft until a row
+is restored; one-shot deletion patches are insufficient for page-level saves.
 
 `lib/date-field-validation.ts` owns schema-aware date sentinel validation for
 dynamic form inputs, progress, assistant validation and review. `DO_NOT_KNOW`

@@ -730,6 +730,13 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   has_other_nationalities: "是否持有或曾持有其他国籍？",
   has_multiple_nationalities: "是否还拥有或曾拥有其他国籍？",
   other_nationality: "其他国籍",
+  // DS-160's repeatable other-nationality rows can arrive with a stale
+  // parent-question label from the database. Resolve each child by its
+  // canonical field name before considering row metadata so the country,
+  // passport branch, and passport number keep their distinct meanings.
+  other_nationality_country: "其他国籍的国家/地区",
+  other_nationality_has_passport: "是否持有该国籍的护照？",
+  other_nationality_passport_number: "护照号码",
   has_violated_vietnam_laws: "是否曾违反越南法律或法规？",
   sex: "性别",
   gender: "性别",
@@ -1572,6 +1579,22 @@ function deriveChineseFromLabel(field: FieldLike): string | null {
 }
 
 export function deriveChineseFieldLabel(field: FieldLike): string {
+  const normalizedFieldName = normalizeFieldName(field.fieldName);
+  const direct = FIELD_NAME_ZH_OVERRIDES[normalizedFieldName];
+
+  // A repeated DS-160 child can inherit the parent nationality question as
+  // its stale English label. Resolve these three child fields by name before
+  // exact-question lookup so that the parent wording cannot swallow them.
+  if (
+    field.visaType === "DS160"
+    && (normalizedFieldName === "other_nationality_country"
+      || normalizedFieldName === "other_nationality_has_passport"
+      || normalizedFieldName === "other_nationality_passport_number")
+    && direct
+  ) {
+    return direct;
+  }
+
   // Official questions must retain their full meaning even if an earlier
   // normalization cached a vague generated label in validationRules.
   const officialQuestion = clean(field.label);
@@ -1579,8 +1602,6 @@ export function deriveChineseFieldLabel(field: FieldLike): string {
     const exactQuestion = getExactDs160ChineseLabel(officialQuestion);
     if (exactQuestion) return stripDs160EnglishParenthetical(exactQuestion);
   }
-  const normalizedFieldName = normalizeFieldName(field.fieldName);
-  const direct = FIELD_NAME_ZH_OVERRIDES[normalizedFieldName];
   const taiwanDirect = TW_FIELD_NAME_ZH[normalizedFieldName] ?? direct;
   if (field.visaType === "TW_ENTRY_PERMIT" && taiwanDirect) return taiwanDirect;
 

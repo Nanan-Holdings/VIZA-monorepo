@@ -373,6 +373,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - `docs/ds160-field-parity-2026-09-14.md`: reproducible DS-160 branch/repeater
   gap inventory. Keep its internal-contract status separate from historical
   submitted records and live CEAC verification evidence.
+- `docs/ds160-field-parity-2026-09-21.md`: no-PII audit separating the 336-row
+  internal seed, 325-row production snapshot, internal branch matrix, the
+  eleven preparer-schema migration rows, and the historical 146/146 review
+  comparison. It explicitly keeps official full parity unverified.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
   coverage/verification utilities.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill and live-assisted

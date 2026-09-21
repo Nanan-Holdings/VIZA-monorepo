@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
+  mergeUniversalProfileIntoAnswers,
   normalizeUniversalProfilePatchForSchema,
 } from "@/lib/universal-profile-prefill";
 import type { VisaFormFieldOption, VisaFormFieldRow } from "@/types/visa-form-fields";
@@ -172,6 +173,44 @@ describe("universal profile prefill", () => {
     });
 
     expect(patch).toEqual({});
+  });
+
+  it("does not fill language mirrors when the saved canonical answer differs", () => {
+    const merged = mergeUniversalProfileIntoAnswers(
+      { given_names: "VIZA USER" },
+      { given_names: "USER" },
+    );
+
+    expect(merged.given_names).toBe("VIZA USER");
+    expect(merged.given_names_zh).toBeUndefined();
+    expect(merged.given_names_en).toBeUndefined();
+  });
+
+  it("fills language mirrors when the saved canonical answer matches", () => {
+    const merged = mergeUniversalProfileIntoAnswers(
+      { given_names: "USER" },
+      { given_names: "USER", given_names_zh: "用户", given_names_en: "USER" },
+    );
+
+    expect(merged).toMatchObject({
+      given_names: "USER",
+      given_names_zh: "用户",
+      given_names_en: "USER",
+    });
+  });
+
+  it("keeps the explicit force merge behavior for canonical and language values", () => {
+    const merged = mergeUniversalProfileIntoAnswers(
+      { given_names: "VIZA USER", given_names_zh: "VIZA 用户", given_names_en: "VIZA USER" },
+      { given_names: "USER", given_names_zh: "用户", given_names_en: "USER" },
+      { force: true },
+    );
+
+    expect(merged).toMatchObject({
+      given_names: "USER",
+      given_names_zh: "用户",
+      given_names_en: "USER",
+    });
   });
 
   it("does not copy synthetic QA profile values into a new application", () => {

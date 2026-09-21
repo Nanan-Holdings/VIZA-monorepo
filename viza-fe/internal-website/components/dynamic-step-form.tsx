@@ -39,7 +39,13 @@ import {
   usesBilingualAnswerPair,
   US_STATE_FORM_OPTIONS,
 } from "@/lib/bilingual-schema-contract";
-import { evaluateShowIf, isRequiredUnlessSatisfied, isRequiredWhenSatisfied } from "@/lib/form-utils";
+import {
+  evaluateShowIf,
+  getRepeatInstanceCount,
+  getRepeatInstanceValues,
+  isRequiredUnlessSatisfied,
+  isRequiredWhenSatisfied,
+} from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import {
   useRealtimeBilingualTranslate,
@@ -2656,6 +2662,13 @@ function instanceKey(fieldName: string, instance: number): string {
   return instance === 0 ? fieldName : `${fieldName}__${instance + 1}`;
 }
 
+function repeatInstanceIndex(field: VisaFormFieldRow, valueKey: string): number {
+  const suffix = valueKey.slice(field.fieldName.length);
+  const match = /^__(\d+)$/.exec(suffix);
+  if (!match) return 0;
+  return Math.max(0, Number(match[1]) - 1);
+}
+
 /** Get the inline_group from a field's validationRules */
 function getInlineGroup(field: VisaFormFieldRow): string | null {
   const rules = field.validationRules as { inline_group?: string } | null;
@@ -3007,12 +3020,10 @@ function DynamicStepFormImpl({
     for (const field of step.fields) {
       const group = getRepeatGroup(field);
       if (group && !counts[group]) {
-        // Detect prefilled instances: check for fieldName__2, __3, etc.
-        let max = 1;
-        for (let i = 2; i <= 20; i++) {
-          if (prefill[`${field.fieldName}__${i}`]) max = i;
-        }
-        counts[group] = max;
+        // Detect prefilled instances across every member of the repeat group.
+        // A partially filled later row must still render so the user can
+        // finish it; checking only the first member loses that row.
+        counts[group] = getRepeatInstanceCount(field, prefill, step.fields);
       }
     }
     return counts;
@@ -3109,8 +3120,35 @@ function DynamicStepFormImpl({
   const appliedPrefillValuesRef = useRef<Record<string, string>>(
     initialAppliedPrefillValues(step.fields, prefill),
   );
+  // Keep explicit local edits authoritative while asynchronous parent
+  // snapshots catch up. Empty strings are meaningful here: clearing a field
+  // must not be mistaken for an untouched input when the old prefill arrives.
+  const userEditedValueKeysRef = useRef<Set<string>>(new Set());
+  const userClearedValueKeysRef = useRef<Set<string>>(new Set());
+  const userClearPrefillBaselineRef = useRef<Record<string, string>>({});
+  // Keep deleted repeat-tail tombstones in every replacement patch until a
+  // later add restores the same concrete row. The page draft is replaced per
+  // step, so a one-shot empty patch would otherwise be lost on the next
+  // values-effect publish.
+  const removedRepeatKeysRef = useRef<Set<string>>(new Set());
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
+
+  const buildDraftPatch = (
+    patchFields: VisaFormFieldRow[],
+    patchValues: Record<string, string>,
+    patchGroupCounts: Record<string, number>,
+    patchTextPairs: Record<string, BilingualTextValue>,
+  ): Record<string, string> => {
+    const patch = buildCurrentStepAnswerPatch(
+      patchFields,
+      patchValues,
+      patchGroupCounts,
+      patchTextPairs,
+    );
+    for (const key of removedRepeatKeysRef.current) patch[key] = "";
+    return patch;
+  };
 
   const conditionalControllerFieldNames = useMemo(
     () => getConditionalControllerFieldNames(step.fields),
@@ -3469,7 +3507,7 @@ function DynamicStepFormImpl({
         };
         valuesRef.current = next;
         setValues(next);
-        onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+        onDraftChangeRef.current?.(buildDraftPatch(
           step.fields,
           next,
           groupCountsRef.current,
@@ -3871,6 +3909,19 @@ function DynamicStepFormImpl({
 
   const restoreSnapshot = (snapshot: FormHistorySnapshot) => {
     const normalizedValues = normalizeTdacStepValues(step.fields, snapshot.values, visaType);
+    for (const field of step.fields) {
+      const group = getRepeatGroup(field);
+      if (!group) continue;
+      const restoredCount = snapshot.groupCounts[group] ?? 1;
+      for (let index = 0; index < restoredCount; index++) {
+        const restoredKey = instanceKey(field.fieldName, index);
+        removedRepeatKeysRef.current.delete(restoredKey);
+        if (usesBilingualAnswerPair(field)) {
+          removedRepeatKeysRef.current.delete(`${restoredKey}_zh`);
+          removedRepeatKeysRef.current.delete(`${restoredKey}_en`);
+        }
+      }
+    }
     valuesRef.current = normalizedValues;
     textPairsRef.current = snapshot.textPairs;
     groupCountsRef.current = snapshot.groupCounts;
@@ -3932,15 +3983,75 @@ function DynamicStepFormImpl({
     const previousPrefill = previousPrefillRef.current;
     let valuesChanged = false;
     let textPairsChanged = false;
+    let groupCountsChanged = false;
+    const nextGroupCounts = { ...groupCountsRef.current };
+
+    // A step can mount before its latest saved snapshot arrives. Merge newly
+    // observed, contiguous repeat rows into the local count, but keep rows
+    // whose keys were explicitly removed by this form collapsed until the
+    // parent acknowledges the empty tombstone.
+    const seenGroups = new Set<string>();
+    for (const field of step.fields) {
+      const group = getRepeatGroup(field);
+      if (!group || seenGroups.has(group)) continue;
+      seenGroups.add(group);
+
+      const currentCount = nextGroupCounts[group] ?? 1;
+      const incomingCount = getRepeatInstanceCount(field, prefill, step.fields);
+      let mergedCount = currentCount;
+      for (let index = currentCount; index < incomingCount; index++) {
+        const rowWasRemovedLocally = step.fields.some((member) =>
+          getRepeatGroup(member) === group
+          && userEditedValueKeysRef.current.has(instanceKey(member.fieldName, index)),
+        );
+        if (rowWasRemovedLocally) break;
+        mergedCount = index + 1;
+      }
+      if (mergedCount > currentCount) {
+        nextGroupCounts[group] = mergedCount;
+        groupCountsChanged = true;
+      }
+    }
+    if (groupCountsChanged) {
+      groupCountsRef.current = nextGroupCounts;
+      setGroupCounts(nextGroupCounts);
+    }
+
     const nextValues = { ...valuesRef.current };
     const nextTextPairs = cloneTextPairs(textPairsRef.current);
 
     const applyPrefillValue = (key: string, field: VisaFormFieldRow) => {
-      const nextPrefill = prefill[key]?.trim();
-      if (!nextPrefill) return;
-
+      const nextPrefill = prefill[key]?.trim() ?? "";
       const currentValue = valuesRef.current[key] ?? "";
       const previousValue = previousPrefill[key] ?? "";
+      const userEdited = userEditedValueKeysRef.current.has(key);
+      const currentPair = usesBilingualAnswerPair(field)
+        ? (textPairsRef.current[key] ?? { zh: "", en: "" })
+        : null;
+      const incomingPair = currentPair
+        ? getBilingualPrefillText(key, prefill, nextPrefill)
+        : null;
+      const pairMatchesPrefill = !currentPair || (
+        currentPair.zh === incomingPair?.zh && currentPair.en === incomingPair?.en
+      );
+      const clearBaseline = userClearPrefillBaselineRef.current[key] ?? previousValue;
+      const acceptsChangedExternalPrefill = userEdited
+        && userClearedValueKeysRef.current.has(key)
+        && !currentValue.trim()
+        && Boolean(nextPrefill)
+        && nextPrefill !== clearBaseline;
+      if (acceptsChangedExternalPrefill) {
+        userEditedValueKeysRef.current.delete(key);
+        userClearedValueKeysRef.current.delete(key);
+        delete userClearPrefillBaselineRef.current[key];
+      } else if (userEdited && currentValue.trim() === nextPrefill && pairMatchesPrefill) {
+        userEditedValueKeysRef.current.delete(key);
+        userClearedValueKeysRef.current.delete(key);
+        delete userClearPrefillBaselineRef.current[key];
+      }
+      if (userEditedValueKeysRef.current.has(key)) return;
+      if (!nextPrefill) return;
+
       const isClearableField = isClearablePrefillField(field);
       if (
         isClearableField &&
@@ -3959,8 +4070,7 @@ function DynamicStepFormImpl({
       }
 
       if (usesBilingualAnswerPair(field)) {
-        const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
-        const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
+        const pairWasEdited = Boolean(currentPair?.zh.trim() || currentPair?.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
           const repairedPair = getBilingualPrefillText(key, prefill, nextPrefill);
           nextTextPairs[key] = repairedPair;
@@ -3986,7 +4096,7 @@ function DynamicStepFormImpl({
     for (const field of step.fields) {
       const group = getRepeatGroup(field);
       if (group) {
-        const count = groupCountsRef.current[group] ?? 1;
+        const count = nextGroupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           applyPrefillValue(instanceKey(field.fieldName, i), field);
         }
@@ -4028,11 +4138,12 @@ function DynamicStepFormImpl({
       if (!usesBilingualAnswerPair(field)) continue;
       const group = getRepeatGroup(field);
       const keys = group
-        ? Array.from({ length: groupCountsRef.current[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
+        ? Array.from({ length: nextGroupCounts[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
         : [field.fieldName];
       for (const key of keys) {
         const normalizedValue = normalizedNextValues[key]?.trim();
         if (!normalizedValue) continue;
+        if (userEditedValueKeysRef.current.has(key)) continue;
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const previousValue = previousPrefill[key] ?? "";
         const currentValue = valuesRef.current[key] ?? "";
@@ -4055,7 +4166,7 @@ function DynamicStepFormImpl({
   }, [isVnPrearrivalStep, prefill, step.fields, visaType]);
 
   useEffect(() => {
-    const nextPatch = buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs);
+    const nextPatch = buildDraftPatch(step.fields, values, groupCounts, textPairs);
     const previousPatch = lastDraftPatchRef.current;
     if (
       previousPatch &&
@@ -4176,19 +4287,27 @@ function DynamicStepFormImpl({
   }, [conditionalControllerFieldNames, step.fields]);
 
   const getDependentFields = useCallback((parentFieldName: string): string[] => {
+    const parentBaseFieldName = stripRepeatInstanceSuffix(parentFieldName);
+    const parentField = step.fields.find((field) => field.fieldName === parentBaseFieldName);
+    const parentGroup = parentField ? getRepeatGroup(parentField) : null;
+    const parentSuffix = getRepeatInstanceSuffix(parentFieldName);
     const dependents = new Set<string>();
-    const queue = [parentFieldName];
+    const queue = [parentBaseFieldName];
     while (queue.length > 0) {
       const candidateParent = queue.shift();
       if (!candidateParent) continue;
       for (const fieldName of dependentFieldsByParent.get(candidateParent) ?? []) {
-        if (dependents.has(fieldName)) continue;
-        dependents.add(fieldName);
+        const dependentField = step.fields.find((field) => field.fieldName === fieldName);
+        const dependentGroup = dependentField ? getRepeatGroup(dependentField) : null;
+        const isSameRepeatInstance = Boolean(parentGroup && parentSuffix && dependentGroup === parentGroup);
+        const concreteFieldName = isSameRepeatInstance ? `${fieldName}${parentSuffix}` : fieldName;
+        if (dependents.has(concreteFieldName)) continue;
+        dependents.add(concreteFieldName);
         queue.push(fieldName);
       }
     }
     return [...dependents];
-  }, [dependentFieldsByParent]);
+  }, [dependentFieldsByParent, step.fields]);
 
   const handleChange = (
     fieldName: string,
@@ -4209,6 +4328,19 @@ function DynamicStepFormImpl({
       pushUndoSnapshot();
     }
 
+    if (valueChanged) {
+      userEditedValueKeysRef.current.add(fieldName);
+      if (!normalizedValue.trim()) {
+        userClearedValueKeysRef.current.add(fieldName);
+        userClearPrefillBaselineRef.current[fieldName] = prefill[fieldName]?.trim()
+          ?? previousPrefillRef.current[fieldName]
+          ?? "";
+      } else {
+        userClearedValueKeysRef.current.delete(fieldName);
+        delete userClearPrefillBaselineRef.current[fieldName];
+      }
+    }
+
     const next = { ...valuesRef.current, [fieldName]: normalizedValue };
     if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
       next.flight_number = "";
@@ -4219,10 +4351,23 @@ function DynamicStepFormImpl({
       next.border_gate_airport = getAirportCodeFromFlightValue(value);
       next.custom_flight_number = "";
     }
+    let nextTextPairs: Record<string, BilingualTextValue> | null = null;
     const dependents = getDependentFields(fieldName);
     for (const dep of dependents) {
-      const depField = step.fields.find((f) => f.fieldName === dep);
-      if (depField && !evaluateShowIf(depField, next, step.fields)) {
+      const depBaseFieldName = stripRepeatInstanceSuffix(dep);
+      const depField = step.fields.find((f) => f.fieldName === depBaseFieldName);
+      const depSuffix = getRepeatInstanceSuffix(dep);
+      const depInstanceIndex = depSuffix ? Math.max(0, Number(depSuffix.slice(2)) - 1) : 0;
+      const depValues = depField && depSuffix
+        ? getRepeatInstanceValues(depField, depInstanceIndex, next, step.fields)
+        : next;
+      if (depField && !evaluateShowIf(depField, depValues, step.fields)) {
+        // Clearing a dependent answer is a user-authored branch change. Mark
+        // the concrete key so an older asynchronous prefill cannot restore
+        // the hidden value before the save queue acknowledges the controller.
+        userEditedValueKeysRef.current.add(dep);
+        userClearedValueKeysRef.current.delete(dep);
+        delete userClearPrefillBaselineRef.current[dep];
         next[dep] = "";
       } else if (depField) {
         const rules = depField.validationRules as {
@@ -4231,8 +4376,17 @@ function DynamicStepFormImpl({
           dependsOn?: string;
         } | null;
         if (rules?.dependent_on || rules?.depends_on || rules?.dependsOn) {
+          userEditedValueKeysRef.current.add(dep);
+          userClearedValueKeysRef.current.delete(dep);
+          delete userClearPrefillBaselineRef.current[dep];
           next[dep] = "";
         }
+      }
+      if (depField && userEditedValueKeysRef.current.has(dep) && usesBilingualAnswerPair(depField)) {
+        next[`${dep}_zh`] = "";
+        next[`${dep}_en`] = "";
+        nextTextPairs ??= { ...textPairsRef.current };
+        nextTextPairs[dep] = { zh: "", en: "" };
       }
     }
 
@@ -4255,8 +4409,12 @@ function DynamicStepFormImpl({
     const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType, fieldName);
     valuesRef.current = normalizedNext;
     setValues(normalizedNext);
+    if (nextTextPairs) {
+      textPairsRef.current = nextTextPairs;
+      setTextPairs(nextTextPairs);
+    }
     if (options?.publishDraft) {
-      const nextPatch = buildCurrentStepAnswerPatch(
+      const nextPatch = buildDraftPatch(
         step.fields,
         normalizedNext,
         groupCountsRef.current,
@@ -4285,7 +4443,7 @@ function DynamicStepFormImpl({
       };
       valuesRef.current = next;
       setValues(next);
-      onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+      onDraftChangeRef.current?.(buildDraftPatch(
         step.fields,
         next,
         groupCountsRef.current,
@@ -4318,7 +4476,7 @@ function DynamicStepFormImpl({
     // values effect creates a small race where an immediate click on the
     // page-level Submit button can enqueue before the Korean/English address
     // and postal code have reached the parent draft buffer.
-    onDraftChangeRef.current?.(buildCurrentStepAnswerPatch(
+    onDraftChangeRef.current?.(buildDraftPatch(
       step.fields,
       next,
       groupCountsRef.current,
@@ -4350,7 +4508,39 @@ function DynamicStepFormImpl({
     setTextPairs(nextTextPairs);
 
     const officialValue = side === "en" ? value : nextPair.en || nextPair.zh;
+    // A source-language edit can change only the visible pair while leaving
+    // the canonical official value unchanged. Treat the pair as dirty too so
+    // an unrelated prefill refresh cannot replace it with an older mirror.
+    userEditedValueKeysRef.current.add(fieldName);
     handleChange(fieldName, officialValue, { recordUndo: false });
+
+    // Keep the bilingual companion answers in the same ref-backed snapshot as
+    // the canonical value.  The prefill reconciliation effect may run after
+    // an unrelated field changes (or after navigation) and uses valuesRef as
+    // its baseline; leaving the old *_zh/*_en values there would let that
+    // effect restore stale mirrors over the pair the applicant just edited.
+    const nextValues = {
+      ...valuesRef.current,
+      [`${fieldName}_zh`]: nextPair.zh,
+      [`${fieldName}_en`]: nextPair.en,
+    };
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+
+    // Clearing a text answer is a submit-critical transition: the page-level
+    // review action can run before React's normal values effect publishes the
+    // next draft. Publish this empty answer immediately while retaining the
+    // existing deferred path for ordinary typing.
+    if (!officialValue.trim()) {
+      const nextPatch = buildDraftPatch(
+        step.fields,
+        nextValues,
+        groupCountsRef.current,
+        nextTextPairs,
+      );
+      lastDraftPatchRef.current = nextPatch;
+      onDraftChangeRef.current?.(nextPatch);
+    }
   };
 
   const addGroupInstance = (group: string) => {
@@ -4362,6 +4552,14 @@ function DynamicStepFormImpl({
     onUserChange?.();
     pushUndoSnapshot();
     const count = currentCount + 1;
+    for (const field of repeatGroupFields[group] ?? []) {
+      const restoredKey = instanceKey(field.fieldName, count - 1);
+      removedRepeatKeysRef.current.delete(restoredKey);
+      if (usesBilingualAnswerPair(field)) {
+        removedRepeatKeysRef.current.delete(`${restoredKey}_zh`);
+        removedRepeatKeysRef.current.delete(`${restoredKey}_en`);
+      }
+    }
     setGroupCounts((prev) => {
       const next = { ...prev, [group]: count };
       groupCountsRef.current = next;
@@ -4395,45 +4593,81 @@ function DynamicStepFormImpl({
     captureScrollOffsetBeforeMutation();
     onUserChange?.();
     pushUndoSnapshot();
-    setValues((prev) => {
-      const next = { ...prev };
-      const fields = repeatGroupFields[group] ?? [];
-      // Shift values down from instanceIdx+1..count-1
-      for (let i = instanceIdx; i < count - 1; i++) {
-        for (const field of fields) {
-          next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? "";
+    // Removing any row shifts later values down and drops the old tail. Mark
+    // that dropped tail as locally edited so a stale asynchronous prefill
+    // cannot recreate it before the save queue acknowledges the deletion.
+    const removedTailIndex = count - 1;
+    for (let index = instanceIdx; index < count; index++) {
+      for (const field of repeatGroupFields[group] ?? []) {
+        const concreteKey = instanceKey(field.fieldName, index);
+        // Rows after a removed middle row shift into an earlier key. Protect
+        // those shifted answers from a stale prefill as well as the dropped
+        // tail itself.
+        if (index < removedTailIndex) userEditedValueKeysRef.current.add(concreteKey);
+        if (index !== removedTailIndex) continue;
+        userEditedValueKeysRef.current.add(concreteKey);
+        removedRepeatKeysRef.current.add(concreteKey);
+        if (usesBilingualAnswerPair(field)) {
+          removedRepeatKeysRef.current.add(`${concreteKey}_zh`);
+          removedRepeatKeysRef.current.add(`${concreteKey}_en`);
         }
       }
-      // Remove last instance keys
+    }
+    const fields = repeatGroupFields[group] ?? [];
+    const nextValues = { ...valuesRef.current };
+    // Shift values down from instanceIdx+1..count-1.
+    for (let i = instanceIdx; i < count - 1; i++) {
       for (const field of fields) {
-        delete next[instanceKey(field.fieldName, count - 1)];
+        nextValues[instanceKey(field.fieldName, i)] = nextValues[instanceKey(field.fieldName, i + 1)] ?? "";
       }
-      valuesRef.current = next;
-      return next;
-    });
-    setTextPairs((prev) => {
-      const next = { ...prev };
-      const fields = repeatGroupFields[group] ?? [];
-      for (let i = instanceIdx; i < count - 1; i++) {
-        for (const field of fields) {
-          if (usesBilingualAnswerPair(field)) {
-            next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
-          }
-        }
-      }
+    }
+    // Remove last instance keys from the live form snapshot.
+    for (const field of fields) {
+      delete nextValues[instanceKey(field.fieldName, count - 1)];
+    }
+
+    const nextTextPairs = { ...textPairsRef.current };
+    for (let i = instanceIdx; i < count - 1; i++) {
       for (const field of fields) {
         if (usesBilingualAnswerPair(field)) {
-          delete next[instanceKey(field.fieldName, count - 1)];
+          nextTextPairs[instanceKey(field.fieldName, i)] = nextTextPairs[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
         }
       }
-      textPairsRef.current = next;
-      return next;
-    });
-    setGroupCounts((prev) => {
-      const next = { ...prev, [group]: count - 1 };
-      groupCountsRef.current = next;
-      return next;
-    });
+    }
+    for (const field of fields) {
+      if (usesBilingualAnswerPair(field)) {
+        delete nextTextPairs[instanceKey(field.fieldName, count - 1)];
+      }
+    }
+
+    const nextGroupCounts = { ...groupCountsRef.current, [group]: count - 1 };
+    valuesRef.current = nextValues;
+    textPairsRef.current = nextTextPairs;
+    groupCountsRef.current = nextGroupCounts;
+    setValues(nextValues);
+    setTextPairs(nextTextPairs);
+    setGroupCounts(nextGroupCounts);
+
+    // The reduced group count means the normal effect patch no longer contains
+    // the dropped tail. Send explicit empty tombstones in the same immediate
+    // draft so a merge-based parent/save queue cannot leave old __N answers in
+    // the persisted application.
+    const nextPatch = buildDraftPatch(
+      step.fields,
+      nextValues,
+      nextGroupCounts,
+      nextTextPairs,
+    );
+    for (const field of fields) {
+      const removedKey = instanceKey(field.fieldName, removedTailIndex);
+      nextPatch[removedKey] = "";
+      if (usesBilingualAnswerPair(field)) {
+        nextPatch[`${removedKey}_zh`] = "";
+        nextPatch[`${removedKey}_en`] = "";
+      }
+    }
+    lastDraftPatchRef.current = nextPatch;
+    onDraftChangeRef.current?.(nextPatch);
   };
 
   const handleKeyboardShortcuts = (event: React.KeyboardEvent<HTMLFormElement>) => {
@@ -4460,7 +4694,7 @@ function DynamicStepFormImpl({
     // visible button so incomplete Vietnam expense answers cannot be saved as
     // a completed step.
     if (!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue) return;
-    const stepData = buildCurrentStepAnswerPatch(
+    const stepData = buildDraftPatch(
       step.fields,
       valuesRef.current,
       groupCountsRef.current,
@@ -4483,7 +4717,10 @@ function DynamicStepFormImpl({
 
   /** Check whether a field should be hidden because a preceding yes/no toggle is unanswered
    *  or because it requires a specific toggle answer (e.g. companion fields only for "No"). */
-  const isGatedByUnansweredToggle = useCallback((field: VisaFormFieldRow): boolean => {
+  const isGatedByUnansweredToggle = useCallback((
+    field: VisaFormFieldRow,
+    fieldValues: Record<string, string> = values,
+  ): boolean => {
     if (field.conditionalLogic) return false; // has explicit DB logic, skip gating
 
     // Find the nearest preceding gating toggle
@@ -4493,7 +4730,7 @@ function DynamicStepFormImpl({
 
     if (!precedingToggle) return false;
 
-    const toggleValue = (values[precedingToggle.fieldName] ?? "").trim();
+    const toggleValue = (fieldValues[precedingToggle.fieldName] ?? "").trim();
 
     // Toggle not answered → always hide
     if (!toggleValue) return true;
@@ -4514,23 +4751,57 @@ function DynamicStepFormImpl({
     return false;
   }, [gatingToggles, values]);
 
-  const visibleFields = step.fields.filter((f) => {
-      if (isIndonesiaPostalAutoFillField(f)) return false;
-      if (isGatedByUnansweredToggle(f)) return false;
-      if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
-      return evaluateShowIf(f, values, step.fields);
-    });
-  const isTdacSameDayTransit = visaType === "TH_TDAC_ARRIVAL_CARD"
-    && isSameCalendarDayValue(values.arrival_date, values.departure_date);
-  const isRequiredField = (field: VisaFormFieldRow): boolean => {
+  // A repeat instance is consulted by visibility, requiredness, validation,
+  // and rendering during the same pass. Rebuilding its scoped answer object
+  // for each consumer makes large DS-160 steps noticeably expensive while
+  // typing. Keep one lazy cache per values/schema snapshot; instance zero
+  // still returns the live values object without cloning.
+  const getScopedFieldValues = useMemo(() => {
+    const scopedRepeatValues = new Map<string, Record<string, string>>();
+    return (field: VisaFormFieldRow, valueKey: string) => {
+      const instanceIndex = repeatInstanceIndex(field, valueKey);
+      const group = getRepeatGroup(field);
+      if (!group || instanceIndex === 0) return values;
+
+      const cacheKey = `${group}\u0000${instanceIndex}`;
+      const cached = scopedRepeatValues.get(cacheKey);
+      if (cached) return cached;
+
+      const scoped = getRepeatInstanceValues(field, instanceIndex, values, step.fields);
+      scopedRepeatValues.set(cacheKey, scoped);
+      return scoped;
+    };
+  }, [step.fields, values]);
+
+  const isFieldConditionallyVisible = useCallback((field: VisaFormFieldRow, valueKey: string) => {
+    const fieldValues = getScopedFieldValues(field, valueKey);
+    if (isGatedByUnansweredToggle(field, fieldValues)) return false;
+    if (isDisabledByLT24(field, valueKey, fieldValues, step.fields)) return false;
+    return evaluateShowIf(field, fieldValues, step.fields);
+  }, [getScopedFieldValues, isGatedByUnansweredToggle, step.fields]);
+
+  const shouldRenderField = useCallback((field: VisaFormFieldRow, valueKey: string) => {
+    const fieldValues = getScopedFieldValues(field, valueKey);
+    if (isGatedByUnansweredToggle(field, fieldValues)) return false;
+    return evaluateShowIf(field, fieldValues, step.fields)
+      || isDisabledByLT24(field, valueKey, fieldValues, step.fields);
+  }, [getScopedFieldValues, isGatedByUnansweredToggle, step.fields]);
+
+  const isRequiredField = (
+    field: VisaFormFieldRow,
+    fieldValues: Record<string, string> = values,
+  ): boolean => {
+    const fieldIsTdacSameDayTransit = visaType === "TH_TDAC_ARRIVAL_CARD"
+      && isSameCalendarDayValue(fieldValues.arrival_date, fieldValues.departure_date);
     if (
       visaType === "TH_TDAC_ARRIVAL_CARD" &&
-      !isTdacSameDayTransit &&
+      !fieldIsTdacSameDayTransit &&
       TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS.has(field.fieldName)
     ) {
       return true;
     }
-    return (field.required && !isRequiredUnlessSatisfied(field, values)) || isRequiredWhenSatisfied(field, values);
+    return (field.required && !isRequiredUnlessSatisfied(field, fieldValues))
+      || isRequiredWhenSatisfied(field, fieldValues);
   };
 
   // Rendered controls and local validation must use the same effective option
@@ -4545,12 +4816,13 @@ function DynamicStepFormImpl({
     const cached = effectiveFieldStateCache.get(cacheKey);
     if (cached) return cached;
 
+    const fieldValues = getScopedFieldValues(field, valueKey);
     let fieldOptions = (field.validationRules as { source?: unknown } | null)?.source === "US_STATES"
       ? US_STATE_FORM_OPTIONS : field.options;
     if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
       fieldOptions = getPhoneCountryCodeOptions();
     }
-    const dynamicOptions = getDynamicDependentOptions(field, values);
+    const dynamicOptions = getDynamicDependentOptions(field, fieldValues);
     if (dynamicOptions) {
       fieldOptions = field.fieldName === "intended_ward_commune"
         ? localizeVietnamWardOptions(dynamicOptions)
@@ -4658,7 +4930,7 @@ function DynamicStepFormImpl({
 
     const validationField: VisaFormFieldRow = {
       ...field,
-      required: isRequiredField(field),
+      required: isRequiredField(field, fieldValues),
       fieldType: isKoreaAddressSearchSelect
         ? "select"
         : isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
@@ -4679,9 +4951,11 @@ function DynamicStepFormImpl({
     return state;
   };
 
-  // Required validation: only check visible fields (and all instances of repeat groups)
-  const requiredFilled = visibleFields
-    .filter((f) => isRequiredField(f))
+  // Required validation uses each repeat instance's own branch values. A
+  // later row may have a different controller answer from row one, so a
+  // group-level visibility check would either hide a required row or require
+  // a row that is intentionally not active.
+  const requiredFilled = step.fields
     // File fields are mirrored from official portals for parity, but the
     // actual upload state is managed by Document Center.
     .filter((f) => f.fieldType !== "file")
@@ -4689,11 +4963,15 @@ function DynamicStepFormImpl({
       const group = getRepeatGroup(f);
       if (group) {
         const count = groupCounts[group] ?? 1;
-        return Array.from({ length: count }, (_, i) =>
-          (values[instanceKey(f.fieldName, i)] ?? "").trim()
-        ).every(Boolean);
+        return Array.from({ length: count }, (_, index) => {
+          const valueKey = instanceKey(f.fieldName, index);
+          const fieldValues = getScopedFieldValues(f, valueKey);
+          if (!isFieldConditionallyVisible(f, valueKey) || !isRequiredField(f, fieldValues)) return true;
+          return Boolean((values[valueKey] ?? "").trim());
+        }).every(Boolean);
       }
-      return (values[f.fieldName] ?? "").trim();
+      if (!isFieldConditionallyVisible(f, f.fieldName) || !isRequiredField(f)) return true;
+      return Boolean((values[f.fieldName] ?? "").trim());
     });
 
   const valueEntries = Object.entries(values);
@@ -4704,27 +4982,30 @@ function DynamicStepFormImpl({
   // conditional branch are added lazily below because they are intentionally
   // excluded from the submit gate.
   const fieldIssues = new Map<string, FieldIssue>();
-  for (const field of visibleFields) {
+  for (const field of step.fields) {
     if (field.fieldType === "file") continue;
     const group = getRepeatGroup(field);
     if (group) {
       const count = groupCounts[group] ?? 1;
       for (let index = 0; index < count; index++) {
         const valueKey = instanceKey(field.fieldName, index);
+        if (!isFieldConditionallyVisible(field, valueKey)) continue;
+        const fieldValues = getScopedFieldValues(field, valueKey);
         fieldIssues.set(
           valueKey,
           getLocalFieldIssue(
             getEffectiveFieldState(field, valueKey).validationField,
             valueKey,
             values[valueKey] ?? "",
-            values,
+            fieldValues,
             locale,
-            valueEntries,
+            index === 0 ? valueEntries : Object.entries(fieldValues),
           ),
         );
       }
       continue;
     }
+    if (!isFieldConditionallyVisible(field, field.fieldName)) continue;
     fieldIssues.set(
       field.fieldName,
       getLocalFieldIssue(
@@ -4740,29 +5021,32 @@ function DynamicStepFormImpl({
   const getCachedFieldIssue = (field: VisaFormFieldRow, valueKey: string): FieldIssue => {
     const cached = fieldIssues.get(valueKey);
     if (cached) return cached;
+    const fieldValues = getScopedFieldValues(field, valueKey);
     const issue = getLocalFieldIssue(
       getEffectiveFieldState(field, valueKey).validationField,
       valueKey,
-      values[valueKey] ?? "",
-      values,
+      fieldValues[valueKey] ?? "",
+      fieldValues,
       locale,
-      valueEntries,
+      valueKey === field.fieldName ? valueEntries : Object.entries(fieldValues),
     );
     fieldIssues.set(valueKey, issue);
     return issue;
   };
 
-  const blockingErrorsClear = visibleFields.every((f) => {
+  const blockingErrorsClear = step.fields.every((f) => {
     if (f.fieldType === "file") return true;
     const group = getRepeatGroup(f);
     if (group) {
       const count = groupCounts[group] ?? 1;
-      return Array.from({ length: count }, (_, i) => {
-        const valueKey = instanceKey(f.fieldName, i);
-        return fieldIssues.get(valueKey)?.severity !== "error";
+      return Array.from({ length: count }, (_, index) => {
+        const valueKey = instanceKey(f.fieldName, index);
+        if (!isFieldConditionallyVisible(f, valueKey)) return true;
+        return getCachedFieldIssue(f, valueKey).severity !== "error";
       }).every(Boolean);
     }
-    return fieldIssues.get(f.fieldName)?.severity !== "error";
+    if (!isFieldConditionallyVisible(f, f.fieldName)) return true;
+    return getCachedFieldIssue(f, f.fieldName).severity !== "error";
   });
   const indonesiaPostalLookupBlocksContinue = isIndonesiaOfficialEVisa &&
     step.fields.some((field) => field.fieldName === "postal_code") &&
@@ -4789,6 +5073,7 @@ function DynamicStepFormImpl({
       ?? (field.fieldType === "select" ? "Select..." : null);
 
     const effectiveFieldState = getEffectiveFieldState(field, valueKey);
+    const fieldValues = getScopedFieldValues(field, valueKey);
     const {
       fieldOptions,
       phEtravelSource,
@@ -4800,7 +5085,7 @@ function DynamicStepFormImpl({
       hasVnPrearrivalStaticOptions,
     } = effectiveFieldState;
 
-    const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
+    const lt24Disabled = isDisabledByLT24(field, valueKey, fieldValues, step.fields);
     const tdacTransitCheckboxLocked =
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
     const isTextLike = usesBilingualAnswerPair(field);
@@ -4824,7 +5109,7 @@ function DynamicStepFormImpl({
         editable_when_value?: string;
       } | null;
       const lockedByValue = vnReadOnlyRules?.locked_by
-        ? values[vnReadOnlyRules.locked_by]?.trim().toLowerCase()
+        ? fieldValues[vnReadOnlyRules.locked_by]?.trim().toLowerCase()
         : "";
       const editableWhenValue = vnReadOnlyRules?.editable_when_value?.trim().toLowerCase();
       const isVnPrearrivalEditableOverride = Boolean(
@@ -4946,7 +5231,7 @@ function DynamicStepFormImpl({
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
     const localIssue = getCachedFieldIssue(field, valueKey);
-    const requiredIssue = effectiveFieldState.validationField.required && !field.required && !(values[valueKey] ?? "").trim()
+    const requiredIssue = effectiveFieldState.validationField.required && !field.required && !(fieldValues[valueKey] ?? "").trim()
       ? { severity: "warning" as const, message: isChineseInterface ? "必填项" : "Required" }
       : null;
     const postalLookupIssue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
@@ -4974,7 +5259,7 @@ function DynamicStepFormImpl({
     const showVnPrearrivalEvisaHelp =
       isVnPrearrivalField &&
       field.fieldName === "visa_number" &&
-      values.visa_type?.trim() === "EV";
+      fieldValues.visa_type?.trim() === "EV";
     const showChineseFieldFooter = isTextLike
       || showVnPrearrivalEvisaHelp
       || (field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved")
@@ -5219,12 +5504,12 @@ function DynamicStepFormImpl({
         // card). They stay in required validation but are not rendered here.
         if (externallyHandled.has(field.fieldName)) return null;
         if (isIndonesiaPostalAutoFillField(field)) return null;
-        // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
-        if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
-        // Hide fields gated by an unanswered toggle (e.g. travel plans)
-        if (isGatedByUnansweredToggle(field)) return null;
-
         const group = getRepeatGroup(field);
+
+        // Repeat groups evaluate visibility once per instance below. Applying
+        // row zero's condition here would hide the whole group when only a
+        // later row is active.
+        if (!group && !shouldRenderField(field, field.fieldName)) return null;
 
         // Non-repeatable field
         if (!group) {
@@ -5414,15 +5699,16 @@ function DynamicStepFormImpl({
         if (renderedGroups.has(group)) return null;
         renderedGroups.add(group);
 
-        const groupFields = repeatGroupFields[group] ?? [];
-        // Check if at least one field in group is visible
-        const visibleGroupFields = groupFields.filter((f) =>
-          !isIndonesiaPostalAutoFillField(f) &&
-            (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields))
-        );
-        if (visibleGroupFields.length === 0) return null;
-
         const count = groupCounts[group] ?? 1;
+        const groupFields = repeatGroupFields[group] ?? [];
+        const visibleGroupFieldsByInstance = Array.from({ length: count }, (_, instanceIdx) =>
+          groupFields.filter((f) => {
+            if (isIndonesiaPostalAutoFillField(f)) return false;
+            return shouldRenderField(f, instanceKey(f.fieldName, instanceIdx));
+          }),
+        );
+        if (!visibleGroupFieldsByInstance.some((fields) => fields.length > 0)) return null;
+
         const isConditionalGroup = groupFields.some(hasConditionalDependency);
         const canAddGroupInstance =
           (groupCounts[group] ?? 1) < (repeatGroupMax[group] ?? REPEAT_GROUP_DEFAULT_MAX);
@@ -5435,43 +5721,47 @@ function DynamicStepFormImpl({
             onAdd={() => addGroupInstance(group)}
             addLabel={tButtons("addAnother")}
           >
-            {Array.from({ length: count }, (_, instanceIdx) => (
-              <div
-                key={`${group}-${instanceIdx}`}
-                className="flex flex-col gap-2"
-                data-repeat-group-instance="true"
-              >
-                {count > 1 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium text-gray-500">
-                      #{instanceIdx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeGroupInstance(group, instanceIdx)}
-                      className="flex items-center gap-1 text-[13px] text-red-500 hover:text-red-700 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {tButtons("remove")}
-                    </button>
-                  </div>
-                )}
-                {groupFieldsInline(visibleGroupFields).map((item) => {
-                  if (Array.isArray(item)) {
-                    return (
-                      <div
-                        key={item.map((f) => f.fieldName).join("-")}
-                        className="grid gap-2"
-                        style={inlineGroupGridStyle(item.length)}
+            {Array.from({ length: count }, (_, instanceIdx) => {
+              const visibleGroupFields = visibleGroupFieldsByInstance[instanceIdx] ?? [];
+              if (visibleGroupFields.length === 0) return null;
+              return (
+                <div
+                  key={`${group}-${instanceIdx}`}
+                  className="flex flex-col gap-2"
+                  data-repeat-group-instance="true"
+                >
+                  {count > 1 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-gray-500">
+                        #{instanceIdx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeGroupInstance(group, instanceIdx)}
+                        className="flex items-center gap-1 text-[13px] text-red-500 hover:text-red-700 transition-colors cursor-pointer"
                       >
-                        {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
-                      </div>
-                    );
-                  }
-                  return renderField(item, instanceKey(item.fieldName, instanceIdx), true);
-                })}
-              </div>
-            ))}
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {tButtons("remove")}
+                      </button>
+                    </div>
+                  )}
+                  {groupFieldsInline(visibleGroupFields).map((item) => {
+                    if (Array.isArray(item)) {
+                      return (
+                        <div
+                          key={item.map((f) => f.fieldName).join("-")}
+                          className="grid gap-2"
+                          style={inlineGroupGridStyle(item.length)}
+                        >
+                          {item.map((f) => renderField(f, instanceKey(f.fieldName, instanceIdx), true))}
+                        </div>
+                      );
+                    }
+                    return renderField(item, instanceKey(item.fieldName, instanceIdx), true);
+                  })}
+                </div>
+              );
+            })}
           </ApplicationConditionalFieldsPanel>
         );
       })}

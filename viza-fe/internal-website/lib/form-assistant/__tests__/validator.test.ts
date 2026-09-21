@@ -72,6 +72,25 @@ const steps: WizardStep[] = [
 ];
 
 describe("validateApplicationAnswers", () => {
+  it("validates and counts the visible required field in each repeated branch", () => {
+    const repeatedSteps: WizardStep[] = [{
+      stepNumber: 1, stepName: "Other nationalities",
+      fields: [
+        { ...steps[0].fields[2], fieldName: "has_passport", options: ["yes", "no"], validationRules: { repeat_group: "nationalities" } },
+        { ...steps[0].fields[3], fieldName: "other_passport", label: "Other passport", validationRules: { repeat_group: "nationalities", pattern: "^[A-Z0-9]+$" }, conditionalLogic: { showIf: "has_passport === yes" } },
+      ],
+    }];
+    const answers = { has_passport: "no", has_passport__2: "yes", other_passport: "hidden invalid!" };
+    const missing = validateApplicationAnswers({ steps: repeatedSteps, answers, visaType: "DS160" });
+    expect(missing.errors).toEqual([expect.objectContaining({ code: "required_missing", fieldNames: ["other_passport__2"] })]);
+    expect(missing.progress).toEqual({ completed: 2, total: 3 });
+    const invalid = validateApplicationAnswers({ steps: repeatedSteps, answers: { ...answers, other_passport__2: "invalid!" }, visaType: "DS160" });
+    expect(invalid.errors).toEqual([expect.objectContaining({ code: "invalid_format", fieldNames: ["other_passport__2"] })]);
+    const complete = validateApplicationAnswers({ steps: repeatedSteps, answers: { ...answers, other_passport__2: "P222" }, visaType: "DS160" });
+    expect(complete.errors).toEqual([]);
+    expect(complete.progress).toEqual({ completed: 3, total: 3 });
+  });
+
   it("treats an explicitly allowed unknown date as complete and requires a real date after reset", () => {
     const unknownDateSteps: WizardStep[] = [{
       stepNumber: 1,
@@ -188,6 +207,72 @@ describe("validateApplicationAnswers", () => {
       }),
     ]);
     expect(result.progress).toEqual({ completed: 0, total: 1 });
+  });
+
+  it("requires the DS-160 passport expiration date to be strictly after issuance", () => {
+    const ds160PassportSteps: WizardStep[] = [{
+      stepNumber: 7,
+      stepName: "Passport Information",
+      fields: [
+        {
+          id: "passport-issuance-date",
+          visaType: "DS160",
+          fieldName: "passport_issuance_date",
+          label: "Issuance Date",
+          fieldType: "date",
+          required: true,
+          stepNumber: 7,
+          stepName: "Passport Information",
+          displayOrder: 9,
+          placeholder: null,
+          validationRules: { format: "DD-MMM-YYYY" },
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          id: "passport-expiration-date",
+          visaType: "DS160",
+          fieldName: "passport_expiration_date",
+          label: "Expiration Date",
+          fieldType: "date",
+          required: true,
+          stepNumber: 7,
+          stepName: "Passport Information",
+          displayOrder: 10,
+          placeholder: null,
+          validationRules: { format: "DD-MMM-YYYY", has_does_not_apply: true },
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    }];
+
+    const equalDates = validateApplicationAnswers({
+      steps: ds160PassportSteps,
+      answers: {
+        passport_issuance_date: "2030-11-01",
+        passport_expiration_date: "2030-11-01",
+      },
+      visaType: "DS160",
+      locale: "en",
+    });
+    expect(equalDates.errors).toEqual([
+      expect.objectContaining({
+        code: "passport_expiration_not_after_issuance",
+        fieldNames: ["passport_expiration_date", "passport_issuance_date"],
+        message: "Expiry date must be after the issue date",
+      }),
+    ]);
+
+    const validDates = validateApplicationAnswers({
+      steps: ds160PassportSteps,
+      answers: {
+        passport_issuance_date: "2030-11-01",
+        passport_expiration_date: "2030-11-02",
+      },
+      visaType: "DS160",
+    });
+    expect(validDates.errors.some((issue) => issue.code === "passport_expiration_not_after_issuance")).toBe(false);
   });
 
   it("requires true checkbox acceptance instead of treating false as complete", () => {

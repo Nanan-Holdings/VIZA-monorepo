@@ -240,4 +240,400 @@ describe("DynamicStepForm performance boundaries", () => {
     expect(container.querySelector('[data-field-name="passport_expiry_date__2"]'))
       .toHaveAttribute("data-field-warning", "true");
   });
+
+  it("evaluates conditional repeat fields against their own instance values", () => {
+    const repeatRules = { repeatable: true, repeat_group: "social_media", max_items: 2 };
+    const { container } = renderForm(
+      stepFor([
+        field({
+          fieldName: "social_media_platform",
+          fieldType: "select",
+          options: [
+            { value: "INSTAGRAM", text: "Instagram" },
+            { value: "NONE", text: "None" },
+          ],
+          validationRules: repeatRules,
+        }),
+        field({
+          fieldName: "social_media_handle",
+          required: false,
+          validationRules: repeatRules,
+          conditionalLogic: {
+            showIf: "social_media_platform !== NONE && social_media_platform !== null",
+          },
+        }),
+      ]),
+      {
+        social_media_platform: "INSTAGRAM",
+        social_media_platform__2: "NONE",
+        social_media_handle: "first-user",
+      },
+    );
+
+    expect(container.querySelector('[data-field-name="social_media_handle"]')).toBeTruthy();
+    expect(container.querySelector('[data-field-name="social_media_handle__2"]')).toBeNull();
+  });
+
+  it("clears dependent values only inside the changed repeat instance", async () => {
+    const repeatRules = { repeatable: true, repeat_group: "addresses", max_items: 2 };
+    const drafts: Record<string, string>[] = [];
+    const step = stepFor([
+      field({
+        fieldName: "address_kind",
+        fieldType: "radio",
+        options: [
+          { value: "yes", text: "Yes" },
+          { value: "no", text: "No" },
+        ],
+        validationRules: repeatRules,
+      }),
+      field({
+        fieldName: "address_line",
+        validationRules: repeatRules,
+        conditionalLogic: { showIf: "address_kind === yes" },
+      }),
+    ]);
+    const rendered = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          address_kind: "yes",
+          address_kind__2: "yes",
+          address_line: "first row",
+          address_line__2: "second row",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={(patch) => drafts.push(patch)}
+        visaType="DS160"
+      />,
+    );
+
+    const secondNo = rendered.container.querySelector<HTMLInputElement>(
+      '[data-field-name="address_kind__2"] input[type="radio"][value="no"]',
+    );
+    expect(secondNo).toBeTruthy();
+    fireEvent.click(secondNo!);
+
+    await waitFor(() => expect(rendered.container.querySelector('[data-field-name="address_line__2"]')).toBeNull());
+    expect(getControl(rendered.container, "address_line")).toHaveValue("first row");
+    expect(drafts.at(-1)?.address_line).toBe("first row");
+    expect(drafts.at(-1)?.address_line__2).toBe("");
+
+    // The next parent snapshot can still contain both the old controller and
+    // dependent answer while the queued clear is in flight. Neither may
+    // recreate the hidden second row's answer.
+    rendered.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          address_kind: "yes",
+          address_kind__2: "yes",
+          address_line: "first row",
+          address_line__2: "second row",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={(patch) => drafts.push(patch)}
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(rendered.container.querySelector('[data-field-name="address_line__2"]')).toBeNull());
+    expect(getControl(rendered.container, "address_line")).toHaveValue("first row");
+  });
+
+  it("keeps repeat validation errors scoped to the active instance", () => {
+    const repeatRules = { repeatable: true, repeat_group: "documents", max_items: 2 };
+    const { container } = renderForm(
+      stepFor([
+        field({
+          fieldName: "document_kind",
+          fieldType: "select",
+          options: [
+            { value: "passport", text: "Passport" },
+            { value: "other", text: "Other" },
+          ],
+          validationRules: repeatRules,
+        }),
+        field({
+          fieldName: "document_number",
+          required: true,
+          validationRules: { ...repeatRules, pattern: "^[A-Z]{3}$" },
+          conditionalLogic: { showIf: "document_kind === passport" },
+        }),
+      ]),
+      {
+        document_kind: "passport",
+        document_kind__2: "passport",
+        document_number: "ABC",
+        document_number__2: "bad",
+      },
+    );
+
+    expect(container.querySelector('[data-field-name="document_number"]'))
+      .toHaveAttribute("data-validation-invalid", "false");
+    expect(container.querySelector('[data-field-name="document_number__2"]'))
+      .toHaveAttribute("data-field-warning", "true");
+    expect(container.querySelector('button[data-required-filled="true"]')).toBeTruthy();
+    expect(container.querySelector('button[data-blocking-errors-clear="false"]')).toBeTruthy();
+  });
+
+  it("merges late prefilled repeat rows without resurrecting a deleted tail", async () => {
+    const repeatRules = { repeatable: true, repeat_group: "education", max_items: 2 };
+    const step = stepFor([
+      field({
+        fieldName: "school_name",
+        validationRules: repeatRules,
+      }),
+    ]);
+    const rendered = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{ school_name: "NUS" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]')).toHaveLength(1);
+    rendered.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{ school_name: "NUS", school_name__2: "NTU" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(2));
+    expect(getControl(rendered.container, "school_name__2")).toHaveValue("NTU");
+
+    const removeButtons = Array.from(rendered.container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.includes("remove"));
+    fireEvent.click(removeButtons.at(-1)!);
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(1));
+
+    // A stale parent snapshot can still contain the deleted row while the
+    // save queue is catching up. It must not expand the local form again.
+    rendered.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{ school_name: "NUS", school_name__2: "NTU" }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(1));
+  });
+
+  it("keeps an edited bilingual pair when an unrelated prefill snapshot changes", async () => {
+    const step = stepFor([
+      field({ fieldName: "given_names", label: "Given Names" }),
+      field({ fieldName: "prefill_marker", label: "Marker" }),
+    ]);
+    const initialPrefill = {
+      given_names: "USER",
+      given_names_zh: "USER",
+      given_names_en: "USER",
+      prefill_marker: "before",
+    };
+    const rendered = render(
+      <DynamicStepForm
+        step={step}
+        prefill={initialPrefill}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    const givenNamesInput = rendered.container.querySelector<HTMLInputElement>(
+      '[data-field-name="given_names"] input',
+    );
+    expect(givenNamesInput).toBeTruthy();
+    fireEvent.change(givenNamesInput!, { target: { value: "JOURNEY" } });
+    await waitFor(() => expect(givenNamesInput).toHaveValue("JOURNEY"));
+
+    // The first parent refresh acknowledges the edit and contains the saved
+    // bilingual pair. This clears the local dirty marker just as navigation
+    // back to the step would.
+    rendered.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          given_names: "JOURNEY",
+          given_names_zh: "JOURNEY",
+          given_names_en: "JOURNEY",
+          prefill_marker: "after-save",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(rendered.container.querySelector<HTMLInputElement>(
+      '[data-field-name="given_names"] input',
+    )).toHaveValue("JOURNEY"));
+
+    // A later unrelated refresh may still carry stale companion columns. The
+    // ref-backed current pair must win over those stale mirrors.
+    rendered.rerender(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          given_names: "JOURNEY",
+          given_names_zh: "USER",
+          given_names_en: "USER",
+          prefill_marker: "after-other-change",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+    await waitFor(() => expect(rendered.container.querySelector<HTMLInputElement>(
+      '[data-field-name="given_names"] input',
+    )).toHaveValue("JOURNEY"));
+  });
+
+  it("publishes an empty bilingual answer before an immediate submit", () => {
+    const onDraftChange = vi.fn();
+    const onComplete = vi.fn();
+    const step = stepFor([
+      field({ fieldName: "given_names", label: "Given Names" }),
+    ]);
+    const { container } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          given_names: "VIZA USER",
+          given_names_zh: "VIZA USER",
+          given_names_en: "VIZA USER",
+        }}
+        onComplete={onComplete}
+        onDraftChange={onDraftChange}
+        visaType="DS160"
+      />,
+    );
+
+    onDraftChange.mockClear();
+    fireEvent.change(getControl(container, "given_names"), { target: { value: "" } });
+
+    expect(getControl(container, "given_names")).toHaveValue("");
+
+    // This assertion intentionally happens before form submission. It models
+    // the page-level review click, whose save barrier reads the parent draft
+    // rather than waiting for the component's deferred values effect.
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      given_names: "",
+      given_names_zh: "",
+      given_names_en: "",
+    }));
+  });
+
+  it("drops removed repeat instances from the canonical and bilingual draft", async () => {
+    const repeatRules = { repeatable: true, repeat_group: "education", max_items: 2 };
+    const step = stepFor([
+      field({
+        fieldName: "school_name",
+        validationRules: repeatRules,
+      }),
+    ]);
+    const drafts: Record<string, string>[] = [];
+    const onDraftChange = (patch: Record<string, string>) => drafts.push(patch);
+    const renderStep = (key?: string, prefill: Record<string, string> = { school_name: "NUS" }) => (
+      <DynamicStepForm
+        key={key}
+        step={step}
+        prefill={prefill}
+        onComplete={vi.fn()}
+        onDraftChange={onDraftChange}
+        visaType="DS160"
+      />
+    );
+    const rendered = render(renderStep());
+    const findButton = (label: string) => Array.from(rendered.container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes(label));
+
+    fireEvent.click(findButton("addAnother")!);
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(2));
+
+    const removeButtons = Array.from(rendered.container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.includes("remove"));
+    fireEvent.click(removeButtons.at(-1)!);
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(1));
+
+    const latestDraft = drafts.at(-1);
+    expect(latestDraft?.school_name).toBe("NUS");
+    expect(latestDraft?.school_name__2).toBe("");
+    expect(latestDraft?.school_name__2_zh).toBe("");
+    expect(latestDraft?.school_name__2_en).toBe("");
+
+    rendered.rerender(renderStep("refreshed", latestDraft));
+    await waitFor(() => expect(rendered.container.querySelectorAll('[data-repeat-group-instance="true"]'))
+      .toHaveLength(1));
+  });
+
+  it("publishes empty tombstones for every removed repeat field", async () => {
+    const repeatRules = { repeatable: true, repeat_group: "nationality", max_items: 2 };
+    const step = stepFor([
+      field({
+        fieldName: "country_name",
+        validationRules: repeatRules,
+      }),
+      field({
+        fieldName: "has_passport",
+        fieldType: "radio",
+        options: [
+          { value: "yes", text: "Yes" },
+          { value: "no", text: "No" },
+        ],
+        validationRules: repeatRules,
+      }),
+    ]);
+    const drafts: Record<string, string>[] = [];
+    const rendered = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          country_name: "China",
+          country_name__2: "Singapore",
+          has_passport: "yes",
+          has_passport__2: "yes",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={(patch) => drafts.push(patch)}
+        visaType="DS160"
+      />,
+    );
+
+    const removeButtons = Array.from(rendered.container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.includes("remove"));
+    fireEvent.click(removeButtons.at(-1)!);
+
+    await waitFor(() => expect(drafts.some((patch) => (
+      patch.country_name__2 === ""
+      && patch.country_name__2_zh === ""
+      && patch.country_name__2_en === ""
+      && patch.has_passport__2 === ""
+    ))).toBe(true));
+
+    // The page replaces the whole step draft on each callback. A later edit
+    // must carry the tombstones forward instead of dropping them.
+    fireEvent.change(getControl(rendered.container, "country_name"), {
+      target: { value: "China updated" },
+    });
+    await waitFor(() => expect(drafts.at(-1)?.country_name).toBe("China updated"));
+    expect(drafts.at(-1)).toEqual(expect.objectContaining({
+      country_name__2: "",
+      country_name__2_zh: "",
+      country_name__2_en: "",
+      has_passport__2: "",
+    }));
+  });
 });

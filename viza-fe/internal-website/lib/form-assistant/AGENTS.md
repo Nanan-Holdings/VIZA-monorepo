@@ -89,6 +89,11 @@ Scope: this file applies to `lib/form-assistant/**`.
   assistant API response. Remote-search official selects are controlled by
   their product option endpoint and must not be rejected against a partial
   static fallback list.
+  Count and validate every visible repeat instance independently. Required
+  errors retain the `__N` answer key so navigation targets the incomplete row;
+  a completed first row must not hide a missing second-row answer.
+  DS-160 also requires `passport_expiration_date` strictly after
+  `passport_issuance_date`, matching the local form's date relationship gate.
 - Canonicalize saved/profile option labels to the schema's exact value before
   calculating missing fields, and re-read application answers immediately
   before choosing every next question so concurrent manual edits always win.

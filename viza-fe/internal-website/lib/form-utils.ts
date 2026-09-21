@@ -30,6 +30,47 @@ function getRepeatGroup(field: VisaFormFieldRow): string | null {
   return group ? String(group) : null;
 }
 
+/** Rebase only this repeat group's answers; outer branch controllers stay global. */
+export function getRepeatInstanceValues(
+  field: VisaFormFieldRow,
+  instanceIndex: number,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[],
+): Record<string, string> {
+  const group = getRepeatGroup(field);
+  if (!group || instanceIndex === 0) return values;
+  const scoped = { ...values };
+  for (const member of allFields) {
+    if (getRepeatGroup(member) !== group) continue;
+    // A missing answer in a later row must never inherit the first row's value.
+    scoped[member.fieldName] = values[`${member.fieldName}__${instanceIndex + 1}`] ?? "";
+  }
+  return scoped;
+}
+
+/** Include partially filled rows even when this particular field has no answer yet. */
+export function getRepeatInstanceCount(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[],
+): number {
+  const group = getRepeatGroup(field);
+  if (!group) return 1;
+  const members = new Set(allFields.filter((member) => getRepeatGroup(member) === group)
+    .map((member) => member.fieldName));
+  const configuredMax = field.validationRules?.max_items;
+  const max = typeof configuredMax === "number" && configuredMax > 0 ? configuredMax : 20;
+  let count = 1;
+  for (const [key, value] of Object.entries(values)) {
+    // Empty patches delete persisted answers. They must not resurrect a removed
+    // row in review/progress while its save is still in flight.
+    if (!value.trim()) continue;
+    const match = key.match(/^(.+)__(\d+)(?:_(?:zh|en))?$/);
+    if (match && members.has(match[1])) count = Math.max(count, Math.min(Number(match[2]), max));
+  }
+  return count;
+}
+
 function isYesNoToggle(field: VisaFormFieldRow): boolean {
   return (
     (field.fieldType === "radio" || field.fieldType === "select") &&
@@ -151,7 +192,7 @@ function inferConditionalToggleForUnknownField(
  *  - Equality / inequality: "field === value" / "field !== value"
  *  - List membership: "field in [val1, val2, val3]" / "field not in [val1, val2]"
  *  - Multi-select intersection: "field contains_any [val1, val2]"
- *  - Empty-string sentinel: "field === _empty"
+ *  - Empty-value sentinels: "field === _empty" or legacy "field === null"
  *  - Boolean composition: "a === b || c === d" and "a === yes && b === yes"
  *
  * Returns false for unparseable atoms.
@@ -174,7 +215,7 @@ export function evaluateExpression(
   };
 
   const resolveTarget = (raw: string): string =>
-    raw.toLowerCase() === "_empty" ? "" : raw.toLowerCase();
+    ["_empty", "null"].includes(raw.toLowerCase()) ? "" : raw.toLowerCase();
 
   const parseList = (raw: string): string[] =>
     raw
@@ -261,6 +302,112 @@ export function isRequiredWhenSatisfied(
   return evaluateExpression(expr, values);
 }
 
+function getShowIfDependencyNames(showIf: string): string[] {
+  const names = new Set<string>();
+  for (const atom of showIf.split(/\s*(?:\|\||&&)\s*/)) {
+    const match = atom.trim().match(
+      /^([A-Za-z_][A-Za-z0-9_]*)(?:\s*(?:===|!==)\s*|\s+(?:not\s+in|contains_any|in)\s+)/,
+    );
+    if (match) names.add(match[1]);
+  }
+  return [...names];
+}
+
+function findSameStepField(
+  fieldName: string,
+  field: VisaFormFieldRow,
+  allFields: VisaFormFieldRow[],
+): VisaFormFieldRow | undefined {
+  return allFields.find((candidate) =>
+    candidate.fieldName === fieldName && candidate.stepNumber === field.stepNumber,
+  );
+}
+
+function evaluateShowIfBranch(
+  showIf: string,
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[] | undefined,
+  visiting: Set<string>,
+): boolean {
+  // A dependency is only required to be visible when it belongs to the OR
+  // branch that actually satisfied the expression. Requiring every dependency
+  // up front would incorrectly hide `A || B` when A is stale but B is valid.
+  for (const branch of showIf.split("||")) {
+    const trimmedBranch = branch.trim();
+    if (!evaluateExpression(trimmedBranch, values)) continue;
+    if (!allFields) return true;
+
+    let branchVisible = true;
+    for (const dependencyName of getShowIfDependencyNames(trimmedBranch)) {
+      const controller = findSameStepField(dependencyName, field, allFields);
+      if (!controller || visiting.has(controller.fieldName)) continue;
+
+      // Legacy prefix inference can make one yes/no toggle appear subordinate
+      // to another (for example `family_members_used` vs `has_family_members`).
+      // Such controls are authoritative answers unless the schema gives them
+      // an explicit condition; recursing into the inferred prefix would hide
+      // a valid branch based on an unrelated stale toggle.
+      if (!controller.conditionalLogic && isYesNoToggle(controller)) continue;
+
+      visiting.add(controller.fieldName);
+      const controllerVisible = evaluateShowIfInternal(controller, values, allFields, visiting);
+      visiting.delete(controller.fieldName);
+      if (!controllerVisible) {
+        branchVisible = false;
+        break;
+      }
+    }
+    if (branchVisible) return true;
+  }
+  return false;
+}
+
+function evaluateShowIfInternal(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+  allFields: VisaFormFieldRow[] | undefined,
+  visiting: Set<string>,
+): boolean {
+  const logic = field.conditionalLogic;
+
+  // 1. Explicit showIf condition
+  if (logic) {
+    const showIf = (logic as { showIf?: string }).showIf;
+    if (showIf && typeof showIf === "string") {
+      // A stale answer in a hidden controller must not activate its own
+      // dependents. Restrict this walk to the current step; cross-step
+      // dependencies need the caller's broader navigation context.
+      return evaluateShowIfBranch(showIf, field, values, allFields, visiting);
+    }
+  }
+
+  // 2. Infer conditional visibility when no explicit logic exists
+  if (!logic && allFields) {
+    const metadata = getConditionalInferenceMetadata(allFields);
+    const cachedToggle = getCachedConditionalToggle(field, metadata);
+    const inferredToggle = cachedToggle === undefined
+      ? inferConditionalToggleForUnknownField(field, metadata)
+      : cachedToggle;
+    if (inferredToggle) {
+      const controller = findSameStepField(inferredToggle.fieldName, field, allFields);
+      if (
+        controller &&
+        !visiting.has(controller.fieldName) &&
+        (controller.conditionalLogic || !isYesNoToggle(controller))
+      ) {
+        visiting.add(controller.fieldName);
+        const controllerVisible = evaluateShowIfInternal(controller, values, allFields, visiting);
+        visiting.delete(controller.fieldName);
+        if (!controllerVisible) return false;
+      }
+      return (values[inferredToggle.fieldName] ?? "").toLowerCase() === "yes";
+    }
+  }
+
+  return true; // no condition → always visible
+}
+
 /**
  * Evaluate a conditionalLogic.showIf expression against current form values.
  * Also infers conditional visibility when explicit conditionalLogic is missing
@@ -274,27 +421,5 @@ export function evaluateShowIf(
   values: Record<string, string>,
   allFields?: VisaFormFieldRow[],
 ): boolean {
-  const logic = field.conditionalLogic;
-
-  // 1. Explicit showIf condition
-  if (logic) {
-    const showIf = (logic as { showIf?: string }).showIf;
-    if (showIf && typeof showIf === "string") {
-      return evaluateExpression(showIf, values);
-    }
-  }
-
-  // 2. Infer conditional visibility when no explicit logic exists
-  if (!logic && allFields) {
-    const metadata = getConditionalInferenceMetadata(allFields);
-    const cachedToggle = getCachedConditionalToggle(field, metadata);
-    const inferredToggle = cachedToggle === undefined
-      ? inferConditionalToggleForUnknownField(field, metadata)
-      : cachedToggle;
-    if (inferredToggle) {
-      return (values[inferredToggle.fieldName] ?? "").toLowerCase() === "yes";
-    }
-  }
-
-  return true; // no condition → always visible
+  return evaluateShowIfInternal(field, values, allFields, new Set([field.fieldName]));
 }

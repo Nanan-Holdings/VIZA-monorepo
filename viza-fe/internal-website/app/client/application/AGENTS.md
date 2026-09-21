@@ -87,6 +87,9 @@ Before changing this route, read:
   across autosave, navigation, dynamic step completion and review edits. Only
   adjacent identical in-flight patches in the same application scope may join;
   completed writes are never cached. Register work before resolving draft IDs.
+  Sidebar navigation flushes all changed draft fields, including clears and
+  deleted repeat rows. Never choose the save scope from `currentStep`: scroll
+  observers can lag behind the section the user is editing.
   Final submission drains queued work and forces its complete snapshot through
   the same queue. Preserve immediate sidebar scrolling and backend ownership
   checks. The adjacent `__tests__/ordered-dynamic-save.test.ts` covers ordering,

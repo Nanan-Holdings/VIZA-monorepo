@@ -393,6 +393,37 @@ describe("bilingual schema contract", () => {
     }
   });
 
+  it("keeps DS-160 other-nationality repeat children distinct from their parent question", () => {
+    const samples = [
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_country__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+        fieldType: "select",
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_has_passport__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+        fieldType: "radio",
+      }),
+      field({
+        visaType: "DS160",
+        fieldName: "other_nationality_passport_number__1",
+        label: "Do you hold or have you held any nationality other than the one indicated above on nationality?",
+        validationRules: { label_zh: "是否持有或曾持有其他国籍？", repeatable: true, repeat_group: "other_nationality" },
+      }),
+    ].map(normalizeBilingualFormField);
+
+    expect(samples.map((sample) => resolveLocalizedFieldLabel(sample, "zh"))).toEqual([
+      "其他国籍的国家/地区",
+      "是否持有该国籍的护照？",
+      "护照号码",
+    ]);
+  });
+
   it("keeps Korea C-3-9 curated Chinese labels and options specific", () => {
     const samples = [
       field({

@@ -16,6 +16,10 @@ review, bilingual review helpers, and status confirmation.
 - `photo-upload-step.tsx`: country/visa-aware photo upload guidance and storage.
 - `dynamic-review-step.tsx`: DB-driven bilingual review with guarded editing of
   English/official values before submission.
+  Repeated rows evaluate their own controllers through `getRepeatInstanceValues`;
+  a later row must not inherit first-row visibility or silently omit a missing
+  dependent answer. Keep outer controllers global and include partially filled
+  rows in the missing-information review.
 - `__tests__/dynamic-review-localization.test.tsx`: focused coverage for
   bilingual review labels, enum display, and source/official values.
 - `review-step.tsx` and `bilingual-review-panel.tsx`: legacy review surfaces.

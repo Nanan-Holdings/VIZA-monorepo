@@ -772,4 +772,71 @@ describe("computeAllTabCompletion", () => {
     expect(result.missingFields.map((item) => item.fieldName)).not.toContain("supporting_documents");
     expect(result.completedStepIds).toContain(1);
   });
+
+  test("reports required conditional fields for each active repeat instance", () => {
+    const repeatRules = { repeatable: true, repeat_group: "social_media", max_items: 2 };
+    const repeatStep: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Address and Phone",
+      fields: [
+        {
+          ...field("social_media_platform", { required: true }),
+          fieldType: "select" as const,
+          options: [
+            { value: "INSTAGRAM", text: "Instagram" },
+            { value: "NONE", text: "None" },
+          ],
+          validationRules: repeatRules,
+        },
+        {
+          ...field("social_media_handle", { required: true, showIf: "social_media_platform === INSTAGRAM" }),
+          validationRules: repeatRules,
+        },
+      ],
+    }];
+
+    const missing = getMissingDynamicFormFields(repeatStep, {
+      social_media_platform: "INSTAGRAM",
+      social_media_platform__2: "INSTAGRAM",
+      social_media_handle: "first-user",
+    });
+
+    expect(missing).toEqual([
+      expect.objectContaining({
+        fieldName: "social_media_handle__2",
+        reason: "required",
+      }),
+    ]);
+  });
+
+  test("does not require an inactive repeat instance branch", () => {
+    const repeatRules = { repeatable: true, repeat_group: "social_media", max_items: 2 };
+    const repeatStep: WizardStep[] = [{
+      stepNumber: 1,
+      stepName: "Address and Phone",
+      fields: [
+        {
+          ...field("social_media_platform", { required: true }),
+          fieldType: "select" as const,
+          options: [
+            { value: "INSTAGRAM", text: "Instagram" },
+            { value: "NONE", text: "None" },
+          ],
+          validationRules: repeatRules,
+        },
+        {
+          ...field("social_media_handle", { required: true, showIf: "social_media_platform === INSTAGRAM" }),
+          validationRules: repeatRules,
+        },
+      ],
+    }];
+
+    const missing = getMissingDynamicFormFields(repeatStep, {
+      social_media_platform: "INSTAGRAM",
+      social_media_platform__2: "NONE",
+      social_media_handle: "first-user",
+    });
+
+    expect(missing).toEqual([]);
+  });
 });

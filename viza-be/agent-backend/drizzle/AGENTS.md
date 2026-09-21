@@ -34,6 +34,12 @@ and a DS-160 processing status, and caps the renewed lease at one hour. An
 expired or reclaimed worker receives no row and cannot renew the replacement
 worker's lease through this RPC.
 
+`0196_ds160_preparer_fields.sql` publishes the eleven `ds160_preparer_*`
+schema rows already defined by the DS-160 seed. It upserts only those stable
+`visa_type`/`field_name` keys, preserves existing field IDs, and does not
+modify applicant answers or reseed the rest of the catalog. Keep the
+timestamped frontend Supabase mirror byte-identical.
+
 ## Key Responsibilities
 
 - Keep migration filenames sequentially numbered.
@@ -476,6 +482,9 @@ The current internal automation migrations are:
   `submission_queue` lease only for its current service worker and only while
   the row remains in a DS-160 processing state; stale or reclaimed workers
   receive an empty result.
+- `0196_ds160_preparer_fields.sql`: publishes the eleven DS-160 Sign and
+  Submit preparer fields from the existing seed contract through a stable-key
+  upsert; it preserves field IDs and never changes applicant answer rows.
 
 ## Guardrails
 

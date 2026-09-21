@@ -3183,29 +3183,6 @@ export default function ApplicationPage() {
     [dynamicSaveScope, ensureWritableApplicationId],
   );
 
-  const saveDynamicDraftForStep = useCallback(async (stepIndex: number) => {
-    const data = dynamicDraftRef.current[stepIndex];
-    if (!data) return;
-
-    const hasNonEmptyValue = Object.values(data).some((value) => value.trim() !== "");
-    const hasChangedValue = Object.entries(data).some(
-      ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
-    );
-    if (!hasNonEmptyValue && !hasChangedValue) return;
-
-    const changedData = Object.fromEntries(
-      Object.entries(data).filter(
-        ([fieldName, value]) => (dynamicAnswersRef.current[fieldName] ?? "") !== value,
-      ),
-    );
-    if (Object.keys(changedData).length === 0) return;
-
-    await enqueueDynamicAnswerSave(changedData);
-
-    dynamicAnswersRef.current = { ...dynamicAnswersRef.current, ...changedData };
-    setDynamicAnswers((prev) => ({ ...prev, ...changedData }));
-  }, [enqueueDynamicAnswerSave]);
-
   const saveAllDynamicDrafts = useCallback(async () => {
     const mergedDraft = collectDraftAnswers(dynamicDraftRef.current);
     const draftEntries = Object.entries(mergedDraft);
@@ -3801,14 +3778,13 @@ export default function ApplicationPage() {
     // Jump immediately, then persist the section the user just left. The save
     // is important, but it should never make sidebar navigation feel blocked.
     scrollToStepPanel(targetStepId);
-    if (targetStepId === currentStep) return;
 
-    const shouldAutosaveCurrentStep =
-      useDynamic &&
-      currentStep < documentStepIndex &&
-      Boolean(dbSteps[currentStep]);
-
-    if (!shouldAutosaveCurrentStep) {
+    // Scroll/IntersectionObserver updates currentStep asynchronously, so the
+    // value captured by this callback can point at a different panel than the
+    // one the user edited. Flush the complete dirty draft instead of guessing
+    // which step was left. The helper computes the changed patch and the
+    // page-owned queue preserves save ordering without adding per-keystroke IO.
+    if (!useDynamic) {
       return;
     }
 
@@ -3817,7 +3793,7 @@ export default function ApplicationPage() {
     setError(null);
 
     try {
-      await saveDynamicDraftForStep(currentStep);
+      await saveAllDynamicDrafts();
       // Saving can reveal or hide conditional fields above the destination.
       // Re-anchor after that layout change so the requested panel stays put.
       scrollToStepPanel(targetStepId);
@@ -3832,7 +3808,7 @@ export default function ApplicationPage() {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
     }
-  }, [currentStep, dbSteps, documentStepIndex, saveDynamicDraftForStep, scrollToStepPanel, t, useDynamic]);
+  }, [saveAllDynamicDrafts, scrollToStepPanel, t, useDynamic]);
 
   const handlePersonalComplete = async (data: PersonalInfoData) => {
     setSaving(true);

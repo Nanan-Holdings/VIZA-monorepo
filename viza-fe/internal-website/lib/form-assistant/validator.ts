@@ -1,8 +1,9 @@
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, getRepeatInstanceCount, getRepeatInstanceValues } from "@/lib/form-utils";
 import { resolveLocalizedFieldLabel } from "@/lib/bilingual-schema-contract";
 import {
   getMissingDynamicFormFields,
   isPastUpcomingTravelDate,
+  isVisibleDynamicFieldRequired,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import type { VisaFormFieldOption, WizardStep } from "@/types/visa-form-fields";
@@ -88,14 +89,6 @@ function fieldAnswerKeys(
 function hasMeaningfulAnswer(value: string | null | undefined): boolean {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 && normalized !== "[]" && normalized !== "{}";
-}
-
-function hasAnyFieldAnswer(
-  field: WizardStep["fields"][number] | undefined,
-  answers: Record<string, string>,
-): boolean {
-  if (!field) return false;
-  return fieldAnswerKeys(field, answers).some((key) => hasMeaningfulAnswer(answers[key]));
 }
 
 function relatedAnswer(
@@ -246,15 +239,17 @@ export function getAssistantProgress(
   answers: Record<string, string>,
   now: Date = new Date(),
 ): FormAssistantProgress {
-  const visibleRequired = steps.flatMap((step) =>
-    step.fields.filter(
-      (field) => field.required && evaluateShowIf(field, answers, step.fields),
-    ),
-  );
+  const visibleRequired = steps.flatMap((step) => step.fields.flatMap((field) =>
+    Array.from({ length: getRepeatInstanceCount(field, answers, step.fields) }, (_, index) => ({
+      key: answerInstanceKey(field.fieldName, index),
+      values: getRepeatInstanceValues(field, index, answers, step.fields),
+    })).filter(({ values }) => isVisibleDynamicFieldRequired(field, values, step.fields))
+      .map(({ key }) => key),
+  ));
   const missingNames = new Set(
     getMissingDynamicFormFields(steps, answers, { now }).map((field) => field.fieldName),
   );
-  const completed = visibleRequired.filter((field) => !missingNames.has(field.fieldName)).length;
+  const completed = visibleRequired.filter((key) => !missingNames.has(key)).length;
   return { completed, total: visibleRequired.length };
 }
 
@@ -279,11 +274,12 @@ export function validateApplicationAnswers(params: {
   const labelForField = (field: WizardStep["fields"][number]) =>
     resolveLocalizedFieldLabel(field, isZh ? "zh" : "en");
   const missingFields = getMissingDynamicFormFields(steps, answers, { now: params.now }).map((missing) => {
-    const field = fieldByName.get(missing.fieldName);
-    return field ? { ...missing, label: labelForField(field) } : missing;
+    const field = fieldByName.get(missing.fieldName.replace(/__\d+$/, ""));
+    const instance = missing.fieldName.match(/__(\d+)$/)?.[1];
+    return field ? { ...missing, label: `${labelForField(field)}${instance ? ` #${instance}` : ""}` } : missing;
   });
   const errors: FormAssistantValidationIssue[] = missingFields.flatMap((missing) => {
-    const field = fieldByName.get(missing.fieldName);
+    const field = fieldByName.get(missing.fieldName.replace(/__\d+$/, ""));
     if (field && isPastUpcomingTravelDate(field, answers[missing.fieldName], params.now)) {
       return [{
         code: "date_before_today",
@@ -293,7 +289,7 @@ export function validateApplicationAnswers(params: {
     }
     // A non-empty but invalid choice/acceptance is not also "missing". The
     // specific validator below owns that one actionable issue.
-    if (hasAnyFieldAnswer(field, answers)) return [];
+    if (hasMeaningfulAnswer(answers[missing.fieldName])) return [];
     return [{
       code: "required_missing",
       fieldNames: [missing.fieldName],
@@ -304,9 +300,11 @@ export function validateApplicationAnswers(params: {
 
   for (const step of steps) {
     for (const field of step.fields) {
-      if (!evaluateShowIf(field, answers, step.fields)) continue;
       const label = labelForField(field);
       for (const answerKey of fieldAnswerKeys(field, answers)) {
+        const instanceIndex = Number(answerKey.match(/__(\d+)$/)?.[1] ?? "1") - 1;
+        const scopedAnswers = getRepeatInstanceValues(field, instanceIndex, answers, step.fields);
+        if (!evaluateShowIf(field, scopedAnswers, step.fields)) continue;
         const value = answers[answerKey]?.trim();
         if (!value) continue;
         const rules = field.validationRules ?? {};
@@ -399,7 +397,7 @@ export function validateApplicationAnswers(params: {
           typeof numericLengthRule.field === "string" &&
           typeof numericLengthRule.equals === "string" &&
           typeof numericLengthRule.length === "number" &&
-          relatedAnswer(answers, numericLengthRule.field, suffix).trim() === numericLengthRule.equals &&
+          relatedAnswer(scopedAnswers, numericLengthRule.field, "").trim() === numericLengthRule.equals &&
           !new RegExp(`^\\d{${numericLengthRule.length}}$`).test(value)
         ) {
           errors.push({
@@ -441,7 +439,7 @@ export function validateApplicationAnswers(params: {
               ? rules.after_or_equal_field
               : null;
           if (comparisonField) {
-            const comparisonDate = parseApplicationDate(relatedAnswer(answers, comparisonField, suffix).trim());
+            const comparisonDate = parseApplicationDate(relatedAnswer(scopedAnswers, comparisonField, "").trim());
             if (comparisonDate && parsedDate < comparisonDate) {
               errors.push({
                 code: "date_before_related_field",
@@ -454,7 +452,7 @@ export function validateApplicationAnswers(params: {
             }
           }
           if (typeof rules.min_days_after_field === "string") {
-            const comparisonDate = parseApplicationDate(relatedAnswer(answers, rules.min_days_after_field, suffix).trim());
+            const comparisonDate = parseApplicationDate(relatedAnswer(scopedAnswers, rules.min_days_after_field, "").trim());
             const requiredDays = typeof rules.min_days_after_field_days === "number"
               ? Math.max(0, rules.min_days_after_field_days)
               : 0;
@@ -475,6 +473,24 @@ export function validateApplicationAnswers(params: {
           }
         }
       }
+    }
+  }
+
+  // DS-160's schema predates the generic related-date rule and therefore does
+  // not carry `not_before_field` on the passport expiration row. Keep this
+  // exact official pair explicit so the server-side preflight matches the
+  // form's strict `expiration > issuance` check, including equal dates.
+  if (visaType.trim().toUpperCase() === "DS160") {
+    const issuanceField = fieldByName.get("passport_issuance_date");
+    const expirationField = fieldByName.get("passport_expiration_date");
+    const issuanceDate = parseApplicationDate(answers.passport_issuance_date ?? "");
+    const expirationDate = parseApplicationDate(answers.passport_expiration_date ?? "");
+    if (issuanceField && expirationField && issuanceDate && expirationDate && expirationDate <= issuanceDate) {
+      errors.push({
+        code: "passport_expiration_not_after_issuance",
+        fieldNames: ["passport_expiration_date", "passport_issuance_date"],
+        message: message("Expiry date must be after the issue date", "到期日必须晚于签发日"),
+      });
     }
   }
 

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { type WizardStep } from "@/types/visa-form-fields";
-import { evaluateShowIf } from "@/lib/form-utils";
+import { evaluateShowIf, getRepeatInstanceCount, getRepeatInstanceValues } from "@/lib/form-utils";
 import {
   getChineseLabel,
   getEnglishLabel,
@@ -404,24 +404,28 @@ export function DynamicReviewStep({
         return getLocalizedReviewSectionTitle(localized, isZh ? "zh" : "en");
       })();
 
+      const instanceCounts = new Map<string, number>();
+      const instanceValues = new Map<string, Record<string, string>>();
       for (const field of step.fields) {
-        if (!evaluateShowIf(field, dynamicAnswers, step.fields)) continue;
         if (field.fieldType === "file") continue;
-
-        const answerKeys = [field.fieldName];
-        for (let i = 2; i <= 20; i++) {
-          const repeatKey = `${field.fieldName}__${i}`;
-          if (dynamicAnswers[repeatKey] !== undefined) {
-            answerKeys.push(repeatKey);
-          } else {
-            break;
-          }
+        const group = String(field.validationRules?.repeat_group ?? field.fieldName);
+        let count = instanceCounts.get(group);
+        if (count === undefined) {
+          count = getRepeatInstanceCount(field, dynamicAnswers, step.fields);
+          instanceCounts.set(group, count);
         }
-
-        for (const answerKey of answerKeys) {
+        for (let instanceIndex = 0; instanceIndex < count; instanceIndex++) {
+          const instanceId = `${group}:${instanceIndex}`;
+          let scopedAnswers = instanceValues.get(instanceId);
+          if (!scopedAnswers) {
+            scopedAnswers = getRepeatInstanceValues(field, instanceIndex, dynamicAnswers, step.fields);
+            instanceValues.set(instanceId, scopedAnswers);
+          }
+          if (!evaluateShowIf(field, scopedAnswers, step.fields)) continue;
+          const answerKey = instanceIndex === 0 ? field.fieldName : `${field.fieldName}__${instanceIndex + 1}`;
           const value = dynamicAnswers[answerKey] ?? "";
           const isMissing = !value.trim();
-          const isRequired = isVisibleDynamicFieldRequired(field, dynamicAnswers, step.fields);
+          const isRequired = isVisibleDynamicFieldRequired(field, scopedAnswers, step.fields);
           const isRequiredMissing = isMissing && isRequired;
           const isOptionalBlank = isMissing && !isRequired;
 

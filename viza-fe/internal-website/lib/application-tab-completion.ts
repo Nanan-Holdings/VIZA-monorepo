@@ -1,5 +1,7 @@
 import type { DocumentCenterData } from "@/app/client/documents/actions";
 import {
+  getRepeatInstanceCount,
+  getRepeatInstanceValues,
   evaluateShowIf,
   isRequiredUnlessSatisfied,
   isRequiredWhenSatisfied,
@@ -272,11 +274,6 @@ function getRepeatGroup(field: VisaFormFieldRow): string | null {
   return typeof rules?.repeat_group === "string" ? rules.repeat_group : null;
 }
 
-function getMaxItems(field: VisaFormFieldRow): number | null {
-  const rules = field.validationRules as { max_items?: number } | null;
-  return typeof rules?.max_items === "number" && rules.max_items > 0 ? rules.max_items : null;
-}
-
 function instanceKey(fieldName: string, index: number): string {
   return index === 0 ? fieldName : `${fieldName}__${index + 1}`;
 }
@@ -410,30 +407,19 @@ function isFieldComplete(
   field: VisaFormFieldRow,
   values: Record<string, string>,
   now: Date = new Date(),
+  valueKey = field.fieldName,
+  repeatIndex = 0,
 ): boolean {
   if (field.fieldType === "checkbox" && (field.required || ruleRequiresAcceptance(field))) {
-    return isAcceptedCheckboxValue(values[field.fieldName]);
+    return isAcceptedCheckboxValue(values[valueKey]);
   }
   const expected = requiredExpectedAnswer(field);
-  if (expected !== null) return normalizeAnswer(values[field.fieldName]) === expected;
-  const group = getRepeatGroup(field);
-  if (!group) {
-    const value = text(values[field.fieldName]);
-    if (!hasValue(value)) return false;
-    if (!isDateFieldValueComplete(field, value)) return false;
-    if (isPastUpcomingTravelDate(field, value, now)) return false;
-    return isAllowedChoiceValue(field, value, values);
-  }
-
-  const count = getMaxItems(field) ?? 1;
-  for (let index = 0; index < count; index += 1) {
-    const value = values[instanceKey(field.fieldName, index)];
-    if (
-      isDateFieldValueComplete(field, value) &&
-      isAllowedChoiceValue(field, value, values, index)
-    ) return true;
-  }
-  return false;
+  if (expected !== null) return normalizeAnswer(values[valueKey]) === expected;
+  const value = text(values[valueKey]);
+  if (!hasValue(value)) return false;
+  if (!isDateFieldValueComplete(field, value)) return false;
+  if (isPastUpcomingTravelDate(field, value, now)) return false;
+  return isAllowedChoiceValue(field, value, values, repeatIndex);
 }
 
 function missingForDynamicStep(
@@ -445,6 +431,25 @@ function missingForDynamicStep(
 ) {
   const missing: MissingApplicationField[] = [];
   for (const field of step.fields) {
+    const group = getRepeatGroup(field);
+    if (group) {
+      const count = getRepeatInstanceCount(field, answers, step.fields);
+      for (let index = 0; index < count; index += 1) {
+        const valueKey = instanceKey(field.fieldName, index);
+        const instanceValues = getRepeatInstanceValues(field, index, answers, step.fields);
+        if (!isVisibleDynamicFieldRequired(field, instanceValues, step.fields)) continue;
+        if (isFieldComplete(field, instanceValues, now, valueKey, index)) continue;
+        missing.push({
+          stepId,
+          stepName,
+          fieldName: valueKey,
+          label: `${field.label || field.fieldName}${index > 0 ? ` #${index + 1}` : ""}`,
+          labelZh: getChineseFieldLabel(field),
+          reason: hasValue(instanceValues[valueKey]) ? "invalid" : "required",
+        });
+      }
+      continue;
+    }
     if (!isVisibleDynamicFieldRequired(field, answers, step.fields)) continue;
     if (isFieldComplete(field, answers, now)) continue;
     missing.push({

@@ -49,6 +49,56 @@ function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep
 }
 
 describe("dynamic review localization", () => {
+  test.each([
+    ["no", "yes", false, true],
+    ["yes", "no", true, false],
+  ])("reviews each repeated passport branch independently (%s / %s)", (first, second, showFirst, showSecond) => {
+    const fields = [
+      baseField({ fieldName: "has_passport", fieldType: "radio", options: ["yes", "no"], validationRules: { repeat_group: "nationalities" } }),
+      baseField({
+        fieldName: "other_passport", label: "Other passport",
+        validationRules: { repeat_group: "nationalities" },
+        conditionalLogic: { showIf: "has_other_nationality === yes && has_passport === yes" },
+      }),
+    ];
+    const props = {
+      applicationId: "test-only",
+      dynamicAnswers: {
+        has_other_nationality: "yes", has_passport: first, has_passport__2: second,
+        other_passport: "FIRST-PASSPORT", other_passport__2: "SECOND-PASSPORT",
+      },
+      dbSteps: [{ stepNumber: 1, stepName: "Nationalities", fields }],
+      photoPath: null, onEdit: vi.fn(), onPhotoEdit: vi.fn(), onComplete: vi.fn(),
+      showAction: false, readOnly: true,
+    };
+    const { rerender } = render(<DynamicReviewStep {...props} />);
+    expect(screen.queryAllByText("FIRST-PASSPORT").length > 0).toBe(showFirst);
+    expect(screen.queryAllByText("SECOND-PASSPORT").length > 0).toBe(showSecond);
+    rerender(<DynamicReviewStep {...props} dynamicAnswers={{ ...props.dynamicAnswers, has_other_nationality: "no" }} />);
+    expect(screen.queryByText("FIRST-PASSPORT")).not.toBeInTheDocument();
+    expect(screen.queryByText("SECOND-PASSPORT")).not.toBeInTheDocument();
+  });
+
+  test("reviews a missing required field in a partially filled repeat row", () => {
+    const fields = [
+      baseField({ fieldName: "has_passport", fieldType: "radio", options: ["yes", "no"], validationRules: { repeat_group: "nationalities" } }),
+      baseField({
+        fieldName: "other_passport", label: "Other passport",
+        validationRules: { repeat_group: "nationalities" },
+        conditionalLogic: { showIf: "has_passport === yes" },
+      }),
+    ];
+    render(<DynamicReviewStep
+      applicationId="test-only"
+      dynamicAnswers={{ has_passport: "no", has_passport__2: "yes" }}
+      dbSteps={[{ stepNumber: 1, stepName: "Nationalities", fields }]}
+      photoPath={null} onEdit={vi.fn()} onPhotoEdit={vi.fn()} onComplete={vi.fn()}
+      showAction={false} readOnly
+    />);
+    expect(screen.getByRole("heading", { name: "国籍 · 缺失信息" })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Other passport #2.*未填写/ })).toBeInTheDocument();
+  });
+
   test("renders a compact field-and-answer table with an editable English value", () => {
     const onSaveOfficialValue = vi.fn();
     const { container } = render(
