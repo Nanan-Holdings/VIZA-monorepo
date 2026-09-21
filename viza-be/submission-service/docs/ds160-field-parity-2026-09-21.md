@@ -73,6 +73,37 @@ required=false 当作选填证明。整组证据和兼容字段均已显式分�
 因此，本轮可确认“字段与分支有可追溯对照，已修复的实现通过相关回归并上线”，
 不能确认“官网所有行为 100% 一模一样”。
 
+## 追加验证：刷新恢复与照片服务
+
+2026-09-21 的追加浏览器验证使用真实 React 长表单页面的 production build，
+后端 actions 和保存响应使用仅限合成申请的 sessionStorage fixture；未修改已提交的真实申请。
+
+- 等待自动保存后刷新：Japan / Married / Student 及配偶、学校测试值恢复正确。
+- 切换 Single / Retired / 少于 24 小时并保存后刷新：配偶、学校、美国住宿和联系人分支保持隐藏。
+- 停留单位重新切到天：美国住宿及联系人分支恢复，已清空的住宿街道没有复活。
+- 其他国籍第二行新增、保存、刷新后保留；删除、保存、刷新后仍为删除状态，空字符串 tombstone 生效。
+- 复现并修复一个缺陷：输入后立即刷新，尚未到 30 秒自动保存时会恢复旧服务器值。现在只把未确认保存的补丁写入按申请/profile 隔离的 sessionStorage，刷新后恢复并重新排队保存。
+- 修复后的 production build 浏览器验证通过：名字立即刷新恢复并随后自动落盘、H 短停立即刷新仍隐藏住宿/联系人、普通 A→B→A 立即刷新、重复行新增及删除后立即刷新。最终构建控制台无 error。
+- 旧保存请求在飞时再修改，成功回调保留新草稿而非旧快照；回到旧服务器值的答案仍排队保存，避免 A→B→A 竞态。缓存 scope 查询使用稳定回调，不因初次 hydration 获得申请 ID 而重复初始化。
+- 30 项聚焦回归通过：6 项缓存、13 项页面编排、11 项保存队列；包含保存失败后恢复/重试和晚到 B 保存后继续保存 A。前端 type-check 通过；全包 lint 无 error（57 项既有 warning），最终改动文件 lint 无代码警告。
+
+修复代码 commit：`f9f094e79c89807be93c149ee90152d1e7dec54d`。
+前端追加部署：`dpl_HnsZquD8Xy86hJTwJbaJPo4gkC3E`，production / READY，
+已绑定 [app.viza.it.com](https://app.viza.it.com)。组织账号、项目和提交作者已核验；
+CLI dry-run 上传文件检查未包含环境文件、MCP 配置、浏览器证据、缓存或后端目录。
+部署后浏览器刷新真实申请：已提交状态、只读表单和确认页 PDF 下载入口均正常；
+浏览器 error 日志为空，新 deployment 的最近 10 分钟 error 请求日志查询无结果。
+本轮没有重复递交真实申请，没有修改 runner 镜像或启动旧队列任务。
+sessionStorage 是当前标签页的刷新保护，不能当作跨设备同步或关闭标签页后的持久备份；
+服务端保存成功后仅删除已经确认且没有再次修改的缓存字段。
+
+官网浏览器从 CEAC 的 Test Photo 入口进入 Identix 后显示 `HTTP Error 503. The service is unavailable.`。
+仅重新加载一次，仍为 503；没有上传照片或签名合成申请。该外部故障仍阻断本轮照片成功路径的现场验证。
+只读代码核查确认已有 CEAC Application ID 和恢复 checkpoint 会保留，照片阶段失败不会进入最终签名，
+不会自动新建草稿；外层进入 `ds160_blocked/action_required` 并关闭会话。当前错误分类仍为通用照片错误/超时，
+尚缺专门识别 HTTP 503 的 fixture。照片、签名与确认相关 47 项回归及 submission-service 类型检查通过，
+这些测试不能替代照片成功路径的现场证据。
+
 ## 复现
 
 在 submission-service 目录运行：
