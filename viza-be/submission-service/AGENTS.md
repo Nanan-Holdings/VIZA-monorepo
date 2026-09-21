@@ -1,5 +1,11 @@
 # Submission Service Agent Guide
 
+`docs/ds160-item-parity-2026-09-22.md` records the second, per-control B1/B2
+audit and fixes. Its `ds160-field-control-audit-2026-09-22.json`, CSV checklist,
+and `ds160-branch-control-audit-2026-09-22.json` retain audit snapshots and
+distinguish exact selector evidence from page/catalog associations. Never
+promote aggregate evidence or HTML required=false to verified server behavior.
+
 Product policy (2026-09-15): payment execution has been removed.
 `src/payment-removed.ts` defines the unconditional retirement boundary.
 Card-session HTTP routes return 410; issuer and portal payment functions cannot
@@ -376,6 +382,10 @@ and must fail closed; callers must not perform a direct table settlement.
 - `docs/ds160-field-parity-2026-09-21.md`: no-PII audit for the current 337-field,
   83-condition, 22-active-repeat internal contract and the separate current-live
   evidence index. It explicitly keeps official full parity unverified.
+- The current DS-160 contract also follows migration 0204 for the CEAC sex
+  select, former-spouse count text control, and marriage-ended textarea.
+  `job_title` remains a persistence-only compatibility alias and must not
+  become a new CEAC question.
 - `docs/ds160-field-parity-evidence-template.json`: generated B1/B2 evidence
   manifest for every seeded field, both directions of each conditional branch,
   and repeat-row add/delete controls. Empty slots are fail-closed; published
