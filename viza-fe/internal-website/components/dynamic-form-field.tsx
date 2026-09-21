@@ -456,8 +456,6 @@ export function DynamicFormField({
   const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
   const [optimisticSelectionValue, setOptimisticSelectionValue] = useState(value);
   const selectionChangeRef = useRef(onChange);
-  const pendingSelectionFrameRef = useRef<number | null>(null);
-  const pendingSelectionTimerRef = useRef<number | null>(null);
   const maxLength = getMaxLengthRule(field);
   const criticalInlineHelperText = getCriticalInlineHelperText(field, sideLocale);
   const includeCountryFlags = usesCountryOptionFlags(field);
@@ -476,33 +474,14 @@ export function DynamicFormField({
     setOptimisticSelectionValue(value);
   }, [field.fieldName, value]);
 
-  useEffect(() => () => {
-    if (pendingSelectionFrameRef.current !== null) {
-      window.cancelAnimationFrame(pendingSelectionFrameRef.current);
-    }
-    if (pendingSelectionTimerRef.current !== null) {
-      window.clearTimeout(pendingSelectionTimerRef.current);
-    }
-  }, []);
-
   const commitSelection = useCallback((nextValue: string) => {
     setOptimisticSelectionValue(nextValue);
-    if (pendingSelectionFrameRef.current !== null) {
-      window.cancelAnimationFrame(pendingSelectionFrameRef.current);
-    }
-    if (pendingSelectionTimerRef.current !== null) {
-      window.clearTimeout(pendingSelectionTimerRef.current);
-    }
-    pendingSelectionFrameRef.current = window.requestAnimationFrame(() => {
-      pendingSelectionFrameRef.current = null;
-      pendingSelectionTimerRef.current = window.setTimeout(() => {
-        pendingSelectionTimerRef.current = null;
-        // The long form can contain hundreds of controls. Let this field paint
-        // its selected state before React recalculates conditional visibility
-        // and autosave state for the enclosing application.
-        startTransition(() => selectionChangeRef.current(nextValue));
-      }, 0);
-    });
+    // Publish a selected answer synchronously. The page-level submit action
+    // reads the parent's draft buffer, so deferring this callback by a frame
+    // can drop a selection when the applicant submits immediately.
+    // Selection is a single interaction; text inputs still use their normal
+    // per-field handlers and do not reintroduce broad per-keystroke work.
+    startTransition(() => selectionChangeRef.current(nextValue));
   }, []);
 
   switch (fieldType) {

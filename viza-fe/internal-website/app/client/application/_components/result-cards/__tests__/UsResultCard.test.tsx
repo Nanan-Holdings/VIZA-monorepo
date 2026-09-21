@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import enMessages from "@/messages/en.json";
+import zhMessages from "@/messages/zh.json";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import { UsResultCard } from "../UsResultCard";
 
@@ -36,6 +38,65 @@ describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     push.mockReset();
+  });
+
+  it("keeps required result-card accessibility messages in every locale", () => {
+    for (const messages of [enMessages, zhMessages]) {
+      const card = messages.usAppointment.ds160Card;
+      expect(card.copyValue).toContain("{label}");
+      expect(card.copiedValue).toContain("{label}");
+      expect(card.customEmailLabel).toBeTruthy();
+      expect(card.openCeacStatus).toBeTruthy();
+    }
+  });
+
+  it("keeps result actions accessible and labels the custom email field", () => {
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+
+    expect(screen.getAllByRole("button", { name: "copyValue" })).toHaveLength(3);
+    const emailButton = screen.getByRole("button", { name: "emailConfirmation" });
+    expect(emailButton).toHaveAttribute("aria-expanded", "false");
+    expect(emailButton).toHaveAttribute("aria-controls");
+
+    fireEvent.click(emailButton);
+
+    expect(emailButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("customEmailLabel")).toHaveAttribute("type", "email");
+  });
+
+  it("starts a download without opening a popup after proof is ready", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      status: "ready",
+      downloadUrl: "/api/applications/viza-application-id/submission-artifact?download=confirmation.pdf",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    let clickedHref = "";
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clickedHref = this.href;
+    });
+
+    render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "printConfirmation" }));
+
+    await waitFor(() => {
+      expect(clickedHref).toContain("/api/applications/viza-application-id/submission-artifact");
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    anchorClick.mockRestore();
+  });
+
+  it("does not promise CEAC retrieval when the security answer is hidden", () => {
+    render(
+      <UsResultCard
+        applicationId="viza-application-id"
+        result={{ ...submittedResult, securityAnswer: "[REDACTED]" }}
+      />,
+    );
+
+    expect(screen.getByText("securityAnswerUnavailable")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "openCeacStatus" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "openCeac" })).not.toBeInTheDocument();
   });
 
   it("creates a new VIZA draft and navigates back to the form", async () => {

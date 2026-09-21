@@ -12,6 +12,10 @@ vi.mock("../WaitingCard", () => ({
   WaitingCard: () => <div data-testid="waiting-card" />,
 }));
 
+vi.mock("../UsResultCard", () => ({
+  UsResultCard: () => <div data-testid="us-result-card" />,
+}));
+
 type Snapshot = {
   status: string;
   stage: string;
@@ -358,5 +362,58 @@ describe("SubmissionStatusStep status polling", () => {
     await advanceAndFlush(30_000);
 
     expect(statusRequestCount(fetchMock)).toBe(1);
+  });
+
+  it("notifies the parent only for a successful polled DS-160 result, not an active queued result", async () => {
+    vi.useFakeTimers();
+    const successfulResult = {
+      country: "US",
+      status: "submitted",
+      applicationId: "AA00TEST01",
+    };
+    let responseBody = createSnapshot({
+      status: "queued",
+      stage: "preparing",
+      progress: 12,
+      result: successfulResult,
+      applicationStatus: "processing",
+      country: "united_states",
+      visaType: "DS160",
+    });
+    const onSubmissionResult = vi.fn();
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(createResponse(responseBody)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="united_states"
+        visaType="DS160"
+        status="waiting"
+        result={null}
+        onSubmissionResult={onSubmissionResult}
+      />,
+    );
+    await flushEffects();
+    expect(onSubmissionResult).not.toHaveBeenCalled();
+
+    responseBody = createSnapshot({
+      status: "completed",
+      stage: "completed",
+      progress: 100,
+      result: successfulResult,
+      applicationStatus: "submitted",
+      country: "united_states",
+      visaType: "DS160",
+    });
+    await advanceAndFlush(5_000);
+
+    expect(onSubmissionResult).toHaveBeenCalledTimes(1);
+    expect(onSubmissionResult).toHaveBeenCalledWith({
+      status: "submitted",
+      result: successfulResult,
+    });
   });
 });

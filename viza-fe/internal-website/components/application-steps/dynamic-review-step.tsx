@@ -273,6 +273,7 @@ export interface DynamicReviewStepProps {
   mode?: "submit" | "continue";
   continueLabel?: string;
   showAction?: boolean;
+  readOnly?: boolean;
   reviewIssues?: ReadonlyMap<string, FormAssistantFieldReviewIssue>;
 }
 
@@ -288,6 +289,7 @@ export function DynamicReviewStep({
   mode = "submit",
   continueLabel,
   showAction = true,
+  readOnly = false,
   reviewIssues,
 }: DynamicReviewStepProps) {
   const t = useTranslations("applicationSteps");
@@ -499,7 +501,7 @@ export function DynamicReviewStep({
             officialValue,
             badges,
             warnings,
-            editable: true,
+            editable: !readOnly,
             editStepIndex: sourceIndex,
             missing: isRequiredMissing,
             optional: isOptionalBlank,
@@ -523,7 +525,7 @@ export function DynamicReviewStep({
 
     previousRowsByKeyRef.current = nextRowsByKey;
     return [...completedRows, ...missingRows, ...optionalRows];
-  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, reviewIssues, t, tDyn]);
+  }, [dbSteps, dynamicAnswers, formatValue, getOfficialValue, isZh, readOnly, reviewIssues, t, tDyn]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -531,8 +533,8 @@ export function DynamicReviewStep({
         <BilingualReviewPanel
           applicationId={applicationId}
           rows={bilingualRows}
-          onSaveOfficialValue={onSaveOfficialValue ? saveOfficialValue : undefined}
-          onEditSection={onEdit}
+          onSaveOfficialValue={readOnly || !onSaveOfficialValue ? undefined : saveOfficialValue}
+          onEditSection={readOnly ? undefined : onEdit}
         />
 
         {photoPath ? (
@@ -541,10 +543,12 @@ export function DynamicReviewStep({
               <h3 className="font-heading text-sm font-semibold text-brand-500">
                 {isZh ? "上传照片" : "Photo"}
               </h3>
-              <ReviewEditButton
-                onClick={onPhotoEdit}
-                label={isZh ? "修改上传照片" : "Edit uploaded photo"}
-              />
+              {!readOnly ? (
+                <ReviewEditButton
+                  onClick={onPhotoEdit}
+                  label={isZh ? "修改上传照片" : "Edit uploaded photo"}
+                />
+              ) : null}
             </div>
             <Table className="table-fixed">
               <TableBody>
@@ -565,7 +569,7 @@ export function DynamicReviewStep({
         ) : null}
       </div>
 
-      {showAction && mode === "submit" ? (
+      {!readOnly && showAction && mode === "submit" ? (
         <>
           <ValidationPanel
             applicationId={applicationId}
@@ -578,7 +582,7 @@ export function DynamicReviewStep({
             onConfirm={onComplete}
           />
         </>
-      ) : showAction ? (
+      ) : !readOnly && showAction ? (
         <Button onClick={onComplete} size="lg" className="self-stretch">
           {actionLabel}
         </Button>

@@ -72,6 +72,10 @@ application lifecycle state.
   Korea e-Arrival Card preflight completion also lives here so ownership,
   active-application identity, draft creation, and audit-answer persistence happen
   behind one authenticated server boundary.
+- `ds160-normalize.ts`: deterministic hardcoded-step to DS-160 answer mapping;
+  `persistDS160AnswerSet()` must preserve the same owner and successful-submission
+  read-only boundary as dynamic answer autosaves. Coverage lives in
+  `ds160-normalize.test.ts`.
 - `visa-form-fields.ts`: authenticates the caller, loads DB-driven visa form
   fields through the bounded static-metadata singleflight cache, then runs the
   shared schema/UI compiler so component mapping and conditional-panel

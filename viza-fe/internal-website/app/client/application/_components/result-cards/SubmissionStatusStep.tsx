@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientErrorAlert } from "@/components/client/client-error-alert";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import { hasSuccessfulArrivalCardSubmission } from "@/features/arrival-cards/application-lifecycle";
 import {
   WaitingCard,
@@ -88,6 +89,10 @@ interface SubmissionStatusStepProps {
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
   submissionStarting?: boolean;
+  onSubmissionResult?: (update: {
+    status: SubmissionResultStatus | null;
+    result: SubmissionResult;
+  }) => void;
   onResubmit?: (
     mode: SubmissionMode,
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
@@ -1409,6 +1414,7 @@ export function SubmissionStatusStep({
   status,
   result,
   submissionStarting = false,
+  onSubmissionResult,
   onResubmit,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
@@ -1835,6 +1841,27 @@ export function SubmissionStatusStep({
             : 0;
           lastSnapshotFingerprint = fingerprint;
           setSnapshot(nextSnapshot);
+          if (
+            nextSnapshot.result &&
+            !isActiveSnapshot(nextSnapshot) &&
+            !hasSuccessfulFormSubmission({
+              country,
+              visaType,
+              submissionResultStatus: status,
+              submissionResult: result,
+            }) &&
+            hasSuccessfulFormSubmission({
+              country: nextSnapshot.country ?? country,
+              visaType: nextSnapshot.visaType ?? visaType,
+              submissionResultStatus: nextSnapshot.applicationStatus,
+              submissionResult: nextSnapshot.result,
+            })
+          ) {
+            onSubmissionResult?.({
+              status: nextSnapshot.applicationStatus,
+              result: nextSnapshot.result,
+            });
+          }
         }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
@@ -1893,6 +1920,7 @@ export function SubmissionStatusStep({
     country,
     isZh,
     localRetryActive,
+    onSubmissionResult,
     resubmitting,
     visaType,
     result,

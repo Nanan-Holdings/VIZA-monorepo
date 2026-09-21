@@ -168,6 +168,43 @@ describe("visa application answer query budget", () => {
     expect(mocks.cacheApplicationAnswers).not.toHaveBeenCalled();
   });
 
+  it("rejects an autosave before writing after a durable successful submission", async () => {
+    const applicationQuery = query({
+      data: {
+        id: "application-1",
+        applicant_id: "profile-1",
+        country: "united_states",
+        visa_type: "US_DS160",
+        submitted_at: "2026-09-20T12:00:00.000Z",
+        submission_result_status: "submitted",
+        submission_result: {
+          country: "US",
+          status: "submitted",
+          applicationId: "AA00TEST01",
+        },
+        updated_at: "2026-09-20T12:00:00.000Z",
+        applicant_profiles: owner,
+      },
+      error: null,
+    });
+    const answerQuery = query({ data: null, error: null });
+    const from = vi.fn((table: string) => {
+      if (table === "applications") return applicationQuery;
+      if (table === "visa_application_answers") return answerQuery;
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+    mocks.createAdminClient.mockReturnValue({ from });
+
+    await expect(
+      saveDynamicAnswers("application-1", { surname: "Edited after submit" })
+    ).resolves.toEqual({ error: "Application is already submitted and read-only" });
+
+    expect(from.mock.calls.map(([table]) => table)).toEqual(["applications"]);
+    expect(answerQuery.upsert).not.toHaveBeenCalled();
+    expect(mocks.cacheApplicationAnswers).not.toHaveBeenCalled();
+    expect(mocks.queueApplicationAnswers).not.toHaveBeenCalled();
+  });
+
   it("loads answers with one ownership query and one answer query", async () => {
     const applicationQuery = query({
       data: {

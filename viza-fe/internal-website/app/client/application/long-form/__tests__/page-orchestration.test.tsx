@@ -2,6 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const testState = vi.hoisted(() => ({
+  submitted: false,
+  saveBarrier: null as Promise<void> | null,
+  saveError: null as string | null,
+  submissionPosts: [] as string[],
+  statusPropsHistory: [] as Array<Record<string, unknown>>,
   dynamicPropsHistory: [] as Array<Record<string, unknown>>,
   reviewPropsHistory: [] as Array<Record<string, unknown>>,
   assistantPropsHistory: [] as Array<Record<string, unknown>>,
@@ -107,8 +112,11 @@ vi.mock("@/components/client/brand-action-button", () => ({
 vi.mock("@/components/application-steps/universal-profile-sync-card", () => ({
   UniversalProfileSyncCard: () => null,
 }));
-vi.mock("../_components/result-cards/SubmissionStatusStep", () => ({
-  SubmissionStatusStep: () => null,
+vi.mock("../../_components/result-cards/SubmissionStatusStep", () => ({
+  SubmissionStatusStep: (props: Record<string, unknown>) => {
+    testState.statusPropsHistory.push(props);
+    return <button type="button">Download confirmation</button>;
+  },
 }));
 
 vi.mock("@/components/application-steps", () => {
@@ -238,6 +246,8 @@ vi.mock("@/app/actions/visa-application-answers", () => ({
   loadDynamicAnswers: vi.fn(async () => ({ answers: {} })),
   saveDynamicAnswers: vi.fn(async (applicationId: string, answers: Record<string, unknown>) => {
     testState.saveDynamicAnswersCalls.push({ applicationId, answers });
+    if (testState.saveBarrier) await testState.saveBarrier;
+    if (testState.saveError) return { error: testState.saveError };
     return { ok: true };
   }),
   ensureDraftApplication: vi.fn(),
@@ -307,11 +317,13 @@ vi.mock("@/lib/form-assistant/validator", () => ({
   },
 }));
 vi.mock("@/lib/application-submission-display", () => ({
-  shouldShowReviewAlongsideSubmissionStatus: () => false,
-  shouldShowSubmissionStatusStep: () => false,
+  shouldShowReviewAlongsideSubmissionStatus: () => testState.submitted,
+  shouldShowSubmissionStatusStep: (input: { submissionResultStatus?: string }) =>
+    testState.submitted || ["waiting", "submitted"].includes(input.submissionResultStatus ?? ""),
 }));
 vi.mock("@/lib/form-assistant/submission-readonly", () => ({
-  hasSuccessfulFormSubmission: () => false,
+  hasSuccessfulFormSubmission: (input: { submissionResult?: { status?: string } }) =>
+    testState.submitted || input.submissionResult?.status === "submitted",
   toSubmittedFormAssistantProgress: (progress: unknown) => progress,
   toSubmittedFormAssistantState: (state: unknown) => state,
 }));
@@ -377,6 +389,11 @@ const response = (payload: unknown) => ({
 });
 
 beforeEach(() => {
+  testState.submitted = false;
+  testState.saveBarrier = null;
+  testState.saveError = null;
+  testState.submissionPosts.length = 0;
+  testState.statusPropsHistory.length = 0;
   testState.dynamicPropsHistory.length = 0;
   testState.reviewPropsHistory.length = 0;
   testState.assistantPropsHistory.length = 0;
@@ -404,6 +421,10 @@ beforeEach(() => {
   HTMLElement.prototype.scrollTo = vi.fn();
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url.endsWith("/retry-submission")) {
+      testState.submissionPosts.push(String(init?.body));
+      return response({ jobId: "mock-job", queueStatus: "queued" }) as Response;
+    }
     if (url.includes("form-assistant?") && !url.includes("/validate")) {
       return response({
         sessionId: "assistant-session",
@@ -427,6 +448,72 @@ beforeEach(() => {
 });
 
 describe("long form page orchestration", () => {
+  it("waits for the latest save before enqueueing once and advancing to status", async () => {
+    const barrier = Promise.withResolvers<void>();
+    testState.saveBarrier = barrier.promise;
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Submit$/ })).toBeEnabled());
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+
+    fireEvent.click(screen.getByTestId("dynamic-edit"));
+    const submit = screen.getByRole("button", { name: /^Submit$/ });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+    await waitFor(() => expect(testState.saveDynamicAnswersCalls.length).toBeGreaterThan(0));
+    expect(testState.submissionPosts).toHaveLength(0);
+    expect(testState.saveDynamicAnswersCalls.at(-1)?.answers.first_name).toBe("edited");
+
+    await act(async () => { barrier.resolve(); });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Download confirmation" })).toBeEnabled());
+    expect(testState.submissionPosts).toHaveLength(1);
+    expect(JSON.parse(testState.submissionPosts[0])).toMatchObject({ visaType: "DS160" });
+    expect(screen.queryByRole("button", { name: /^Submit$/ })).not.toBeInTheDocument();
+
+    const onResult = testState.statusPropsHistory.at(-1)?.onSubmissionResult as
+      (update: { status: string; result: { country: string; status: string; applicationId: string } }) => void;
+    act(() => onResult({
+      status: "submitted",
+      result: { country: "US", status: "submitted", applicationId: "AA00TEST01" },
+    }));
+    await waitFor(() => expect(screen.getByTestId("dynamic-edit")).toBeDisabled());
+    expect(screen.getByRole("button", { name: "Download confirmation" })).toBeEnabled();
+  });
+
+  it("keeps the draft editable and never enqueues when saving fails", async () => {
+    testState.saveError = "Save failed. Please retry.";
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Submit$/ })).toBeEnabled());
+    await waitFor(() => expect(testState.assistantPropsHistory.at(-1)?.loading).toBe(false));
+
+    fireEvent.click(screen.getByTestId("dynamic-edit"));
+    fireEvent.click(screen.getByRole("button", { name: /^Submit$/ }));
+    await waitFor(() => expect(screen.getByText("Save failed. Please retry.")).toBeInTheDocument());
+    expect(testState.submissionPosts).toHaveLength(0);
+    expect(screen.getByTestId("dynamic-edit")).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Submit$/ })).toBeEnabled();
+  });
+
+  it("locks submitted form controls and stale save callbacks while leaving confirmation downloads available", async () => {
+    testState.submitted = true;
+    const { default: ApplicationPage } = await import("../page");
+    render(<ApplicationPage />);
+
+    await waitFor(() => expect(screen.getByTestId("dynamic-edit")).toBeDisabled());
+    expect(screen.getByRole("button", { name: "Download confirmation" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /^Submit$/ })).not.toBeInTheDocument();
+    expect(testState.reviewPropsHistory.at(-1)?.readOnly).toBe(true);
+    expect(testState.reviewPropsHistory.at(-1)?.onSaveOfficialValue).toBeUndefined();
+
+    const props = testState.dynamicPropsHistory.at(-1)!;
+    await act(async () => {
+      (props.onDraftChange as (answers: Record<string, string>) => void)({ first_name: "changed" });
+      await (props.onComplete as (answers: Record<string, string>) => Promise<void>)({ first_name: "changed" });
+    });
+    expect(testState.saveDynamicAnswersCalls).toHaveLength(0);
+  });
+
   it("keeps dynamic form props reusable after a draft snapshot refresh", async () => {
     const { default: ApplicationPage } = await import("../page");
     render(<ApplicationPage />);

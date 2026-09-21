@@ -158,6 +158,10 @@ Before changing this route, read:
     not be saved or reused as applicant information.
     DS-160 also requires its DB-driven schema: an unavailable schema must use
     the existing page error boundary instead of exposing the generic intake.
+    Durable successful submissions also lock the entry panels, review editors,
+    and answer-save actions. Keep result downloads available. Propagate a
+    successful status-poll result to the page so this lock works even when
+    Realtime is disconnected; queued or failed results must remain repairable.
 22. Parse application query parameters through the shared escaped-parameter
     reader. For a dedicated country product, the product code is authoritative
     for country resolution; never combine its schema with an unrelated route,

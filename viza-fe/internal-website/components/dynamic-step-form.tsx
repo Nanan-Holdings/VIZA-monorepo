@@ -4190,7 +4190,11 @@ function DynamicStepFormImpl({
     return [...dependents];
   }, [dependentFieldsByParent]);
 
-  const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
+  const handleChange = (
+    fieldName: string,
+    value: string,
+    options?: { recordUndo?: boolean; publishDraft?: boolean },
+  ) => {
     const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
       ? normalizeIndonesiaMobileNumber(value)
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
@@ -4251,6 +4255,19 @@ function DynamicStepFormImpl({
     const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType, fieldName);
     valuesRef.current = normalizedNext;
     setValues(normalizedNext);
+    if (options?.publishDraft) {
+      const nextPatch = buildCurrentStepAnswerPatch(
+        step.fields,
+        normalizedNext,
+        groupCountsRef.current,
+        textPairsRef.current,
+      );
+      // Discrete selections can be followed by an immediate page-level
+      // submit. Keep the parent's draft buffer current without publishing
+      // every keystroke from text-like controls.
+      lastDraftPatchRef.current = nextPatch;
+      onDraftChangeRef.current?.(nextPatch);
+    }
   };
 
   const handleKoreaOfficialAddressSelection = (fieldName: string, value: string) => {
@@ -4863,7 +4880,13 @@ function DynamicStepFormImpl({
                 handleKoreaOfficialAddressSelection(valueKey, nextValue);
                 return;
               }
-              handleChange(valueKey, nextValue);
+              handleChange(valueKey, nextValue, {
+                publishDraft:
+                  field.fieldType === "select"
+                  || field.fieldType === "multi_select"
+                  || field.fieldType === "country"
+                  || field.fieldType === "radio",
+              });
             }}
             forceWhiteBackground={forceWhiteBackground}
             disabled={lt24Disabled || tdacTransitCheckboxLocked || isFieldReadOnly}

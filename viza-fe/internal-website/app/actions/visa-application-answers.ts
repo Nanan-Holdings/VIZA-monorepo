@@ -56,6 +56,7 @@ import {
   JP_VJW_PAYLOAD_VALIDATION_ERROR_CODE,
   shouldResetJpVjwPreflightAfterAnswerSave,
 } from "@/lib/application-submission-display";
+import { hasSuccessfulFormSubmission } from "@/lib/form-assistant/submission-readonly";
 import {
   isQaDryRunPurpose,
   isSyntheticQaValue,
@@ -833,7 +834,7 @@ async function saveDynamicAnswersOnce(
     const ownedApplicationResult = await loadApplicationWithOwner(
       adminClient,
       applicationId,
-      "id, applicant_id, visa_type, submitted_at, submission_result, submission_result_status, updated_at"
+      "id, applicant_id, country, visa_type, submitted_at, submission_result, submission_result_status, updated_at"
     );
 
     if (ownedApplicationResult.error) {
@@ -847,6 +848,7 @@ async function saveDynamicAnswersOnce(
       | (ApplicationWithOwner & {
           id: string;
           applicant_id: string;
+          country?: string | null;
           visa_type?: string | null;
           submitted_at?: string | null;
           submission_result?: unknown;
@@ -861,6 +863,14 @@ async function saveDynamicAnswersOnce(
     );
     if (!ownedSession) {
       return { error: "Unauthorized" };
+    }
+    if (hasSuccessfulFormSubmission({
+      country: app.country,
+      visaType: app.visa_type,
+      submissionResultStatus: app.submission_result_status,
+      submissionResult: app.submission_result,
+    })) {
+      return { error: "Application is already submitted and read-only" };
     }
     resilienceEvent = {
       ...resilienceEvent,

@@ -1825,6 +1825,7 @@ export default function ApplicationPage() {
   const dynamicAnswersRef = useRef(dynamicAnswers);
   dynamicAnswersRef.current = dynamicAnswers;
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const submittedReadOnlyRef = useRef(false);
   const externalDraftProtectionRef = useRef<{ fieldNames: Set<string>; expiresAt: number } | null>(null);
   const draftVersionTimerRef = useRef<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -1970,6 +1971,7 @@ export default function ApplicationPage() {
     data: Record<string, string>,
     options?: { merge?: boolean },
   ) => {
+    if (submittedReadOnlyRef.current) return;
     const protection = externalDraftProtectionRef.current;
     let nextData = options?.merge
       ? mergeFormAssistantIssueDraft(dynamicDraftRef.current[stepId], data)
@@ -2074,6 +2076,22 @@ export default function ApplicationPage() {
     submissionResultStatus: appState.submissionResultStatus,
     submissionResult: appState.submissionResult,
   });
+  submittedReadOnlyRef.current = formAssistantReadOnly;
+  const handlePolledSubmissionResult = useCallback((update: {
+    status: SubmissionResultStatus | null;
+    result: SubmissionResult;
+  }) => {
+    // Polling remains available when Realtime disconnects. Its verified result
+    // must lock the form as well as update the result card.
+    setAppState((previous) => previous.submissionResult === update.result &&
+      previous.submissionResultStatus === update.status
+      ? previous
+      : {
+          ...previous,
+          submissionResult: update.result,
+          submissionResultStatus: update.status,
+        });
+  }, []);
   const formAssistantEligible =
     !koreaSchemaUnavailable &&
     (!isKoreaEArrivalCard || koreaPreflightTrusted || formAssistantReadOnly) &&
@@ -3151,11 +3169,13 @@ export default function ApplicationPage() {
   ]);
   const enqueueDynamicAnswerSave = useCallback(
     (patch: Record<string, string>, applicationIdOverride?: string, force = false) => {
+      if (submittedReadOnlyRef.current) return Promise.resolve();
       const queue = orderedDynamicSaveQueueRef.current;
       if (!queue) return Promise.reject(new Error("Dynamic answer save queue is unavailable"));
       const applicationScope = applicationIdOverride ?? dynamicSaveScope;
       return queue.enqueue(applicationScope, patch, async (snapshot) => {
         const applicationId = applicationIdOverride ?? await ensureWritableApplicationId();
+        if (submittedReadOnlyRef.current) return;
         const saveResult = await saveDynamicAnswers(applicationId, snapshot);
         if (saveResult.error) throw new Error(saveResult.error);
       }, { deduplicate: !force });
@@ -3224,6 +3244,7 @@ export default function ApplicationPage() {
   }, [enqueueDynamicAnswerSave]);
 
   const handleReviewOfficialValueSave = useCallback(async (answerPatch: Record<string, string>) => {
+    if (submittedReadOnlyRef.current) return;
     const answerEntries = Object.entries(answerPatch);
     if (answerEntries.length === 0) return;
 
@@ -3705,7 +3726,7 @@ export default function ApplicationPage() {
   }, [formAssistantValidation?.canReview, formAssistantValidationDirty, navigateFormAssistantToReview]);
 
   useEffect(() => {
-    if (!useDynamic || loading || autosaveVersion === 0) return;
+    if (!useDynamic || loading || formAssistantReadOnly || autosaveVersion === 0) return;
     if (lastAutosaveVersionRef.current === autosaveVersion) return;
     lastAutosaveVersionRef.current = autosaveVersion;
 
@@ -3763,6 +3784,7 @@ export default function ApplicationPage() {
   }, [
     autosaveVersion,
     enqueueDynamicAnswerSave,
+    formAssistantReadOnly,
     loading,
     saving,
     t,
@@ -3986,6 +4008,7 @@ export default function ApplicationPage() {
   };
 
   const handleDynamicStepComplete = useCallback(async (stepIndex: number, data: Record<string, string>) => {
+    if (submittedReadOnlyRef.current) return;
     setSaving(true);
     setError(null);
     try {
@@ -4176,6 +4199,7 @@ export default function ApplicationPage() {
     mode: SubmissionMode = "dry_run",
     taiwanOfficialTermsConsent?: TaiwanOfficialTermsConsentInput,
   ) => {
+    if (submittedReadOnlyRef.current) return;
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
@@ -5121,8 +5145,13 @@ export default function ApplicationPage() {
                   className="flex scroll-mt-28 flex-col gap-2 lg:scroll-mt-4"
                 >
                   {/* Panel card */}
+                  <fieldset
+                    disabled={formAssistantReadOnly && step.id !== (useDynamic ? reviewStepIndex : fallbackReviewStepIndex)}
+                    className="m-0 min-w-0 border-0 p-0"
+                    aria-labelledby={`application-step-heading-${step.id}`}
+                  >
                   <ApplicationFormPanel className="w-full p-4 sm:p-6 md:p-8">
-                    <h2 className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
+                    <h2 id={`application-step-heading-${step.id}`} className="mb-5 font-heading text-[20px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[24px] sm:tracking-[-0.7px] md:text-[28px]">
                       {step.name}
                     </h2>
                     {showPassportOcrUpload && step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
@@ -5237,6 +5266,7 @@ export default function ApplicationPage() {
                             >
                               {showReviewAlongsideSubmissionStatus ? (
                                 <MemoizedDynamicReviewStep
+                                  readOnly={formAssistantReadOnly}
                                   applicationId={appState.applicationId}
                                   dynamicAnswers={dynamicAnswerSnapshot}
                                   dbSteps={dbSteps}
@@ -5251,6 +5281,7 @@ export default function ApplicationPage() {
                                 />
                               ) : null}
                               <SubmissionStatusStep
+                                onSubmissionResult={handlePolledSubmissionResult}
                                 applicationId={appState.applicationId}
                                 country={activeCountry}
                                 visaType={activeVisaType}
@@ -5263,6 +5294,7 @@ export default function ApplicationPage() {
                           ) : (
                             <div className="flex flex-col gap-6">
                                 <MemoizedDynamicReviewStep
+                                readOnly={formAssistantReadOnly}
                                 applicationId={appState.applicationId}
                                 dynamicAnswers={dynamicAnswerSnapshot}
                                 dbSteps={dbSteps}
@@ -5392,6 +5424,7 @@ export default function ApplicationPage() {
                                 />
                               ) : null}
                               <SubmissionStatusStep
+                                onSubmissionResult={handlePolledSubmissionResult}
                                 applicationId={appState.applicationId}
                                 country={activeCountry}
                                 visaType={activeVisaType}
@@ -5442,6 +5475,7 @@ export default function ApplicationPage() {
                       </>
                     )}
                   </ApplicationFormPanel>
+                  </fieldset>
                 </div>
               );
             })}

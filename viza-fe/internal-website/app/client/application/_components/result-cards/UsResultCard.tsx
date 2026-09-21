@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ import type { UsSubmissionResult } from "@/lib/submission-result";
 import type { Ds160ProofKind } from "@/lib/ds160-proof";
 
 function CopyValue({ label, value }: { label: string; value: string }) {
+  const t = useTranslations("usAppointment.ds160Card");
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-start justify-between gap-3 rounded-md border border-input bg-background px-3 py-2">
@@ -32,13 +33,18 @@ function CopyValue({ label, value }: { label: string; value: string }) {
         <div className="mt-0.5 break-all font-mono text-sm text-foreground">{value}</div>
       </div>
       <Button
+        type="button"
         variant="ghost"
         size="sm"
         className="shrink-0"
+        aria-label={t(copied ? "copiedValue" : "copyValue", { label })}
         onClick={() => {
-          void navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+          const clipboard = navigator.clipboard;
+          if (!clipboard) return;
+          void clipboard.writeText(value).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }).catch(() => undefined);
         }}
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -51,19 +57,44 @@ function ProofActionButton({
   busy,
   label,
   onClick,
+  ariaControls,
+  ariaExpanded,
   children,
 }: {
   busy: boolean;
   label: string;
   onClick: () => void;
+  ariaControls?: string;
+  ariaExpanded?: boolean;
   children: ReactNode;
 }) {
   return (
-    <Button type="button" variant="outline" className="justify-start" onClick={onClick} disabled={busy}>
+    <Button
+      type="button"
+      variant="outline"
+      className="justify-start"
+      onClick={onClick}
+      disabled={busy}
+      aria-controls={ariaControls}
+      aria-expanded={ariaExpanded}
+    >
       {busy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : children}
       <span className="ml-2 truncate">{label}</span>
     </Button>
   );
+}
+
+function triggerProofDownload(downloadUrl: string): void {
+  const anchor = document.createElement("a");
+  anchor.href = downloadUrl;
+  anchor.download = "";
+  anchor.rel = "noopener";
+  anchor.tabIndex = -1;
+  anchor.setAttribute("aria-hidden", "true");
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
 }
 
 type ProofBusyState = Partial<Record<Ds160ProofKind, boolean>>;
@@ -98,6 +129,8 @@ export function UsResultCard({
   const [proofError, setProofError] = useState<string | null>(null);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
+  const emailPanelId = `ds160-email-panel-${useId()}`;
+  const customEmailInputId = `ds160-custom-email-${useId()}`;
 
   const startNewApplication = async () => {
     if (!applicationId || startingNewApplication) return;
@@ -161,7 +194,7 @@ export function UsResultCard({
     try {
       const payload = await postProofAction(kind, action, emailMode);
       if (payload.status === "ready" && payload.downloadUrl) {
-        window.open(payload.downloadUrl, "_blank", "noopener,noreferrer");
+        triggerProofDownload(payload.downloadUrl);
         setProofMessage(t("proofReady"));
         return;
       }
@@ -173,10 +206,9 @@ export function UsResultCard({
         setProofMessage(t("proofQueued"));
         const ready = await waitForProofReady(kind);
         if (action === "download") {
-          if (ready.downloadUrl) {
-            window.open(ready.downloadUrl, "_blank", "noopener,noreferrer");
-            setProofMessage(t("proofReady"));
-          }
+          if (!ready.downloadUrl) throw new Error(t("proofFailed"));
+          triggerProofDownload(ready.downloadUrl);
+          setProofMessage(t("proofReady"));
         } else {
           const sent = await postProofAction(kind, "email", emailMode);
           setProofMessage(t("proofEmailSent", { email: sent.recipient ?? "" }));
@@ -274,14 +306,21 @@ export function UsResultCard({
                 busy={Boolean(proofBusy["email-confirmation"])}
                 label={t("emailConfirmation")}
                 onClick={() => setEmailPanelOpen((open) => !open)}
+                ariaControls={emailPanelId}
+                ariaExpanded={emailPanelOpen}
               >
                 <Mail className="h-4 w-4 shrink-0" />
               </ProofActionButton>
             </div>
             {emailPanelOpen && (
-              <div className="mt-3 rounded-md border border-input bg-muted/30 p-3">
+              <div id={emailPanelId} className="mt-3 rounded-md border border-input bg-muted/30 p-3">
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                  <label htmlFor={customEmailInputId} className="sr-only">
+                    {t("customEmailLabel")}
+                  </label>
                   <input
+                    id={customEmailInputId}
+                    type="email"
                     className="min-h-10 rounded-md border border-input bg-background px-3 text-sm outline-none"
                     placeholder={t("customEmailPlaceholder")}
                     value={customEmail}
@@ -356,7 +395,7 @@ export function UsResultCard({
 
         <Button asChild className="w-full">
           <a href={result.retrievalUrl} target="_blank" rel="noopener noreferrer">
-            {t("openCeac")}
+            {t(securityAnswer ? "openCeac" : "openCeacStatus")}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>

@@ -160,7 +160,7 @@ describe("DynamicFormField localization", () => {
     expect(screen.queryByText("Tourism")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("旅游"));
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("tourism"));
+    expect(onChange).toHaveBeenCalledWith("tourism");
 
     mockLocale = "en";
     rerender(
@@ -203,7 +203,7 @@ describe("DynamicFormField localization", () => {
     const indicators = container.querySelectorAll("[data-application-radio]");
     expect(indicators[0]).toBeEmptyDOMElement();
     expect(indicators[1]).not.toBeEmptyDOMElement();
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
+    expect(onChange).toHaveBeenCalledWith("female");
   });
 
   it("renders a searchable selector when a radio schema has twelve or more options", () => {
@@ -257,8 +257,7 @@ describe("DynamicFormField localization", () => {
     fireEvent.click(screen.getByRole("option", { name: "女" }));
 
     expect(screen.getByRole("combobox")).toHaveTextContent("女");
-    expect(onChange).not.toHaveBeenCalled();
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("female"));
+    expect(onChange).toHaveBeenCalledWith("female");
   });
 
   it("does not let empty dependent selects fall back to a free-text input", () => {

@@ -281,6 +281,46 @@ describe("dynamic review localization", () => {
     expect(screen.getByText("旅游")).toBeInTheDocument();
   });
 
+  test("keeps a submitted review readable while removing editing and submit actions", () => {
+    const field = baseField({
+      fieldName: "surname",
+      label: "Surname",
+    });
+    const onEdit = vi.fn();
+    const onPhotoEdit = vi.fn();
+    const onComplete = vi.fn();
+    const onSaveOfficialValue = vi.fn();
+
+    render(
+      <DynamicReviewStep
+        applicationId="submitted-application"
+        dynamicAnswers={{
+          surname: "LI",
+          surname_zh: "李",
+          surname_en: "LI",
+        }}
+        dbSteps={[{ stepNumber: 1, stepName: "Personal", fields: [field] }]}
+        photoPath="uploads/photo.jpg"
+        onEdit={onEdit}
+        onPhotoEdit={onPhotoEdit}
+        onComplete={onComplete}
+        onSaveOfficialValue={onSaveOfficialValue}
+        readOnly
+        showAction
+      />,
+    );
+
+    expect(screen.getByText("李")).toBeInTheDocument();
+    expect(screen.getByText("LI")).toBeInTheDocument();
+    expect(screen.getByText("uploads/photo.jpg")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("LI")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onPhotoEdit).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onSaveOfficialValue).not.toHaveBeenCalled();
+  });
+
   test("keeps the official date format visible and saves its canonical ISO value", async () => {
     const onSaveOfficialValue = vi.fn().mockResolvedValue(undefined);
     const field = baseField({
