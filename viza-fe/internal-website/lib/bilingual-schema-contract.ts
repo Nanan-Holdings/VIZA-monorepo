@@ -1772,6 +1772,17 @@ function deriveChineseOptionLabel(
     return "未婚";
   }
 
+  // Shared values have different meanings in passport and occupation fields.
+  // Override persisted generic translations without changing official values.
+  if (context.visaType === "DS160") {
+    if (normalizedFieldName === "passport_document_type" && normalizedValue === "official") {
+      return "公务护照";
+    }
+    if (normalizedFieldName === "primary_occupation" && normalizedValue === "medical") {
+      return "医疗卫生";
+    }
+  }
+
   if (typeof option !== "string") {
     const existing = clean(option.label_zh);
     if (existing && hasCjk(existing)) return existing;

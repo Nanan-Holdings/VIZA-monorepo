@@ -33,6 +33,24 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("bilingual schema contract", () => {
+  it("uses DS-160 field context for ambiguous option values and stale translations", () => {
+    for (const [fieldName, value, text, staleLabel, expected] of [
+      ["passport_document_type", "official", "OFFICIAL", "公务人员", "公务护照"],
+      ["primary_occupation", "medical", "MEDICAL/HEALTH", "医疗原因", "医疗卫生"],
+    ]) {
+      const normalized = normalizeBilingualFormField(field({
+        visaType: "DS160", fieldName, fieldType: "select",
+        options: [{ value, text, label_zh: staleLabel }],
+      }));
+      expect(normalized.options?.[0]).toMatchObject({ value, text, label_zh: expected });
+    }
+    const journey = normalizeBilingualFormField(field({
+      fieldName: "purpose_of_journey", fieldType: "select",
+      options: [{ value: "medical", text: "Medical reasons" }],
+    }));
+    expect(journey.options?.[0]).toMatchObject({ value: "medical", label_zh: "医疗原因" });
+  });
+
   it("keeps the official native-alphabet name in its original script", () => {
     expect(usesBilingualAnswerPair(field({ fieldName: "full_name_native_alphabet", visaType: "DS160" }))).toBe(false);
     expect(shouldSkipTranslation("full_name_native_alphabet", "张三", "text")).toBe(true);
