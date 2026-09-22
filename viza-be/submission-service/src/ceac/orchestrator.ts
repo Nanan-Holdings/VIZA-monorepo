@@ -40,7 +40,7 @@ import {
   ds160SecurityBackground5Mappings,
 } from "../ds160-form-mappings";
 import { detectPage, isOfficialDs160ConfirmationPage, type CeacPageId } from "./pages";
-import { advance, saveCurrent } from "./navigator";
+import { advance, navigateSecurityFiveToPhoto, saveCurrent } from "./navigator";
 import {
   recordSectionCheckpoint,
   type CheckpointEmitOptions,
@@ -817,6 +817,22 @@ export async function orchestrateFill(
       }
 
       try {
+        // CEAC disables Next: PHOTO on Security and Background: Part 5. The
+        // Back postback is the observed save boundary for this page; only
+        // after it lands on Part 4 do we follow the official PHOTO sidebar
+        // link. Run this after the shared Next wait so late-mounted controls
+        // are classified by their actual disabled/value state. Keeping it in
+        // the navigation try preserves the normal recovery path on failure.
+        if (currentPageId === "security_background_5") {
+          const photoFallbackUsed = await navigateSecurityFiveToPhoto(page, {
+            assertActive: options.assertActive,
+          });
+          if (photoFallbackUsed) {
+            transitions++;
+            continue;
+          }
+        }
+
         await advance(page, {
           from: currentPageId !== "unknown" ? currentPageId : "start",
           to: nextPageCandidates,

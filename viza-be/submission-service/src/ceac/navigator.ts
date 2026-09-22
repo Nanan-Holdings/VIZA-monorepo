@@ -52,6 +52,11 @@ export interface NavigateOptions {
   assertFrom?: boolean;
 }
 
+export interface SecurityFivePhotoNavigationOptions extends NavigateOptions {
+  /** Lease/ownership fence checked before and between official actions. */
+  assertActive?: () => void;
+}
+
 /**
  * Validation messages surfaced by CEAC on the current page, separated into
  * the summary block (rendered by `asp:ValidationSummary`) and the per-field
@@ -135,6 +140,78 @@ export async function goBack(
     to: params.to,
     options: params,
   });
+}
+
+/**
+ * Leave Security and Background: Part 5 when CEAC disables its Next: PHOTO
+ * submit control.  CEAC saves this page through the Back postback, then keeps
+ * the official PHOTO sidebar link available from Part 4.  The caller must
+ * only invoke this fallback after it has observed a visible disabled Next.
+ *
+ * Returning false is deliberately side-effect free: an enabled Next (or no
+ * visible Next) belongs to the ordinary page-order navigation path.
+ */
+export async function navigateSecurityFiveToPhoto(
+  page: Page,
+  options: SecurityFivePhotoNavigationOptions = {},
+): Promise<boolean> {
+  const { assertActive, ...navigationOptions } = options;
+  assertActive?.();
+  await assertPage(page, "security_background_5");
+  const next = await resolveNavButton(page, "next");
+  if (!next || await next.isEnabled()) return false;
+  const nextValue = ((await next.getAttribute("value")) ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (nextValue !== "next: photo") return false;
+
+  assertActive?.();
+  await goBack(page, {
+    from: "security_background_5",
+    to: "security_background_4",
+    ...navigationOptions,
+  });
+
+  assertActive?.();
+  const photoLink = await resolveVisiblePhotoLink(page);
+  if (!photoLink) {
+    throw new NavigationError(
+      "CEAC PHOTO link was not uniquely visible after saving Security and Background: Part 5",
+      {
+        expected: "upload_photo",
+        detected: "security_background_4",
+        url: page.url(),
+        details: { action: "security_five_photo_link", selector: 'a#PHOTO[href]' },
+      },
+    );
+  }
+
+  const href = await photoLink.getAttribute("href");
+  const photoUrl = resolveOfficialPhotoUrl(page.url(), href);
+  if (!photoUrl) {
+    throw new NavigationError(
+      "CEAC PHOTO link did not target the official upload-photo path",
+      {
+        expected: "upload_photo",
+        detected: "security_background_4",
+        url: page.url(),
+        details: { action: "security_five_photo_link", selector: 'a#PHOTO[href]' },
+      },
+    );
+  }
+
+  assertActive?.();
+  await photoLink.click({ timeout: options.timeoutMs ?? DEFAULT_TIMEOUT_MS });
+  await waitForAspNetPostback(page, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  assertCeacPostbackHealthy(page);
+  await waitForPage(page, "upload_photo", {
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    pollIntervalMs: options.pollIntervalMs,
+  });
+  assertCeacPostbackHealthy(page);
+  assertActive?.();
+  return true;
 }
 
 /**
@@ -583,6 +660,32 @@ async function resolveNavButton(page: Page, action: CeacNavAction): Promise<Loca
     if (visible) return candidate;
   }
   return null;
+}
+
+async function resolveVisiblePhotoLink(page: Page): Promise<Locator | null> {
+  const candidates = page.locator('a#PHOTO[href]');
+  const count = await candidates.count();
+  let visible: Locator | null = null;
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    if (visible) return null;
+    visible = candidate;
+  }
+  return visible;
+}
+
+function resolveOfficialPhotoUrl(currentUrl: string, href: string | null): string | null {
+  if (!href) return null;
+  try {
+    const current = new URL(currentUrl);
+    const target = new URL(href, currentUrl);
+    if (current.origin !== "https://ceac.state.gov" || target.origin !== current.origin) return null;
+    if (target.pathname.toLowerCase() !== "/genniv/general/photo/photo_uploadthephoto.aspx") return null;
+    return target.toString();
+  } catch {
+    return null;
+  }
 }
 
 function navSelectorFor(action: CeacNavAction): string {

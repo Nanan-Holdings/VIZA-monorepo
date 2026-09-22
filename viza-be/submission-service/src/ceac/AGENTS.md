@@ -63,6 +63,16 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    only explicit visible Continue Form / Save and Continue actions qualify.
    `__tests__/navigator-page-complete.spec.ts` covers visible, hidden and
    delayed modal behavior without returning to Review or skipping filling.
+   On the live Security and Background: Part 5 page, CEAC may render a
+   disabled `Next: PHOTO` control even after the answers are complete. The
+   orchestrator may use the Security 5 navigation fallback only when that
+   visible Next control is truly disabled: the Back postback must first land
+   on Part 4 without validation errors, then the unique official `a#PHOTO`
+   link must resolve to the same-origin
+   `/GenNIV/General/photo/photo_uploadthephoto.aspx` path before it is
+   clicked. An enabled Next keeps the ordinary navigation path, and a failed
+   Back or invalid PHOTO href must stop the run without entering the photo
+   page.
    `aspnet.ts` installs an official form-response monitor after bootstrap has
    verified the real start form and before any location/CAPTCHA interaction.
    Bounded bootstrap gate checks own initial security verification; an initial
