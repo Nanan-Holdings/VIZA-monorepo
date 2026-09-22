@@ -74,6 +74,7 @@ const DATE_SPLITS: ReadonlyArray<DateSplit> = [
   { source: "employment_start_date", targetPrefix: "employment_start_date", monthAsAbbrev: true },
   { source: "father_date_of_birth", targetPrefix: "father_dob", monthAsAbbrev: true },
   { source: "mother_date_of_birth", targetPrefix: "mother_dob", monthAsAbbrev: true },
+  { source: "spouse_date_of_birth", targetPrefix: "spouse_date_of_birth", monthAsAbbrev: true },
   // CEAC date dropdown values use three-letter month codes (JAN, FEB...),
   // including the Travel Information page. The active arrival source is
   // reconciled by deriveIntendedArrivalDate before these splits run.

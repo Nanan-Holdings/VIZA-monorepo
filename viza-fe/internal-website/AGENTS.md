@@ -27,6 +27,10 @@ backend 0204. It aligns the CEAC sex select, former-spouse count text control,
 and marriage-ended textarea, and marks the duplicate present-job title as
 persistence-only while preserving saved answers and aliases.
 
+`supabase/migrations/20260922020000_ds160_explanation_textareas.sql` mirrors
+backend 0205 and aligns the three conditional DS-160 explanation fields to the
+observed CEAC textarea controls. It changes form metadata only.
+
 `lib/ds160-official-options.snapshot.json` contains public CEAC dropdown values
 observed on 2026-09-21. `lib/ds160-official-options.ts` keeps birthplaces,
 nationalities, other nationalities, family nationalities, passport issuers,

@@ -213,7 +213,7 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "marital_status_other_explain",
     label: "Other — Please Explain",
-    field_type: "text",
+    field_type: "textarea",
     required: true,
     step_number: 1,
     step_name: "Personal Information 1",
@@ -1631,7 +1631,7 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "passport_document_type_explain",
     label: "Please explain",
-    field_type: "text",
+    field_type: "textarea",
     required: true,
     step_number: 7,
     step_name: "Passport Information",
@@ -2589,7 +2589,7 @@ const FIELDS: FieldDef[] = [
   {
     field_name: "occupation_other_explain",
     label: "Specify Other",
-    field_type: "text",
+    field_type: "textarea",
     required: true,
     step_number: 14,
     step_name: "Work/Education/Training: Present",

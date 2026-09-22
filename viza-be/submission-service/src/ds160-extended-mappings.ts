@@ -219,7 +219,7 @@ addField(
   "other_surname",
   "text",
   "Other Surnames Used (maiden, religious, professional, aliases, etc.)",
-  ["APP_OTHER_SURNAME", "OTHER_SURNAME"],
+  ["tbxSURNAME"],
   { condition: "other_names_used === yes" },
 );
 addField(
@@ -227,7 +227,7 @@ addField(
   "other_given_names",
   "text",
   "Other Given Names Used",
-  ["APP_OTHER_GIVEN_NAME", "OTHER_GIVEN_NAME"],
+  ["tbxGIVEN_NAME"],
   { condition: "other_names_used === yes" },
 );
 addField(
@@ -249,9 +249,9 @@ addField(
 addField(
   "personal_information_1",
   "marital_status_other_explain",
-  "text",
+  "textarea",
   "Other — Please Explain",
-  ["APP_MARITAL_STATUS_OTHER", "MARITAL_STATUS_OTHER", "MARITAL_OTHER_EXPLAIN"],
+  ["tbxOtherMaritalStatus", "APP_MARITAL_STATUS_OTHER", "MARITAL_STATUS_OTHER", "MARITAL_OTHER_EXPLAIN"],
   { condition: "marital_status === other" },
 );
 
@@ -261,7 +261,7 @@ addField(
   "other_nationality_country",
   "select",
   "Other Country/Region of Nationality",
-  ["APP_OTH_NATL_COUNTRY", "OTHER_NATIONALITY_COUNTRY", "OTH_NATL_COUNTRY"],
+  ["ddlOTHER_NATL"],
   { condition: "other_nationality === yes", repeatGroup: "other_nationality" },
 );
 addField(
@@ -269,7 +269,7 @@ addField(
   "other_nationality_has_passport",
   "radio",
   "Do you hold a passport for that other nationality?",
-  ["APP_OTH_NATL_PASSPORT", "OTH_NATL_PASSPORT", "OTHER_NATIONALITY_PASSPORT"],
+  ["rblOTHER_PPT_IND"],
   { condition: "other_nationality === yes", repeatGroup: "other_nationality" },
 );
 addField(
@@ -277,7 +277,7 @@ addField(
   "other_nationality_passport_number",
   "text",
   "Passport Number",
-  ["APP_OTH_NATL_PPT_NUM", "OTH_NATL_PPT_NUM", "OTHER_NATIONALITY_PASSPORT_NUMBER"],
+  ["tbxOTHER_PPT_NUM"],
   { condition: "other_nationality_has_passport === yes", repeatGroup: "other_nationality" },
 );
 addField(
@@ -285,7 +285,7 @@ addField(
   "other_permanent_resident_country",
   "select",
   "Other Permanent Resident Country/Region",
-  ["APP_PERM_RES_COUNTRY", "OTHER_PERM_RES_COUNTRY", "PR_COUNTRY"],
+  ["ddlOthPermResCntry"],
   { condition: "permanent_resident_other_country === yes", repeatGroup: "permanent_resident" },
 );
 
@@ -295,7 +295,7 @@ addField(
   "arrival_flight",
   "text",
   "Arrival Flight (if known)",
-  ["TRAVEL_ARR_FLIGHT", "ARRIVAL_FLIGHT", "ARR_FLIGHT"],
+  ["tbxArriveFlight"],
   { condition: "has_specific_plans === yes" },
 );
 addField(
@@ -303,7 +303,7 @@ addField(
   "arrival_city",
   "text",
   "Arrival City",
-  ["TRAVEL_ARR_CITY", "ARRIVAL_CITY", "ARR_CITY"],
+  ["tbxArriveCity"],
   { condition: "has_specific_plans === yes" },
 );
 addField(
@@ -311,7 +311,7 @@ addField(
   "departure_flight",
   "text",
   "Departure Flight (if known)",
-  ["TRAVEL_DEP_FLIGHT", "DEPARTURE_FLIGHT", "DEP_FLIGHT"],
+  ["tbxDepartFlight"],
   { condition: "has_specific_plans === yes" },
 );
 addField(
@@ -319,7 +319,7 @@ addField(
   "departure_city",
   "text",
   "Departure City",
-  ["TRAVEL_DEP_CITY", "DEPARTURE_CITY", "DEP_CITY"],
+  ["tbxDepartCity"],
   { condition: "has_specific_plans === yes" },
 );
 addField(
@@ -345,16 +345,16 @@ addField(
   "payer_address_same_as_home",
   "radio",
   "Is the address of the party paying for your trip the same as your Home or Mailing Address?",
-  ["PAYER_ADDR_SAME", "TRAVEL_PAYER_ADDR_SAME", "PAYER_ADDRESS_SAME"],
+  ["rblPayerAddrSameAsInd"],
   { condition: "trip_payer_type === other_person" },
 );
 
 const payerAddress = [
-  ["payer_address_street1", "Street Address (Line 1)", ["PAYER_ADDR_LN1", "TRAVEL_PAYER_ADDR_LN1"]],
-  ["payer_address_street2", "Street Address (Line 2)", ["PAYER_ADDR_LN2", "TRAVEL_PAYER_ADDR_LN2"]],
-  ["payer_address_city", "City", ["PAYER_ADDR_CITY", "TRAVEL_PAYER_ADDR_CITY"]],
-  ["payer_address_state", "State/Province", ["PAYER_ADDR_STATE", "TRAVEL_PAYER_ADDR_STATE"]],
-  ["payer_address_postal", "Postal Zone/ZIP Code", ["PAYER_ADDR_POSTAL", "TRAVEL_PAYER_ADDR_POSTAL", "PAYER_ADDR_ZIP"]],
+  ["payer_address_street1", "Street Address (Line 1)", ["tbxPayerStreetAddress1"]],
+  ["payer_address_street2", "Street Address (Line 2)", ["tbxPayerStreetAddress2"]],
+  ["payer_address_city", "City", ["tbxPayerCity"]],
+  ["payer_address_state", "State/Province", ["tbxPayerStateProvince"]],
+  ["payer_address_postal", "Postal Zone/ZIP Code", ["tbxPayerPostalZIPCode"]],
 ] as const;
 for (const [fieldName, label, tokens] of payerAddress) {
   addField("travel_information", fieldName, "text", label, tokens, {
@@ -377,19 +377,19 @@ addField(
   "payer_address_country",
   "select",
   "Country/Region",
-  ["PAYER_ADDR_COUNTRY", "TRAVEL_PAYER_ADDR_COUNTRY"],
+  ["ddlPayerCountry"],
   { condition: "payer_address_same_as_home === no" },
 );
 
 const payerOrganization = [
-  ["payer_org_name", "Name of Company/Organization Paying for Trip", ["PAYER_ORG_NAME", "TRAVEL_PAYER_ORG_NAME"]],
-  ["payer_org_phone", "Telephone Number", ["PAYER_ORG_TEL", "PAYER_ORG_PHONE", "TRAVEL_PAYER_ORG_TEL"]],
-  ["payer_org_relationship", "Relationship to You", ["PAYER_ORG_REL", "PAYER_ORG_RELATIONSHIP", "TRAVEL_PAYER_ORG_REL"]],
-  ["payer_org_address_street1", "Street Address (Line 1)", ["PAYER_ORG_ADDR_LN1", "TRAVEL_PAYER_ORG_ADDR_LN1"]],
-  ["payer_org_address_street2", "Street Address (Line 2)", ["PAYER_ORG_ADDR_LN2", "TRAVEL_PAYER_ORG_ADDR_LN2"]],
-  ["payer_org_address_city", "City", ["PAYER_ORG_ADDR_CITY", "TRAVEL_PAYER_ORG_ADDR_CITY"]],
-  ["payer_org_address_state", "State/Province", ["PAYER_ORG_ADDR_STATE", "TRAVEL_PAYER_ORG_ADDR_STATE"]],
-  ["payer_org_address_postal", "Postal Zone/ZIP Code", ["PAYER_ORG_ADDR_POSTAL", "TRAVEL_PAYER_ORG_ADDR_POSTAL", "PAYER_ORG_ADDR_ZIP"]],
+  ["payer_org_name", "Name of Company/Organization Paying for Trip", ["tbxPayingCompany"]],
+  ["payer_org_phone", "Telephone Number", ["tbxPayerPhone"]],
+  ["payer_org_relationship", "Relationship to You", ["tbxCompanyRelation"]],
+  ["payer_org_address_street1", "Street Address (Line 1)", ["tbxPayerStreetAddress1"]],
+  ["payer_org_address_street2", "Street Address (Line 2)", ["tbxPayerStreetAddress2"]],
+  ["payer_org_address_city", "City", ["tbxPayerCity"]],
+  ["payer_org_address_state", "State/Province", ["tbxPayerStateProvince"]],
+  ["payer_org_address_postal", "Postal Zone/ZIP Code", ["tbxPayerPostalZIPCode"]],
 ] as const;
 for (const [fieldName, label, tokens] of payerOrganization) {
   addField("travel_information", fieldName, "text", label, tokens, {
@@ -412,7 +412,7 @@ addField(
   "payer_org_address_country",
   "select",
   "Country/Region",
-  ["PAYER_ORG_ADDR_COUNTRY", "TRAVEL_PAYER_ORG_ADDR_COUNTRY"],
+  ["ddlPayerCountry"],
   { condition: "trip_payer_type === other_company" },
 );
 
@@ -422,7 +422,7 @@ addField(
   "companion_surname",
   "text",
   "Surnames",
-  ["TRAVEL_COMPANION_SURNAME", "COMPANION_SURNAME", "tbxCompanionSurname"],
+  ["tbxSurname"],
   { condition: "companion_group_travel === no", repeatGroup: "companions" },
 );
 addField(
@@ -430,7 +430,7 @@ addField(
   "companion_given_names",
   "text",
   "Given Names",
-  ["TRAVEL_COMPANION_GIVEN_NAME", "COMPANION_GIVEN_NAME", "tbxCompanionGivenName"],
+  ["tbxGivenName"],
   { condition: "companion_group_travel === no", repeatGroup: "companions" },
 );
 addField(
@@ -438,7 +438,7 @@ addField(
   "companion_relationship",
   "select",
   "Relationship to You",
-  ["TRAVEL_COMPANION_REL", "COMPANION_RELATIONSHIP", "ddlCompanionRelationship"],
+  ["ddlTCRelationship"],
   { condition: "companion_group_travel === no", repeatGroup: "companions" },
 );
 
@@ -449,16 +449,16 @@ addDate(
   "Date Arrived",
   "has_been_in_us === yes",
   "previous_visits",
-  ["ddlPREV_US_TRAVEL_ARRIVALDay", "ddlPREV_US_ARRIVALDay", "PREV_VISIT_ARRIVED_DAY"],
-  ["ddlPREV_US_TRAVEL_ARRIVALMonth", "ddlPREV_US_ARRIVALMonth", "PREV_VISIT_ARRIVED_MONTH"],
-  ["tbxPREV_US_TRAVEL_ARRIVALYear", "tbxPREV_US_ARRIVALYear", "PREV_VISIT_ARRIVED_YEAR"],
+  ["ddlPREV_US_VISIT_DTEDay"],
+  ["ddlPREV_US_VISIT_DTEMonth"],
+  ["tbxPREV_US_VISIT_DTEYear"],
 );
 addField(
   "previous_us_travel",
   "previous_visit_length_of_stay",
   "text",
   "Length of Stay (Value)",
-  ["PREV_US_TRAVEL_LENGTH", "PREV_VISIT_LENGTH", "PREV_US_TRAVEL_LOS"],
+  ["tbxPREV_US_VISIT_LOS"],
   { condition: "has_been_in_us === yes", repeatGroup: "previous_visits" },
 );
 addField(
@@ -466,7 +466,7 @@ addField(
   "previous_visit_length_of_stay_unit",
   "select",
   "Length of Stay (Unit)",
-  ["PREV_US_TRAVEL_LENGTH_UNIT", "PREV_VISIT_LENGTH_UNIT", "PREV_US_TRAVEL_LOS_CD"],
+  ["ddlPREV_US_VISIT_LOS_CD"],
   { condition: "has_been_in_us === yes", repeatGroup: "previous_visits" },
 );
 addField(
@@ -474,7 +474,7 @@ addField(
   "has_us_drivers_license",
   "radio",
   "Do you or did you ever hold a U.S. Driver's License?",
-  ["PREV_US_DRIVER_LICENSE", "US_DRIVERS_LICENSE", "rblUSDriversLicense"],
+  ["rblPREV_US_DRIVER_LIC_IND"],
   { condition: "has_been_in_us === yes" },
 );
 addField(
@@ -482,7 +482,7 @@ addField(
   "us_drivers_license_number",
   "text",
   "Driver's License Number",
-  ["US_DRIVER_LICENSE_NUM", "US_DRIVERS_LICENSE_NUM", "DRIVERS_LICENSE_NUMBER"],
+  ["tbxUS_DRIVER_LICENSE"],
   { condition: "has_us_drivers_license === yes", repeatGroup: "drivers_licenses" },
 );
 addField(
@@ -503,7 +503,7 @@ addField(
   "us_drivers_license_state",
   "select",
   "Driver's License State",
-  ["US_DRIVER_LICENSE_STATE", "US_DRIVERS_LICENSE_STATE", "DRIVERS_LICENSE_STATE"],
+  ["ddlUS_DRIVER_LICENSE_STATE"],
   { condition: "has_us_drivers_license === yes", repeatGroup: "drivers_licenses" },
 );
 addField(
@@ -511,7 +511,7 @@ addField(
   "last_visa_issue_day",
   "select",
   "Date Last Visa Was Issued (Day)",
-  ["ddlPREV_VISA_ISSUED_Day", "ddlPREV_VISA_ISSUE_Day", "PREV_VISA_ISSUE_DAY"],
+  ["ddlPREV_VISA_ISSUED_DTEDay"],
   { condition: "has_us_visa === yes" },
 );
 addField(
@@ -519,7 +519,7 @@ addField(
   "last_visa_issue_month",
   "select",
   "Date Last Visa Was Issued (Month)",
-  ["ddlPREV_VISA_ISSUED_Month", "ddlPREV_VISA_ISSUE_Month", "PREV_VISA_ISSUE_MONTH"],
+  ["ddlPREV_VISA_ISSUED_DTEMonth"],
   { condition: "has_us_visa === yes" },
 );
 addField(
@@ -527,7 +527,7 @@ addField(
   "last_visa_issue_year",
   "text",
   "Date Last Visa Was Issued (Year)",
-  ["tbxPREV_VISA_ISSUED_Year", "tbxPREV_VISA_ISSUE_Year", "PREV_VISA_ISSUE_YEAR"],
+  ["tbxPREV_VISA_ISSUED_DTEYear"],
   { condition: "has_us_visa === yes" },
 );
 addField(
@@ -559,7 +559,7 @@ addField(
   "has_been_ten_printed",
   "radio",
   "Have you been ten-printed?",
-  ["PREV_VISA_TEN_PRINTED", "PREV_TEN_PRINTED", "rblPREV_VISA_TEN_PRINTED"],
+  ["rblPREV_VISA_TEN_PRINT_IND"],
   { condition: "has_us_visa === yes" },
 );
 addField(
@@ -583,7 +583,7 @@ addField(
   "visa_lost_or_stolen_explain",
   "textarea",
   "Explain",
-  ["PREV_VISA_LOST_EXPLAIN", "VISA_LOST_EXPLAIN", "tbxPREV_VISA_LOST_EXPLAIN"],
+  ["tbxPREV_VISA_LOST_EXPL"],
   { condition: "visa_lost_or_stolen === yes" },
 );
 addField(
@@ -599,7 +599,7 @@ addField(
   "visa_cancelled_or_revoked_explain",
   "textarea",
   "Explain",
-  ["PREV_VISA_CANCELLED_EXPLAIN", "VISA_CANCELLED_EXPLAIN", "tbxPREV_VISA_CANCELLED_EXPLAIN"],
+  ["tbxPREV_VISA_CANCELLED_EXPL"],
   { condition: "visa_cancelled_or_revoked === yes" },
 );
 addField(
@@ -607,7 +607,7 @@ addField(
   "refusal_explain",
   "textarea",
   "Explain",
-  ["PREV_VISA_REFUSAL_EXPLAIN", "VISA_REFUSAL_EXPLAIN", "tbxPREV_VISA_REFUSAL_EXPLAIN"],
+  ["tbxPREV_VISA_REFUSED_EXPL"],
   { condition: "has_been_refused === yes", repeatGroup: "visa_refused" },
 );
 addField(
@@ -615,7 +615,7 @@ addField(
   "immigrant_petition_explain",
   "textarea",
   "Explain",
-  ["IV_PETITION_EXPLAIN", "IMMIGRANT_PETITION_EXPLAIN", "tbxIV_PETITION_EXPLAIN"],
+  ["tbxIV_PETITION_EXPL"],
   { condition: "immigrant_petition_filed === yes", repeatGroup: "immigrant_petition" },
 );
 addField(
@@ -629,11 +629,11 @@ addField(
 
 // ── Address and Phone ──────────────────────────────────────────────────────
 const mailingAddress = [
-  ["mailing_address_line1", "Mailing Street Address (Line 1)", ["APP_MAIL_ADDR_LN1", "APP_MAILING_ADDR_LN1"]],
-  ["mailing_address_line2", "Mailing Street Address (Line 2)", ["APP_MAIL_ADDR_LN2", "APP_MAILING_ADDR_LN2"]],
-  ["mailing_address_city", "Mailing City", ["APP_MAIL_ADDR_CITY", "APP_MAILING_ADDR_CITY"]],
-  ["mailing_address_state", "Mailing State/Province", ["APP_MAIL_ADDR_STATE", "APP_MAILING_ADDR_STATE"]],
-  ["mailing_address_postal", "Mailing Postal Zone/ZIP Code", ["APP_MAIL_ADDR_POSTAL_CD", "APP_MAILING_ADDR_POSTAL_CD", "APP_MAIL_ADDR_ZIP"]],
+  ["mailing_address_line1", "Mailing Street Address (Line 1)", ["tbxMAILING_ADDR_LN1"]],
+  ["mailing_address_line2", "Mailing Street Address (Line 2)", ["tbxMAILING_ADDR_LN2"]],
+  ["mailing_address_city", "Mailing City", ["tbxMAILING_ADDR_CITY"]],
+  ["mailing_address_state", "Mailing State/Province", ["tbxMAILING_ADDR_STATE"]],
+  ["mailing_address_postal", "Mailing Postal Zone/ZIP Code", ["tbxMAILING_ADDR_POSTAL_CD"]],
 ] as const;
 for (const [fieldName, label, tokens] of mailingAddress) {
   addField("address_and_phone", fieldName, "text", label, tokens, {
@@ -656,7 +656,7 @@ addField(
   "mailing_address_country",
   "select",
   "Mailing Country/Region",
-  ["APP_MAIL_ADDR_CNTRY", "APP_MAILING_ADDR_CNTRY", "APP_MAIL_ADDR_COUNTRY"],
+  ["ddlMailCountry"],
   { condition: "mailing_same_as_home === no" },
 );
 addField(
@@ -664,7 +664,7 @@ addField(
   "secondary_phone",
   "text",
   "Secondary Phone Number",
-  ["APP_SECONDARY_TEL", "APP_SEC_TEL", "APP_OTHER_TEL_2", "SECONDARY_PHONE"],
+  ["tbxAPP_MOBILE_TEL"],
 );
 addField(
   "address_and_phone",
@@ -679,7 +679,7 @@ addField(
   "additional_phone",
   "text",
   "Additional Phone Number",
-  ["APP_ADD_TEL", "APP_ADDITIONAL_TEL", "APP_OTHER_TEL", "ADDITIONAL_PHONE"],
+  ["tbxAddPhoneInfo"],
   { condition: "has_other_phones === yes", repeatGroup: "additional_phones" },
 );
 addField(
@@ -687,7 +687,7 @@ addField(
   "additional_email",
   "text",
   "Additional Email Address",
-  ["APP_ADD_EMAIL", "APP_ADDITIONAL_EMAIL", "ADDITIONAL_EMAIL"],
+  ["tbxAddEmailInfo"],
   { condition: "has_other_emails === yes", repeatGroup: "additional_emails" },
 );
 addField(
@@ -702,7 +702,7 @@ addField(
   "other_social_media_name",
   "text",
   "Website/Application Name",
-  ["APP_OTH_SOCIAL_NAME", "OTHER_SOCIAL_NAME", "OTH_SOCIAL_NAME"],
+  ["tbxAddSocialPlat"],
   { condition: "has_other_social_media === yes", repeatGroup: "other_social_media" },
 );
 addField(
@@ -710,7 +710,7 @@ addField(
   "other_social_media_identifier",
   "text",
   "Identifier",
-  ["APP_OTH_SOCIAL_IDENTIFIER", "OTHER_SOCIAL_IDENTIFIER", "OTH_SOCIAL_IDENTIFIER"],
+  ["tbxAddSocialHand"],
   { condition: "has_other_social_media === yes", repeatGroup: "other_social_media" },
 );
 
@@ -718,9 +718,9 @@ addField(
 addField(
   "passport",
   "passport_document_type_explain",
-  "text",
+  "textarea",
   "Please explain",
-  ["PPT_TYPE_OTHER", "PPT_DOC_TYPE_OTHER", "PPT_DOCUMENT_TYPE_EXPLAIN"],
+  ["tbxPptOtherExpl", "PPT_TYPE_OTHER", "PPT_DOC_TYPE_OTHER", "PPT_DOCUMENT_TYPE_EXPLAIN"],
   { condition: "passport_document_type === other" },
 );
 addField(
@@ -749,7 +749,7 @@ addField(
   "lost_passport_country",
   "select",
   "Country/Authority That Issued Passport/Travel Document",
-  ["LOST_PPT_COUNTRY", "LOST_PASSPORT_COUNTRY", "LOST_PPT_ISSUED_CNTRY"],
+  ["ddlLOST_PPT_NATL"],
   { condition: "lost_passport === yes", repeatGroup: "lost_passport" },
 );
 addField(
@@ -757,7 +757,7 @@ addField(
   "lost_passport_explain",
   "textarea",
   "Explain",
-  ["LOST_PPT_EXPLAIN", "LOST_PASSPORT_EXPLAIN", "tbxLOST_PPT_EXPLAIN"],
+  ["tbxLOST_PPT_EXPL"],
   { condition: "lost_passport === yes", repeatGroup: "lost_passport" },
 );
 
@@ -783,7 +783,7 @@ addField(
   "us_relative_relationship",
   "select",
   "Relationship to You",
-  ["US_RELATIVE_REL", "US_REL_RELATIONSHIP", "ddlUS_REL_REL"],
+  ["ddlUS_REL_TYPE"],
   { condition: "has_immediate_us_relatives === yes", repeatGroup: "us_relatives" },
 );
 addField(
@@ -791,7 +791,7 @@ addField(
   "us_relative_status",
   "select",
   "Relative's Status",
-  ["US_RELATIVE_STATUS", "US_REL_STATUS", "ddlUS_REL_STATUS"],
+  ["ddlUS_REL_STATUS"],
   { condition: "has_immediate_us_relatives === yes", repeatGroup: "us_relatives" },
 );
 
@@ -801,7 +801,7 @@ addField(
   "spouse_country_of_birth",
   "select",
   "Spouse's Country/Region of Birth",
-  ["SPOUSE_POB_CNTRY", "SPOUSE_COUNTRY_OF_BIRTH", "ddlSPOUSE_POB_CNTRY"],
+  ["ddlSpousePOBCountry"],
   { condition: "marital_status === married || marital_status === legally_separated || marital_status === common_law" },
 );
 addField(
@@ -841,17 +841,17 @@ addField(
   "spouse_address_country",
   "select",
   "Country/Region",
-  ["SPOUSE_ADDR_COUNTRY", "SPOUSE_ADDRESS_COUNTRY"],
+  ["ddlSPOUSE_ADDR_CNTRY"],
   { condition: "spouse_address_type === other" },
 );
 
 const partnerDetails = [
-  ["partner_surname", "Partner's Surnames", "text", ["PARTNER_SURNAME", "PARTNER_SURNAMES"]],
-  ["partner_given_names", "Partner's Given Names", "text", ["PARTNER_GIVEN_NAME", "PARTNER_GIVEN_NAMES"]],
-  ["partner_nationality", "Partner's Country/Region of Origin (Nationality)", "select", ["PARTNER_NATL", "PARTNER_NATIONALITY"]],
-  ["partner_city_of_birth", "Partner's City of Birth", "text", ["PARTNER_POB_CITY", "PARTNER_CITY_OF_BIRTH"]],
-  ["partner_country_of_birth", "Partner's Country/Region of Birth", "select", ["PARTNER_POB_CNTRY", "PARTNER_COUNTRY_OF_BIRTH"]],
-  ["partner_address_type", "Partner's Address", "select", ["PARTNER_ADDR_TYPE", "PARTNER_ADDRESS_TYPE"]],
+  ["partner_surname", "Partner's Surnames", "text", ["tbxSpouseSurname"]],
+  ["partner_given_names", "Partner's Given Names", "text", ["tbxSpouseGivenName"]],
+  ["partner_nationality", "Partner's Country/Region of Origin (Nationality)", "select", ["ddlSpouseNatDropDownList"]],
+  ["partner_city_of_birth", "Partner's City of Birth", "text", ["tbxSpousePOBCity"]],
+  ["partner_country_of_birth", "Partner's Country/Region of Birth", "select", ["ddlSpousePOBCountry"]],
+  ["partner_address_type", "Partner's Address", "select", ["ddlSpouseAddressType"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of partnerDetails) {
   addField("family_spouse", fieldName, seedType, label, tokens, {
@@ -871,11 +871,11 @@ addField(
   },
 );
 const partnerAddress = [
-  ["partner_address_street1", "Street Address (Line 1)", ["PARTNER_ADDR_LN1", "PARTNER_ADDRESS_LN1"]],
-  ["partner_address_street2", "Street Address (Line 2)", ["PARTNER_ADDR_LN2", "PARTNER_ADDRESS_LN2"]],
-  ["partner_address_city", "City", ["PARTNER_ADDR_CITY", "PARTNER_ADDRESS_CITY"]],
-  ["partner_address_state", "State/Province", ["PARTNER_ADDR_STATE", "PARTNER_ADDRESS_STATE"]],
-  ["partner_address_zip", "Postal Zone/ZIP Code", ["PARTNER_ADDR_POSTAL", "PARTNER_ADDRESS_POSTAL", "PARTNER_ADDR_ZIP"]],
+  ["partner_address_street1", "Street Address (Line 1)", ["tbxSPOUSE_ADDR_LN1"]],
+  ["partner_address_street2", "Street Address (Line 2)", ["tbxSPOUSE_ADDR_LN2"]],
+  ["partner_address_city", "City", ["tbxSPOUSE_ADDR_CITY"]],
+  ["partner_address_state", "State/Province", ["tbxSPOUSE_ADDR_STATE"]],
+  ["partner_address_zip", "Postal Zone/ZIP Code", ["tbxSPOUSE_ADDR_POSTAL_CD"]],
 ] as const;
 for (const [fieldName, label, tokens] of partnerAddress) {
   addField("family_spouse", fieldName, "text", label, tokens, {
@@ -898,7 +898,7 @@ addField(
   "partner_address_country",
   "select",
   "Country/Region",
-  ["PARTNER_ADDR_COUNTRY", "PARTNER_ADDRESS_COUNTRY"],
+  ["ddlSPOUSE_ADDR_CNTRY"],
   { condition: "partner_address_type === other" },
 );
 
@@ -908,16 +908,16 @@ addDate(
   "Partner's Date of Birth",
   "marital_status === civil_union",
   undefined,
-  ["ddlPARTNER_DOBDay", "PARTNER_DOB_DAY"],
-  ["ddlPARTNER_DOBMonth", "PARTNER_DOB_MONTH"],
-  ["tbxPARTNER_DOBYear", "PARTNER_DOB_YEAR"],
+  ["ddlDOBDay"],
+  ["ddlDOBMonth"],
+  ["tbxDOBYear"],
 );
 const deceasedDetails = [
-  ["deceased_spouse_surname", "Deceased Spouse's Surnames", "text", ["DECEASED_SPOUSE_SURNAME", "DECEASED_SURNAME"]],
-  ["deceased_spouse_given_names", "Deceased Spouse's Given Names", "text", ["DECEASED_SPOUSE_GIVEN_NAME", "DECEASED_GIVEN_NAMES"]],
-  ["deceased_spouse_nationality", "Deceased Spouse's Country/Region of Origin (Nationality)", "select", ["DECEASED_SPOUSE_NATL", "DECEASED_SPOUSE_NATIONALITY"]],
-  ["deceased_spouse_city_of_birth", "Deceased Spouse's City of Birth", "text", ["DECEASED_SPOUSE_POB_CITY", "DECEASED_SPOUSE_CITY_OF_BIRTH"]],
-  ["deceased_spouse_country_of_birth", "Deceased Spouse's Country/Region of Birth", "select", ["DECEASED_SPOUSE_POB_CNTRY", "DECEASED_SPOUSE_COUNTRY_OF_BIRTH"]],
+  ["deceased_spouse_surname", "Deceased Spouse's Surnames", "text", ["tbxSURNAME"]],
+  ["deceased_spouse_given_names", "Deceased Spouse's Given Names", "text", ["tbxGIVEN_NAME"]],
+  ["deceased_spouse_nationality", "Deceased Spouse's Country/Region of Origin (Nationality)", "select", ["ddlSpouseNatDropDownList"]],
+  ["deceased_spouse_city_of_birth", "Deceased Spouse's City of Birth", "text", ["tbxSpousePOBCity"]],
+  ["deceased_spouse_country_of_birth", "Deceased Spouse's Country/Region of Birth", "select", ["ddlSpousePOBCountry"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of deceasedDetails) {
   addField("family_spouse", fieldName, seedType, label, tokens, {
@@ -942,26 +942,26 @@ addDate(
   "Deceased Spouse's Date of Birth",
   "marital_status === widowed",
   undefined,
-  ["ddlDECEASED_SPOUSE_DOBDay", "DECEASED_SPOUSE_DOB_DAY"],
-  ["ddlDECEASED_SPOUSE_DOBMonth", "DECEASED_SPOUSE_DOB_MONTH"],
-  ["tbxDECEASED_SPOUSE_DOBYear", "DECEASED_SPOUSE_DOB_YEAR"],
+  ["ddlDOBDay"],
+  ["ddlDOBMonth"],
+  ["tbxDOBYear"],
 );
 addField(
   "family_spouse",
   "number_of_former_spouses",
   "text",
   "Number of Former Spouses",
-  ["tbxNumberOfPrevSpouses", "FORMER_SPOUSE_COUNT", "NUM_FORMER_SPOUSES", "NUMBER_FORMER_SPOUSES"],
+  ["tbxNumberOfPrevSpouses"],
   { condition: "marital_status === divorced" },
 );
 const formerDetails = [
-  ["former_spouse_surname", "Former Spouse's Surnames", "text", ["FORMER_SPOUSE_SURNAME", "FORMER_SPOUSE_SURNAMES"]],
-  ["former_spouse_given_names", "Former Spouse's Given Names", "text", ["FORMER_SPOUSE_GIVEN_NAME", "FORMER_SPOUSE_GIVEN_NAMES"]],
-  ["former_spouse_nationality", "Former Spouse's Country/Region of Origin (Nationality)", "select", ["FORMER_SPOUSE_NATL", "FORMER_SPOUSE_NATIONALITY"]],
-  ["former_spouse_city_of_birth", "Former Spouse's City of Birth", "text", ["FORMER_SPOUSE_POB_CITY", "FORMER_SPOUSE_CITY_OF_BIRTH"]],
-  ["former_spouse_country_of_birth", "Former Spouse's Country/Region of Birth", "select", ["FORMER_SPOUSE_POB_CNTRY", "FORMER_SPOUSE_COUNTRY_OF_BIRTH"]],
-  ["former_spouse_how_marriage_ended", "How the Marriage Ended", "textarea", ["DListSpouse_ctl00_tbxHowMarriageEnded", "FORMER_SPOUSE_MARRIAGE_ENDED", "FORMER_MARRIAGE_ENDED"]],
-  ["former_spouse_country_marriage_terminated", "Country/Region Marriage was Terminated", "select", ["FORMER_SPOUSE_MARRIAGE_COUNTRY", "FORMER_MARRIAGE_TERMINATED_COUNTRY"]],
+  ["former_spouse_surname", "Former Spouse's Surnames", "text", ["tbxSURNAME"]],
+  ["former_spouse_given_names", "Former Spouse's Given Names", "text", ["tbxGIVEN_NAME"]],
+  ["former_spouse_nationality", "Former Spouse's Country/Region of Origin (Nationality)", "select", ["ddlSpouseNatDropDownList"]],
+  ["former_spouse_city_of_birth", "Former Spouse's City of Birth", "text", ["tbxSpousePOBCity"]],
+  ["former_spouse_country_of_birth", "Former Spouse's Country/Region of Birth", "select", ["ddlSpousePOBCountry"]],
+  ["former_spouse_how_marriage_ended", "How the Marriage Ended", "textarea", ["tbxHowMarriageEnded"]],
+  ["former_spouse_country_marriage_terminated", "Country/Region Marriage was Terminated", "select", ["ddlMarriageEnded_CNTRY"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of formerDetails) {
   addField("family_spouse", fieldName, seedType, label, tokens, {
@@ -974,7 +974,7 @@ addField(
   "former_spouse_city_of_birth_unknown",
   "checkbox",
   "Do Not Know",
-  ["DListSpouse_ctl00_cbxSPOUSE_POB_CITY_NA", "cbxSPOUSE_POB_CITY_NA"],
+  ["cbxSPOUSE_POB_CITY_NA"],
   {
     seedFieldName: "former_spouse_city_of_birth",
     condition: "marital_status === divorced",
@@ -988,9 +988,9 @@ addDate(
   "Former Spouse's Date of Birth",
   "marital_status === divorced",
   "former_spouses",
-  ["ddlFORMER_SPOUSE_DOBDay", "FORMER_SPOUSE_DOB_DAY"],
-  ["ddlFORMER_SPOUSE_DOBMonth", "FORMER_SPOUSE_DOB_MONTH"],
-  ["tbxFORMER_SPOUSE_DOBYear", "FORMER_SPOUSE_DOB_YEAR"],
+  ["ddlDOBDay"],
+  ["ddlDOBMonth"],
+  ["tbxDOBYear"],
 );
 addDate(
   "family_spouse",
@@ -998,9 +998,9 @@ addDate(
   "Date of Marriage",
   "marital_status === divorced",
   "former_spouses",
-  ["ddlFORMER_SPOUSE_MARRIAGE_Day", "FORMER_MARRIAGE_DATE_DAY"],
-  ["ddlFORMER_SPOUSE_MARRIAGE_Month", "FORMER_MARRIAGE_DATE_MONTH"],
-  ["tbxFORMER_SPOUSE_MARRIAGE_Year", "FORMER_MARRIAGE_DATE_YEAR"],
+  ["ddlDomDay"],
+  ["ddlDomMonth"],
+  ["txtDomYear"],
 );
 addDate(
   "family_spouse",
@@ -1008,9 +1008,9 @@ addDate(
   "Date Marriage Ended",
   "marital_status === divorced",
   "former_spouses",
-  ["ddlFORMER_SPOUSE_ENDED_Day", "FORMER_MARRIAGE_ENDED_DATE_DAY"],
-  ["ddlFORMER_SPOUSE_ENDED_Month", "FORMER_MARRIAGE_ENDED_DATE_MONTH"],
-  ["tbxFORMER_SPOUSE_ENDED_Year", "FORMER_MARRIAGE_ENDED_DATE_YEAR"],
+  ["ddlDomEndDay"],
+  ["ddlDomEndMonth"],
+  ["txtDomEndYear"],
 );
 
 // ── U.S. Point of Contact ──────────────────────────────────────────────────
@@ -1027,9 +1027,9 @@ addField(
 addField(
   "work_education_present",
   "occupation_other_explain",
-  "text",
+  "textarea",
   "Specify Other",
-  ["WORK_EDUC_PRSNT_OCCP_OTHER", "PRESENT_OCCUPATION_OTHER", "OCCUPATION_OTHER_EXPLAIN"],
+  ["tbxExplainOtherPresentOccupation", "WORK_EDUC_PRSNT_OCCP_OTHER", "PRESENT_OCCUPATION_OTHER", "OCCUPATION_OTHER_EXPLAIN"],
   { condition: "primary_occupation === other" },
 );
 addField(
@@ -1037,7 +1037,7 @@ addField(
   "not_employed_explain",
   "textarea",
   "Explain",
-  ["WORK_EDUC_PRSNT_NOT_EMPLOYED_EXPLAIN", "NOT_EMPLOYED_EXPLAIN", "tbxNOT_EMPLOYED_EXPLAIN"],
+  ["tbxExplainOtherPresentOccupation"],
   { condition: "primary_occupation === not_employed" },
 );
 addField(
@@ -1051,16 +1051,16 @@ addField(
 
 // ── Work/Education/Training: Previous ──────────────────────────────────────
 const previousEmployer = [
-  ["prev_employer_address_street1", "Street Address (Line 1)", ["PREV_EMPL_ADDR_LN1", "PREV_EMPLOYER_ADDR_LN1"]],
-  ["prev_employer_address_street2", "Street Address (Line 2)", ["PREV_EMPL_ADDR_LN2", "PREV_EMPLOYER_ADDR_LN2"]],
-  ["prev_employer_city", "City", ["PREV_EMPL_CITY", "PREV_EMPLOYER_CITY"]],
-  ["prev_employer_state", "State/Province", ["PREV_EMPL_STATE", "PREV_EMPLOYER_STATE"]],
-  ["prev_employer_postal", "Postal Zone/ZIP Code", ["PREV_EMPL_POSTAL", "PREV_EMPLOYER_POSTAL", "PREV_EMPL_ZIP"]],
-  ["prev_employer_phone", "Telephone Number", ["PREV_EMPL_TEL", "PREV_EMPLOYER_PHONE"]],
-  ["prev_job_title", "Job Title", ["PREV_EMPL_JOB_TITLE", "PREV_JOB_TITLE"]],
-  ["prev_supervisor_surname", "Supervisor's Surnames", ["PREV_EMPL_SUPERVISOR_SURNAME", "PREV_SUPERVISOR_SURNAME"]],
-  ["prev_supervisor_given_names", "Supervisor's Given Names", ["PREV_EMPL_SUPERVISOR_GIVEN_NAME", "PREV_SUPERVISOR_GIVEN_NAMES"]],
-  ["prev_job_duties", "Briefly Describe Your Duties", ["PREV_EMPL_DUTIES", "PREV_JOB_DUTIES"]],
+  ["prev_employer_address_street1", "Street Address (Line 1)", ["tbEmployerStreetAddress1"]],
+  ["prev_employer_address_street2", "Street Address (Line 2)", ["tbEmployerStreetAddress2"]],
+  ["prev_employer_city", "City", ["tbEmployerCity"]],
+  ["prev_employer_state", "State/Province", ["tbxPREV_EMPL_ADDR_STATE"]],
+  ["prev_employer_postal", "Postal Zone/ZIP Code", ["tbxPREV_EMPL_ADDR_POSTAL_CD"]],
+  ["prev_employer_phone", "Telephone Number", ["tbEmployerPhone"]],
+  ["prev_job_title", "Job Title", ["tbJobTitle"]],
+  ["prev_supervisor_surname", "Supervisor's Surnames", ["tbSupervisorSurname"]],
+  ["prev_supervisor_given_names", "Supervisor's Given Names", ["tbSupervisorGivenName"]],
+  ["prev_job_duties", "Briefly Describe Your Duties", ["tbDescribeDuties"]],
 ] as const;
 for (const [fieldName, label, tokens] of previousEmployer) {
   const isTextarea = fieldName === "prev_job_duties";
@@ -1088,7 +1088,7 @@ addField(
   "prev_employer_country",
   "select",
   "Country/Region",
-  ["PREV_EMPL_COUNTRY", "PREV_EMPLOYER_COUNTRY"],
+  ["DropDownList2"],
   { condition: "has_previous_employer === yes", repeatGroup: "previous_employers" },
 );
 addDate(
@@ -1097,9 +1097,9 @@ addDate(
   "Employment Date From",
   "has_previous_employer === yes",
   "previous_employers",
-  ["ddlPREV_EMPL_DATE_FROMDay", "ddlPREV_EMPL_FROMDay", "PREV_EMPLOYMENT_START_DAY"],
-  ["ddlPREV_EMPL_DATE_FROMMonth", "ddlPREV_EMPL_FROMMonth", "PREV_EMPLOYMENT_START_MONTH"],
-  ["tbxPREV_EMPL_DATE_FROMYear", "tbxPREV_EMPL_FROMYear", "PREV_EMPLOYMENT_START_YEAR"],
+  ["ddlEmpDateFromDay"],
+  ["ddlEmpDateFromMonth"],
+  ["tbxEmpDateFromYear"],
 );
 addDate(
   "work_education_previous",
@@ -1107,9 +1107,9 @@ addDate(
   "Employment Date To",
   "has_previous_employer === yes",
   "previous_employers",
-  ["ddlPREV_EMPL_DATE_TO_Day", "ddlPREV_EMPL_TODay", "PREV_EMPLOYMENT_END_DAY"],
-  ["ddlPREV_EMPL_DATE_TO_Month", "ddlPREV_EMPL_TOMonth", "PREV_EMPLOYMENT_END_MONTH"],
-  ["tbxPREV_EMPL_DATE_TO_Year", "tbxPREV_EMPL_TOYear", "PREV_EMPLOYMENT_END_YEAR"],
+  ["ddlEmpDateToDay"],
+  ["ddlEmpDateToMonth"],
+  ["tbxEmpDateToYear"],
 );
 
 const education = [
@@ -1212,10 +1212,10 @@ addField(
   { condition: "has_specialized_skills === yes" },
 );
 const military = [
-  ["military_country", "Country/Region", "select", ["MILITARY_COUNTRY", "MILITARY_SERVICE_COUNTRY"]],
-  ["military_branch", "Branch of Service", "text", ["MILITARY_BRANCH", "MILITARY_SERVICE_BRANCH"]],
-  ["military_rank", "Rank/Position", "text", ["MILITARY_RANK", "MILITARY_SERVICE_RANK"]],
-  ["military_specialty", "Military Specialty", "text", ["MILITARY_SPECIALTY", "MILITARY_SERVICE_SPECIALTY"]],
+  ["military_country", "Country/Region", "select", ["ddlMILITARY_SVC_CNTRY"]],
+  ["military_branch", "Branch of Service", "text", ["tbxMILITARY_SVC_BRANCH"]],
+  ["military_rank", "Rank/Position", "text", ["tbxMILITARY_SVC_RANK"]],
+  ["military_specialty", "Military Specialty", "text", ["tbxMILITARY_SVC_SPECIALTY"]],
 ] as const;
 for (const [fieldName, label, seedType, tokens] of military) {
   addField("work_education_additional", fieldName, seedType, label, tokens, {
@@ -1250,7 +1250,7 @@ addField(
   "paramilitary_explain",
   "textarea",
   "Explain",
-  ["INSURGENT_ORG_EXPLAIN", "PARAMILITARY_EXPLAIN", "tbxPARAMILITARY_EXPLAIN"],
+  ["tbxINSURGENT_ORG_EXPL"],
   { condition: "has_served_paramilitary === yes" },
 );
 
@@ -1260,34 +1260,35 @@ const securityExplanations: ReadonlyArray<{
   number: number;
   controller: string;
   fieldName: string;
+  liveToken: string;
 }> = [
-  { page: "security_background_1", number: 1, controller: "has_communicable_disease", fieldName: "has_communicable_disease_explain" },
-  { page: "security_background_1", number: 2, controller: "has_physical_mental_disorder", fieldName: "has_physical_mental_disorder_explain" },
-  { page: "security_background_1", number: 3, controller: "is_drug_abuser", fieldName: "is_drug_abuser_explain" },
-  { page: "security_background_2", number: 1, controller: "has_arrest_conviction", fieldName: "has_arrest_conviction_explain" },
-  { page: "security_background_2", number: 2, controller: "has_violated_controlled_substance", fieldName: "has_violated_controlled_substance_explain" },
-  { page: "security_background_2", number: 3, controller: "has_prostitution", fieldName: "has_prostitution_explain" },
-  { page: "security_background_2", number: 4, controller: "has_money_laundering", fieldName: "has_money_laundering_explain" },
-  { page: "security_background_2", number: 5, controller: "has_human_trafficking", fieldName: "has_human_trafficking_explain" },
-  { page: "security_background_2", number: 6, controller: "has_aided_human_trafficking", fieldName: "has_aided_human_trafficking_explain" },
-  { page: "security_background_2", number: 7, controller: "has_trafficking_beneficiary", fieldName: "has_trafficking_beneficiary_explain" },
-  { page: "security_background_3", number: 1, controller: "intend_illegal_activity", fieldName: "intend_illegal_activity_explain" },
-  { page: "security_background_3", number: 2, controller: "intend_terrorist_activity", fieldName: "intend_terrorist_activity_explain" },
-  { page: "security_background_3", number: 3, controller: "has_provided_terrorist_support", fieldName: "has_provided_terrorist_support_explain" },
-  { page: "security_background_3", number: 4, controller: "is_terrorist_member", fieldName: "is_terrorist_member_explain" },
-  { page: "security_background_3", number: 5, controller: "is_terrorist_family", fieldName: "is_terrorist_family_explain" },
-  { page: "security_background_3", number: 6, controller: "has_genocide", fieldName: "has_genocide_explain" },
-  { page: "security_background_3", number: 7, controller: "has_torture", fieldName: "has_torture_explain" },
-  { page: "security_background_3", number: 8, controller: "has_extrajudicial_killings", fieldName: "has_extrajudicial_killings_explain" },
-  { page: "security_background_3", number: 9, controller: "has_child_soldier", fieldName: "has_child_soldier_explain" },
-  { page: "security_background_3", number: 10, controller: "has_religious_freedom_violation", fieldName: "has_religious_freedom_violation_explain" },
-  { page: "security_background_3", number: 11, controller: "has_population_control", fieldName: "has_population_control_explain" },
-  { page: "security_background_3", number: 12, controller: "has_coercive_transplant", fieldName: "has_coercive_transplant_explain" },
-  { page: "security_background_4", number: 1, controller: "has_immigration_fraud", fieldName: "has_immigration_fraud_explain" },
-  { page: "security_background_4", number: 2, controller: "has_removal_order", fieldName: "has_removal_order_explain" },
-  { page: "security_background_5", number: 1, controller: "has_withheld_child_custody", fieldName: "has_withheld_child_custody_explain" },
-  { page: "security_background_5", number: 2, controller: "has_voted_illegally", fieldName: "has_voted_illegally_explain" },
-  { page: "security_background_5", number: 3, controller: "has_renounced_citizenship", fieldName: "has_renounced_citizenship_explain" },
+  { page: "security_background_1", number: 1, controller: "has_communicable_disease", fieldName: "has_communicable_disease_explain", liveToken: "tbxDisease" },
+  { page: "security_background_1", number: 2, controller: "has_physical_mental_disorder", fieldName: "has_physical_mental_disorder_explain", liveToken: "tbxDisorder" },
+  { page: "security_background_1", number: 3, controller: "is_drug_abuser", fieldName: "is_drug_abuser_explain", liveToken: "tbxDruguser" },
+  { page: "security_background_2", number: 1, controller: "has_arrest_conviction", fieldName: "has_arrest_conviction_explain", liveToken: "tbxArrested" },
+  { page: "security_background_2", number: 2, controller: "has_violated_controlled_substance", fieldName: "has_violated_controlled_substance_explain", liveToken: "tbxControlledSubstances" },
+  { page: "security_background_2", number: 3, controller: "has_prostitution", fieldName: "has_prostitution_explain", liveToken: "tbxProstitution" },
+  { page: "security_background_2", number: 4, controller: "has_money_laundering", fieldName: "has_money_laundering_explain", liveToken: "tbxMoneyLaundering" },
+  { page: "security_background_2", number: 5, controller: "has_human_trafficking", fieldName: "has_human_trafficking_explain", liveToken: "tbxHumanTrafficking" },
+  { page: "security_background_2", number: 6, controller: "has_aided_human_trafficking", fieldName: "has_aided_human_trafficking_explain", liveToken: "tbxAssistedSevereTrafficking" },
+  { page: "security_background_2", number: 7, controller: "has_trafficking_beneficiary", fieldName: "has_trafficking_beneficiary_explain", liveToken: "tbxHumanTraffickingRelated" },
+  { page: "security_background_3", number: 1, controller: "intend_illegal_activity", fieldName: "intend_illegal_activity_explain", liveToken: "tbxIllegalActivity" },
+  { page: "security_background_3", number: 2, controller: "intend_terrorist_activity", fieldName: "intend_terrorist_activity_explain", liveToken: "tbxTerroristActivity" },
+  { page: "security_background_3", number: 3, controller: "has_provided_terrorist_support", fieldName: "has_provided_terrorist_support_explain", liveToken: "tbxTerroristSupport" },
+  { page: "security_background_3", number: 4, controller: "is_terrorist_member", fieldName: "is_terrorist_member_explain", liveToken: "tbxTerroristOrg" },
+  { page: "security_background_3", number: 5, controller: "is_terrorist_family", fieldName: "is_terrorist_family_explain", liveToken: "tbxTerroristRel" },
+  { page: "security_background_3", number: 6, controller: "has_genocide", fieldName: "has_genocide_explain", liveToken: "tbxGenocide" },
+  { page: "security_background_3", number: 7, controller: "has_torture", fieldName: "has_torture_explain", liveToken: "tbxTorture" },
+  { page: "security_background_3", number: 8, controller: "has_extrajudicial_killings", fieldName: "has_extrajudicial_killings_explain", liveToken: "tbxExViolence" },
+  { page: "security_background_3", number: 9, controller: "has_child_soldier", fieldName: "has_child_soldier_explain", liveToken: "tbxChildSoldier" },
+  { page: "security_background_3", number: 10, controller: "has_religious_freedom_violation", fieldName: "has_religious_freedom_violation_explain", liveToken: "tbxReligiousFreedom" },
+  { page: "security_background_3", number: 11, controller: "has_population_control", fieldName: "has_population_control_explain", liveToken: "tbxPopulationControls" },
+  { page: "security_background_3", number: 12, controller: "has_coercive_transplant", fieldName: "has_coercive_transplant_explain", liveToken: "tbxTransplant" },
+  { page: "security_background_4", number: 1, controller: "has_immigration_fraud", fieldName: "has_immigration_fraud_explain", liveToken: "tbxImmigrationFraud" },
+  { page: "security_background_4", number: 2, controller: "has_removal_order", fieldName: "has_removal_order_explain", liveToken: "tbxDeport_EXPL" },
+  { page: "security_background_5", number: 1, controller: "has_withheld_child_custody", fieldName: "has_withheld_child_custody_explain", liveToken: "tbxChildCustody" },
+  { page: "security_background_5", number: 2, controller: "has_voted_illegally", fieldName: "has_voted_illegally_explain", liveToken: "tbxVotingViolation" },
+  { page: "security_background_5", number: 3, controller: "has_renounced_citizenship", fieldName: "has_renounced_citizenship_explain", liveToken: "tbxRenounceExp" },
 ];
 
 for (const explanation of securityExplanations) {
@@ -1296,11 +1297,7 @@ for (const explanation of securityExplanations) {
     explanation.fieldName,
     "textarea",
     "Explain",
-    [
-      `SECURITY_PART${explanation.page.slice(-1)}_Q${explanation.number}_EXPLAIN`,
-      `${explanation.controller.toUpperCase()}_EXPLAIN`,
-      `tbx${explanation.controller.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}Explain`,
-    ],
+    [explanation.liveToken],
     { condition: `${explanation.controller} === yes` },
   );
 }

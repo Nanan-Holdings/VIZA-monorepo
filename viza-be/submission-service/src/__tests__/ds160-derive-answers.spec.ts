@@ -376,7 +376,9 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.military_date_to_year, "2011");
     assert.equal(answers.military_date_to_month, "JAN");
     assert.equal(answers.military_date_to_day, undefined);
-    assert.equal(answers.spouse_date_of_birth, "1990");
+    assert.equal(answers.spouse_date_of_birth_year, "1990");
+    assert.equal(answers.spouse_date_of_birth_month, undefined);
+    assert.equal(answers.spouse_date_of_birth_day, undefined);
     assert.equal(answers.partner_date_of_birth_year, "1991");
     assert.equal(answers.partner_date_of_birth_month, undefined);
     assert.equal(answers.partner_date_of_birth_day, undefined);

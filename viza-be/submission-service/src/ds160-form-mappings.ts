@@ -147,6 +147,21 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Intended Arrival Year",
   },
+  departure_date_day: {
+    selector: 'select[id="ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEDay"]',
+    type: "select",
+    label: "Date of Departure from U.S. Day",
+  },
+  departure_date_month: {
+    selector: 'select[id="ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEMonth"]',
+    type: "select",
+    label: "Date of Departure from U.S. Month",
+  },
+  departure_date_year: {
+    selector: 'input[id="ctl00_SiteContentPlaceHolder_FormView1_tbxDEPARTURE_US_DTEYear"]',
+    type: "text",
+    label: "Date of Departure from U.S. Year",
+  },
   intended_length_of_stay: {
     selector: 'input[id*="tbxTRAVEL_LOS"]',
     type: "text",
@@ -187,22 +202,22 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     label: "Who is paying for your trip?",
   },
   payer_surname: {
-    selector: 'input[id*="tbxPAYER_SURNAME"]',
+    selector: 'input[id*="tbxPayerSurname"]',
     type: "text",
     label: "Payer Surname",
   },
   payer_given_names: {
-    selector: 'input[id*="tbxPAYER_GIVEN_NAME"]',
+    selector: 'input[id*="tbxPayerGivenName"]',
     type: "text",
     label: "Payer Given Names",
   },
   payer_phone: {
-    selector: 'input[id*="tbxPAYER_TEL"]',
+    selector: 'input[id*="tbxPayerPhone"]',
     type: "text",
     label: "Payer Phone",
   },
   payer_email: {
-    selector: 'input[id*="tbxPAYER_EMAIL"]',
+    selector: 'input[id*="tbxPAYER_EMAIL_ADDR"]',
     type: "text",
     label: "Payer Email",
   },
@@ -212,7 +227,7 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
     label: "Payer Email Does Not Apply",
   },
   payer_relationship: {
-    selector: 'select[id*="ddlPAYER_REL"]',
+    selector: 'select[id*="ddlPayerRelationship"]',
     type: "select",
     label: "Payer Relationship to You",
   },
@@ -816,27 +831,37 @@ export const ds160FamilyRelativesMappings: Record<string, FormFieldMapping> = {
 // ---------------------------------------------------------------------------
 export const ds160FamilySpouseMappings: Record<string, FormFieldMapping> = {
   spouse_surname: {
-    selector: 'input[id*="tbxSPOUSE_SURNAME"]',
+    selector: 'input[id*="tbxSpouseSurname"]',
     type: "text",
     label: "Spouse Surname",
   },
   spouse_given_names: {
-    selector: 'input[id*="tbxSPOUSE_GIVEN_NAME"]',
+    selector: 'input[id*="tbxSpouseGivenName"]',
     type: "text",
     label: "Spouse Given Names",
   },
-  spouse_date_of_birth: {
-    selector: 'input[id*="tbxSPOUSE_DOB"]',
-    type: "date",
-    label: "Spouse Date of Birth",
+  spouse_date_of_birth_day: {
+    selector: 'select[id*="ddlDOBDay"]',
+    type: "select",
+    label: "Spouse Date of Birth Day",
+  },
+  spouse_date_of_birth_month: {
+    selector: 'select[id*="ddlDOBMonth"]',
+    type: "select",
+    label: "Spouse Date of Birth Month",
+  },
+  spouse_date_of_birth_year: {
+    selector: 'input[id*="tbxDOBYear"]',
+    type: "text",
+    label: "Spouse Date of Birth Year",
   },
   spouse_nationality: {
-    selector: 'select[id*="ddlSPOUSE_NATL"]',
+    selector: 'select[id*="ddlSpouseNatDropDownList"]',
     type: "select",
     label: "Spouse Nationality",
   },
   spouse_city_of_birth: {
-    selector: 'input[id*="tbxSPOUSE_POB_CITY"]',
+    selector: 'input[id*="tbxSpousePOBCity"]',
     type: "text",
     label: "Spouse City of Birth",
   },

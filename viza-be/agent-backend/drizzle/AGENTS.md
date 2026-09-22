@@ -587,3 +587,11 @@ metadata-only and preserves existing applicant answers and aliases. The count
 pattern is a local numeric input guard; it does not claim an independently
 verified CEAC server-side range. Keep its frontend mirror
 `20260922010000_ds160_form_control_types.sql` byte-identical.
+
+# Migration 0205
+
+`0205_ds160_explanation_textareas.sql` changes the marital-status OTHER,
+passport-document-type OTHER, and present-occupation OTHER explanation fields
+to textareas after their live CEAC controls were observed as textareas with
+4000-character limits. It updates only field metadata, not saved answers. Keep
+its frontend mirror `20260922020000_ds160_explanation_textareas.sql` byte-identical.
