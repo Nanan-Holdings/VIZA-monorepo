@@ -85,6 +85,8 @@ interface FieldSpec {
   htmlTag?: "input" | "textarea" | "select";
   label: string;
   selectorTokens: readonly string[];
+  /** Match the whole final control name when sibling controls share a prefix. */
+  selectorMatch?: "contains" | "suffix";
   condition?: string;
   repeatGroup?: string;
   /** Evidence level for the selector tokens in this declaration. */
@@ -111,14 +113,16 @@ function selectorFor(
   tokens: readonly string[],
   label: string,
   htmlTag?: "input" | "textarea" | "select",
+  selectorMatch: "contains" | "suffix" = "contains",
 ): string {
   const tag = htmlTag ?? (mappingType === "select" ? "select" : "input");
   const typeClause = mappingType === "radio" || mappingType === "checkbox"
     ? `[type="${mappingType}"]`
     : "";
+  const operator = selectorMatch === "suffix" ? "$" : "*";
   const candidates = tokens.flatMap((token) => [
-    `${tag}${typeClause}[id*="${token}"]`,
-    `${tag}${typeClause}[name*="${token}"]`,
+    `${tag}${typeClause}[id${operator}="${token}"]`,
+    `${tag}${typeClause}[name${operator}="${token}"]`,
   ]);
 
   // Keep the CSS argument free of commas because the current fill runtime
@@ -167,6 +171,7 @@ function addField(
     htmlTag: options.htmlTag ?? (seedType === "textarea" ? "textarea" : undefined),
     label,
     selectorTokens,
+    selectorMatch: options.selectorMatch,
     condition: options.condition,
     repeatGroup: options.repeatGroup,
     selectorEvidence: options.selectorEvidence,
@@ -1298,7 +1303,7 @@ for (const explanation of securityExplanations) {
     "textarea",
     "Explain",
     [explanation.liveToken],
-    { condition: `${explanation.controller} === yes` },
+    { condition: `${explanation.controller} === yes`, selectorMatch: "suffix" },
   );
 }
 
@@ -1346,7 +1351,7 @@ const pageOrder: readonly Ds160ExtendedPage[] = [
 
 const mappingEntries = declarations.map((spec) => {
   const mapping: FormFieldMapping = {
-    selector: selectorFor(spec.mappingType, spec.selectorTokens, spec.label, spec.htmlTag),
+    selector: selectorFor(spec.mappingType, spec.selectorTokens, spec.label, spec.htmlTag, spec.selectorMatch),
     type: spec.mappingType,
     label: spec.label,
   };

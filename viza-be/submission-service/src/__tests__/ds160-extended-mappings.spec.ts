@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 
 import { readDs160SeedFields } from "../ds160-parity";
 import { DS160_FIELD_CONTRACTS } from "../ds160-field-contract";
@@ -378,7 +379,7 @@ test("partner birthday uses the observed shared spouse date controls", () => {
   }
 });
 
-test("fresh security explanation controls use exact textarea tokens", () => {
+test("fresh security explanation controls stay distinct when official control names share a prefix", async () => {
   const expectations = [
     ["has_communicable_disease_explain", "tbxDisease", "has_communicable_disease"],
     ["has_physical_mental_disorder_explain", "tbxDisorder", "has_physical_mental_disorder"],
@@ -415,9 +416,28 @@ test("fresh security explanation controls use exact textarea tokens", () => {
     const metadata = DS160_EXTENDED_METADATA[fieldName];
     assert.equal(metadata.seedType, "textarea", fieldName);
     assert.equal(metadata.condition, `${controller} === yes`, fieldName);
-    assert.match(mapping.selector, new RegExp(`textarea[^,]*\\[id\\*="${token}"\\]`), fieldName);
-    assert.match(mapping.selector, new RegExp(`textarea[^,]*\\[name\\*="${token}"\\]`), fieldName);
+    assert.ok(mapping.selector.includes(`textarea[id$="${token}"]`), fieldName);
+    assert.ok(mapping.selector.includes(`textarea[name$="${token}"]`), fieldName);
     assert.doesNotMatch(mapping.selector, /SECURITY_PART|_EXPLAIN/);
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(expectations.map(([, token]) =>
+      `<textarea id="ctl00_SiteContentPlaceHolder_FormView1_${token}" name="ctl00$SiteContentPlaceHolder$FormView1$${token}"></textarea>`,
+    ).join("\n"));
+    for (const [fieldName, token] of expectations) {
+      const control = page.locator(DS160_EXTENDED_MAPPINGS[fieldName].selector);
+      assert.equal(await control.count(), 1, `${fieldName} must select only its own explanation`);
+      await control.fill(fieldName);
+      assert.equal(await page.locator(`[id$="${token}"]`).inputValue(), fieldName);
+    }
+    // The shorter control name previously also selected this distinct question.
+    assert.equal(await page.locator('[id$="tbxHumanTrafficking"]').inputValue(), "has_human_trafficking_explain");
+    assert.equal(await page.locator('[id$="tbxHumanTraffickingRelated"]').inputValue(), "has_trafficking_beneficiary_explain");
+  } finally {
+    await browser.close();
   }
 });
 
