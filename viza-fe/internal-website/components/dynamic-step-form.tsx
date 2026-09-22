@@ -62,9 +62,12 @@ import { isDs160FieldVisibleForRuntime } from "@/lib/ds160-age-gate";
 import { isLegacyCompatibilityOnlyField } from "@/lib/legacy-compatibility-fields";
 import {
   FORMER_SPOUSE_COUNT_FIELD,
+  FORMER_SPOUSE_IDENTITY_FIELDS,
   FORMER_SPOUSE_REPEAT_GROUP,
   getFormerSpouseCountIssue,
   getFormerSpouseCountValidationMessage,
+  getFormerSpouseDuplicateIssue,
+  getFormerSpouseDuplicateMessage,
   getFormerSpouseRepeatLimit,
 } from "@/lib/former-spouse-count";
 import {
@@ -1913,6 +1916,20 @@ function getLocalFieldIssue(
       return issue(
         "error",
         getFormerSpouseCountValidationMessage(formerSpouseCountIssue, isZh),
+      );
+    }
+  }
+
+  if (
+    field.visaType === "DS160" &&
+    FORMER_SPOUSE_IDENTITY_FIELDS.some((fieldName) => fieldName === field.fieldName) &&
+    getRepeatGroup(field) === FORMER_SPOUSE_REPEAT_GROUP
+  ) {
+    const formerSpouseDuplicateIssue = getFormerSpouseDuplicateIssue(allValues, valueKey);
+    if (formerSpouseDuplicateIssue) {
+      return issue(
+        "error",
+        getFormerSpouseDuplicateMessage(formerSpouseDuplicateIssue, isZh),
       );
     }
   }

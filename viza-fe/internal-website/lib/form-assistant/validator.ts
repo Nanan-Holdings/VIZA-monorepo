@@ -9,8 +9,11 @@ import {
 } from "@/lib/application-tab-completion";
 import {
   FORMER_SPOUSE_COUNT_FIELD,
+  FORMER_SPOUSE_IDENTITY_FIELDS,
+  findFormerSpouseDuplicateIssues,
   getFormerSpouseCountIssue,
   getFormerSpouseCountValidationMessage,
+  getFormerSpouseDuplicateMessage,
 } from "@/lib/former-spouse-count";
 import {
   getUsContactRelationshipIssue,
@@ -397,6 +400,31 @@ export function validateApplicationAnswers(params: {
       message: message(`${missing.label} is required.`, `请填写${missing.label}。`),
     }];
   });
+
+  if (visaType.trim().toUpperCase() === "DS160") {
+    const formerSpouseStep = steps.find((step) =>
+      FORMER_SPOUSE_IDENTITY_FIELDS.every((fieldName) =>
+        step.fields.some((field) => field.fieldName === fieldName && field.visaType === "DS160")),
+    );
+    const formerSpouseSurnameField = formerSpouseStep?.fields.find(
+      (field) => field.fieldName === "former_spouse_surname" && field.visaType === "DS160",
+    );
+    if (
+      formerSpouseStep &&
+      formerSpouseSurnameField &&
+      isDs160FieldVisibleForRuntime(formerSpouseSurnameField, formerSpouseStep, visaType, answers, params.now) &&
+      evaluateShowIf(formerSpouseSurnameField, answers, formerSpouseStep.fields)
+    ) {
+      for (const issue of findFormerSpouseDuplicateIssues(answers)) {
+        errors.push({
+          code: "former_spouse_duplicate",
+          fieldNames: issue.fieldNames,
+          message: getFormerSpouseDuplicateMessage(issue, isZh),
+        });
+      }
+    }
+  }
+
   const warnings: FormAssistantValidationIssue[] = [];
 
   for (const step of steps) {

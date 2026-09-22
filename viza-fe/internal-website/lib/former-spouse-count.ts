@@ -1,3 +1,5 @@
+import { toOfficialEnglishValue } from "@/lib/ds160-translations";
+
 /**
  * DS-160 former-spouse repeat-group contract.
  *
@@ -9,6 +11,12 @@
 
 export const FORMER_SPOUSE_COUNT_FIELD = "number_of_former_spouses";
 export const FORMER_SPOUSE_REPEAT_GROUP = "former_spouses";
+
+export const FORMER_SPOUSE_IDENTITY_FIELDS = [
+  "former_spouse_surname",
+  "former_spouse_given_names",
+  "former_spouse_date_of_birth",
+] as const;
 
 const FORMER_SPOUSE_ROW_FIELDS = [
   "former_spouse_surname",
@@ -31,6 +39,13 @@ export interface FormerSpouseCountIssue {
   populatedRowCount: number;
 }
 
+export interface FormerSpouseDuplicateIssue {
+  kind: "duplicate";
+  firstRow: number;
+  duplicateRow: number;
+  fieldNames: string[];
+}
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
 }
@@ -49,6 +64,121 @@ function rowIndexForAnswerKey(key: string, fieldName: string): number | null {
   if (!match) return null;
   const index = Number(match[1]);
   return Number.isInteger(index) && index >= 2 ? index : null;
+}
+
+function rowIndexForIdentityAnswerKey(key: string, fieldName: string): number | null {
+  return rowIndexForAnswerKey(key.replace(/_(?:zh|en)$/u, ""), fieldName);
+}
+
+function repeatAnswerKey(fieldName: string, row: number): string {
+  return row === 1 ? fieldName : `${fieldName}__${row}`;
+}
+
+function hasChineseText(value: string): boolean {
+  return /[\u3400-\u9fff]/u.test(value);
+}
+
+function normalizeIdentityValue(value: string): string {
+  return value
+    .trim()
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .toLocaleUpperCase("en-US");
+}
+
+function officialIdentityValue(
+  answers: Readonly<Record<string, string | undefined | null>>,
+  fieldName: typeof FORMER_SPOUSE_IDENTITY_FIELDS[number],
+  row: number,
+): string {
+  const key = repeatAnswerKey(fieldName, row);
+  const canonical = text(answers[key]);
+  const englishMirror = text(answers[`${key}_en`]);
+  const usableEnglishMirror = englishMirror && !hasChineseText(englishMirror)
+    ? englishMirror
+    : "";
+  const source = canonical && !hasChineseText(canonical)
+    ? canonical
+    : usableEnglishMirror || canonical || englishMirror;
+  const official = hasChineseText(source) ? toOfficialEnglishValue(source) : source;
+  return normalizeIdentityValue(official);
+}
+
+function isFormerSpouseBranchActive(
+  answers: Readonly<Record<string, string | undefined | null>>,
+): boolean {
+  const maritalStatus = text(answers.marital_status)
+    .normalize("NFKC")
+    .toLocaleUpperCase("en-US");
+  return maritalStatus === "DIVORCED"
+    || maritalStatus === "DIVORCE"
+    || maritalStatus === "D"
+    || maritalStatus === "离婚";
+}
+
+function formerSpouseIdentityRows(
+  answers: Readonly<Record<string, string | undefined | null>>,
+): number[] {
+  const rows = new Set<number>();
+  for (const fieldName of FORMER_SPOUSE_IDENTITY_FIELDS) {
+    for (const key of Object.keys(answers)) {
+      const row = rowIndexForIdentityAnswerKey(key, fieldName);
+      if (row !== null) rows.add(row);
+    }
+  }
+  return [...rows].sort((left, right) => left - right);
+}
+
+function formerSpouseIdentity(
+  answers: Readonly<Record<string, string | undefined | null>>,
+  row: number,
+): string[] {
+  return FORMER_SPOUSE_IDENTITY_FIELDS.map((fieldName) =>
+    officialIdentityValue(answers, fieldName, row));
+}
+
+/** Find complete former-spouse rows whose surname, given names and DOB match. */
+export function findFormerSpouseDuplicateIssues(
+  answers: Readonly<Record<string, string | undefined | null>>,
+): FormerSpouseDuplicateIssue[] {
+  if (!isFormerSpouseBranchActive(answers)) return [];
+
+  const firstByIdentity = new Map<string, number>();
+  const issues: FormerSpouseDuplicateIssue[] = [];
+  for (const row of formerSpouseIdentityRows(answers)) {
+    const identity = formerSpouseIdentity(answers, row);
+    if (identity.some((value) => !value)) continue;
+    const identityKey = identity.join("\u0000");
+    const firstRow = firstByIdentity.get(identityKey);
+    if (firstRow === undefined) {
+      firstByIdentity.set(identityKey, row);
+      continue;
+    }
+    issues.push({
+      kind: "duplicate",
+      firstRow,
+      duplicateRow: row,
+      fieldNames: FORMER_SPOUSE_IDENTITY_FIELDS.map((fieldName) => repeatAnswerKey(fieldName, row)),
+    });
+  }
+  return issues;
+}
+
+/** Return the duplicate issue for one identity control in the repeated row. */
+export function getFormerSpouseDuplicateIssue(
+  answers: Readonly<Record<string, string | undefined | null>>,
+  valueKey: string,
+): FormerSpouseDuplicateIssue | null {
+  const canonicalValueKey = valueKey.replace(/_(?:zh|en)$/u, "");
+  return findFormerSpouseDuplicateIssues(answers)
+    .find((issue) => issue.fieldNames.includes(canonicalValueKey)) ?? null;
+}
+
+export function getFormerSpouseDuplicateMessage(
+  _issue: FormerSpouseDuplicateIssue,
+  isZh: boolean,
+): string {
+  return isZh ? "不能输入重复的前配偶" : "You cannot enter a duplicate Former Spouse";
 }
 
 /**
@@ -118,4 +248,3 @@ export function getFormerSpouseCountValidationMessage(
     ? `声明的前任配偶人数为 ${issue.declaredCount}，但已填写 ${issue.populatedRowCount} 位。请使两者一致。`
     : `The declared number of former spouses is ${issue.declaredCount}, but ${issue.populatedRowCount} entries are filled. Make the counts match.`;
 }
-

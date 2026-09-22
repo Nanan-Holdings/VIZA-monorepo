@@ -589,6 +589,49 @@ describe("DynamicStepForm date sentinel validation", () => {
     expect(screen.queryByRole("button", { name: "addAnother" })).not.toBeInTheDocument();
   });
 
+  it("blocks complete duplicate former-spouse identities with the official error", () => {
+    const fields: VisaFormFieldRow[] = [
+      formerSpouseField("number_of_former_spouses", {
+        fieldType: "select",
+        displayOrder: 1,
+        validationRules: null,
+        options: [{ value: "1", text: "1" }, { value: "2", text: "2" }],
+      }),
+      formerSpouseField("former_spouse_surname"),
+      formerSpouseField("former_spouse_given_names"),
+      formerSpouseField("former_spouse_date_of_birth", {
+        fieldType: "date",
+        validationRules: { repeatable: true, repeat_group: "former_spouses", minimum_date_precision: "year" },
+      }),
+    ];
+    const step: WizardStep = {
+      stepNumber: 12,
+      stepName: "Family Information: Former Spouse",
+      fields,
+    };
+    const { container } = render(
+      <DynamicStepForm
+        step={step}
+        prefill={{
+          marital_status: "divorced",
+          number_of_former_spouses: "2",
+          former_spouse_surname: "ZHANG",
+          former_spouse_given_names: "SAN",
+          former_spouse_date_of_birth: "1980-01-02",
+          former_spouse_surname__2: "ZHANG",
+          former_spouse_given_names__2: "SAN",
+          former_spouse_date_of_birth__2: "1980-01-02",
+        }}
+        onComplete={vi.fn()}
+        onDraftChange={vi.fn()}
+        visaType="DS160"
+      />,
+    );
+
+    expect(screen.getAllByText("不能输入重复的前配偶").length).toBeGreaterThan(0);
+    expect(container.querySelector("[data-blocking-errors-clear='false']")).not.toBeNull();
+  });
+
   it("does not invent a five-row ceiling for an unbounded repeat group", async () => {
     const fields = [formerSpouseField("language_name", {
       id: "language-name",

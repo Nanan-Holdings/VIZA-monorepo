@@ -162,6 +162,99 @@ describe("validateApplicationAnswers", () => {
     expect(complete.missingFields).toEqual([]);
   });
 
+  it("surfaces the official former-spouse duplicate error only for complete identities", () => {
+    const formerSpouseField = (
+      fieldName: string,
+      fieldType: "text" | "date" = "text",
+    ) => ({
+      ...steps[0].fields[3],
+      id: fieldName,
+      visaType: "DS160" as const,
+      fieldName,
+      label: fieldName,
+      fieldType,
+      required: false,
+      options: null,
+      validationRules: { repeatable: true, repeat_group: "former_spouses" },
+      conditionalLogic: { showIf: "marital_status === divorced" },
+    });
+    const formerSpouseDuplicateSteps: WizardStep[] = [{
+      stepNumber: 12,
+      stepName: "Family Information: Former Spouse",
+      fields: [
+        {
+          ...steps[0].fields[2],
+          id: "former-count",
+          visaType: "DS160",
+          fieldName: "number_of_former_spouses",
+          label: "Number of Former Spouses",
+          fieldType: "text",
+          required: false,
+          options: ["1", "2", "3"],
+          validationRules: null,
+          conditionalLogic: { showIf: "marital_status === divorced" },
+        },
+        formerSpouseField("former_spouse_surname"),
+        formerSpouseField("former_spouse_given_names"),
+        formerSpouseField("former_spouse_date_of_birth", "date"),
+      ],
+    }];
+    const duplicateAnswers = {
+      marital_status: "divorced",
+      number_of_former_spouses: "3",
+      former_spouse_surname: "ZHANG",
+      former_spouse_given_names: "SAN",
+      former_spouse_date_of_birth: "1980-01-02",
+      former_spouse_surname__2: "ZHANG",
+      former_spouse_given_names__2: "SAN",
+      former_spouse_date_of_birth__2: "1980-01-02",
+      former_spouse_surname__3: "ZHANG",
+      former_spouse_given_names__3: "SAN",
+      former_spouse_date_of_birth__3: "1980-01-02",
+    };
+
+    const duplicate = validateApplicationAnswers({
+      steps: formerSpouseDuplicateSteps,
+      answers: duplicateAnswers,
+      visaType: "DS160",
+    });
+    expect(duplicate.errors.filter((error) => error.code === "former_spouse_duplicate")).toEqual([
+      expect.objectContaining({
+        fieldNames: [
+          "former_spouse_surname__2",
+          "former_spouse_given_names__2",
+          "former_spouse_date_of_birth__2",
+        ],
+        message: "You cannot enter a duplicate Former Spouse",
+      }),
+      expect.objectContaining({
+        fieldNames: [
+          "former_spouse_surname__3",
+          "former_spouse_given_names__3",
+          "former_spouse_date_of_birth__3",
+        ],
+      }),
+    ]);
+
+    const chinese = validateApplicationAnswers({
+      steps: formerSpouseDuplicateSteps,
+      answers: duplicateAnswers,
+      visaType: "DS160",
+      locale: "zh",
+    });
+    expect(chinese.errors).toContainEqual(expect.objectContaining({
+      code: "former_spouse_duplicate",
+      message: "不能输入重复的前配偶",
+    }));
+
+    const hidden = validateApplicationAnswers({
+      steps: formerSpouseDuplicateSteps,
+      answers: { ...duplicateAnswers, marital_status: "married" },
+      visaType: "DS160",
+    });
+    expect(hidden.errors.some((error) => error.code === "former_spouse_duplicate")).toBe(false);
+  });
+
   it("surfaces incompatible U.S. contact relationship branches", () => {
     const usContactSteps: WizardStep[] = [{
       stepNumber: 13,
