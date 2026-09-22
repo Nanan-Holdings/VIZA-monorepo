@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "ds160-companion-evidence/v1",
+  "scope": {
+    "visaClasses": [
+      "B1",
+      "B2"
+    ],
+    "officialPortal": "https://ceac.state.gov/GenNIV/",
+    "qaMode": "unsigned",
+    "officialParityVerified": false
+  },
+  "safetyBoundary": {
+    "applicantAnswersIncluded": false,
+    "applicantIdentifiersIncluded": false,
+    "realSubmittedApplicationModified": false,
+    "realSubmittedApplicationResubmitted": false,
+    "finalSignaturePerformedInThisQa": false,
+    "finalOfficialSubmissionPerformedInThisQa": false
+  },
+  "evidenceKind": "occupation_other_server_navigation",
+  "source": {
+    "rawFile": "D:/Temp/ds160-other-occupation-accepted-20260922.json",
+    "rawSha256": "f6b0c5a2d998e85853ae61ddbe2f9d5a52f6d7bbb57c4423a93d70f99c4f7417",
+    "stateCount": 1,
+    "observedAt": "2026-09-22T19:16:52.869Z"
+  },
+  "finding": {
+    "field": "occupation_other_explain",
+    "branch": "primary_occupation=other",
+    "status": "next_accepted",
+    "path": "/GenNIV/General/complete/complete_workeducation2.aspx",
+    "heading": "Previous Work/Education/Training Information",
+    "errors": [],
+    "summary": "Other occupation explanation and employer data advanced to Previous Work/Education/Training with no errors; entered text is not included."
+  }
+}

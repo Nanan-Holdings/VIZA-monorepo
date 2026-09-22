@@ -5,6 +5,46 @@ audit and fixes. Its `ds160-field-control-audit-2026-09-22.json`, CSV checklist,
 and `ds160-branch-control-audit-2026-09-22.json` retain audit snapshots and
 distinguish exact selector evidence from page/catalog associations. Never
 promote aggregate evidence or HTML required=false to verified server behavior.
+The fresh unsigned QA delta is recorded separately in
+`docs/ds160-live-evidence-delta-2026-09-22.json` and
+`docs/ds160-live-evidence-delta-2026-09-22.csv`. These files contain only
+public CEAC control metadata and state/error summaries, exclude applicant
+answers and identifiers, keep `officialParityVerified=false`, and preserve
+unknown or grouped evidence until mapping reconciliation is complete. They do
+not replace the older audit snapshots or authorize a new official submission.
+The companion 143-row selector reconciliation is in
+`docs/ds160-live-reconciliation-delta-2026-09-22.json` and
+`docs/ds160-live-reconciliation-delta-2026-09-22.csv`. Its current snapshot
+has 126 observed states, 143 fields with direct-ID candidates, zero label-only
+rows, and zero missing runtime bindings after the mapping-worker repair. These
+are finalized selector-reconciliation counts for that snapshot; selector
+evidence is never official server verification, and later raw point checks
+must produce a new snapshot rather than silently changing these counts.
+The 331-row consolidated checklist is in
+`docs/ds160-consolidated-field-checklist-2026-09-22.json` and
+`docs/ds160-consolidated-field-checklist-2026-09-22.csv`. It is an auditable
+effective merge of 187 historical exact rows, 143 fresh reconciliation rows,
+and the repaired `sex` row. It preserves the historical audit files, has
+`countsFinalized=true` for the current 126-state selector snapshot, and keeps
+`officialVerification=false`; the row partition must not be read as 331
+independent official server proofs.
+The independent Part 5 navigation supplement is in
+`docs/ds160-security5-navigation-proof-2026-09-22.json`. It records six public
+control states, disabled `Next: PHOTO` observations, Back/save acceptance, and
+successful top `PHOTO` link navigation. It does not prove the disabled Next
+button can submit, and it contains no uploaded photo, signature, or applicant
+answer.
+Related public-control supplements are
+`docs/ds160-security5-saved-readback-2026-09-22.json`,
+`docs/ds160-security-exact-id-proof-2026-09-22.json`, and
+`docs/ds160-other-occupation-accepted-2026-09-22.json`. They preserve only
+boolean/control-ID/navigation evidence and do not contain entered answer text.
+The current Security Part 5 PHOTO fallback implementation is commit
+`c9371000`: it uses same-origin PHOTO-link navigation only after an explicit
+disabled `Next: PHOTO` state, with Back/save/readback and lease/gate checks;
+normal enabled Next navigation remains the preferred path. Keep the focused
+security5/navigation regression covered by the final combined 121-test run,
+and keep the final runner-image digest aligned with this boundary.
 
 Product policy (2026-09-15): payment execution has been removed.
 `src/payment-removed.ts` defines the unconditional retirement boundary.
@@ -385,7 +425,9 @@ and must fail closed; callers must not perform a direct table settlement.
 - The current DS-160 contract also follows migration 0204 for the CEAC sex
   select, former-spouse count text control, and marriage-ended textarea.
   `job_title` remains a persistence-only compatibility alias and must not
-  become a new CEAC question.
+  become a new CEAC question. Migration 0205 aligns the marital-status OTHER,
+  passport-document OTHER, and present-occupation OTHER explanation fields to
+  CEAC textarea controls; selectors live in `src/ds160-extended-mappings.ts`.
 - `docs/ds160-field-parity-evidence-template.json`: generated B1/B2 evidence
   manifest for every seeded field, both directions of each conditional branch,
   and repeat-row add/delete controls. Empty slots are fail-closed; published

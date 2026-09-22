@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "ds160-security5-navigation-proof/v1",
+  "generatedOn": "2026-09-22",
+  "scope": {
+    "visaClasses": [
+      "B1",
+      "B2"
+    ],
+    "officialPortal": "https://ceac.state.gov/GenNIV/",
+    "qaMode": "unsigned",
+    "evidenceKind": "independent_security_part5_navigation",
+    "officialParityVerified": false
+  },
+  "source": {
+    "rawFile": "D:/Temp/ds160-security5-navigation-proof-20260922.json",
+    "rawSha256": "5adaee423d64cc5d6fecd10e3ec45559665a02c354bb45b70b6ebe1b15ad4d07",
+    "stateCount": 6,
+    "observedAt": {
+      "first": "2026-09-22T19:01:20.098Z",
+      "last": "2026-09-22T19:02:44.451Z"
+    },
+    "controlsArePublicMetadataOnly": true,
+    "applicantAnswersIncluded": false,
+    "applicantIdentifiersIncluded": false
+  },
+  "findings": {
+    "part5YesBranches": {
+      "visibleExplanationGroups": 3,
+      "maxLength": 4000,
+      "states": [
+        "part5-yes-explanations-complete-next-disabled",
+        "part5-yes-retrieved-before-photo-link"
+      ],
+      "nextPhotoDisabled": true
+    },
+    "part5NoBranch": {
+      "state": "part5-no-still-next-disabled",
+      "nextPhotoDisabled": true
+    },
+    "backSave": {
+      "states": [
+        "part5-all-no-back-accepted",
+        "part5-yes-back-accepted-recheck"
+      ],
+      "acceptedWithoutErrors": true
+    },
+    "photoLinkNavigation": {
+      "selector": "a#PHOTO",
+      "observed": true,
+      "targetPath": "/GenNIV/General/photo/photo_uploadthephoto.aspx",
+      "targetHeading": "Upload Photo",
+      "state": "photo-link-result",
+      "errors": []
+    },
+    "boundary": "The official Next: PHOTO button remained disabled in the captured Part 5 states. The proof is limited to successful Back/save acceptance and the separate top PHOTO-link navigation."
+  },
+  "states": [
+    {
+      "state": "part5-all-no-back-accepted",
+      "observedAt": "2026-09-22T19:01:20.098Z",
+      "errors": [],
+      "heading": "Security and Background: Part 4",
+      "next": [
+        {
+          "disabled": false,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: Security/Background Part 5"
+        }
+      ],
+      "path": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": [
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxImmigrationFraud",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDeport_EXPL",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        }
+      ]
+    },
+    {
+      "state": "part5-no-still-next-disabled",
+      "observedAt": "2026-09-22T19:01:34.324Z",
+      "errors": [],
+      "heading": "Security and Background: Part 5",
+      "next": [
+        {
+          "disabled": true,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: PHOTO"
+        }
+      ],
+      "path": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": []
+    },
+    {
+      "state": "part5-yes-explanations-complete-next-disabled",
+      "observedAt": "2026-09-22T19:01:53.352Z",
+      "errors": [],
+      "heading": "Security and Background: Part 5",
+      "next": [
+        {
+          "disabled": true,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: PHOTO"
+        }
+      ],
+      "path": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": [
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxChildCustody",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxVotingViolation",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxRenounceExp",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        }
+      ]
+    },
+    {
+      "state": "part5-yes-back-accepted-recheck",
+      "observedAt": "2026-09-22T19:02:17.942Z",
+      "errors": [],
+      "heading": "Security and Background: Part 4",
+      "next": [
+        {
+          "disabled": false,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: Security/Background Part 5"
+        }
+      ],
+      "path": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": [
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxImmigrationFraud",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDeport_EXPL",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        }
+      ]
+    },
+    {
+      "state": "part5-yes-retrieved-before-photo-link",
+      "observedAt": "2026-09-22T19:02:34.539Z",
+      "errors": [],
+      "heading": "Security and Background: Part 5",
+      "next": [
+        {
+          "disabled": true,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: PHOTO"
+        }
+      ],
+      "path": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": [
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxChildCustody",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxVotingViolation",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        },
+        {
+          "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxRenounceExp",
+          "maxLength": 4000,
+          "tag": "TEXTAREA"
+        }
+      ]
+    },
+    {
+      "state": "photo-link-result",
+      "observedAt": "2026-09-22T19:02:44.451Z",
+      "errors": [],
+      "heading": "Upload Photo",
+      "next": [
+        {
+          "disabled": true,
+          "id": "ctl00_SiteContentPlaceHolder_UpdateButton3",
+          "label": "Next: Confirm Photo"
+        }
+      ],
+      "path": "/GenNIV/General/photo/photo_uploadthephoto.aspx",
+      "photoLinkPresent": true,
+      "visibleExplanations": []
+    }
+  ],
+  "safetyBoundary": {
+    "realSubmittedApplicationModified": false,
+    "realSubmittedApplicationResubmitted": false,
+    "photoUploaded": false,
+    "finalSignaturePerformedInThisQa": false,
+    "finalOfficialSubmissionPerformedInThisQa": false,
+    "syntheticPhotoNotUploaded": true,
+    "note": "This artifact supplements and does not replace the frozen 126-state raw point-check snapshot."
+  }
+}

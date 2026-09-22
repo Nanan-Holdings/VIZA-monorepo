@@ -1,0 +1,4406 @@
+{
+  "schemaVersion": "ds160-live-evidence-delta/v1",
+  "generatedOn": "2026-09-22",
+  "scope": {
+    "visaClasses": [
+      "B1",
+      "B2"
+    ],
+    "officialPortal": "https://ceac.state.gov/GenNIV/",
+    "qaMode": "unsigned",
+    "evidenceKind": "fresh_browser_point_checks",
+    "officialParityVerified": false,
+    "reconciliationStatus": "finalized_runtime_selector_reconciliation"
+  },
+  "source": {
+    "rawFile": "D:/Temp/ds160-live-point-checks-20260922.json",
+    "rawSha256": "b79fe2241f1ed3059b759d2591d6c14105549fb86e69b78709bbb969de1900a7",
+    "stateCount": 126,
+    "observedAt": {
+      "first": "2026-09-22T16:55:32.379Z",
+      "last": "2026-09-22T18:50:56.781Z"
+    },
+    "controlsArePublicMetadataOnly": true,
+    "applicantAnswersIncluded": false,
+    "applicantIdentifiersIncluded": false,
+    "outputOmitsControlOptionValues": true
+  },
+  "safetyBoundary": {
+    "realSubmittedApplicationModified": false,
+    "realSubmittedApplicationResubmitted": false,
+    "finalSignaturePerformedInThisQa": false,
+    "finalOfficialSubmissionPerformedInThisQa": false,
+    "note": "This delta records unsigned QA only; it does not alter the previously submitted application."
+  },
+  "counts": {
+    "rawStates": 126,
+    "indexedFields": 38,
+    "securityExplanationFields": 27,
+    "selectedControlMetadata": 99,
+    "unknownOrPartialFields": 32,
+    "directWithScopeFields": 6,
+    "partialOrGroupedFields": 32
+  },
+  "findings": [
+    {
+      "id": "fresh-conditional-textareas",
+      "status": "observed_with_scoped_validation",
+      "fields": [
+        "marital_status_other_explain",
+        "passport_document_type_explain",
+        "occupation_other_explain"
+      ],
+      "states": [
+        "personal1-marital-other",
+        "passport-document-other",
+        "work-other-next-response",
+        "work-not-employed-server-validation",
+        "not-employed-filled-next-accepted"
+      ],
+      "summary": "Three conditional explanation controls are official textarea elements with maxLength=4000. Empty OTHER and NOT EMPLOYED attempts produced branch-specific server errors; the NOT EMPLOYED filled path advanced.",
+      "limits": "The output stores no entered text. The OTHER filled transition is not isolated in the raw point-check names."
+    },
+    {
+      "id": "fresh-spouse-date-split",
+      "status": "observed_dom_and_server_navigation",
+      "fields": [
+        "spouse_date_of_birth_day",
+        "spouse_date_of_birth_month",
+        "spouse_date_of_birth_year"
+      ],
+      "states": [
+        "family-partner-visible",
+        "family-spouse-visible",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ],
+      "summary": "Family2 spouse date uses separate day/month/year controls. The year-only and full-date paths both reached Work; readback confirmed blank finer parts for the year-only path, but values are excluded from the artifact.",
+      "limits": "This does not assert date behavior for unrelated fields or all invalid dates."
+    },
+    {
+      "id": "fresh-former-spouse-duplicate-rule",
+      "status": "observed_server_validation",
+      "fields": [
+        "former_spouse_count",
+        "former_spouse_how_marriage_ended",
+        "former_spouse_duplicate_identity"
+      ],
+      "states": [
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different",
+        "former-spouse-different-given-name-same-surname-dob-accepted"
+      ],
+      "summary": "CEAC rejected duplicate former-spouse identity even when other details differed; a different given name advanced. The count control is text/maxLength=2 and the row explanation is textarea/maxLength=4000.",
+      "limits": "Only the tested identity combinations are recorded."
+    },
+    {
+      "id": "fresh-security-explanation-groups",
+      "status": "observed_grouped_positive_and_validation",
+      "fields": [
+        "has_communicable_disease_explain",
+        "has_physical_mental_disorder_explain",
+        "is_drug_abuser_explain",
+        "has_arrest_conviction_explain",
+        "has_violated_controlled_substance_explain",
+        "has_prostitution_explain",
+        "has_money_laundering_explain",
+        "has_human_trafficking_explain",
+        "has_aided_human_trafficking_explain",
+        "has_trafficking_beneficiary_explain",
+        "intend_illegal_activity_explain",
+        "intend_terrorist_activity_explain",
+        "has_provided_terrorist_support_explain",
+        "is_terrorist_member_explain",
+        "is_terrorist_family_explain",
+        "has_genocide_explain",
+        "has_torture_explain",
+        "has_extrajudicial_killings_explain",
+        "has_child_soldier_explain",
+        "has_religious_freedom_violation_explain",
+        "has_population_control_explain",
+        "has_coercive_transplant_explain",
+        "has_immigration_fraud_explain",
+        "has_removal_order_explain",
+        "has_withheld_child_custody_explain",
+        "has_voted_illegally_explain",
+        "has_renounced_citizenship_explain"
+      ],
+      "states": [
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted",
+        "security4-empty-explanations-server-validation",
+        "security4-filled-next-accepted",
+        "security5-empty-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "summary": "All 27 Yes branches exposed individual Explain textareas with maxLength=4000. Empty explanations were rejected; TEST DESCRIPTION filled Parts 1–4 and Next advanced. Part 5 was accepted on Back because the Next-to-Photo control was unavailable in this unsigned QA run. The independent security5 navigation supplement separately records the disabled Next button and successful top PHOTO-link navigation.",
+      "limits": "Part 5 Next remained disabled in the captured states; final signature/submission remain unknown. The top PHOTO-link navigation is documented only in companionEvidence.security5Navigation. No/hide evidence is not re-created per question in this delta.",
+      "companionEvidence": "local production React harness: 27/27 yes shows textarea max4000 and no detaches it; console errors 0. This is separate from the CEAC point-check/server-validation evidence."
+    },
+    {
+      "id": "fresh-travel-departure",
+      "status": "observed_dom_and_server_navigation",
+      "fields": [
+        "travel_departure_date"
+      ],
+      "states": [
+        "travel-specific-yes",
+        "specific-travel-filled-next"
+      ],
+      "summary": "Specific travel Yes exposed split departure controls and the filled flow advanced to companions.",
+      "limits": "All date validity permutations remain out of scope."
+    },
+    {
+      "id": "fresh-start-location-selector",
+      "status": "observed_dom",
+      "fields": [
+        "consular_post"
+      ],
+      "states": [
+        "start-location-selector"
+      ],
+      "observedControlIds": [
+        "ctl00_SiteContentPlaceHolder_ucLocation_ddlLocation"
+      ],
+      "summary": "The CEAC start page exposes the consular-post selector with the observed ucLocation_ddlLocation control and 218 options.",
+      "limits": "This is a public DOM/control observation; it does not prove every location option or downstream server acceptance path."
+    }
+  ],
+  "fields": [
+    {
+      "officialVerification": false,
+      "fieldName": "marital_status_other_explain",
+      "kind": "conditional_textarea",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "status": "observed_dom",
+      "sourceStates": [
+        "personal1-marital-other"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlAPP_MARITAL_STATUS",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxOtherMaritalStatus"
+      ],
+      "positiveEvidence": "Other marital status exposed a textarea with tag=textarea and maxLength=4000.",
+      "negativeEvidence": "The No/hidden side was not isolated in this fresh point-check delta.",
+      "validationEvidence": "A later empty submission returned a shared-page invalid marital status error; the explanation field was not isolated from the other missing controls.",
+      "caveat": "DOM shape is direct evidence; standalone requiredness remains unresolved in this delta.",
+      "resolution": "partial"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "passport_document_type_explain",
+      "kind": "conditional_textarea",
+      "page": "/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "status": "observed_dom",
+      "sourceStates": [
+        "passport-document-other"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_TYPE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPptOtherExpl"
+      ],
+      "positiveEvidence": "Passport type OTHER exposed Explain as a textarea with maxLength=4000.",
+      "negativeEvidence": "The non-OTHER side was not isolated in this fresh point-check delta.",
+      "validationEvidence": "No isolated empty/filled submission result is present in this delta.",
+      "caveat": "DOM shape is direct evidence; standalone requiredness remains unknown here.",
+      "resolution": "partial"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "occupation_other_explain",
+      "kind": "conditional_textarea",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "status": "observed_server_validation",
+      "sourceStates": [
+        "work-occupation-other",
+        "work-other-next-response",
+        "work-not-employed-server-validation",
+        "not-employed-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+      ],
+      "positiveEvidence": "The same official textarea control is exposed for OTHER and NOT EMPLOYED branches; the control is textarea/maxLength=4000.",
+      "negativeEvidence": "No branch-specific hidden snapshot is used because CEAC reuses the same control ID.",
+      "validationEvidence": "OTHER empty Next returned “Specify Other has not been completed.”; NOT EMPLOYED empty Next returned “Explain has not been completed.” and the filled NOT EMPLOYED flow advanced with no error.",
+      "caveat": "The raw state names do not store applicant text and do not prove the OTHER filled transition; the NOT EMPLOYED required/accepted path is captured.",
+      "resolution": "partial"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "spouse_date_of_birth_day",
+      "kind": "date_split_control",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "status": "observed_server_navigation",
+      "sourceStates": [
+        "family-partner-visible",
+        "family-spouse-visible",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay"
+      ],
+      "preferredStates": [
+        "family-spouse-visible",
+        "family-partner-visible"
+      ],
+      "positiveEvidence": "Family2 spouse/partner DOM exposes the shared day control; the current point-checks include the spouse year-only and full-date transitions.",
+      "negativeEvidence": "No hidden/conditional side was asserted for this date part.",
+      "validationEvidence": "Year-only spouse date reached Work with blank day/month; a later full day/month/year entry also reached Work. Raw values are intentionally omitted.",
+      "caveat": "The generic CEAC IDs are scoped by the Family2 page and state; they are not the Personal1 DOB controls.",
+      "resolution": "direct_with_scope"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "spouse_date_of_birth_month",
+      "kind": "date_split_control",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "status": "observed_server_navigation",
+      "sourceStates": [
+        "family-partner-visible",
+        "family-spouse-visible",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth"
+      ],
+      "preferredStates": [
+        "family-spouse-visible",
+        "family-partner-visible"
+      ],
+      "positiveEvidence": "Family2 spouse/partner DOM exposes the shared month control; the current point-checks include the spouse year-only and full-date transitions.",
+      "negativeEvidence": "No hidden/conditional side was asserted for this date part.",
+      "validationEvidence": "Year-only spouse date reached Work with blank day/month; a later full day/month/year entry also reached Work. Raw values are intentionally omitted.",
+      "caveat": "The generic CEAC IDs are scoped by the Family2 page and state; they are not the Personal1 DOB controls.",
+      "resolution": "direct_with_scope"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "spouse_date_of_birth_year",
+      "kind": "date_split_control",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "status": "observed_server_navigation",
+      "sourceStates": [
+        "family-partner-visible",
+        "family-spouse-visible",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear"
+      ],
+      "preferredStates": [
+        "family-spouse-visible",
+        "family-partner-visible"
+      ],
+      "positiveEvidence": "Family2 spouse/partner DOM exposes the shared year control; the current point-checks include the spouse year-only and full-date transitions.",
+      "negativeEvidence": "No hidden/conditional side was asserted for this date part.",
+      "validationEvidence": "Year-only spouse date reached Work with blank day/month; a later full day/month/year entry also reached Work. Raw values are intentionally omitted.",
+      "caveat": "The generic CEAC IDs are scoped by the Family2 page and state; they are not the Personal1 DOB controls.",
+      "resolution": "direct_with_scope"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "former_spouse_count",
+      "kind": "repeat_count_input",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "status": "observed_dom_and_validation",
+      "sourceStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxNumberOfPrevSpouses"
+      ],
+      "positiveEvidence": "Number of Former Spouses is a text input with maxLength=2.",
+      "negativeEvidence": "No select options were observed for this control.",
+      "validationEvidence": "Three populated rows were observed; a duplicate identity submission was rejected by CEAC.",
+      "caveat": "The DOM maxlength does not establish the complete server numeric range.",
+      "resolution": "direct_with_scope"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "former_spouse_how_marriage_ended",
+      "kind": "repeat_textarea",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "status": "observed_dom",
+      "sourceStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxHowMarriageEnded"
+      ],
+      "positiveEvidence": "Former spouse row 0 exposes a textarea with maxLength=4000.",
+      "negativeEvidence": "No hidden/alternate control was asserted.",
+      "validationEvidence": "No isolated length or requiredness submission was performed for this textarea in the fresh delta.",
+      "caveat": "Repeat row 1/2 controls are present in the three-row state; this row is the stable row-0 representative.",
+      "resolution": "partial"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "former_spouse_duplicate_identity",
+      "kind": "cross_row_server_validation",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "status": "observed_server_validation",
+      "sourceStates": [
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different",
+        "former-spouse-different-given-name-same-surname-dob-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxNumberOfPrevSpouses",
+        "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxSURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxGIVEN_NAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl01_tbxSURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl01_tbxGIVEN_NAME"
+      ],
+      "positiveEvidence": "Rows with a different given name (same surname/DOB) advanced to Work.",
+      "negativeEvidence": "Same surname/given name/DOB was rejected as “You cannot enter a duplicate Former Spouse”; changing other details alone still rejected.",
+      "validationEvidence": "The duplicate error appeared in both duplicate test states; the different-given-name state had no errors.",
+      "caveat": "This is a tested CEAC cross-row rule, not a claim that every possible identity combination was exhausted.",
+      "resolution": "direct_with_scope"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "travel_departure_date",
+      "kind": "date_split_navigation",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "status": "observed_server_navigation",
+      "sourceStates": [
+        "travel-specific-yes",
+        "specific-travel-filled-next"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEDay",
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEMonth",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDEPARTURE_US_DTEYear"
+      ],
+      "positiveEvidence": "Specific-travel YES exposes day/month/year departure controls.",
+      "negativeEvidence": "Specific-travel NO and its hidden controls were not isolated in this point-check record.",
+      "validationEvidence": "After the specific travel details were filled, Next advanced to complete_travelcompanions.aspx.",
+      "caveat": "This proves the observed filled transition; all date validity permutations remain out of scope for this delta.",
+      "resolution": "partial"
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_communicable_disease_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "security1-disease-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDisease_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDisease_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDisease"
+      ],
+      "preferredStates": [
+        "security1-disease-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 1 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_physical_mental_disorder_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "security1-disorder-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDisorder_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDisorder_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDisorder"
+      ],
+      "preferredStates": [
+        "security1-disorder-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 1 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "is_drug_abuser_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDruguser_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDruguser_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDruguser"
+      ],
+      "preferredStates": [
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation",
+        "security1-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 1 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_arrest_conviction_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblArrested_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblArrested_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxArrested"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_violated_controlled_substance_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblControlledSubstances_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblControlledSubstances_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxControlledSubstances"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_prostitution_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblProstitution_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblProstitution_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblProstitution_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxProstitution"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblProstitution_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_money_laundering_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblMoneyLaundering_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblMoneyLaundering_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxMoneyLaundering"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_human_trafficking_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTrafficking_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTrafficking_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTrafficking"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_aided_human_trafficking_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblAssistedSevereTrafficking_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblAssistedSevereTrafficking_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAssistedSevereTrafficking"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_trafficking_beneficiary_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security2-empty-explanations-rejected",
+        "security2-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTraffickingRelated_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTraffickingRelated_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTraffickingRelated"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security2-empty-explanations-server-validation",
+        "security2-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 2 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "intend_illegal_activity_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblIllegalActivity_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblIllegalActivity_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxIllegalActivity"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "intend_terrorist_activity_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristActivity_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristActivity_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristActivity"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_provided_terrorist_support_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristSupport_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristSupport_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristSupport"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "is_terrorist_member_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristOrg_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristOrg_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristOrg"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "is_terrorist_family_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristRel_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristRel_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristRel"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_genocide_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblGenocide_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblGenocide_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblGenocide_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxGenocide"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblGenocide_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_torture_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTorture_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTorture_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTorture_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTorture"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTorture_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_extrajudicial_killings_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblExViolence_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblExViolence_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblExViolence_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxExViolence"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblExViolence_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_child_soldier_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblChildSoldier_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblChildSoldier_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxChildSoldier"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_religious_freedom_violation_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblReligiousFreedom_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblReligiousFreedom_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxReligiousFreedom"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_population_control_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblPopulationControls_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblPopulationControls_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPopulationControls"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_coercive_transplant_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTransplant_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblTransplant_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTransplant"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation",
+        "security3-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 3 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_immigration_fraud_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "security4-empty-explanations-server-validation",
+        "security4-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblImmigrationFraud_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblImmigrationFraud_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxImmigrationFraud"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "security4-empty-explanations-server-validation",
+        "security4-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 4 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_removal_order_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "status": "observed_yes_and_next_validation",
+      "sourceStates": [
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security4-filled-next-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDeport_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblDeport_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDeport_EXPL"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security4-filled-next-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned server validation errors for the Part 4 group; TEST DESCRIPTION filled the group and Next advanced to the next security page.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_withheld_child_custody_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "status": "observed_yes_and_back_validation",
+      "sourceStates": [
+        "Security and Background: Part 5-rblChildCustody_0",
+        "security5-empty-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblChildCustody_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblChildCustody_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxChildCustody"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 5-rblChildCustody_0",
+        "security5-empty-explanations-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned three server validation errors; TEST DESCRIPTION filled the group and Back accepted. Next to Photo was disabled, so final Part 5 Next is unknown.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_voted_illegally_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "status": "observed_yes_and_back_validation",
+      "sourceStates": [
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "security5-empty-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblVotingViolation_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblVotingViolation_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxVotingViolation"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "security5-empty-explanations-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned three server validation errors; TEST DESCRIPTION filled the group and Back accepted. Next to Photo was disabled, so final Part 5 Next is unknown.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    },
+    {
+      "officialVerification": false,
+      "fieldName": "has_renounced_citizenship_explain",
+      "kind": "security_explanation_branch",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "status": "observed_yes_and_back_validation",
+      "sourceStates": [
+        "Security and Background: Part 5-rblRenounceExp_0",
+        "security5-empty-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "controlIds": [
+        "ctl00_SiteContentPlaceHolder_FormView1_rblRenounceExp_0",
+        "ctl00_SiteContentPlaceHolder_FormView1_rblRenounceExp_1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxRenounceExp"
+      ],
+      "preferredStates": [
+        "Security and Background: Part 5-rblRenounceExp_0",
+        "security5-empty-explanations-back-validation-attempt",
+        "security5-filled-back-accepted"
+      ],
+      "positiveEvidence": "The Yes branch exposed the official Explain textarea; each of the 27 questions was observed individually.",
+      "negativeEvidence": "CEAC fresh point-check delta does not create a separate No/hide snapshot per question; the separate local React harness covered 27/27 UI toggles but is not official-portal evidence.",
+      "validationEvidence": "The empty explanation attempt returned three server validation errors; TEST DESCRIPTION filled the group and Back accepted. Next to Photo was disabled, so final Part 5 Next is unknown.",
+      "caveat": "This records DOM/transition evidence only. It is not a claim that every possible security-question combination or final signature path was submitted.",
+      "resolution": "grouped_partial",
+      "companionEvidence": "local production React harness: yesShows=true, noHides=true, type=TEXTAREA, max=4000; officialVerification remains false."
+    }
+  ],
+  "selectedControlMetadata": [
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlAPP_MARITAL_STATUS",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlAPP_MARITAL_STATUS",
+      "label": "Marital Status",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "personal1-marital-other"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxOtherMaritalStatus",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxOtherMaritalStatus",
+      "label": "",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "personal1-marital-other"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_TYPE",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlPPT_TYPE",
+      "label": "Passport/Travel Document Type",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "passport-document-other"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxPptOtherExpl",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxPptOtherExpl",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "passport-document-other"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation",
+      "label": "Primary Occupation",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "work-occupation-other",
+        "work-other-next-response",
+        "work-not-employed-server-validation",
+        "former-spouse-different-given-name-same-surname-dob-accepted",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxExplainOtherPresentOccupation",
+      "label": "Specify Other",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "work-other-next-response",
+        "work-not-employed-server-validation",
+        "former-spouse-different-given-name-same-surname-dob-accepted",
+        "spouse-year-only-date-validation",
+        "spouse-full-date-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlDOBDay",
+      "label": "",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "personal1-marital-other",
+        "family-partner-visible",
+        "family-spouse-visible"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlDOBMonth",
+      "label": "",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "personal1-marital-other",
+        "family-partner-visible",
+        "family-spouse-visible"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDOBYear",
+      "label": "",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 4,
+      "disabled": false,
+      "observedInStates": [
+        "personal1-marital-other",
+        "family-partner-visible",
+        "family-spouse-visible"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxNumberOfPrevSpouses",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxNumberOfPrevSpouses",
+      "label": "Number of Former Spouses:",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 2,
+      "disabled": false,
+      "observedInStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxHowMarriageEnded",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$DListSpouse$ctl00$tbxHowMarriageEnded",
+      "label": "",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxSURNAME",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$DListSpouse$ctl00$tbxSURNAME",
+      "label": "Surnames",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 33,
+      "disabled": false,
+      "observedInStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_tbxGIVEN_NAME",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$DListSpouse$ctl00$tbxGIVEN_NAME",
+      "label": "Given Names",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 33,
+      "disabled": false,
+      "observedInStates": [
+        "family-former-spouse-visible",
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl01_tbxSURNAME",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$DListSpouse$ctl01$tbxSURNAME",
+      "label": "Surnames",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 33,
+      "disabled": false,
+      "observedInStates": [
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl01_tbxGIVEN_NAME",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$DListSpouse$ctl01$tbxGIVEN_NAME",
+      "label": "Given Names",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 33,
+      "disabled": false,
+      "observedInStates": [
+        "former-spouse-three-duplicate-rejected",
+        "former-spouse-same-identity-different-marriage-validation",
+        "former-spouse-same-name-dob-all-other-details-different"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEDay",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlDEPARTURE_US_DTEDay",
+      "label": "",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "travel-specific-yes"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEMonth",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$ddlDEPARTURE_US_DTEMonth",
+      "label": "",
+      "type": "select-one",
+      "tag": "select",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "travel-specific-yes"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDEPARTURE_US_DTEYear",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDEPARTURE_US_DTEYear",
+      "label": "",
+      "type": "text",
+      "tag": "input",
+      "maxLength": 4,
+      "disabled": false,
+      "observedInStates": [
+        "travel-specific-yes"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDisease_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDisease",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDisease_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDisease",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDisease",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDisease",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDisorder_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDisorder",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDisorder_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDisorder",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDisorder",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDisorder",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDruguser_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDruguser",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDruguser_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDruguser",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security1-disease-yes",
+        "security1-disorder-yes",
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDruguser",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDruguser",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "security1-druguser-yes",
+        "security1-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblArrested_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblArrested",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblArrested_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblArrested",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxArrested",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxArrested",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblControlledSubstances_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblControlledSubstances",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblControlledSubstances_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblControlledSubstances",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxControlledSubstances",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxControlledSubstances",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblProstitution_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblProstitution",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblProstitution_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblProstitution",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxProstitution",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxProstitution",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblMoneyLaundering_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblMoneyLaundering",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblMoneyLaundering_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblMoneyLaundering",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxMoneyLaundering",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxMoneyLaundering",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTrafficking_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblHumanTrafficking",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTrafficking_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblHumanTrafficking",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTrafficking",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxHumanTrafficking",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblAssistedSevereTrafficking_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblAssistedSevereTrafficking",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblAssistedSevereTrafficking_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblAssistedSevereTrafficking",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxAssistedSevereTrafficking",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxAssistedSevereTrafficking",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTraffickingRelated_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblHumanTraffickingRelated",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblHumanTraffickingRelated_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblHumanTraffickingRelated",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblArrested_0",
+        "Security and Background: Part 2-rblControlledSubstances_0",
+        "Security and Background: Part 2-rblProstitution_0",
+        "Security and Background: Part 2-rblMoneyLaundering_0",
+        "Security and Background: Part 2-rblHumanTrafficking_0",
+        "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTraffickingRelated",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxHumanTraffickingRelated",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+        "security1-filled-next-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblIllegalActivity_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblIllegalActivity",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblIllegalActivity_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblIllegalActivity",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxIllegalActivity",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxIllegalActivity",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristActivity_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristActivity",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristActivity_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristActivity",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristActivity",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTerroristActivity",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristSupport_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristSupport",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristSupport_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristSupport",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristSupport",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTerroristSupport",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristOrg_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristOrg",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristOrg_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristOrg",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristOrg",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTerroristOrg",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristRel_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristRel",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTerroristRel_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTerroristRel",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTerroristRel",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTerroristRel",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblGenocide_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblGenocide",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblGenocide_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblGenocide",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxGenocide",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxGenocide",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTorture_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTorture",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTorture_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTorture",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTorture",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTorture",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblExViolence_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblExViolence",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblExViolence_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblExViolence",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxExViolence",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxExViolence",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblChildSoldier_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblChildSoldier",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblChildSoldier_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblChildSoldier",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxChildSoldier",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxChildSoldier",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblReligiousFreedom_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblReligiousFreedom",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblReligiousFreedom_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblReligiousFreedom",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxReligiousFreedom",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxReligiousFreedom",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblPopulationControls_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblPopulationControls",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblPopulationControls_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblPopulationControls",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxPopulationControls",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxPopulationControls",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTransplant_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTransplant",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblTransplant_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblTransplant",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security2-filled-next-accepted",
+        "Security and Background: Part 3-rblIllegalActivity_0",
+        "Security and Background: Part 3-rblTerroristActivity_0",
+        "Security and Background: Part 3-rblTerroristSupport_0",
+        "Security and Background: Part 3-rblTerroristOrg_0",
+        "Security and Background: Part 3-rblTerroristRel_0",
+        "Security and Background: Part 3-rblGenocide_0",
+        "Security and Background: Part 3-rblTorture_0",
+        "Security and Background: Part 3-rblExViolence_0",
+        "Security and Background: Part 3-rblChildSoldier_0",
+        "Security and Background: Part 3-rblReligiousFreedom_0",
+        "Security and Background: Part 3-rblPopulationControls_0",
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxTransplant",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxTransplant",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 3-rblTransplant_0",
+        "security3-empty-explanations-server-validation"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblImmigrationFraud_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblImmigrationFraud",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security3-filled-next-accepted",
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblImmigrationFraud_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblImmigrationFraud",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security3-filled-next-accepted",
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxImmigrationFraud",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxImmigrationFraud",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDeport_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDeport",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security3-filled-next-accepted",
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblDeport_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblDeport",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security3-filled-next-accepted",
+        "Security and Background: Part 4-rblImmigrationFraud_0",
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxDeport_EXPL",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxDeport_EXPL",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 4-rblDeport_0",
+        "security4-empty-explanations-server-validation",
+        "security5-filled-back-accepted"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblChildCustody_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblChildCustody",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblChildCustody_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblChildCustody",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxChildCustody",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxChildCustody",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblVotingViolation_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblVotingViolation",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblVotingViolation_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblVotingViolation",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxVotingViolation",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxVotingViolation",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblRenounceExp_0",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblRenounceExp",
+      "label": "Yes",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_rblRenounceExp_1",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$rblRenounceExp",
+      "label": "No",
+      "type": "radio",
+      "tag": "input",
+      "maxLength": null,
+      "disabled": false,
+      "observedInStates": [
+        "security4-filled-next-accepted",
+        "Security and Background: Part 5-rblChildCustody_0",
+        "Security and Background: Part 5-rblVotingViolation_0",
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    },
+    {
+      "id": "ctl00_SiteContentPlaceHolder_FormView1_tbxRenounceExp",
+      "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxRenounceExp",
+      "label": "Explain",
+      "type": "textarea",
+      "tag": "textarea",
+      "maxLength": 4000,
+      "disabled": false,
+      "observedInStates": [
+        "Security and Background: Part 5-rblRenounceExp_0"
+      ]
+    }
+  ],
+  "stateIndex": [
+    {
+      "index": 0,
+      "state": "retrieved-passport",
+      "observedAt": "2026-09-22T16:55:32.379Z",
+      "page": "/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "heading": "Passport Information",
+      "controlCount": 24,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 1,
+      "state": "passport-lost-yes",
+      "observedAt": "2026-09-22T16:56:04.374Z",
+      "page": "/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "heading": "Passport Information",
+      "controlCount": 28,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 2,
+      "state": "passport-lost-number-unknown",
+      "observedAt": "2026-09-22T16:56:53.907Z",
+      "page": "/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "heading": "Passport Information",
+      "controlCount": 28,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 3,
+      "state": "passport-document-other",
+      "observedAt": "2026-09-22T16:58:13.363Z",
+      "page": "/GenNIV/General/complete/Passport_Visa_Info.aspx",
+      "heading": "Passport Information",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 4,
+      "state": "personal1-restored",
+      "observedAt": "2026-09-22T16:59:44.839Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 5,
+      "state": "personal1-marital-other",
+      "observedAt": "2026-09-22T17:00:21.945Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 26,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 6,
+      "state": "personal1-alias-yes",
+      "observedAt": "2026-09-22T17:01:00.691Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 28,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 7,
+      "state": "personal1-alias-marital-empty-validation",
+      "observedAt": "2026-09-22T17:01:31.964Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 28,
+      "errorCount": 3,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 8,
+      "state": "personal2-after-validated-personal1",
+      "observedAt": "2026-09-22T17:02:09.075Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 28,
+      "errorCount": 1,
+      "errorKinds": [
+        "unknown"
+      ]
+    },
+    {
+      "index": 9,
+      "state": "personal2-after-explanation-keyboard-accepted",
+      "observedAt": "2026-09-22T17:03:02.235Z",
+      "page": "/GenNIV/General/complete/complete_personalcont.aspx",
+      "heading": "Personal Information 2",
+      "controlCount": 17,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 10,
+      "state": "personal2-other-nationality-yes",
+      "observedAt": "2026-09-22T17:03:42.658Z",
+      "page": "/GenNIV/General/complete/complete_personalcont.aspx",
+      "heading": "Personal Information 2",
+      "controlCount": 20,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 11,
+      "state": "personal2-other-passport-yes",
+      "observedAt": "2026-09-22T17:04:14.622Z",
+      "page": "/GenNIV/General/complete/complete_personalcont.aspx",
+      "heading": "Personal Information 2",
+      "controlCount": 21,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 12,
+      "state": "personal2-other-permanent-residence-yes",
+      "observedAt": "2026-09-22T17:04:56.363Z",
+      "page": "/GenNIV/General/complete/complete_personalcont.aspx",
+      "heading": "Personal Information 2",
+      "controlCount": 22,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 13,
+      "state": "work-present-restored",
+      "observedAt": "2026-09-22T17:05:12.800Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 6,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 14,
+      "state": "work-occupation-other",
+      "observedAt": "2026-09-22T17:05:35.574Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 6,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 15,
+      "state": "work-student-keyboard-transition",
+      "observedAt": "2026-09-22T17:06:23.321Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 6,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 16,
+      "state": "work-other-next-response",
+      "observedAt": "2026-09-22T17:07:24.118Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 24,
+      "errorCount": 11,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 17,
+      "state": "travel-restored",
+      "observedAt": "2026-09-22T17:09:07.769Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 24,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 18,
+      "state": "travel-specific-yes",
+      "observedAt": "2026-09-22T17:09:37.687Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 30,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 19,
+      "state": "specific-travel-filled-next",
+      "observedAt": "2026-09-22T17:10:51.141Z",
+      "page": "/GenNIV/General/complete/complete_travelcompanions.aspx",
+      "heading": "Travel Companions Information",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 20,
+      "state": "companions-individuals",
+      "observedAt": "2026-09-22T17:11:28.813Z",
+      "page": "/GenNIV/General/complete/complete_travelcompanions.aspx",
+      "heading": "Travel Companions Information",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 21,
+      "state": "companions-group-yes",
+      "observedAt": "2026-09-22T17:11:44.194Z",
+      "page": "/GenNIV/General/complete/complete_travelcompanions.aspx",
+      "heading": "Travel Companions Information",
+      "controlCount": 9,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 22,
+      "state": "travel-payer-other-person",
+      "observedAt": "2026-09-22T17:13:10.497Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 39,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 23,
+      "state": "travel-payer-other-address",
+      "observedAt": "2026-09-22T17:13:39.525Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 47,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 24,
+      "state": "travel-payer-company",
+      "observedAt": "2026-09-22T17:13:57.524Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 41,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 25,
+      "state": "previous-us-travel-restored",
+      "observedAt": "2026-09-22T17:14:15.933Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 26,
+      "state": "previous-us-visits-yes",
+      "observedAt": "2026-09-22T17:15:53.357Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 21,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 27,
+      "state": "previous-visa-yes",
+      "observedAt": "2026-09-22T17:16:21.388Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 37,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 28,
+      "state": "previous-drivers-license-yes",
+      "observedAt": "2026-09-22T17:16:37.832Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 40,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 29,
+      "state": "previous-visa-lost-yes",
+      "observedAt": "2026-09-22T17:16:50.316Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 42,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 30,
+      "state": "previous-visa-cancelled-yes",
+      "observedAt": "2026-09-22T17:17:03.356Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 43,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 31,
+      "state": "previous-visa-refused-yes",
+      "observedAt": "2026-09-22T17:17:16.357Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 44,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 32,
+      "state": "previous-immigrant-petition-yes",
+      "observedAt": "2026-09-22T17:17:37.451Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 45,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 33,
+      "state": "address-and-phone-restored",
+      "observedAt": "2026-09-22T17:18:01.222Z",
+      "page": "/GenNIV/General/complete/complete_previousustravel.aspx",
+      "heading": "Previous U.S. Travel Information",
+      "controlCount": 45,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 34,
+      "state": "address-phone-ready",
+      "observedAt": "2026-09-22T17:18:36.013Z",
+      "page": "/GenNIV/General/complete/complete_contact.aspx",
+      "heading": "Address and Phone Information",
+      "controlCount": 36,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 35,
+      "state": "address-additional-phone-yes",
+      "observedAt": "2026-09-22T17:19:02.656Z",
+      "page": "/GenNIV/General/complete/complete_contact.aspx",
+      "heading": "Address and Phone Information",
+      "controlCount": 37,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 36,
+      "state": "address-additional-email-yes",
+      "observedAt": "2026-09-22T17:19:14.320Z",
+      "page": "/GenNIV/General/complete/complete_contact.aspx",
+      "heading": "Address and Phone Information",
+      "controlCount": 38,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 37,
+      "state": "address-additional-social-yes",
+      "observedAt": "2026-09-22T17:19:27.060Z",
+      "page": "/GenNIV/General/complete/complete_contact.aspx",
+      "heading": "Address and Phone Information",
+      "controlCount": 40,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 38,
+      "state": "family-relatives-restored",
+      "observedAt": "2026-09-22T17:19:42.743Z",
+      "page": "/GenNIV/General/complete/complete_family1.aspx",
+      "heading": "Family Information: Relatives",
+      "controlCount": 33,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 39,
+      "state": "personal-marital-partner",
+      "observedAt": "2026-09-22T17:21:00.345Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 27,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 40,
+      "state": "family-partner-visible",
+      "observedAt": "2026-09-22T17:22:05.965Z",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "heading": "Family Information: Partner",
+      "controlCount": 16,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 41,
+      "state": "family-partner-other-address",
+      "observedAt": "2026-09-22T17:22:55.661Z",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "heading": "Family Information: Partner",
+      "controlCount": 24,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 42,
+      "state": "personal-married",
+      "observedAt": "2026-09-22T17:23:33.176Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 27,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 43,
+      "state": "family-spouse-visible",
+      "observedAt": "2026-09-22T17:24:24.424Z",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "heading": "Family Information: Spouse",
+      "controlCount": 16,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 44,
+      "state": "family-spouse-other-address",
+      "observedAt": "2026-09-22T17:24:50.500Z",
+      "page": "/GenNIV/General/complete/complete_family2.aspx",
+      "heading": "Family Information: Spouse",
+      "controlCount": 24,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 45,
+      "state": "personal-widowed",
+      "observedAt": "2026-09-22T17:25:25.803Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 27,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 46,
+      "state": "family-deceased-spouse-visible",
+      "observedAt": "2026-09-22T17:26:18.257Z",
+      "page": "/GenNIV/General/complete/complete_family5.aspx",
+      "heading": "Family Information: Deceased Spouse",
+      "controlCount": 13,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 47,
+      "state": "personal-divorced",
+      "observedAt": "2026-09-22T17:26:44.154Z",
+      "page": "/GenNIV/General/complete/complete_personal.aspx",
+      "heading": "Personal Information 1",
+      "controlCount": 27,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 48,
+      "state": "family-former-spouse-visible",
+      "observedAt": "2026-09-22T17:27:45.466Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 49,
+      "state": "former-spouse-two-rows",
+      "observedAt": "2026-09-22T17:28:55.236Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 50,
+      "state": "former-spouse-number-blur",
+      "observedAt": "2026-09-22T17:30:13.225Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 51,
+      "state": "former-spouse-count-three-next",
+      "observedAt": "2026-09-22T17:31:11.384Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 25,
+      "errorCount": 10,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 52,
+      "state": "former-spouse-two-rows-confirmed",
+      "observedAt": "2026-09-22T17:31:38.943Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 45,
+      "errorCount": 10,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 53,
+      "state": "former-spouse-three-rows-confirmed",
+      "observedAt": "2026-09-22T17:32:13.419Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 65,
+      "errorCount": 10,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 54,
+      "state": "former-spouse-three-duplicate-rejected",
+      "observedAt": "2026-09-22T17:33:11.411Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 65,
+      "errorCount": 1,
+      "errorKinds": [
+        "unknown"
+      ]
+    },
+    {
+      "index": 55,
+      "state": "former-three-distinct-next",
+      "observedAt": "2026-09-22T17:34:45.275Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 6,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 56,
+      "state": "work-previous-restored",
+      "observedAt": "2026-09-22T17:35:24.782Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 8,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 57,
+      "state": "previous-employment-yes",
+      "observedAt": "2026-09-22T17:35:54.556Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 32,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 58,
+      "state": "previous-education-yes",
+      "observedAt": "2026-09-22T17:36:12.697Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 50,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 59,
+      "state": "previous-employment-no",
+      "observedAt": "2026-09-22T17:36:57.183Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 26,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 60,
+      "state": "previous-education-no",
+      "observedAt": "2026-09-22T17:37:16.817Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 8,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 61,
+      "state": "additional-restored",
+      "observedAt": "2026-09-22T17:37:38.347Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 17,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 62,
+      "state": "additional-clan-yes",
+      "observedAt": "2026-09-22T17:38:47.217Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 18,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 63,
+      "state": "additional-countries-yes",
+      "observedAt": "2026-09-22T17:39:08.831Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 19,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 64,
+      "state": "additional-organization-yes",
+      "observedAt": "2026-09-22T17:39:23.367Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 20,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 65,
+      "state": "additional-skills-yes",
+      "observedAt": "2026-09-22T17:39:43.374Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 21,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 66,
+      "state": "additional-military-yes",
+      "observedAt": "2026-09-22T17:39:57.981Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 33,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 67,
+      "state": "additional-insurgent-yes",
+      "observedAt": "2026-09-22T17:40:13.993Z",
+      "page": "/GenNIV/General/complete/complete_workeducation3.aspx",
+      "heading": "Additional Work/Education/Training Information",
+      "controlCount": 34,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 68,
+      "state": "security1-restored",
+      "observedAt": "2026-09-22T17:41:13.524Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 10,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 69,
+      "state": "security1-disease-yes",
+      "observedAt": "2026-09-22T17:41:31.625Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 11,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 70,
+      "state": "security1-disorder-yes",
+      "observedAt": "2026-09-22T17:41:32.009Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 71,
+      "state": "security1-druguser-yes",
+      "observedAt": "2026-09-22T17:41:32.438Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 13,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 72,
+      "state": "Security and Background: Part 2-rblArrested_0",
+      "observedAt": "2026-09-22T17:42:26.413Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 19,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 73,
+      "state": "Security and Background: Part 2-rblControlledSubstances_0",
+      "observedAt": "2026-09-22T17:42:26.801Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 20,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 74,
+      "state": "Security and Background: Part 2-rblProstitution_0",
+      "observedAt": "2026-09-22T17:42:27.198Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 21,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 75,
+      "state": "Security and Background: Part 2-rblMoneyLaundering_0",
+      "observedAt": "2026-09-22T17:42:27.601Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 22,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 76,
+      "state": "Security and Background: Part 2-rblHumanTrafficking_0",
+      "observedAt": "2026-09-22T17:42:28.029Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 23,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 77,
+      "state": "Security and Background: Part 2-rblAssistedSevereTrafficking_0",
+      "observedAt": "2026-09-22T17:42:28.413Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 24,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 78,
+      "state": "Security and Background: Part 2-rblHumanTraffickingRelated_0",
+      "observedAt": "2026-09-22T17:42:28.815Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 79,
+      "state": "security2-empty-explanations-rejected",
+      "observedAt": "2026-09-22T17:43:20.261Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 25,
+      "errorCount": 7,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 80,
+      "state": "security2-filled-next-accepted",
+      "observedAt": "2026-09-22T17:44:04.736Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 28,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 81,
+      "state": "Security and Background: Part 3-rblIllegalActivity_0",
+      "observedAt": "2026-09-22T17:44:05.149Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 29,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 82,
+      "state": "Security and Background: Part 3-rblTerroristActivity_0",
+      "observedAt": "2026-09-22T17:44:05.559Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 30,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 83,
+      "state": "Security and Background: Part 3-rblTerroristSupport_0",
+      "observedAt": "2026-09-22T17:44:05.968Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 31,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 84,
+      "state": "Security and Background: Part 3-rblTerroristOrg_0",
+      "observedAt": "2026-09-22T17:44:06.396Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 32,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 85,
+      "state": "Security and Background: Part 3-rblTerroristRel_0",
+      "observedAt": "2026-09-22T17:44:06.808Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 33,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 86,
+      "state": "Security and Background: Part 3-rblGenocide_0",
+      "observedAt": "2026-09-22T17:44:07.214Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 34,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 87,
+      "state": "Security and Background: Part 3-rblTorture_0",
+      "observedAt": "2026-09-22T17:44:07.622Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 35,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 88,
+      "state": "Security and Background: Part 3-rblExViolence_0",
+      "observedAt": "2026-09-22T17:44:08.049Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 36,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 89,
+      "state": "Security and Background: Part 3-rblChildSoldier_0",
+      "observedAt": "2026-09-22T17:44:08.464Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 37,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 90,
+      "state": "Security and Background: Part 3-rblReligiousFreedom_0",
+      "observedAt": "2026-09-22T17:44:08.845Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 38,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 91,
+      "state": "Security and Background: Part 3-rblPopulationControls_0",
+      "observedAt": "2026-09-22T17:44:09.261Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 39,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 92,
+      "state": "Security and Background: Part 3-rblTransplant_0",
+      "observedAt": "2026-09-22T17:44:09.670Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 40,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 93,
+      "state": "security3-empty-explanations-server-validation",
+      "observedAt": "2026-09-22T17:48:02.878Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground3.aspx",
+      "heading": "Security and Background: Part 3",
+      "controlCount": 40,
+      "errorCount": 12,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 94,
+      "state": "security3-filled-next-accepted",
+      "observedAt": "2026-09-22T17:48:20.504Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "heading": "Security and Background: Part 4",
+      "controlCount": 8,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 95,
+      "state": "Security and Background: Part 4-rblImmigrationFraud_0",
+      "observedAt": "2026-09-22T17:48:35.287Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "heading": "Security and Background: Part 4",
+      "controlCount": 9,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 96,
+      "state": "Security and Background: Part 4-rblDeport_0",
+      "observedAt": "2026-09-22T17:48:35.719Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "heading": "Security and Background: Part 4",
+      "controlCount": 10,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 97,
+      "state": "security4-empty-explanations-server-validation",
+      "observedAt": "2026-09-22T17:48:51.853Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "heading": "Security and Background: Part 4",
+      "controlCount": 10,
+      "errorCount": 2,
+      "errorKinds": [
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 98,
+      "state": "security4-filled-next-accepted",
+      "observedAt": "2026-09-22T17:48:55.814Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "heading": "Security and Background: Part 5",
+      "controlCount": 10,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 99,
+      "state": "Security and Background: Part 5-rblChildCustody_0",
+      "observedAt": "2026-09-22T17:48:56.269Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "heading": "Security and Background: Part 5",
+      "controlCount": 11,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 100,
+      "state": "Security and Background: Part 5-rblVotingViolation_0",
+      "observedAt": "2026-09-22T17:48:56.686Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "heading": "Security and Background: Part 5",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 101,
+      "state": "Security and Background: Part 5-rblRenounceExp_0",
+      "observedAt": "2026-09-22T17:48:57.079Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "heading": "Security and Background: Part 5",
+      "controlCount": 13,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 102,
+      "state": "security5-empty-back-validation-attempt",
+      "observedAt": "2026-09-22T17:49:57.782Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground5.aspx",
+      "heading": "Security and Background: Part 5",
+      "controlCount": 13,
+      "errorCount": 3,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 103,
+      "state": "security5-filled-back-accepted",
+      "observedAt": "2026-09-22T17:50:19.807Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground4.aspx",
+      "heading": "Security and Background: Part 4",
+      "controlCount": 10,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 104,
+      "state": "security1-return-for-validation",
+      "observedAt": "2026-09-22T17:50:20.572Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 10,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 105,
+      "state": "Security and Background: Part 1-rblDisease_0",
+      "observedAt": "2026-09-22T17:50:21.023Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 11,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 106,
+      "state": "Security and Background: Part 1-rblDisorder_0",
+      "observedAt": "2026-09-22T17:50:21.444Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 12,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 107,
+      "state": "Security and Background: Part 1-rblDruguser_0",
+      "observedAt": "2026-09-22T17:50:21.815Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 13,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 108,
+      "state": "security1-empty-explanations-server-validation",
+      "observedAt": "2026-09-22T17:50:53.112Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground1.aspx",
+      "heading": "Security and Background: Part 1",
+      "controlCount": 13,
+      "errorCount": 3,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 109,
+      "state": "security1-filled-next-accepted",
+      "observedAt": "2026-09-22T17:50:58.292Z",
+      "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+      "heading": "Security and Background: Part 2",
+      "controlCount": 25,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 110,
+      "state": "work-not-employed-server-validation",
+      "observedAt": "2026-09-22T17:51:46.140Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 7,
+      "errorCount": 1,
+      "errorKinds": [
+        "unknown"
+      ]
+    },
+    {
+      "index": 111,
+      "state": "not-employed-filled-next-accepted",
+      "observedAt": "2026-09-22T17:52:20.164Z",
+      "page": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "heading": "Previous Work/Education/Training Information",
+      "controlCount": 8,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 112,
+      "state": "family-immediate-relative-live",
+      "observedAt": "2026-09-22T17:52:37.067Z",
+      "page": "/GenNIV/General/complete/complete_family1.aspx",
+      "heading": "Family Information: Relatives",
+      "controlCount": 33,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 113,
+      "state": "former-spouse-same-name-different-birthyear-validation",
+      "observedAt": "2026-09-22T17:53:47.233Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 7,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 114,
+      "state": "former-spouse-same-identity-different-marriage-validation",
+      "observedAt": "2026-09-22T17:54:16.173Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 65,
+      "errorCount": 1,
+      "errorKinds": [
+        "unknown"
+      ]
+    },
+    {
+      "index": 115,
+      "state": "former-spouse-same-name-dob-all-other-details-different",
+      "observedAt": "2026-09-22T17:55:00.573Z",
+      "page": "/GenNIV/General/complete/complete_family4.aspx",
+      "heading": "Family Information: Former Spouse",
+      "controlCount": 65,
+      "errorCount": 1,
+      "errorKinds": [
+        "unknown"
+      ]
+    },
+    {
+      "index": 116,
+      "state": "former-spouse-different-given-name-same-surname-dob-accepted",
+      "observedAt": "2026-09-22T17:55:19.593Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 7,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 117,
+      "state": "payer-person-required-server-validation",
+      "observedAt": "2026-09-22T17:58:57.321Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 39,
+      "errorCount": 4,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 118,
+      "state": "payer-company-required-server-validation",
+      "observedAt": "2026-09-22T17:59:17.312Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 41,
+      "errorCount": 7,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 119,
+      "state": "payer-company-phone-filled-server-validation",
+      "observedAt": "2026-09-22T17:59:42.484Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 41,
+      "errorCount": 6,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 120,
+      "state": "payer-person-phone-preserved-server-validation",
+      "observedAt": "2026-09-22T18:02:35.646Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 39,
+      "errorCount": 4,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 121,
+      "state": "payer-person-phone-filled-server-validation",
+      "observedAt": "2026-09-22T18:02:52.905Z",
+      "page": "/GenNIV/General/complete/complete_travel.aspx",
+      "heading": "Travel Information",
+      "controlCount": 39,
+      "errorCount": 3,
+      "errorKinds": [
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    {
+      "index": 122,
+      "state": "personal-married-for-date-writeback",
+      "observedAt": "2026-09-22T18:05:14.711Z",
+      "page": "/GenNIV/General/complete/complete_personalcont.aspx",
+      "heading": "Personal Information 2",
+      "controlCount": 17,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 123,
+      "state": "spouse-year-only-date-validation",
+      "observedAt": "2026-09-22T18:06:34.030Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 7,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 124,
+      "state": "spouse-full-date-filled-next-accepted",
+      "observedAt": "2026-09-22T18:07:14.702Z",
+      "page": "/GenNIV/General/complete/complete_workeducation1.aspx",
+      "heading": "Present Work/Education/Training Information",
+      "controlCount": 7,
+      "errorCount": 0,
+      "errorKinds": []
+    },
+    {
+      "index": 125,
+      "state": "start-location-selector",
+      "observedAt": "2026-09-22T18:50:56.781Z",
+      "page": "/GenNIV/default.aspx",
+      "heading": "Apply For a Nonimmigrant Visa",
+      "controlCount": 28,
+      "errorCount": 0,
+      "errorKinds": []
+    }
+  ],
+  "remainingUnknown": [
+    "Final CEAC sign page requiredness and any final signature combination.",
+    "Part 5 Security and Background final Next to Photo.",
+    "A standalone filled Passport OTHER and marital OTHER submission result.",
+    "Exhaustive No/hide and cross-condition combinations for all 27 security questions.",
+    "Complete mapping-worker reconciliation of this delta to every seed field; schema names in this artifact do not turn DOM evidence into official parity."
+  ],
+  "companionEvidence": {
+    "localSecurityUi": {
+      "sourceFile": "D:/Temp/ds160-local-security-ui-20260922.json",
+      "sha256": "05212a5f1610e13b7d639ae2f334da5a81e5623cc0c2035900a1d2d329e9fcc8",
+      "fieldCount": 27,
+      "yesBranchTextareaPass": true,
+      "noBranchDetachedPass": true,
+      "consoleErrors": 0,
+      "applicantAnswersIncluded": false,
+      "officialPortalEvidence": false,
+      "note": "Local production React harness only; this does not replace CEAC server evidence."
+    },
+    "security5Navigation": {
+      "sourceFile": "viza-be/submission-service/docs/ds160-security5-navigation-proof-2026-09-22.json",
+      "rawSourceFile": "D:/Temp/ds160-security5-navigation-proof-20260922.json",
+      "rawSha256": "5adaee423d64cc5d6fecd10e3ec45559665a02c354bb45b70b6ebe1b15ad4d07",
+      "stateCount": 6,
+      "visibleYesExplanationGroups": 3,
+      "maxLength": 4000,
+      "allNoNextPhotoDisabled": true,
+      "allYesNextPhotoDisabled": true,
+      "backSaveAcceptedWithoutErrors": true,
+      "photoLinkNavigation": true,
+      "photoLinkTarget": "/GenNIV/General/photo/photo_uploadthephoto.aspx",
+      "applicantAnswersIncluded": false,
+      "officialPortalEvidence": true,
+      "photoUploaded": false,
+      "finalSignaturePerformedInThisQa": false,
+      "finalOfficialSubmissionPerformedInThisQa": false,
+      "note": "Independent supplement; does not change or overwrite the frozen 126-state raw point-check snapshot. The PHOTO link navigation must not be read as Next: PHOTO button success."
+    },
+    "otherOccupationAccepted": {
+      "sourceFile": "viza-be/submission-service/docs/ds160-other-occupation-accepted-2026-09-22.json",
+      "rawSourceFile": "D:/Temp/ds160-other-occupation-accepted-20260922.json",
+      "rawSha256": "f6b0c5a2d998e85853ae61ddbe2f9d5a52f6d7bbb57c4423a93d70f99c4f7417",
+      "stateCount": 1,
+      "branch": "primary_occupation=other",
+      "nextAcceptedPath": "/GenNIV/General/complete/complete_workeducation2.aspx",
+      "errors": [],
+      "applicantAnswersIncluded": false,
+      "officialPortalEvidence": true
+    },
+    "securityExactId": {
+      "sourceFile": "viza-be/submission-service/docs/ds160-security-exact-id-proof-2026-09-22.json",
+      "rawSourceFile": "D:/Temp/ds160-security-exact-id-proof-20260922.json",
+      "rawSha256": "47e79624a5f512411db79b3a19f3c29841bf7265ce553aa87f9fdfa0e61f115b",
+      "oldPrefixMatchCount": 2,
+      "exactDirectMatchCount": 1,
+      "exactRelatedMatchCount": 1,
+      "applicantAnswersIncluded": false,
+      "officialPortalEvidence": true,
+      "note": "Part 2 live DOM evidence for the repaired suffix selectors."
+    },
+    "security5SavedReadback": {
+      "sourceFile": "viza-be/submission-service/docs/ds160-security5-saved-readback-2026-09-22.json",
+      "rawSourceFile": "D:/Temp/ds160-security5-saved-readback-20260922.json",
+      "rawSha256": "7f42d34b37c16869bf4a440341503e3c388eb7c96e4e0d94e83ae609ddf6ba91",
+      "stateCount": 1,
+      "yesControlsChecked": true,
+      "explanationsNonempty": true,
+      "answerTextIncluded": false,
+      "officialPortalEvidence": true,
+      "note": "Boolean-only save/readback supplement; no explanation text retained."
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "ds160-companion-evidence/v1",
+  "scope": {
+    "visaClasses": [
+      "B1",
+      "B2"
+    ],
+    "officialPortal": "https://ceac.state.gov/GenNIV/",
+    "qaMode": "unsigned",
+    "officialParityVerified": false
+  },
+  "safetyBoundary": {
+    "applicantAnswersIncluded": false,
+    "applicantIdentifiersIncluded": false,
+    "realSubmittedApplicationModified": false,
+    "realSubmittedApplicationResubmitted": false,
+    "finalSignaturePerformedInThisQa": false,
+    "finalOfficialSubmissionPerformedInThisQa": false
+  },
+  "evidenceKind": "security_exact_id_selector",
+  "source": {
+    "rawFile": "D:/Temp/ds160-security-exact-id-proof-20260922.json",
+    "rawSha256": "47e79624a5f512411db79b3a19f3c29841bf7265ce553aa87f9fdfa0e61f115b",
+    "observedAt": "2026-09-22T19:17:35.395Z"
+  },
+  "finding": {
+    "page": "/GenNIV/General/complete/complete_securityandbackground2.aspx",
+    "heading": "Security and Background: Part 2",
+    "oldPrefixMatches": [
+      "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTrafficking",
+      "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTraffickingRelated"
+    ],
+    "exactDirectMatches": [
+      "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTrafficking"
+    ],
+    "exactRelatedMatches": [
+      "ctl00_SiteContentPlaceHolder_FormView1_tbxHumanTraffickingRelated"
+    ],
+    "summary": "The old prefix selector matched both HumanTrafficking and HumanTraffickingRelated; the repaired suffix selectors each matched exactly one corresponding textarea."
+  }
+}
