@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeMarketingSlug, validateBlogDraft, validateSocialComposition } from "../validation";
+import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft, validateSocialComposition } from "../validation";
 
 describe("marketing validation", () => {
   it("normalizes a title into a stable ASCII slug", () => {
@@ -21,5 +21,11 @@ describe("marketing validation", () => {
       platformContent: { instagram: "Read the guide" }, mediaUrl: "https://example.com/cover.jpg",
       scheduledFor: "2026-10-01T10:00:00Z", reason: "Editorial review",
     })).toThrow(/publish when approved/);
+  });
+
+  it("accepts only plain, within-limit AI captions", () => {
+    expect(parseGeneratedPlatformContent({ linkedin: "  Reviewed guide  " }, ["linkedin"])).toEqual({ linkedin: "Reviewed guide" });
+    expect(() => parseGeneratedPlatformContent({ linkedin: { text: "Reviewed guide" } }, ["linkedin"])).toThrow(/invalid linkedin copy/);
+    expect(() => parseGeneratedPlatformContent({ pinterest: "x".repeat(501) }, ["pinterest"])).toThrow(/500 characters/);
   });
 });

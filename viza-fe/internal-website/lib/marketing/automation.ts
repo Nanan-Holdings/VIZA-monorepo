@@ -7,7 +7,7 @@ import { checkUploadPostJob } from "./providers/upload-post";
 import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsStory, scanNews } from "./news-pipeline";
 import { rehostMarketingCover } from "./cover";
 import { measuredKeyword, measuredKeywords } from "./seo-keywords";
-import { normalizeMarketingSlug, validateBlogDraft } from "./validation";
+import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft } from "./validation";
 import type { MarketingBlogAdminRecord, MarketingBlogLocale, MarketingSocialPlatform } from "./contracts";
 import pipelineConfig from "@/scripts/pipeline.config.json";
 
@@ -81,10 +81,7 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
       const platforms = pipelineConfig.content.platforms as MarketingSocialPlatform[];
       const destinationUrl = new URL(`/blog/${post.slug}`, process.env.VIZA_MARKETING_PUBLIC_BASE_URL ?? "https://viza.it.com").toString();
       const captions = await generateSocialCopy({ brief: `Promote this reviewed VIZA draft accurately. Title: ${post.title}. Excerpt: ${post.excerpt}. Source: ${selected.article.url}. Use {url} as the link placeholder.`, platforms, destinationUrl });
-      const raw = captions.json.platformContent;
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Caption model returned no platform content");
-      const platformContent = Object.fromEntries(platforms.map((platform) => [platform, String((raw as Record<string, unknown>)[platform] ?? "").trim()]));
-      if (Object.values(platformContent).some((caption) => !caption)) throw new Error("Caption model omitted a platform");
+      const platformContent = parseGeneratedPlatformContent(captions.json.platformContent, platforms);
       const social = await admin.from("marketing_social_compositions").insert({ blog_post_id: post.id, title: `Promote: ${post.title}`, brief: `Generated from ${selected.article.url}`, destination_url: destinationUrl, media_url: coverImageUrl, status: "draft", platforms, platform_content: platformContent, created_by: actorId, updated_by: actorId }).select("id").single();
       if (social.error) throw new Error(social.error.message);
     } catch (error) { socialError = error instanceof Error ? error.message : "Caption generation failed"; }

@@ -25,7 +25,7 @@ import { checkUploadPostJob, publishUploadPostImage, uploadPostReadiness } from 
 import { assertLiveMarketingUrl } from "@/lib/marketing/publish-check";
 import { runScheduledBlogGeneration } from "@/lib/marketing/automation";
 import { measuredKeyword } from "@/lib/marketing/seo-keywords";
-import { normalizeMarketingSlug, validateBlogDraft, validatePublishableBlog, validateSocialComposition } from "@/lib/marketing/validation";
+import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft, validatePublishableBlog, validateSocialComposition } from "@/lib/marketing/validation";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "@/lib/marketing/revalidate";
 
 type Actor = Awaited<ReturnType<typeof requireRole>>;
@@ -301,9 +301,7 @@ export async function generateMarketingSocialComposition(input: MarketingSocialC
   let auditContext: Awaited<ReturnType<typeof context>> | null = null;
   try {
     auditContext = await context(); const generated = await generateSocialCopy({ brief: input.brief, platforms: input.platforms, destinationUrl: input.destinationUrl });
-    const raw = generated.json.platformContent;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Provider returned invalid platform content");
-    const platformContent = Object.fromEntries(input.platforms.map((platform) => [platform, String((raw as Record<string, unknown>)[platform] ?? "")])) as Partial<Record<MarketingSocialPlatform, string>>;
+    const platformContent = parseGeneratedPlatformContent(generated.json.platformContent, input.platforms);
     const saved = await saveMarketingSocialComposition({ ...input, platformContent });
     if (saved.success && saved.data) await activity(auditContext.db, auditContext.actor, { provider: generated.provider, operation: "social.generate", status: "succeeded", entityType: "marketing_social_composition", entityId: saved.data.id, reason: input.reason, request: { platforms: input.platforms, briefLength: input.brief.length }, response: { model: generated.model } });
     return saved;

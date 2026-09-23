@@ -89,6 +89,18 @@ export function validatePublishableBlog(post: MarketingBlogAdminRecord): void {
   if (post.bodyMarkdown.includes("—")) throw new Error("Replace em dashes before publication");
 }
 
+export function parseGeneratedPlatformContent(value: unknown, platforms: readonly MarketingSocialPlatform[]): Partial<Record<MarketingSocialPlatform, string>> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Provider returned invalid platform content");
+  const content = value as Record<string, unknown>;
+  return Object.fromEntries(platforms.map((platform) => {
+    const caption = content[platform];
+    if (typeof caption !== "string" || !caption.trim()) throw new Error(`Provider returned invalid ${platform} copy`);
+    const trimmed = caption.trim();
+    if (trimmed.length > SOCIAL_LIMITS[platform]) throw new Error(`${platform} content must be ${SOCIAL_LIMITS[platform]} characters or fewer`);
+    return [platform, trimmed];
+  })) as Partial<Record<MarketingSocialPlatform, string>>;
+}
+
 export function validateSocialComposition(input: MarketingSocialCompositionInput): MarketingSocialCompositionInput {
   if (input.id && !UUID_PATTERN.test(input.id)) throw new Error("Invalid composition id");
   if (input.blogPostId && !UUID_PATTERN.test(input.blogPostId)) throw new Error("Invalid blog post id");

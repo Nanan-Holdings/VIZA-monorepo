@@ -97,6 +97,6 @@ export async function generateBlogDraft(locale: MarketingBlogLocale, brief: stri
 export async function generateSocialCopy(input: { brief: string; platforms: readonly MarketingSocialPlatform[]; destinationUrl?: string }) {
   return generate(
     "You are VIZA's social editor. Produce concise, accurate platform-specific copy. Never claim guaranteed visa outcomes. Return JSON only and do not include credentials or account identifiers.",
-    `Brief: ${input.brief}\nPlatforms: ${input.platforms.join(", ")}\nDestination: ${input.destinationUrl ?? "none"}\nReturn an object with a platformContent object keyed exactly by each requested platform.`,
+    `Brief: ${input.brief}\nPlatforms: ${input.platforms.join(", ")}\nDestination: ${input.destinationUrl ?? "none"}\nReturn an object with a platformContent object keyed exactly by each requested platform. Every platform value must be one plain caption string, not an object or array.`,
   );
 }
