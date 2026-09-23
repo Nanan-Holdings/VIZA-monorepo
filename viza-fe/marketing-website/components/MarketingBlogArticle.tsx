@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Link } from "@/navigation";
 import type { Locale } from "@/i18n";
-import type { MarketingBlogPost } from "@/lib/marketing-blog";
+import type { MarketingBlogPost, MarketingBlogSummary } from "@/lib/marketing-blog";
 import { categorySlug } from "@/lib/blog-taxonomy";
+import MarketingBlogFeed from "@/components/MarketingBlogFeed";
+import MarketingBlogCta from "@/components/MarketingBlogCta";
 
 interface MarketingBlogArticleProps {
   post: MarketingBlogPost;
@@ -10,6 +12,14 @@ interface MarketingBlogArticleProps {
   backLabel: string;
   byLabel: string;
   updatedLabel: string;
+  readArticleLabel: string;
+  relatedTitle: string;
+  relatedDescription: string;
+  relatedPosts: MarketingBlogSummary[];
+  ctaEyebrow: string;
+  ctaTitle: string;
+  ctaBody: string;
+  ctaAction: string;
 }
 
 function formatDate(value: string, locale: Locale): string {
@@ -269,7 +279,7 @@ function MarkdownBody({ markdown }: { markdown: string }) {
   }
   flushText();
 
-  return <div className="space-y-6">{nodes}</div>;
+  return <div className="viza-blog__prose">{nodes}</div>;
 }
 
 export default function MarketingBlogArticle({
@@ -278,43 +288,70 @@ export default function MarketingBlogArticle({
   backLabel,
   byLabel,
   updatedLabel,
+  readArticleLabel,
+  relatedTitle,
+  relatedDescription,
+  relatedPosts,
+  ctaEyebrow,
+  ctaTitle,
+  ctaBody,
+  ctaAction,
 }: MarketingBlogArticleProps) {
   return (
-    <article className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-      <Link href="/blog" locale={locale} className="text-sm font-medium text-brand-500 hover:text-brand-600">
-        <span aria-hidden="true">←</span> {backLabel}
-      </Link>
-      <header className="mt-10 border-b border-border-hairline pb-10">
-        {post.category && categorySlug(post.category) ? (
-          <Link href={`/blog/category/${categorySlug(post.category)}`} locale={locale} className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-sm font-medium text-brand-600 hover:bg-brand-100">
-            {post.category}
-          </Link>
-        ) : null}
-        <h1 className="mt-5 text-4xl leading-tight text-fg-1 sm:text-5xl">{post.title}</h1>
-        <p className="mt-5 text-lg leading-relaxed text-fg-2">{post.excerpt}</p>
-        <div className="mt-6 flex flex-wrap gap-x-3 gap-y-1 text-sm text-fg-2">
-          <span>{byLabel} {post.authorName}</span>
-          <span aria-hidden="true">·</span>
-          <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
-          {post.updatedAt !== post.publishedAt ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{updatedLabel} {formatDate(post.updatedAt, locale)}</span>
-            </>
-          ) : null}
+    <>
+      <header className="viza-blog__hero viza-blog__hero--article">
+        <div className="viza-blog__container">
+          <span className="viza-blog__overline">
+            <Link href="/blog" locale={locale}>{backLabel}</Link>
+            {post.category && categorySlug(post.category) ? (
+              <> · <Link href={`/blog/category/${categorySlug(post.category)}`} locale={locale}>{post.category}</Link></>
+            ) : null}
+          </span>
+          <h1>{post.title}</h1>
+          <p className="viza-blog__hero-description">{post.excerpt}</p>
+          <div className="viza-blog__byline">
+            <span>{byLabel} {post.authorName}</span>
+            <span aria-hidden="true">·</span>
+            <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
+            {post.updatedAt !== post.publishedAt ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{updatedLabel} {formatDate(post.updatedAt, locale)}</span>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
-      {post.coverImageUrl ? (
-        <img
-          src={post.coverImageUrl}
-          alt=""
-          className="mt-10 aspect-[16/9] w-full rounded-2xl object-cover"
-          referrerPolicy="no-referrer"
-        />
+      <section className="viza-blog__band">
+        <div className="viza-blog__container">
+          <article className="viza-blog__article">
+            {post.coverImageUrl ? (
+              <div className="viza-blog__article-cover">
+                <img src={post.coverImageUrl} alt="" referrerPolicy="no-referrer" />
+              </div>
+            ) : null}
+            <MarkdownBody markdown={post.bodyMarkdown} />
+          </article>
+        </div>
+      </section>
+      {relatedPosts.length > 0 ? (
+        <section className="viza-blog__band viza-blog__band--soft" aria-label={relatedTitle}>
+          <div className="viza-blog__container">
+            <div className="viza-blog__section-head">
+              <h2>{relatedTitle}</h2>
+              <p>{relatedDescription}</p>
+            </div>
+            <MarketingBlogFeed posts={relatedPosts} locale={locale} readArticleLabel={readArticleLabel} />
+          </div>
+        </section>
       ) : null}
-      <div className="mt-12">
-        <MarkdownBody markdown={post.bodyMarkdown} />
-      </div>
-    </article>
+      <MarketingBlogCta
+        locale={locale}
+        eyebrow={ctaEyebrow}
+        title={ctaTitle}
+        body={ctaBody}
+        action={ctaAction}
+      />
+    </>
   );
 }

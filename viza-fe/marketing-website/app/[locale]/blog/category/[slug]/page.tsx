@@ -3,7 +3,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import SiteFooter from "@/components/SiteFooter";
 import SiteNav from "@/components/SiteNav";
-import MarketingBlogFeed from "@/components/MarketingBlogFeed";
+import MarketingBlogFeed, { MarketingBlogTopics } from "@/components/MarketingBlogFeed";
+import MarketingBlogCta from "@/components/MarketingBlogCta";
 import type { Locale } from "@/i18n";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories, categorySlug } from "@/lib/blog-taxonomy";
@@ -73,23 +74,41 @@ export default async function BlogCategoryPage({ params }: CategoryPageProps) {
         </>
       ) : null}
       <SiteNav activeTab="blog" />
-      <main className="min-h-[60vh] bg-page">
-        <header className="border-b border-border-hairline bg-brand-50">
-          <div className="container-page py-16 sm:py-20">
-            <Link href="/blog" locale={locale} className="text-sm font-medium text-brand-500 hover:text-brand-600">← {t("backToBlog")}</Link>
-            <h1 className="mt-5 max-w-3xl text-4xl text-fg-1 sm:text-5xl">{category?.name ?? t("unavailableTitle")}</h1>
-            {category ? <p className="mt-5 max-w-2xl text-lg text-fg-2">{t("categoryLede", { category: category.name })}</p> : null}
+      <main className="viza-blog">
+        <header className="viza-blog__hero">
+          <div className="viza-blog__container">
+            <span className="viza-blog__overline">
+              <Link href="/blog" locale={locale}>{t("eyebrow")}</Link> · {t("topicLabel")}
+            </span>
+            <h1>{category?.name ?? t("unavailableTitle")}</h1>
+            {category ? <p className="viza-blog__hero-description">{t("categoryLede", { category: category.name })}</p> : null}
           </div>
         </header>
-        <section className="container-page py-14 sm:py-20">
-          {result.status === "unavailable" ? (
-            <p className="text-fg-2">{t("unavailableBody")}</p>
-          ) : posts.length > 0 ? (
-            <MarketingBlogFeed posts={posts} locale={locale} readArticleLabel={t("readArticle")} />
-          ) : (
-            <p className="text-fg-2">{t("emptyBody")}</p>
-          )}
+        <section className="viza-blog__band">
+          <div className="viza-blog__container">
+            <MarketingBlogTopics
+              categories={result.status === "ok" ? blogCategories(result.feed.posts) : []}
+              locale={locale}
+              categoriesLabel={t("categoriesLabel")}
+              allPostsLabel={t("allPosts")}
+              currentSlug={slug}
+            />
+            {result.status === "unavailable" ? (
+              <p className="viza-blog__empty">{t("unavailableBody")}</p>
+            ) : posts.length > 0 ? (
+              <MarketingBlogFeed posts={posts} locale={locale} readArticleLabel={t("readArticle")} />
+            ) : (
+              <p className="viza-blog__empty">{t("emptyBody")}</p>
+            )}
+          </div>
         </section>
+        <MarketingBlogCta
+          locale={locale}
+          eyebrow={t("ctaEyebrow")}
+          title={t("ctaTitle")}
+          body={t("ctaBody")}
+          action={t("ctaAction")}
+        />
       </main>
       <SiteFooter />
     </>

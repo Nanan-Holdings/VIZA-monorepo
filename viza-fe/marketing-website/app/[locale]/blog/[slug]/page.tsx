@@ -5,7 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteNav from "@/components/SiteNav";
 import MarketingBlogArticle from "@/components/MarketingBlogArticle";
 import type { Locale } from "@/i18n";
-import { getMarketingBlogPost } from "@/lib/marketing-blog";
+import { getMarketingBlogFeed, getMarketingBlogPost } from "@/lib/marketing-blog";
 import { blogUrl, articleJsonLd, breadcrumbJsonLd, jsonLd } from "@/lib/blog-structured-data";
 
 export const revalidate = 300;
@@ -43,12 +43,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { locale: localeParam, slug } = await params;
   const locale = localeParam as Locale;
   setRequestLocale(locale);
-  const [t, result] = await Promise.all([
+  const [t, result, feedResult] = await Promise.all([
     getTranslations({ locale, namespace: "pages.blog" }),
     getMarketingBlogPost(slug, locale),
+    getMarketingBlogFeed(locale),
   ]);
 
   if (result.status === "not-found") notFound();
+  const relatedPosts = result.status === "ok" && feedResult.status === "ok"
+    ? feedResult.feed.posts
+      .filter((post) => post.id !== result.post.id)
+      .sort((a, b) => Number(b.category === result.post.category) - Number(a.category === result.post.category))
+      .slice(0, 3)
+    : [];
 
   return (
     <>
@@ -62,7 +69,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           ]))} />
         </>
       ) : null}
-      <main className="min-h-[60vh] bg-page">
+      <main className="viza-blog">
         {result.status === "unavailable" ? (
           <section className="container-narrow py-20 text-center">
             <h1 className="text-3xl">{t("unavailableTitle")}</h1>
@@ -75,6 +82,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             backLabel={t("backToBlog")}
             byLabel={t("by")}
             updatedLabel={t("updated")}
+            readArticleLabel={t("readArticle")}
+            relatedTitle={t("relatedTitle")}
+            relatedDescription={t("relatedDescription")}
+            relatedPosts={relatedPosts}
+            ctaEyebrow={t("ctaEyebrow")}
+            ctaTitle={t("ctaTitle")}
+            ctaBody={t("ctaBody")}
+            ctaAction={t("ctaAction")}
           />
         )}
       </main>
