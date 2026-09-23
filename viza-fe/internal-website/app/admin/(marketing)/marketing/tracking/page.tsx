@@ -1,17 +1,81 @@
 import { getLocale } from "next-intl/server";
 import { listMarketingShortLinks } from "@/app/actions/admin-marketing";
-import { AdminPage, AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui";
-import { Card, CardContent } from "@/components/ui/card";
 import { normalizeInterfaceLocale } from "@/lib/i18n/locale";
 import { MarketingBackLink } from "../_components/marketing-ui";
+import { EmptyState, PortalHeader, PortalPage, PortalSection, PortalStack, StatusBadge, TablePanel } from "../_components/portal-ui";
 import { CreateTrackingLink, ToggleTrackingLink } from "../_components/tracking-actions";
-import { MARKETING_COPY } from "../copy";
+import { MARKETING_COPY, marketingDateLocale } from "../copy";
 
 export const dynamic = "force-dynamic";
 
 export default async function MarketingTrackingPage() {
-  const locale = normalizeInterfaceLocale(await getLocale()); const copy = MARKETING_COPY[locale]; const links = await listMarketingShortLinks();
+  const locale = normalizeInterfaceLocale(await getLocale());
+  const copy = MARKETING_COPY[locale];
+  const dateLocale = marketingDateLocale(copy);
+  const links = await listMarketingShortLinks();
   const base = process.env.VIZA_MARKETING_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://viza.it.com";
-  const number = new Intl.NumberFormat(locale === "zh" ? "zh-CN" : "en-SG");
-  return <AdminPage><MarketingBackLink href="/admin/marketing" label={copy.back} /><AdminPageHeader title={copy.trackingTitle} description={copy.trackingDescription} /><AdminSectionCard title={copy.newTrackingLink}><CardContent className="p-5"><CreateTrackingLink locale={locale} /></CardContent></AdminSectionCard>{links.length === 0 ? <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">{copy.noTrackingLinks}</CardContent></Card> : <div className="grid gap-4">{links.map((link) => <Card key={link.id}><CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0 space-y-1"><div className="flex flex-wrap items-center gap-2"><a href={`${base}/s/${link.code}`} target="_blank" rel="noreferrer" className="font-medium text-primary underline">{base}/s/{link.code}</a><span className={link.active ? "text-xs text-emerald-700" : "text-xs text-muted-foreground"}>{link.active ? copy.active : copy.inactive}</span></div><p className="truncate text-sm text-muted-foreground">{link.destinationUrl}</p><p className="text-xs text-muted-foreground">{link.campaign ?? "—"} · {number.format(link.clickCount)} {copy.clicks}{link.lastClickedAt ? ` · ${new Date(link.lastClickedAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-SG")}` : ""}</p></div><ToggleTrackingLink id={link.id} active={link.active} locale={locale} /></CardContent></Card>)}</div>}</AdminPage>;
+  const number = new Intl.NumberFormat(dateLocale);
+
+  return (
+    <PortalPage>
+      <MarketingBackLink href="/admin/marketing" label={copy.back} />
+      <PortalHeader title={copy.trackingTitle} desc={copy.trackingDescription} />
+
+      <PortalStack>
+        <PortalSection title={copy.newTrackingLink}>
+          <div className="mkt-panel">
+            <div className="mkt-panel-body">
+              <CreateTrackingLink locale={locale} />
+            </div>
+          </div>
+        </PortalSection>
+
+        {links.length === 0 ? (
+          <EmptyState glyph="⇱" title={copy.noTrackingLinks} desc={copy.trackingDescription} />
+        ) : (
+          <TablePanel minWidth={940}>
+            <thead>
+              <tr>
+                <th style={{ width: 230 }}>{copy.colShortLink}</th>
+                <th>{copy.colDestination}</th>
+                <th style={{ width: 150 }}>{copy.colCampaign}</th>
+                <th style={{ width: 90 }}>{copy.colClicks}</th>
+                <th style={{ width: 130 }}>{copy.colLastClick}</th>
+                <th style={{ width: 200 }}>{copy.colStatus}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {links.map((link) => (
+                <tr key={link.id}>
+                  <td>
+                    <a href={`${base}/s/${link.code}`} target="_blank" rel="noreferrer" className="mkt-sub-mono">
+                      /s/{link.code}
+                    </a>
+                  </td>
+                  <td className="mkt-cell-tight" style={{ overflowWrap: "anywhere" }}>
+                    {link.destinationUrl}
+                  </td>
+                  <td className="mkt-cell-tight">{link.campaign ?? "—"}</td>
+                  <td className="mkt-mono">{number.format(link.clickCount)}</td>
+                  <td className="mkt-mono" style={{ color: link.lastClickedAt ? undefined : "var(--mkt-muted-soft)" }}>
+                    {link.lastClickedAt ? link.lastClickedAt.slice(0, 10) : "—"}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <StatusBadge
+                        dot
+                        label={link.active ? copy.active : copy.inactive}
+                        tone={link.active ? "up" : "off"}
+                      />
+                      <ToggleTrackingLink id={link.id} active={link.active} locale={locale} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </TablePanel>
+        )}
+      </PortalStack>
+    </PortalPage>
+  );
 }
