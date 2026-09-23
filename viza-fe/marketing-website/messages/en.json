@@ -9,6 +9,7 @@
     "visas": "Visas",
     "explore": "Explore",
     "events": "Events",
+    "blog": "Guides",
     "careers": "Careers",
     "contact": "Contact",
     "signIn": "Sign in",
@@ -42,6 +43,25 @@
     "prodStudent": "Student Visa"
   },
   "pages": {
+    "blog": {
+      "metaTitle": "Visa guides and travel updates — VIZA",
+      "metaDescription": "Clear, practical guidance on visas, application preparation, and international travel from VIZA.",
+      "eyebrow": "VIZA journal",
+      "title": "Visa guidance, without the fine-print fog.",
+      "lede": "Practical explanations, official-policy updates, and preparation tips from the team that handles visa applications every day.",
+      "readArticle": "Read article",
+      "emptyTitle": "No articles published yet",
+      "emptyBody": "Our first guides are being prepared. Please check back soon.",
+      "unavailableTitle": "The journal is temporarily unavailable",
+      "unavailableBody": "We couldn't load the latest published articles. Please try again shortly.",
+      "backToBlog": "Back to the journal",
+      "by": "By",
+      "updated": "Updated",
+      "categoriesLabel": "Article categories",
+      "categoryMetaTitle": "{category} guides — VIZA",
+      "categoryMetaDescription": "Read VIZA guides and updates about {category}.",
+      "categoryLede": "Guides and updates about {category}."
+    },
     "home": {
       "title": "VIZA — Visa applications, handled.",
       "description": "Browse visa options for any destination. Your VIZA consultant and our AI handle the paperwork — you book the trip.",

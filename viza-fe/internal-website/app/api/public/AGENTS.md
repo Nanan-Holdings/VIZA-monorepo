@@ -10,6 +10,8 @@ or other user-scoped values.
 
 ## Key Flows
 
+- `marketing/blog/route.ts` and `marketing/blog/[slug]/route.ts`: expose only published articles to the public marketing website. Do not return editorial drafts, provider credentials, or staff activity logs.
+
 - `catalogue/route.ts`: returns validated published catalogue snapshots from
   `catalogue_publications`.
 - `catalogue/route.test.ts`: verifies cold-burst single-flight behavior and

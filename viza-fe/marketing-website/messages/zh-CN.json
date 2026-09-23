@@ -9,6 +9,7 @@
     "visas": "签证服务",
     "explore": "浏览",
     "events": "活动",
+    "blog": "指南",
     "careers": "加入我们",
     "contact": "联系我们",
     "signIn": "登录",
@@ -42,6 +43,25 @@
     "prodStudent": "学生签证"
   },
   "pages": {
+    "blog": {
+      "metaTitle": "签证指南与旅行动态 — VIZA",
+      "metaDescription": "VIZA 提供清晰、实用的签证申请准备与国际旅行指南。",
+      "eyebrow": "VIZA 指南",
+      "title": "把签证信息讲清楚。",
+      "lede": "来自一线签证服务团队的实用解读、官方政策更新与申请准备建议。",
+      "readArticle": "阅读文章",
+      "emptyTitle": "暂无已发布文章",
+      "emptyBody": "首批指南正在准备中，欢迎稍后再来查看。",
+      "unavailableTitle": "指南暂时无法加载",
+      "unavailableBody": "我们暂时无法获取最新已发布文章，请稍后再试。",
+      "backToBlog": "返回指南列表",
+      "by": "作者：",
+      "updated": "更新于",
+      "categoriesLabel": "文章分类",
+      "categoryMetaTitle": "{category}指南 — VIZA",
+      "categoryMetaDescription": "阅读 VIZA 关于{category}的指南与动态。",
+      "categoryLede": "关于{category}的指南与动态。"
+    },
     "home": {
       "title": "VIZA — 签证申请，由我们处理。",
       "description": "浏览任何目的地的签证选项。VIZA 顾问与 AI 共同处理流程，您只管订机票。",

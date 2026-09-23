@@ -1,5 +1,7 @@
 # Internal Website Agent Guide
 
+`app/admin/(marketing)/marketing/**` and `lib/marketing/**` implement the staff editorial portal and content pipeline. `scripts/pipeline.config.json` stores VIZA source and voice rules; `scripts/build-seo-keywords.mjs` imports measured keyword exports. Public blog reads are in `app/api/public/marketing/blog/**`. Keep provider credentials in server environment variables only.
+
 `lib/ds160-photo-contract.ts` shares the byte-level U.S. DS-160 photo checks
 between the actual document-center upload UI, server upload, and profile-file
 reuse: JPEG, at most 240 KiB, square 600–1200 pixels, 8-bit/three-component

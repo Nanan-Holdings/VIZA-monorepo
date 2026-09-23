@@ -8,6 +8,9 @@ pages, and portal checkout links.
 
 ## Analytics And SEO
 
+- `app/[locale]/blog/**` renders published portal articles. `lib/marketing-blog.ts` reads the portal's public API; category and article JSON-LD live in `lib/blog-structured-data.ts` and `lib/blog-taxonomy.ts`.
+- `app/api/revalidate/route.ts` accepts the shared revalidation secret after an admin publishes a post. Keep draft content out of the public feed and sitemap.
+
 - GTM is installed in `app/layout.tsx`; keep `NEXT_PUBLIC_GTM_ID` public-only.
 - Client-side conversion events use `lib/analytics.ts`; global CTA clicks are
   collected by the inline `marketing-click-tracking` script in `app/layout.tsx`.
