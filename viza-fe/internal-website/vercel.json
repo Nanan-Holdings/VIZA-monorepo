@@ -8,5 +8,10 @@
     "app/api/client/home-dashboard/route.ts": {
       "supportsCancellation": true
     }
-  }
+  },
+  "crons": [
+    { "path": "/api/internal/marketing/blog/generate", "schedule": "0 1 * * 2,4" },
+    { "path": "/api/internal/marketing/social/reconcile", "schedule": "0 2 * * *" },
+    { "path": "/api/internal/marketing/stuck-check", "schedule": "0 5 * * *" }
+  ]
 }

@@ -222,7 +222,48 @@
       "sha256": "5e1f5cf6cbf9e17df73d409e900b56440ad6ed95f9d610e3508ca8b067d64de1"
     }
   ],
-  "no_mirror": [],
+  "no_mirror": [
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828170732_marketing_content_operations.sql",
+      "sha256": "5eced238d459263673efac33079eae6e3b2f6c207d79eb0bdcfa454e2ae412cb",
+      "reason": "Portal-owned marketing content tables and RLS have no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828171409_marketing_short_link_click_rpc.sql",
+      "sha256": "cc8c047be17f839da2b660f45e559b706e42a5ed17e741835d2a9ce01fc4ac0d",
+      "reason": "Portal-owned public short-link click RPC has no agent-backend Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828173609_marketing_public_assets.sql",
+      "sha256": "1b8068e754553a513ae8716fafd9735ac7dd46e74df9d676a248cc3c2e185a7b",
+      "reason": "Portal-owned public marketing asset storage policy has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828174521_marketing_automation_runs.sql",
+      "sha256": "f05d440a09fccd10e1c6b386e1fd3b51f2121cccc2cbea3c667fc878fe797ad6",
+      "reason": "Portal-owned editorial automation run history has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260828174939_marketing_automation_actor_index.sql",
+      "sha256": "9f4e877ca90289fa84e3178c4add6d9af0e77da9c5984653934646441165d46e",
+      "reason": "Portal-owned marketing audit actor index has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923103000_marketing_deepseek_provider.sql",
+      "sha256": "a45a3347e060166ce9f09ad92792a973f8d762a6acfe53ba0674355e826fc920",
+      "reason": "Portal-owned DeepSeek provider audit enum extension has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923110000_marketing_upload_post_delivery.sql",
+      "sha256": "f6d876dfc0aae50b074cab0e460b3e7c749ca7b07af9ccdeddc03284c035b4a3",
+      "reason": "Portal-owned Upload-Post delivery metadata has no Drizzle mirror."
+    },
+    {
+      "path": "viza-fe/internal-website/supabase/migrations/20260923120000_marketing_short_link_search_path.sql",
+      "sha256": "1d4c75c4b1e07db40e5fd3e193583a5ae9d52181a1324dfd8cf4238b6c338226",
+      "reason": "Portal-owned short-link function hardening has no agent-backend Drizzle mirror."
+    }
+  ],
   "unapplied_migration_renames": [
     {
       "from": "viza-be/agent-backend/drizzle/0149_uae_tourist_document_contract.sql",

@@ -14,7 +14,7 @@ const PASSPORT_CODES = [
 ] as const;
 type PassportCode = (typeof PASSPORT_CODES)[number];
 
-type Tab = "explore" | "events";
+type Tab = "explore" | "events" | "blog";
 
 type Props = {
   /** "explore" or "events" — adds .active to that tab. Omit for none. */
@@ -29,11 +29,12 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
   const tabsRef = useRef<HTMLDivElement>(null);
   const exploreRef = useRef<HTMLAnchorElement>(null);
   const eventsRef = useRef<HTMLAnchorElement>(null);
+  const blogRef = useRef<HTMLAnchorElement>(null);
   const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   useLayoutEffect(() => {
     if (!activeTab) return;
-    const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
+    const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : eventsRef.current;
     const wrap = tabsRef.current;
     if (!el || !wrap) return;
     const r = el.getBoundingClientRect();
@@ -44,7 +45,7 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
   useEffect(() => {
     const onResize = () => {
       if (!activeTab) return;
-      const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
+      const el = activeTab === "explore" ? exploreRef.current : activeTab === "blog" ? blogRef.current : eventsRef.current;
       const wrap = tabsRef.current;
       if (!el || !wrap) return;
       const r = el.getBoundingClientRect();
@@ -191,6 +192,15 @@ export default function SiteNav({ activeTab: initialTab }: Props) {
             onClick={() => setActiveTab("events")}
           >
             {t("nav.events")}
+          </a>
+          <a
+            ref={blogRef}
+            className={`nav-tab${activeTab === "blog" ? " active" : ""}`}
+            data-tab="blog"
+            href="/blog"
+            onClick={() => setActiveTab("blog")}
+          >
+            {t("nav.blog")}
           </a>
         </div>
 

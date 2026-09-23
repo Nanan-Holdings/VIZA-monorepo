@@ -21,6 +21,8 @@ financial access.
 
 ## Key Flows
 
+- `(marketing)/marketing/**`: staff and admin blog drafting and social composition. Staff may edit drafts; publishing and provider delivery require admin. Keep this route outside the admin-only dashboard layout and enforce roles in server actions.
+
 - `login/page.tsx`: centered admin login form using `app/actions/auth.ts` and
   the shared auth form primitives. Keep it visually distinct from the client
   portal login; do not add the client travel globe to this route.

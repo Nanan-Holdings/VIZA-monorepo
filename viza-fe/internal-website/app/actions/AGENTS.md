@@ -10,6 +10,8 @@ application lifecycle state.
 
 ## Key Flows
 
+- `admin-marketing.ts`: staff may edit blog and social drafts; only admins may publish or send provider posts. Scheduled generation records drafts for review.
+
 - `auth.ts`: admin auth and password change/signout.
 - `admin-access.ts`: database-backed admin registration invitations and
   auditable account-wide high-access grants. Invitation tokens are hashed and
