@@ -12,6 +12,11 @@ pages, and portal checkout links.
 ## Analytics And SEO
 
 - `app/[locale]/blog/**` renders published portal articles. `lib/marketing-blog.ts` reads the portal's public API; category and article JSON-LD live in `lib/blog-structured-data.ts` and `lib/blog-taxonomy.ts`.
+- Public blog layout styles live in `app/blog.css` and are scoped to the blog
+  routes by `app/[locale]/blog/layout.tsx`. The shared featured story, topic
+  navigation, and cards live in `components/MarketingBlogFeed.tsx`; article
+  rendering and the final CTA live in `components/MarketingBlogArticle.tsx` and
+  `components/MarketingBlogCta.tsx`.
 - `app/api/revalidate/route.ts` accepts the shared revalidation secret after an admin publishes a post. Keep draft content out of the public feed and sitemap.
 
 - GTM is installed in `app/layout.tsx`; keep `NEXT_PUBLIC_GTM_ID` public-only.
