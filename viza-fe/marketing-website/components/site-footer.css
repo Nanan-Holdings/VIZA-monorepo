@@ -42,35 +42,37 @@
   color: var(--fg-2); letter-spacing: -0.01em;
 }
 
-.site-foot .ask-ai {
+.site-foot .foot-social {
   margin-top: 30px;
+}
+.site-foot .social-label {
   font: 500 14px/1 var(--font-heading);
   letter-spacing: -0.2px;
   color: var(--fg-1);
 }
-.site-foot .ai-chips {
-  display: flex; gap: 10px;
+.site-foot .social-links {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 10px;
   margin-top: 14px;
 }
-.site-foot .ai-chip {
-  width: 40px; height: 40px; border-radius: 999px;
-  background: #fff;
+.site-foot .social-link {
+  width: 44px; height: 44px; border-radius: 999px;
+  background: var(--fg-on-brand);
   border: 1px solid var(--border-hairline);
   display: flex; align-items: center; justify-content: center;
-  color: var(--fg-1);
   transition: border-color .15s, transform .15s, box-shadow .15s;
-  cursor: pointer;
 }
-.site-foot .ai-chip:hover {
+.site-foot .social-link:hover {
   border-color: var(--brand-300);
   transform: translateY(-2px);
   box-shadow: 0 4px 10px -4px rgba(3,52,110,0.14);
 }
-.site-foot .ai-chip svg { width: 16px; height: 16px; }
-.site-foot .ai-chip.c1 { color: var(--brand-500); }
-.site-foot .ai-chip.c2 { color: #b35a1f; }
-.site-foot .ai-chip.c3 { color: #6b46c1; }
-.site-foot .ai-chip.c4 { color: #0f4c3a; }
+.site-foot .social-link:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 3px;
+}
+.site-foot .social-link img { display: block; width: 20px; height: 20px; }
 
 .site-foot .col-head {
   font: 500 13px/1 var(--font-heading);

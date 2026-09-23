@@ -18,6 +18,8 @@
     "searchPlaceholder": "搜索国家或签证…"
   },
   "footer": {
+    "followUs": "关注我们：",
+    "followOn": "在{platform}关注 VIZA",
     "product": "产品",
     "company": "公司",
     "legal": "法律",

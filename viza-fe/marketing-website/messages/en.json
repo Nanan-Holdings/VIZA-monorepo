@@ -18,6 +18,8 @@
     "searchPlaceholder": "Search a country or visa…"
   },
   "footer": {
+    "followUs": "Follow us:",
+    "followOn": "Follow VIZA on {platform}",
     "product": "Products",
     "company": "Company",
     "legal": "Legal",

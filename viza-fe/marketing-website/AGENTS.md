@@ -2,6 +2,9 @@
 
 Scope: applies to `viza-fe/marketing-website`.
 
+Shared footer social links and localized labels live in
+`components/SiteFooter.tsx`; their brand SVGs live in `public/assets/social/`.
+
 Read `CLAUDE.md` in this folder before making product or UI changes. It is the
 marketing site convention source for auth boundaries, i18n, visa destination
 pages, and portal checkout links.
