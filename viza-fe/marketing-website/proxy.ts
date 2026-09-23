@@ -11,6 +11,13 @@ const intlMiddleware = createMiddleware({
 });
 
 export default function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  // The unprefixed article and category URLs are English canonical URLs.
+  // Keep them reachable even when a visitor's site preference is Chinese.
+  if (pathname === "/en" || pathname.startsWith("/en/") || pathname.startsWith("/blog/")) {
+    request.cookies.set("NEXT_LOCALE", "en");
+    return intlMiddleware(request);
+  }
   // Force Chinese for first-time visitors (no stored preference), overriding the
   // accept-language header. Once the user has a cookie (incl. an explicit switch
   // to English), it is honored normally.

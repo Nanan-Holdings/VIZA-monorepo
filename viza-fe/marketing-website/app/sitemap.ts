@@ -5,6 +5,8 @@ import { getPublishedCatalogue } from "@/lib/public-catalogue";
 import { getMarketingBlogFeed } from "@/lib/marketing-blog";
 import { blogCategories } from "@/lib/blog-taxonomy";
 
+export const revalidate = 300;
+
 /**
  * Static marketing routes + every launched visa country page (MKT-012).
  * Coming-soon (launched=false) countries are intentionally excluded.

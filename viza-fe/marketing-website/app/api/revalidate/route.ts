@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   const category = typeof body?.category === "string" && /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u.test(body.category) ? body.category : null;
   const locale = body?.locale === "zh-CN" ? "zh-CN" : "en";
   revalidatePath("/blog"); revalidatePath("/zh-CN/blog");
+  revalidatePath("/sitemap.xml");
   if (slug) revalidatePath(locale === "en" ? `/blog/${slug}` : `/zh-CN/blog/${slug}`);
   if (category) revalidatePath(locale === "en" ? `/blog/category/${category}` : `/zh-CN/blog/category/${category}`);
   return NextResponse.json({ revalidated: true });
