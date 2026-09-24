@@ -1,6 +1,18 @@
 /** Image-first distribution for VIZA's Instagram and Pinterest accounts. */
 
 const BASE = "https://api.upload-post.com/api";
+
+/* VIZA's own Pinterest board, the one every article pin lands on. A board id
+   is public: it is the number in the pin URL, so there is nothing here worth
+   keeping in an environment variable, and putting it in one only meant the
+   channel failed wherever someone forgot to set it. Set
+   UPLOAD_POST_PINTEREST_BOARD_ID to point the pipeline at a different board
+   without a code change. */
+const DEFAULT_PINTEREST_BOARD_ID = "1092685997032493694";
+
+function pinterestBoardId(): string {
+  return process.env.UPLOAD_POST_PINTEREST_BOARD_ID?.trim() || DEFAULT_PINTEREST_BOARD_ID;
+}
 export type UploadPostPlatform = "instagram" | "pinterest";
 
 export interface UploadPostImageInput {
@@ -20,22 +32,21 @@ export type UploadPostJobResult = UploadPostImageResult
 
 interface UploadPostConfig { apiKey: string; user: string; boardId: string | null }
 
-export function uploadPostReadiness(platform: UploadPostPlatform): { connected: boolean; missing: string[] } {
+export function uploadPostReadiness(): { connected: boolean; missing: string[] } {
   const missing = [
     ...(!process.env.UPLOAD_POST_API_KEY?.trim() ? ["UPLOAD_POST_API_KEY"] : []),
     ...(!process.env.UPLOAD_POST_USER?.trim() ? ["UPLOAD_POST_USER"] : []),
-    ...(platform === "pinterest" && !process.env.UPLOAD_POST_PINTEREST_BOARD_ID?.trim() ? ["UPLOAD_POST_PINTEREST_BOARD_ID"] : []),
   ];
   return { connected: missing.length === 0, missing };
 }
 
 function config(platform: UploadPostPlatform): UploadPostConfig {
-  const readiness = uploadPostReadiness(platform);
+  const readiness = uploadPostReadiness();
   if (!readiness.connected) throw new Error(`${readiness.missing.join(", ")} is not configured`);
   return {
     apiKey: process.env.UPLOAD_POST_API_KEY!.trim(),
     user: process.env.UPLOAD_POST_USER!.trim(),
-    boardId: process.env.UPLOAD_POST_PINTEREST_BOARD_ID?.trim() || null,
+    boardId: platform === "pinterest" ? pinterestBoardId() : null,
   };
 }
 

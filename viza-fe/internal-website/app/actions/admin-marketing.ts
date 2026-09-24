@@ -59,7 +59,7 @@ async function activity(
 
 function providerReadiness(): MarketingProviderReadiness {
   const configuredPlatforms = VIZA_CONTENT_PLATFORMS.filter((platform) => {
-    if (platform === "instagram" || platform === "pinterest") return uploadPostReadiness(platform).connected;
+    if (platform === "instagram" || platform === "pinterest") return uploadPostReadiness().connected;
     if (!process.env.ZERNIO_API_KEY?.trim() || !process.env.ZERNIO_TIMEZONE?.trim()) return false;
     if (!process.env[ZERNIO_ACCOUNT_ENV_NAMES[platform]]?.trim()) return false;
     if (platform === "linkedin" && !process.env.ZERNIO_LINKEDIN_ORGANIZATION_URN?.trim()) return false;

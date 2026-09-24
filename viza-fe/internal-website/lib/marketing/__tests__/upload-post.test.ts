@@ -22,12 +22,11 @@ afterEach(() => {
 });
 
 describe("Upload-Post adapter", () => {
-  it("requires an explicit VIZA profile and Pinterest board before any request", async () => {
+  it("requires an explicit VIZA profile before any request", async () => {
     delete process.env.UPLOAD_POST_API_KEY;
     delete process.env.UPLOAD_POST_USER;
-    delete process.env.UPLOAD_POST_PINTEREST_BOARD_ID;
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    expect(uploadPostReadiness("pinterest")).toEqual({ connected: false, missing: ["UPLOAD_POST_API_KEY", "UPLOAD_POST_USER", "UPLOAD_POST_PINTEREST_BOARD_ID"] });
+    expect(uploadPostReadiness()).toEqual({ connected: false, missing: ["UPLOAD_POST_API_KEY", "UPLOAD_POST_USER"] });
     await expect(publishUploadPostImage({ platform: "pinterest", title: "Update", caption: "Read", imageUrl, destinationUrl })).rejects.toThrow("UPLOAD_POST_API_KEY");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -59,6 +58,21 @@ describe("Upload-Post adapter", () => {
     const form = fetchSpy.mock.calls[1][1]?.body as FormData;
     expect(form.get("pinterest_board_id")).toBe("board-123");
     expect(form.get("pinterest_link")).toBe(destinationUrl);
+  });
+
+  it("falls back to the built-in VIZA Blogs board when no override is set", async () => {
+    configured();
+    delete process.env.UPLOAD_POST_PINTEREST_BOARD_ID;
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(json({ profiles: [{ username: "viza-profile", social_accounts: { pinterest: true } }] }))
+      .mockResolvedValueOnce(json({ success: true, request_id: "req-2" }))
+      .mockResolvedValueOnce(json({ status: "completed", results: [{ platform: "pinterest", success: true, platform_post_id: "555", post_url: destinationUrl }] }));
+    vi.useFakeTimers();
+    const pending = publishUploadPostImage({ platform: "pinterest", title: "Visa update", caption: "Read more", imageUrl, destinationUrl });
+    await vi.advanceTimersByTimeAsync(5_000);
+    await pending;
+    const form = fetchSpy.mock.calls[1][1]?.body as FormData;
+    expect(form.get("pinterest_board_id")).toBe("1092685997032493694");
   });
 
   it("rejects non-HTTPS media before looking up the profile", async () => {
