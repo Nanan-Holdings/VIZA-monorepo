@@ -174,7 +174,7 @@ export async function saveMarketingBlogDraft(input: MarketingBlogDraftInput): Pr
         cover_image_url: clean.coverImageUrl ?? null, category: clean.category ?? null, author_name: clean.authorName,
         seo_title: clean.seoTitle ?? null, seo_description: clean.seoDescription ?? null,
         updated_by: actor.id, updated_at: now, version: currentVersion + 1,
-        metadata: { ...existingMetadata, topics: clean.topics ?? [], seo_keyword: clean.seoKeyword ?? null, keyword_measured: Boolean(measuredKeyword(clean.seoKeyword ?? "")), keyword_monthly_searches: measuredKeyword(clean.seoKeyword ?? "")?.averageMonthlySearches ?? null, last_change_reason: clean.reason },
+        metadata: { ...existingMetadata, topics: clean.topics ?? [], faqs: clean.faqs ?? [], seo_keyword: clean.seoKeyword ?? null, keyword_measured: Boolean(measuredKeyword(clean.seoKeyword ?? "")), keyword_monthly_searches: measuredKeyword(clean.seoKeyword ?? "")?.averageMonthlySearches ?? null, last_change_reason: clean.reason },
       }).eq("id", clean.id).eq("version", currentVersion).select("*").maybeSingle();
       if (!result.error && !result.data) return { success: false, error: "This article changed while you were saving. Reload and try again." };
     } else {
@@ -182,7 +182,7 @@ export async function saveMarketingBlogDraft(input: MarketingBlogDraftInput): Pr
         locale: clean.locale, slug: clean.slug, status: "draft", title: clean.title, excerpt: clean.excerpt,
         body_markdown: clean.bodyMarkdown, cover_image_url: clean.coverImageUrl ?? null, category: clean.category ?? null,
         author_name: clean.authorName, seo_title: clean.seoTitle ?? null, seo_description: clean.seoDescription ?? null,
-        metadata: { create_reason: clean.reason, topics: clean.topics ?? [], seo_keyword: clean.seoKeyword ?? null, keyword_measured: Boolean(measuredKeyword(clean.seoKeyword ?? "")), keyword_monthly_searches: measuredKeyword(clean.seoKeyword ?? "")?.averageMonthlySearches ?? null }, created_by: actor.id, updated_by: actor.id, created_at: now, updated_at: now,
+        metadata: { create_reason: clean.reason, topics: clean.topics ?? [], faqs: clean.faqs ?? [], seo_keyword: clean.seoKeyword ?? null, keyword_measured: Boolean(measuredKeyword(clean.seoKeyword ?? "")), keyword_monthly_searches: measuredKeyword(clean.seoKeyword ?? "")?.averageMonthlySearches ?? null }, created_by: actor.id, updated_by: actor.id, created_at: now, updated_at: now,
       }).select("*").single();
     }
     if (result.error || !result.data) return { success: false, error: result.error?.message ?? "Unable to save blog draft" };

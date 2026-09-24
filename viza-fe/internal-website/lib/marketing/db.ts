@@ -1,4 +1,4 @@
-import type { MarketingAutomationRunRecord, MarketingBlogAdminRecord, MarketingBlogPost, MarketingBlogSummary, MarketingShortLinkRecord, MarketingSocialCompositionRecord, MarketingSocialPlatform } from "./contracts";
+import type { MarketingAutomationRunRecord, MarketingBlogAdminRecord, MarketingBlogFaq, MarketingBlogPost, MarketingBlogSummary, MarketingShortLinkRecord, MarketingSocialCompositionRecord, MarketingSocialPlatform } from "./contracts";
 
 export type DbError = { code?: string; message: string };
 export type DbResult = { data: unknown; error: DbError | null };
@@ -50,18 +50,37 @@ export function mapBlogSummary(value: unknown): MarketingBlogSummary {
   };
 }
 
+function rowMetadata(row: Record<string, unknown>): Record<string, unknown> {
+  return row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? (row.metadata as Record<string, unknown>)
+    : {};
+}
+
+function mapFaqs(metadata: Record<string, unknown>): MarketingBlogFaq[] {
+  if (!Array.isArray(metadata.faqs)) return [];
+  return metadata.faqs
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const faq = entry as Record<string, unknown>;
+      const question = typeof faq.question === "string" ? faq.question.trim() : "";
+      const answer = typeof faq.answer === "string" ? faq.answer.trim() : "";
+      return question && answer ? { question, answer } : null;
+    })
+    .filter((faq): faq is MarketingBlogFaq => faq !== null);
+}
+
 export function mapBlogPost(value: unknown): MarketingBlogPost {
   const row = record(value);
   return {
     ...mapBlogSummary(row), bodyMarkdown: text(row, "body_markdown"),
     seoTitle: nullableText(row, "seo_title"), seoDescription: nullableText(row, "seo_description"),
-    updatedAt: text(row, "updated_at"),
+    faqs: mapFaqs(rowMetadata(row)), updatedAt: text(row, "updated_at"),
   };
 }
 
 export function mapBlogAdminRecord(value: unknown): MarketingBlogAdminRecord {
   const row = record(value);
-  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata as Record<string, unknown> : {};
+  const metadata = rowMetadata(row);
   const locale = text(row, "locale");
   const status = text(row, "status");
   if (locale !== "en" && locale !== "zh-CN") throw new Error("Invalid blog locale");
@@ -78,6 +97,7 @@ export function mapBlogAdminRecord(value: unknown): MarketingBlogAdminRecord {
       keywordMeasured: metadata.keyword_measured === true,
       monthlySearches: typeof metadata.keyword_monthly_searches === "number" ? metadata.keyword_monthly_searches : null,
       rankScore: typeof metadata.source_rank_score === "number" ? metadata.source_rank_score : null,
+      faqs: mapFaqs(metadata),
     }, generationBrief: nullableText(row, "generation_brief"),
     generatedByModel: nullableText(row, "generated_by_model"), version: typeof row.version === "number" ? row.version : 1,
     publishedAt: nullableText(row, "published_at"), createdAt: text(row, "created_at"), updatedAt: text(row, "updated_at"),

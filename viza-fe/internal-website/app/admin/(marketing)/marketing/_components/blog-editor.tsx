@@ -8,14 +8,14 @@ import {
   publishMarketingBlogPost,
   saveMarketingBlogDraft,
 } from "@/app/actions/admin-marketing";
-import type { MarketingBlogAdminRecord, MarketingBlogLocale } from "@/lib/marketing/contracts";
+import type { MarketingBlogAdminRecord, MarketingBlogFaq, MarketingBlogLocale } from "@/lib/marketing/contracts";
 import type { InterfaceLocale } from "@/lib/i18n/locale";
 import RichTextEditor from "@/lib/marketing/editor/RichTextEditor";
 import { MarketingAssetUpload } from "./asset-upload";
 
 const COPY = {
-  en: { titlePlaceholder: "Article title", words: "words", title: "Title", body: "Body", publish: "Approval", article: "Article", search: "Search", locale: "Locale", slug: "Slug", excerpt: "Excerpt", cover: "Cover image", coverHint: "Also used as the social media image.", category: "Category", topics: "Topics", topicsHint: "Comma separated.", seoKeyword: "SEO keyword", unmeasured: "Not a measured keyword", measured: "monthly searches, measured", keywordInBody: "used in the body", keywordNotInBody: "not in the body yet", source: "Source article", rank: "Story score", author: "Author", seoTitle: "SEO title", seoTitleHint: "Defaults to the article title.", seoDescription: "Meta description", reason: "Operational reason", reasonHint: "At least 5 characters. Recorded on the audit log.", save: "Save draft", publishAction: "Approve and publish", archive: "Archive", generator: "AI draft generator", generatorHelp: "Content AI creates a reviewable draft. It never publishes automatically.", brief: "Generation brief", generate: "Generate draft", generating: "Generating…", saving: "Saving…", success: "Saved.", generated: "Draft generated. Review it before publishing.", unavailable: "Content AI is not connected. Add a VIZA-owned DeepSeek or OpenRouter key." },
-  zh: { titlePlaceholder: "文章标题", words: "字", title: "标题", body: "正文", publish: "审批", article: "文章信息", search: "搜索", locale: "语言", slug: "路径", excerpt: "摘要", cover: "封面图", coverHint: "同时用作社交媒体配图。", category: "分类", topics: "主题", topicsHint: "用逗号分隔。", seoKeyword: "SEO 关键词", unmeasured: "非实测关键词", measured: "次/月（实测）", keywordInBody: "正文中已使用", keywordNotInBody: "正文中尚未出现", source: "来源文章", rank: "新闻评分", author: "作者", seoTitle: "SEO 标题", seoTitleHint: "留空则使用文章标题。", seoDescription: "Meta 描述", reason: "运营原因", reasonHint: "至少 5 个字符，将写入审计日志。", save: "保存草稿", publishAction: "批准并发布", archive: "归档", generator: "AI 草稿生成", generatorHelp: "内容 AI 只生成待审核草稿，绝不会自动发布。", brief: "生成要求", generate: "生成草稿", generating: "生成中…", saving: "保存中…", success: "已保存。", generated: "草稿已生成，请审核后再发布。", unavailable: "内容 AI 尚未连接，请配置 VIZA 自有的 DeepSeek 或 OpenRouter 密钥。" },
+  en: { faqs: "FAQs", faqsHint: "Shown under the article and sent to search engines as FAQ data.", question: "Question", answer: "Answer", addFaq: "Add a question", removeFaq: "Remove", titlePlaceholder: "Article title", words: "words", title: "Title", body: "Body", publish: "Approval", article: "Article", search: "Search", locale: "Locale", slug: "Slug", excerpt: "Excerpt", cover: "Cover image", coverHint: "Also used as the social media image.", category: "Category", topics: "Topics", topicsHint: "Comma separated.", seoKeyword: "SEO keyword", unmeasured: "Not a measured keyword", measured: "monthly searches, measured", keywordInBody: "used in the body", keywordNotInBody: "not in the body yet", source: "Source article", rank: "Story score", author: "Author", seoTitle: "SEO title", seoTitleHint: "Defaults to the article title.", seoDescription: "Meta description", reason: "Operational reason", reasonHint: "At least 5 characters. Recorded on the audit log.", save: "Save draft", publishAction: "Approve and publish", archive: "Archive", generator: "AI draft generator", generatorHelp: "Content AI creates a reviewable draft. It never publishes automatically.", brief: "Generation brief", generate: "Generate draft", generating: "Generating…", saving: "Saving…", success: "Saved.", generated: "Draft generated. Review it before publishing.", unavailable: "Content AI is not connected. Add a VIZA-owned DeepSeek or OpenRouter key." },
+  zh: { faqs: "常见问题", faqsHint: "显示在文章下方，并作为 FAQ 数据提交给搜索引擎。", question: "问题", answer: "回答", addFaq: "添加问题", removeFaq: "删除", titlePlaceholder: "文章标题", words: "字", title: "标题", body: "正文", publish: "审批", article: "文章信息", search: "搜索", locale: "语言", slug: "路径", excerpt: "摘要", cover: "封面图", coverHint: "同时用作社交媒体配图。", category: "分类", topics: "主题", topicsHint: "用逗号分隔。", seoKeyword: "SEO 关键词", unmeasured: "非实测关键词", measured: "次/月（实测）", keywordInBody: "正文中已使用", keywordNotInBody: "正文中尚未出现", source: "来源文章", rank: "新闻评分", author: "作者", seoTitle: "SEO 标题", seoTitleHint: "留空则使用文章标题。", seoDescription: "Meta 描述", reason: "运营原因", reasonHint: "至少 5 个字符，将写入审计日志。", save: "保存草稿", publishAction: "批准并发布", archive: "归档", generator: "AI 草稿生成", generatorHelp: "内容 AI 只生成待审核草稿，绝不会自动发布。", brief: "生成要求", generate: "生成草稿", generating: "生成中…", saving: "保存中…", success: "已保存。", generated: "草稿已生成，请审核后再发布。", unavailable: "内容 AI 尚未连接，请配置 VIZA 自有的 DeepSeek 或 OpenRouter 密钥。" },
 } as const;
 
 /* The limits the marketing site and the search engines actually care about. */
@@ -54,6 +54,7 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
   const [seoDescription, setSeoDescription] = useState(post?.seoDescription ?? "");
   const [brief, setBrief] = useState(post?.generationBrief ?? "");
   const [reason, setReason] = useState("");
+  const [faqs, setFaqs] = useState<MarketingBlogFaq[]>(post?.editorial.faqs ?? []);
   const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
 
   const words = bodyMarkdown.trim() ? bodyMarkdown.trim().split(/\s+/).length : 0;
@@ -78,6 +79,9 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
       authorName: String(formData.get("authorName") ?? ""),
       seoTitle: String(formData.get("seoTitle") ?? ""),
       seoDescription: String(formData.get("seoDescription") ?? ""),
+      /* Carried as JSON in a hidden field so the form action keeps reading one
+         FormData rather than needing its own transport for a repeating group. */
+      faqs: parseFaqs(formData.get("faqs")),
       reason: String(formData.get("reason") ?? ""),
     };
   }
@@ -153,6 +157,51 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
           onUploadingChange={setUploadingBodyImage}
           locale={locale}
         />
+
+        <div className="mkt-form-card">
+          <div className="mkt-card-head">
+            <span className="mkt-caption">{copy.faqs}</span>
+            <span className="mkt-form-hint">{copy.faqsHint}</span>
+          </div>
+          <input type="hidden" name="faqs" value={JSON.stringify(faqs)} />
+          {faqs.map((faq, index) => (
+            <div key={index} className="mkt-form-field">
+              <input
+                className="mkt-input"
+                placeholder={copy.question}
+                value={faq.question}
+                onChange={(event) =>
+                  setFaqs(faqs.map((item, i) => (i === index ? { ...item, question: event.target.value } : item)))
+                }
+              />
+              <textarea
+                className="mkt-textarea"
+                rows={3}
+                placeholder={copy.answer}
+                value={faq.answer}
+                onChange={(event) =>
+                  setFaqs(faqs.map((item, i) => (i === index ? { ...item, answer: event.target.value } : item)))
+                }
+              />
+              <button
+                type="button"
+                className="mkt-btn mkt-btn--danger mkt-btn--sm"
+                style={{ alignSelf: "flex-start" }}
+                onClick={() => setFaqs(faqs.filter((_, i) => i !== index))}
+              >
+                {copy.removeFaq}
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="mkt-btn mkt-btn--secondary mkt-btn--sm"
+            style={{ alignSelf: "flex-start" }}
+            onClick={() => setFaqs([...faqs, { question: "", answer: "" }])}
+          >
+            {copy.addFaq}
+          </button>
+        </div>
       </div>
 
       {/* Everything that describes it. */}
@@ -331,6 +380,25 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
       </div>
     </form>
   );
+}
+
+/* A half-typed pair is fine to keep in the editor; validateBlogDraft drops it
+   on the way to the database. */
+function parseFaqs(value: FormDataEntryValue | null): MarketingBlogFaq[] {
+  if (typeof value !== "string" || !value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+      const faq = entry as Record<string, unknown>;
+      const question = typeof faq.question === "string" ? faq.question : "";
+      const answer = typeof faq.answer === "string" ? faq.answer : "";
+      return [{ question, answer }];
+    });
+  } catch {
+    return [];
+  }
 }
 
 function Field({

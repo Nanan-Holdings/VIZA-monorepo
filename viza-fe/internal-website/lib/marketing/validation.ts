@@ -3,6 +3,7 @@ import {
   MARKETING_SOCIAL_PLATFORMS,
   type MarketingBlogDraftInput,
   type MarketingBlogAdminRecord,
+  type MarketingBlogFaq,
   type MarketingBlogLocale,
   type MarketingSocialCompositionInput,
   type MarketingSocialPlatform,
@@ -77,6 +78,7 @@ export function validateBlogDraft(input: MarketingBlogDraftInput): MarketingBlog
     seoDescription: input.seoDescription?.trim().slice(0, 500) || undefined,
     topics: Array.isArray(input.topics) ? [...new Set(input.topics.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean))].slice(0, 6) : [],
     seoKeyword: typeof input.seoKeyword === "string" ? input.seoKeyword.trim().slice(0, 120) || undefined : undefined,
+    faqs: cleanBlogFaqs(input.faqs),
   };
 }
 
@@ -135,4 +137,22 @@ export function validateSocialComposition(input: MarketingSocialCompositionInput
     scheduledFor,
     platformContent: Object.fromEntries(platforms.map((platform) => [platform, input.platformContent[platform]!.trim()])),
   };
+}
+
+/* An FAQ needs both halves to be worth publishing: a half-filled pair would
+   reach the marketing site as an empty accordion row and as invalid FAQPage
+   data. Drop those rather than reject the save, so a reviewer can leave a row
+   half-typed while they work. */
+export function cleanBlogFaqs(value: unknown): MarketingBlogFaq[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const faq = entry as Record<string, unknown>;
+      const question = typeof faq.question === "string" ? faq.question.trim().slice(0, 200) : "";
+      const answer = typeof faq.answer === "string" ? faq.answer.trim().slice(0, 1_000) : "";
+      return question && answer ? { question, answer } : null;
+    })
+    .filter((faq): faq is MarketingBlogFaq => faq !== null)
+    .slice(0, 10);
 }

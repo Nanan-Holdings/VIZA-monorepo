@@ -13,6 +13,13 @@ export const MARKETING_SOCIAL_PLATFORMS = [
 export type MarketingSocialPlatform = (typeof MARKETING_SOCIAL_PLATFORMS)[number];
 export const VIZA_CONTENT_PLATFORMS = ["linkedin", "facebook", "instagram", "pinterest"] as const satisfies readonly MarketingSocialPlatform[];
 
+/** One question and its answer, shown under the article and published as
+    FAQPage structured data. */
+export interface MarketingBlogFaq {
+  question: string;
+  answer: string;
+}
+
 export interface MarketingBlogSummary {
   id: string;
   locale: MarketingBlogLocale;
@@ -29,6 +36,7 @@ export interface MarketingBlogPost extends MarketingBlogSummary {
   bodyMarkdown: string;
   seoTitle: string | null;
   seoDescription: string | null;
+  faqs: MarketingBlogFaq[];
   updatedAt: string;
 }
 
@@ -45,7 +53,7 @@ export interface MarketingBlogAdminRecord {
   authorName: string;
   seoTitle: string | null;
   seoDescription: string | null;
-  editorial: { sourceUrl: string | null; topics: string[]; seoKeyword: string | null; keywordMeasured: boolean; monthlySearches: number | null; rankScore: number | null };
+  editorial: { sourceUrl: string | null; topics: string[]; seoKeyword: string | null; keywordMeasured: boolean; monthlySearches: number | null; rankScore: number | null; faqs: MarketingBlogFaq[] };
   generationBrief: string | null;
   generatedByModel: string | null;
   version: number;
@@ -177,6 +185,7 @@ export interface MarketingBlogDraftInput {
   seoDescription?: string;
   topics?: string[];
   seoKeyword?: string;
+  faqs?: MarketingBlogFaq[];
   reason: string;
 }
 
