@@ -14,9 +14,17 @@ import RichTextEditor from "@/lib/marketing/editor/RichTextEditor";
 import { MarketingAssetUpload } from "./asset-upload";
 
 const COPY = {
-  en: { details: "Article details", detailsHelp: "The marketing site reads published snapshots only.", locale: "Locale", slug: "Slug", title: "Title", excerpt: "Excerpt", body: "Body", cover: "Cover image URL", category: "Category", topics: "Topics (comma separated)", seoKeyword: "SEO keyword", unmeasured: "No measured search volume", source: "Source article", rank: "Story score", author: "Author", seoTitle: "SEO title", seoDescription: "SEO description", reason: "Operational reason", save: "Save draft", publish: "Approve and publish", archive: "Archive", generator: "AI draft generator", generatorHelp: "Content AI creates a reviewable draft. It never publishes automatically.", brief: "Generation brief", generate: "Generate draft", generating: "Generating…", saving: "Saving…", requiredReason: "Record why this change is being made (at least 5 characters).", success: "Saved.", generated: "Draft generated. Review it before publishing.", unavailable: "Content AI is not connected. Add a VIZA-owned DeepSeek or OpenRouter key." },
-  zh: { details: "文章内容", detailsHelp: "营销站点只读取已发布的快照。", locale: "语言", slug: "路径", title: "标题", excerpt: "摘要", body: "正文", cover: "封面图 URL", category: "分类", topics: "主题（逗号分隔）", seoKeyword: "SEO 关键词", unmeasured: "暂无实测搜索量", source: "来源文章", rank: "新闻评分", author: "作者", seoTitle: "SEO 标题", seoDescription: "SEO 描述", reason: "运营原因", save: "保存草稿", publish: "批准并发布", archive: "归档", generator: "AI 草稿生成", generatorHelp: "内容 AI 只生成待审核草稿，绝不会自动发布。", brief: "生成要求", generate: "生成草稿", generating: "生成中…", saving: "保存中…", requiredReason: "请填写本次修改的原因（至少 5 个字符）。", success: "已保存。", generated: "草稿已生成，请审核后再发布。", unavailable: "内容 AI 尚未连接，请配置 VIZA 自有的 DeepSeek 或 OpenRouter 密钥。" },
+  en: { titlePlaceholder: "Article title", words: "words", title: "Title", body: "Body", publish: "Approval", article: "Article", search: "Search", locale: "Locale", slug: "Slug", excerpt: "Excerpt", cover: "Cover image", coverHint: "Also used as the social media image.", category: "Category", topics: "Topics", topicsHint: "Comma separated.", seoKeyword: "SEO keyword", unmeasured: "Not a measured keyword", measured: "monthly searches, measured", keywordInBody: "used in the body", keywordNotInBody: "not in the body yet", source: "Source article", rank: "Story score", author: "Author", seoTitle: "SEO title", seoTitleHint: "Defaults to the article title.", seoDescription: "Meta description", reason: "Operational reason", reasonHint: "At least 5 characters. Recorded on the audit log.", save: "Save draft", publishAction: "Approve and publish", archive: "Archive", generator: "AI draft generator", generatorHelp: "Content AI creates a reviewable draft. It never publishes automatically.", brief: "Generation brief", generate: "Generate draft", generating: "Generating…", saving: "Saving…", success: "Saved.", generated: "Draft generated. Review it before publishing.", unavailable: "Content AI is not connected. Add a VIZA-owned DeepSeek or OpenRouter key." },
+  zh: { titlePlaceholder: "文章标题", words: "字", title: "标题", body: "正文", publish: "审批", article: "文章信息", search: "搜索", locale: "语言", slug: "路径", excerpt: "摘要", cover: "封面图", coverHint: "同时用作社交媒体配图。", category: "分类", topics: "主题", topicsHint: "用逗号分隔。", seoKeyword: "SEO 关键词", unmeasured: "非实测关键词", measured: "次/月（实测）", keywordInBody: "正文中已使用", keywordNotInBody: "正文中尚未出现", source: "来源文章", rank: "新闻评分", author: "作者", seoTitle: "SEO 标题", seoTitleHint: "留空则使用文章标题。", seoDescription: "Meta 描述", reason: "运营原因", reasonHint: "至少 5 个字符，将写入审计日志。", save: "保存草稿", publishAction: "批准并发布", archive: "归档", generator: "AI 草稿生成", generatorHelp: "内容 AI 只生成待审核草稿，绝不会自动发布。", brief: "生成要求", generate: "生成草稿", generating: "生成中…", saving: "保存中…", success: "已保存。", generated: "草稿已生成，请审核后再发布。", unavailable: "内容 AI 尚未连接，请配置 VIZA 自有的 DeepSeek 或 OpenRouter 密钥。" },
 } as const;
+
+/* The limits the marketing site and the search engines actually care about. */
+const TITLE_MAX = 70;
+const SEO_TITLE_MAX = 60;
+const DESCRIPTION_MIN = 70;
+const DESCRIPTION_MAX = 160;
+
+const PUBLIC_BASE = "viza.it.com";
 
 interface BlogEditorProps {
   post?: MarketingBlogAdminRecord;
@@ -30,13 +38,29 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /* Controlled where a counter, the slug line or the search preview has to
+     react as you type. Everything still carries a name, so the form action
+     reads exactly the same FormData it did before. */
+  const [blogLocale, setBlogLocale] = useState<MarketingBlogLocale>(post?.locale ?? (locale === "zh" ? "zh-CN" : "en"));
+  const [title, setTitle] = useState(post?.title ?? "");
+  const [slug, setSlug] = useState(post?.slug ?? "");
+  const [excerpt, setExcerpt] = useState(post?.excerpt ?? "");
+  const [bodyMarkdown, setBodyMarkdown] = useState(post?.bodyMarkdown ?? "");
+  const [coverImageUrl, setCoverImageUrl] = useState(post?.coverImageUrl ?? "");
+  const [seoKeyword, setSeoKeyword] = useState(post?.editorial.seoKeyword ?? "");
+  const [seoTitle, setSeoTitle] = useState(post?.seoTitle ?? "");
+  const [seoDescription, setSeoDescription] = useState(post?.seoDescription ?? "");
   const [brief, setBrief] = useState(post?.generationBrief ?? "");
   const [reason, setReason] = useState("");
-  const [blogLocale, setBlogLocale] = useState<MarketingBlogLocale>(post?.locale ?? (locale === "zh" ? "zh-CN" : "en"));
-  const [coverImageUrl, setCoverImageUrl] = useState(post?.coverImageUrl ?? "");
-  const [bodyMarkdown, setBodyMarkdown] = useState(post?.bodyMarkdown ?? "");
   const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+
+  const words = bodyMarkdown.trim() ? bodyMarkdown.trim().split(/\s+/).length : 0;
+  const keywordInBody = Boolean(seoKeyword.trim()) && bodyMarkdown.toLowerCase().includes(seoKeyword.trim().toLowerCase());
+  const serpTitle = `${seoTitle || title || copy.titlePlaceholder} | VIZA`;
+  const serpPath = `${PUBLIC_BASE}${blogLocale === "zh-CN" ? "/zh-CN" : ""}/blog/${slug || "…"}`;
+  const reasonReady = reason.trim().length >= 5;
 
   function formInput(formData: FormData) {
     return {
@@ -72,7 +96,7 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
   }
 
   function generate() {
-    if (!openrouterConnected || reason.trim().length < 5 || !brief.trim()) return;
+    if (!openrouterConnected || !reasonReady || !brief.trim()) return;
     startTransition(async () => {
       const result = await generateMarketingBlogDraft({ brief, locale: blogLocale, reason });
       showResult(result, copy.generated);
@@ -82,7 +106,7 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
   }
 
   function command(kind: "publish" | "archive") {
-    if (!post || reason.trim().length < 5) return;
+    if (!post || !reasonReady) return;
     startTransition(async () => {
       if (kind === "publish" && formRef.current) {
         const saved = await saveMarketingBlogDraft(formInput(new FormData(formRef.current)));
@@ -101,169 +125,230 @@ export function BlogEditor({ post, locale, openrouterConnected, canPublish }: Bl
   }
 
   return (
-    <div className="mkt-editor-grid">
-      <div className="mkt-panel">
-        <div className="mkt-panel-head">
-          <div>
-            <div className="mkt-caption">{copy.details}</div>
-            <p className="mkt-note" style={{ marginTop: 4 }}>{copy.detailsHelp}</p>
-          </div>
+    <form ref={formRef} action={handleSave} className="mkt-editor-grid">
+      {/* The work itself. */}
+      <div className="mkt-editor-main">
+        <input
+          className="mkt-input mkt-title-input"
+          name="title"
+          required
+          placeholder={copy.titlePlaceholder}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          aria-label={copy.title}
+        />
+        <div className="mkt-card-head" style={{ marginTop: -16 }}>
+          <span className="mkt-form-hint">
+            {words} {copy.words}
+          </span>
+          <span className={`mkt-form-hint${title.length > TITLE_MAX ? " is-bad" : ""}`}>
+            {copy.title} {title.length}/{TITLE_MAX}
+          </span>
         </div>
-        <div className="mkt-panel-body">
-          <form ref={formRef} action={handleSave} className="mkt-form-grid">
-            <Field label={copy.locale}>
-              <div className="mkt-select-wrap">
-                <select
-                  className="mkt-select"
-                  name="locale"
-                  value={blogLocale}
-                  onChange={(event) => setBlogLocale(event.target.value as MarketingBlogLocale)}
-                >
-                  <option value="en">English</option>
-                  <option value="zh-CN">简体中文</option>
-                </select>
-                <span className="mkt-select-chevron">▼</span>
-              </div>
-            </Field>
-            <Field label={copy.slug}>
-              <input className="mkt-input" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={post?.slug} />
-            </Field>
-            <Field label={copy.title} wide>
-              <input className="mkt-input" name="title" required defaultValue={post?.title} />
-            </Field>
-            <Field label={copy.excerpt} wide>
-              <textarea className="mkt-textarea" name="excerpt" required rows={3} defaultValue={post?.excerpt} />
-            </Field>
-            <Field label={copy.body} wide>
-              <input type="hidden" name="bodyMarkdown" value={bodyMarkdown} />
-              <RichTextEditor value={bodyMarkdown} onChange={setBodyMarkdown} onUploadingChange={setUploadingBodyImage} locale={locale} />
-            </Field>
-            <Field label={copy.cover}>
-              <input className="mkt-input" name="coverImageUrl" type="url" value={coverImageUrl} onChange={(event) => setCoverImageUrl(event.target.value)} />
-              <MarketingAssetUpload kind="image" locale={locale} onUploaded={setCoverImageUrl} />
-            </Field>
-            <Field label={copy.category}>
-              <input className="mkt-input" name="category" defaultValue={post?.category ?? ""} />
-            </Field>
-            <Field label={copy.topics}>
-              <input className="mkt-input" name="topics" defaultValue={post?.editorial.topics.join(", ") ?? ""} />
-            </Field>
-            <Field label={copy.seoKeyword}>
-              <input className="mkt-input" name="seoKeyword" defaultValue={post?.editorial.seoKeyword ?? ""} />
-              <p className="mkt-hint">
-                {post?.editorial.keywordMeasured
-                  ? `${post.editorial.monthlySearches ?? "—"} ${locale === "zh" ? "次/月（实测）" : "monthly searches (measured)"}`
-                  : copy.unmeasured}
-              </p>
-            </Field>
-            <Field label={copy.author}>
-              <input className="mkt-input" name="authorName" required defaultValue={post?.authorName ?? "VIZA Editorial"} />
-            </Field>
-            <Field label={copy.seoTitle}>
-              <input className="mkt-input" name="seoTitle" defaultValue={post?.seoTitle ?? ""} />
-            </Field>
-            <Field label={copy.seoDescription} wide>
-              <textarea className="mkt-textarea" name="seoDescription" rows={3} defaultValue={post?.seoDescription ?? ""} />
-            </Field>
-            <Field label={copy.reason} wide>
-              <input
-                className="mkt-input"
-                name="reason"
-                required
-                minLength={5}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder={copy.requiredReason}
-              />
-            </Field>
-            <div className="mkt-actions-row">
-              <button className="mkt-btn mkt-btn--primary" disabled={pending || uploadingBodyImage || !bodyMarkdown.trim()} type="submit">
-                {pending ? copy.saving : copy.save}
-              </button>
-              {canPublish && post && post.status !== "published" ? (
-                <button
-                  className="mkt-btn mkt-btn--secondary"
-                  disabled={pending || uploadingBodyImage || reason.trim().length < 5}
-                  type="button"
-                  onClick={() => command("publish")}
-                >
-                  {copy.publish}
-                </button>
-              ) : null}
-              {canPublish && post && post.status !== "archived" ? (
-                <button
-                  className="mkt-btn mkt-btn--danger"
-                  disabled={pending || reason.trim().length < 5}
-                  type="button"
-                  onClick={() => command("archive")}
-                >
-                  {copy.archive}
-                </button>
-              ) : null}
-            </div>
-          </form>
-        </div>
+
+        <input type="hidden" name="bodyMarkdown" value={bodyMarkdown} />
+        <RichTextEditor
+          value={bodyMarkdown}
+          onChange={setBodyMarkdown}
+          onUploadingChange={setUploadingBodyImage}
+          locale={locale}
+        />
       </div>
 
+      {/* Everything that describes it. */}
       <div className="mkt-side">
+        <div className="mkt-form-card">
+          <span className="mkt-caption">{copy.publish}</span>
+          <Field label={copy.reason} hint={copy.reasonHint} bad={Boolean(reason) && !reasonReady}>
+            <input
+              className="mkt-input"
+              name="reason"
+              required
+              minLength={5}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </Field>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <button className="mkt-btn mkt-btn--primary mkt-btn--sm" disabled={pending || uploadingBodyImage || !bodyMarkdown.trim()} type="submit">
+              {pending ? copy.saving : copy.save}
+            </button>
+            {canPublish && post && post.status !== "published" ? (
+              <button
+                className="mkt-btn mkt-btn--secondary mkt-btn--sm"
+                disabled={pending || uploadingBodyImage || !reasonReady}
+                type="button"
+                onClick={() => command("publish")}
+              >
+                {copy.publishAction}
+              </button>
+            ) : null}
+            {canPublish && post && post.status !== "archived" ? (
+              <button className="mkt-btn mkt-btn--danger mkt-btn--sm" disabled={pending || !reasonReady} type="button" onClick={() => command("archive")}>
+                {copy.archive}
+              </button>
+            ) : null}
+          </div>
+          {message ? <p className={`mkt-alert ${message.tone === "error" ? "is-error" : "is-success"}`}>{message.text}</p> : null}
+        </div>
+
+        <div className="mkt-form-card">
+          <span className="mkt-caption">{copy.article}</span>
+          <Field label={copy.slug} hint={`/${blogLocale}/blog/${slug || "…"}`}>
+            <input
+              className="mkt-input mkt-sub-mono"
+              name="slug"
+              required
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              value={slug}
+              onChange={(event) => setSlug(event.target.value)}
+            />
+          </Field>
+          <Field label={copy.locale}>
+            <div className="mkt-select-wrap">
+              <select
+                className="mkt-select"
+                name="locale"
+                value={blogLocale}
+                onChange={(event) => setBlogLocale(event.target.value as MarketingBlogLocale)}
+              >
+                <option value="en">English</option>
+                <option value="zh-CN">简体中文</option>
+              </select>
+              <span className="mkt-select-chevron">▼</span>
+            </div>
+          </Field>
+          <Field label={copy.excerpt} hint={`${excerpt.length}`}>
+            <textarea
+              className="mkt-textarea"
+              name="excerpt"
+              required
+              rows={3}
+              value={excerpt}
+              onChange={(event) => setExcerpt(event.target.value)}
+            />
+          </Field>
+          <Field label={copy.cover} hint={copy.coverHint}>
+            {/* A plain <img>: the cover can be any URL the editor pastes, and
+                next/image would need every one of those hosts configured. */}
+            {coverImageUrl ? <img className="mkt-cover" src={coverImageUrl} alt="" /> : <div className="mkt-cover" />}
+            <input className="mkt-input" name="coverImageUrl" type="url" value={coverImageUrl} onChange={(event) => setCoverImageUrl(event.target.value)} />
+            <MarketingAssetUpload kind="image" locale={locale} onUploaded={setCoverImageUrl} />
+          </Field>
+          <Field label={copy.category}>
+            <input className="mkt-input" name="category" defaultValue={post?.category ?? ""} />
+          </Field>
+          <Field label={copy.topics} hint={copy.topicsHint}>
+            <input className="mkt-input" name="topics" defaultValue={post?.editorial.topics.join(", ") ?? ""} />
+          </Field>
+          <Field label={copy.author}>
+            <input className="mkt-input" name="authorName" required defaultValue={post?.authorName ?? "VIZA Editorial"} />
+          </Field>
+        </div>
+
+        <div className="mkt-form-card">
+          <span className="mkt-caption">{copy.search}</span>
+          <Field
+            label={copy.seoKeyword}
+            bad={Boolean(seoKeyword.trim()) && !keywordInBody}
+            hint={
+              seoKeyword.trim()
+                ? `${
+                    post?.editorial.keywordMeasured && post.editorial.monthlySearches !== null
+                      ? `${post.editorial.monthlySearches} ${copy.measured}`
+                      : copy.unmeasured
+                  }, ${keywordInBody ? copy.keywordInBody : copy.keywordNotInBody}`
+                : undefined
+            }
+          >
+            <input className="mkt-input" name="seoKeyword" value={seoKeyword} onChange={(event) => setSeoKeyword(event.target.value)} />
+          </Field>
+          <Field
+            label={copy.seoTitle}
+            hint={seoTitle ? `${seoTitle.length}/${SEO_TITLE_MAX}` : copy.seoTitleHint}
+            bad={seoTitle.length > SEO_TITLE_MAX}
+          >
+            <input className="mkt-input" name="seoTitle" value={seoTitle} onChange={(event) => setSeoTitle(event.target.value)} />
+          </Field>
+          <Field
+            label={copy.seoDescription}
+            hint={`${seoDescription.length}/${DESCRIPTION_MAX}`}
+            bad={seoDescription.length > DESCRIPTION_MAX || (seoDescription.length > 0 && seoDescription.length < DESCRIPTION_MIN)}
+          >
+            <textarea
+              className="mkt-textarea"
+              name="seoDescription"
+              rows={3}
+              value={seoDescription}
+              onChange={(event) => setSeoDescription(event.target.value)}
+            />
+          </Field>
+          <div className="mkt-serp" aria-label="Search result preview">
+            <span className="mkt-serp-url">{serpPath}</span>
+            <span className="mkt-serp-title">{serpTitle}</span>
+            <span className="mkt-serp-desc">{seoDescription || excerpt}</span>
+          </div>
+        </div>
+
         {post?.editorial.sourceUrl ? (
-          <div className="mkt-panel">
-            <div className="mkt-panel-head">
-              <div className="mkt-caption">{copy.source}</div>
+          <div className="mkt-form-card">
+            <div className="mkt-card-head">
+              <span className="mkt-caption">{copy.source}</span>
               {post.editorial.rankScore !== null ? (
                 <span className="mkt-sub mkt-sub-mono">
                   {copy.rank} {post.editorial.rankScore}
                 </span>
               ) : null}
             </div>
-            <div className="mkt-panel-body">
-              <a style={{ fontSize: 13, overflowWrap: "anywhere" }} href={post.editorial.sourceUrl} target="_blank" rel="noopener noreferrer">
-                {post.editorial.sourceUrl}
-              </a>
-            </div>
+            <a style={{ fontSize: 13, overflowWrap: "anywhere" }} href={post.editorial.sourceUrl} target="_blank" rel="noopener noreferrer">
+              {post.editorial.sourceUrl}
+            </a>
           </div>
         ) : null}
 
-        <div className="mkt-panel">
-          <div className="mkt-panel-head">
-            <div>
-              <div className="mkt-caption">{copy.generator}</div>
-              <p className="mkt-note" style={{ marginTop: 4 }}>{copy.generatorHelp}</p>
-            </div>
-          </div>
-          <div className="mkt-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Field label={copy.brief}>
-              <textarea
-                className="mkt-textarea"
-                rows={8}
-                value={brief}
-                onChange={(event) => setBrief(event.target.value)}
-                disabled={!openrouterConnected}
-              />
-            </Field>
-            {!openrouterConnected ? <p className="mkt-note mkt-note-warn">{copy.unavailable}</p> : null}
-            <button
-              className="mkt-btn mkt-btn--primary"
-              type="button"
-              onClick={generate}
-              disabled={pending || !openrouterConnected || !brief.trim() || reason.trim().length < 5}
-            >
-              {pending ? copy.generating : copy.generate}
-            </button>
-          </div>
+        <div className="mkt-form-card">
+          <span className="mkt-caption">{copy.generator}</span>
+          <Field label={copy.brief} hint={copy.generatorHelp}>
+            <textarea
+              className="mkt-textarea"
+              rows={6}
+              value={brief}
+              onChange={(event) => setBrief(event.target.value)}
+              disabled={!openrouterConnected}
+            />
+          </Field>
+          {!openrouterConnected ? <p className="mkt-note mkt-note-warn">{copy.unavailable}</p> : null}
+          <button
+            className="mkt-btn mkt-btn--secondary mkt-btn--sm"
+            style={{ alignSelf: "flex-start" }}
+            type="button"
+            onClick={generate}
+            disabled={pending || !openrouterConnected || !brief.trim() || !reasonReady}
+          >
+            {pending ? copy.generating : copy.generate}
+          </button>
         </div>
-
-        {message ? <p className={`mkt-alert ${message.tone === "error" ? "is-error" : "is-success"}`}>{message.text}</p> : null}
       </div>
-    </div>
+    </form>
   );
 }
 
-function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+function Field({
+  label,
+  hint,
+  bad = false,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  bad?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className={`mkt-field${wide ? " mkt-field-wide" : ""}`}>
+    <div className="mkt-form-field">
       <span className="mkt-label">{label}</span>
       {children}
+      {hint ? <span className={`mkt-form-hint${bad ? " is-bad" : ""}`}>{hint}</span> : null}
     </div>
   );
 }
