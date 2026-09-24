@@ -20,7 +20,7 @@ export const MARKETING_COPY = {
     clicks: "clicks",
     createSocialFromBlog: "Create social posts",
     automationRuns: "Automation runs",
-    automationDescription: "Scheduled generation and watchdog outcomes. Content always remains a draft until an admin publishes it.",
+    automationDescription: "Scheduled generation and watchdog outcomes. A run that scores at or above the automatic threshold publishes the article and sends its social posts by itself.",
     noAutomationRuns: "No automation runs yet.",
     back: "Back",
     edit: "Edit",
@@ -95,7 +95,7 @@ export const MARKETING_COPY = {
     noPublicUrl: "The platform returned no public link",
     waitsForApproval: "Waits for approval",
     blogPortalDescription:
-      "Stories drafted into articles and held here for review. Nothing reaches the marketing site until an admin approves it.",
+      "Stories drafted into articles. A run scoring at or above the automatic threshold publishes itself and sends its social posts; anything weaker waits here for review.",
     socialPortalDescription:
       "The posts written from each article, one row per platform. They go out when an admin publishes the composition, and anything that failed can be sent again from here.",
   },
@@ -118,7 +118,7 @@ export const MARKETING_COPY = {
     clicks: "次点击",
     createSocialFromBlog: "创建社交内容",
     automationRuns: "自动化运行",
-    automationDescription: "定时生成及看门狗结果。内容在管理员发布前始终保持为草稿。",
+    automationDescription: "定时生成及看门狗结果。评分达到自动发布门槛的文章会自动发布并投放社媒。",
     noAutomationRuns: "暂无自动化运行记录。",
     back: "返回",
     edit: "编辑",
@@ -192,7 +192,7 @@ export const MARKETING_COPY = {
     viewPost: "查看帖子",
     noPublicUrl: "平台未返回公开链接",
     waitsForApproval: "等待审批",
-    blogPortalDescription: "新闻线索起草成文章后在此等待审核。管理员批准前不会出现在营销站点上。",
+    blogPortalDescription: "新闻线索起草成文章。评分达到自动发布门槛的会自动发布并投放社媒，其余在此等待审核。",
     socialPortalDescription: "由每篇文章生成的社媒内容，按平台逐行列出。管理员发布后投放，失败的可在此重发。",
   },
 } as const satisfies Record<InterfaceLocale, Record<string, string>>;

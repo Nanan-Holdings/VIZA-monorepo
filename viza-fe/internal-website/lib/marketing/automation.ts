@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "node:crypto";
-import { mapBlogAdminRecord, mapSocialComposition } from "./db";
+import { asMarketingDb, mapBlogAdminRecord, mapSocialComposition } from "./db";
 import { completeMarketingJson, contentGenerationReadiness, generateBlogDraft, generateSocialCopy } from "./providers/openrouter";
 import { getZernioPost, zernioPlatformPostUrl } from "./providers/zernio";
 import { checkUploadPostJob } from "./providers/upload-post";
@@ -8,6 +8,7 @@ import { buildGroundedDraftBrief, MIN_ARTICLE_CHARS, rankNewsStories, readNewsSt
 import { rehostMarketingCover } from "./cover";
 import { measuredKeyword, measuredKeywords } from "./seo-keywords";
 import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft } from "./validation";
+import { publishBlogPostById, publishSocialCompositionById } from "./publish";
 import type { MarketingBlogAdminRecord, MarketingBlogLocale, MarketingSocialPlatform } from "./contracts";
 import pipelineConfig from "@/scripts/pipeline.config.json";
 
@@ -77,6 +78,7 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
     if (inserted.error || !inserted.data) throw new Error(inserted.error?.message ?? "Unable to save scheduled blog draft");
     const post = mapBlogAdminRecord(inserted.data);
     let socialError: string | null = null;
+    let compositionId: string | null = null;
     try {
       const platforms = pipelineConfig.content.platforms as MarketingSocialPlatform[];
       const destinationUrl = new URL(`/blog/${post.slug}`, process.env.VIZA_MARKETING_PUBLIC_BASE_URL ?? "https://viza.it.com").toString();
@@ -84,10 +86,46 @@ export async function runScheduledBlogGeneration(now = new Date(), options?: { a
       const platformContent = parseGeneratedPlatformContent(captions.json.platformContent, platforms);
       const social = await admin.from("marketing_social_compositions").insert({ blog_post_id: post.id, title: `Promote: ${post.title}`, brief: `Generated from ${selected.article.url}`, destination_url: destinationUrl, media_url: coverImageUrl, status: "draft", platforms, platform_content: platformContent, created_by: actorId, updated_by: actorId }).select("id").single();
       if (social.error) throw new Error(social.error.message);
+      compositionId = String((social.data as { id: string }).id);
     } catch (error) { socialError = error instanceof Error ? error.message : "Caption generation failed"; }
-    await admin.from("marketing_automation_runs").update({ status: "succeeded", output_entity_type: "marketing_blog_post", output_entity_id: post.id, completed_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString(), metadata: { locale, trigger, model: generated.model, slug: post.slug, social_error: socialError } }).eq("id", runId);
+    /* Hands-off publishing, when the config asks for it.
+
+       Neither step may take the run down with it: the draft and its captions
+       already exist and are worth keeping, so a refused publish or a provider
+       outage is recorded on the run and the work simply waits for a person.
+       The rank score gate is deliberate. A run that scraped a thin or
+       borderline story stays a draft however the flags are set. */
+    const autoPublish = pipelineConfig.content.autoPublish === true;
+    const autoSocial = pipelineConfig.content.autoSocial === true;
+    const minimumAutoScore = typeof pipelineConfig.content.autoPublishMinScore === "number"
+      ? pipelineConfig.content.autoPublishMinScore
+      : pipelineConfig.content.minimumRankScore;
+    let autoPublishError: string | null = null;
+    let autoSocialError: string | null = null;
+    let published = false;
+    if (autoPublish && selected.ranked.score >= minimumAutoScore) {
+      try {
+        await publishBlogPostById({ db: asMarketingDb(admin), actorId, postId: post.id, reason: `Automatic publication, ${idempotencyKey}` });
+        published = true;
+      } catch (error) {
+        autoPublishError = error instanceof Error ? error.message : "Automatic publication failed";
+      }
+    } else if (autoPublish) {
+      autoPublishError = `Score ${selected.ranked.score} is below the automatic publication minimum of ${minimumAutoScore}`;
+    }
+    if (autoSocial && published && compositionId) {
+      try {
+        await publishSocialCompositionById({ db: asMarketingDb(admin), actorId, compositionId, reason: `Automatic distribution, ${idempotencyKey}` });
+      } catch (error) {
+        autoSocialError = error instanceof Error ? error.message : "Automatic distribution failed";
+      }
+    }
+
+    await admin.from("marketing_automation_runs").update({ status: "succeeded", output_entity_type: "marketing_blog_post", output_entity_id: post.id, completed_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString(), metadata: { locale, trigger, model: generated.model, slug: post.slug, social_error: socialError, rank_score: selected.ranked.score, auto_published: published, auto_publish_error: autoPublishError, auto_social_error: autoSocialError } }).eq("id", runId);
     await admin.from("marketing_provider_activity").insert({ provider: generated.provider, operation: "blog.generate.scheduled", status: "succeeded", entity_type: "marketing_blog_post", entity_id: post.id, actor_user_id: actorId, request_metadata: { reason: "Scheduled generation", idempotencyKey }, response_metadata: { model: generated.model, outputLength: post.bodyMarkdown.length } });
-    return { skipped: false, post };
+    if (!published) return { skipped: false, post };
+    const refreshed = await admin.from("marketing_blog_posts").select("*").eq("id", post.id).maybeSingle();
+    return { skipped: false, post: refreshed.data ? mapBlogAdminRecord(refreshed.data) : post };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scheduled blog generation failed";
     await admin.from("marketing_automation_runs").update({ status: "failed", error_message: message.slice(0, 1000), completed_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", runId);

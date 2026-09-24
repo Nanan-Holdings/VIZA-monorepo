@@ -12,6 +12,12 @@ console stays there.
 Use `AdminLayoutContent` with support and marketing navigation for staff. Never
 broaden the main dashboard layout to admit staff.
 
+The approval gate in this UI is the gate for work a person started. The
+scheduled pipeline is separate: with `content.autoPublish` and
+`content.autoSocial` set in `scripts/pipeline.config.json`, a run scoring at or
+above `content.autoPublishMinScore` publishes and distributes on its own. Keep
+the screen copy honest about that.
+
 ## Visual language
 
 These screens are a content pipeline, not a card gallery. The layout is ported

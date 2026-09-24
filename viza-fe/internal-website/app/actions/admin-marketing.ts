@@ -20,12 +20,12 @@ import {
 import { asMarketingDb, mapAutomationRun, mapBlogAdminRecord, mapShortLink, mapSocialComposition, recordArray } from "@/lib/marketing/db";
 import { fetchAnalyticsOverview, googleReadiness } from "@/lib/marketing/providers/google";
 import { contentGenerationReadiness, generateBlogDraft as openRouterBlog, generateSocialCopy } from "@/lib/marketing/providers/openrouter";
-import { cancelZernioSchedule, createZernioPosts, deleteZernioPost, fetchZernioAnalytics, findZernioCompositionPosts, getZernioPost, unpublishZernioPost, zernioPlatformPostUrl, ZERNIO_ACCOUNT_ENV_NAMES } from "@/lib/marketing/providers/zernio";
-import { checkUploadPostJob, publishUploadPostImage, uploadPostReadiness } from "@/lib/marketing/providers/upload-post";
-import { assertLiveMarketingUrl } from "@/lib/marketing/publish-check";
+import { cancelZernioSchedule, deleteZernioPost, fetchZernioAnalytics, getZernioPost, unpublishZernioPost, zernioPlatformPostUrl, ZERNIO_ACCOUNT_ENV_NAMES } from "@/lib/marketing/providers/zernio";
+import { checkUploadPostJob, uploadPostReadiness } from "@/lib/marketing/providers/upload-post";
+import { publicMarketingBaseUrl, publishBlogPostById, publishSocialCompositionById } from "@/lib/marketing/publish";
 import { runScheduledBlogGeneration } from "@/lib/marketing/automation";
 import { measuredKeyword } from "@/lib/marketing/seo-keywords";
-import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft, validatePublishableBlog, validateSocialComposition } from "@/lib/marketing/validation";
+import { normalizeMarketingSlug, parseGeneratedPlatformContent, validateBlogDraft, validateSocialComposition } from "@/lib/marketing/validation";
 import { marketingCategorySlug, revalidatePublicMarketingBlog } from "@/lib/marketing/revalidate";
 
 type Actor = Awaited<ReturnType<typeof requireRole>>;
@@ -75,14 +75,6 @@ function providerReadiness(): MarketingProviderReadiness {
     },
     ga4: { connected: google.ga4 }, searchConsole: { connected: google.searchConsole },
   };
-}
-
-function publicMarketingBaseUrl(): URL {
-  const raw = process.env.VIZA_MARKETING_PUBLIC_BASE_URL?.trim();
-  if (!raw) throw new Error("VIZA_MARKETING_PUBLIC_BASE_URL is not configured");
-  const url = new URL(raw);
-  if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") throw new Error("VIZA_MARKETING_PUBLIC_BASE_URL must use HTTPS");
-  return url;
 }
 
 async function createShortLink(db: ReturnType<typeof asMarketingDb>, actor: Actor, input: { destinationUrl: string; campaign: string; contentKey?: string }) {
@@ -198,15 +190,20 @@ async function changeBlogStatus(input: { id: string; reason: string }, status: "
     const { actor, db } = await context();
     if (actor.role !== "admin") return { success: false, error: "Admin privileges required to change public visibility" };
     const reason = input.reason.trim(); if (!reason) return { success: false, error: "Reason is required" };
+    /* Publishing is shared with the scheduled pipeline, which has no session
+       to check, so it lives in lib/marketing/publish.ts. Archiving is only
+       ever a person's decision and stays here. */
+    if (status === "published") {
+      const saved = await publishBlogPostById({ db, actorId: actor.id, postId: input.id, reason });
+      revalidatePath("/admin/marketing");
+      return { success: true, data: saved };
+    }
     const now = new Date().toISOString();
     const current = await db.from("marketing_blog_posts").select("*").eq("id", input.id).maybeSingle();
     if (current.error || !current.data) return { success: false, error: current.error?.message ?? "Blog post not found" };
-    if (status === "published") validatePublishableBlog(mapBlogAdminRecord(current.data));
     const currentRow = current.data as Record<string, unknown>;
     const existingMetadata = currentRow.metadata && typeof currentRow.metadata === "object" && !Array.isArray(currentRow.metadata) ? currentRow.metadata as Record<string, unknown> : {};
-    const changes: Record<string, unknown> = { status, updated_by: actor.id, updated_at: now, metadata: { ...existingMetadata, status_change_reason: reason } };
-    if (status === "published") Object.assign(changes, { published_by: actor.id, published_at: now });
-    const { data, error } = await db.from("marketing_blog_posts").update(changes).eq("id", input.id).select("*").single();
+    const { data, error } = await db.from("marketing_blog_posts").update({ status, updated_by: actor.id, updated_at: now, metadata: { ...existingMetadata, status_change_reason: reason } }).eq("id", input.id).select("*").single();
     if (error || !data) return { success: false, error: error?.message ?? "Blog post not found" };
     const saved = mapBlogAdminRecord(data);
     await activity(db, actor, { provider: "system", operation: `blog.${status}`, status: "succeeded", entityType: "marketing_blog_post", entityId: saved.id, reason });
@@ -316,56 +313,12 @@ export async function publishMarketingSocialComposition(input: { id: string; rea
   try {
     auditContext = await context();
     if (auditContext.actor.role !== "admin") return { success: false, error: "Admin privileges required to publish externally" };
-    const reason = input.reason.trim(); if (!reason) return { success: false, error: "Reason is required" };
-    const current = await auditContext.db.from("marketing_social_compositions").select("*").eq("id", input.id).maybeSingle();
-    if (current.error || !current.data) return { success: false, error: current.error?.message ?? "Composition not found" };
-    const composition = mapSocialComposition(current.data);
-    if (["scheduled", "publishing", "published"].includes(composition.status)) return { success: false, error: "Composition is already active; sync it instead of publishing again" };
-    let destinationUrl = composition.destinationUrl ?? undefined;
-    if (composition.shortLinkId) {
-      const link = await auditContext.db.from("marketing_short_links").select("code, active").eq("id", composition.shortLinkId).maybeSingle();
-      if (link.error || !link.data || typeof link.data !== "object" || Array.isArray(link.data)) throw new Error("Tracked destination is unavailable");
-      const row = link.data as Record<string, unknown>;
-      if (row.active !== true || typeof row.code !== "string") throw new Error("Tracked destination is inactive");
-      destinationUrl = new URL(`/s/${row.code}`, publicMarketingBaseUrl()).toString();
-    }
-    if (composition.blogPostId) {
-      const blog = await auditContext.db.from("marketing_blog_posts").select("status, locale, slug").eq("id", composition.blogPostId).maybeSingle();
-      if (blog.error || !blog.data || typeof blog.data !== "object" || Array.isArray(blog.data)) throw new Error("Linked blog post is unavailable");
-      const row = blog.data as Record<string, unknown>;
-      if (row.status !== "published") throw new Error("Publish the blog post before sending social captions");
-      const slug = String(row.slug);
-      await assertLiveMarketingUrl(new URL(`${row.locale === "zh-CN" ? "/zh-CN" : ""}/blog/${slug}`, publicMarketingBaseUrl()).toString());
-    } else if (destinationUrl) await assertLiveMarketingUrl(destinationUrl);
-    const uploadPlatforms = composition.platforms.filter((platform): platform is "instagram" | "pinterest" => platform === "instagram" || platform === "pinterest");
-    if (composition.scheduledFor && uploadPlatforms.length) throw new Error("Upload-Post image channels do not support scheduling here; publish them when ready");
-    const zernioPlatforms = composition.platforms.filter((platform) => platform !== "instagram" && platform !== "pinterest");
-    const recoveredPosts = zernioPlatforms.length ? await findZernioCompositionPosts(composition.id) : {};
-    const existingPosts = { ...recoveredPosts, ...composition.zernioPosts };
-    const platformsToCreate = zernioPlatforms.filter((platform) => !existingPosts[platform]);
-    const provider = platformsToCreate.length ? await createZernioPosts({ compositionId: composition.id, title: composition.title, platforms: platformsToCreate, platformContent: composition.platformContent, scheduledFor: composition.scheduledFor ?? undefined, publishNow: !composition.scheduledFor, destinationUrl, mediaUrl: composition.mediaUrl ?? undefined, documentUrl: composition.documentUrl ?? undefined }) : { postIds: {}, failures: [] };
-    const mergedPostIds = { ...existingPosts, ...provider.postIds };
-    const uploadPosts = { ...composition.uploadPostPosts };
-    const uploadFailures: Array<{ platform: string; error: string }> = [];
-    for (const platform of uploadPlatforms) {
-      if (uploadPosts[platform]?.status === "pending" || uploadPosts[platform]?.status === "published" || mergedPostIds[platform]) continue;
-      try {
-        if (!composition.mediaUrl) throw new Error("A reviewed cover image is required for image channels");
-        const result = await publishUploadPostImage({ platform, caption: composition.platformContent[platform] ?? "", title: composition.title, imageUrl: composition.mediaUrl, destinationUrl });
-        uploadPosts[platform] = { status: result.status, requestId: result.requestId, postId: result.postId, postUrl: result.postUrl };
-      } catch (error) { uploadFailures.push({ platform, error: message(error, "Upload-Post failed") }); }
-    }
-    const createdCount = Object.keys(mergedPostIds).length + Object.keys(uploadPosts).length;
-    const failures = [...provider.failures, ...uploadFailures];
-    if (!createdCount) throw new Error(failures[0]?.error ?? "No provider created a post");
-    const now = new Date().toISOString();
-    const allUploadPublished = Object.values(uploadPosts).every((post) => post.status === "published");
-    const status = failures.length ? "partial" : composition.scheduledFor ? "scheduled" : Object.keys(mergedPostIds).length || !allUploadPublished ? "publishing" : "published";
-    const updated = await auditContext.db.from("marketing_social_compositions").update({ status, zernio_posts: mergedPostIds, upload_post_posts: uploadPosts, updated_by: auditContext.actor.id, updated_at: now, last_synced_at: now }).eq("id", input.id).select("*").single();
-    if (updated.error || !updated.data) throw new Error(updated.error?.message ?? "Unable to update composition");
-    const saved = mapSocialComposition(updated.data);
-    await activity(auditContext.db, auditContext.actor, { provider: zernioPlatforms.length ? "zernio" : "upload-post", operation: composition.scheduledFor ? "social.schedule" : "social.publish", status: "succeeded", entityType: "marketing_social_composition", entityId: saved.id, reason, request: { platforms: composition.platforms, scheduled: Boolean(composition.scheduledFor) }, response: { postCount: createdCount, failureCount: failures.length, failedPlatforms: failures.map((failure) => failure.platform), providerStatus: status } });
-    revalidatePath("/admin/marketing"); return { success: true, data: saved };
+    if (!input.reason.trim()) return { success: false, error: "Reason is required" };
+    const saved = await publishSocialCompositionById({
+      db: auditContext.db, actorId: auditContext.actor.id, compositionId: input.id, reason: input.reason,
+    });
+    revalidatePath("/admin/marketing");
+    return { success: true, data: saved };
   } catch (error) {
     if (auditContext) await activity(auditContext.db, auditContext.actor, { provider: "zernio", operation: "social.publish", status: "failed", entityType: "marketing_social_composition", entityId: input.id, reason: input.reason, error });
     return { success: false, error: message(error, "Unable to publish composition") };

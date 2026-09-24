@@ -39,8 +39,9 @@
   "content": {
     "author": "VIZA Editorial",
     "locale": "en",
-    "autoPublish": false,
-    "autoSocial": false,
+    "autoPublish": true,
+    "autoSocial": true,
+    "autoPublishMinScore": 75,
     "minimumRankScore": 65,
     "platforms": ["linkedin", "facebook", "instagram", "pinterest"]
   },

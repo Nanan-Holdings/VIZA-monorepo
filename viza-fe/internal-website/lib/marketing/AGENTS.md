@@ -12,7 +12,11 @@ ranks, and reads sources before generation; `seo-keywords.ts` accepts measured
 keywords only from `content/seo-keywords.json`. `cover.ts` imports remote images
 into the public asset bucket; `editor/**` converts TipTap content to Markdown.
 Cron routes authenticate through `cron-auth.ts`; generated content remains a
-draft until an admin publishes it. `assets.ts` is the single MIME/size allowlist.
+draft until an admin publishes it, except in the scheduled pipeline: when
+`scripts/pipeline.config.json` sets `content.autoPublish` and `content.autoSocial`,
+a run scoring at or above `content.autoPublishMinScore` publishes the article and
+sends its captions with no person involved. Publishing itself lives in
+`publish.ts` so the server actions and the automation share one path. `assets.ts` is the single MIME/size allowlist.
 
 - Provider keys and account IDs must be explicit VIZA environment variables.
   Never add another tenant's values or fallback identifiers.
