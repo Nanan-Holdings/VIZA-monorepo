@@ -1,0 +1,28 @@
+{
+  "scripts": {
+    "dev:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1",
+    "dev:all:with-db": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -WithDb",
+    "dev:all:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -Stop",
+    "dev:all:reset": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-all.ps1 -Reset",
+    "dev:help-internal": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1",
+    "dev:help-internal:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-help-and-internal.ps1 -Stop",
+    "audit:bilingual-schema": "node viza-fe/internal-website/node_modules/tsx/dist/cli.mjs scripts/audit-bilingual-schema-clarity.ts",
+    "db:verify": "cd viza-fe/internal-website && npm run db:verify",
+    "db:migrate:viza": "cd viza-fe/internal-website && npm run db:migrate:viza",
+    "doctor:env": "powershell -ExecutionPolicy Bypass -File scripts/doctor-env.ps1",
+    "security:install-hooks": "./scripts/install-git-hooks.sh",
+    "security:gitleaks": "gitleaks detect --source . --config .gitleaks.toml --redact --no-banner"
+  },
+  "dependencies": {
+    "axios": "^1.14.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.3.1",
+    "playwright": "^1.59.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "wait-on": "^9.0.10"
+  }
+}
