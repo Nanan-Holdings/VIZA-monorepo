@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium, type Page } from "@playwright/test";
 import { fillRetrieveApplicationForm } from "../resume-application";
+import { ValidationFailedError } from "../errors";
 
 test("submits the observed ApplicationRecovery1 ID step before filling security details", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -48,6 +49,7 @@ test("fills the live CEAC ApplicationRecovery1 retrieve controls", async () => {
       return {
         first() { return this; },
         async count() { return matched ? 1 : 0; },
+        async isVisible() { return Boolean(matched); },
         async fill(value: string) {
           if (!matched) throw new Error(`missing selector: ${selector}`);
           values.set(matched, value);
@@ -65,6 +67,8 @@ test("fills the live CEAC ApplicationRecovery1 retrieve controls", async () => {
         },
       };
     },
+    on() {},
+    async evaluate() { return { kind: "settled" }; },
     async waitForLoadState() {},
     async waitForTimeout() {},
   } as unknown as Page;
@@ -120,6 +124,8 @@ test("completes the two-stage CEAC retrieve flow", async () => {
         },
       };
     },
+    on() {},
+    async evaluate() { return { kind: "settled" }; },
     async waitForLoadState() {},
     async waitForTimeout() {},
   } as unknown as Page;
@@ -154,6 +160,7 @@ test("fills CEAC prefilled recovery controls that use txbDOBYear and txbAnswer",
       return {
         first() { return this; },
         async count() { return matched ? 1 : 0; },
+        async isVisible() { return Boolean(matched); },
         async fill(value: string) {
           if (!matched) throw new Error(`missing selector: ${selector}`);
           values.set(matched, value);
@@ -170,6 +177,8 @@ test("fills CEAC prefilled recovery controls that use txbDOBYear and txbAnswer",
         },
       };
     },
+    on() {},
+    async evaluate() { return { kind: "settled" }; },
     async waitForLoadState() {},
     async waitForTimeout() {},
   } as unknown as Page;
@@ -199,6 +208,7 @@ test("targets visible security controls when CEAC keeps hidden duplicates", asyn
       return {
         first() { return this; },
         async count() { return exists ? 1 : 0; },
+        async isVisible() { return exists; },
         async fill() {
           if (isSecurityField && !selector.includes(":visible")) {
             throw new Error("hidden duplicate selected");
@@ -209,6 +219,8 @@ test("targets visible security controls when CEAC keeps hidden duplicates", asyn
         async evaluate() {},
       };
     },
+    on() {},
+    async evaluate() { return { kind: "settled" }; },
     async waitForLoadState() {},
     async waitForTimeout() {},
   } as unknown as Page;
@@ -237,6 +249,7 @@ test("falls back to DOM assignment when CEAC rejects locator.fill", async () => 
       return {
         first() { return this; },
         async count() { return key ? 1 : 0; },
+        async isVisible() { return Boolean(key); },
         async fill() { throw new Error("CEAC rejected fill"); },
         async selectOption() { throw new Error("not a select"); },
         async click() {},
@@ -245,6 +258,8 @@ test("falls back to DOM assignment when CEAC rejects locator.fill", async () => 
         },
       };
     },
+    on() {},
+    async evaluate() { return { kind: "settled" }; },
     async waitForLoadState() {},
     async waitForTimeout() {},
   } as unknown as Page;
@@ -259,3 +274,114 @@ test("falls back to DOM assignment when CEAC rejects locator.fill", async () => 
   assert.equal(values.get("year"), "2006");
   assert.equal(values.get("answer"), "DO_NOT_KNOW");
 });
+
+test("blocks the first retrieve postback when CEAC rejects the Application ID", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await openOfficialRecoveryPage(page, [
+      "<h2>Retrieve an Application</h2>",
+      "<input id=\"tbxApplicationID\">",
+      "<input type=\"button\" id=\"ApplicationRecovery1_btnRetrieve\" value=\"Retrieve Application\"",
+      " onclick=\"document.querySelector('#application-id-error').style.display = 'block'\">",
+      "<span id=\"application-id-error\" class=\"field-validation-error\" style=\"display:none\">",
+      " Application ID was not found.</span>",
+    ].join(""));
+
+    await assert.rejects(
+      fillRetrieveApplicationForm(page, {
+        applicationId: "AA00TEST1234",
+        surnameFirstFive: "SMITH",
+        yearOfBirth: "1990",
+        securityAnswer: "provided-answer",
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ValidationFailedError);
+        assert.equal(error.code, "VALIDATION_FAILED");
+        assert.deepEqual(error.context.validationMessages, [
+          "Application ID could not be verified.",
+        ]);
+        assert.match(error.message, /Application ID could not be verified/);
+        return true;
+      },
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("blocks the second retrieve postback on surname/year mismatch without retrying", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await openOfficialRecoveryPage(page, [
+      "<h2>Retrieve an Application</h2>",
+      "<input id=\"tbxApplicationID\">",
+      "<input id=\"txbSname\">",
+      "<input id=\"txbYear\">",
+      "<input id=\"txbAnswer1\">",
+      "<input type=\"button\" name=\"ApplicationRecovery1$Button1\" value=\"Retrieve Application\"",
+      " onclick=\"document.querySelector('#surname-error').style.display = 'block';",
+      " document.querySelector('#year-error').style.display = 'block'\">",
+      "<span id=\"surname-error\" class=\"field-validation-error\" style=\"display:none\">",
+      " Surname does not match.</span>",
+      "<span id=\"year-error\" class=\"field-validation-error\" style=\"display:none\">",
+      " Year of Birth does not match.</span>",
+    ].join(""));
+
+    await assert.rejects(
+      fillRetrieveApplicationForm(page, {
+        applicationId: "AA00TEST1234",
+        surnameFirstFive: "SMITH",
+        yearOfBirth: "1990",
+        securityAnswer: "provided-answer",
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ValidationFailedError);
+        assert.deepEqual(error.context.validationMessages, [
+          "Surname does not match.",
+          "Year of Birth does not match.",
+        ]);
+        assert.doesNotMatch(error.message, /provided-answer|SMITH|1990/);
+        return true;
+      },
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("waits through a delayed official landing after successful retrieve", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await openOfficialRecoveryPage(page, [
+      "<h2>Retrieve an Application</h2>",
+      "<input id=\"tbxApplicationID\">",
+      "<input id=\"txbSname\">",
+      "<input id=\"txbYear\">",
+      "<input id=\"txbAnswer1\">",
+      "<input type=\"button\" name=\"ApplicationRecovery1$Button1\" value=\"Retrieve Application\"",
+      " onclick=\"setTimeout(() => { document.querySelector('h2').textContent = 'Personal Information 1'; }, 80)\">",
+    ].join(""));
+
+    await fillRetrieveApplicationForm(page, {
+      applicationId: "AA00TEST1234",
+      surnameFirstFive: "SMITH",
+      yearOfBirth: "1990",
+      securityAnswer: "provided-answer",
+    });
+
+    assert.equal(await page.locator("h2").textContent(), "Personal Information 1");
+  } finally {
+    await browser.close();
+  }
+});
+
+async function openOfficialRecoveryPage(page: Page, body: string): Promise<void> {
+  const url = "https://ceac.state.gov/GenNIV/common/Recovery.aspx";
+  await page.route(url, async route => {
+    await route.fulfill({ status: 200, contentType: "text/html", body });
+  });
+  await page.goto(url);
+}

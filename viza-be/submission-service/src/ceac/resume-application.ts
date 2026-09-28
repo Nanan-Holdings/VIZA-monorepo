@@ -21,6 +21,10 @@
  */
 
 import type { Page } from "@playwright/test";
+import { installCeacPostbackMonitor, waitForAspNetPostbackStable } from "./aspnet";
+import { detectPage, type CeacPageId } from "./pages";
+import { readValidationMessages } from "./navigator";
+import { ValidationFailedError } from "./errors";
 import { CEAC_URLS } from "./selectors";
 
 export interface RecoveryCredentials {
@@ -55,6 +59,10 @@ const RETRIEVE_FORM_SELECTORS = {
   continue:
     'input[id*="btnRetrieve"]:visible, input[name*="ApplicationRecovery1$Button1"]:visible, input[id*="btnContinue"]:visible, input[type="submit"][value*="Continue"]:visible, a[id*="lnkContinue"]:visible',
 } as const;
+
+type RetrieveStep = "application_id" | "identity";
+
+const RETRIEVE_POSTBACK_TIMEOUT_MS = 30_000;
 
 /**
  * Fill and submit the CEAC Retrieve Application form.
@@ -103,7 +111,7 @@ export async function fillRetrieveApplicationForm(
     if ((await applicationIdSubmit.count()) === 0) {
       throw new Error("CEAC Retrieve form: application ID step could not be located");
     }
-    await clickAndSettle(page, applicationIdSubmit);
+    await clickAndSettle(page, applicationIdSubmit, "application_id");
   }
   for (const selector of [RETRIEVE_FORM_SELECTORS.surnameFive, RETRIEVE_FORM_SELECTORS.yearOfBirth, RETRIEVE_FORM_SELECTORS.securityAnswer]) {
     if ((await page.locator(selector).count()) === 0) {
@@ -141,7 +149,7 @@ export async function fillRetrieveApplicationForm(
   if ((await continueBtn.count()) === 0) {
     throw new Error("CEAC Retrieve form: no Continue button found");
   }
-  await clickAndSettle(page, continueBtn);
+  await clickAndSettle(page, continueBtn, "identity");
 }
 
 /**
@@ -172,15 +180,114 @@ async function assignDomValue(locator: ReturnType<Page["locator"]>, value: strin
   }, value);
 }
 
-async function clickAndSettle(page: Page, locator: ReturnType<Page["locator"]>): Promise<void> {
+async function clickAndSettle(
+  page: Page,
+  locator: ReturnType<Page["locator"]>,
+  step: RetrieveStep,
+): Promise<void> {
+  // Keep the same response monitor used by ordinary CEAC navigation. A
+  // failed WebForms postback must not be mistaken for a successful retrieve
+  // simply because the old DOM is still present.
+  installCeacPostbackMonitor(page);
   try {
     await locator.click({ force: true, timeout: 10_000 });
   } catch {
     await locator.evaluate("el => el.click()");
   }
+
+  await waitForAspNetPostbackStable(page, RETRIEVE_POSTBACK_TIMEOUT_MS);
+  await throwOnRetrieveValidation(page, step);
+}
+
+/**
+ * CEAC's recovery page may return inline validators rather than navigating.
+ * Surface those as a structured, non-retryable validation error immediately.
+ * Messages are reduced to field categories so applicant answers never enter
+ * the queue result or retry diagnostics.
+ */
+async function throwOnRetrieveValidation(page: Page, step: RetrieveStep): Promise<void> {
+  const report = await readValidationMessages(page);
+  if (!report || report.all.length === 0) return;
+
+  const messages = sanitizeRetrieveValidationMessages([
+    ...report.fieldErrors,
+    ...report.summary,
+  ]);
+  const first = messages[0] ?? "CEAC retrieve credentials could not be verified.";
+  const probe = await probePage(page);
+  throw new ValidationFailedError(
+    `CEAC Retrieve ${step === "application_id" ? "Application ID" : "identity"} validation failed: ${first}`,
+    {
+      expected: "retrieve_application",
+      detected: probe.id,
+      ...(probe.url ? { url: probe.url } : {}),
+      validationMessages: messages,
+      details: {
+        retrieveStep: step,
+        heading: probe.heading,
+        validationSummary: sanitizeRetrieveValidationMessages(report.summary),
+        validationFieldErrors: sanitizeRetrieveValidationMessages(report.fieldErrors),
+      },
+    },
+  );
+}
+
+async function probePage(page: Page): Promise<{
+  id: CeacPageId | "unknown";
+  heading: string | null;
+  url: string;
+}> {
   try {
-    await page.waitForLoadState("networkidle", { timeout: 30_000 });
+    const result = await detectPage(page);
+    return {
+      id: result.id,
+      heading: result.heading,
+      url: redactedPageUrl(result.url) ?? "",
+    };
   } catch {
-    await page.waitForTimeout(3_000);
+    return { id: "unknown", heading: null, url: redactedPageUrl(safePageUrl(page)) ?? "" };
+  }
+}
+
+function sanitizeRetrieveValidationMessages(messages: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const sanitized: string[] = [];
+  for (const message of messages) {
+    const normalized = message.replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    const valueFree = normalized.match(/surname|last name/i)
+      ? "Surname does not match."
+      : normalized.match(/year\s*of\s*birth|birth\s*year/i)
+        ? "Year of Birth does not match."
+        : normalized.match(/security\s*(?:question\s*)?answer|answer\s*(?:to\s*)?security/i)
+          ? "Security answer does not match."
+          : normalized.match(/application\s*id|id\s*(?:number|of\s*)?application/i)
+            ? "Application ID could not be verified."
+            : normalized.match(/captcha|verification\s*code/i)
+              ? "Verification code could not be verified."
+              : "CEAC retrieve credentials could not be verified.";
+    if (!seen.has(valueFree)) {
+      seen.add(valueFree);
+      sanitized.push(valueFree);
+    }
+  }
+  return sanitized;
+}
+
+function safePageUrl(page: Page): string | null {
+  try {
+    return page.url();
+  } catch {
+    return null;
+  }
+}
+
+function redactedPageUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return null;
   }
 }

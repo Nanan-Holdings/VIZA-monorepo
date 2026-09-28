@@ -2,7 +2,7 @@ import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
 import { sendFailureAlert } from "./alert";
@@ -159,6 +159,8 @@ import {
 import { generateTotp } from "./au-visitor/totp";
 import { launchStealthBrowser } from "./ceac/stealth-browser";
 import { uploadArtifact } from "./artifact-storage";
+import { artifact } from "./artifact";
+import { persistDs160InputSnapshot, persistDs160RunEvidence } from "./ceac/audit-artifacts";
 import {
   SubmissionQueueItem,
   ApplicantProfile,
@@ -178,6 +180,8 @@ import {
   claimPendingIndonesiaQueueItems,
   claimPendingSubmissionQueueItems,
   claimPendingVietnamCloudQueueItems,
+  finishDs160Attempt,
+  releaseDs160RetryLease,
   startSubmissionQueueLeaseHeartbeat,
   SubmissionQueueOwnershipLostError,
   type SubmissionQueueLeaseHeartbeat,
@@ -1472,7 +1476,7 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
 
 async function loadDs160Answers(
   applicationId: string,
-  options: { prepareForCeac?: boolean } = {},
+  options: { prepareForCeac?: boolean; onRows?: (rows: VisaApplicationAnswer[]) => void } = {},
 ): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from("visa_application_answers")
@@ -1481,7 +1485,9 @@ async function loadDs160Answers(
 
   if (error) throw new Error(`Failed to load DS-160 answers: ${error.message}`);
 
-  const answers = buildDs160AnswerMap((data ?? []) as VisaApplicationAnswer[]);
+  const rows = (data ?? []) as VisaApplicationAnswer[];
+  options.onRows?.(rows);
+  const answers = buildDs160AnswerMap(rows);
 
   if (options.prepareForCeac) {
     applyEnglishAliases(answers);
@@ -2385,6 +2391,28 @@ async function processDs160Item(
   let recoveryCheckpointAttempted = false;
   let recoveryCheckpointPersisted = false;
   const capturedResumeActive = capturedResumeCheckpoint !== null;
+  const auditArtifacts: Record<string, { storagePath: string; sha256: string }> = {};
+  let auditEvidenceFailed = false;
+  const auditStore = {
+    encrypt: encryptSecret,
+    write: async (name: string, ciphertext: string): Promise<void> => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const uploaded = await Promise.race([
+          artifact.put(item.id, `${runId}/${name}`, ciphertext, { contentType: "application/octet-stream" }),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error("DS-160 private evidence upload timed out")), 30_000);
+          }),
+        ]);
+        auditArtifacts[name] = {
+          storagePath: uploaded.path,
+          sha256: createHash("sha256").update(ciphertext).digest("hex"),
+        };
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
+    },
+  };
   const diagnosticRedactions = Object.entries(process.env)
     .filter(([key]) => /SECRET|TOKEN|PASSWORD|API_KEY|SERVICE_ROLE|CONNECT_URL/i.test(key))
     .map(([, value]) => value ?? "");
@@ -2427,11 +2455,16 @@ async function processDs160Item(
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
     const { profile, documents } = await loadApplicantData(item.application_id);
-    const branchAnswers = await loadDs160Answers(item.application_id);
+    let storedAnswerRows: VisaApplicationAnswer[] = [];
+    const branchAnswers = await loadDs160Answers(item.application_id, { onRows: rows => { storedAnswerRows = rows; } });
     diagnosticRedactions.push(...Object.values(branchAnswers));
+    const answers = deriveDS160Answers({ ...branchAnswers });
+    await persistDs160InputSnapshot(auditStore, {
+      queueId: item.id, applicationId: item.application_id, runId,
+      storedAnswerRows, branchAnswers, answers, profileFallback: profile,
+    });
     assertDs160RequiredAnswers(branchAnswers);
     assertDs160PreparerAnswers(branchAnswers);
-    const answers = deriveDS160Answers({ ...branchAnswers });
     const startLocationCode = resolveCeacStartLocationCode(branchAnswers);
     const photoDocument = await resolveDs160PhotoDocument({
       applicationId: item.application_id,
@@ -2559,6 +2592,10 @@ async function processDs160Item(
           finalSubmissionGuard: {
             ...finalSubmissionGuard,
             begin: async () => {
+              assertQueueLeaseOwned();
+              // Retain the official review before reserving the irreversible
+              // final action, so a later process failure cannot erase it.
+              await persistDs160RunEvidence(auditStore, tempDir, "pre-sign-review.enc");
               assertQueueLeaseOwned();
               return finalSubmissionGuard.begin();
             },
@@ -2953,12 +2990,51 @@ async function processDs160Item(
       }
     }
   } finally {
-    await queueLease?.stopRenewal();
-    if (session) await session.close();
-    if (process.env.DS160_KEEP_TEMP === "1") {
-      console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
-    } else {
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    try {
+      try {
+        await persistDs160RunEvidence(auditStore, tempDir);
+      } catch {
+        auditEvidenceFailed = true;
+        console.error("[ceac] Private run evidence upload failed; comparison evidence is incomplete.");
+      }
+      if (!queueLease?.isOwnershipLost()) {
+        // Read the final payload rather than replacing it with the originally
+        // claimed row; terminal confirmation/recovery evidence must survive.
+        const current = await supabase.from("submission_queue")
+          .select("ceac_result_payload")
+          .eq("id", item.id).eq("locked_by", item.locked_by ?? "")
+          .eq("locked_at", item.locked_at ?? "").maybeSingle();
+        if (current.error) throw new Error("Could not read DS-160 audit evidence references");
+        if (current.data) {
+          const saved = await supabase.from("submission_queue").update({
+            ceac_result_payload: {
+              ...(current.data.ceac_result_payload ?? {}),
+              audit: { runId, artifacts: auditArtifacts, evidenceUploadFailed: auditEvidenceFailed },
+            },
+          }).eq("id", item.id).eq("locked_by", item.locked_by ?? "")
+            .eq("locked_at", item.locked_at ?? "");
+          if (saved.error) throw new Error("Could not save DS-160 audit evidence references");
+        }
+      }
+    } catch {
+      auditEvidenceFailed = true;
+      console.error("[ceac] Audit evidence persistence is incomplete; private local diagnostics retained.");
+    } finally {
+      try {
+        await finishDs160Attempt({
+          closeSession: async () => { if (session) await session.close(); },
+          stopRenewal: async () => { await queueLease?.stopRenewal(); },
+          releaseRetry: async () => {
+            if (!queueLease?.isOwnershipLost()) await releaseDs160RetryLease(supabase, item);
+          },
+        });
+      } finally {
+        if (process.env.DS160_KEEP_TEMP === "1" || auditEvidenceFailed) {
+          console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
+        } else {
+          try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+        }
+      }
     }
   }
 }

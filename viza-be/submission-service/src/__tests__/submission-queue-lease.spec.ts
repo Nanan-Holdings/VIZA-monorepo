@@ -2,12 +2,81 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { createClient } from "@supabase/supabase-js";
 
 import {
   renewSubmissionQueueLease,
+  releaseDs160RetryLease,
+  finishDs160Attempt,
   startSubmissionQueueLeaseHeartbeat,
   SubmissionQueueOwnershipLostError,
 } from "../submission-queue-claim";
+
+test("a failed attempt releases its retry only after browser close and heartbeat stop", async () => {
+  const events: string[] = [];
+  let finishClose!: () => void;
+  const closeDone = new Promise<void>((resolve) => { finishClose = resolve; });
+  const operation = finishDs160Attempt({
+    closeSession: async () => { events.push("closing"); await closeDone; events.push("closed"); },
+    stopRenewal: async () => { events.push("heartbeat_stopped"); },
+    releaseRetry: async () => { events.push("claimable"); },
+  });
+  await Promise.resolve();
+  assert.deepEqual(events, ["closing"]);
+  finishClose();
+  await operation;
+  assert.deepEqual(events, ["closing", "closed", "heartbeat_stopped", "claimable"]);
+});
+
+test("a browser close failure stops renewal without making the job concurrently claimable", async () => {
+  let stopped = false;
+  let released = false;
+  await assert.rejects(finishDs160Attempt({
+    closeSession: async () => { throw new Error("close failed"); },
+    stopRenewal: async () => { stopped = true; },
+    releaseRetry: async () => { released = true; },
+  }), /close failed/);
+  assert.equal(stopped, true);
+  assert.equal(released, false);
+});
+
+test("retry lease release preserves terminal jobs and every newer claim", async () => {
+  const claim = { id: "00000000-0000-4000-8000-000000000003", locked_by: "worker-1", locked_at: "2026-09-28T17:51:32Z" };
+  for (const variation of [
+    { status: "ds160_live_assisted_pending", eligible: true },
+    { status: "ds160_prefill_pending", eligible: true },
+    { status: "ds160_live_submitted", eligible: false },
+    { status: "ds160_processing", eligible: false },
+    { status: "ds160_live_assisted_pending", locked_by: "worker-2", eligible: false },
+    { status: "ds160_live_assisted_pending", locked_at: "2026-09-28T18:00:00Z", eligible: false },
+    { status: "ds160_live_assisted_pending", id: "another-job", eligible: false },
+  ]) {
+    const row: Record<string, unknown> = { ...claim, locked_until: "2026-09-28T18:07:00Z", ...variation };
+    const before = { ...row };
+    const client = createClient("https://unit.invalid", "unit-test-key", {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: async (input, init) => {
+        const url = new URL(String(input));
+        assert.equal(init?.method, "PATCH");
+        assert.equal(url.pathname, "/rest/v1/submission_queue");
+        const matches = ["id", "locked_by", "locked_at"].every((key) => url.searchParams.get(key) === `eq.${row[key]}`)
+          && url.searchParams.get("status")?.slice(4, -1).split(",").includes(String(row.status));
+        if (matches) Object.assign(row, JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(matches ? { id: row.id } : null), {
+          status: 200, headers: { "Content-Type": "application/json" },
+        });
+      } },
+    });
+    assert.equal(await releaseDs160RetryLease(client, claim), variation.eligible);
+    if (variation.eligible) {
+      assert.equal(row.locked_until, null);
+      assert.equal(row.locked_by, null);
+      assert.equal(row.status, before.status);
+    } else {
+      assert.deepEqual(row, before);
+    }
+  }
+});
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
 const migrationPath = path.join(

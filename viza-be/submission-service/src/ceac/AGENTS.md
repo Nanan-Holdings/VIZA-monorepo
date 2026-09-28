@@ -160,12 +160,12 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    fence through ownership-checked Supabase RPCs and reads the same table
    before bootstrap. Automatic retries must reuse the same authorization; an
    explicit resubmission must use a new one.
-   A captured-application resume is narrower: it is enabled only by the
-   server-only exact `DS160_RESUME_CAPTURED_JOB_ID` queue-job match, requires
-   all three encrypted checkpoint fields to agree with the application row,
-   requires no application-level final-fence attempt, and must verify the
-   retrieved DOM's same Application ID before orchestration. Otherwise route
-   to `action_required`; never create a new CEAC draft or repeat final click.
+   A captured-application resume requires all three encrypted checkpoint
+   fields to agree with the application row, no application-level final-fence
+   attempt, and verification of the retrieved DOM's same Application ID before
+   orchestration. Ordinary authorized retries use this planner automatically;
+   they no longer require the legacy exact-job environment override. Otherwise
+   route to `action_required`; never create a new CEAC draft or repeat final click.
    `submission-retry.ts` performs the read-only pre-browser decision for a
    retry: a complete, same-application encrypted checkpoint may resume a
    pre-final draft, while any final fence, official success evidence, malformed
@@ -227,7 +227,19 @@ Then follow:
 
 ## Related Files
 
+`audit-artifacts.ts` preserves the worker's exact stored-answer rows, original
+answer map, normalized map and profile fallback before official navigation,
+then retains allowlisted official review JSON/screenshots and failure evidence
+before run-directory cleanup. Both artifacts are encrypted with the existing
+submission secret cipher and stored privately under the queue/run identity.
+Review evidence is pre-sign evidence and does not itself prove submission.
+The DS-160 attempt cleanup closes its browser and stops lease renewal before
+releasing a retry's exact owner/claim-timestamp lease, so the startup drain can
+claim the bounded retry without leaving a pending row permanently idle.
+
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/ceac/audit-artifacts.ts`
+- `viza-be/submission-service/src/ceac/__tests__/audit-artifacts.spec.ts`
 - `viza-be/submission-service/src/ds160-form-mappings.ts`
 - `viza-be/submission-service/src/ds160-coverage-audit.ts`
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`

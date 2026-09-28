@@ -1,4 +1,41 @@
 import type { SubmissionQueueItem } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Release a settled retry only after its browser and heartbeat have stopped. */
+export async function releaseDs160RetryLease(
+  client: SupabaseClient,
+  item: Pick<SubmissionQueueItem, "id" | "locked_by" | "locked_at">,
+): Promise<boolean> {
+  // The claim timestamp also fences a later claim by a reused worker ID.
+  if (!item.locked_by?.trim() || !item.locked_at) return false;
+  const { data, error } = await client
+    .from("submission_queue")
+    .update({ locked_by: null, locked_at: null, locked_until: null })
+    .eq("id", item.id)
+    .eq("locked_by", item.locked_by)
+    .eq("locked_at", item.locked_at)
+    .in("status", ["ds160_live_assisted_pending", "ds160_prefill_pending"])
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Failed to release DS-160 retry lease: ${error.message}`);
+  return data !== null;
+}
+
+/** Keep the old claim until official browser work has completely ended. */
+export async function finishDs160Attempt(input: {
+  closeSession: () => Promise<void>;
+  stopRenewal: () => Promise<void>;
+  releaseRetry: () => Promise<unknown>;
+}): Promise<void> {
+  try {
+    await input.closeSession();
+  } catch (error) {
+    await input.stopRenewal();
+    throw error;
+  }
+  await input.stopRenewal();
+  await input.releaseRetry();
+}
 
 export interface SubmissionQueueClaimOptions {
   workerId: string;

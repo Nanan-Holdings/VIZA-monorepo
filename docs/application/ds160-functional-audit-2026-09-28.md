@@ -203,3 +203,47 @@ error `请先补齐或修正以下信息：雇主名称。` with no browser cons
 existing recovery result remained visible. This confirms the correction path;
 it is not proof of a new official submission. The local isolated test server
 was stopped after verification.
+
+## Live retry monitoring and comparison evidence follow-up
+
+The applicant's 17:48 UTC retry created a pending job, but did not start the
+stopped legacy machine. The frontend passed `united_states` to a Fly target
+resolver that did not recognize that alias, and the generic URL fallback could
+select the Vietnam endpoint. DS-160 now uses an explicit legacy wake helper;
+reusing a pending DS-160 job wakes that same job, while processing jobs are not
+woken again. Production legacy app and URL values were verified. All 42
+focused frontend tests, type checking and lint passed (no lint errors).
+
+The existing machine was started at 17:51 UTC for the already queued run.
+CEAC reached Retrieve Application, then timed out without reaching a form page.
+The original screenshot existed only in a deleted temporary directory, so the
+exact official validation text from that attempt is unknown. Historical errors
+are not evidence of the current failure. Retrieve now reads official inline
+validation after each monitored postback and reports value-free credential
+categories as structured validation failures. Its 23 focused tests passed.
+
+The failed job became pending but retained its claim lease. The immediate drain
+therefore found no claimable job; no periodic drain existed to retry after lease
+expiry, while the pending row prevented idle shutdown. Cleanup now closes the
+browser, stops renewal, and releases only the pending DS-160 row belonging to
+that exact owner and claim timestamp. Eleven lease/lifecycle tests passed.
+The live machine reported no active or protected work and was stopped at
+18:10 UTC while the fixes were prepared.
+
+The worker now encrypts its exact stored answer rows, original and normalized
+maps, and profile fallback before official navigation. It also encrypts and
+uploads allowlisted official review snapshots, read-back expectations, review
+diffs and failure screenshots before temporary cleanup. Review evidence is
+required in private storage before reserving the final submission action.
+Queue payload audit references include storage paths and ciphertext hashes;
+upload failures retain local diagnostics and remain explicitly incomplete.
+Three artifact regressions passed. The storage bucket is private. Review
+artifacts are pre-sign evidence, not proof of official submission or of complete
+coverage of every official field.
+
+An additional protected local baseline contained 349 answer rows, with no answer
+updated after the first run started. It was captured after startup, so it is
+not asserted to be the exact first attempt's in-memory input. A post-success
+comparison must use the new pre-navigation snapshot, official field evidence,
+branches, repeat indexes and NA states, and explicitly report unsupported,
+missing or ambiguous evidence rather than declaring unconditional parity.
