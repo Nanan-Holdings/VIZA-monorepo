@@ -34,6 +34,13 @@ function field(overrides: Partial<VisaFormFieldRow>): VisaFormFieldRow {
 }
 
 describe("bilingual schema contract", () => {
+  it("keeps DS-160 national identity numbers literal in every language", () => {
+    expect(usesBilingualAnswerPair(field({
+      fieldName: "national_id_number", visaType: "DS160",
+      validationRules: { maxLength: 20 },
+    }))).toBe(false);
+    expect(usesBilingualAnswerPair(field({ fieldName: "surname", visaType: "DS160" }))).toBe(true);
+  });
   it("uses DS-160 field context for ambiguous option values and stale translations", () => {
     for (const [fieldName, value, text, staleLabel, expected] of [
       ["passport_document_type", "official", "OFFICIAL", "公务人员", "公务护照"],

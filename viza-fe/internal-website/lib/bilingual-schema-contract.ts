@@ -32,6 +32,9 @@ type FieldLike = Pick<
 
 export function usesBilingualAnswerPair(field: FieldLike): boolean {
   if (field.fieldName === "full_name_native_alphabet") return false;
+  // Identity numbers have one literal value in every interface language.
+  // Historical translated companions must not override a later correction.
+  if (field.visaType === "DS160" && field.fieldName === "national_id_number") return false;
   if (field.fieldType !== "text" && field.fieldType !== "textarea") return false;
 
   const rules = field.validationRules as {

@@ -1,5 +1,11 @@
 # Internal Website Agent Guide
 
+DS-160 national identity numbers are literal structured values, not bilingual
+translations. `lib/bilingual-schema-contract.ts` keeps entry and final review
+on the canonical value even when historical `_zh`/`_en` mirrors remain stored;
+the runner consumes that same canonical key. The schema, input-prefill and
+review-localization tests cover this stale-mirror regression.
+
 `app/admin/(marketing)/marketing/**` and `lib/marketing/**` implement the staff editorial portal and content pipeline. `scripts/pipeline.config.json` stores VIZA source and voice rules; `scripts/build-seo-keywords.mjs` imports measured keyword exports. Public blog reads are in `app/api/public/marketing/blog/**`. Keep provider credentials in server environment variables only.
 
 `lib/ds160-photo-contract.ts` shares the byte-level U.S. DS-160 photo checks

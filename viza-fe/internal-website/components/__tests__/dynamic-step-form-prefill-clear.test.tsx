@@ -105,6 +105,21 @@ function changeValue(container: HTMLElement, fieldName: string, value: string) {
 }
 
 describe("DynamicStepForm prefill clear protection", () => {
+  it("displays and saves the corrected DS-160 identity number despite stale language copies", async () => {
+    mockLocale = "zh";
+    const onDraftChange = vi.fn();
+    const step = stepFor([field({
+      fieldName: "national_id_number", visaType: "DS160", label: "National Identification Number",
+    })]);
+    const { container } = render(<DynamicStepForm
+      step={step} visaType="DS160" country="united_states"
+      prefill={{ national_id_number: "CURRENT-ID-X", national_id_number_zh: "OLD-ID", national_id_number_en: "OLD-ID" }}
+      onComplete={vi.fn()} onDraftChange={onDraftChange}
+    />);
+    expect(valueFor(container, "national_id_number")).toBe("CURRENT-ID-X");
+    fireEvent.change(getControl(container, "national_id_number"), { target: { value: "CORRECTED-ID-X" } });
+    await waitFor(() => expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({ national_id_number: "CORRECTED-ID-X" })));
+  });
   it("recovers stale prompt mirrors from a saved DS-160 answer without replacing genuine source text", () => {
     mockLocale = "zh";
     const step = stepFor([

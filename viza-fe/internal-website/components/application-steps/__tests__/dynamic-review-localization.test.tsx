@@ -51,6 +51,13 @@ function baseField(overrides: Partial<WizardStep["fields"][number]>): WizardStep
 }
 
 describe("dynamic review localization", () => {
+  test("reviews corrected DS-160 identity numbers instead of stale language copies", () => {
+    const field = baseField({ fieldName: "national_id_number", visaType: "DS160" });
+    const answers = { national_id_number: "CURRENT-ID-X", national_id_number_zh: "OLD-ID", national_id_number_en: "OLD-ID" };
+    for (const side of ["zh", "en"] as const) {
+      expect(getBilingualReviewValue(answers, field.fieldName, answers.national_id_number, field, side)).toBe("CURRENT-ID-X");
+    }
+  });
   test.each([
     ["us_social_security_number", "DOES_NOT_APPLY", "不适用", "text", { allow_does_not_apply: true }],
     ["father_date_of_birth", "DO_NOT_KNOW", "不知道", "date", { allow_do_not_know: true }],
