@@ -66,6 +66,10 @@ cold start, sizing, readiness, leases, and cleanup settings are preserved.
 
 `src/deploy-readiness.ts` contains the pure safety decision used before a
 retained Fly machine is stopped or replaced; keep its focused test in sync.
+The legacy Fly worker claims DS-160 jobs. Its deployment config explicitly
+enables live-assisted CEAC with the review/final-submit guards, headless mode,
+and a bounded US Browserbase proxy session. Do not release frontend retry UI
+without updating this worker image and verifying these runtime flags.
 
 Scope: this file applies to `viza-be/submission-service/**`.
 
@@ -193,14 +197,20 @@ and must fail closed; callers must not perform a direct table settlement.
   `ds160_final_submission_attempts` authorization row and ownership-checked
   RPCs. Each retry reads that fence, the application-scoped
   `ds160_application_id`/submission result, and the queue's encrypted
-  recovery checkpoint before CEAC bootstrap; `started`, `unknown`, `confirmed`, or
-  an existing captured Application ID routes to proof recovery or
-  `action_required`, never a new draft or final click. A click whose
+  recovery checkpoint before CEAC bootstrap. A complete, identity-matched
+  checkpoint with no final attempt resumes the same draft automatically,
+  including when an explicit frontend retry created a new queue row. The
+  checkpoint is copied onto the owned retry row before CEAC Retrieve. Missing
+  or mismatched checkpoints and `started`, `unknown`, or `confirmed` final
+  attempts route to result recovery or an explained stop, never a new draft
+  or replayed final click. A click whose
   confirmation remains unknown is permanently reviewable for that authorization;
   a new explicit resubmission must use a new authorization id.
 - `src/queue/captured-resume-recovery.ts` and
   `scripts/queue/recover-ds160-captured-resume.ts` are the operator-only
-  continuation path for a captured DS-160 queue row. The command is read-only
+  diagnostic/continuation tool for a captured DS-160 queue row. Normal customer
+  retries now use `src/ceac/submission-retry.ts` and do not require an operator
+  or the former `DS160_RESUME_CAPTURED_JOB_ID` environment override. The command is read-only
   by default and requires exact application/job UUIDs plus `--execute` for the
   conditional status transition. It must preserve all encrypted recovery
   fields and never replace the captured queue row with a new retry job.
@@ -236,6 +246,12 @@ and must fail closed; callers must not perform a direct table settlement.
 - `src/index.ts`: startup/wake queue consumers, optional legacy polling,
   Supabase data loading, document download, per-country dispatch, retry/failure
   handling, stale maintenance, and queue status transitions.
+- `src/ceac/submission-retry.ts`: read-only application-wide final-attempt and
+  official-result checks, encrypted checkpoint selection across retry queue
+  rows, and bounded runtime-failure classification. Validation and official
+  gates stop for correction; transient pre-final failures retain their draft
+  and use the existing attempt limit. Keep its focused tests alongside the
+  final-submission guard, lease, and captured-resume tests.
 - `src/documents/reusable-document-aliases.ts` and
   `src/documents/resolve-application-documents.ts`: map private Universal
   Profile passport, portrait, bank-statement, insurance, signature, and

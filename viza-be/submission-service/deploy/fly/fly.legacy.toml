@@ -11,6 +11,22 @@ kill_timeout = "5m"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
   SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
+  # Applicant-authorized DS-160 jobs are claimed by this legacy worker.
+  # Preserve the review and durable final-submit guards when recovering drafts.
+  DS160_SUBMISSION_MODE = "live_assisted"
+  DS160_LIVE_SUBMISSION_ENABLED = "true"
+  DS160_LIVE_ASSISTED_ONLY = "true"
+  DS160_REQUIRE_FINAL_USER_CONFIRMATION = "true"
+  DS160_REQUIRE_OFFICIAL_REVIEW_DIFF_PASS = "true"
+  DS160_CEAC_BASE_URL = "https://ceac.state.gov/genniv/"
+  DS160_PLAYWRIGHT_HEADLESS = "true"
+  DS160_LIVE_MAX_DURATION_SECONDS = "1800"
+  CEAC_BROWSERBASE_ENABLED = "true"
+  CEAC_BROWSERBASE_PROXIES = "true"
+  CEAC_BROWSERBASE_REGION = "us-east-1"
+  CEAC_BROWSERBASE_COUNTRY = "US"
+  CEAC_BROWSERBASE_TIMEOUT_SECONDS = "1800"
+  BROWSERBASE_MAX_CONCURRENCY = "1"
   # Vietnam e-Visa live jobs use a cloud-only queue status and RPC that older
   # local workers cannot see or claim.
   VN_CLOUD_QUEUE_ENABLED = "true"

@@ -1,5 +1,25 @@
 # DS-160 captured-resume operator recovery
 
+## Normal applicant retry (2026-09-28)
+
+The applicant's normal retry button now continues an existing unsigned draft
+without this operator command or an exact-job environment override. Before
+opening CEAC, the worker reads application-wide final-attempt records and
+official success evidence, then validates the encrypted recovery checkpoint
+against the saved official Application ID. A new queue row may recover the
+checkpoint from the same application's previous queue rows. The worker copies
+the validated checkpoint to its owned row and uses Retrieve, verifies the
+official identity, and rewinds the same draft to update its saved answers.
+
+Transient failures before final signing retain the draft and use the existing
+three-attempt limit. Official validation failures and portal gates wait for a
+correction/retry. Started, unknown, or confirmed final attempts never authorize
+a repeated final click. A saved `.dat` file alone is not submission evidence.
+The optional operator diagnostics below remain available for legacy blocked
+rows; they are not a required customer step.
+
+## Optional operator diagnostics
+
 This command is an operator-only continuation for a DS-160 queue row that
 already contains a captured CEAC Application ID and encrypted retrieval
 question/answer. It does not create a new CEAC draft and it never submits the
@@ -40,11 +60,10 @@ row is inserted between the read-only preflight and the conditional update,
 Postgres rejects the status change rather than allowing two active jobs. The
 command does not bypass that constraint or introduce a second public RPC.
 
-After a successful transition, run the worker with the server-only exact job
-gate, after verifying the live deployment flags through the operator runbook:
+After a successful transition, a diagnostic worker may be scoped to the exact
+job after verifying the live deployment flags through the operator runbook:
 
 ```powershell
-$env:DS160_RESUME_CAPTURED_JOB_ID = "<queue-job-uuid>"
 $env:SUBMISSION_SERVICE_TARGET_JOB_ID = "<queue-job-uuid>"
 ```
 
@@ -67,7 +86,6 @@ $env:VN_CLOUD_QUEUE_ENABLED = "false"
 $env:SUBMISSION_SERVICE_INDONESIA_QUEUE_ENABLED = "false"
 $env:SUBMISSION_SERVICE_MAX_CONCURRENCY = "1"
 $env:SUBMISSION_SERVICE_TARGET_JOB_ID = "<queue-job-uuid>"
-$env:DS160_RESUME_CAPTURED_JOB_ID = "<queue-job-uuid>"
 $env:DS160_SUBMISSION_MODE = "live_assisted"
 $env:DS160_LIVE_SUBMISSION_ENABLED = "true"
 $env:DS160_LIVE_ASSISTED_ONLY = "true"
@@ -96,6 +114,7 @@ Keep `BROWSERBASE_MAX_CONCURRENCY=1` for this one-shot run.
 
 The CEAC worker still performs captured-resume validation, retrieves the same
 official Application ID, applies the official review-diff gate, and uses the
-durable final-submission guard before any final click. The normal retry route
-and `intent=new_application` must not be used because they supersede the
-captured checkpoint and create a different queue/draft.
+durable final-submission guard before any final click. Customer recovery uses
+the normal `intent=retry` route, which resolves the original checkpoint even
+when the queue RPC creates a replacement row. Do not use `intent=new_application`
+for recovery; creating another application is a separate workflow.

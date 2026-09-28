@@ -62,11 +62,8 @@ import {
   type FinalSubmissionRpcClient,
   resolveCeacStartLocationCode,
 } from "./ceac";
-import {
-  isExactDs160ResumeJob,
-  validateCapturedDs160Resume,
-  type CapturedDs160ResumeCheckpoint,
-} from "./ceac/captured-resume";
+import type { CapturedDs160ResumeCheckpoint } from "./ceac/captured-resume";
+import { classifyDs160RetryFailure, loadDs160RetryPlan } from "./ceac/submission-retry";
 import {
   assertRecoveredDs160Application,
   rewindRecoveredDs160ApplicationToPersonalInformation1,
@@ -1885,7 +1882,7 @@ async function updateDs160Metadata(
 
 async function persistDs160RecoveryCheckpoint(
   item: SubmissionQueueItem,
-  confirm: ConfirmApplicationCheckpoint,
+  confirm: Pick<ConfirmApplicationCheckpoint, "applicationId" | "securityQuestionText" | "securityAnswer">,
 ): Promise<void> {
   const ownerId = item.locked_by?.trim();
   if (!ownerId) throw new Error("DS-160 recovery checkpoint requires the queue lease owner.");
@@ -1935,19 +1932,6 @@ async function persistDs160RecoveryCheckpoint(
   }
 }
 
-function hasDs160RecoveryCheckpoint(item: SubmissionQueueItem): boolean {
-  if (item.official_application_id_encrypted || item.official_security_answer_encrypted) {
-    return true;
-  }
-  const recovery = item.ceac_result_payload?.recovery;
-  return (
-    typeof recovery === "object" &&
-    recovery !== null &&
-    !Array.isArray(recovery) &&
-    (recovery as Record<string, unknown>).status === "application_captured"
-  );
-}
-
 interface Ds160StoredSubmissionState {
   officialApplicationId: string | null;
   submissionResult: Partial<UsSubmissionResult> | null;
@@ -1977,52 +1961,6 @@ async function readDs160SubmissionResult(
       ? (value as Partial<UsSubmissionResult>)
       : null;
   return { officialApplicationId, submissionResult };
-}
-
-/**
- * Read and validate the only checkpoint that may authorize a captured-CEAC
- * resume. The job-id gate is checked by the caller before this function is
- * reached, so an ordinary retry never decrypts or uses these secrets.
- */
-async function loadDs160CapturedResumeCheckpoint(
-  item: SubmissionQueueItem,
-): Promise<CapturedDs160ResumeCheckpoint> {
-  const stored = await readDs160SubmissionResult(item.application_id);
-  const { data, error } = await supabase
-    .from("ds160_final_submission_attempts")
-    .select("id,state")
-    .eq("application_id", item.application_id);
-  if (error) {
-    throw new Error(`DS-160 captured-resume final fence lookup failed: ${error.message}`);
-  }
-
-  const decision = validateCapturedDs160Resume({
-    applicationId: stored.officialApplicationId,
-    officialApplicationIdEncrypted: item.official_application_id_encrypted,
-    officialSecurityQuestionEncrypted: item.official_security_question_encrypted,
-    officialSecurityAnswerEncrypted: item.official_security_answer_encrypted,
-    decryptSecret,
-    finalFenceStates: (data ?? []).map((row) =>
-      row && typeof row === "object" ? (row as { state?: unknown }).state : undefined,
-    ),
-    submissionAlreadyRecorded:
-      stored.submissionResult?.country === "US" &&
-      stored.submissionResult.status === "submitted",
-  });
-  if (!decision.ok) {
-    throw new Error(`DS-160 captured resume rejected: ${decision.reason}`);
-  }
-  return decision.checkpoint;
-}
-
-function hasExistingDs160Application(state: Ds160StoredSubmissionState): boolean {
-  const resultApplicationId = state.submissionResult?.country === "US"
-    ? state.submissionResult.applicationId
-    : null;
-  return Boolean(
-    state.officialApplicationId ||
-    (typeof resultApplicationId === "string" && resultApplicationId.trim()),
-  );
 }
 
 async function markDs160FinalSubmissionActionRequired(
@@ -2084,7 +2022,7 @@ async function routeDs160ExistingFinalSubmission(
   storedState?: Ds160StoredSubmissionState,
 ): Promise<void> {
   const message =
-    "A DS-160 application already exists from an earlier submission attempt. Automatic new-draft and final-submit retries are disabled; verify or recover the existing CEAC application.";
+    "The saved DS-160 recovery information or previous final-submission result needs verification before this application can continue.";
 
   try {
     const stored = storedState ?? (await readDs160SubmissionResult(item.application_id));
@@ -2163,51 +2101,6 @@ async function routeDs160ExistingFinalSubmission(
         `[ceac] Failed to persist DS-160 recovery stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
       );
     }
-  }
-}
-
-async function preflightDs160FinalSubmission(
-  item: SubmissionQueueItem,
-  finalSubmissionGuard: ReturnType<typeof createDs160FinalSubmissionGuard>,
-  options: { allowCapturedResume?: boolean } = {},
-): Promise<boolean> {
-  const allowCapturedResume = options.allowCapturedResume === true;
-  if (hasDs160RecoveryCheckpoint(item) && !allowCapturedResume) {
-    await routeDs160ExistingFinalSubmission(item, "application_captured");
-    return false;
-  }
-
-  try {
-    // The durable application row is shared by every queue retry. Check it
-    // before the per-queue-id fence so a new queue row cannot create a second
-    // CEAC draft for an application that already has an official identity.
-    const stored = await readDs160SubmissionResult(item.application_id);
-    if (hasExistingDs160Application(stored) && !allowCapturedResume) {
-      await routeDs160ExistingFinalSubmission(item, "existing_application_metadata", stored);
-      return false;
-    }
-
-    const inspection = await finalSubmissionGuard.inspect();
-    if (inspection.kind === "available") return true;
-    await routeDs160ExistingFinalSubmission(item, inspection.kind, stored);
-    return false;
-  } catch (error) {
-    console.error(
-      `[ceac] DS-160 final-submission guard preflight failed for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    try {
-      await markDs160FinalSubmissionActionRequired(
-        item,
-        "guard_inspection_failed",
-        "The DS-160 final-submission fence could not be verified. Automatic retries are disabled until the existing CEAC application is reviewed.",
-        true,
-      );
-    } catch (fallbackError) {
-      console.error(
-        `[ceac] Failed to persist DS-160 guard stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-      );
-    }
-    return false;
   }
 }
 
@@ -2451,37 +2344,34 @@ async function processDs160Item(
     return;
   }
 
-  const capturedResumeRequested = isExactDs160ResumeJob(
-    item.id,
-    process.env.DS160_RESUME_CAPTURED_JOB_ID,
-  );
   let capturedResumeCheckpoint: CapturedDs160ResumeCheckpoint | null = null;
-  if (capturedResumeRequested) {
-    try {
-      capturedResumeCheckpoint = await loadDs160CapturedResumeCheckpoint(item);
-    } catch (error) {
-      console.error(
-        `[ceac] DS-160 captured resume rejected for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      try {
-        await markDs160FinalSubmissionActionRequired(
-          item,
-          "captured_resume_validation_failed",
-          "The captured DS-160 resume checkpoint or final-submission fence could not be verified safely. Automatic retries are disabled until the existing CEAC application is reviewed.",
-          true,
-        );
-      } catch (fallbackError) {
-        console.error(
-          `[ceac] Failed to persist captured-resume validation stop for application=${redactIdentifier(item.application_id)}: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-        );
-      }
+  try {
+    // An explicit retry may create a new queue row. Recover its checkpoint
+    // from the same application, while checking every final-submit fence.
+    // Merely receiving a CEAC Application ID is not a final submission.
+    const plan = await loadDs160RetryPlan(supabase, item.application_id, item, decryptSecret);
+    if (plan.kind === "recover") {
+      await routeDs160ExistingFinalSubmission(item, plan.reason);
       return;
     }
+    capturedResumeCheckpoint = plan.kind === "resume" ? plan.checkpoint : null;
+    const inspection = await finalSubmissionGuard.inspect();
+    if (inspection.kind !== "available") {
+      await routeDs160ExistingFinalSubmission(item, inspection.kind);
+      return;
+    }
+  } catch (error) {
+    console.error(
+      `[ceac] DS-160 retry preflight failed for application=${redactIdentifier(item.application_id)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    await markDs160FinalSubmissionActionRequired(
+      item,
+      "guard_inspection_failed",
+      "The saved DS-160 draft and submission result could not be verified. Retry once the recovery service is available.",
+      true,
+    );
+    return;
   }
-
-  if (!(await preflightDs160FinalSubmission(item, finalSubmissionGuard, {
-    allowCapturedResume: capturedResumeCheckpoint !== null,
-  }))) return;
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
@@ -2524,6 +2414,15 @@ async function processDs160Item(
     });
 
     await setSubmissionStatus(item.application_id, "processing");
+
+    if (capturedResumeCheckpoint) {
+      // Copy the validated checkpoint to this owned retry row before opening
+      // CEAC, so future retries do not depend on an older queue record.
+      assertQueueLeaseOwned();
+      recoveryCheckpointAttempted = true;
+      await persistDs160RecoveryCheckpoint(item, capturedResumeCheckpoint);
+      recoveryCheckpointPersisted = true;
+    }
 
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
@@ -2584,8 +2483,7 @@ async function processDs160Item(
       runId,
       diagnosticDirectory: tempDir,
       startLocationCode,
-      // Leave the original bootstrap option untouched unless this exact,
-      // server-authorized captured-resume job is running.
+      // Every validated captured draft uses Retrieve, never New Application.
       ...(capturedResumeActive ? { startAction: "retrieve" as const } : {}),
     });
     assertQueueLeaseOwned();
@@ -2817,16 +2715,8 @@ async function processDs160Item(
         String(recoveryFailurePayload.reason),
       );
 
-      if (capturedResumeActive) {
-        await routeDs160ExistingFinalSubmission({ ...item, ceac_result_payload: recoveryFailurePayload }, "application_captured");
-        return;
-      }
       if (recoveryCheckpointAttempted && !recoveryCheckpointPersisted) {
         await routeDs160ExistingFinalSubmission(item, "recovery_checkpoint_failed");
-        return;
-      }
-      if (recoveryCheckpointPersisted) {
-        await routeDs160ExistingFinalSubmission(item, "application_captured");
         return;
       }
       try {
@@ -2854,8 +2744,27 @@ async function processDs160Item(
         return;
       }
 
+      // Data rejection and explicit portal gates require a correction or a
+      // later user retry; do not burn all attempts on unchanged input.
+      const retryDisposition = classifyDs160RetryFailure(result.error, item.attempts, MAX_ATTEMPTS);
+      if (retryDisposition === "blocked") {
+        await updateOwnedDs160Queue(item, {
+          status: "ds160_blocked",
+          current_stage: "portal_action_required",
+          last_error: String(recoveryFailurePayload.reason),
+          ceac_result_payload: recoveryFailurePayload,
+          updated_at: new Date().toISOString(),
+        });
+        await writeSubmissionResult(
+          item.application_id,
+          buildDs160ActionRequiredResult(item.application_id, "portal_action_required", String(recoveryFailurePayload.reason)),
+          "action_required",
+        );
+        return;
+      }
+
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS
+      const newStatus = retryDisposition === "failed"
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
@@ -2867,7 +2776,7 @@ async function processDs160Item(
           updated_at: new Date().toISOString(),
         });
 
-      if (newAttempts >= MAX_ATTEMPTS) {
+      if (retryDisposition === "failed") {
         await markSubmissionFailed(item.application_id, errorMsg);
         await sendDs160FailureAlertIfEnabled(item.application_id, `[CEAC] ${errorMsg}`);
       }
@@ -2916,17 +2825,23 @@ async function processDs160Item(
       return;
     }
 
-    if (capturedResumeActive) {
-      const payload = withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions);
-      console.error(`[ceac] Captured resume failed: ${String(payload.reason)}`);
-      await routeDs160ExistingFinalSubmission({ ...item, ceac_result_payload: payload }, "application_captured");
+    if (recoveryCheckpointAttempted && !recoveryCheckpointPersisted) {
+      await routeDs160ExistingFinalSubmission(item, "recovery_checkpoint_failed");
       return;
     }
 
-    if (recoveryCheckpointAttempted) {
-      await routeDs160ExistingFinalSubmission(
-        item,
-        recoveryCheckpointPersisted ? "application_captured" : "recovery_checkpoint_failed",
+    // Preserve the one-shot fence even if an exception happened after CEAC
+    // accepted the final click but before local result persistence finished.
+    try {
+      const inspection = await finalSubmissionGuard.inspect();
+      if (inspection.kind !== "available") {
+        await routeDs160ExistingFinalSubmission(item, inspection.kind);
+        return;
+      }
+    } catch {
+      await markDs160FinalSubmissionActionRequired(
+        item, "guard_inspection_failed",
+        "The DS-160 submission result could not be verified. Check the existing result before retrying.", true,
       );
       return;
     }
@@ -2988,6 +2903,20 @@ async function processDs160Item(
         item.application_id,
         `[CEAC gate detected] ${errorMsg}`,
       );
+    } else if (classifyDs160RetryFailure(err, item.attempts, MAX_ATTEMPTS) === "blocked") {
+      const payload = withDs160RecoveryFailure(item.ceac_result_payload, err, runId, diagnosticRedactions);
+      await updateOwnedDs160Queue(item, {
+        status: "ds160_blocked",
+        current_stage: "portal_action_required",
+        last_error: String(payload.reason),
+        ceac_result_payload: payload,
+        updated_at: new Date().toISOString(),
+      });
+      await writeSubmissionResult(
+        item.application_id,
+        buildDs160ActionRequiredResult(item.application_id, "portal_action_required", String(payload.reason)),
+        "action_required",
+      );
     } else {
       // Genuine worker/runtime failure — standard retry logic
       console.error(
@@ -3002,7 +2931,8 @@ async function processDs160Item(
       }
 
       const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS
+      const retryDisposition = classifyDs160RetryFailure(err, item.attempts, MAX_ATTEMPTS);
+      const newStatus = retryDisposition === "failed"
         ? liveAssisted ? "ds160_live_assisted_failed" : "ds160_prefill_failed"
         : liveAssisted ? "ds160_live_assisted_pending" : "ds160_prefill_pending";
 
@@ -3014,7 +2944,7 @@ async function processDs160Item(
           updated_at: new Date().toISOString(),
         });
 
-      if (newAttempts >= MAX_ATTEMPTS) {
+      if (retryDisposition === "failed") {
         console.error(
           `[ceac] Max attempts reached for application=${redactIdentifier(item.application_id)}`,
         );

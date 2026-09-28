@@ -106,3 +106,59 @@ this audit.
   complete, and its input was enabled and not read-only.
 - No live applicant answers were edited during this check, and no official
   submission was initiated or repeated.
+
+## Follow-up: duties wording and captured-draft retries
+
+The applicant's follow-up exposed two gaps outside the earlier NA-answer fix:
+
+- `Briefly Describe Your Duties` was translated with an extra Chinese
+  "if applicable" suffix. CEAC requires the control in the visible current
+  employer/school branch, including Student; retired, homemaker, unemployed,
+  and empty occupation hide that branch. Removed the misleading suffix and
+  retained the required/visibility rules. The existing official browser
+  evidence contains the missing-duties validation error.
+- The runner treated any captured official Application ID as a possible final
+  submission and allowed continuation only through an operator's exact-job
+  environment override. The ordinary retry RPC creates a new queue row, so its
+  empty checkpoint further obscured the previous draft's recovery information.
+  A read-only check of the affected draft found a complete encrypted recovery
+  checkpoint, zero final-submission attempts, and a blocked recovery state.
+
+Normal retries now read application-wide final-attempt/success evidence and
+validate the current or historical same-application encrypted checkpoint before
+opening CEAC. An unsigned draft uses Retrieve and must pass the existing
+official identity and page checks. Transient pre-final failures reuse this
+draft within the existing attempt limit. Official input rejection and portal
+gates wait for correction; missing recovery secrets, mismatched IDs, and any
+final-attempt record cannot cause a fresh draft or a repeated final click.
+
+The submission UI uses an explicit localized retry entry instead of presenting
+this internal recovery state as a CAPTCHA/manual-verification task. It routes
+through the parent's save-before-submit callback when available. The shared
+atomic enqueue RPC still isolates applications and prevents duplicate active
+jobs, as in the other supported submission flows. Confirmed successful DS-160s
+retain the separate owner-authorized new-application flow, which copies answers
+to a new draft and preserves the earlier result.
+
+Read-only execution of the new retry planner against the affected draft and an
+empty retry-row input returned `resume / captured_application_checkpoint`.
+An earlier transient database read failure returned a recovery stop and did not
+open CEAC; the subsequent independent read succeeded. No applicant answers or
+official application were changed by these probes.
+
+The cloud rollout inspection also found that the retained legacy worker had
+neither DS-160 live flags nor CEAC Browserbase flags in its machine environment
+or secret names. Its defaults would reject live requests before CEAC. The
+legacy deployment configuration now explicitly enables the already-authorized
+live-assisted flow, preserves review and final-submit guards, and uses the US
+Browserbase proxy with a bounded 1,800-second session. The retained shared
+2-CPU/4-GB machine, 120-second idle exit, queue routing, and zero minimum
+running machines remain unchanged.
+
+Follow-up checks: 79 frontend tests across translation, recovery card, enqueue,
+page orchestration, navigation, and reconciliation passed; the existing retry
+and separate new-application API suites passed 31 tests. Browser checks used
+the actual application page/components with an isolated in-memory fixture:
+the Student duties field had no misleading optional suffix, and the retry
+entry reached the simulated queue/result without console errors. This is
+synthetic browser evidence, not a new official CEAC submission.

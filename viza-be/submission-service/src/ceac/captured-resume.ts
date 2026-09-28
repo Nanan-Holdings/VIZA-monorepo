@@ -2,7 +2,7 @@
  * Pure safety checks for resuming a DS-160 after CEAC issued an Application ID
  * but before the final Sign and Submit flow began.
  *
- * The worker owns the environment-variable gate and supplies a decryption
+ * The worker reads application-wide retry state and supplies a decryption
  * callback. Keeping the decision here free of Supabase, Playwright, and
  * process-global state makes the fail-closed behavior independently testable.
  */

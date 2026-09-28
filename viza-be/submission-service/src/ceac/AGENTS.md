@@ -166,6 +166,12 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    requires no application-level final-fence attempt, and must verify the
    retrieved DOM's same Application ID before orchestration. Otherwise route
    to `action_required`; never create a new CEAC draft or repeat final click.
+   `submission-retry.ts` performs the read-only pre-browser decision for a
+   retry: a complete, same-application encrypted checkpoint may resume a
+   pre-final draft, while any final fence, official success evidence, malformed
+   history or unreadable checkpoint fails closed to recovery. It may inspect
+   historical queue rows when a newly enqueued retry row is empty, but it must
+   never treat a saved `.dat` artifact as proof of official submission.
 7. `photo-document.ts` selects the frontend-uploaded DS-160 photo document for
    the worker. Only when no application photo row exists may its owner-scoped
    metadata loader select the newest explicitly usable Universal Profile
@@ -231,6 +237,8 @@ Then follow:
 - `viza-be/submission-service/src/ceac/__tests__/signature-fields.spec.ts`
 - `viza-be/submission-service/src/ceac/final-submission-guard.ts`
 - `viza-be/submission-service/src/ceac/captured-resume.ts`
+- `viza-be/submission-service/src/ceac/submission-retry.ts`
+- `viza-be/submission-service/src/ceac/__tests__/submission-retry.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/captured-resume.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/final-submission-guard.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/orchestrator-final-submit.spec.ts`
