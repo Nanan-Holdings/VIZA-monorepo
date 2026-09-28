@@ -275,3 +275,32 @@ terminal data/recovery blocker. The user was asked to distinguish a new
 submission based on the current frontend answers from comparison of their
 separate September 20 submitted application; those records must not be swapped
 silently. No post-submission parity conclusion is available for this failed run.
+
+The user subsequently chose to preserve existing records and create a fresh
+application from the current frontend data, submit it, then compare its official
+fields. The copy source is the blocked application's 349 current saved answer
+rows and its owner-scoped document references, not the separate September 20
+successful application. A fresh application must not inherit old CEAC recovery
+credentials, queue claims or final-submission authorizations. Copy verification,
+new submission and post-success comparison remain pending until their actual
+results are recorded below.
+
+Read-only preflight of the current source against attempt three's encrypted
+input snapshot found 349 unique raw text answers and 378 derived keys. Raw and
+derived maps matched exactly, with zero added, dropped or changed raw answers.
+Twelve input keys intentionally became explicit NA/unknown flags; no repeat
+rows or nonempty inactive conditional answers existed in this record. This is
+input integrity evidence, not an official review comparison. The source's one
+application document is a passport copy; its photo is an existing same-owner
+Universal Profile JPEG (95,384 bytes), selected by the normal photo resolver.
+The object exists; this metadata check does not certify official photo acceptance.
+
+The existing new-application API now accepts an explicit `restart_unsigned`
+intent for an owned terminal DS-160 attempt. It rejects active or unclassified
+jobs, live/ambiguous leases, final-submission fences and official success;
+expired terminal leases and draft `.dat` backups do not imply submission. It
+copies current answers and document references without copying CEAC recovery
+material. Existing or concurrently populated drafts must match both the source
+answers and documents before reuse. Twenty-four focused route tests passed;
+frontend type checking and lint passed with no errors. Production creation and
+the new official run are still separate verification steps.

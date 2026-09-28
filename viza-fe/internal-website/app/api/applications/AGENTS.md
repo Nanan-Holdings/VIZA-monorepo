@@ -89,6 +89,14 @@ ports directly.
   ongoing-draft unique-constraint race. It must not enqueue official
   submission work. Real-draft reuse excludes `VIZA_PLACEHOLDER_DRY_RUN`, matching
   the ongoing-draft index; never remove a QA marker to make a live retry pass.
+  An explicit JSON body of `{ "intent": "restart_unsigned" }` is the only
+  supported path for a same-owner DS-160 blocked/failed terminal source whose
+  official submission has not succeeded. It fails closed when active queue/job
+  work or a `ds160_final_submission_attempts` fence exists, then creates or
+  reuses the owner draft, copies only applicant answers and
+  `application_documents` references, and never copies CEAC identifiers,
+  recovery metadata, or secrets. Both paths return `{ applicationId, href }`;
+  copied drafts use HTTP 201 and non-empty owner drafts use HTTP 200.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so
