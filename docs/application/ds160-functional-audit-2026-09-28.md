@@ -458,3 +458,15 @@ The focused recovery-card, retry API, queue-contract and status-route suites
 passed 99/99. Frontend type-check passed, and full lint had no errors (57
 pre-existing warnings); the final changed-file lint likewise had no errors.
 Deployment and production browser verification are recorded separately below.
+
+Production deployment `dpl_GZH6ouj5DGD1DnJHdLCyj2RZPTKN`, release commit
+`1875802a`, reached READY and was aliased to `app.viza.it.com`. The organization
+CLI identity, linked project/team and release author were verified; the final
+dry upload included 1,974 files and no environment, MCP, browser-evidence,
+build-cache or backend files. The authenticated production application loaded
+the corrected card: the correction-retry button was enabled, the obsolete
+disabled manual-continue button was absent, and no nonempty alert appeared.
+The button was not clicked while the factual question was pending. Post-smoke
+database checks still showed two historical queue rows, zero final attempts,
+and 371 answers. This verifies the repaired UI entry, not a completed official
+retry or field-by-field submission comparison.
