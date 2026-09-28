@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import {
   Warning as AlertTriangle,
@@ -1511,6 +1511,7 @@ export function SubmissionStatusStep({
   const [localRetryActive, setLocalRetryActive] = useState(false);
   const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
   const [activeProgressCycleKey, setActiveProgressCycleKey] = useState<string | null>(null);
+  const submissionStartingRef = useRef(false);
   const [retryCompleteness, setRetryCompleteness] = useState<ApplicationCompletenessResult | null>(null);
 
   const handleRetry = useCallback(async (
@@ -1757,7 +1758,19 @@ export function SubmissionStatusStep({
     setLocalRetryActive(false);
     setActiveRetryQueueId(null);
     setActiveProgressCycleKey(null);
+    submissionStartingRef.current = false;
   }, [applicationId, country, visaType]);
+
+  useEffect(() => {
+    const wasStarting = submissionStartingRef.current;
+    submissionStartingRef.current = submissionStarting;
+    if (!submissionStarting || wasStarting || localRetryActive) return;
+
+    // The optimistic card can remount when enqueue finishes, before a queue ID
+    // is available. Keep one cycle from the submit click through queue polling;
+    // nested parent submissions must retain the cycle created by handleRetry.
+    setActiveProgressCycleKey(`submit:${applicationId}:${Date.now()}`);
+  }, [applicationId, country, localRetryActive, submissionStarting, visaType]);
 
   useEffect(() => {
     if (!applicationId) return;
@@ -2032,6 +2045,8 @@ export function SubmissionStatusStep({
           message={isZh ? "自动提交任务正在启动。" : "The automated submission is starting."}
           applicationId={applicationId}
           persistenceKey={submissionProgressPersistenceKey(null)}
+          progressCycleKey={activeProgressCycleKey}
+          resetProgressOnMount={Boolean(activeProgressCycleKey)}
           country={country}
           visaType={visaType}
         />

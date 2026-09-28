@@ -329,6 +329,209 @@ describe("DigitalArrivalCardResultCard", () => {
     window.sessionStorage.removeItem(`viza:smooth-progress:${persistenceKey}`);
   });
 
+  it("keeps first-submit progress when the optimistic status card remounts before a queue id arrives", () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise<never>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId: "first-submit-progress-application",
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "6",
+    );
+  });
+
+  it("keeps progress when the queue arrives with a stale lower server value", async () => {
+    vi.useFakeTimers();
+    let statusCall = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (!url.endsWith("/submission-status")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ account: null }),
+        };
+      }
+
+      statusCall += 1;
+      const body = statusCall === 1
+        ? {
+            status: "queued",
+            stage: "preparing",
+            progress: 0,
+            result: null,
+            error: null,
+            message: "The submission is queued.",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+            applicationStatus: "waiting",
+            country: "france",
+            visaType: "FR_SCHENGEN_C_SHORT_STAY",
+            queue: null,
+          }
+        : {
+            status: "running",
+            stage: "filling_form",
+            progress: 0,
+            result: null,
+            error: null,
+            message: "The runner is filling the official portal form.",
+            updatedAt: "2026-09-28T00:00:01.000Z",
+            applicationStatus: "waiting",
+            country: "france",
+            visaType: "FR_SCHENGEN_C_SHORT_STAY",
+            queue: {
+              id: "queue-arrival-stale-progress",
+              status: "processing",
+              mode: "live_assisted",
+              provider: "france_visas_live",
+              currentStage: "filling_form",
+            },
+          };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => body,
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId: "queue-arrival-progress-application",
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(statusCall).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+  });
+
+  it("starts a fresh cycle for a new parent submission after a prior cycle progressed", () => {
+    vi.useFakeTimers();
+    const applicationId = "explicit-cycle-reset-application";
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+      new Promise<never>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const props = {
+      applicationId,
+      country: "france",
+      visaType: "FR_SCHENGEN_C_SHORT_STAY",
+      status: "waiting" as const,
+      result: null,
+    };
+    const view = render(<SubmissionStatusStep {...props} submissionStarting />);
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    const oldCycleStorageKey = Array.from({ length: window.sessionStorage.length }, (_, index) =>
+      window.sessionStorage.key(index),
+    ).find((key): key is string =>
+      key !== null &&
+      key.startsWith("viza:smooth-progress:progress-cycle:submit:") &&
+      key.includes(applicationId),
+    );
+    expect(oldCycleStorageKey).toBeDefined();
+    if (oldCycleStorageKey) window.sessionStorage.setItem(oldCycleStorageKey, "88");
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "0",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    view.rerender(<SubmissionStatusStep {...props} submissionStarting={false} />);
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toHaveAttribute(
+      "aria-valuenow",
+      "5",
+    );
+
+    const cycleStorageKeys = Array.from({ length: window.sessionStorage.length }, (_, index) =>
+      window.sessionStorage.key(index),
+    ).filter((key): key is string =>
+      key !== null &&
+      key.startsWith("viza:smooth-progress:progress-cycle:submit:") &&
+      key.includes(applicationId),
+    );
+    for (const key of cycleStorageKeys) window.sessionStorage.removeItem(key);
+  });
+
   it("renders a legacy Vietnam payment checkpoint as needs attention without payment controls", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/official-fee/status")) {
