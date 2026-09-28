@@ -162,3 +162,32 @@ the actual application page/components with an isolated in-memory fixture:
 the Student duties field had no misleading optional suffix, and the retry
 entry reached the simulated queue/result without console errors. This is
 synthetic browser evidence, not a new official CEAC submission.
+
+The final read-only production replay exposed an empty-string legacy `.dat`
+path. Treating that optional artifact as malformed identity falsely blocked
+a valid checkpoint. A regression now preserves `resume` for that exact shape;
+14 planner tests and the final 27-test guard/config/readiness set passed.
+
+The runner image built from `26b4942d` was released to the actual DS-160
+claimant, `viza-prod-submission-legacy`, retained machine `7849e2ef6ddd28`:
+`sha256:5aa896d4fcbbc7696b038574b72f1a27291548ab8da1514e167e3abf2fb8c71d`.
+Pre-update readiness reported no active work or protected sessions. After the
+update, `/ready` confirmed database reachability and worker startup; startup
+logs confirmed live mode, headless mode, and the review/final-submit flags.
+Machine readback confirmed the US Browserbase proxy, concurrency one, unchanged
+shared 2-CPU/4-GB sizing, and 120-second idle exit. It subsequently stopped
+automatically. No additional retained machine was created.
+
+An actual production retry click did not enqueue a job: the saved duties
+answer contained an unsupported not-applicable sentinel. It also exposed a
+UI error-lifetime bug: the parent switched the status card into its starting
+view, unmounting the card whose local error state was used for failures. Parent
+validation errors were hidden while the prior submission result was shown.
+The page now retains the parent error outside the transient card and includes
+the rejected field labels in the retry message. A full ApplicationPage browser
+fixture reproduced the saved-result/loading/remount sequence: an invalid
+duties sentinel produced a visible correction message with no enqueue, then
+editing the synthetic duties answer and retrying saved the answers and produced
+exactly one simulated submission request and a completed result. Browser
+console errors were empty. The final status-card/navigation regression ran
+36 tests successfully, and frontend type checking passed.

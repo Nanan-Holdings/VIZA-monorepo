@@ -70,6 +70,29 @@ describe("GenericResultCard DS-160 recovery", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("shows a parent retry validation failure in the recovery card", async () => {
+    const onResubmit = vi.fn().mockRejectedValue(
+      new Error("请先补齐或修正以下信息：美国社会安全号码（如适用）。"),
+    );
+
+    render(
+      <GenericResultCard
+        applicationId="ds160-application-id"
+        applicationCountry="united_states"
+        applicationVisaType="DS160"
+        jobId={null}
+        result={recoveryResult}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "重试 DS-160" }));
+
+    expect(
+      await screen.findByText("请先补齐或修正以下信息：美国社会安全号码（如适用）。"),
+    ).toBeInTheDocument();
+  });
+
   it("uses the guarded ordinary retry intent when no parent review callback exists", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({}), {

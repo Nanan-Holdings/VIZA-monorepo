@@ -269,6 +269,22 @@ function buildDraftAssistantMessage(
   return copy.question(nextField.label, nextField.labelZh);
 }
 
+function buildRetryMissingFieldsMessage(
+  missingFields: MissingApplicationField[],
+  isZh: boolean,
+): string {
+  const labels = missingFields
+    .map((field) => (isZh ? field.labelZh ?? field.label : field.label) || field.fieldName)
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .filter((label, index, allLabels) => allLabels.indexOf(label) === index);
+  const listedFields = labels.join(isZh ? "、" : ", ");
+
+  return isZh
+    ? `请先补齐或修正以下信息：${listedFields || "申请表字段"}。`
+    : `Complete or correct the following fields before retrying: ${listedFields || "the application fields"}.`;
+}
+
 function reconcileDraftFormAssistantState(
   state: FormAssistantState,
   options: {
@@ -4536,9 +4552,13 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         scrollToStepPanel(statusStepIndex);
-        throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+        throw new Error(
+          submissionIntent === "retry"
+            ? buildRetryMissingFieldsMessage(missing, isZhInterface)
+            : isZhInterface
+              ? "请先补齐审核申请页末尾列出的缺失信息。"
+              : "Please complete the missing information listed at the end of Review Application.",
+        );
       }
       if (!isJpTourist && !isKrC39) {
         // Standard automated-submission countries enqueue a job for the
@@ -4774,9 +4794,13 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         scrollToStepPanel(fallbackStatusStepIndex);
-        throw new Error(isZhInterface
-          ? "请先补齐审核申请页末尾列出的缺失信息。"
-          : "Please complete the missing information listed at the end of Review Application.");
+        throw new Error(
+          submissionIntent === "retry"
+            ? buildRetryMissingFieldsMessage(missing, isZhInterface)
+            : isZhInterface
+              ? "请先补齐审核申请页末尾列出的缺失信息。"
+              : "Please complete the missing information listed at the end of Review Application.",
+        );
       }
       // Persist the complete DS-160 answer set from hardcoded steps
       const normalizeResult = await persistDS160AnswerSet(
@@ -5573,6 +5597,7 @@ export default function ApplicationPage() {
                                   reviewIssues={formAssistantFieldReviewIssueMap}
                                 />
                               ) : null}
+                              {error ? <ClientErrorAlert message={error} /> : null}
                               <SubmissionStatusStep
                                 onSubmissionResult={handlePolledSubmissionResult}
                                 applicationId={appState.applicationId}
@@ -5717,6 +5742,7 @@ export default function ApplicationPage() {
                                   showAction={false}
                                 />
                               ) : null}
+                              {error ? <ClientErrorAlert message={error} /> : null}
                               <SubmissionStatusStep
                                 onSubmissionResult={handlePolledSubmissionResult}
                                 applicationId={appState.applicationId}
