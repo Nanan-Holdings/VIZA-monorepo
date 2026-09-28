@@ -3003,8 +3003,10 @@ async function processDs160Item(
         const current = await supabase.from("submission_queue")
           .select("ceac_result_payload")
           .eq("id", item.id).eq("locked_by", item.locked_by ?? "")
-          .eq("locked_at", item.locked_at ?? "").maybeSingle();
-        if (current.error) throw new Error("Could not read DS-160 audit evidence references");
+          .eq("locked_at", item.locked_at ?? "")
+          .gt("locked_until", new Date().toISOString())
+          .abortSignal(AbortSignal.timeout(15_000)).maybeSingle();
+        if (current.error || !current.data) throw new Error("Could not read DS-160 audit evidence references");
         if (current.data) {
           const saved = await supabase.from("submission_queue").update({
             ceac_result_payload: {
@@ -3012,8 +3014,10 @@ async function processDs160Item(
               audit: { runId, artifacts: auditArtifacts, evidenceUploadFailed: auditEvidenceFailed },
             },
           }).eq("id", item.id).eq("locked_by", item.locked_by ?? "")
-            .eq("locked_at", item.locked_at ?? "");
-          if (saved.error) throw new Error("Could not save DS-160 audit evidence references");
+            .eq("locked_at", item.locked_at ?? "")
+            .gt("locked_until", new Date().toISOString())
+            .select("id").abortSignal(AbortSignal.timeout(15_000)).maybeSingle();
+          if (saved.error || !saved.data) throw new Error("Could not save DS-160 audit evidence references");
         }
       }
     } catch {

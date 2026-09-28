@@ -16,6 +16,7 @@ export async function releaseDs160RetryLease(
     .eq("locked_at", item.locked_at)
     .in("status", ["ds160_live_assisted_pending", "ds160_prefill_pending"])
     .select("id")
+    .abortSignal(AbortSignal.timeout(15_000))
     .maybeSingle();
   if (error) throw new Error(`Failed to release DS-160 retry lease: ${error.message}`);
   return data !== null;
